@@ -16,6 +16,7 @@ import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedAdminStaffRouteImport } from './routes/_authenticated/admin/staff'
 import { Route as AuthenticatedAdminLocationsRouteImport } from './routes/_authenticated/admin/locations'
+import { Route as AuthenticatedAdminStaffIndexRouteImport } from './routes/_authenticated/admin/staff.index'
 import { Route as AuthenticatedAdminStaffNewRouteImport } from './routes/_authenticated/admin/staff.new'
 import { Route as AuthenticatedAdminStaffStaffIdRouteImport } from './routes/_authenticated/admin/staff.$staffId'
 
@@ -54,6 +55,12 @@ const AuthenticatedAdminLocationsRoute =
     path: '/locations',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminStaffIndexRoute =
+  AuthenticatedAdminStaffIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAdminStaffRoute,
+  } as any)
 const AuthenticatedAdminStaffNewRoute =
   AuthenticatedAdminStaffNewRouteImport.update({
     id: '/new',
@@ -76,15 +83,16 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
   '/admin/staff/new': typeof AuthenticatedAdminStaffNewRoute
+  '/admin/staff/': typeof AuthenticatedAdminStaffIndexRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/': typeof AuthenticatedIndexRoute
   '/admin/locations': typeof AuthenticatedAdminLocationsRoute
-  '/admin/staff': typeof AuthenticatedAdminStaffRouteWithChildren
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
   '/admin/staff/new': typeof AuthenticatedAdminStaffNewRoute
+  '/admin/staff': typeof AuthenticatedAdminStaffIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -97,6 +105,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
   '/_authenticated/admin/staff/new': typeof AuthenticatedAdminStaffNewRoute
+  '/_authenticated/admin/staff/': typeof AuthenticatedAdminStaffIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -109,15 +118,16 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/admin/staff/$staffId'
     | '/admin/staff/new'
+    | '/admin/staff/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
     | '/'
     | '/admin/locations'
-    | '/admin/staff'
     | '/admin'
     | '/admin/staff/$staffId'
     | '/admin/staff/new'
+    | '/admin/staff'
   id:
     | '__root__'
     | '/_authenticated'
@@ -129,6 +139,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/'
     | '/_authenticated/admin/staff/$staffId'
     | '/_authenticated/admin/staff/new'
+    | '/_authenticated/admin/staff/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -187,6 +198,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminLocationsRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/staff/': {
+      id: '/_authenticated/admin/staff/'
+      path: '/'
+      fullPath: '/admin/staff/'
+      preLoaderRoute: typeof AuthenticatedAdminStaffIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminStaffRoute
+    }
     '/_authenticated/admin/staff/new': {
       id: '/_authenticated/admin/staff/new'
       path: '/new'
@@ -207,12 +225,14 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedAdminStaffRouteChildren {
   AuthenticatedAdminStaffStaffIdRoute: typeof AuthenticatedAdminStaffStaffIdRoute
   AuthenticatedAdminStaffNewRoute: typeof AuthenticatedAdminStaffNewRoute
+  AuthenticatedAdminStaffIndexRoute: typeof AuthenticatedAdminStaffIndexRoute
 }
 
 const AuthenticatedAdminStaffRouteChildren: AuthenticatedAdminStaffRouteChildren =
   {
     AuthenticatedAdminStaffStaffIdRoute: AuthenticatedAdminStaffStaffIdRoute,
     AuthenticatedAdminStaffNewRoute: AuthenticatedAdminStaffNewRoute,
+    AuthenticatedAdminStaffIndexRoute: AuthenticatedAdminStaffIndexRoute,
   }
 
 const AuthenticatedAdminStaffRouteWithChildren =
