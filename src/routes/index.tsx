@@ -15,15 +15,15 @@ export const Route = createFileRoute("/")({
 // IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
 function Index() {
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
+    <main className="flex min-h-screen items-center justify-center bg-background px-4">
+      <div className="text-center">
+        <h1 className="text-4xl font-semibold tracking-tight text-foreground">
+          Willkommen
+        </h1>
+        <p className="mt-3 text-sm text-muted-foreground">
+          Deine neue React-App ist bereit.
+        </p>
+      </div>
+    </main>
   );
 }
