@@ -59,6 +59,7 @@ export function parseTagesabrechnungCsv(csvText: string): NormalizedShift[] {
       shiftDate,
       breakMinutes: 0, // existiert in dieser Quelle nicht
       altTotals: totals,
+      isHoliday: (r.is_holiday ?? "").toLowerCase() === "true",
     };
 
     // Abwesenheit: kein start/end ODER absence_type gesetzt.

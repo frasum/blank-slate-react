@@ -57,6 +57,7 @@ export function parseBunkerCsv(csvText: string): NormalizedShift[] {
       altEmployeeName,
       shiftDate,
       breakMinutes,
+      isHoliday: false,
       // Bunker liefert kein SFN-Topf-Set; nur total_hours für rudimentären Abgleich.
       altTotals: {
         totalHours: numOrZero(r.total_hours),
