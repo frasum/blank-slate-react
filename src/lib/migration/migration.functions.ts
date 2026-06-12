@@ -14,18 +14,12 @@
 //     wird gesetzt (separater audit_log-Eintrag via setTimeLock-Pfad — hier inline).
 
 import { createServerFn } from "@tanstack/react-start";
-import { createHash } from "node:crypto";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import type { Json } from "@/integrations/supabase/types";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
-import { writeAuditLog } from "@/lib/admin/audit";
-import { loadTimeLock } from "@/lib/time/time-lock";
-import { parseBunkerCsv } from "./parse-bunker";
-import { parseTagesabrechnungCsv } from "./parse-tagesabrechnung";
-import { importKeyOf, localTimesOf, sundayHolidayOf } from "./derivations";
+import { localTimesOf, sundayHolidayOf } from "./derivations";
 import { reconcile } from "./reconcile";
-import type { NormalizedShift, SkipReason, SourceSystem } from "./normalize";
+import { emptyCounters, executeImport, parseCsvFor } from "./run-import-core";
 
 // =========================================================================
 // Eingabe-Schemata
@@ -60,28 +54,6 @@ const reconcileInputSchema = z.object({
 // =========================================================================
 // Hilfen
 // =========================================================================
-
-type Counters = {
-  read: number;
-  imported: number;
-  skippedByReason: Record<SkipReason, number>;
-};
-
-function emptyCounters(): Counters {
-  return {
-    read: 0,
-    imported: 0,
-    skippedByReason: { absence: 0, invalid_time: 0, unmapped_staff: 0, duplicate: 0 },
-  };
-}
-
-function parseCsv(sourceSystem: SourceSystem, csvText: string): NormalizedShift[] {
-  return sourceSystem === "bunker" ? parseBunkerCsv(csvText) : parseTagesabrechnungCsv(csvText);
-}
-
-function sha256(text: string): string {
-  return createHash("sha256").update(text, "utf8").digest("hex");
-}
 
 /** Normalisiert Namen für Levenshtein-Match: lower, ohne Diakritika und Sonderzeichen. */
 function normalizeName(s: string): string {
@@ -135,7 +107,7 @@ export const parseImportCsv = createServerFn({ method: "POST" })
   .inputValidator((input) => parseInputSchema.parse(input))
   .handler(async ({ data, context }) => {
     await loadAdminCaller(context.supabase, context.userId, "admin");
-    const shifts = parseCsv(data.sourceSystem, data.csvText);
+    const shifts = parseCsvFor(data.sourceSystem, data.csvText);
     const counters = emptyCounters();
     counters.read = shifts.length;
     for (const s of shifts) {
@@ -281,160 +253,15 @@ export const runImport = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    const shifts = parseCsv(data.sourceSystem, data.csvText);
-    const fileHash = sha256(data.csvText);
-    const counters = emptyCounters();
-    counters.read = shifts.length;
-
-    // 1) Bestätigte Identity-Map laden.
-    const { data: mapRows, error: mapErr } = await supabaseAdmin
-      .from("staff_identity_map")
-      .select("alt_id, staff_id, confirmed_at")
-      .eq("organization_id", caller.organizationId)
-      .eq("source_system", data.sourceSystem);
-    if (mapErr) throw mapErr;
-    const mapByAltId = new Map<string, string | null>();
-    for (const m of mapRows ?? []) {
-      if (m.confirmed_at) mapByAltId.set(m.alt_id, m.staff_id);
-    }
-
-    // 2) Vorhandene import_keys laden (Idempotenz-Check vor INSERT).
-    const { data: existingRows, error: exErr } = await supabaseAdmin
-      .from("time_entries")
-      .select("import_key")
-      .eq("organization_id", caller.organizationId)
-      .eq("source", "import")
-      .not("import_key", "is", null);
-    if (exErr) throw exErr;
-    const existingKeys = new Set<string>();
-    for (const r of existingRows ?? []) if (r.import_key) existingKeys.add(r.import_key);
-
-    // 3) Zeilen klassifizieren.
-    type Insertable = {
-      organization_id: string;
-      staff_id: string;
-      started_at: string;
-      ended_at: string;
-      business_date: string;
-      break_minutes: number;
-      source: "import";
-      import_key: string;
-    };
-    const inserts: Insertable[] = [];
-    let maxBusinessDate: string | null = null;
-
-    for (const s of shifts) {
-      if (s.skipReason !== null) {
-        counters.skippedByReason[s.skipReason]++;
-        continue;
-      }
-      const altKey = s.altEmployeeId || s.altEmployeeName;
-      const staffId = altKey ? mapByAltId.get(altKey) ?? null : null;
-      if (!staffId) {
-        counters.skippedByReason.unmapped_staff++;
-        continue;
-      }
-      const importKey = importKeyOf(s);
-      if (existingKeys.has(importKey)) {
-        counters.skippedByReason.duplicate++;
-        continue;
-      }
-      if (!s.startedAt || !s.endedAt) {
-        counters.skippedByReason.invalid_time++;
-        continue;
-      }
-      inserts.push({
-        organization_id: caller.organizationId,
-        staff_id: staffId,
-        started_at: s.startedAt,
-        ended_at: s.endedAt,
-        business_date: s.shiftDate,
-        break_minutes: s.breakMinutes,
-        source: "import",
-        import_key: importKey,
-      });
-      if (!maxBusinessDate || s.shiftDate > maxBusinessDate) maxBusinessDate = s.shiftDate;
-    }
-
-    if (data.mode === "dry_run") {
-      counters.imported = inserts.length; // potenziell — kein Schreibvorgang
-      return { mode: data.mode, fileHash, counters, runId: null, lockedThrough: null };
-    }
-
-    // 4) Commit-Modus: import_runs anlegen, batchweise inserten, audit + lock.
-    const { data: runRow, error: runErr } = await supabaseAdmin
-      .from("import_runs")
-      .insert({
-        organization_id: caller.organizationId,
-        source_system: data.sourceSystem,
-        file_hash: fileHash,
-        mode: data.mode,
-        counters: counters as unknown as Json,
-        created_by: caller.userId,
-      })
-      .select("id")
-      .single();
-    if (runErr || !runRow) throw runErr ?? new Error("import_runs insert failed");
-    const runId = runRow.id;
-
-    if (inserts.length > 0) {
-      const CHUNK = 500;
-      for (let i = 0; i < inserts.length; i += CHUNK) {
-        const slice = inserts.slice(i, i + CHUNK);
-        const { error } = await supabaseAdmin.from("time_entries").insert(slice);
-        if (error) throw error;
-      }
-    }
-    counters.imported = inserts.length;
-
-    await supabaseAdmin
-      .from("import_runs")
-      .update({
-        finished_at: new Date().toISOString(),
-        counters: counters as unknown as Json,
-      })
-      .eq("id", runId);
-
-    await writeAuditLog({
+    return executeImport({
+      admin: supabaseAdmin,
       organizationId: caller.organizationId,
       actorUserId: caller.userId,
       actorStaffId: caller.staffId,
-      action: "time_entries.import",
-      entity: "import_runs",
-      entityId: runId,
-      meta: { sourceSystem: data.sourceSystem, fileHash, counters },
+      sourceSystem: data.sourceSystem,
+      csvText: data.csvText,
+      mode: data.mode,
     });
-
-    // 5) Wasserlinie auf max(business_date) setzen, aber nur vorwärts.
-    let newLock: string | null = null;
-    if (maxBusinessDate) {
-      const before = await loadTimeLock(supabaseAdmin, caller.organizationId);
-      if (!before || maxBusinessDate > before) {
-        const { error: lockErr } = await supabaseAdmin
-          .from("organization_settings")
-          .upsert(
-            {
-              organization_id: caller.organizationId,
-              time_locked_through_date: maxBusinessDate,
-            },
-            { onConflict: "organization_id" },
-          );
-        if (lockErr) throw lockErr;
-        newLock = maxBusinessDate;
-        await writeAuditLog({
-          organizationId: caller.organizationId,
-          actorUserId: caller.userId,
-          actorStaffId: caller.staffId,
-          action: "settings.time_lock_moved",
-          entity: "organization_settings",
-          entityId: caller.organizationId,
-          meta: { before, after: maxBusinessDate, reason: "import_commit", runId },
-        });
-      }
-    }
-
-    return { mode: data.mode, fileHash, counters, runId, lockedThrough: newLock };
   });
 
 /** Abgleichsbericht: Alt-Topf vs. neu via tagesabrechnung-Adapter berechnet. */
