@@ -95,24 +95,23 @@ function normalizeName(s: string): string {
 
 function levenshtein(a: string, b: string): number {
   if (a === b) return 0;
-  if (!a.length) return b.length;
-  if (!b.length) return a.length;
-  const prev = new Array(b.length + 1);
-  for (let j = 0; j <= b.length; j++) prev[j] = j;
-  for (let i = 1; i <= a.length; i++) {
-    let curr = i;
-    let diag = prev[0];
+  const m = a.length;
+  const n = b.length;
+  if (!m) return n;
+  if (!n) return m;
+  const prev = new Array<number>(n + 1);
+  for (let j = 0; j <= n; j++) prev[j] = j;
+  for (let i = 1; i <= m; i++) {
+    let prevDiag = prev[0];
     prev[0] = i;
-    for (let j = 1; j <= b.length; j++) {
+    for (let j = 1; j <= n; j++) {
       const tmp = prev[j];
       const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      curr = Math.min(prev[j] + 1, prev[j - 1] + 1, diag + cost);
-      prev[j - 1] = curr === undefined ? prev[j - 1] : prev[j - 1];
-      prev[j] = curr;
-      diag = tmp;
+      prev[j] = Math.min(prev[j] + 1, prev[j - 1] + 1, prevDiag + cost);
+      prevDiag = tmp;
     }
   }
-  return prev[b.length];
+  return prev[n];
 }
 
 /** Schwelle: <= 2 oder Distanz / max(len) <= 0.2 — bewusst eng, lieber „kein Vorschlag". */
