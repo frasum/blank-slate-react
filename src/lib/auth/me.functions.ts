@@ -9,6 +9,7 @@ export type Identity = {
   staffId: string | null;
   organizationId: string | null;
   role: "admin" | "manager" | "staff" | null;
+  displayName: string | null;
 };
 
 export const getMyIdentity = createServerFn({ method: "GET" })
@@ -20,7 +21,7 @@ export const getMyIdentity = createServerFn({ method: "GET" })
       .eq("user_id", context.userId)
       .maybeSingle();
     if (linkErr || !link) {
-      return { staffId: null, organizationId: null, role: null };
+      return { staffId: null, organizationId: null, role: null, displayName: null };
     }
 
     const { data: role } = await context.supabase
@@ -30,9 +31,21 @@ export const getMyIdentity = createServerFn({ method: "GET" })
       .eq("organization_id", link.organization_id)
       .maybeSingle();
 
+    const { data: staff } = await context.supabase
+      .from("staff")
+      .select("display_name, first_name, last_name")
+      .eq("id", link.staff_id)
+      .maybeSingle();
+
+    const displayName =
+      staff?.display_name?.trim() ||
+      [staff?.first_name, staff?.last_name].filter(Boolean).join(" ").trim() ||
+      null;
+
     return {
       staffId: link.staff_id,
       organizationId: link.organization_id,
       role: (role?.role as Identity["role"]) ?? null,
+      displayName,
     };
   });
