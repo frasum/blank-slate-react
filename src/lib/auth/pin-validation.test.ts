@@ -1,9 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  evaluatePin,
-  PIN_RATE_LIMIT_MAX,
-  type PinCompareFn,
-} from "./pin-validation";
+import { evaluatePin, PIN_RATE_LIMIT_MAX, type PinCompareFn } from "./pin-validation";
 
 const matchHash: PinCompareFn = (pin, hash) => pin === hash;
 

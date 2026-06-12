@@ -20,10 +20,7 @@ export const Route = createFileRoute("/auth")({
     if (data.user) throw redirect({ to: "/" });
   },
   head: () => ({
-    meta: [
-      { title: "Anmelden · Betriebsplattform" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Anmelden · Betriebsplattform" }, { name: "robots", content: "noindex" }],
   }),
   component: AuthPage,
 });

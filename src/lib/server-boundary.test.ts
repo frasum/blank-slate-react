@@ -36,20 +36,28 @@ describe("Client/Server-Grenze für service-role", () => {
     const offenders = NON_SERVER_FILES.filter((f) =>
       STATIC_CLIENT_SERVER_IMPORT.test(readFileSync(f, "utf8")),
     );
-    expect(offenders, `Statischer client.server-Import außerhalb *.server.ts: ${offenders.join(", ")}`).toEqual([]);
+    expect(
+      offenders,
+      `Statischer client.server-Import außerhalb *.server.ts: ${offenders.join(", ")}`,
+    ).toEqual([]);
   });
 
   it("SUPABASE_SERVICE_ROLE_KEY taucht nur in *.server.ts-Dateien auf", () => {
     const offenders = NON_SERVER_FILES.filter((f) =>
       readFileSync(f, "utf8").includes("SUPABASE_SERVICE_ROLE_KEY"),
     );
-    expect(offenders, `Service-Role-Key-Referenz außerhalb *.server.ts: ${offenders.join(", ")}`).toEqual([]);
+    expect(
+      offenders,
+      `Service-Role-Key-Referenz außerhalb *.server.ts: ${offenders.join(", ")}`,
+    ).toEqual([]);
   });
 
   it("kein VITE_-prefixter Service-Role-Key irgendwo im Code", () => {
     const offenders = ALL_FILES.filter((f) =>
       /VITE_[A-Z_]*SERVICE_ROLE/.test(readFileSync(f, "utf8")),
     );
-    expect(offenders, `VITE_-prefixter Service-Role-Key gefunden: ${offenders.join(", ")}`).toEqual([]);
+    expect(offenders, `VITE_-prefixter Service-Role-Key gefunden: ${offenders.join(", ")}`).toEqual(
+      [],
+    );
   });
 });

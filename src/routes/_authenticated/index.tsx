@@ -16,9 +16,7 @@ function Index() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md space-y-4 text-center">
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-          Betriebsplattform
-        </h1>
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground">Betriebsplattform</h1>
         <p className="text-sm text-muted-foreground">Angemeldet als {session?.user.email}</p>
         <div className="text-sm text-muted-foreground">
           {identityLoading
