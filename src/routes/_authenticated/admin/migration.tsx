@@ -136,7 +136,7 @@ function MigrationPage() {
 
   const parseRes = parseMut.data;
   const dryRes = dryRunMut.data;
-  const reportRows = reportMut.data?.rows ?? [];
+  const reportRows = (reportMut.data?.rows ?? []).filter((r) => r.hasDifference);
 
   return (
     <div className="space-y-6">
