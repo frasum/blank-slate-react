@@ -12,6 +12,10 @@ export type ParsedCsv = {
 export function parseCsv(text: string): ParsedCsv {
   // BOM entfernen, Zeilenumbrüche normalisieren (innerhalb Quotes geschützt).
   const src = text.replace(/^\uFEFF/, "");
+  // Delimiter aus der Header-Zeile ableiten: Supabase-Export verwendet ';',
+  // ältere Exporte ','. Auto-Detect aus der ersten Zeile vor dem ersten
+  // Zeilenumbruch — Quotes dort sind erlaubt, werden aber durchgezählt.
+  const delimiter = detectDelimiter(src);
   const fields: string[][] = [];
   let row: string[] = [];
   let cur = "";
@@ -33,7 +37,7 @@ export function parseCsv(text: string): ParsedCsv {
     }
     if (c === '"') {
       inQuotes = true;
-    } else if (c === ",") {
+    } else if (c === delimiter) {
       row.push(cur);
       cur = "";
     } else if (c === "\n" || c === "\r") {
@@ -67,6 +71,25 @@ export function parseCsv(text: string): ParsedCsv {
     rows.push(row);
   }
   return { headers, rows };
+}
+
+function detectDelimiter(src: string): "," | ";" {
+  let headerLine = "";
+  let inQuotes = false;
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i];
+    if (c === '"') {
+      inQuotes = !inQuotes;
+      headerLine += c;
+      continue;
+    }
+    if (!inQuotes && (c === "\n" || c === "\r")) break;
+    headerLine += c;
+  }
+  const hasSemi = headerLine.includes(";");
+  const hasComma = headerLine.includes(",");
+  if (hasSemi && !hasComma) return ";";
+  return ",";
 }
 
 /**
