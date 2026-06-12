@@ -24,7 +24,7 @@ function Index() {
           {identityLoading
             ? "Identität wird geladen…"
             : identity?.staffId
-              ? `Mitarbeiter ${identity.staffId.slice(0, 8)} · Rolle ${identity.role ?? "—"}`
+              ? `Mitarbeiter ${identity.displayName ?? identity.staffId.slice(0, 8)} · Rolle ${identity.role ?? "—"}`
               : "Kein Mitarbeiter verknüpft"}
         </div>
         {canAdmin && (
