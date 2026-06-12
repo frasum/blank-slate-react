@@ -48,7 +48,7 @@ Jede dieser Brücken ist ein Wartungsrisiko und eine Fehlerquelle. Die vereinte 
 
 Charakter und Stärken je App
 
-bunker-shift-flow — der Generalist. Breitester Funktionsumfang in einer App: Dienstplan (virtualisiertes Grid), Stechuhr, Tagesabrechnung (als ta_-Klon), SFN-Zuschläge mit getesteter Berechnungslogik, Wein (Karte, Quiz, öffentlicher Token-Katalog), Bestellwesen (einfach), Inventur. Stärke: SFN-/Abrechnungs-Tests, Roster-Grid.
+bunker-shift-flow — der Generalist. Breitester Funktionsumfang in einer App: Dienstplan (virtualisiertes Grid), Stechuhr, Tagesabrechnung (als ta\_-Klon), SFN-Zuschläge mit getesteter Berechnungslogik, Wein (Karte, Quiz, öffentlicher Token-Katalog), Bestellwesen (einfach), Inventur. Stärke: SFN-/Abrechnungs-Tests, Roster-Grid.
 
 thaitime — die HR-Maschine. Tiefstes Mitarbeiter-Modell (24 HR-Tabellen): Onboarding mit Token-Einladungen, Dokumentengenerierung (Arbeitsvertrag/Zeugnis aus Textbausteinen, Signaturen), Lohnhistorie, Nettolohn-Berechnung (724 Zeilen, Steuerklassen/Minijob/SV), Abmahnungen, Skills, Self-Service (Schichtwünsche, Tauschanfragen, Verfügbarkeiten, Urlaubsanträge), internes Messaging, Telegram-Bot, Hygiene-Schulungen, i18n, Capacitor-Mobile-App, KI-Dienstplan-Import aus Fotos.
 
@@ -72,7 +72,7 @@ Tabellen pro Domäne und App (aus den Migrationen extrahiert):
 
 | Dienstplan | 1 (+Grid) | 6 | 1 | — | 🟡 2-fach |
 
-| Kasse/Abrechnung | 16 (ta_-Klon) | 7 (da_-Anbau) | 8 | 2 | 🔴 3-fach |
+| Kasse/Abrechnung | 16 (ta*-Klon) | 7 (da*-Anbau) | 8 | 2 | 🔴 3-fach |
 
 | Lohn/Payroll | (SFN-Logik) | 3 | 4 | — | 🟡 3-fach verteilt |
 
@@ -194,7 +194,7 @@ Jedes Modul wird beim Neubau aus GENAU EINER Bestands-App fachlich abgeleitet (d
 
 | M1 | Zeiterfassung | tagesabrechnung `zt_shifts` (+ Remix-Policies) | bunker-Stechuhr-UI (LiveClock, optimistische Updates) |
 
-| M2 | Tagesabrechnung/Kasse | tagesabrechnung (sessions-Modell) | bunker ta_-Varianten (SFN-Integration), thaitime da_-Telegram-Report |
+| M2 | Tagesabrechnung/Kasse | tagesabrechnung (sessions-Modell) | bunker ta*-Varianten (SFN-Integration), thaitime da*-Telegram-Report |
 
 | M3 | Dienstplan | thaitime (schedule + KI-Foto-Import + Self-Service-Wünsche/Tausch) | bunker Roster-Grid (Virtualisierung, Paint-Tool) |
 
@@ -208,7 +208,7 @@ Jedes Modul wird beim Neubau aus GENAU EINER Bestands-App fachlich abgeleitet (d
 
 | M8 | Kommunikation | thaitime (Messaging, Telegram) | als Querschnitt in M0 vorbereitet |
 
-Explizit NICHT portieren: die Sync-Brücken (`sync-thaitime-staff`, `syncWaiterToZt`, ta_/da_-Klone) — sie sind das Problem, nicht die Lösung. Ebenso die vier getrennten Token-Systeme.
+Explizit NICHT portieren: die Sync-Brücken (`sync-thaitime-staff`, `syncWaiterToZt`, ta*/da*-Klone) — sie sind das Problem, nicht die Lösung. Ebenso die vier getrennten Token-Systeme.
 
 ---
 
@@ -226,7 +226,7 @@ Prinzip: Strangler Fig. Die Alt-Apps laufen weiter und sterben modulweise. Nach 
 
 | B2 | M1 Zeiterfassung | zt_shifts (tagesabr.) + zt_shifts (bunker) | Parallelbetrieb 2 Wochen: neue App stempelt, Alt-Sync stillgelegt |
 
-| B3 | M2 Kasse | sessions-Historie (tagesabr.; ta_-Daten aus bunker nur falls abweichend) | 1 Monat Abschlüsse fehlerfrei; Lohnbüro-Export identisch zu Alt |
+| B3 | M2 Kasse | sessions-Historie (tagesabr.; ta\_-Daten aus bunker nur falls abweichend) | 1 Monat Abschlüsse fehlerfrei; Lohnbüro-Export identisch zu Alt |
 
 | B4 | M3 Dienstplan | thaitime schedule + Templates | Eine volle Planungswoche produktiv |
 
@@ -244,19 +244,19 @@ Reihenfolge-Begründung: M1+M2 zuerst, weil dort der Sync-Schmerz lebt und der t
 
 1. TypeScript: `strict: true` ab Commit 1. Keine `any` außerhalb generierter UI-Libs. `Tables<>`-Typen für alle DB-Zeilen.
 
-2. RLS: Jede Tabelle `organization_id` + Policy ab Erstellung. Keine `USING (true)` außer dokumentiert (Inventur-Query als CI-Check!). Drops vor Creates (ODER-Falle). Helper statt Inline-Logik.
+1. RLS: Jede Tabelle `organization_id` + Policy ab Erstellung. Keine `USING (true)` außer dokumentiert (Inventur-Query als CI-Check!). Drops vor Creates (ODER-Falle). Helper statt Inline-Logik.
 
-3. Geld & Zeit: Jede Berechnung (SFN, Nettolohn, Trinkgeld-Split, Geschäftstag) ist ein reines, getestetes Modul. Charakterisierungstests + Referenzfälle (BMF-Rechner) VOR der ersten Produktivnutzung.
+1. Geld & Zeit: Jede Berechnung (SFN, Nettolohn, Trinkgeld-Split, Geschäftstag) ist ein reines, getestetes Modul. Charakterisierungstests + Referenzfälle (BMF-Rechner) VOR der ersten Produktivnutzung.
 
-4. Integrität: Geschäftstag-Sperren auf allen Geld-/Zeit-Tabellen ab Tag 1. Audit-Log append-only.
+1. Integrität: Geschäftstag-Sperren auf allen Geld-/Zeit-Tabellen ab Tag 1. Audit-Log append-only.
 
-5. Tokens: Zufällig (32 Byte), ablaufend, widerrufbar, Validierung nur serverseitig, niemals in Logs/Konsole (Lektion bestellung).
+1. Tokens: Zufällig (32 Byte), ablaufend, widerrufbar, Validierung nur serverseitig, niemals in Logs/Konsole (Lektion bestellung).
 
-6. Secrets & Daten: Keine Personaldaten, CSVs oder Dokumente im Repo (Lektion thaitime). `.env` in `.gitignore` ab Commit 1.
+1. Secrets & Daten: Keine Personaldaten, CSVs oder Dokumente im Repo (Lektion thaitime). `.env` in `.gitignore` ab Commit 1.
 
-7. Ehrlichkeitsregel für KI-Arbeit: Migrations-/Commit-Kommentare beschreiben nur, was tatsächlich enthalten ist. Konflikte zwischen Vorgabe und Code-Realität werden gemeldet, nicht still „gelöst" (Lektion Remix E4b — diese Regel hat zwei App-Brüche verhindert).
+1. Ehrlichkeitsregel für KI-Arbeit: Migrations-/Commit-Kommentare beschreiben nur, was tatsächlich enthalten ist. Konflikte zwischen Vorgabe und Code-Realität werden gemeldet, nicht still „gelöst" (Lektion Remix E4b — diese Regel hat zwei App-Brüche verhindert).
 
-8. Review-Loop: Jedes Modul wird vor Produktivgang von einer unabhängigen Instanz geprüft (Chat-Review wie etabliert): tsc, Tests, Policy-Inventur, Diff-Analyse.
+1. Review-Loop: Jedes Modul wird vor Produktivgang von einer unabhängigen Instanz geprüft (Chat-Review wie etabliert): tsc, Tests, Policy-Inventur, Diff-Analyse.
 
 ---
 
