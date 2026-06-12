@@ -238,6 +238,8 @@ Prinzip: Strangler Fig. Die Alt-Apps laufen weiter und sterben modulweise. Nach 
 
 Reihenfolge-Begründung: M1+M2 zuerst, weil dort der Sync-Schmerz lebt und der tägliche Nutzen am größten ist; M4 (Lohn) erst NACH M1+M2, weil Lohn auf deren Daten rechnet; M5 zuletzt unter den großen, weil bestellung als einzige App solide alleine weiterlaufen kann.
 
+Nachtrag (B1c, eingefügt nach B1b, vor B2): Stammdaten-/Personal-UI + PIN-/Badge-Verwaltung. Begründung: B1a/B1b haben Schema und Auth-Flüsse geliefert, aber neue Mitarbeiter, PINs und Badge-Tokens lassen sich nur per SQL anlegen. Ein Admin-UI dafür ist Voraussetzung, damit B2 (Zeiterfassung) überhaupt mit echten Personen getestet werden kann. B1c trifft KEINE Vorfestlegung zu R4 (PWA vs. Capacitor) — es ist ein reines Verwaltungs-UI für Admin/Manager, kein Terminal- oder Mobile-Flow. O3 (Voice/Telegram) bleibt offen bis B2.
+
 ---
 
 7. Verbindliche Standards (die Audit-Lektionen als Gesetz)
