@@ -56,6 +56,22 @@ export type RunImportResult = {
   lockedThrough: string | null;
 };
 
+/**
+ * Bilanz-Invariante: Jede gelesene Zeile landet entweder als Import oder als
+ * gezählter Skip — ohne Lücke und ohne Doppelzählung. Wird am Ende von
+ * executeImport gegen die Zähler geprüft; Verletzung => Programmierfehler.
+ */
+export function assertCounterBalance(counters: Counters): void {
+  const skipped = Object.values(counters.skippedByReason).reduce((a, b) => a + b, 0);
+  const sum = counters.imported + skipped;
+  if (sum !== counters.read) {
+    throw new Error(
+      `Bilanz-Invariante verletzt: read=${counters.read}, imported=${counters.imported}, ` +
+        `skipped=${skipped} (Summe=${sum}). Differenz=${counters.read - sum}.`,
+    );
+  }
+}
+
 export async function executeImport(args: RunImportArgs): Promise<RunImportResult> {
   const { admin, organizationId, actorUserId, actorStaffId, sourceSystem, csvText, mode } = args;
 
@@ -133,6 +149,7 @@ export async function executeImport(args: RunImportArgs): Promise<RunImportResul
 
   if (mode === "dry_run") {
     counters.imported = inserts.length;
+    assertCounterBalance(counters);
     return { mode, fileHash, counters, runId: null, lockedThrough: null };
   }
 
@@ -161,6 +178,7 @@ export async function executeImport(args: RunImportArgs): Promise<RunImportResul
     }
   }
   counters.imported = inserts.length;
+  assertCounterBalance(counters);
 
   await admin
     .from("import_runs")
