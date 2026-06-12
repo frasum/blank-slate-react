@@ -41,4 +41,13 @@ export default tseslint.config(
     },
   },
   eslintPluginPrettier,
+  {
+    // shadcn-generierte UI-Komponenten exportieren neben der Komponente auch
+    // Variants (cva) — bekanntes Muster, fällt unter unsere Ausnahme für
+    // generierte UI-Libs. Die Regel ist daher hier deaktiviert.
+    files: ["src/components/ui/**"],
+    rules: {
+      "react-refresh/only-export-components": "off",
+    },
+  },
 );
