@@ -578,7 +578,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "manager" | "staff"
-      time_entry_source: "clock" | "manual"
+      time_entry_source: "clock" | "manual" | "import"
       token_type: "badge_login"
     }
     CompositeTypes: {
@@ -708,7 +708,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "manager", "staff"],
-      time_entry_source: ["clock", "manual"],
+      time_entry_source: ["clock", "manual", "import"],
       token_type: ["badge_login"],
     },
   },
