@@ -198,6 +198,8 @@ Jedes Modul wird beim Neubau aus GENAU EINER Bestands-App fachlich abgeleitet (d
 
 | M3 | Dienstplan | thaitime (schedule + KI-Foto-Import + Self-Service-Wünsche/Tausch) | bunker Roster-Grid (Virtualisierung, Paint-Tool) |
 
+_Ersetzt durch Nachtrag M3 (siehe unten): Quelle ist bunker-shift-flow (shifts + RosterGrid + billing-cycle 26.–25.). thaitime-Features sind ausgeschlossen._
+
 | M4 | Lohn/HR | thaitime (Nettolohn, Dokumente, Onboarding, Payslips) | tagesabrechnung Lohnbüro-Portal, bunker SFN-Berechnung (getestet!) |
 
 | M5 | Bestellwesen | bestellung (komplett: B2B, Portale, KI-Import, Voice) | bunker Lieferanten/Katalog als Anforderungs-Checkliste |
@@ -229,6 +231,8 @@ Prinzip: Strangler Fig. Die Alt-Apps laufen weiter und sterben modulweise. Nach 
 | B3 | M2 Kasse | sessions-Historie (tagesabr.; ta\_-Daten aus bunker nur falls abweichend) | 1 Monat Abschlüsse fehlerfrei; Lohnbüro-Export identisch zu Alt |
 
 | B4 | M3 Dienstplan | thaitime schedule + Templates | Eine volle Planungswoche produktiv |
+
+_Ersetzt durch Nachtrag M3/B4 (siehe unten): Quelle bunker-shift-flow; Erfolgs-Gate ist ein voller Planungszyklus (26.–25.) produktiv._
 
 | B5 | M4 Lohn/HR | thaitime (Dokumente, Payslips, Onboarding-Historie) | Nettolohn-Tests grün GEGEN BMF-Referenzfälle; ein Lohnlauf parallel verifiziert |
 
