@@ -285,6 +285,27 @@ Nachtrag B2-Schnitt (vor Bau B2a freigegeben):
 
  **Dies ist explizit nicht M4** — es ist die getestete Zuschlags-Logik auf Stempel-Basis, auf der M4 (Nettolohn) später aufsetzt.
 
+  **Umsetzung (abgenommen, Stand 13.06.2026):**
+  - Modul-Layout `src/lib/time/sfn/` mit Zwei-Adapter-Architektur:
+    - `sfn-core.ts` — reine Helfer (parseTime, overlap, round2).
+    - `tagesabrechnung.ts` — Adapter zur Primärreferenz. Bitgenaue Reproduktion der 20 Fixture-Fälle aus `golden-master/calculateShiftHours.json`. Rundet (wie das Original) am Ende auf 2 Nachkommastellen — daher `toEqual` mit Toleranz 0 statt `toBeCloseTo`.
+    - `bunker.ts` — Portierung von `computeSfn`. 13 Tests (nicht 14 wie im Briefing genannt — siehe Original-Datei).
+    - `golden-master.test.ts`, `bunker.test.ts` — beide Testquellen, beide blockierend.
+  - **Pro EINZELNEM `time_entry`** wird gerechnet. Tages-/Wochensummen entstehen in B2c durch Summieren der Topf-Werte über die Einträge eines `business_date`. **Keine virtuelle Verschmelzung von Einträgen** auf SFN-Ebene.
+  - **Welches Output-Schema die App produktiv persistiert** (GM-Felder, bunker-Felder oder ein normalisiertes Drittes), entscheidet B2c/M4. B2-SFN liefert beide Adapter parallel.
+  - **Pause** ist Input des bunker-Adapters (proportionale Proration), keine ArbZG-Automatik in B2-SFN.
+  - **Quirks** des Originals werden als Charakterisierung reproduziert, nicht korrigiert: (a) `01:00–05:00` ohne Mitternachts-Wrap liefert 0 Nachtstunden, (b) `00:00–08:00` ebenso. Briefing nannte 3 Quirks; Fixture enthält 2.
+
+  **Bewusst NICHT in B2-SFN, vertagt nach M4** (Quelle: `tagesabrechnung-sfnRates.ts`, vom Nutzer zitiert — Datei steht in M4 zur Verifikation gegen das Original an):
+  - `night40` (00–04) als Geld-Zuschlagssatz,
+  - `holiday150` für 1. Mai, 25.12., 26.12.,
+  - 50-€-Grundlohngrenze nach §3b EStG.
+  Diese Werte gehören in den Geld-Pfad (M4), nicht in die Stunden-Töpfe.
+
+  **Gestrichen (Spekulation, nicht im Originalcode):** „24.12. ab 14:00 als Special-Holiday".
+
+  **Erfolgs-Gate B2-SFN (erfüllt):** `tsc --noEmit`, `eslint`, `vitest run` grün; beide Test-Suiten blockierend; RLS-Inventur unverändert; DB-Integrationstests in CI unverändert grün.
+
 **B2b — Korrekturen & Mobile-UI:** Manager-Korrektur-UI (`source='manual'`), Pausen-Behandlung, PWA-Manifest-only fürs Mitarbeiter-Stempeln (siehe R4).
 
 **B2c — Migration & Parallelbetrieb:** `zt_shifts`-Importer aus tagesabrechnung + bunker, 2-Wochen-Parallelbetrieb mit Abgleichsbericht, Alt-Sync stilllegen.
