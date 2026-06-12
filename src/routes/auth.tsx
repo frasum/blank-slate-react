@@ -138,7 +138,7 @@ async function verifyMagicHash(tokenHash: string): Promise<boolean> {
 
 function PinForm({ onLoggedIn }: { onLoggedIn: () => Promise<void> }) {
   const callValidatePin = useServerFn(validatePin);
-  const [staffId, setStaffId] = useState("");
+  const [firstName, setFirstName] = useState("");
   const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -151,7 +151,7 @@ function PinForm({ onLoggedIn }: { onLoggedIn: () => Promise<void> }) {
         setBusy(true);
         setErr(null);
         try {
-          const { session_token_hash } = await callValidatePin({ data: { staffId, pin } });
+          const { session_token_hash } = await callValidatePin({ data: { firstName, pin } });
           const ok = await verifyMagicHash(session_token_hash);
           if (!ok) throw new Error("verify failed");
           await onLoggedIn();
@@ -165,9 +165,10 @@ function PinForm({ onLoggedIn }: { onLoggedIn: () => Promise<void> }) {
       <input
         type="text"
         required
-        placeholder="Staff-ID (UUID)"
-        value={staffId}
-        onChange={(e) => setStaffId(e.target.value)}
+        placeholder="Vorname"
+        autoComplete="given-name"
+        value={firstName}
+        onChange={(e) => setFirstName(e.target.value)}
         className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
       />
       <input
