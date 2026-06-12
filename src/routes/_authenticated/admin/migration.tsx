@@ -426,15 +426,16 @@ function ReconciliationTable({
   rows,
 }: {
   rows: Array<{
-    staffId: string | null;
-    bucket: string;
-    altTotals: Record<string, number>;
-    newTotals: Record<string, number>;
-    diffs: Record<string, number>;
+    staffId: string;
+    bucketKey: string;
+    alt: Record<string, number>;
+    recomputed: Record<string, number>;
+    diff: Record<string, number>;
+    hasDifference: boolean;
   }>;
 }) {
   const potKeys = Array.from(
-    new Set(rows.flatMap((r) => Object.keys(r.diffs))),
+    new Set(rows.flatMap((r) => Object.keys(r.diff))),
   ).sort();
   return (
     <div className="overflow-x-auto">
@@ -452,13 +453,13 @@ function ReconciliationTable({
         </TableHeader>
         <TableBody>
           {rows.map((r, i) => (
-            <TableRow key={`${r.staffId}-${r.bucket}-${i}`}>
-              <TableCell className="font-mono text-xs">{r.bucket}</TableCell>
+            <TableRow key={`${r.staffId}-${r.bucketKey}-${i}`}>
+              <TableCell className="font-mono text-xs">{r.bucketKey}</TableCell>
               <TableCell className="font-mono text-xs">
-                {r.staffId ?? "—"}
+                {r.staffId}
               </TableCell>
               {potKeys.map((k) => {
-                const d = r.diffs[k] ?? 0;
+                const d = r.diff[k] ?? 0;
                 return (
                   <TableCell
                     key={k}
