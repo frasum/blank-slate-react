@@ -23,16 +23,21 @@ function NewStaffPage() {
   const [err, setErr] = useState<string | null>(null);
 
   const mutation = useMutation({
-    mutationFn: () =>
-      callCreate({
+    mutationFn: () => {
+      const firstName = form.firstName.trim();
+      const lastName = form.lastName.trim();
+      const displayName = form.displayName.trim() || `${firstName} ${lastName}`.trim();
+
+      return callCreate({
         data: {
-          firstName: form.firstName,
-          lastName: form.lastName,
-          displayName: form.displayName || `${form.firstName} ${form.lastName}`.trim(),
-          email: form.email || null,
-          phone: form.phone || null,
+          firstName,
+          lastName,
+          displayName,
+          email: form.email.trim() || null,
+          phone: form.phone.trim() || null,
         },
-      }),
+      });
+    },
     onSuccess: async ({ id }) => {
       await queryClient.invalidateQueries({ queryKey: ["admin", "staff"] });
       await navigate({ to: "/admin/staff/$staffId", params: { staffId: id } });
@@ -46,10 +51,15 @@ function NewStaffPage() {
     <div className="max-w-lg space-y-6">
       <h1 className="text-2xl font-semibold tracking-tight text-foreground">Neuer Mitarbeiter</h1>
       <form
+        noValidate
         className="space-y-3"
         onSubmit={(e) => {
           e.preventDefault();
           setErr(null);
+          if (!form.firstName.trim() || !form.lastName.trim()) {
+            setErr("Bitte Vorname und Nachname ausfüllen.");
+            return;
+          }
           mutation.mutate();
         }}
       >
