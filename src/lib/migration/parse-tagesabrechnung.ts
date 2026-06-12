@@ -62,8 +62,8 @@ export function parseTagesabrechnungCsv(csvText: string): NormalizedShift[] {
       isHoliday: (r.is_holiday ?? "").toLowerCase() === "true",
     };
 
-    // Abwesenheit: kein start/end ODER absence_type gesetzt.
-    if (r.absence_type !== null || r.start_time === null || r.end_time === null) {
+    // Abwesenheit ausschließlich, wenn absence_type gesetzt ist (urlaub/krank/…).
+    if (r.absence_type !== null) {
       out.push({
         ...base,
         startedAt: null,
@@ -73,7 +73,11 @@ export function parseTagesabrechnungCsv(csvText: string): NormalizedShift[] {
       continue;
     }
 
-    const combined = combineDateAndTimes(shiftDate, r.start_time, r.end_time);
+    // Fehlende oder ungültige Zeiten ohne Abwesenheit → invalid_time.
+    const combined =
+      r.start_time !== null && r.end_time !== null
+        ? combineDateAndTimes(shiftDate, r.start_time, r.end_time)
+        : null;
     if (!combined) {
       out.push({
         ...base,
