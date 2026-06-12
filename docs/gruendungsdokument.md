@@ -296,6 +296,24 @@ Erfolgs-Gate B2a:
 
 ---
 
+Nachtrag M3/B4 (Quellenwechsel, ersetzt M3-Zeile in §4/§5 und präzisiert B4 in §6):
+
+- **Quelle:** `bunker-shift-flow` — nicht `thaitime`. `thaitime` ist als M3-Quelle gestrichen.
+- **Datenmodell `shifts`:** Mitarbeiter + Datum + Arbeitsbereich + Skill + Status (`geplant`/`bestätigt`) + Notiz. **Keine Uhrzeiten im Plan.** Der Plan beantwortet „wer, wann, wo"; Ist-Zeiten kommen aus M1 (Stechuhr).
+- **UI-Vorlage:** bunker `RosterGrid` mit verbindlich zu erhaltenden Eigenschaften:
+  - (a) Paint-Tool mit Pinsel je Skill und Radierer, Klick-Malen in Zellen; Sperr-Zeiträume blockieren das Malen.
+  - (b) Drag & Drop der Schicht-Pills mit optimistischen Updates und Rollback bei Fehler.
+  - (c) Konflikt-Markierung auf der Pill (Abwesenheit, fehlender Skill).
+  - (d) Virtualisierte Zeilen, Gruppierung nach Arbeitsbereich, Dichte-Umschaltung, Summenspalte.
+  - (e) Status-Workflow `geplant → bestätigt` mit Bestätigungs-Popover.
+  - (f) **Planungseinheit ist der Abrechnungszyklus 26.–25. des Monats** (bunker `billing-cycle.ts`), mit Zyklus-Navigation und Zyklus-Sperren — **nicht die Kalenderwoche**.
+- **Explizit ausgeschlossen** (thaitime-Features, allenfalls spätere Anbauten): KI-Foto-Import, Schichtvorlagen, Besetzungsanforderungen, Freigabe-Workflow, Schichtwünsche/Tausch.
+- **Konsequenz für M1:** `time_entries.source='plan'`-Einträge erhalten aus dem Plan nur Datum/Mitarbeiter/Bereich — **keine Sollzeiten**.
+- **Konsequenz für M4 (Lohn):** Abrechnungszyklus 26.–25. wird als **organisationsweite Einstellung** geführt; Plan, Zeiterfassungs-Auswertung und Lohn nutzen denselben Zyklus.
+- **B4-Erfolgskriterium (ersetzt „eine volle Planungswoche"):** ein voller Planungszyklus (26.–25.) produktiv.
+
+---
+
 7. Verbindliche Standards (die Audit-Lektionen als Gesetz)
 
 1. TypeScript: `strict: true` ab Commit 1. Keine `any` außerhalb generierter UI-Libs. `Tables<>`-Typen für alle DB-Zeilen.
