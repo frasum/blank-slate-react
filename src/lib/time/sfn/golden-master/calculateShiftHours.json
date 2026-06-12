@@ -1,0 +1,272 @@
+{
+  "source": "tagesabrechnung-main/src/lib/shiftCalculations.ts (produktiv bewährt, identisch im Remix)",
+  "generated": "2026-06-13",
+  "semantics": {
+    "evening": "20:00-24:00",
+    "night": "00:00-Ende nur bei Mitternachts-Wrap",
+    "nightDeep": "00:00-04:00 nur bei Wrap (Schichtbeginn vor Mitternacht, §3b 40%)",
+    "sundayHoliday": "totalHours wenn Flag gesetzt"
+  },
+  "cases": [
+    {
+      "name": "Tagschicht ohne Zuschlag",
+      "start": "10:00",
+      "end": "18:00",
+      "sundayOrHoliday": false,
+      "expected": {
+        "totalHours": 8,
+        "sundayHolidayHours": 0,
+        "eveningHours": 0,
+        "nightHours": 0,
+        "nightDeepHours": 0
+      }
+    },
+    {
+      "name": "Früher Abend, endet vor 20:00",
+      "start": "12:00",
+      "end": "19:59",
+      "sundayOrHoliday": false,
+      "expected": {
+        "totalHours": 7.98,
+        "sundayHolidayHours": 0,
+        "eveningHours": 0,
+        "nightHours": 0,
+        "nightDeepHours": 0
+      }
+    },
+    {
+      "name": "Grenzfall: Ende exakt 20:00",
+      "start": "12:00",
+      "end": "20:00",
+      "sundayOrHoliday": false,
+      "expected": {
+        "totalHours": 8,
+        "sundayHolidayHours": 0,
+        "eveningHours": 0,
+        "nightHours": 0,
+        "nightDeepHours": 0
+      }
+    },
+    {
+      "name": "Abendschicht 17:00-23:30",
+      "start": "17:00",
+      "end": "23:30",
+      "sundayOrHoliday": false,
+      "expected": {
+        "totalHours": 6.5,
+        "sundayHolidayHours": 0,
+        "eveningHours": 3.5,
+        "nightHours": 0,
+        "nightDeepHours": 0
+      }
+    },
+    {
+      "name": "Grenzfall: Start exakt 20:00",
+      "start": "20:00",
+      "end": "23:00",
+      "sundayOrHoliday": false,
+      "expected": {
+        "totalHours": 3,
+        "sundayHolidayHours": 0,
+        "eveningHours": 3,
+        "nightHours": 0,
+        "nightDeepHours": 0
+      }
+    },
+    {
+      "name": "Ende exakt Mitternacht (00:00 = Wrap)",
+      "start": "18:00",
+      "end": "00:00",
+      "sundayOrHoliday": false,
+      "expected": {
+        "totalHours": 6,
+        "sundayHolidayHours": 0,
+        "eveningHours": 4,
+        "nightHours": 0,
+        "nightDeepHours": 0
+      }
+    },
+    {
+      "name": "Übernacht klassisch 17:00-01:30",
+      "start": "17:00",
+      "end": "01:30",
+      "sundayOrHoliday": false,
+      "expected": {
+        "totalHours": 8.5,
+        "sundayHolidayHours": 0,
+        "eveningHours": 4,
+        "nightHours": 1.5,
+        "nightDeepHours": 1.5
+      }
+    },
+    {
+      "name": "Übernacht bis exakt 04:00",
+      "start": "20:00",
+      "end": "04:00",
+      "sundayOrHoliday": false,
+      "expected": {
+        "totalHours": 8,
+        "sundayHolidayHours": 0,
+        "eveningHours": 4,
+        "nightHours": 4,
+        "nightDeepHours": 4
+      }
+    },
+    {
+      "name": "Übernacht über 04:00 hinaus (22:00-06:00)",
+      "start": "22:00",
+      "end": "06:00",
+      "sundayOrHoliday": false,
+      "expected": {
+        "totalHours": 8,
+        "sundayHolidayHours": 0,
+        "eveningHours": 2,
+        "nightHours": 6,
+        "nightDeepHours": 4
+      }
+    },
+    {
+      "name": "Kurzer Wrap 23:30-00:15",
+      "start": "23:30",
+      "end": "00:15",
+      "sundayOrHoliday": false,
+      "expected": {
+        "totalHours": 0.75,
+        "sundayHolidayHours": 0,
+        "eveningHours": 0.5,
+        "nightHours": 0.25,
+        "nightDeepHours": 0.25
+      }
+    },
+    {
+      "name": "QUIRK: Nachtschicht ohne Mitternachts-Wrap (01:00-05:00)",
+      "start": "01:00",
+      "end": "05:00",
+      "sundayOrHoliday": false,
+      "expected": {
+        "totalHours": 4,
+        "sundayHolidayHours": 0,
+        "eveningHours": 0,
+        "nightHours": 0,
+        "nightDeepHours": 0
+      }
+    },
+    {
+      "name": "QUIRK: Start 00:00 (kein Wrap, keine Nachtstunden)",
+      "start": "00:00",
+      "end": "08:00",
+      "sundayOrHoliday": false,
+      "expected": {
+        "totalHours": 8,
+        "sundayHolidayHours": 0,
+        "eveningHours": 0,
+        "nightHours": 0,
+        "nightDeepHours": 0
+      }
+    },
+    {
+      "name": "Sonntag Tagschicht",
+      "start": "10:00",
+      "end": "18:00",
+      "sundayOrHoliday": true,
+      "expected": {
+        "totalHours": 8,
+        "sundayHolidayHours": 8,
+        "eveningHours": 0,
+        "nightHours": 0,
+        "nightDeepHours": 0
+      }
+    },
+    {
+      "name": "Sonntag Übernacht 18:00-02:00",
+      "start": "18:00",
+      "end": "02:00",
+      "sundayOrHoliday": true,
+      "expected": {
+        "totalHours": 8,
+        "sundayHolidayHours": 8,
+        "eveningHours": 4,
+        "nightHours": 2,
+        "nightDeepHours": 2
+      }
+    },
+    {
+      "name": "Feiertag/Sonntag voller Tag inkl. Abend",
+      "start": "14:00",
+      "end": "23:45",
+      "sundayOrHoliday": true,
+      "expected": {
+        "totalHours": 9.75,
+        "sundayHolidayHours": 9.75,
+        "eveningHours": 3.75,
+        "nightHours": 0,
+        "nightDeepHours": 0
+      }
+    },
+    {
+      "name": "Minutengenau: 20:07-23:53",
+      "start": "20:07",
+      "end": "23:53",
+      "sundayOrHoliday": false,
+      "expected": {
+        "totalHours": 3.77,
+        "sundayHolidayHours": 0,
+        "eveningHours": 3.77,
+        "nightHours": 0,
+        "nightDeepHours": 0
+      }
+    },
+    {
+      "name": "Rundung: 19:50-20:05 (15 min, 5 davon Abend)",
+      "start": "19:50",
+      "end": "20:05",
+      "sundayOrHoliday": false,
+      "expected": {
+        "totalHours": 0.25,
+        "sundayHolidayHours": 0,
+        "eveningHours": 0.08,
+        "nightHours": 0,
+        "nightDeepHours": 0
+      }
+    },
+    {
+      "name": "Abwesenheit: keine Zeiten",
+      "start": null,
+      "end": null,
+      "sundayOrHoliday": false,
+      "expected": {
+        "totalHours": 0,
+        "sundayHolidayHours": 0,
+        "eveningHours": 0,
+        "nightHours": 0,
+        "nightDeepHours": 0
+      }
+    },
+    {
+      "name": "Nur Start, kein Ende",
+      "start": "10:00",
+      "end": null,
+      "sundayOrHoliday": false,
+      "expected": {
+        "totalHours": 0,
+        "sundayHolidayHours": 0,
+        "eveningHours": 0,
+        "nightHours": 0,
+        "nightDeepHours": 0
+      }
+    },
+    {
+      "name": "24h-Wrap-Grenzfall: 06:00-06:00",
+      "start": "06:00",
+      "end": "06:00",
+      "sundayOrHoliday": false,
+      "expected": {
+        "totalHours": 24,
+        "sundayHolidayHours": 0,
+        "eveningHours": 4,
+        "nightHours": 6,
+        "nightDeepHours": 4
+      }
+    }
+  ]
+}
