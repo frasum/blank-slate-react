@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { reconcile } from "./reconcile";
 import type { NormalizedShift } from "./normalize";
 
-function mk(partial: Partial<NormalizedShift>): NormalizedShift {
+function mk(partial: Partial<NormalizedShift> = {}): NormalizedShift {
   return {
     altSystem: "tagesabrechnung",
     altId: "x",
