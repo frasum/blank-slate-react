@@ -89,7 +89,7 @@ export const validatePin = createServerFn({ method: "POST" })
   .inputValidator((input) =>
     z
       .object({
-        staffId: z.string().uuid(),
+        firstName: z.string().trim().min(1).max(64),
         pin: z.string().min(1).max(32),
       })
       .parse(input),
@@ -98,51 +98,58 @@ export const validatePin = createServerFn({ method: "POST" })
     const bcrypt = (await import("bcryptjs")).default;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: staff, error: staffErr } = await supabaseAdmin
+    // Vorname-basiertes PIN-Login (Konflikte werden über den PIN aufgelöst).
+    // Wir suchen alle aktiven Staff mit passendem Vornamen (case-insensitive)
+    // und prüfen für jeden Kandidaten den PIN. Bei genau einem Treffer gilt
+    // der Login als eindeutig; sonst gleiche generische Fehlermeldung.
+    const { data: candidates, error: staffErr } = await supabaseAdmin
       .from("staff")
-      .select("id, organization_id, is_active")
-      .eq("id", data.staffId)
-      .maybeSingle();
+      .select("id, organization_id, is_active, first_name")
+      .ilike("first_name", data.firstName.trim())
+      .eq("is_active", true);
     if (staffErr) failed();
-    // Unbekannter oder inaktiver Staff: keine pin_attempts-Zeile (kein FK-Ziel
-    // für append-only Log), gleiche Fehlerantwort.
-    if (!staff || !staff.is_active) failed();
-
-    const { data: pinRow, error: pinErr } = await supabaseAdmin
-      .from("staff_pins")
-      .select("pin_hash")
-      .eq("staff_id", staff.id)
-      .maybeSingle();
-    if (pinErr) failed();
+    if (!candidates || candidates.length === 0) failed();
 
     const sinceIso = new Date(Date.now() - PIN_RATE_LIMIT_WINDOW_MS).toISOString();
-    const { count, error: countErr } = await supabaseAdmin
-      .from("pin_attempts")
-      .select("id", { count: "exact", head: true })
-      .eq("staff_id", staff.id)
-      .gte("attempted_at", sinceIso);
-    if (countErr) failed();
+    const matches: { id: string; organization_id: string }[] = [];
 
-    const outcome = await evaluatePin({
-      storedHash: pinRow?.pin_hash ?? null,
-      providedPin: data.pin,
-      recentFailuresInWindow: count ?? 0,
-      compare: (pin, hash) => bcrypt.compare(pin, hash),
-    });
+    for (const cand of candidates) {
+      const { data: pinRow } = await supabaseAdmin
+        .from("staff_pins")
+        .select("pin_hash")
+        .eq("staff_id", cand.id)
+        .maybeSingle();
 
-    if (outcome.kind === "rejected") {
-      // Bei rate_limited keinen zusätzlichen Eintrag schreiben (würde das
-      // Fenster künstlich verlängern). Bei mismatch/no_pin loggen.
-      if (outcome.reasonCode !== "rate_limited") {
+      const { count } = await supabaseAdmin
+        .from("pin_attempts")
+        .select("id", { count: "exact", head: true })
+        .eq("staff_id", cand.id)
+        .gte("attempted_at", sinceIso);
+
+      const outcome = await evaluatePin({
+        storedHash: pinRow?.pin_hash ?? null,
+        providedPin: data.pin,
+        recentFailuresInWindow: count ?? 0,
+        compare: (pin, hash) => bcrypt.compare(pin, hash),
+      });
+
+      if (outcome.kind === "ok") {
+        matches.push({ id: cand.id, organization_id: cand.organization_id });
+      } else if (outcome.reasonCode === "mismatch") {
+        // Fehlversuch nur loggen, wenn ein Hash existiert und nicht passt.
         await supabaseAdmin.from("pin_attempts").insert({
-          organization_id: staff.organization_id,
-          staff_id: staff.id,
+          organization_id: cand.organization_id,
+          staff_id: cand.id,
         });
       }
-      failed();
     }
 
-    const email = await ensureShadowUser(staff.id, staff.organization_id);
+    // Eindeutig genau einer? Sonst generische Ablehnung (keine Auskunft,
+    // ob 0 oder >1 Treffer — verhindert Enumeration).
+    if (matches.length !== 1) failed();
+    const winner = matches[0];
+
+    const email = await ensureShadowUser(winner.id, winner.organization_id);
     const session_token_hash = await generateSessionTokenHash(email);
     return { session_token_hash };
   });
