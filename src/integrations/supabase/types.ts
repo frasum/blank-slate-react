@@ -423,6 +423,67 @@ export type Database = {
           },
         ]
       }
+      time_entries: {
+        Row: {
+          business_date: string
+          created_at: string
+          ended_at: string | null
+          id: string
+          location_id: string | null
+          organization_id: string
+          source: Database["public"]["Enums"]["time_entry_source"]
+          staff_id: string
+          started_at: string
+          updated_at: string
+        }
+        Insert: {
+          business_date: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          location_id?: string | null
+          organization_id: string
+          source?: Database["public"]["Enums"]["time_entry_source"]
+          staff_id: string
+          started_at: string
+          updated_at?: string
+        }
+        Update: {
+          business_date?: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          location_id?: string | null
+          organization_id?: string
+          source?: Database["public"]["Enums"]["time_entry_source"]
+          staff_id?: string
+          started_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_entries_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_links: {
         Row: {
           created_at: string
@@ -485,6 +546,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "manager" | "staff"
+      time_entry_source: "clock" | "manual"
       token_type: "badge_login"
     }
     CompositeTypes: {
@@ -614,6 +676,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "manager", "staff"],
+      time_entry_source: ["clock", "manual"],
       token_type: ["badge_login"],
     },
   },

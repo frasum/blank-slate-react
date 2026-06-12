@@ -269,6 +269,29 @@ Eine belegte Offline-Stempelpflicht (mehrfach reproduzierter Netzausfall am Stem
 
 ---
 
+Nachtrag B2-Schnitt (vor Bau B2a freigegeben):
+
+**B2a — Stempelkern (dieser Schritt):** Tabelle `time_entries` (Felder: `organization_id`, `staff_id`, `location_id` nullable, `started_at`, `ended_at`, `business_date`, `source ∈ {clock, manual}`); Geschäftstag aus `started_at` via `businessDateOf()`/`current_business_date()` (3-Uhr-Cutoff, Europe/Berlin); partieller Unique-Index `(staff_id) WHERE ended_at IS NULL`; RLS: SELECT nur eigene Einträge, **keine** Client-Schreib-Policy (DENY-ALL, keine Trigger-Doppelung); Server-Functions `clockIn`/`clockOut`/`getMyOpenEntry`/`listMyEntries` mit reinen Regel-Modulen (`canClockIn`/`canClockOut`); `clockIn()` schreibt `source='clock'`, `'manual'` ist für B2b-Manager-Korrekturen reserviert; `location_id` wird automatisch aus der Standort-Zuordnung gesetzt, **wenn genau eine** existiert, sonst `NULL`.
+
+**Ersetzt E1 (Eintragsmodell):** Das Schema erlaubt bewusst mehrere abgeschlossene `time_entries` pro Mitarbeiter und Geschäftstag (nicht: nur ein Eintrag pro Tag). Betriebspraxis bleibt 1× ein-/ausstempeln pro Tag — die Mehrfach-Möglichkeit existiert für spätere Manager-Korrekturen (`source='manual'`) und geteilte Schichten. Tagesaggregation passiert NICHT auf Schemaebene, sondern bei der SFN-Berechnung (siehe B2-SFN unten). Offen ist Behandlung der gesetzlichen Pause (ArbZG, ≥6h → 30 min, ≥9h → 45 min) innerhalb des Tageseintrags — Entscheidung in B2-SFN oder B2b.
+
+**B2-SFN — SFN-Berechnung + Golden-Master (neuer eigener Schritt, vor B2c):** Reines TS-Modul, das aus den `time_entries` eines Tages SFN-Zuschläge berechnet. Charakterisierungstest (Golden Master) gegen das Original `calculateShiftHours` aus bunker-shift-flow mit dem dortigen Referenzfall-Satz (27 Tests). Erst wenn jedes Originalergebnis bitgenau reproduziert wird, gilt B2-SFN als abgenommen. **Dies ist explizit nicht M4** — es ist die getestete Zuschlags-Logik auf Stempel-Basis, auf der M4 (Nettolohn) später aufsetzt.
+
+**B2b — Korrekturen & Mobile-UI:** Manager-Korrektur-UI (`source='manual'`), Pausen-Behandlung, PWA-Manifest-only fürs Mitarbeiter-Stempeln (siehe R4).
+
+**B2c — Migration & Parallelbetrieb:** `zt_shifts`-Importer aus tagesabrechnung + bunker, 2-Wochen-Parallelbetrieb mit Abgleichsbericht, Alt-Sync stilllegen.
+
+Erfolgs-Gate B2a:
+
+- `tsc --noEmit`, `eslint . --max-warnings=0`, `vitest run` grün.
+- RLS-Inventur (`scripts/check-rls-inventory.sql`): weiterhin 0 anon-Policies, 0 bedingungslose Schreib-Policies; `time_entries` hat **0 Client-Schreib-Policies** (nur die SELECT-Policy für eigene Einträge).
+- Unit-Tests für `canClockIn`/`canClockOut` (aktiv/inaktiv, kein/ein offener Eintrag, end vor start).
+- DB-Integrationstest (manuell via SQL-Konsole für B2a): (a) direkter INSERT als `authenticated`-Rolle wird abgelehnt; (b) zweiter offener Eintrag pro Mitarbeiter wird vom Unique-Index abgelehnt; (c) Lesezugriff auf fremde Einträge liefert 0 Zeilen.
+- Manueller E2E-Klickpfad mit zwei realen B1c-Personen: einstempeln → Liste enthält offenen Eintrag → ausstempeln → Eintrag geschlossen, Dauer korrekt.
+- Negativ-Manuell: inaktiver Mitarbeiter (per B1c-Admin deaktiviert) bekommt beim Einstempeln die deutsche Fehlermeldung; zweites Einstempeln ohne vorheriges Ausstempeln wird abgelehnt.
+
+---
+
 7. Verbindliche Standards (die Audit-Lektionen als Gesetz)
 
 1. TypeScript: `strict: true` ab Commit 1. Keine `any` außerhalb generierter UI-Libs. `Tables<>`-Typen für alle DB-Zeilen.
