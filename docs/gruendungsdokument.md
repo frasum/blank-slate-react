@@ -255,6 +255,20 @@ B1c-Scope (freigegeben):
 
 ---
 
+Nachtrag R4 (entschieden vor B2b, dokumentiert nach Abnahme B1c): **PWA-Manifest-only** für M1-Mobile-Stempeln. Keine `vite-plugin-pwa`, kein Service-Worker, keine Offline-Queue. Begründung: Stempeln ist ein synchroner Online-Akt; Identifikation läuft über bestehende PIN-/Badge-Flows; Kamera/Geolocation sind im Web verfügbar. Mitarbeiter-Handys benötigen kein NFC (Badge-Lesung läuft am Terminal). App-Store-Präsenz ist nicht gefordert.
+
+Geltungsbereich: R4 betrifft ausschließlich den UI-Lieferschritt **B2b** (Mobile-Stempel-UI). **B2a** (Schema, Geschäftstag-/Stempel-Logik, Server-Functions, RLS, Tests) ist davon unabhängig und wird ohne PWA-Bezug gebaut.
+
+Umschwenk-Schwellen (erst dann wird Capacitor / Offline-Queue neu bewertet, nicht früher):
+
+1. Stempeln per Handy-NFC wird zur Pflichtanforderung (nicht „nett zu haben").
+2. App-Store-Präsenz wird vom Betrieb gefordert (Marketing, Onboarding, Vertrauen).
+3. Hintergrund-Push auf iOS wird hartes Muss und Web-Push via installierter PWA reicht nicht.
+
+Eine belegte Offline-Stempelpflicht (mehrfach reproduzierter Netzausfall am Stempelort) öffnet einen **eigenen** Scope „Offline-Queue für M1", nicht eine stille Erweiterung von B2b.
+
+---
+
 7. Verbindliche Standards (die Audit-Lektionen als Gesetz)
 
 1. TypeScript: `strict: true` ab Commit 1. Keine `any` außerhalb generierter UI-Libs. `Tables<>`-Typen für alle DB-Zeilen.
@@ -287,7 +301,7 @@ B1c-Scope (freigegeben):
 
 | R3 | Lohn-Korrektheit (Nettolohn war nie getestet) | B5-Gate: ein kompletter Lohnlauf parallel alt/neu mit Abgleich, bevor Alt abgeschaltet wird |
 
-| R4 | Capacitor/Mobile (nur thaitime hat native Apps) | Entscheidung vor B4: PWA-only (einfacher) vs. Capacitor übernehmen |
+| R4 | Capacitor/Mobile (nur thaitime hat native Apps) | **Entschieden vor B2b: PWA-Manifest-only** (siehe Nachtrag R4 unten). Re-Evaluierung nur bei den dort genannten Umschwenk-Schwellen. |
 
 | R5 | Umfang ehrlich halten | Nicht jede Funktion der Alt-Apps verdient den Umzug (z. B. Entwickler-Checklisten, ComponentPlayground). Pro Modul: bewusste „nehmen wir NICHT mit"-Liste |
 
