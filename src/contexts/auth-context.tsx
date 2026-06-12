@@ -5,21 +5,12 @@
 // Der Provider wird in __root.tsx eingehängt. Bei Anmeldung/Abmeldung
 // werden Identitäts-Queries automatisch invalidiert.
 
-import { createContext, useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { getMyIdentity, type Identity } from "@/lib/auth/me.functions";
-
-export type AuthContextValue = {
-  session: Session | null;
-  loading: boolean;
-  identity: Identity | null;
-  identityLoading: boolean;
-  signOut: () => Promise<void>;
-};
-
-export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+import { getMyIdentity } from "@/lib/auth/me.functions";
+import { AuthContext, type AuthContextValue } from "./auth-context-types";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
