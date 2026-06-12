@@ -17,6 +17,7 @@ export const getMyIdentity = createServerFn({ method: "GET" })
     const { data: link, error: linkErr } = await context.supabase
       .from("user_links")
       .select("staff_id, organization_id")
+      .eq("user_id", context.userId)
       .maybeSingle();
     if (linkErr || !link) {
       return { staffId: null, organizationId: null, role: null };
