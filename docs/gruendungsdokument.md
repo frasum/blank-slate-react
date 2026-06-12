@@ -287,7 +287,7 @@ B1c-Scope (freigegeben):
 
 | R3 | Lohn-Korrektheit (Nettolohn war nie getestet) | B5-Gate: ein kompletter Lohnlauf parallel alt/neu mit Abgleich, bevor Alt abgeschaltet wird |
 
-| R4 | Capacitor/Mobile (nur thaitime hat native Apps) | Entscheidung vor B4: PWA-only (einfacher) vs. Capacitor übernehmen |
+| R4 | Capacitor/Mobile (nur thaitime hat native Apps) | **Entschieden vor B2b: PWA-Manifest-only** (siehe Nachtrag R4 unten). Re-Evaluierung nur bei den dort genannten Umschwenk-Schwellen. |
 
 | R5 | Umfang ehrlich halten | Nicht jede Funktion der Alt-Apps verdient den Umzug (z. B. Entwickler-Checklisten, ComponentPlayground). Pro Modul: bewusste „nehmen wir NICHT mit"-Liste |
 
