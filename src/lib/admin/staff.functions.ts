@@ -65,7 +65,7 @@ export const listStaff = createServerFn({ method: "GET" })
         isActive: s.is_active,
         role,
         locationIds: locations,
-        hasPin: (s.staff_pins?.length ?? 0) > 0,
+        hasPin: s.staff_pins !== null,
         activeBadgeCount: activeBadges,
       };
     });
@@ -98,7 +98,7 @@ export const getStaff = createServerFn({ method: "GET" })
       isActive: staff.is_active,
       role: (ra && ra.length > 0 ? ra[0].role : null) as AppRole | null,
       locationIds: (staff.staff_locations ?? []).map((l) => l.location_id),
-      hasPin: (staff.staff_pins?.length ?? 0) > 0,
+      hasPin: staff.staff_pins !== null,
     };
   });
 
@@ -119,38 +119,31 @@ export const createStaff = createServerFn({ method: "POST" })
   .inputValidator((input) => staffBasicsSchema.parse(input))
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
-    return runGuarded(caller.role, "admin", writeAuditLog.bind(null) as never, async () => {
-      // bind-Hack vermeiden: wir bauen den AuditWriter mit fester orgId/actor.
-      throw new Error("unreachable");
-    }).catch(async () => {
-      // Fallback: direkter Aufruf statt bind-Hack (siehe Kommentar oben).
-      const auditWriter = makeAuditWriter(caller);
-      return runGuarded(caller.role, "admin", auditWriter, async () => {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { data: created, error } = await supabaseAdmin
-          .from("staff")
-          .insert({
-            organization_id: caller.organizationId,
-            first_name: data.firstName,
-            last_name: data.lastName,
-            display_name: data.displayName,
-            email: data.email ?? null,
-            phone: data.phone ?? null,
-            is_active: true,
-          })
-          .select("id")
-          .single();
-        if (error) throw error;
-        return {
-          result: { id: created.id },
-          audit: {
-            action: "staff.create",
-            entity: "staff",
-            entityId: created.id,
-            meta: { displayName: data.displayName },
-          },
-        };
-      });
+    return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: created, error } = await supabaseAdmin
+        .from("staff")
+        .insert({
+          organization_id: caller.organizationId,
+          first_name: data.firstName,
+          last_name: data.lastName,
+          display_name: data.displayName,
+          email: data.email ?? null,
+          phone: data.phone ?? null,
+          is_active: true,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      return {
+        result: { id: created.id },
+        audit: {
+          action: "staff.create",
+          entity: "staff",
+          entityId: created.id,
+          meta: { displayName: data.displayName },
+        },
+      };
     });
   });
 
