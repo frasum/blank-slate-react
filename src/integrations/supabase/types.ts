@@ -141,6 +141,35 @@ export type Database = {
           },
         ]
       }
+      organization_settings: {
+        Row: {
+          created_at: string
+          organization_id: string
+          time_locked_through_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          organization_id: string
+          time_locked_through_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          organization_id?: string
+          time_locked_through_date?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           created_at: string
@@ -425,6 +454,7 @@ export type Database = {
       }
       time_entries: {
         Row: {
+          break_minutes: number
           business_date: string
           created_at: string
           ended_at: string | null
@@ -437,6 +467,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          break_minutes?: number
           business_date: string
           created_at?: string
           ended_at?: string | null
@@ -449,6 +480,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          break_minutes?: number
           business_date?: string
           created_at?: string
           ended_at?: string | null
