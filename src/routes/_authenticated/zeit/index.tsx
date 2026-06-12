@@ -6,6 +6,17 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { arbzgMinimumBreak } from "@/lib/time/break-rules";
+import {
   clockIn,
   clockOut,
   getMyOpenEntry,
@@ -73,16 +84,31 @@ function ZeitPage() {
     onError: (e: Error) => toast.error(e.message),
   });
   const outMut = useMutation({
-    mutationFn: () => doClockOut(),
+    mutationFn: (breakMinutes: number) => doClockOut({ data: { breakMinutes } }),
     onSuccess: () => {
       toast.success("Ausgestempelt.");
       void qc.invalidateQueries({ queryKey: ["time"] });
+      setBreakDialogOpen(false);
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const open = openQuery.data;
   const elapsed = open ? now.getTime() - new Date(open.startedAt).getTime() : 0;
+  const grossMinutes = Math.max(0, Math.round(elapsed / 60000));
+  const recommendedBreak = arbzgMinimumBreak(grossMinutes);
+
+  const [breakDialogOpen, setBreakDialogOpen] = useState(false);
+  const [breakInput, setBreakInput] = useState<string>("0");
+
+  function openBreakDialog() {
+    setBreakInput(String(recommendedBreak));
+    setBreakDialogOpen(true);
+  }
+
+  const parsedBreak = Number.parseInt(breakInput, 10);
+  const breakValid = Number.isFinite(parsedBreak) && parsedBreak >= 0 && parsedBreak < 480;
+  const breakShort = breakValid && parsedBreak < recommendedBreak;
 
   return (
     <main className="mx-auto max-w-xl space-y-6 px-4 py-8">
@@ -107,7 +133,7 @@ function ZeitPage() {
               variant="destructive"
               className="w-full"
               disabled={outMut.isPending}
-              onClick={() => outMut.mutate()}
+              onClick={openBreakDialog}
             >
               {outMut.isPending ? "Wird gestempelt…" : "Ausstempeln"}
             </Button>
@@ -126,6 +152,48 @@ function ZeitPage() {
           </div>
         )}
       </Card>
+
+      <Dialog open={breakDialogOpen} onOpenChange={setBreakDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Pause eintragen</DialogTitle>
+            <DialogDescription>
+              ArbZG-Empfehlung für diese Schicht: <strong>{recommendedBreak} Minuten</strong>.
+              Bitte trage die tatsächlich genommene Pause ein.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="break-input">Pause in Minuten</Label>
+            <Input
+              id="break-input"
+              type="number"
+              min={0}
+              max={479}
+              step={5}
+              value={breakInput}
+              onChange={(e) => setBreakInput(e.target.value)}
+              autoFocus
+            />
+            {breakShort && (
+              <p className="text-sm text-destructive">
+                Achtung: Pause liegt unter der ArbZG-Empfehlung ({recommendedBreak} Min). Wird im Audit als
+                <code className="ml-1 rounded bg-muted px-1">arbzg_short</code> vermerkt.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBreakDialogOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button
+              disabled={!breakValid || outMut.isPending}
+              onClick={() => outMut.mutate(parsedBreak)}
+            >
+              {outMut.isPending ? "Wird gestempelt…" : "Ausstempeln"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <section className="space-y-2">
         <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
