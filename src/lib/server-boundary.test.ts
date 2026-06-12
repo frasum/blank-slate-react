@@ -24,7 +24,8 @@ function walk(dir: string): string[] {
   });
 }
 
-const ALL_FILES = walk(ROOT);
+// Testdateien werden nicht ins Client-Bundle gepackt → ausschließen.
+const ALL_FILES = walk(ROOT).filter((f) => !/\.test\.tsx?$/.test(f));
 const NON_SERVER_FILES = ALL_FILES.filter((f) => !/\.server\.tsx?$/.test(f));
 
 const STATIC_CLIENT_SERVER_IMPORT =

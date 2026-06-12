@@ -7,7 +7,7 @@
 // (Remix-Muster: kein "Anmelden über eine andere Session hinweg").
 // Selbstregistrierung und Passwort-Reset sind in dieser Phase verboten.
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createFileRoute, redirect, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
@@ -239,7 +239,3 @@ function BadgeForm({ onLoggedIn }: { onLoggedIn: () => Promise<void> }) {
     </form>
   );
 }
-
-// Hinweis: useEffect-Import bleibt aus dem ursprünglichen TanStack-Template-Muster
-// erhalten, falls künftige Logging-/Tracking-Hooks ergänzt werden.
-export { useEffect as _ }; // verhindert no-unused-vars beim aktuellen Minimal-UI
