@@ -198,6 +198,8 @@ Jedes Modul wird beim Neubau aus GENAU EINER Bestands-App fachlich abgeleitet (d
 
 | M3 | Dienstplan | thaitime (schedule + KI-Foto-Import + Self-Service-Wünsche/Tausch) | bunker Roster-Grid (Virtualisierung, Paint-Tool) |
 
+_Ersetzt durch Nachtrag M3 (siehe unten): Quelle ist bunker-shift-flow (shifts + RosterGrid + billing-cycle 26.–25.). thaitime-Features sind ausgeschlossen._
+
 | M4 | Lohn/HR | thaitime (Nettolohn, Dokumente, Onboarding, Payslips) | tagesabrechnung Lohnbüro-Portal, bunker SFN-Berechnung (getestet!) |
 
 | M5 | Bestellwesen | bestellung (komplett: B2B, Portale, KI-Import, Voice) | bunker Lieferanten/Katalog als Anforderungs-Checkliste |
@@ -229,6 +231,8 @@ Prinzip: Strangler Fig. Die Alt-Apps laufen weiter und sterben modulweise. Nach 
 | B3 | M2 Kasse | sessions-Historie (tagesabr.; ta\_-Daten aus bunker nur falls abweichend) | 1 Monat Abschlüsse fehlerfrei; Lohnbüro-Export identisch zu Alt |
 
 | B4 | M3 Dienstplan | thaitime schedule + Templates | Eine volle Planungswoche produktiv |
+
+_Ersetzt durch Nachtrag M3/B4 (siehe unten): Quelle bunker-shift-flow; Erfolgs-Gate ist ein voller Planungszyklus (26.–25.) produktiv._
 
 | B5 | M4 Lohn/HR | thaitime (Dokumente, Payslips, Onboarding-Historie) | Nettolohn-Tests grün GEGEN BMF-Referenzfälle; ein Lohnlauf parallel verifiziert |
 
@@ -289,6 +293,24 @@ Erfolgs-Gate B2a:
 - DB-Integrationstest (manuell via SQL-Konsole für B2a): (a) direkter INSERT als `authenticated`-Rolle wird abgelehnt; (b) zweiter offener Eintrag pro Mitarbeiter wird vom Unique-Index abgelehnt; (c) Lesezugriff auf fremde Einträge liefert 0 Zeilen.
 - Manueller E2E-Klickpfad mit zwei realen B1c-Personen: einstempeln → Liste enthält offenen Eintrag → ausstempeln → Eintrag geschlossen, Dauer korrekt.
 - Negativ-Manuell: inaktiver Mitarbeiter (per B1c-Admin deaktiviert) bekommt beim Einstempeln die deutsche Fehlermeldung; zweites Einstempeln ohne vorheriges Ausstempeln wird abgelehnt.
+
+---
+
+Nachtrag M3/B4 (Quellenwechsel, ersetzt M3-Zeile in §4/§5 und präzisiert B4 in §6):
+
+- **Quelle:** `bunker-shift-flow` — nicht `thaitime`. `thaitime` ist als M3-Quelle gestrichen.
+- **Datenmodell `shifts`:** Mitarbeiter + Datum + Arbeitsbereich + Skill + Status (`geplant`/`bestätigt`) + Notiz. **Keine Uhrzeiten im Plan.** Der Plan beantwortet „wer, wann, wo"; Ist-Zeiten kommen aus M1 (Stechuhr).
+- **UI-Vorlage:** bunker `RosterGrid` mit verbindlich zu erhaltenden Eigenschaften:
+  - (a) Paint-Tool mit Pinsel je Skill und Radierer, Klick-Malen in Zellen; Sperr-Zeiträume blockieren das Malen.
+  - (b) Drag & Drop der Schicht-Pills mit optimistischen Updates und Rollback bei Fehler.
+  - (c) Konflikt-Markierung auf der Pill (Abwesenheit, fehlender Skill).
+  - (d) Virtualisierte Zeilen, Gruppierung nach Arbeitsbereich, Dichte-Umschaltung, Summenspalte.
+  - (e) Status-Workflow `geplant → bestätigt` mit Bestätigungs-Popover.
+  - (f) **Planungseinheit ist der Abrechnungszyklus 26.–25. des Monats** (bunker `billing-cycle.ts`), mit Zyklus-Navigation und Zyklus-Sperren — **nicht die Kalenderwoche**.
+- **Explizit ausgeschlossen** (thaitime-Features, allenfalls spätere Anbauten): KI-Foto-Import, Schichtvorlagen, Besetzungsanforderungen, Freigabe-Workflow, Schichtwünsche/Tausch.
+- **Konsequenz für M1:** `time_entries.source='plan'`-Einträge erhalten aus dem Plan nur Datum/Mitarbeiter/Bereich — **keine Sollzeiten**.
+- **Konsequenz für M4 (Lohn):** Abrechnungszyklus 26.–25. wird als **organisationsweite Einstellung** geführt; Plan, Zeiterfassungs-Auswertung und Lohn nutzen denselben Zyklus.
+- **B4-Erfolgskriterium (ersetzt „eine volle Planungswoche"):** ein voller Planungszyklus (26.–25.) produktiv.
 
 ---
 
