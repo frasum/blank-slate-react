@@ -83,6 +83,8 @@ function formatAsUtcInZone(ts: number): number {
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 // Akzeptiert sowohl HH:MM:SS (Supabase-Standard) als auch HH:MM (in den
 // Echtdaten ebenfalls verbreitet — Sekunden werden dann auf 0 gesetzt).
+// Stunde 24 ist erlaubt (Legacy-Schreibweise „Ende des Tages") und wird
+// in combineDateAndTimes auf 00 + Folgetag normalisiert.
 const ISO_TIME = /^(\d{2}):(\d{2})(?::(\d{2}))?$/;
 
 /**
@@ -102,22 +104,29 @@ export function combineDateAndTimes(
   const y = Number(dm[1]);
   const mo = Number(dm[2]);
   const d = Number(dm[3]);
-  const sh = Number(sm[1]);
+  let sh = Number(sm[1]);
   const smin = Number(sm[2]);
   const ssec = sm[3] !== undefined ? Number(sm[3]) : 0;
-  const eh = Number(em[1]);
+  let eh = Number(em[1]);
   const emin = Number(em[2]);
   const esec = em[3] !== undefined ? Number(em[3]) : 0;
-  if (sh > 23 || smin > 59 || ssec > 59) return null;
-  if (eh > 23 || emin > 59 || esec > 59) return null;
+  if (sh > 24 || smin > 59 || ssec > 59) return null;
+  if (eh > 24 || emin > 59 || esec > 59) return null;
   if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  // „24:MM" → „00:MM" mit Pflicht-Rollover auf Folgetag.
+  let endForceNextDay = false;
+  if (sh === 24) sh = 0;
+  if (eh === 24) {
+    eh = 0;
+    endForceNextDay = true;
+  }
   const startedAt = berlinWallClockToUTC(y, mo, d, sh, smin, ssec);
   const startTotal = sh * 3600 + smin * 60 + ssec;
   const endTotal = eh * 3600 + emin * 60 + esec;
   let endY = y;
   let endMo = mo;
   let endD = d;
-  if (endTotal <= startTotal) {
+  if (endForceNextDay || endTotal <= startTotal) {
     // Folgetag.
     const next = new Date(Date.UTC(y, mo - 1, d) + 86_400_000);
     endY = next.getUTCFullYear();
