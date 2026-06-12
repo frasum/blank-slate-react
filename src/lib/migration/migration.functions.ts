@@ -17,6 +17,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Json } from "@/integrations/supabase/types";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { writeAuditLog } from "@/lib/admin/audit";
 import { loadTimeLock } from "@/lib/time/time-lock";
@@ -370,7 +371,7 @@ export const runImport = createServerFn({ method: "POST" })
         source_system: data.sourceSystem,
         file_hash: fileHash,
         mode: data.mode,
-        counters: counters as unknown as Record<string, unknown>,
+        counters: counters as unknown as Json,
         created_by: caller.userId,
       })
       .select("id")
@@ -392,7 +393,7 @@ export const runImport = createServerFn({ method: "POST" })
       .from("import_runs")
       .update({
         finished_at: new Date().toISOString(),
-        counters: counters as unknown as Record<string, unknown>,
+        counters: counters as unknown as Json,
       })
       .eq("id", runId);
 
