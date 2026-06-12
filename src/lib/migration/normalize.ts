@@ -44,33 +44,38 @@ export function berlinWallClockToUTC(
   minute: number,
   second: number,
 ): string {
-  let ts = Date.UTC(year, month - 1, day, hour, minute, second);
+  const target = Date.UTC(year, month - 1, day, hour, minute, second);
+  let ts = target;
   for (let i = 0; i < 3; i++) {
-    const parts = new Intl.DateTimeFormat("en-GB", {
-      timeZone: BERLIN_TZ,
-      hour12: false,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    }).formatToParts(new Date(ts));
-    const m: Record<string, string> = {};
-    for (const p of parts) m[p.type] = p.value;
-    const tzTs = Date.UTC(
-      Number(m.year),
-      Number(m.month) - 1,
-      Number(m.day),
-      Number(m.hour === "24" ? "00" : m.hour),
-      Number(m.minute),
-      Number(m.second),
-    );
-    const diff = tzTs - ts;
-    if (diff === 0) break;
-    ts -= diff;
+    const wall = formatAsUtcInZone(ts);
+    const delta = wall - target;
+    if (delta === 0) break;
+    ts -= delta;
   }
   return new Date(ts).toISOString();
+}
+
+function formatAsUtcInZone(ts: number): number {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: BERLIN_TZ,
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(new Date(ts));
+  const m: Record<string, string> = {};
+  for (const p of parts) m[p.type] = p.value;
+  return Date.UTC(
+    Number(m.year),
+    Number(m.month) - 1,
+    Number(m.day),
+    Number(m.hour === "24" ? "00" : m.hour),
+    Number(m.minute),
+    Number(m.second),
+  );
 }
 
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -99,6 +104,9 @@ export function combineDateAndTimes(
   const eh = Number(em[1]);
   const emin = Number(em[2]);
   const esec = Number(em[3]);
+  if (sh > 23 || smin > 59 || ssec > 59) return null;
+  if (eh > 23 || emin > 59 || esec > 59) return null;
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
   const startedAt = berlinWallClockToUTC(y, mo, d, sh, smin, ssec);
   const startTotal = sh * 3600 + smin * 60 + ssec;
   const endTotal = eh * 3600 + emin * 60 + esec;
