@@ -36,9 +36,10 @@ describe("businessDateOf (Europe/Berlin, 3-Uhr-Cutoff)", () => {
     expect(businessDateOf(berlin("2026-01-01T03:00:00", "+01:00"))).toBe("2026-01-01");
   });
 
-  it("DST-Frühling: 29.03.2026 02:30 (kurz vor Umstellung) -> 28.03.", () => {
-    // In Deutschland springt die Uhr 02:00 -> 03:00 am letzten So. im März.
-    expect(businessDateOf(berlin("2026-03-29T02:30:00", "+01:00"))).toBe("2026-03-28");
+  it("DST-Frühling: 29.03.2026 01:30 Winterzeit (vor DST-Sprung) -> 28.03.", () => {
+    // In Deutschland springt die Uhr am letzten So. im März 02:00 -> 03:00.
+    // 02:30 Winterzeit existiert in Berlin gar nicht; 01:30 ist eindeutig vor Cutoff.
+    expect(businessDateOf(berlin("2026-03-29T01:30:00", "+01:00"))).toBe("2026-03-28");
   });
 
   it("DST-Frühling: 29.03.2026 03:30 Sommerzeit -> 29.03.", () => {
