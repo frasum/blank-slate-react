@@ -106,6 +106,53 @@ export type Database = {
           },
         ]
       }
+      import_runs: {
+        Row: {
+          counters: Json
+          created_at: string
+          created_by: string | null
+          file_hash: string
+          finished_at: string | null
+          id: string
+          mode: string
+          organization_id: string
+          source_system: string
+          started_at: string
+        }
+        Insert: {
+          counters?: Json
+          created_at?: string
+          created_by?: string | null
+          file_hash: string
+          finished_at?: string | null
+          id?: string
+          mode: string
+          organization_id: string
+          source_system: string
+          started_at?: string
+        }
+        Update: {
+          counters?: Json
+          created_at?: string
+          created_by?: string | null
+          file_hash?: string
+          finished_at?: string | null
+          id?: string
+          mode?: string
+          organization_id?: string
+          source_system?: string
+          started_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_runs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       locations: {
         Row: {
           created_at: string
@@ -361,6 +408,60 @@ export type Database = {
           },
         ]
       }
+      staff_identity_map: {
+        Row: {
+          alt_id: string
+          alt_name: string
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          id: string
+          organization_id: string
+          source_system: string
+          staff_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          alt_id: string
+          alt_name: string
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          id?: string
+          organization_id: string
+          source_system: string
+          staff_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          alt_id?: string
+          alt_name?: string
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          id?: string
+          organization_id?: string
+          source_system?: string
+          staff_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_identity_map_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_identity_map_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_locations: {
         Row: {
           created_at: string
@@ -459,6 +560,7 @@ export type Database = {
           created_at: string
           ended_at: string | null
           id: string
+          import_key: string | null
           location_id: string | null
           organization_id: string
           source: Database["public"]["Enums"]["time_entry_source"]
@@ -472,6 +574,7 @@ export type Database = {
           created_at?: string
           ended_at?: string | null
           id?: string
+          import_key?: string | null
           location_id?: string | null
           organization_id: string
           source?: Database["public"]["Enums"]["time_entry_source"]
@@ -485,6 +588,7 @@ export type Database = {
           created_at?: string
           ended_at?: string | null
           id?: string
+          import_key?: string | null
           location_id?: string | null
           organization_id?: string
           source?: Database["public"]["Enums"]["time_entry_source"]
