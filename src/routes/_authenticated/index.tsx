@@ -26,14 +26,22 @@ function Index() {
               ? `Angemeldet als ${identity.displayName ?? identity.staffId.slice(0, 8)} · Rolle ${identity.role ?? "—"}`
               : "Kein Mitarbeiter verknüpft"}
         </div>
-        {canAdmin && (
+        <div className="flex flex-col gap-2">
           <Link
-            to="/admin"
+            to="/zeit"
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
           >
-            Zur Verwaltung
+            Zeiterfassung
           </Link>
-        )}
+          {canAdmin && (
+            <Link
+              to="/admin"
+              className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+            >
+              Zur Verwaltung
+            </Link>
+          )}
+        </div>
         <button
           onClick={() => void signOut()}
           className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
