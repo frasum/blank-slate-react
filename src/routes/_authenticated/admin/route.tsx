@@ -19,6 +19,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
 });
 
 function AdminLayout() {
+  const { identity } = Route.useRouteContext();
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
@@ -49,6 +50,15 @@ function AdminLayout() {
               >
                 Standorte
               </Link>
+              {identity.role === "admin" && (
+                <Link
+                  to="/admin/migration"
+                  className="text-muted-foreground hover:text-foreground"
+                  activeProps={{ className: "text-foreground" }}
+                >
+                  Migration
+                </Link>
+              )}
             </nav>
           </div>
           <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
