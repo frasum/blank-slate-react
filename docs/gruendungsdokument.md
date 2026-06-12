@@ -279,7 +279,11 @@ Nachtrag B2-Schnitt (vor Bau B2a freigegeben):
 
 **Ersetzt E1 (Eintragsmodell):** Das Schema erlaubt bewusst mehrere abgeschlossene `time_entries` pro Mitarbeiter und Geschäftstag (nicht: nur ein Eintrag pro Tag). Betriebspraxis bleibt 1× ein-/ausstempeln pro Tag — die Mehrfach-Möglichkeit existiert für spätere Manager-Korrekturen (`source='manual'`) und geteilte Schichten. Tagesaggregation passiert NICHT auf Schemaebene, sondern bei der SFN-Berechnung (siehe B2-SFN unten). Offen ist Behandlung der gesetzlichen Pause (ArbZG, ≥6h → 30 min, ≥9h → 45 min) innerhalb des Tageseintrags — Entscheidung in B2-SFN oder B2b.
 
-**B2-SFN — SFN-Berechnung + Golden-Master (neuer eigener Schritt, vor B2c):** Reines TS-Modul, das aus den `time_entries` eines Tages SFN-Zuschläge berechnet. Charakterisierungstest (Golden Master) gegen das Original `calculateShiftHours` aus bunker-shift-flow mit dem dortigen Referenzfall-Satz (27 Tests). Erst wenn jedes Originalergebnis bitgenau reproduziert wird, gilt B2-SFN als abgenommen. **Dies ist explizit nicht M4** — es ist die getestete Zuschlags-Logik auf Stempel-Basis, auf der M4 (Nettolohn) später aufsetzt.
+**B2-SFN — SFN-Berechnung + Golden-Master (neuer eigener Schritt, vor B2c):** Reines TS-Modul, das aus den `time_entries` eines Tages SFN-Zuschläge berechnet. Zwei Testquellen, beide blockierend:
+ 1. **Primärreferenz (Golden Master):** `calculateShiftHours` aus `tagesabrechnung/src/lib/shiftCalculations.ts` — die produktiv bewährte §3b-EStG-Logik (identisch im Remix-Stand). Charakterisierungstest gegen jeden Referenzfall der Originalsuite; bitgenaue Reproduktion ist Abnahmekriterium.
+ 2. **Zweite Testquelle:** `computeSfn`-Testfälle aus `bunker-shift-flow/.../sfn.test.ts` als unabhängige Gegenprobe.
+
+ **Dies ist explizit nicht M4** — es ist die getestete Zuschlags-Logik auf Stempel-Basis, auf der M4 (Nettolohn) später aufsetzt.
 
 **B2b — Korrekturen & Mobile-UI:** Manager-Korrektur-UI (`source='manual'`), Pausen-Behandlung, PWA-Manifest-only fürs Mitarbeiter-Stempeln (siehe R4).
 
@@ -290,9 +294,10 @@ Erfolgs-Gate B2a:
 - `tsc --noEmit`, `eslint . --max-warnings=0`, `vitest run` grün.
 - RLS-Inventur (`scripts/check-rls-inventory.sql`): weiterhin 0 anon-Policies, 0 bedingungslose Schreib-Policies; `time_entries` hat **0 Client-Schreib-Policies** (nur die SELECT-Policy für eigene Einträge).
 - Unit-Tests für `canClockIn`/`canClockOut` (aktiv/inaktiv, kein/ein offener Eintrag, end vor start).
-- DB-Integrationstest (manuell via SQL-Konsole für B2a): (a) direkter INSERT als `authenticated`-Rolle wird abgelehnt; (b) zweiter offener Eintrag pro Mitarbeiter wird vom Unique-Index abgelehnt; (c) Lesezugriff auf fremde Einträge liefert 0 Zeilen.
-- Manueller E2E-Klickpfad mit zwei realen B1c-Personen: einstempeln → Liste enthält offenen Eintrag → ausstempeln → Eintrag geschlossen, Dauer korrekt.
-- Negativ-Manuell: inaktiver Mitarbeiter (per B1c-Admin deaktiviert) bekommt beim Einstempeln die deutsche Fehlermeldung; zweites Einstempeln ohne vorheriges Ausstempeln wird abgelehnt.
+- **Automatisierte DB-Integrationstests** (blockierend, Teil von `vitest run`): (a) direkter INSERT in `time_entries` als `authenticated`-Rolle wird von RLS abgelehnt; (b) zweiter offener Eintrag pro Mitarbeiter wird vom partiellen Unique-Index abgelehnt; (c) Lesezugriff auf fremde Einträge liefert 0 Zeilen.
+- **`role-guard.db.test.ts`** (blockierend, Nachholung aus B1c-Merkposten): Integrationstest, der die Verdrahtung der Guard-Regeln gegen die echte DB prüft — Last-Admin-Schutz und Nicht-Admin-Ablehnung (kein `audit_log`-Eintrag bei abgelehntem Aufruf).
+- E2E-Klickpfad mit zwei realen B1c-Personen: einstempeln → Liste enthält offenen Eintrag → ausstempeln → Eintrag geschlossen, Dauer korrekt. **`audit_log`-Prüfung:** danach existieren **genau zwei** Einträge — `action='time_entry.clock_in'` und `action='time_entry.clock_out'` — beide mit `entity='time_entry'` und korrekter `entity_id` (= ID des `time_entries`-Eintrags).
+- Negativ: inaktiver Mitarbeiter (per B1c-Admin deaktiviert) bekommt beim Einstempeln die deutsche Fehlermeldung; zweites Einstempeln ohne vorheriges Ausstempeln wird abgelehnt; in beiden Fällen wird **kein** `audit_log`-Eintrag geschrieben.
 
 ---
 
