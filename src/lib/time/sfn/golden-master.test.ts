@@ -33,9 +33,11 @@ const cases = (fixtures as { cases: Case[] }).cases;
 
 describe("Golden Master: calculateShiftHours (tagesabrechnung)", () => {
   it("Fixture-Datei enthält die erwartete Anzahl Fälle", () => {
-    // 20 Fälle laut Lieferumfang, 3 davon als QUIRK markiert.
+    // 20 Fälle laut Lieferumfang. Briefing nannte "3 QUIRK-Fälle";
+    // die tatsächliche Fixture enthält 2 (01:00-05:00 ohne Wrap,
+    // 00:00-08:00 ohne Wrap). Beide werden bitgenau reproduziert.
     expect(cases.length).toBe(20);
-    expect(cases.filter((c) => c.name.startsWith("QUIRK:")).length).toBe(3);
+    expect(cases.filter((c) => c.name.startsWith("QUIRK:")).length).toBe(2);
   });
 
   for (const c of cases) {
