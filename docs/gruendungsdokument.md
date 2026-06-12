@@ -306,7 +306,24 @@ Nachtrag B2-Schnitt (vor Bau B2a freigegeben):
 
   **Erfolgs-Gate B2-SFN (erfüllt):** `tsc --noEmit`, `eslint`, `vitest run` grün; beide Test-Suiten blockierend; RLS-Inventur unverändert; DB-Integrationstests in CI unverändert grün.
 
-**B2b — Korrekturen & Mobile-UI:** Manager-Korrektur-UI (`source='manual'`), Pausen-Behandlung, PWA-Manifest-only fürs Mitarbeiter-Stempeln (siehe R4).
+**B2b — Korrekturen & Mobile-UI (umgesetzt):**
+
+  - **PWA-Manifest-only (R4):** `public/manifest.webmanifest` mit `name="COCO"`, `short_name="COCO"`, `start_url="/zeit"`, `display="standalone"`, COCO-Icons unter `public/icons/`. Head-Tags in `__root.tsx`. **Kein Service-Worker, keine Offline-Queue.** Caveat: `start_url` ist nach Installation eingefroren.
+  - **Pause (Option B — manuelle Eingabe mit ArbZG-Default):** Neue Spalte `time_entries.break_minutes int not null default 0 check (>=0 and <480)`. Beim Ausstempeln Pflicht-Dialog mit Default = `arbzgMinimumBreak(grossMin)` (>6h → 30, >9h → 45). Mitarbeiter kann übersteuern; UI warnt bei Unterschreitung. `audit_log.meta` enthält `breakMinutes`, `grossMinutes`, `arbzgRecommended`, `arbzgShort: boolean` — Compliance-Belegbarkeit für BAG-Anfragen. Reines Modul: `src/lib/time/break-rules.ts` + Tests.
+  - **Wasserlinie (G2-Sperrlogik):** Neue Tabelle `organization_settings(organization_id PK, time_locked_through_date date)`. Trigger legt für jede neue Org automatisch eine Zeile an. Semantik: `business_date ≤ time_locked_through_date` ist für **alle Rollen** gesperrt — auch Manager. Verschieben der Wasserlinie ist **admin-only** via `setTimeLock` mit Audit-Eintrag `settings.time_lock_moved`, `meta: { before, after }`.
+  - **Manager-Korrektur-Server-Functions** (`src/lib/time/time-admin.functions.ts`, alle via `runGuarded` + audit nur bei Erfolg):
+    - `listEntriesForCorrection` (manager+, lesen)
+    - `createManualEntry` (manager+, `source='manual'`, audit `time_entry.manual_create`)
+    - `updateTimeEntry` (manager+, **`source` bleibt erhalten** — kein stilles Umflaggen von `clock` auf `manual`; audit `time_entry.manual_update` mit `before`/`after`-Diff)
+    - `deleteTimeEntry` (manager+, audit `time_entry.manual_delete` mit **vollständigem Zeilen-Snapshot in `meta.snapshot`** — Gate (e): gelöschte Arbeitszeiten bleiben aus dem append-only-Log rekonstruierbar)
+    - `setTimeLock` (admin-only, audit `settings.time_lock_moved`)
+  - **Manager-UI:** `/admin/zeit` (Route gegated über `/admin`-Layout: manager+). Zeitraum-Filter, Tabelle mit Sperrindikator pro Zeile, Neu/Bearbeiten/Löschen-Dialoge mit Pflicht-Begründung (≥3 Zeichen, in `audit_log.meta.reason`). Admin-Block zum Verschieben der Wasserlinie nur sichtbar für Admins (UX-Gate; Sicherheit serverseitig).
+  - **Erfolgs-Gate B2b:**
+    - `tsc --noEmit`, `eslint --max-warnings=0`, `vitest run` grün
+    - DB-Integrationstests (blockierend): (a) Migration legt eine `organization_settings`-Zeile pro Org an (Trigger), (d) `assertBusinessDateUnlocked` wirft `TimeLockedError`, wenn `business_date ≤ time_locked_through_date` — server-seitige Sperre vor dem ersten DB-Schreibvorgang, **kein `audit_log`-Eintrag bei Verweigerung**.
+    - Unit-Tests: `arbzgMinimumBreak` (Schwellen 6h/9h), `isArbzgShort`, `isLocked`.
+    - RLS-Inventur unverändert sauber. Neue Tabelle `organization_settings`: SELECT für eigene Org, INSERT/UPDATE nur Admin.
+    - Manueller E2E (durch Nutzer): Manager-Korrektur → Audit-Query zeigt `manual_update` mit `before/after`-Diff und Reason; Löschung → `manual_delete` enthält vollständigen Snapshot in `meta.snapshot`; Versuch auf gesperrtem Tag → Fehlermeldung, kein Audit-Eintrag.
 
 **B2c — Migration & Parallelbetrieb:** `zt_shifts`-Importer aus tagesabrechnung + bunker, 2-Wochen-Parallelbetrieb mit Abgleichsbericht, Alt-Sync stilllegen.
 
