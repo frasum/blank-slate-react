@@ -18,6 +18,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { businessDateOf } from "@/lib/business-date";
 import { canClockIn, canClockOut, denialMessage } from "./time-rules";
+import { writeAuditLog } from "@/lib/admin/audit";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -154,6 +155,16 @@ export const clockIn = createServerFn({ method: "POST" })
       .single();
     if (error) throw error;
 
+    await writeAuditLog({
+      organizationId: caller.organizationId,
+      actorUserId: caller.userId,
+      actorStaffId: caller.staffId,
+      action: "time_entry.clock_in",
+      entity: "time_entry",
+      entityId: created.id,
+      meta: { source: "clock", locationId },
+    });
+
     return { id: created.id, startedAt: created.started_at };
   });
 
@@ -176,6 +187,16 @@ export const clockOut = createServerFn({ method: "POST" })
       .select("id, started_at, ended_at")
       .single();
     if (error) throw error;
+
+    await writeAuditLog({
+      organizationId: caller.organizationId,
+      actorUserId: caller.userId,
+      actorStaffId: caller.staffId,
+      action: "time_entry.clock_out",
+      entity: "time_entry",
+      entityId: updated.id,
+      meta: { source: "clock" },
+    });
 
     return {
       id: updated.id,
