@@ -5,13 +5,13 @@
 // Der Provider wird in __root.tsx eingehängt. Bei Anmeldung/Abmeldung
 // werden Identitäts-Queries automatisch invalidiert.
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useEffect, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyIdentity, type Identity } from "@/lib/auth/me.functions";
 
-type AuthContextValue = {
+export type AuthContextValue = {
   session: Session | null;
   loading: boolean;
   identity: Identity | null;
@@ -19,7 +19,7 @@ type AuthContextValue = {
   signOut: () => Promise<void>;
 };
 
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -68,10 +68,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth(): AuthContextValue {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth muss innerhalb von <AuthProvider> verwendet werden");
-  return ctx;
 }
