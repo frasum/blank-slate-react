@@ -27,6 +27,8 @@ export type NormalizedShift = {
   endedAt: string | null;
   breakMinutes: number;
   altTotals: AltTotals | null;
+  /** Tagesabrechnung liefert is_holiday; bunker liefert kein Flag (false). */
+  isHoliday: boolean;
   skipReason: SkipReason | null;
 };
 
@@ -129,4 +131,30 @@ export function trimSecondsHHMM(value: string): string {
   const m = ISO_TIME.exec(value);
   if (!m) return value;
   return `${m[1]}:${m[2]}`;
+}
+
+/**
+ * Wandelt einen UTC-ISO-Timestamp in "HH:MM" Berlin-Wandzeit um.
+ * MUSS via Intl (timeZone: Europe/Berlin) gehen — getHours()/UTC-Ableitung
+ * würde die SFN-Zuschlagsfenster je nach Sommer-/Winterzeit um 1–2 h
+ * verschieben.
+ */
+export function utcIsoToBerlinHHMM(iso: string): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: BERLIN_TZ,
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+  }).formatToParts(new Date(iso));
+  const m: Record<string, string> = {};
+  for (const p of parts) m[p.type] = p.value;
+  const hh = m.hour === "24" ? "00" : (m.hour ?? "00");
+  return `${hh}:${m.minute ?? "00"}`;
+}
+
+/** Sonntag-Erkennung aus shift_date (YYYY-MM-DD); reine Datumsarithmetik. */
+export function isSundayDate(shiftDate: string): boolean {
+  const m = ISO_DATE.exec(shiftDate);
+  if (!m) return false;
+  return new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))).getUTCDay() === 0;
 }
