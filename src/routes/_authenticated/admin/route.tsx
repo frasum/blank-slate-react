@@ -36,6 +36,13 @@ function AdminLayout() {
                 Mitarbeiter
               </Link>
               <Link
+                to="/admin/zeit"
+                className="text-muted-foreground hover:text-foreground"
+                activeProps={{ className: "text-foreground" }}
+              >
+                Zeit
+              </Link>
+              <Link
                 to="/admin/locations"
                 className="text-muted-foreground hover:text-foreground"
                 activeProps={{ className: "text-foreground" }}

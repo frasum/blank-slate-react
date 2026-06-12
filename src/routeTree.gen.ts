@@ -15,6 +15,7 @@ import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
 import { Route as AuthenticatedZeitIndexRouteImport } from './routes/_authenticated/zeit/index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
+import { Route as AuthenticatedAdminZeitRouteImport } from './routes/_authenticated/admin/zeit'
 import { Route as AuthenticatedAdminStaffRouteImport } from './routes/_authenticated/admin/staff'
 import { Route as AuthenticatedAdminLocationsRouteImport } from './routes/_authenticated/admin/locations'
 import { Route as AuthenticatedAdminStaffIndexRouteImport } from './routes/_authenticated/admin/staff.index'
@@ -48,6 +49,11 @@ const AuthenticatedZeitIndexRoute = AuthenticatedZeitIndexRouteImport.update({
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AuthenticatedAdminRouteRoute,
+} as any)
+const AuthenticatedAdminZeitRoute = AuthenticatedAdminZeitRouteImport.update({
+  id: '/zeit',
+  path: '/zeit',
   getParentRoute: () => AuthenticatedAdminRouteRoute,
 } as any)
 const AuthenticatedAdminStaffRoute = AuthenticatedAdminStaffRouteImport.update({
@@ -86,6 +92,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/admin/locations': typeof AuthenticatedAdminLocationsRoute
   '/admin/staff': typeof AuthenticatedAdminStaffRouteWithChildren
+  '/admin/zeit': typeof AuthenticatedAdminZeitRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/zeit/': typeof AuthenticatedZeitIndexRoute
   '/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
@@ -96,6 +103,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/': typeof AuthenticatedIndexRoute
   '/admin/locations': typeof AuthenticatedAdminLocationsRoute
+  '/admin/zeit': typeof AuthenticatedAdminZeitRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/zeit': typeof AuthenticatedZeitIndexRoute
   '/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
@@ -110,6 +118,7 @@ export interface FileRoutesById {
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/admin/locations': typeof AuthenticatedAdminLocationsRoute
   '/_authenticated/admin/staff': typeof AuthenticatedAdminStaffRouteWithChildren
+  '/_authenticated/admin/zeit': typeof AuthenticatedAdminZeitRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/zeit/': typeof AuthenticatedZeitIndexRoute
   '/_authenticated/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
@@ -124,6 +133,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/admin/locations'
     | '/admin/staff'
+    | '/admin/zeit'
     | '/admin/'
     | '/zeit/'
     | '/admin/staff/$staffId'
@@ -134,6 +144,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/'
     | '/admin/locations'
+    | '/admin/zeit'
     | '/admin'
     | '/zeit'
     | '/admin/staff/$staffId'
@@ -147,6 +158,7 @@ export interface FileRouteTypes {
     | '/_authenticated/'
     | '/_authenticated/admin/locations'
     | '/_authenticated/admin/staff'
+    | '/_authenticated/admin/zeit'
     | '/_authenticated/admin/'
     | '/_authenticated/zeit/'
     | '/_authenticated/admin/staff/$staffId'
@@ -201,6 +213,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/admin/'
       preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/zeit': {
+      id: '/_authenticated/admin/zeit'
+      path: '/zeit'
+      fullPath: '/admin/zeit'
+      preLoaderRoute: typeof AuthenticatedAdminZeitRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
     '/_authenticated/admin/staff': {
@@ -262,6 +281,7 @@ const AuthenticatedAdminStaffRouteWithChildren =
 interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminLocationsRoute: typeof AuthenticatedAdminLocationsRoute
   AuthenticatedAdminStaffRoute: typeof AuthenticatedAdminStaffRouteWithChildren
+  AuthenticatedAdminZeitRoute: typeof AuthenticatedAdminZeitRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
 }
 
@@ -269,6 +289,7 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
   {
     AuthenticatedAdminLocationsRoute: AuthenticatedAdminLocationsRoute,
     AuthenticatedAdminStaffRoute: AuthenticatedAdminStaffRouteWithChildren,
+    AuthenticatedAdminZeitRoute: AuthenticatedAdminZeitRoute,
     AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   }
 
@@ -299,3 +320,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
