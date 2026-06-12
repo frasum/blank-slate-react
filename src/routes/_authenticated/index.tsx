@@ -13,20 +13,17 @@ export const Route = createFileRoute("/_authenticated/")({
 });
 
 function Index() {
-  const { session, identity, identityLoading, signOut } = useAuth();
+  const { identity, identityLoading, signOut } = useAuth();
   const canAdmin = identity?.role === "admin" || identity?.role === "manager";
-  const isBadgeLogin = session?.user.email?.endsWith("@internal.invalid");
-  const displayLabel = identity?.displayName ?? (isBadgeLogin ? "Mitarbeiter" : session?.user.email);
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md space-y-4 text-center">
         <h1 className="text-3xl font-semibold tracking-tight text-foreground">Betriebsplattform</h1>
-        <p className="text-sm text-muted-foreground">Angemeldet als {displayLabel}</p>
         <div className="text-sm text-muted-foreground">
           {identityLoading
             ? "Identität wird geladen…"
             : identity?.staffId
-              ? `Mitarbeiter ${identity.displayName ?? identity.staffId.slice(0, 8)} · Rolle ${identity.role ?? "—"}`
+              ? `Angemeldet als ${identity.displayName ?? identity.staffId.slice(0, 8)} · Rolle ${identity.role ?? "—"}`
               : "Kein Mitarbeiter verknüpft"}
         </div>
         {canAdmin && (
