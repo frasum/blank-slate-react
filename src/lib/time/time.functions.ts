@@ -19,6 +19,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { businessDateOf } from "@/lib/business-date";
 import { canClockIn, canClockOut, denialMessage } from "./time-rules";
 import { writeAuditLog } from "@/lib/admin/audit";
+import { arbzgMinimumBreak, isArbzgShort, grossMinutesBetween } from "./break-rules";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -170,7 +171,10 @@ export const clockIn = createServerFn({ method: "POST" })
 
 export const clockOut = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((input) =>
+    z.object({ breakMinutes: z.number().int().min(0).max(479) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
     const caller = await loadStaffCaller(context.supabase, context.userId);
     const open = await loadOpenEntry(caller.staffId);
     const now = new Date();
@@ -180,13 +184,16 @@ export const clockOut = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: updated, error } = await supabaseAdmin
       .from("time_entries")
-      .update({ ended_at: now.toISOString() })
+      .update({ ended_at: now.toISOString(), break_minutes: data.breakMinutes })
       .eq("id", open!.id)
       .eq("staff_id", caller.staffId)
       .is("ended_at", null)
       .select("id, started_at, ended_at")
       .single();
     if (error) throw error;
+
+    const gross = grossMinutesBetween(new Date(updated.started_at), now);
+    const arbzgShort = isArbzgShort(gross, data.breakMinutes);
 
     await writeAuditLog({
       organizationId: caller.organizationId,
@@ -195,7 +202,13 @@ export const clockOut = createServerFn({ method: "POST" })
       action: "time_entry.clock_out",
       entity: "time_entry",
       entityId: updated.id,
-      meta: { source: "clock" },
+      meta: {
+        source: "clock",
+        breakMinutes: data.breakMinutes,
+        grossMinutes: gross,
+        arbzgRecommended: arbzgMinimumBreak(gross),
+        arbzgShort,
+      },
     });
 
     return {

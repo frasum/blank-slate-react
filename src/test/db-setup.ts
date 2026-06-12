@@ -121,6 +121,7 @@ export async function seedOrg(label: string): Promise<SeededOrg> {
     // Reihenfolge: abhängige Daten zuerst.
     await service.from("time_entries").delete().eq("organization_id", orgId);
     await service.from("audit_log").delete().eq("organization_id", orgId);
+    await service.from("organization_settings").delete().eq("organization_id", orgId);
     await service.from("role_assignments").delete().eq("organization_id", orgId);
     await service.from("user_links").delete().eq("organization_id", orgId);
     await service.from("staff_locations").delete().eq("organization_id", orgId);

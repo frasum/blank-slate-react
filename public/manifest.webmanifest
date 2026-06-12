@@ -1,0 +1,16 @@
+{
+  "name": "COCO",
+  "short_name": "COCO",
+  "description": "COCO Betriebs-App",
+  "start_url": "/zeit",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f3d3e",
+  "theme_color": "#0f3d3e",
+  "icons": [
+    { "src": "/icons/coco-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/coco-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/coco-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
