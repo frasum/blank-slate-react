@@ -240,6 +240,19 @@ Reihenfolge-Begründung: M1+M2 zuerst, weil dort der Sync-Schmerz lebt und der t
 
 Nachtrag (B1c, eingefügt nach B1b, vor B2): Stammdaten-/Personal-UI + PIN-/Badge-Verwaltung. Begründung: B1a/B1b haben Schema und Auth-Flüsse geliefert, aber neue Mitarbeiter, PINs und Badge-Tokens lassen sich nur per SQL anlegen. Ein Admin-UI dafür ist Voraussetzung, damit B2 (Zeiterfassung) überhaupt mit echten Personen getestet werden kann. B1c trifft KEINE Vorfestlegung zu R4 (PWA vs. Capacitor) — es ist ein reines Verwaltungs-UI für Admin/Manager, kein Terminal- oder Mobile-Flow. O3 (Voice/Telegram) bleibt offen bis B2.
 
+B1c-Scope (freigegeben):
+
+- Datenmodell: nur eine neue Tabelle `audit_log` (append-only, organization_id/actor/action/entity/entity_id/meta). GRANT ausschließlich `service_role`; RLS aktiv, **keine** Policy für `anon`/`authenticated` (DENY-ALL für Clients). Schreiben ausschließlich serverseitig via `supabaseAdmin`. Kein UPDATE/DELETE-Pfad im Code.
+- Server-Functions: alle `createServerFn` + `requireSupabaseAuth` + **expliziter Rollencheck im Handler** (`assertMinRole`), bevor geschrieben wird. Org-Scope via `current_organization_id()` aus dem Aufruferkontext. Jede schreibende Function schreibt nach Erfolg einen `audit_log`-Eintrag.
+- Geschäftsregeln (hart, serverseitig): „≥1 aktiver Admin pro Organisation" (reine Funktion, geprüft VOR dem Schreiben). Inaktive Mitarbeiter dürfen sich nicht einloggen. PIN: 4–8 Ziffern. Badge-Token: 32 Byte CSPRNG, base64url, Klartext nur direkt nach Erstellung — danach nur Metadaten. Standort-Löschung nur, wenn keine `staff_locations`-Verknüpfung mehr existiert.
+- Kein Org-UI: Organisationen werden per dokumentiertem Seed-Snippet angelegt. Datei: `docs/seed-organization.sql` (Org + erster Standort + Admin-User-Link für eine bestehende `auth.users`-Zeile).
+- Erfolgs-Gate B1c:
+  - `tsc --noEmit`, `eslint . --max-warnings=0`, `vitest run` grün.
+  - RLS-Inventur (`scripts/check-rls-inventory.sql`): weiterhin 0 anon-Policies, 0 bedingungslose Schreib-Policies; `audit_log` hat 0 Client-Policies.
+  - Negativtest (a): „letzten aktiven Admin deaktivieren → serverseitig abgelehnt" (Unit-Test der reinen Regel `wouldRemoveLastActiveAdmin`).
+  - Negativtest (b): „Server-Function-Aufruf als Nicht-Admin → abgelehnt, kein `audit_log`-Eintrag" (Unit-Test der Wrapper-Funktion `runAsAdmin`: bei unzureichender Rolle wird der injizierte `writeAudit`-Mock nie aufgerufen).
+  - Manueller End-to-End-Klick: Mitarbeiter anlegen → PIN setzen → PIN-Login → Badge ausstellen → Badge-Login → Badge widerrufen → Badge-Login schlägt fehl → `audit_log` enthält die 4 Schreibaktionen.
+
 ---
 
 7. Verbindliche Standards (die Audit-Lektionen als Gesetz)
