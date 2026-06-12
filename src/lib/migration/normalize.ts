@@ -81,7 +81,9 @@ function formatAsUtcInZone(ts: number): number {
 }
 
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
-const ISO_TIME = /^(\d{2}):(\d{2}):(\d{2})$/;
+// Akzeptiert sowohl HH:MM:SS (Supabase-Standard) als auch HH:MM (in den
+// Echtdaten ebenfalls verbreitet — Sekunden werden dann auf 0 gesetzt).
+const ISO_TIME = /^(\d{2}):(\d{2})(?::(\d{2}))?$/;
 
 /**
  * Kombiniert shift_date + HH:MM:SS zu ISO-UTC. Falls endTime <= startTime,
@@ -102,10 +104,10 @@ export function combineDateAndTimes(
   const d = Number(dm[3]);
   const sh = Number(sm[1]);
   const smin = Number(sm[2]);
-  const ssec = Number(sm[3]);
+  const ssec = sm[3] !== undefined ? Number(sm[3]) : 0;
   const eh = Number(em[1]);
   const emin = Number(em[2]);
-  const esec = Number(em[3]);
+  const esec = em[3] !== undefined ? Number(em[3]) : 0;
   if (sh > 23 || smin > 59 || ssec > 59) return null;
   if (eh > 23 || emin > 59 || esec > 59) return null;
   if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
