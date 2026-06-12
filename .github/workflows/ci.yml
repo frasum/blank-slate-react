@@ -17,3 +17,42 @@ jobs:
       - run: bun run tsc --noEmit
       - run: bun run eslint . --max-warnings=0
       - run: bun run vitest run
+
+  db-integration:
+    # Hebt einen lokalen Supabase-Stack via CLI hoch und führt die
+    # `*.db.test.ts`-Suiten gegen ihn aus. KEINE Tests gegen die
+    # Produktiv-Datenbank. Siehe docs/gruendungsdokument.md (Erfolgs-Gate B2a).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: bun install --frozen-lockfile
+      - name: Start local Supabase stack
+        run: supabase start --exclude studio,inbucket,storage-api,imgproxy,edge-runtime,logflare,vector
+      - name: Export Supabase env vars
+        run: |
+          set -euo pipefail
+          SUPA_URL=$(supabase status -o env | grep '^API_URL=' | cut -d= -f2- | tr -d '"')
+          SUPA_ANON=$(supabase status -o env | grep '^ANON_KEY=' | cut -d= -f2- | tr -d '"')
+          SUPA_SVC=$(supabase status -o env | grep '^SERVICE_ROLE_KEY=' | cut -d= -f2- | tr -d '"')
+          if [ -z "$SUPA_URL" ] || [ -z "$SUPA_ANON" ] || [ -z "$SUPA_SVC" ]; then
+            echo "::error::supabase status did not yield API_URL/ANON_KEY/SERVICE_ROLE_KEY"
+            supabase status -o env
+            exit 1
+          fi
+          {
+            echo "SUPABASE_URL=$SUPA_URL"
+            echo "SUPABASE_ANON_KEY=$SUPA_ANON"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SUPA_SVC"
+            echo "SUPABASE_DB_TESTS=1"
+          } >> "$GITHUB_ENV"
+      - name: Run DB integration tests
+        run: bun run vitest run "src/**/*.db.test.ts"
+      - name: Stop local Supabase stack
+        if: always()
+        run: supabase stop --no-backup || true
