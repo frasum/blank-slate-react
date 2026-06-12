@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_tokens: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          id: string
+          organization_id: string
+          staff_id: string | null
+          token: string
+          token_type: Database["public"]["Enums"]["token_type"]
+          used_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          organization_id: string
+          staff_id?: string | null
+          token: string
+          token_type: Database["public"]["Enums"]["token_type"]
+          used_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          organization_id?: string
+          staff_id?: string | null
+          token?: string
+          token_type?: Database["public"]["Enums"]["token_type"]
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "access_tokens_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "access_tokens_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       locations: {
         Row: {
           created_at: string
@@ -69,6 +117,42 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      pin_attempts: {
+        Row: {
+          attempted_at: string
+          id: string
+          organization_id: string
+          staff_id: string
+        }
+        Insert: {
+          attempted_at?: string
+          id?: string
+          organization_id: string
+          staff_id: string
+        }
+        Update: {
+          attempted_at?: string
+          id?: string
+          organization_id?: string
+          staff_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pin_attempts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pin_attempts_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       role_assignments: {
         Row: {
@@ -253,6 +337,48 @@ export type Database = {
           },
         ]
       }
+      staff_pins: {
+        Row: {
+          created_at: string
+          id: string
+          organization_id: string
+          pin_hash: string
+          staff_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          organization_id: string
+          pin_hash: string
+          staff_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          organization_id?: string
+          pin_hash?: string
+          staff_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_pins_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_pins_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: true
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_links: {
         Row: {
           created_at: string
@@ -315,6 +441,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "manager" | "staff"
+      token_type: "badge_login"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -443,6 +570,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "manager", "staff"],
+      token_type: ["badge_login"],
     },
   },
 } as const
