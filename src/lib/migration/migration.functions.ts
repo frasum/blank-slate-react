@@ -136,7 +136,7 @@ export const proposeIdentityMappings = createServerFn({ method: "POST" })
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const shifts = parseCsv(data.sourceSystem, data.csvText);
+    const shifts = parseCsvFor(data.sourceSystem, data.csvText);
     const distinct = new Map<string, { altId: string; altName: string }>();
     for (const s of shifts) {
       const altId = s.altEmployeeId || s.altEmployeeName;
@@ -272,7 +272,7 @@ export const getReconciliationReport = createServerFn({ method: "POST" })
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const shifts = parseCsv(data.sourceSystem, data.csvText).filter((s) => {
+    const shifts = parseCsvFor(data.sourceSystem, data.csvText).filter((s) => {
       if (data.from && s.shiftDate < data.from) return false;
       if (data.to && s.shiftDate > data.to) return false;
       return true;
