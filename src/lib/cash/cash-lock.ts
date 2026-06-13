@@ -12,12 +12,14 @@
 export class CashLockedError extends Error {
   constructor(
     public readonly businessDate: string,
-    public readonly reason: "session_locked" | "below_waterline",
+    public readonly reason: "session_locked" | "session_finalized" | "below_waterline",
     public readonly waterline: string | null,
   ) {
     const detail =
       reason === "session_locked"
         ? `Session vom ${businessDate} ist gesperrt.`
+        : reason === "session_finalized"
+        ? `Session vom ${businessDate} ist bereits finalisiert — nur noch Kellner-Korrekturen erlaubt.`
         : `Geschäftstag ${businessDate} liegt unter der Wasserlinie (${waterline}).`;
     super(`${detail} Nur ein Admin kann die Sperre verschieben.`);
     this.name = "CashLockedError";
@@ -31,6 +33,11 @@ export type AssertCashWritableInput = {
   sessionStatus: SessionStatus;
   sessionLockedAt: string | null;
   cashLockedThroughDate: string | null;
+  // Default false: `finalized` ist Zwischenstatus, Korrekturen bleiben offen
+  // (assertCashWritable wird vom Korrektur-Pfad verwendet).
+  // true: harter Block ab `finalized` — für Session-Level-Updates und Satelliten,
+  // die nach Finalisierung nicht mehr verändert werden dürfen.
+  blockIfFinalized?: boolean;
 };
 
 export function isBelowWaterline(
@@ -44,6 +51,13 @@ export function isBelowWaterline(
 export function assertCashWritable(input: AssertCashWritableInput): void {
   if (input.sessionStatus === "locked" || input.sessionLockedAt !== null) {
     throw new CashLockedError(input.businessDate, "session_locked", input.cashLockedThroughDate);
+  }
+  if (input.blockIfFinalized && input.sessionStatus === "finalized") {
+    throw new CashLockedError(
+      input.businessDate,
+      "session_finalized",
+      input.cashLockedThroughDate,
+    );
   }
   if (isBelowWaterline(input.businessDate, input.cashLockedThroughDate)) {
     throw new CashLockedError(
