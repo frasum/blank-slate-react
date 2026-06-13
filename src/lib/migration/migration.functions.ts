@@ -17,6 +17,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
+import { runGuarded } from "@/lib/admin/admin-call";
+import { writeAuditLog } from "@/lib/admin/audit";
 import { localTimesOf, sundayHolidayOf } from "./derivations";
 import { reconcile } from "./reconcile";
 import { emptyCounters, executeImport, parseCsvFor } from "./run-import-core";
@@ -261,6 +263,88 @@ export const runImport = createServerFn({ method: "POST" })
       sourceSystem: data.sourceSystem,
       csvText: data.csvText,
       mode: data.mode,
+    });
+  });
+
+/**
+ * Legt für alle Identity-Mappings der gewählten Quelle, die noch keinen
+ * staff_id-Verweis haben, einen neuen Staff an (display_name = alt_name,
+ * is_active = true, keine Rolle/PIN). Verknüpft das Mapping mit dem neuen
+ * Staff; confirmed_at bleibt NULL — die manuelle Bestätigung je Zeile
+ * bleibt Pflicht. Idempotent: Mappings mit existierender staff_id werden
+ * übersprungen. Ein Audit-Eintrag pro Lauf.
+ */
+export const bootstrapMissingStaff = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ sourceSystem: sourceSystemSchema }).parse(input))
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    const writeAudit = async (entry: {
+      action: string;
+      entity: string;
+      entityId?: string;
+      meta?: Record<string, unknown>;
+    }) => {
+      await writeAuditLog({
+        organizationId: caller.organizationId,
+        actorUserId: caller.userId,
+        actorStaffId: caller.staffId,
+        action: entry.action,
+        entity: entry.entity,
+        entityId: entry.entityId ?? null,
+        meta: entry.meta,
+      });
+    };
+    return runGuarded(caller.role, "admin", writeAudit, async () => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: openMappings, error: mapErr } = await supabaseAdmin
+        .from("staff_identity_map")
+        .select("id, alt_name")
+        .eq("organization_id", caller.organizationId)
+        .eq("source_system", data.sourceSystem)
+        .is("staff_id", null);
+        if (mapErr) throw mapErr;
+
+      let created = 0;
+      let skipped = 0;
+      for (const m of openMappings ?? []) {
+        const name = (m.alt_name ?? "").trim();
+        if (!name) {
+          skipped++;
+          continue;
+        }
+        const parts = name.split(/\s+/);
+        const lastName = parts.length > 1 ? parts[parts.length - 1] : name;
+        const firstName = parts.length > 1 ? parts.slice(0, -1).join(" ") : name;
+        const { data: newStaff, error: insErr } = await supabaseAdmin
+          .from("staff")
+          .insert({
+            organization_id: caller.organizationId,
+            first_name: firstName,
+            last_name: lastName,
+            display_name: name,
+            is_active: true,
+          })
+          .select("id")
+          .single();
+        if (insErr) throw insErr;
+        const { error: updErr } = await supabaseAdmin
+          .from("staff_identity_map")
+          .update({ staff_id: newStaff.id })
+          .eq("id", m.id)
+          .eq("organization_id", caller.organizationId)
+          .is("staff_id", null);
+        if (updErr) throw updErr;
+        created++;
+      }
+      return {
+        result: { created, skipped },
+        audit: {
+          action: "migration.staff_bootstrap",
+          entity: "staff_identity_map",
+          meta: { sourceSystem: data.sourceSystem, created, skipped },
+        },
+      };
     });
   });
 
