@@ -36,6 +36,10 @@ export type DeleteImportedResult = {
 };
 
 const PAGE_SIZE = 1000;
+// PostgREST encodes `.in("id", [...])` als Query-String — bei 1000 UUIDs
+// überschreitet die URL die ~8 KB-Grenze von Supabase/Cloudflare und der
+// Aufruf wird mit HTTP 400 abgelehnt. Daher in kleineren Häppchen löschen.
+const DELETE_BATCH_SIZE = 200;
 
 export async function deleteImportedShiftsCore(args: {
   admin: SupabaseClient<Database>;
@@ -111,8 +115,8 @@ export async function deleteImportedShiftsCore(args: {
   let totalDeleted = 0;
   if (mode === "commit" && rows.length > 0) {
     const ids = rows.map((r) => r.id);
-    for (let i = 0; i < ids.length; i += PAGE_SIZE) {
-      const slice = ids.slice(i, i + PAGE_SIZE);
+    for (let i = 0; i < ids.length; i += DELETE_BATCH_SIZE) {
+      const slice = ids.slice(i, i + DELETE_BATCH_SIZE);
       const { data: del, error: delErr } = await admin
         .from("time_entries")
         .delete()
