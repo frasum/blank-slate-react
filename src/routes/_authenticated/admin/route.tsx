@@ -5,10 +5,17 @@
 // dieses Gate ist nur UX, nicht die Sicherheitsbarriere.
 
 import { createFileRoute, Link, Outlet, redirect } from "@tanstack/react-router";
+import { supabase } from "@/integrations/supabase/client";
 import { getMyIdentity } from "@/lib/auth/me.functions";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: async () => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session?.access_token) throw redirect({ to: "/auth" });
+
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError || !userData.user) throw redirect({ to: "/auth" });
+
     const identity = await getMyIdentity();
     if (identity.role !== "admin" && identity.role !== "manager") {
       throw redirect({ to: "/" });

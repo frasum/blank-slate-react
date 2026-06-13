@@ -1,7 +1,7 @@
 // B2c Commit 4 — Migration-UI (Admin-only).
 // Minimal: Upload + Dry-Run, Mapping-Tabelle, Commit, Abgleichsbericht.
 
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Table,
   TableBody,
@@ -49,6 +50,7 @@ export const Route = createFileRoute("/_authenticated/admin/migration")({
 
 function MigrationPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [sourceSystem, setSourceSystem] = useState<SourceSystem>("tagesabrechnung");
   const [csvText, setCsvText] = useState<string>("");
   const [fileName, setFileName] = useState<string>("");
@@ -69,6 +71,24 @@ function MigrationPage() {
   const callDeleteImported = useServerFn(deleteImportedShifts);
   const [deleteStaffId, setDeleteStaffId] = useState<string>("");
 
+  async function assertSessionReady(): Promise<void> {
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.access_token) return;
+    toast.error("Sitzung abgelaufen. Bitte neu anmelden.");
+    await navigate({ to: "/auth", replace: true });
+    throw new Error("AUTH_SESSION_MISSING");
+  }
+
+  function handleMutationError(e: Error): void {
+    if (e.message === "AUTH_SESSION_MISSING") return;
+    if (e.message.startsWith("Unauthorized:")) {
+      toast.error("Sitzung abgelaufen. Bitte neu anmelden.");
+      void navigate({ to: "/auth", replace: true });
+      return;
+    }
+    toast.error(e.message);
+  }
+
   const staffQ = useQuery({ queryKey: ["admin-staff"], queryFn: () => fetchStaff() });
   const mappingsQ = useQuery({
     queryKey: ["identity-mappings", sourceSystem],
@@ -77,7 +97,7 @@ function MigrationPage() {
 
   const parseMut = useMutation({
     mutationFn: () => callParse({ data: { sourceSystem, csvText } }),
-    onError: (e: Error) => toast.error(e.message),
+    onError: handleMutationError,
   });
 
   const proposeMut = useMutation({
@@ -86,12 +106,12 @@ function MigrationPage() {
       toast.success("Identitäts-Vorschläge aktualisiert.");
       void qc.invalidateQueries({ queryKey: ["identity-mappings", sourceSystem] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: handleMutationError,
   });
 
   const dryRunMut = useMutation({
     mutationFn: () => callRun({ data: { sourceSystem, csvText, mode: "dry_run" } }),
-    onError: (e: Error) => toast.error(e.message),
+    onError: handleMutationError,
   });
 
   const commitMut = useMutation({
@@ -101,7 +121,7 @@ function MigrationPage() {
         `Import abgeschlossen. Importiert: ${r.counters.imported}, Wasserlinie: ${r.lockedThrough ?? "unverändert"}.`,
       );
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: handleMutationError,
   });
 
   const reportMut = useMutation({
@@ -167,18 +187,22 @@ function MigrationPage() {
   });
 
   const deleteImportedDryMut = useMutation({
-    mutationFn: () =>
-      callDeleteImported({ data: { mode: "dry_run", staffId: deleteStaffId || null } }),
-    onError: (e: Error) => toast.error(e.message),
+    mutationFn: async () => {
+      await assertSessionReady();
+      return callDeleteImported({ data: { mode: "dry_run", staffId: deleteStaffId || null } });
+    },
+    onError: handleMutationError,
   });
   const deleteImportedCommitMut = useMutation({
-    mutationFn: () =>
-      callDeleteImported({ data: { mode: "commit", staffId: deleteStaffId || null } }),
+    mutationFn: async () => {
+      await assertSessionReady();
+      return callDeleteImported({ data: { mode: "commit", staffId: deleteStaffId || null } });
+    },
     onSuccess: (r) => {
       toast.success(`Gelöscht: ${r.totalDeleted} Import-Zeile(n).`);
       void deleteImportedDryMut.reset();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: handleMutationError,
   });
 
   const mappings = useMemo(() => mappingsQ.data?.mappings ?? [], [mappingsQ.data]);
