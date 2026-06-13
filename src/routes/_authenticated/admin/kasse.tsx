@@ -471,11 +471,7 @@ function KassePage() {
 // Settlements-Liste
 // =========================================================================
 
-type Overview = NonNullable<ReturnType<typeof useCashOverviewType>>;
-function useCashOverviewType() {
-  // Helper für Typableitung — niemals aufgerufen.
-  return null as unknown as Awaited<ReturnType<typeof getCashOverview>>;
-}
+type Overview = Awaited<ReturnType<typeof getCashOverview>>;
 
 type SettlementRow = Overview["settlements"][number];
 
