@@ -187,18 +187,22 @@ function MigrationPage() {
   });
 
   const deleteImportedDryMut = useMutation({
-    mutationFn: () =>
-      callDeleteImported({ data: { mode: "dry_run", staffId: deleteStaffId || null } }),
-    onError: (e: Error) => toast.error(e.message),
+    mutationFn: async () => {
+      await assertSessionReady();
+      return callDeleteImported({ data: { mode: "dry_run", staffId: deleteStaffId || null } });
+    },
+    onError: handleMutationError,
   });
   const deleteImportedCommitMut = useMutation({
-    mutationFn: () =>
-      callDeleteImported({ data: { mode: "commit", staffId: deleteStaffId || null } }),
+    mutationFn: async () => {
+      await assertSessionReady();
+      return callDeleteImported({ data: { mode: "commit", staffId: deleteStaffId || null } });
+    },
     onSuccess: (r) => {
       toast.success(`Gelöscht: ${r.totalDeleted} Import-Zeile(n).`);
       void deleteImportedDryMut.reset();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: handleMutationError,
   });
 
   const mappings = useMemo(() => mappingsQ.data?.mappings ?? [], [mappingsQ.data]);
