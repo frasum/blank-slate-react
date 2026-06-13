@@ -547,6 +547,96 @@ function ReconciliationTable({
   }>;
   staffNameById: Map<string, string>;
 }) {
+  return <ReconciliationTableImpl title={title} rows={rows} staffNameById={staffNameById} />;
+}
+
+function ReassignReport({
+  result,
+  mode,
+}: {
+  result: {
+    totalScanned: number;
+    totalMismatched: number;
+    totalUpdated: number;
+    groups: Array<{
+      altId: string;
+      altName: string;
+      fromStaffName: string;
+      toStaffName: string;
+      shiftCount: number;
+      minBusinessDate: string | null;
+      maxBusinessDate: string | null;
+    }>;
+  } | null;
+  mode: "dry_run" | "commit";
+}) {
+  if (!result) return null;
+  return (
+    <div className="space-y-2">
+      <div className="rounded-md border border-border bg-muted/30 p-3 text-sm">
+        <div className="font-medium">{mode === "commit" ? "Commit-Bericht" : "Dry-Run-Bericht"}</div>
+        <div className="flex flex-wrap gap-4">
+          <span>
+            gescannt: <strong>{result.totalScanned}</strong>
+          </span>
+          <span>
+            betroffen: <strong>{result.totalMismatched}</strong>
+          </span>
+          {mode === "commit" && (
+            <span>
+              umgehängt: <strong>{result.totalUpdated}</strong>
+            </span>
+          )}
+        </div>
+      </div>
+      {result.groups.length > 0 && (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Alt-ID</TableHead>
+              <TableHead>Alt-Name</TableHead>
+              <TableHead>von</TableHead>
+              <TableHead>nach</TableHead>
+              <TableHead className="text-right">Schichten</TableHead>
+              <TableHead>Zeitraum</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {result.groups.map((g) => (
+              <TableRow key={`${g.altId}-${g.fromStaffName}-${g.toStaffName}`}>
+                <TableCell className="font-mono text-xs">{g.altId}</TableCell>
+                <TableCell>{g.altName}</TableCell>
+                <TableCell>{g.fromStaffName}</TableCell>
+                <TableCell>{g.toStaffName}</TableCell>
+                <TableCell className="text-right">{g.shiftCount}</TableCell>
+                <TableCell className="font-mono text-xs">
+                  {g.minBusinessDate ?? "—"} … {g.maxBusinessDate ?? "—"}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </div>
+  );
+}
+
+function ReconciliationTableImpl({
+  title,
+  rows,
+  staffNameById,
+}: {
+  title: string;
+  rows: Array<{
+    staffId: string;
+    bucketKey: string;
+    alt: Record<string, number>;
+    recomputed: Record<string, number>;
+    diff: Record<string, number>;
+    hasDifference: boolean;
+  }>;
+  staffNameById: Map<string, string>;
+}) {
   const potKeys = Array.from(new Set(rows.flatMap((r) => Object.keys(r.diff)))).sort();
   return (
     <div className="overflow-x-auto">
