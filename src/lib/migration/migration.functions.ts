@@ -25,7 +25,6 @@ import { aggregate, cycleKey, isoWeekKey, type ShiftSample } from "./aggregate-b
 import { bootstrapMissingStaffCore } from "./bootstrap-missing-staff";
 import { reconcile } from "./reconcile";
 import { emptyCounters, executeImport, parseCsvFor } from "./run-import-core";
-import { reassignImportedStaffCore } from "./reassign-imported-staff";
 import { deleteImportedShiftsCore } from "./delete-imported-shifts";
 
 // =========================================================================
@@ -62,11 +61,6 @@ const reconcileInputSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
-});
-
-const reassignInputSchema = z.object({
-  sourceSystem: sourceSystemSchema,
-  mode: z.enum(["dry_run", "commit"]),
 });
 
 const deleteImportedInputSchema = z.object({
@@ -581,54 +575,3 @@ export const getReconciliationReportFromDb = createServerFn({ method: "POST" })
     return { rows };
   });
 
-/**
- * Reparatur (B3c-Vorlauf): hängt importierte time_entries auf den laut
- * staff_identity_map korrekten staff_id um. Admin-only. dry_run nur Bericht;
- * commit schreibt und ist idempotent. Ein Audit-Eintrag pro Lauf.
- */
-export const reassignImportedStaff = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input) => reassignInputSchema.parse(input))
-  .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
-    const writeAudit = async (entry: {
-      action: string;
-      entity: string;
-      entityId?: string;
-      meta?: Record<string, unknown>;
-    }) => {
-      await writeAuditLog({
-        organizationId: caller.organizationId,
-        actorUserId: caller.userId,
-        actorStaffId: caller.staffId,
-        action: entry.action,
-        entity: entry.entity,
-        entityId: entry.entityId ?? null,
-        meta: entry.meta,
-      });
-    };
-    return runGuarded(caller.role, "admin", writeAudit, async () => {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const res = await reassignImportedStaffCore({
-        admin: supabaseAdmin,
-        organizationId: caller.organizationId,
-        sourceSystem: data.sourceSystem,
-        mode: data.mode,
-      });
-      return {
-        result: res,
-        audit: {
-          action: "migration.staff_reassigned",
-          entity: "time_entries",
-          meta: {
-            sourceSystem: data.sourceSystem,
-            mode: res.mode,
-            totalScanned: res.totalScanned,
-            totalMismatched: res.totalMismatched,
-            totalUpdated: res.totalUpdated,
-            groups: res.groups,
-          },
-        },
-      };
-    });
-  });
