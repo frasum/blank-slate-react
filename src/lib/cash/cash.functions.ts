@@ -20,6 +20,7 @@ import { arbzgMinimumBreak, grossMinutesBetween } from "@/lib/time/break-rules";
 import { calcWaiterSettlement } from "./waiter-settlement";
 import { assertCashWritable, CashLockedError } from "./cash-lock";
 import type { Json } from "@/integrations/supabase/types";
+import { ForbiddenError } from "@/lib/admin/role-guard";
 
 // ------------------------------------------------------------------------
 // Fehlerklassen
@@ -49,6 +50,16 @@ export class SettlementNotCorrectableError extends Error {
   }
 }
 
+export class StaffLocationNotBoundError extends Error {
+  constructor(
+    public readonly staffId: string,
+    public readonly locationId: string,
+  ) {
+    super(`Kellner ${staffId} ist nicht an Standort ${locationId} gebunden.`);
+    this.name = "StaffLocationNotBoundError";
+  }
+}
+
 // ------------------------------------------------------------------------
 // Hilfsfunktionen
 // ------------------------------------------------------------------------
@@ -66,21 +77,64 @@ async function loadOrgSettings(orgId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("organization_settings")
-    .select("kitchen_tip_rate, cash_locked_through_date")
+    .select("kitchen_tip_rate")
     .eq("organization_id", orgId)
     .maybeSingle();
   if (error) throw error;
   return {
     kitchenTipRate: Number(data?.kitchen_tip_rate ?? 0.02),
-    cashLockedThroughDate: data?.cash_locked_through_date ?? null,
   };
+}
+
+// Wasserlinie pro Standort aus cash_locks. Null = keine Sperre.
+async function loadLocationCashLock(orgId: string, locationId: string): Promise<string | null> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("cash_locks")
+    .select("locked_through_date")
+    .eq("organization_id", orgId)
+    .eq("location_id", locationId)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.locked_through_date ?? null;
+}
+
+// Cross-Org-Schutz: jeder location-getriebene Aufruf prüft, dass die
+// übergebene Location wirklich zur Org des Aufrufers gehört.
+async function assertLocationInOrg(orgId: string, locationId: string): Promise<void> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("locations")
+    .select("id")
+    .eq("id", locationId)
+    .eq("organization_id", orgId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new ForbiddenError();
+}
+
+async function assertStaffBoundToLocation(
+  orgId: string,
+  staffId: string,
+  locationId: string,
+): Promise<void> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("staff_locations")
+    .select("id")
+    .eq("organization_id", orgId)
+    .eq("staff_id", staffId)
+    .eq("location_id", locationId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new StaffLocationNotBoundError(staffId, locationId);
 }
 
 async function loadSessionWithLock(orgId: string, sessionId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("sessions")
-    .select("id, business_date, status, locked_at")
+    .select("id, business_date, status, locked_at, location_id")
     .eq("id", sessionId)
     .eq("organization_id", orgId)
     .maybeSingle();
