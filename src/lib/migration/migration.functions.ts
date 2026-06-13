@@ -25,6 +25,7 @@ import { aggregate, cycleKey, isoWeekKey, type ShiftSample } from "./aggregate-b
 import { bootstrapMissingStaffCore } from "./bootstrap-missing-staff";
 import { reconcile } from "./reconcile";
 import { emptyCounters, executeImport, parseCsvFor } from "./run-import-core";
+import { reassignImportedStaffCore } from "./reassign-imported-staff";
 
 // =========================================================================
 // Eingabe-Schemata
