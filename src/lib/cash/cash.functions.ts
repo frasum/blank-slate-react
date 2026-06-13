@@ -12,8 +12,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { loadAdminCaller } from "@/lib/admin/admin-context";
-import { loadStaffCaller, performClockOut } from "@/lib/time/time.functions";
+import { loadAdminCaller, type AdminCaller } from "@/lib/admin/admin-context";
+import { loadStaffCaller, performClockOut, type StaffCaller } from "@/lib/time/time.functions";
 import { runGuarded } from "@/lib/admin/admin-call";
 import { writeAuditLog } from "@/lib/admin/audit";
 import { arbzgMinimumBreak, grossMinutesBetween } from "@/lib/time/break-rules";
