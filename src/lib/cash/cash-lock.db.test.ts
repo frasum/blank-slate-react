@@ -61,14 +61,13 @@ describe.skipIf(!dbTestsEnabled)("cash lock — Session-Sperre + Wasserlinie (DB
   async function reset(): Promise<void> {
     await org.service.from("sessions").delete().eq("organization_id", org.orgId);
     await org.service.from("time_entries").delete().eq("organization_id", org.orgId);
-    await org.service.from("organization_settings").upsert(
-      {
-        organization_id: org.orgId,
-        cash_locked_through_date: null,
-        kitchen_tip_rate: 0.02,
-      },
-      { onConflict: "organization_id" },
-    );
+    await org.service.from("cash_locks").delete().eq("organization_id", org.orgId);
+    await org.service
+      .from("organization_settings")
+      .upsert(
+        { organization_id: org.orgId, kitchen_tip_rate: 0.02 },
+        { onConflict: "organization_id" },
+      );
   }
 
   async function seedSession(
@@ -78,6 +77,7 @@ describe.skipIf(!dbTestsEnabled)("cash lock — Session-Sperre + Wasserlinie (DB
     const businessDate = bd as unknown as string;
     const insert: Record<string, unknown> = {
       organization_id: org.orgId,
+      location_id: org.defaultLocationId,
       business_date: businessDate,
       status,
     };
@@ -187,12 +187,15 @@ describe.skipIf(!dbTestsEnabled)("cash lock — Session-Sperre + Wasserlinie (DB
   it("(2) Wasserlinie (genau am Tag): submit + update + correct + addSatellite blocken", async () => {
     await reset();
     const { sessionId, businessDate, settlementId } = await seedSession("open");
-    await org.service
-      .from("organization_settings")
-      .upsert(
-        { organization_id: org.orgId, cash_locked_through_date: businessDate },
-        { onConflict: "organization_id" },
-      );
+    await org.service.from("cash_locks").upsert(
+      {
+        organization_id: org.orgId,
+        location_id: org.defaultLocationId,
+        locked_through_date: businessDate,
+        updated_by: admin.staffId,
+      },
+      { onConflict: "organization_id,location_id" },
+    );
     await expect(
       submitWaiterSettlementCore(s(), {
         posSalesCents: 1,
@@ -229,12 +232,15 @@ describe.skipIf(!dbTestsEnabled)("cash lock — Session-Sperre + Wasserlinie (DB
   it("(3) Kombiniert locked + Wasserlinie: Reason 'session_locked' (Vorrang)", async () => {
     await reset();
     const { sessionId, businessDate } = await seedSession("locked");
-    await org.service
-      .from("organization_settings")
-      .upsert(
-        { organization_id: org.orgId, cash_locked_through_date: businessDate },
-        { onConflict: "organization_id" },
-      );
+    await org.service.from("cash_locks").upsert(
+      {
+        organization_id: org.orgId,
+        location_id: org.defaultLocationId,
+        locked_through_date: businessDate,
+        updated_by: admin.staffId,
+      },
+      { onConflict: "organization_id,location_id" },
+    );
     try {
       await updateSessionCore(mgr(), emptyUpdate(sessionId));
       throw new Error("expected throw");
@@ -248,25 +254,36 @@ describe.skipIf(!dbTestsEnabled)("cash lock — Session-Sperre + Wasserlinie (DB
     await reset();
     await seedSession("open");
     await setCashLockCore(adm(), {
+      locationId: org.defaultLocationId,
       throughDate: "2026-01-31",
       reason: "Januar abgeschlossen",
     });
     await expect(
-      setCashLockCore(adm(), { throughDate: "2026-01-31", reason: "nochmal" }),
+      setCashLockCore(adm(), {
+        locationId: org.defaultLocationId,
+        throughDate: "2026-01-31",
+        reason: "nochmal",
+      }),
     ).rejects.toBeInstanceOf(CashLockBackwardsError);
     await expect(
-      setCashLockCore(adm(), { throughDate: "2026-01-01", reason: "zurück" }),
+      setCashLockCore(adm(), {
+        locationId: org.defaultLocationId,
+        throughDate: "2026-01-01",
+        reason: "zurück",
+      }),
     ).rejects.toBeInstanceOf(CashLockBackwardsError);
     await setCashLockCore(adm(), {
+      locationId: org.defaultLocationId,
       throughDate: "2026-02-28",
       reason: "Februar abgeschlossen",
     });
     const { data } = await org.service
-      .from("organization_settings")
-      .select("cash_locked_through_date")
+      .from("cash_locks")
+      .select("locked_through_date")
       .eq("organization_id", org.orgId)
+      .eq("location_id", org.defaultLocationId)
       .single();
-    expect(data?.cash_locked_through_date).toBe("2026-02-28");
+    expect(data?.locked_through_date).toBe("2026-02-28");
   });
 
   it("(5) lockSession + setCashLock admin-only — Manager → ForbiddenError, kein Schreibvorgang", async () => {
@@ -280,7 +297,11 @@ describe.skipIf(!dbTestsEnabled)("cash lock — Session-Sperre + Wasserlinie (DB
 
     await expect(lockSessionCore(mgr(), { sessionId })).rejects.toBeInstanceOf(ForbiddenError);
     await expect(
-      setCashLockCore(mgr(), { throughDate: "2099-12-31", reason: "x" }),
+      setCashLockCore(mgr(), {
+        locationId: org.defaultLocationId,
+        throughDate: "2099-12-31",
+        reason: "x",
+      }),
     ).rejects.toBeInstanceOf(ForbiddenError);
 
     const after = await org.service
