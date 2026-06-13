@@ -201,18 +201,15 @@ describe.skipIf(!dbTestsEnabled)("cash read endpoints (DB) — B3c-1a", () => {
     expect(my.session?.id).toBe(sessionId);
   });
 
-  it("(1) Reader sind Manager-only — Staff-Aufruf gegen den server-fn Wrapper wirft Forbidden", async () => {
-    // Wir simulieren den Wrapper-Pfad: loadAdminCaller mit minRole=manager
-    // wirft ForbiddenError für die Staff-Rolle. Wir prüfen den Wrapper-Effekt
-    // direkt über role-guard, da die Core-Funktionen rein auf Org-Scope
-    // arbeiten und im Wrapper geschützt sind.
-    const { assertMinRole } = await import("@/lib/admin/role-guard");
-    expect(() => assertMinRole("staff", "manager")).toThrow(ForbiddenError);
-
-    // Sanity: die synthetische staff-AdminCaller-Konstruktion wäre der einzige
-    // Bypass — den verhindert der Wrapper, indem er die Rolle aus
-    // role_assignments lädt. Daher: kein direkter Reader-Aufruf in Staff-Rolle.
-    const c = waiterAsAdminCaller();
-    expect(c.role).toBe("staff");
+  it("(1) Reader sind Manager-only — Staff-Login gegen den server-fn Wrapper wirft Forbidden", async () => {
+    // End-to-End: als Kellner authentifizieren, dann den exakten
+    // Wrapper-Codepfad ausführen (loadAdminCaller mit minRole='manager').
+    // Genau dieser Aufruf steht in den server-fn Handlern von
+    // getCashOverview / listRevenueChannels / listPaymentTerminals und
+    // wirft, BEVOR Core-Code mit Org-Scope ausgeführt werden kann.
+    const client = await signInAsUser(waiter.email, waiter.password);
+    await expect(loadAdminCaller(client, waiter.userId, "manager")).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
   });
 });
