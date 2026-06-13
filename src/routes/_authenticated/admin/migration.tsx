@@ -30,6 +30,7 @@ import {
   runImport,
   bootstrapMissingStaff,
   reassignImportedStaff,
+  deleteImportedShifts,
 } from "@/lib/migration/migration.functions";
 
 type SourceSystem = "tagesabrechnung" | "bunker";
@@ -65,6 +66,8 @@ function MigrationPage() {
   const fetchStaff = useServerFn(listStaff);
   const callBootstrap = useServerFn(bootstrapMissingStaff);
   const callReassign = useServerFn(reassignImportedStaff);
+  const callDeleteImported = useServerFn(deleteImportedShifts);
+  const [deleteStaffId, setDeleteStaffId] = useState<string>("");
 
   const staffQ = useQuery({ queryKey: ["admin-staff"], queryFn: () => fetchStaff() });
   const mappingsQ = useQuery({
@@ -159,6 +162,21 @@ function MigrationPage() {
     onSuccess: (r) => {
       toast.success(`Umgehängt: ${r.totalUpdated} Schicht(en) in ${r.groups.length} Gruppe(n).`);
       void reassignDryMut.reset();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteImportedDryMut = useMutation({
+    mutationFn: () =>
+      callDeleteImported({ data: { mode: "dry_run", staffId: deleteStaffId || null } }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const deleteImportedCommitMut = useMutation({
+    mutationFn: () =>
+      callDeleteImported({ data: { mode: "commit", staffId: deleteStaffId || null } }),
+    onSuccess: (r) => {
+      toast.success(`Gelöscht: ${r.totalDeleted} Import-Zeile(n).`);
+      void deleteImportedDryMut.reset();
     },
     onError: (e: Error) => toast.error(e.message),
   });
