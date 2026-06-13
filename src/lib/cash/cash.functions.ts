@@ -467,7 +467,7 @@ const satelliteAddSchema = z.discriminatedUnion("kind", [
     sessionId: z.string().uuid(),
     kind: z.literal("bank_deposit"),
     amountCents: z.number().int(),
-    note: z.string().max(500).nullable().default(null),
+    reference: z.string().max(500).nullable().default(null),
   }),
   z.object({
     sessionId: z.string().uuid(),
@@ -541,7 +541,7 @@ export const addSessionSatellite = createServerFn({ method: "POST" })
             organization_id: caller.organizationId,
             session_id: session.id,
             amount_cents: data.amountCents,
-            note: data.note,
+            reference: data.reference,
           })
           .select("id")
           .single();
