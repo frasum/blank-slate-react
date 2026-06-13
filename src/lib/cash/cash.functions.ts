@@ -974,14 +974,44 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
   const businessDate = await getCurrentBusinessDate();
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-  const { data: session } = await supabaseAdmin
+  // Mehrstandort: nur Sessions in Standorten betrachten, an die der
+  // Kellner via staff_locations gebunden ist. So entsteht für einen
+  // an A gebundenen Kellner keine zweideutige Auswahl, wenn an B
+  // ebenfalls eine offene Session am gleichen Tag läuft, und ein
+  // Submit gegen einen fremden Standort wird mit
+  // StaffLocationNotBoundError abgewiesen.
+  const { data: boundLocations, error: blErr } = await supabaseAdmin
+    .from("staff_locations")
+    .select("location_id")
+    .eq("organization_id", caller.organizationId)
+    .eq("staff_id", caller.staffId);
+  if (blErr) throw blErr;
+  const boundLocationIds = (boundLocations ?? []).map((r) => r.location_id);
+  if (boundLocationIds.length === 0) {
+    throw new StaffLocationNotBoundError(caller.staffId, "(keine)");
+  }
+
+  const { data: sessions, error: sErr } = await supabaseAdmin
     .from("sessions")
     .select("id, business_date, status, locked_at, location_id")
     .eq("organization_id", caller.organizationId)
     .eq("business_date", businessDate)
-    .maybeSingle();
-  if (!session) throw new NoOpenSessionError(businessDate);
+    .in("location_id", boundLocationIds);
+  if (sErr) throw sErr;
+  if (!sessions || sessions.length === 0) throw new NoOpenSessionError(businessDate);
+  if (sessions.length > 1) {
+    // Sollte praktisch nicht vorkommen (Kellner an genau einem Standort
+    // gebunden). Defensive: explizit verlangen, dass die Bindung
+    // eindeutig ist.
+    throw new Error(
+      "Mehrdeutige Session: Kellner ist an mehreren Standorten mit offener Session gebunden.",
+    );
+  }
+  const session = sessions[0];
   if (session.status !== "open") throw new NoOpenSessionError(businessDate);
+  // Defensive: explizite Bindungsprüfung (doppelter Schutz neben dem
+  // Filter oben, falls boundLocationIds jemals erweitert wird).
+  await assertStaffBoundToLocation(caller.organizationId, caller.staffId, session.location_id);
 
   const settings = await loadOrgSettings(caller.organizationId);
   const waterline = await loadLocationCashLock(caller.organizationId, session.location_id);
