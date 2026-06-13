@@ -387,6 +387,68 @@ function MigrationPage() {
       </Card>
 
       <Card className="p-4 space-y-3">
+        <div className="font-medium">Import-Zeilen löschen (Reparatur)</div>
+        <p className="text-sm text-muted-foreground">
+          Löscht ausschließlich Zeilen mit <code>source='import'</code>; Stempeluhr- und
+          Manual-Einträge bleiben unangetastet. Wasserlinie wird NICHT verschoben. Anwendung: nach
+          Korrektur der Identitäts-Mappings die fehlzugeordneten Import-Schichten entfernen und
+          dieselbe CSV erneut importieren — durch <code>import_key</code> idempotent.
+        </p>
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="space-y-1">
+            <Label>Nur Mitarbeiter (optional)</Label>
+            <select
+              className="w-64 rounded-md border border-input bg-background px-2 py-2 text-sm"
+              value={deleteStaffId}
+              onChange={(e) => {
+                setDeleteStaffId(e.target.value);
+                deleteImportedDryMut.reset();
+                deleteImportedCommitMut.reset();
+              }}
+            >
+              <option value="">— alle Import-Zeilen —</option>
+              {(staffQ.data ?? []).map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.displayName}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Button
+            variant="outline"
+            disabled={deleteImportedDryMut.isPending}
+            onClick={() => deleteImportedDryMut.mutate()}
+          >
+            {deleteImportedDryMut.isPending ? "Prüfe…" : "Dry-Run"}
+          </Button>
+          <Button
+            variant="destructive"
+            disabled={deleteImportedCommitMut.isPending || !deleteImportedDryMut.data}
+            onClick={() => {
+              const n = deleteImportedDryMut.data?.totalMatched ?? 0;
+              if (n === 0) return;
+              if (
+                !window.confirm(
+                  `Wirklich ${n} Import-Zeile(n) UNWIEDERBRINGLICH löschen?`,
+                )
+              )
+                return;
+              deleteImportedCommitMut.mutate();
+            }}
+            title={!deleteImportedDryMut.data ? "Erst Dry-Run ausführen." : undefined}
+          >
+            {deleteImportedCommitMut.isPending ? "Lösche…" : "Löschen ausführen"}
+          </Button>
+        </div>
+        {(deleteImportedDryMut.data || deleteImportedCommitMut.data) && (
+          <DeleteImportedReport
+            result={deleteImportedCommitMut.data ?? deleteImportedDryMut.data ?? null}
+            mode={deleteImportedCommitMut.data ? "commit" : "dry_run"}
+          />
+        )}
+      </Card>
+
+      <Card className="p-4 space-y-3">
         <div className="font-medium">Abgleichsbericht (Alt-Topf vs. neu)</div>
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-1">
