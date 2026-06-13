@@ -343,10 +343,7 @@ export async function getCashOverviewCore(caller: AdminCaller, data: { businessD
       note: r.note,
       createdAt: r.created_at,
     })),
-    cashLockedThroughDate: await loadLocationCashLock(
-      caller.organizationId,
-      session.location_id,
-    ),
+    cashLockedThroughDate: await loadLocationCashLock(caller.organizationId, session.location_id),
   };
 }
 
