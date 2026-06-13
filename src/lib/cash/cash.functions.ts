@@ -971,7 +971,7 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
 
   const { data: session } = await supabaseAdmin
     .from("sessions")
-    .select("id, business_date, status, locked_at")
+    .select("id, business_date, status, locked_at, location_id")
     .eq("organization_id", caller.organizationId)
     .eq("business_date", businessDate)
     .maybeSingle();
