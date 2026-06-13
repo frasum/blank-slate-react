@@ -360,42 +360,6 @@ function MigrationPage() {
       </Card>
 
       <Card className="p-4 space-y-3">
-        <div className="font-medium">Fehlzuordnungen korrigieren</div>
-        <p className="text-sm text-muted-foreground">
-          Hängt bereits importierte Schichten (<code>source='import'</code>) auf den laut
-          bestätigtem Identitäts-Mapping korrekten Mitarbeiter um. Geld- und Zeitwerte bleiben
-          unverändert, die Wasserlinie wird NICHT verschoben. Idempotent.
-        </p>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            disabled={reassignDryMut.isPending}
-            onClick={() => reassignDryMut.mutate()}
-          >
-            {reassignDryMut.isPending ? "Prüfe…" : "Dry-Run"}
-          </Button>
-          <Button
-            variant="destructive"
-            disabled={reassignCommitMut.isPending || !reassignDryMut.data}
-            onClick={() => {
-              const n = reassignDryMut.data?.totalMismatched ?? 0;
-              if (!window.confirm(`Commit: ${n} Schicht(en) umhängen?`)) return;
-              reassignCommitMut.mutate();
-            }}
-            title={!reassignDryMut.data ? "Erst Dry-Run ausführen." : undefined}
-          >
-            {reassignCommitMut.isPending ? "Commit läuft…" : "Commit ausführen"}
-          </Button>
-        </div>
-        {(reassignDryMut.data || reassignCommitMut.data) && (
-          <ReassignReport
-            result={reassignCommitMut.data ?? reassignDryMut.data ?? null}
-            mode={reassignCommitMut.data ? "commit" : "dry_run"}
-          />
-        )}
-      </Card>
-
-      <Card className="p-4 space-y-3">
         <div className="font-medium">Import-Zeilen löschen (Reparatur)</div>
         <p className="text-sm text-muted-foreground">
           Löscht ausschließlich Zeilen mit <code>source='import'</code>; Stempeluhr- und
