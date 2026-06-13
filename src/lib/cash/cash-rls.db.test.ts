@@ -99,52 +99,42 @@ describe.skipIf(!dbTestsEnabled)("cash RLS — DENY-ALL & Kellner-Sichtbarkeit",
   it("(A3) DENY-ALL auf allen Satelliten (insert blockt)", async () => {
     const client = await signInAsUser(manager.email, manager.password);
     const cases = [
-      client
-        .from("session_expenses")
-        .insert({
-          organization_id: org.orgId,
-          session_id: sessionId,
-          description: "x",
-          amount_cents: 1,
-        }),
-      client
-        .from("session_advances")
-        .insert({
-          organization_id: org.orgId,
-          session_id: sessionId,
-          staff_id: waiterA.staffId,
-          amount_cents: 1,
-        }),
+      client.from("session_expenses").insert({
+        organization_id: org.orgId,
+        session_id: sessionId,
+        description: "x",
+        amount_cents: 1,
+      }),
+      client.from("session_advances").insert({
+        organization_id: org.orgId,
+        session_id: sessionId,
+        staff_id: waiterA.staffId,
+        amount_cents: 1,
+      }),
       client
         .from("session_card_transactions")
         .insert({ organization_id: org.orgId, session_id: sessionId, amount_cents: 1 }),
       client
         .from("session_bank_deposits")
         .insert({ organization_id: org.orgId, session_id: sessionId, amount_cents: 1 }),
-      client
-        .from("session_register_transfers")
-        .insert({
-          organization_id: org.orgId,
-          session_id: sessionId,
-          direction: "to_restaurant",
-          amount_cents: 1,
-        }),
-      client
-        .from("session_channel_amounts")
-        .insert({
-          organization_id: org.orgId,
-          session_id: sessionId,
-          channel_id: org.orgId,
-          amount_cents: 1,
-        }),
-      client
-        .from("session_terminal_amounts")
-        .insert({
-          organization_id: org.orgId,
-          session_id: sessionId,
-          terminal_id: org.orgId,
-          amount_cents: 1,
-        }),
+      client.from("session_register_transfers").insert({
+        organization_id: org.orgId,
+        session_id: sessionId,
+        direction: "to_restaurant",
+        amount_cents: 1,
+      }),
+      client.from("session_channel_amounts").insert({
+        organization_id: org.orgId,
+        session_id: sessionId,
+        channel_id: org.orgId,
+        amount_cents: 1,
+      }),
+      client.from("session_terminal_amounts").insert({
+        organization_id: org.orgId,
+        session_id: sessionId,
+        terminal_id: org.orgId,
+        amount_cents: 1,
+      }),
     ];
     const results = await Promise.all(cases);
     for (const r of results) {
