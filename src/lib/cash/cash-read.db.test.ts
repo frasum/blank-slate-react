@@ -12,9 +12,16 @@
 //       organization_settings auch ohne vorhandene Settlement.
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { dbTestsEnabled, seedOrg, type SeededOrg, type SeededUser } from "@/test/db-setup";
+import {
+  dbTestsEnabled,
+  seedOrg,
+  signInAsUser,
+  type SeededOrg,
+  type SeededUser,
+} from "@/test/db-setup";
 import { ForbiddenError } from "@/lib/admin/role-guard";
 import type { AdminCaller } from "@/lib/admin/admin-context";
+import { loadAdminCaller } from "@/lib/admin/admin-context";
 import type { StaffCaller } from "@/lib/time/time.functions";
 import {
   getCashOverviewCore,
@@ -39,17 +46,6 @@ describe.skipIf(!dbTestsEnabled)("cash read endpoints (DB) — B3c-1a", () => {
       staffId: manager.staffId,
       organizationId: org.orgId,
       role: "manager",
-    };
-  }
-  function waiterAsAdminCaller(): AdminCaller {
-    // Synthetischer Caller, um sicherzustellen, dass die Reader die Rolle
-    // selbst hart prüfen (sie tun das via loadAdminCaller im Wrapper;
-    // die Core-Funktion akzeptiert hier zu Testzwecken den Org-Scope).
-    return {
-      userId: waiter.userId,
-      staffId: waiter.staffId,
-      organizationId: org.orgId,
-      role: "staff",
     };
   }
   function waiterCaller(): StaffCaller {
