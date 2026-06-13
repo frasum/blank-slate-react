@@ -46,8 +46,11 @@ export type SeededUser = {
 
 export type SeededOrg = {
   orgId: string;
+  defaultLocationId: string;
   service: SupabaseClient<Database>;
   mkUser: (role: AppRole | null, opts?: { isActive?: boolean }) => Promise<SeededUser>;
+  mkLocation: (name?: string) => Promise<string>;
+  bindStaffLocation: (staffId: string, locationId: string) => Promise<void>;
   cleanup: () => Promise<void>;
 };
 
@@ -63,6 +66,17 @@ export async function seedOrg(label: string): Promise<SeededOrg> {
     .single();
   if (orgErr || !org) throw new Error(`org insert failed: ${orgErr?.message}`);
   const orgId = org.id;
+
+  // Default-Standort: nahezu alle Bestandstests gehen davon aus, dass es
+  // genau einen Standort gibt. Der Default wird automatisch angelegt;
+  // mkUser bindet neue staff per default daran.
+  const { data: defLoc, error: locErr } = await service
+    .from("locations")
+    .insert({ organization_id: orgId, name: "Hauptstandort" })
+    .select("id")
+    .single();
+  if (locErr || !defLoc) throw new Error(`location seed failed: ${locErr?.message}`);
+  const defaultLocationId = defLoc.id;
 
   const createdUsers: string[] = [];
   const createdStaff: string[] = [];
@@ -110,7 +124,40 @@ export async function seedOrg(label: string): Promise<SeededOrg> {
       if (raErr) throw new Error(`role_assignments insert failed: ${raErr.message}`);
     }
 
+    // Default-Bindung Standort: ohne staff_locations-Eintrag kann der
+    // Kellner serverseitig keine Settlement abgeben (B3-Modellkorrektur A).
+    const { error: slErr } = await service.from("staff_locations").insert({
+      organization_id: orgId,
+      staff_id: staff.id,
+      location_id: defaultLocationId,
+    });
+    if (slErr) throw new Error(`staff_locations seed failed: ${slErr.message}`);
+
     return { userId, staffId: staff.id, email, password: PASSWORD };
+  };
+
+  const mkLocation: SeededOrg["mkLocation"] = async (name) => {
+    const { data, error } = await service
+      .from("locations")
+      .insert({
+        organization_id: orgId,
+        name: name ?? `Standort ${Math.random().toString(36).slice(2, 6)}`,
+      })
+      .select("id")
+      .single();
+    if (error || !data) throw new Error(`mkLocation failed: ${error?.message}`);
+    return data.id;
+  };
+
+  const bindStaffLocation: SeededOrg["bindStaffLocation"] = async (staffId, locationId) => {
+    const { error } = await service.from("staff_locations").insert({
+      organization_id: orgId,
+      staff_id: staffId,
+      location_id: locationId,
+    });
+    if (error && !`${error.message}`.includes("duplicate")) {
+      throw new Error(`bindStaffLocation failed: ${error.message}`);
+    }
   };
 
   const cleanup: SeededOrg["cleanup"] = async () => {
@@ -119,6 +166,7 @@ export async function seedOrg(label: string): Promise<SeededOrg> {
     await service.from("sessions").delete().eq("organization_id", orgId);
     await service.from("payment_terminals").delete().eq("organization_id", orgId);
     await service.from("revenue_channels").delete().eq("organization_id", orgId);
+    await service.from("cash_locks").delete().eq("organization_id", orgId);
     await service.from("time_entries").delete().eq("organization_id", orgId);
     await service.from("audit_log").delete().eq("organization_id", orgId);
     await service.from("organization_settings").delete().eq("organization_id", orgId);
@@ -128,13 +176,14 @@ export async function seedOrg(label: string): Promise<SeededOrg> {
     if (createdStaff.length > 0) {
       await service.from("staff").delete().in("id", createdStaff);
     }
+    await service.from("locations").delete().eq("organization_id", orgId);
     await service.from("organizations").delete().eq("id", orgId);
     for (const uid of createdUsers) {
       await service.auth.admin.deleteUser(uid).catch(() => undefined);
     }
   };
 
-  return { orgId, service, mkUser, cleanup };
+  return { orgId, defaultLocationId, service, mkUser, mkLocation, bindStaffLocation, cleanup };
 }
 
 export async function countAuditLog(
