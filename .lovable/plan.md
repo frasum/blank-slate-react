@@ -563,6 +563,16 @@ Neue `DayInput`-Felder (BIGINT-Cents, Integer-Validierung wie bisher):
 - `satellites.cardTransactionsCents` — bleibt als separate
   Korrekturliste (selten genutzt; addiert/subtrahiert je Vorzeichen wie
   heute). Nicht gleich `cardTotalCents`.
+- **REVIDIERT (Prüfpunkt 1):** `cardTransactionsCents` fließt NICHT in
+  die neue `dailyCash`-Formel ein. Begründung: im Altsystem
+  (`useCashBalanceData.ts`) gibt es laut Review nur `cardTotal`
+  (Terminal1+2) als Abzug, KEINE separate `cardTransactions`-Addition.
+  Der Agent konnte das Alt-File nicht selbst einsehen (liegt nicht im
+  COCO-Repo) — die Festlegung erfolgt nach Review-Aussage. Die Tabelle
+  `session_card_transactions` und ihre Add/Remove/Reader bleiben
+  unverändert (B3a-Schema), werden aber von `computeDayDelta` ignoriert.
+  Falls die Alt-Quelle doch eine Addition zeigt, wird sie in einem
+  Folge-Commit nachgezogen — Codestelle dann bitte nennen.
 
 Neue Formel (cent-genau):
 
@@ -589,21 +599,27 @@ carry          = remainingCash                       // auch negativ weiterreich
 `businessDate`) bleibt; Property-Test bleibt unverändert (gilt für die
 neue Funktion ebenso).
 
+`revenue_channels.kind` ist als fester Enum / `CHECK`-Constraint
+`NOT NULL` modelliert (kein freier Text). Jede neu angelegte Location
+bekommt beim Seeding denselben vollständigen Satz Kinds (genau eine
+Zeile je Kind pro Location). `kind` ist der technische Schlüssel und
+enthält NIE einen Anbieternamen — Anbieter ändern sich (Beispiel:
+„ordersmart" → „SOUSE"), der Enum-Wert darf das nicht. Anzeigename
+steht ausschließlich in `revenue_channels.label`.
+
+Erlaubte Kind-Werte (final): `'pos'`, `'delivery_souse'` (label:
+„SOUSE"), `'delivery_wolt'` (label: „Wolt"), `'voucher_sold'`,
+`'voucher_redeemed'`, `'finedine'`, `'einladung'`, `'sonstige'`.
+
 `session_channel_amounts` / `session_terminal_amounts` werden im Reader
 (`getCashOverview`) so aggregiert, dass die UI die Formel-Eingaben
 direkt füllen kann: POS/Wolt/Delivery-Plattformen werden anhand
-`revenue_channels.kind` (oder eines äquivalenten Marker-Feldes)
-separiert; `cardTotal` ist die Summe aller `terminal_amounts`. Falls
-der Marker fehlt, wird er als Mini-Schema-Ergänzung in derselben
-Migration nachgezogen (`revenue_channels.kind text NOT NULL DEFAULT
-'pos'`, Werte: `'pos'`, `'delivery_wolt'`, `'delivery_souse'`,
-`'voucher_sold'`, `'voucher_redeemed'`, `'finedine'`, `'einladung'`,
-`'sonstige'`). **Wichtig:** `kind` ist technischer Schlüssel und enthält
-keinen Anbieternamen, der sich ändern kann; der Anzeigename steht
-ausschließlich in `revenue_channels.label` (z. B. „SOUSE" für
-`delivery_souse`, früher „ordersmart"). Anbieterwechsel ändert nur
-`label`, nie `kind` oder die Formel. Konkrete Wahl wird im
-Implementierungs-Commit fixiert.
+`revenue_channels.kind` separiert; `cardTotal` ist die Summe aller
+`terminal_amounts`. Falls die Spalte `kind` heute noch nicht existiert,
+wird sie in derselben Migration (Teil B) als `NOT NULL` mit CHECK-Liste
+wie oben nachgezogen — Backfill auf `'pos'` für Bestandszeilen, danach
+wird der Default entfernt, damit neue Inserts den Kind explizit setzen
+müssen.
 
 In der `cash-ledger`-Formel ersetzt `delivery_souse` den bisher als
 `ordersmartCents` benannten Eingabewert (die DayInput-Feldnamen werden
@@ -654,12 +670,27 @@ sind Charakterisierungstests der jetzigen Formel, nicht der Altformel).
 
 ### Offene Fragen vor Bau (bitte vor Teil-A-Commit klären)
 
-1. Soll `revenue_channels.kind` als Marker eingeführt werden, oder gibt
-   es bereits ein äquivalentes Feld, das wir nutzen sollen? (Beeinflusst
-   die Migration in Teil A bzw. Teil B.)
-2. `cash_locks` als eigene Tabelle (Vorschlag) oder bestehende Spalte
-   auf `organizations` durch `(organization_id, location_id)`-Pivot
-   ersetzen?
-3. Default-Standort in der UI: erster nach `sort_order` ok, oder soll
-   der zuletzt benutzte je User persistiert werden (kleine
-   `user_preferences`-Erweiterung)?
+Geklärt im Review:
+- Auflage akzeptiert: `revenue_channels.kind` als fester Enum/CHECK,
+  `NOT NULL`, neutral (kein Anbietername im Enum), per-Location-Seeding
+  mit vollständigem Satz Kinds.
+- Prüfpunkt 1: `cardTransactionsCents` bleibt aus der `dailyCash`-Formel
+  draußen (siehe Notiz oben). Agent konnte Alt-Quelle nicht prüfen,
+  Festlegung per Review-Aussage.
+- Prüfpunkt 2: Charakterisierungstests in `session-channels.ts` werden
+  beim Anpassen NICHT an die neue Implementierung angeschmiegt.
+  Hand-geschriebene Erwartungswerte nur für isolierte Formel-Bausteine
+  (Kanal-Summen, Transfer-Vorzeichen, Vorschuss-Quirk). Die ganze
+  Tages-/Mehrtages-Kette wird ausschließlich gegen die extern
+  gelieferte Golden-Master-Fixture (`cashBalance.json`, zwei Ketten,
+  Mapping `ordersmart`→`delivery_souse` macht der Prüfer) cent-genau
+  verifiziert.
+- Reihenfolge final: Teil A (Standorte) als eigener Commit, dann
+  Teil B (Formel). `eslint --fix` vor jedem Commit.
+
+Offen (nicht blockierend für Teil A):
+- `cash_locks` als eigene Tabelle vs. Pivot bestehender Spalte —
+  Vorschlag bleibt eigene Tabelle; falls keine Gegenrede, wird so
+  gebaut.
+- Default-Standort in der UI: erster nach `sort_order`. Persistenz pro
+  User ist kein B3-Scope.
