@@ -544,12 +544,12 @@ export type UpdateSessionInput = z.infer<typeof updateSessionSchema>;
 export async function updateSessionCore(caller: AdminCaller, data: UpdateSessionInput) {
   return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
     const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
-    const settings = await loadOrgSettings(caller.organizationId);
+    const waterline = await loadLocationCashLock(caller.organizationId, session.location_id);
     assertCashWritable({
       businessDate: session.business_date,
       sessionStatus: session.status as "open" | "finalized" | "locked",
       sessionLockedAt: session.locked_at,
-      cashLockedThroughDate: settings.cashLockedThroughDate,
+      cashLockedThroughDate: waterline,
       // Nach finalize ist die Sessionsicht eingefroren; Korrekturen
       // einzelner Kellner-Abrechnungen laufen über correctWaiterSettlement.
       blockIfFinalized: true,
@@ -628,12 +628,12 @@ export const finalizeSession = createServerFn({ method: "POST" })
 export async function finalizeSessionCore(caller: AdminCaller, data: { sessionId: string }) {
   return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
     const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
-    const settings = await loadOrgSettings(caller.organizationId);
+    const waterline = await loadLocationCashLock(caller.organizationId, session.location_id);
     assertCashWritable({
       businessDate: session.business_date,
       sessionStatus: session.status as "open" | "finalized" | "locked",
       sessionLockedAt: session.locked_at,
-      cashLockedThroughDate: settings.cashLockedThroughDate,
+      cashLockedThroughDate: waterline,
       blockIfFinalized: true, // Doppel-Finalize verboten.
     });
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -791,12 +791,12 @@ export type AddSatelliteInput = z.infer<typeof satelliteAddSchema>;
 export async function addSessionSatelliteCore(caller: AdminCaller, data: AddSatelliteInput) {
   return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
     const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
-    const settings = await loadOrgSettings(caller.organizationId);
+    const waterline = await loadLocationCashLock(caller.organizationId, session.location_id);
     assertCashWritable({
       businessDate: session.business_date,
       sessionStatus: session.status as "open" | "finalized" | "locked",
       sessionLockedAt: session.locked_at,
-      cashLockedThroughDate: settings.cashLockedThroughDate,
+      cashLockedThroughDate: waterline,
       blockIfFinalized: true,
     });
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -914,12 +914,12 @@ export const removeSessionSatellite = createServerFn({ method: "POST" })
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
     return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
       const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
-      const settings = await loadOrgSettings(caller.organizationId);
+      const waterline = await loadLocationCashLock(caller.organizationId, session.location_id);
       assertCashWritable({
         businessDate: session.business_date,
         sessionStatus: session.status as "open" | "finalized" | "locked",
         sessionLockedAt: session.locked_at,
-        cashLockedThroughDate: settings.cashLockedThroughDate,
+        cashLockedThroughDate: waterline,
       });
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const table = SATELLITE_TABLE[data.kind];
@@ -979,11 +979,12 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
   if (session.status !== "open") throw new NoOpenSessionError(businessDate);
 
   const settings = await loadOrgSettings(caller.organizationId);
+  const waterline = await loadLocationCashLock(caller.organizationId, session.location_id);
   assertCashWritable({
     businessDate: session.business_date,
     sessionStatus: session.status as "open" | "finalized" | "locked",
     sessionLockedAt: session.locked_at,
-    cashLockedThroughDate: settings.cashLockedThroughDate,
+    cashLockedThroughDate: waterline,
   });
 
   // Idempotenz: existierende aktive Zeile prüfen.
@@ -1179,7 +1180,7 @@ export async function correctWaiterSettlementCore(
       businessDate: session.business_date,
       sessionStatus: session.status as "open" | "finalized" | "locked",
       sessionLockedAt: session.locked_at,
-      cashLockedThroughDate: settings.cashLockedThroughDate,
+      cashLockedThroughDate: waterline,
     });
 
     // Rate ERBEN vom Original — Rate-Änderung darf rückwirkend nichts ändern.
