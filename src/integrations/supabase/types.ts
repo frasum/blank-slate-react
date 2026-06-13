@@ -376,6 +376,7 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          kind: string
           label: string
           location_id: string
           organization_id: string
@@ -386,6 +387,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          kind: string
           label: string
           location_id: string
           organization_id: string
@@ -396,6 +398,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          kind?: string
           label?: string
           location_id?: string
           organization_id?: string
@@ -1361,7 +1364,11 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "manager" | "staff"
-      register_transfer_direction: "to_restaurant" | "from_restaurant"
+      register_transfer_direction:
+        | "to_restaurant"
+        | "from_restaurant"
+        | "to_safe"
+        | "to_other"
       session_status: "open" | "finalized" | "locked"
       time_entry_source: "clock" | "manual" | "import"
       token_type: "badge_login"
@@ -1499,7 +1506,12 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "manager", "staff"],
-      register_transfer_direction: ["to_restaurant", "from_restaurant"],
+      register_transfer_direction: [
+        "to_restaurant",
+        "from_restaurant",
+        "to_safe",
+        "to_other",
+      ],
       session_status: ["open", "finalized", "locked"],
       time_entry_source: ["clock", "manual", "import"],
       token_type: ["badge_login"],
