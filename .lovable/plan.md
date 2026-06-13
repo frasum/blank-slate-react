@@ -273,3 +273,121 @@ reason })` (Admin, nur vorwärts, Muster `setTimeLock`).
 
 - `cash-lock.test.ts` (Tabellen) + `cash-{submit,correct,lock,finalize}.db.test.ts`.
 - Bestehende 165 Tests bleiben grün.
+
+---
+
+## B3c-1 — Kasse-UI (nur Oberfläche)
+
+Reiner UI-Commit auf den B3b-Server-Functions. Keine neue Geschäfts- oder
+Rechenlogik, kein neuer Auth-Pfad, keine Schema-Änderung. Saldo/Carry-over/
+Export/Abgleich bleiben B3c-2.
+
+### Scope
+
+**1. `/zeit/abrechnung` (Staff+, mobil, PWA)**
+
+- Wiederverwendung der bestehenden PIN-Auth-Schicht der Stempeluhr
+  (`/zeit/index.tsx`-Flow). Kein neuer Login, kein neuer Token.
+- Formular mit fünf Cent-Eingaben:
+  `posSalesCents`, `cardTotalCents`, `hilfMahlCents`,
+  `openInvoicesCents`, `cashHandedInCents`. Eingabe in Euro (Dezimal),
+  Konvertierung auf ganze Cents im Form-State.
+- Live-Vorschau `differenz` + `kitchen_tip` clientseitig über das **gleiche**
+  reine Modul `calcWaiterSettlement` aus `src/lib/cash/waiter-settlement.ts`.
+  Tip-Rate aus Org-Settings (Query). Der Serverwert (snapshottet beim
+  Submit) bleibt Source of Truth — Vorschau ist informativ, nicht
+  verbindlich.
+- Primärbutton „Abrechnung absenden & ausstempeln" mit Confirm-Dialog:
+  „ArbZG-Pause wird automatisch angewendet." → `useServerFn(submitWaiterSettlement)`.
+- Nach Submit: read-only Ansicht der eigenen Settlement des Geschäftstags
+  mit Status-Badge (`submitted | superseded | locked`) + Anzeige der
+  Auto-Ausstempelzeit. Banner „Kein offener Zeiteintrag — nichts ausgestempelt"
+  bei `noOpenTimeEntry: true`.
+- **Keine Kellner-Korrektur-UI** — Korrekturen laufen nur über Manager
+  in `/admin/kasse`.
+
+**2. `/admin/kasse` (Manager+, Desktop)**
+
+- Kopfzeile: Datumswahl (default `current_business_date()`),
+  Session-Status-Badge (`open | finalized | locked`), zusätzlicher
+  Warnbadge wenn `business_date <= cash_locked_through_date` der Org.
+- Kellnerabrechnungen-Liste: alle Settlements der Session, Spalten
+  Kellner / pos / card / hilf / open / cash / differenz / tip / status.
+  `superseded`-Zeilen visuell ausgegraut, mit Verweis auf Nachfolger-Zeile.
+  Korrektur-Button je nicht-supersededer Zeile → Dialog mit allen fünf
+  Geldfeldern (vorbefüllt) + Pflichtfeld `reason` (Validierung `min(3)`)
+  → `correctWaiterSettlement`.
+- Editierbare Sektionen der Session (jeweils eigene Karte):
+  - **Kanäle** und **Terminals** — dynamische Zeilen `(channel/terminal, amountCents)`
+    aus `revenue_channels` / `payment_terminals` der Org → `updateSession`.
+  - **Gutscheine + Sonstiges** — Felder `vouchers_sold_cents`,
+    `vouchers_redeemed_cents`, `finedine_vouchers_cents`,
+    `opentabs_deduction_cents`, `vorschuss_cents`, `einladung_cents`,
+    `sonstige_einnahme_cents`, `notes` → `updateSession`.
+  - **Ausgaben**, **Vorschüsse**, **Kartenumsätze**, **Einzahlungen**,
+    **Transfers** — Liste + Add-Form + Remove-Button →
+    `addSessionSatellite` / `removeSessionSatellite`.
+  - Alle Sektionen disabled, sobald `assertCashWritable` blocken würde
+    (locked oder unter Wasserlinie); UI fragt das vor dem Render aus
+    Session-Status + Org-Settings ab und zeigt Hinweis.
+- Footer-Aktionen:
+  - „Tag finalisieren" (Manager+) → `finalizeSession`, Confirm-Dialog.
+  - „Sperren" (Admin) → `lockSession`, Confirm-Dialog mit Hinweis
+    „Setzt cash_locked_through_date — unumkehrbar".
+- Separater Admin-Block „Kasse sperren bis…" mit Datumsfeld + Pflichtfeld
+  `reason` → `setCashLock`. Nur vorwärts (Server prüft, UI deaktiviert
+  Daten ≤ aktueller Wasserlinie).
+
+**3. Daten-Layer**
+
+- Alle Writes ausschließlich über `useServerFn(...)` + `useMutation`,
+  `onSuccess` invalidiert die betroffenen Query-Keys
+  (`['cash','session', businessDate]`, `['cash','settlements', sessionId]`).
+- Reads über `queryOptions` + `ensureQueryData` im Loader +
+  `useSuspenseQuery` im Component (Standard-Read-Shape).
+- **Keine optimistic updates auf Geldfelder.** Optimismus nur erlaubt
+  für reine Lese-Refreshes (z.B. Toggle eines Filters), niemals für
+  Beträge, Status-Wechsel, Korrekturen oder Sperren — der Server bleibt
+  Source of Truth, Race-/Konflikt-Antworten werden sichtbar gemacht.
+- Fehler-Pfade: `CashLockedError`, `NotAuthorized`, Validierungsfehler →
+  als Toast (sonner) + Inline-Hinweis im Formular. Keine stillen Retries.
+
+### Wiederverwendung statt Neubau
+
+- `calcWaiterSettlement` (rein) → Live-Vorschau und Server-Validierung.
+- PIN-Auth-Komponente der Stempeluhr → identische Eingabe-UX.
+- Bestehende `cash.functions.ts` (B3b) → unverändert, nur konsumiert.
+- shadcn-Bausteine (Card, Dialog, Input, Badge, Button) — kein Neubau
+  generischer UI-Primitiven.
+
+### Explizit NICHT in B3c-1
+
+- Saldo-/Carry-over-Ansicht (`/admin/kasse/saldo`), CSV-Export,
+  Abgleichsbericht — alles B3c-2, kommt nach Lieferung der echten
+  Golden-Master-Fixture durch den unabhängigen Prüfer.
+- Stammdaten-Pflege für `revenue_channels` / `payment_terminals`
+  (eigene Admin-Seite, separater Mini-Commit). B3c-1 zeigt nur die
+  vorhandenen Einträge.
+- Trinkgeld-Verteilung Küche (separater Bauplan).
+- Lohnbüro-Übergabe Vorschüsse (M4).
+
+### Gate B3c-1
+
+- `tsc`, `eslint --max-warnings=0`, `vitest run` grün; bestehende Tests
+  unverändert (UI-Commit fasst keine Logik an).
+- CI `check` + `db-integration` grün.
+- Manuelles E2E nach `docs/cash-e2e-check.md` (neu in diesem Commit):
+  Kellner stempelt ein → öffnet `/zeit/abrechnung` am Handy → trägt
+  fünf Beträge ein → Live-Vorschau stimmt mit Server-Response überein →
+  Submit → Auto-Ausstempelzeit sichtbar → Manager öffnet `/admin/kasse`,
+  sieht Settlement, korrigiert mit Reason (Original wird ausgegraut,
+  Nachfolger erscheint), ergänzt Kanäle/Terminals/Satelliten, finalisiert,
+  Admin sperrt → erneuter Schreibversuch (Korrektur, Update, Satellit)
+  wird mit `CashLockedError`-Toast abgewiesen.
+
+### Offene Frage vor B3c-1-Bau
+
+Keine. Wenn freigegeben: Build erfolgt in **einem** Commit (zwei Routen +
+`docs/cash-e2e-check.md`), kein Logik-/Schema-Anfass.
+
+Freigabe?
