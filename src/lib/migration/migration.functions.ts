@@ -20,6 +20,9 @@ import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { runGuarded } from "@/lib/admin/admin-call";
 import { writeAuditLog } from "@/lib/admin/audit";
 import { localTimesOf, sundayHolidayOf } from "./derivations";
+import { utcIsoToBerlinHHMM, isSundayDate } from "./normalize";
+import { aggregate, cycleKey, isoWeekKey, type ShiftSample } from "./aggregate-by-business-date";
+import { bootstrapMissingStaffCore } from "./bootstrap-missing-staff";
 import { reconcile } from "./reconcile";
 import { emptyCounters, executeImport, parseCsvFor } from "./run-import-core";
 
@@ -297,52 +300,27 @@ export const bootstrapMissingStaff = createServerFn({ method: "POST" })
     };
     return runGuarded(caller.role, "admin", writeAudit, async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: openMappings, error: mapErr } = await supabaseAdmin
-        .from("staff_identity_map")
-        .select("id, alt_name")
-        .eq("organization_id", caller.organizationId)
-        .eq("source_system", data.sourceSystem)
-        .is("staff_id", null);
-        if (mapErr) throw mapErr;
-
-      let created = 0;
-      let skipped = 0;
-      for (const m of openMappings ?? []) {
-        const name = (m.alt_name ?? "").trim();
-        if (!name) {
-          skipped++;
-          continue;
-        }
-        const parts = name.split(/\s+/);
-        const lastName = parts.length > 1 ? parts[parts.length - 1] : name;
-        const firstName = parts.length > 1 ? parts.slice(0, -1).join(" ") : name;
-        const { data: newStaff, error: insErr } = await supabaseAdmin
-          .from("staff")
-          .insert({
-            organization_id: caller.organizationId,
-            first_name: firstName,
-            last_name: lastName,
-            display_name: name,
-            is_active: true,
-          })
-          .select("id")
-          .single();
-        if (insErr) throw insErr;
-        const { error: updErr } = await supabaseAdmin
-          .from("staff_identity_map")
-          .update({ staff_id: newStaff.id })
-          .eq("id", m.id)
-          .eq("organization_id", caller.organizationId)
-          .is("staff_id", null);
-        if (updErr) throw updErr;
-        created++;
-      }
+      const res = await bootstrapMissingStaffCore({
+        admin: supabaseAdmin,
+        organizationId: caller.organizationId,
+        sourceSystem: data.sourceSystem,
+      });
       return {
-        result: { created, skipped },
+        result: {
+          created: res.created,
+          linked: res.linked,
+          skipped: res.skipped,
+        },
         audit: {
           action: "migration.staff_bootstrap",
           entity: "staff_identity_map",
-          meta: { sourceSystem: data.sourceSystem, created, skipped },
+          meta: {
+            sourceSystem: data.sourceSystem,
+            created: res.created,
+            linked: res.linked,
+            skipped: res.skipped,
+            skippedNames: res.skippedNames,
+          },
         },
       };
     });
@@ -381,5 +359,149 @@ export const getReconciliationReport = createServerFn({ method: "POST" })
       groupBy: data.groupBy,
     });
 
+    return { rows };
+  });
+
+/**
+ * Abgleichsbericht „aus Datenbank": Alt-Topf-Summen aus CSV, Neu-Werte aus
+ * den tatsächlich importierten time_entries (source='import') über denselben
+ * tagesabrechnung-Adapter. Erwartung: 0 Differenzen, sobald Commit gelaufen
+ * ist. Differenzen deuten auf nicht importierte Schichten oder spätere
+ * manuelle Eingriffe in time_entries hin.
+ */
+export const getReconciliationReportFromDb = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => reconcileInputSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const bucketOf = data.groupBy === "cycle" ? cycleKey : isoWeekKey;
+
+    const shifts = parseCsvFor(data.sourceSystem, data.csvText).filter((s) => {
+      if (data.from && s.shiftDate < data.from) return false;
+      if (data.to && s.shiftDate > data.to) return false;
+      return true;
+    });
+
+    const { data: mapRows, error: mapErr } = await supabaseAdmin
+      .from("staff_identity_map")
+      .select("alt_id, staff_id, confirmed_at")
+      .eq("organization_id", caller.organizationId)
+      .eq("source_system", data.sourceSystem);
+    if (mapErr) throw mapErr;
+    const mapByAltId = new Map<string, string | null>();
+    for (const m of mapRows ?? []) {
+      if (m.confirmed_at) mapByAltId.set(m.alt_id, m.staff_id);
+    }
+
+    // Alt-Töpfe aus CSV via vorhandenem reconcile (recomputeFrom-csv), aber wir
+    // brauchen nur die Alt-Summe — leichter: direkt eigene Aggregation der Alt-
+    // Töpfe je (staffId, bucket). Dann DB-Aggregation und manueller Diff.
+    type Totals = {
+      totalHours: number;
+      eveningHours: number;
+      nightHours: number;
+      nightDeepHours: number;
+      sundayHolidayHours: number;
+    };
+    const EMPTY: Totals = {
+      totalHours: 0,
+      eveningHours: 0,
+      nightHours: 0,
+      nightDeepHours: 0,
+      sundayHolidayHours: 0,
+    };
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+    const addT = (a: Totals, b: Totals): Totals => ({
+      totalHours: round2(a.totalHours + b.totalHours),
+      eveningHours: round2(a.eveningHours + b.eveningHours),
+      nightHours: round2(a.nightHours + b.nightHours),
+      nightDeepHours: round2(a.nightDeepHours + b.nightDeepHours),
+      sundayHolidayHours: round2(a.sundayHolidayHours + b.sundayHolidayHours),
+    });
+
+    const altMap = new Map<string, { staffId: string; bucketKey: string; sum: Totals }>();
+    let minDate: string | null = null;
+    let maxDate: string | null = null;
+    const scopedStaff = new Set<string>();
+    for (const s of shifts) {
+      if (s.skipReason !== null) continue;
+      const altKey = s.altEmployeeId || s.altEmployeeName;
+      const staffId = mapByAltId.get(altKey) ?? null;
+      if (!staffId) continue;
+      scopedStaff.add(staffId);
+      if (!minDate || s.shiftDate < minDate) minDate = s.shiftDate;
+      if (!maxDate || s.shiftDate > maxDate) maxDate = s.shiftDate;
+      const bucket = bucketOf(s.shiftDate);
+      const key = `${staffId}::${bucket}`;
+      const alt = s.altTotals ?? EMPTY;
+      const ex = altMap.get(key);
+      altMap.set(key, {
+        staffId,
+        bucketKey: bucket,
+        sum: ex ? addT(ex.sum, alt) : { ...alt },
+      });
+    }
+
+    // DB-Seite: importierte time_entries für scoped Staff & Datumsbereich.
+    const samples: ShiftSample[] = [];
+    if (scopedStaff.size > 0 && minDate && maxDate) {
+      const { data: rows, error: teErr } = await supabaseAdmin
+        .from("time_entries")
+        .select("staff_id, started_at, ended_at, business_date")
+        .eq("organization_id", caller.organizationId)
+        .eq("source", "import")
+        .in("staff_id", Array.from(scopedStaff))
+        .gte("business_date", minDate)
+        .lte("business_date", maxDate);
+      if (teErr) throw teErr;
+      for (const r of rows ?? []) {
+        if (!r.started_at || !r.ended_at || !r.staff_id || !r.business_date) continue;
+        samples.push({
+          staffId: r.staff_id,
+          businessDate: r.business_date,
+          startLocal: utcIsoToBerlinHHMM(r.started_at),
+          endLocal: utcIsoToBerlinHHMM(r.ended_at),
+          sundayOrHoliday: isSundayDate(r.business_date),
+        });
+      }
+    }
+    const buckets = aggregate(samples, (s) => bucketOf(s.businessDate));
+    const recoMap = new Map<string, Totals>();
+    for (const b of buckets) {
+      recoMap.set(`${b.staffId}::${b.bucketKey}`, {
+        totalHours: b.totalHours,
+        eveningHours: b.eveningHours,
+        nightHours: b.nightHours,
+        nightDeepHours: b.nightDeepHours,
+        sundayHolidayHours: b.sundayHolidayHours,
+      });
+    }
+
+    const keys = new Set<string>([...altMap.keys(), ...recoMap.keys()]);
+    const rows = Array.from(keys).map((key) => {
+      const altEntry = altMap.get(key);
+      const reco = recoMap.get(key) ?? { ...EMPTY };
+      const staffId = altEntry?.staffId ?? key.split("::")[0];
+      const bucketKey = altEntry?.bucketKey ?? key.split("::")[1];
+      const alt = altEntry?.sum ?? { ...EMPTY };
+      const diff: Totals = {
+        totalHours: round2(alt.totalHours - reco.totalHours),
+        eveningHours: round2(alt.eveningHours - reco.eveningHours),
+        nightHours: round2(alt.nightHours - reco.nightHours),
+        nightDeepHours: round2(alt.nightDeepHours - reco.nightDeepHours),
+        sundayHolidayHours: round2(alt.sundayHolidayHours - reco.sundayHolidayHours),
+      };
+      const hasDifference =
+        diff.totalHours !== 0 ||
+        diff.eveningHours !== 0 ||
+        diff.nightHours !== 0 ||
+        diff.nightDeepHours !== 0 ||
+        diff.sundayHolidayHours !== 0;
+      return { staffId, bucketKey, alt, recomputed: reco, diff, hasDifference };
+    });
+    rows.sort((a, b) =>
+      a.staffId === b.staffId ? a.bucketKey.localeCompare(b.bucketKey) : a.staffId.localeCompare(b.staffId),
+    );
     return { rows };
   });
