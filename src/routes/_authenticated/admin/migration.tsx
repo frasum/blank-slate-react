@@ -719,21 +719,6 @@ function ReconciliationTableImpl({
   }>;
   staffNameById: Map<string, string>;
 }) {
-  title,
-  rows,
-  staffNameById,
-}: {
-  title: string;
-  rows: Array<{
-    staffId: string;
-    bucketKey: string;
-    alt: Record<string, number>;
-    recomputed: Record<string, number>;
-    diff: Record<string, number>;
-    hasDifference: boolean;
-  }>;
-  staffNameById: Map<string, string>;
-}) {
   const potKeys = Array.from(new Set(rows.flatMap((r) => Object.keys(r.diff)))).sort();
   return (
     <div className="overflow-x-auto">
