@@ -288,6 +288,61 @@ export const runImport = createServerFn({ method: "POST" })
   });
 
 /**
+ * Reparatur (Option A): löscht importierte time_entries
+ * (`source='import'`) — optional gefiltert nach staff_id —, damit ein
+ * anschließender Re-Import mit korrigierten Identity-Mappings die
+ * Schichten auf die richtigen Personen schreibt. Admin-only. Wasserlinie
+ * wird NICHT verschoben. Audit-Eintrag pro Lauf.
+ */
+export const deleteImportedShifts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => deleteImportedInputSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    const writeAudit = async (entry: {
+      action: string;
+      entity: string;
+      entityId?: string;
+      meta?: Record<string, unknown>;
+    }) => {
+      await writeAuditLog({
+        organizationId: caller.organizationId,
+        actorUserId: caller.userId,
+        actorStaffId: caller.staffId,
+        action: entry.action,
+        entity: entry.entity,
+        entityId: entry.entityId ?? null,
+        meta: entry.meta,
+      });
+    };
+    return runGuarded(caller.role, "admin", writeAudit, async () => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const res = await deleteImportedShiftsCore({
+        admin: supabaseAdmin,
+        organizationId: caller.organizationId,
+        staffId: data.staffId ?? null,
+        mode: data.mode,
+      });
+      return {
+        result: res,
+        audit: {
+          action: "migration.import_deleted",
+          entity: "time_entries",
+          meta: {
+            mode: res.mode,
+            filter: res.filter,
+            totalMatched: res.totalMatched,
+            totalDeleted: res.totalDeleted,
+            minBusinessDate: res.minBusinessDate,
+            maxBusinessDate: res.maxBusinessDate,
+            staffGroups: res.staffGroups,
+          },
+        },
+      };
+    });
+  });
+
+/**
  * Legt für alle Identity-Mappings der gewählten Quelle, die noch keinen
  * staff_id-Verweis haben, einen neuen Staff an (display_name = alt_name,
  * is_active = true, keine Rolle/PIN). Verknüpft das Mapping mit dem neuen
