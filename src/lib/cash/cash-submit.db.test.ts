@@ -43,6 +43,7 @@ describe.skipIf(!dbTestsEnabled)("submitWaiterSettlementCore (DB)", () => {
       .from("sessions")
       .insert({
         organization_id: org.orgId,
+        location_id: org.defaultLocationId,
         business_date: businessDate,
         status: "open",
       })

@@ -87,7 +87,10 @@ async function loadOrgSettings(orgId: string) {
 }
 
 // Wasserlinie pro Standort aus cash_locks. Null = keine Sperre.
-async function loadLocationCashLock(orgId: string, locationId: string): Promise<string | null> {
+export async function loadLocationCashLock(
+  orgId: string,
+  locationId: string,
+): Promise<string | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("cash_locks")
@@ -101,7 +104,7 @@ async function loadLocationCashLock(orgId: string, locationId: string): Promise<
 
 // Cross-Org-Schutz: jeder location-getriebene Aufruf prüft, dass die
 // übergebene Location wirklich zur Org des Aufrufers gehört.
-async function assertLocationInOrg(orgId: string, locationId: string): Promise<void> {
+export async function assertLocationInOrg(orgId: string, locationId: string): Promise<void> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("locations")
@@ -113,7 +116,7 @@ async function assertLocationInOrg(orgId: string, locationId: string): Promise<v
   if (!data) throw new ForbiddenError();
 }
 
-async function assertStaffBoundToLocation(
+export async function assertStaffBoundToLocation(
   orgId: string,
   staffId: string,
   locationId: string,
@@ -178,7 +181,7 @@ export const getCashOverview = createServerFn({ method: "GET" })
 
 export async function getCashOverviewCore(caller: AdminCaller, data: { businessDate?: string }) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const settings = await loadOrgSettings(caller.organizationId);
+  await loadOrgSettings(caller.organizationId);
   const businessDate = data.businessDate ?? (await getCurrentBusinessDate());
 
   const { data: session } = await supabaseAdmin
@@ -228,7 +231,7 @@ export async function getCashOverviewCore(caller: AdminCaller, data: { businessD
         note: string | null;
         createdAt: string;
       }>,
-      cashLockedThroughDate: settings.cashLockedThroughDate,
+      cashLockedThroughDate: null as string | null,
     };
   }
 
@@ -340,7 +343,10 @@ export async function getCashOverviewCore(caller: AdminCaller, data: { businessD
       note: r.note,
       createdAt: r.created_at,
     })),
-    cashLockedThroughDate: settings.cashLockedThroughDate,
+    cashLockedThroughDate: await loadLocationCashLock(
+      caller.organizationId,
+      session.location_id,
+    ),
   };
 }
 
@@ -446,7 +452,12 @@ export async function listPaymentTerminalsCore(caller: AdminCaller) {
 export const getOrCreateOpenSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
-    z.object({ businessDate: z.string().regex(ISO_DATE).optional() }).parse(input ?? {}),
+    z
+      .object({
+        businessDate: z.string().regex(ISO_DATE).optional(),
+        locationId: z.string().uuid(),
+      })
+      .parse(input ?? {}),
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
@@ -455,15 +466,17 @@ export const getOrCreateOpenSession = createServerFn({ method: "POST" })
 
 export async function getOrCreateOpenSessionCore(
   caller: AdminCaller,
-  data: { businessDate?: string },
+  data: { businessDate?: string; locationId: string },
 ) {
   return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
     const businessDate = data.businessDate ?? (await getCurrentBusinessDate());
+    await assertLocationInOrg(caller.organizationId, data.locationId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: existing } = await supabaseAdmin
       .from("sessions")
       .select("id, status, business_date")
       .eq("organization_id", caller.organizationId)
+      .eq("location_id", data.locationId)
       .eq("business_date", businessDate)
       .maybeSingle();
     if (existing) {
@@ -473,7 +486,7 @@ export async function getOrCreateOpenSessionCore(
           action: "cash.session.get_existing",
           entity: "session",
           entityId: existing.id,
-          meta: { businessDate },
+          meta: { businessDate, locationId: data.locationId },
         },
       };
     }
@@ -481,6 +494,7 @@ export async function getOrCreateOpenSessionCore(
       .from("sessions")
       .insert({
         organization_id: caller.organizationId,
+        location_id: data.locationId,
         business_date: businessDate,
         status: "open",
       })
@@ -493,7 +507,7 @@ export async function getOrCreateOpenSessionCore(
         action: "cash.session.created",
         entity: "session",
         entityId: created.id,
-        meta: { businessDate },
+        meta: { businessDate, locationId: data.locationId },
       },
     };
   });
@@ -530,12 +544,12 @@ export type UpdateSessionInput = z.infer<typeof updateSessionSchema>;
 export async function updateSessionCore(caller: AdminCaller, data: UpdateSessionInput) {
   return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
     const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
-    const settings = await loadOrgSettings(caller.organizationId);
+    const waterline = await loadLocationCashLock(caller.organizationId, session.location_id);
     assertCashWritable({
       businessDate: session.business_date,
       sessionStatus: session.status as "open" | "finalized" | "locked",
       sessionLockedAt: session.locked_at,
-      cashLockedThroughDate: settings.cashLockedThroughDate,
+      cashLockedThroughDate: waterline,
       // Nach finalize ist die Sessionsicht eingefroren; Korrekturen
       // einzelner Kellner-Abrechnungen laufen über correctWaiterSettlement.
       blockIfFinalized: true,
@@ -614,12 +628,12 @@ export const finalizeSession = createServerFn({ method: "POST" })
 export async function finalizeSessionCore(caller: AdminCaller, data: { sessionId: string }) {
   return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
     const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
-    const settings = await loadOrgSettings(caller.organizationId);
+    const waterline = await loadLocationCashLock(caller.organizationId, session.location_id);
     assertCashWritable({
       businessDate: session.business_date,
       sessionStatus: session.status as "open" | "finalized" | "locked",
       sessionLockedAt: session.locked_at,
-      cashLockedThroughDate: settings.cashLockedThroughDate,
+      cashLockedThroughDate: waterline,
       blockIfFinalized: true, // Doppel-Finalize verboten.
     });
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -684,6 +698,7 @@ export const setCashLock = createServerFn({ method: "POST" })
   .inputValidator((input) =>
     z
       .object({
+        locationId: z.string().uuid(),
         throughDate: z.string().regex(ISO_DATE),
         reason: z.string().trim().min(3).max(500),
       })
@@ -696,30 +711,37 @@ export const setCashLock = createServerFn({ method: "POST" })
 
 export async function setCashLockCore(
   caller: AdminCaller,
-  data: { throughDate: string; reason: string },
+  data: { locationId: string; throughDate: string; reason: string },
 ) {
   return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
-    const settings = await loadOrgSettings(caller.organizationId);
-    const before = settings.cashLockedThroughDate;
+    await assertLocationInOrg(caller.organizationId, data.locationId);
+    const before = await loadLocationCashLock(caller.organizationId, data.locationId);
     if (before && data.throughDate <= before) {
       throw new CashLockBackwardsError();
     }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.from("organization_settings").upsert(
+    const { error } = await supabaseAdmin.from("cash_locks").upsert(
       {
         organization_id: caller.organizationId,
-        cash_locked_through_date: data.throughDate,
+        location_id: data.locationId,
+        locked_through_date: data.throughDate,
+        updated_by: caller.staffId,
       },
-      { onConflict: "organization_id" },
+      { onConflict: "organization_id,location_id" },
     );
     if (error) throw error;
     return {
       result: { ok: true as const, lockedThrough: data.throughDate },
       audit: {
         action: "cash.lock.advanced",
-        entity: "organization_settings",
-        entityId: caller.organizationId,
-        meta: { from: before, to: data.throughDate, reason: data.reason },
+        entity: "cash_locks",
+        entityId: data.locationId,
+        meta: {
+          locationId: data.locationId,
+          from: before,
+          to: data.throughDate,
+          reason: data.reason,
+        },
       },
     };
   });
@@ -777,12 +799,12 @@ export type AddSatelliteInput = z.infer<typeof satelliteAddSchema>;
 export async function addSessionSatelliteCore(caller: AdminCaller, data: AddSatelliteInput) {
   return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
     const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
-    const settings = await loadOrgSettings(caller.organizationId);
+    const waterline = await loadLocationCashLock(caller.organizationId, session.location_id);
     assertCashWritable({
       businessDate: session.business_date,
       sessionStatus: session.status as "open" | "finalized" | "locked",
       sessionLockedAt: session.locked_at,
-      cashLockedThroughDate: settings.cashLockedThroughDate,
+      cashLockedThroughDate: waterline,
       blockIfFinalized: true,
     });
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -900,12 +922,12 @@ export const removeSessionSatellite = createServerFn({ method: "POST" })
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
     return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
       const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
-      const settings = await loadOrgSettings(caller.organizationId);
+      const waterline = await loadLocationCashLock(caller.organizationId, session.location_id);
       assertCashWritable({
         businessDate: session.business_date,
         sessionStatus: session.status as "open" | "finalized" | "locked",
         sessionLockedAt: session.locked_at,
-        cashLockedThroughDate: settings.cashLockedThroughDate,
+        cashLockedThroughDate: waterline,
       });
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const table = SATELLITE_TABLE[data.kind];
@@ -957,7 +979,7 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
 
   const { data: session } = await supabaseAdmin
     .from("sessions")
-    .select("id, business_date, status, locked_at")
+    .select("id, business_date, status, locked_at, location_id")
     .eq("organization_id", caller.organizationId)
     .eq("business_date", businessDate)
     .maybeSingle();
@@ -965,11 +987,12 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
   if (session.status !== "open") throw new NoOpenSessionError(businessDate);
 
   const settings = await loadOrgSettings(caller.organizationId);
+  const waterline = await loadLocationCashLock(caller.organizationId, session.location_id);
   assertCashWritable({
     businessDate: session.business_date,
     sessionStatus: session.status as "open" | "finalized" | "locked",
     sessionLockedAt: session.locked_at,
-    cashLockedThroughDate: settings.cashLockedThroughDate,
+    cashLockedThroughDate: waterline,
   });
 
   // Idempotenz: existierende aktive Zeile prüfen.
@@ -1159,13 +1182,13 @@ export async function correctWaiterSettlementCore(
     }
 
     const session = await loadSessionWithLock(caller.organizationId, original.session_id);
-    const settings = await loadOrgSettings(caller.organizationId);
+    const waterline = await loadLocationCashLock(caller.organizationId, session.location_id);
     // Korrektur erlaubt bei open + finalized; gesperrt bei locked / Wasserlinie.
     assertCashWritable({
       businessDate: session.business_date,
       sessionStatus: session.status as "open" | "finalized" | "locked",
       sessionLockedAt: session.locked_at,
-      cashLockedThroughDate: settings.cashLockedThroughDate,
+      cashLockedThroughDate: waterline,
     });
 
     // Rate ERBEN vom Original — Rate-Änderung darf rückwirkend nichts ändern.

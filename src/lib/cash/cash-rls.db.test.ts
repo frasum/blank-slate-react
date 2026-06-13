@@ -42,6 +42,7 @@ describe.skipIf(!dbTestsEnabled)("cash RLS — DENY-ALL & Kellner-Sichtbarkeit",
       .from("sessions")
       .insert({
         organization_id: org.orgId,
+        location_id: org.defaultLocationId,
         business_date: businessDate,
         status: "open",
       })
@@ -55,6 +56,7 @@ describe.skipIf(!dbTestsEnabled)("cash RLS — DENY-ALL & Kellner-Sichtbarkeit",
       .from("sessions")
       .insert({
         organization_id: org.orgId,
+        location_id: org.defaultLocationId,
         business_date: "2020-01-01",
         status: "finalized",
       })
@@ -82,6 +84,7 @@ describe.skipIf(!dbTestsEnabled)("cash RLS — DENY-ALL & Kellner-Sichtbarkeit",
     const client = await signInAsUser(manager.email, manager.password);
     const { error } = await client.from("sessions").insert({
       organization_id: org.orgId,
+      location_id: org.defaultLocationId,
       business_date: "2099-12-31",
       status: "open",
     });
