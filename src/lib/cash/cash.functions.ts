@@ -1174,7 +1174,7 @@ export async function correctWaiterSettlementCore(
     }
 
     const session = await loadSessionWithLock(caller.organizationId, original.session_id);
-    const settings = await loadOrgSettings(caller.organizationId);
+    const waterline = await loadLocationCashLock(caller.organizationId, session.location_id);
     // Korrektur erlaubt bei open + finalized; gesperrt bei locked / Wasserlinie.
     assertCashWritable({
       businessDate: session.business_date,
