@@ -87,7 +87,10 @@ async function loadOrgSettings(orgId: string) {
 }
 
 // Wasserlinie pro Standort aus cash_locks. Null = keine Sperre.
-async function loadLocationCashLock(orgId: string, locationId: string): Promise<string | null> {
+export async function loadLocationCashLock(
+  orgId: string,
+  locationId: string,
+): Promise<string | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("cash_locks")
@@ -101,7 +104,7 @@ async function loadLocationCashLock(orgId: string, locationId: string): Promise<
 
 // Cross-Org-Schutz: jeder location-getriebene Aufruf prüft, dass die
 // übergebene Location wirklich zur Org des Aufrufers gehört.
-async function assertLocationInOrg(orgId: string, locationId: string): Promise<void> {
+export async function assertLocationInOrg(orgId: string, locationId: string): Promise<void> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("locations")
@@ -113,7 +116,7 @@ async function assertLocationInOrg(orgId: string, locationId: string): Promise<v
   if (!data) throw new ForbiddenError();
 }
 
-async function assertStaffBoundToLocation(
+export async function assertStaffBoundToLocation(
   orgId: string,
   staffId: string,
   locationId: string,
