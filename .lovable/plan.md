@@ -224,3 +224,51 @@ Keine. Alle drei M2-Entscheidungen bestätigt, Golden-Master-Arbeitsteilung
 geklärt (du lieferst Fixture, ich baue Harness + handgerechneten Platzhalter).
 
 Freigabe?
+
+---
+
+## B3b — Erfassung & zweistufiger Abschluss-Flow (gebaut)
+
+Freigaben:
+- `correctWaiterSettlement` ist erlaubt bei Session-Status `open` UND
+  `finalized`; gesperrt erst bei `locked` oder unterhalb
+  `cash_locked_through_date`. `assertCashWritable` blockt entsprechend
+  nur `locked` + Wasserlinie, NICHT `finalized`. `finalized` ist
+  Zwischenstatus für Manager-Übersicht, keine Schreibsperre für
+  Korrekturen (M2-Steckbrief §5).
+- `correctWaiterSettlement` ERBT den `kitchen_tip_rate`-Snapshot der
+  Original-Zeile — eine Zahlenkorrektur ändert den Trinkgeldsatz nicht
+  rückwirkend.
+
+### Server-Functions (`src/lib/cash/cash.functions.ts`)
+
+- `getOrCreateOpenSession({ businessDate? })` — Manager+.
+- `submitWaiterSettlement({ posSalesCents, cardTotalCents, hilfMahlCents,
+  openInvoicesCents, cashHandedInCents })` — Staff+. Snapshot von
+  `kitchen_tip_rate`, ruft `calcWaiterSettlement`, persistiert
+  `submitted`. Auto-Ausstempeln über `performClockOut` (aus
+  `time.functions.ts` extrahiert; gleiche Validierung/Pausen-Logik wie
+  `clockOut`-Server-Fn). Pause = ArbZG-Default, Audit-Meta enthält
+  `triggered_by:'settlement'`, `arbzg_default:true`, `settlement_id`.
+  Idempotent: zweiter Aufruf erzeugt keinen zweiten clockOut. Kein
+  offener Eintrag → `noOpenTimeEntry:true`.
+- `correctWaiterSettlement({ originalId, …felder, reason })` — Manager+.
+  Erzeugt neue Zeile mit `corrected_from_id`, Original →
+  `status='superseded'`. Erbt `kitchen_tip_rate` vom Original.
+- `updateSession({ … })`, `addSessionSatellite`, `removeSessionSatellite`,
+  `finalizeSession`, `lockSession` (Admin), `setCashLock({ throughDate,
+  reason })` (Admin, nur vorwärts, Muster `setTimeLock`).
+- Schreibgate `assertCashWritable` aus `cash-lock.ts` (rein).
+
+### UI
+
+- `/zeit/abrechnung` (Staff+, mobil): 5 Cent-Eingaben, Live-Vorschau,
+  Submit → Auto-Ausstempeln (kein Pausen-Dialog, ArbZG automatisch).
+- `/admin/kasse` (Manager+): Liste aller Settlements, Korrektur-Dialog
+  mit Reason, Session vervollständigen (Kanäle/Terminals/Satelliten),
+  Finalisieren, Sperren (Admin), Wasserlinie setzen (Admin).
+
+### Tests
+
+- `cash-lock.test.ts` (Tabellen) + `cash-{submit,correct,lock,finalize}.db.test.ts`.
+- Bestehende 165 Tests bleiben grün.

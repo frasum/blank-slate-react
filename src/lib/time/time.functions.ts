@@ -30,7 +30,9 @@ type Caller = {
   isActive: boolean;
 };
 
-async function loadStaffCaller(
+export type StaffCaller = Caller;
+
+export async function loadStaffCaller(
   supabase: SupabaseClient<Database>,
   userId: string,
 ): Promise<Caller> {
@@ -58,7 +60,7 @@ async function loadStaffCaller(
   };
 }
 
-async function loadOpenEntry(
+export async function loadOpenEntry(
   staffId: string,
 ): Promise<{ id: string; startedAt: Date } | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -176,44 +178,70 @@ export const clockOut = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadStaffCaller(context.supabase, context.userId);
-    const open = await loadOpenEntry(caller.staffId);
-    const now = new Date();
-    const decision = canClockOut({ openEntry: open, now });
-    if (!decision.ok) throw new Error(denialMessage(decision.reason));
-
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: updated, error } = await supabaseAdmin
-      .from("time_entries")
-      .update({ ended_at: now.toISOString(), break_minutes: data.breakMinutes })
-      .eq("id", open!.id)
-      .eq("staff_id", caller.staffId)
-      .is("ended_at", null)
-      .select("id, started_at, ended_at")
-      .single();
-    if (error) throw error;
-
-    const gross = grossMinutesBetween(new Date(updated.started_at), now);
-    const arbzgShort = isArbzgShort(gross, data.breakMinutes);
-
-    await writeAuditLog({
-      organizationId: caller.organizationId,
-      actorUserId: caller.userId,
-      actorStaffId: caller.staffId,
-      action: "time_entry.clock_out",
-      entity: "time_entry",
-      entityId: updated.id,
-      meta: {
-        source: "clock",
-        breakMinutes: data.breakMinutes,
-        grossMinutes: gross,
-        arbzgRecommended: arbzgMinimumBreak(gross),
-        arbzgShort,
-      },
-    });
-
-    return {
-      id: updated.id,
-      startedAt: updated.started_at,
-      endedAt: updated.ended_at,
-    };
+    const result = await performClockOut(caller, data.breakMinutes);
+    if (!result) throw new Error(denialMessage("no_open_entry"));
+    return result;
   });
+
+/**
+ * Interner Auto-Ausstempel-Pfad: gleiche Validierung, gleicher
+ * Audit-Action (`time_entry.clock_out`), kann von anderen Server-Functions
+ * (z. B. `submitWaiterSettlement`) aufgerufen werden.
+ *
+ * Rückgabe `null`, wenn KEIN offener Zeiteintrag existiert. Bewusst kein
+ * Throw, damit Aufrufer zwischen „kein Eintrag" und „Fehler" unterscheiden
+ * können.
+ *
+ * `extraMeta` wird in das audit_log-meta gemergt (z. B.
+ * `{ triggered_by: 'settlement', settlement_id, arbzg_default: true }`).
+ */
+export async function performClockOut(
+  caller: Caller,
+  breakMinutes: number,
+  extraMeta: Record<string, unknown> = {},
+): Promise<{ id: string; startedAt: string; endedAt: string } | null> {
+  const open = await loadOpenEntry(caller.staffId);
+  const now = new Date();
+  const decision = canClockOut({ openEntry: open, now });
+  if (!decision.ok) {
+    if (decision.reason === "no_open_entry") return null;
+    throw new Error(denialMessage(decision.reason));
+  }
+
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: updated, error } = await supabaseAdmin
+    .from("time_entries")
+    .update({ ended_at: now.toISOString(), break_minutes: breakMinutes })
+    .eq("id", open!.id)
+    .eq("staff_id", caller.staffId)
+    .is("ended_at", null)
+    .select("id, started_at, ended_at")
+    .single();
+  if (error) throw error;
+
+  const gross = grossMinutesBetween(new Date(updated.started_at), now);
+  const arbzgShort = isArbzgShort(gross, breakMinutes);
+
+  await writeAuditLog({
+    organizationId: caller.organizationId,
+    actorUserId: caller.userId,
+    actorStaffId: caller.staffId,
+    action: "time_entry.clock_out",
+    entity: "time_entry",
+    entityId: updated.id,
+    meta: {
+      source: "clock",
+      breakMinutes,
+      grossMinutes: gross,
+      arbzgRecommended: arbzgMinimumBreak(gross),
+      arbzgShort,
+      ...extraMeta,
+    },
+  });
+
+  return {
+    id: updated.id,
+    startedAt: updated.started_at,
+    endedAt: updated.ended_at!,
+  };
+}
