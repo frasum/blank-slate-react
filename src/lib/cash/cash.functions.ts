@@ -521,7 +521,16 @@ export const addSessionSatellite = createServerFn({ method: "POST" })
   .inputValidator((input) => satelliteAddSchema.parse(input))
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
-    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+    return addSessionSatelliteCore(caller, data);
+  });
+
+export type AddSatelliteInput = z.infer<typeof satelliteAddSchema>;
+
+export async function addSessionSatelliteCore(
+  caller: AdminCaller,
+  data: AddSatelliteInput,
+) {
+  return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
       const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
       const settings = await loadOrgSettings(caller.organizationId);
       assertCashWritable({
@@ -529,6 +538,7 @@ export const addSessionSatellite = createServerFn({ method: "POST" })
         sessionStatus: session.status as "open" | "finalized" | "locked",
         sessionLockedAt: session.locked_at,
         cashLockedThroughDate: settings.cashLockedThroughDate,
+        blockIfFinalized: true,
       });
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       let createdId: string | null = null;
