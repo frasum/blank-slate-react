@@ -452,7 +452,12 @@ export async function listPaymentTerminalsCore(caller: AdminCaller) {
 export const getOrCreateOpenSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
-    z.object({ businessDate: z.string().regex(ISO_DATE).optional() }).parse(input ?? {}),
+    z
+      .object({
+        businessDate: z.string().regex(ISO_DATE).optional(),
+        locationId: z.string().uuid(),
+      })
+      .parse(input ?? {}),
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
@@ -461,15 +466,17 @@ export const getOrCreateOpenSession = createServerFn({ method: "POST" })
 
 export async function getOrCreateOpenSessionCore(
   caller: AdminCaller,
-  data: { businessDate?: string },
+  data: { businessDate?: string; locationId: string },
 ) {
   return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
     const businessDate = data.businessDate ?? (await getCurrentBusinessDate());
+    await assertLocationInOrg(caller.organizationId, data.locationId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: existing } = await supabaseAdmin
       .from("sessions")
       .select("id, status, business_date")
       .eq("organization_id", caller.organizationId)
+      .eq("location_id", data.locationId)
       .eq("business_date", businessDate)
       .maybeSingle();
     if (existing) {
@@ -479,7 +486,7 @@ export async function getOrCreateOpenSessionCore(
           action: "cash.session.get_existing",
           entity: "session",
           entityId: existing.id,
-          meta: { businessDate },
+          meta: { businessDate, locationId: data.locationId },
         },
       };
     }
@@ -487,6 +494,7 @@ export async function getOrCreateOpenSessionCore(
       .from("sessions")
       .insert({
         organization_id: caller.organizationId,
+        location_id: data.locationId,
         business_date: businessDate,
         status: "open",
       })
@@ -499,7 +507,7 @@ export async function getOrCreateOpenSessionCore(
         action: "cash.session.created",
         entity: "session",
         entityId: created.id,
-        meta: { businessDate },
+        meta: { businessDate, locationId: data.locationId },
       },
     };
   });
