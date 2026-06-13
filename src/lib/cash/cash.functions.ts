@@ -181,7 +181,7 @@ export const getCashOverview = createServerFn({ method: "GET" })
 
 export async function getCashOverviewCore(caller: AdminCaller, data: { businessDate?: string }) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const settings = await loadOrgSettings(caller.organizationId);
+  await loadOrgSettings(caller.organizationId);
   const businessDate = data.businessDate ?? (await getCurrentBusinessDate());
 
   const { data: session } = await supabaseAdmin
