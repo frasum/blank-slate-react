@@ -38,9 +38,9 @@ describe("computeDailyCash — Alt-Modell-Formel (Befund 2)", () => {
   });
 
   it("cardTotal wird subtrahiert (Karten kommen nicht in die Kasse)", () => {
-    expect(
-      computeDailyCash(emptyDay({ grossRevenueCents: 1000_00, cardTotalCents: 600_00 })),
-    ).toBe(40_000);
+    expect(computeDailyCash(emptyDay({ grossRevenueCents: 1000_00, cardTotalCents: 600_00 }))).toBe(
+      40_000,
+    );
   });
 
   it("Karten dominieren → dailyCash negativ", () => {

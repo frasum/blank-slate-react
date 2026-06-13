@@ -87,7 +87,9 @@ export function aggregateChannelAmounts(
  * darf nicht doppelt zählen. Wir entscheiden uns für die kind-basierte
  * Quelle, damit es genau eine Eingabe pro Größe gibt.
  */
-export function buildDayInputFromAggregation(agg: AggregatedChannels): Pick<
+export function buildDayInputFromAggregation(
+  agg: AggregatedChannels,
+): Pick<
   DayInput,
   | "grossRevenueCents"
   | "cardTotalCents"
