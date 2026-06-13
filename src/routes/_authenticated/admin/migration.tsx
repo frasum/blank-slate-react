@@ -1,7 +1,7 @@
 // B2c Commit 4 — Migration-UI (Admin-only).
 // Minimal: Upload + Dry-Run, Mapping-Tabelle, Commit, Abgleichsbericht.
 
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Table,
   TableBody,
@@ -49,6 +50,7 @@ export const Route = createFileRoute("/_authenticated/admin/migration")({
 
 function MigrationPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [sourceSystem, setSourceSystem] = useState<SourceSystem>("tagesabrechnung");
   const [csvText, setCsvText] = useState<string>("");
   const [fileName, setFileName] = useState<string>("");
@@ -68,6 +70,24 @@ function MigrationPage() {
   const callReassign = useServerFn(reassignImportedStaff);
   const callDeleteImported = useServerFn(deleteImportedShifts);
   const [deleteStaffId, setDeleteStaffId] = useState<string>("");
+
+  async function assertSessionReady(): Promise<void> {
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.access_token) return;
+    toast.error("Sitzung abgelaufen. Bitte neu anmelden.");
+    await navigate({ to: "/auth", replace: true });
+    throw new Error("AUTH_SESSION_MISSING");
+  }
+
+  function handleMutationError(e: Error): void {
+    if (e.message === "AUTH_SESSION_MISSING") return;
+    if (e.message.startsWith("Unauthorized:")) {
+      toast.error("Sitzung abgelaufen. Bitte neu anmelden.");
+      void navigate({ to: "/auth", replace: true });
+      return;
+    }
+    toast.error(e.message);
+  }
 
   const staffQ = useQuery({ queryKey: ["admin-staff"], queryFn: () => fetchStaff() });
   const mappingsQ = useQuery({
