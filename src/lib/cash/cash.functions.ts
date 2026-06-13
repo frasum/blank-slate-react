@@ -690,7 +690,16 @@ export const submitWaiterSettlement = createServerFn({ method: "POST" })
   .inputValidator((input) => settlementInputSchema.parse(input))
   .handler(async ({ data, context }) => {
     const caller = await loadStaffCaller(context.supabase, context.userId);
-    if (!caller.isActive) throw new Error("Mitarbeiter ist inaktiv.");
+    return submitWaiterSettlementCore(caller, data);
+  });
+
+export type SubmitSettlementInput = z.infer<typeof settlementInputSchema>;
+
+export async function submitWaiterSettlementCore(
+  caller: StaffCaller,
+  data: SubmitSettlementInput,
+) {
+  if (!caller.isActive) throw new Error("Mitarbeiter ist inaktiv.");
     const businessDate = await getCurrentBusinessDate();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -853,7 +862,7 @@ export const submitWaiterSettlement = createServerFn({ method: "POST" })
       noOpenTimeEntry,
       idempotent: existing?.status === "submitted",
     };
-  });
+}
 
 // ------------------------------------------------------------------------
 // Manager: Korrektur
@@ -874,7 +883,16 @@ export const correctWaiterSettlement = createServerFn({ method: "POST" })
   .inputValidator((input) => correctSchema.parse(input))
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
-    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+    return correctWaiterSettlementCore(caller, data);
+  });
+
+export type CorrectSettlementInput = z.infer<typeof correctSchema>;
+
+export async function correctWaiterSettlementCore(
+  caller: AdminCaller,
+  data: CorrectSettlementInput,
+) {
+  return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: original, error: loadErr } = await supabaseAdmin
         .from("waiter_settlements")
@@ -956,8 +974,8 @@ export const correctWaiterSettlement = createServerFn({ method: "POST" })
           },
         },
       };
-    });
   });
+}
 
 // Re-export für UI/Test-Konsum.
 export { CashLockedError };
