@@ -242,6 +242,6 @@ export async function performClockOut(
   return {
     id: updated.id,
     startedAt: updated.started_at,
-    endedAt: updated.ended_at,
+    endedAt: updated.ended_at!,
   };
 }
