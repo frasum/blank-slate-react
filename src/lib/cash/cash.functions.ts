@@ -119,71 +119,271 @@ export const getCashOverview = createServerFn({ method: "GET" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const settings = await loadOrgSettings(caller.organizationId);
-    const businessDate = data.businessDate ?? (await getCurrentBusinessDate());
+    return getCashOverviewCore(caller, data);
+  });
 
-    const { data: session } = await supabaseAdmin
-      .from("sessions")
-      .select("*")
-      .eq("organization_id", caller.organizationId)
-      .eq("business_date", businessDate)
-      .maybeSingle();
+export async function getCashOverviewCore(caller: AdminCaller, data: { businessDate?: string }) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const settings = await loadOrgSettings(caller.organizationId);
+  const businessDate = data.businessDate ?? (await getCurrentBusinessDate());
 
-    if (!session) {
-      return {
-        businessDate,
-        session: null,
-        settlements: [],
-        cashLockedThroughDate: settings.cashLockedThroughDate,
-      };
-    }
+  const { data: session } = await supabaseAdmin
+    .from("sessions")
+    .select("*")
+    .eq("organization_id", caller.organizationId)
+    .eq("business_date", businessDate)
+    .maybeSingle();
 
-    const { data: settlements } = await supabaseAdmin
+  if (!session) {
+    return {
+      businessDate,
+      session: null,
+      settlements: [],
+      channelAmounts: [] as Array<{ channelId: string; amountCents: number }>,
+      terminalAmounts: [] as Array<{ terminalId: string; amountCents: number }>,
+      expenses: [] as Array<{
+        id: string;
+        description: string | null;
+        amountCents: number;
+        createdAt: string;
+      }>,
+      advances: [] as Array<{
+        id: string;
+        staffId: string;
+        amountCents: number;
+        note: string | null;
+        createdAt: string;
+      }>,
+      cardTransactions: [] as Array<{
+        id: string;
+        terminalId: string | null;
+        amountCents: number;
+        note: string | null;
+        createdAt: string;
+      }>,
+      bankDeposits: [] as Array<{
+        id: string;
+        amountCents: number;
+        reference: string | null;
+        createdAt: string;
+      }>,
+      registerTransfers: [] as Array<{
+        id: string;
+        direction: string;
+        amountCents: number;
+        note: string | null;
+        createdAt: string;
+      }>,
+      cashLockedThroughDate: settings.cashLockedThroughDate,
+    };
+  }
+
+  const [
+    settlementsRes,
+    channelAmtRes,
+    terminalAmtRes,
+    expensesRes,
+    advancesRes,
+    cardRes,
+    bankRes,
+    transferRes,
+  ] = await Promise.all([
+    supabaseAdmin
       .from("waiter_settlements")
       .select(
         "id, staff_id, pos_sales_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents, differenz_cents, kitchen_tip_cents, kitchen_tip_rate, status, submitted_at, corrected_from_id, auto_clockout_time_entry_id, staff(display_name)",
       )
       .eq("organization_id", caller.organizationId)
       .eq("session_id", session.id)
-      .order("submitted_at", { ascending: true });
+      .order("submitted_at", { ascending: true }),
+    supabaseAdmin
+      .from("session_channel_amounts")
+      .select("channel_id, amount_cents")
+      .eq("organization_id", caller.organizationId)
+      .eq("session_id", session.id),
+    supabaseAdmin
+      .from("session_terminal_amounts")
+      .select("terminal_id, amount_cents")
+      .eq("organization_id", caller.organizationId)
+      .eq("session_id", session.id),
+    supabaseAdmin
+      .from("session_expenses")
+      .select("id, description, amount_cents, created_at")
+      .eq("organization_id", caller.organizationId)
+      .eq("session_id", session.id)
+      .order("created_at", { ascending: true }),
+    supabaseAdmin
+      .from("session_advances")
+      .select("id, staff_id, amount_cents, note, created_at")
+      .eq("organization_id", caller.organizationId)
+      .eq("session_id", session.id)
+      .order("created_at", { ascending: true }),
+    supabaseAdmin
+      .from("session_card_transactions")
+      .select("id, terminal_id, amount_cents, note, created_at")
+      .eq("organization_id", caller.organizationId)
+      .eq("session_id", session.id)
+      .order("created_at", { ascending: true }),
+    supabaseAdmin
+      .from("session_bank_deposits")
+      .select("id, amount_cents, reference, created_at")
+      .eq("organization_id", caller.organizationId)
+      .eq("session_id", session.id)
+      .order("created_at", { ascending: true }),
+    supabaseAdmin
+      .from("session_register_transfers")
+      .select("id, direction, amount_cents, note, created_at")
+      .eq("organization_id", caller.organizationId)
+      .eq("session_id", session.id)
+      .order("created_at", { ascending: true }),
+  ]);
 
-    return {
-      businessDate,
-      session,
-      settlements: (settlements ?? []).map((s) => ({
-        ...s,
-        staffName: (s.staff as { display_name: string } | null)?.display_name ?? "—",
-      })),
-      cashLockedThroughDate: settings.cashLockedThroughDate,
-    };
-  });
+  return {
+    businessDate,
+    session,
+    settlements: (settlementsRes.data ?? []).map((s) => ({
+      ...s,
+      staffName: (s.staff as { display_name: string } | null)?.display_name ?? "—",
+    })),
+    channelAmounts: (channelAmtRes.data ?? []).map((r) => ({
+      channelId: r.channel_id,
+      amountCents: Number(r.amount_cents),
+    })),
+    terminalAmounts: (terminalAmtRes.data ?? []).map((r) => ({
+      terminalId: r.terminal_id,
+      amountCents: Number(r.amount_cents),
+    })),
+    expenses: (expensesRes.data ?? []).map((r) => ({
+      id: r.id,
+      description: r.description,
+      amountCents: Number(r.amount_cents),
+      createdAt: r.created_at,
+    })),
+    advances: (advancesRes.data ?? []).map((r) => ({
+      id: r.id,
+      staffId: r.staff_id,
+      amountCents: Number(r.amount_cents),
+      note: r.note,
+      createdAt: r.created_at,
+    })),
+    cardTransactions: (cardRes.data ?? []).map((r) => ({
+      id: r.id,
+      terminalId: r.terminal_id,
+      amountCents: Number(r.amount_cents),
+      note: r.note,
+      createdAt: r.created_at,
+    })),
+    bankDeposits: (bankRes.data ?? []).map((r) => ({
+      id: r.id,
+      amountCents: Number(r.amount_cents),
+      reference: r.reference,
+      createdAt: r.created_at,
+    })),
+    registerTransfers: (transferRes.data ?? []).map((r) => ({
+      id: r.id,
+      direction: r.direction as string,
+      amountCents: Number(r.amount_cents),
+      note: r.note,
+      createdAt: r.created_at,
+    })),
+    cashLockedThroughDate: settings.cashLockedThroughDate,
+  };
+}
 
 export const getMySettlement = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const caller = await loadStaffCaller(context.supabase, context.userId);
-    const businessDate = await getCurrentBusinessDate();
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: session } = await supabaseAdmin
-      .from("sessions")
-      .select("id, status")
-      .eq("organization_id", caller.organizationId)
-      .eq("business_date", businessDate)
-      .maybeSingle();
-    if (!session) return { businessDate, session: null, settlement: null };
-    const { data: row } = await supabaseAdmin
-      .from("waiter_settlements")
-      .select(
-        "id, status, pos_sales_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents, differenz_cents, kitchen_tip_cents, kitchen_tip_rate, submitted_at, auto_clockout_time_entry_id",
-      )
-      .eq("organization_id", caller.organizationId)
-      .eq("session_id", session.id)
-      .eq("staff_id", caller.staffId)
-      .neq("status", "superseded")
-      .maybeSingle();
-    return { businessDate, session, settlement: row };
+    return getMySettlementCore(caller);
   });
+
+export async function getMySettlementCore(caller: StaffCaller) {
+  const businessDate = await getCurrentBusinessDate();
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const settings = await loadOrgSettings(caller.organizationId);
+  const { data: session } = await supabaseAdmin
+    .from("sessions")
+    .select("id, status")
+    .eq("organization_id", caller.organizationId)
+    .eq("business_date", businessDate)
+    .maybeSingle();
+  if (!session) {
+    return {
+      businessDate,
+      session: null,
+      settlement: null,
+      kitchenTipRate: settings.kitchenTipRate,
+    };
+  }
+  const { data: row } = await supabaseAdmin
+    .from("waiter_settlements")
+    .select(
+      "id, status, pos_sales_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents, differenz_cents, kitchen_tip_cents, kitchen_tip_rate, submitted_at, auto_clockout_time_entry_id",
+    )
+    .eq("organization_id", caller.organizationId)
+    .eq("session_id", session.id)
+    .eq("staff_id", caller.staffId)
+    .neq("status", "superseded")
+    .maybeSingle();
+  return {
+    businessDate,
+    session,
+    settlement: row,
+    kitchenTipRate: settings.kitchenTipRate,
+  };
+}
+
+// ------------------------------------------------------------------------
+// Stammdaten-Reader (Manager+): revenue_channels & payment_terminals
+// ------------------------------------------------------------------------
+
+export const listRevenueChannels = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    return listRevenueChannelsCore(caller);
+  });
+
+export async function listRevenueChannelsCore(caller: AdminCaller) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("revenue_channels")
+    .select("id, label, sort_order, is_active")
+    .eq("organization_id", caller.organizationId)
+    .order("sort_order", { ascending: true })
+    .order("label", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    label: r.label,
+    sortOrder: r.sort_order,
+    isActive: r.is_active,
+  }));
+}
+
+export const listPaymentTerminals = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    return listPaymentTerminalsCore(caller);
+  });
+
+export async function listPaymentTerminalsCore(caller: AdminCaller) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("payment_terminals")
+    .select("id, label, sort_order, is_active")
+    .eq("organization_id", caller.organizationId)
+    .order("sort_order", { ascending: true })
+    .order("label", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    label: r.label,
+    sortOrder: r.sort_order,
+    isActive: r.is_active,
+  }));
+}
 
 // ------------------------------------------------------------------------
 // Manager: Session

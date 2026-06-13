@@ -391,3 +391,52 @@ Keine. Wenn freigegeben: Build erfolgt in **einem** Commit (zwei Routen +
 `docs/cash-e2e-check.md`), kein Logik-/Schema-Anfass.
 
 Freigabe?
+
+---
+
+## B3c-1 — Split in 1a/1b (nach Review)
+
+Begründung: Die Read-Seite ist für die UI unvollständig (keine Reader
+für `revenue_channels`/`payment_terminals`, `getCashOverview` liefert
+keine `*_amounts` + Satelliten, kein `kitchen_tip_rate` für die
+Live-Vorschau). Read-Endpunkte für ein Geldmodul gehören mit
+DB-Tests in einen eigenen Commit, nicht vermischt mit UI.
+
+### B3c-1a — Read-Endpunkte (zuerst, eigener Commit)
+
+- `listRevenueChannels()` / `listPaymentTerminals()` — Manager+.
+  Org-gescoped, sortiert nach `(sort_order, label)`, kein `is_active`-
+  Filter (UI zeigt inaktive ausgegraut). Nur SELECT.
+- `getCashOverview` erweitern um:
+  - `channelAmounts: [{ channelId, amountCents }]`
+  - `terminalAmounts: [{ terminalId, amountCents }]`
+  - Satelliten der Session: `expenses`, `advances`, `cardTransactions`,
+    `bankDeposits`, `registerTransfers`. Jeweils mit `id` + Feldern aus
+    der jeweiligen Tabelle (BIGINT-Cents).
+  - Response-Shape bleibt rückwärtskompatibel: bestehende Felder
+    (`session`, `settlements`, `cashLockedThroughDate`) unverändert.
+- `getMySettlement` erweitern um `kitchenTipRate: number` (aus
+  `organization_settings.kitchen_tip_rate`) — Staff darf die eigene
+  Org-Rate für die Live-Vorschau lesen, auch wenn noch keine Settlement
+  existiert. Kein neuer Reader nötig.
+- **KEINE Schema-Änderung.** RLS bleibt wie sie ist; alle Reads laufen
+  über die bestehende `supabaseAdmin`-Function-Schicht (DENY-ALL für
+  Sessions/Satelliten Client-seitig). Die Funktionen authentifizieren
+  + autorisieren über `loadAdminCaller`/`loadStaffCaller`.
+- DB-Tests (`cash-read.db.test.ts`, role-guard-Muster):
+  1. Kellner-Aufruf gegen Manager-Reader (`getCashOverviewCore`,
+     `listRevenueChannelsCore`, `listPaymentTerminalsCore`) wirft
+     `ForbiddenError` — Kellner kann keine fremden Settlements oder
+     Satelliten über Reader abgreifen.
+  2. Manager sieht Overview inkl. `channelAmounts`, `terminalAmounts`
+     und allen fünf Satelliten-Listen seiner Org; sieht KEINE Daten
+     einer anderen Org (Cross-Org-Härtung).
+  3. Staff-Reader `getMySettlementCore` liefert `kitchenTipRate` aus
+     `organization_settings` auch ohne vorhandene Settlement.
+- Gate: `tsc`, `eslint --max-warnings=0`, `vitest run` grün; bestehende
+  Tests unverändert; CI `check` + `db-integration` grün.
+
+### B3c-1b — UI (danach)
+
+Konsumiert 1a, baut die zwei Routen wie in B3c-1 oben beschrieben.
+Kein weiterer Function-Anfass, keine neue Geschäftslogik.
