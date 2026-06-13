@@ -231,7 +231,7 @@ export async function getCashOverviewCore(caller: AdminCaller, data: { businessD
         note: string | null;
         createdAt: string;
       }>,
-      cashLockedThroughDate: settings.cashLockedThroughDate,
+      cashLockedThroughDate: null as string | null,
     };
   }
 
@@ -343,7 +343,10 @@ export async function getCashOverviewCore(caller: AdminCaller, data: { businessD
       note: r.note,
       createdAt: r.created_at,
     })),
-    cashLockedThroughDate: settings.cashLockedThroughDate,
+    cashLockedThroughDate: await loadLocationCashLock(
+      caller.organizationId,
+      session.location_id,
+    ),
   };
 }
 
