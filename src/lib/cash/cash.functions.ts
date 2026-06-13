@@ -343,10 +343,7 @@ export async function getCashOverviewCore(caller: AdminCaller, data: { businessD
       note: r.note,
       createdAt: r.created_at,
     })),
-    cashLockedThroughDate: await loadLocationCashLock(
-      caller.organizationId,
-      session.location_id,
-    ),
+    cashLockedThroughDate: await loadLocationCashLock(caller.organizationId, session.location_id),
   };
 }
 
@@ -977,13 +974,42 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
   const businessDate = await getCurrentBusinessDate();
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-  const { data: session } = await supabaseAdmin
+  // Mehrstandort: alle Sessions des Tages laden. Existiert genau eine,
+  // wird gegen die staff_locations-Bindung des Kellners geprüft —
+  // fehlt sie, schlägt der Aufruf mit StaffLocationNotBoundError fehl.
+  // Existieren mehrere (mehrere Standorte gleichzeitig offen), wird
+  // die auf den Kellner passende ausgewählt.
+  const { data: sessions, error: sErr } = await supabaseAdmin
     .from("sessions")
     .select("id, business_date, status, locked_at, location_id")
     .eq("organization_id", caller.organizationId)
-    .eq("business_date", businessDate)
-    .maybeSingle();
-  if (!session) throw new NoOpenSessionError(businessDate);
+    .eq("business_date", businessDate);
+  if (sErr) throw sErr;
+  if (!sessions || sessions.length === 0) throw new NoOpenSessionError(businessDate);
+
+  let session: (typeof sessions)[number];
+  if (sessions.length === 1) {
+    session = sessions[0];
+    await assertStaffBoundToLocation(caller.organizationId, caller.staffId, session.location_id);
+  } else {
+    const { data: bound, error: blErr } = await supabaseAdmin
+      .from("staff_locations")
+      .select("location_id")
+      .eq("organization_id", caller.organizationId)
+      .eq("staff_id", caller.staffId);
+    if (blErr) throw blErr;
+    const boundIds = new Set((bound ?? []).map((r) => r.location_id));
+    const matches = sessions.filter((s) => boundIds.has(s.location_id));
+    if (matches.length === 0) {
+      throw new StaffLocationNotBoundError(caller.staffId, sessions[0].location_id);
+    }
+    if (matches.length > 1) {
+      throw new Error(
+        "Mehrdeutige Session: Kellner ist an mehreren Standorten mit offener Session gebunden.",
+      );
+    }
+    session = matches[0];
+  }
   if (session.status !== "open") throw new NoOpenSessionError(businessDate);
 
   const settings = await loadOrgSettings(caller.organizationId);

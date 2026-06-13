@@ -72,25 +72,44 @@ describe.skipIf(!dbTestsEnabled)("cash read endpoints (DB) — B3c-1a", () => {
     // Stammdaten: zwei Kanäle, ein Terminal (jeweils in beiden Orgs einer).
     const { data: ch1 } = await org.service
       .from("revenue_channels")
-      .insert({ organization_id: org.orgId, location_id: org.defaultLocationId, label: "Restaurant", sort_order: 1 })
+      .insert({
+        organization_id: org.orgId,
+        location_id: org.defaultLocationId,
+        label: "Restaurant",
+        sort_order: 1,
+      })
       .select("id")
       .single();
-    await org.service
-      .from("revenue_channels")
-      .insert({ organization_id: org.orgId, location_id: org.defaultLocationId, label: "Lieferung", sort_order: 2 });
-    await otherOrg.service
-      .from("revenue_channels")
-      .insert({ organization_id: otherOrg.orgId, location_id: otherOrg.defaultLocationId, label: "FREMD", sort_order: 1 });
+    await org.service.from("revenue_channels").insert({
+      organization_id: org.orgId,
+      location_id: org.defaultLocationId,
+      label: "Lieferung",
+      sort_order: 2,
+    });
+    await otherOrg.service.from("revenue_channels").insert({
+      organization_id: otherOrg.orgId,
+      location_id: otherOrg.defaultLocationId,
+      label: "FREMD",
+      sort_order: 1,
+    });
     channelId = ch1!.id;
 
     const { data: t1 } = await org.service
       .from("payment_terminals")
-      .insert({ organization_id: org.orgId, location_id: org.defaultLocationId, label: "Terminal A", sort_order: 1 })
+      .insert({
+        organization_id: org.orgId,
+        location_id: org.defaultLocationId,
+        label: "Terminal A",
+        sort_order: 1,
+      })
       .select("id")
       .single();
-    await otherOrg.service
-      .from("payment_terminals")
-      .insert({ organization_id: otherOrg.orgId, location_id: otherOrg.defaultLocationId, label: "FREMD-T", sort_order: 1 });
+    await otherOrg.service.from("payment_terminals").insert({
+      organization_id: otherOrg.orgId,
+      location_id: otherOrg.defaultLocationId,
+      label: "FREMD-T",
+      sort_order: 1,
+    });
     terminalId = t1!.id;
 
     // Offene Session für heute + Satelliten in unserer Org.
