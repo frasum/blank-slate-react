@@ -698,6 +698,7 @@ export const setCashLock = createServerFn({ method: "POST" })
   .inputValidator((input) =>
     z
       .object({
+        locationId: z.string().uuid(),
         throughDate: z.string().regex(ISO_DATE),
         reason: z.string().trim().min(3).max(500),
       })
@@ -710,30 +711,37 @@ export const setCashLock = createServerFn({ method: "POST" })
 
 export async function setCashLockCore(
   caller: AdminCaller,
-  data: { throughDate: string; reason: string },
+  data: { locationId: string; throughDate: string; reason: string },
 ) {
   return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
-    const settings = await loadOrgSettings(caller.organizationId);
-    const before = settings.cashLockedThroughDate;
+    await assertLocationInOrg(caller.organizationId, data.locationId);
+    const before = await loadLocationCashLock(caller.organizationId, data.locationId);
     if (before && data.throughDate <= before) {
       throw new CashLockBackwardsError();
     }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.from("organization_settings").upsert(
+    const { error } = await supabaseAdmin.from("cash_locks").upsert(
       {
         organization_id: caller.organizationId,
-        cash_locked_through_date: data.throughDate,
+        location_id: data.locationId,
+        locked_through_date: data.throughDate,
+        updated_by: caller.staffId,
       },
-      { onConflict: "organization_id" },
+      { onConflict: "organization_id,location_id" },
     );
     if (error) throw error;
     return {
       result: { ok: true as const, lockedThrough: data.throughDate },
       audit: {
         action: "cash.lock.advanced",
-        entity: "organization_settings",
-        entityId: caller.organizationId,
-        meta: { from: before, to: data.throughDate, reason: data.reason },
+        entity: "cash_locks",
+        entityId: data.locationId,
+        meta: {
+          locationId: data.locationId,
+          from: before,
+          to: data.throughDate,
+          reason: data.reason,
+        },
       },
     };
   });
