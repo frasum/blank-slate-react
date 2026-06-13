@@ -591,14 +591,24 @@ neue Funktion ebenso).
 
 `session_channel_amounts` / `session_terminal_amounts` werden im Reader
 (`getCashOverview`) so aggregiert, dass die UI die Formel-Eingaben
-direkt füllen kann: POS/Wolt/Ordersmart werden anhand
+direkt füllen kann: POS/Wolt/Delivery-Plattformen werden anhand
 `revenue_channels.kind` (oder eines äquivalenten Marker-Feldes)
 separiert; `cardTotal` ist die Summe aller `terminal_amounts`. Falls
 der Marker fehlt, wird er als Mini-Schema-Ergänzung in derselben
 Migration nachgezogen (`revenue_channels.kind text NOT NULL DEFAULT
-'pos'`, Werte: `'pos'`, `'wolt'`, `'ordersmart'`, `'voucher_sold'`,
-`'voucher_redeemed'`, `'finedine'`, `'einladung'`, `'sonstige'`).
-Konkrete Wahl wird im Implementierungs-Commit fixiert.
+'pos'`, Werte: `'pos'`, `'delivery_wolt'`, `'delivery_souse'`,
+`'voucher_sold'`, `'voucher_redeemed'`, `'finedine'`, `'einladung'`,
+`'sonstige'`). **Wichtig:** `kind` ist technischer Schlüssel und enthält
+keinen Anbieternamen, der sich ändern kann; der Anzeigename steht
+ausschließlich in `revenue_channels.label` (z. B. „SOUSE" für
+`delivery_souse`, früher „ordersmart"). Anbieterwechsel ändert nur
+`label`, nie `kind` oder die Formel. Konkrete Wahl wird im
+Implementierungs-Commit fixiert.
+
+In der `cash-ledger`-Formel ersetzt `delivery_souse` den bisher als
+`ordersmartCents` benannten Eingabewert (die DayInput-Feldnamen werden
+ebenfalls neutral gefasst, z. B. `deliverySouseCents` /
+`deliveryWoltCents`, damit der Code keinen Anbieternamen trägt).
 
 `aggregateSessionRevenue` (`session-channels.ts`) wird passend zu den
 neuen Kanal-Kinds umgeschrieben; bisherige Tests werden angepasst (sie
