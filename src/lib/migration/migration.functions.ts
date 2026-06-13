@@ -63,6 +63,11 @@ const reconcileInputSchema = z.object({
     .optional(),
 });
 
+const reassignInputSchema = z.object({
+  sourceSystem: sourceSystemSchema,
+  mode: z.enum(["dry_run", "commit"]),
+});
+
 // =========================================================================
 // Hilfen
 // =========================================================================
