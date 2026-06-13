@@ -1,44 +1,48 @@
 import { describe, expect, it } from "vitest";
-import { aggregateSessionRevenue } from "./session-channels";
+import { aggregateChannelAmounts, buildDayInputFromAggregation } from "./session-channels";
 
-describe("aggregateSessionRevenue", () => {
-  it("Summiert Kanäle + Terminals + sonstige, subtrahiert Korrekturen", () => {
-    const r = aggregateSessionRevenue({
-      channelAmountsCents: [500_00, 80_00, 30_00], // POS, Wolt, UberEats
-      terminalAmountsCents: [200_00, 50_00],
-      sonstigeEinnahmeCents: 5_00,
-      opentabsDeductionCents: 12_00,
-      vorschussCents: 25_00,
-      einladungCents: 8_00,
-    });
-    expect(r.channelsTotalCents).toBe(610_00);
-    expect(r.terminalsTotalCents).toBe(250_00);
-    // 61000 + 25000 + 500 − 1200 − 2500 − 800 = 82000
-    expect(r.grossRevenueCents).toBe(82_000);
+describe("aggregateChannelAmounts — kind-basierte Aggregation", () => {
+  it("Summiert je kind und liefert cardTotal aus Terminals", () => {
+    const agg = aggregateChannelAmounts(
+      [
+        { kind: "pos", amountCents: 500_00 },
+        { kind: "pos", amountCents: 100_00 },
+        { kind: "delivery_souse", amountCents: 80_00 },
+        { kind: "delivery_wolt", amountCents: 30_00 },
+        { kind: "einladung", amountCents: 12_00 },
+      ],
+      [{ amountCents: 200_00 }, { amountCents: 50_00 }],
+    );
+    expect(agg.byKind.pos).toBe(600_00);
+    expect(agg.byKind.delivery_souse).toBe(80_00);
+    expect(agg.byKind.delivery_wolt).toBe(30_00);
+    expect(agg.byKind.einladung).toBe(12_00);
+    expect(agg.cardTotalCents).toBe(250_00);
   });
 
-  it("Leere Listen → 0", () => {
-    const r = aggregateSessionRevenue({
-      channelAmountsCents: [],
-      terminalAmountsCents: [],
-      sonstigeEinnahmeCents: 0,
-      opentabsDeductionCents: 0,
-      vorschussCents: 0,
-      einladungCents: 0,
-    });
-    expect(r.grossRevenueCents).toBe(0);
+  it("Leere Listen → alle Buckets 0", () => {
+    const agg = aggregateChannelAmounts([], []);
+    expect(Object.values(agg.byKind).every((v) => v === 0)).toBe(true);
+    expect(agg.cardTotalCents).toBe(0);
   });
 
   it("Verweigert nicht-ganzzahlige Beträge", () => {
-    expect(() =>
-      aggregateSessionRevenue({
-        channelAmountsCents: [100, 50.5],
-        terminalAmountsCents: [],
-        sonstigeEinnahmeCents: 0,
-        opentabsDeductionCents: 0,
-        vorschussCents: 0,
-        einladungCents: 0,
-      }),
-    ).toThrow(/integer cents/);
+    expect(() => aggregateChannelAmounts([{ kind: "pos", amountCents: 1.5 }], [])).toThrow(
+      /integer cents/,
+    );
+  });
+
+  it("buildDayInputFromAggregation mappt Buckets auf DayInput-Felder", () => {
+    const agg = aggregateChannelAmounts(
+      [
+        { kind: "pos", amountCents: 100_00 },
+        { kind: "delivery_souse", amountCents: 20_00 },
+      ],
+      [{ amountCents: 50_00 }],
+    );
+    const partial = buildDayInputFromAggregation(agg);
+    expect(partial.grossRevenueCents).toBe(100_00);
+    expect(partial.deliverySouseCents).toBe(20_00);
+    expect(partial.cardTotalCents).toBe(50_00);
   });
 });

@@ -1,14 +1,7 @@
 /**
- * Golden-Master-Test (B3a-Kasse, Primärreferenz).
- *
- * Reproduziert die Tages-Saldo-Kette und alle Kellner-Settlements der
- * Fixture cent-genau (toEqual, Toleranz 0). Struktur analog zu
- * src/lib/time/sfn/golden-master.test.ts.
- *
- * Hinweis: Die aktuell hinterlegte Fixture ist eine HANDGERECHNETE
- * Platzhalter-Fixture (siehe README.md). Sie wird ersetzt, sobald der
- * unabhängige Prüfer die echte Fixture aus den Altdaten liefert —
- * Format identisch, Harness läuft ohne Änderung weiter.
+ * Golden-Master-Harness (B3-Modellkorrektur Teil B).
+ * Platzhalter-Fixture nach neuer Formel; wird durch echte Fixture des
+ * unabhängigen Prüfers ersetzt (zwei Ketten, eine je Standort).
  */
 
 import { describe, expect, it } from "vitest";
@@ -16,32 +9,38 @@ import fixture from "./cashBalance.json";
 import { accumulateChain, type DayInput } from "../cash-ledger";
 import { calcWaiterSettlement } from "../waiter-settlement";
 
+type FixtureDay = DayInput & {
+  waiters: Array<{
+    pseudonym: string;
+    input: {
+      posSalesCents: number;
+      cardTotalCents: number;
+      hilfMahlCents: number;
+      openInvoicesCents: number;
+      kitchenTipRate: number;
+    };
+    expected: { differenzCents: number; kitchenTipCents: number };
+  }>;
+  expected: {
+    dailyCashCents: number;
+    transferEffectCents: number;
+    rawBargeldCents: number;
+    previousCarryCents: number;
+    chainedCents: number;
+    bankDepositsTotalCents: number;
+    remainingCashCents: number;
+    balanceCents: number;
+    deficitCarriedFromPreviousCents: number;
+  };
+};
+
 type Fixture = {
   meta: { source: string; kitchenTipRate: number; note?: string };
   openingBalanceCents: number;
-  days: Array<
-    DayInput & {
-      waiters: Array<{
-        pseudonym: string;
-        input: {
-          posSalesCents: number;
-          cardTotalCents: number;
-          hilfMahlCents: number;
-          openInvoicesCents: number;
-          kitchenTipRate: number;
-        };
-        expected: { differenzCents: number; kitchenTipCents: number };
-      }>;
-      expected: {
-        deltaCents: number;
-        balanceCents: number;
-        deficitCarriedFromPreviousCents: number;
-      };
-    }
-  >;
+  days: FixtureDay[];
 };
 
-const fx = fixture as Fixture;
+const fx = fixture as unknown as Fixture;
 
 describe(`Golden Master: cashBalance (${fx.meta.source})`, () => {
   it("Fixture hat ein nicht-leeres days[]", () => {
@@ -49,23 +48,23 @@ describe(`Golden Master: cashBalance (${fx.meta.source})`, () => {
   });
 
   it("Tages-Saldo-Kette reproduziert sich cent-genau", () => {
-    const result = accumulateChain(
-      fx.openingBalanceCents,
-      fx.days.map((d) => ({
-        businessDate: d.businessDate,
-        grossRevenueCents: d.grossRevenueCents,
-        vouchersSoldCents: d.vouchersSoldCents,
-        vouchersRedeemedCents: d.vouchersRedeemedCents,
-        finedineVouchersCents: d.finedineVouchersCents,
-        satellites: d.satellites,
-      })),
-    );
-    const expected = fx.days.map((d) => ({
+    const days: DayInput[] = fx.days.map((d) => ({
       businessDate: d.businessDate,
-      deltaCents: d.expected.deltaCents,
-      balanceCents: d.expected.balanceCents,
-      deficitCarriedFromPreviousCents: d.expected.deficitCarriedFromPreviousCents,
+      grossRevenueCents: d.grossRevenueCents,
+      cardTotalCents: d.cardTotalCents,
+      deliverySouseCents: d.deliverySouseCents,
+      deliveryWoltCents: d.deliveryWoltCents,
+      vouchersSoldCents: d.vouchersSoldCents,
+      vouchersRedeemedCents: d.vouchersRedeemedCents,
+      finedineVouchersCents: d.finedineVouchersCents,
+      einladungCents: d.einladungCents,
+      openInvoicesCents: d.openInvoicesCents,
+      sonstigeEinnahmeCents: d.sonstigeEinnahmeCents,
+      vorschussCents: d.vorschussCents,
+      satellites: d.satellites,
     }));
+    const result = accumulateChain(fx.openingBalanceCents, days);
+    const expected = fx.days.map((d) => ({ businessDate: d.businessDate, ...d.expected }));
     expect(result).toEqual(expected);
   });
 

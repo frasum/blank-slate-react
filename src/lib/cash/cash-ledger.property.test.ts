@@ -1,20 +1,13 @@
-// Property-Test (B3a): chainCarryOver ist assoziativ in Bezug auf
-// die Aufteilung der Tagesliste. Für jede Aufteilungsstelle k gilt:
+// Property-Test (B3-Modellkorrektur): accumulateChain ist split-assoziativ.
+// Für jede Aufteilungsstelle k gilt:
 //   accumulate(opening, days)
-//     === accumulate(balance_k, days[k..]) prepended mit
-//         accumulate(opening, days[..k])
-// Konkret: das Ergebnis (Delta + Saldo + Defizit-Übertrag) jedes Tages
-// hängt nur vom Eröffnungssaldo direkt vor diesem Tag ab, nicht davon,
-// in wie vielen Etappen die Kette berechnet wurde. Das ist die
-// Voraussetzung für die spätere inkrementelle Saldoberechnung
-// (z. B. ein neu eingefügter Monatstag darf alte Monate nicht
-// neu „rechnen"; sie sind durch ihren End-Saldo vollständig beschrieben).
-//
-// Wir verwenden einen fest geseedeten Pseudozufall (kein fast-check), um
-// reproduzierbar zu bleiben und keine neue Dependency einzuführen.
+//     === accumulate(opening, days[..k]) ++ accumulate(tailCarry, days[k..])
+// Damit ist die Kette inkrementell sicher (alte Tage werden durch ihren
+// Endsaldo vollständig beschrieben, ein neu eingefügter Tag rechnet nichts
+// rückwirkend neu).
 
 import { describe, expect, it } from "vitest";
-import { accumulateChain, type DayInput } from "./cash-ledger";
+import { accumulateChain, type DayInput, type TransferDirection } from "./cash-ledger";
 
 function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
@@ -31,36 +24,46 @@ function pad(n: number, w: number): string {
   return n.toString().padStart(w, "0");
 }
 
-// Erzeugt N aufsteigende ISO-Tage ab 2026-01-01 und füllt jedes Feld
-// mit ganzzahligen Cents im Bereich [-200000, +500000] (auch Defizite).
+const DIRS: TransferDirection[] = ["to_restaurant", "to_safe", "to_other", "from_restaurant"];
+
 function makeDays(n: number, rnd: () => number): DayInput[] {
   const out: DayInput[] = [];
   const start = new Date(Date.UTC(2026, 0, 1));
   for (let i = 0; i < n; i += 1) {
     const d = new Date(start.getTime() + i * 86_400_000);
     const iso = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1, 2)}-${pad(d.getUTCDate(), 2)}`;
-    const cents = () => Math.floor(rnd() * 700_000) - 200_000;
-    const positive = () => Math.floor(rnd() * 500_000);
+    const positive = (m: number) => Math.floor(rnd() * m);
+    const useList = rnd() < 0.5;
     out.push({
       businessDate: iso,
-      grossRevenueCents: positive(),
-      vouchersSoldCents: Math.floor(rnd() * 50_000),
-      vouchersRedeemedCents: Math.floor(rnd() * 30_000),
-      finedineVouchersCents: Math.floor(rnd() * 20_000),
+      grossRevenueCents: positive(500_000),
+      cardTotalCents: positive(300_000),
+      deliverySouseCents: positive(50_000),
+      deliveryWoltCents: positive(50_000),
+      vouchersSoldCents: positive(40_000),
+      vouchersRedeemedCents: positive(30_000),
+      finedineVouchersCents: positive(20_000),
+      einladungCents: positive(10_000),
+      openInvoicesCents: [positive(15_000), positive(15_000)],
+      sonstigeEinnahmeCents: positive(5_000),
+      // Quirk: niemals beide gleichzeitig.
+      vorschussCents: useList ? 0 : positive(50_000),
       satellites: {
-        expensesCents: [positive(), positive()],
-        advancesCents: [Math.floor(rnd() * 100_000)],
-        cardTransactionsCents: [cents()],
-        bankDepositsCents: [Math.floor(rnd() * 200_000)],
-        registerTransfersToCents: [Math.floor(rnd() * 80_000)],
-        registerTransfersFromCents: [Math.floor(rnd() * 80_000)],
+        expensesCents: [positive(20_000)],
+        advancesCents: useList ? [positive(40_000)] : [],
+        cardTransactionsCents: [positive(10_000)],
+        bankDepositsCents: [positive(200_000)],
+        registerTransfers: [
+          { direction: DIRS[Math.floor(rnd() * DIRS.length)], amountCents: positive(60_000) },
+          { direction: DIRS[Math.floor(rnd() * DIRS.length)], amountCents: positive(60_000) },
+        ],
       },
     });
   }
   return out;
 }
 
-describe("cash-ledger: Property — chainCarryOver ist split-assoziativ", () => {
+describe("cash-ledger: Property — Kette ist split-assoziativ", () => {
   const SEEDS = [1, 7, 42, 1337, 2026];
 
   for (const seed of SEEDS) {

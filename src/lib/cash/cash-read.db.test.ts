@@ -75,6 +75,7 @@ describe.skipIf(!dbTestsEnabled)("cash read endpoints (DB) — B3c-1a", () => {
       .insert({
         organization_id: org.orgId,
         location_id: org.defaultLocationId,
+        kind: "pos",
         label: "Restaurant",
         sort_order: 1,
       })
@@ -83,12 +84,14 @@ describe.skipIf(!dbTestsEnabled)("cash read endpoints (DB) — B3c-1a", () => {
     await org.service.from("revenue_channels").insert({
       organization_id: org.orgId,
       location_id: org.defaultLocationId,
+      kind: "delivery_souse",
       label: "Lieferung",
       sort_order: 2,
     });
     await otherOrg.service.from("revenue_channels").insert({
       organization_id: otherOrg.orgId,
       location_id: otherOrg.defaultLocationId,
+      kind: "pos",
       label: "FREMD",
       sort_order: 1,
     });

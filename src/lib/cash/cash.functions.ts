@@ -777,7 +777,7 @@ const satelliteAddSchema = z.discriminatedUnion("kind", [
   z.object({
     sessionId: z.string().uuid(),
     kind: z.literal("register_transfer"),
-    direction: z.enum(["to_restaurant", "from_restaurant"]),
+    direction: z.enum(["to_restaurant", "to_safe", "to_other", "from_restaurant"]),
     amountCents: z.number().int(),
     note: z.string().max(500).nullable().default(null),
   }),

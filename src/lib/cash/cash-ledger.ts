@@ -1,91 +1,124 @@
-// Kassensaldo-Kette (Carry-over) als reines Modul (B3a).
+// Kassensaldo-Kette (Carry-over) — reines Modul, B3-Modellkorrektur Teil B.
 //
-// Konzept aus Altsystem (useCashBalanceData + compute_carry_over),
-// hier zentralisiert. Die Logik ist bewusst minimal und nachvollziehbar
-// — die Golden-Master-Fixture (vom externen Prüfer) ist die finale
-// Charakterisierung; der Platzhalter dient nur als Smoke-Test.
+// Formel exakt nach Alt-Modell `dailyCash` (siehe
+// `befund-kasse-modell-und-standort.md`, Befund 2). Vorzeichen-Begründung:
 //
-// Saldo-Berechnung je Tag:
+//   * grossRevenue (POS-Umsatz)               → +
+//   * vouchersSold (Verkauf)                  → +  (Bar rein, kein Umsatz)
+//   * sonstigeEinnahme                        → +
+//   * cardTotal (Σ Terminals)                 → −  (Umsatz, aber NICHT Bar)
+//   * deliverySouse / deliveryWolt            → −  (Plattform zieht ein)
+//   * vouchersRedeemed / finedineVouchers     → −  (Umsatz, aber kein Bar)
+//   * einladung                               → −  (Umsatz, aber kein Bar)
+//   * Σ openInvoices                          → −  (offene Rechnung, kein Bar)
+//   * effectiveVorschuss                      → −  (Liste ODER Pauschalfeld,
+//                                                  niemals additiv — Quirk
+//                                                  Alt-Modell)
+//   * Σ expenses                              → −
+//   * Σ cardTransactions                      →    NICHT TEIL DER FORMEL
+//     (Alt-Code `useCashBalanceData.ts` kennt nur `cardTotal`, keine
+//     separate Addition; Tabelle/Reader bleiben, werden hier ignoriert.)
 //
-//   delta = grossRevenue
-//         + vouchersSold      − vouchersRedeemed     − finedineVouchers
-//         − Σ expenses
-//         − Σ advances
-//         + Σ cardTransactions (negativ wenn Erstattung — Schema lässt
-//           negative Beträge zu)
-//         − Σ bankDeposits
-//         + Σ registerTransfers(to_restaurant) − Σ (from_restaurant)
+//   transferEffect = Σ to_restaurant − Σ (to_safe | to_other | from_restaurant)
+//     (`from_restaurant` = Legacy-Enum-Wert, semantisch outflow.)
 //
-// Begründung der Vorzeichen:
-//   * Gutschein-Verkauf: Bargeld kommt rein, Umsatz aber nicht (siehe
-//     session-channels.ts) → addiert auf Cash-Delta.
-//   * Gutschein-Einlösung & FineDine-Gutschein: Bargeld weniger als
-//     Umsatz → subtrahiert.
-//   * Ausgaben, Vorschüsse, Bank-Einzahlung: Cash raus.
-//   * Kartenumsatz ist bereits in `terminalAmounts` (= Umsatz). Der
-//     Saldo subtrahiert Karten NICHT erneut — siehe Test
-//     "cash-ledger ignoriert keinen Kartenumsatz doppelt".
-//     `cardTransactions` ist hier eine SEPARATE Korrekturliste
-//     (z. B. nachträgliche Karten-Buchung, die nicht im Terminal-Topf
-//     ist) — Normalfall: leer.
-//   * Register-Transfer to_restaurant = Cash kommt rein (z. B. Tresor
-//     → Kasse), from_restaurant = Cash raus.
+//   rawBargeld   = dailyCash + transferEffect
+//   chained      = rawBargeld + previousCarry   (previousCarry darf < 0 sein)
+//   bankDeposits laufen NACH dem Carry, eigene Stufe:
+//   remaining    = chained − Σ bankDeposits
+//   carry        = remaining   (auch negativ — Defizit wandert weiter)
 //
-// Carry-over: balance[n] = balance[n-1] + delta[n]. Ein negativer
-// Vortagessaldo bleibt sichtbar (kein Reset auf 0), damit Defizite
-// nicht unbemerkt verschwinden.
+// Felder sind technisch-neutral (`deliverySouseCents`, `deliveryWoltCents`);
+// die UI bildet sie aus `revenue_channels.kind` (kein Anbietername im Code).
+
+export type TransferDirection = "to_restaurant" | "to_safe" | "to_other" | "from_restaurant";
 
 export type DaySatellites = {
   expensesCents: number[];
   advancesCents: number[];
+  /** Wird NICHT in dailyCash verrechnet — siehe Header. */
   cardTransactionsCents: number[];
+  /** Eigene Ketten-Stufe NACH Carry. */
   bankDepositsCents: number[];
-  registerTransfersToCents: number[];
-  registerTransfersFromCents: number[];
+  registerTransfers: Array<{ direction: TransferDirection; amountCents: number }>;
 };
 
 export type DayInput = {
   businessDate: string; // ISO YYYY-MM-DD
-  grossRevenueCents: number;
+  grossRevenueCents: number; // POS
+  cardTotalCents: number; // Σ Terminals
+  deliverySouseCents: number; // ex-"ordersmart"
+  deliveryWoltCents: number;
   vouchersSoldCents: number;
   vouchersRedeemedCents: number;
   finedineVouchersCents: number;
+  einladungCents: number;
+  openInvoicesCents: number[];
+  sonstigeEinnahmeCents: number;
+  /**
+   * Pauschal-Vorschuss (Session-Feld). Quirk: wenn `satellites.advancesCents`
+   * mindestens einen Eintrag hat, gilt deren Summe und dieses Feld wird
+   * ignoriert (Alt-Modell hat die beiden Eingaben nie additiv).
+   */
+  vorschussCents: number;
   satellites: DaySatellites;
 };
 
 export type DayResult = {
   businessDate: string;
-  deltaCents: number;
+  dailyCashCents: number;
+  transferEffectCents: number;
+  rawBargeldCents: number;
+  previousCarryCents: number;
+  chainedCents: number;
+  bankDepositsTotalCents: number;
+  remainingCashCents: number;
+  /** Alias auf `remainingCashCents` (= neuer Saldo nach Einzahlungen). */
   balanceCents: number;
-  deficitCarriedFromPreviousCents: number; // 0 wenn Vortag ≥ 0
+  /** = max(0, −previousCarry). 0 wenn Vortag ≥ 0. */
+  deficitCarriedFromPreviousCents: number;
 };
 
-export function computeDayDelta(day: DayInput): number {
+export function effectiveVorschussCents(day: DayInput): number {
+  const list = day.satellites.advancesCents;
+  if (list.length > 0) return sumInt(list, "advances");
+  return asInt(day.vorschussCents, "vorschuss");
+}
+
+export function computeDailyCash(day: DayInput): number {
   const s = day.satellites;
   const sumExp = sumInt(s.expensesCents, "expenses");
-  const sumAdv = sumInt(s.advancesCents, "advances");
-  const sumCard = sumInt(s.cardTransactionsCents, "cardTransactions");
-  const sumDep = sumInt(s.bankDepositsCents, "bankDeposits");
-  const sumTo = sumInt(s.registerTransfersToCents, "transfersTo");
-  const sumFrom = sumInt(s.registerTransfersFromCents, "transfersFrom");
+  const sumOpen = sumInt(day.openInvoicesCents, "openInvoices");
   return (
     asInt(day.grossRevenueCents, "grossRevenue") +
-    asInt(day.vouchersSoldCents, "vouchersSold") -
+    asInt(day.vouchersSoldCents, "vouchersSold") +
+    asInt(day.sonstigeEinnahmeCents, "sonstigeEinnahme") -
+    asInt(day.cardTotalCents, "cardTotal") -
+    asInt(day.deliverySouseCents, "deliverySouse") -
+    asInt(day.deliveryWoltCents, "deliveryWolt") -
     asInt(day.vouchersRedeemedCents, "vouchersRedeemed") -
     asInt(day.finedineVouchersCents, "finedineVouchers") -
-    sumExp -
-    sumAdv +
-    sumCard -
-    sumDep +
-    sumTo -
-    sumFrom
+    asInt(day.einladungCents, "einladung") -
+    sumOpen -
+    effectiveVorschussCents(day) -
+    sumExp
   );
+}
+
+export function computeTransferEffect(day: DayInput): number {
+  let effect = 0;
+  const list = day.satellites.registerTransfers;
+  for (let i = 0; i < list.length; i += 1) {
+    const t = list[i];
+    const amt = asInt(t.amountCents, `transfers[${i}].amount`);
+    effect += t.direction === "to_restaurant" ? amt : -amt;
+  }
+  return effect;
 }
 
 export function accumulateChain(openingBalanceCents: number, days: DayInput[]): DayResult[] {
   if (!Number.isInteger(openingBalanceCents))
     throw new Error("openingBalanceCents must be integer cents");
-  // Tage müssen lexikographisch aufsteigend sortiert sein (ISO-Datum).
   for (let i = 1; i < days.length; i += 1) {
     if (days[i].businessDate <= days[i - 1].businessDate) {
       throw new Error(
@@ -94,16 +127,27 @@ export function accumulateChain(openingBalanceCents: number, days: DayInput[]): 
     }
   }
   const out: DayResult[] = [];
-  let balance = openingBalanceCents;
+  let carry = openingBalanceCents;
   for (const d of days) {
-    const prevBalance = balance;
-    const delta = computeDayDelta(d);
-    balance = prevBalance + delta;
+    const previousCarry = carry;
+    const dailyCash = computeDailyCash(d);
+    const transferEffect = computeTransferEffect(d);
+    const rawBargeld = dailyCash + transferEffect;
+    const chained = rawBargeld + previousCarry;
+    const bankDepositsTotal = sumInt(d.satellites.bankDepositsCents, "bankDeposits");
+    const remaining = chained - bankDepositsTotal;
+    carry = remaining;
     out.push({
       businessDate: d.businessDate,
-      deltaCents: delta,
-      balanceCents: balance,
-      deficitCarriedFromPreviousCents: prevBalance < 0 ? -prevBalance : 0,
+      dailyCashCents: dailyCash,
+      transferEffectCents: transferEffect,
+      rawBargeldCents: rawBargeld,
+      previousCarryCents: previousCarry,
+      chainedCents: chained,
+      bankDepositsTotalCents: bankDepositsTotal,
+      remainingCashCents: remaining,
+      balanceCents: remaining,
+      deficitCarriedFromPreviousCents: previousCarry < 0 ? -previousCarry : 0,
     });
   }
   return out;
