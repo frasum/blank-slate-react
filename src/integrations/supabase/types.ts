@@ -190,19 +190,25 @@ export type Database = {
       }
       organization_settings: {
         Row: {
+          cash_locked_through_date: string | null
           created_at: string
+          kitchen_tip_rate: number
           organization_id: string
           time_locked_through_date: string | null
           updated_at: string
         }
         Insert: {
+          cash_locked_through_date?: string | null
           created_at?: string
+          kitchen_tip_rate?: number
           organization_id: string
           time_locked_through_date?: string | null
           updated_at?: string
         }
         Update: {
+          cash_locked_through_date?: string | null
           created_at?: string
+          kitchen_tip_rate?: number
           organization_id?: string
           time_locked_through_date?: string | null
           updated_at?: string
@@ -238,6 +244,44 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_terminals: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          label: string
+          organization_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label: string
+          organization_id: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          organization_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_terminals_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pin_attempts: {
         Row: {
           attempted_at: string
@@ -270,6 +314,44 @@ export type Database = {
             columns: ["staff_id"]
             isOneToOne: false
             referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      revenue_channels: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          label: string
+          organization_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label: string
+          organization_id: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          organization_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revenue_channels_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -312,6 +394,431 @@ export type Database = {
             columns: ["staff_id"]
             isOneToOne: false
             referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      session_advances: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          id: string
+          note: string | null
+          organization_id: string
+          session_id: string
+          staff_id: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          id?: string
+          note?: string | null
+          organization_id: string
+          session_id: string
+          staff_id: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          id?: string
+          note?: string | null
+          organization_id?: string
+          session_id?: string
+          staff_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_advances_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_advances_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_advances_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      session_bank_deposits: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          id: string
+          organization_id: string
+          reference: string | null
+          session_id: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          id?: string
+          organization_id: string
+          reference?: string | null
+          session_id: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          id?: string
+          organization_id?: string
+          reference?: string | null
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_bank_deposits_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_bank_deposits_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      session_card_transactions: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          id: string
+          note: string | null
+          organization_id: string
+          session_id: string
+          terminal_id: string | null
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          id?: string
+          note?: string | null
+          organization_id: string
+          session_id: string
+          terminal_id?: string | null
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          id?: string
+          note?: string | null
+          organization_id?: string
+          session_id?: string
+          terminal_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_card_transactions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_card_transactions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_card_transactions_terminal_id_fkey"
+            columns: ["terminal_id"]
+            isOneToOne: false
+            referencedRelation: "payment_terminals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      session_channel_amounts: {
+        Row: {
+          amount_cents: number
+          channel_id: string
+          created_at: string
+          id: string
+          organization_id: string
+          session_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount_cents?: number
+          channel_id: string
+          created_at?: string
+          id?: string
+          organization_id: string
+          session_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          channel_id?: string
+          created_at?: string
+          id?: string
+          organization_id?: string
+          session_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_channel_amounts_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "revenue_channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_channel_amounts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_channel_amounts_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      session_expenses: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          description: string
+          id: string
+          organization_id: string
+          session_id: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          description: string
+          id?: string
+          organization_id: string
+          session_id: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          description?: string
+          id?: string
+          organization_id?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_expenses_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_expenses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      session_register_transfers: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          direction: Database["public"]["Enums"]["register_transfer_direction"]
+          id: string
+          note: string | null
+          organization_id: string
+          session_id: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          direction: Database["public"]["Enums"]["register_transfer_direction"]
+          id?: string
+          note?: string | null
+          organization_id: string
+          session_id: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          direction?: Database["public"]["Enums"]["register_transfer_direction"]
+          id?: string
+          note?: string | null
+          organization_id?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_register_transfers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_register_transfers_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      session_terminal_amounts: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          id: string
+          organization_id: string
+          session_id: string
+          terminal_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount_cents?: number
+          created_at?: string
+          id?: string
+          organization_id: string
+          session_id: string
+          terminal_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          id?: string
+          organization_id?: string
+          session_id?: string
+          terminal_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_terminal_amounts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_terminal_amounts_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_terminal_amounts_terminal_id_fkey"
+            columns: ["terminal_id"]
+            isOneToOne: false
+            referencedRelation: "payment_terminals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sessions: {
+        Row: {
+          business_date: string
+          created_at: string
+          einladung_cents: number
+          finalized_at: string | null
+          finalized_by: string | null
+          finedine_vouchers_cents: number
+          id: string
+          locked_at: string | null
+          locked_by: string | null
+          notes: string | null
+          opening_balance_cents: number | null
+          opentabs_deduction_cents: number
+          organization_id: string
+          sonstige_einnahme_cents: number
+          status: Database["public"]["Enums"]["session_status"]
+          updated_at: string
+          vorschuss_cents: number
+          vouchers_redeemed_cents: number
+          vouchers_sold_cents: number
+        }
+        Insert: {
+          business_date: string
+          created_at?: string
+          einladung_cents?: number
+          finalized_at?: string | null
+          finalized_by?: string | null
+          finedine_vouchers_cents?: number
+          id?: string
+          locked_at?: string | null
+          locked_by?: string | null
+          notes?: string | null
+          opening_balance_cents?: number | null
+          opentabs_deduction_cents?: number
+          organization_id: string
+          sonstige_einnahme_cents?: number
+          status?: Database["public"]["Enums"]["session_status"]
+          updated_at?: string
+          vorschuss_cents?: number
+          vouchers_redeemed_cents?: number
+          vouchers_sold_cents?: number
+        }
+        Update: {
+          business_date?: string
+          created_at?: string
+          einladung_cents?: number
+          finalized_at?: string | null
+          finalized_by?: string | null
+          finedine_vouchers_cents?: number
+          id?: string
+          locked_at?: string | null
+          locked_by?: string | null
+          notes?: string | null
+          opening_balance_cents?: number | null
+          opentabs_deduction_cents?: number
+          organization_id?: string
+          sonstige_einnahme_cents?: number
+          status?: Database["public"]["Enums"]["session_status"]
+          updated_at?: string
+          vorschuss_cents?: number
+          vouchers_redeemed_cents?: number
+          vouchers_sold_cents?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sessions_finalized_by_fkey"
+            columns: ["finalized_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sessions_locked_by_fkey"
+            columns: ["locked_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sessions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -662,6 +1169,105 @@ export type Database = {
           },
         ]
       }
+      waiter_settlements: {
+        Row: {
+          auto_clockout_time_entry_id: string | null
+          card_total_cents: number
+          cash_handed_in_cents: number
+          corrected_from_id: string | null
+          created_at: string
+          differenz_cents: number
+          hilf_mahl_cents: number
+          id: string
+          kitchen_tip_cents: number
+          kitchen_tip_rate: number
+          open_invoices_cents: number
+          organization_id: string
+          pos_sales_cents: number
+          session_id: string
+          staff_id: string
+          status: Database["public"]["Enums"]["waiter_settlement_status"]
+          submitted_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          auto_clockout_time_entry_id?: string | null
+          card_total_cents?: number
+          cash_handed_in_cents?: number
+          corrected_from_id?: string | null
+          created_at?: string
+          differenz_cents?: number
+          hilf_mahl_cents?: number
+          id?: string
+          kitchen_tip_cents?: number
+          kitchen_tip_rate: number
+          open_invoices_cents?: number
+          organization_id: string
+          pos_sales_cents?: number
+          session_id: string
+          staff_id: string
+          status?: Database["public"]["Enums"]["waiter_settlement_status"]
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          auto_clockout_time_entry_id?: string | null
+          card_total_cents?: number
+          cash_handed_in_cents?: number
+          corrected_from_id?: string | null
+          created_at?: string
+          differenz_cents?: number
+          hilf_mahl_cents?: number
+          id?: string
+          kitchen_tip_cents?: number
+          kitchen_tip_rate?: number
+          open_invoices_cents?: number
+          organization_id?: string
+          pos_sales_cents?: number
+          session_id?: string
+          staff_id?: string
+          status?: Database["public"]["Enums"]["waiter_settlement_status"]
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "waiter_settlements_auto_clockout_time_entry_id_fkey"
+            columns: ["auto_clockout_time_entry_id"]
+            isOneToOne: false
+            referencedRelation: "time_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waiter_settlements_corrected_from_id_fkey"
+            columns: ["corrected_from_id"]
+            isOneToOne: false
+            referencedRelation: "waiter_settlements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waiter_settlements_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waiter_settlements_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waiter_settlements_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -682,8 +1288,16 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "manager" | "staff"
+      register_transfer_direction: "to_restaurant" | "from_restaurant"
+      session_status: "open" | "finalized" | "locked"
       time_entry_source: "clock" | "manual" | "import"
       token_type: "badge_login"
+      waiter_settlement_status:
+        | "draft"
+        | "submitted"
+        | "corrected"
+        | "superseded"
+        | "locked"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -812,8 +1426,17 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "manager", "staff"],
+      register_transfer_direction: ["to_restaurant", "from_restaurant"],
+      session_status: ["open", "finalized", "locked"],
       time_entry_source: ["clock", "manual", "import"],
       token_type: ["badge_login"],
+      waiter_settlement_status: [
+        "draft",
+        "submitted",
+        "corrected",
+        "superseded",
+        "locked",
+      ],
     },
   },
 } as const
