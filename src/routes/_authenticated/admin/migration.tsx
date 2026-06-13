@@ -30,6 +30,7 @@ import {
   runImport,
   bootstrapMissingStaff,
   reassignImportedStaff,
+  deleteImportedShifts,
 } from "@/lib/migration/migration.functions";
 
 type SourceSystem = "tagesabrechnung" | "bunker";
@@ -65,6 +66,8 @@ function MigrationPage() {
   const fetchStaff = useServerFn(listStaff);
   const callBootstrap = useServerFn(bootstrapMissingStaff);
   const callReassign = useServerFn(reassignImportedStaff);
+  const callDeleteImported = useServerFn(deleteImportedShifts);
+  const [deleteStaffId, setDeleteStaffId] = useState<string>("");
 
   const staffQ = useQuery({ queryKey: ["admin-staff"], queryFn: () => fetchStaff() });
   const mappingsQ = useQuery({
@@ -159,6 +162,21 @@ function MigrationPage() {
     onSuccess: (r) => {
       toast.success(`Umgehängt: ${r.totalUpdated} Schicht(en) in ${r.groups.length} Gruppe(n).`);
       void reassignDryMut.reset();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteImportedDryMut = useMutation({
+    mutationFn: () =>
+      callDeleteImported({ data: { mode: "dry_run", staffId: deleteStaffId || null } }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const deleteImportedCommitMut = useMutation({
+    mutationFn: () =>
+      callDeleteImported({ data: { mode: "commit", staffId: deleteStaffId || null } }),
+    onSuccess: (r) => {
+      toast.success(`Gelöscht: ${r.totalDeleted} Import-Zeile(n).`);
+      void deleteImportedDryMut.reset();
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -364,6 +382,68 @@ function MigrationPage() {
           <ReassignReport
             result={reassignCommitMut.data ?? reassignDryMut.data ?? null}
             mode={reassignCommitMut.data ? "commit" : "dry_run"}
+          />
+        )}
+      </Card>
+
+      <Card className="p-4 space-y-3">
+        <div className="font-medium">Import-Zeilen löschen (Reparatur)</div>
+        <p className="text-sm text-muted-foreground">
+          Löscht ausschließlich Zeilen mit <code>source='import'</code>; Stempeluhr- und
+          Manual-Einträge bleiben unangetastet. Wasserlinie wird NICHT verschoben. Anwendung: nach
+          Korrektur der Identitäts-Mappings die fehlzugeordneten Import-Schichten entfernen und
+          dieselbe CSV erneut importieren — durch <code>import_key</code> idempotent.
+        </p>
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="space-y-1">
+            <Label>Nur Mitarbeiter (optional)</Label>
+            <select
+              className="w-64 rounded-md border border-input bg-background px-2 py-2 text-sm"
+              value={deleteStaffId}
+              onChange={(e) => {
+                setDeleteStaffId(e.target.value);
+                deleteImportedDryMut.reset();
+                deleteImportedCommitMut.reset();
+              }}
+            >
+              <option value="">— alle Import-Zeilen —</option>
+              {(staffQ.data ?? []).map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.displayName}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Button
+            variant="outline"
+            disabled={deleteImportedDryMut.isPending}
+            onClick={() => deleteImportedDryMut.mutate()}
+          >
+            {deleteImportedDryMut.isPending ? "Prüfe…" : "Dry-Run"}
+          </Button>
+          <Button
+            variant="destructive"
+            disabled={deleteImportedCommitMut.isPending || !deleteImportedDryMut.data}
+            onClick={() => {
+              const n = deleteImportedDryMut.data?.totalMatched ?? 0;
+              if (n === 0) return;
+              if (
+                !window.confirm(
+                  `Wirklich ${n} Import-Zeile(n) UNWIEDERBRINGLICH löschen?`,
+                )
+              )
+                return;
+              deleteImportedCommitMut.mutate();
+            }}
+            title={!deleteImportedDryMut.data ? "Erst Dry-Run ausführen." : undefined}
+          >
+            {deleteImportedCommitMut.isPending ? "Lösche…" : "Löschen ausführen"}
+          </Button>
+        </div>
+        {(deleteImportedDryMut.data || deleteImportedCommitMut.data) && (
+          <DeleteImportedReport
+            result={deleteImportedCommitMut.data ?? deleteImportedDryMut.data ?? null}
+            mode={deleteImportedCommitMut.data ? "commit" : "dry_run"}
           />
         )}
       </Card>
@@ -684,6 +764,71 @@ function ReconciliationTableImpl({
           ))}
         </TableBody>
       </Table>
+    </div>
+  );
+}
+
+function DeleteImportedReport({
+  result,
+  mode,
+}: {
+  result: {
+    totalMatched: number;
+    totalDeleted: number;
+    minBusinessDate: string | null;
+    maxBusinessDate: string | null;
+    staffGroups: Array<{ staffId: string; staffName: string; shiftCount: number }>;
+    filter: { staffId: string | null };
+  } | null;
+  mode: "dry_run" | "commit";
+}) {
+  if (!result) return null;
+  return (
+    <div className="space-y-2">
+      <div className="rounded-md border border-border bg-muted/30 p-3 text-sm">
+        <div className="font-medium">
+          {mode === "commit" ? "Lösch-Bericht" : "Dry-Run-Bericht"}
+        </div>
+        <div className="flex flex-wrap gap-4">
+          <span>
+            betroffen: <strong>{result.totalMatched}</strong>
+          </span>
+          {mode === "commit" && (
+            <span>
+              gelöscht: <strong>{result.totalDeleted}</strong>
+            </span>
+          )}
+          <span>
+            Zeitraum:{" "}
+            <code>
+              {result.minBusinessDate ?? "—"} … {result.maxBusinessDate ?? "—"}
+            </code>
+          </span>
+          {result.filter.staffId && (
+            <span className="text-muted-foreground">
+              Filter staff_id: <code className="text-xs">{result.filter.staffId}</code>
+            </span>
+          )}
+        </div>
+      </div>
+      {result.staffGroups.length > 0 && (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Mitarbeiter</TableHead>
+              <TableHead className="text-right">Schichten</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {result.staffGroups.map((g) => (
+              <TableRow key={g.staffId}>
+                <TableCell>{g.staffName}</TableCell>
+                <TableCell className="text-right">{g.shiftCount}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
     </div>
   );
 }
