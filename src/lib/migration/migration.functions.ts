@@ -26,6 +26,7 @@ import { bootstrapMissingStaffCore } from "./bootstrap-missing-staff";
 import { reconcile } from "./reconcile";
 import { emptyCounters, executeImport, parseCsvFor } from "./run-import-core";
 import { reassignImportedStaffCore } from "./reassign-imported-staff";
+import { deleteImportedShiftsCore } from "./delete-imported-shifts";
 
 // =========================================================================
 // Eingabe-Schemata
@@ -66,6 +67,11 @@ const reconcileInputSchema = z.object({
 const reassignInputSchema = z.object({
   sourceSystem: sourceSystemSchema,
   mode: z.enum(["dry_run", "commit"]),
+});
+
+const deleteImportedInputSchema = z.object({
+  mode: z.enum(["dry_run", "commit"]),
+  staffId: z.string().uuid().nullable().optional(),
 });
 
 // =========================================================================
