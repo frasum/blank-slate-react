@@ -11,12 +11,7 @@
 //       kein Schreibvorgang in der DB).
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import {
-  dbTestsEnabled,
-  seedOrg,
-  type SeededOrg,
-  type SeededUser,
-} from "@/test/db-setup";
+import { dbTestsEnabled, seedOrg, type SeededOrg, type SeededUser } from "@/test/db-setup";
 import {
   submitWaiterSettlementCore,
   updateSessionCore,
@@ -192,10 +187,12 @@ describe.skipIf(!dbTestsEnabled)("cash lock — Session-Sperre + Wasserlinie (DB
   it("(2) Wasserlinie (genau am Tag): submit + update + correct + addSatellite blocken", async () => {
     await reset();
     const { sessionId, businessDate, settlementId } = await seedSession("open");
-    await org.service.from("organization_settings").upsert(
-      { organization_id: org.orgId, cash_locked_through_date: businessDate },
-      { onConflict: "organization_id" },
-    );
+    await org.service
+      .from("organization_settings")
+      .upsert(
+        { organization_id: org.orgId, cash_locked_through_date: businessDate },
+        { onConflict: "organization_id" },
+      );
     await expect(
       submitWaiterSettlementCore(s(), {
         posSalesCents: 1,
@@ -232,10 +229,12 @@ describe.skipIf(!dbTestsEnabled)("cash lock — Session-Sperre + Wasserlinie (DB
   it("(3) Kombiniert locked + Wasserlinie: Reason 'session_locked' (Vorrang)", async () => {
     await reset();
     const { sessionId, businessDate } = await seedSession("locked");
-    await org.service.from("organization_settings").upsert(
-      { organization_id: org.orgId, cash_locked_through_date: businessDate },
-      { onConflict: "organization_id" },
-    );
+    await org.service
+      .from("organization_settings")
+      .upsert(
+        { organization_id: org.orgId, cash_locked_through_date: businessDate },
+        { onConflict: "organization_id" },
+      );
     try {
       await updateSessionCore(mgr(), emptyUpdate(sessionId));
       throw new Error("expected throw");
@@ -279,9 +278,7 @@ describe.skipIf(!dbTestsEnabled)("cash lock — Session-Sperre + Wasserlinie (DB
       .eq("id", sessionId)
       .single();
 
-    await expect(lockSessionCore(mgr(), { sessionId })).rejects.toBeInstanceOf(
-      ForbiddenError,
-    );
+    await expect(lockSessionCore(mgr(), { sessionId })).rejects.toBeInstanceOf(ForbiddenError);
     await expect(
       setCashLockCore(mgr(), { throughDate: "2099-12-31", reason: "x" }),
     ).rejects.toBeInstanceOf(ForbiddenError);

@@ -9,7 +9,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
 export class TimeLockedError extends Error {
-  constructor(public readonly businessDate: string, public readonly through: string) {
+  constructor(
+    public readonly businessDate: string,
+    public readonly through: string,
+  ) {
     super(
       `Geschäftstag ${businessDate} ist gesperrt (Wasserlinie: ${through}). ` +
         `Nur ein Admin kann die Sperre verschieben.`,

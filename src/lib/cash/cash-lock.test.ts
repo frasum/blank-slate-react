@@ -37,15 +37,15 @@ describe("assertCashWritable", () => {
   });
 
   it("sessionLockedAt gesetzt wirft (auch wenn Status open)", () => {
-    expect(() =>
-      assertCashWritable({ ...base, sessionLockedAt: "2026-06-13T20:00:00Z" }),
-    ).toThrow(CashLockedError);
+    expect(() => assertCashWritable({ ...base, sessionLockedAt: "2026-06-13T20:00:00Z" })).toThrow(
+      CashLockedError,
+    );
   });
 
   it("unter Wasserlinie wirft", () => {
-    expect(() =>
-      assertCashWritable({ ...base, cashLockedThroughDate: "2026-06-13" }),
-    ).toThrow(CashLockedError);
+    expect(() => assertCashWritable({ ...base, cashLockedThroughDate: "2026-06-13" })).toThrow(
+      CashLockedError,
+    );
   });
 
   it("genau am Wasserlinien-Datum wirft", () => {

@@ -14,16 +14,8 @@
 //   (e) Keine offene Session am Geschäftstag: NoOpenSessionError.
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import {
-  dbTestsEnabled,
-  seedOrg,
-  type SeededOrg,
-  type SeededUser,
-} from "@/test/db-setup";
-import {
-  submitWaiterSettlementCore,
-  NoOpenSessionError,
-} from "./cash.functions";
+import { dbTestsEnabled, seedOrg, type SeededOrg, type SeededUser } from "@/test/db-setup";
+import { submitWaiterSettlementCore, NoOpenSessionError } from "./cash.functions";
 import type { StaffCaller } from "@/lib/time/time.functions";
 
 describe.skipIf(!dbTestsEnabled)("submitWaiterSettlementCore (DB)", () => {
@@ -89,9 +81,7 @@ describe.skipIf(!dbTestsEnabled)("submitWaiterSettlementCore (DB)", () => {
   });
 
   it("(a) genau ein clockOut, auto_clockout_time_entry_id gesetzt, Audit triggered_by:settlement + arbzg_default:true", async () => {
-    const teId = await openTimeEntry(
-      new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-    );
+    const teId = await openTimeEntry(new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString());
     const res = await submitWaiterSettlementCore(caller(), {
       posSalesCents: 50000,
       cardTotalCents: 10000,
@@ -134,9 +124,7 @@ describe.skipIf(!dbTestsEnabled)("submitWaiterSettlementCore (DB)", () => {
   });
 
   it("(b) Doppel-Submit: idempotent, kein zweiter clockOut, Geldfelder unverändert", async () => {
-    await openTimeEntry(
-      new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-    );
+    await openTimeEntry(new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString());
     const first = await submitWaiterSettlementCore(caller(), {
       posSalesCents: 50000,
       cardTotalCents: 10000,
@@ -208,9 +196,7 @@ describe.skipIf(!dbTestsEnabled)("submitWaiterSettlementCore (DB)", () => {
   });
 
   it("(d) ArbZG: 30 Min bei 7h gross, 45 Min bei 10h gross", async () => {
-    const te7 = await openTimeEntry(
-      new Date(Date.now() - 7 * 60 * 60 * 1000).toISOString(),
-    );
+    const te7 = await openTimeEntry(new Date(Date.now() - 7 * 60 * 60 * 1000).toISOString());
     await submitWaiterSettlementCore(caller(), {
       posSalesCents: 1,
       cardTotalCents: 0,
@@ -226,9 +212,7 @@ describe.skipIf(!dbTestsEnabled)("submitWaiterSettlementCore (DB)", () => {
     expect(te7row?.break_minutes).toBe(30);
 
     await freshSession();
-    const te10 = await openTimeEntry(
-      new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString(),
-    );
+    const te10 = await openTimeEntry(new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString());
     await submitWaiterSettlementCore(caller(), {
       posSalesCents: 1,
       cardTotalCents: 0,

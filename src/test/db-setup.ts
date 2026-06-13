@@ -20,22 +20,18 @@ export const dbTestsEnabled =
   !!process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 export function getServiceClient(): SupabaseClient<Database> {
-  return createClient<Database>(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { persistSession: false, autoRefreshToken: false } },
-  );
+  return createClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
 }
 
 export async function signInAsUser(
   email: string,
   password: string,
 ): Promise<SupabaseClient<Database>> {
-  const client = createClient<Database>(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_ANON_KEY!,
-    { auth: { persistSession: false, autoRefreshToken: false } },
-  );
+  const client = createClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
   const { error } = await client.auth.signInWithPassword({ email, password });
   if (error) throw new Error(`signIn failed for ${email}: ${error.message}`);
   return client;

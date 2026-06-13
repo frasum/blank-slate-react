@@ -10,9 +10,7 @@ function AdminIndex() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Verwaltung</h1>
-        <p className="text-sm text-muted-foreground">
-          Stammdaten, PINs und Badges (B1c).
-        </p>
+        <p className="text-sm text-muted-foreground">Stammdaten, PINs und Badges (B1c).</p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <Link

@@ -52,8 +52,14 @@ const reconcileInputSchema = z.object({
   sourceSystem: sourceSystemSchema,
   csvText: z.string().min(1),
   groupBy: z.enum(["week", "cycle"]),
-  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  from: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  to: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
 });
 
 // =========================================================================
@@ -501,7 +507,9 @@ export const getReconciliationReportFromDb = createServerFn({ method: "POST" })
       return { staffId, bucketKey, alt, recomputed: reco, diff, hasDifference };
     });
     rows.sort((a, b) =>
-      a.staffId === b.staffId ? a.bucketKey.localeCompare(b.bucketKey) : a.staffId.localeCompare(b.staffId),
+      a.staffId === b.staffId
+        ? a.bucketKey.localeCompare(b.bucketKey)
+        : a.staffId.localeCompare(b.staffId),
     );
     return { rows };
   });

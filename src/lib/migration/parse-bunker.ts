@@ -2,10 +2,7 @@
 // Header sind verbindlich; Abweichung => harter Fehler mit präziser Meldung.
 
 import { assertHeaders, parseCsv } from "./csv";
-import {
-  combineDateAndTimes,
-  type NormalizedShift,
-} from "./normalize";
+import { combineDateAndTimes, type NormalizedShift } from "./normalize";
 
 export const BUNKER_HEADERS = [
   "id",
@@ -81,7 +78,12 @@ export function parseBunkerCsv(csvText: string): NormalizedShift[] {
         out.push({ ...base, startedAt: null, endedAt: null, skipReason: "invalid_time" });
         continue;
       }
-      out.push({ ...base, startedAt: combined.startedAt, endedAt: combined.endedAt, skipReason: null });
+      out.push({
+        ...base,
+        startedAt: combined.startedAt,
+        endedAt: combined.endedAt,
+        skipReason: null,
+      });
       continue;
     }
     if (r.clocked_in_at !== null && r.clocked_out_at !== null) {

@@ -128,8 +128,7 @@ function MigrationPage() {
   });
 
   const confirmMut = useMutation({
-    mutationFn: (vars: { id: string; staffId: string | null }) =>
-      callConfirm({ data: vars }),
+    mutationFn: (vars: { id: string; staffId: string | null }) => callConfirm({ data: vars }),
     onSuccess: () => {
       toast.success("Mapping gespeichert.");
       void qc.invalidateQueries({ queryKey: ["identity-mappings", sourceSystem] });
@@ -149,7 +148,7 @@ function MigrationPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const mappings = mappingsQ.data?.mappings ?? [];
+  const mappings = useMemo(() => mappingsQ.data?.mappings ?? [], [mappingsQ.data]);
   const unconfirmedCount = useMemo(
     () => mappings.filter((m) => !m.confirmed_at).length,
     [mappings],
@@ -181,9 +180,8 @@ function MigrationPage() {
           Migration & Parallelbetrieb
         </h1>
         <p className="text-sm text-muted-foreground">
-          CSV-Import aus Tagesabrechnung / Bunker. Idempotent über{" "}
-          <code>import_key</code>. Commit schiebt die Wasserlinie auf{" "}
-          <code>max(business_date)</code> vor.
+          CSV-Import aus Tagesabrechnung / Bunker. Idempotent über <code>import_key</code>. Commit
+          schiebt die Wasserlinie auf <code>max(business_date)</code> vor.
         </p>
       </div>
 
@@ -224,21 +222,13 @@ function MigrationPage() {
             >
               {proposeMut.isPending ? "Schlage vor…" : "Identitäten vorschlagen"}
             </Button>
-            <Button
-              disabled={!csvText || dryRunMut.isPending}
-              onClick={() => dryRunMut.mutate()}
-            >
+            <Button disabled={!csvText || dryRunMut.isPending} onClick={() => dryRunMut.mutate()}>
               {dryRunMut.isPending ? "Dry-Run…" : "Dry-Run"}
             </Button>
           </div>
         </div>
 
-        {parseRes && (
-          <CountersView
-            title="Vorschau (Parser-Zähler)"
-            counters={parseRes.counters}
-          />
-        )}
+        {parseRes && <CountersView title="Vorschau (Parser-Zähler)" counters={parseRes.counters} />}
         {dryRes && (
           <CountersView
             title={`Dry-Run · ${dryRes.fileHash.slice(0, 12)}…`}
@@ -300,10 +290,9 @@ function MigrationPage() {
       <Card className="p-4 space-y-3">
         <div className="font-medium">Commit</div>
         <p className="text-sm text-muted-foreground">
-          Schreibt Einträge mit <code>source='import'</code>. Bereits importierte
-          Schlüssel werden übersprungen. Unbestätigte Mappings blockieren nicht den
-          Commit, ihre Schichten landen aber im Skip-Bucket{" "}
-          <code>unmapped_staff</code>.
+          Schreibt Einträge mit <code>source='import'</code>. Bereits importierte Schlüssel werden
+          übersprungen. Unbestätigte Mappings blockieren nicht den Commit, ihre Schichten landen
+          aber im Skip-Bucket <code>unmapped_staff</code>.
         </p>
         <div className="flex items-center gap-3">
           <Button
@@ -374,7 +363,9 @@ function MigrationPage() {
           />
         )}
         {reportMut.data && reportRows.length === 0 && (
-          <p className="text-sm text-muted-foreground">CSV-Adapter: keine Differenzen im Zeitraum.</p>
+          <p className="text-sm text-muted-foreground">
+            CSV-Adapter: keine Differenzen im Zeitraum.
+          </p>
         )}
         {reportDbRows.length > 0 && (
           <ReconciliationTable
@@ -384,7 +375,9 @@ function MigrationPage() {
           />
         )}
         {reportDbMut.data && reportDbRows.length === 0 && (
-          <p className="text-sm text-muted-foreground">DB-Adapter: keine Differenzen im Zeitraum.</p>
+          <p className="text-sm text-muted-foreground">
+            DB-Adapter: keine Differenzen im Zeitraum.
+          </p>
         )}
       </Card>
     </div>
@@ -424,9 +417,7 @@ function CountersView({
             </span>
           ) : null,
         )}
-        {!balanced && (
-          <Badge variant="destructive">Bilanz verletzt!</Badge>
-        )}
+        {!balanced && <Badge variant="destructive">Bilanz verletzt!</Badge>}
       </div>
     </div>
   );
@@ -505,9 +496,7 @@ function ReconciliationTable({
   }>;
   staffNameById: Map<string, string>;
 }) {
-  const potKeys = Array.from(
-    new Set(rows.flatMap((r) => Object.keys(r.diff))),
-  ).sort();
+  const potKeys = Array.from(new Set(rows.flatMap((r) => Object.keys(r.diff)))).sort();
   return (
     <div className="overflow-x-auto">
       <div className="mb-1 text-sm font-medium">{title}</div>
@@ -528,13 +517,8 @@ function ReconciliationTable({
             <TableRow key={`${r.staffId}-${r.bucketKey}-${i}`}>
               <TableCell className="font-mono text-xs">{r.bucketKey}</TableCell>
               <TableCell>
-                <div className="text-sm">
-                  {staffNameById.get(r.staffId) ?? "—"}
-                </div>
-                <div
-                  className="font-mono text-[10px] text-muted-foreground"
-                  title={r.staffId}
-                >
+                <div className="text-sm">{staffNameById.get(r.staffId) ?? "—"}</div>
+                <div className="font-mono text-[10px] text-muted-foreground" title={r.staffId}>
                   {r.staffId}
                 </div>
               </TableCell>

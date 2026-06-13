@@ -21,15 +21,10 @@ import { loadAdminCaller } from "./admin-context";
 import { runGuarded } from "./admin-call";
 import { ForbiddenError } from "./role-guard";
 import { writeAuditLog } from "./audit";
-import {
-  wouldRemoveLastActiveAdmin,
-  type AdminSnapshotEntry,
-} from "./last-admin-rule";
+import { wouldRemoveLastActiveAdmin, type AdminSnapshotEntry } from "./last-admin-rule";
 import type { AppRole } from "./role-guard";
 
-async function loadAdminSnapshot(
-  org: SeededOrg,
-): Promise<AdminSnapshotEntry[]> {
+async function loadAdminSnapshot(org: SeededOrg): Promise<AdminSnapshotEntry[]> {
   const { data, error } = await org.service
     .from("staff")
     .select("id, is_active, role_assignments(role)")
@@ -70,9 +65,9 @@ describe.skipIf(!dbTestsEnabled)("role-guard DB-Verdrahtung", () => {
     const snapshot = await loadAdminSnapshot(org);
     const activeAdmins = snapshot.filter((e) => e.isActive && e.role === "admin");
     expect(activeAdmins.length).toBe(1);
-    expect(
-      wouldRemoveLastActiveAdmin(snapshot, { staffId: admin.staffId, nextRole: null }),
-    ).toBe(true);
+    expect(wouldRemoveLastActiveAdmin(snapshot, { staffId: admin.staffId, nextRole: null })).toBe(
+      true,
+    );
     expect(
       wouldRemoveLastActiveAdmin(snapshot, { staffId: admin.staffId, nextActive: false }),
     ).toBe(true);

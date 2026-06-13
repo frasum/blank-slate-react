@@ -79,17 +79,37 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Lovable App" },
-      { name: "description", content: "Betriebsplattform is a React application for managing employee data and time tracking." },
+      {
+        name: "description",
+        content:
+          "Betriebsplattform is a React application for managing employee data and time tracking.",
+      },
       { name: "author", content: "Lovable" },
       { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Betriebsplattform is a React application for managing employee data and time tracking." },
+      {
+        property: "og:description",
+        content:
+          "Betriebsplattform is a React application for managing employee data and time tracking.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
       { name: "twitter:title", content: "Lovable App" },
-      { name: "twitter:description", content: "Betriebsplattform is a React application for managing employee data and time tracking." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/01d61107-56ac-4b36-b520-994ce5033057/id-preview-97acb4ec--a9a57e34-6bcd-4c59-9526-a8d67e2c7859.lovable.app-1781305375956.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/01d61107-56ac-4b36-b520-994ce5033057/id-preview-97acb4ec--a9a57e34-6bcd-4c59-9526-a8d67e2c7859.lovable.app-1781305375956.png" },
+      {
+        name: "twitter:description",
+        content:
+          "Betriebsplattform is a React application for managing employee data and time tracking.",
+      },
+      {
+        property: "og:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/01d61107-56ac-4b36-b520-994ce5033057/id-preview-97acb4ec--a9a57e34-6bcd-4c59-9526-a8d67e2c7859.lovable.app-1781305375956.png",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/01d61107-56ac-4b36-b520-994ce5033057/id-preview-97acb4ec--a9a57e34-6bcd-4c59-9526-a8d67e2c7859.lovable.app-1781305375956.png",
+      },
     ],
     links: [
       {

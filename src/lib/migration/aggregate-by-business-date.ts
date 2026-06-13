@@ -22,7 +22,10 @@ export type AggregateBucket = CalculateShiftHoursOutput & {
   entryCount: number;
 };
 
-function addBuckets(a: CalculateShiftHoursOutput, b: CalculateShiftHoursOutput): CalculateShiftHoursOutput {
+function addBuckets(
+  a: CalculateShiftHoursOutput,
+  b: CalculateShiftHoursOutput,
+): CalculateShiftHoursOutput {
   return {
     totalHours: round2(a.totalHours + b.totalHours),
     sundayHolidayHours: round2(a.sundayHolidayHours + b.sundayHolidayHours),
@@ -67,7 +70,9 @@ export function aggregate(
     }
   }
   return Array.from(map.values()).sort((a, b) =>
-    a.staffId === b.staffId ? a.bucketKey.localeCompare(b.bucketKey) : a.staffId.localeCompare(b.staffId),
+    a.staffId === b.staffId
+      ? a.bucketKey.localeCompare(b.bucketKey)
+      : a.staffId.localeCompare(b.staffId),
   );
 }
 

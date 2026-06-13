@@ -7,7 +7,9 @@
 // geht, übernehmen die aufrufenden Server-Functions.
 
 /** Erzeugt 32 zufällige Bytes (CSPRNG) und kodiert sie als base64url. */
-export function generateBadgeToken(randomBytes: (n: number) => Uint8Array = defaultRandomBytes): string {
+export function generateBadgeToken(
+  randomBytes: (n: number) => Uint8Array = defaultRandomBytes,
+): string {
   const bytes = randomBytes(32);
   return base64UrlEncode(bytes);
 }

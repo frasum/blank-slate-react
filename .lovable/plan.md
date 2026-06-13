@@ -50,9 +50,9 @@ Tabellen, alle mit `organization_id`, RLS ab Erstellung, GRANTs nach Standard.
 - **`session_expenses`**, **`session_advances`** (FK auf `staff` für M4),
   **`session_card_transactions`**, **`session_bank_deposits`**,
   **`session_register_transfers`** (mit `direction` enum `to_restaurant |
-  from_restaurant`). Jeweils `(session_id, ...)`, Beträge in Cents.
+from_restaurant`). Jeweils `(session_id, ...)`, Beträge in Cents.
 - **`organization_settings`** erweitern: `kitchen_tip_rate NUMERIC(5,4)
-  NOT NULL DEFAULT 0.0200`, `cash_locked_through_date DATE NULL`.
+NOT NULL DEFAULT 0.0200`, `cash_locked_through_date DATE NULL`.
 
 ### RLS-Regeln (Kurzfassung, Details in Migration)
 
@@ -73,19 +73,19 @@ Tabellen, alle mit `organization_id`, RLS ab Erstellung, GRANTs nach Standard.
 Keine I/O, keine Supabase-Imports, voll getestet. Module:
 
 - **`waiter-settlement.ts`** — `calcWaiterSettlement({ posSalesCents,
-  cardTotalCents, hilfMahlCents, openInvoicesCents, kitchenTipRate })` →
+cardTotalCents, hilfMahlCents, openInvoicesCents, kitchenTipRate })` →
   `{ differenzCents, kitchenTipCents }`. Formel 1:1 wie Altsystem:
   `differenz = pos_sales + hilf_mahl − open_invoices − card_total`,
   `kitchen_tip = round(pos_sales * rate)`. Rundung: kaufmännisch auf Cents,
   Verhalten dokumentiert und getestet.
 - **`cash-ledger.ts`** — `computeDailyBalance(session, satellites) →
-  dailyDeltaCents` und `accumulateChain(openingBalanceCents, days[]) →
-  { perDay: [{date, deltaCents, balanceCents, deficitCarriedFromPrevious}] }`.
+dailyDeltaCents` und `accumulateChain(openingBalanceCents, days[]) →
+{ perDay: [{date, deltaCents, balanceCents, deficitCarriedFromPrevious}] }`.
   Reine Funktion über sortierte Tage. Vortages-Defizit-Verrechnung wie
   Altsystem (negativer Saldo wandert in Folgetag sichtbar mit).
 - **`session-channels.ts`** — Aggregation `sum(channel_amounts) +
-  sum(terminal_amounts) + sonstige_einnahme − opentabs_deduction − vorschuss
-  − einladung` (exakte Formel beim Bau gegen Altsystem-Hook
+sum(terminal_amounts) + sonstige_einnahme − opentabs_deduction − vorschuss
+− einladung` (exakte Formel beim Bau gegen Altsystem-Hook
   `useCashBalanceData` verifizieren — wenn Abweichung: melden statt raten).
 
 ### Tests
@@ -126,26 +126,26 @@ Audit. `supabaseAdmin` ausschließlich im Handler.
 
 - **`getOrCreateOpenSession({ businessDate })`** — Manager+. Idempotent.
 - **`submitWaiterSettlement({ posSalesCents, cardTotalCents, hilfMahlCents,
-  openInvoicesCents, cashHandedInCents, breakMinutes })`** — Staff+.
+openInvoicesCents, cashHandedInCents, breakMinutes })`** — Staff+.
   Schreibt Settlement mit `status='submitted'`, berechnet differenz/
   kitchen_tip über `calcWaiterSettlement`, snapshottet `kitchen_tip_rate`.
   **Ruft anschließend die bestehende `clockOut`-Server-Function intern auf**
   (Import aus B2a, gleiche Validierung/Pausenlogik/Audit) mit
   `meta: { triggered_by: 'settlement', settlement_id }`. Wenn kein offener
   Zeiteintrag existiert: Settlement gespeichert, `auto_clockout_time_entry_id
-  = NULL`, Response enthält Hinweis `no_open_time_entry` — kein Throw,
+= NULL`, Response enthält Hinweis `no_open_time_entry` — kein Throw,
   kein zweiter Stempelversuch bei erneutem Bearbeiten (idempotent).
   **Harte Grenze**: Diese Funktion fasst `time_entries` nicht direkt an.
 - **`correctWaiterSettlement({ originalId, ...felder, reason })`** — Manager+.
   Erzeugt neue Zeile mit `corrected_from_id`, setzt Original auf
   `status='superseded'`. Audit-Eintrag mit `reason`.
 - **`updateSession({ sessionId, channelAmounts, terminalAmounts,
-  voucherFields, opentabs/vorschuss/einladung/sonstige, notes })`** —
+voucherFields, opentabs/vorschuss/einladung/sonstige, notes })`** —
   Manager+. Upsert auf `session_*_amounts`, Update der Zahlen-Felder
   auf `sessions`. Blockiert wenn `status != 'open'`.
 - **`addSessionSatellite({ sessionId, kind, payload })`** — Manager+.
   `kind` ∈ `expense | advance | card_transaction | bank_deposit |
-  register_transfer`. Blockiert bei Sperre.
+register_transfer`. Blockiert bei Sperre.
 - **`finalizeSession({ sessionId })`** — Manager+. Setzt `status='finalized'`.
 - **`lockSession({ sessionId })`** — Admin only. Setzt `status='locked'`,
   verschiebt `cash_locked_through_date` auf `max(business_date)` der
@@ -200,7 +200,7 @@ Eine Route, zwei Views, rollenabhängig:
 - Parallelmonat startet: jeden Tag Abschluss in COCO + Altsystem,
   Abgleichsbericht muss 0 Differenz zeigen über einen vollen Monat.
 - Erst danach: Cutover-Checkliste (analog `docs/migration-cutover-
-  checklist.md`), Altsystem read-only.
+checklist.md`), Altsystem read-only.
 
 ---
 
@@ -230,6 +230,7 @@ Freigabe?
 ## B3b — Erfassung & zweistufiger Abschluss-Flow (gebaut)
 
 Freigaben:
+
 - `correctWaiterSettlement` ist erlaubt bei Session-Status `open` UND
   `finalized`; gesperrt erst bei `locked` oder unterhalb
   `cash_locked_through_date`. `assertCashWritable` blockt entsprechend
@@ -244,7 +245,7 @@ Freigaben:
 
 - `getOrCreateOpenSession({ businessDate? })` — Manager+.
 - `submitWaiterSettlement({ posSalesCents, cardTotalCents, hilfMahlCents,
-  openInvoicesCents, cashHandedInCents })` — Staff+. Snapshot von
+openInvoicesCents, cashHandedInCents })` — Staff+. Snapshot von
   `kitchen_tip_rate`, ruft `calcWaiterSettlement`, persistiert
   `submitted`. Auto-Ausstempeln über `performClockOut` (aus
   `time.functions.ts` extrahiert; gleiche Validierung/Pausen-Logik wie
@@ -257,7 +258,7 @@ Freigaben:
   `status='superseded'`. Erbt `kitchen_tip_rate` vom Original.
 - `updateSession({ … })`, `addSessionSatellite`, `removeSessionSatellite`,
   `finalizeSession`, `lockSession` (Admin), `setCashLock({ throughDate,
-  reason })` (Admin, nur vorwärts, Muster `setTimeLock`).
+reason })` (Admin, nur vorwärts, Muster `setTimeLock`).
 - Schreibgate `assertCashWritable` aus `cash-lock.ts` (rein).
 
 ### UI

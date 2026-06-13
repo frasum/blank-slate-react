@@ -120,7 +120,7 @@ export async function executeImport(args: RunImportArgs): Promise<RunImportResul
       continue;
     }
     const altKey = s.altEmployeeId || s.altEmployeeName;
-    const staffId = altKey ? mapByAltId.get(altKey) ?? null : null;
+    const staffId = altKey ? (mapByAltId.get(altKey) ?? null) : null;
     if (!staffId) {
       counters.skippedByReason.unmapped_staff++;
       continue;

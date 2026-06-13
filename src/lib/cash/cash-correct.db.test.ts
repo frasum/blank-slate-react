@@ -9,12 +9,7 @@
 //       zweiter non-superseded für (session, staff) wird real (23505) abgelehnt.
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import {
-  dbTestsEnabled,
-  seedOrg,
-  type SeededOrg,
-  type SeededUser,
-} from "@/test/db-setup";
+import { dbTestsEnabled, seedOrg, type SeededOrg, type SeededUser } from "@/test/db-setup";
 import {
   submitWaiterSettlementCore,
   correctWaiterSettlementCore,
@@ -127,9 +122,7 @@ describe.skipIf(!dbTestsEnabled)("correctWaiterSettlementCore (DB)", () => {
       .from("audit_log")
       .select("action, meta")
       .eq("entity_id", res.newId);
-    const entry = (audits ?? []).find(
-      (a) => a.action === "cash.settlement.corrected",
-    );
+    const entry = (audits ?? []).find((a) => a.action === "cash.settlement.corrected");
     expect(entry).toBeDefined();
     const meta = entry!.meta as Record<string, unknown>;
     expect(meta.reason).toBe("Tippfehler bei pos_sales");

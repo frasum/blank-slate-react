@@ -24,7 +24,9 @@ import { bootstrapMissingStaffCore } from "./bootstrap-missing-staff";
 const TA_HEADER =
   "id,employee_id,staff_name,staff_nickname,shift_date,department,start_time,end_time,absence_type,is_holiday,total_hours,evening_hours,night_hours,night_deep_hours,sunday_holiday_hours";
 
-function taCsv(rows: { id: string; empId: string; name: string; date: string; start: string; end: string }[]): string {
+function taCsv(
+  rows: { id: string; empId: string; name: string; date: string; start: string; end: string }[],
+): string {
   const body = rows
     .map(
       (r) =>
@@ -92,8 +94,22 @@ describe.skipIf(!dbTestsEnabled)("migration — Importer + RLS", () => {
 
   it("(1+3) Idempotenz + Wasserlinie: Doppellauf identische Zeilenzahl, Lock = max(business_date)", async () => {
     const csv = taCsv([
-      { id: "S-1", empId: "EMP-1", name: "Anna Test", date: "2026-03-10", start: "17:00:00", end: "21:30:00" },
-      { id: "S-2", empId: "EMP-1", name: "Anna Test", date: "2026-03-12", start: "17:00:00", end: "21:30:00" },
+      {
+        id: "S-1",
+        empId: "EMP-1",
+        name: "Anna Test",
+        date: "2026-03-10",
+        start: "17:00:00",
+        end: "21:30:00",
+      },
+      {
+        id: "S-2",
+        empId: "EMP-1",
+        name: "Anna Test",
+        date: "2026-03-12",
+        start: "17:00:00",
+        end: "21:30:00",
+      },
     ]);
 
     const first = await executeImport({
@@ -254,8 +270,9 @@ describe.skipIf(!dbTestsEnabled)("migration — Importer + RLS", () => {
       organizationId: org.orgId,
       sourceSystem: "tagesabrechnung",
     });
-    expect(res.skippedNames.some((s) => s.altId === "EMP-EMPTY" && s.reason === "empty_alt_name"))
-      .toBe(true);
+    expect(
+      res.skippedNames.some((s) => s.altId === "EMP-EMPTY" && s.reason === "empty_alt_name"),
+    ).toBe(true);
 
     const { data: still } = await org.service
       .from("staff_identity_map")

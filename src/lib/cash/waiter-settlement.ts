@@ -37,16 +37,14 @@ function roundHalfAwayFromZero(value: number): number {
 }
 
 export function calcWaiterSettlement(input: WaiterSettlementInput): WaiterSettlementResult {
-  const { posSalesCents, cardTotalCents, hilfMahlCents, openInvoicesCents, kitchenTipRate } =
-    input;
+  const { posSalesCents, cardTotalCents, hilfMahlCents, openInvoicesCents, kitchenTipRate } = input;
 
   if (!Number.isInteger(posSalesCents)) throw new Error("posSalesCents must be integer cents");
   if (!Number.isInteger(cardTotalCents)) throw new Error("cardTotalCents must be integer cents");
   if (!Number.isInteger(hilfMahlCents)) throw new Error("hilfMahlCents must be integer cents");
   if (!Number.isInteger(openInvoicesCents))
     throw new Error("openInvoicesCents must be integer cents");
-  if (!(kitchenTipRate >= 0 && kitchenTipRate <= 1))
-    throw new Error("kitchenTipRate out of [0,1]");
+  if (!(kitchenTipRate >= 0 && kitchenTipRate <= 1)) throw new Error("kitchenTipRate out of [0,1]");
 
   const differenzCents = posSalesCents + hilfMahlCents - openInvoicesCents - cardTotalCents;
   const kitchenTipCents = roundHalfAwayFromZero(posSalesCents * kitchenTipRate);

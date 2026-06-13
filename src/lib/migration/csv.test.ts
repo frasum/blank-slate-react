@@ -77,6 +77,8 @@ describe("assertHeaders", () => {
   });
 
   it("wirft mit präziser Liste überzähliger Spalten", () => {
-    expect(() => assertHeaders(["a", "b", "extra"], ["a", "b"], "test")).toThrow(/überzählig: extra/);
+    expect(() => assertHeaders(["a", "b", "extra"], ["a", "b"], "test")).toThrow(
+      /überzählig: extra/,
+    );
   });
 });

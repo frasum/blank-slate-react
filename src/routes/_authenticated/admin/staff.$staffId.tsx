@@ -130,16 +130,35 @@ function BasicsTab({
         mutation.mutate();
       }}
     >
-      <TextField label="Vorname" value={form.firstName} onChange={(v) => setForm({ ...form, firstName: v })} required />
-      <TextField label="Nachname" value={form.lastName} onChange={(v) => setForm({ ...form, lastName: v })} required />
+      <TextField
+        label="Vorname"
+        value={form.firstName}
+        onChange={(v) => setForm({ ...form, firstName: v })}
+        required
+      />
+      <TextField
+        label="Nachname"
+        value={form.lastName}
+        onChange={(v) => setForm({ ...form, lastName: v })}
+        required
+      />
       <TextField
         label="Anzeigename"
         value={form.displayName}
         onChange={(v) => setForm({ ...form, displayName: v })}
         required
       />
-      <TextField label="E-Mail" value={form.email} onChange={(v) => setForm({ ...form, email: v })} type="email" />
-      <TextField label="Telefon" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} />
+      <TextField
+        label="E-Mail"
+        value={form.email}
+        onChange={(v) => setForm({ ...form, email: v })}
+        type="email"
+      />
+      <TextField
+        label="Telefon"
+        value={form.phone}
+        onChange={(v) => setForm({ ...form, phone: v })}
+      />
       {msg && <p className="text-sm text-muted-foreground">{msg}</p>}
       <button
         type="submit"
@@ -163,8 +182,7 @@ function LocationsTab({ staffId, current }: { staffId: string; current: string[]
   const [msg, setMsg] = useState<string | null>(null);
 
   const mutation = useMutation({
-    mutationFn: () =>
-      callAssign({ data: { staffId, locationIds: Array.from(selected) } }),
+    mutationFn: () => callAssign({ data: { staffId, locationIds: Array.from(selected) } }),
     onSuccess: async () => {
       setMsg("Gespeichert.");
       await queryClient.invalidateQueries({ queryKey: ["admin", "staff"] });
@@ -210,7 +228,11 @@ function LocationsTab({ staffId, current }: { staffId: string; current: string[]
   );
 }
 
-function RoleTab({ staff }: { staff: { id: string; role: "admin" | "manager" | "staff" | null; isActive: boolean } }) {
+function RoleTab({
+  staff,
+}: {
+  staff: { id: string; role: "admin" | "manager" | "staff" | null; isActive: boolean };
+}) {
   const queryClient = useQueryClient();
   const callSetRole = useServerFn(setStaffRole);
   const callSetActive = useServerFn(setStaffActive);
@@ -227,8 +249,7 @@ function RoleTab({ staff }: { staff: { id: string; role: "admin" | "manager" | "
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
   });
   const activeMutation = useMutation({
-    mutationFn: (isActive: boolean) =>
-      callSetActive({ data: { staffId: staff.id, isActive } }),
+    mutationFn: (isActive: boolean) => callSetActive({ data: { staffId: staff.id, isActive } }),
     onSuccess: refresh,
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
   });

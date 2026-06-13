@@ -40,7 +40,10 @@ export class CashLockBackwardsError extends Error {
 }
 
 export class SettlementNotCorrectableError extends Error {
-  constructor(public readonly originalId: string, public readonly status: string) {
+  constructor(
+    public readonly originalId: string,
+    public readonly status: string,
+  ) {
     super(`Settlement ${originalId} ist nicht korrigierbar (Status: ${status}).`);
     this.name = "SettlementNotCorrectableError";
   }
@@ -150,8 +153,7 @@ export const getCashOverview = createServerFn({ method: "GET" })
       session,
       settlements: (settlements ?? []).map((s) => ({
         ...s,
-        staffName:
-          (s.staff as { display_name: string } | null)?.display_name ?? "—",
+        staffName: (s.staff as { display_name: string } | null)?.display_name ?? "—",
       })),
       cashLockedThroughDate: settings.cashLockedThroughDate,
     };
@@ -202,44 +204,44 @@ export async function getOrCreateOpenSessionCore(
   data: { businessDate?: string },
 ) {
   return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
-      const businessDate = data.businessDate ?? (await getCurrentBusinessDate());
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: existing } = await supabaseAdmin
-        .from("sessions")
-        .select("id, status, business_date")
-        .eq("organization_id", caller.organizationId)
-        .eq("business_date", businessDate)
-        .maybeSingle();
-      if (existing) {
-        return {
-          result: { id: existing.id, status: existing.status, businessDate, created: false },
-          audit: {
-            action: "cash.session.get_existing",
-            entity: "session",
-            entityId: existing.id,
-            meta: { businessDate },
-          },
-        };
-      }
-      const { data: created, error } = await supabaseAdmin
-        .from("sessions")
-        .insert({
-          organization_id: caller.organizationId,
-          business_date: businessDate,
-          status: "open",
-        })
-        .select("id, status")
-        .single();
-      if (error) throw error;
+    const businessDate = data.businessDate ?? (await getCurrentBusinessDate());
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: existing } = await supabaseAdmin
+      .from("sessions")
+      .select("id, status, business_date")
+      .eq("organization_id", caller.organizationId)
+      .eq("business_date", businessDate)
+      .maybeSingle();
+    if (existing) {
       return {
-        result: { id: created.id, status: created.status, businessDate, created: true },
+        result: { id: existing.id, status: existing.status, businessDate, created: false },
         audit: {
-          action: "cash.session.created",
+          action: "cash.session.get_existing",
           entity: "session",
-          entityId: created.id,
+          entityId: existing.id,
           meta: { businessDate },
         },
       };
+    }
+    const { data: created, error } = await supabaseAdmin
+      .from("sessions")
+      .insert({
+        organization_id: caller.organizationId,
+        business_date: businessDate,
+        status: "open",
+      })
+      .select("id, status")
+      .single();
+    if (error) throw error;
+    return {
+      result: { id: created.id, status: created.status, businessDate, created: true },
+      audit: {
+        action: "cash.session.created",
+        entity: "session",
+        entityId: created.id,
+        meta: { businessDate },
+      },
+    };
   });
 }
 
@@ -273,77 +275,77 @@ export type UpdateSessionInput = z.infer<typeof updateSessionSchema>;
 
 export async function updateSessionCore(caller: AdminCaller, data: UpdateSessionInput) {
   return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
-      const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
-      const settings = await loadOrgSettings(caller.organizationId);
-      assertCashWritable({
-        businessDate: session.business_date,
-        sessionStatus: session.status as "open" | "finalized" | "locked",
-        sessionLockedAt: session.locked_at,
-        cashLockedThroughDate: settings.cashLockedThroughDate,
-        // Nach finalize ist die Sessionsicht eingefroren; Korrekturen
-        // einzelner Kellner-Abrechnungen laufen über correctWaiterSettlement.
-        blockIfFinalized: true,
-      });
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { error: sErr } = await supabaseAdmin
-        .from("sessions")
-        .update({
-          vouchers_sold_cents: data.vouchersSoldCents,
-          vouchers_redeemed_cents: data.vouchersRedeemedCents,
-          finedine_vouchers_cents: data.finedineVouchersCents,
-          opentabs_deduction_cents: data.opentabsDeductionCents,
-          vorschuss_cents: data.vorschussCents,
-          einladung_cents: data.einladungCents,
-          sonstige_einnahme_cents: data.sonstigeEinnahmeCents,
-          notes: data.notes,
-        })
-        .eq("id", session.id)
-        .eq("organization_id", caller.organizationId);
-      if (sErr) throw sErr;
+    const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
+    const settings = await loadOrgSettings(caller.organizationId);
+    assertCashWritable({
+      businessDate: session.business_date,
+      sessionStatus: session.status as "open" | "finalized" | "locked",
+      sessionLockedAt: session.locked_at,
+      cashLockedThroughDate: settings.cashLockedThroughDate,
+      // Nach finalize ist die Sessionsicht eingefroren; Korrekturen
+      // einzelner Kellner-Abrechnungen laufen über correctWaiterSettlement.
+      blockIfFinalized: true,
+    });
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error: sErr } = await supabaseAdmin
+      .from("sessions")
+      .update({
+        vouchers_sold_cents: data.vouchersSoldCents,
+        vouchers_redeemed_cents: data.vouchersRedeemedCents,
+        finedine_vouchers_cents: data.finedineVouchersCents,
+        opentabs_deduction_cents: data.opentabsDeductionCents,
+        vorschuss_cents: data.vorschussCents,
+        einladung_cents: data.einladungCents,
+        sonstige_einnahme_cents: data.sonstigeEinnahmeCents,
+        notes: data.notes,
+      })
+      .eq("id", session.id)
+      .eq("organization_id", caller.organizationId);
+    if (sErr) throw sErr;
 
-      // Kanal-Beträge: alte löschen, neue setzen (einfacher als Upsert+Diff).
-      await supabaseAdmin
-        .from("session_channel_amounts")
-        .delete()
-        .eq("session_id", session.id)
-        .eq("organization_id", caller.organizationId);
-      if (data.channelAmounts.length > 0) {
-        const { error } = await supabaseAdmin.from("session_channel_amounts").insert(
-          data.channelAmounts.map((c) => ({
-            organization_id: caller.organizationId,
-            session_id: session.id,
-            channel_id: c.channelId,
-            amount_cents: c.amountCents,
-          })),
-        );
-        if (error) throw error;
-      }
-      await supabaseAdmin
-        .from("session_terminal_amounts")
-        .delete()
-        .eq("session_id", session.id)
-        .eq("organization_id", caller.organizationId);
-      if (data.terminalAmounts.length > 0) {
-        const { error } = await supabaseAdmin.from("session_terminal_amounts").insert(
-          data.terminalAmounts.map((t) => ({
-            organization_id: caller.organizationId,
-            session_id: session.id,
-            terminal_id: t.terminalId,
-            amount_cents: t.amountCents,
-          })),
-        );
-        if (error) throw error;
-      }
+    // Kanal-Beträge: alte löschen, neue setzen (einfacher als Upsert+Diff).
+    await supabaseAdmin
+      .from("session_channel_amounts")
+      .delete()
+      .eq("session_id", session.id)
+      .eq("organization_id", caller.organizationId);
+    if (data.channelAmounts.length > 0) {
+      const { error } = await supabaseAdmin.from("session_channel_amounts").insert(
+        data.channelAmounts.map((c) => ({
+          organization_id: caller.organizationId,
+          session_id: session.id,
+          channel_id: c.channelId,
+          amount_cents: c.amountCents,
+        })),
+      );
+      if (error) throw error;
+    }
+    await supabaseAdmin
+      .from("session_terminal_amounts")
+      .delete()
+      .eq("session_id", session.id)
+      .eq("organization_id", caller.organizationId);
+    if (data.terminalAmounts.length > 0) {
+      const { error } = await supabaseAdmin.from("session_terminal_amounts").insert(
+        data.terminalAmounts.map((t) => ({
+          organization_id: caller.organizationId,
+          session_id: session.id,
+          terminal_id: t.terminalId,
+          amount_cents: t.amountCents,
+        })),
+      );
+      if (error) throw error;
+    }
 
-      return {
-        result: { ok: true as const },
-        audit: {
-          action: "cash.session.updated",
-          entity: "session",
-          entityId: session.id,
-          meta: { businessDate: session.business_date },
-        },
-      };
+    return {
+      result: { ok: true as const },
+      audit: {
+        action: "cash.session.updated",
+        entity: "session",
+        entityId: session.id,
+        meta: { businessDate: session.business_date },
+      },
+    };
   });
 }
 
@@ -355,40 +357,37 @@ export const finalizeSession = createServerFn({ method: "POST" })
     return finalizeSessionCore(caller, data);
   });
 
-export async function finalizeSessionCore(
-  caller: AdminCaller,
-  data: { sessionId: string },
-) {
+export async function finalizeSessionCore(caller: AdminCaller, data: { sessionId: string }) {
   return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
-      const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
-      const settings = await loadOrgSettings(caller.organizationId);
-      assertCashWritable({
-        businessDate: session.business_date,
-        sessionStatus: session.status as "open" | "finalized" | "locked",
-        sessionLockedAt: session.locked_at,
-        cashLockedThroughDate: settings.cashLockedThroughDate,
-        blockIfFinalized: true, // Doppel-Finalize verboten.
-      });
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { error } = await supabaseAdmin
-        .from("sessions")
-        .update({
-          status: "finalized",
-          finalized_at: new Date().toISOString(),
-          finalized_by: caller.staffId,
-        })
-        .eq("id", session.id)
-        .eq("organization_id", caller.organizationId);
-      if (error) throw error;
-      return {
-        result: { ok: true as const },
-        audit: {
-          action: "cash.session.finalized",
-          entity: "session",
-          entityId: session.id,
-          meta: { businessDate: session.business_date },
-        },
-      };
+    const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
+    const settings = await loadOrgSettings(caller.organizationId);
+    assertCashWritable({
+      businessDate: session.business_date,
+      sessionStatus: session.status as "open" | "finalized" | "locked",
+      sessionLockedAt: session.locked_at,
+      cashLockedThroughDate: settings.cashLockedThroughDate,
+      blockIfFinalized: true, // Doppel-Finalize verboten.
+    });
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("sessions")
+      .update({
+        status: "finalized",
+        finalized_at: new Date().toISOString(),
+        finalized_by: caller.staffId,
+      })
+      .eq("id", session.id)
+      .eq("organization_id", caller.organizationId);
+    if (error) throw error;
+    return {
+      result: { ok: true as const },
+      audit: {
+        action: "cash.session.finalized",
+        entity: "session",
+        entityId: session.id,
+        meta: { businessDate: session.business_date },
+      },
+    };
   });
 }
 
@@ -400,32 +399,29 @@ export const lockSession = createServerFn({ method: "POST" })
     return lockSessionCore(caller, data);
   });
 
-export async function lockSessionCore(
-  caller: AdminCaller,
-  data: { sessionId: string },
-) {
+export async function lockSessionCore(caller: AdminCaller, data: { sessionId: string }) {
   return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
-      const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { error } = await supabaseAdmin
-        .from("sessions")
-        .update({
-          status: "locked",
-          locked_at: new Date().toISOString(),
-          locked_by: caller.staffId,
-        })
-        .eq("id", session.id)
-        .eq("organization_id", caller.organizationId);
-      if (error) throw error;
-      return {
-        result: { ok: true as const },
-        audit: {
-          action: "cash.session.locked",
-          entity: "session",
-          entityId: session.id,
-          meta: { businessDate: session.business_date },
-        },
-      };
+    const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("sessions")
+      .update({
+        status: "locked",
+        locked_at: new Date().toISOString(),
+        locked_by: caller.staffId,
+      })
+      .eq("id", session.id)
+      .eq("organization_id", caller.organizationId);
+    if (error) throw error;
+    return {
+      result: { ok: true as const },
+      audit: {
+        action: "cash.session.locked",
+        entity: "session",
+        entityId: session.id,
+        meta: { businessDate: session.business_date },
+      },
+    };
   });
 }
 
@@ -449,31 +445,29 @@ export async function setCashLockCore(
   data: { throughDate: string; reason: string },
 ) {
   return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
-      const settings = await loadOrgSettings(caller.organizationId);
-      const before = settings.cashLockedThroughDate;
-      if (before && data.throughDate <= before) {
-        throw new CashLockBackwardsError();
-      }
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { error } = await supabaseAdmin
-        .from("organization_settings")
-        .upsert(
-          {
-            organization_id: caller.organizationId,
-            cash_locked_through_date: data.throughDate,
-          },
-          { onConflict: "organization_id" },
-        );
-      if (error) throw error;
-      return {
-        result: { ok: true as const, lockedThrough: data.throughDate },
-        audit: {
-          action: "cash.lock.advanced",
-          entity: "organization_settings",
-          entityId: caller.organizationId,
-          meta: { from: before, to: data.throughDate, reason: data.reason },
-        },
-      };
+    const settings = await loadOrgSettings(caller.organizationId);
+    const before = settings.cashLockedThroughDate;
+    if (before && data.throughDate <= before) {
+      throw new CashLockBackwardsError();
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("organization_settings").upsert(
+      {
+        organization_id: caller.organizationId,
+        cash_locked_through_date: data.throughDate,
+      },
+      { onConflict: "organization_id" },
+    );
+    if (error) throw error;
+    return {
+      result: { ok: true as const, lockedThrough: data.throughDate },
+      audit: {
+        action: "cash.lock.advanced",
+        entity: "organization_settings",
+        entityId: caller.organizationId,
+        meta: { from: before, to: data.throughDate, reason: data.reason },
+      },
+    };
   });
 }
 
@@ -526,99 +520,100 @@ export const addSessionSatellite = createServerFn({ method: "POST" })
 
 export type AddSatelliteInput = z.infer<typeof satelliteAddSchema>;
 
-export async function addSessionSatelliteCore(
-  caller: AdminCaller,
-  data: AddSatelliteInput,
-) {
+export async function addSessionSatelliteCore(caller: AdminCaller, data: AddSatelliteInput) {
   return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
-      const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
-      const settings = await loadOrgSettings(caller.organizationId);
-      assertCashWritable({
-        businessDate: session.business_date,
-        sessionStatus: session.status as "open" | "finalized" | "locked",
-        sessionLockedAt: session.locked_at,
-        cashLockedThroughDate: settings.cashLockedThroughDate,
-        blockIfFinalized: true,
-      });
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      let createdId: string | null = null;
-      if (data.kind === "expense") {
-        const { data: r, error } = await supabaseAdmin
-          .from("session_expenses")
-          .insert({
-            organization_id: caller.organizationId,
-            session_id: session.id,
-            description: data.description,
-            amount_cents: data.amountCents,
-          })
-          .select("id")
-          .single();
-        if (error) throw error;
-        createdId = r.id;
-      } else if (data.kind === "advance") {
-        const { data: r, error } = await supabaseAdmin
-          .from("session_advances")
-          .insert({
-            organization_id: caller.organizationId,
-            session_id: session.id,
-            staff_id: data.staffId,
-            amount_cents: data.amountCents,
-            note: data.note,
-          })
-          .select("id")
-          .single();
-        if (error) throw error;
-        createdId = r.id;
-      } else if (data.kind === "card_transaction") {
-        const { data: r, error } = await supabaseAdmin
-          .from("session_card_transactions")
-          .insert({
-            organization_id: caller.organizationId,
-            session_id: session.id,
-            amount_cents: data.amountCents,
-            note: data.note,
-          })
-          .select("id")
-          .single();
-        if (error) throw error;
-        createdId = r.id;
-      } else if (data.kind === "bank_deposit") {
-        const { data: r, error } = await supabaseAdmin
-          .from("session_bank_deposits")
-          .insert({
-            organization_id: caller.organizationId,
-            session_id: session.id,
-            amount_cents: data.amountCents,
-            reference: data.reference,
-          })
-          .select("id")
-          .single();
-        if (error) throw error;
-        createdId = r.id;
-      } else {
-        const { data: r, error } = await supabaseAdmin
-          .from("session_register_transfers")
-          .insert({
-            organization_id: caller.organizationId,
-            session_id: session.id,
-            direction: data.direction,
-            amount_cents: data.amountCents,
-            note: data.note,
-          })
-          .select("id")
-          .single();
-        if (error) throw error;
-        createdId = r.id;
-      }
-      return {
-        result: { id: createdId! },
-        audit: {
-          action: "cash.satellite.added",
-          entity: data.kind,
-          entityId: createdId!,
-          meta: { sessionId: session.id, businessDate: session.business_date, payload: data as unknown as Json },
+    const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
+    const settings = await loadOrgSettings(caller.organizationId);
+    assertCashWritable({
+      businessDate: session.business_date,
+      sessionStatus: session.status as "open" | "finalized" | "locked",
+      sessionLockedAt: session.locked_at,
+      cashLockedThroughDate: settings.cashLockedThroughDate,
+      blockIfFinalized: true,
+    });
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    let createdId: string | null = null;
+    if (data.kind === "expense") {
+      const { data: r, error } = await supabaseAdmin
+        .from("session_expenses")
+        .insert({
+          organization_id: caller.organizationId,
+          session_id: session.id,
+          description: data.description,
+          amount_cents: data.amountCents,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      createdId = r.id;
+    } else if (data.kind === "advance") {
+      const { data: r, error } = await supabaseAdmin
+        .from("session_advances")
+        .insert({
+          organization_id: caller.organizationId,
+          session_id: session.id,
+          staff_id: data.staffId,
+          amount_cents: data.amountCents,
+          note: data.note,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      createdId = r.id;
+    } else if (data.kind === "card_transaction") {
+      const { data: r, error } = await supabaseAdmin
+        .from("session_card_transactions")
+        .insert({
+          organization_id: caller.organizationId,
+          session_id: session.id,
+          amount_cents: data.amountCents,
+          note: data.note,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      createdId = r.id;
+    } else if (data.kind === "bank_deposit") {
+      const { data: r, error } = await supabaseAdmin
+        .from("session_bank_deposits")
+        .insert({
+          organization_id: caller.organizationId,
+          session_id: session.id,
+          amount_cents: data.amountCents,
+          reference: data.reference,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      createdId = r.id;
+    } else {
+      const { data: r, error } = await supabaseAdmin
+        .from("session_register_transfers")
+        .insert({
+          organization_id: caller.organizationId,
+          session_id: session.id,
+          direction: data.direction,
+          amount_cents: data.amountCents,
+          note: data.note,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      createdId = r.id;
+    }
+    return {
+      result: { id: createdId! },
+      audit: {
+        action: "cash.satellite.added",
+        entity: data.kind,
+        entityId: createdId!,
+        meta: {
+          sessionId: session.id,
+          businessDate: session.business_date,
+          payload: data as unknown as Json,
         },
-      };
+      },
+    };
   });
 }
 
@@ -636,7 +631,13 @@ export const removeSessionSatellite = createServerFn({ method: "POST" })
     z
       .object({
         sessionId: z.string().uuid(),
-        kind: z.enum(["expense", "advance", "card_transaction", "bank_deposit", "register_transfer"]),
+        kind: z.enum([
+          "expense",
+          "advance",
+          "card_transaction",
+          "bank_deposit",
+          "register_transfer",
+        ]),
         id: z.string().uuid(),
       })
       .parse(input),
@@ -695,173 +696,170 @@ export const submitWaiterSettlement = createServerFn({ method: "POST" })
 
 export type SubmitSettlementInput = z.infer<typeof settlementInputSchema>;
 
-export async function submitWaiterSettlementCore(
-  caller: StaffCaller,
-  data: SubmitSettlementInput,
-) {
+export async function submitWaiterSettlementCore(caller: StaffCaller, data: SubmitSettlementInput) {
   if (!caller.isActive) throw new Error("Mitarbeiter ist inaktiv.");
-    const businessDate = await getCurrentBusinessDate();
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const businessDate = await getCurrentBusinessDate();
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: session } = await supabaseAdmin
-      .from("sessions")
-      .select("id, business_date, status, locked_at")
-      .eq("organization_id", caller.organizationId)
-      .eq("business_date", businessDate)
-      .maybeSingle();
-    if (!session) throw new NoOpenSessionError(businessDate);
-    if (session.status !== "open") throw new NoOpenSessionError(businessDate);
+  const { data: session } = await supabaseAdmin
+    .from("sessions")
+    .select("id, business_date, status, locked_at")
+    .eq("organization_id", caller.organizationId)
+    .eq("business_date", businessDate)
+    .maybeSingle();
+  if (!session) throw new NoOpenSessionError(businessDate);
+  if (session.status !== "open") throw new NoOpenSessionError(businessDate);
 
-    const settings = await loadOrgSettings(caller.organizationId);
-    assertCashWritable({
-      businessDate: session.business_date,
-      sessionStatus: session.status as "open" | "finalized" | "locked",
-      sessionLockedAt: session.locked_at,
-      cashLockedThroughDate: settings.cashLockedThroughDate,
-    });
+  const settings = await loadOrgSettings(caller.organizationId);
+  assertCashWritable({
+    businessDate: session.business_date,
+    sessionStatus: session.status as "open" | "finalized" | "locked",
+    sessionLockedAt: session.locked_at,
+    cashLockedThroughDate: settings.cashLockedThroughDate,
+  });
 
-    // Idempotenz: existierende aktive Zeile prüfen.
-    const { data: existing } = await supabaseAdmin
-      .from("waiter_settlements")
-      .select(
-        "id, status, auto_clockout_time_entry_id, kitchen_tip_rate, pos_sales_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents",
-      )
-      .eq("organization_id", caller.organizationId)
-      .eq("session_id", session.id)
-      .eq("staff_id", caller.staffId)
-      .neq("status", "superseded")
-      .maybeSingle();
+  // Idempotenz: existierende aktive Zeile prüfen.
+  const { data: existing } = await supabaseAdmin
+    .from("waiter_settlements")
+    .select(
+      "id, status, auto_clockout_time_entry_id, kitchen_tip_rate, pos_sales_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents",
+    )
+    .eq("organization_id", caller.organizationId)
+    .eq("session_id", session.id)
+    .eq("staff_id", caller.staffId)
+    .neq("status", "superseded")
+    .maybeSingle();
 
-    // Rate snapshotten: draft/neu → aktuelle Org-Rate; submitted → Bestand erhalten.
-    const kitchenTipRate =
-      existing && existing.status === "submitted"
-        ? Number(existing.kitchen_tip_rate)
-        : settings.kitchenTipRate;
+  // Rate snapshotten: draft/neu → aktuelle Org-Rate; submitted → Bestand erhalten.
+  const kitchenTipRate =
+    existing && existing.status === "submitted"
+      ? Number(existing.kitchen_tip_rate)
+      : settings.kitchenTipRate;
 
-    const calc = calcWaiterSettlement({
-      posSalesCents: data.posSalesCents,
-      cardTotalCents: data.cardTotalCents,
-      hilfMahlCents: data.hilfMahlCents,
-      openInvoicesCents: data.openInvoicesCents,
-      kitchenTipRate,
-    });
+  const calc = calcWaiterSettlement({
+    posSalesCents: data.posSalesCents,
+    cardTotalCents: data.cardTotalCents,
+    hilfMahlCents: data.hilfMahlCents,
+    openInvoicesCents: data.openInvoicesCents,
+    kitchenTipRate,
+  });
 
-    let settlementId: string;
-    let alreadyAutoClockedOut = false;
+  let settlementId: string;
+  let alreadyAutoClockedOut = false;
 
-    if (existing && existing.status === "submitted") {
-      // Idempotenz-Pfad: keine erneuten Geld-Änderungen, keine zweite
-      // clockOut-Ausführung. Wir geben die bestehende Zeile zurück.
-      settlementId = existing.id;
-      alreadyAutoClockedOut = existing.auto_clockout_time_entry_id !== null;
-      await writeAuditLog({
-        organizationId: caller.organizationId,
-        actorUserId: caller.userId,
-        actorStaffId: caller.staffId,
-        action: "cash.settlement.resubmit_noop",
-        entity: "waiter_settlement",
-        entityId: settlementId,
-        meta: { businessDate, sessionId: session.id },
-      });
-    } else if (existing) {
-      // Draft → submitted.
-      const { error } = await supabaseAdmin
-        .from("waiter_settlements")
-        .update({
-          pos_sales_cents: data.posSalesCents,
-          card_total_cents: data.cardTotalCents,
-          hilf_mahl_cents: data.hilfMahlCents,
-          open_invoices_cents: data.openInvoicesCents,
-          cash_handed_in_cents: data.cashHandedInCents,
-          differenz_cents: calc.differenzCents,
-          kitchen_tip_cents: calc.kitchenTipCents,
-          kitchen_tip_rate: kitchenTipRate,
-          status: "submitted",
-          submitted_at: new Date().toISOString(),
-        })
-        .eq("id", existing.id)
-        .eq("organization_id", caller.organizationId);
-      if (error) throw error;
-      settlementId = existing.id;
-    } else {
-      const { data: created, error } = await supabaseAdmin
-        .from("waiter_settlements")
-        .insert({
-          organization_id: caller.organizationId,
-          session_id: session.id,
-          staff_id: caller.staffId,
-          pos_sales_cents: data.posSalesCents,
-          card_total_cents: data.cardTotalCents,
-          hilf_mahl_cents: data.hilfMahlCents,
-          open_invoices_cents: data.openInvoicesCents,
-          cash_handed_in_cents: data.cashHandedInCents,
-          differenz_cents: calc.differenzCents,
-          kitchen_tip_cents: calc.kitchenTipCents,
-          kitchen_tip_rate: kitchenTipRate,
-          status: "submitted",
-          submitted_at: new Date().toISOString(),
-        })
-        .select("id")
-        .single();
-      if (error) throw error;
-      settlementId = created.id;
-    }
-
-    // Auto-Ausstempeln — nur wenn nicht bereits passiert.
-    let autoClockoutId: string | null = null;
-    let noOpenTimeEntry = false;
-    if (!alreadyAutoClockedOut) {
-      const { data: openTE } = await supabaseAdmin
-        .from("time_entries")
-        .select("id, started_at")
-        .eq("staff_id", caller.staffId)
-        .is("ended_at", null)
-        .maybeSingle();
-      if (openTE) {
-        const gross = grossMinutesBetween(new Date(openTE.started_at), new Date());
-        const breakMinutes = arbzgMinimumBreak(gross);
-        const closed = await performClockOut(caller, breakMinutes, {
-          triggered_by: "settlement",
-          settlement_id: settlementId,
-          arbzg_default: true,
-        });
-        autoClockoutId = closed?.id ?? null;
-        if (autoClockoutId) {
-          await supabaseAdmin
-            .from("waiter_settlements")
-            .update({ auto_clockout_time_entry_id: autoClockoutId })
-            .eq("id", settlementId)
-            .eq("organization_id", caller.organizationId);
-        }
-      } else {
-        noOpenTimeEntry = true;
-      }
-    }
-
+  if (existing && existing.status === "submitted") {
+    // Idempotenz-Pfad: keine erneuten Geld-Änderungen, keine zweite
+    // clockOut-Ausführung. Wir geben die bestehende Zeile zurück.
+    settlementId = existing.id;
+    alreadyAutoClockedOut = existing.auto_clockout_time_entry_id !== null;
     await writeAuditLog({
       organizationId: caller.organizationId,
       actorUserId: caller.userId,
       actorStaffId: caller.staffId,
-      action: "cash.settlement.submitted",
+      action: "cash.settlement.resubmit_noop",
       entity: "waiter_settlement",
       entityId: settlementId,
-      meta: {
-        businessDate,
-        sessionId: session.id,
-        idempotent: existing?.status === "submitted",
-        autoClockoutTimeEntryId: autoClockoutId,
-        noOpenTimeEntry,
-      },
+      meta: { businessDate, sessionId: session.id },
     });
+  } else if (existing) {
+    // Draft → submitted.
+    const { error } = await supabaseAdmin
+      .from("waiter_settlements")
+      .update({
+        pos_sales_cents: data.posSalesCents,
+        card_total_cents: data.cardTotalCents,
+        hilf_mahl_cents: data.hilfMahlCents,
+        open_invoices_cents: data.openInvoicesCents,
+        cash_handed_in_cents: data.cashHandedInCents,
+        differenz_cents: calc.differenzCents,
+        kitchen_tip_cents: calc.kitchenTipCents,
+        kitchen_tip_rate: kitchenTipRate,
+        status: "submitted",
+        submitted_at: new Date().toISOString(),
+      })
+      .eq("id", existing.id)
+      .eq("organization_id", caller.organizationId);
+    if (error) throw error;
+    settlementId = existing.id;
+  } else {
+    const { data: created, error } = await supabaseAdmin
+      .from("waiter_settlements")
+      .insert({
+        organization_id: caller.organizationId,
+        session_id: session.id,
+        staff_id: caller.staffId,
+        pos_sales_cents: data.posSalesCents,
+        card_total_cents: data.cardTotalCents,
+        hilf_mahl_cents: data.hilfMahlCents,
+        open_invoices_cents: data.openInvoicesCents,
+        cash_handed_in_cents: data.cashHandedInCents,
+        differenz_cents: calc.differenzCents,
+        kitchen_tip_cents: calc.kitchenTipCents,
+        kitchen_tip_rate: kitchenTipRate,
+        status: "submitted",
+        submitted_at: new Date().toISOString(),
+      })
+      .select("id")
+      .single();
+    if (error) throw error;
+    settlementId = created.id;
+  }
 
-    return {
-      settlementId,
-      differenzCents: calc.differenzCents,
-      kitchenTipCents: calc.kitchenTipCents,
+  // Auto-Ausstempeln — nur wenn nicht bereits passiert.
+  let autoClockoutId: string | null = null;
+  let noOpenTimeEntry = false;
+  if (!alreadyAutoClockedOut) {
+    const { data: openTE } = await supabaseAdmin
+      .from("time_entries")
+      .select("id, started_at")
+      .eq("staff_id", caller.staffId)
+      .is("ended_at", null)
+      .maybeSingle();
+    if (openTE) {
+      const gross = grossMinutesBetween(new Date(openTE.started_at), new Date());
+      const breakMinutes = arbzgMinimumBreak(gross);
+      const closed = await performClockOut(caller, breakMinutes, {
+        triggered_by: "settlement",
+        settlement_id: settlementId,
+        arbzg_default: true,
+      });
+      autoClockoutId = closed?.id ?? null;
+      if (autoClockoutId) {
+        await supabaseAdmin
+          .from("waiter_settlements")
+          .update({ auto_clockout_time_entry_id: autoClockoutId })
+          .eq("id", settlementId)
+          .eq("organization_id", caller.organizationId);
+      }
+    } else {
+      noOpenTimeEntry = true;
+    }
+  }
+
+  await writeAuditLog({
+    organizationId: caller.organizationId,
+    actorUserId: caller.userId,
+    actorStaffId: caller.staffId,
+    action: "cash.settlement.submitted",
+    entity: "waiter_settlement",
+    entityId: settlementId,
+    meta: {
+      businessDate,
+      sessionId: session.id,
+      idempotent: existing?.status === "submitted",
       autoClockoutTimeEntryId: autoClockoutId,
       noOpenTimeEntry,
-      idempotent: existing?.status === "submitted",
-    };
+    },
+  });
+
+  return {
+    settlementId,
+    differenzCents: calc.differenzCents,
+    kitchenTipCents: calc.kitchenTipCents,
+    autoClockoutTimeEntryId: autoClockoutId,
+    noOpenTimeEntry,
+    idempotent: existing?.status === "submitted",
+  };
 }
 
 // ------------------------------------------------------------------------
@@ -893,87 +891,85 @@ export async function correctWaiterSettlementCore(
   data: CorrectSettlementInput,
 ) {
   return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: original, error: loadErr } = await supabaseAdmin
-        .from("waiter_settlements")
-        .select(
-          "id, organization_id, session_id, staff_id, status, kitchen_tip_rate",
-        )
-        .eq("id", data.originalId)
-        .eq("organization_id", caller.organizationId)
-        .maybeSingle();
-      if (loadErr) throw loadErr;
-      if (!original) throw new Error("Original-Settlement nicht gefunden.");
-      if (original.status !== "submitted" && original.status !== "corrected") {
-        throw new SettlementNotCorrectableError(original.id, original.status);
-      }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: original, error: loadErr } = await supabaseAdmin
+      .from("waiter_settlements")
+      .select("id, organization_id, session_id, staff_id, status, kitchen_tip_rate")
+      .eq("id", data.originalId)
+      .eq("organization_id", caller.organizationId)
+      .maybeSingle();
+    if (loadErr) throw loadErr;
+    if (!original) throw new Error("Original-Settlement nicht gefunden.");
+    if (original.status !== "submitted" && original.status !== "corrected") {
+      throw new SettlementNotCorrectableError(original.id, original.status);
+    }
 
-      const session = await loadSessionWithLock(caller.organizationId, original.session_id);
-      const settings = await loadOrgSettings(caller.organizationId);
-      // Korrektur erlaubt bei open + finalized; gesperrt bei locked / Wasserlinie.
-      assertCashWritable({
-        businessDate: session.business_date,
-        sessionStatus: session.status as "open" | "finalized" | "locked",
-        sessionLockedAt: session.locked_at,
-        cashLockedThroughDate: settings.cashLockedThroughDate,
-      });
+    const session = await loadSessionWithLock(caller.organizationId, original.session_id);
+    const settings = await loadOrgSettings(caller.organizationId);
+    // Korrektur erlaubt bei open + finalized; gesperrt bei locked / Wasserlinie.
+    assertCashWritable({
+      businessDate: session.business_date,
+      sessionStatus: session.status as "open" | "finalized" | "locked",
+      sessionLockedAt: session.locked_at,
+      cashLockedThroughDate: settings.cashLockedThroughDate,
+    });
 
-      // Rate ERBEN vom Original — Rate-Änderung darf rückwirkend nichts ändern.
-      const inheritedRate = Number(original.kitchen_tip_rate);
-      const calc = calcWaiterSettlement({
-        posSalesCents: data.posSalesCents,
-        cardTotalCents: data.cardTotalCents,
-        hilfMahlCents: data.hilfMahlCents,
-        openInvoicesCents: data.openInvoicesCents,
-        kitchenTipRate: inheritedRate,
-      });
+    // Rate ERBEN vom Original — Rate-Änderung darf rückwirkend nichts ändern.
+    const inheritedRate = Number(original.kitchen_tip_rate);
+    const calc = calcWaiterSettlement({
+      posSalesCents: data.posSalesCents,
+      cardTotalCents: data.cardTotalCents,
+      hilfMahlCents: data.hilfMahlCents,
+      openInvoicesCents: data.openInvoicesCents,
+      kitchenTipRate: inheritedRate,
+    });
 
-      // Reihenfolge: Original superseden ZUERST, damit der partial-Unique-Index
-      // (status <> 'superseded') beim Einfügen der neuen Zeile nicht kollidiert.
-      const { error: supErr } = await supabaseAdmin
-        .from("waiter_settlements")
-        .update({ status: "superseded" })
-        .eq("id", original.id)
-        .eq("organization_id", caller.organizationId);
-      if (supErr) throw supErr;
+    // Reihenfolge: Original superseden ZUERST, damit der partial-Unique-Index
+    // (status <> 'superseded') beim Einfügen der neuen Zeile nicht kollidiert.
+    const { error: supErr } = await supabaseAdmin
+      .from("waiter_settlements")
+      .update({ status: "superseded" })
+      .eq("id", original.id)
+      .eq("organization_id", caller.organizationId);
+    if (supErr) throw supErr;
 
-      const { data: created, error: insErr } = await supabaseAdmin
-        .from("waiter_settlements")
-        .insert({
-          organization_id: caller.organizationId,
-          session_id: original.session_id,
-          staff_id: original.staff_id,
-          pos_sales_cents: data.posSalesCents,
-          card_total_cents: data.cardTotalCents,
-          hilf_mahl_cents: data.hilfMahlCents,
-          open_invoices_cents: data.openInvoicesCents,
-          cash_handed_in_cents: data.cashHandedInCents,
-          differenz_cents: calc.differenzCents,
-          kitchen_tip_cents: calc.kitchenTipCents,
-          kitchen_tip_rate: inheritedRate,
-          status: "submitted",
-          submitted_at: new Date().toISOString(),
-          corrected_from_id: original.id,
-        })
-        .select("id")
-        .single();
-      if (insErr) throw insErr;
+    const { data: created, error: insErr } = await supabaseAdmin
+      .from("waiter_settlements")
+      .insert({
+        organization_id: caller.organizationId,
+        session_id: original.session_id,
+        staff_id: original.staff_id,
+        pos_sales_cents: data.posSalesCents,
+        card_total_cents: data.cardTotalCents,
+        hilf_mahl_cents: data.hilfMahlCents,
+        open_invoices_cents: data.openInvoicesCents,
+        cash_handed_in_cents: data.cashHandedInCents,
+        differenz_cents: calc.differenzCents,
+        kitchen_tip_cents: calc.kitchenTipCents,
+        kitchen_tip_rate: inheritedRate,
+        status: "submitted",
+        submitted_at: new Date().toISOString(),
+        corrected_from_id: original.id,
+      })
+      .select("id")
+      .single();
+    if (insErr) throw insErr;
 
-      return {
-        result: { newId: created.id, originalId: original.id },
-        audit: {
-          action: "cash.settlement.corrected",
-          entity: "waiter_settlement",
-          entityId: created.id,
-          meta: {
-            originalId: original.id,
-            newId: created.id,
-            reason: data.reason,
-            inheritedKitchenTipRate: inheritedRate,
-            businessDate: session.business_date,
-          },
+    return {
+      result: { newId: created.id, originalId: original.id },
+      audit: {
+        action: "cash.settlement.corrected",
+        entity: "waiter_settlement",
+        entityId: created.id,
+        meta: {
+          originalId: original.id,
+          newId: created.id,
+          reason: data.reason,
+          inheritedKitchenTipRate: inheritedRate,
+          businessDate: session.business_date,
         },
-      };
+      },
+    };
   });
 }
 

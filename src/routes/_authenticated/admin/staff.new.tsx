@@ -63,15 +63,34 @@ function NewStaffPage() {
           mutation.mutate();
         }}
       >
-        <Field label="Vorname" value={form.firstName} onChange={(v) => setForm({ ...form, firstName: v })} required />
-        <Field label="Nachname" value={form.lastName} onChange={(v) => setForm({ ...form, lastName: v })} required />
+        <Field
+          label="Vorname"
+          value={form.firstName}
+          onChange={(v) => setForm({ ...form, firstName: v })}
+          required
+        />
+        <Field
+          label="Nachname"
+          value={form.lastName}
+          onChange={(v) => setForm({ ...form, lastName: v })}
+          required
+        />
         <Field
           label="Anzeigename (optional)"
           value={form.displayName}
           onChange={(v) => setForm({ ...form, displayName: v })}
         />
-        <Field label="E-Mail" value={form.email} onChange={(v) => setForm({ ...form, email: v })} type="email" />
-        <Field label="Telefon" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} />
+        <Field
+          label="E-Mail"
+          value={form.email}
+          onChange={(v) => setForm({ ...form, email: v })}
+          type="email"
+        />
+        <Field
+          label="Telefon"
+          value={form.phone}
+          onChange={(v) => setForm({ ...form, phone: v })}
+        />
         {err && <p className="text-sm text-destructive">{err}</p>}
         <button
           type="submit"

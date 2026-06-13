@@ -44,9 +44,7 @@ export const listLocations = createServerFn({ method: "GET" })
 
 export const createLocation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
-    z.object({ name: z.string().trim().min(1).max(120) }).parse(input),
-  )
+  .inputValidator((input) => z.object({ name: z.string().trim().min(1).max(120) }).parse(input))
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
     return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
@@ -113,9 +111,7 @@ export const deleteLocation = createServerFn({ method: "POST" })
         .eq("location_id", data.locationId);
       if (countErr) throw countErr;
       if ((count ?? 0) > 0) {
-        throw new Error(
-          "Standort kann nicht gelöscht werden: noch Mitarbeiter zugeordnet.",
-        );
+        throw new Error("Standort kann nicht gelöscht werden: noch Mitarbeiter zugeordnet.");
       }
       const { error } = await supabaseAdmin
         .from("locations")

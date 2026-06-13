@@ -135,6 +135,8 @@ export function reconcile(params: {
     });
   }
   return out.sort((a, b) =>
-    a.staffId === b.staffId ? a.bucketKey.localeCompare(b.bucketKey) : a.staffId.localeCompare(b.staffId),
+    a.staffId === b.staffId
+      ? a.bucketKey.localeCompare(b.bucketKey)
+      : a.staffId.localeCompare(b.staffId),
   );
 }
