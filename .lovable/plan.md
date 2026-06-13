@@ -1,85 +1,226 @@
-# B2c — Migration & Parallelbetrieb (Scope-Vorschlag)
+# B3 — Kasse / Tagesabschluss (Bauplan)
 
-Letzter M1-Schritt. Alt-Daten aus zwei `zt_shifts`-Quellen (tagesabrechnung, bunker) in `time_entries` übernehmen, identitäts-gemappt, idempotent, mit Abgleichsbericht. Gebaut wird nach Freigabe.
+Grundlage: M2-Steckbrief vom 13.06.2026. Entscheidungen bestätigt:
+Terminals als konfigurierbare Liste, eigene `cash_locked_through_date`,
+Gutscheine 1:1 (drei Zahlen pro Session). Zweistufiger Flow mit
+Auto-Ausstempeln über bestehenden `clockOut`-Pfad.
 
-## 1. DB-Vorarbeiten (eine Migration)
+Gebaut wird in drei Commits (B3a → B3b → B3c), jeweils mit eigenem
+Erfolgs-Gate. Kein Commit beginnt, bevor der vorherige extern geprüft ist.
 
-- **`source`-Constraint erweitern**: `{clock, manual}` → `{clock, manual, import}`. Bestehende Daten unverändert.
-- **`import_runs`** (neu): `id`, `organization_id`, `source_system` (`'tagesabrechnung' | 'bunker'`), `file_hash` (sha256), `started_at`, `finished_at`, `mode` (`'dry_run' | 'commit'`), `counters jsonb` (gelesen/importiert/skipped_by_reason), `created_by`. RLS: nur Admin SELECT; INSERT/UPDATE nur Service-Role.
-- **`staff_identity_map`** (neu): `id`, `organization_id`, `source_system`, `alt_id` (text), `alt_name` (text), `staff_id` (nullable FK), `confirmed_at`, `confirmed_by`. Unique `(organization_id, source_system, alt_id)`. RLS: Admin SELECT/UPDATE; INSERT/DELETE Service-Role.
-- **`time_entries.import_key`** (neu, nullable, unique partial): `source_system || ':' || alt_shift_id` — Idempotenz-Schlüssel. Unique-Index `WHERE source = 'import'`.
-- GRANTs nach Standard-Muster, RLS-Inventur grün.
+---
 
-## 2. Importer-Module (rein, getestet)
+## B3a — Schema + reines Rechenmodul
 
-```
-src/lib/migration/
-├── parse-tagesabrechnung.ts   # CSV → normalisierte Alt-Zeile
-├── parse-bunker.ts            # CSV → normalisierte Alt-Zeile
-├── normalize.ts               # gemeinsames Schema: { altSystem, altId, altEmployee, shiftDate, startedAt, endedAt, breakMinutes, skipReason? }
-├── aggregate-by-business-date.ts  # pures Modul + Tests (Regel: jeder Eintrag einzeln, Summen = Σ Topf-Werte)
-└── reconcile.ts               # Alt-Topf vs. neu gerechneter Topf (tagesabrechnung-Adapter)
-```
+### DB-Migration (eine Datei)
 
-**Normalisierungs-Regeln (extern verifiziert, nicht erweitern):**
-- `started_at`/`ended_at` = `shift_date + Uhrzeit`, bei `end ≤ start` → `+1 Tag` (Übernacht).
-- `business_date` = `shift_date` **direkt übernehmen**, nicht aus Zeiten herleiten.
-- `break_minutes`: bunker übernehmen; tagesabrechnung → `0` (Feld existiert dort nicht).
-- **Skip-Gründe** (im Report gezählt, einzeln gelistet): `absence` (Zeile ohne start/end oder mit `absence_type`), `unmapped_staff` (kein bestätigtes Identitäts-Mapping), `invalid_time` (Parsing-Fehler), `duplicate` (idempotent — bereits importiert).
-- **Nicht importiert**: `department`/`area`/`skill`, SFN-Topfwerte aus Alt-Daten (nur für Abgleich gelesen, nicht persistiert).
+Tabellen, alle mit `organization_id`, RLS ab Erstellung, GRANTs nach Standard.
 
-## 3. Server-Funktionen (`src/lib/migration/migration.functions.ts`)
+- **`revenue_channels`** — Stammdaten je Org. Felder: `label`, `sort_order`,
+  `is_active`. Unique `(organization_id, label)`. Manager/Admin schreibend,
+  alle Rollen lesend (RLS).
+- **`payment_terminals`** — analog `revenue_channels`. Ersetzt die festen
+  `terminal_1/2`-Spalten des Altsystems.
+- **`sessions`** — eine Zeile pro Geschäftstag und Org. Felder:
+  `business_date` (aus `current_business_date()`, NICHT `now()::date`),
+  `notes`, `status` (`open | finalized | locked`), `finalized_at/by`,
+  `locked_at/by`, `opening_balance_cents` (nur erste Session der Org,
+  sonst NULL → Carry-over greift), `vouchers_sold_cents`,
+  `vouchers_redeemed_cents`, `finedine_vouchers_cents`,
+  `opentabs_deduction_cents`, `vorschuss_cents`, `einladung_cents`,
+  `sonstige_einnahme_cents`. Unique `(organization_id, business_date)`.
+  **Alle Geldfelder als `BIGINT` in Cents** (Vermeidung NUMERIC-Rundungs-
+  Drift, Golden-Master verlangt Cent-Genauigkeit).
+- **`session_channel_amounts`** — `(session_id, channel_id, amount_cents)`,
+  Unique `(session_id, channel_id)`.
+- **`session_terminal_amounts`** — analog.
+- **`waiter_settlements`** — append-only Snapshot je Kellner/Session.
+  Felder: `session_id`, `staff_id` (FK, NOT NULL — D-M2-1),
+  `pos_sales_cents`, `card_total_cents`, `hilf_mahl_cents`,
+  `open_invoices_cents`, `cash_handed_in_cents`,
+  `differenz_cents` (berechnet, persistiert),
+  `kitchen_tip_cents` (berechnet, persistiert),
+  `kitchen_tip_rate` (Snapshot der Org-Einstellung zum Zeitpunkt der Abgabe),
+  `status` (`draft | submitted | corrected | superseded | locked`),
+  `submitted_at`, `corrected_from_id` (FK self, NULL bei Original),
+  `auto_clockout_time_entry_id` (NULL wenn kein offener Eintrag bestand).
+  Korrektur durch Manager → neue Zeile mit `corrected_from_id`, Original
+  bekommt `status='superseded'`. **Niemals UPDATE auf finanzielle Felder**
+  einer Originalzeile.
+- **`session_expenses`**, **`session_advances`** (FK auf `staff` für M4),
+  **`session_card_transactions`**, **`session_bank_deposits`**,
+  **`session_register_transfers`** (mit `direction` enum `to_restaurant |
+  from_restaurant`). Jeweils `(session_id, ...)`, Beträge in Cents.
+- **`organization_settings`** erweitern: `kitchen_tip_rate NUMERIC(5,4)
+  NOT NULL DEFAULT 0.0200`, `cash_locked_through_date DATE NULL`.
 
-Alle `requireSupabaseAuth` + Admin-Rollencheck via `has_role`. `supabaseAdmin` nur innerhalb des Handlers.
+### RLS-Regeln (Kurzfassung, Details in Migration)
 
-- `parseImportCsv({ sourceSystem, csvText })` — gibt Vorschau (Top-50) + Zähler zurück, kein Schreibvorgang.
-- `proposeIdentityMappings({ sourceSystem, csvText })` — extrahiert distinkte `(alt_id, alt_name)`, schlägt `staff_id` per Namens-Match vor (Levenshtein auf normalisierten Namen, Schwelle dokumentiert), schreibt unbestätigte Vorschläge in `staff_identity_map` (confirmed_at = NULL).
-- `confirmMapping({ id, staffId | null })` — setzt `confirmed_at/by`; `null` bedeutet „bewusst überspringen".
-- `runImport({ sourceSystem, csvText, mode })` — `mode='dry_run' | 'commit'`. Liest, normalisiert, prüft Mapping, prüft Idempotenz (`import_key`), schreibt im Commit-Modus, erzeugt **einen** `audit_log`-Eintrag (`action: 'time_entries.import'`, `meta: { counters, fileHash, runId }`). Im Commit-Modus nach erfolgreichem Lauf: `time_locked_through_date = max(business_date)` über `setTimeLock` (eigener Audit-Eintrag).
-- `getReconciliationReport({ from, to, groupBy: 'week' | 'cycle' })` — pro Mitarbeiter + Bucket: `total_hours` und SFN-Töpfe, einmal aus Alt-Topf-Spalten (separat in `import_runs.meta` bzw. temp-Spalte gehalten — Detail in Implementierung), einmal neu via `tagesabrechnung`-Adapter. Listet Differenzen einzeln.
+- `sessions`, Satelliten, `session_*_amounts`: SELECT für alle Rollen der Org,
+  Client-Write **DENY-ALL** (`USING (false)`) — Schreibzugriff ausschließlich
+  über Server-Functions mit `supabaseAdmin`.
+- `waiter_settlements`:
+  - Kellner SELECT: nur eigene Zeilen.
+  - Kellner INSERT/UPDATE: nur eigene Zeile, nur wenn
+    `business_date = current_business_date()` UND `status = 'draft'`.
+  - Manager SELECT: alle Zeilen der Org.
+  - Manager/Admin Korrekturen: nur über Server-Function (DENY-ALL Client-Write).
+- `revenue_channels`, `payment_terminals`: SELECT alle Rollen, INSERT/UPDATE
+  Manager+, DELETE Admin (oder soft-delete via `is_active=false`).
 
-Abrechnungszyklus = **26.–25.** (entspricht Gründungsdokument).
+### Reines Rechenmodul `src/lib/cash/`
 
-## 4. UI (`/admin/migration`, Admin-only)
+Keine I/O, keine Supabase-Imports, voll getestet. Module:
 
-Minimal, kein Schnickschnack:
-1. **Upload + Dry-Run**: Datei wählen, Quellsystem wählen, „Dry-Run". Tabelle mit Zählern + Skip-Gründen + Top-50-Vorschau.
-2. **Mapping-Tabelle**: alt_id/alt_name → Staff-Auswahl (Combobox), „Bestätigen" / „Überspringen". Unbestätigte Zeilen blockieren Commit.
-3. **Commit**: zeigt nochmal Zähler, danach Bestätigung → Audit-Eintrag-ID + neue Wasserlinie.
-4. **Abgleichsbericht**: Zeitraum + Gruppierung, Tabelle mit Differenzen rot markiert.
+- **`waiter-settlement.ts`** — `calcWaiterSettlement({ posSalesCents,
+  cardTotalCents, hilfMahlCents, openInvoicesCents, kitchenTipRate })` →
+  `{ differenzCents, kitchenTipCents }`. Formel 1:1 wie Altsystem:
+  `differenz = pos_sales + hilf_mahl − open_invoices − card_total`,
+  `kitchen_tip = round(pos_sales * rate)`. Rundung: kaufmännisch auf Cents,
+  Verhalten dokumentiert und getestet.
+- **`cash-ledger.ts`** — `computeDailyBalance(session, satellites) →
+  dailyDeltaCents` und `accumulateChain(openingBalanceCents, days[]) →
+  { perDay: [{date, deltaCents, balanceCents, deficitCarriedFromPrevious}] }`.
+  Reine Funktion über sortierte Tage. Vortages-Defizit-Verrechnung wie
+  Altsystem (negativer Saldo wandert in Folgetag sichtbar mit).
+- **`session-channels.ts`** — Aggregation `sum(channel_amounts) +
+  sum(terminal_amounts) + sonstige_einnahme − opentabs_deduction − vorschuss
+  − einladung` (exakte Formel beim Bau gegen Altsystem-Hook
+  `useCashBalanceData` verifizieren — wenn Abweichung: melden statt raten).
 
-## 5. Erfolgs-Gate
+### Tests
 
-- `tsc` / `eslint` / `vitest` grün.
-- Neue Unit-Tests:
-  - `aggregate-by-business-date.test.ts` — Regel jeder-Eintrag-einzeln.
-  - `normalize.test.ts` — Übernacht-Schicht, fehlende Endzeit, absence-Skip, ungültige Zeit.
-  - `reconcile.test.ts` — identische Töpfe ⇒ 0 Differenzen.
-- Neue DB-Tests:
-  - **Idempotenz**: zweimal `runImport(commit)` mit gleicher Datei ⇒ identische Zähler, kein Duplikat (unique `import_key`).
-  - **`source='import'`-Constraint**: INSERT mit `source='import'` zulässig, mit `source='foo'` schlägt fehl.
-  - **Wasserlinie**: nach Commit ist `time_locked_through_date = max(business_date)`.
-  - **RLS-Härtung**: authentifizierter Manager-Client kann `import_runs`/`staff_identity_map` weder INSERTen noch UPDATEn.
-- `scripts/check-rls-inventory.sql` unverändert grün.
-- **Manuelle Abnahme**: echter Import beider Quellen + Abgleichsbericht ohne unerklärte Differenzen.
+- **Unit**: `waiter-settlement.test.ts`, `cash-ledger.test.ts`,
+  `session-channels.test.ts` — Tabellen-Tests mit Edge-Cases (0, negativ,
+  Carry-over-Kette über DST-Sprung, Defizit-Übertrag, leere Tage).
+- **Golden-Master-Harness**: `src/lib/cash/golden-master/cashBalance.test.ts`
+  — lädt `cashBalance.json`, ruft `accumulateChain` + `calcWaiterSettlement`
+  pro Fixture-Tag auf, vergleicht `toEqual` (Toleranz 0). Strukturanalog
+  zu `src/lib/time/sfn/golden-master.test.ts`.
+- **Platzhalter-Fixture** `cashBalance.json` (5–10 Tage, handgerechnet,
+  Pseudonyme `KELLNER_01…`, alle Beträge in Cents als Integer, Rechenweg
+  als JSON-Kommentarblock in einer Schwester-`.md`-Datei). Wird ersetzt,
+  sobald der unabhängige Prüfer die echte Fixture liefert — Format
+  identisch, Tests laufen ohne Code-Änderung weiter.
+- **DB-Tests**: Unique `(organization_id, business_date)`, RLS-Härtung
+  (Kellner kann fremde Settlement nicht lesen/schreiben, kann eigene
+  Settlement nicht ändern wenn `status != 'draft'`, kann nicht für
+  vergangenen `business_date` einfügen), append-only `waiter_settlements`
+  (Korrektur erzeugt neue Zeile).
 
-## 6. Explizit NICHT in B2c
+### Gate B3a
 
-- Abwesenheiten-Modul (vertagt, separater Bauplan).
-- SFN-Persistenz-Entscheidung (bleibt M4).
-- UI jenseits Mapping + Report.
-- Stilllegen der Alt-Syncs (du machst manuell; ich liefere `docs/migration-cutover-checklist.md`).
+- `tsc`, `eslint`, `vitest` grün.
+- `scripts/check-rls-inventory.sql` grün (keine neuen `USING (true)`).
+- Platzhalter-Fixture reproduziert sich selbst cent-genau.
+- Externe Prüfung der Migration + Rechenmodul vor B3b.
 
-## 7. Reihenfolge der Commits
+---
 
-1. DB-Migration (`source='import'`, `import_runs`, `staff_identity_map`, `time_entries.import_key`).
-2. Reine Module + Unit-Tests (parse, normalize, aggregate, reconcile).
-3. Server-Funktionen + DB-Tests.
-4. `/admin/migration`-UI.
-5. Cutover-Checkliste-Dokument.
+## B3b — Erfassungs-UI (zweistufig) + Server-Functions
 
-## 8. Offene Frage vor Bau
+### Server-Functions (`src/lib/cash/cash.functions.ts`)
 
-CSV-Spaltennamen: Sind die Header in deinen Exporten **exakt** wie im Mapping (`employee_id`, `staff_id`, `shift_date`, `start_time`, `end_time`, `clocked_in_at`, `clocked_out_at`, `break_minutes`, `department`, `area`, `skill`, `absence_type`, plus SFN-Töpfe `evening`, `night`, `night_deep`, `sunday_holiday`)? Falls eine Quelle abweichende Header hat, brauche ich vor Bau die wahren Spaltennamen — sonst rate ich.
+Alle `requireSupabaseAuth` + Rollenprüfung via `has_role` + `runGuarded` +
+Audit. `supabaseAdmin` ausschließlich im Handler.
+
+- **`getOrCreateOpenSession({ businessDate })`** — Manager+. Idempotent.
+- **`submitWaiterSettlement({ posSalesCents, cardTotalCents, hilfMahlCents,
+  openInvoicesCents, cashHandedInCents, breakMinutes })`** — Staff+.
+  Schreibt Settlement mit `status='submitted'`, berechnet differenz/
+  kitchen_tip über `calcWaiterSettlement`, snapshottet `kitchen_tip_rate`.
+  **Ruft anschließend die bestehende `clockOut`-Server-Function intern auf**
+  (Import aus B2a, gleiche Validierung/Pausenlogik/Audit) mit
+  `meta: { triggered_by: 'settlement', settlement_id }`. Wenn kein offener
+  Zeiteintrag existiert: Settlement gespeichert, `auto_clockout_time_entry_id
+  = NULL`, Response enthält Hinweis `no_open_time_entry` — kein Throw,
+  kein zweiter Stempelversuch bei erneutem Bearbeiten (idempotent).
+  **Harte Grenze**: Diese Funktion fasst `time_entries` nicht direkt an.
+- **`correctWaiterSettlement({ originalId, ...felder, reason })`** — Manager+.
+  Erzeugt neue Zeile mit `corrected_from_id`, setzt Original auf
+  `status='superseded'`. Audit-Eintrag mit `reason`.
+- **`updateSession({ sessionId, channelAmounts, terminalAmounts,
+  voucherFields, opentabs/vorschuss/einladung/sonstige, notes })`** —
+  Manager+. Upsert auf `session_*_amounts`, Update der Zahlen-Felder
+  auf `sessions`. Blockiert wenn `status != 'open'`.
+- **`addSessionSatellite({ sessionId, kind, payload })`** — Manager+.
+  `kind` ∈ `expense | advance | card_transaction | bank_deposit |
+  register_transfer`. Blockiert bei Sperre.
+- **`finalizeSession({ sessionId })`** — Manager+. Setzt `status='finalized'`.
+- **`lockSession({ sessionId })`** — Admin only. Setzt `status='locked'`,
+  verschiebt `cash_locked_through_date` auf `max(business_date)` der
+  gesperrten Sessions. Audit-Eintrag.
+- **`setCashLock({ throughDate, reason })`** — Admin only, separat
+  (Muster `setTimeLock`). Eigener Audit-Eintrag.
+- **Schreibgate**: jede schreibende Funktion auf `sessions`/Satelliten
+  prüft `business_date > cash_locked_through_date` — sonst
+  `CashLockedError` (Muster `TimeLockedError`).
+
+### UI
+
+Eine Route, zwei Views, rollenabhängig:
+
+- **`/zeit/abrechnung`** (Staff+) — mobil-optimiert, PIN-Auth wie
+  Stempeluhr. Eigene Settlement des laufenden Geschäftstags erfassen,
+  Pausen-Dialog (ArbZG-Default vorgewählt), „Absenden" → ruft
+  `submitWaiterSettlement`. Nach Submit read-only mit Status-Badge.
+  Hinweis-Banner wenn kein offener Zeiteintrag.
+- **`/admin/kasse`** (Manager+) — Desktop. Liste aller Settlements des
+  Geschäftstags + Sektionen für Kanäle, Terminals, Gutscheine, Ausgaben,
+  Vorschüsse, Kartenumsätze, Einzahlungen, Transfers. Korrektur-Button
+  je Settlement (öffnet Dialog mit Pflichtfeld `reason`). „Tag
+  finalisieren" + (Admin) „Sperren".
+
+### Gate B3b
+
+- Vitest grün inkl. neuer DB-Tests für Server-Functions
+  (Idempotenz `submitWaiterSettlement`, Auto-Clockout-Pfad, kein zweiter
+  Stempelversuch, Korrektur erzeugt neue Zeile + supersedet Original,
+  `CashLockedError` bei gesperrtem Tag, Admin-only für `lockSession`/
+  `setCashLock`).
+- **Manuelles E2E**: Kellner stempelt ein → erfasst Abrechnung am Handy →
+  Submit → Audit zeigt `triggered_by: 'settlement'` und passenden
+  `time_entries`-Eintrag mit `clocked_out_at = submitted_at` → Manager
+  sieht Settlement in `/admin/kasse` → finalisiert → Admin sperrt → erneuter
+  Schreibversuch wirft `CashLockedError`.
+
+---
+
+## B3c — Saldo & Berichte
+
+- **`getCashLedger({ from, to })`** — Manager+. Liest Sessions + Satelliten,
+  ruft `accumulateChain`, gibt Tag/Delta/Saldo/Defizit zurück.
+- **UI `/admin/kasse/saldo`** — Tabelle mit Tagessaldo, Carry-over,
+  Vortages-Defizit, CSV-Export.
+- **Abgleichsbericht** `/admin/kasse/abgleich` — Eingabe: Alt-Saldo je Tag
+  (CSV-Upload analog B2c). Zeigt Diff Alt vs. neu, rot markiert wenn ≠ 0.
+
+### Gate B3c
+
+- Parallelmonat startet: jeden Tag Abschluss in COCO + Altsystem,
+  Abgleichsbericht muss 0 Differenz zeigen über einen vollen Monat.
+- Erst danach: Cutover-Checkliste (analog `docs/migration-cutover-
+  checklist.md`), Altsystem read-only.
+
+---
+
+## Explizit NICHT in B3
+
+- Lohnbüro-Übergabe der Vorschüsse (→ M4).
+- Sofortmeldung (→ M4).
+- Trinkgeld-Verteilung Küche über `kitchen_shifts` als Planungs-Feature
+  (→ eigener Bauplan; `kitchen_tip_cents` wird in B3a nur als Summe je
+  Settlement berechnet, Verteilung folgt später).
+- Historien-Migration. Nur Eröffnungssaldo + Stammdaten (Kanäle, Terminals,
+  Tip-Rate) werden initial gesetzt — über eine separate Seed-Server-Function
+  `seedCashOpening({ openingBalanceCents, channels, terminals, kitchenTipRate })`,
+  Admin-only, einmalig pro Org, mit Audit.
+
+---
+
+## Offene Frage vor B3a-Bau
+
+Keine. Alle drei M2-Entscheidungen bestätigt, Golden-Master-Arbeitsteilung
+geklärt (du lieferst Fixture, ich baue Harness + handgerechneten Platzhalter).
 
 Freigabe?
