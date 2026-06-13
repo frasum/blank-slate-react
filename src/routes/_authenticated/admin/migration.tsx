@@ -400,11 +400,7 @@ function MigrationPage() {
             onClick={() => {
               const n = deleteImportedDryMut.data?.totalMatched ?? 0;
               if (n === 0) return;
-              if (
-                !window.confirm(
-                  `Wirklich ${n} Import-Zeile(n) UNWIEDERBRINGLICH löschen?`,
-                )
-              )
+              if (!window.confirm(`Wirklich ${n} Import-Zeile(n) UNWIEDERBRINGLICH löschen?`))
                 return;
               deleteImportedCommitMut.mutate();
             }}
@@ -686,9 +682,7 @@ function DeleteImportedReport({
   return (
     <div className="space-y-2">
       <div className="rounded-md border border-border bg-muted/30 p-3 text-sm">
-        <div className="font-medium">
-          {mode === "commit" ? "Lösch-Bericht" : "Dry-Run-Bericht"}
-        </div>
+        <div className="font-medium">{mode === "commit" ? "Lösch-Bericht" : "Dry-Run-Bericht"}</div>
         <div className="flex flex-wrap gap-4">
           <span>
             betroffen: <strong>{result.totalMatched}</strong>
