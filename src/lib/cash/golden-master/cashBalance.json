@@ -1,0 +1,127 @@
+{
+  "meta": {
+    "source": "synthetic-placeholder",
+    "kitchenTipRate": 0.02,
+    "note": "Wird durch echte Fixture des unabhängigen Prüfers ersetzt. Siehe README.md."
+  },
+  "openingBalanceCents": 50000,
+  "days": [
+    {
+      "businessDate": "2026-06-01",
+      "grossRevenueCents": 80000,
+      "vouchersSoldCents": 0,
+      "vouchersRedeemedCents": 0,
+      "finedineVouchersCents": 0,
+      "satellites": {
+        "expensesCents": [5000],
+        "advancesCents": [],
+        "cardTransactionsCents": [],
+        "bankDepositsCents": [],
+        "registerTransfersToCents": [],
+        "registerTransfersFromCents": []
+      },
+      "waiters": [
+        {
+          "pseudonym": "KELLNER_01",
+          "input": {
+            "posSalesCents": 40000,
+            "cardTotalCents": 30000,
+            "hilfMahlCents": 500,
+            "openInvoicesCents": 1000,
+            "kitchenTipRate": 0.02
+          },
+          "expected": { "differenzCents": 9500, "kitchenTipCents": 800 }
+        }
+      ],
+      "expected": {
+        "deltaCents": 75000,
+        "balanceCents": 125000,
+        "deficitCarriedFromPreviousCents": 0
+      }
+    },
+    {
+      "businessDate": "2026-06-02",
+      "grossRevenueCents": 90000,
+      "vouchersSoldCents": 5000,
+      "vouchersRedeemedCents": 3000,
+      "finedineVouchersCents": 0,
+      "satellites": {
+        "expensesCents": [],
+        "advancesCents": [10000],
+        "cardTransactionsCents": [],
+        "bankDepositsCents": [40000],
+        "registerTransfersToCents": [],
+        "registerTransfersFromCents": []
+      },
+      "waiters": [],
+      "expected": {
+        "deltaCents": 42000,
+        "balanceCents": 167000,
+        "deficitCarriedFromPreviousCents": 0
+      }
+    },
+    {
+      "businessDate": "2026-06-03",
+      "grossRevenueCents": 60000,
+      "vouchersSoldCents": 0,
+      "vouchersRedeemedCents": 0,
+      "finedineVouchersCents": 2000,
+      "satellites": {
+        "expensesCents": [2500],
+        "advancesCents": [],
+        "cardTransactionsCents": [],
+        "bankDepositsCents": [50000],
+        "registerTransfersToCents": [],
+        "registerTransfersFromCents": []
+      },
+      "waiters": [],
+      "expected": {
+        "deltaCents": 5500,
+        "balanceCents": 172500,
+        "deficitCarriedFromPreviousCents": 0
+      }
+    },
+    {
+      "businessDate": "2026-06-04",
+      "grossRevenueCents": 5000,
+      "vouchersSoldCents": 0,
+      "vouchersRedeemedCents": 0,
+      "finedineVouchersCents": 0,
+      "satellites": {
+        "expensesCents": [40000],
+        "advancesCents": [],
+        "cardTransactionsCents": [],
+        "bankDepositsCents": [],
+        "registerTransfersToCents": [20000],
+        "registerTransfersFromCents": []
+      },
+      "waiters": [],
+      "expected": {
+        "deltaCents": -15000,
+        "balanceCents": 157500,
+        "deficitCarriedFromPreviousCents": 0
+      }
+    },
+    {
+      "businessDate": "2026-06-05",
+      "grossRevenueCents": 100000,
+      "vouchersSoldCents": 0,
+      "vouchersRedeemedCents": 0,
+      "finedineVouchersCents": 0,
+      "satellites": {
+        "expensesCents": [],
+        "advancesCents": [],
+        "cardTransactionsCents": [],
+        "bankDepositsCents": [],
+        "registerTransfersToCents": [],
+        "registerTransfersFromCents": [10000]
+      },
+      "waiters": [],
+      "expected": {
+        "deltaCents": 90000,
+        "balanceCents": 247500,
+        "deficitCarriedFromPreviousCents": 0
+      }
+    }
+  ]
+}
