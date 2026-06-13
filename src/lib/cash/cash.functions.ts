@@ -12,8 +12,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { loadAdminCaller } from "@/lib/admin/admin-context";
-import { loadStaffCaller, performClockOut } from "@/lib/time/time.functions";
+import { loadAdminCaller, type AdminCaller } from "@/lib/admin/admin-context";
+import { loadStaffCaller, performClockOut, type StaffCaller } from "@/lib/time/time.functions";
 import { runGuarded } from "@/lib/admin/admin-call";
 import { writeAuditLog } from "@/lib/admin/audit";
 import { arbzgMinimumBreak, grossMinutesBetween } from "@/lib/time/break-rules";
@@ -194,7 +194,14 @@ export const getOrCreateOpenSession = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
-    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+    return getOrCreateOpenSessionCore(caller, data);
+  });
+
+export async function getOrCreateOpenSessionCore(
+  caller: AdminCaller,
+  data: { businessDate?: string },
+) {
+  return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
       const businessDate = data.businessDate ?? (await getCurrentBusinessDate());
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: existing } = await supabaseAdmin
@@ -233,8 +240,8 @@ export const getOrCreateOpenSession = createServerFn({ method: "POST" })
           meta: { businessDate },
         },
       };
-    });
   });
+}
 
 const updateSessionSchema = z.object({
   sessionId: z.string().uuid(),
@@ -259,7 +266,13 @@ export const updateSession = createServerFn({ method: "POST" })
   .inputValidator((input) => updateSessionSchema.parse(input))
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
-    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+    return updateSessionCore(caller, data);
+  });
+
+export type UpdateSessionInput = z.infer<typeof updateSessionSchema>;
+
+export async function updateSessionCore(caller: AdminCaller, data: UpdateSessionInput) {
+  return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
       const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
       const settings = await loadOrgSettings(caller.organizationId);
       assertCashWritable({
@@ -267,6 +280,9 @@ export const updateSession = createServerFn({ method: "POST" })
         sessionStatus: session.status as "open" | "finalized" | "locked",
         sessionLockedAt: session.locked_at,
         cashLockedThroughDate: settings.cashLockedThroughDate,
+        // Nach finalize ist die Sessionsicht eingefroren; Korrekturen
+        // einzelner Kellner-Abrechnungen laufen über correctWaiterSettlement.
+        blockIfFinalized: true,
       });
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { error: sErr } = await supabaseAdmin
@@ -328,15 +344,22 @@ export const updateSession = createServerFn({ method: "POST" })
           meta: { businessDate: session.business_date },
         },
       };
-    });
   });
+}
 
 export const finalizeSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({ sessionId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
-    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+    return finalizeSessionCore(caller, data);
+  });
+
+export async function finalizeSessionCore(
+  caller: AdminCaller,
+  data: { sessionId: string },
+) {
+  return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
       const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
       const settings = await loadOrgSettings(caller.organizationId);
       assertCashWritable({
@@ -344,6 +367,7 @@ export const finalizeSession = createServerFn({ method: "POST" })
         sessionStatus: session.status as "open" | "finalized" | "locked",
         sessionLockedAt: session.locked_at,
         cashLockedThroughDate: settings.cashLockedThroughDate,
+        blockIfFinalized: true, // Doppel-Finalize verboten.
       });
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { error } = await supabaseAdmin
@@ -365,15 +389,22 @@ export const finalizeSession = createServerFn({ method: "POST" })
           meta: { businessDate: session.business_date },
         },
       };
-    });
   });
+}
 
 export const lockSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({ sessionId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
-    return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
+    return lockSessionCore(caller, data);
+  });
+
+export async function lockSessionCore(
+  caller: AdminCaller,
+  data: { sessionId: string },
+) {
+  return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
       const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { error } = await supabaseAdmin
@@ -395,8 +426,8 @@ export const lockSession = createServerFn({ method: "POST" })
           meta: { businessDate: session.business_date },
         },
       };
-    });
   });
+}
 
 export const setCashLock = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -410,7 +441,14 @@ export const setCashLock = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
-    return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
+    return setCashLockCore(caller, data);
+  });
+
+export async function setCashLockCore(
+  caller: AdminCaller,
+  data: { throughDate: string; reason: string },
+) {
+  return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
       const settings = await loadOrgSettings(caller.organizationId);
       const before = settings.cashLockedThroughDate;
       if (before && data.throughDate <= before) {
@@ -436,8 +474,8 @@ export const setCashLock = createServerFn({ method: "POST" })
           meta: { from: before, to: data.throughDate, reason: data.reason },
         },
       };
-    });
   });
+}
 
 // ------------------------------------------------------------------------
 // Satelliten
@@ -483,7 +521,16 @@ export const addSessionSatellite = createServerFn({ method: "POST" })
   .inputValidator((input) => satelliteAddSchema.parse(input))
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
-    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+    return addSessionSatelliteCore(caller, data);
+  });
+
+export type AddSatelliteInput = z.infer<typeof satelliteAddSchema>;
+
+export async function addSessionSatelliteCore(
+  caller: AdminCaller,
+  data: AddSatelliteInput,
+) {
+  return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
       const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
       const settings = await loadOrgSettings(caller.organizationId);
       assertCashWritable({
@@ -491,6 +538,7 @@ export const addSessionSatellite = createServerFn({ method: "POST" })
         sessionStatus: session.status as "open" | "finalized" | "locked",
         sessionLockedAt: session.locked_at,
         cashLockedThroughDate: settings.cashLockedThroughDate,
+        blockIfFinalized: true,
       });
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       let createdId: string | null = null;
@@ -571,8 +619,8 @@ export const addSessionSatellite = createServerFn({ method: "POST" })
           meta: { sessionId: session.id, businessDate: session.business_date, payload: data as unknown as Json },
         },
       };
-    });
   });
+}
 
 const SATELLITE_TABLE = {
   expense: "session_expenses",
@@ -642,7 +690,16 @@ export const submitWaiterSettlement = createServerFn({ method: "POST" })
   .inputValidator((input) => settlementInputSchema.parse(input))
   .handler(async ({ data, context }) => {
     const caller = await loadStaffCaller(context.supabase, context.userId);
-    if (!caller.isActive) throw new Error("Mitarbeiter ist inaktiv.");
+    return submitWaiterSettlementCore(caller, data);
+  });
+
+export type SubmitSettlementInput = z.infer<typeof settlementInputSchema>;
+
+export async function submitWaiterSettlementCore(
+  caller: StaffCaller,
+  data: SubmitSettlementInput,
+) {
+  if (!caller.isActive) throw new Error("Mitarbeiter ist inaktiv.");
     const businessDate = await getCurrentBusinessDate();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -805,7 +862,7 @@ export const submitWaiterSettlement = createServerFn({ method: "POST" })
       noOpenTimeEntry,
       idempotent: existing?.status === "submitted",
     };
-  });
+}
 
 // ------------------------------------------------------------------------
 // Manager: Korrektur
@@ -826,7 +883,16 @@ export const correctWaiterSettlement = createServerFn({ method: "POST" })
   .inputValidator((input) => correctSchema.parse(input))
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
-    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+    return correctWaiterSettlementCore(caller, data);
+  });
+
+export type CorrectSettlementInput = z.infer<typeof correctSchema>;
+
+export async function correctWaiterSettlementCore(
+  caller: AdminCaller,
+  data: CorrectSettlementInput,
+) {
+  return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: original, error: loadErr } = await supabaseAdmin
         .from("waiter_settlements")
@@ -908,8 +974,8 @@ export const correctWaiterSettlement = createServerFn({ method: "POST" })
           },
         },
       };
-    });
   });
+}
 
 // Re-export für UI/Test-Konsum.
 export { CashLockedError };

@@ -91,4 +91,29 @@ describe("assertCashWritable", () => {
       expect((e as CashLockedError).reason).toBe("below_waterline");
     }
   });
+
+  it("blockIfFinalized=true wirft auf finalized", () => {
+    try {
+      assertCashWritable({ ...base, sessionStatus: "finalized", blockIfFinalized: true });
+      throw new Error("expected throw");
+    } catch (e) {
+      expect(e).toBeInstanceOf(CashLockedError);
+      expect((e as CashLockedError).reason).toBe("session_finalized");
+    }
+  });
+
+  it("blockIfFinalized=true lässt open weiterhin durch", () => {
+    expect(() =>
+      assertCashWritable({ ...base, sessionStatus: "open", blockIfFinalized: true }),
+    ).not.toThrow();
+  });
+
+  it("blockIfFinalized=true: locked-Reason hat Vorrang vor finalized", () => {
+    try {
+      assertCashWritable({ ...base, sessionStatus: "locked", blockIfFinalized: true });
+      throw new Error("expected throw");
+    } catch (e) {
+      expect((e as CashLockedError).reason).toBe("session_locked");
+    }
+  });
 });
