@@ -148,7 +148,7 @@ function MigrationPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const mappings = mappingsQ.data?.mappings ?? [];
+  const mappings = useMemo(() => mappingsQ.data?.mappings ?? [], [mappingsQ.data]);
   const unconfirmedCount = useMemo(
     () => mappings.filter((m) => !m.confirmed_at).length,
     [mappings],
