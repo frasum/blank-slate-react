@@ -29,6 +29,7 @@ import {
   proposeIdentityMappings,
   runImport,
   bootstrapMissingStaff,
+  reassignImportedStaff,
 } from "@/lib/migration/migration.functions";
 
 type SourceSystem = "tagesabrechnung" | "bunker";
@@ -63,6 +64,7 @@ function MigrationPage() {
   const callReportDb = useServerFn(getReconciliationReportFromDb);
   const fetchStaff = useServerFn(listStaff);
   const callBootstrap = useServerFn(bootstrapMissingStaff);
+  const callReassign = useServerFn(reassignImportedStaff);
 
   const staffQ = useQuery({ queryKey: ["admin-staff"], queryFn: () => fetchStaff() });
   const mappingsQ = useQuery({
@@ -144,6 +146,19 @@ function MigrationPage() {
       );
       void qc.invalidateQueries({ queryKey: ["identity-mappings", sourceSystem] });
       void qc.invalidateQueries({ queryKey: ["admin-staff"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const reassignDryMut = useMutation({
+    mutationFn: () => callReassign({ data: { sourceSystem, mode: "dry_run" } }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const reassignCommitMut = useMutation({
+    mutationFn: () => callReassign({ data: { sourceSystem, mode: "commit" } }),
+    onSuccess: (r) => {
+      toast.success(`Umgehängt: ${r.totalUpdated} Schicht(en) in ${r.groups.length} Gruppe(n).`);
+      void reassignDryMut.reset();
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -318,6 +333,42 @@ function MigrationPage() {
       </Card>
 
       <Card className="p-4 space-y-3">
+        <div className="font-medium">Fehlzuordnungen korrigieren</div>
+        <p className="text-sm text-muted-foreground">
+          Hängt bereits importierte Schichten (<code>source='import'</code>) auf den laut
+          bestätigtem Identitäts-Mapping korrekten Mitarbeiter um. Geld- und Zeitwerte bleiben
+          unverändert, die Wasserlinie wird NICHT verschoben. Idempotent.
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            disabled={reassignDryMut.isPending}
+            onClick={() => reassignDryMut.mutate()}
+          >
+            {reassignDryMut.isPending ? "Prüfe…" : "Dry-Run"}
+          </Button>
+          <Button
+            variant="destructive"
+            disabled={reassignCommitMut.isPending || !reassignDryMut.data}
+            onClick={() => {
+              const n = reassignDryMut.data?.totalMismatched ?? 0;
+              if (!window.confirm(`Commit: ${n} Schicht(en) umhängen?`)) return;
+              reassignCommitMut.mutate();
+            }}
+            title={!reassignDryMut.data ? "Erst Dry-Run ausführen." : undefined}
+          >
+            {reassignCommitMut.isPending ? "Commit läuft…" : "Commit ausführen"}
+          </Button>
+        </div>
+        {(reassignDryMut.data || reassignCommitMut.data) && (
+          <ReassignReport
+            result={reassignCommitMut.data ?? reassignDryMut.data ?? null}
+            mode={reassignCommitMut.data ? "commit" : "dry_run"}
+          />
+        )}
+      </Card>
+
+      <Card className="p-4 space-y-3">
         <div className="font-medium">Abgleichsbericht (Alt-Topf vs. neu)</div>
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-1">
@@ -481,6 +532,98 @@ function MappingRow({
 }
 
 function ReconciliationTable({
+  title,
+  rows,
+  staffNameById,
+}: {
+  title: string;
+  rows: Array<{
+    staffId: string;
+    bucketKey: string;
+    alt: Record<string, number>;
+    recomputed: Record<string, number>;
+    diff: Record<string, number>;
+    hasDifference: boolean;
+  }>;
+  staffNameById: Map<string, string>;
+}) {
+  return <ReconciliationTableImpl title={title} rows={rows} staffNameById={staffNameById} />;
+}
+
+function ReassignReport({
+  result,
+  mode,
+}: {
+  result: {
+    totalScanned: number;
+    totalMismatched: number;
+    totalUpdated: number;
+    groups: Array<{
+      altId: string;
+      altName: string;
+      fromStaffName: string;
+      toStaffName: string;
+      shiftCount: number;
+      minBusinessDate: string | null;
+      maxBusinessDate: string | null;
+    }>;
+  } | null;
+  mode: "dry_run" | "commit";
+}) {
+  if (!result) return null;
+  return (
+    <div className="space-y-2">
+      <div className="rounded-md border border-border bg-muted/30 p-3 text-sm">
+        <div className="font-medium">
+          {mode === "commit" ? "Commit-Bericht" : "Dry-Run-Bericht"}
+        </div>
+        <div className="flex flex-wrap gap-4">
+          <span>
+            gescannt: <strong>{result.totalScanned}</strong>
+          </span>
+          <span>
+            betroffen: <strong>{result.totalMismatched}</strong>
+          </span>
+          {mode === "commit" && (
+            <span>
+              umgehängt: <strong>{result.totalUpdated}</strong>
+            </span>
+          )}
+        </div>
+      </div>
+      {result.groups.length > 0 && (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Alt-ID</TableHead>
+              <TableHead>Alt-Name</TableHead>
+              <TableHead>von</TableHead>
+              <TableHead>nach</TableHead>
+              <TableHead className="text-right">Schichten</TableHead>
+              <TableHead>Zeitraum</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {result.groups.map((g) => (
+              <TableRow key={`${g.altId}-${g.fromStaffName}-${g.toStaffName}`}>
+                <TableCell className="font-mono text-xs">{g.altId}</TableCell>
+                <TableCell>{g.altName}</TableCell>
+                <TableCell>{g.fromStaffName}</TableCell>
+                <TableCell>{g.toStaffName}</TableCell>
+                <TableCell className="text-right">{g.shiftCount}</TableCell>
+                <TableCell className="font-mono text-xs">
+                  {g.minBusinessDate ?? "—"} … {g.maxBusinessDate ?? "—"}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </div>
+  );
+}
+
+function ReconciliationTableImpl({
   title,
   rows,
   staffNameById,
