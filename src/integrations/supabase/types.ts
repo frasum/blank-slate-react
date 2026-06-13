@@ -106,6 +106,52 @@ export type Database = {
           },
         ]
       }
+      cash_locks: {
+        Row: {
+          location_id: string
+          locked_through_date: string
+          organization_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          location_id: string
+          locked_through_date: string
+          organization_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          location_id?: string
+          locked_through_date?: string
+          organization_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_locks_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_locks_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_locks_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       import_runs: {
         Row: {
           counters: Json
@@ -190,7 +236,6 @@ export type Database = {
       }
       organization_settings: {
         Row: {
-          cash_locked_through_date: string | null
           created_at: string
           kitchen_tip_rate: number
           organization_id: string
@@ -198,7 +243,6 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          cash_locked_through_date?: string | null
           created_at?: string
           kitchen_tip_rate?: number
           organization_id: string
@@ -206,7 +250,6 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          cash_locked_through_date?: string | null
           created_at?: string
           kitchen_tip_rate?: number
           organization_id?: string
@@ -250,6 +293,7 @@ export type Database = {
           id: string
           is_active: boolean
           label: string
+          location_id: string
           organization_id: string
           sort_order: number
           updated_at: string
@@ -259,6 +303,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           label: string
+          location_id: string
           organization_id: string
           sort_order?: number
           updated_at?: string
@@ -268,11 +313,19 @@ export type Database = {
           id?: string
           is_active?: boolean
           label?: string
+          location_id?: string
           organization_id?: string
           sort_order?: number
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "payment_terminals_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payment_terminals_organization_id_fkey"
             columns: ["organization_id"]
@@ -324,6 +377,7 @@ export type Database = {
           id: string
           is_active: boolean
           label: string
+          location_id: string
           organization_id: string
           sort_order: number
           updated_at: string
@@ -333,6 +387,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           label: string
+          location_id: string
           organization_id: string
           sort_order?: number
           updated_at?: string
@@ -342,11 +397,19 @@ export type Database = {
           id?: string
           is_active?: boolean
           label?: string
+          location_id?: string
           organization_id?: string
           sort_order?: number
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "revenue_channels_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "revenue_channels_organization_id_fkey"
             columns: ["organization_id"]
@@ -744,6 +807,7 @@ export type Database = {
           finalized_by: string | null
           finedine_vouchers_cents: number
           id: string
+          location_id: string
           locked_at: string | null
           locked_by: string | null
           notes: string | null
@@ -765,6 +829,7 @@ export type Database = {
           finalized_by?: string | null
           finedine_vouchers_cents?: number
           id?: string
+          location_id: string
           locked_at?: string | null
           locked_by?: string | null
           notes?: string | null
@@ -786,6 +851,7 @@ export type Database = {
           finalized_by?: string | null
           finedine_vouchers_cents?: number
           id?: string
+          location_id?: string
           locked_at?: string | null
           locked_by?: string | null
           notes?: string | null
@@ -805,6 +871,13 @@ export type Database = {
             columns: ["finalized_by"]
             isOneToOne: false
             referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sessions_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
             referencedColumns: ["id"]
           },
           {
