@@ -27,6 +27,7 @@ import {
   parseImportCsv,
   proposeIdentityMappings,
   runImport,
+  bootstrapMissingStaff,
 } from "@/lib/migration/migration.functions";
 
 type SourceSystem = "tagesabrechnung" | "bunker";
@@ -59,6 +60,7 @@ function MigrationPage() {
   const callRun = useServerFn(runImport);
   const callReport = useServerFn(getReconciliationReport);
   const fetchStaff = useServerFn(listStaff);
+  const callBootstrap = useServerFn(bootstrapMissingStaff);
 
   const staffQ = useQuery({ queryKey: ["admin-staff"], queryFn: () => fetchStaff() });
   const mappingsQ = useQuery({
@@ -115,6 +117,18 @@ function MigrationPage() {
     onSuccess: () => {
       toast.success("Mapping gespeichert.");
       void qc.invalidateQueries({ queryKey: ["identity-mappings", sourceSystem] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const bootstrapMut = useMutation({
+    mutationFn: () => callBootstrap({ data: { sourceSystem } }),
+    onSuccess: (r) => {
+      toast.success(
+        `Staff-Bootstrap: ${r.created} angelegt, ${r.skipped} übersprungen.`,
+      );
+      void qc.invalidateQueries({ queryKey: ["identity-mappings", sourceSystem] });
+      void qc.invalidateQueries({ queryKey: ["admin-staff"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -214,7 +228,15 @@ function MigrationPage() {
       <Card className="p-4 space-y-3">
         <div className="flex items-center justify-between">
           <div className="font-medium">Identitäts-Mapping</div>
-          <div className="text-sm">
+          <div className="flex items-center gap-2 text-sm">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={bootstrapMut.isPending}
+              onClick={() => bootstrapMut.mutate()}
+            >
+              {bootstrapMut.isPending ? "Lege an…" : "Fehlende Staff anlegen"}
+            </Button>
             {unconfirmedCount > 0 ? (
               <Badge variant="destructive">{unconfirmedCount} unbestätigt</Badge>
             ) : (
