@@ -80,6 +80,7 @@ describe.skipIf(!dbTestsEnabled)("finalize → update vs. correct (DB)", () => {
       .from("sessions")
       .insert({
         organization_id: org.orgId,
+        location_id: org.defaultLocationId,
         business_date: bd as unknown as string,
         status: "open",
       })
