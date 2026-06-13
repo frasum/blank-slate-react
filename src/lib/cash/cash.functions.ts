@@ -619,8 +619,8 @@ export async function addSessionSatelliteCore(
           meta: { sessionId: session.id, businessDate: session.business_date, payload: data as unknown as Json },
         },
       };
-    });
   });
+}
 
 const SATELLITE_TABLE = {
   expense: "session_expenses",
