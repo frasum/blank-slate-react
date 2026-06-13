@@ -25,7 +25,6 @@ import { aggregate, cycleKey, isoWeekKey, type ShiftSample } from "./aggregate-b
 import { bootstrapMissingStaffCore } from "./bootstrap-missing-staff";
 import { reconcile } from "./reconcile";
 import { emptyCounters, executeImport, parseCsvFor } from "./run-import-core";
-import { reassignImportedStaffCore } from "./reassign-imported-staff";
 import { deleteImportedShiftsCore } from "./delete-imported-shifts";
 
 // =========================================================================
@@ -62,11 +61,6 @@ const reconcileInputSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
-});
-
-const reassignInputSchema = z.object({
-  sourceSystem: sourceSystemSchema,
-  mode: z.enum(["dry_run", "commit"]),
 });
 
 const deleteImportedInputSchema = z.object({
