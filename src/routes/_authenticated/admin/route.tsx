@@ -51,6 +51,13 @@ function AdminLayout() {
                 Zeit
               </Link>
               <Link
+                to="/admin/kasse"
+                className="text-muted-foreground hover:text-foreground"
+                activeProps={{ className: "text-foreground" }}
+              >
+                Kasse
+              </Link>
+              <Link
                 to="/admin/locations"
                 className="text-muted-foreground hover:text-foreground"
                 activeProps={{ className: "text-foreground" }}

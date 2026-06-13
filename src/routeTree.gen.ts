@@ -15,10 +15,12 @@ import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
 import { Route as AuthenticatedZeitIndexRouteImport } from './routes/_authenticated/zeit/index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
+import { Route as AuthenticatedZeitAbrechnungRouteImport } from './routes/_authenticated/zeit/abrechnung'
 import { Route as AuthenticatedAdminZeitRouteImport } from './routes/_authenticated/admin/zeit'
 import { Route as AuthenticatedAdminStaffRouteImport } from './routes/_authenticated/admin/staff'
 import { Route as AuthenticatedAdminMigrationRouteImport } from './routes/_authenticated/admin/migration'
 import { Route as AuthenticatedAdminLocationsRouteImport } from './routes/_authenticated/admin/locations'
+import { Route as AuthenticatedAdminKasseRouteImport } from './routes/_authenticated/admin/kasse'
 import { Route as AuthenticatedAdminStaffIndexRouteImport } from './routes/_authenticated/admin/staff.index'
 import { Route as AuthenticatedAdminStaffNewRouteImport } from './routes/_authenticated/admin/staff.new'
 import { Route as AuthenticatedAdminStaffStaffIdRouteImport } from './routes/_authenticated/admin/staff.$staffId'
@@ -52,6 +54,12 @@ const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedAdminRouteRoute,
 } as any)
+const AuthenticatedZeitAbrechnungRoute =
+  AuthenticatedZeitAbrechnungRouteImport.update({
+    id: '/zeit/abrechnung',
+    path: '/zeit/abrechnung',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdminZeitRoute = AuthenticatedAdminZeitRouteImport.update({
   id: '/zeit',
   path: '/zeit',
@@ -74,6 +82,11 @@ const AuthenticatedAdminLocationsRoute =
     path: '/locations',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminKasseRoute = AuthenticatedAdminKasseRouteImport.update({
+  id: '/kasse',
+  path: '/kasse',
+  getParentRoute: () => AuthenticatedAdminRouteRoute,
+} as any)
 const AuthenticatedAdminStaffIndexRoute =
   AuthenticatedAdminStaffIndexRouteImport.update({
     id: '/',
@@ -97,10 +110,12 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/auth': typeof AuthRoute
   '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
+  '/admin/kasse': typeof AuthenticatedAdminKasseRoute
   '/admin/locations': typeof AuthenticatedAdminLocationsRoute
   '/admin/migration': typeof AuthenticatedAdminMigrationRoute
   '/admin/staff': typeof AuthenticatedAdminStaffRouteWithChildren
   '/admin/zeit': typeof AuthenticatedAdminZeitRoute
+  '/zeit/abrechnung': typeof AuthenticatedZeitAbrechnungRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/zeit/': typeof AuthenticatedZeitIndexRoute
   '/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
@@ -110,9 +125,11 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/': typeof AuthenticatedIndexRoute
+  '/admin/kasse': typeof AuthenticatedAdminKasseRoute
   '/admin/locations': typeof AuthenticatedAdminLocationsRoute
   '/admin/migration': typeof AuthenticatedAdminMigrationRoute
   '/admin/zeit': typeof AuthenticatedAdminZeitRoute
+  '/zeit/abrechnung': typeof AuthenticatedZeitAbrechnungRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/zeit': typeof AuthenticatedZeitIndexRoute
   '/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
@@ -125,10 +142,12 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/admin/kasse': typeof AuthenticatedAdminKasseRoute
   '/_authenticated/admin/locations': typeof AuthenticatedAdminLocationsRoute
   '/_authenticated/admin/migration': typeof AuthenticatedAdminMigrationRoute
   '/_authenticated/admin/staff': typeof AuthenticatedAdminStaffRouteWithChildren
   '/_authenticated/admin/zeit': typeof AuthenticatedAdminZeitRoute
+  '/_authenticated/zeit/abrechnung': typeof AuthenticatedZeitAbrechnungRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/zeit/': typeof AuthenticatedZeitIndexRoute
   '/_authenticated/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
@@ -141,10 +160,12 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/admin'
+    | '/admin/kasse'
     | '/admin/locations'
     | '/admin/migration'
     | '/admin/staff'
     | '/admin/zeit'
+    | '/zeit/abrechnung'
     | '/admin/'
     | '/zeit/'
     | '/admin/staff/$staffId'
@@ -154,9 +175,11 @@ export interface FileRouteTypes {
   to:
     | '/auth'
     | '/'
+    | '/admin/kasse'
     | '/admin/locations'
     | '/admin/migration'
     | '/admin/zeit'
+    | '/zeit/abrechnung'
     | '/admin'
     | '/zeit'
     | '/admin/staff/$staffId'
@@ -168,10 +191,12 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/admin'
     | '/_authenticated/'
+    | '/_authenticated/admin/kasse'
     | '/_authenticated/admin/locations'
     | '/_authenticated/admin/migration'
     | '/_authenticated/admin/staff'
     | '/_authenticated/admin/zeit'
+    | '/_authenticated/zeit/abrechnung'
     | '/_authenticated/admin/'
     | '/_authenticated/zeit/'
     | '/_authenticated/admin/staff/$staffId'
@@ -228,6 +253,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/zeit/abrechnung': {
+      id: '/_authenticated/zeit/abrechnung'
+      path: '/zeit/abrechnung'
+      fullPath: '/zeit/abrechnung'
+      preLoaderRoute: typeof AuthenticatedZeitAbrechnungRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin/zeit': {
       id: '/_authenticated/admin/zeit'
       path: '/zeit'
@@ -254,6 +286,13 @@ declare module '@tanstack/react-router' {
       path: '/locations'
       fullPath: '/admin/locations'
       preLoaderRoute: typeof AuthenticatedAdminLocationsRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/kasse': {
+      id: '/_authenticated/admin/kasse'
+      path: '/kasse'
+      fullPath: '/admin/kasse'
+      preLoaderRoute: typeof AuthenticatedAdminKasseRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
     '/_authenticated/admin/staff/': {
@@ -299,6 +338,7 @@ const AuthenticatedAdminStaffRouteWithChildren =
   )
 
 interface AuthenticatedAdminRouteRouteChildren {
+  AuthenticatedAdminKasseRoute: typeof AuthenticatedAdminKasseRoute
   AuthenticatedAdminLocationsRoute: typeof AuthenticatedAdminLocationsRoute
   AuthenticatedAdminMigrationRoute: typeof AuthenticatedAdminMigrationRoute
   AuthenticatedAdminStaffRoute: typeof AuthenticatedAdminStaffRouteWithChildren
@@ -308,6 +348,7 @@ interface AuthenticatedAdminRouteRouteChildren {
 
 const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren =
   {
+    AuthenticatedAdminKasseRoute: AuthenticatedAdminKasseRoute,
     AuthenticatedAdminLocationsRoute: AuthenticatedAdminLocationsRoute,
     AuthenticatedAdminMigrationRoute: AuthenticatedAdminMigrationRoute,
     AuthenticatedAdminStaffRoute: AuthenticatedAdminStaffRouteWithChildren,
@@ -323,12 +364,14 @@ const AuthenticatedAdminRouteRouteWithChildren =
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRouteRoute: typeof AuthenticatedAdminRouteRouteWithChildren
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedZeitAbrechnungRoute: typeof AuthenticatedZeitAbrechnungRoute
   AuthenticatedZeitIndexRoute: typeof AuthenticatedZeitIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRouteRoute: AuthenticatedAdminRouteRouteWithChildren,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedZeitAbrechnungRoute: AuthenticatedZeitAbrechnungRoute,
   AuthenticatedZeitIndexRoute: AuthenticatedZeitIndexRoute,
 }
 
