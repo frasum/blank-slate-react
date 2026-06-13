@@ -1,0 +1,88 @@
+{
+  "meta": {
+    "source": "synthetic-placeholder-v2",
+    "kitchenTipRate": 0.02,
+    "note": "Wird durch echte Fixture des unabhängigen Prüfers ersetzt (zwei Ketten, Mapping ordersmart→delivery_souse macht der Prüfer). Siehe README.md."
+  },
+  "openingBalanceCents": 50000,
+  "days": [
+    {
+      "businessDate": "2026-06-01",
+      "grossRevenueCents": 80000,
+      "cardTotalCents": 30000,
+      "deliverySouseCents": 0,
+      "deliveryWoltCents": 0,
+      "vouchersSoldCents": 0,
+      "vouchersRedeemedCents": 0,
+      "finedineVouchersCents": 0,
+      "einladungCents": 0,
+      "openInvoicesCents": [],
+      "sonstigeEinnahmeCents": 0,
+      "vorschussCents": 0,
+      "satellites": {
+        "expensesCents": [5000],
+        "advancesCents": [],
+        "cardTransactionsCents": [],
+        "bankDepositsCents": [],
+        "registerTransfers": []
+      },
+      "waiters": [
+        {
+          "pseudonym": "KELLNER_01",
+          "input": {
+            "posSalesCents": 40000,
+            "cardTotalCents": 30000,
+            "hilfMahlCents": 500,
+            "openInvoicesCents": 1000,
+            "kitchenTipRate": 0.02
+          },
+          "expected": { "differenzCents": 9500, "kitchenTipCents": 800 }
+        }
+      ],
+      "expected": {
+        "dailyCashCents": 45000,
+        "transferEffectCents": 0,
+        "rawBargeldCents": 45000,
+        "previousCarryCents": 50000,
+        "chainedCents": 95000,
+        "bankDepositsTotalCents": 0,
+        "remainingCashCents": 95000,
+        "balanceCents": 95000,
+        "deficitCarriedFromPreviousCents": 0
+      }
+    },
+    {
+      "businessDate": "2026-06-02",
+      "grossRevenueCents": 90000,
+      "cardTotalCents": 20000,
+      "deliverySouseCents": 5000,
+      "deliveryWoltCents": 3000,
+      "vouchersSoldCents": 5000,
+      "vouchersRedeemedCents": 3000,
+      "finedineVouchersCents": 0,
+      "einladungCents": 1000,
+      "openInvoicesCents": [2000],
+      "sonstigeEinnahmeCents": 500,
+      "vorschussCents": 10000,
+      "satellites": {
+        "expensesCents": [],
+        "advancesCents": [],
+        "cardTransactionsCents": [],
+        "bankDepositsCents": [40000],
+        "registerTransfers": [{ "direction": "to_restaurant", "amountCents": 2000 }]
+      },
+      "waiters": [],
+      "expected": {
+        "dailyCashCents": 51500,
+        "transferEffectCents": 2000,
+        "rawBargeldCents": 53500,
+        "previousCarryCents": 95000,
+        "chainedCents": 148500,
+        "bankDepositsTotalCents": 40000,
+        "remainingCashCents": 108500,
+        "balanceCents": 108500,
+        "deficitCarriedFromPreviousCents": 0
+      }
+    }
+  ]
+}
