@@ -119,6 +119,10 @@ export async function seedOrg(label: string): Promise<SeededOrg> {
 
   const cleanup: SeededOrg["cleanup"] = async () => {
     // Reihenfolge: abhängige Daten zuerst.
+    // Kasse: sessions kaskadiert auf satelliten + waiter_settlements.
+    await service.from("sessions").delete().eq("organization_id", orgId);
+    await service.from("payment_terminals").delete().eq("organization_id", orgId);
+    await service.from("revenue_channels").delete().eq("organization_id", orgId);
     await service.from("time_entries").delete().eq("organization_id", orgId);
     await service.from("audit_log").delete().eq("organization_id", orgId);
     await service.from("organization_settings").delete().eq("organization_id", orgId);
