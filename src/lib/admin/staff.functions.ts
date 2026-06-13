@@ -11,10 +11,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "./admin-context";
 import { runGuarded } from "./admin-call";
 import { writeAuditLog } from "./audit";
-import {
-  wouldRemoveLastActiveAdmin,
-  type AdminSnapshotEntry,
-} from "./last-admin-rule";
+import { wouldRemoveLastActiveAdmin, type AdminSnapshotEntry } from "./last-admin-rule";
 import type { AppRole } from "./role-guard";
 
 async function loadAdminSnapshot(organizationId: string): Promise<AdminSnapshotEntry[]> {
@@ -148,7 +145,12 @@ export const createStaff = createServerFn({ method: "POST" })
   });
 
 function makeAuditWriter(caller: { organizationId: string; userId: string; staffId: string }) {
-  return async (entry: { action: string; entity: string; entityId?: string; meta?: Record<string, unknown> }) => {
+  return async (entry: {
+    action: string;
+    entity: string;
+    entityId?: string;
+    meta?: Record<string, unknown>;
+  }) => {
     await writeAuditLog({
       organizationId: caller.organizationId,
       actorUserId: caller.userId,
@@ -164,10 +166,7 @@ function makeAuditWriter(caller: { organizationId: string; userId: string; staff
 export const updateStaffBasics = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
-    z
-      .object({ staffId: z.string().uuid() })
-      .merge(staffBasicsSchema)
-      .parse(input),
+    z.object({ staffId: z.string().uuid() }).merge(staffBasicsSchema).parse(input),
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");

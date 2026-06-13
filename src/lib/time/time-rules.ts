@@ -17,9 +17,7 @@ export type ClockOutInput = {
   now: Date;
 };
 
-export type RuleResult =
-  | { ok: true }
-  | { ok: false; reason: ClockInDenial | ClockOutDenial };
+export type RuleResult = { ok: true } | { ok: false; reason: ClockInDenial | ClockOutDenial };
 
 export type ClockInDenial = "staff_inactive" | "already_clocked_in";
 export type ClockOutDenial = "no_open_entry" | "end_before_start";

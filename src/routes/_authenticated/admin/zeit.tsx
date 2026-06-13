@@ -75,8 +75,22 @@ type Entry = {
 };
 
 type EditState =
-  | { mode: "create"; staffId: string; startedAt: string; endedAt: string; breakMinutes: string; reason: string }
-  | { mode: "edit"; id: string; startedAt: string; endedAt: string; breakMinutes: string; reason: string };
+  | {
+      mode: "create";
+      staffId: string;
+      startedAt: string;
+      endedAt: string;
+      breakMinutes: string;
+      reason: string;
+    }
+  | {
+      mode: "edit";
+      id: string;
+      startedAt: string;
+      endedAt: string;
+      breakMinutes: string;
+      reason: string;
+    };
 
 function AdminZeitPage() {
   const { identity } = Route.useRouteContext();
@@ -236,8 +250,8 @@ function AdminZeitPage() {
         <Card className="p-4 space-y-3">
           <div className="font-medium">Wasserlinie verschieben (nur Admin)</div>
           <p className="text-sm text-muted-foreground">
-            Alle Geschäftstage ≤ dem gewählten Datum werden für sämtliche Rollen gesperrt — auch
-            für Manager. Leer lassen, um die Sperre aufzuheben.
+            Alle Geschäftstage ≤ dem gewählten Datum werden für sämtliche Rollen gesperrt — auch für
+            Manager. Leer lassen, um die Sperre aufzuheben.
           </p>
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-1">
@@ -292,18 +306,33 @@ function AdminZeitPage() {
                     {e.businessDate} {locked && <Badge variant="secondary">🔒</Badge>}
                   </TableCell>
                   <TableCell>{e.staffName}</TableCell>
-                  <TableCell>{new Date(e.startedAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}</TableCell>
+                  <TableCell>
+                    {new Date(e.startedAt).toLocaleTimeString("de-DE", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </TableCell>
                   <TableCell>
                     {e.endedAt
-                      ? new Date(e.endedAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })
+                      ? new Date(e.endedAt).toLocaleTimeString("de-DE", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
                       : "läuft"}
                   </TableCell>
                   <TableCell className="text-right">{e.breakMinutes} min</TableCell>
                   <TableCell>
-                    <Badge variant={e.source === "manual" ? "default" : "outline"}>{e.source}</Badge>
+                    <Badge variant={e.source === "manual" ? "default" : "outline"}>
+                      {e.source}
+                    </Badge>
                   </TableCell>
                   <TableCell className="text-right space-x-2">
-                    <Button size="sm" variant="outline" disabled={locked} onClick={() => startEdit(e)}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={locked}
+                      onClick={() => startEdit(e)}
+                    >
                       Bearbeiten
                     </Button>
                     <Button
@@ -328,9 +357,7 @@ function AdminZeitPage() {
             <DialogTitle>
               {edit?.mode === "create" ? "Neuer Eintrag" : "Eintrag bearbeiten"}
             </DialogTitle>
-            <DialogDescription>
-              Begründung wird im Audit-Log gespeichert.
-            </DialogDescription>
+            <DialogDescription>Begründung wird im Audit-Log gespeichert.</DialogDescription>
           </DialogHeader>
           {edit && (
             <div className="space-y-3">
@@ -392,10 +419,7 @@ function AdminZeitPage() {
             </Button>
             <Button
               disabled={
-                !edit ||
-                edit.reason.trim().length < 3 ||
-                createMut.isPending ||
-                updateMut.isPending
+                !edit || edit.reason.trim().length < 3 || createMut.isPending || updateMut.isPending
               }
               onClick={() => (edit?.mode === "create" ? createMut.mutate() : updateMut.mutate())}
             >
@@ -430,7 +454,9 @@ function AdminZeitPage() {
             </Button>
             <Button
               variant="destructive"
-              disabled={!deleteTarget || deleteTarget.reason.trim().length < 3 || deleteMut.isPending}
+              disabled={
+                !deleteTarget || deleteTarget.reason.trim().length < 3 || deleteMut.isPending
+              }
               onClick={() => deleteMut.mutate()}
             >
               Löschen

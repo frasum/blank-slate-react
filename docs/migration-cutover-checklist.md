@@ -39,7 +39,7 @@ Quellsystemen — die App tut hier nichts automatisch.
    - vor Mapping-Bestätigung zusätzlich `skipped.unmapped_staff > 0`
    - `read = imported + Σ skippedByReason` (Bilanz-Invariante, wird von der
      App erzwungen).
-   - `unmapped_staff = 0` *nach* Mapping-Bestätigung.
+   - `unmapped_staff = 0` _nach_ Mapping-Bestätigung.
 3. **Identitäts-Mapping**:
    - „Identitäten vorschlagen" laufen lassen → Vorschläge prüfen, jedes
      Alt-Konto entweder einem Staff zuordnen oder bewusst auf „nicht
@@ -89,7 +89,7 @@ nach dem Commit per Korrektur in `/admin/zeit` nachtragen.
 
 ## Rollback-Plan
 
-Ein Rollback ist *nicht* automatisiert — bewusst, weil ein Teil-Rollback
+Ein Rollback ist _nicht_ automatisiert — bewusst, weil ein Teil-Rollback
 nach Korrekturen im neuen System Daten beschädigen würde. Vorgehen bei
 kritischem Befund:
 

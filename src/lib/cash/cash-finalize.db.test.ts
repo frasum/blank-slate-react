@@ -9,12 +9,7 @@
 //       sind blockiert.
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import {
-  dbTestsEnabled,
-  seedOrg,
-  type SeededOrg,
-  type SeededUser,
-} from "@/test/db-setup";
+import { dbTestsEnabled, seedOrg, type SeededOrg, type SeededUser } from "@/test/db-setup";
 import {
   submitWaiterSettlementCore,
   finalizeSessionCore,
@@ -158,9 +153,9 @@ describe.skipIf(!dbTestsEnabled)("finalize → update vs. correct (DB)", () => {
 
   it("(4) Nach lock → update UND correct beide blockiert", async () => {
     await lockSessionCore(adm(), { sessionId });
-    await expect(
-      updateSessionCore(mgr(), emptyUpdate(sessionId)),
-    ).rejects.toBeInstanceOf(CashLockedError);
+    await expect(updateSessionCore(mgr(), emptyUpdate(sessionId))).rejects.toBeInstanceOf(
+      CashLockedError,
+    );
     await expect(
       correctWaiterSettlementCore(mgr(), {
         originalId: settlementId,

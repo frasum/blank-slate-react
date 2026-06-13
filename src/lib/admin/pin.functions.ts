@@ -30,9 +30,7 @@ function makeAuditWriter(caller: { organizationId: string; userId: string; staff
 
 export const setPin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
-    z.object({ staffId: z.string().uuid(), pin: z.string() }).parse(input),
-  )
+  .inputValidator((input) => z.object({ staffId: z.string().uuid(), pin: z.string() }).parse(input))
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
     assertValidPinFormat(data.pin);

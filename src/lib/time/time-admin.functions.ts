@@ -20,7 +20,12 @@ import { assertBusinessDateUnlocked, loadTimeLock } from "./time-lock";
 import { arbzgMinimumBreak, isArbzgShort, grossMinutesBetween } from "./break-rules";
 
 function makeAuditWriter(caller: { organizationId: string; userId: string; staffId: string }) {
-  return async (entry: { action: string; entity: string; entityId?: string; meta?: Record<string, unknown> }) => {
+  return async (entry: {
+    action: string;
+    entity: string;
+    entityId?: string;
+    meta?: Record<string, unknown>;
+  }) => {
     await writeAuditLog({
       organizationId: caller.organizationId,
       actorUserId: caller.userId,
@@ -269,7 +274,11 @@ export const deleteTimeEntry = createServerFn({ method: "POST" })
       if (loadErr) throw loadErr;
       if (!snapshot) throw new Error("Eintrag nicht gefunden.");
 
-      await assertBusinessDateUnlocked(supabaseAdmin, caller.organizationId, snapshot.business_date);
+      await assertBusinessDateUnlocked(
+        supabaseAdmin,
+        caller.organizationId,
+        snapshot.business_date,
+      );
 
       const { error } = await supabaseAdmin
         .from("time_entries")
@@ -310,7 +319,10 @@ export const setTimeLock = createServerFn({ method: "POST" })
   .inputValidator((input) =>
     z
       .object({
-        throughDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+        throughDate: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .nullable(),
       })
       .parse(input),
   )
@@ -321,15 +333,13 @@ export const setTimeLock = createServerFn({ method: "POST" })
       const before = await loadTimeLock(supabaseAdmin, caller.organizationId);
 
       // Settings-Zeile garantiert vorhanden (Migration), aber sicherheitshalber upsert.
-      const { error } = await supabaseAdmin
-        .from("organization_settings")
-        .upsert(
-          {
-            organization_id: caller.organizationId,
-            time_locked_through_date: data.throughDate,
-          },
-          { onConflict: "organization_id" },
-        );
+      const { error } = await supabaseAdmin.from("organization_settings").upsert(
+        {
+          organization_id: caller.organizationId,
+          time_locked_through_date: data.throughDate,
+        },
+        { onConflict: "organization_id" },
+      );
       if (error) throw error;
 
       return {

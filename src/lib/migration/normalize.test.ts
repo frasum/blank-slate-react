@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { utcIsoToBerlinHHMM, isSundayDate, berlinWallClockToUTC, combineDateAndTimes } from "./normalize";
+import {
+  utcIsoToBerlinHHMM,
+  isSundayDate,
+  berlinWallClockToUTC,
+  combineDateAndTimes,
+} from "./normalize";
 
 describe("utcIsoToBerlinHHMM (DST-sicher via Intl)", () => {
   it("Winter (MEZ, UTC+1): 17:00 Berlin == 16:00Z", () => {

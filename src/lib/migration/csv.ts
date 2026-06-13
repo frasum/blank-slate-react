@@ -97,7 +97,11 @@ function detectDelimiter(src: string): "," | ";" {
  * Reihenfolge ist egal, aber Mengen müssen identisch sein. Wirft bei Abweichung
  * mit präziser Aufzählung der fehlenden / überzähligen Spalten.
  */
-export function assertHeaders(actual: string[], expected: readonly string[], context: string): void {
+export function assertHeaders(
+  actual: string[],
+  expected: readonly string[],
+  context: string,
+): void {
   const actualSet = new Set(actual);
   const expectedSet = new Set(expected);
   const missing = expected.filter((h) => !actualSet.has(h));

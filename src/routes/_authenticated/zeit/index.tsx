@@ -16,19 +16,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { arbzgMinimumBreak } from "@/lib/time/break-rules";
-import {
-  clockIn,
-  clockOut,
-  getMyOpenEntry,
-  listMyEntries,
-} from "@/lib/time/time.functions";
+import { clockIn, clockOut, getMyOpenEntry, listMyEntries } from "@/lib/time/time.functions";
 
 export const Route = createFileRoute("/_authenticated/zeit/")({
   head: () => ({
-    meta: [
-      { title: "Zeiterfassung" },
-      { name: "description", content: "Ein- und Ausstempeln" },
-    ],
+    meta: [{ title: "Zeiterfassung" }, { name: "description", content: "Ein- und Ausstempeln" }],
   }),
   component: ZeitPage,
 });
@@ -158,8 +150,8 @@ function ZeitPage() {
           <DialogHeader>
             <DialogTitle>Pause eintragen</DialogTitle>
             <DialogDescription>
-              ArbZG-Empfehlung für diese Schicht: <strong>{recommendedBreak} Minuten</strong>.
-              Bitte trage die tatsächlich genommene Pause ein.
+              ArbZG-Empfehlung für diese Schicht: <strong>{recommendedBreak} Minuten</strong>. Bitte
+              trage die tatsächlich genommene Pause ein.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
@@ -176,7 +168,8 @@ function ZeitPage() {
             />
             {breakShort && (
               <p className="text-sm text-destructive">
-                Achtung: Pause liegt unter der ArbZG-Empfehlung ({recommendedBreak} Min). Wird im Audit als
+                Achtung: Pause liegt unter der ArbZG-Empfehlung ({recommendedBreak} Min). Wird im
+                Audit als
                 <code className="ml-1 rounded bg-muted px-1">arbzg_short</code> vermerkt.
               </p>
             )}
@@ -206,10 +199,7 @@ function ZeitPage() {
             <div className="p-4 text-sm text-muted-foreground">Noch keine Einträge.</div>
           ) : (
             listQuery.data.map((e) => (
-              <div
-                key={e.id}
-                className="flex items-center justify-between px-4 py-3 text-sm"
-              >
+              <div key={e.id} className="flex items-center justify-between px-4 py-3 text-sm">
                 <div>
                   <div className="font-medium">{formatDate(e.startedAt)}</div>
                   <div className="text-muted-foreground">

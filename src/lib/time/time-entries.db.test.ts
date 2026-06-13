@@ -33,13 +33,16 @@ describe.skipIf(!dbTestsEnabled)("time_entries — RLS & Unique-Index", () => {
   it("(a) authenticated darf NICHT direkt in time_entries schreiben", async () => {
     const client = await signInAsUser(userA.email, userA.password);
     const now = new Date();
-    const { data, error } = await client.from("time_entries").insert({
-      organization_id: org.orgId,
-      staff_id: userA.staffId,
-      started_at: now.toISOString(),
-      business_date: businessDateOf(now),
-      source: "clock",
-    }).select();
+    const { data, error } = await client
+      .from("time_entries")
+      .insert({
+        organization_id: org.orgId,
+        staff_id: userA.staffId,
+        started_at: now.toISOString(),
+        business_date: businessDateOf(now),
+        source: "clock",
+      })
+      .select();
     // Supabase/PostgREST liefert bei RLS-Verweigerung entweder einen Fehler
     // oder leere data (je nach Client-Version). Beides ist akzeptabel —
     // entscheidend: KEINE Zeile wurde tatsächlich angelegt.

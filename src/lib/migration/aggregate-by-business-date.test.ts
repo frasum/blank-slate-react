@@ -6,8 +6,20 @@ describe("aggregate", () => {
     // Zwei Schichten 19:50–20:05 → eveningHours 0.08 je Schicht
     // (siehe Golden-Master). Summe = 0.16, NICHT verschmolzen.
     const shifts: ShiftSample[] = [
-      { staffId: "s1", businessDate: "2026-01-15", startLocal: "19:50:00", endLocal: "20:05:00", sundayOrHoliday: false },
-      { staffId: "s1", businessDate: "2026-01-15", startLocal: "19:50:00", endLocal: "20:05:00", sundayOrHoliday: false },
+      {
+        staffId: "s1",
+        businessDate: "2026-01-15",
+        startLocal: "19:50:00",
+        endLocal: "20:05:00",
+        sundayOrHoliday: false,
+      },
+      {
+        staffId: "s1",
+        businessDate: "2026-01-15",
+        startLocal: "19:50:00",
+        endLocal: "20:05:00",
+        sundayOrHoliday: false,
+      },
     ];
     const out = aggregate(shifts, (s) => s.businessDate);
     expect(out).toHaveLength(1);
@@ -18,8 +30,20 @@ describe("aggregate", () => {
 
   it("trennt nach staffId und Bucket", () => {
     const shifts: ShiftSample[] = [
-      { staffId: "a", businessDate: "2026-01-15", startLocal: "10:00", endLocal: "12:00", sundayOrHoliday: false },
-      { staffId: "b", businessDate: "2026-01-15", startLocal: "10:00", endLocal: "12:00", sundayOrHoliday: false },
+      {
+        staffId: "a",
+        businessDate: "2026-01-15",
+        startLocal: "10:00",
+        endLocal: "12:00",
+        sundayOrHoliday: false,
+      },
+      {
+        staffId: "b",
+        businessDate: "2026-01-15",
+        startLocal: "10:00",
+        endLocal: "12:00",
+        sundayOrHoliday: false,
+      },
     ];
     const out = aggregate(shifts, (s) => s.businessDate);
     expect(out).toHaveLength(2);

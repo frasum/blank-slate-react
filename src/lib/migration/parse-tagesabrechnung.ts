@@ -2,11 +2,7 @@
 // Header sind verbindlich; Abweichung => harter Fehler mit präziser Meldung.
 
 import { assertHeaders, parseCsv } from "./csv";
-import {
-  combineDateAndTimes,
-  type AltTotals,
-  type NormalizedShift,
-} from "./normalize";
+import { combineDateAndTimes, type AltTotals, type NormalizedShift } from "./normalize";
 
 export const TAGESABRECHNUNG_HEADERS = [
   "id",

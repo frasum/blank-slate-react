@@ -132,8 +132,7 @@ export function computeSfn(args: {
       baseRate) /
     100;
 
-  const surchargePct =
-    workedHours > 0 ? (surchargeWage / (workedHours * baseRate || 1)) * 100 : 0;
+  const surchargePct = workedHours > 0 ? (surchargeWage / (workedHours * baseRate || 1)) * 100 : 0;
 
   return {
     workedHours,

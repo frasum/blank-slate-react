@@ -280,50 +280,53 @@ Nachtrag B2-Schnitt (vor Bau B2a freigegeben):
 **Ersetzt E1 (Eintragsmodell):** Das Schema erlaubt bewusst mehrere abgeschlossene `time_entries` pro Mitarbeiter und Geschäftstag (nicht: nur ein Eintrag pro Tag). Betriebspraxis bleibt 1× ein-/ausstempeln pro Tag — die Mehrfach-Möglichkeit existiert für spätere Manager-Korrekturen (`source='manual'`) und geteilte Schichten. Tagesaggregation passiert NICHT auf Schemaebene, sondern bei der SFN-Berechnung (siehe B2-SFN unten). Offen ist Behandlung der gesetzlichen Pause (ArbZG, ≥6h → 30 min, ≥9h → 45 min) innerhalb des Tageseintrags — Entscheidung in B2-SFN oder B2b.
 
 **B2-SFN — SFN-Berechnung + Golden-Master (neuer eigener Schritt, vor B2c):** Reines TS-Modul, das aus den `time_entries` eines Tages SFN-Zuschläge berechnet. Zwei Testquellen, beide blockierend:
- 1. **Primärreferenz (Golden Master):** `calculateShiftHours` aus `tagesabrechnung/src/lib/shiftCalculations.ts` — die produktiv bewährte §3b-EStG-Logik (identisch im Remix-Stand). Charakterisierungstest gegen jeden Referenzfall der Originalsuite; bitgenaue Reproduktion ist Abnahmekriterium.
- 2. **Zweite Testquelle:** `computeSfn`-Testfälle aus `bunker-shift-flow/.../sfn.test.ts` als unabhängige Gegenprobe.
 
- **Dies ist explizit nicht M4** — es ist die getestete Zuschlags-Logik auf Stempel-Basis, auf der M4 (Nettolohn) später aufsetzt.
+1.  **Primärreferenz (Golden Master):** `calculateShiftHours` aus `tagesabrechnung/src/lib/shiftCalculations.ts` — die produktiv bewährte §3b-EStG-Logik (identisch im Remix-Stand). Charakterisierungstest gegen jeden Referenzfall der Originalsuite; bitgenaue Reproduktion ist Abnahmekriterium.
+2.  **Zweite Testquelle:** `computeSfn`-Testfälle aus `bunker-shift-flow/.../sfn.test.ts` als unabhängige Gegenprobe.
 
-  **Umsetzung (abgenommen, Stand 13.06.2026):**
-  - Modul-Layout `src/lib/time/sfn/` mit Zwei-Adapter-Architektur:
-    - `sfn-core.ts` — reine Helfer (parseTime, overlap, round2).
-    - `tagesabrechnung.ts` — Adapter zur Primärreferenz. Bitgenaue Reproduktion der 20 Fixture-Fälle aus `golden-master/calculateShiftHours.json`. Rundet (wie das Original) am Ende auf 2 Nachkommastellen — daher `toEqual` mit Toleranz 0 statt `toBeCloseTo`.
-    - `bunker.ts` — Portierung von `computeSfn`. 13 Tests (nicht 14 wie im Briefing genannt — siehe Original-Datei).
-    - `golden-master.test.ts`, `bunker.test.ts` — beide Testquellen, beide blockierend.
-  - **Pro EINZELNEM `time_entry`** wird gerechnet. Tages-/Wochensummen entstehen in B2c durch Summieren der Topf-Werte über die Einträge eines `business_date`. **Keine virtuelle Verschmelzung von Einträgen** auf SFN-Ebene.
-  - **Welches Output-Schema die App produktiv persistiert** (GM-Felder, bunker-Felder oder ein normalisiertes Drittes), entscheidet B2c/M4. B2-SFN liefert beide Adapter parallel.
-  - **Pause** ist Input des bunker-Adapters (proportionale Proration), keine ArbZG-Automatik in B2-SFN.
-  - **Quirks** des Originals werden als Charakterisierung reproduziert, nicht korrigiert: (a) `01:00–05:00` ohne Mitternachts-Wrap liefert 0 Nachtstunden, (b) `00:00–08:00` ebenso. Briefing nannte 3 Quirks; Fixture enthält 2.
+**Dies ist explizit nicht M4** — es ist die getestete Zuschlags-Logik auf Stempel-Basis, auf der M4 (Nettolohn) später aufsetzt.
 
-  **Bewusst NICHT in B2-SFN, vertagt nach M4** (Quelle: `tagesabrechnung-sfnRates.ts`, vom Nutzer zitiert — Datei steht in M4 zur Verifikation gegen das Original an):
-  - `night40` (00–04) als Geld-Zuschlagssatz,
-  - `holiday150` für 1. Mai, 25.12., 26.12.,
-  - 50-€-Grundlohngrenze nach §3b EStG.
+**Umsetzung (abgenommen, Stand 13.06.2026):**
+
+- Modul-Layout `src/lib/time/sfn/` mit Zwei-Adapter-Architektur:
+  - `sfn-core.ts` — reine Helfer (parseTime, overlap, round2).
+  - `tagesabrechnung.ts` — Adapter zur Primärreferenz. Bitgenaue Reproduktion der 20 Fixture-Fälle aus `golden-master/calculateShiftHours.json`. Rundet (wie das Original) am Ende auf 2 Nachkommastellen — daher `toEqual` mit Toleranz 0 statt `toBeCloseTo`.
+  - `bunker.ts` — Portierung von `computeSfn`. 13 Tests (nicht 14 wie im Briefing genannt — siehe Original-Datei).
+  - `golden-master.test.ts`, `bunker.test.ts` — beide Testquellen, beide blockierend.
+- **Pro EINZELNEM `time_entry`** wird gerechnet. Tages-/Wochensummen entstehen in B2c durch Summieren der Topf-Werte über die Einträge eines `business_date`. **Keine virtuelle Verschmelzung von Einträgen** auf SFN-Ebene.
+- **Welches Output-Schema die App produktiv persistiert** (GM-Felder, bunker-Felder oder ein normalisiertes Drittes), entscheidet B2c/M4. B2-SFN liefert beide Adapter parallel.
+- **Pause** ist Input des bunker-Adapters (proportionale Proration), keine ArbZG-Automatik in B2-SFN.
+- **Quirks** des Originals werden als Charakterisierung reproduziert, nicht korrigiert: (a) `01:00–05:00` ohne Mitternachts-Wrap liefert 0 Nachtstunden, (b) `00:00–08:00` ebenso. Briefing nannte 3 Quirks; Fixture enthält 2.
+
+**Bewusst NICHT in B2-SFN, vertagt nach M4** (Quelle: `tagesabrechnung-sfnRates.ts`, vom Nutzer zitiert — Datei steht in M4 zur Verifikation gegen das Original an):
+
+- `night40` (00–04) als Geld-Zuschlagssatz,
+- `holiday150` für 1. Mai, 25.12., 26.12.,
+- 50-€-Grundlohngrenze nach §3b EStG.
   Diese Werte gehören in den Geld-Pfad (M4), nicht in die Stunden-Töpfe.
 
-  **Gestrichen (Spekulation, nicht im Originalcode):** „24.12. ab 14:00 als Special-Holiday".
+**Gestrichen (Spekulation, nicht im Originalcode):** „24.12. ab 14:00 als Special-Holiday".
 
-  **Erfolgs-Gate B2-SFN (erfüllt):** `tsc --noEmit`, `eslint`, `vitest run` grün; beide Test-Suiten blockierend; RLS-Inventur unverändert; DB-Integrationstests in CI unverändert grün.
+**Erfolgs-Gate B2-SFN (erfüllt):** `tsc --noEmit`, `eslint`, `vitest run` grün; beide Test-Suiten blockierend; RLS-Inventur unverändert; DB-Integrationstests in CI unverändert grün.
 
 **B2b — Korrekturen & Mobile-UI (umgesetzt):**
 
-  - **PWA-Manifest-only (R4):** `public/manifest.webmanifest` mit `name="COCO"`, `short_name="COCO"`, `start_url="/zeit"`, `display="standalone"`, COCO-Icons unter `public/icons/`. Head-Tags in `__root.tsx`. **Kein Service-Worker, keine Offline-Queue.** Caveat: `start_url` ist nach Installation eingefroren.
-  - **Pause (Option B — manuelle Eingabe mit ArbZG-Default):** Neue Spalte `time_entries.break_minutes int not null default 0 check (>=0 and <480)`. Beim Ausstempeln Pflicht-Dialog mit Default = `arbzgMinimumBreak(grossMin)` (>6h → 30, >9h → 45). Mitarbeiter kann übersteuern; UI warnt bei Unterschreitung. `audit_log.meta` enthält `breakMinutes`, `grossMinutes`, `arbzgRecommended`, `arbzgShort: boolean` — Compliance-Belegbarkeit für BAG-Anfragen. Reines Modul: `src/lib/time/break-rules.ts` + Tests.
-  - **Wasserlinie (G2-Sperrlogik):** Neue Tabelle `organization_settings(organization_id PK, time_locked_through_date date)`. Trigger legt für jede neue Org automatisch eine Zeile an. Semantik: `business_date ≤ time_locked_through_date` ist für **alle Rollen** gesperrt — auch Manager. Verschieben der Wasserlinie ist **admin-only** via `setTimeLock` mit Audit-Eintrag `settings.time_lock_moved`, `meta: { before, after }`.
-  - **Manager-Korrektur-Server-Functions** (`src/lib/time/time-admin.functions.ts`, alle via `runGuarded` + audit nur bei Erfolg):
-    - `listEntriesForCorrection` (manager+, lesen)
-    - `createManualEntry` (manager+, `source='manual'`, audit `time_entry.manual_create`)
-    - `updateTimeEntry` (manager+, **`source` bleibt erhalten** — kein stilles Umflaggen von `clock` auf `manual`; audit `time_entry.manual_update` mit `before`/`after`-Diff)
-    - `deleteTimeEntry` (manager+, audit `time_entry.manual_delete` mit **vollständigem Zeilen-Snapshot in `meta.snapshot`** — Gate (e): gelöschte Arbeitszeiten bleiben aus dem append-only-Log rekonstruierbar)
-    - `setTimeLock` (admin-only, audit `settings.time_lock_moved`)
-  - **Manager-UI:** `/admin/zeit` (Route gegated über `/admin`-Layout: manager+). Zeitraum-Filter, Tabelle mit Sperrindikator pro Zeile, Neu/Bearbeiten/Löschen-Dialoge mit Pflicht-Begründung (≥3 Zeichen, in `audit_log.meta.reason`). Admin-Block zum Verschieben der Wasserlinie nur sichtbar für Admins (UX-Gate; Sicherheit serverseitig).
-  - **Erfolgs-Gate B2b:**
-    - `tsc --noEmit`, `eslint --max-warnings=0`, `vitest run` grün
-    - DB-Integrationstests (blockierend): (a) Migration legt eine `organization_settings`-Zeile pro Org an (Trigger), (d) `assertBusinessDateUnlocked` wirft `TimeLockedError`, wenn `business_date ≤ time_locked_through_date` — server-seitige Sperre vor dem ersten DB-Schreibvorgang, **kein `audit_log`-Eintrag bei Verweigerung**.
-    - Unit-Tests: `arbzgMinimumBreak` (Schwellen 6h/9h), `isArbzgShort`, `isLocked`.
-    - RLS-Inventur unverändert sauber. Neue Tabelle `organization_settings`: SELECT für eigene Org, INSERT/UPDATE nur Admin.
-    - Manueller E2E (durch Nutzer): Manager-Korrektur → Audit-Query zeigt `manual_update` mit `before/after`-Diff und Reason; Löschung → `manual_delete` enthält vollständigen Snapshot in `meta.snapshot`; Versuch auf gesperrtem Tag → Fehlermeldung, kein Audit-Eintrag.
+- **PWA-Manifest-only (R4):** `public/manifest.webmanifest` mit `name="COCO"`, `short_name="COCO"`, `start_url="/zeit"`, `display="standalone"`, COCO-Icons unter `public/icons/`. Head-Tags in `__root.tsx`. **Kein Service-Worker, keine Offline-Queue.** Caveat: `start_url` ist nach Installation eingefroren.
+- **Pause (Option B — manuelle Eingabe mit ArbZG-Default):** Neue Spalte `time_entries.break_minutes int not null default 0 check (>=0 and <480)`. Beim Ausstempeln Pflicht-Dialog mit Default = `arbzgMinimumBreak(grossMin)` (>6h → 30, >9h → 45). Mitarbeiter kann übersteuern; UI warnt bei Unterschreitung. `audit_log.meta` enthält `breakMinutes`, `grossMinutes`, `arbzgRecommended`, `arbzgShort: boolean` — Compliance-Belegbarkeit für BAG-Anfragen. Reines Modul: `src/lib/time/break-rules.ts` + Tests.
+- **Wasserlinie (G2-Sperrlogik):** Neue Tabelle `organization_settings(organization_id PK, time_locked_through_date date)`. Trigger legt für jede neue Org automatisch eine Zeile an. Semantik: `business_date ≤ time_locked_through_date` ist für **alle Rollen** gesperrt — auch Manager. Verschieben der Wasserlinie ist **admin-only** via `setTimeLock` mit Audit-Eintrag `settings.time_lock_moved`, `meta: { before, after }`.
+- **Manager-Korrektur-Server-Functions** (`src/lib/time/time-admin.functions.ts`, alle via `runGuarded` + audit nur bei Erfolg):
+  - `listEntriesForCorrection` (manager+, lesen)
+  - `createManualEntry` (manager+, `source='manual'`, audit `time_entry.manual_create`)
+  - `updateTimeEntry` (manager+, **`source` bleibt erhalten** — kein stilles Umflaggen von `clock` auf `manual`; audit `time_entry.manual_update` mit `before`/`after`-Diff)
+  - `deleteTimeEntry` (manager+, audit `time_entry.manual_delete` mit **vollständigem Zeilen-Snapshot in `meta.snapshot`** — Gate (e): gelöschte Arbeitszeiten bleiben aus dem append-only-Log rekonstruierbar)
+  - `setTimeLock` (admin-only, audit `settings.time_lock_moved`)
+- **Manager-UI:** `/admin/zeit` (Route gegated über `/admin`-Layout: manager+). Zeitraum-Filter, Tabelle mit Sperrindikator pro Zeile, Neu/Bearbeiten/Löschen-Dialoge mit Pflicht-Begründung (≥3 Zeichen, in `audit_log.meta.reason`). Admin-Block zum Verschieben der Wasserlinie nur sichtbar für Admins (UX-Gate; Sicherheit serverseitig).
+- **Erfolgs-Gate B2b:**
+  - `tsc --noEmit`, `eslint --max-warnings=0`, `vitest run` grün
+  - DB-Integrationstests (blockierend): (a) Migration legt eine `organization_settings`-Zeile pro Org an (Trigger), (d) `assertBusinessDateUnlocked` wirft `TimeLockedError`, wenn `business_date ≤ time_locked_through_date` — server-seitige Sperre vor dem ersten DB-Schreibvorgang, **kein `audit_log`-Eintrag bei Verweigerung**.
+  - Unit-Tests: `arbzgMinimumBreak` (Schwellen 6h/9h), `isArbzgShort`, `isLocked`.
+  - RLS-Inventur unverändert sauber. Neue Tabelle `organization_settings`: SELECT für eigene Org, INSERT/UPDATE nur Admin.
+  - Manueller E2E (durch Nutzer): Manager-Korrektur → Audit-Query zeigt `manual_update` mit `before/after`-Diff und Reason; Löschung → `manual_delete` enthält vollständigen Snapshot in `meta.snapshot`; Versuch auf gesperrtem Tag → Fehlermeldung, kein Audit-Eintrag.
 
 **B2c — Migration & Parallelbetrieb:** `zt_shifts`-Importer aus tagesabrechnung + bunker, 2-Wochen-Parallelbetrieb mit Abgleichsbericht, Alt-Sync stilllegen.
 

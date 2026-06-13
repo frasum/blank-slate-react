@@ -82,10 +82,7 @@ export function computeDayDelta(day: DayInput): number {
   );
 }
 
-export function accumulateChain(
-  openingBalanceCents: number,
-  days: DayInput[],
-): DayResult[] {
+export function accumulateChain(openingBalanceCents: number, days: DayInput[]): DayResult[] {
   if (!Number.isInteger(openingBalanceCents))
     throw new Error("openingBalanceCents must be integer cents");
   // Tage müssen lexikographisch aufsteigend sortiert sein (ISO-Datum).
