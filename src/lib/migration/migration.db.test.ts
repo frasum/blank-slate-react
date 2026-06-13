@@ -19,6 +19,7 @@ import {
   type SeededUser,
 } from "@/test/db-setup";
 import { executeImport } from "./run-import-core";
+import { bootstrapMissingStaffCore } from "./bootstrap-missing-staff";
 
 const TA_HEADER =
   "id,employee_id,staff_name,staff_nickname,shift_date,department,start_time,end_time,absence_type,is_holiday,total_hours,evening_hours,night_hours,night_deep_hours,sunday_holiday_hours";
@@ -179,5 +180,90 @@ describe.skipIf(!dbTestsEnabled)("migration — Importer + RLS", () => {
       .eq("alt_id", "EMP-1")
       .maybeSingle();
     expect(after.data?.staff_id).toBe(before.data?.staff_id);
+  });
+
+  it("(5) bootstrap: bei identischem display_name wird verknüpft statt neu angelegt", async () => {
+    // Vorhandener Staff (z. B. aus regulärer Anlage).
+    const { data: existing, error: insErr } = await org.service
+      .from("staff")
+      .insert({
+        organization_id: org.orgId,
+        first_name: "Bea",
+        last_name: "Bestand",
+        display_name: "Bea Bestand",
+        is_active: true,
+      })
+      .select("id")
+      .single();
+    expect(insErr).toBeNull();
+
+    // Mapping ohne staff_id mit identischem alt_name (Whitespace + Case egal).
+    const { data: map, error: mErr } = await org.service
+      .from("staff_identity_map")
+      .insert({
+        organization_id: org.orgId,
+        source_system: "tagesabrechnung",
+        alt_id: "EMP-DUP",
+        alt_name: "  bea bestand  ",
+      })
+      .select("id")
+      .single();
+    expect(mErr).toBeNull();
+
+    const res = await bootstrapMissingStaffCore({
+      admin: org.service,
+      organizationId: org.orgId,
+      sourceSystem: "tagesabrechnung",
+    });
+    expect(res.linked).toBeGreaterThanOrEqual(1);
+
+    const { data: linkedMap } = await org.service
+      .from("staff_identity_map")
+      .select("staff_id")
+      .eq("id", map!.id)
+      .single();
+    expect(linkedMap?.staff_id).toBe(existing!.id);
+
+    // Kein zweiter Staff mit demselben display_name angelegt.
+    const { count } = await org.service
+      .from("staff")
+      .select("*", { count: "exact", head: true })
+      .eq("organization_id", org.orgId)
+      .eq("display_name", "Bea Bestand");
+    expect(count).toBe(1);
+
+    // Aufräumen.
+    await org.service.from("staff_identity_map").delete().eq("id", map!.id);
+    await org.service.from("staff").delete().eq("id", existing!.id);
+  });
+
+  it("(6) bootstrap: leeres alt_name → skipped mit Grund empty_alt_name", async () => {
+    const { data: map } = await org.service
+      .from("staff_identity_map")
+      .insert({
+        organization_id: org.orgId,
+        source_system: "tagesabrechnung",
+        alt_id: "EMP-EMPTY",
+        alt_name: "   ",
+      })
+      .select("id")
+      .single();
+
+    const res = await bootstrapMissingStaffCore({
+      admin: org.service,
+      organizationId: org.orgId,
+      sourceSystem: "tagesabrechnung",
+    });
+    expect(res.skippedNames.some((s) => s.altId === "EMP-EMPTY" && s.reason === "empty_alt_name"))
+      .toBe(true);
+
+    const { data: still } = await org.service
+      .from("staff_identity_map")
+      .select("staff_id")
+      .eq("id", map!.id)
+      .single();
+    expect(still?.staff_id).toBeNull();
+
+    await org.service.from("staff_identity_map").delete().eq("id", map!.id);
   });
 });

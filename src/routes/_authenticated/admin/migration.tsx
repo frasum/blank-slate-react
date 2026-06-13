@@ -23,6 +23,7 @@ import { listStaff } from "@/lib/admin/staff.functions";
 import {
   confirmMapping,
   getReconciliationReport,
+  getReconciliationReportFromDb,
   listIdentityMappings,
   parseImportCsv,
   proposeIdentityMappings,
@@ -59,6 +60,7 @@ function MigrationPage() {
   const callConfirm = useServerFn(confirmMapping);
   const callRun = useServerFn(runImport);
   const callReport = useServerFn(getReconciliationReport);
+  const callReportDb = useServerFn(getReconciliationReportFromDb);
   const fetchStaff = useServerFn(listStaff);
   const callBootstrap = useServerFn(bootstrapMissingStaff);
 
@@ -111,6 +113,20 @@ function MigrationPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const reportDbMut = useMutation({
+    mutationFn: () =>
+      callReportDb({
+        data: {
+          sourceSystem,
+          csvText,
+          groupBy,
+          from: from || undefined,
+          to: to || undefined,
+        },
+      }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const confirmMut = useMutation({
     mutationFn: (vars: { id: string; staffId: string | null }) =>
       callConfirm({ data: vars }),
@@ -125,7 +141,7 @@ function MigrationPage() {
     mutationFn: () => callBootstrap({ data: { sourceSystem } }),
     onSuccess: (r) => {
       toast.success(
-        `Staff-Bootstrap: ${r.created} angelegt, ${r.skipped} übersprungen.`,
+        `Staff-Bootstrap: ${r.created} angelegt, ${r.linked} verknüpft, ${r.skipped} übersprungen.`,
       );
       void qc.invalidateQueries({ queryKey: ["identity-mappings", sourceSystem] });
       void qc.invalidateQueries({ queryKey: ["admin-staff"] });
@@ -151,6 +167,12 @@ function MigrationPage() {
   const parseRes = parseMut.data;
   const dryRes = dryRunMut.data;
   const reportRows = (reportMut.data?.rows ?? []).filter((r) => r.hasDifference);
+  const reportDbRows = (reportDbMut.data?.rows ?? []).filter((r) => r.hasDifference);
+  const staffNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const s of staffQ.data ?? []) m.set(s.id, s.displayName);
+    return m;
+  }, [staffQ.data]);
 
   return (
     <div className="space-y-6">
@@ -335,11 +357,34 @@ function MigrationPage() {
           >
             {reportMut.isPending ? "Berechne…" : "Bericht erstellen"}
           </Button>
+          <Button
+            variant="outline"
+            disabled={!csvText || reportDbMut.isPending}
+            onClick={() => reportDbMut.mutate()}
+          >
+            {reportDbMut.isPending ? "DB-Berechne…" : "Bericht aus DB"}
+          </Button>
         </div>
 
-        {reportRows.length > 0 && <ReconciliationTable rows={reportRows} />}
+        {reportRows.length > 0 && (
+          <ReconciliationTable
+            title="Alt-Topf (CSV) vs. neu (CSV-Adapter)"
+            rows={reportRows}
+            staffNameById={staffNameById}
+          />
+        )}
         {reportMut.data && reportRows.length === 0 && (
-          <p className="text-sm text-muted-foreground">Keine Differenzen im Zeitraum.</p>
+          <p className="text-sm text-muted-foreground">CSV-Adapter: keine Differenzen im Zeitraum.</p>
+        )}
+        {reportDbRows.length > 0 && (
+          <ReconciliationTable
+            title="Alt-Topf (CSV) vs. neu (aus DB)"
+            rows={reportDbRows}
+            staffNameById={staffNameById}
+          />
+        )}
+        {reportDbMut.data && reportDbRows.length === 0 && (
+          <p className="text-sm text-muted-foreground">DB-Adapter: keine Differenzen im Zeitraum.</p>
         )}
       </Card>
     </div>
@@ -445,8 +490,11 @@ function MappingRow({
 }
 
 function ReconciliationTable({
+  title,
   rows,
+  staffNameById,
 }: {
+  title: string;
   rows: Array<{
     staffId: string;
     bucketKey: string;
@@ -455,12 +503,14 @@ function ReconciliationTable({
     diff: Record<string, number>;
     hasDifference: boolean;
   }>;
+  staffNameById: Map<string, string>;
 }) {
   const potKeys = Array.from(
     new Set(rows.flatMap((r) => Object.keys(r.diff))),
   ).sort();
   return (
     <div className="overflow-x-auto">
+      <div className="mb-1 text-sm font-medium">{title}</div>
       <Table>
         <TableHeader>
           <TableRow>
@@ -477,8 +527,16 @@ function ReconciliationTable({
           {rows.map((r, i) => (
             <TableRow key={`${r.staffId}-${r.bucketKey}-${i}`}>
               <TableCell className="font-mono text-xs">{r.bucketKey}</TableCell>
-              <TableCell className="font-mono text-xs">
-                {r.staffId}
+              <TableCell>
+                <div className="text-sm">
+                  {staffNameById.get(r.staffId) ?? "—"}
+                </div>
+                <div
+                  className="font-mono text-[10px] text-muted-foreground"
+                  title={r.staffId}
+                >
+                  {r.staffId}
+                </div>
               </TableCell>
               {potKeys.map((k) => {
                 const d = r.diff[k] ?? 0;
