@@ -29,6 +29,7 @@ import {
   proposeIdentityMappings,
   runImport,
   bootstrapMissingStaff,
+  reassignImportedStaff,
 } from "@/lib/migration/migration.functions";
 
 type SourceSystem = "tagesabrechnung" | "bunker";
@@ -63,6 +64,7 @@ function MigrationPage() {
   const callReportDb = useServerFn(getReconciliationReportFromDb);
   const fetchStaff = useServerFn(listStaff);
   const callBootstrap = useServerFn(bootstrapMissingStaff);
+  const callReassign = useServerFn(reassignImportedStaff);
 
   const staffQ = useQuery({ queryKey: ["admin-staff"], queryFn: () => fetchStaff() });
   const mappingsQ = useQuery({
@@ -144,6 +146,19 @@ function MigrationPage() {
       );
       void qc.invalidateQueries({ queryKey: ["identity-mappings", sourceSystem] });
       void qc.invalidateQueries({ queryKey: ["admin-staff"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const reassignDryMut = useMutation({
+    mutationFn: () => callReassign({ data: { sourceSystem, mode: "dry_run" } }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const reassignCommitMut = useMutation({
+    mutationFn: () => callReassign({ data: { sourceSystem, mode: "commit" } }),
+    onSuccess: (r) => {
+      toast.success(`Umgehängt: ${r.totalUpdated} Schicht(en) in ${r.groups.length} Gruppe(n).`);
+      void reassignDryMut.reset();
     },
     onError: (e: Error) => toast.error(e.message),
   });
