@@ -97,7 +97,7 @@ function MigrationPage() {
 
   const parseMut = useMutation({
     mutationFn: () => callParse({ data: { sourceSystem, csvText } }),
-    onError: (e: Error) => toast.error(e.message),
+    onError: handleMutationError,
   });
 
   const proposeMut = useMutation({
@@ -106,12 +106,12 @@ function MigrationPage() {
       toast.success("Identitäts-Vorschläge aktualisiert.");
       void qc.invalidateQueries({ queryKey: ["identity-mappings", sourceSystem] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: handleMutationError,
   });
 
   const dryRunMut = useMutation({
     mutationFn: () => callRun({ data: { sourceSystem, csvText, mode: "dry_run" } }),
-    onError: (e: Error) => toast.error(e.message),
+    onError: handleMutationError,
   });
 
   const commitMut = useMutation({
@@ -121,7 +121,7 @@ function MigrationPage() {
         `Import abgeschlossen. Importiert: ${r.counters.imported}, Wasserlinie: ${r.lockedThrough ?? "unverändert"}.`,
       );
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: handleMutationError,
   });
 
   const reportMut = useMutation({
