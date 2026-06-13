@@ -72,7 +72,7 @@ describe.skipIf(!dbTestsEnabled)("finalize → update vs. correct (DB)", () => {
       einladungCents: 0,
       sonstigeEinnahmeCents: 0,
       notes: null,
-    } as const;
+    };
   }
 
   beforeAll(async () => {

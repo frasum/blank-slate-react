@@ -138,7 +138,7 @@ describe.skipIf(!dbTestsEnabled)("cash lock — Session-Sperre + Wasserlinie (DB
       einladungCents: 0,
       sonstigeEinnahmeCents: 0,
       notes: null,
-    } as const;
+    };
   }
 
   beforeAll(async () => {
