@@ -767,3 +767,68 @@ function ReconciliationTableImpl({
     </div>
   );
 }
+
+function DeleteImportedReport({
+  result,
+  mode,
+}: {
+  result: {
+    totalMatched: number;
+    totalDeleted: number;
+    minBusinessDate: string | null;
+    maxBusinessDate: string | null;
+    staffGroups: Array<{ staffId: string; staffName: string; shiftCount: number }>;
+    filter: { staffId: string | null };
+  } | null;
+  mode: "dry_run" | "commit";
+}) {
+  if (!result) return null;
+  return (
+    <div className="space-y-2">
+      <div className="rounded-md border border-border bg-muted/30 p-3 text-sm">
+        <div className="font-medium">
+          {mode === "commit" ? "Lösch-Bericht" : "Dry-Run-Bericht"}
+        </div>
+        <div className="flex flex-wrap gap-4">
+          <span>
+            betroffen: <strong>{result.totalMatched}</strong>
+          </span>
+          {mode === "commit" && (
+            <span>
+              gelöscht: <strong>{result.totalDeleted}</strong>
+            </span>
+          )}
+          <span>
+            Zeitraum:{" "}
+            <code>
+              {result.minBusinessDate ?? "—"} … {result.maxBusinessDate ?? "—"}
+            </code>
+          </span>
+          {result.filter.staffId && (
+            <span className="text-muted-foreground">
+              Filter staff_id: <code className="text-xs">{result.filter.staffId}</code>
+            </span>
+          )}
+        </div>
+      </div>
+      {result.staffGroups.length > 0 && (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Mitarbeiter</TableHead>
+              <TableHead className="text-right">Schichten</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {result.staffGroups.map((g) => (
+              <TableRow key={g.staffId}>
+                <TableCell>{g.staffName}</TableCell>
+                <TableCell className="text-right">{g.shiftCount}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </div>
+  );
+}
