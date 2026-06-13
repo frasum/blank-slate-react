@@ -440,3 +440,216 @@ DB-Tests in einen eigenen Commit, nicht vermischt mit UI.
 
 Konsumiert 1a, baut die zwei Routen wie in B3c-1 oben beschrieben.
 Kein weiterer Function-Anfass, keine neue Geschäftslogik.
+
+---
+
+## B3-Modellkorrektur (Befund 1 + 2)
+
+Quelle: `befund-kasse-modell-und-standort.md`. Befund 3 (Trinkgeld-Pool)
+ist explizit NICHT Teil dieses Blocks und folgt danach. B3c-2
+(Saldo-UI/Export) ebenfalls nicht.
+
+Hintergrund: Die in B3a/B3b gebaute Kassenmechanik weicht in zwei
+Punkten vom bewährten Alt-Modell ab:
+1. Kanäle, Terminals und Sessions hängen nur an `organization_id`,
+   nicht an `location_id`. Damit ist die Kasse für Mehrstandort-Orgs
+   nicht korrekt abbildbar — ein Tag pro Org statt ein Tag pro Standort.
+2. `cash-ledger.computeDayDelta` weicht von der Original-`dailyCash`-
+   Formel ab (fehlende Eingaben: Kartenumsatz separat, ordersmart,
+   wolt, einladung, openInvoices, sonstigeEinnahme; Transfers nicht
+   richtungsbasiert; Bankeinzahlungen werden ins Tages-Delta gemischt
+   statt nach dem Carry abgezogen). Ergebnis: Saldo nicht reproduzierbar
+   gegen Altdaten.
+
+Reihenfolge: Teil A (Standort-Modell) und Teil B (Formel) sind getrennte
+Commits in dieser Reihenfolge. Tests (Teil C) jeweils mit dem Commit,
+der die Logik bringt.
+
+### Teil A — Standorte in der Kasse (eigener Commit)
+
+Schema-Migration (eine Migration, alle Tabellen in einem Schritt — sonst
+ist die Datenbank zwischen Migrationen inkonsistent):
+
+- `sessions`:
+  - `location_id uuid NOT NULL REFERENCES locations(id)` ergänzen.
+  - Bestehender Unique `(organization_id, business_date)` → DROP, dann
+    `UNIQUE (organization_id, location_id, business_date)`.
+  - Index `(organization_id, business_date)` → `(organization_id,
+    location_id, business_date)`.
+- `revenue_channels`:
+  - `location_id uuid NOT NULL REFERENCES locations(id)` ergänzen.
+  - Unique-/Sort-Order-Constraints inkl. `location_id` neu fassen.
+- `payment_terminals`: analog `location_id NOT NULL` ergänzen.
+- Wasserlinie (`cash_locked_through_date`): **je Standort**, nicht
+  org-weit. Begründung: Kassentage werden standortweise final; eine
+  org-weite Sperre würde einen Standort gegen unfertige Tage eines
+  anderen blockieren. Umsetzung: neue Tabelle
+  `cash_locks (organization_id, location_id, locked_through_date,
+  updated_at, updated_by)` mit `PRIMARY KEY (organization_id,
+  location_id)`. Die Spalte auf `organizations` (falls vorhanden) wird
+  durch dieses Mapping ersetzt; Migration kopiert den bisherigen Wert je
+  bestehender Location.
+- RLS: alle vier Tabellen behalten DENY-ALL Client-seitig; Lese-/
+  Schreibrechte laufen über `supabaseAdmin` in den Server-Functions.
+  GRANTs wie bisher.
+- Bestandsdaten: Da B3 noch nicht produktiv ist, gibt es keine
+  Migrationspflicht für historische `sessions`. Falls Testdaten
+  existieren, werden sie an die erste Location der Org gepinnt
+  (deterministisch nach `created_at`); die Migration weist auf den
+  Eingriff explizit hin.
+
+Server-Functions (`src/lib/cash/cash.functions.ts`, alle Aufrufer
+anpassen):
+
+- `getOrCreateOpenSession({ businessDate, locationId })` — Idempotenz
+  jetzt über `(org, location, date)`.
+- `getCashOverview({ businessDate, locationId })` — selektiert pro
+  Standort. Reader-Shape bleibt sonst.
+- `updateSession`, `finalizeSession`, `lockSession` — `locationId` aus
+  der `sessions`-Zeile lesen, Wasserlinie gegen `cash_locks` pro
+  Standort prüfen.
+- `setCashLock({ locationId, throughDate, reason })` — schreibt in
+  `cash_locks`. Admin-only wie bisher.
+- `submitWaiterSettlement({ businessDate, locationId, ... })` — Kellner
+  wählt den Standort, an dem er heute gearbeitet hat. Validierung:
+  `staff_locations`-Eintrag des Callers für diese `locationId` muss
+  existieren (sonst `ForbiddenError`). Das deckt fliegende Mitarbeiter
+  ab, die mal hier, mal dort abrechnen.
+- `correctWaiterSettlement` — keine Signaturänderung; die zu
+  korrigierende Zeile bringt `location_id` über `session_id` mit.
+- `listRevenueChannels({ locationId })` / `listPaymentTerminals(
+  { locationId })` — standort-gefiltert. UI muss `locationId` mitgeben.
+- Cross-Org-Schutz: jede Function prüft, dass die übergebene
+  `locationId` zur Org des Callers gehört (`locations.organization_id =
+  caller.org`). Sonst `ForbiddenError`.
+
+UI (nur Anpassung, kein neuer Scope):
+
+- `/admin/kasse`: Standort-Selector im Kopf, persistiert in der URL
+  (`?location=…`). Default: erster Standort der Org nach `sort_order`.
+- `/zeit/abrechnung`: Standort-Selector über den Beträgen, gefiltert auf
+  Standorte mit gültiger `staff_locations`-Bindung. Default: einziger
+  Standort, falls nur einer berechtigt.
+- Wasserlinien-Block (`/admin/kasse`): Datum + Reason je Standort.
+
+### Teil B — Kassenformel ans Alt-Modell angleichen (eigener Commit)
+
+Modul: `src/lib/cash/cash-ledger.ts`.
+
+Neue `DayInput`-Felder (BIGINT-Cents, Integer-Validierung wie bisher):
+
+- `grossRevenueCents` (= POS) — bleibt.
+- `vouchersSoldCents`, `vouchersRedeemedCents`, `finedineVouchersCents`
+  — bleiben.
+- **NEU** `cardTotalCents` — Summe Terminal1+Terminal2. Wird vom Tages-
+  Delta subtrahiert (Karten kommen nicht in die Kasse).
+- **NEU** `ordersmartCents`, `woltCents` — Bestellplattformen, subtrahiert.
+- **NEU** `einladungCents` — subtrahiert.
+- **NEU** `openInvoicesCents: number[]` — Σ subtrahiert.
+- **NEU** `sonstigeEinnahmeCents` — addiert.
+- `satellites.expensesCents` — bleibt (subtrahiert).
+- `satellites.advancesCents` — bleibt; **Quirk**: wenn die Liste nicht
+  leer ist, gilt deren Summe; sonst greift `vorschussCents` aus
+  `DayInput` (NICHT beide gleichzeitig). Begründung: das Alt-Modell hat
+  beide Eingabearten, aber nie additiv.
+- **NEU** `vorschussCents` (Session-Pauschalfeld) — siehe oben.
+- `satellites.bankDepositsCents` — bleibt, wird aber NICHT mehr im
+  Tages-Delta verrechnet. Stattdessen separate Ketten-Stufe (s. u.).
+- `satellites.registerTransfersCents: [{ direction, amountCents }]` —
+  richtungsbasiert statt zwei Listen. `direction ∈ { 'to_restaurant',
+  'to_safe', 'to_other' }`. `to_restaurant` addiert, alle anderen
+  subtrahieren. Das Schema-Feld bleibt wie heute (`direction`-Spalte
+  existiert in `session_register_transfers` bereits).
+- `satellites.cardTransactionsCents` — bleibt als separate
+  Korrekturliste (selten genutzt; addiert/subtrahiert je Vorzeichen wie
+  heute). Nicht gleich `cardTotalCents`.
+
+Neue Formel (cent-genau):
+
+```text
+dailyCash    = grossRevenue + vouchersSold + sonstigeEinnahme
+             − cardTotal − ordersmart − wolt − vouchersRedeemed
+             − finedineVouchers − einladung − Σ openInvoices
+             − effectiveVorschuss − Σ expenses
+             + Σ cardTransactions
+
+transferEffect = Σ transfers(to_restaurant) − Σ transfers(to_safe|other)
+
+rawBargeld     = dailyCash + transferEffect
+chained        = rawBargeld + previousCarry          // previousCarry darf < 0 sein
+remainingCash  = chained − Σ bankDeposits            // Einzahlungen NACH Carry
+carry          = remainingCash                       // auch negativ weiterreichen
+```
+
+`accumulateChain` liefert pro Tag: `dailyCashCents`, `transferEffectCents`,
+`rawBargeldCents`, `previousCarryCents`, `chainedCents`,
+`bankDepositsTotalCents`, `remainingCashCents` (= neuer
+`balanceCents`). `deficitCarriedFromPreviousCents` bleibt (= max(0,
+−previousCarry)). Reihenfolge-Invariante (strictly ascending
+`businessDate`) bleibt; Property-Test bleibt unverändert (gilt für die
+neue Funktion ebenso).
+
+`session_channel_amounts` / `session_terminal_amounts` werden im Reader
+(`getCashOverview`) so aggregiert, dass die UI die Formel-Eingaben
+direkt füllen kann: POS/Wolt/Ordersmart werden anhand
+`revenue_channels.kind` (oder eines äquivalenten Marker-Feldes)
+separiert; `cardTotal` ist die Summe aller `terminal_amounts`. Falls
+der Marker fehlt, wird er als Mini-Schema-Ergänzung in derselben
+Migration nachgezogen (`revenue_channels.kind text NOT NULL DEFAULT
+'pos'`, Werte: `'pos'`, `'wolt'`, `'ordersmart'`, `'voucher_sold'`,
+`'voucher_redeemed'`, `'finedine'`, `'einladung'`, `'sonstige'`).
+Konkrete Wahl wird im Implementierungs-Commit fixiert.
+
+`aggregateSessionRevenue` (`session-channels.ts`) wird passend zu den
+neuen Kanal-Kinds umgeschrieben; bisherige Tests werden angepasst (sie
+sind Charakterisierungstests der jetzigen Formel, nicht der Altformel).
+
+### Teil C — Tests
+
+- `cash-ledger.test.ts`: neu fassen mit Fällen aus dem Befund-Dokument
+  (POS-only, Karten dominieren, Wolt+Ordersmart, Vorschuss-Quirk
+  beide Varianten, Transfer to_restaurant/to_safe, Einzahlung > Bargeld
+  → negativer Carry, mehrtägige Kette mit Defizit-Übertrag).
+- `cash-ledger.property.test.ts`: bleibt (Assoziativität der Kette).
+  Generator wird um die neuen Felder erweitert.
+- Golden-Master (`golden-master/cashBalance.test.ts`): Harness bleibt;
+  Fixture wird vom externen Prüfer geliefert (zwei Ketten, eine je
+  Standort). Bis dahin bleibt die Platzhalter-Fixture, an die neue
+  Formel angepasst.
+- DB-Tests:
+  - `cash-submit.db.test.ts` / `cash-correct.db.test.ts` /
+    `cash-finalize.db.test.ts` / `cash-lock.db.test.ts` /
+    `cash-read.db.test.ts` / `cash-rls.db.test.ts` — alle bekommen einen
+    `locationId`-Parameter in den Aufrufen.
+  - NEU: zwei Standorte derselben Org, je eigene Session am selben Tag;
+    `(org, location, date)` Unique greift (zweiter Insert mit gleichem
+    Tripel → Konflikt; mit unterschiedlicher `location_id` ok).
+  - NEU: Kellner ohne `staff_locations`-Bindung für die `locationId`
+    ruft `submitWaiterSettlement` → `ForbiddenError`.
+  - NEU: Wasserlinie je Standort: `setCashLock` für Location A sperrt
+    Schreibpfade für A; B bleibt schreibbar.
+
+### Nicht in diesem Block
+
+- Trinkgeld-Pool-Verteilung (Befund 3) — eigener Block danach.
+- B3c-2 Saldo-UI/Export.
+- Stammdaten-Pflege Kanäle/Terminals.
+
+### Erfolgs-Gate
+
+- `tsc`, `eslint . --fix` mit `--max-warnings=0`, `vitest run` grün.
+- CI `check` + `db-integration` grün.
+- `docs/cash-e2e-check.md` um Standort-Fall ergänzt (zwei Standorte,
+  Kellner-Berechtigung, Wasserlinie je Standort).
+
+### Offene Fragen vor Bau (bitte vor Teil-A-Commit klären)
+
+1. Soll `revenue_channels.kind` als Marker eingeführt werden, oder gibt
+   es bereits ein äquivalentes Feld, das wir nutzen sollen? (Beeinflusst
+   die Migration in Teil A bzw. Teil B.)
+2. `cash_locks` als eigene Tabelle (Vorschlag) oder bestehende Spalte
+   auf `organizations` durch `(organization_id, location_id)`-Pivot
+   ersetzen?
+3. Default-Standort in der UI: erster nach `sort_order` ok, oder soll
+   der zuletzt benutzte je User persistiert werden (kleine
+   `user_preferences`-Erweiterung)?
