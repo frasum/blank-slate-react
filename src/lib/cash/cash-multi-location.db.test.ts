@@ -172,9 +172,9 @@ describe.skipIf(!dbTestsEnabled)("cash multi-location (DB)", () => {
   });
 
   it("(d) assertLocationInOrg: locationId einer fremden Org → ForbiddenError", async () => {
-    await expect(
-      assertLocationInOrg(org.orgId, otherOrg.defaultLocationId),
-    ).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(assertLocationInOrg(org.orgId, otherOrg.defaultLocationId)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
     // Sanity: eigene Location passiert ohne Fehler.
     await expect(assertLocationInOrg(org.orgId, locationB)).resolves.toBeUndefined();
   });
