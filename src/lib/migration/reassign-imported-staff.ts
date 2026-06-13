@@ -151,8 +151,10 @@ export async function reassignImportedStaffCore(args: {
     }
     g.shiftCount++;
     g._ids.push(m.id);
-    if (!g.minBusinessDate || m.businessDate < g.minBusinessDate) g.minBusinessDate = m.businessDate;
-    if (!g.maxBusinessDate || m.businessDate > g.maxBusinessDate) g.maxBusinessDate = m.businessDate;
+    if (!g.minBusinessDate || m.businessDate < g.minBusinessDate)
+      g.minBusinessDate = m.businessDate;
+    if (!g.maxBusinessDate || m.businessDate > g.maxBusinessDate)
+      g.maxBusinessDate = m.businessDate;
   }
 
   // 7) Commit: bulk-Update je Zielstaff (Batches à 200 IDs).

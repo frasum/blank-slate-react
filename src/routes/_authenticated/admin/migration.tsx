@@ -362,7 +362,7 @@ function MigrationPage() {
         </div>
         {(reassignDryMut.data || reassignCommitMut.data) && (
           <ReassignReport
-            result={(reassignCommitMut.data ?? reassignDryMut.data) ?? null}
+            result={reassignCommitMut.data ?? reassignDryMut.data ?? null}
             mode={reassignCommitMut.data ? "commit" : "dry_run"}
           />
         )}
@@ -574,7 +574,9 @@ function ReassignReport({
   return (
     <div className="space-y-2">
       <div className="rounded-md border border-border bg-muted/30 p-3 text-sm">
-        <div className="font-medium">{mode === "commit" ? "Commit-Bericht" : "Dry-Run-Bericht"}</div>
+        <div className="font-medium">
+          {mode === "commit" ? "Commit-Bericht" : "Dry-Run-Bericht"}
+        </div>
         <div className="flex flex-wrap gap-4">
           <span>
             gescannt: <strong>{result.totalScanned}</strong>
