@@ -122,7 +122,8 @@ function KassePage() {
   const isLocked = sessionStatus === "locked" || underWaterline;
   const isFinalized = sessionStatus === "finalized";
   const writable = sessionStatus === "open" && !underWaterline;
-  const correctable = (sessionStatus === "open" || sessionStatus === "finalized") && !underWaterline;
+  const correctable =
+    (sessionStatus === "open" || sessionStatus === "finalized") && !underWaterline;
 
   // -------------------- Session anlegen --------------------
   const createSessionMut = useMutation({
@@ -198,8 +199,7 @@ function KassePage() {
   const [cashLockDate, setCashLockDate] = useState<string>("");
   const [cashLockReason, setCashLockReason] = useState<string>("");
   const cashLockMut = useMutation({
-    mutationFn: () =>
-      callCashLock({ data: { throughDate: cashLockDate, reason: cashLockReason } }),
+    mutationFn: () => callCashLock({ data: { throughDate: cashLockDate, reason: cashLockReason } }),
     onSuccess: () => {
       toast.success("Wasserlinie verschoben.");
       setCashLockReason("");
@@ -232,25 +232,18 @@ function KassePage() {
               {sessionStatus}
             </Badge>
           )}
-          {underWaterline && (
-            <Badge variant="destructive">≤ {lockedThrough} gesperrt</Badge>
-          )}
+          {underWaterline && <Badge variant="destructive">≤ {lockedThrough} gesperrt</Badge>}
         </div>
       </div>
 
-      {ovQ.isLoading && (
-        <Card className="p-6 text-sm text-muted-foreground">Lade…</Card>
-      )}
+      {ovQ.isLoading && <Card className="p-6 text-sm text-muted-foreground">Lade…</Card>}
 
       {!ovQ.isLoading && !ovQ.data?.session && (
         <Card className="space-y-3 p-6">
           <div className="text-sm">
             Für <strong>{businessDate}</strong> existiert noch keine Session.
           </div>
-          <Button
-            disabled={createSessionMut.isPending}
-            onClick={() => createSessionMut.mutate()}
-          >
+          <Button disabled={createSessionMut.isPending} onClick={() => createSessionMut.mutate()}>
             {createSessionMut.isPending ? "Wird angelegt…" : "Session anlegen"}
           </Button>
         </Card>
@@ -332,8 +325,8 @@ function KassePage() {
         <Card className="space-y-3 p-4">
           <div className="font-medium">Kasse-Wasserlinie verschieben (nur Admin)</div>
           <p className="text-sm text-muted-foreground">
-            Alle Geschäftstage ≤ dem gewählten Datum werden für Kassen-Schreibzugriffe gesperrt.
-            Nur vorwärts. Aktueller Stand: {lockedThrough ?? "keine Sperre"}.
+            Alle Geschäftstage ≤ dem gewählten Datum werden für Kassen-Schreibzugriffe gesperrt. Nur
+            vorwärts. Aktueller Stand: {lockedThrough ?? "keine Sperre"}.
           </p>
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-1">
@@ -357,9 +350,7 @@ function KassePage() {
             </div>
             <Button
               disabled={
-                cashLockDate === "" ||
-                cashLockReason.trim().length < 3 ||
-                cashLockMut.isPending
+                cashLockDate === "" || cashLockReason.trim().length < 3 || cashLockMut.isPending
               }
               onClick={() => cashLockMut.mutate()}
             >
@@ -415,9 +406,7 @@ function KassePage() {
               Abbrechen
             </Button>
             <Button
-              disabled={
-                !correct || correct.reason.trim().length < 3 || correctMut.isPending
-              }
+              disabled={!correct || correct.reason.trim().length < 3 || correctMut.isPending}
               onClick={() => correctMut.mutate()}
             >
               {correctMut.isPending ? "Speichert…" : "Korrektur speichern"}
@@ -467,9 +456,7 @@ function KassePage() {
             <Button
               variant="destructive"
               disabled={lockMut.isPending}
-              onClick={() =>
-                lockMut.mutate(undefined, { onSuccess: () => setLockConfirm(false) })
-              }
+              onClick={() => lockMut.mutate(undefined, { onSuccess: () => setLockConfirm(false) })}
             >
               Sperren
             </Button>
@@ -533,17 +520,29 @@ function SettlementsCard({
             return (
               <TableRow key={r.id} className={superseded ? "opacity-50" : ""}>
                 <TableCell>{r.staffName}</TableCell>
-                <TableCell className="text-right font-mono">{fmtCents(Number(r.pos_sales_cents))}</TableCell>
-                <TableCell className="text-right font-mono">{fmtCents(Number(r.card_total_cents))}</TableCell>
-                <TableCell className="text-right font-mono">{fmtCents(Number(r.hilf_mahl_cents))}</TableCell>
-                <TableCell className="text-right font-mono">{fmtCents(Number(r.open_invoices_cents))}</TableCell>
-                <TableCell className="text-right font-mono">{fmtCents(Number(r.cash_handed_in_cents))}</TableCell>
+                <TableCell className="text-right font-mono">
+                  {fmtCents(Number(r.pos_sales_cents))}
+                </TableCell>
+                <TableCell className="text-right font-mono">
+                  {fmtCents(Number(r.card_total_cents))}
+                </TableCell>
+                <TableCell className="text-right font-mono">
+                  {fmtCents(Number(r.hilf_mahl_cents))}
+                </TableCell>
+                <TableCell className="text-right font-mono">
+                  {fmtCents(Number(r.open_invoices_cents))}
+                </TableCell>
+                <TableCell className="text-right font-mono">
+                  {fmtCents(Number(r.cash_handed_in_cents))}
+                </TableCell>
                 <TableCell
                   className={`text-right font-mono ${Number(r.differenz_cents) < 0 ? "text-destructive" : ""}`}
                 >
                   {fmtCents(Number(r.differenz_cents))}
                 </TableCell>
-                <TableCell className="text-right font-mono">{fmtCents(Number(r.kitchen_tip_cents))}</TableCell>
+                <TableCell className="text-right font-mono">
+                  {fmtCents(Number(r.kitchen_tip_cents))}
+                </TableCell>
                 <TableCell>
                   <Badge variant={superseded ? "outline" : "default"}>{r.status}</Badge>
                 </TableCell>
@@ -662,7 +661,15 @@ function SessionFieldsCard({
     const vo = parseEuroToCents(misc.vorschuss);
     const ei = parseEuroToCents(misc.einladung);
     const so = parseEuroToCents(misc.sonstige);
-    if (vs === null || vr === null || fv === null || ot === null || vo === null || ei === null || so === null)
+    if (
+      vs === null ||
+      vr === null ||
+      fv === null ||
+      ot === null ||
+      vo === null ||
+      ei === null ||
+      so === null
+    )
       return null;
     return {
       channelAmounts: chAmts,
@@ -740,13 +747,48 @@ function SessionFieldsCard({
       </Section>
 
       <Section title="Gutscheine & Sonstiges">
-        <EuroRow label="Gutscheine verkauft" value={misc.vouchersSold} disabled={!writable} onChange={(v) => setMisc({ ...misc, vouchersSold: v })} />
-        <EuroRow label="Gutscheine eingelöst" value={misc.vouchersRedeemed} disabled={!writable} onChange={(v) => setMisc({ ...misc, vouchersRedeemed: v })} />
-        <EuroRow label="Finedine-Gutscheine" value={misc.finedineVouchers} disabled={!writable} onChange={(v) => setMisc({ ...misc, finedineVouchers: v })} />
-        <EuroRow label="Open Tabs (Abzug)" value={misc.opentabs} disabled={!writable} onChange={(v) => setMisc({ ...misc, opentabs: v })} />
-        <EuroRow label="Vorschuss (Abzug)" value={misc.vorschuss} disabled={!writable} onChange={(v) => setMisc({ ...misc, vorschuss: v })} />
-        <EuroRow label="Einladung (Abzug)" value={misc.einladung} disabled={!writable} onChange={(v) => setMisc({ ...misc, einladung: v })} />
-        <EuroRow label="Sonstige Einnahme" value={misc.sonstige} disabled={!writable} onChange={(v) => setMisc({ ...misc, sonstige: v })} />
+        <EuroRow
+          label="Gutscheine verkauft"
+          value={misc.vouchersSold}
+          disabled={!writable}
+          onChange={(v) => setMisc({ ...misc, vouchersSold: v })}
+        />
+        <EuroRow
+          label="Gutscheine eingelöst"
+          value={misc.vouchersRedeemed}
+          disabled={!writable}
+          onChange={(v) => setMisc({ ...misc, vouchersRedeemed: v })}
+        />
+        <EuroRow
+          label="Finedine-Gutscheine"
+          value={misc.finedineVouchers}
+          disabled={!writable}
+          onChange={(v) => setMisc({ ...misc, finedineVouchers: v })}
+        />
+        <EuroRow
+          label="Open Tabs (Abzug)"
+          value={misc.opentabs}
+          disabled={!writable}
+          onChange={(v) => setMisc({ ...misc, opentabs: v })}
+        />
+        <EuroRow
+          label="Vorschuss (Abzug)"
+          value={misc.vorschuss}
+          disabled={!writable}
+          onChange={(v) => setMisc({ ...misc, vorschuss: v })}
+        />
+        <EuroRow
+          label="Einladung (Abzug)"
+          value={misc.einladung}
+          disabled={!writable}
+          onChange={(v) => setMisc({ ...misc, einladung: v })}
+        />
+        <EuroRow
+          label="Sonstige Einnahme"
+          value={misc.sonstige}
+          disabled={!writable}
+          onChange={(v) => setMisc({ ...misc, sonstige: v })}
+        />
         <div className="space-y-1">
           <Label>Notiz</Label>
           <Textarea
@@ -780,7 +822,9 @@ function SessionFieldsCard({
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-2 rounded-md border border-border/60 p-3">
-      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{title}</div>
+      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {title}
+      </div>
       <div className="space-y-2">{children}</div>
     </div>
   );
@@ -862,8 +906,7 @@ function SatellitesCard({
   ) => Promise<unknown>;
   onRemove: (args: { sessionId: string; kind: SatKind; id: string }) => Promise<unknown>;
 }) {
-  const staffName = (id: string) =>
-    staff.find((s) => s.id === id)?.displayName ?? id.slice(0, 8);
+  const staffName = (id: string) => staff.find((s) => s.id === id)?.displayName ?? id.slice(0, 8);
 
   return (
     <Card className="space-y-4 p-4">

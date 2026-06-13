@@ -178,13 +178,12 @@ function AbrechnungPage() {
           <ReadOnlyRow label="EC-/Kartensumme" cents={Number(settlement.card_total_cents)} />
           <ReadOnlyRow label="Hilfsmahlzeiten" cents={Number(settlement.hilf_mahl_cents)} />
           <ReadOnlyRow label="Offene Rechnungen" cents={Number(settlement.open_invoices_cents)} />
-          <ReadOnlyRow label="Abgegebenes Bargeld" cents={Number(settlement.cash_handed_in_cents)} />
-          <hr className="border-border" />
           <ReadOnlyRow
-            label="Differenz"
-            cents={Number(settlement.differenz_cents)}
-            highlight
+            label="Abgegebenes Bargeld"
+            cents={Number(settlement.cash_handed_in_cents)}
           />
+          <hr className="border-border" />
+          <ReadOnlyRow label="Differenz" cents={Number(settlement.differenz_cents)} highlight />
           <ReadOnlyRow
             label={`Trinkgeld Küche (${(Number(settlement.kitchen_tip_rate) * 100).toFixed(2)}%)`}
             cents={Number(settlement.kitchen_tip_cents)}
@@ -281,8 +280,9 @@ function AbrechnungPage() {
           <DialogHeader>
             <DialogTitle>Abrechnung absenden?</DialogTitle>
             <DialogDescription>
-              Die ArbZG-Pause wird automatisch auf den offenen Zeiteintrag angewendet. Die Abrechnung
-              ist anschließend nicht mehr durch dich änderbar — Korrekturen laufen über den Manager.
+              Die ArbZG-Pause wird automatisch auf den offenen Zeiteintrag angewendet. Die
+              Abrechnung ist anschließend nicht mehr durch dich änderbar — Korrekturen laufen über
+              den Manager.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
