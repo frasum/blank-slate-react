@@ -194,7 +194,14 @@ export const getOrCreateOpenSession = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
-    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+    return getOrCreateOpenSessionCore(caller, data);
+  });
+
+export async function getOrCreateOpenSessionCore(
+  caller: AdminCaller,
+  data: { businessDate?: string },
+) {
+  return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
       const businessDate = data.businessDate ?? (await getCurrentBusinessDate());
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: existing } = await supabaseAdmin
@@ -233,8 +240,8 @@ export const getOrCreateOpenSession = createServerFn({ method: "POST" })
           meta: { businessDate },
         },
       };
-    });
   });
+}
 
 const updateSessionSchema = z.object({
   sessionId: z.string().uuid(),
@@ -259,7 +266,13 @@ export const updateSession = createServerFn({ method: "POST" })
   .inputValidator((input) => updateSessionSchema.parse(input))
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
-    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+    return updateSessionCore(caller, data);
+  });
+
+export type UpdateSessionInput = z.infer<typeof updateSessionSchema>;
+
+export async function updateSessionCore(caller: AdminCaller, data: UpdateSessionInput) {
+  return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
       const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
       const settings = await loadOrgSettings(caller.organizationId);
       assertCashWritable({
@@ -267,6 +280,9 @@ export const updateSession = createServerFn({ method: "POST" })
         sessionStatus: session.status as "open" | "finalized" | "locked",
         sessionLockedAt: session.locked_at,
         cashLockedThroughDate: settings.cashLockedThroughDate,
+        // Nach finalize ist die Sessionsicht eingefroren; Korrekturen
+        // einzelner Kellner-Abrechnungen laufen über correctWaiterSettlement.
+        blockIfFinalized: true,
       });
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { error: sErr } = await supabaseAdmin
@@ -328,15 +344,22 @@ export const updateSession = createServerFn({ method: "POST" })
           meta: { businessDate: session.business_date },
         },
       };
-    });
   });
+}
 
 export const finalizeSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({ sessionId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
-    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+    return finalizeSessionCore(caller, data);
+  });
+
+export async function finalizeSessionCore(
+  caller: AdminCaller,
+  data: { sessionId: string },
+) {
+  return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
       const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
       const settings = await loadOrgSettings(caller.organizationId);
       assertCashWritable({
@@ -344,6 +367,7 @@ export const finalizeSession = createServerFn({ method: "POST" })
         sessionStatus: session.status as "open" | "finalized" | "locked",
         sessionLockedAt: session.locked_at,
         cashLockedThroughDate: settings.cashLockedThroughDate,
+        blockIfFinalized: true, // Doppel-Finalize verboten.
       });
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { error } = await supabaseAdmin
@@ -365,15 +389,22 @@ export const finalizeSession = createServerFn({ method: "POST" })
           meta: { businessDate: session.business_date },
         },
       };
-    });
   });
+}
 
 export const lockSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({ sessionId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
-    return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
+    return lockSessionCore(caller, data);
+  });
+
+export async function lockSessionCore(
+  caller: AdminCaller,
+  data: { sessionId: string },
+) {
+  return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
       const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { error } = await supabaseAdmin
@@ -395,8 +426,8 @@ export const lockSession = createServerFn({ method: "POST" })
           meta: { businessDate: session.business_date },
         },
       };
-    });
   });
+}
 
 export const setCashLock = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -410,7 +441,14 @@ export const setCashLock = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
-    return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
+    return setCashLockCore(caller, data);
+  });
+
+export async function setCashLockCore(
+  caller: AdminCaller,
+  data: { throughDate: string; reason: string },
+) {
+  return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
       const settings = await loadOrgSettings(caller.organizationId);
       const before = settings.cashLockedThroughDate;
       if (before && data.throughDate <= before) {
@@ -436,8 +474,8 @@ export const setCashLock = createServerFn({ method: "POST" })
           meta: { from: before, to: data.throughDate, reason: data.reason },
         },
       };
-    });
   });
+}
 
 // ------------------------------------------------------------------------
 // Satelliten
