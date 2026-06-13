@@ -67,13 +67,33 @@ export async function reassignImportedStaffCore(args: {
 
   // 2) Importierte time_entries laden — nur diese Quelle (Prefix im import_key).
   const prefix = `${sourceSystem}:`;
-  const { data: entries, error: teErr } = await admin
-    .from("time_entries")
-    .select("id, staff_id, import_key, business_date, ended_at")
-    .eq("organization_id", organizationId)
-    .eq("source", "import")
-    .like("import_key", `${prefix}%`);
-  if (teErr) throw teErr;
+  // PostgREST liefert default max. 1000 Zeilen → paginieren, sonst werden
+  // Fehlzuordnungen jenseits der Wasserlinie übersehen (Symptom: „gescannt
+  // 1000, betroffen 0", obwohl real >1000 Importzeilen existieren).
+  type EntryRow = {
+    id: string;
+    staff_id: string;
+    import_key: string | null;
+    business_date: string;
+    ended_at: string | null;
+  };
+  const entries: EntryRow[] = [];
+  const pageSize = 1000;
+  for (let from = 0; ; from += pageSize) {
+    const to = from + pageSize - 1;
+    const { data: page, error: teErr } = await admin
+      .from("time_entries")
+      .select("id, staff_id, import_key, business_date, ended_at")
+      .eq("organization_id", organizationId)
+      .eq("source", "import")
+      .like("import_key", `${prefix}%`)
+      .order("id", { ascending: true })
+      .range(from, to);
+    if (teErr) throw teErr;
+    const rows = (page ?? []) as EntryRow[];
+    entries.push(...rows);
+    if (rows.length < pageSize) break;
+  }
 
   // 3) Mismatches ermitteln.
   type Mismatch = {
