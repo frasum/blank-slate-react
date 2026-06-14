@@ -990,6 +990,7 @@ export type Database = {
       }
       staff: {
         Row: {
+          contracted_hours_per_month: number | null
           created_at: string
           display_name: string
           email: string | null
@@ -999,10 +1000,12 @@ export type Database = {
           last_name: string
           organization_id: string
           participates_in_pool: boolean
+          perso_nr: number | null
           phone: string | null
           updated_at: string
         }
         Insert: {
+          contracted_hours_per_month?: number | null
           created_at?: string
           display_name: string
           email?: string | null
@@ -1012,10 +1015,12 @@ export type Database = {
           last_name: string
           organization_id: string
           participates_in_pool?: boolean
+          perso_nr?: number | null
           phone?: string | null
           updated_at?: string
         }
         Update: {
+          contracted_hours_per_month?: number | null
           created_at?: string
           display_name?: string
           email?: string | null
@@ -1025,6 +1030,7 @@ export type Database = {
           last_name?: string
           organization_id?: string
           participates_in_pool?: boolean
+          perso_nr?: number | null
           phone?: string | null
           updated_at?: string
         }

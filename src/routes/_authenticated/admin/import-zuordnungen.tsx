@@ -14,6 +14,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { importStaffAssignments } from "@/lib/admin/import-assignments.functions";
 import { parseImportCsvs, type ParseResult } from "@/lib/admin/import-zuordnungen-csv";
+import { importStaffPersonalData } from "@/lib/admin/import-personal.functions";
+import { parsePersonalCsv, type PersonalParseResult } from "@/lib/admin/import-personal-csv";
 
 export const Route = createFileRoute("/_authenticated/admin/import-zuordnungen")({
   head: () => ({ meta: [{ title: "Zuordnungen importieren" }] }),
@@ -183,6 +185,8 @@ function ImportZuordnungenPage() {
 
       {dry && <PlanReport title="Dry-Run-Bericht" result={dry} />}
       {committed && <PlanReport title="Commit-Bericht" result={committed} />}
+
+      <PersonalSection />
     </div>
   );
 }
@@ -241,6 +245,202 @@ function PlanReport({ title, result }: { title: string; result: ImportResult }) 
               <div>
                 Skills: +{s.skills.added.length} / −{s.skills.removed.length} ={" "}
                 {s.skills.kept.length}
+              </div>
+            </div>
+          ))}
+        </div>
+      </details>
+    </Card>
+  );
+}
+
+function PersonalSection() {
+  const callImport = useServerFn(importStaffPersonalData);
+  const [csv, setCsv] = useState("");
+  const [name, setName] = useState("");
+
+  const parsed = useMemo<PersonalParseResult | { error: string } | null>(() => {
+    if (!csv) return null;
+    try {
+      return parsePersonalCsv(csv);
+    } catch (e) {
+      return { error: (e as Error).message };
+    }
+  }, [csv]);
+
+  const dryMut = useMutation({
+    mutationFn: () => {
+      if (!parsed || "error" in parsed) throw new Error("CSV unvollständig.");
+      return callImport({
+        data: { rows: parsed.rows, mode: "dry_run", sourceSystem: "tagesabrechnung" },
+      });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const commitMut = useMutation({
+    mutationFn: () => {
+      if (!parsed || "error" in parsed) throw new Error("CSV unvollständig.");
+      return callImport({
+        data: { rows: parsed.rows, mode: "commit", sourceSystem: "tagesabrechnung" },
+      });
+    },
+    onSuccess: (r) => {
+      const t = r.plan.totals;
+      toast.success(
+        `Personaldaten: ${t.nameUpdates} Namen-Updates · ${t.compInserts}+${t.compUpdates} Lohn-UPSERTs.`,
+      );
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  function onFile(ev: React.ChangeEvent<HTMLInputElement>) {
+    const f = ev.target.files?.[0];
+    if (!f) return;
+    setName(f.name);
+    f.text().then(setCsv);
+    dryMut.reset();
+    commitMut.reset();
+  }
+
+  const parseError = parsed && "error" in parsed ? parsed.error : null;
+  const parseOk = parsed && !("error" in parsed) ? parsed : null;
+  const dry = dryMut.data;
+  const committed = commitMut.data;
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <h2 className="text-xl font-semibold tracking-tight text-foreground">
+          Personaldaten (Welle 1)
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Übernahme von echten Vor-/Nachnamen, Personalnummern und Stundenlöhnen aus der
+          Tagesabrechnung. Leeres Eintrittsdatum → Fallback auf heute (im Bericht markiert).
+        </p>
+      </div>
+
+      <Card className="p-4 space-y-3">
+        <div className="space-y-1">
+          <Label htmlFor="personal">Personal-CSV</Label>
+          <Input id="personal" type="file" accept=".csv,text/csv" onChange={onFile} />
+          {name && <div className="text-xs text-muted-foreground">{name}</div>}
+        </div>
+
+        {parseError && (
+          <div className="rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+            {parseError}
+          </div>
+        )}
+
+        {parseOk && (
+          <div className="space-y-2 text-sm">
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="secondary">{parseOk.rows.length} Zeilen</Badge>
+              {parseOk.warnings.length > 0 ? (
+                <Badge variant="destructive">{parseOk.warnings.length} Warnungen</Badge>
+              ) : (
+                <Badge variant="secondary">0 Warnungen</Badge>
+              )}
+            </div>
+            {parseOk.warnings.length > 0 && (
+              <details className="rounded-md border border-border bg-muted/30 p-2">
+                <summary className="cursor-pointer text-sm font-medium">Warnungen ansehen</summary>
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-xs">
+                  {parseOk.warnings.map((w, i) => (
+                    <li key={i}>
+                      <code>{w.kind}</code> · {JSON.stringify(w)}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <Button disabled={!parseOk || dryMut.isPending} onClick={() => dryMut.mutate()}>
+            {dryMut.isPending ? "Dry-Run…" : "Dry-Run ausführen"}
+          </Button>
+          <Button
+            variant="destructive"
+            disabled={!dry || commitMut.isPending}
+            onClick={() => {
+              if (!dry) return;
+              const t = dry.plan.totals;
+              const msg = `Commit ausführen?\n\n${t.staff} MA · ${t.nameUpdates} Namen-Updates · ${t.compInserts}+${t.compUpdates} Lohn-UPSERTs · ${t.compFallbacks} Fallback-Datum · ${t.skippedCount} skipped.`;
+              if (!window.confirm(msg)) return;
+              commitMut.mutate();
+            }}
+            title={!dry ? "Erst Dry-Run ausführen." : undefined}
+          >
+            {commitMut.isPending ? "Commit läuft…" : "Jetzt importieren"}
+          </Button>
+        </div>
+      </Card>
+
+      {dry && <PersonalReport title="Dry-Run-Bericht" result={dry} />}
+      {committed && <PersonalReport title="Commit-Bericht" result={committed} />}
+    </div>
+  );
+}
+
+type PersonalImportResult = Awaited<ReturnType<typeof importStaffPersonalData>>;
+
+function PersonalReport({ title, result }: { title: string; result: PersonalImportResult }) {
+  const t = result.plan.totals;
+  return (
+    <Card className="p-4 space-y-3">
+      <div className="font-medium">{title}</div>
+      <div className="flex flex-wrap gap-2 text-xs">
+        <Badge variant="secondary">{t.rows} Zeilen</Badge>
+        <Badge variant="secondary">{t.staff} MA betroffen</Badge>
+        <Badge variant="secondary">{t.nameUpdates} Namen-Updates</Badge>
+        <Badge variant="secondary">
+          Lohn +{t.compInserts} / ~{t.compUpdates}
+        </Badge>
+        {t.compFallbacks > 0 ? (
+          <Badge variant="destructive">{t.compFallbacks} Fallback-Datum</Badge>
+        ) : (
+          <Badge variant="secondary">0 Fallback</Badge>
+        )}
+        {t.skippedCount > 0 ? (
+          <Badge variant="destructive">{t.skippedCount} skipped</Badge>
+        ) : (
+          <Badge variant="secondary">0 skipped</Badge>
+        )}
+      </div>
+
+      {result.plan.skippedRows.length > 0 && (
+        <details className="rounded-md border border-border bg-muted/30 p-2">
+          <summary className="cursor-pointer text-sm font-medium">
+            Übersprungene Zeilen ({result.plan.skippedRows.length})
+          </summary>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-xs">
+            {result.plan.skippedRows.map((s, i) => (
+              <li key={i}>
+                <code>{s.reason}</code> · {JSON.stringify(s)}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+
+      <details className="rounded-md border border-border bg-muted/30 p-2">
+        <summary className="cursor-pointer text-sm font-medium">
+          Pro Mitarbeiter ({result.plan.perStaff.length})
+        </summary>
+        <div className="mt-2 space-y-2 text-xs">
+          {result.plan.perStaff.map((s) => (
+            <div key={s.staffId} className="rounded border border-border bg-card p-2">
+              <div className="font-mono">{s.staffId}</div>
+              <div>
+                Name-Diff: {Object.keys(s.nameDiff).length === 0 ? "—" : JSON.stringify(s.nameDiff)}
+              </div>
+              <div>
+                Lohn: {s.compOp}
+                {s.compFallback ? " · Fallback-Datum" : ""} ·{" "}
+                {Object.keys(s.compDiff).length === 0 ? "—" : JSON.stringify(s.compDiff)}
               </div>
             </div>
           ))}
