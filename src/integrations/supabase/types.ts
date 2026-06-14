@@ -620,6 +620,77 @@ export type Database = {
           },
         ]
       }
+      roster_shifts: {
+        Row: {
+          area: Database["public"]["Enums"]["staff_department"]
+          created_at: string
+          id: string
+          location_id: string
+          notes: string | null
+          organization_id: string
+          shift_date: string
+          skill_id: string | null
+          staff_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          area: Database["public"]["Enums"]["staff_department"]
+          created_at?: string
+          id?: string
+          location_id: string
+          notes?: string | null
+          organization_id: string
+          shift_date: string
+          skill_id?: string | null
+          staff_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          area?: Database["public"]["Enums"]["staff_department"]
+          created_at?: string
+          id?: string
+          location_id?: string
+          notes?: string | null
+          organization_id?: string
+          shift_date?: string
+          skill_id?: string | null
+          staff_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roster_shifts_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roster_shifts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roster_shifts_skill_id_fkey"
+            columns: ["skill_id"]
+            isOneToOne: false
+            referencedRelation: "skills"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roster_shifts_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       session_advances: {
         Row: {
           amount_cents: number
