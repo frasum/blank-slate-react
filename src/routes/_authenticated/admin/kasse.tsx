@@ -22,6 +22,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
@@ -32,6 +39,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { listStaff } from "@/lib/admin/staff.functions";
+import { listLocations } from "@/lib/admin/locations.functions";
 import {
   addSessionSatellite,
   correctWaiterSettlement,
@@ -91,11 +99,13 @@ function KassePage() {
   const qc = useQueryClient();
 
   const [businessDate, setBusinessDate] = useState<string>(todayIso());
+  const [locationId, setLocationId] = useState<string>("");
 
   const fetchOverview = useServerFn(getCashOverview);
   const fetchChannels = useServerFn(listRevenueChannels);
   const fetchTerminals = useServerFn(listPaymentTerminals);
   const fetchStaff = useServerFn(listStaff);
+  const fetchLocations = useServerFn(listLocations);
   const callCreateSession = useServerFn(getOrCreateOpenSession);
   const callUpdate = useServerFn(updateSession);
   const callAddSat = useServerFn(addSessionSatellite);
@@ -105,9 +115,21 @@ function KassePage() {
   const callCorrect = useServerFn(correctWaiterSettlement);
   const callCashLock = useServerFn(setCashLock);
 
+  const locationsQ = useQuery({
+    queryKey: ["admin-locations"],
+    queryFn: () => fetchLocations(),
+  });
+
+  useEffect(() => {
+    if (!locationId && locationsQ.data && locationsQ.data.length > 0) {
+      setLocationId(locationsQ.data[0].id);
+    }
+  }, [locationId, locationsQ.data]);
+
   const ovQ = useQuery({
-    queryKey: ["cash", "overview", businessDate],
-    queryFn: () => fetchOverview({ data: { businessDate } }),
+    queryKey: ["cash", "overview", businessDate, locationId],
+    queryFn: () => fetchOverview({ data: { businessDate, locationId } }),
+    enabled: locationId !== "",
   });
   const channelsQ = useQuery({ queryKey: ["cash", "channels"], queryFn: () => fetchChannels() });
   const terminalsQ = useQuery({ queryKey: ["cash", "terminals"], queryFn: () => fetchTerminals() });
@@ -127,7 +149,10 @@ function KassePage() {
 
   // -------------------- Session anlegen --------------------
   const createSessionMut = useMutation({
-    mutationFn: () => callCreateSession({ data: { businessDate } }),
+    mutationFn: () => {
+      if (!locationId) throw new Error("Bitte einen Standort wählen.");
+      return callCreateSession({ data: { businessDate, locationId } });
+    },
     onSuccess: () => {
       toast.success("Session geöffnet.");
       void invalidate();
@@ -218,6 +243,25 @@ function KassePage() {
           </p>
         </div>
         <div className="flex items-end gap-3">
+          <div className="space-y-1">
+            <Label htmlFor="loc">Standort</Label>
+            <Select
+              value={locationId}
+              onValueChange={setLocationId}
+              disabled={!locationsQ.data || locationsQ.data.length === 0}
+            >
+              <SelectTrigger id="loc" className="min-w-[10rem]">
+                <SelectValue placeholder="Standort wählen" />
+              </SelectTrigger>
+              <SelectContent>
+                {(locationsQ.data ?? []).map((l) => (
+                  <SelectItem key={l.id} value={l.id}>
+                    {l.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="space-y-1">
             <Label htmlFor="bd">Geschäftstag</Label>
             <Input
