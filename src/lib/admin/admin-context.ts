@@ -9,7 +9,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
-import { assertMinRole, ForbiddenError, type AppRole } from "./role-guard";
+import { assertMinRole, assertRoleAllowed, ForbiddenError, type AppRole } from "./role-guard";
 
 export type AdminCaller = {
   userId: string;
@@ -21,7 +21,7 @@ export type AdminCaller = {
 export async function loadAdminCaller(
   supabase: SupabaseClient<Database>,
   userId: string,
-  minRole: AppRole,
+  minRoleOrAllowed: AppRole | readonly AppRole[],
 ): Promise<AdminCaller> {
   const { data: link, error: linkErr } = await supabase
     .from("user_links")
@@ -39,7 +39,11 @@ export async function loadAdminCaller(
   if (roleErr) throw new ForbiddenError();
 
   const role = (roleRow?.role as AppRole | undefined) ?? null;
-  assertMinRole(role, minRole);
+  if (Array.isArray(minRoleOrAllowed)) {
+    assertRoleAllowed(role, minRoleOrAllowed);
+  } else {
+    assertMinRole(role, minRoleOrAllowed as AppRole);
+  }
 
   return {
     userId,
