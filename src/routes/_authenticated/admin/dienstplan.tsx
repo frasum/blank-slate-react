@@ -36,7 +36,6 @@ export const Route = createFileRoute("/_authenticated/admin/dienstplan")({
   component: DienstplanPage,
 });
 
-type Area = "kitchen" | "service" | "gl";
 type GridArea = "kitchen" | "service";
 
 const AREA_LABEL: Record<GridArea, string> = {
