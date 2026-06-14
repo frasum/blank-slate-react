@@ -197,3 +197,195 @@ export const getStaffForRoster = createServerFn({ method: "GET" })
         return a.displayName.localeCompare(b.displayName, "de");
       });
   });
+
+// =========================================================================
+// D2a — Schreiben (Manager+)
+// =========================================================================
+
+export const createRosterShift = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        locationId: z.string().uuid(),
+        staffId: z.string().uuid(),
+        shiftDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        area: z.enum(["kitchen", "service", "gl"]),
+        skillId: z.string().uuid().nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
+    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, data.shiftDate);
+
+      const { data: row, error } = await supabaseAdmin
+        .from("roster_shifts")
+        .upsert(
+          {
+            organization_id: caller.organizationId,
+            location_id: data.locationId,
+            staff_id: data.staffId,
+            shift_date: data.shiftDate,
+            area: data.area,
+            skill_id: data.skillId,
+            status: "planned",
+          },
+          { onConflict: "staff_id,location_id,shift_date,area" },
+        )
+        .select("id")
+        .single();
+      if (error) throw error;
+
+      return {
+        result: { id: row.id as string },
+        audit: {
+          action: "roster_shift.create",
+          entity: "roster_shift",
+          entityId: row.id as string,
+          meta: {
+            locationId: data.locationId,
+            staffId: data.staffId,
+            shiftDate: data.shiftDate,
+            area: data.area,
+            skillId: data.skillId,
+          },
+        },
+      };
+    });
+  });
+
+export const deleteRosterShift = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
+    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: snap, error: loadErr } = await supabaseAdmin
+        .from("roster_shifts")
+        .select("*")
+        .eq("id", data.id)
+        .eq("organization_id", caller.organizationId)
+        .maybeSingle();
+      if (loadErr) throw loadErr;
+      if (!snap) throw new Error("Schicht nicht gefunden.");
+
+      await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, snap.shift_date);
+
+      const { error } = await supabaseAdmin
+        .from("roster_shifts")
+        .delete()
+        .eq("id", data.id)
+        .eq("organization_id", caller.organizationId);
+      if (error) throw error;
+
+      return {
+        result: { ok: true as const },
+        audit: {
+          action: "roster_shift.delete",
+          entity: "roster_shift",
+          entityId: data.id,
+          meta: {
+            snapshot: {
+              locationId: snap.location_id,
+              staffId: snap.staff_id,
+              shiftDate: snap.shift_date,
+              area: snap.area,
+              skillId: snap.skill_id,
+              status: snap.status,
+              notes: snap.notes,
+            },
+          },
+        },
+      };
+    });
+  });
+
+export const updateRosterShiftStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        status: z.enum(["planned", "confirmed"]),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
+    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: snap, error: loadErr } = await supabaseAdmin
+        .from("roster_shifts")
+        .select("shift_date, status")
+        .eq("id", data.id)
+        .eq("organization_id", caller.organizationId)
+        .maybeSingle();
+      if (loadErr) throw loadErr;
+      if (!snap) throw new Error("Schicht nicht gefunden.");
+      await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, snap.shift_date);
+
+      const { error } = await supabaseAdmin
+        .from("roster_shifts")
+        .update({ status: data.status })
+        .eq("id", data.id)
+        .eq("organization_id", caller.organizationId);
+      if (error) throw error;
+
+      return {
+        result: { ok: true as const },
+        audit: {
+          action: "roster_shift.status",
+          entity: "roster_shift",
+          entityId: data.id,
+          meta: { before: snap.status, after: data.status },
+        },
+      };
+    });
+  });
+
+export const updateRosterShiftSkill = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        skillId: z.string().uuid().nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
+    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: snap, error: loadErr } = await supabaseAdmin
+        .from("roster_shifts")
+        .select("shift_date, skill_id")
+        .eq("id", data.id)
+        .eq("organization_id", caller.organizationId)
+        .maybeSingle();
+      if (loadErr) throw loadErr;
+      if (!snap) throw new Error("Schicht nicht gefunden.");
+      await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, snap.shift_date);
+
+      const { error } = await supabaseAdmin
+        .from("roster_shifts")
+        .update({ skill_id: data.skillId })
+        .eq("id", data.id)
+        .eq("organization_id", caller.organizationId);
+      if (error) throw error;
+
+      return {
+        result: { ok: true as const },
+        audit: {
+          action: "roster_shift.skill",
+          entity: "roster_shift",
+          entityId: data.id,
+          meta: { before: snap.skill_id, after: data.skillId },
+        },
+      };
+    });
+  });
