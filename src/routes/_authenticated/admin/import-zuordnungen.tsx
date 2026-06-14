@@ -16,6 +16,8 @@ import { importStaffAssignments } from "@/lib/admin/import-assignments.functions
 import { parseImportCsvs, type ParseResult } from "@/lib/admin/import-zuordnungen-csv";
 import { importStaffPersonalData } from "@/lib/admin/import-personal.functions";
 import { parsePersonalCsv, type PersonalParseResult } from "@/lib/admin/import-personal-csv";
+import { importStaffPersonalDetails } from "@/lib/admin/import-details.functions";
+import { parseDetailsCsv, type DetailsParseResult } from "@/lib/admin/import-details-csv";
 
 export const Route = createFileRoute("/_authenticated/admin/import-zuordnungen")({
   head: () => ({ meta: [{ title: "Zuordnungen importieren" }] }),
@@ -187,6 +189,7 @@ function ImportZuordnungenPage() {
       {committed && <PlanReport title="Commit-Bericht" result={committed} />}
 
       <PersonalSection />
+      <DetailsSection />
     </div>
   );
 }
