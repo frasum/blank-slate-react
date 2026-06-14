@@ -139,7 +139,8 @@ export function computeShiftHours(
   const nightEndCapMs = midnightMs + 24 * 3_600_000;
 
   const eveningHours = overlapMs(start, end, eveningStartMs, midnightMs) / 3_600_000;
-  const nightHours = end > midnightMs ? overlapMs(start, end, midnightMs, nightEndCapMs) / 3_600_000 : 0;
+  const nightHours =
+    end > midnightMs ? overlapMs(start, end, midnightMs, nightEndCapMs) / 3_600_000 : 0;
 
   const sundayHoliday = isSundayOrHoliday(businessDay);
   const sundayHolidayHours = sundayHoliday ? totalHours : 0;

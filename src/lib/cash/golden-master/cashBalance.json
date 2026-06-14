@@ -16,11 +16,7 @@
       "vouchersRedeemedCents": 5140,
       "finedineVouchersCents": 10000,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -96,19 +92,11 @@
       "vouchersRedeemedCents": 7500,
       "finedineVouchersCents": 0,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          2340,
-          8555
-        ],
+        "expensesCents": [2340, 8555],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -194,12 +182,7 @@
       "vouchersRedeemedCents": 11000,
       "finedineVouchersCents": 12500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -289,21 +272,11 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 7500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          1537,
-          3750,
-          1169,
-          13277
-        ],
+        "expensesCents": [1537, 3750, 1169, 13277],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -389,18 +362,11 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 10000,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          958
-        ],
+        "expensesCents": [958],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -486,15 +452,11 @@
       "vouchersRedeemedCents": 6000,
       "finedineVouchersCents": 20000,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0
-      ],
+      "openInvoicesCents": [0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          3429
-        ],
+        "expensesCents": [3429],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -538,12 +500,7 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 15000,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -633,12 +590,7 @@
       "vouchersRedeemedCents": 14380,
       "finedineVouchersCents": 12500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -728,18 +680,11 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 12500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          3590
-        ],
+        "expensesCents": [3590],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -825,22 +770,12 @@
       "vouchersRedeemedCents": 8000,
       "finedineVouchersCents": 0,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          1567,
-          5122
-        ],
-        "advancesCents": [
-          20000
-        ],
+        "expensesCents": [1567, 5122],
+        "advancesCents": [20000],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
         "registerTransfers": []
@@ -925,19 +860,11 @@
       "vouchersRedeemedCents": 5000,
       "finedineVouchersCents": 2500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          4378,
-          1845
-        ],
+        "expensesCents": [4378, 1845],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -1023,12 +950,7 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 2500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -1118,21 +1040,11 @@
       "vouchersRedeemedCents": 5000,
       "finedineVouchersCents": 22500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          1530,
-          5426,
-          4713,
-          9065
-        ],
+        "expensesCents": [1530, 5426, 4713, 9065],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -1218,12 +1130,7 @@
       "vouchersRedeemedCents": 10000,
       "finedineVouchersCents": 5000,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -1313,18 +1220,11 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 5000,
       "einladungCents": 5720,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          256
-        ],
+        "expensesCents": [256],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -1410,12 +1310,7 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 2500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        170000,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [170000, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -1505,20 +1400,11 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 5000,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          988,
-          8752,
-          2379
-        ],
+        "expensesCents": [988, 8752, 2379],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -1604,19 +1490,12 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 0,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
         "expensesCents": [],
-        "advancesCents": [
-          90000
-        ],
+        "advancesCents": [90000],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
         "registerTransfers": []
@@ -1701,19 +1580,12 @@
       "vouchersRedeemedCents": 10000,
       "finedineVouchersCents": 7500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
         "expensesCents": [],
-        "advancesCents": [
-          10000
-        ],
+        "advancesCents": [10000],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
         "registerTransfers": []
@@ -1798,18 +1670,11 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 17500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          4210
-        ],
+        "expensesCents": [4210],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -1895,12 +1760,7 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 10000,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -1990,12 +1850,7 @@
       "vouchersRedeemedCents": 10000,
       "finedineVouchersCents": 15000,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -2085,19 +1940,11 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 5000,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          1854,
-          7038
-        ],
+        "expensesCents": [1854, 7038],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -2183,18 +2030,11 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 0,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          900
-        ],
+        "expensesCents": [900],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -2280,18 +2120,11 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 0,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          1347
-        ],
+        "expensesCents": [1347],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -2377,15 +2210,11 @@
       "vouchersRedeemedCents": 6000,
       "finedineVouchersCents": 7500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0
-      ],
+      "openInvoicesCents": [0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          976
-        ],
+        "expensesCents": [976],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -2429,12 +2258,7 @@
       "vouchersRedeemedCents": 27500,
       "finedineVouchersCents": 7500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -2524,18 +2348,11 @@
       "vouchersRedeemedCents": 18000,
       "finedineVouchersCents": 22500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          2940
-        ],
+        "expensesCents": [2940],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -2621,12 +2438,7 @@
       "vouchersRedeemedCents": 10000,
       "finedineVouchersCents": 10000,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -2716,12 +2528,7 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 7500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -2811,21 +2618,14 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 12500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
         "expensesCents": [],
         "advancesCents": [],
         "cardTransactionsCents": [],
-        "bankDepositsCents": [
-          894093
-        ],
+        "bankDepositsCents": [894093],
         "registerTransfers": [
           {
             "direction": "to_restaurant",
@@ -2913,12 +2713,7 @@
       "vouchersRedeemedCents": 10000,
       "finedineVouchersCents": 2500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -3008,24 +2803,11 @@
       "vouchersRedeemedCents": 15000,
       "finedineVouchersCents": 12500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          2655,
-          10009,
-          1799,
-          2609,
-          5043,
-          5017,
-          2177
-        ],
+        "expensesCents": [2655, 10009, 1799, 2609, 5043, 5017, 2177],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -3111,12 +2893,7 @@
       "vouchersRedeemedCents": 14000,
       "finedineVouchersCents": 10000,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -3206,18 +2983,11 @@
       "vouchersRedeemedCents": 5000,
       "finedineVouchersCents": 7500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          1500,
-          3000
-        ],
+        "expensesCents": [1500, 3000],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -3289,11 +3059,7 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 7500,
       "einladungCents": 4380,
-      "openInvoicesCents": [
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -3369,12 +3135,7 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 7500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -3464,12 +3225,7 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 5000,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -3559,18 +3315,11 @@
       "vouchersRedeemedCents": 15000,
       "finedineVouchersCents": 20000,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          12651
-        ],
+        "expensesCents": [12651],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -3656,18 +3405,11 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 7500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          987
-        ],
+        "expensesCents": [987],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -3753,12 +3495,7 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 10000,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -3848,12 +3585,7 @@
       "vouchersRedeemedCents": 6000,
       "finedineVouchersCents": 10000,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -3943,19 +3675,11 @@
       "vouchersRedeemedCents": 20000,
       "finedineVouchersCents": 7500,
       "einladungCents": 3200,
-      "openInvoicesCents": [
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          7299,
-          1500,
-          2410
-        ],
+        "expensesCents": [7299, 1500, 2410],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -4027,12 +3751,7 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 0,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -4122,12 +3841,7 @@
       "vouchersRedeemedCents": 10000,
       "finedineVouchersCents": 2500,
       "einladungCents": 8360,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -4217,12 +3931,7 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 10000,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -4312,12 +4021,7 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 6000,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -4407,18 +4111,11 @@
       "vouchersRedeemedCents": 9000,
       "finedineVouchersCents": 17500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          9638
-        ],
+        "expensesCents": [9638],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -4504,17 +4201,11 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 12500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          2000
-        ],
+        "expensesCents": [2000],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -4586,12 +4277,7 @@
       "vouchersRedeemedCents": 5000,
       "finedineVouchersCents": 2500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -4681,18 +4367,11 @@
       "vouchersRedeemedCents": 12000,
       "finedineVouchersCents": 0,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 6000,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          3518
-        ],
+        "expensesCents": [3518],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -4778,19 +4457,12 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 2500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0
-      ],
+      "openInvoicesCents": [0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          1279,
-          7343
-        ],
-        "advancesCents": [
-          20000
-        ],
+        "expensesCents": [1279, 7343],
+        "advancesCents": [20000],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
         "registerTransfers": []
@@ -4833,10 +4505,7 @@
       "vouchersRedeemedCents": 6000,
       "finedineVouchersCents": 2500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -4898,12 +4567,7 @@
       "vouchersRedeemedCents": 18000,
       "finedineVouchersCents": 2500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -4993,12 +4657,7 @@
       "vouchersRedeemedCents": 29000,
       "finedineVouchersCents": 5000,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -5088,19 +4747,11 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 15000,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          10665,
-          460
-        ],
+        "expensesCents": [10665, 460],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -5186,11 +4837,7 @@
       "vouchersRedeemedCents": 10000,
       "finedineVouchersCents": 2500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -5266,12 +4913,7 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 2500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -5361,11 +5003,7 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 0,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -5441,18 +5079,11 @@
       "vouchersRedeemedCents": 10000,
       "finedineVouchersCents": 7500,
       "einladungCents": 17480,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          749
-        ],
+        "expensesCents": [749],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -5538,12 +5169,7 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 15000,
       "einladungCents": 5160,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -5633,11 +5259,7 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 5000,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -5713,16 +5335,11 @@
       "vouchersRedeemedCents": 3500,
       "finedineVouchersCents": 10000,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0
-      ],
+      "openInvoicesCents": [0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          315,
-          300
-        ],
+        "expensesCents": [315, 300],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -5766,21 +5383,14 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 12500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
         "expensesCents": [],
         "advancesCents": [],
         "cardTransactionsCents": [],
-        "bankDepositsCents": [
-          468533
-        ],
+        "bankDepositsCents": [468533],
         "registerTransfers": []
       },
       "expected": {
@@ -5863,15 +5473,11 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 2500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0
-      ],
+      "openInvoicesCents": [0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          8492
-        ],
+        "expensesCents": [8492],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -5915,18 +5521,11 @@
       "vouchersRedeemedCents": 5000,
       "finedineVouchersCents": 2500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          1215,
-          938
-        ],
+        "expensesCents": [1215, 938],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -5998,11 +5597,7 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 5000,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -6078,23 +5673,11 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 5000,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          3061,
-          3399,
-          1253,
-          3259,
-          3617,
-          8518,
-          2388
-        ],
+        "expensesCents": [3061, 3399, 1253, 3259, 3617, 8518, 2388],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -6166,11 +5749,7 @@
       "vouchersRedeemedCents": 8000,
       "finedineVouchersCents": 0,
       "einladungCents": 9000,
-      "openInvoicesCents": [
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -6246,10 +5825,7 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 2500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -6311,11 +5887,7 @@
       "vouchersRedeemedCents": 17000,
       "finedineVouchersCents": 7500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -6391,11 +5963,7 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 2500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        46820,
-        0,
-        0
-      ],
+      "openInvoicesCents": [46820, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -6471,11 +6039,7 @@
       "vouchersRedeemedCents": 14000,
       "finedineVouchersCents": 0,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        85063
-      ],
+      "openInvoicesCents": [0, 0, 85063],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -6551,24 +6115,11 @@
       "vouchersRedeemedCents": 7000,
       "finedineVouchersCents": 5000,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          2802,
-          5522,
-          3159,
-          2697,
-          2507,
-          1147,
-          2231
-        ],
+        "expensesCents": [2802, 5522, 3159, 2697, 2507, 1147, 2231],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -6654,12 +6205,7 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 20000,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -6749,12 +6295,7 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 10000,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -6844,11 +6385,7 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 2500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -6924,12 +6461,7 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 7500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -7019,11 +6551,7 @@
       "vouchersRedeemedCents": 6000,
       "finedineVouchersCents": 2500,
       "einladungCents": 9180,
-      "openInvoicesCents": [
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -7099,12 +6627,7 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 7500,
       "einladungCents": 3770,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -7194,17 +6717,11 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 0,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        80924,
-        0,
-        0
-      ],
+      "openInvoicesCents": [80924, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          5955
-        ],
+        "expensesCents": [5955],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -7276,17 +6793,11 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 2500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          2093,
-          250
-        ],
+        "expensesCents": [2093, 250],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -7344,18 +6855,11 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 2500,
       "einladungCents": 1990,
-      "openInvoicesCents": [
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          4717,
-          1794
-        ],
+        "expensesCents": [4717, 1794],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -7427,18 +6931,11 @@
       "vouchersRedeemedCents": 10000,
       "finedineVouchersCents": 10000,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          5367
-        ],
+        "expensesCents": [5367],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -7524,9 +7021,7 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 2500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0
-      ],
+      "openInvoicesCents": [0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -7574,12 +7069,7 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 5000,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -7669,11 +7159,7 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 0,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -7749,20 +7235,11 @@
       "vouchersRedeemedCents": 4000,
       "finedineVouchersCents": 2500,
       "einladungCents": 6690,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          987,
-          799,
-          52
-        ],
+        "expensesCents": [987, 799, 52],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -7848,19 +7325,11 @@
       "vouchersRedeemedCents": 20000,
       "finedineVouchersCents": 5000,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
-        "expensesCents": [
-          2175,
-          1000
-        ],
+        "expensesCents": [2175, 1000],
         "advancesCents": [],
         "cardTransactionsCents": [],
         "bankDepositsCents": [],
@@ -7946,12 +7415,7 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 5000,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -8041,12 +7505,7 @@
       "vouchersRedeemedCents": 5000,
       "finedineVouchersCents": 7500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0,
-        0,
-        0,
-        0
-      ],
+      "openInvoicesCents": [0, 0, 0, 0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
@@ -8136,9 +7595,7 @@
       "vouchersRedeemedCents": 0,
       "finedineVouchersCents": 7500,
       "einladungCents": 0,
-      "openInvoicesCents": [
-        0
-      ],
+      "openInvoicesCents": [0],
       "sonstigeEinnahmeCents": 0,
       "vorschussCents": 0,
       "satellites": {
