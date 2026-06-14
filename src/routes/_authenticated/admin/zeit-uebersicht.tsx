@@ -429,7 +429,8 @@ function ZeitUebersichtPage() {
               id="from"
               type="date"
               value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
+              onChange={(e) => setManualFrom(e.target.value)}
+              disabled={Boolean(selectedPeriod)}
             />
           </div>
           <div className="space-y-1">
@@ -438,8 +439,25 @@ function ZeitUebersichtPage() {
               id="to"
               type="date"
               value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
+              onChange={(e) => setManualTo(e.target.value)}
+              disabled={Boolean(selectedPeriod)}
             />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="period">Periode</Label>
+            <select
+              id="period"
+              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+              value={effectivePeriodId}
+              onChange={(e) => setSelectedPeriodId(e.target.value)}
+            >
+              <option value="">— freie Auswahl —</option>
+              {periods.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label} {p.status === "locked" ? "🔒" : ""}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </Card>
@@ -449,6 +467,7 @@ function ZeitUebersichtPage() {
           <TabsTrigger value="weekly">Wochenplan</TabsTrigger>
           <TabsTrigger value="summary">Zusammenfassung</TabsTrigger>
           <TabsTrigger value="payroll">Buchhaltung</TabsTrigger>
+          <TabsTrigger value="periods">Perioden</TabsTrigger>
         </TabsList>
 
         <TabsContent value="weekly">
