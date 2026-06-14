@@ -106,12 +106,12 @@ function DienstplanPage() {
 
   const effectivePeriod = useMemo(() => {
     if (periodId) return periods.find((p) => p.id === periodId) ?? null;
-    return periods.find((p) => p.start_date <= today && today <= p.end_date) ?? periods[0] ?? null;
+    return periods.find((p) => p.startDate <= today && today <= p.endDate) ?? periods[0] ?? null;
   }, [periods, periodId, today]);
   const effectiveLocationId = locationId ?? locations[0]?.id ?? null;
 
   const days = useMemo(
-    () => (effectivePeriod ? daysBetween(effectivePeriod.start_date, effectivePeriod.end_date) : []),
+    () => (effectivePeriod ? daysBetween(effectivePeriod.startDate, effectivePeriod.endDate) : []),
     [effectivePeriod],
   );
 
@@ -124,15 +124,15 @@ function DienstplanPage() {
     queryKey: [
       "roster-shifts",
       effectiveLocationId,
-      effectivePeriod?.start_date,
-      effectivePeriod?.end_date,
+      effectivePeriod?.startDate,
+      effectivePeriod?.endDate,
     ],
     queryFn: () =>
       getRosterShifts({
         data: {
           locationId: effectiveLocationId!,
-          fromDate: effectivePeriod!.start_date,
-          toDate: effectivePeriod!.end_date,
+          fromDate: effectivePeriod!.startDate,
+          toDate: effectivePeriod!.endDate,
         },
       }),
     enabled: !!effectiveLocationId && !!effectivePeriod,
@@ -192,7 +192,7 @@ function DienstplanPage() {
             >
               {periods.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.label} ({p.start_date} – {p.end_date})
+                  {p.label} ({p.startDate} – {p.endDate})
                 </option>
               ))}
             </select>
