@@ -11,6 +11,15 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
+import {
   Table,
   TableBody,
   TableCell,
@@ -20,9 +29,11 @@ import {
 } from "@/components/ui/table";
 import { listLocations } from "@/lib/admin/locations.functions";
 import {
+  createTimeEntryShift,
   getTimeOverview,
   getWeeklyTimeEntries,
   listPayrollNotes,
+  setTimeEntryShift,
   upsertPayrollNote,
 } from "@/lib/time/time-admin.functions";
 import {
@@ -133,11 +144,15 @@ function buildWeekColumns(fromIso: string, toIso: string): WeekCol[] {
 
 function ZeitUebersichtPage() {
   const qc = useQueryClient();
+  const { identity } = useAuth();
+  const isAdmin = identity?.role === "admin";
   const fetchLocations = useServerFn(listLocations);
   const fetchOverview = useServerFn(getTimeOverview);
   const fetchWeekly = useServerFn(getWeeklyTimeEntries);
   const fetchNotes = useServerFn(listPayrollNotes);
   const callUpsert = useServerFn(upsertPayrollNote);
+  const callSetShift = useServerFn(setTimeEntryShift);
+  const callCreateShift = useServerFn(createTimeEntryShift);
 
   const locationsQ = useQuery({
     queryKey: ["admin-locations"],
@@ -264,6 +279,56 @@ function ZeitUebersichtPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // Inline-Edit-Dialog State
+  const [editor, setEditor] = useState<
+    | null
+    | {
+        mode: "edit";
+        id: string;
+        staffName: string;
+        dateIso: string;
+        from: string;
+        to: string;
+      }
+    | {
+        mode: "create";
+        staffId: string;
+        staffName: string;
+        dateIso: string;
+        from: string;
+        to: string;
+      }
+  >(null);
+
+  function invalidateWeekly() {
+    void qc.invalidateQueries({
+      queryKey: ["weekly-entries", effectiveLocationId, weekStart],
+    });
+  }
+
+  const setShiftMut = useMutation({
+    mutationFn: (vars: { id: string; startedAt: string; endedAt: string }) =>
+      callSetShift({ data: vars }),
+    onSuccess: () => {
+      invalidateWeekly();
+      setEditor(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const createShiftMut = useMutation({
+    mutationFn: (vars: {
+      staffId: string;
+      locationId: string;
+      startedAt: string;
+      endedAt: string;
+    }) => callCreateShift({ data: vars }),
+    onSuccess: () => {
+      invalidateWeekly();
+      setEditor(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   return (
     <div className="space-y-6">
       <div>
@@ -352,6 +417,27 @@ function ZeitUebersichtPage() {
             data={weeklyQ.data}
             isLoading={weeklyQ.isLoading}
             weekDays={weekDays}
+            isAdmin={isAdmin}
+            onEdit={(e) =>
+              setEditor({
+                mode: "edit",
+                id: e.id,
+                staffName: e.displayName,
+                dateIso: e.businessDate,
+                from: fmtHHMM(e.startedAt),
+                to: fmtHHMM(e.endedAt),
+              })
+            }
+            onCreate={(staffId, staffName, dateIso) =>
+              setEditor({
+                mode: "create",
+                staffId,
+                staffName,
+                dateIso,
+                from: "",
+                to: "",
+              })
+            }
           />
         </TabsContent>
 
@@ -537,6 +623,27 @@ function ZeitUebersichtPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <ShiftEditorDialog
+        state={editor}
+        onClose={() => setEditor(null)}
+        onSubmit={(from, to) => {
+          if (!editor) return;
+          const startedAt = buildIsoFromLocal(editor.dateIso, from);
+          const endedAt = buildIsoFromLocal(editor.dateIso, to, from);
+          if (editor.mode === "edit") {
+            setShiftMut.mutate({ id: editor.id, startedAt, endedAt });
+          } else {
+            createShiftMut.mutate({
+              staffId: editor.staffId,
+              locationId: effectiveLocationId,
+              startedAt,
+              endedAt,
+            });
+          }
+        }}
+        pending={setShiftMut.isPending || createShiftMut.isPending}
+      />
     </div>
   );
 }
@@ -639,6 +746,22 @@ function fmtHHMM(iso: string): string {
   });
 }
 
+// Baut einen ISO-Timestamp aus Geschäftsdatum + HH:MM (Browser-/Lokalzeit).
+// `fromHHMM` wird mitgegeben, damit ein Mitternachts-Überlauf erkannt wird:
+// wenn die End-Uhrzeit kleiner als die Start-Uhrzeit ist, rollt der Tag um 1.
+function buildIsoFromLocal(dateIso: string, hhmm: string, fromHHMM?: string): string {
+  const [h, m] = hhmm.split(":").map((v) => Number.parseInt(v, 10));
+  const local = new Date(`${dateIso}T00:00:00`);
+  local.setHours(h, m, 0, 0);
+  if (fromHHMM) {
+    const [fh, fm] = fromHHMM.split(":").map((v) => Number.parseInt(v, 10));
+    if (h * 60 + m <= fh * 60 + fm) {
+      local.setDate(local.getDate() + 1);
+    }
+  }
+  return local.toISOString();
+}
+
 function dayHeader(d: Date): string {
   const names = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
   return `${names[d.getUTCDay()]} ${ddmm(d)}`;
@@ -648,10 +771,16 @@ function WeeklyPlan({
   data,
   isLoading,
   weekDays,
+  isAdmin,
+  onEdit,
+  onCreate,
 }: {
   data: WeeklyData | undefined;
   isLoading: boolean;
   weekDays: Date[];
+  isAdmin: boolean;
+  onEdit: (entry: WeeklyEntry) => void;
+  onCreate: (staffId: string, staffName: string, dateIso: string) => void;
 }) {
   const entries = data?.entries ?? [];
   const crossDates = data?.crossLocationDates ?? {};
@@ -778,23 +907,50 @@ function WeeklyPlan({
                       {dayMeta.map((dm) => {
                         const dayEntries = row.entriesByDate.get(dm.iso) ?? [];
                         const hasCross = cross.has(dm.iso) && dayEntries.length === 0;
+                        const cellBg = dm.isHol
+                          ? "bg-yellow-50"
+                          : dm.isSun
+                            ? "bg-gray-50"
+                            : "";
+                        const clickable = isAdmin;
                         return (
                           <TableCell
                             key={dm.iso}
-                            className={`text-center tabular-nums text-xs ${dm.isHol ? "bg-yellow-50" : dm.isSun ? "bg-gray-50" : ""}`}
+                            onClick={
+                              clickable
+                                ? () => {
+                                    if (dayEntries.length === 0) {
+                                      onCreate(row.staffId, row.displayName, dm.iso);
+                                    } else if (dayEntries.length === 1) {
+                                      onEdit(dayEntries[0]);
+                                    }
+                                  }
+                                : undefined
+                            }
+                            className={`min-h-[40px] p-1 text-center align-middle font-mono text-sm ${cellBg} ${clickable ? "cursor-pointer hover:bg-muted/60" : ""}`}
                           >
                             {dayEntries.length === 0 ? (
                               hasCross ? (
                                 <span className="text-muted-foreground">×</span>
                               ) : (
-                                ""
+                                isAdmin ? <span className="text-muted-foreground/40">+</span> : ""
                               )
                             ) : (
-                              <div className="flex flex-col gap-0.5">
+                              <div className="flex flex-col divide-y divide-border/60">
                                 {dayEntries.map((e) => (
-                                  <span key={e.id} className="whitespace-nowrap">
+                                  <button
+                                    type="button"
+                                    key={e.id}
+                                    disabled={!isAdmin}
+                                    onClick={(ev) => {
+                                      if (!isAdmin) return;
+                                      ev.stopPropagation();
+                                      onEdit(e);
+                                    }}
+                                    className="whitespace-nowrap py-0.5 text-center disabled:cursor-default"
+                                  >
                                     {fmtHHMM(e.startedAt)}–{fmtHHMM(e.endedAt)}
-                                  </span>
+                                  </button>
                                 ))}
                               </div>
                             )}
@@ -824,5 +980,87 @@ function WeeklyPlan({
         </TableBody>
       </Table>
     </Card>
+  );
+}
+type EditorState =
+  | { mode: "edit"; id: string; staffName: string; dateIso: string; from: string; to: string }
+  | { mode: "create"; staffId: string; staffName: string; dateIso: string; from: string; to: string };
+
+function ShiftEditorDialog({
+  state,
+  onClose,
+  onSubmit,
+  pending,
+}: {
+  state: EditorState | null;
+  onClose: () => void;
+  onSubmit: (from: string, to: string) => void;
+  pending: boolean;
+}) {
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const open = state !== null;
+  // Reset Felder bei jedem Öffnen
+  useMemo(() => {
+    if (state) {
+      setFrom(state.from);
+      setTo(state.to);
+    }
+  }, [state]);
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="sm:max-w-[360px]">
+        <DialogHeader>
+          <DialogTitle>
+            {state?.mode === "create" ? "Neue Schicht" : "Schicht bearbeiten"}
+          </DialogTitle>
+        </DialogHeader>
+        {state && (
+          <div className="space-y-3">
+            <div className="text-sm text-muted-foreground">
+              {state.staffName} · {state.dateIso}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="shift-from">Von</Label>
+                <Input
+                  id="shift-from"
+                  type="time"
+                  value={from}
+                  onChange={(e) => setFrom(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="shift-to">Bis</Label>
+                <Input
+                  id="shift-to"
+                  type="time"
+                  value={to}
+                  onChange={(e) => setTo(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={pending}>
+            Abbrechen
+          </Button>
+          <Button
+            onClick={() => {
+              if (!/^\d{2}:\d{2}$/.test(from) || !/^\d{2}:\d{2}$/.test(to)) {
+                toast.error("Bitte gültige Zeiten eingeben.");
+                return;
+              }
+              onSubmit(from, to);
+            }}
+            disabled={pending}
+          >
+            Speichern
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
