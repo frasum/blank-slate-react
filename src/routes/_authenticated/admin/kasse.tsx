@@ -346,6 +346,8 @@ function KassePage() {
             }
           />
 
+          <TipPoolCard sessionId={sessionId!} hasSettlements={ovQ.data.settlements.length > 0} />
+
           <Card className="flex flex-wrap gap-3 p-4">
             <Button
               disabled={!writable || finalizeMut.isPending}
