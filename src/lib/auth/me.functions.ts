@@ -8,7 +8,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 export type Identity = {
   staffId: string | null;
   organizationId: string | null;
-  role: "admin" | "manager" | "staff" | null;
+  role: "admin" | "manager" | "staff" | "payroll" | null;
   displayName: string | null;
 };
 
