@@ -135,6 +135,7 @@ function ZeitUebersichtPage() {
   const qc = useQueryClient();
   const fetchLocations = useServerFn(listLocations);
   const fetchOverview = useServerFn(getTimeOverview);
+  const fetchWeekly = useServerFn(getWeeklyTimeEntries);
   const fetchNotes = useServerFn(listPayrollNotes);
   const callUpsert = useServerFn(upsertPayrollNote);
 
@@ -147,6 +148,24 @@ function ZeitUebersichtPage() {
 
   const [fromDate, setFromDate] = useState<string>(firstOfMonthIso());
   const [toDate, setToDate] = useState<string>(todayIso());
+
+  // Wochenplan: aktuelle Woche (Montag).
+  const [weekStart, setWeekStart] = useState<string>(() =>
+    fmtIso(mondayOf(parseIsoDate(todayIso()))),
+  );
+  const weekStartDate = useMemo(() => parseIsoDate(weekStart), [weekStart]);
+  const weekDays = useMemo(
+    () => Array.from({ length: 7 }, (_, i) => addDays(weekStartDate, i)),
+    [weekStartDate],
+  );
+  const { week: currentWeekNo } = isoWeek(weekStartDate);
+
+  const weeklyQ = useQuery({
+    queryKey: ["weekly-entries", effectiveLocationId, weekStart],
+    queryFn: () =>
+      fetchWeekly({ data: { locationId: effectiveLocationId, weekStart } }),
+    enabled: Boolean(effectiveLocationId),
+  });
 
   const overviewQ = useQuery({
     queryKey: ["time-overview", effectiveLocationId, fromDate, toDate],
@@ -292,11 +311,49 @@ function ZeitUebersichtPage() {
         </div>
       </Card>
 
-      <Tabs defaultValue="summary">
+      <Tabs defaultValue="weekly">
         <TabsList>
+          <TabsTrigger value="weekly">Wochenplan</TabsTrigger>
           <TabsTrigger value="summary">Zusammenfassung</TabsTrigger>
           <TabsTrigger value="payroll">Buchhaltung</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="weekly">
+          <Card className="p-4 mb-3">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm hover:bg-muted"
+                onClick={() => setWeekStart(fmtIso(addDays(weekStartDate, -7)))}
+              >
+                ← Woche
+              </button>
+              <div className="text-sm font-medium tabular-nums">
+                KW {currentWeekNo} · {ddmm(weekDays[0])}–{ddmm(weekDays[6])}
+                {weekDays[0].getUTCFullYear()}
+              </div>
+              <button
+                type="button"
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm hover:bg-muted"
+                onClick={() => setWeekStart(fmtIso(addDays(weekStartDate, 7)))}
+              >
+                Woche →
+              </button>
+              <button
+                type="button"
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm hover:bg-muted"
+                onClick={() => setWeekStart(fmtIso(mondayOf(parseIsoDate(todayIso()))))}
+              >
+                Heute
+              </button>
+            </div>
+          </Card>
+          <WeeklyPlan
+            data={weeklyQ.data}
+            isLoading={weeklyQ.isLoading}
+            weekDays={weekDays}
+          />
+        </TabsContent>
 
         <TabsContent value="summary">
           <Card className="overflow-x-auto">
