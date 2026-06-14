@@ -37,16 +37,12 @@ describe.skipIf(!dbTestsEnabled)(
       manager = await org.mkUser("manager");
       waiter = await org.mkUser("staff");
 
-      // Für (c) brauchen wir mindestens einen POS-Kanal je Location, damit
-      // wir prüfen können, dass POS NICHT auf takeaway steht. Die Migration
-      // seedet POS nicht — wir legen ihn hier per service-Rolle an.
-      const { error: posErr } = await org.service.from("revenue_channels").insert({
-        organization_id: org.orgId,
-        location_id: org.defaultLocationId,
-        label: "Kasse",
-        kind: "pos",
-      });
-      if (posErr) throw new Error(`pos seed failed: ${posErr.message}`);
+      // KEIN manueller Kanal-Seed: seit Migration
+      // `tg_locations_seed_defaults` legt der AFTER-INSERT-Trigger auf
+      // public.locations je neuer Location automatisch den vollständigen
+      // Kanal-Satz (pos + delivery_souse/wolt/vectron) + LDDs an. Tests (c)
+      // und (d) lesen genau diese Trigger-Ausgabe — das ist der Beweis,
+      // dass die Produktionslogik greift, nicht eine Testbequemlichkeit.
     });
 
     afterAll(async () => {
