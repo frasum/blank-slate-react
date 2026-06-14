@@ -81,14 +81,15 @@ export type DetailsDbFields = {
 export type CurrentDetailsRow = { staffId: string } & Partial<DetailsDbFields>;
 
 export type FieldDiffState = "set" | "changed" | "unchanged";
+export type DiffValue = string | number | boolean | null;
 /** Diff-Eintrag: bei sensiblen Feldern werden Werte unterdrückt. */
 export type DetailsFieldDiff = {
   field: keyof DetailsDbFields;
   state: FieldDiffState;
   sensitive: boolean;
   /** Nur für nicht-sensible Felder befüllt. */
-  from?: unknown;
-  to?: unknown;
+  from?: DiffValue;
+  to?: DiffValue;
 };
 
 export type DetailsOp =
@@ -256,19 +257,18 @@ export function computeDetailsPlan(input: ComputeDetailsPlanInput): DetailsPlan 
           field,
           state: "unchanged",
           sensitive,
-          ...(sensitive ? {} : { from: oldVal, to: newVal }),
+          ...(sensitive ? {} : { from: oldVal as DiffValue, to: newVal as DiffValue }),
         });
         continue;
       }
       // Wert ändert sich (oder ist neu).
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (writeFields as Record<string, unknown>)[field] = newVal as any;
+      (writeFields as Record<string, unknown>)[field] = newVal as unknown;
       const state: FieldDiffState = current ? "changed" : "set";
       fieldDiffs.push({
         field,
         state,
         sensitive,
-        ...(sensitive ? {} : { from: oldVal, to: newVal }),
+        ...(sensitive ? {} : { from: oldVal as DiffValue, to: newVal as DiffValue }),
       });
       fieldsTouched++;
     }
