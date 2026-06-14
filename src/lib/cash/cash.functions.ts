@@ -1553,6 +1553,9 @@ export async function getCashLedgerCore(
     totalRevenueGross: number;
     totalExpenses: number;
     differenz: number;
+    cashActualSum: number;
+    cashActualCount: number;
+    sessionCount: number;
   };
   const byDate = new Map<string, Agg>();
   const sessionDate = new Map<string, string>();
@@ -1586,6 +1589,9 @@ export async function getCashLedgerCore(
         totalRevenueGross: 0,
         totalExpenses: 0,
         differenz: 0,
+        cashActualSum: 0,
+        cashActualCount: 0,
+        sessionCount: 0,
       };
       byDate.set(date, a);
     }
@@ -1597,6 +1603,11 @@ export async function getCashLedgerCore(
     if (s.business_date === firstDate) firstDateSessions.add(s.id);
     const a = getAgg(s.business_date);
     a.statuses.add(s.status as string);
+    a.sessionCount += 1;
+    if (s.cash_actual_cents !== null && s.cash_actual_cents !== undefined) {
+      a.cashActualSum += Number(s.cash_actual_cents);
+      a.cashActualCount += 1;
+    }
     // Session-Pauschalfelder (Quirk: vorschuss wird ignoriert, falls
     // advances-Satellit vorhanden — siehe effectiveVorschussCents).
     a.vouchersSold += Number(s.vouchers_sold_cents ?? 0);
@@ -1714,9 +1725,21 @@ export async function getCashLedgerCore(
   const openingBalanceCents = getAgg(firstDate).openingBalance;
   const chain = accumulateChain(openingBalanceCents, days);
 
+  const safeDays: SafeDayInput[] = sortedDates.map((date) => {
+    const a = getAgg(date);
+    return {
+      businessDate: date,
+      cashActualCents: a.cashActualCount > 0 ? a.cashActualSum : null,
+      cashTargetCents: cashTarget * Math.max(1, a.sessionCount),
+      bankDepositsCents: a.bankDeposits,
+    };
+  });
+  const safeChain = computeSafeChain(openingSafe, safeDays);
+
   return sortedDates.map((date, i) => {
     const a = getAgg(date);
     const r = chain[i];
+    const sr = safeChain[i];
     const statuses = Array.from(a.statuses);
     const status: CashLedgerRow["status"] =
       statuses.length === 0
@@ -1732,6 +1755,10 @@ export async function getCashLedgerCore(
       totalExpensesCents: a.totalExpenses,
       closingBalanceCents: r.remainingCashCents,
       differenzCents: a.differenz,
+      cashActualCents: sr.cashActualCents,
+      surplusCents: sr.surplusCents,
+      shortfallCents: sr.shortfallCents,
+      safeBalanceCents: sr.safeBalanceCents,
     };
   });
 }
