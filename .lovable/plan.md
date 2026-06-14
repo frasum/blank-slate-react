@@ -832,3 +832,224 @@ Bestehende Tests bleiben unverändert grün; Seed-Helper in
    werden? In P1 wäre das ein manuelles Update außerhalb der Migration.
 3. Vectron-Kind-Bezeichner: `'delivery_vectron'` neutral — bestätigt?
 4. `location_department_defaults` ohne `gl`-Seed — bestätigt?
+
+---
+
+## Übernahme Zuordnungen (Stammdaten-Import aus tagesabrechnung)
+
+Ziel: 42 Mitarbeiter-Zuordnungen (Abteilung je Standort) und 82 Skills
+aus dem Altsystem `tagesabrechnung` per Server-Function nach COCO
+übernehmen, statt manuell zu pflegen. NUR Stammdaten — keine
+Pool-Berechnung, keine Zeiterfassung, keine Abrechnung.
+
+### Verifizierte Grundlage (fix)
+
+- `staff_identity_map`: 42/42 verknüpft + bestätigt.
+  `alt_id` = UUID der Alt-Personen-ID → Join ohne Namensraterei.
+- Restaurant → Location:
+  - `Spicery` / `a1710390…` → `44a99e7e-93be-44b1-89ab-38e364a02ddc`
+  - `YUM`     / `3065f458…` → `14c2d773-6c5f-4a24-ba00-1c726f277091`
+- `zt_department` → `staff_department`-Enum: Küche→`kitchen`,
+  Service→`service`, GL→`gl`.
+- 62 Zuordnungen (42 MA, 14 mit Mehrfach-Standort), 82 Skill-Einträge.
+
+### Teil X — Skills-Schema (eigene Migration)
+
+COCO hat aktuell kein Skill-Konzept. Wird in derselben Migration mit
+angelegt (idempotent, RLS, GRANTs nach Projektstandard).
+
+- **Neuer Typ `public.skill_category`** — eigenständig, NICHT
+  `staff_department` wiederverwenden. Werte:
+  `'kitchen' | 'service' | 'gl' | 'other'`.
+  Begründung: `'other'` (z. B. Hausmeister) darf die pool-relevante
+  Abteilungs-/Trinkgeld-Logik nicht verschmutzen; `staff_department`
+  bleibt strikt auf pool-/abrechnungsrelevante Werte beschränkt.
+- **`skills`** — `id`, `organization_id`, `name`, `category`,
+  `color NULL`, `sort_order INT DEFAULT 0`, `created_at/updated_at`.
+  Unique `(organization_id, name)`.
+- **`staff_skills`** — `staff_id`, `skill_id`, `organization_id`
+  (denormalisiert für RLS), Unique `(staff_id, skill_id)`,
+  ON DELETE CASCADE auf beiden FKs.
+- RLS:
+  - SELECT für alle Rollen der Org (`organization_id =
+    current_organization_id()`).
+  - INSERT/UPDATE/DELETE: DENY-ALL Client (`USING (false)`), Writes
+    laufen ausschließlich über Server-Functions mit `supabaseAdmin`.
+- GRANTs Standard (`SELECT` an `authenticated`, `ALL` an
+  `service_role`).
+- **Seed je Org** (idempotent, `ON CONFLICT DO NOTHING`, in der
+  Migration UND via Trigger `tg_organizations_seed_skills` analog
+  `tg_locations_seed_defaults`, damit auch neu angelegte Orgs den Satz
+  bekommen):
+  - `kitchen`: `VS`, `PASS`, `SPÜLEN`, `CO`
+  - `service`: `SERVICE`, `BAR`
+  - `gl`:      `GL`
+  - `other`:   `Hausmeister`
+- DB-Tests: Seed nach `INSERT INTO organizations` vorhanden; Unique
+  greift; RLS-Härtung (Kellner kann Skills nur in eigener Org lesen,
+  kein Client-Write).
+
+### Teil Y — `importStaffAssignments` (Server-Function, Admin-only)
+
+Modul: `src/lib/admin/import-assignments.functions.ts` plus reines
+Mapping-Modul `src/lib/admin/import-assignments.ts` (keine I/O,
+vollständig testbar). UI folgt später; jetzt nur die Funktion +
+Tests.
+
+#### Eingabe
+
+```
+importStaffAssignments({
+  assignments: Array<{ altStaffId: string; altLocationId: string;
+                        ztDepartment: 'Küche'|'Service'|'GL' }>,
+  skills:      Array<{ altStaffId: string; skillName: string }>,
+  mode: 'dry_run' | 'commit',
+})
+```
+
+CSV-Parsing passiert außerhalb (späterer UI-Schritt). Die Funktion
+nimmt bereits geparste, getypte Arrays — so testbar ohne Datei-I/O.
+
+#### Auflösung
+
+- `altStaffId → staff_id` via `staff_identity_map.alt_id` (Org-scoped).
+- `altLocationId → location_id` via fixer Map (oben). Unbekannte
+  Location → `skippedRows` mit Grund `unknown_location`.
+- `ztDepartment → staff_department` via fixem Mapping.
+- Skill: per `(organization_id, name)` in `skills` nachschlagen.
+  Fehlender Skill → `skippedRows` mit Grund `unknown_skill` (kein
+  Auto-Anlegen — Skill-Stammdaten sind kontrolliert).
+- Zeilen ohne Treffer in `staff_identity_map` → `skippedRows` mit
+  Grund `unknown_alt_staff`. Niemals stumm verlieren.
+
+#### Abteilungen → `staff_locations`
+
+Wahrheit sind die Alt-Daten. Für jeden importierten Mitarbeiter:
+
+1. Sollset bilden: `Set<(staff_id, location_id, department)>` aus
+   `assignments` (nach Mapping).
+2. Istzustand laden: alle `staff_locations`-Zeilen dieses MA in der
+   Org.
+3. Diff:
+   - **add**:      im Soll, nicht im Ist → INSERT.
+   - **keep**:     in beiden → nichts.
+   - **remove**:   im Ist, nicht im Soll, **und** `department='service'`
+     (P1-Platzhalter) → DELETE. Nicht-Platzhalter-Zeilen (kitchen/gl,
+     oder service die explizit im Soll war) werden NIE auto-entfernt
+     — Schutz vor versehentlichem Datenverlust bei Re-Import.
+   - **replace**:  ergibt sich aus add+remove (gleiche
+     `(staff_id, location_id)`, andere department).
+4. Idempotent: zweiter Lauf produziert 0 Schreib-Ops.
+
+Begründung der Replace-Strategie: P1 hat für ALLE Bestandsmitarbeiter
+`department='service'` als Platzhalter gesetzt. Ein Küchen-MA muss
+aktiv von `service` auf `kitchen` umgesetzt werden, sonst landet er
+später fälschlich im Service-Pool.
+
+#### Skills → `staff_skills`
+
+- Sollset: `Set<(staff_id, skill_id)>` aus `skills`-Eingabe.
+- Istzustand: alle `staff_skills` des MA.
+- Diff: add/keep wie oben. **remove** für `staff_skills`: nur wenn
+  der Skill nicht im Soll steht — Alt-System ist Wahrheit, weil
+  Skills bislang in COCO leer waren. Bei späteren Importen mit
+  Teilumfang ist das ein Risiko; deshalb Server-Fn-Param
+  `skillsMode: 'merge' | 'replace'` (Default `'replace'` für den
+  Erst-Import, später `'merge'`).
+
+#### Dry-Run-Bericht
+
+Strukturiertes Ergebnis (kein freier Text), pro MA:
+
+```
+{
+  staffId, displayName,
+  locations: { added: [...], removed: [...], kept: [...] },
+  skills:    { added: [...], removed: [...], kept: [...] },
+}
+```
+
+Plus Bilanz: `{ staff: 42, assignments: 62, skills: 82,
+skippedRows: [...] }`. Dry-Run schreibt nichts und schreibt KEIN
+Audit.
+
+#### Commit
+
+- `runGuarded(caller, 'admin', writeAudit, …)` — Admin-only.
+- Schreibt in einer logischen Transaktion (Server-Fn-Handler, alle
+  Statements sequenziell, bei Fehler abort + sprechender Error).
+- Audit-Eintrag `staff.import_assignments` mit Zählern:
+  `{ staff, locationsAdded, locationsRemoved, skillsAdded,
+  skillsRemoved, skippedCount }` und SHA-256 der normalisierten
+  Eingabe (Reproduzierbarkeit).
+- Idempotent: zweiter Commit = 0 Änderungen, Audit-Eintrag mit
+  Nullzählern (oder gar nicht — Entscheidung: gar nicht, sonst
+  vermüllt das Log).
+
+### Tests
+
+- **Unit** (`import-assignments.test.ts`, rein):
+  - Mapping `zt_department → staff_department`.
+  - Diff-Logik: add/keep/replace/remove, Platzhalter-Schutz.
+  - `skippedRows`-Klassifizierung (3 Gründe).
+- **DB-Integration** (`import-assignments.db.test.ts`,
+  `describe.skipIf(!dbTestsEnabled)`):
+  - (a) role-guard: staff/manager → `ForbiddenError`, kein Schreiben.
+  - (b) Mehrfachzuordnung: APPEL `kitchen` an beiden Standorten →
+    zwei `staff_locations`-Zeilen, beide `kitchen`, keine
+    Platzhalter-`service`-Reste.
+  - (c) GL-Fall: CHEFIN → `department='gl'`. Bestätigung über
+    Lese-Test, dass eine spätere Pool-Query (Platzhalter:
+    SELECT … WHERE department IN ('kitchen','service')) sie nicht
+    enthält.
+  - (d) Platzhalter-Ersetzung: Bestands-MA hat `service`, Alt-Daten
+    sagen `kitchen` → nach Commit nur `kitchen`, kein Doppel.
+  - (e) Idempotenz: zweiter Commit liefert 0 Schreib-Ops, kein
+    zusätzlicher Audit-Eintrag.
+  - (f) Dry-Run schreibt nichts (Snapshot vorher/nachher identisch).
+  - (g) Unbekannte `altStaffId` / `altLocationId` / `skillName` →
+    landen in `skippedRows`, blockieren den Rest nicht.
+
+### Migration
+
+Eine Datei, idempotent:
+
+1. `CREATE TYPE public.skill_category` (`IF NOT EXISTS`-Muster via
+   `DO $$ BEGIN … EXCEPTION WHEN duplicate_object THEN NULL; END $$`).
+2. `CREATE TABLE public.skills` + GRANTs + RLS + Policies.
+3. `CREATE TABLE public.staff_skills` + GRANTs + RLS + Policies.
+4. `CREATE OR REPLACE FUNCTION tg_organizations_seed_skills()` +
+   Trigger `AFTER INSERT ON public.organizations`.
+5. Backfill: für alle bestehenden Orgs den Seed via `INSERT … ON
+   CONFLICT DO NOTHING` ausführen.
+6. `REVOKE EXECUTE` der Trigger-Function von `PUBLIC`/`anon`/
+   `authenticated`.
+
+### Erfolgs-Gate
+
+- Migration idempotent (zweiter Lauf = no-op), RLS + GRANTs sauber,
+  `scripts/check-rls-inventory.sql` ohne neue `USING (true)`.
+- `eslint --fix` vor Commit, `tsc` grün.
+- CI: `check` + `db-integration` grün, inkl. (a)–(g).
+- Keine Berechnungs-, UI- oder Auth-Pfad-Änderungen außerhalb des
+  Scopes.
+
+### Explizit NICHT in diesem Schritt
+
+- CSV-Parser / Upload-UI (folgt als Mini-Commit, sobald die
+  Server-Fn steht und manuell mit den beiden CSVs gefüttert wurde).
+- Pool-Berechnung (P4), Zeiterfassung (P2), Abrechnung (P3).
+- Verwendung der Skills in Dienstplan/Reports (M3).
+
+### Offene Fragen vor Bau-Freigabe
+
+1. `skillsMode` Default `'replace'` für den Erst-Import — bestätigt?
+   (Späterer Teil-Reimport würde `'merge'` brauchen, damit nicht
+   versehentlich Skills gelöscht werden, die im Teil-CSV fehlen.)
+2. Bei `unknown_skill` (Skill-Name in CSV existiert nicht im Seed):
+   skippen ist konservativ. Alternative: Auto-Anlegen mit
+   `category='other'`. Empfehlung: skippen + im Dry-Run-Bericht
+   listen, damit der Admin entscheidet — bestätigt?
+3. Soll der Commit auch eine Zeile `staff.import_assignments` ins
+   Audit schreiben, wenn die Bilanz 0/0/0 ist? Empfehlung: nein
+   (Log-Hygiene) — bestätigt?
