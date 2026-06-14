@@ -2,10 +2,7 @@
 // ALT_LOCATION_MAP. Quelle: tagesabrechnung-CSV (verifizierte Grundlage).
 import { describe, it, expect } from "vitest";
 import { ALT_LOCATION_MAP } from "./import-assignments-core";
-import {
-  computeAssignmentPlan,
-  type AssignmentInput,
-} from "./import-assignments";
+import { computeAssignmentPlan, type AssignmentInput } from "./import-assignments";
 
 const ALT_SPICERY = "a1710390-ea4d-4bc2-b869-c0c047056b15";
 const ALT_YUM = "3065f458-6d66-4a5d-a85e-f8ee33bb7351";
