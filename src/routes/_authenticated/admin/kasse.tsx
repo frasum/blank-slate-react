@@ -908,6 +908,45 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+const CASH_TARGET_CENTS = 200_000; // 2.000 € — UI-Hinweis (Quelle ist organizations.cash_balance_target_cents)
+
+function CashActualHint({ value }: { value: string }) {
+  const trimmed = value.trim();
+  if (trimmed === "") {
+    return (
+      <p className="pl-1 text-xs text-muted-foreground">
+        Soll: {fmtCents(CASH_TARGET_CENTS)} € — Kassenbestand noch nicht erfasst.
+      </p>
+    );
+  }
+  const cents = parseEuroToCents(trimmed);
+  if (cents === null) {
+    return (
+      <p className="pl-1 text-xs text-destructive">Bitte gültigen Eurobetrag eintragen.</p>
+    );
+  }
+  const diff = cents - CASH_TARGET_CENTS;
+  if (diff === 0) {
+    return (
+      <p className="pl-1 text-xs text-emerald-600">
+        Soll: {fmtCents(CASH_TARGET_CENTS)} € — Kassenbestand stimmt ✓
+      </p>
+    );
+  }
+  if (diff > 0) {
+    return (
+      <p className="pl-1 text-xs text-emerald-600">
+        Soll: {fmtCents(CASH_TARGET_CENTS)} € — Entnahme in Tresor: {fmtCents(diff)} €
+      </p>
+    );
+  }
+  return (
+    <p className="pl-1 text-xs text-destructive">
+      Soll: {fmtCents(CASH_TARGET_CENTS)} € — Fehlbetrag: {fmtCents(-diff)} €
+    </p>
+  );
+}
+
 function EuroRow({
   label,
   value,
