@@ -735,6 +735,22 @@ function ZeitUebersichtPage() {
             </Table>
           </Card>
         </TabsContent>
+
+        <TabsContent value="periods">
+          <PeriodsPanel
+            periods={periods}
+            isAdmin={isAdmin}
+            isLoading={periodsQ.isLoading}
+            onCreate={(vars) => createPeriodMut.mutate(vars)}
+            onToggleLock={(id) => toggleLockMut.mutate(id)}
+            onDelete={(id) => deletePeriodMut.mutate(id)}
+            pending={
+              createPeriodMut.isPending ||
+              toggleLockMut.isPending ||
+              deletePeriodMut.isPending
+            }
+          />
+        </TabsContent>
       </Tabs>
 
       <ShiftEditorDialog
