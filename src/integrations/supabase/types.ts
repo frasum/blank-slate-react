@@ -313,21 +313,27 @@ export type Database = {
       }
       organizations: {
         Row: {
+          cash_balance_target_cents: number
           created_at: string
           id: string
           name: string
+          opening_safe_balance_cents: number
           updated_at: string
         }
         Insert: {
+          cash_balance_target_cents?: number
           created_at?: string
           id?: string
           name: string
+          opening_safe_balance_cents?: number
           updated_at?: string
         }
         Update: {
+          cash_balance_target_cents?: number
           created_at?: string
           id?: string
           name?: string
+          opening_safe_balance_cents?: number
           updated_at?: string
         }
         Relationships: []
@@ -852,6 +858,7 @@ export type Database = {
       sessions: {
         Row: {
           business_date: string
+          cash_actual_cents: number | null
           created_at: string
           einladung_cents: number
           finalized_at: string | null
@@ -868,12 +875,14 @@ export type Database = {
           sonstige_einnahme_cents: number
           status: Database["public"]["Enums"]["session_status"]
           updated_at: string
+          vectron_daily_total_cents: number
           vorschuss_cents: number
           vouchers_redeemed_cents: number
           vouchers_sold_cents: number
         }
         Insert: {
           business_date: string
+          cash_actual_cents?: number | null
           created_at?: string
           einladung_cents?: number
           finalized_at?: string | null
@@ -890,12 +899,14 @@ export type Database = {
           sonstige_einnahme_cents?: number
           status?: Database["public"]["Enums"]["session_status"]
           updated_at?: string
+          vectron_daily_total_cents?: number
           vorschuss_cents?: number
           vouchers_redeemed_cents?: number
           vouchers_sold_cents?: number
         }
         Update: {
           business_date?: string
+          cash_actual_cents?: number | null
           created_at?: string
           einladung_cents?: number
           finalized_at?: string | null
@@ -912,6 +923,7 @@ export type Database = {
           sonstige_einnahme_cents?: number
           status?: Database["public"]["Enums"]["session_status"]
           updated_at?: string
+          vectron_daily_total_cents?: number
           vorschuss_cents?: number
           vouchers_redeemed_cents?: number
           vouchers_sold_cents?: number
