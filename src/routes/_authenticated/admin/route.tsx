@@ -68,6 +68,15 @@ function AdminLayout() {
               </Link>
               {!isPayroll && (
                 <Link
+                  to="/admin/dienstplan"
+                  className="text-muted-foreground hover:text-foreground"
+                  activeProps={{ className: "text-foreground" }}
+                >
+                  Dienstplan
+                </Link>
+              )}
+              {!isPayroll && (
+                <Link
                   to="/admin/kasse"
                   className="text-muted-foreground hover:text-foreground"
                   activeProps={{ className: "text-foreground" }}
