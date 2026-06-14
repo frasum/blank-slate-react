@@ -397,6 +397,32 @@ function ZeitUebersichtPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const invalidatePeriods = () => {
+    void qc.invalidateQueries({ queryKey: ["periods"] });
+  };
+  const createPeriodMut = useMutation({
+    mutationFn: (vars: { label: string; startDate: string; endDate: string }) =>
+      callCreatePeriod({ data: vars }),
+    onSuccess: () => {
+      invalidatePeriods();
+      toast.success("Periode angelegt.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const toggleLockMut = useMutation({
+    mutationFn: (id: string) => callToggleLock({ data: { id } }),
+    onSuccess: () => invalidatePeriods(),
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const deletePeriodMut = useMutation({
+    mutationFn: (id: string) => callDeletePeriod({ data: { id } }),
+    onSuccess: () => {
+      invalidatePeriods();
+      toast.success("Periode gelöscht.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   return (
     <div className="space-y-6">
       <div>
