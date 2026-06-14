@@ -40,9 +40,7 @@ export type ImportCoreResult = {
   plan: ComputePlanResult;
 };
 
-export async function runImportAssignmentsCore(
-  input: ImportCoreInput,
-): Promise<ImportCoreResult> {
+export async function runImportAssignmentsCore(input: ImportCoreInput): Promise<ImportCoreResult> {
   const { admin, organizationId } = input;
 
   const { data: mapRows, error: mapErr } = await admin

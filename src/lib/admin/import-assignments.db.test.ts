@@ -117,9 +117,7 @@ describe.skipIf(!dbTestsEnabled)("importStaffAssignments — DB (Teil Y)", () =>
       admin: org.service,
       organizationId: org.orgId,
       sourceSystem: "tagesabrechnung",
-      assignments: [
-        { altStaffId: "alt-chef", altLocationId: ALT_SPICERY, ztDepartment: "GL" },
-      ],
+      assignments: [{ altStaffId: "alt-chef", altLocationId: ALT_SPICERY, ztDepartment: "GL" }],
       skills: [],
       skillsMode: "replace",
       mode: "commit",

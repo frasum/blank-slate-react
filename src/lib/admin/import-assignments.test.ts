@@ -170,9 +170,7 @@ describe("computeAssignmentPlan — Diff & Platzhalter-Schutz", () => {
 
   it("GL-Mitarbeiter bekommt department='gl'", () => {
     const r = computeAssignmentPlan({
-      assignments: [
-        { altStaffId: "alt-chefin", altLocationId: "alt-spicery", ztDepartment: "GL" },
-      ],
+      assignments: [{ altStaffId: "alt-chefin", altLocationId: "alt-spicery", ztDepartment: "GL" }],
       skills: [] as SkillInput[],
       staffMap: staffMap(),
       locationMap: locMap(),

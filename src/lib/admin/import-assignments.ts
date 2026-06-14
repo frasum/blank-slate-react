@@ -21,10 +21,7 @@ export type CurrentLocationRow = {
 };
 export type CurrentSkillRow = { staffId: string; skillId: string };
 
-export type SkipReason =
-  | "unknown_alt_staff"
-  | "unknown_location"
-  | "unknown_skill";
+export type SkipReason = "unknown_alt_staff" | "unknown_location" | "unknown_skill";
 
 export type SkippedRow = {
   kind: "assignment" | "skill";
