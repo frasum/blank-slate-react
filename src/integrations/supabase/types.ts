@@ -386,6 +386,67 @@ export type Database = {
           },
         ]
       }
+      payroll_notes: {
+        Row: {
+          besonderheiten: string | null
+          created_at: string
+          id: string
+          location_id: string
+          organization_id: string
+          period_end: string
+          period_start: string
+          staff_id: string
+          updated_at: string
+          vorschuss: number
+        }
+        Insert: {
+          besonderheiten?: string | null
+          created_at?: string
+          id?: string
+          location_id: string
+          organization_id: string
+          period_end: string
+          period_start: string
+          staff_id: string
+          updated_at?: string
+          vorschuss?: number
+        }
+        Update: {
+          besonderheiten?: string | null
+          created_at?: string
+          id?: string
+          location_id?: string
+          organization_id?: string
+          period_end?: string
+          period_start?: string
+          staff_id?: string
+          updated_at?: string
+          vorschuss?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_notes_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_notes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_notes_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pin_attempts: {
         Row: {
           attempted_at: string
