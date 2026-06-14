@@ -20,6 +20,7 @@ import { Route as AuthenticatedAdminZeitRouteImport } from './routes/_authentica
 import { Route as AuthenticatedAdminStaffRouteImport } from './routes/_authenticated/admin/staff'
 import { Route as AuthenticatedAdminMigrationRouteImport } from './routes/_authenticated/admin/migration'
 import { Route as AuthenticatedAdminLocationsRouteImport } from './routes/_authenticated/admin/locations'
+import { Route as AuthenticatedAdminKasseSaldoRouteImport } from './routes/_authenticated/admin/kasse-saldo'
 import { Route as AuthenticatedAdminKasseRouteImport } from './routes/_authenticated/admin/kasse'
 import { Route as AuthenticatedAdminImportZuordnungenRouteImport } from './routes/_authenticated/admin/import-zuordnungen'
 import { Route as AuthenticatedAdminStaffIndexRouteImport } from './routes/_authenticated/admin/staff.index'
@@ -83,6 +84,12 @@ const AuthenticatedAdminLocationsRoute =
     path: '/locations',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminKasseSaldoRoute =
+  AuthenticatedAdminKasseSaldoRouteImport.update({
+    id: '/kasse-saldo',
+    path: '/kasse-saldo',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminKasseRoute = AuthenticatedAdminKasseRouteImport.update({
   id: '/kasse',
   path: '/kasse',
@@ -119,6 +126,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/admin/import-zuordnungen': typeof AuthenticatedAdminImportZuordnungenRoute
   '/admin/kasse': typeof AuthenticatedAdminKasseRoute
+  '/admin/kasse-saldo': typeof AuthenticatedAdminKasseSaldoRoute
   '/admin/locations': typeof AuthenticatedAdminLocationsRoute
   '/admin/migration': typeof AuthenticatedAdminMigrationRoute
   '/admin/staff': typeof AuthenticatedAdminStaffRouteWithChildren
@@ -135,6 +143,7 @@ export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
   '/admin/import-zuordnungen': typeof AuthenticatedAdminImportZuordnungenRoute
   '/admin/kasse': typeof AuthenticatedAdminKasseRoute
+  '/admin/kasse-saldo': typeof AuthenticatedAdminKasseSaldoRoute
   '/admin/locations': typeof AuthenticatedAdminLocationsRoute
   '/admin/migration': typeof AuthenticatedAdminMigrationRoute
   '/admin/zeit': typeof AuthenticatedAdminZeitRoute
@@ -153,6 +162,7 @@ export interface FileRoutesById {
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/admin/import-zuordnungen': typeof AuthenticatedAdminImportZuordnungenRoute
   '/_authenticated/admin/kasse': typeof AuthenticatedAdminKasseRoute
+  '/_authenticated/admin/kasse-saldo': typeof AuthenticatedAdminKasseSaldoRoute
   '/_authenticated/admin/locations': typeof AuthenticatedAdminLocationsRoute
   '/_authenticated/admin/migration': typeof AuthenticatedAdminMigrationRoute
   '/_authenticated/admin/staff': typeof AuthenticatedAdminStaffRouteWithChildren
@@ -172,6 +182,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/admin/import-zuordnungen'
     | '/admin/kasse'
+    | '/admin/kasse-saldo'
     | '/admin/locations'
     | '/admin/migration'
     | '/admin/staff'
@@ -188,6 +199,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin/import-zuordnungen'
     | '/admin/kasse'
+    | '/admin/kasse-saldo'
     | '/admin/locations'
     | '/admin/migration'
     | '/admin/zeit'
@@ -205,6 +217,7 @@ export interface FileRouteTypes {
     | '/_authenticated/'
     | '/_authenticated/admin/import-zuordnungen'
     | '/_authenticated/admin/kasse'
+    | '/_authenticated/admin/kasse-saldo'
     | '/_authenticated/admin/locations'
     | '/_authenticated/admin/migration'
     | '/_authenticated/admin/staff'
@@ -301,6 +314,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminLocationsRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/kasse-saldo': {
+      id: '/_authenticated/admin/kasse-saldo'
+      path: '/kasse-saldo'
+      fullPath: '/admin/kasse-saldo'
+      preLoaderRoute: typeof AuthenticatedAdminKasseSaldoRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/kasse': {
       id: '/_authenticated/admin/kasse'
       path: '/kasse'
@@ -360,6 +380,7 @@ const AuthenticatedAdminStaffRouteWithChildren =
 interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminImportZuordnungenRoute: typeof AuthenticatedAdminImportZuordnungenRoute
   AuthenticatedAdminKasseRoute: typeof AuthenticatedAdminKasseRoute
+  AuthenticatedAdminKasseSaldoRoute: typeof AuthenticatedAdminKasseSaldoRoute
   AuthenticatedAdminLocationsRoute: typeof AuthenticatedAdminLocationsRoute
   AuthenticatedAdminMigrationRoute: typeof AuthenticatedAdminMigrationRoute
   AuthenticatedAdminStaffRoute: typeof AuthenticatedAdminStaffRouteWithChildren
@@ -372,6 +393,7 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
     AuthenticatedAdminImportZuordnungenRoute:
       AuthenticatedAdminImportZuordnungenRoute,
     AuthenticatedAdminKasseRoute: AuthenticatedAdminKasseRoute,
+    AuthenticatedAdminKasseSaldoRoute: AuthenticatedAdminKasseSaldoRoute,
     AuthenticatedAdminLocationsRoute: AuthenticatedAdminLocationsRoute,
     AuthenticatedAdminMigrationRoute: AuthenticatedAdminMigrationRoute,
     AuthenticatedAdminStaffRoute: AuthenticatedAdminStaffRouteWithChildren,

@@ -58,6 +58,13 @@ function AdminLayout() {
                 Kasse
               </Link>
               <Link
+                to="/admin/kasse-saldo"
+                className="text-muted-foreground hover:text-foreground"
+                activeProps={{ className: "text-foreground" }}
+              >
+                Kassensaldo
+              </Link>
+              <Link
                 to="/admin/locations"
                 className="text-muted-foreground hover:text-foreground"
                 activeProps={{ className: "text-foreground" }}
