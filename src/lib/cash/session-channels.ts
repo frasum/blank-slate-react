@@ -13,6 +13,7 @@ export type ChannelKind =
   | "pos"
   | "delivery_souse"
   | "delivery_wolt"
+  | "delivery_vectron"
   | "voucher_sold"
   | "voucher_redeemed"
   | "finedine"
@@ -23,6 +24,7 @@ export const CHANNEL_KINDS: readonly ChannelKind[] = [
   "pos",
   "delivery_souse",
   "delivery_wolt",
+  "delivery_vectron",
   "voucher_sold",
   "voucher_redeemed",
   "finedine",
@@ -45,6 +47,7 @@ function emptyByKind(): ChannelTotalsByKind {
     pos: 0,
     delivery_souse: 0,
     delivery_wolt: 0,
+    delivery_vectron: 0,
     voucher_sold: 0,
     voucher_redeemed: 0,
     finedine: 0,
