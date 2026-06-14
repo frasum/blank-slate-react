@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { listLocations } from "@/lib/admin/locations.functions";
 import { listPeriods } from "@/lib/time/time-admin.functions";
+import { serviceMarker } from "@/lib/roster/service-marker";
 import {
   createRosterShift,
   deleteRosterShift,
@@ -103,9 +104,20 @@ function skillsForCell(
   return allSkills.filter((s) => s.category === area);
 }
 
-function PillVisual({ shift }: { shift: RosterShift }) {
-  const bg = shift.skillColor ?? "#9ca3af";
+function PillVisual({ shift, area }: { shift: RosterShift; area: Area }) {
   const opacity = shift.status === "confirmed" ? "opacity-100" : "opacity-70";
+  if (area === "service") {
+    const label = serviceMarker(shift.skillName);
+    return (
+      <div
+        className={`mx-auto flex h-6 w-10 items-center justify-center rounded border border-foreground/40 bg-background text-[11px] font-bold text-foreground ${opacity}`}
+        title={`${shift.skillName ?? "—"} (${shift.status})`}
+      >
+        {label}
+      </div>
+    );
+  }
+  const bg = shift.skillColor ?? "#9ca3af";
   return (
     <div
       className={`mx-auto flex h-6 w-10 items-center justify-center rounded text-[11px] font-bold text-white ${opacity}`}
@@ -494,7 +506,7 @@ function DienstplanPage() {
                           const cellKey = `${row.staffId}|${iso}|${area}`;
                           const editable = canEdit && !periodLocked;
                           const cellBody = shift ? (
-                            <PillVisual shift={shift} />
+                            <PillVisual shift={shift} area={area} />
                           ) : (
                             <EmptyCellMarker canEdit={editable} />
                           );
