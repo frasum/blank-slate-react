@@ -231,7 +231,7 @@ function LocationsTab({ staffId, current }: { staffId: string; current: string[]
 function RoleTab({
   staff,
 }: {
-  staff: { id: string; role: "admin" | "manager" | "staff" | null; isActive: boolean };
+  staff: { id: string; role: "admin" | "manager" | "staff" | "payroll" | null; isActive: boolean };
 }) {
   const queryClient = useQueryClient();
   const callSetRole = useServerFn(setStaffRole);
@@ -243,7 +243,7 @@ function RoleTab({
   };
 
   const roleMutation = useMutation({
-    mutationFn: (role: "admin" | "manager" | "staff" | null) =>
+    mutationFn: (role: "admin" | "manager" | "staff" | "payroll" | null) =>
       callSetRole({ data: { staffId: staff.id, role } }),
     onSuccess: refresh,
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
@@ -259,7 +259,7 @@ function RoleTab({
       <div className="space-y-2">
         <div className="text-xs font-medium text-muted-foreground">Rolle</div>
         <div className="flex flex-wrap gap-2">
-          {(["admin", "manager", "staff", null] as const).map((r) => (
+          {(["admin", "manager", "staff", "payroll", null] as const).map((r) => (
             <button
               key={r ?? "none"}
               onClick={() => {
@@ -273,7 +273,7 @@ function RoleTab({
                   : "border-input bg-background text-foreground hover:bg-accent"
               }`}
             >
-              {r ?? "Keine"}
+              {r === "payroll" ? "Lohnbüro" : (r ?? "Keine")}
             </button>
           ))}
         </div>
