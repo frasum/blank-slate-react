@@ -771,10 +771,16 @@ function WeeklyPlan({
   data,
   isLoading,
   weekDays,
+  isAdmin,
+  onEdit,
+  onCreate,
 }: {
   data: WeeklyData | undefined;
   isLoading: boolean;
   weekDays: Date[];
+  isAdmin: boolean;
+  onEdit: (entry: WeeklyEntry) => void;
+  onCreate: (staffId: string, staffName: string, dateIso: string) => void;
 }) {
   const entries = data?.entries ?? [];
   const crossDates = data?.crossLocationDates ?? {};
@@ -901,23 +907,50 @@ function WeeklyPlan({
                       {dayMeta.map((dm) => {
                         const dayEntries = row.entriesByDate.get(dm.iso) ?? [];
                         const hasCross = cross.has(dm.iso) && dayEntries.length === 0;
+                        const cellBg = dm.isHol
+                          ? "bg-yellow-50"
+                          : dm.isSun
+                            ? "bg-gray-50"
+                            : "";
+                        const clickable = isAdmin;
                         return (
                           <TableCell
                             key={dm.iso}
-                            className={`text-center tabular-nums text-xs ${dm.isHol ? "bg-yellow-50" : dm.isSun ? "bg-gray-50" : ""}`}
+                            onClick={
+                              clickable
+                                ? () => {
+                                    if (dayEntries.length === 0) {
+                                      onCreate(row.staffId, row.displayName, dm.iso);
+                                    } else if (dayEntries.length === 1) {
+                                      onEdit(dayEntries[0]);
+                                    }
+                                  }
+                                : undefined
+                            }
+                            className={`min-h-[40px] p-1 text-center align-middle font-mono text-sm ${cellBg} ${clickable ? "cursor-pointer hover:bg-muted/60" : ""}`}
                           >
                             {dayEntries.length === 0 ? (
                               hasCross ? (
                                 <span className="text-muted-foreground">×</span>
                               ) : (
-                                ""
+                                isAdmin ? <span className="text-muted-foreground/40">+</span> : ""
                               )
                             ) : (
-                              <div className="flex flex-col gap-0.5">
+                              <div className="flex flex-col divide-y divide-border/60">
                                 {dayEntries.map((e) => (
-                                  <span key={e.id} className="whitespace-nowrap">
+                                  <button
+                                    type="button"
+                                    key={e.id}
+                                    disabled={!isAdmin}
+                                    onClick={(ev) => {
+                                      if (!isAdmin) return;
+                                      ev.stopPropagation();
+                                      onEdit(e);
+                                    }}
+                                    className="whitespace-nowrap py-0.5 text-center disabled:cursor-default"
+                                  >
                                     {fmtHHMM(e.startedAt)}–{fmtHHMM(e.endedAt)}
-                                  </span>
+                                  </button>
                                 ))}
                               </div>
                             )}
