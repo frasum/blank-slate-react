@@ -132,8 +132,16 @@ function KassePage() {
     queryFn: () => fetchOverview({ data: { businessDate, locationId } }),
     enabled: locationId !== "",
   });
-  const channelsQ = useQuery({ queryKey: ["cash", "channels"], queryFn: () => fetchChannels() });
-  const terminalsQ = useQuery({ queryKey: ["cash", "terminals"], queryFn: () => fetchTerminals() });
+  const channelsQ = useQuery({
+    queryKey: ["cash", "channels", locationId],
+    queryFn: () => fetchChannels({ data: { locationId } }),
+    enabled: locationId !== "",
+  });
+  const terminalsQ = useQuery({
+    queryKey: ["cash", "terminals", locationId],
+    queryFn: () => fetchTerminals({ data: { locationId } }),
+    enabled: locationId !== "",
+  });
   const staffQ = useQuery({ queryKey: ["admin-staff"], queryFn: () => fetchStaff() });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["cash"] });
