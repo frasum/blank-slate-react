@@ -1290,11 +1290,7 @@ export { CashLockedError };
 // opening_balance_cents aller Sessions an diesem Tag — damit closing[N]
 // = opening[N+1] strikt innerhalb des Bereichs gilt.
 
-import {
-  accumulateChain,
-  type DayInput,
-  type TransferDirection,
-} from "./cash-ledger";
+import { accumulateChain, type DayInput, type TransferDirection } from "./cash-ledger";
 
 export type CashLedgerRow = {
   businessDate: string;

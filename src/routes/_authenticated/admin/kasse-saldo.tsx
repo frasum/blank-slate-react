@@ -195,8 +195,7 @@ function KasseSaldoPage() {
                     </TableCell>
                     <TableCell
                       className={
-                        "text-right tabular-nums" +
-                        (negDiff ? " font-medium text-destructive" : "")
+                        "text-right tabular-nums" + (negDiff ? " font-medium text-destructive" : "")
                       }
                     >
                       {fmtEuro(r.differenzCents)}
