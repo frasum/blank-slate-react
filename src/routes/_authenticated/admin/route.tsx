@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getMyIdentity } from "@/lib/auth/me.functions";
 
 export const Route = createFileRoute("/_authenticated/admin")({
-  beforeLoad: async () => {
+  beforeLoad: async ({ location }) => {
     const { data: sessionData } = await supabase.auth.getSession();
     if (!sessionData.session?.access_token) throw redirect({ to: "/auth" });
 
@@ -17,8 +17,19 @@ export const Route = createFileRoute("/_authenticated/admin")({
     if (userError || !userData.user) throw redirect({ to: "/auth" });
 
     const identity = await getMyIdentity();
-    if (identity.role !== "admin" && identity.role !== "manager") {
+    if (
+      identity.role !== "admin" &&
+      identity.role !== "manager" &&
+      identity.role !== "payroll"
+    ) {
       throw redirect({ to: "/" });
+    }
+    // Lohnbüro darf NUR die Zeitübersicht sehen.
+    if (
+      identity.role === "payroll" &&
+      location.pathname !== "/admin/zeit-uebersicht"
+    ) {
+      throw redirect({ to: "/admin/zeit-uebersicht" });
     }
     return { identity };
   },
@@ -27,6 +38,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
 
 function AdminLayout() {
   const { identity } = Route.useRouteContext();
+  const isPayroll = identity.role === "payroll";
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
@@ -36,20 +48,24 @@ function AdminLayout() {
               Verwaltung
             </Link>
             <nav className="flex items-center gap-4 text-sm">
-              <Link
+              {!isPayroll && (
+                <Link
                 to="/admin/staff"
                 className="text-muted-foreground hover:text-foreground"
                 activeProps={{ className: "text-foreground" }}
               >
                 Mitarbeiter
-              </Link>
-              <Link
+                </Link>
+              )}
+              {!isPayroll && (
+                <Link
                 to="/admin/zeit"
                 className="text-muted-foreground hover:text-foreground"
                 activeProps={{ className: "text-foreground" }}
               >
                 Zeit
-              </Link>
+                </Link>
+              )}
               <Link
                 to="/admin/zeit-uebersicht"
                 className="text-muted-foreground hover:text-foreground"
@@ -57,27 +73,33 @@ function AdminLayout() {
               >
                 Zeitübersicht
               </Link>
-              <Link
+              {!isPayroll && (
+                <Link
                 to="/admin/kasse"
                 className="text-muted-foreground hover:text-foreground"
                 activeProps={{ className: "text-foreground" }}
               >
                 Kasse
-              </Link>
-              <Link
+                </Link>
+              )}
+              {!isPayroll && (
+                <Link
                 to="/admin/kasse-saldo"
                 className="text-muted-foreground hover:text-foreground"
                 activeProps={{ className: "text-foreground" }}
               >
                 Kassensaldo
-              </Link>
-              <Link
+                </Link>
+              )}
+              {!isPayroll && (
+                <Link
                 to="/admin/locations"
                 className="text-muted-foreground hover:text-foreground"
                 activeProps={{ className: "text-foreground" }}
               >
                 Standorte
-              </Link>
+                </Link>
+              )}
               {identity.role === "admin" && (
                 <Link
                   to="/admin/migration"

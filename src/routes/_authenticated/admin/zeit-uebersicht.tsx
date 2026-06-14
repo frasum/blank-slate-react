@@ -192,6 +192,7 @@ function ZeitUebersichtPage() {
   const qc = useQueryClient();
   const { identity } = useAuth();
   const isAdmin = identity?.role === "admin";
+  const isPayroll = identity?.role === "payroll";
   const fetchLocations = useServerFn(listLocations);
   const fetchOverview = useServerFn(getTimeOverview);
   const fetchWeekly = useServerFn(getWeeklyTimeEntries);
@@ -708,6 +709,7 @@ function ZeitUebersichtPage() {
                           key={s.staffId}
                           staff={s}
                           initial={notesByStaff.get(s.staffId)}
+                          readOnly={isPayroll}
                           onSave={(vorschuss, besonderheiten) =>
                             upsertMut.mutate({
                               staffId: s.staffId,
@@ -767,6 +769,7 @@ function ZeitUebersichtPage() {
 function PayrollRow({
   staff,
   initial,
+  readOnly = false,
   onSave,
 }: {
   staff: {
@@ -776,6 +779,7 @@ function PayrollRow({
     shiftDates: Set<string>;
   };
   initial: { vorschuss: number; besonderheiten: string } | undefined;
+  readOnly?: boolean;
   onSave: (vorschuss: number, besonderheiten: string) => void;
 }) {
   const [vorschuss, setVorschuss] = useState<string>(
@@ -799,9 +803,12 @@ function PayrollRow({
           min={0}
           inputMode="decimal"
           className="h-8 w-24 text-right tabular-nums"
+          readOnly={readOnly}
+          disabled={readOnly}
           value={vorschuss}
           onChange={(e) => setVorschuss(e.target.value)}
           onBlur={() => {
+            if (readOnly) return;
             const n = Number.parseFloat(vorschuss.replace(",", "."));
             const safe = Number.isFinite(n) && n >= 0 ? n : 0;
             setVorschuss(safe.toFixed(2));
@@ -819,9 +826,12 @@ function PayrollRow({
         <Textarea
           rows={1}
           className="min-h-8 resize-y"
+          readOnly={readOnly}
+          disabled={readOnly}
           value={besonderheiten}
           onChange={(e) => setBesonderheiten(e.target.value)}
           onBlur={() => {
+            if (readOnly) return;
             const prev = initial?.besonderheiten ?? "";
             const n = Number.parseFloat(vorschuss.replace(",", "."));
             const safeV = Number.isFinite(n) && n >= 0 ? n : 0;
