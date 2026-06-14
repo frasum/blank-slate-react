@@ -1278,3 +1278,317 @@ export async function correctWaiterSettlementCore(
 
 // Re-export für UI/Test-Konsum.
 export { CashLockedError };
+
+// ------------------------------------------------------------------------
+// B3c-2 — Kassensaldo-Kette (Carry-over) über einen Datumsbereich
+// ------------------------------------------------------------------------
+//
+// Liest alle Sessions im Bereich [fromDate, toDate] (admin-only,
+// organization_id-scoped), baut je Session einen DayInput, aggregiert
+// gleiche business_date-Tage und reicht das Ganze durch accumulateChain
+// aus cash-ledger.ts. Opening-Balance des ersten Tages = Σ
+// opening_balance_cents aller Sessions an diesem Tag — damit closing[N]
+// = opening[N+1] strikt innerhalb des Bereichs gilt.
+
+import {
+  accumulateChain,
+  type DayInput,
+  type TransferDirection,
+} from "./cash-ledger";
+
+export type CashLedgerRow = {
+  businessDate: string;
+  status: "open" | "finalized" | "locked" | "mixed" | "none";
+  openingBalanceCents: number;
+  totalRevenueCents: number;
+  totalExpensesCents: number;
+  closingBalanceCents: number;
+  differenzCents: number;
+};
+
+export const getCashLedger = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        fromDate: z.string().regex(ISO_DATE),
+        toDate: z.string().regex(ISO_DATE),
+      })
+      .refine((v) => v.fromDate <= v.toDate, { message: "fromDate > toDate" })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    return getCashLedgerCore(caller, data);
+  });
+
+export async function getCashLedgerCore(
+  caller: AdminCaller,
+  data: { fromDate: string; toDate: string },
+): Promise<CashLedgerRow[]> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  const { data: sessions, error: sErr } = await supabaseAdmin
+    .from("sessions")
+    .select(
+      "id, business_date, status, location_id, opening_balance_cents, vouchers_sold_cents, vouchers_redeemed_cents, finedine_vouchers_cents, vorschuss_cents, einladung_cents, sonstige_einnahme_cents",
+    )
+    .eq("organization_id", caller.organizationId)
+    .gte("business_date", data.fromDate)
+    .lte("business_date", data.toDate)
+    .order("business_date", { ascending: true });
+  if (sErr) throw sErr;
+  if (!sessions || sessions.length === 0) return [];
+
+  const sessionIds = sessions.map((s) => s.id);
+
+  const [chRes, tRes, expRes, advRes, depRes, trRes, wsRes] = await Promise.all([
+    supabaseAdmin
+      .from("session_channel_amounts")
+      .select("session_id, amount_cents, revenue_channels(kind)")
+      .eq("organization_id", caller.organizationId)
+      .in("session_id", sessionIds),
+    supabaseAdmin
+      .from("session_terminal_amounts")
+      .select("session_id, amount_cents")
+      .eq("organization_id", caller.organizationId)
+      .in("session_id", sessionIds),
+    supabaseAdmin
+      .from("session_expenses")
+      .select("session_id, amount_cents")
+      .eq("organization_id", caller.organizationId)
+      .in("session_id", sessionIds),
+    supabaseAdmin
+      .from("session_advances")
+      .select("session_id, amount_cents")
+      .eq("organization_id", caller.organizationId)
+      .in("session_id", sessionIds),
+    supabaseAdmin
+      .from("session_bank_deposits")
+      .select("session_id, amount_cents")
+      .eq("organization_id", caller.organizationId)
+      .in("session_id", sessionIds),
+    supabaseAdmin
+      .from("session_register_transfers")
+      .select("session_id, direction, amount_cents")
+      .eq("organization_id", caller.organizationId)
+      .in("session_id", sessionIds),
+    supabaseAdmin
+      .from("waiter_settlements")
+      .select("session_id, open_invoices_cents, differenz_cents, status")
+      .eq("organization_id", caller.organizationId)
+      .in("session_id", sessionIds)
+      .neq("status", "superseded"),
+  ]);
+  if (chRes.error) throw chRes.error;
+  if (tRes.error) throw tRes.error;
+  if (expRes.error) throw expRes.error;
+  if (advRes.error) throw advRes.error;
+  if (depRes.error) throw depRes.error;
+  if (trRes.error) throw trRes.error;
+  if (wsRes.error) throw wsRes.error;
+
+  type Agg = {
+    statuses: Set<string>;
+    grossRevenue: number;
+    cardTotal: number;
+    deliverySouse: number;
+    deliveryWolt: number;
+    vouchersSold: number;
+    vouchersRedeemed: number;
+    finedine: number;
+    einladung: number;
+    sonstige: number;
+    vorschuss: number;
+    openInvoices: number[];
+    expenses: number[];
+    advances: number[];
+    bankDeposits: number[];
+    cardTransactions: number[];
+    transfers: Array<{ direction: TransferDirection; amountCents: number }>;
+    openingBalance: number;
+    totalRevenueGross: number;
+    totalExpenses: number;
+    differenz: number;
+  };
+  const byDate = new Map<string, Agg>();
+  const sessionDate = new Map<string, string>();
+  const firstDateSessions = new Set<string>();
+
+  const sortedDates = Array.from(new Set(sessions.map((s) => s.business_date))).sort();
+  const firstDate = sortedDates[0];
+
+  function getAgg(date: string): Agg {
+    let a = byDate.get(date);
+    if (!a) {
+      a = {
+        statuses: new Set(),
+        grossRevenue: 0,
+        cardTotal: 0,
+        deliverySouse: 0,
+        deliveryWolt: 0,
+        vouchersSold: 0,
+        vouchersRedeemed: 0,
+        finedine: 0,
+        einladung: 0,
+        sonstige: 0,
+        vorschuss: 0,
+        openInvoices: [],
+        expenses: [],
+        advances: [],
+        bankDeposits: [],
+        cardTransactions: [],
+        transfers: [],
+        openingBalance: 0,
+        totalRevenueGross: 0,
+        totalExpenses: 0,
+        differenz: 0,
+      };
+      byDate.set(date, a);
+    }
+    return a;
+  }
+
+  for (const s of sessions) {
+    sessionDate.set(s.id, s.business_date);
+    if (s.business_date === firstDate) firstDateSessions.add(s.id);
+    const a = getAgg(s.business_date);
+    a.statuses.add(s.status as string);
+    // Session-Pauschalfelder (Quirk: vorschuss wird ignoriert, falls
+    // advances-Satellit vorhanden — siehe effectiveVorschussCents).
+    a.vouchersSold += Number(s.vouchers_sold_cents ?? 0);
+    a.vouchersRedeemed += Number(s.vouchers_redeemed_cents ?? 0);
+    a.finedine += Number(s.finedine_vouchers_cents ?? 0);
+    a.einladung += Number(s.einladung_cents ?? 0);
+    a.sonstige += Number(s.sonstige_einnahme_cents ?? 0);
+    a.vorschuss += Number(s.vorschuss_cents ?? 0);
+    if (s.business_date === firstDate) {
+      a.openingBalance += Number(s.opening_balance_cents ?? 0);
+    }
+  }
+
+  for (const r of chRes.data ?? []) {
+    const d = sessionDate.get(r.session_id);
+    if (!d) continue;
+    const a = getAgg(d);
+    const amt = Number(r.amount_cents);
+    a.totalRevenueGross += amt;
+    const kind = (r.revenue_channels as { kind: string } | null)?.kind ?? null;
+    switch (kind) {
+      case "pos":
+        a.grossRevenue += amt;
+        break;
+      case "delivery_souse":
+      case "delivery_vectron":
+        a.deliverySouse += amt;
+        break;
+      case "delivery_wolt":
+        a.deliveryWolt += amt;
+        break;
+      case "voucher_sold":
+        a.vouchersSold += amt;
+        break;
+      case "voucher_redeemed":
+        a.vouchersRedeemed += amt;
+        break;
+      case "finedine":
+        a.finedine += amt;
+        break;
+      case "einladung":
+        a.einladung += amt;
+        break;
+      case "sonstige":
+        a.sonstige += amt;
+        break;
+      default:
+        break;
+    }
+  }
+  for (const r of tRes.data ?? []) {
+    const d = sessionDate.get(r.session_id);
+    if (!d) continue;
+    getAgg(d).cardTotal += Number(r.amount_cents);
+  }
+  for (const r of expRes.data ?? []) {
+    const d = sessionDate.get(r.session_id);
+    if (!d) continue;
+    const a = getAgg(d);
+    const amt = Number(r.amount_cents);
+    a.expenses.push(amt);
+    a.totalExpenses += amt;
+  }
+  for (const r of advRes.data ?? []) {
+    const d = sessionDate.get(r.session_id);
+    if (!d) continue;
+    getAgg(d).advances.push(Number(r.amount_cents));
+  }
+  for (const r of depRes.data ?? []) {
+    const d = sessionDate.get(r.session_id);
+    if (!d) continue;
+    getAgg(d).bankDeposits.push(Number(r.amount_cents));
+  }
+  for (const r of trRes.data ?? []) {
+    const d = sessionDate.get(r.session_id);
+    if (!d) continue;
+    getAgg(d).transfers.push({
+      direction: r.direction as TransferDirection,
+      amountCents: Number(r.amount_cents),
+    });
+  }
+  for (const r of wsRes.data ?? []) {
+    const d = sessionDate.get(r.session_id);
+    if (!d) continue;
+    const a = getAgg(d);
+    a.openInvoices.push(Number(r.open_invoices_cents));
+    a.differenz += Number(r.differenz_cents);
+  }
+
+  const days: DayInput[] = sortedDates.map((date) => {
+    const a = getAgg(date);
+    return {
+      businessDate: date,
+      grossRevenueCents: a.grossRevenue,
+      cardTotalCents: a.cardTotal,
+      deliverySouseCents: a.deliverySouse,
+      deliveryWoltCents: a.deliveryWolt,
+      vouchersSoldCents: a.vouchersSold,
+      vouchersRedeemedCents: a.vouchersRedeemed,
+      finedineVouchersCents: a.finedine,
+      einladungCents: a.einladung,
+      openInvoicesCents: a.openInvoices,
+      sonstigeEinnahmeCents: a.sonstige,
+      vorschussCents: a.vorschuss,
+      satellites: {
+        expensesCents: a.expenses,
+        advancesCents: a.advances,
+        cardTransactionsCents: a.cardTransactions,
+        bankDepositsCents: a.bankDeposits,
+        registerTransfers: a.transfers,
+      },
+    };
+  });
+
+  const openingBalanceCents = getAgg(firstDate).openingBalance;
+  const chain = accumulateChain(openingBalanceCents, days);
+
+  return sortedDates.map((date, i) => {
+    const a = getAgg(date);
+    const r = chain[i];
+    const statuses = Array.from(a.statuses);
+    const status: CashLedgerRow["status"] =
+      statuses.length === 0
+        ? "none"
+        : statuses.length === 1
+          ? (statuses[0] as CashLedgerRow["status"])
+          : "mixed";
+    return {
+      businessDate: date,
+      status,
+      openingBalanceCents: r.previousCarryCents,
+      totalRevenueCents: a.totalRevenueGross,
+      totalExpensesCents: a.totalExpenses,
+      closingBalanceCents: r.remainingCashCents,
+      differenzCents: a.differenz,
+    };
+  });
+}
