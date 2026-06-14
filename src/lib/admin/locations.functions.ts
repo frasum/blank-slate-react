@@ -31,7 +31,11 @@ function makeAuditWriter(caller: { organizationId: string; userId: string; staff
 export const listLocations = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "manager",
+      "admin",
+      "payroll",
+    ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await supabaseAdmin
       .from("locations")
