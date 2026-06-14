@@ -29,11 +29,15 @@ import {
 } from "@/components/ui/table";
 import { listLocations } from "@/lib/admin/locations.functions";
 import {
+  createPeriod,
   createTimeEntryShift,
+  deletePeriod,
   getTimeOverview,
   getWeeklyTimeEntries,
+  listPeriods,
   listPayrollNotes,
   setTimeEntryShift,
+  togglePeriodLock,
   upsertPayrollNote,
 } from "@/lib/time/time-admin.functions";
 import {
@@ -121,6 +125,52 @@ function fmtHm(hours: number): string {
   return `${h}:${String(m).padStart(2, "0")}`;
 }
 
+// Periodenrhythmus 26.→25.: Label-Monat = Monat des Enddatums.
+const MONTH_DE = [
+  "Januar",
+  "Februar",
+  "März",
+  "April",
+  "Mai",
+  "Juni",
+  "Juli",
+  "August",
+  "September",
+  "Oktober",
+  "November",
+  "Dezember",
+];
+function periodDefaultStart(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-26`;
+}
+function periodDefaultEnd(): string {
+  const d = new Date();
+  const y = d.getMonth() === 11 ? d.getFullYear() + 1 : d.getFullYear();
+  const m = d.getMonth() === 11 ? 1 : d.getMonth() + 2;
+  return `${y}-${String(m).padStart(2, "0")}-25`;
+}
+function periodLabelForEnd(endIso: string): string {
+  const d = parseIsoDate(endIso);
+  return `${MONTH_DE[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+function nextPeriodFromLast(lastEndIso: string): {
+  startDate: string;
+  endDate: string;
+  label: string;
+} {
+  // Start = letzter Tag + 1 (immer der 26.); End = Folgemonat-25.
+  const start = addDays(parseIsoDate(lastEndIso), 1);
+  const endMonth = start.getUTCMonth() === 11 ? 0 : start.getUTCMonth() + 1;
+  const endYear = start.getUTCMonth() === 11 ? start.getUTCFullYear() + 1 : start.getUTCFullYear();
+  const endIso = `${endYear}-${String(endMonth + 1).padStart(2, "0")}-25`;
+  return { startDate: fmtIso(start), endDate: endIso, label: periodLabelForEnd(endIso) };
+}
+function fmtDDMM(iso: string): string {
+  const d = parseIsoDate(iso);
+  return `${String(d.getUTCDate()).padStart(2, "0")}.${String(d.getUTCMonth() + 1).padStart(2, "0")}.${d.getUTCFullYear()}`;
+}
+
 type WeekCol = { key: string; label: string; start: string; end: string };
 
 function buildWeekColumns(fromIso: string, toIso: string): WeekCol[] {
@@ -153,6 +203,10 @@ function ZeitUebersichtPage() {
   const callUpsert = useServerFn(upsertPayrollNote);
   const callSetShift = useServerFn(setTimeEntryShift);
   const callCreateShift = useServerFn(createTimeEntryShift);
+  const fetchPeriods = useServerFn(listPeriods);
+  const callCreatePeriod = useServerFn(createPeriod);
+  const callToggleLock = useServerFn(togglePeriodLock);
+  const callDeletePeriod = useServerFn(deletePeriod);
 
   const locationsQ = useQuery({
     queryKey: ["admin-locations"],
@@ -161,8 +215,22 @@ function ZeitUebersichtPage() {
   const [locationId, setLocationId] = useState<string>("");
   const effectiveLocationId = locationId || locationsQ.data?.[0]?.id || "";
 
-  const [fromDate, setFromDate] = useState<string>(firstOfMonthIso());
-  const [toDate, setToDate] = useState<string>(todayIso());
+  // Periodenwahl
+  const periodsQ = useQuery({
+    queryKey: ["periods"],
+    queryFn: () => fetchPeriods(),
+  });
+  const periods = periodsQ.data ?? [];
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>("");
+  const effectivePeriodId =
+    selectedPeriodId || periods[0]?.id || "";
+  const selectedPeriod = periods.find((p) => p.id === effectivePeriodId);
+
+  // Fallback: freie Daten, wenn keine Periode existiert.
+  const [manualFrom, setManualFrom] = useState<string>(firstOfMonthIso());
+  const [manualTo, setManualTo] = useState<string>(todayIso());
+  const fromDate = selectedPeriod ? selectedPeriod.startDate : manualFrom;
+  const toDate = selectedPeriod ? selectedPeriod.endDate : manualTo;
 
   // Wochenplan: aktuelle Woche (Montag).
   const [weekStart, setWeekStart] = useState<string>(() =>
@@ -329,6 +397,32 @@ function ZeitUebersichtPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const invalidatePeriods = () => {
+    void qc.invalidateQueries({ queryKey: ["periods"] });
+  };
+  const createPeriodMut = useMutation({
+    mutationFn: (vars: { label: string; startDate: string; endDate: string }) =>
+      callCreatePeriod({ data: vars }),
+    onSuccess: () => {
+      invalidatePeriods();
+      toast.success("Periode angelegt.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const toggleLockMut = useMutation({
+    mutationFn: (id: string) => callToggleLock({ data: { id } }),
+    onSuccess: () => invalidatePeriods(),
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const deletePeriodMut = useMutation({
+    mutationFn: (id: string) => callDeletePeriod({ data: { id } }),
+    onSuccess: () => {
+      invalidatePeriods();
+      toast.success("Periode gelöscht.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   return (
     <div className="space-y-6">
       <div>
@@ -361,7 +455,8 @@ function ZeitUebersichtPage() {
               id="from"
               type="date"
               value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
+              onChange={(e) => setManualFrom(e.target.value)}
+              disabled={Boolean(selectedPeriod)}
             />
           </div>
           <div className="space-y-1">
@@ -370,8 +465,25 @@ function ZeitUebersichtPage() {
               id="to"
               type="date"
               value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
+              onChange={(e) => setManualTo(e.target.value)}
+              disabled={Boolean(selectedPeriod)}
             />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="period">Periode</Label>
+            <select
+              id="period"
+              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+              value={effectivePeriodId}
+              onChange={(e) => setSelectedPeriodId(e.target.value)}
+            >
+              <option value="">— freie Auswahl —</option>
+              {periods.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label} {p.status === "locked" ? "🔒" : ""}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </Card>
@@ -381,6 +493,7 @@ function ZeitUebersichtPage() {
           <TabsTrigger value="weekly">Wochenplan</TabsTrigger>
           <TabsTrigger value="summary">Zusammenfassung</TabsTrigger>
           <TabsTrigger value="payroll">Buchhaltung</TabsTrigger>
+          <TabsTrigger value="periods">Perioden</TabsTrigger>
         </TabsList>
 
         <TabsContent value="weekly">
@@ -621,6 +734,22 @@ function ZeitUebersichtPage() {
               </TableBody>
             </Table>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="periods">
+          <PeriodsPanel
+            periods={periods}
+            isAdmin={isAdmin}
+            isLoading={periodsQ.isLoading}
+            onCreate={(vars) => createPeriodMut.mutate(vars)}
+            onToggleLock={(id) => toggleLockMut.mutate(id)}
+            onDelete={(id) => deletePeriodMut.mutate(id)}
+            pending={
+              createPeriodMut.isPending ||
+              toggleLockMut.isPending ||
+              deletePeriodMut.isPending
+            }
+          />
         </TabsContent>
       </Tabs>
 
@@ -1062,5 +1191,159 @@ function ShiftEditorDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+type Period = {
+  id: string;
+  label: string;
+  startDate: string;
+  endDate: string;
+  status: "open" | "locked";
+};
+
+function PeriodsPanel({
+  periods,
+  isAdmin,
+  isLoading,
+  onCreate,
+  onToggleLock,
+  onDelete,
+  pending,
+}: {
+  periods: Period[];
+  isAdmin: boolean;
+  isLoading: boolean;
+  onCreate: (vars: { label: string; startDate: string; endDate: string }) => void;
+  onToggleLock: (id: string) => void;
+  onDelete: (id: string) => void;
+  pending: boolean;
+}) {
+  const [label, setLabel] = useState<string>(periodLabelForEnd(periodDefaultEnd()));
+  const [startDate, setStartDate] = useState<string>(periodDefaultStart());
+  const [endDate, setEndDate] = useState<string>(periodDefaultEnd());
+
+  const hasAny = periods.length > 0;
+  const latestEnd = hasAny ? periods[0].endDate : null;
+
+  return (
+    <div className="space-y-4">
+      {isAdmin && (
+        <Card className="p-4 space-y-3">
+          <div className="text-sm font-medium">Neue Periode anlegen</div>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="p-label">Label</Label>
+              <Input
+                id="p-label"
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                className="w-40"
+                placeholder="z. B. Juli 2026"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="p-from">Von</Label>
+              <Input
+                id="p-from"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="p-to">Bis</Label>
+              <Input
+                id="p-to"
+                type="date"
+                value={endDate}
+                onChange={(e) => {
+                  setEndDate(e.target.value);
+                  setLabel(periodLabelForEnd(e.target.value));
+                }}
+              />
+            </div>
+            <Button
+              disabled={pending || !label.trim()}
+              onClick={() => onCreate({ label: label.trim(), startDate, endDate })}
+            >
+              Anlegen
+            </Button>
+            {hasAny && latestEnd && (
+              <Button
+                variant="outline"
+                disabled={pending}
+                onClick={() => {
+                  const np = nextPeriodFromLast(latestEnd);
+                  onCreate(np);
+                }}
+              >
+                Nächste Periode
+              </Button>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Perioden laufen vom 26. bis zum 25. des Folgemonats. Das Label bezieht sich
+            auf den Monat des Enddatums.
+          </p>
+        </Card>
+      )}
+
+      {isLoading ? (
+        <Card className="p-4 text-sm text-muted-foreground">Lade…</Card>
+      ) : periods.length === 0 ? (
+        <Card className="p-6 text-center text-sm text-muted-foreground">
+          Noch keine Perioden. Legen Sie die erste Periode an.
+        </Card>
+      ) : (
+        <div className="space-y-2">
+          {periods.map((p) => (
+            <Card key={p.id} className="p-3 flex items-center gap-3">
+              <div className="flex-1">
+                <div className="font-medium">{p.label}</div>
+                <div className="text-xs text-muted-foreground tabular-nums">
+                  {fmtDDMM(p.startDate)} – {fmtDDMM(p.endDate)}
+                </div>
+              </div>
+              <span
+                className={
+                  p.status === "open"
+                    ? "rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800"
+                    : "rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-700"
+                }
+              >
+                {p.status === "open" ? "Offen" : "Gesperrt"}
+              </span>
+              {isAdmin && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={pending}
+                    onClick={() => onToggleLock(p.id)}
+                  >
+                    {p.status === "open" ? "Sperren" : "Entsperren"}
+                  </Button>
+                  {p.status === "open" && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={pending}
+                      onClick={() => {
+                        if (confirm(`Periode „${p.label}" wirklich löschen?`)) {
+                          onDelete(p.id);
+                        }
+                      }}
+                    >
+                      Löschen
+                    </Button>
+                  )}
+                </>
+              )}
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

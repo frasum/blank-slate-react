@@ -713,3 +713,156 @@ export const createTimeEntryShift = createServerFn({ method: "POST" })
       };
     });
   });
+
+// =========================================================================
+// B7 — Periodenverwaltung (26.–25.)
+// =========================================================================
+
+export const listPeriods = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin
+      .from("periods")
+      .select("id, label, start_date, end_date, status")
+      .eq("organization_id", caller.organizationId)
+      .order("start_date", { ascending: false });
+    if (error) throw error;
+    return (data ?? []).map((p) => ({
+      id: p.id as string,
+      label: p.label as string,
+      startDate: p.start_date as string,
+      endDate: p.end_date as string,
+      status: p.status as "open" | "locked",
+    }));
+  });
+
+export const createPeriod = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        label: z.string().trim().min(1).max(80),
+        startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
+      if (data.endDate < data.startDate) {
+        throw new Error("Enddatum muss ≥ Startdatum sein.");
+      }
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      // Overlap-Check
+      const { data: overlap, error: oErr } = await supabaseAdmin
+        .from("periods")
+        .select("id, label, start_date, end_date")
+        .eq("organization_id", caller.organizationId)
+        .lte("start_date", data.endDate)
+        .gte("end_date", data.startDate)
+        .limit(1);
+      if (oErr) throw oErr;
+      if (overlap && overlap.length > 0) {
+        throw new Error(
+          `Überschneidet sich mit „${overlap[0].label}" (${overlap[0].start_date}–${overlap[0].end_date}).`,
+        );
+      }
+      const { data: created, error } = await supabaseAdmin
+        .from("periods")
+        .insert({
+          organization_id: caller.organizationId,
+          label: data.label,
+          start_date: data.startDate,
+          end_date: data.endDate,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      return {
+        result: { id: created.id as string },
+        audit: {
+          action: "period.create",
+          entity: "period",
+          entityId: created.id as string,
+          meta: { label: data.label, startDate: data.startDate, endDate: data.endDate },
+        },
+      };
+    });
+  });
+
+export const togglePeriodLock = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: row, error: loadErr } = await supabaseAdmin
+        .from("periods")
+        .select("id, status, label")
+        .eq("id", data.id)
+        .eq("organization_id", caller.organizationId)
+        .maybeSingle();
+      if (loadErr) throw loadErr;
+      if (!row) throw new Error("Periode nicht gefunden.");
+      const next = row.status === "locked" ? "open" : "locked";
+      const { error } = await supabaseAdmin
+        .from("periods")
+        .update({ status: next })
+        .eq("id", data.id)
+        .eq("organization_id", caller.organizationId);
+      if (error) throw error;
+      return {
+        result: { id: data.id, status: next as "open" | "locked" },
+        audit: {
+          action: next === "locked" ? "period.lock" : "period.unlock",
+          entity: "period",
+          entityId: data.id,
+          meta: { label: row.label, before: row.status, after: next },
+        },
+      };
+    });
+  });
+
+export const deletePeriod = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: row, error: loadErr } = await supabaseAdmin
+        .from("periods")
+        .select("id, status, label, start_date, end_date")
+        .eq("id", data.id)
+        .eq("organization_id", caller.organizationId)
+        .maybeSingle();
+      if (loadErr) throw loadErr;
+      if (!row) throw new Error("Periode nicht gefunden.");
+      if (row.status !== "open") {
+        throw new Error("Nur offene Perioden können gelöscht werden.");
+      }
+      const { error } = await supabaseAdmin
+        .from("periods")
+        .delete()
+        .eq("id", data.id)
+        .eq("organization_id", caller.organizationId);
+      if (error) throw error;
+      return {
+        result: { ok: true as const },
+        audit: {
+          action: "period.delete",
+          entity: "period",
+          entityId: data.id,
+          meta: {
+            label: row.label,
+            startDate: row.start_date,
+            endDate: row.end_date,
+          },
+        },
+      };
+    });
+  });
