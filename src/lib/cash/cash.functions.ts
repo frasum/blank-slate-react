@@ -404,6 +404,112 @@ export async function getMySettlementCore(caller: StaffCaller) {
 }
 
 // ------------------------------------------------------------------------
+// B4 — Trinkgeld-Pool Overview
+// ------------------------------------------------------------------------
+
+export const getTipPoolOverview = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({ sessionId: z.string().uuid() }).parse(input ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    return getTipPoolOverviewCore(caller, data);
+  });
+
+export async function getTipPoolOverviewCore(
+  caller: AdminCaller,
+  data: { sessionId: string },
+): Promise<TipPoolResult & { staffNames: Record<string, string> }> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
+
+  const [settlementsRes, timeRes] = await Promise.all([
+    supabaseAdmin
+      .from("waiter_settlements")
+      .select(
+        "staff_id, pos_sales_cents, card_total_cents, open_invoices_cents, kitchen_tip_cents, status",
+      )
+      .eq("organization_id", caller.organizationId)
+      .eq("session_id", session.id)
+      .neq("status", "superseded"),
+    supabaseAdmin
+      .from("time_entries")
+      .select("staff_id, started_at, ended_at")
+      .eq("organization_id", caller.organizationId)
+      .eq("location_id", session.location_id)
+      .eq("business_date", session.business_date)
+      .not("ended_at", "is", null),
+  ]);
+  if (settlementsRes.error) throw settlementsRes.error;
+  if (timeRes.error) throw timeRes.error;
+
+  const settlements = (settlementsRes.data ?? []).map((r) => ({
+    staffId: r.staff_id,
+    posSalesCents: Number(r.pos_sales_cents),
+    cardTotalCents: Number(r.card_total_cents),
+    openInvoicesCents: Number(r.open_invoices_cents),
+    kitchenTipCents: Number(r.kitchen_tip_cents),
+  }));
+  const timeEntries = (timeRes.data ?? [])
+    .filter((r): r is { staff_id: string; started_at: string; ended_at: string } =>
+      r.ended_at !== null,
+    )
+    .map((r) => ({ staffId: r.staff_id, startedAt: r.started_at, endedAt: r.ended_at }));
+
+  const kitchenPoolCents = settlements.reduce((s, x) => s + x.kitchenTipCents, 0);
+  const tipTotalCents = settlements.reduce(
+    (s, x) => s + x.posSalesCents + x.cardTotalCents - x.openInvoicesCents,
+    0,
+  );
+  const servicePoolCents = tipTotalCents - kitchenPoolCents;
+
+  const staffIds = Array.from(
+    new Set<string>([...settlements.map((s) => s.staffId), ...timeEntries.map((t) => t.staffId)]),
+  );
+
+  const staffDepartments = new Map<string, StaffDepartment>();
+  const staffParticipates = new Map<string, boolean>();
+  const staffNames: Record<string, string> = {};
+
+  if (staffIds.length > 0) {
+    const [slRes, staffRes] = await Promise.all([
+      supabaseAdmin
+        .from("staff_locations")
+        .select("staff_id, department")
+        .eq("organization_id", caller.organizationId)
+        .eq("location_id", session.location_id)
+        .in("staff_id", staffIds),
+      supabaseAdmin
+        .from("staff")
+        .select("id, display_name, participates_in_pool")
+        .eq("organization_id", caller.organizationId)
+        .in("id", staffIds),
+    ]);
+    if (slRes.error) throw slRes.error;
+    if (staffRes.error) throw staffRes.error;
+    for (const r of slRes.data ?? []) {
+      staffDepartments.set(r.staff_id, r.department as StaffDepartment);
+    }
+    for (const r of staffRes.data ?? []) {
+      staffParticipates.set(r.id, Boolean(r.participates_in_pool));
+      staffNames[r.id] = r.display_name ?? "—";
+    }
+  }
+
+  const result = computeTipPool({
+    kitchenPoolCents,
+    servicePoolCents,
+    settlements,
+    timeEntries,
+    staffDepartments,
+    staffParticipates,
+  });
+
+  return { ...result, staffNames };
+}
+
+// ------------------------------------------------------------------------
 // Stammdaten-Reader (Manager+): revenue_channels & payment_terminals
 // ------------------------------------------------------------------------
 
