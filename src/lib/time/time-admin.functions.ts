@@ -353,3 +353,139 @@ export const setTimeLock = createServerFn({ method: "POST" })
       };
     });
   });
+
+// =========================================================================
+// B6 — Arbeitszeitübersicht (Zusammenfassung + Buchhaltung)
+// =========================================================================
+
+export const getTimeOverview = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        locationId: z.string().uuid(),
+        fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: rows, error } = await supabaseAdmin
+      .from("time_entries")
+      .select("staff_id, business_date, started_at, ended_at, source, staff(display_name)")
+      .eq("organization_id", caller.organizationId)
+      .eq("location_id", data.locationId)
+      .gte("business_date", data.fromDate)
+      .lte("business_date", data.toDate)
+      .not("ended_at", "is", null)
+      .order("business_date", { ascending: true });
+    if (error) throw error;
+
+    const { data: deptRows, error: deptErr } = await supabaseAdmin
+      .from("staff_locations")
+      .select("staff_id, department")
+      .eq("organization_id", caller.organizationId)
+      .eq("location_id", data.locationId);
+    if (deptErr) throw deptErr;
+    const deptByStaff = new Map<string, "kitchen" | "service" | "gl">();
+    for (const d of deptRows ?? []) {
+      deptByStaff.set(d.staff_id, d.department as "kitchen" | "service" | "gl");
+    }
+
+    const entries = (rows ?? []).map((r) => {
+      const started = new Date(r.started_at).getTime();
+      const ended = new Date(r.ended_at as string).getTime();
+      const hoursWorked = Math.max(0, (ended - started) / 3_600_000);
+      return {
+        staffId: r.staff_id,
+        displayName:
+          (r.staff as { display_name: string } | null)?.display_name ?? "—",
+        department: deptByStaff.get(r.staff_id) ?? ("service" as const),
+        businessDate: r.business_date as string,
+        hoursWorked,
+        source: r.source as string,
+      };
+    });
+    return { entries };
+  });
+
+export const listPayrollNotes = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        locationId: z.string().uuid(),
+        periodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        periodEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin
+      .from("payroll_notes")
+      .select("staff_id, vorschuss, besonderheiten")
+      .eq("organization_id", caller.organizationId)
+      .eq("location_id", data.locationId)
+      .eq("period_start", data.periodStart)
+      .eq("period_end", data.periodEnd);
+    if (error) throw error;
+    return (rows ?? []).map((r) => ({
+      staffId: r.staff_id,
+      vorschuss: Number(r.vorschuss ?? 0),
+      besonderheiten: r.besonderheiten ?? "",
+    }));
+  });
+
+export const upsertPayrollNote = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        locationId: z.string().uuid(),
+        staffId: z.string().uuid(),
+        periodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        periodEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        vorschuss: z.number().min(0).max(100000),
+        besonderheiten: z.string().max(2000).nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { error } = await supabaseAdmin.from("payroll_notes").upsert(
+        {
+          organization_id: caller.organizationId,
+          staff_id: data.staffId,
+          location_id: data.locationId,
+          period_start: data.periodStart,
+          period_end: data.periodEnd,
+          vorschuss: data.vorschuss,
+          besonderheiten: data.besonderheiten,
+        },
+        { onConflict: "staff_id,location_id,period_start,period_end" },
+      );
+      if (error) throw error;
+      return {
+        result: { ok: true as const },
+        audit: {
+          action: "payroll_note.upsert",
+          entity: "payroll_note",
+          meta: {
+            staffId: data.staffId,
+            locationId: data.locationId,
+            periodStart: data.periodStart,
+            periodEnd: data.periodEnd,
+            vorschuss: data.vorschuss,
+            besonderheiten: data.besonderheiten,
+          },
+        },
+      };
+    });
+  });
