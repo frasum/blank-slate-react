@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { listLocations } from "@/lib/admin/locations.functions";
@@ -20,10 +21,12 @@ import {
   deleteRosterShift,
   getRosterShifts,
   getStaffForRoster,
+  getStaffCrossBookings,
   listSkills,
   updateRosterShiftSkill,
   updateRosterShiftStatus,
   type RosterShift,
+  type RosterCrossBooking,
   type RosterSkill,
   type RosterStaffRow,
 } from "@/lib/roster/roster.functions";
@@ -34,23 +37,26 @@ export const Route = createFileRoute("/_authenticated/admin/dienstplan")({
 });
 
 type Area = "kitchen" | "service" | "gl";
+type GridArea = "kitchen" | "service";
 
-const AREA_LABEL: Record<Area, string> = {
+const AREA_LABEL: Record<GridArea, string> = {
   kitchen: "KÜCHE",
   service: "SERVICE",
-  gl: "GESCHÄFTSLEITUNG",
 };
-const AREA_BAR: Record<Area, string> = {
+const AREA_BAR: Record<GridArea, string> = {
   kitchen: "bg-orange-400",
   service: "bg-blue-400",
-  gl: "bg-gray-400",
 };
-const AREA_BG: Record<Area, string> = {
+const AREA_BG: Record<GridArea, string> = {
   kitchen: "bg-orange-50",
   service: "bg-blue-50",
-  gl: "bg-gray-50",
 };
-const AREA_ORDER: Area[] = ["kitchen", "service", "gl"];
+const AREA_ORDER: GridArea[] = ["kitchen", "service"];
+const AREA_SHORT: Record<"kitchen" | "service" | "gl", string> = {
+  kitchen: "Küche",
+  service: "Service",
+  gl: "Service",
+};
 
 function parseIsoDate(iso: string): Date {
   return new Date(`${iso}T12:00:00Z`);
@@ -96,15 +102,22 @@ function dayLabel(iso: string): string {
 // Fallback = alle Skills der zur Area passenden Kategorie.
 function skillsForCell(
   staffRow: RosterStaffRow,
-  area: Area,
+  area: GridArea,
   allSkills: RosterSkill[],
 ): RosterSkill[] {
   const assigned = allSkills.filter((s) => staffRow.skillIds.includes(s.id));
-  if (assigned.length > 0) return assigned;
-  return allSkills.filter((s) => s.category === area);
+  // Service-Bereich akzeptiert auch gl/other Skills (GL, Hausmeister)
+  const allowedCategories =
+    area === "service"
+      ? new Set<RosterSkill["category"]>(["service", "gl", "other"])
+      : new Set<RosterSkill["category"]>(["kitchen"]);
+  if (assigned.length > 0) {
+    return assigned.filter((s) => allowedCategories.has(s.category));
+  }
+  return allSkills.filter((s) => allowedCategories.has(s.category));
 }
 
-function PillVisual({ shift, area }: { shift: RosterShift; area: Area }) {
+function PillVisual({ shift, area }: { shift: RosterShift; area: GridArea }) {
   const opacity = shift.status === "confirmed" ? "opacity-100" : "opacity-70";
   if (area === "service") {
     const label = serviceMarker(shift.skillName);
@@ -140,7 +153,7 @@ function EmptyCellMarker({ canEdit }: { canEdit: boolean }) {
 }
 
 type CellAction =
-  | { kind: "create"; staffId: string; shiftDate: string; area: Area; skillId: string | null }
+  | { kind: "create"; staffId: string; shiftDate: string; area: GridArea; skillId: string | null }
   | { kind: "delete"; id: string }
   | { kind: "status"; id: string; status: "planned" | "confirmed" }
   | { kind: "skill"; id: string; skillId: string };
@@ -160,7 +173,7 @@ function CellPopover({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   staffRow: RosterStaffRow;
-  area: Area;
+  area: GridArea;
   iso: string;
   shift: RosterShift | undefined;
   allSkills: RosterSkill[];
@@ -329,6 +342,22 @@ function DienstplanPage() {
     enabled: !!effectiveLocationId && !!effectivePeriod,
   });
 
+  const crossQ = useQuery({
+    queryKey: [
+      "roster-cross-bookings",
+      effectivePeriod?.startDate,
+      effectivePeriod?.endDate,
+    ],
+    queryFn: () =>
+      getStaffCrossBookings({
+        data: {
+          fromDate: effectivePeriod!.startDate,
+          toDate: effectivePeriod!.endDate,
+        },
+      }),
+    enabled: !!effectivePeriod,
+  });
+
   // Realtime: jede Änderung an roster_shifts der aktuellen Org → Query invalidieren.
   useEffect(() => {
     if (!effectiveLocationId) return;
@@ -336,6 +365,7 @@ function DienstplanPage() {
       .channel(`roster-shifts-${effectiveLocationId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "roster_shifts" }, () => {
         qc.invalidateQueries({ queryKey: ["roster-shifts"] });
+        qc.invalidateQueries({ queryKey: ["roster-cross-bookings"] });
       })
       .subscribe();
     return () => {
@@ -345,6 +375,7 @@ function DienstplanPage() {
 
   const staff = useMemo(() => staffQ.data ?? [], [staffQ.data]);
   const shifts = useMemo(() => shiftsQ.data ?? [], [shiftsQ.data]);
+  const crossBookings = useMemo<RosterCrossBooking[]>(() => crossQ.data ?? [], [crossQ.data]);
 
   const shiftIndex = useMemo(() => {
     const m = new Map<string, RosterShift>();
@@ -354,8 +385,20 @@ function DienstplanPage() {
     return m;
   }, [shifts]);
 
+  // Index aller Buchungen pro (staffId, date), gesamtorgweit/standortweit.
+  const bookingsByStaffDate = useMemo(() => {
+    const m = new Map<string, RosterCrossBooking[]>();
+    for (const b of crossBookings) {
+      const k = `${b.staffId}|${b.shiftDate}`;
+      const arr = m.get(k) ?? [];
+      arr.push(b);
+      m.set(k, arr);
+    }
+    return m;
+  }, [crossBookings]);
+
   const grouped = useMemo(() => {
-    const g = new Map<Area, RosterStaffRow[]>();
+    const g = new Map<GridArea, RosterStaffRow[]>();
     for (const a of AREA_ORDER) g.set(a, []);
     for (const row of staff) g.get(row.department)?.push(row);
     return g;
@@ -386,6 +429,7 @@ function DienstplanPage() {
       }
       setOpenCell(null);
       qc.invalidateQueries({ queryKey: ["roster-shifts"] });
+      qc.invalidateQueries({ queryKey: ["roster-cross-bookings"] });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       toast.error(msg);
