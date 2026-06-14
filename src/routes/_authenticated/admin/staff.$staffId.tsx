@@ -12,13 +12,19 @@ import {
 import { listLocations } from "@/lib/admin/locations.functions";
 import { clearPin, setPin } from "@/lib/admin/pin.functions";
 import { issueBadge, listBadges, revokeBadge } from "@/lib/admin/badges.functions";
+import {
+  assignStaffSkills,
+  getStaffSkills,
+  listSkills,
+  type SkillCategory,
+} from "@/lib/admin/skills.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/staff/$staffId")({
   head: () => ({ meta: [{ title: "Mitarbeiter · Verwaltung" }] }),
   component: StaffDetailPage,
 });
 
-type Tab = "basics" | "locations" | "role" | "pin" | "badges";
+type Tab = "basics" | "locations" | "skills" | "role" | "pin" | "badges";
 
 function StaffDetailPage() {
   const { staffId } = Route.useParams();
@@ -49,6 +55,7 @@ function StaffDetailPage() {
           [
             ["basics", "Stammdaten"],
             ["locations", "Standorte"],
+            ["skills", "Skills"],
             ["role", "Rolle & Aktiv"],
             ["pin", "PIN"],
             ["badges", "Badges"],
@@ -72,6 +79,7 @@ function StaffDetailPage() {
 
       {tab === "basics" && <BasicsTab staff={s} />}
       {tab === "locations" && <LocationsTab staffId={s.id} current={s.locationIds} />}
+      {tab === "skills" && <SkillsTab staffId={s.id} />}
       {tab === "role" && <RoleTab staff={s} />}
       {tab === "pin" && <PinTab staffId={s.id} hasPin={s.hasPin} />}
       {tab === "badges" && <BadgesTab staffId={s.id} />}
