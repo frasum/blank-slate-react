@@ -342,11 +342,7 @@ function DienstplanPage() {
   });
 
   const crossQ = useQuery({
-    queryKey: [
-      "roster-cross-bookings",
-      effectivePeriod?.startDate,
-      effectivePeriod?.endDate,
-    ],
+    queryKey: ["roster-cross-bookings", effectivePeriod?.startDate, effectivePeriod?.endDate],
     queryFn: () =>
       getStaffCrossBookings({
         data: {
@@ -440,199 +436,199 @@ function DienstplanPage() {
   return (
     <div className="space-y-6">
       <TooltipProvider delayDuration={150}>
-      <header className="flex flex-wrap items-end gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Dienstplan</h1>
-          <p className="text-sm text-muted-foreground">
-            Vorausplanung — wer arbeitet wann wo.{" "}
-            {canEdit ? (
-              periodLocked ? (
-                <span className="text-destructive">Periode gesperrt.</span>
+        <header className="flex flex-wrap items-end gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold">Dienstplan</h1>
+            <p className="text-sm text-muted-foreground">
+              Vorausplanung — wer arbeitet wann wo.{" "}
+              {canEdit ? (
+                periodLocked ? (
+                  <span className="text-destructive">Periode gesperrt.</span>
+                ) : (
+                  <span>Klick in Zelle zum Bearbeiten.</span>
+                )
               ) : (
-                <span>Klick in Zelle zum Bearbeiten.</span>
-              )
-            ) : (
-              <span>(Read-only)</span>
-            )}
-          </p>
-        </div>
-        <div className="ml-auto flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 text-xs">
-            <span className="text-muted-foreground">Standort</span>
-            <select
-              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-              value={effectiveLocationId ?? ""}
-              onChange={(e) => setLocationId(e.target.value || null)}
-            >
-              {locations.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-xs">
-            <span className="text-muted-foreground">Periode</span>
-            <select
-              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-              value={effectivePeriod?.id ?? ""}
-              onChange={(e) => setPeriodId(e.target.value || null)}
-            >
-              {periods.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.label} ({p.startDate} – {p.endDate})
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-      </header>
+                <span>(Read-only)</span>
+              )}
+            </p>
+          </div>
+          <div className="ml-auto flex flex-wrap items-end gap-3">
+            <label className="flex flex-col gap-1 text-xs">
+              <span className="text-muted-foreground">Standort</span>
+              <select
+                className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                value={effectiveLocationId ?? ""}
+                onChange={(e) => setLocationId(e.target.value || null)}
+              >
+                {locations.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs">
+              <span className="text-muted-foreground">Periode</span>
+              <select
+                className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                value={effectivePeriod?.id ?? ""}
+                onChange={(e) => setPeriodId(e.target.value || null)}
+              >
+                {periods.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label} ({p.startDate} – {p.endDate})
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </header>
 
-      {!effectivePeriod ? (
-        <Card className="p-6 text-sm text-muted-foreground">
-          Keine Periode angelegt. Lege im Tab „Perioden" eine an.
-        </Card>
-      ) : !effectiveLocationId ? (
-        <Card className="p-6 text-sm text-muted-foreground">Kein Standort verfügbar.</Card>
-      ) : (
-        <Card className="overflow-x-auto">
-          <table className="w-full border-collapse text-xs">
-            <thead>
-              <tr className="border-b bg-muted/50">
-                <th className="sticky left-0 z-10 min-w-[180px] bg-muted/50 px-3 py-2 text-left font-medium">
-                  Mitarbeiter
-                </th>
-                {days.map((iso) => {
-                  const we = isWeekend(iso);
-                  const isToday = iso === today;
+        {!effectivePeriod ? (
+          <Card className="p-6 text-sm text-muted-foreground">
+            Keine Periode angelegt. Lege im Tab „Perioden" eine an.
+          </Card>
+        ) : !effectiveLocationId ? (
+          <Card className="p-6 text-sm text-muted-foreground">Kein Standort verfügbar.</Card>
+        ) : (
+          <Card className="overflow-x-auto">
+            <table className="w-full border-collapse text-xs">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  <th className="sticky left-0 z-10 min-w-[180px] bg-muted/50 px-3 py-2 text-left font-medium">
+                    Mitarbeiter
+                  </th>
+                  {days.map((iso) => {
+                    const we = isWeekend(iso);
+                    const isToday = iso === today;
+                    return (
+                      <th
+                        key={iso}
+                        className={`min-w-[56px] px-1 py-2 text-center font-medium ${
+                          we ? "bg-muted text-muted-foreground" : ""
+                        } ${isToday ? "ring-2 ring-primary ring-inset" : ""}`}
+                      >
+                        {dayLabel(iso)}
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+              <tbody>
+                {AREA_ORDER.map((area) => {
+                  const rows = grouped.get(area) ?? [];
+                  if (rows.length === 0) return null;
                   return (
-                    <th
-                      key={iso}
-                      className={`min-w-[56px] px-1 py-2 text-center font-medium ${
-                        we ? "bg-muted text-muted-foreground" : ""
-                      } ${isToday ? "ring-2 ring-primary ring-inset" : ""}`}
-                    >
-                      {dayLabel(iso)}
-                    </th>
+                    <React.Fragment key={`area-${area}`}>
+                      <tr className={AREA_BG[area]}>
+                        <td
+                          colSpan={days.length + 1}
+                          className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-foreground"
+                        >
+                          <span
+                            className={`mr-2 inline-block h-2 w-2 rounded-full ${AREA_BAR[area]}`}
+                          />
+                          {AREA_LABEL[area]}
+                        </td>
+                      </tr>
+                      {rows.map((row) => (
+                        <tr
+                          key={`${area}-${row.staffId}`}
+                          className="border-b last:border-b-0 hover:bg-muted/30"
+                        >
+                          <td className="sticky left-0 z-10 min-w-[180px] bg-background px-3 py-1.5 font-medium">
+                            {row.displayName}
+                          </td>
+                          {days.map((iso) => {
+                            const we = isWeekend(iso);
+                            const isToday = iso === today;
+                            const shift = shiftIndex.get(`${row.staffId}|${iso}|${area}`);
+                            const cellKey = `${row.staffId}|${iso}|${area}`;
+                            const editable = canEdit && !periodLocked;
+                            const otherBookings = !shift
+                              ? (bookingsByStaffDate.get(`${row.staffId}|${iso}`) ?? [])
+                              : [];
+                            const cellBody = shift ? (
+                              <PillVisual shift={shift} area={area} />
+                            ) : (
+                              <EmptyCellMarker canEdit={editable} />
+                            );
+                            return (
+                              <td
+                                key={iso}
+                                className={`relative px-0.5 py-1 text-center ${
+                                  we ? "bg-muted/40" : ""
+                                } ${isToday ? "bg-primary/5" : ""}`}
+                              >
+                                {editable ? (
+                                  <CellPopover
+                                    open={openCell === cellKey}
+                                    onOpenChange={(o) => setOpenCell(o ? cellKey : null)}
+                                    staffRow={row}
+                                    area={area}
+                                    iso={iso}
+                                    shift={shift}
+                                    allSkills={allSkills}
+                                    onAction={handleAction}
+                                    busy={busy}
+                                  >
+                                    <button
+                                      type="button"
+                                      className="block w-full cursor-pointer bg-transparent"
+                                      aria-label={
+                                        shift
+                                          ? `Schicht bearbeiten: ${row.displayName}, ${iso}`
+                                          : `Schicht anlegen: ${row.displayName}, ${iso}`
+                                      }
+                                    >
+                                      {cellBody}
+                                    </button>
+                                  </CellPopover>
+                                ) : (
+                                  cellBody
+                                )}
+                                {otherBookings.length > 0 && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span
+                                        className="absolute right-0.5 top-0.5 inline-block h-1.5 w-1.5 rounded-full bg-red-500"
+                                        aria-label="Bereits anderswo eingeteilt"
+                                      />
+                                    </TooltipTrigger>
+                                    <TooltipContent className="max-w-xs">
+                                      <div className="space-y-0.5 text-xs">
+                                        {otherBookings.map((b, i) => (
+                                          <div key={i}>
+                                            Bereits: {b.locationName} · {AREA_SHORT[b.area]}
+                                            {b.skillName ? ` · ${b.skillName}` : ""}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </React.Fragment>
                   );
                 })}
-              </tr>
-            </thead>
-            <tbody>
-              {AREA_ORDER.map((area) => {
-                const rows = grouped.get(area) ?? [];
-                if (rows.length === 0) return null;
-                return (
-                  <React.Fragment key={`area-${area}`}>
-                    <tr className={AREA_BG[area]}>
-                      <td
-                        colSpan={days.length + 1}
-                        className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-foreground"
-                      >
-                        <span
-                          className={`mr-2 inline-block h-2 w-2 rounded-full ${AREA_BAR[area]}`}
-                        />
-                        {AREA_LABEL[area]}
-                      </td>
-                    </tr>
-                    {rows.map((row) => (
-                      <tr
-                        key={`${area}-${row.staffId}`}
-                        className="border-b last:border-b-0 hover:bg-muted/30"
-                      >
-                        <td className="sticky left-0 z-10 min-w-[180px] bg-background px-3 py-1.5 font-medium">
-                          {row.displayName}
-                        </td>
-                        {days.map((iso) => {
-                          const we = isWeekend(iso);
-                          const isToday = iso === today;
-                          const shift = shiftIndex.get(`${row.staffId}|${iso}|${area}`);
-                          const cellKey = `${row.staffId}|${iso}|${area}`;
-                          const editable = canEdit && !periodLocked;
-                          const otherBookings = !shift
-                            ? bookingsByStaffDate.get(`${row.staffId}|${iso}`) ?? []
-                            : [];
-                          const cellBody = shift ? (
-                            <PillVisual shift={shift} area={area} />
-                          ) : (
-                            <EmptyCellMarker canEdit={editable} />
-                          );
-                          return (
-                            <td
-                              key={iso}
-                              className={`relative px-0.5 py-1 text-center ${
-                                we ? "bg-muted/40" : ""
-                              } ${isToday ? "bg-primary/5" : ""}`}
-                            >
-                              {editable ? (
-                                <CellPopover
-                                  open={openCell === cellKey}
-                                  onOpenChange={(o) => setOpenCell(o ? cellKey : null)}
-                                  staffRow={row}
-                                  area={area}
-                                  iso={iso}
-                                  shift={shift}
-                                  allSkills={allSkills}
-                                  onAction={handleAction}
-                                  busy={busy}
-                                >
-                                  <button
-                                    type="button"
-                                    className="block w-full cursor-pointer bg-transparent"
-                                    aria-label={
-                                      shift
-                                        ? `Schicht bearbeiten: ${row.displayName}, ${iso}`
-                                        : `Schicht anlegen: ${row.displayName}, ${iso}`
-                                    }
-                                  >
-                                    {cellBody}
-                                  </button>
-                                </CellPopover>
-                              ) : (
-                                cellBody
-                              )}
-                              {otherBookings.length > 0 && (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <span
-                                      className="absolute right-0.5 top-0.5 inline-block h-1.5 w-1.5 rounded-full bg-red-500"
-                                      aria-label="Bereits anderswo eingeteilt"
-                                    />
-                                  </TooltipTrigger>
-                                  <TooltipContent className="max-w-xs">
-                                    <div className="space-y-0.5 text-xs">
-                                      {otherBookings.map((b, i) => (
-                                        <div key={i}>
-                                          Bereits: {b.locationName} · {AREA_SHORT[b.area]}
-                                          {b.skillName ? ` · ${b.skillName}` : ""}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </TooltipContent>
-                                </Tooltip>
-                              )}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </React.Fragment>
-                );
-              })}
-              {staff.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={days.length + 1}
-                    className="px-3 py-6 text-center text-muted-foreground"
-                  >
-                    Keine Mitarbeiter an diesem Standort.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </Card>
-      )}
+                {staff.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={days.length + 1}
+                      className="px-3 py-6 text-center text-muted-foreground"
+                    >
+                      Keine Mitarbeiter an diesem Standort.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </Card>
+        )}
       </TooltipProvider>
     </div>
   );

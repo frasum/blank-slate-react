@@ -204,8 +204,7 @@ export const getStaffForRoster = createServerFn({ method: "GET" })
       .filter((row, idx, arr) => {
         // Dedupe auf (staffId, mappedArea): gl+service desselben Mitarbeiters → 1 Service-Zeile
         return (
-          arr.findIndex((x) => x.staffId === row.staffId && x.department === row.department) ===
-          idx
+          arr.findIndex((x) => x.staffId === row.staffId && x.department === row.department) === idx
         );
       })
       .sort((a, b) => {
