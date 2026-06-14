@@ -322,13 +322,9 @@ function DienstplanPage() {
     if (!effectiveLocationId) return;
     const channel = supabase
       .channel(`roster-shifts-${effectiveLocationId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "roster_shifts" },
-        () => {
-          qc.invalidateQueries({ queryKey: ["roster-shifts"] });
-        },
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "roster_shifts" }, () => {
+        qc.invalidateQueries({ queryKey: ["roster-shifts"] });
+      })
       .subscribe();
     return () => {
       void supabase.removeChannel(channel);
@@ -561,4 +557,3 @@ function DienstplanPage() {
     </div>
   );
 }
-
