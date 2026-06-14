@@ -40,11 +40,7 @@ import {
   togglePeriodLock,
   upsertPayrollNote,
 } from "@/lib/time/time-admin.functions";
-import {
-  computeShiftHours,
-  isBavarianHoliday,
-  isSundayOrHoliday,
-} from "@/lib/time/shift-hours";
+import { computeShiftHours, isBavarianHoliday, isSundayOrHoliday } from "@/lib/time/shift-hours";
 
 export const Route = createFileRoute("/_authenticated/admin/zeit-uebersicht")({
   head: () => ({ meta: [{ title: "Zeitübersicht" }] }),
@@ -222,8 +218,7 @@ function ZeitUebersichtPage() {
   });
   const periods = periodsQ.data ?? [];
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>("");
-  const effectivePeriodId =
-    selectedPeriodId || periods[0]?.id || "";
+  const effectivePeriodId = selectedPeriodId || periods[0]?.id || "";
   const selectedPeriod = periods.find((p) => p.id === effectivePeriodId);
 
   // Fallback: freie Daten, wenn keine Periode existiert.
@@ -245,15 +240,13 @@ function ZeitUebersichtPage() {
 
   const weeklyQ = useQuery({
     queryKey: ["weekly-entries", effectiveLocationId, weekStart],
-    queryFn: () =>
-      fetchWeekly({ data: { locationId: effectiveLocationId, weekStart } }),
+    queryFn: () => fetchWeekly({ data: { locationId: effectiveLocationId, weekStart } }),
     enabled: Boolean(effectiveLocationId),
   });
 
   const overviewQ = useQuery({
     queryKey: ["time-overview", effectiveLocationId, fromDate, toDate],
-    queryFn: () =>
-      fetchOverview({ data: { locationId: effectiveLocationId, fromDate, toDate } }),
+    queryFn: () => fetchOverview({ data: { locationId: effectiveLocationId, fromDate, toDate } }),
     enabled: Boolean(effectiveLocationId),
   });
 
@@ -324,11 +317,7 @@ function ZeitUebersichtPage() {
   }, [notesQ.data]);
 
   const upsertMut = useMutation({
-    mutationFn: (vars: {
-      staffId: string;
-      vorschuss: number;
-      besonderheiten: string | null;
-    }) =>
+    mutationFn: (vars: { staffId: string; vorschuss: number; besonderheiten: string | null }) =>
       callUpsert({
         data: {
           locationId: effectiveLocationId,
@@ -745,9 +734,7 @@ function ZeitUebersichtPage() {
             onToggleLock={(id) => toggleLockMut.mutate(id)}
             onDelete={(id) => deletePeriodMut.mutate(id)}
             pending={
-              createPeriodMut.isPending ||
-              toggleLockMut.isPending ||
-              deletePeriodMut.isPending
+              createPeriodMut.isPending || toggleLockMut.isPending || deletePeriodMut.isPending
             }
           />
         </TabsContent>
@@ -819,7 +806,10 @@ function PayrollRow({
             const safe = Number.isFinite(n) && n >= 0 ? n : 0;
             setVorschuss(safe.toFixed(2));
             const prev = initial?.vorschuss ?? 0;
-            if (Math.abs(safe - prev) > 0.005 || besonderheiten !== (initial?.besonderheiten ?? "")) {
+            if (
+              Math.abs(safe - prev) > 0.005 ||
+              besonderheiten !== (initial?.besonderheiten ?? "")
+            ) {
               onSave(safe, besonderheiten);
             }
           }}
@@ -984,9 +974,7 @@ function WeeklyPlan({
               >
                 {dayHeader(dm.date)}
                 {dm.isHol && (
-                  <span className="block text-[10px] font-normal text-muted-foreground">
-                    (Fei)
-                  </span>
+                  <span className="block text-[10px] font-normal text-muted-foreground">(Fei)</span>
                 )}
               </TableHead>
             ))}
@@ -1036,11 +1024,7 @@ function WeeklyPlan({
                       {dayMeta.map((dm) => {
                         const dayEntries = row.entriesByDate.get(dm.iso) ?? [];
                         const hasCross = cross.has(dm.iso) && dayEntries.length === 0;
-                        const cellBg = dm.isHol
-                          ? "bg-yellow-50"
-                          : dm.isSun
-                            ? "bg-gray-50"
-                            : "";
+                        const cellBg = dm.isHol ? "bg-yellow-50" : dm.isSun ? "bg-gray-50" : "";
                         const clickable = isAdmin;
                         return (
                           <TableCell
@@ -1061,8 +1045,10 @@ function WeeklyPlan({
                             {dayEntries.length === 0 ? (
                               hasCross ? (
                                 <span className="text-muted-foreground">×</span>
+                              ) : isAdmin ? (
+                                <span className="text-muted-foreground/40">+</span>
                               ) : (
-                                isAdmin ? <span className="text-muted-foreground/40">+</span> : ""
+                                ""
                               )
                             ) : (
                               <div className="flex flex-col divide-y divide-border/60">
@@ -1113,7 +1099,14 @@ function WeeklyPlan({
 }
 type EditorState =
   | { mode: "edit"; id: string; staffName: string; dateIso: string; from: string; to: string }
-  | { mode: "create"; staffId: string; staffName: string; dateIso: string; from: string; to: string };
+  | {
+      mode: "create";
+      staffId: string;
+      staffName: string;
+      dateIso: string;
+      from: string;
+      to: string;
+    };
 
 function ShiftEditorDialog({
   state,
@@ -1138,7 +1131,12 @@ function ShiftEditorDialog({
   }, [state]);
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
       <DialogContent className="sm:max-w-[360px]">
         <DialogHeader>
           <DialogTitle>
@@ -1283,8 +1281,8 @@ function PeriodsPanel({
             )}
           </div>
           <p className="text-xs text-muted-foreground">
-            Perioden laufen vom 26. bis zum 25. des Folgemonats. Das Label bezieht sich
-            auf den Monat des Enddatums.
+            Perioden laufen vom 26. bis zum 25. des Folgemonats. Das Label bezieht sich auf den
+            Monat des Enddatums.
           </p>
         </Card>
       )}
