@@ -92,10 +92,10 @@ describe.skipIf(!dbTestsEnabled)(
       const byKind = new Map((data ?? []).map((r) => [r.kind, r.is_takeaway]));
       expect(byKind.get("delivery_vectron")).toBe(true);
       expect(byKind.get("pos")).toBe(false);
-      // delivery_souse / delivery_wolt sind nicht zwingend pro Org geseeded;
-      // wir prüfen sie nur, falls vorhanden — aber sobald da, takeaway=true.
-      if (byKind.has("delivery_souse")) expect(byKind.get("delivery_souse")).toBe(true);
-      if (byKind.has("delivery_wolt")) expect(byKind.get("delivery_wolt")).toBe(true);
+      // Trigger seedet zur Laufzeit den vollständigen Satz — alle vier
+      // Kanäle müssen existieren, alle Liefer-Kinds auf takeaway=true.
+      expect(byKind.get("delivery_souse")).toBe(true);
+      expect(byKind.get("delivery_wolt")).toBe(true);
     });
 
     it("(d) location_department_defaults: kitchen=15:00 + service=16:00, FREMDE Org liefert nichts", async () => {
@@ -139,6 +139,39 @@ describe.skipIf(!dbTestsEnabled)(
         .delete()
         .eq("location_id", org.defaultLocationId);
       expect(del.error).not.toBeNull();
+    });
+
+    it("(f) Locations-Trigger: neuer Standort bekommt 4 Kanäle + 2 LDDs automatisch", async () => {
+      // Beweis, dass die Teil-B-Zusage "je Location vollständiger Satz Kinds
+      // beim Seeding" strukturell eingelöst ist: jeder INSERT in
+      // public.locations triggert tg_locations_seed_defaults (greift auf
+      // DB-Ebene, unabhängig davon ob die Insertion aus createLocation
+      // (Server-Fn) oder direkt via service-Client kommt).
+      const freshLocId = await org.mkLocation("Trigger-Probe");
+
+      const { data: channels, error: cErr } = await org.service
+        .from("revenue_channels")
+        .select("kind, is_takeaway")
+        .eq("location_id", freshLocId)
+        .order("sort_order");
+      expect(cErr).toBeNull();
+      const ch = new Map((channels ?? []).map((r) => [r.kind, r.is_takeaway]));
+      expect(ch.size).toBe(4);
+      expect(ch.get("pos")).toBe(false);
+      expect(ch.get("delivery_souse")).toBe(true);
+      expect(ch.get("delivery_wolt")).toBe(true);
+      expect(ch.get("delivery_vectron")).toBe(true);
+
+      const { data: ldds, error: lErr } = await org.service
+        .from("location_department_defaults")
+        .select("department, default_checkin")
+        .eq("location_id", freshLocId);
+      expect(lErr).toBeNull();
+      const lm = new Map((ldds ?? []).map((r) => [r.department, r.default_checkin]));
+      expect(lm.size).toBe(2);
+      expect(lm.get("kitchen")).toMatch(/^15:00/);
+      expect(lm.get("service")).toMatch(/^16:00/);
+      expect(lm.has("gl")).toBe(false);
     });
   },
 );
