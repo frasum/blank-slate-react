@@ -226,12 +226,7 @@ describe.skipIf(!dbTestsEnabled)("cash read endpoints (DB) — B3c-1a", () => {
     // Vollständige Realität: Trigger seedet 4 Kanäle je Location
     // (sort_order 10/20/30/40). Pos+Souse haben wir auf Custom-Labels
     // umbenannt; Wolt+Vectron behalten die Trigger-Defaults.
-    expect(channels.map((c) => c.label)).toEqual([
-      "Restaurant",
-      "Lieferung",
-      "Wolt",
-      "Vectron",
-    ]);
+    expect(channels.map((c) => c.label)).toEqual(["Restaurant", "Lieferung", "Wolt", "Vectron"]);
     expect(channels.every((c) => c.label !== "FREMD")).toBe(true);
     const terms = await listPaymentTerminalsCore(mgrCaller());
     expect(terms.map((t) => t.label)).toEqual(["Terminal A"]);
