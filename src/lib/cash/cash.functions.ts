@@ -515,17 +515,22 @@ export async function getTipPoolOverviewCore(
 
 export const listRevenueChannels = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((input) =>
+    z.object({ locationId: z.string().uuid().optional() }).parse(input ?? {}),
+  )
+  .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
-    return listRevenueChannelsCore(caller);
+    return listRevenueChannelsCore(caller, data?.locationId);
   });
 
-export async function listRevenueChannelsCore(caller: AdminCaller) {
+export async function listRevenueChannelsCore(caller: AdminCaller, locationId?: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin
+  let query = supabaseAdmin
     .from("revenue_channels")
     .select("id, label, sort_order, is_active")
-    .eq("organization_id", caller.organizationId)
+    .eq("organization_id", caller.organizationId);
+  if (locationId) query = query.eq("location_id", locationId);
+  const { data, error } = await query
     .order("sort_order", { ascending: true })
     .order("label", { ascending: true });
   if (error) throw error;
@@ -539,17 +544,22 @@ export async function listRevenueChannelsCore(caller: AdminCaller) {
 
 export const listPaymentTerminals = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((input) =>
+    z.object({ locationId: z.string().uuid().optional() }).parse(input ?? {}),
+  )
+  .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
-    return listPaymentTerminalsCore(caller);
+    return listPaymentTerminalsCore(caller, data?.locationId);
   });
 
-export async function listPaymentTerminalsCore(caller: AdminCaller) {
+export async function listPaymentTerminalsCore(caller: AdminCaller, locationId?: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin
+  let query = supabaseAdmin
     .from("payment_terminals")
     .select("id, label, sort_order, is_active")
-    .eq("organization_id", caller.organizationId)
+    .eq("organization_id", caller.organizationId);
+  if (locationId) query = query.eq("location_id", locationId);
+  const { data, error } = await query
     .order("sort_order", { ascending: true })
     .order("label", { ascending: true });
   if (error) throw error;
