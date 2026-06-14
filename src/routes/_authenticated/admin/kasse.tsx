@@ -863,6 +863,22 @@ function SessionFieldsCard({
         </div>
       </Section>
 
+      <Section title="Kontrolle">
+        <EuroRow
+          label="Vectron Tagesumsatz (Kontrolle)"
+          value={misc.vectron}
+          disabled={!writable}
+          onChange={(v) => setMisc({ ...misc, vectron: v })}
+        />
+        <EuroRow
+          label="Kassenbestand nach Abschluss"
+          value={misc.cashActual}
+          disabled={!writable}
+          onChange={(v) => setMisc({ ...misc, cashActual: v })}
+        />
+        <CashActualHint value={misc.cashActual} />
+      </Section>
+
       <div className="flex justify-end">
         <Button disabled={!writable || saving} onClick={handleSave}>
           {saving ? "Speichert…" : "Session speichern"}
