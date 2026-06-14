@@ -5,8 +5,50 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
+import { runGuarded } from "@/lib/admin/admin-call";
+import { writeAuditLog } from "@/lib/admin/audit";
 
 const READ_ROLES = ["manager", "admin", "payroll", "staff"] as const;
+const WRITE_ROLES = ["manager", "admin"] as const;
+
+function makeAuditWriter(caller: { organizationId: string; userId: string; staffId: string }) {
+  return async (entry: {
+    action: string;
+    entity: string;
+    entityId?: string;
+    meta?: Record<string, unknown>;
+  }) => {
+    await writeAuditLog({
+      organizationId: caller.organizationId,
+      actorUserId: caller.userId,
+      actorStaffId: caller.staffId,
+      action: entry.action,
+      entity: entry.entity,
+      entityId: entry.entityId ?? null,
+      meta: entry.meta,
+    });
+  };
+}
+
+async function assertShiftDateUnlocked(
+  admin: import("@supabase/supabase-js").SupabaseClient<
+    import("@/integrations/supabase/types").Database
+  >,
+  organizationId: string,
+  shiftDate: string,
+): Promise<void> {
+  const { data, error } = await admin
+    .from("periods")
+    .select("status")
+    .eq("organization_id", organizationId)
+    .lte("start_date", shiftDate)
+    .gte("end_date", shiftDate)
+    .maybeSingle();
+  if (error) throw error;
+  if (data?.status === "locked") {
+    throw new Error("Periode gesperrt");
+  }
+}
 
 export type RosterShift = {
   id: string;
