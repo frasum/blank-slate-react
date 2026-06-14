@@ -426,3 +426,57 @@ thaitime (34): `activate-employee-access`, `auto-checkout`, `birthday-notificati
 tagesabrechnung (Remix-Stand) (27): `admin-link-account`, `backfill-staff-auth-users`, `calculate-payroll`, `create-login-confirmation`, `elevenlabs-stt`, `elevenlabs-tts`, `ensure-staff-auth-user`, `link-account`, `manage-nav-permissions`, `manage-user-role`, `manage-webauthn`, `notify-pdf-export`, `parse-payroll-pdf`, `payroll-office-auth`, `payroll-office-data`, `restaurant-chat`, `run-staff-backfill`, `send-telegram-summary`, `shared-zt-data`, `sync-thaitime-staff`, `update-pin`, `update-telegram-schedule`, `validate-pin`, `verify-login-confirmation`, `verify-session-pin`, `webauthn-authenticate`, `webauthn-register`
 
 bestellung (66): `accept-b2b-customer-invitation`, `accept-invitation`, `ai-import-helper`, `check-invoice-emails`, `confirm-order`, `convert-demo-account`, `create-article-from-mobile`, `create-articles-batch`, `create-b2b-account-user`, `create-b2b-mobile-token`, `create-demo-account`, `create-photo-suggestion`, `create-supplier-portal-token`, `delete-demo-organization`, `delete-employee-draft`, `elevenlabs-conversation-token`, `elevenlabs-industry-token`, `elevenlabs-scribe-token`, `elevenlabs-tts`, `get-employee-drafts`, `get-order-details`, `hash-employee-pin`, `identify-article`, `import-wine-articles`, `import-wine-data`, `invite-sponsored-account`, `manage-b2b-mobile-inventory`, `manage-simple-order-favorites`, `notify-preorder-received`, `parse-invoice`, `populate-demo-data`, `request-new-magic-link`, `research-wine`, `reset-b2b-customer-password`, `scan-order-list`, `search-kroeswang-catalog`, `search-price-alternatives`, `search-wine-image`, `send-b2b-customer-invitation`, `send-b2b-customer-purchase-order`, `send-b2b-offer`, `send-b2b-purchase-order`, `send-invitation-email`, `send-order-email`, `send-price-alerts`, `send-supplier-magic-link`, `send-trial-reminders`, `submit-b2b-order`, `submit-simple-order`, `supplier-portal-articles`, `sync-wine-menu`, `test-email-connection`, `transcribe-inventory`, `transcribe-order`, `translate-wine-content`, `update-article-image`, `update-b2b-account-email`, `update-email-settings`, `update-employee-draft`, `upgrade-b2b-customer`, `verify-b2b-mobile-token`, `verify-employee-login`, `verify-employee-pin`, `verify-photo-capture-token`, `verify-simple-order-token`, `verify-supplier-token`
+
+Nachtrag M3/D — Dienstplan (umgesetzt, 14.06.2026)
+
+Quelle der Wahrheit: bunker-shift-flow (Roster-Grid, Paint-Tool) für das UI, thaitime (schedule_entries) für Datenmodell-Anforderungen und die Display-Vorlage. Der Dienstplan ist die VORAUSPLANUNG und bewusst getrennt von der Ist-Zeiterfassung (time_entries).
+
+Designentscheidungen
+
+D-1 (Eigene Tabelle, getrennt von time_entries): Dienstplan-Schichten liegen in roster_shifts — NICHT in time_entries. Plan (Soll) und Stempel (Ist) sind zwei Welten. roster_shifts hat KEINE Uhrzeiten (kein start/end_time): eine Schicht ist „an Tag X arbeitet Mitarbeiter Y im Bereich Z mit Skill S". Unique-Key (staff_id, location_id, shift_date, area). Status planned | confirmed. RLS: alle Org-Mitglieder lesen, nur service_role schreibt (über Server-Functions, manager+).
+
+D-2 (Skills als Stammdaten): Genutzt werden die bestehenden Tabellen skills (name, category ∈ kitchen/service/gl/other, color) und staff_skills (Mitarbeiter ↔ Skill). Skills werden im Mitarbeiter-Stammblatt (SkillsTab) aktiviert und filtern die Skill-Auswahl im Dienstplan-Popover.
+
+D-3 (Zwei Grid-Abschnitte, GL ist kein Bereich): Das Grid zeigt nur KÜCHE und SERVICE. „GL" (Geschäftsleitung) ist KEIN eigener Bereich, sondern ein Skill im Service. staff_locations.department='gl' wird im Grid dem Service-Abschnitt zugeordnet. Ein Mitarbeiter mit Bereichen kitchen UND service erscheint in BEIDEN Abschnitten (gewollt — gesteuert über staff_locations, das (staff_id, location_id, department) als Unique-Key hat).
+
+D-4 (Service-Symbol-Darstellung): Im Service werden keine farbigen Skill-Pillen gezeigt, sondern kompakte Marker (nach thaitime-Display): SERVICE→„X", GL→„GL", BAR→„B", 19 Uhr→„19h", Hausmeister→„H", kein Skill→„X". Logik in src/lib/roster/service-marker.ts (getestet), damit das Display (D3) später dieselbe Funktion nutzt. KÜCHE behält farbige Skill-Pillen (CO/VS/PA/SP) mit Skill-Farbe.
+
+D-5 (Realtime): roster_shifts ist in der supabase_realtime Publication (REPLICA IDENTITY FULL für DELETE-Events). Änderungen erscheinen live bei allen offenen Clients via postgres_changes.
+
+D-6 (Cross-Booking-Warnung): getStaffCrossBookings lädt orgweit alle Schichten im Zeitraum. Hat ein Mitarbeiter an einem Tag IRGENDWO (anderer Bereich/Standort) eine Schicht, erscheint in seinen anderen LEEREN Zellen desselben Tages ein roter Punkt; Hover-Tooltip „Bereits: <Standort> · <Bereich> · <Skill>". Verhindert Doppelbelegung über Bereiche/Standorte.
+
+D-7 (Periodensperre): Schreiboperationen prüfen assertShiftDateUnlocked gegen die periods-Tabelle (26.–25.-Rhythmus). Liegt das shift_date in einer locked-Periode → Fehler, keine Änderung.
+
+Datenmigration (erledigt)
+
+4498 Schichten aus thaitime schedule_entries nach roster_shifts migriert (41 Mitarbeiter über Nickname gemappt; Standort- und Skill-Mapping siehe ARBEITSWEISE.md). Alle als confirmed. „19 Uhr", Service 3/4 hatten keine realen Einträge.
+
+Bauschritte
+
+D1 — Schema roster_shifts + Read-only-Grid
+
+D2a — Schreib-Functions + Klick-Editor (Popover) + Realtime
+
+D2c — Service-Symbol-Darstellung (service-marker.ts)
+
+D2d — GL-Bereinigung (gl→service, kein GESCHÄFTSLEITUNG-Abschnitt)
+
+D2e — Cross-Booking-Warnung (roter Punkt + Tooltip)
+
+Erfolgs-Gate (erfüllt)
+
+tsc, eslint --max-warnings=0, vitest grün (566 Tests). Grid zeigt migrierte Schichten korrekt; Editor legt an/ändert/löscht; Realtime live; Cross-Booking-Punkt sichtbar.
+
+Offen — Dienstplan
+
+D3 — Öffentliches Display (/display/:slug?token=…, Edge Function, Auto-Refresh, Bereichs-Rotation, Legende X/–/U/K/B/♡, Geburtstags-Banner) nach thaitime-Vorlage (ScheduleDisplay.tsx).
+
+Offene Module insgesamt (Stand 14.06.2026)
+
+Erledigt: M0 Kern, M1 Zeiterfassung, M2 Kasse, M3 Dienstplan (außer D3).
+
+Noch offen, grob nach Aufwand/Abhängigkeit:
+
+ModulQuelle der WahrheitInhaltPrioritätZeit-ResttagesabrechnungBrutto/Netto (SFN, Steuerklassen, Minijob/SV), Provision (wochenbasiert)hoch — rechnet auf bestehende Zeit-/KassendatenM4 Lohn/HRthaitime + bunkerNettolohn (gegen BMF-Referenz testen), Payslips, Dokumentengenerierung (Vertrag/Zeugnis), Onboarding-Historie, AbmahnungenhochM5 BestellwesenbestellungGrößter Datenumzug: Artikel, Lieferanten, Bestellhistorie, B2B-Lieferanten-/Kunden-Portale (Magic Links), KI-Katalog-/Rechnungsimport, Voice (ElevenLabs)groß, aber bestellungläuft solide alleine weiter → kann späterM6 Wein & GästebunkerWeinkarte, Quiz, öffentlicher Token-KatalogniedrigM7 InventurbunkerInventur-ErfassungniedrigM8 KommunikationthaitimeMessaging, Telegram-Bot, Benachrichtigungs-Dispatcher (in-App/Push/E-Mail/Telegram)Querschnitt
+
+Reihenfolge-Empfehlung: Zeit-Rest (Brutto/Netto + Provision) → M4 Lohn/HR → D3 Display → M5 Bestellwesen → M6/M7/M8. Begründung wie im Hauptdokument: Lohn rechnet auf Zeit-/Kassendaten (müssen zuerst stehen); bestellung ist die einzige Alt-App die autark weiterläuft, daher M5 unter den großen zuletzt.
