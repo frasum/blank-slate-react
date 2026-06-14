@@ -440,6 +440,7 @@ function DienstplanPage() {
 
   return (
     <div className="space-y-6">
+      <TooltipProvider delayDuration={150}>
       <header className="flex flex-wrap items-end gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Dienstplan</h1>
@@ -549,6 +550,9 @@ function DienstplanPage() {
                           const shift = shiftIndex.get(`${row.staffId}|${iso}|${area}`);
                           const cellKey = `${row.staffId}|${iso}|${area}`;
                           const editable = canEdit && !periodLocked;
+                          const otherBookings = !shift
+                            ? bookingsByStaffDate.get(`${row.staffId}|${iso}`) ?? []
+                            : [];
                           const cellBody = shift ? (
                             <PillVisual shift={shift} area={area} />
                           ) : (
@@ -557,7 +561,7 @@ function DienstplanPage() {
                           return (
                             <td
                               key={iso}
-                              className={`px-0.5 py-1 text-center ${
+                              className={`relative px-0.5 py-1 text-center ${
                                 we ? "bg-muted/40" : ""
                               } ${isToday ? "bg-primary/5" : ""}`}
                             >
@@ -588,6 +592,26 @@ function DienstplanPage() {
                               ) : (
                                 cellBody
                               )}
+                              {otherBookings.length > 0 && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span
+                                      className="absolute right-0.5 top-0.5 inline-block h-1.5 w-1.5 rounded-full bg-red-500"
+                                      aria-label="Bereits anderswo eingeteilt"
+                                    />
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-xs">
+                                    <div className="space-y-0.5 text-xs">
+                                      {otherBookings.map((b, i) => (
+                                        <div key={i}>
+                                          Bereits: {b.locationName} · {AREA_SHORT[b.area]}
+                                          {b.skillName ? ` · ${b.skillName}` : ""}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
                             </td>
                           );
                         })}
@@ -610,6 +634,7 @@ function DienstplanPage() {
           </table>
         </Card>
       )}
+      </TooltipProvider>
     </div>
   );
 }
