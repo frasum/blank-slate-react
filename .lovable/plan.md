@@ -1212,3 +1212,200 @@ separater Commit.
    (`current_business_date()`) statt z. B. `2026-01-01`? Empfehlung:
    heute, damit klar erkennbar „Schätzwert, bitte nachtragen" —
    bestätigt?
+
+---
+
+# Personaldaten Welle 2 — sensible Daten aus thaitime
+
+Übernahme der sensiblen Personaldaten (Adresse, Kontakt, Geburtstag,
+Lohnsteuer/SV, Bank, Vertrag, Urlaub) aus dem Altsystem `thaitime` nach
+COCO. Architektur exakt nach Vorbild `importStaffPersonalData` (Welle 1):
+`createServerFn`-Stack unter `src/lib/admin/`, Dry-Run + Commit + Audit,
+keine Edge Function.
+
+## Datengrundlage (verifiziert)
+
+- Brücke: `thaitime.employees.personnel_number` (Text mit führenden
+  Nullen, z. B. `"000006"`) → als Integer geparst → `staff.perso_nr` aus
+  Welle 1. **Rein numerisch, kein Namens-Raten.**
+- 38 von 39 thaitime-MA matchen exakt, Namen stimmen bei gematchten
+  Nummern überein. 1 Dummy (`personnel_number=123456`, NET, ohne Daten)
+  wird übersprungen. 4 COCO-MA haben keine thaitime-Daten (kein Fehler).
+- Füllgrade variieren: `address` 38/39, `date_of_birth` 38/39, `email`
+  35/39, `phone` nur 17/39 — leere Werte werden **nicht** geschrieben.
+
+## Teil A — Migration: `public.staff_personal_details`
+
+Neue Tabelle, additiv, eigene strenge RLS.
+
+Spalten:
+- `id uuid PK default gen_random_uuid()`
+- `staff_id uuid NOT NULL UNIQUE REFERENCES staff(id) ON DELETE CASCADE`
+- `organization_id uuid NOT NULL` (für RLS, wie `staff_compensation`)
+- Kontakt: `phone text`, `email text`, `address text` (ein Freitextfeld
+  — thaitime liefert Adresse nicht aufgeteilt)
+- Person: `date_of_birth date`, `place_of_birth text`, `salutation text`,
+  `nationality text`
+- Steuer/SV: `tax_class text CHECK (tax_class IN ('I','II','III','IV','V','VI'))`,
+  `tax_id text`, `social_security_number text`, `is_minijob boolean`,
+  `is_sv_exempt boolean`, `health_insurance text`,
+  `church_tax_liable boolean`, `child_tax_allowances numeric`
+- Bank: `iban text`, `bank_name text`, `account_holder text`
+- Vertrag: `employment_start_date date`, `employment_end_date date`,
+  `personnel_group text`, `job_title text`
+- Urlaub: `vacation_days_contractual int`,
+  `vacation_days_previous_year int`, `vacation_days_current_year int`,
+  `vacation_days_taken int`
+- `created_at`, `updated_at timestamptz NOT NULL default now()` +
+  `tg_set_updated_at`-Trigger
+
+Alle Felder außer `staff_id`/`organization_id` nullable.
+
+GRANTs (Standardstruktur, Reihenfolge: CREATE → GRANT → ENABLE RLS →
+POLICY):
+- `GRANT SELECT ON public.staff_personal_details TO authenticated;`
+  (Schreibrechte bewusst NICHT an `authenticated`, damit Client gar nicht
+  schreiben **kann** — DENY-by-default via fehlende Policies + Privileg)
+- `GRANT ALL ON public.staff_personal_details TO service_role;`
+- Kein `anon`-Grant.
+
+RLS (streng, Vorbild `staff_compensation`):
+- RLS enabled.
+- `SELECT`-Policy `details_select_manager`:
+  `has_min_permission('manager') AND organization_id = current_organization_id()`.
+- **Keine** `INSERT`/`UPDATE`/`DELETE`-Policies — alle Writes
+  ausschließlich über Service-Role in der Server-Function.
+- Kein anon-Zugriff.
+
+Hinweis: Tabelle ist neu und leer → keine Seed-Trigger-Kollision wie bei
+`locations`/`organizations`. Bestehende Tests bleiben grün (additive
+Tabelle, kein bestehender Code referenziert sie).
+
+## Teil B — `importStaffPersonalDetails` (createServerFn-Stack)
+
+Dateien (parallel zu Welle 1):
+- `src/lib/admin/import-details.ts` — pures Mapping/Diff
+  (`computeDetailsPlan`), keine I/O.
+- `src/lib/admin/import-details-core.ts` — I/O-Orchestrierung
+  (`runImportDetailsCore`, lädt staff via `perso_nr`, UPSERT in
+  `staff_personal_details`).
+- `src/lib/admin/import-details.functions.ts` —
+  `importStaffPersonalDetails` (Admin-only via `runGuarded`, Audit via
+  `writeAuditLog`, Modi `dry_run`|`commit`).
+- `src/lib/admin/import-details-csv.ts` — Semikolon-Parser, BOM-Strip,
+  Trim, leere Zellen → `null`, deutsche Boolean (`ja`/`nein`/`1`/`0`),
+  Dezimal-Komma → Punkt für `child_tax_allowances`.
+- `src/lib/admin/import-details.test.ts` — Unit-Tests.
+- `src/lib/admin/import-details.db.test.ts` — DB-Integrationstests.
+
+### Eingabe pro Zeile
+
+`{ personnelNumber, firstName, lastName, salutation, phone, email,
+address, dateOfBirth, placeOfBirth, nationality, taxClass, taxId,
+socialSecurityNumber, isMinijob, isSvExempt, healthInsurance,
+churchTaxLiable, childTaxAllowances, iban, bankName, accountHolder,
+employmentStartDate, employmentEndDate, personnelGroup, jobTitle,
+vacationDaysContractual, vacationDaysPreviousYear,
+vacationDaysCurrentYear, vacationDaysTaken }`
+
+### Auflösung Personalnummer → staff_id
+
+- `personnelNumber` (Text mit führenden Nullen) → `parseInt(..., 10)` →
+  Suche `staff.perso_nr = <int>` in der Org.
+- Kein Treffer (z. B. Dummy `123456`) → `skippedRows` mit
+  `reason='unknown_personnel_number'`.
+- Mehrere Treffer oder `perso_nr IS NULL` → `skippedRows` mit
+  `reason='ambiguous_or_null_perso_nr'`. **Nicht raten.**
+
+### UPSERT-Semantik
+
+- Unique-Key `staff_id` → existiert Zeile → `update`, sonst `insert`.
+- **Leere CSV-Werte werden NICHT geschrieben** (defensiv, gleiche Logik
+  wie Welle-1-`perso_nr`-Schutz). Bestehende Nicht-NULL-Werte bleiben
+  bei leerer CSV-Zelle unberührt.
+- `valid_from`-Analogie entfällt — Tabelle ist nicht historisiert.
+
+### Dry-Run-Bericht
+
+- Pro MA: Name + Personalnummer + Liste der Felder, die gesetzt würden
+  (Feldname + alt/neu-Diff). **Sensible Werte (`iban`,
+  `social_security_number`, `tax_id`) werden MASKIERT** — angezeigt wird
+  nur „gesetzt"/„vorhanden"/„unverändert", nie der Wert.
+- Bilanz: `rows`, `staff`, `inserts`, `updates`, `skippedCount`, pro
+  `skipped` der Grund.
+- Erwartet: 38 MA · X Inserts · Y Updates · 1 skipped (Dummy 123456).
+
+### Commit + Audit
+
+- `runGuarded(caller.role, 'admin', writeAudit, …)`.
+- `writeAuditLog`-meta enthält **ausschließlich Zähler + Feldnamen-
+  Listen** (keine sensiblen Werte im Klartext). `inputHash` über
+  `hashDetailsInput` (sha256, wie Welle 1).
+- Commit mit Bilanz 0/0/0 → kein Audit-Eintrag (Log-Hygiene, wie Welle 1).
+- Idempotent: zweiter Lauf mit identischer CSV → 0 Inserts/Updates.
+
+## Teil C — UI
+
+Dritter Abschnitt „Personaldaten (Welle 2 — sensibel)" auf
+`/admin/import-zuordnungen` (eigene React-Komponente `DetailsSection`,
+analog `PersonalSection`):
+- Eigener CSV-Upload, Parser-Anzeige (Zeilen, Warnungen).
+- Dry-Run-Pflicht → Commit-Button disabled bis Dry-Run gelaufen.
+- `window.confirm` mit Bilanz vor Commit.
+- Bericht zeigt sensible Felder ausschließlich maskiert
+  (`"●●●● gesetzt"` statt Wert).
+
+## DB-Tests (a)–(g)
+
+(a) PN-Brücke: thaitime `"000006"` → `6` → korrekter `staff_id`.
+(b) Dummy `123456` → `skippedRows` mit `unknown_personnel_number`, kein
+    Insert.
+(c) UPSERT insert: neue MA → 1 Insert in `staff_personal_details`.
+(d) UPSERT update: zweiter Lauf mit geänderter `phone` → 1 Update, keine
+    weiteren Felder berührt.
+(e) Leere Werte nicht überschrieben: bestehende `iban` bleibt, wenn CSV
+    `iban`-Zelle leer ist.
+(f) Bericht maskiert: `plan.perStaff[*].sensitiveDiff` enthält nur
+    `"set"`/`"unchanged"`, niemals den IBAN-Klartext.
+(g) RLS-Wall: `staff`-Rolle SELECT auf `staff_personal_details` → 0
+    Zeilen / forbidden; Client-Insert (Publishable-Key, authenticated)
+    → permission denied. Nicht-Admin Aufruf der Function → `Forbidden`,
+    kein Audit-Eintrag.
+
+## Offene Fragen
+
+1. **`personnel_group`/`job_title`-Werte aus thaitime** (z. B.
+   „Aushilfe"/„Vollzeit", „Koch"/„Service") 1:1 als Freitext übernehmen
+   oder gegen ein Enum normalisieren? Empfehlung: **1:1 als Freitext**
+   (Welle 2 ist reine Übernahme, Normalisierung folgt separat) —
+   bestätigt?
+2. **`employment_start_date`** liegt auch in `staff_compensation.valid_from`
+   (Welle 1, ggf. mit „heute"-Fallback). Soll Welle 2 bei vorhandenem
+   echten Eintrittsdatum den `valid_from` der bestehenden
+   `staff_compensation`-Zeile rückwirkend **korrigieren**? Empfehlung:
+   **nein, separater Schritt** — Welle 2 schreibt nur in
+   `staff_personal_details`, `staff_compensation` bleibt unberührt; ein
+   späteres „valid_from-Backfill" wird eigenständig geplant — bestätigt?
+3. **Sensible Felder im Maskierungs-Set**: aktuell `iban`,
+   `social_security_number`, `tax_id`. `date_of_birth` und `address`
+   ebenfalls maskieren (auch sensibel) oder als „normale" Diff-Anzeige
+   belassen (sind für Plausibilitätsprüfung im Dry-Run praktisch
+   sichtbar)? Empfehlung: **nicht maskieren** — Admin braucht im
+   Dry-Run die Sichtkontrolle, der Audit-Log enthält ohnehin keine
+   Werte. Bestätigt?
+
+## Nicht in Welle 2
+
+- Anzeige/Bearbeitung der Details in der MA-Detail-UI (separater
+  Bauplan-Schritt).
+- Export/PDF/Lohn-Schnittstelle.
+- `staff_compensation.valid_from`-Backfill (siehe Frage 2).
+- Historisierung der Details (aktuell ein Zeile/MA; falls später nötig,
+  eigene `*_history`-Tabelle).
+
+## Erfolgs-Gate
+
+Migration sauber, RLS-Wall greift (Nicht-Manager sieht 0 Zeilen, Client
+kann nicht schreiben), Dry-Run zeigt 38/1/… korrekt, Commit idempotent,
+sensible Werte nirgends im Bericht/Audit im Klartext. `eslint --fix` vor
+Commit. CI `check` + `db-integration` grün.
