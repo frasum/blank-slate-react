@@ -1053,3 +1053,162 @@ Eine Datei, idempotent:
 3. Soll der Commit auch eine Zeile `staff.import_assignments` ins
    Audit schreiben, wenn die Bilanz 0/0/0 ist? Empfehlung: nein
    (Log-Hygiene) — bestätigt?
+
+---
+
+## Personaldaten Welle 1 — echte Namen + Lohnbasis (42 MA)
+
+Übernahme aus tagesabrechnung-Alt-`staff` (CSV-Export, 43 Zeilen). Architektur
+exakt nach Vorbild von `importStaffAssignments` (createServerFn-Stack unter
+`src/lib/admin/`, Dry-Run + Commit + Audit). **Keine** Edge Function.
+
+Quellfelder pro Zeile: `alt_staff_id`, `first_name`, `last_name`, `nickname`,
+`perso_nr`, `hourly_rate`, `employment_start`. `contracted_hours` ist im Alt
+bei allen leer (Spalte wird trotzdem angelegt, bleibt NULL).
+
+Erwartete Bilanz: **42 MA · 42 staff-Updates · 42 comp-UPSERTs · 1 skipped**
+(der namenlose Geist-Datensatz `6756a58e…`, ohne `staff_identity_map`-Treffer).
+
+### Teil A — Migration (Schema)
+
+Eine Datei, reine Spalten-Ergänzung an `public.staff`:
+
+- `ADD COLUMN perso_nr integer NULL`
+- `ADD COLUMN contracted_hours_per_month numeric NULL`
+
+Keine neuen Tabellen, keine RLS-Änderung, kein neuer Trigger.
+`staff_compensation` (mit `hourly_rate`, `valid_from`, Unique auf `staff_id`)
+existiert bereits und bleibt unverändert. Bestehende staff-Tests bleiben
+unbeeinflusst (additive Spalten, NULL-default).
+
+### Teil B — `importStaffPersonalData` (Server-Fn-Stack)
+
+Fünf Dateien analog zu `importStaffAssignments`:
+
+- `src/lib/admin/import-personal.ts` — pures Mapping/Diff, keine I/O.
+  Eingabe je Zeile:
+  `{ altStaffId, firstName, lastName, nickname, persoNr, hourlyRate, employmentStart }`.
+  Liefert `PersonalPlan` mit `perStaff[]` (Felder vorher/nachher, Flag
+  `compFallback`) + `skippedRows[]` + `totals`.
+- `src/lib/admin/import-personal-core.ts` — I/O. Auflösung über
+  `staff_identity_map` (gleiche Logik wie `import-assignments-core.ts`),
+  lädt bestehende `staff`- und `staff_compensation`-Zeilen, ruft das
+  Mapping, schreibt im Commit-Pfad. Schreibt **kein** audit_log selbst.
+- `src/lib/admin/import-personal.functions.ts` — `createServerFn`,
+  `.middleware([requireSupabaseAuth])`, `runGuarded(caller, 'admin', …)` +
+  `writeAuditLog`, `mode: 'dry_run' | 'commit'`. Bei 0/0/0 kein Audit
+  (Log-Hygiene wie bei Assignments).
+- `src/lib/admin/import-personal.test.ts` — Unit (rein).
+- `src/lib/admin/import-personal.db.test.ts` — DB-Integration.
+
+#### Verarbeitung je Zeile
+
+1. `altStaffId` → COCO `staff_id` via `staff_identity_map`
+   (`source_system='tagesabrechnung'`, `confirmed_at NOT NULL`).
+   Kein Treffer → `skippedRows` mit `reason='unknown_alt_staff'`. Der
+   Geist landet hier (erwartet).
+2. `staff`-Update (nur wenn Diff vorhanden):
+   - `first_name` 1:1 aus CSV, **inkl.** Klammer-Spitzname wie
+     `"Phattanaphol (ANDI)"` — nicht aufsplitten, nicht rausparsen.
+   - `last_name` 1:1.
+   - `display_name` = alt `nickname` (1:1, auch bei leer → leer).
+   - `perso_nr` 1:1 (integer; leer in CSV → NULL).
+3. `staff_compensation`-UPSERT (Unique auf `staff_id`):
+   - `hourly_rate` 1:1, **auch `0`** (NET hat 0 — bewusst, keine
+     Sonderbehandlung, kein Skip).
+   - `valid_from = employment_start` aus CSV.
+   - Fallback: `employment_start` leer (Andre, NET) →
+     `valid_from = current_business_date()` (heute, in Berlin-TZ via
+     bestehender DB-Function). Im `PersonalPlan` als
+     `compFallback: true` markiert, im Dry-Run-Bericht hervorgehoben.
+   - Eintrag existiert (per `staff_id`) → UPDATE; sonst INSERT.
+
+#### Eingabe-Schema (Zod, in `import-personal.functions.ts`)
+
+```ts
+{
+  rows: [{ altStaffId: string, firstName: string, lastName: string,
+           nickname: string, persoNr: number|null,
+           hourlyRate: number, employmentStart: string|null }],
+  mode: 'dry_run' | 'commit',
+  sourceSystem: 'tagesabrechnung'  // default
+}
+```
+
+#### Bericht (`PersonalPlan`)
+
+- `totals`: `staff`, `nameUpdates`, `compInserts`, `compUpdates`,
+  `compFallbacks`, `skippedCount`.
+- `perStaff[]`: `staffId`, `nameDiff` (alt → neu pro Feld),
+  `compDiff` (alt → neu Lohn + valid_from), `compFallback`.
+- `skippedRows[]`: `{ reason, altStaffId, … }`.
+
+#### Idempotenz & Audit
+
+- Zweiter Commit identischer Eingabe = 0 Schreib-Ops, kein Audit.
+- Audit-Eintrag (nur bei Schreib-Bilanz > 0):
+  `action='staff.import_personal_data'`, `entity='staff'`, `meta` mit
+  Zählern + `inputHash` (gleicher `hashInput`-Helper wie Assignments).
+
+### Teil C — UI-Erweiterung
+
+Bestehende Route `/admin/import-zuordnungen` um einen zweiten Abschnitt
+**„Personaldaten (Welle 1)"** erweitern (Datei bleibt
+`src/routes/_authenticated/admin/import-zuordnungen.tsx`):
+
+- Eigener CSV-Upload (Spalten siehe Quellfelder, Semikolon-Trenner, BOM-Strip).
+- Eigener Parser unter `src/lib/admin/import-personal-csv.ts` + Unit-Test.
+- Eigener Dry-Run-Button → eigener Commit-Button (disabled bis Dry-Run
+  durchlief und `window.confirm` mit Bilanz bestätigt wurde).
+- Bericht analog `PlanReport`, mit Fallback-Markierung.
+- Beide Abschnitte unabhängig (eigene `useMutation`-Paare).
+
+### Tests
+
+- **Unit (`import-personal.test.ts`)**:
+  (a) Namens-Update inkl. Klammer-Spitzname bleibt erhalten;
+  (b) `hourlyRate=0` wird als UPSERT geschrieben, nicht geskippt;
+  (c) `employment_start` leer → `compFallback=true`, `valid_from=heute`;
+  (d) unbekannte `altStaffId` → `skippedRows`;
+  (e) Idempotenz: zweiter Lauf mit identischer Eingabe + gleichem
+      Bestand liefert 0 Ops.
+- **DB (`import-personal.db.test.ts`)**:
+  (f) Namen-Update inkl. Klammer-Spitzname tatsächlich in `staff` sichtbar;
+  (g) `staff_compensation` UPSERT-Pfad: erst INSERT (neuer MA), dann
+      UPDATE (geänderter Stundenlohn) — Unique `staff_id` greift;
+  (h) `valid_from`-Fallback bei leerem `employment_start`;
+  (i) Geist (kein identity_map-Treffer) → `skippedRows`,
+      `staff`/`staff_compensation` unverändert;
+  (j) Role-Guard: non-admin Aufruf wirft `ForbiddenError`, kein
+      Schreibvorgang, kein Audit-Eintrag.
+- **CSV-Parser-Test** (`import-personal-csv.test.ts`):
+  Klammer-Spitzname bleibt im `first_name`-Feld; leere `hourly_rate` →
+  Fehler/Warnung (Pflichtfeld); leeres `employment_start` ist erlaubt.
+
+### Explizit NICHT in Welle 1
+
+SV-Nummer, `tax_id`, IBAN/BIC, `date_of_birth`, Adresse, Krankenkasse,
+`employment_type`, Urlaubs-/Kranktage-Salden → **Welle 2**, eigenes
+Schema mit strengerer RLS (z. B. nur Admin lesend), separater Plan,
+separater Commit.
+
+### Erfolgs-Gate
+
+- Migration additiv, idempotent, ohne RLS-Aufweichung.
+- `eslint --fix` vor Commit, `tsc` grün.
+- CI `check` + `db-integration` grün inkl. (a)–(j).
+- Bilanz im Dry-Run mit den echten 43 Zeilen: 42 MA / 42 staff-Updates /
+  42 comp-UPSERTs / 1 skipped (Geist). Abweichung → melden, nicht
+  schlucken.
+
+### Offene Fragen vor Bau-Freigabe
+
+1. `display_name` = `nickname` 1:1 (auch leer übernehmen) — bestätigt?
+   Alternative: bei leerem `nickname` `display_name` unangetastet lassen.
+2. `perso_nr` leer in CSV → NULL schreiben (überschreibt ggf. bestehende
+   Nicht-NULL) oder bei leer **nicht** anfassen? Empfehlung: bei leer
+   **nicht** anfassen (defensiv, kein Datenverlust) — bestätigt?
+3. Fallback-Datum bei fehlendem `employment_start`: heute
+   (`current_business_date()`) statt z. B. `2026-01-01`? Empfehlung:
+   heute, damit klar erkennbar „Schätzwert, bitte nachtragen" —
+   bestätigt?
