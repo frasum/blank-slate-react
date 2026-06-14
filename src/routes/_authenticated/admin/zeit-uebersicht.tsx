@@ -203,6 +203,10 @@ function ZeitUebersichtPage() {
   const callUpsert = useServerFn(upsertPayrollNote);
   const callSetShift = useServerFn(setTimeEntryShift);
   const callCreateShift = useServerFn(createTimeEntryShift);
+  const fetchPeriods = useServerFn(listPeriods);
+  const callCreatePeriod = useServerFn(createPeriod);
+  const callToggleLock = useServerFn(togglePeriodLock);
+  const callDeletePeriod = useServerFn(deletePeriod);
 
   const locationsQ = useQuery({
     queryKey: ["admin-locations"],
@@ -211,8 +215,22 @@ function ZeitUebersichtPage() {
   const [locationId, setLocationId] = useState<string>("");
   const effectiveLocationId = locationId || locationsQ.data?.[0]?.id || "";
 
-  const [fromDate, setFromDate] = useState<string>(firstOfMonthIso());
-  const [toDate, setToDate] = useState<string>(todayIso());
+  // Periodenwahl
+  const periodsQ = useQuery({
+    queryKey: ["periods"],
+    queryFn: () => fetchPeriods(),
+  });
+  const periods = periodsQ.data ?? [];
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>("");
+  const effectivePeriodId =
+    selectedPeriodId || periods[0]?.id || "";
+  const selectedPeriod = periods.find((p) => p.id === effectivePeriodId);
+
+  // Fallback: freie Daten, wenn keine Periode existiert.
+  const [manualFrom, setManualFrom] = useState<string>(firstOfMonthIso());
+  const [manualTo, setManualTo] = useState<string>(todayIso());
+  const fromDate = selectedPeriod ? selectedPeriod.startDate : manualFrom;
+  const toDate = selectedPeriod ? selectedPeriod.endDate : manualTo;
 
   // Wochenplan: aktuelle Woche (Montag).
   const [weekStart, setWeekStart] = useState<string>(() =>
