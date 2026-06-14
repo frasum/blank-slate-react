@@ -156,9 +156,7 @@ describe.skipIf(!dbTestsEnabled)("importStaffPersonalDetails — DB (Welle 2)", 
 
     const staffUser = await org.mkUser("staff");
     const sClient = await signInAsUser(staffUser.email, staffUser.password);
-    const { data: rows, error: selErr } = await sClient
-      .from("staff_personal_details")
-      .select("id");
+    const { data: rows, error: selErr } = await sClient.from("staff_personal_details").select("id");
     expect(selErr).toBeNull();
     expect(rows ?? []).toEqual([]);
 

@@ -1,10 +1,6 @@
 // Unit-Tests für das reine Details-Mapping (Welle 2) + CSV-Parser.
 import { describe, it, expect } from "vitest";
-import {
-  computeDetailsPlan,
-  type CurrentDetailsRow,
-  type DetailsRowInput,
-} from "./import-details";
+import { computeDetailsPlan, type CurrentDetailsRow, type DetailsRowInput } from "./import-details";
 import { parseDetailsCsv } from "./import-details-csv";
 
 const STAFF_A = "staff-a";
@@ -189,9 +185,7 @@ describe("parseDetailsCsv", () => {
 
   it("leere Zellen → null, kein Schreiben (Pflichtfelder erzwingen Skip)", () => {
     const csv =
-      "personnel_number;first_name;last_name;phone;iban\n" +
-      "6;Andi;S;;\n" +
-      ";Geist;G;;";
+      "personnel_number;first_name;last_name;phone;iban\n" + "6;Andi;S;;\n" + ";Geist;G;;";
     const r = parseDetailsCsv(csv);
     expect(r.rows).toHaveLength(1);
     expect(r.rows[0].phone).toBeNull();
