@@ -28,17 +28,24 @@ export type ImportPersonalCoreResult = {
   plan: PersonalPlan;
 };
 
-async function resolveFallbackDate(admin: SupabaseClient<Database>): Promise<string> {
-  // current_business_date() liefert Berlin-TZ minus 3h. Liegt als
-  // SQL-Function vor; wir wrappen es zur Test-Stabilität in ein SELECT.
-  const { data, error } = await admin
-    .rpc("current_business_date" as never)
-    .single<string>();
-  if (error || !data) {
-    // Fallback auf System-UTC-Datum (sollte praktisch nie greifen).
-    return new Date().toISOString().slice(0, 10);
-  }
-  return typeof data === "string" ? data : String(data);
+/**
+ * Spiegelt die DB-Function `current_business_date()`:
+ *   ((now() AT TIME ZONE 'Europe/Berlin') - interval '3 hours')::date
+ * Bewusst clientseitig berechnet (kein RPC), damit das Modul ohne zusätzliche
+ * RPC-Type-Generierung und ohne Round-Trip auskommt.
+ */
+function computeBerlinBusinessDate(now: Date = new Date()): string {
+  const shifted = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Berlin",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(shifted);
+  const y = parts.find((p) => p.type === "year")!.value;
+  const m = parts.find((p) => p.type === "month")!.value;
+  const d = parts.find((p) => p.type === "day")!.value;
+  return `${y}-${m}-${d}`;
 }
 
 export async function runImportPersonalCore(
@@ -99,9 +106,8 @@ export async function runImportPersonalCore(
     }
   }
 
-  // 3) Fallback-Datum (heute, Berlin-TZ via DB-Function)
-  const fallbackValidFrom =
-    input.fallbackValidFrom ?? (await resolveFallbackDate(admin));
+  // 3) Fallback-Datum (heute, Berlin-TZ — gleiche Formel wie DB-Function)
+  const fallbackValidFrom = input.fallbackValidFrom ?? computeBerlinBusinessDate();
 
   const plan = computePersonalPlan({
     rows: input.rows,
