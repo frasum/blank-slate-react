@@ -46,6 +46,7 @@ import {
   finalizeSession,
   getCashOverview,
   getOrCreateOpenSession,
+  getTipPoolOverview,
   listPaymentTerminals,
   listRevenueChannels,
   lockSession,
