@@ -489,3 +489,90 @@ export const upsertPayrollNote = createServerFn({ method: "POST" })
       };
     });
   });
+
+// =========================================================================
+// B6b — Wochenplan (Wochen-Ansicht für genau eine ISO-Woche)
+// =========================================================================
+
+export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        locationId: z.string().uuid(),
+        weekStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // weekEnd = weekStart + 6 Tage (Sonntag)
+    const start = new Date(`${data.weekStart}T12:00:00Z`);
+    const end = new Date(start);
+    end.setUTCDate(end.getUTCDate() + 6);
+    const weekEnd = end.toISOString().slice(0, 10);
+
+    // 1. Einträge am Zielstandort.
+    const { data: rows, error } = await supabaseAdmin
+      .from("time_entries")
+      .select(
+        "id, staff_id, started_at, ended_at, business_date, location_id, staff(display_name)",
+      )
+      .eq("organization_id", caller.organizationId)
+      .eq("location_id", data.locationId)
+      .gte("business_date", data.weekStart)
+      .lte("business_date", weekEnd)
+      .not("ended_at", "is", null)
+      .order("started_at", { ascending: true });
+    if (error) throw error;
+
+    // 2. Einträge an ANDEREN Standorten in derselben Woche (gesamte Org).
+    const { data: crossRows, error: crossErr } = await supabaseAdmin
+      .from("time_entries")
+      .select("staff_id, business_date, location_id")
+      .eq("organization_id", caller.organizationId)
+      .neq("location_id", data.locationId)
+      .gte("business_date", data.weekStart)
+      .lte("business_date", weekEnd)
+      .not("ended_at", "is", null);
+    if (crossErr) throw crossErr;
+
+    // 3. Abteilungen für diesen Standort.
+    const { data: deptRows, error: deptErr } = await supabaseAdmin
+      .from("staff_locations")
+      .select("staff_id, department")
+      .eq("organization_id", caller.organizationId)
+      .eq("location_id", data.locationId);
+    if (deptErr) throw deptErr;
+    const deptByStaff = new Map<string, "kitchen" | "service" | "gl">();
+    for (const d of deptRows ?? []) {
+      deptByStaff.set(d.staff_id, d.department as "kitchen" | "service" | "gl");
+    }
+
+    const crossLocationDates: Record<string, string[]> = {};
+    for (const c of crossRows ?? []) {
+      const key = c.staff_id as string;
+      const date = c.business_date as string;
+      const arr = crossLocationDates[key] ?? [];
+      if (!arr.includes(date)) arr.push(date);
+      crossLocationDates[key] = arr;
+    }
+
+    return {
+      weekStart: data.weekStart,
+      weekEnd,
+      entries: (rows ?? []).map((r) => ({
+        id: r.id as string,
+        staffId: r.staff_id as string,
+        displayName:
+          (r.staff as { display_name: string } | null)?.display_name ?? "—",
+        department: deptByStaff.get(r.staff_id as string) ?? ("service" as const),
+        businessDate: r.business_date as string,
+        startedAt: r.started_at as string,
+        endedAt: r.ended_at as string,
+      })),
+      crossLocationDates,
+    };
+  });
