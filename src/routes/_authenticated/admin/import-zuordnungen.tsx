@@ -15,10 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { importStaffAssignments } from "@/lib/admin/import-assignments.functions";
 import { parseImportCsvs, type ParseResult } from "@/lib/admin/import-zuordnungen-csv";
 import { importStaffPersonalData } from "@/lib/admin/import-personal.functions";
-import {
-  parsePersonalCsv,
-  type PersonalParseResult,
-} from "@/lib/admin/import-personal-csv";
+import { parsePersonalCsv, type PersonalParseResult } from "@/lib/admin/import-personal-csv";
 
 export const Route = createFileRoute("/_authenticated/admin/import-zuordnungen")({
   head: () => ({ meta: [{ title: "Zuordnungen importieren" }] }),
@@ -318,9 +315,8 @@ function PersonalSection() {
           Personaldaten (Welle 1)
         </h2>
         <p className="text-sm text-muted-foreground">
-          Übernahme von echten Vor-/Nachnamen, Personalnummern und Stundenlöhnen
-          aus der Tagesabrechnung. Leeres Eintrittsdatum → Fallback auf heute
-          (im Bericht markiert).
+          Übernahme von echten Vor-/Nachnamen, Personalnummern und Stundenlöhnen aus der
+          Tagesabrechnung. Leeres Eintrittsdatum → Fallback auf heute (im Bericht markiert).
         </p>
       </div>
 
@@ -349,9 +345,7 @@ function PersonalSection() {
             </div>
             {parseOk.warnings.length > 0 && (
               <details className="rounded-md border border-border bg-muted/30 p-2">
-                <summary className="cursor-pointer text-sm font-medium">
-                  Warnungen ansehen
-                </summary>
+                <summary className="cursor-pointer text-sm font-medium">Warnungen ansehen</summary>
                 <ul className="mt-2 list-disc space-y-1 pl-5 text-xs">
                   {parseOk.warnings.map((w, i) => (
                     <li key={i}>
