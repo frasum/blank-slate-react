@@ -723,7 +723,7 @@ function SessionFieldsCard({
     const so = parseEuroToCents(misc.sonstige);
     const ve = parseEuroToCents(misc.vectron);
     const caRaw = misc.cashActual.trim();
-    const ca = caRaw === "" ? null : parseEuroToCents(caRaw);
+    const caParsed = caRaw === "" ? null : parseEuroToCents(caRaw);
     if (
       vs === null ||
       vr === null ||
@@ -733,7 +733,7 @@ function SessionFieldsCard({
       ei === null ||
       so === null ||
       ve === null ||
-      ca === null
+      (caRaw !== "" && caParsed === null)
     )
       return null;
     return {
@@ -747,7 +747,7 @@ function SessionFieldsCard({
       einladungCents: ei,
       sonstigeEinnahmeCents: so,
       vectronDailyTotalCents: ve,
-      cashActualCents: caRaw === "" ? null : ca,
+      cashActualCents: caParsed,
       notes: misc.notes.trim() === "" ? null : misc.notes,
     };
   }
