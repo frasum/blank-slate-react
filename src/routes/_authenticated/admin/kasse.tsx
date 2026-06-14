@@ -630,6 +630,8 @@ type UpdatePayload = {
   vorschussCents: number;
   einladungCents: number;
   sonstigeEinnahmeCents: number;
+  vectronDailyTotalCents: number;
+  cashActualCents: number | null;
   notes: string | null;
 };
 
@@ -666,6 +668,8 @@ function SessionFieldsCard({
     vorschuss: string;
     einladung: string;
     sonstige: string;
+    vectron: string;
+    cashActual: string;
     notes: string;
   };
   const initialMisc: Misc = {
@@ -676,6 +680,11 @@ function SessionFieldsCard({
     vorschuss: (Number(sess.vorschuss_cents ?? 0) / 100).toFixed(2),
     einladung: (Number(sess.einladung_cents ?? 0) / 100).toFixed(2),
     sonstige: (Number(sess.sonstige_einnahme_cents ?? 0) / 100).toFixed(2),
+    vectron: (Number(sess.vectron_daily_total_cents ?? 0) / 100).toFixed(2),
+    cashActual:
+      sess.cash_actual_cents === null || sess.cash_actual_cents === undefined
+        ? ""
+        : (Number(sess.cash_actual_cents) / 100).toFixed(2),
     notes: sess.notes ?? "",
   };
 
@@ -712,6 +721,9 @@ function SessionFieldsCard({
     const vo = parseEuroToCents(misc.vorschuss);
     const ei = parseEuroToCents(misc.einladung);
     const so = parseEuroToCents(misc.sonstige);
+    const ve = parseEuroToCents(misc.vectron);
+    const caRaw = misc.cashActual.trim();
+    const ca = caRaw === "" ? null : parseEuroToCents(caRaw);
     if (
       vs === null ||
       vr === null ||
@@ -719,7 +731,9 @@ function SessionFieldsCard({
       ot === null ||
       vo === null ||
       ei === null ||
-      so === null
+      so === null ||
+      ve === null ||
+      ca === null
     )
       return null;
     return {
@@ -732,6 +746,8 @@ function SessionFieldsCard({
       vorschussCents: vo,
       einladungCents: ei,
       sonstigeEinnahmeCents: so,
+      vectronDailyTotalCents: ve,
+      cashActualCents: caRaw === "" ? null : ca,
       notes: misc.notes.trim() === "" ? null : misc.notes,
     };
   }
