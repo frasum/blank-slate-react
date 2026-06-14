@@ -69,33 +69,44 @@ describe.skipIf(!dbTestsEnabled)("cash read endpoints (DB) — B3c-1a", () => {
       .update({ kitchen_tip_rate: 0.035 })
       .eq("organization_id", org.orgId);
 
-    // Stammdaten: zwei Kanäle, ein Terminal (jeweils in beiden Orgs einer).
-    const { data: ch1 } = await org.service
+    // Stammdaten-Kanäle werden seit dem AFTER-INSERT-Trigger
+    // `tg_locations_seed_defaults` (Migration P1-Nachzieher) automatisch
+    // mit dem vollständigen Satz (pos/souse/wolt/vectron) je Location
+    // angelegt. Wir benennen hier nur die für diesen Test relevanten
+    // Labels um (Aussage bleibt: Custom-Labels je Org sichtbar, fremde
+    // Org-Daten unsichtbar) und holen die channelId per SELECT.
+    {
+      const upd1 = await org.service
+        .from("revenue_channels")
+        .update({ label: "Restaurant" })
+        .eq("organization_id", org.orgId)
+        .eq("location_id", org.defaultLocationId)
+        .eq("kind", "pos");
+      if (upd1.error) throw new Error(`rename pos failed: ${upd1.error.message}`);
+      const upd2 = await org.service
+        .from("revenue_channels")
+        .update({ label: "Lieferung" })
+        .eq("organization_id", org.orgId)
+        .eq("location_id", org.defaultLocationId)
+        .eq("kind", "delivery_souse");
+      if (upd2.error) throw new Error(`rename souse failed: ${upd2.error.message}`);
+      const upd3 = await otherOrg.service
+        .from("revenue_channels")
+        .update({ label: "FREMD" })
+        .eq("organization_id", otherOrg.orgId)
+        .eq("location_id", otherOrg.defaultLocationId)
+        .eq("kind", "pos");
+      if (upd3.error) throw new Error(`rename other pos failed: ${upd3.error.message}`);
+    }
+    const { data: posCh, error: posErr } = await org.service
       .from("revenue_channels")
-      .insert({
-        organization_id: org.orgId,
-        location_id: org.defaultLocationId,
-        kind: "pos",
-        label: "Restaurant",
-        sort_order: 1,
-      })
       .select("id")
+      .eq("organization_id", org.orgId)
+      .eq("location_id", org.defaultLocationId)
+      .eq("kind", "pos")
       .single();
-    await org.service.from("revenue_channels").insert({
-      organization_id: org.orgId,
-      location_id: org.defaultLocationId,
-      kind: "delivery_souse",
-      label: "Lieferung",
-      sort_order: 2,
-    });
-    await otherOrg.service.from("revenue_channels").insert({
-      organization_id: otherOrg.orgId,
-      location_id: otherOrg.defaultLocationId,
-      kind: "pos",
-      label: "FREMD",
-      sort_order: 1,
-    });
-    channelId = ch1!.id;
+    if (posErr || !posCh) throw new Error(`pos channel lookup failed: ${posErr?.message}`);
+    channelId = posCh.id;
 
     const { data: t1 } = await org.service
       .from("payment_terminals")
@@ -212,7 +223,10 @@ describe.skipIf(!dbTestsEnabled)("cash read endpoints (DB) — B3c-1a", () => {
 
   it("(2b) listRevenueChannels/listPaymentTerminals nur eigene Org, sortiert", async () => {
     const channels = await listRevenueChannelsCore(mgrCaller());
-    expect(channels.map((c) => c.label)).toEqual(["Restaurant", "Lieferung"]);
+    // Vollständige Realität: Trigger seedet 4 Kanäle je Location
+    // (sort_order 10/20/30/40). Pos+Souse haben wir auf Custom-Labels
+    // umbenannt; Wolt+Vectron behalten die Trigger-Defaults.
+    expect(channels.map((c) => c.label)).toEqual(["Restaurant", "Lieferung", "Wolt", "Vectron"]);
     expect(channels.every((c) => c.label !== "FREMD")).toBe(true);
     const terms = await listPaymentTerminalsCore(mgrCaller());
     expect(terms.map((t) => t.label)).toEqual(["Terminal A"]);
