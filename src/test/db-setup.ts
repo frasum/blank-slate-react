@@ -130,6 +130,7 @@ export async function seedOrg(label: string): Promise<SeededOrg> {
       organization_id: orgId,
       staff_id: staff.id,
       location_id: defaultLocationId,
+      department: "service",
     });
     if (slErr) throw new Error(`staff_locations seed failed: ${slErr.message}`);
 
@@ -154,6 +155,7 @@ export async function seedOrg(label: string): Promise<SeededOrg> {
       organization_id: orgId,
       staff_id: staffId,
       location_id: locationId,
+      department: "service",
     });
     if (error && !`${error.message}`.includes("duplicate")) {
       throw new Error(`bindStaffLocation failed: ${error.message}`);

@@ -302,6 +302,7 @@ export const assignStaffLocations = createServerFn({ method: "POST" })
             staff_id: data.staffId,
             organization_id: caller.organizationId,
             location_id: lid,
+            department: "service" as const,
           })),
         );
         if (insErr) throw insErr;
