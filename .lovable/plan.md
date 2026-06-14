@@ -694,3 +694,141 @@ Offen (nicht blockierend für Teil A):
   gebaut.
 - Default-Standort in der UI: erster nach `sort_order`. Persistenz pro
   User ist kein B3-Scope.
+
+---
+
+## Block „Abrechnung live" — P1: Stammdaten-Fundament
+
+Status: Plan, wartet auf Freigabe. KEIN Code in diesem Schritt.
+
+Hinweis an den Prüfer (Ehrlichkeitsregel): Die referenzierten Dokumente
+`bauplan-abrechnung-live.md` und `spec-trinkgeld-pool.md` liegen dem Agent
+noch NICHT vor (nicht in `/mnt/user-uploads/`). Dieser Plan stützt sich
+ausschließlich auf den im Auftrag inline beschriebenen P1-Scope. Sobald die
+Dokumente nachgereicht werden, wird der Plan vor Bau abgeglichen und
+Abweichungen werden gemeldet, nicht still gelöst.
+
+Scope-Abgrenzung (was P1 NICHT enthält):
+- Keine Zeiterfassungs-Logik (P2).
+- Keine Trinkgeld-Felder an `waiter_settlements` oder Abrechnung (P3).
+- Keine Pool-Berechnung, kein 2 %-Küchen-Provisionsmodul (P4).
+- Keine Skills/Dienstplan (M3).
+- Keine UI-Flows. Nur Schema + Stammdaten + RLS + DB-Tests.
+
+### P1.1 — `staff_locations.department`
+
+- Neues Enum `public.staff_department` mit Werten
+  `('kitchen','service','gl')`.
+- Spalte `staff_locations.department staff_department NOT NULL`.
+  Backfill bestehender Zeilen mit `'service'` (Default-Annahme für die
+  Migrationsphase; explizit dokumentiert, später per Stammdaten-UI änderbar).
+- Unique-Constraint wechselt von `(staff_id, location_id)` auf
+  `(staff_id, location_id, department)`. Damit kann ein Mitarbeiter je
+  Standort in MEHREREN Abteilungen geführt werden und an verschiedenen
+  Standorten unterschiedlich (Vorbild: Alt-System
+  `staff_restaurants.zt_department`).
+- RLS bleibt unverändert (org-scoped SELECT, Writes service_role).
+- Folge-Anpassung in Tests/Seeds: `seedOrg().mkUser()` und alle DB-Tests,
+  die `staff_locations` befüllen, setzen explizit `department: 'service'`,
+  damit Bestandstests grün bleiben.
+
+### P1.2 — `staff.participates_in_pool`
+
+- Spalte `participates_in_pool boolean NOT NULL DEFAULT true`.
+- Semantik (rein deklarativ, KEINE Berechnung in P1): Pool-Teilnahme
+  bedeutet später `department ∈ {kitchen, service}` UND
+  `participates_in_pool = true`. GL ist strukturell ausgeschlossen
+  (auch wenn `participates_in_pool=true` wäre).
+- Bestandszeilen erhalten per Default `true`.
+
+### P1.3 — `revenue_channels`: Takeaway-Flag + Vectron + Wolt/SOUSE
+
+- Spalte `is_takeaway boolean NOT NULL DEFAULT false`.
+- Per-Location-Seeding (Erweiterung der bestehenden Seed-Routine aus B3
+  Teil B):
+  - neuer Kind `'delivery_vectron'`, `display_name="Vectron"`,
+    `is_takeaway=true`.
+  - bestehender Kind `'wolt'`: `is_takeaway=true`.
+  - bestehender Kind `'delivery_souse'` (Ex-ordersmart): `is_takeaway=true`.
+  - POS-/Tresen-/Bar-Kanäle: `is_takeaway=false`.
+- CHECK auf `kind` wird um `'delivery_vectron'` erweitert. Bestehende
+  Organisationen erhalten den neuen Kanal per Backfill-INSERT
+  (`ON CONFLICT DO NOTHING`).
+- Zweck (Doku, keine Implementierung in P1): die spätere 2 %-
+  Küchen-Provisionsbasis = Tagesumsatz OHNE Kanäle mit `is_takeaway=true`.
+
+### P1.4 — `location_department_defaults`
+
+Neue Tabelle für Standard-Eincheckzeiten je Standort+Abteilung.
+
+- Spalten:
+  - `organization_id uuid NOT NULL` (FK `organizations`)
+  - `location_id uuid NOT NULL` (FK `locations`)
+  - `department staff_department NOT NULL`
+  - `default_checkin time NOT NULL`
+  - Standard-Audit-Spalten (`id`, `created_at`, `updated_at`).
+- Unique `(location_id, department)`.
+- GRANTs: `SELECT` für `authenticated`, `ALL` für `service_role` (kein
+  `anon`).
+- RLS: `SELECT` org-scoped via `current_organization_id()`; INSERT/UPDATE/
+  DELETE bleiben DENY-ALL für PostgREST (Writes ausschließlich
+  service_role / spätere Admin-Server-Fn).
+- Seed je Standort: `kitchen=15:00`, `service=16:00`. Kein Default-Eintrag
+  für `gl` (GL hat keine pool-relevante Standard-Checkin-Zeit).
+- Übersteuerung pro Abend: ausdrücklich P2-Scope; in P1 nur Stammdaten-
+  Ablage.
+
+### Migrationsreihenfolge (idempotent)
+
+1. `CREATE TYPE public.staff_department` (mit `IF NOT EXISTS` via DO-Block).
+2. `ALTER TABLE staff_locations ADD COLUMN department … NULL` →
+   Backfill `'service'` → `SET NOT NULL` → Unique-Constraint tauschen.
+3. `ALTER TABLE staff ADD COLUMN participates_in_pool …`.
+4. `ALTER TABLE revenue_channels ADD COLUMN is_takeaway …` →
+   CHECK auf `kind` erweitern → Backfill `is_takeaway=true` für
+   `('wolt','delivery_souse')` → Vectron-Kanal je Location einfügen
+   (`ON CONFLICT DO NOTHING`).
+5. `CREATE TABLE location_department_defaults` + GRANTs + RLS + Policies
+   + Seed je bestehender Location.
+
+Reihenfolge folgt dem etablierten Muster
+(nullable → backfill → NOT NULL, Constraint-Wechsel mit Drop-vor-Create).
+Jede Anweisung mit `IF NOT EXISTS` / `IF EXISTS`, damit die Migration
+wiederholt anwendbar bleibt.
+
+### DB-Tests (`*.db.test.ts`)
+
+Neue Suite `src/lib/admin/department-stammdaten.db.test.ts`:
+- (a) ein Mitarbeiter kann an einem Standort GLEICHZEITIG für `kitchen`
+  und `service` eingetragen werden (neuer Unique-Constraint).
+- (b) Doppelter Eintrag `(staff_id, location_id, department)` schlägt fehl.
+- (c) `revenue_channels`: nach Migration sind `wolt`, `delivery_souse`,
+  `delivery_vectron` je Location vorhanden und `is_takeaway=true`; POS
+  `is_takeaway=false`.
+- (d) `location_department_defaults`: SELECT als authenticated Manager
+  liefert `kitchen=15:00` und `service=16:00`; SELECT aus FREMDER Org
+  liefert 0 Zeilen.
+- (e) Direkter PostgREST-INSERT/UPDATE/DELETE auf
+  `location_department_defaults` als Manager schlägt fehl (DENY-ALL).
+
+Bestehende Tests bleiben unverändert grün; Seed-Helper in
+`src/test/db-setup.ts` wird minimal erweitert (Default-Department
+`'service'`), kein Verhaltenswechsel für Altertests.
+
+### Gate
+
+- Migration sauber, idempotent, mit RLS und GRANTs.
+- `eslint --fix` vor Commit.
+- CI: `check` + `db-integration` grün, inkl. neuer Department-Suite.
+- Keine Berechnungs-/UI-Änderungen committen.
+
+### Offen (vor Bau-Freigabe zu klären)
+
+1. Backfill `staff_locations.department` mit `'service'` — OK, oder soll
+   die Migration für Bestands-Orgs einen anderen Default setzen
+   (z. B. anhand des `staff.first_name`-Mappings aus dem Alt-System)?
+2. `participates_in_pool` Default `true` für ALLE Bestandsmitarbeiter —
+   OK, oder sollen bekannte GL-Personen direkt mit `false` migriert
+   werden? In P1 wäre das ein manuelles Update außerhalb der Migration.
+3. Vectron-Kind-Bezeichner: `'delivery_vectron'` neutral — bestätigt?
+4. `location_department_defaults` ohne `gl`-Seed — bestätigt?
