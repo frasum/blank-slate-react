@@ -259,7 +259,6 @@ function ZeitUebersichtPage() {
     enabled: Boolean(effectiveLocationId),
   });
 
-  const entries: Entry[] = overviewQ.data?.entries ?? [];
   const weekCols = useMemo(() => buildWeekColumns(fromDate, toDate), [fromDate, toDate]);
 
   // Aggregations
@@ -272,6 +271,7 @@ function ZeitUebersichtPage() {
     shiftDates: Set<string>;
   };
   const staffAggs = useMemo(() => {
+    const entries: Entry[] = overviewQ.data?.entries ?? [];
     const map = new Map<string, StaffAgg>();
     for (const e of entries) {
       let agg = map.get(e.staffId);
@@ -295,7 +295,7 @@ function ZeitUebersichtPage() {
     return Array.from(map.values()).sort((a, b) =>
       a.displayName.localeCompare(b.displayName, "de"),
     );
-  }, [entries]);
+  }, [overviewQ.data]);
 
   const byDept = useMemo(() => {
     const m = new Map<Department, StaffAgg[]>();
