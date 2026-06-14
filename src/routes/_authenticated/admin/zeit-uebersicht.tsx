@@ -21,9 +21,15 @@ import {
 import { listLocations } from "@/lib/admin/locations.functions";
 import {
   getTimeOverview,
+  getWeeklyTimeEntries,
   listPayrollNotes,
   upsertPayrollNote,
 } from "@/lib/time/time-admin.functions";
+import {
+  computeShiftHours,
+  isBavarianHoliday,
+  isSundayOrHoliday,
+} from "@/lib/time/shift-hours";
 
 export const Route = createFileRoute("/_authenticated/admin/zeit-uebersicht")({
   head: () => ({ meta: [{ title: "Zeitübersicht" }] }),
@@ -48,6 +54,16 @@ const DEPT_BG: Record<Department, string> = {
   kitchen: "bg-orange-50",
   service: "bg-blue-50",
   gl: "bg-gray-50",
+};
+const DEPT_BAR: Record<Department, string> = {
+  kitchen: "bg-orange-400",
+  service: "bg-blue-400",
+  gl: "bg-gray-400",
+};
+const DEPT_HEADER_LABEL: Record<Department, string> = {
+  kitchen: "KÜCHE",
+  service: "SERVICE",
+  gl: "GESCHÄFTSLEITUNG",
 };
 const DEPT_ORDER: Department[] = ["kitchen", "service", "gl"];
 
