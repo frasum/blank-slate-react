@@ -746,6 +746,22 @@ function fmtHHMM(iso: string): string {
   });
 }
 
+// Baut einen ISO-Timestamp aus Geschäftsdatum + HH:MM (Browser-/Lokalzeit).
+// `fromHHMM` wird mitgegeben, damit ein Mitternachts-Überlauf erkannt wird:
+// wenn die End-Uhrzeit kleiner als die Start-Uhrzeit ist, rollt der Tag um 1.
+function buildIsoFromLocal(dateIso: string, hhmm: string, fromHHMM?: string): string {
+  const [h, m] = hhmm.split(":").map((v) => Number.parseInt(v, 10));
+  const local = new Date(`${dateIso}T00:00:00`);
+  local.setHours(h, m, 0, 0);
+  if (fromHHMM) {
+    const [fh, fm] = fromHHMM.split(":").map((v) => Number.parseInt(v, 10));
+    if (h * 60 + m <= fh * 60 + fm) {
+      local.setDate(local.getDate() + 1);
+    }
+  }
+  return local.toISOString();
+}
+
 function dayHeader(d: Date): string {
   const names = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
   return `${names[d.getUTCDay()]} ${ddmm(d)}`;
