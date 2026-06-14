@@ -630,6 +630,8 @@ type UpdatePayload = {
   vorschussCents: number;
   einladungCents: number;
   sonstigeEinnahmeCents: number;
+  vectronDailyTotalCents: number;
+  cashActualCents: number | null;
   notes: string | null;
 };
 
@@ -666,6 +668,8 @@ function SessionFieldsCard({
     vorschuss: string;
     einladung: string;
     sonstige: string;
+    vectron: string;
+    cashActual: string;
     notes: string;
   };
   const initialMisc: Misc = {
@@ -676,6 +680,11 @@ function SessionFieldsCard({
     vorschuss: (Number(sess.vorschuss_cents ?? 0) / 100).toFixed(2),
     einladung: (Number(sess.einladung_cents ?? 0) / 100).toFixed(2),
     sonstige: (Number(sess.sonstige_einnahme_cents ?? 0) / 100).toFixed(2),
+    vectron: (Number(sess.vectron_daily_total_cents ?? 0) / 100).toFixed(2),
+    cashActual:
+      sess.cash_actual_cents === null || sess.cash_actual_cents === undefined
+        ? ""
+        : (Number(sess.cash_actual_cents) / 100).toFixed(2),
     notes: sess.notes ?? "",
   };
 
@@ -712,6 +721,9 @@ function SessionFieldsCard({
     const vo = parseEuroToCents(misc.vorschuss);
     const ei = parseEuroToCents(misc.einladung);
     const so = parseEuroToCents(misc.sonstige);
+    const ve = parseEuroToCents(misc.vectron);
+    const caRaw = misc.cashActual.trim();
+    const caParsed = caRaw === "" ? null : parseEuroToCents(caRaw);
     if (
       vs === null ||
       vr === null ||
@@ -719,7 +731,9 @@ function SessionFieldsCard({
       ot === null ||
       vo === null ||
       ei === null ||
-      so === null
+      so === null ||
+      ve === null ||
+      (caRaw !== "" && caParsed === null)
     )
       return null;
     return {
@@ -732,6 +746,8 @@ function SessionFieldsCard({
       vorschussCents: vo,
       einladungCents: ei,
       sonstigeEinnahmeCents: so,
+      vectronDailyTotalCents: ve,
+      cashActualCents: caParsed,
       notes: misc.notes.trim() === "" ? null : misc.notes,
     };
   }
@@ -847,6 +863,22 @@ function SessionFieldsCard({
         </div>
       </Section>
 
+      <Section title="Kontrolle">
+        <EuroRow
+          label="Vectron Tagesumsatz (Kontrolle)"
+          value={misc.vectron}
+          disabled={!writable}
+          onChange={(v) => setMisc({ ...misc, vectron: v })}
+        />
+        <EuroRow
+          label="Kassenbestand nach Abschluss"
+          value={misc.cashActual}
+          disabled={!writable}
+          onChange={(v) => setMisc({ ...misc, cashActual: v })}
+        />
+        <CashActualHint value={misc.cashActual} />
+      </Section>
+
       <div className="flex justify-end">
         <Button disabled={!writable || saving} onClick={handleSave}>
           {saving ? "Speichert…" : "Session speichern"}
@@ -873,6 +905,45 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       </div>
       <div className="space-y-2">{children}</div>
     </div>
+  );
+}
+
+const CASH_TARGET_CENTS = 200_000; // 2.000 € — UI-Hinweis (Quelle ist organizations.cash_balance_target_cents)
+
+function CashActualHint({ value }: { value: string }) {
+  const trimmed = value.trim();
+  if (trimmed === "") {
+    return (
+      <p className="pl-1 text-xs text-muted-foreground">
+        Soll: {fmtCents(CASH_TARGET_CENTS)} € — Kassenbestand noch nicht erfasst.
+      </p>
+    );
+  }
+  const cents = parseEuroToCents(trimmed);
+  if (cents === null) {
+    return (
+      <p className="pl-1 text-xs text-destructive">Bitte gültigen Eurobetrag eintragen.</p>
+    );
+  }
+  const diff = cents - CASH_TARGET_CENTS;
+  if (diff === 0) {
+    return (
+      <p className="pl-1 text-xs text-emerald-600">
+        Soll: {fmtCents(CASH_TARGET_CENTS)} € — Kassenbestand stimmt ✓
+      </p>
+    );
+  }
+  if (diff > 0) {
+    return (
+      <p className="pl-1 text-xs text-emerald-600">
+        Soll: {fmtCents(CASH_TARGET_CENTS)} € — Entnahme in Tresor: {fmtCents(diff)} €
+      </p>
+    );
+  }
+  return (
+    <p className="pl-1 text-xs text-destructive">
+      Soll: {fmtCents(CASH_TARGET_CENTS)} € — Fehlbetrag: {fmtCents(-diff)} €
+    </p>
   );
 }
 

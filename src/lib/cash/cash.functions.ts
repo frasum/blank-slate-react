@@ -654,6 +654,8 @@ const updateSessionSchema = z.object({
   vorschussCents: z.number().int().default(0),
   einladungCents: z.number().int().default(0),
   sonstigeEinnahmeCents: z.number().int().default(0),
+  vectronDailyTotalCents: z.number().int().optional(),
+  cashActualCents: z.number().int().nullable().optional(),
   notes: z.string().max(2000).nullable().default(null),
 });
 
@@ -691,6 +693,8 @@ export async function updateSessionCore(caller: AdminCaller, data: UpdateSession
         vorschuss_cents: data.vorschussCents,
         einladung_cents: data.einladungCents,
         sonstige_einnahme_cents: data.sonstigeEinnahmeCents,
+        vectron_daily_total_cents: data.vectronDailyTotalCents ?? 0,
+        cash_actual_cents: data.cashActualCents ?? null,
         notes: data.notes,
       })
       .eq("id", session.id)
@@ -1420,6 +1424,7 @@ export { CashLockedError };
 // = opening[N+1] strikt innerhalb des Bereichs gilt.
 
 import { accumulateChain, type DayInput, type TransferDirection } from "./cash-ledger";
+import { computeSafeChain, type SafeDayInput } from "./safe-balance";
 
 export type CashLedgerRow = {
   businessDate: string;
@@ -1429,6 +1434,10 @@ export type CashLedgerRow = {
   totalExpensesCents: number;
   closingBalanceCents: number;
   differenzCents: number;
+  cashActualCents: number | null;
+  surplusCents: number | null;
+  shortfallCents: number | null;
+  safeBalanceCents: number;
 };
 
 export const getCashLedger = createServerFn({ method: "GET" })
@@ -1456,7 +1465,7 @@ export async function getCashLedgerCore(
   const { data: sessions, error: sErr } = await supabaseAdmin
     .from("sessions")
     .select(
-      "id, business_date, status, location_id, opening_balance_cents, vouchers_sold_cents, vouchers_redeemed_cents, finedine_vouchers_cents, vorschuss_cents, einladung_cents, sonstige_einnahme_cents",
+      "id, business_date, status, location_id, opening_balance_cents, vouchers_sold_cents, vouchers_redeemed_cents, finedine_vouchers_cents, vorschuss_cents, einladung_cents, sonstige_einnahme_cents, cash_actual_cents",
     )
     .eq("organization_id", caller.organizationId)
     .gte("business_date", data.fromDate)
@@ -1464,6 +1473,15 @@ export async function getCashLedgerCore(
     .order("business_date", { ascending: true });
   if (sErr) throw sErr;
   if (!sessions || sessions.length === 0) return [];
+
+  const { data: org, error: orgErr } = await supabaseAdmin
+    .from("organizations")
+    .select("cash_balance_target_cents, opening_safe_balance_cents")
+    .eq("id", caller.organizationId)
+    .maybeSingle();
+  if (orgErr) throw orgErr;
+  const cashTarget = Number(org?.cash_balance_target_cents ?? 200_000);
+  const openingSafe = Number(org?.opening_safe_balance_cents ?? 200_000);
 
   const sessionIds = sessions.map((s) => s.id);
 
@@ -1535,6 +1553,9 @@ export async function getCashLedgerCore(
     totalRevenueGross: number;
     totalExpenses: number;
     differenz: number;
+    cashActualSum: number;
+    cashActualCount: number;
+    sessionCount: number;
   };
   const byDate = new Map<string, Agg>();
   const sessionDate = new Map<string, string>();
@@ -1568,6 +1589,9 @@ export async function getCashLedgerCore(
         totalRevenueGross: 0,
         totalExpenses: 0,
         differenz: 0,
+        cashActualSum: 0,
+        cashActualCount: 0,
+        sessionCount: 0,
       };
       byDate.set(date, a);
     }
@@ -1579,6 +1603,11 @@ export async function getCashLedgerCore(
     if (s.business_date === firstDate) firstDateSessions.add(s.id);
     const a = getAgg(s.business_date);
     a.statuses.add(s.status as string);
+    a.sessionCount += 1;
+    if (s.cash_actual_cents !== null && s.cash_actual_cents !== undefined) {
+      a.cashActualSum += Number(s.cash_actual_cents);
+      a.cashActualCount += 1;
+    }
     // Session-Pauschalfelder (Quirk: vorschuss wird ignoriert, falls
     // advances-Satellit vorhanden — siehe effectiveVorschussCents).
     a.vouchersSold += Number(s.vouchers_sold_cents ?? 0);
@@ -1696,9 +1725,21 @@ export async function getCashLedgerCore(
   const openingBalanceCents = getAgg(firstDate).openingBalance;
   const chain = accumulateChain(openingBalanceCents, days);
 
+  const safeDays: SafeDayInput[] = sortedDates.map((date) => {
+    const a = getAgg(date);
+    return {
+      businessDate: date,
+      cashActualCents: a.cashActualCount > 0 ? a.cashActualSum : null,
+      cashTargetCents: cashTarget * Math.max(1, a.sessionCount),
+      bankDepositsCents: a.bankDeposits,
+    };
+  });
+  const safeChain = computeSafeChain(openingSafe, safeDays);
+
   return sortedDates.map((date, i) => {
     const a = getAgg(date);
     const r = chain[i];
+    const sr = safeChain[i];
     const statuses = Array.from(a.statuses);
     const status: CashLedgerRow["status"] =
       statuses.length === 0
@@ -1714,6 +1755,10 @@ export async function getCashLedgerCore(
       totalExpensesCents: a.totalExpenses,
       closingBalanceCents: r.remainingCashCents,
       differenzCents: a.differenz,
+      cashActualCents: sr.cashActualCents,
+      surplusCents: sr.surplusCents,
+      shortfallCents: sr.shortfallCents,
+      safeBalanceCents: sr.safeBalanceCents,
     };
   });
 }
