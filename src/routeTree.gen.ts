@@ -21,6 +21,7 @@ import { Route as AuthenticatedAdminStaffRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAdminMigrationRouteImport } from './routes/_authenticated/admin/migration'
 import { Route as AuthenticatedAdminLocationsRouteImport } from './routes/_authenticated/admin/locations'
 import { Route as AuthenticatedAdminKasseRouteImport } from './routes/_authenticated/admin/kasse'
+import { Route as AuthenticatedAdminImportZuordnungenRouteImport } from './routes/_authenticated/admin/import-zuordnungen'
 import { Route as AuthenticatedAdminStaffIndexRouteImport } from './routes/_authenticated/admin/staff.index'
 import { Route as AuthenticatedAdminStaffNewRouteImport } from './routes/_authenticated/admin/staff.new'
 import { Route as AuthenticatedAdminStaffStaffIdRouteImport } from './routes/_authenticated/admin/staff.$staffId'
@@ -87,6 +88,12 @@ const AuthenticatedAdminKasseRoute = AuthenticatedAdminKasseRouteImport.update({
   path: '/kasse',
   getParentRoute: () => AuthenticatedAdminRouteRoute,
 } as any)
+const AuthenticatedAdminImportZuordnungenRoute =
+  AuthenticatedAdminImportZuordnungenRouteImport.update({
+    id: '/import-zuordnungen',
+    path: '/import-zuordnungen',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminStaffIndexRoute =
   AuthenticatedAdminStaffIndexRouteImport.update({
     id: '/',
@@ -110,6 +117,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/auth': typeof AuthRoute
   '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
+  '/admin/import-zuordnungen': typeof AuthenticatedAdminImportZuordnungenRoute
   '/admin/kasse': typeof AuthenticatedAdminKasseRoute
   '/admin/locations': typeof AuthenticatedAdminLocationsRoute
   '/admin/migration': typeof AuthenticatedAdminMigrationRoute
@@ -125,6 +133,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/': typeof AuthenticatedIndexRoute
+  '/admin/import-zuordnungen': typeof AuthenticatedAdminImportZuordnungenRoute
   '/admin/kasse': typeof AuthenticatedAdminKasseRoute
   '/admin/locations': typeof AuthenticatedAdminLocationsRoute
   '/admin/migration': typeof AuthenticatedAdminMigrationRoute
@@ -142,6 +151,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/admin/import-zuordnungen': typeof AuthenticatedAdminImportZuordnungenRoute
   '/_authenticated/admin/kasse': typeof AuthenticatedAdminKasseRoute
   '/_authenticated/admin/locations': typeof AuthenticatedAdminLocationsRoute
   '/_authenticated/admin/migration': typeof AuthenticatedAdminMigrationRoute
@@ -160,6 +170,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/admin'
+    | '/admin/import-zuordnungen'
     | '/admin/kasse'
     | '/admin/locations'
     | '/admin/migration'
@@ -175,6 +186,7 @@ export interface FileRouteTypes {
   to:
     | '/auth'
     | '/'
+    | '/admin/import-zuordnungen'
     | '/admin/kasse'
     | '/admin/locations'
     | '/admin/migration'
@@ -191,6 +203,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/admin'
     | '/_authenticated/'
+    | '/_authenticated/admin/import-zuordnungen'
     | '/_authenticated/admin/kasse'
     | '/_authenticated/admin/locations'
     | '/_authenticated/admin/migration'
@@ -295,6 +308,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminKasseRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/import-zuordnungen': {
+      id: '/_authenticated/admin/import-zuordnungen'
+      path: '/import-zuordnungen'
+      fullPath: '/admin/import-zuordnungen'
+      preLoaderRoute: typeof AuthenticatedAdminImportZuordnungenRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/staff/': {
       id: '/_authenticated/admin/staff/'
       path: '/'
@@ -338,6 +358,7 @@ const AuthenticatedAdminStaffRouteWithChildren =
   )
 
 interface AuthenticatedAdminRouteRouteChildren {
+  AuthenticatedAdminImportZuordnungenRoute: typeof AuthenticatedAdminImportZuordnungenRoute
   AuthenticatedAdminKasseRoute: typeof AuthenticatedAdminKasseRoute
   AuthenticatedAdminLocationsRoute: typeof AuthenticatedAdminLocationsRoute
   AuthenticatedAdminMigrationRoute: typeof AuthenticatedAdminMigrationRoute
@@ -348,6 +369,8 @@ interface AuthenticatedAdminRouteRouteChildren {
 
 const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren =
   {
+    AuthenticatedAdminImportZuordnungenRoute:
+      AuthenticatedAdminImportZuordnungenRoute,
     AuthenticatedAdminKasseRoute: AuthenticatedAdminKasseRoute,
     AuthenticatedAdminLocationsRoute: AuthenticatedAdminLocationsRoute,
     AuthenticatedAdminMigrationRoute: AuthenticatedAdminMigrationRoute,
@@ -385,3 +408,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
