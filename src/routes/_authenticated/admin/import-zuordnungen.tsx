@@ -115,12 +115,7 @@ function ImportZuordnungenPage() {
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1">
             <Label htmlFor="assign">Zuordnungs-CSV</Label>
-            <Input
-              id="assign"
-              type="file"
-              accept=".csv,text/csv"
-              onChange={onAssignmentsFile}
-            />
+            <Input id="assign" type="file" accept=".csv,text/csv" onChange={onAssignmentsFile} />
             {assignmentsName && (
               <div className="text-xs text-muted-foreground">{assignmentsName}</div>
             )}
@@ -152,9 +147,7 @@ function ImportZuordnungenPage() {
             </div>
             {parseOk.warnings.length > 0 && (
               <details className="rounded-md border border-border bg-muted/30 p-2">
-                <summary className="cursor-pointer text-sm font-medium">
-                  Warnungen ansehen
-                </summary>
+                <summary className="cursor-pointer text-sm font-medium">Warnungen ansehen</summary>
                 <ul className="mt-2 list-disc space-y-1 pl-5 text-xs">
                   {parseOk.warnings.map((w, i) => (
                     <li key={i}>
@@ -168,10 +161,7 @@ function ImportZuordnungenPage() {
         )}
 
         <div className="flex gap-2">
-          <Button
-            disabled={!parseOk || dryMut.isPending}
-            onClick={() => dryMut.mutate()}
-          >
+          <Button disabled={!parseOk || dryMut.isPending} onClick={() => dryMut.mutate()}>
             {dryMut.isPending ? "Dry-Run…" : "Dry-Run ausführen"}
           </Button>
           <Button

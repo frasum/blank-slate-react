@@ -8,7 +8,13 @@ import type { AssignmentInput, SkillInput, ZtDepartment } from "./import-assignm
 
 export type ParseWarning =
   | { kind: "skill_name_not_found"; name: string; nickname: string; skillName: string }
-  | { kind: "skill_name_ambiguous"; name: string; nickname: string; skillName: string; matches: string[] }
+  | {
+      kind: "skill_name_ambiguous";
+      name: string;
+      nickname: string;
+      skillName: string;
+      matches: string[];
+    }
   | { kind: "assignment_unknown_zt_department"; row: number; raw: string }
   | { kind: "assignment_missing_field"; row: number; field: string };
 
@@ -176,10 +182,7 @@ export function parseSkillsCsv(
   return { skills, warnings };
 }
 
-export function parseImportCsvs(input: {
-  assignmentsCsv: string;
-  skillsCsv: string;
-}): ParseResult {
+export function parseImportCsvs(input: { assignmentsCsv: string; skillsCsv: string }): ParseResult {
   const a = parseAssignmentsCsv(input.assignmentsCsv);
   const s = parseSkillsCsv(input.skillsCsv, a.nameIndex);
   const staffCount = new Set(a.assignments.map((x) => x.altStaffId)).size;
