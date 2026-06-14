@@ -177,6 +177,9 @@ function KasseSaldoPage() {
                 <TableHead className="text-right">Einnahmen</TableHead>
                 <TableHead className="text-right">Ausgaben</TableHead>
                 <TableHead className="text-right">Tagessaldo</TableHead>
+                <TableHead className="text-right">Kassenist</TableHead>
+                <TableHead className="text-right">Tresor ±</TableHead>
+                <TableHead className="text-right">Tresorbestand</TableHead>
                 <TableHead className="text-right">Differenz</TableHead>
               </TableRow>
             </TableHeader>
@@ -203,6 +206,21 @@ function KasseSaldoPage() {
                     <TableCell className="text-right tabular-nums">
                       {fmtEuro(r.closingBalanceCents)}
                     </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {r.cashActualCents === null ? "—" : fmtEuro(r.cashActualCents)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {r.surplusCents !== null && r.surplusCents > 0 ? (
+                        <span className="text-emerald-600">+{fmtEuro(r.surplusCents)}</span>
+                      ) : r.shortfallCents !== null && r.shortfallCents > 0 ? (
+                        <span className="text-destructive">−{fmtEuro(r.shortfallCents)}</span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {fmtEuro(r.safeBalanceCents)}
+                    </TableCell>
                     <TableCell
                       className={
                         "text-right tabular-nums" + (negDiff ? " font-medium text-destructive" : "")
@@ -219,6 +237,9 @@ function KasseSaldoPage() {
                 <TableCell colSpan={3}>Summe</TableCell>
                 <TableCell className="text-right tabular-nums">{fmtEuro(totals.rev)}</TableCell>
                 <TableCell className="text-right tabular-nums">{fmtEuro(totals.exp)}</TableCell>
+                <TableCell />
+                <TableCell />
+                <TableCell />
                 <TableCell />
                 <TableCell
                   className={
