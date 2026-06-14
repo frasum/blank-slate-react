@@ -144,11 +144,15 @@ function buildWeekColumns(fromIso: string, toIso: string): WeekCol[] {
 
 function ZeitUebersichtPage() {
   const qc = useQueryClient();
+  const { identity } = useAuth();
+  const isAdmin = identity?.role === "admin";
   const fetchLocations = useServerFn(listLocations);
   const fetchOverview = useServerFn(getTimeOverview);
   const fetchWeekly = useServerFn(getWeeklyTimeEntries);
   const fetchNotes = useServerFn(listPayrollNotes);
   const callUpsert = useServerFn(upsertPayrollNote);
+  const callSetShift = useServerFn(setTimeEntryShift);
+  const callCreateShift = useServerFn(createTimeEntryShift);
 
   const locationsQ = useQuery({
     queryKey: ["admin-locations"],
@@ -275,6 +279,56 @@ function ZeitUebersichtPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // Inline-Edit-Dialog State
+  const [editor, setEditor] = useState<
+    | null
+    | {
+        mode: "edit";
+        id: string;
+        staffName: string;
+        dateIso: string;
+        from: string;
+        to: string;
+      }
+    | {
+        mode: "create";
+        staffId: string;
+        staffName: string;
+        dateIso: string;
+        from: string;
+        to: string;
+      }
+  >(null);
+
+  function invalidateWeekly() {
+    void qc.invalidateQueries({
+      queryKey: ["weekly-entries", effectiveLocationId, weekStart],
+    });
+  }
+
+  const setShiftMut = useMutation({
+    mutationFn: (vars: { id: string; startedAt: string; endedAt: string }) =>
+      callSetShift({ data: vars }),
+    onSuccess: () => {
+      invalidateWeekly();
+      setEditor(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const createShiftMut = useMutation({
+    mutationFn: (vars: {
+      staffId: string;
+      locationId: string;
+      startedAt: string;
+      endedAt: string;
+    }) => callCreateShift({ data: vars }),
+    onSuccess: () => {
+      invalidateWeekly();
+      setEditor(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   return (
     <div className="space-y-6">
       <div>
@@ -363,6 +417,27 @@ function ZeitUebersichtPage() {
             data={weeklyQ.data}
             isLoading={weeklyQ.isLoading}
             weekDays={weekDays}
+            isAdmin={isAdmin}
+            onEdit={(e) =>
+              setEditor({
+                mode: "edit",
+                id: e.id,
+                staffName: e.displayName,
+                dateIso: e.businessDate,
+                from: fmtHHMM(e.startedAt),
+                to: fmtHHMM(e.endedAt),
+              })
+            }
+            onCreate={(staffId, staffName, dateIso) =>
+              setEditor({
+                mode: "create",
+                staffId,
+                staffName,
+                dateIso,
+                from: "",
+                to: "",
+              })
+            }
           />
         </TabsContent>
 
@@ -548,6 +623,27 @@ function ZeitUebersichtPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <ShiftEditorDialog
+        state={editor}
+        onClose={() => setEditor(null)}
+        onSubmit={(from, to) => {
+          if (!editor) return;
+          const startedAt = buildIsoFromLocal(editor.dateIso, from);
+          const endedAt = buildIsoFromLocal(editor.dateIso, to, from);
+          if (editor.mode === "edit") {
+            setShiftMut.mutate({ id: editor.id, startedAt, endedAt });
+          } else {
+            createShiftMut.mutate({
+              staffId: editor.staffId,
+              locationId: effectiveLocationId,
+              startedAt,
+              endedAt,
+            });
+          }
+        }}
+        pending={setShiftMut.isPending || createShiftMut.isPending}
+      />
     </div>
   );
 }
