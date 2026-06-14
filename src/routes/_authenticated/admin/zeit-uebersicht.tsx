@@ -192,6 +192,7 @@ function ZeitUebersichtPage() {
   const qc = useQueryClient();
   const { identity } = useAuth();
   const isAdmin = identity?.role === "admin";
+  const isPayroll = identity?.role === "payroll";
   const fetchLocations = useServerFn(listLocations);
   const fetchOverview = useServerFn(getTimeOverview);
   const fetchWeekly = useServerFn(getWeeklyTimeEntries);
