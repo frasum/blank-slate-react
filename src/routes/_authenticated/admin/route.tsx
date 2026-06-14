@@ -73,6 +73,15 @@ function AdminLayout() {
                   Migration
                 </Link>
               )}
+              {identity.role === "admin" && (
+                <Link
+                  to="/admin/import-zuordnungen"
+                  className="text-muted-foreground hover:text-foreground"
+                  activeProps={{ className: "text-foreground" }}
+                >
+                  Zuordnungen
+                </Link>
+              )}
             </nav>
           </div>
           <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
