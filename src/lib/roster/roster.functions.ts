@@ -75,8 +75,17 @@ export type RosterSkill = {
 export type RosterStaffRow = {
   staffId: string;
   displayName: string;
-  department: "kitchen" | "service" | "gl";
+  department: "kitchen" | "service";
   skillIds: string[];
+};
+
+export type RosterCrossBooking = {
+  staffId: string;
+  shiftDate: string;
+  locationId: string;
+  locationName: string;
+  area: "kitchen" | "service" | "gl";
+  skillName: string | null;
 };
 
 export const getRosterShifts = createServerFn({ method: "GET" })
@@ -186,16 +195,55 @@ export const getStaffForRoster = createServerFn({ method: "GET" })
       .map((r) => ({
         staffId: r.staff_id as string,
         displayName: (r.staff as { display_name: string } | null)?.display_name ?? "—",
-        department: r.department as "kitchen" | "service" | "gl",
+        department:
+          (r.department as "kitchen" | "service" | "gl") === "kitchen"
+            ? ("kitchen" as const)
+            : ("service" as const),
         skillIds: skillsByStaff.get(r.staff_id as string) ?? [],
       }))
+      .filter((row, idx, arr) => {
+        // Dedupe auf (staffId, mappedArea): gl+service desselben Mitarbeiters → 1 Service-Zeile
+        return (
+          arr.findIndex((x) => x.staffId === row.staffId && x.department === row.department) === idx
+        );
+      })
       .sort((a, b) => {
-        const order = { kitchen: 0, service: 1, gl: 2 } as const;
+        const order = { kitchen: 0, service: 1 } as const;
         if (order[a.department] !== order[b.department]) {
           return order[a.department] - order[b.department];
         }
         return a.displayName.localeCompare(b.displayName, "de");
       });
+  });
+
+export const getStaffCrossBookings = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }): Promise<RosterCrossBooking[]> => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, READ_ROLES);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin
+      .from("roster_shifts")
+      .select("staff_id, shift_date, location_id, area, locations(name), skills(name)")
+      .eq("organization_id", caller.organizationId)
+      .gte("shift_date", data.fromDate)
+      .lte("shift_date", data.toDate);
+    if (error) throw error;
+    return (rows ?? []).map((r) => ({
+      staffId: r.staff_id as string,
+      shiftDate: r.shift_date as string,
+      locationId: r.location_id as string,
+      locationName: (r.locations as { name: string } | null)?.name ?? "—",
+      area: r.area as "kitchen" | "service" | "gl",
+      skillName: (r.skills as { name: string } | null)?.name ?? null,
+    }));
   });
 
 // =========================================================================

@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { listLocations } from "@/lib/admin/locations.functions";
@@ -20,10 +21,12 @@ import {
   deleteRosterShift,
   getRosterShifts,
   getStaffForRoster,
+  getStaffCrossBookings,
   listSkills,
   updateRosterShiftSkill,
   updateRosterShiftStatus,
   type RosterShift,
+  type RosterCrossBooking,
   type RosterSkill,
   type RosterStaffRow,
 } from "@/lib/roster/roster.functions";
@@ -33,24 +36,26 @@ export const Route = createFileRoute("/_authenticated/admin/dienstplan")({
   component: DienstplanPage,
 });
 
-type Area = "kitchen" | "service" | "gl";
+type GridArea = "kitchen" | "service";
 
-const AREA_LABEL: Record<Area, string> = {
+const AREA_LABEL: Record<GridArea, string> = {
   kitchen: "KÜCHE",
   service: "SERVICE",
-  gl: "GESCHÄFTSLEITUNG",
 };
-const AREA_BAR: Record<Area, string> = {
+const AREA_BAR: Record<GridArea, string> = {
   kitchen: "bg-orange-400",
   service: "bg-blue-400",
-  gl: "bg-gray-400",
 };
-const AREA_BG: Record<Area, string> = {
+const AREA_BG: Record<GridArea, string> = {
   kitchen: "bg-orange-50",
   service: "bg-blue-50",
-  gl: "bg-gray-50",
 };
-const AREA_ORDER: Area[] = ["kitchen", "service", "gl"];
+const AREA_ORDER: GridArea[] = ["kitchen", "service"];
+const AREA_SHORT: Record<"kitchen" | "service" | "gl", string> = {
+  kitchen: "Küche",
+  service: "Service",
+  gl: "Service",
+};
 
 function parseIsoDate(iso: string): Date {
   return new Date(`${iso}T12:00:00Z`);
@@ -96,15 +101,22 @@ function dayLabel(iso: string): string {
 // Fallback = alle Skills der zur Area passenden Kategorie.
 function skillsForCell(
   staffRow: RosterStaffRow,
-  area: Area,
+  area: GridArea,
   allSkills: RosterSkill[],
 ): RosterSkill[] {
   const assigned = allSkills.filter((s) => staffRow.skillIds.includes(s.id));
-  if (assigned.length > 0) return assigned;
-  return allSkills.filter((s) => s.category === area);
+  // Service-Bereich akzeptiert auch gl/other Skills (GL, Hausmeister)
+  const allowedCategories =
+    area === "service"
+      ? new Set<RosterSkill["category"]>(["service", "gl", "other"])
+      : new Set<RosterSkill["category"]>(["kitchen"]);
+  if (assigned.length > 0) {
+    return assigned.filter((s) => allowedCategories.has(s.category));
+  }
+  return allSkills.filter((s) => allowedCategories.has(s.category));
 }
 
-function PillVisual({ shift, area }: { shift: RosterShift; area: Area }) {
+function PillVisual({ shift, area }: { shift: RosterShift; area: GridArea }) {
   const opacity = shift.status === "confirmed" ? "opacity-100" : "opacity-70";
   if (area === "service") {
     const label = serviceMarker(shift.skillName);
@@ -140,7 +152,7 @@ function EmptyCellMarker({ canEdit }: { canEdit: boolean }) {
 }
 
 type CellAction =
-  | { kind: "create"; staffId: string; shiftDate: string; area: Area; skillId: string | null }
+  | { kind: "create"; staffId: string; shiftDate: string; area: GridArea; skillId: string | null }
   | { kind: "delete"; id: string }
   | { kind: "status"; id: string; status: "planned" | "confirmed" }
   | { kind: "skill"; id: string; skillId: string };
@@ -160,7 +172,7 @@ function CellPopover({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   staffRow: RosterStaffRow;
-  area: Area;
+  area: GridArea;
   iso: string;
   shift: RosterShift | undefined;
   allSkills: RosterSkill[];
@@ -329,6 +341,18 @@ function DienstplanPage() {
     enabled: !!effectiveLocationId && !!effectivePeriod,
   });
 
+  const crossQ = useQuery({
+    queryKey: ["roster-cross-bookings", effectivePeriod?.startDate, effectivePeriod?.endDate],
+    queryFn: () =>
+      getStaffCrossBookings({
+        data: {
+          fromDate: effectivePeriod!.startDate,
+          toDate: effectivePeriod!.endDate,
+        },
+      }),
+    enabled: !!effectivePeriod,
+  });
+
   // Realtime: jede Änderung an roster_shifts der aktuellen Org → Query invalidieren.
   useEffect(() => {
     if (!effectiveLocationId) return;
@@ -336,6 +360,7 @@ function DienstplanPage() {
       .channel(`roster-shifts-${effectiveLocationId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "roster_shifts" }, () => {
         qc.invalidateQueries({ queryKey: ["roster-shifts"] });
+        qc.invalidateQueries({ queryKey: ["roster-cross-bookings"] });
       })
       .subscribe();
     return () => {
@@ -345,6 +370,7 @@ function DienstplanPage() {
 
   const staff = useMemo(() => staffQ.data ?? [], [staffQ.data]);
   const shifts = useMemo(() => shiftsQ.data ?? [], [shiftsQ.data]);
+  const crossBookings = useMemo<RosterCrossBooking[]>(() => crossQ.data ?? [], [crossQ.data]);
 
   const shiftIndex = useMemo(() => {
     const m = new Map<string, RosterShift>();
@@ -354,8 +380,20 @@ function DienstplanPage() {
     return m;
   }, [shifts]);
 
+  // Index aller Buchungen pro (staffId, date), gesamtorgweit/standortweit.
+  const bookingsByStaffDate = useMemo(() => {
+    const m = new Map<string, RosterCrossBooking[]>();
+    for (const b of crossBookings) {
+      const k = `${b.staffId}|${b.shiftDate}`;
+      const arr = m.get(k) ?? [];
+      arr.push(b);
+      m.set(k, arr);
+    }
+    return m;
+  }, [crossBookings]);
+
   const grouped = useMemo(() => {
-    const g = new Map<Area, RosterStaffRow[]>();
+    const g = new Map<GridArea, RosterStaffRow[]>();
     for (const a of AREA_ORDER) g.set(a, []);
     for (const row of staff) g.get(row.department)?.push(row);
     return g;
@@ -386,6 +424,7 @@ function DienstplanPage() {
       }
       setOpenCell(null);
       qc.invalidateQueries({ queryKey: ["roster-shifts"] });
+      qc.invalidateQueries({ queryKey: ["roster-cross-bookings"] });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       toast.error(msg);
@@ -396,176 +435,201 @@ function DienstplanPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-end gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Dienstplan</h1>
-          <p className="text-sm text-muted-foreground">
-            Vorausplanung — wer arbeitet wann wo.{" "}
-            {canEdit ? (
-              periodLocked ? (
-                <span className="text-destructive">Periode gesperrt.</span>
+      <TooltipProvider delayDuration={150}>
+        <header className="flex flex-wrap items-end gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold">Dienstplan</h1>
+            <p className="text-sm text-muted-foreground">
+              Vorausplanung — wer arbeitet wann wo.{" "}
+              {canEdit ? (
+                periodLocked ? (
+                  <span className="text-destructive">Periode gesperrt.</span>
+                ) : (
+                  <span>Klick in Zelle zum Bearbeiten.</span>
+                )
               ) : (
-                <span>Klick in Zelle zum Bearbeiten.</span>
-              )
-            ) : (
-              <span>(Read-only)</span>
-            )}
-          </p>
-        </div>
-        <div className="ml-auto flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 text-xs">
-            <span className="text-muted-foreground">Standort</span>
-            <select
-              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-              value={effectiveLocationId ?? ""}
-              onChange={(e) => setLocationId(e.target.value || null)}
-            >
-              {locations.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-xs">
-            <span className="text-muted-foreground">Periode</span>
-            <select
-              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-              value={effectivePeriod?.id ?? ""}
-              onChange={(e) => setPeriodId(e.target.value || null)}
-            >
-              {periods.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.label} ({p.startDate} – {p.endDate})
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-      </header>
+                <span>(Read-only)</span>
+              )}
+            </p>
+          </div>
+          <div className="ml-auto flex flex-wrap items-end gap-3">
+            <label className="flex flex-col gap-1 text-xs">
+              <span className="text-muted-foreground">Standort</span>
+              <select
+                className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                value={effectiveLocationId ?? ""}
+                onChange={(e) => setLocationId(e.target.value || null)}
+              >
+                {locations.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs">
+              <span className="text-muted-foreground">Periode</span>
+              <select
+                className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                value={effectivePeriod?.id ?? ""}
+                onChange={(e) => setPeriodId(e.target.value || null)}
+              >
+                {periods.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label} ({p.startDate} – {p.endDate})
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </header>
 
-      {!effectivePeriod ? (
-        <Card className="p-6 text-sm text-muted-foreground">
-          Keine Periode angelegt. Lege im Tab „Perioden" eine an.
-        </Card>
-      ) : !effectiveLocationId ? (
-        <Card className="p-6 text-sm text-muted-foreground">Kein Standort verfügbar.</Card>
-      ) : (
-        <Card className="overflow-x-auto">
-          <table className="w-full border-collapse text-xs">
-            <thead>
-              <tr className="border-b bg-muted/50">
-                <th className="sticky left-0 z-10 min-w-[180px] bg-muted/50 px-3 py-2 text-left font-medium">
-                  Mitarbeiter
-                </th>
-                {days.map((iso) => {
-                  const we = isWeekend(iso);
-                  const isToday = iso === today;
+        {!effectivePeriod ? (
+          <Card className="p-6 text-sm text-muted-foreground">
+            Keine Periode angelegt. Lege im Tab „Perioden" eine an.
+          </Card>
+        ) : !effectiveLocationId ? (
+          <Card className="p-6 text-sm text-muted-foreground">Kein Standort verfügbar.</Card>
+        ) : (
+          <Card className="overflow-x-auto">
+            <table className="w-full border-collapse text-xs">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  <th className="sticky left-0 z-10 min-w-[180px] bg-muted/50 px-3 py-2 text-left font-medium">
+                    Mitarbeiter
+                  </th>
+                  {days.map((iso) => {
+                    const we = isWeekend(iso);
+                    const isToday = iso === today;
+                    return (
+                      <th
+                        key={iso}
+                        className={`min-w-[56px] px-1 py-2 text-center font-medium ${
+                          we ? "bg-muted text-muted-foreground" : ""
+                        } ${isToday ? "ring-2 ring-primary ring-inset" : ""}`}
+                      >
+                        {dayLabel(iso)}
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+              <tbody>
+                {AREA_ORDER.map((area) => {
+                  const rows = grouped.get(area) ?? [];
+                  if (rows.length === 0) return null;
                   return (
-                    <th
-                      key={iso}
-                      className={`min-w-[56px] px-1 py-2 text-center font-medium ${
-                        we ? "bg-muted text-muted-foreground" : ""
-                      } ${isToday ? "ring-2 ring-primary ring-inset" : ""}`}
-                    >
-                      {dayLabel(iso)}
-                    </th>
+                    <React.Fragment key={`area-${area}`}>
+                      <tr className={AREA_BG[area]}>
+                        <td
+                          colSpan={days.length + 1}
+                          className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-foreground"
+                        >
+                          <span
+                            className={`mr-2 inline-block h-2 w-2 rounded-full ${AREA_BAR[area]}`}
+                          />
+                          {AREA_LABEL[area]}
+                        </td>
+                      </tr>
+                      {rows.map((row) => (
+                        <tr
+                          key={`${area}-${row.staffId}`}
+                          className="border-b last:border-b-0 hover:bg-muted/30"
+                        >
+                          <td className="sticky left-0 z-10 min-w-[180px] bg-background px-3 py-1.5 font-medium">
+                            {row.displayName}
+                          </td>
+                          {days.map((iso) => {
+                            const we = isWeekend(iso);
+                            const isToday = iso === today;
+                            const shift = shiftIndex.get(`${row.staffId}|${iso}|${area}`);
+                            const cellKey = `${row.staffId}|${iso}|${area}`;
+                            const editable = canEdit && !periodLocked;
+                            const otherBookings = !shift
+                              ? (bookingsByStaffDate.get(`${row.staffId}|${iso}`) ?? [])
+                              : [];
+                            const cellBody = shift ? (
+                              <PillVisual shift={shift} area={area} />
+                            ) : (
+                              <EmptyCellMarker canEdit={editable} />
+                            );
+                            return (
+                              <td
+                                key={iso}
+                                className={`relative px-0.5 py-1 text-center ${
+                                  we ? "bg-muted/40" : ""
+                                } ${isToday ? "bg-primary/5" : ""}`}
+                              >
+                                {editable ? (
+                                  <CellPopover
+                                    open={openCell === cellKey}
+                                    onOpenChange={(o) => setOpenCell(o ? cellKey : null)}
+                                    staffRow={row}
+                                    area={area}
+                                    iso={iso}
+                                    shift={shift}
+                                    allSkills={allSkills}
+                                    onAction={handleAction}
+                                    busy={busy}
+                                  >
+                                    <button
+                                      type="button"
+                                      className="block w-full cursor-pointer bg-transparent"
+                                      aria-label={
+                                        shift
+                                          ? `Schicht bearbeiten: ${row.displayName}, ${iso}`
+                                          : `Schicht anlegen: ${row.displayName}, ${iso}`
+                                      }
+                                    >
+                                      {cellBody}
+                                    </button>
+                                  </CellPopover>
+                                ) : (
+                                  cellBody
+                                )}
+                                {otherBookings.length > 0 && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span
+                                        className="absolute right-0.5 top-0.5 inline-block h-1.5 w-1.5 rounded-full bg-red-500"
+                                        aria-label="Bereits anderswo eingeteilt"
+                                      />
+                                    </TooltipTrigger>
+                                    <TooltipContent className="max-w-xs">
+                                      <div className="space-y-0.5 text-xs">
+                                        {otherBookings.map((b, i) => (
+                                          <div key={i}>
+                                            Bereits: {b.locationName} · {AREA_SHORT[b.area]}
+                                            {b.skillName ? ` · ${b.skillName}` : ""}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </React.Fragment>
                   );
                 })}
-              </tr>
-            </thead>
-            <tbody>
-              {AREA_ORDER.map((area) => {
-                const rows = grouped.get(area) ?? [];
-                if (rows.length === 0) return null;
-                return (
-                  <React.Fragment key={`area-${area}`}>
-                    <tr className={AREA_BG[area]}>
-                      <td
-                        colSpan={days.length + 1}
-                        className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-foreground"
-                      >
-                        <span
-                          className={`mr-2 inline-block h-2 w-2 rounded-full ${AREA_BAR[area]}`}
-                        />
-                        {AREA_LABEL[area]}
-                      </td>
-                    </tr>
-                    {rows.map((row) => (
-                      <tr
-                        key={`${area}-${row.staffId}`}
-                        className="border-b last:border-b-0 hover:bg-muted/30"
-                      >
-                        <td className="sticky left-0 z-10 min-w-[180px] bg-background px-3 py-1.5 font-medium">
-                          {row.displayName}
-                        </td>
-                        {days.map((iso) => {
-                          const we = isWeekend(iso);
-                          const isToday = iso === today;
-                          const shift = shiftIndex.get(`${row.staffId}|${iso}|${area}`);
-                          const cellKey = `${row.staffId}|${iso}|${area}`;
-                          const editable = canEdit && !periodLocked;
-                          const cellBody = shift ? (
-                            <PillVisual shift={shift} area={area} />
-                          ) : (
-                            <EmptyCellMarker canEdit={editable} />
-                          );
-                          return (
-                            <td
-                              key={iso}
-                              className={`px-0.5 py-1 text-center ${
-                                we ? "bg-muted/40" : ""
-                              } ${isToday ? "bg-primary/5" : ""}`}
-                            >
-                              {editable ? (
-                                <CellPopover
-                                  open={openCell === cellKey}
-                                  onOpenChange={(o) => setOpenCell(o ? cellKey : null)}
-                                  staffRow={row}
-                                  area={area}
-                                  iso={iso}
-                                  shift={shift}
-                                  allSkills={allSkills}
-                                  onAction={handleAction}
-                                  busy={busy}
-                                >
-                                  <button
-                                    type="button"
-                                    className="block w-full cursor-pointer bg-transparent"
-                                    aria-label={
-                                      shift
-                                        ? `Schicht bearbeiten: ${row.displayName}, ${iso}`
-                                        : `Schicht anlegen: ${row.displayName}, ${iso}`
-                                    }
-                                  >
-                                    {cellBody}
-                                  </button>
-                                </CellPopover>
-                              ) : (
-                                cellBody
-                              )}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </React.Fragment>
-                );
-              })}
-              {staff.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={days.length + 1}
-                    className="px-3 py-6 text-center text-muted-foreground"
-                  >
-                    Keine Mitarbeiter an diesem Standort.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </Card>
-      )}
+                {staff.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={days.length + 1}
+                      className="px-3 py-6 text-center text-muted-foreground"
+                    >
+                      Keine Mitarbeiter an diesem Standort.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </Card>
+        )}
+      </TooltipProvider>
     </div>
   );
 }
