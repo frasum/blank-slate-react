@@ -7,10 +7,10 @@ import { runImportDetailsCore } from "./import-details-core";
 import type { DetailsRowInput } from "./import-details";
 
 function row(over: Partial<DetailsRowInput> & { personnelNumber: string }): DetailsRowInput {
-  return {
+  const base: DetailsRowInput = {
     personnelNumber: over.personnelNumber,
-    firstName: over.firstName ?? "X",
-    lastName: over.lastName ?? "Y",
+    firstName: "X",
+    lastName: "Y",
     salutation: null,
     phone: null,
     email: null,
@@ -37,8 +37,8 @@ function row(over: Partial<DetailsRowInput> & { personnelNumber: string }): Deta
     vacationDaysPreviousYear: null,
     vacationDaysCurrentYear: null,
     vacationDaysTaken: null,
-    ...over,
   };
+  return { ...base, ...over };
 }
 
 async function mkStaffWithPersoNr(
