@@ -233,7 +233,8 @@ function KassePage() {
   const [cashLockDate, setCashLockDate] = useState<string>("");
   const [cashLockReason, setCashLockReason] = useState<string>("");
   const cashLockMut = useMutation({
-    mutationFn: () => callCashLock({ data: { locationId, throughDate: cashLockDate, reason: cashLockReason } }),
+    mutationFn: () =>
+      callCashLock({ data: { locationId, throughDate: cashLockDate, reason: cashLockReason } }),
     onSuccess: () => {
       toast.success("Wasserlinie verschoben.");
       setCashLockReason("");
@@ -921,9 +922,7 @@ function CashActualHint({ value }: { value: string }) {
   }
   const cents = parseEuroToCents(trimmed);
   if (cents === null) {
-    return (
-      <p className="pl-1 text-xs text-destructive">Bitte gültigen Eurobetrag eintragen.</p>
-    );
+    return <p className="pl-1 text-xs text-destructive">Bitte gültigen Eurobetrag eintragen.</p>;
   }
   const diff = cents - CASH_TARGET_CENTS;
   if (diff === 0) {

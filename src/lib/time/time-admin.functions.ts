@@ -401,8 +401,7 @@ export const getTimeOverview = createServerFn({ method: "GET" })
       const hoursWorked = Math.max(0, (ended - started) / 3_600_000);
       return {
         staffId: r.staff_id,
-        displayName:
-          (r.staff as { display_name: string } | null)?.display_name ?? "—",
+        displayName: (r.staff as { display_name: string } | null)?.display_name ?? "—",
         department: deptByStaff.get(r.staff_id) ?? ("service" as const),
         businessDate: r.business_date as string,
         hoursWorked,
@@ -517,9 +516,7 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
     // 1. Einträge am Zielstandort.
     const { data: rows, error } = await supabaseAdmin
       .from("time_entries")
-      .select(
-        "id, staff_id, started_at, ended_at, business_date, location_id, staff(display_name)",
-      )
+      .select("id, staff_id, started_at, ended_at, business_date, location_id, staff(display_name)")
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId)
       .gte("business_date", data.weekStart)
@@ -566,8 +563,7 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
       entries: (rows ?? []).map((r) => ({
         id: r.id as string,
         staffId: r.staff_id as string,
-        displayName:
-          (r.staff as { display_name: string } | null)?.display_name ?? "—",
+        displayName: (r.staff as { display_name: string } | null)?.display_name ?? "—",
         department: deptByStaff.get(r.staff_id as string) ?? ("service" as const),
         businessDate: r.business_date as string,
         startedAt: r.started_at as string,

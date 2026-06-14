@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  computeShiftHours,
-  isBavarianHoliday,
-  isSundayOrHoliday,
-} from "./shift-hours";
+import { computeShiftHours, isBavarianHoliday, isSundayOrHoliday } from "./shift-hours";
 
 // Hinweis: ISO-Strings mit explizitem Berlin-Offset (Sommerzeit "+02:00", Winterzeit "+01:00").
 // 15.06.2026 ist ein Montag (Sommerzeit).

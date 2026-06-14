@@ -409,9 +409,7 @@ export async function getMySettlementCore(caller: StaffCaller) {
 
 export const getTipPoolOverview = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
-    z.object({ sessionId: z.string().uuid() }).parse(input ?? {}),
-  )
+  .inputValidator((input) => z.object({ sessionId: z.string().uuid() }).parse(input ?? {}))
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
     return getTipPoolOverviewCore(caller, data);
@@ -452,8 +450,8 @@ export async function getTipPoolOverviewCore(
     kitchenTipCents: Number(r.kitchen_tip_cents),
   }));
   const timeEntries = (timeRes.data ?? [])
-    .filter((r): r is { staff_id: string; started_at: string; ended_at: string } =>
-      r.ended_at !== null,
+    .filter(
+      (r): r is { staff_id: string; started_at: string; ended_at: string } => r.ended_at !== null,
     )
     .map((r) => ({ staffId: r.staff_id, startedAt: r.started_at, endedAt: r.ended_at }));
 
