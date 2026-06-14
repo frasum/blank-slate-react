@@ -34,6 +34,16 @@ jobs:
       - run: bun install --frozen-lockfile
       - name: Start local Supabase stack
         run: supabase start --exclude studio,inbucket,storage-api,imgproxy,edge-runtime,logflare,vector
+      - name: Wait for Supabase to be ready
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:54321/rest/v1/ -H "apikey: $(supabase status -o env | grep ANON_KEY | cut -d= -f2)" > /dev/null 2>&1; then
+              echo "Supabase is ready"
+              break
+            fi
+            echo "Waiting for Supabase... ($i/30)"
+            sleep 2
+          done
       - name: Export Supabase env vars
         run: |
           set -euo pipefail
