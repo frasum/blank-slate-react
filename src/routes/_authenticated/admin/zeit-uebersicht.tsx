@@ -3,7 +3,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -334,8 +334,8 @@ function ZeitUebersichtPage() {
                     deptShifts += s.shiftDates.size;
                   }
                   return (
-                    <>
-                      <TableRow key={`hdr-${dept}`} className={DEPT_BG[dept]}>
+                    <Fragment key={`grp-${dept}`}>
+                      <TableRow className={DEPT_BG[dept]}>
                         <TableCell
                           colSpan={5 + weekCols.length}
                           className="font-semibold text-foreground"
@@ -361,7 +361,7 @@ function ZeitUebersichtPage() {
                           <TableCell className="text-right text-muted-foreground">–</TableCell>
                         </TableRow>
                       ))}
-                      <TableRow key={`sum-${dept}`} className={`${DEPT_BG[dept]} font-medium`}>
+                      <TableRow className={`${DEPT_BG[dept]} font-medium`}>
                         <TableCell>Summe {DEPT_LABEL[dept]}</TableCell>
                         {weekCols.map((w) => (
                           <TableCell key={w.key} className="text-right tabular-nums">
@@ -375,7 +375,7 @@ function ZeitUebersichtPage() {
                         <TableCell className="text-right text-muted-foreground">–</TableCell>
                         <TableCell className="text-right text-muted-foreground">–</TableCell>
                       </TableRow>
-                    </>
+                    </Fragment>
                   );
                 })}
                 {staffAggs.length > 0 &&
@@ -436,8 +436,8 @@ function ZeitUebersichtPage() {
                   const list = byDept.get(dept) ?? [];
                   if (list.length === 0) return null;
                   return (
-                    <>
-                      <TableRow key={`p-hdr-${dept}`} className={DEPT_BG[dept]}>
+                    <Fragment key={`p-grp-${dept}`}>
+                      <TableRow className={DEPT_BG[dept]}>
                         <TableCell colSpan={7} className="font-semibold">
                           {DEPT_LABEL[dept]}
                         </TableCell>
@@ -456,7 +456,7 @@ function ZeitUebersichtPage() {
                           }
                         />
                       ))}
-                    </>
+                    </Fragment>
                   );
                 })}
               </TableBody>
