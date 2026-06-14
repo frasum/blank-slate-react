@@ -1465,7 +1465,7 @@ export async function getCashLedgerCore(
   const { data: sessions, error: sErr } = await supabaseAdmin
     .from("sessions")
     .select(
-      "id, business_date, status, location_id, opening_balance_cents, vouchers_sold_cents, vouchers_redeemed_cents, finedine_vouchers_cents, vorschuss_cents, einladung_cents, sonstige_einnahme_cents",
+      "id, business_date, status, location_id, opening_balance_cents, vouchers_sold_cents, vouchers_redeemed_cents, finedine_vouchers_cents, vorschuss_cents, einladung_cents, sonstige_einnahme_cents, cash_actual_cents",
     )
     .eq("organization_id", caller.organizationId)
     .gte("business_date", data.fromDate)
@@ -1473,6 +1473,15 @@ export async function getCashLedgerCore(
     .order("business_date", { ascending: true });
   if (sErr) throw sErr;
   if (!sessions || sessions.length === 0) return [];
+
+  const { data: org, error: orgErr } = await supabaseAdmin
+    .from("organizations")
+    .select("cash_balance_target_cents, opening_safe_balance_cents")
+    .eq("id", caller.organizationId)
+    .maybeSingle();
+  if (orgErr) throw orgErr;
+  const cashTarget = Number(org?.cash_balance_target_cents ?? 200_000);
+  const openingSafe = Number(org?.opening_safe_balance_cents ?? 200_000);
 
   const sessionIds = sessions.map((s) => s.id);
 
