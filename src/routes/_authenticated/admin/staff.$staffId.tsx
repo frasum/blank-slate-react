@@ -236,6 +236,14 @@ function LocationsTab({ staffId, current }: { staffId: string; current: string[]
   );
 }
 
+type SkillRow = {
+  id: string;
+  name: string;
+  category: SkillCategory;
+  color: string | null;
+  sortOrder: number;
+};
+
 function SkillsTab({ staffId }: { staffId: string }) {
   const queryClient = useQueryClient();
   const skillsQ = useQuery({
@@ -250,9 +258,11 @@ function SkillsTab({ staffId }: { staffId: string }) {
   const [selected, setSelected] = useState<Set<string> | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
-  if (selected === null && currentQ.data) {
-    setSelected(new Set(currentQ.data));
-  }
+  useEffect(() => {
+    if (selected === null && currentQ.data) {
+      setSelected(new Set(currentQ.data));
+    }
+  }, [currentQ.data, selected]);
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -272,12 +282,15 @@ function SkillsTab({ staffId }: { staffId: string }) {
     other: "Sonstiges",
   };
   const categoryOrder: SkillCategory[] = ["kitchen", "service", "gl", "other"];
-  const grouped = new Map<SkillCategory, typeof skillsQ.data>();
-  for (const s of skillsQ.data ?? []) {
-    const list = grouped.get(s.category) ?? [];
-    list.push(s);
-    grouped.set(s.category, list);
-  }
+  const grouped = useMemo(() => {
+    const m = new Map<SkillCategory, SkillRow[]>();
+    for (const s of skillsQ.data ?? []) {
+      const list = m.get(s.category) ?? [];
+      list.push(s);
+      m.set(s.category, list);
+    }
+    return m;
+  }, [skillsQ.data]);
 
   if (skillsQ.isLoading || currentQ.isLoading || !selected) {
     return <p className="text-sm text-muted-foreground">Lade…</p>;
