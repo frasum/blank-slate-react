@@ -101,8 +101,8 @@ function DienstplanPage() {
   const [periodId, setPeriodId] = useState<string | null>(null);
   const [locationId, setLocationId] = useState<string | null>(null);
 
-  const periods = periodsQ.data ?? [];
-  const locations = locationsQ.data ?? [];
+  const periods = useMemo(() => periodsQ.data ?? [], [periodsQ.data]);
+  const locations = useMemo(() => locationsQ.data ?? [], [locationsQ.data]);
 
   const effectivePeriod = useMemo(() => {
     if (periodId) return periods.find((p) => p.id === periodId) ?? null;
@@ -141,8 +141,8 @@ function DienstplanPage() {
   // aber wir prefetchen für spätere Edit-Funktionen + um die Function zu validieren.
   useQuery({ queryKey: ["skills"], queryFn: () => listSkills() });
 
-  const staff = staffQ.data ?? [];
-  const shifts = shiftsQ.data ?? [];
+  const staff = useMemo(() => staffQ.data ?? [], [staffQ.data]);
+  const shifts = useMemo(() => shiftsQ.data ?? [], [shiftsQ.data]);
 
   const shiftIndex = useMemo(() => {
     const m = new Map<string, RosterShift>();
