@@ -16,6 +16,7 @@ import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authentic
 import { Route as AuthenticatedZeitIndexRouteImport } from './routes/_authenticated/zeit/index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedZeitAbrechnungRouteImport } from './routes/_authenticated/zeit/abrechnung'
+import { Route as AuthenticatedAdminZeitUebersichtRouteImport } from './routes/_authenticated/admin/zeit-uebersicht'
 import { Route as AuthenticatedAdminZeitRouteImport } from './routes/_authenticated/admin/zeit'
 import { Route as AuthenticatedAdminStaffRouteImport } from './routes/_authenticated/admin/staff'
 import { Route as AuthenticatedAdminMigrationRouteImport } from './routes/_authenticated/admin/migration'
@@ -61,6 +62,12 @@ const AuthenticatedZeitAbrechnungRoute =
     id: '/zeit/abrechnung',
     path: '/zeit/abrechnung',
     getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminZeitUebersichtRoute =
+  AuthenticatedAdminZeitUebersichtRouteImport.update({
+    id: '/zeit-uebersicht',
+    path: '/zeit-uebersicht',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
 const AuthenticatedAdminZeitRoute = AuthenticatedAdminZeitRouteImport.update({
   id: '/zeit',
@@ -131,6 +138,7 @@ export interface FileRoutesByFullPath {
   '/admin/migration': typeof AuthenticatedAdminMigrationRoute
   '/admin/staff': typeof AuthenticatedAdminStaffRouteWithChildren
   '/admin/zeit': typeof AuthenticatedAdminZeitRoute
+  '/admin/zeit-uebersicht': typeof AuthenticatedAdminZeitUebersichtRoute
   '/zeit/abrechnung': typeof AuthenticatedZeitAbrechnungRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/zeit/': typeof AuthenticatedZeitIndexRoute
@@ -147,6 +155,7 @@ export interface FileRoutesByTo {
   '/admin/locations': typeof AuthenticatedAdminLocationsRoute
   '/admin/migration': typeof AuthenticatedAdminMigrationRoute
   '/admin/zeit': typeof AuthenticatedAdminZeitRoute
+  '/admin/zeit-uebersicht': typeof AuthenticatedAdminZeitUebersichtRoute
   '/zeit/abrechnung': typeof AuthenticatedZeitAbrechnungRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/zeit': typeof AuthenticatedZeitIndexRoute
@@ -167,6 +176,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/migration': typeof AuthenticatedAdminMigrationRoute
   '/_authenticated/admin/staff': typeof AuthenticatedAdminStaffRouteWithChildren
   '/_authenticated/admin/zeit': typeof AuthenticatedAdminZeitRoute
+  '/_authenticated/admin/zeit-uebersicht': typeof AuthenticatedAdminZeitUebersichtRoute
   '/_authenticated/zeit/abrechnung': typeof AuthenticatedZeitAbrechnungRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/zeit/': typeof AuthenticatedZeitIndexRoute
@@ -187,6 +197,7 @@ export interface FileRouteTypes {
     | '/admin/migration'
     | '/admin/staff'
     | '/admin/zeit'
+    | '/admin/zeit-uebersicht'
     | '/zeit/abrechnung'
     | '/admin/'
     | '/zeit/'
@@ -203,6 +214,7 @@ export interface FileRouteTypes {
     | '/admin/locations'
     | '/admin/migration'
     | '/admin/zeit'
+    | '/admin/zeit-uebersicht'
     | '/zeit/abrechnung'
     | '/admin'
     | '/zeit'
@@ -222,6 +234,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/migration'
     | '/_authenticated/admin/staff'
     | '/_authenticated/admin/zeit'
+    | '/_authenticated/admin/zeit-uebersicht'
     | '/_authenticated/zeit/abrechnung'
     | '/_authenticated/admin/'
     | '/_authenticated/zeit/'
@@ -285,6 +298,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/zeit/abrechnung'
       preLoaderRoute: typeof AuthenticatedZeitAbrechnungRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/zeit-uebersicht': {
+      id: '/_authenticated/admin/zeit-uebersicht'
+      path: '/zeit-uebersicht'
+      fullPath: '/admin/zeit-uebersicht'
+      preLoaderRoute: typeof AuthenticatedAdminZeitUebersichtRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
     }
     '/_authenticated/admin/zeit': {
       id: '/_authenticated/admin/zeit'
@@ -385,6 +405,7 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminMigrationRoute: typeof AuthenticatedAdminMigrationRoute
   AuthenticatedAdminStaffRoute: typeof AuthenticatedAdminStaffRouteWithChildren
   AuthenticatedAdminZeitRoute: typeof AuthenticatedAdminZeitRoute
+  AuthenticatedAdminZeitUebersichtRoute: typeof AuthenticatedAdminZeitUebersichtRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
 }
 
@@ -398,6 +419,8 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
     AuthenticatedAdminMigrationRoute: AuthenticatedAdminMigrationRoute,
     AuthenticatedAdminStaffRoute: AuthenticatedAdminStaffRouteWithChildren,
     AuthenticatedAdminZeitRoute: AuthenticatedAdminZeitRoute,
+    AuthenticatedAdminZeitUebersichtRoute:
+      AuthenticatedAdminZeitUebersichtRoute,
     AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   }
 
