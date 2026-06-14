@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -12,13 +12,19 @@ import {
 import { listLocations } from "@/lib/admin/locations.functions";
 import { clearPin, setPin } from "@/lib/admin/pin.functions";
 import { issueBadge, listBadges, revokeBadge } from "@/lib/admin/badges.functions";
+import {
+  assignStaffSkills,
+  getStaffSkills,
+  listSkills,
+  type SkillCategory,
+} from "@/lib/admin/skills.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/staff/$staffId")({
   head: () => ({ meta: [{ title: "Mitarbeiter · Verwaltung" }] }),
   component: StaffDetailPage,
 });
 
-type Tab = "basics" | "locations" | "role" | "pin" | "badges";
+type Tab = "basics" | "locations" | "skills" | "role" | "pin" | "badges";
 
 function StaffDetailPage() {
   const { staffId } = Route.useParams();
@@ -49,6 +55,7 @@ function StaffDetailPage() {
           [
             ["basics", "Stammdaten"],
             ["locations", "Standorte"],
+            ["skills", "Skills"],
             ["role", "Rolle & Aktiv"],
             ["pin", "PIN"],
             ["badges", "Badges"],
@@ -72,6 +79,7 @@ function StaffDetailPage() {
 
       {tab === "basics" && <BasicsTab staff={s} />}
       {tab === "locations" && <LocationsTab staffId={s.id} current={s.locationIds} />}
+      {tab === "skills" && <SkillsTab staffId={s.id} />}
       {tab === "role" && <RoleTab staff={s} />}
       {tab === "pin" && <PinTab staffId={s.id} hasPin={s.hasPin} />}
       {tab === "badges" && <BadgesTab staffId={s.id} />}
@@ -213,6 +221,121 @@ function LocationsTab({ staffId, current }: { staffId: string; current: string[]
           </label>
         ))}
       </div>
+      {msg && <p className="text-sm text-muted-foreground">{msg}</p>}
+      <button
+        onClick={() => {
+          setMsg(null);
+          mutation.mutate();
+        }}
+        disabled={mutation.isPending}
+        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+      >
+        {mutation.isPending ? "Speichern…" : "Speichern"}
+      </button>
+    </div>
+  );
+}
+
+type SkillRow = {
+  id: string;
+  name: string;
+  category: SkillCategory;
+  color: string | null;
+  sortOrder: number;
+};
+
+function SkillsTab({ staffId }: { staffId: string }) {
+  const queryClient = useQueryClient();
+  const skillsQ = useQuery({
+    queryKey: ["admin", "skills"],
+    queryFn: () => listSkills(),
+  });
+  const currentQ = useQuery({
+    queryKey: ["admin", "staff-skills", staffId],
+    queryFn: () => getStaffSkills({ data: { staffId } }),
+  });
+  const callAssign = useServerFn(assignStaffSkills);
+  const [selected, setSelected] = useState<Set<string> | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (selected === null && currentQ.data) {
+      setSelected(new Set(currentQ.data));
+    }
+  }, [currentQ.data, selected]);
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      callAssign({ data: { staffId, skillIds: Array.from(selected ?? new Set<string>()) } }),
+    onSuccess: async () => {
+      setMsg("Gespeichert.");
+      await queryClient.invalidateQueries({ queryKey: ["admin", "staff-skills", staffId] });
+      await queryClient.invalidateQueries({ queryKey: ["admin", "staff"] });
+    },
+    onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
+  });
+
+  const categoryLabel: Record<SkillCategory, string> = {
+    kitchen: "Küche",
+    service: "Service",
+    gl: "Geschäftsleitung",
+    other: "Sonstiges",
+  };
+  const categoryOrder: SkillCategory[] = ["kitchen", "service", "gl", "other"];
+  const grouped = useMemo(() => {
+    const m = new Map<SkillCategory, SkillRow[]>();
+    for (const s of skillsQ.data ?? []) {
+      const list = m.get(s.category) ?? [];
+      list.push(s);
+      m.set(s.category, list);
+    }
+    return m;
+  }, [skillsQ.data]);
+
+  if (skillsQ.isLoading || currentQ.isLoading || !selected) {
+    return <p className="text-sm text-muted-foreground">Lade…</p>;
+  }
+
+  return (
+    <div className="max-w-lg space-y-5">
+      {skillsQ.data && skillsQ.data.length === 0 && (
+        <p className="text-sm text-muted-foreground">Noch keine Skills angelegt.</p>
+      )}
+      {categoryOrder.map((cat) => {
+        const items = grouped.get(cat);
+        if (!items || items.length === 0) return null;
+        return (
+          <div key={cat} className="space-y-2">
+            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {categoryLabel[cat]}
+            </div>
+            <div className="space-y-1.5">
+              {items.map((sk) => (
+                <label key={sk.id} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(sk.id)}
+                    onChange={(e) => {
+                      const next = new Set(selected);
+                      if (e.target.checked) next.add(sk.id);
+                      else next.delete(sk.id);
+                      setSelected(next);
+                    }}
+                  />
+                  {sk.color && (
+                    <span
+                      aria-hidden
+                      className="inline-block h-2.5 w-2.5 rounded-full border border-border"
+                      style={{ backgroundColor: sk.color }}
+                    />
+                  )}
+                  <span className="text-foreground">{sk.name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        );
+      })}
       {msg && <p className="text-sm text-muted-foreground">{msg}</p>}
       <button
         onClick={() => {
