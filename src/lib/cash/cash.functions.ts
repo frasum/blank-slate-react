@@ -18,6 +18,7 @@ import { runGuarded } from "@/lib/admin/admin-call";
 import { writeAuditLog } from "@/lib/admin/audit";
 import { arbzgMinimumBreak, grossMinutesBetween } from "@/lib/time/break-rules";
 import { calcWaiterSettlement } from "./waiter-settlement";
+import { computeTipPool, type TipPoolResult, type StaffDepartment } from "./tip-pool";
 import { assertCashWritable, CashLockedError } from "./cash-lock";
 import type { Json } from "@/integrations/supabase/types";
 import { ForbiddenError } from "@/lib/admin/role-guard";
