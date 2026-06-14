@@ -125,6 +125,52 @@ function fmtHm(hours: number): string {
   return `${h}:${String(m).padStart(2, "0")}`;
 }
 
+// Periodenrhythmus 26.→25.: Label-Monat = Monat des Enddatums.
+const MONTH_DE = [
+  "Januar",
+  "Februar",
+  "März",
+  "April",
+  "Mai",
+  "Juni",
+  "Juli",
+  "August",
+  "September",
+  "Oktober",
+  "November",
+  "Dezember",
+];
+function periodDefaultStart(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-26`;
+}
+function periodDefaultEnd(): string {
+  const d = new Date();
+  const y = d.getMonth() === 11 ? d.getFullYear() + 1 : d.getFullYear();
+  const m = d.getMonth() === 11 ? 1 : d.getMonth() + 2;
+  return `${y}-${String(m).padStart(2, "0")}-25`;
+}
+function periodLabelForEnd(endIso: string): string {
+  const d = parseIsoDate(endIso);
+  return `${MONTH_DE[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+function nextPeriodFromLast(lastEndIso: string): {
+  startDate: string;
+  endDate: string;
+  label: string;
+} {
+  // Start = letzter Tag + 1 (immer der 26.); End = Folgemonat-25.
+  const start = addDays(parseIsoDate(lastEndIso), 1);
+  const endMonth = start.getUTCMonth() === 11 ? 0 : start.getUTCMonth() + 1;
+  const endYear = start.getUTCMonth() === 11 ? start.getUTCFullYear() + 1 : start.getUTCFullYear();
+  const endIso = `${endYear}-${String(endMonth + 1).padStart(2, "0")}-25`;
+  return { startDate: fmtIso(start), endDate: endIso, label: periodLabelForEnd(endIso) };
+}
+function fmtDDMM(iso: string): string {
+  const d = parseIsoDate(iso);
+  return `${String(d.getUTCDate()).padStart(2, "0")}.${String(d.getUTCMonth() + 1).padStart(2, "0")}.${d.getUTCFullYear()}`;
+}
+
 type WeekCol = { key: string; label: string; start: string; end: string };
 
 function buildWeekColumns(fromIso: string, toIso: string): WeekCol[] {
