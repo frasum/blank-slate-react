@@ -1311,3 +1311,94 @@ function TransferForm({
 
 // fmtTime ist exportiert für künftige Verwendung — TS würde sonst meckern.
 void fmtTime;
+
+// =========================================================================
+// B4 — Trinkgeld-Pool
+// =========================================================================
+
+function TipPoolCard({
+  sessionId,
+  hasSettlements,
+}: {
+  sessionId: string;
+  hasSettlements: boolean;
+}) {
+  const fetchPool = useServerFn(getTipPoolOverview);
+  const poolQ = useQuery({
+    queryKey: ["cash", "tip-pool", sessionId],
+    queryFn: () => fetchPool({ data: { sessionId } }),
+    enabled: hasSettlements,
+  });
+
+  if (!hasSettlements) return null;
+  if (poolQ.isLoading) {
+    return <Card className="p-4 text-sm text-muted-foreground">Lade Trinkgeld-Pool…</Card>;
+  }
+  if (poolQ.error || !poolQ.data) {
+    return (
+      <Card className="p-4 text-sm text-destructive">
+        Trinkgeld-Pool konnte nicht geladen werden.
+      </Card>
+    );
+  }
+  const data = poolQ.data;
+  const kitchen = data.shares.filter((s) => s.department === "kitchen");
+  const service = data.shares.filter((s) => s.department === "service");
+
+  const renderTable = (
+    title: string,
+    rows: typeof data.shares,
+    poolCents: number,
+    remainder: number,
+  ) => (
+    <Card className="flex-1">
+      <div className="border-b px-4 py-3 text-sm font-medium">{title}</div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Mitarbeiter</TableHead>
+            <TableHead>Abt.</TableHead>
+            <TableHead className="text-right">Stunden</TableHead>
+            <TableHead className="text-right">Anteil</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={4} className="text-center text-muted-foreground">
+                Keine teilnehmenden Mitarbeiter.
+              </TableCell>
+            </TableRow>
+          )}
+          {rows.map((r) => (
+            <TableRow key={r.staffId}>
+              <TableCell>{data.staffNames[r.staffId] ?? r.staffId}</TableCell>
+              <TableCell>{r.department}</TableCell>
+              <TableCell className="text-right font-mono">
+                {r.hoursWorked.toFixed(2).replace(".", ",")}
+              </TableCell>
+              <TableCell className="text-right font-mono">{fmtCents(r.shareCents)}</TableCell>
+            </TableRow>
+          ))}
+          <TableRow className="border-t font-medium">
+            <TableCell colSpan={2}>Pool gesamt</TableCell>
+            <TableCell className="text-right font-mono">{fmtCents(poolCents)}</TableCell>
+            <TableCell className="text-right font-mono text-muted-foreground">
+              Rest: {fmtCents(remainder)}
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+    </Card>
+  );
+
+  return (
+    <div className="space-y-2">
+      <div className="text-sm font-medium">Trinkgeld-Pool</div>
+      <div className="flex flex-col gap-4 md:flex-row">
+        {renderTable("Küchen-Pool", kitchen, data.kitchenPoolCents, data.kitchenRemainder)}
+        {renderTable("Service-Pool", service, data.servicePoolCents, data.serviceRemainder)}
+      </div>
+    </div>
+  );
+}
