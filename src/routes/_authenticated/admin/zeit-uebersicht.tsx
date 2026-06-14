@@ -11,6 +11,15 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
+import {
   Table,
   TableBody,
   TableCell,
@@ -20,9 +29,11 @@ import {
 } from "@/components/ui/table";
 import { listLocations } from "@/lib/admin/locations.functions";
 import {
+  createTimeEntryShift,
   getTimeOverview,
   getWeeklyTimeEntries,
   listPayrollNotes,
+  setTimeEntryShift,
   upsertPayrollNote,
 } from "@/lib/time/time-admin.functions";
 import {
