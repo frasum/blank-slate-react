@@ -16,6 +16,8 @@ import { importStaffAssignments } from "@/lib/admin/import-assignments.functions
 import { parseImportCsvs, type ParseResult } from "@/lib/admin/import-zuordnungen-csv";
 import { importStaffPersonalData } from "@/lib/admin/import-personal.functions";
 import { parsePersonalCsv, type PersonalParseResult } from "@/lib/admin/import-personal-csv";
+import { importStaffPersonalDetails } from "@/lib/admin/import-details.functions";
+import { parseDetailsCsv, type DetailsParseResult } from "@/lib/admin/import-details-csv";
 
 export const Route = createFileRoute("/_authenticated/admin/import-zuordnungen")({
   head: () => ({ meta: [{ title: "Zuordnungen importieren" }] }),
@@ -187,6 +189,7 @@ function ImportZuordnungenPage() {
       {committed && <PlanReport title="Commit-Bericht" result={committed} />}
 
       <PersonalSection />
+      <DetailsSection />
     </div>
   );
 }
@@ -442,6 +445,201 @@ function PersonalReport({ title, result }: { title: string; result: PersonalImpo
                 {s.compFallback ? " · Fallback-Datum" : ""} ·{" "}
                 {Object.keys(s.compDiff).length === 0 ? "—" : JSON.stringify(s.compDiff)}
               </div>
+            </div>
+          ))}
+        </div>
+      </details>
+    </Card>
+  );
+}
+
+function DetailsSection() {
+  const callImport = useServerFn(importStaffPersonalDetails);
+  const [csv, setCsv] = useState("");
+  const [name, setName] = useState("");
+
+  const parsed = useMemo<DetailsParseResult | { error: string } | null>(() => {
+    if (!csv) return null;
+    try {
+      return parseDetailsCsv(csv);
+    } catch (e) {
+      return { error: (e as Error).message };
+    }
+  }, [csv]);
+
+  const dryMut = useMutation({
+    mutationFn: () => {
+      if (!parsed || "error" in parsed) throw new Error("CSV unvollständig.");
+      return callImport({ data: { rows: parsed.rows, mode: "dry_run" } });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const commitMut = useMutation({
+    mutationFn: () => {
+      if (!parsed || "error" in parsed) throw new Error("CSV unvollständig.");
+      return callImport({ data: { rows: parsed.rows, mode: "commit" } });
+    },
+    onSuccess: (r) => {
+      const t = r.plan.totals;
+      toast.success(
+        `Details (Welle 2): ${t.inserts} Inserts · ${t.updates} Updates · ${t.fieldsTouched} Felder.`,
+      );
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  function onFile(ev: React.ChangeEvent<HTMLInputElement>) {
+    const f = ev.target.files?.[0];
+    if (!f) return;
+    setName(f.name);
+    f.text().then(setCsv);
+    dryMut.reset();
+    commitMut.reset();
+  }
+
+  const parseError = parsed && "error" in parsed ? parsed.error : null;
+  const parseOk = parsed && !("error" in parsed) ? parsed : null;
+  const dry = dryMut.data;
+  const committed = commitMut.data;
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <h2 className="text-xl font-semibold tracking-tight text-foreground">
+          Personaldaten (Welle 2 — sensibel)
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Übernahme von Adresse, Kontakt, Geburtstag, Lohnsteuer/SV, Bank und Vertrag aus thaitime.
+          Sensible Felder (IBAN, SV-Nr., Steuer-ID) werden im Bericht maskiert und nicht im Audit
+          gespeichert. Brücke: thaitime <code>personnel_number</code> → <code>staff.perso_nr</code>.
+        </p>
+      </div>
+
+      <Card className="p-4 space-y-3">
+        <div className="space-y-1">
+          <Label htmlFor="details">Details-CSV</Label>
+          <Input id="details" type="file" accept=".csv,text/csv" onChange={onFile} />
+          {name && <div className="text-xs text-muted-foreground">{name}</div>}
+        </div>
+
+        {parseError && (
+          <div className="rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+            {parseError}
+          </div>
+        )}
+
+        {parseOk && (
+          <div className="space-y-2 text-sm">
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="secondary">{parseOk.rows.length} Zeilen</Badge>
+              {parseOk.warnings.length > 0 ? (
+                <Badge variant="destructive">{parseOk.warnings.length} Warnungen</Badge>
+              ) : (
+                <Badge variant="secondary">0 Warnungen</Badge>
+              )}
+            </div>
+            {parseOk.warnings.length > 0 && (
+              <details className="rounded-md border border-border bg-muted/30 p-2">
+                <summary className="cursor-pointer text-sm font-medium">Warnungen ansehen</summary>
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-xs">
+                  {parseOk.warnings.map((w, i) => (
+                    <li key={i}>
+                      <code>{w.kind}</code> · {JSON.stringify(w)}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <Button disabled={!parseOk || dryMut.isPending} onClick={() => dryMut.mutate()}>
+            {dryMut.isPending ? "Dry-Run…" : "Dry-Run ausführen"}
+          </Button>
+          <Button
+            variant="destructive"
+            disabled={!dry || commitMut.isPending}
+            onClick={() => {
+              if (!dry) return;
+              const t = dry.plan.totals;
+              const msg = `Commit ausführen?\n\n${t.staff} MA · ${t.inserts} Inserts · ${t.updates} Updates · ${t.fieldsTouched} Felder · ${t.skippedCount} skipped.`;
+              if (!window.confirm(msg)) return;
+              commitMut.mutate();
+            }}
+            title={!dry ? "Erst Dry-Run ausführen." : undefined}
+          >
+            {commitMut.isPending ? "Commit läuft…" : "Jetzt importieren"}
+          </Button>
+        </div>
+      </Card>
+
+      {dry && <DetailsReport title="Dry-Run-Bericht" result={dry} />}
+      {committed && <DetailsReport title="Commit-Bericht" result={committed} />}
+    </div>
+  );
+}
+
+type DetailsImportResult = Awaited<ReturnType<typeof importStaffPersonalDetails>>;
+
+function DetailsReport({ title, result }: { title: string; result: DetailsImportResult }) {
+  const t = result.plan.totals;
+  return (
+    <Card className="p-4 space-y-3">
+      <div className="font-medium">{title}</div>
+      <div className="flex flex-wrap gap-2 text-xs">
+        <Badge variant="secondary">{t.rows} Zeilen</Badge>
+        <Badge variant="secondary">{t.staff} MA betroffen</Badge>
+        <Badge variant="secondary">
+          {t.inserts} Inserts · {t.updates} Updates
+        </Badge>
+        <Badge variant="secondary">{t.fieldsTouched} Felder</Badge>
+        {t.skippedCount > 0 ? (
+          <Badge variant="destructive">{t.skippedCount} skipped</Badge>
+        ) : (
+          <Badge variant="secondary">0 skipped</Badge>
+        )}
+      </div>
+
+      {result.plan.skippedRows.length > 0 && (
+        <details className="rounded-md border border-border bg-muted/30 p-2">
+          <summary className="cursor-pointer text-sm font-medium">
+            Übersprungene Zeilen ({result.plan.skippedRows.length})
+          </summary>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-xs">
+            {result.plan.skippedRows.map((s, i) => (
+              <li key={i}>
+                <code>{s.reason}</code> · PN {s.personnelNumber} · {s.firstName} {s.lastName}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+
+      <details className="rounded-md border border-border bg-muted/30 p-2">
+        <summary className="cursor-pointer text-sm font-medium">
+          Pro Mitarbeiter ({result.plan.perStaff.length})
+        </summary>
+        <div className="mt-2 space-y-2 text-xs">
+          {result.plan.perStaff.map((s) => (
+            <div key={s.staffId} className="rounded border border-border bg-card p-2">
+              <div className="font-medium">
+                PN {s.personnelNumber} · {s.firstName} {s.lastName}{" "}
+                <span className="text-muted-foreground">({s.op})</span>
+              </div>
+              <ul className="mt-1 list-disc pl-5">
+                {s.fieldDiffs
+                  .filter((d) => d.state !== "unchanged")
+                  .map((d) => (
+                    <li key={d.field}>
+                      <code>{d.field}</code> · {d.state}
+                      {d.sensitive
+                        ? " · ●●●● (maskiert)"
+                        : ` · ${JSON.stringify(d.from)} → ${JSON.stringify(d.to)}`}
+                    </li>
+                  ))}
+              </ul>
             </div>
           ))}
         </div>
