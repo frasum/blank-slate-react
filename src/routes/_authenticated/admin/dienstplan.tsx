@@ -562,5 +562,3 @@ function DienstplanPage() {
   );
 }
 
-// React.Fragment mit key benötigt expliziten React-Import (TypeScript).
-import * as React from "react";
