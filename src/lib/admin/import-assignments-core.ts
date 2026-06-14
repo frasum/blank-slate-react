@@ -19,8 +19,10 @@ import {
 
 /** Feste Alt→Neu Location-Map (verifizierte Grundlage aus dem Plan). */
 export const ALT_LOCATION_MAP: Record<string, string> = {
-  "a1710390-0000-0000-0000-000000000000": "44a99e7e-93be-44b1-89ab-38e364a02ddc",
-  "3065f458-0000-0000-0000-000000000000": "14c2d773-6c5f-4a24-ba00-1c726f277091",
+  // Spicery
+  "a1710390-ea4d-4bc2-b869-c0c047056b15": "44a99e7e-93be-44b1-89ab-38e364a02ddc",
+  // YUM
+  "3065f458-6d66-4a5d-a85e-f8ee33bb7351": "14c2d773-6c5f-4a24-ba00-1c726f277091",
 };
 
 export type ImportCoreInput = {
