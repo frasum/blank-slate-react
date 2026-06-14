@@ -55,6 +55,9 @@ function buildCsv(rows: CashLedgerRow[]): string {
     "Ausgaben",
     "Tagessaldo",
     "Differenz",
+    "Kassenist",
+    "Tresor ±",
+    "Tresorbestand",
   ].join(";");
   const body = rows.map((r) =>
     [
@@ -65,6 +68,13 @@ function buildCsv(rows: CashLedgerRow[]): string {
       fmtEuroCsv(r.totalExpensesCents),
       fmtEuroCsv(r.closingBalanceCents),
       fmtEuroCsv(r.differenzCents),
+      r.cashActualCents === null ? "" : fmtEuroCsv(r.cashActualCents),
+      r.surplusCents !== null && r.surplusCents > 0
+        ? fmtEuroCsv(r.surplusCents)
+        : r.shortfallCents !== null && r.shortfallCents > 0
+          ? fmtEuroCsv(-r.shortfallCents)
+          : "",
+      fmtEuroCsv(r.safeBalanceCents),
     ].join(";"),
   );
   return "\uFEFF" + [header, ...body].join("\r\n") + "\r\n";
