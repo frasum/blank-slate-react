@@ -199,6 +199,51 @@ export type Database = {
           },
         ]
       }
+      location_department_defaults: {
+        Row: {
+          created_at: string
+          default_checkin: string
+          department: Database["public"]["Enums"]["staff_department"]
+          id: string
+          location_id: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_checkin: string
+          department: Database["public"]["Enums"]["staff_department"]
+          id?: string
+          location_id: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_checkin?: string
+          department?: Database["public"]["Enums"]["staff_department"]
+          id?: string
+          location_id?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "location_department_defaults_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "location_department_defaults_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       locations: {
         Row: {
           created_at: string
@@ -376,6 +421,7 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          is_takeaway: boolean
           kind: string
           label: string
           location_id: string
@@ -387,6 +433,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          is_takeaway?: boolean
           kind: string
           label: string
           location_id: string
@@ -398,6 +445,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          is_takeaway?: boolean
           kind?: string
           label?: string
           location_id?: string
@@ -909,6 +957,7 @@ export type Database = {
           is_active: boolean
           last_name: string
           organization_id: string
+          participates_in_pool: boolean
           phone: string | null
           updated_at: string
         }
@@ -921,6 +970,7 @@ export type Database = {
           is_active?: boolean
           last_name: string
           organization_id: string
+          participates_in_pool?: boolean
           phone?: string | null
           updated_at?: string
         }
@@ -933,6 +983,7 @@ export type Database = {
           is_active?: boolean
           last_name?: string
           organization_id?: string
+          participates_in_pool?: boolean
           phone?: string | null
           updated_at?: string
         }
@@ -1048,6 +1099,7 @@ export type Database = {
       staff_locations: {
         Row: {
           created_at: string
+          department: Database["public"]["Enums"]["staff_department"]
           id: string
           location_id: string
           organization_id: string
@@ -1056,6 +1108,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          department: Database["public"]["Enums"]["staff_department"]
           id?: string
           location_id: string
           organization_id: string
@@ -1064,6 +1117,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          department?: Database["public"]["Enums"]["staff_department"]
           id?: string
           location_id?: string
           organization_id?: string
@@ -1370,6 +1424,7 @@ export type Database = {
         | "to_safe"
         | "to_other"
       session_status: "open" | "finalized" | "locked"
+      staff_department: "kitchen" | "service" | "gl"
       time_entry_source: "clock" | "manual" | "import"
       token_type: "badge_login"
       waiter_settlement_status:
@@ -1513,6 +1568,7 @@ export const Constants = {
         "to_other",
       ],
       session_status: ["open", "finalized", "locked"],
+      staff_department: ["kitchen", "service", "gl"],
       time_entry_source: ["clock", "manual", "import"],
       token_type: ["badge_login"],
       waiter_settlement_status: [
