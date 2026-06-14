@@ -64,8 +64,7 @@ export const getRosterShifts = createServerFn({ method: "GET" })
     return (rows ?? []).map((r) => ({
       id: r.id as string,
       staffId: r.staff_id as string,
-      staffName:
-        (r.staff as { display_name: string } | null)?.display_name ?? "—",
+      staffName: (r.staff as { display_name: string } | null)?.display_name ?? "—",
       locationId: r.location_id as string,
       shiftDate: r.shift_date as string,
       area: r.area as "kitchen" | "service" | "gl",
@@ -115,9 +114,9 @@ export const getStaffForRoster = createServerFn({ method: "GET" })
         (rows ?? [])
           .map((r) => r.staff_id as string)
           .filter((id) => {
-            const s = (rows ?? []).find((x) => x.staff_id === id)?.staff as
-              | { is_active: boolean }
-              | null;
+            const s = (rows ?? []).find((x) => x.staff_id === id)?.staff as {
+              is_active: boolean;
+            } | null;
             return s?.is_active !== false;
           }),
       ),
@@ -144,8 +143,7 @@ export const getStaffForRoster = createServerFn({ method: "GET" })
       })
       .map((r) => ({
         staffId: r.staff_id as string,
-        displayName:
-          (r.staff as { display_name: string } | null)?.display_name ?? "—",
+        displayName: (r.staff as { display_name: string } | null)?.display_name ?? "—",
         department: r.department as "kitchen" | "service" | "gl",
         skillIds: skillsByStaff.get(r.staff_id as string) ?? [],
       }))
