@@ -608,3 +608,221 @@ function PayrollRow({
     </TableRow>
   );
 }
+
+type WeeklyEntry = {
+  id: string;
+  staffId: string;
+  displayName: string;
+  department: Department;
+  businessDate: string;
+  startedAt: string;
+  endedAt: string;
+};
+
+type WeeklyData = {
+  weekStart: string;
+  weekEnd: string;
+  entries: WeeklyEntry[];
+  crossLocationDates: Record<string, string[]>;
+};
+
+function fmtDec(n: number): string {
+  return n.toFixed(2).replace(".", ",");
+}
+
+function fmtHHMM(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleTimeString("de-DE", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/Berlin",
+  });
+}
+
+function dayHeader(d: Date): string {
+  const names = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+  return `${names[d.getUTCDay()]} ${ddmm(d)}`;
+}
+
+function WeeklyPlan({
+  data,
+  isLoading,
+  weekDays,
+}: {
+  data: WeeklyData | undefined;
+  isLoading: boolean;
+  weekDays: Date[];
+}) {
+  const entries = data?.entries ?? [];
+  const crossDates = data?.crossLocationDates ?? {};
+
+  // Gruppieren: staffId → { entries-by-date, totals }
+  type Row = {
+    staffId: string;
+    displayName: string;
+    department: Department;
+    entriesByDate: Map<string, WeeklyEntry[]>;
+    totals: {
+      total: number;
+      evening: number;
+      night: number;
+      sunHol: number;
+    };
+  };
+  const rows = new Map<string, Row>();
+  for (const e of entries) {
+    let row = rows.get(e.staffId);
+    if (!row) {
+      row = {
+        staffId: e.staffId,
+        displayName: e.displayName,
+        department: e.department,
+        entriesByDate: new Map(),
+        totals: { total: 0, evening: 0, night: 0, sunHol: 0 },
+      };
+      rows.set(e.staffId, row);
+    }
+    const arr = row.entriesByDate.get(e.businessDate) ?? [];
+    arr.push(e);
+    row.entriesByDate.set(e.businessDate, arr);
+    const r = computeShiftHours(e.startedAt, e.endedAt, e.businessDate);
+    row.totals.total += r.totalHours;
+    row.totals.evening += r.eveningHours;
+    row.totals.night += r.nightHours;
+    row.totals.sunHol += r.sundayHolidayHours;
+  }
+
+  const byDept = new Map<Department, Row[]>();
+  for (const dept of DEPT_ORDER) byDept.set(dept, []);
+  for (const row of rows.values()) {
+    const list = byDept.get(row.department) ?? [];
+    list.push(row);
+    byDept.set(row.department, list);
+  }
+  for (const dept of DEPT_ORDER) {
+    const list = byDept.get(dept) ?? [];
+    list.sort((a, b) => a.displayName.localeCompare(b.displayName, "de"));
+  }
+
+  const dayMeta = weekDays.map((d) => {
+    const iso = fmtIso(d);
+    const isSun = d.getUTCDay() === 0;
+    const isHol = isBavarianHoliday(d);
+    return { date: d, iso, isSun, isHol, isSunOrHol: isSundayOrHoliday(d) };
+  });
+
+  const totalCols = 1 + 7 + 6; // Mitarbeiter + 7 Tage + 6 Summen
+
+  return (
+    <Card className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-[150px] min-w-[150px]">Mitarbeiter</TableHead>
+            {dayMeta.map((dm) => (
+              <TableHead
+                key={dm.iso}
+                className={`text-center whitespace-nowrap ${dm.isHol ? "bg-yellow-50" : dm.isSun ? "bg-gray-100" : ""}`}
+              >
+                {dayHeader(dm.date)}
+                {dm.isHol && (
+                  <span className="block text-[10px] font-normal text-muted-foreground">
+                    (Fei)
+                  </span>
+                )}
+              </TableHead>
+            ))}
+            <TableHead className="text-right">Ges</TableHead>
+            <TableHead className="text-right">20–24</TableHead>
+            <TableHead className="text-right">24–x</TableHead>
+            <TableHead className="text-right">So/Fei</TableHead>
+            <TableHead className="text-right">U</TableHead>
+            <TableHead className="text-right">K</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {isLoading && (
+            <TableRow>
+              <TableCell colSpan={totalCols} className="text-center text-muted-foreground">
+                Lade…
+              </TableCell>
+            </TableRow>
+          )}
+          {!isLoading && rows.size === 0 && (
+            <TableRow>
+              <TableCell colSpan={totalCols} className="text-center text-muted-foreground">
+                Keine Einträge in dieser Woche.
+              </TableCell>
+            </TableRow>
+          )}
+          {DEPT_ORDER.map((dept) => {
+            const list = byDept.get(dept) ?? [];
+            if (list.length === 0) return null;
+            return (
+              <Fragment key={`w-${dept}`}>
+                <TableRow className={DEPT_BG[dept]}>
+                  <TableCell colSpan={totalCols} className="font-semibold text-foreground">
+                    {DEPT_HEADER_LABEL[dept]}
+                  </TableCell>
+                </TableRow>
+                {list.map((row) => {
+                  const cross = new Set(crossDates[row.staffId] ?? []);
+                  return (
+                    <TableRow key={row.staffId}>
+                      <TableCell className="relative pl-3 font-medium">
+                        <span
+                          className={`absolute left-0 top-0 bottom-0 w-[2px] ${DEPT_BAR[row.department]}`}
+                        />
+                        {row.displayName}
+                      </TableCell>
+                      {dayMeta.map((dm) => {
+                        const dayEntries = row.entriesByDate.get(dm.iso) ?? [];
+                        const hasCross = cross.has(dm.iso) && dayEntries.length === 0;
+                        return (
+                          <TableCell
+                            key={dm.iso}
+                            className={`text-center tabular-nums text-xs ${dm.isHol ? "bg-yellow-50" : dm.isSun ? "bg-gray-50" : ""}`}
+                          >
+                            {dayEntries.length === 0 ? (
+                              hasCross ? (
+                                <span className="text-muted-foreground">×</span>
+                              ) : (
+                                ""
+                              )
+                            ) : (
+                              <div className="flex flex-col gap-0.5">
+                                {dayEntries.map((e) => (
+                                  <span key={e.id} className="whitespace-nowrap">
+                                    {fmtHHMM(e.startedAt)}–{fmtHHMM(e.endedAt)}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </TableCell>
+                        );
+                      })}
+                      <TableCell className="text-right tabular-nums font-medium">
+                        {fmtDec(row.totals.total)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {fmtDec(row.totals.evening)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {fmtDec(row.totals.night)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {fmtDec(row.totals.sunHol)}
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground">–</TableCell>
+                      <TableCell className="text-right text-muted-foreground">–</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </Fragment>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </Card>
+  );
+}
