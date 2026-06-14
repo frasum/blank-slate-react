@@ -172,24 +172,36 @@ function makeAuditWriter(caller: { organizationId: string; userId: string; staff
 export const getCashOverview = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
-    z.object({ businessDate: z.string().regex(ISO_DATE).optional() }).parse(input ?? {}),
+    z
+      .object({
+        businessDate: z.string().regex(ISO_DATE).optional(),
+        locationId: z.string().uuid().optional(),
+      })
+      .parse(input ?? {}),
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
     return getCashOverviewCore(caller, data);
   });
 
-export async function getCashOverviewCore(caller: AdminCaller, data: { businessDate?: string }) {
+export async function getCashOverviewCore(
+  caller: AdminCaller,
+  data: { businessDate?: string; locationId?: string },
+) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   await loadOrgSettings(caller.organizationId);
   const businessDate = data.businessDate ?? (await getCurrentBusinessDate());
 
-  const { data: session } = await supabaseAdmin
+  let sessionQuery = supabaseAdmin
     .from("sessions")
     .select("*")
     .eq("organization_id", caller.organizationId)
-    .eq("business_date", businessDate)
-    .maybeSingle();
+    .eq("business_date", businessDate);
+  if (data.locationId) {
+    await assertLocationInOrg(caller.organizationId, data.locationId);
+    sessionQuery = sessionQuery.eq("location_id", data.locationId);
+  }
+  const { data: session } = await sessionQuery.maybeSingle();
 
   if (!session) {
     return {
