@@ -17,18 +17,11 @@ export const Route = createFileRoute("/_authenticated/admin")({
     if (userError || !userData.user) throw redirect({ to: "/auth" });
 
     const identity = await getMyIdentity();
-    if (
-      identity.role !== "admin" &&
-      identity.role !== "manager" &&
-      identity.role !== "payroll"
-    ) {
+    if (identity.role !== "admin" && identity.role !== "manager" && identity.role !== "payroll") {
       throw redirect({ to: "/" });
     }
     // Lohnbüro darf NUR die Zeitübersicht sehen.
-    if (
-      identity.role === "payroll" &&
-      location.pathname !== "/admin/zeit-uebersicht"
-    ) {
+    if (identity.role === "payroll" && location.pathname !== "/admin/zeit-uebersicht") {
       throw redirect({ to: "/admin/zeit-uebersicht" });
     }
     return { identity };
@@ -50,20 +43,20 @@ function AdminLayout() {
             <nav className="flex items-center gap-4 text-sm">
               {!isPayroll && (
                 <Link
-                to="/admin/staff"
-                className="text-muted-foreground hover:text-foreground"
-                activeProps={{ className: "text-foreground" }}
-              >
-                Mitarbeiter
+                  to="/admin/staff"
+                  className="text-muted-foreground hover:text-foreground"
+                  activeProps={{ className: "text-foreground" }}
+                >
+                  Mitarbeiter
                 </Link>
               )}
               {!isPayroll && (
                 <Link
-                to="/admin/zeit"
-                className="text-muted-foreground hover:text-foreground"
-                activeProps={{ className: "text-foreground" }}
-              >
-                Zeit
+                  to="/admin/zeit"
+                  className="text-muted-foreground hover:text-foreground"
+                  activeProps={{ className: "text-foreground" }}
+                >
+                  Zeit
                 </Link>
               )}
               <Link
@@ -75,29 +68,29 @@ function AdminLayout() {
               </Link>
               {!isPayroll && (
                 <Link
-                to="/admin/kasse"
-                className="text-muted-foreground hover:text-foreground"
-                activeProps={{ className: "text-foreground" }}
-              >
-                Kasse
+                  to="/admin/kasse"
+                  className="text-muted-foreground hover:text-foreground"
+                  activeProps={{ className: "text-foreground" }}
+                >
+                  Kasse
                 </Link>
               )}
               {!isPayroll && (
                 <Link
-                to="/admin/kasse-saldo"
-                className="text-muted-foreground hover:text-foreground"
-                activeProps={{ className: "text-foreground" }}
-              >
-                Kassensaldo
+                  to="/admin/kasse-saldo"
+                  className="text-muted-foreground hover:text-foreground"
+                  activeProps={{ className: "text-foreground" }}
+                >
+                  Kassensaldo
                 </Link>
               )}
               {!isPayroll && (
                 <Link
-                to="/admin/locations"
-                className="text-muted-foreground hover:text-foreground"
-                activeProps={{ className: "text-foreground" }}
-              >
-                Standorte
+                  to="/admin/locations"
+                  className="text-muted-foreground hover:text-foreground"
+                  activeProps={{ className: "text-foreground" }}
+                >
+                  Standorte
                 </Link>
               )}
               {identity.role === "admin" && (
