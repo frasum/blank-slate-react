@@ -214,12 +214,12 @@ describe.skipIf(!dbTestsEnabled)("importStaffPersonalData — DB (Welle 1)", () 
     expect(compAfter.count).toBe(compBefore.count);
   });
 
-  it("(j) Role-guard: Manager kann staff_compensation NICHT direkt schreiben", async () => {
-    const manager = await org.mkUser("manager");
-    const mgrClient = await signInAsUser(manager.email, manager.password);
-    const { error } = await mgrClient.from("staff_compensation").insert({
+  it("(j) Role-guard: Staff kann staff_compensation NICHT direkt schreiben (RLS-Wall)", async () => {
+    const s = await org.mkUser("staff");
+    const client = await signInAsUser(s.email, s.password);
+    const { error } = await client.from("staff_compensation").insert({
       organization_id: org.orgId,
-      staff_id: manager.staffId,
+      staff_id: s.staffId,
       hourly_rate: 99,
       valid_from: "2026-01-01",
     });
