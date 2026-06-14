@@ -816,12 +816,7 @@ function SessionFieldsCard({
           disabled={!writable}
           onChange={(v) => setMisc({ ...misc, finedineVouchers: v })}
         />
-        <EuroRow
-          label="Open Tabs (Abzug)"
-          value={misc.opentabs}
-          disabled={!writable}
-          onChange={(v) => setMisc({ ...misc, opentabs: v })}
-        />
+        {/* "Open Tabs (Abzug)" UI ausgeblendet; Wert wird weiterhin als 0 an updateSession übergeben. */}
         <EuroRow
           label="Vorschuss (Abzug)"
           value={misc.vorschuss}
