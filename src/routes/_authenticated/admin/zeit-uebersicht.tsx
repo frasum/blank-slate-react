@@ -709,6 +709,7 @@ function ZeitUebersichtPage() {
                           key={s.staffId}
                           staff={s}
                           initial={notesByStaff.get(s.staffId)}
+                          readOnly={isPayroll}
                           onSave={(vorschuss, besonderheiten) =>
                             upsertMut.mutate({
                               staffId: s.staffId,
