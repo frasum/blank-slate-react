@@ -947,6 +947,47 @@ export type Database = {
           },
         ]
       }
+      skills: {
+        Row: {
+          category: Database["public"]["Enums"]["skill_category"]
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+          organization_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["skill_category"]
+          color?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          organization_id: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["skill_category"]
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          organization_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skills_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff: {
         Row: {
           created_at: string
@@ -1190,6 +1231,55 @@ export type Database = {
           },
         ]
       }
+      staff_skills: {
+        Row: {
+          created_at: string
+          id: string
+          organization_id: string
+          skill_id: string
+          staff_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          organization_id: string
+          skill_id: string
+          staff_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          organization_id?: string
+          skill_id?: string
+          staff_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_skills_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_skills_skill_id_fkey"
+            columns: ["skill_id"]
+            isOneToOne: false
+            referencedRelation: "skills"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_skills_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       time_entries: {
         Row: {
           break_minutes: number
@@ -1424,6 +1514,7 @@ export type Database = {
         | "to_safe"
         | "to_other"
       session_status: "open" | "finalized" | "locked"
+      skill_category: "kitchen" | "service" | "gl" | "other"
       staff_department: "kitchen" | "service" | "gl"
       time_entry_source: "clock" | "manual" | "import"
       token_type: "badge_login"
@@ -1568,6 +1659,7 @@ export const Constants = {
         "to_other",
       ],
       session_status: ["open", "finalized", "locked"],
+      skill_category: ["kitchen", "service", "gl", "other"],
       staff_department: ["kitchen", "service", "gl"],
       time_entry_source: ["clock", "manual", "import"],
       token_type: ["badge_login"],
