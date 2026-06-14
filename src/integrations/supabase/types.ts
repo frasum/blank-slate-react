@@ -1195,6 +1195,123 @@ export type Database = {
           },
         ]
       }
+      staff_personal_details: {
+        Row: {
+          account_holder: string | null
+          address: string | null
+          bank_name: string | null
+          child_tax_allowances: number | null
+          church_tax_liable: boolean | null
+          created_at: string
+          date_of_birth: string | null
+          email: string | null
+          employment_end_date: string | null
+          employment_start_date: string | null
+          health_insurance: string | null
+          iban: string | null
+          id: string
+          is_minijob: boolean | null
+          is_sv_exempt: boolean | null
+          job_title: string | null
+          nationality: string | null
+          organization_id: string
+          personnel_group: string | null
+          phone: string | null
+          place_of_birth: string | null
+          salutation: string | null
+          social_security_number: string | null
+          staff_id: string
+          tax_class: string | null
+          tax_id: string | null
+          updated_at: string
+          vacation_days_contractual: number | null
+          vacation_days_current_year: number | null
+          vacation_days_previous_year: number | null
+          vacation_days_taken: number | null
+        }
+        Insert: {
+          account_holder?: string | null
+          address?: string | null
+          bank_name?: string | null
+          child_tax_allowances?: number | null
+          church_tax_liable?: boolean | null
+          created_at?: string
+          date_of_birth?: string | null
+          email?: string | null
+          employment_end_date?: string | null
+          employment_start_date?: string | null
+          health_insurance?: string | null
+          iban?: string | null
+          id?: string
+          is_minijob?: boolean | null
+          is_sv_exempt?: boolean | null
+          job_title?: string | null
+          nationality?: string | null
+          organization_id: string
+          personnel_group?: string | null
+          phone?: string | null
+          place_of_birth?: string | null
+          salutation?: string | null
+          social_security_number?: string | null
+          staff_id: string
+          tax_class?: string | null
+          tax_id?: string | null
+          updated_at?: string
+          vacation_days_contractual?: number | null
+          vacation_days_current_year?: number | null
+          vacation_days_previous_year?: number | null
+          vacation_days_taken?: number | null
+        }
+        Update: {
+          account_holder?: string | null
+          address?: string | null
+          bank_name?: string | null
+          child_tax_allowances?: number | null
+          church_tax_liable?: boolean | null
+          created_at?: string
+          date_of_birth?: string | null
+          email?: string | null
+          employment_end_date?: string | null
+          employment_start_date?: string | null
+          health_insurance?: string | null
+          iban?: string | null
+          id?: string
+          is_minijob?: boolean | null
+          is_sv_exempt?: boolean | null
+          job_title?: string | null
+          nationality?: string | null
+          organization_id?: string
+          personnel_group?: string | null
+          phone?: string | null
+          place_of_birth?: string | null
+          salutation?: string | null
+          social_security_number?: string | null
+          staff_id?: string
+          tax_class?: string | null
+          tax_id?: string | null
+          updated_at?: string
+          vacation_days_contractual?: number | null
+          vacation_days_current_year?: number | null
+          vacation_days_previous_year?: number | null
+          vacation_days_taken?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_personal_details_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_personal_details_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: true
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_pins: {
         Row: {
           created_at: string
