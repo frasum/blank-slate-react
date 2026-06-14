@@ -370,7 +370,11 @@ export const getTimeOverview = createServerFn({ method: "GET" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "manager",
+      "admin",
+      "payroll",
+    ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: rows, error } = await supabaseAdmin
