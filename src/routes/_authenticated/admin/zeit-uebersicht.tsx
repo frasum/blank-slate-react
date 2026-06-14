@@ -21,9 +21,15 @@ import {
 import { listLocations } from "@/lib/admin/locations.functions";
 import {
   getTimeOverview,
+  getWeeklyTimeEntries,
   listPayrollNotes,
   upsertPayrollNote,
 } from "@/lib/time/time-admin.functions";
+import {
+  computeShiftHours,
+  isBavarianHoliday,
+  isSundayOrHoliday,
+} from "@/lib/time/shift-hours";
 
 export const Route = createFileRoute("/_authenticated/admin/zeit-uebersicht")({
   head: () => ({ meta: [{ title: "Zeitübersicht" }] }),
@@ -48,6 +54,16 @@ const DEPT_BG: Record<Department, string> = {
   kitchen: "bg-orange-50",
   service: "bg-blue-50",
   gl: "bg-gray-50",
+};
+const DEPT_BAR: Record<Department, string> = {
+  kitchen: "bg-orange-400",
+  service: "bg-blue-400",
+  gl: "bg-gray-400",
+};
+const DEPT_HEADER_LABEL: Record<Department, string> = {
+  kitchen: "KÜCHE",
+  service: "SERVICE",
+  gl: "GESCHÄFTSLEITUNG",
 };
 const DEPT_ORDER: Department[] = ["kitchen", "service", "gl"];
 
@@ -119,6 +135,7 @@ function ZeitUebersichtPage() {
   const qc = useQueryClient();
   const fetchLocations = useServerFn(listLocations);
   const fetchOverview = useServerFn(getTimeOverview);
+  const fetchWeekly = useServerFn(getWeeklyTimeEntries);
   const fetchNotes = useServerFn(listPayrollNotes);
   const callUpsert = useServerFn(upsertPayrollNote);
 
@@ -131,6 +148,24 @@ function ZeitUebersichtPage() {
 
   const [fromDate, setFromDate] = useState<string>(firstOfMonthIso());
   const [toDate, setToDate] = useState<string>(todayIso());
+
+  // Wochenplan: aktuelle Woche (Montag).
+  const [weekStart, setWeekStart] = useState<string>(() =>
+    fmtIso(mondayOf(parseIsoDate(todayIso()))),
+  );
+  const weekStartDate = useMemo(() => parseIsoDate(weekStart), [weekStart]);
+  const weekDays = useMemo(
+    () => Array.from({ length: 7 }, (_, i) => addDays(weekStartDate, i)),
+    [weekStartDate],
+  );
+  const { week: currentWeekNo } = isoWeek(weekStartDate);
+
+  const weeklyQ = useQuery({
+    queryKey: ["weekly-entries", effectiveLocationId, weekStart],
+    queryFn: () =>
+      fetchWeekly({ data: { locationId: effectiveLocationId, weekStart } }),
+    enabled: Boolean(effectiveLocationId),
+  });
 
   const overviewQ = useQuery({
     queryKey: ["time-overview", effectiveLocationId, fromDate, toDate],
@@ -276,11 +311,49 @@ function ZeitUebersichtPage() {
         </div>
       </Card>
 
-      <Tabs defaultValue="summary">
+      <Tabs defaultValue="weekly">
         <TabsList>
+          <TabsTrigger value="weekly">Wochenplan</TabsTrigger>
           <TabsTrigger value="summary">Zusammenfassung</TabsTrigger>
           <TabsTrigger value="payroll">Buchhaltung</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="weekly">
+          <Card className="p-4 mb-3">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm hover:bg-muted"
+                onClick={() => setWeekStart(fmtIso(addDays(weekStartDate, -7)))}
+              >
+                ← Woche
+              </button>
+              <div className="text-sm font-medium tabular-nums">
+                KW {currentWeekNo} · {ddmm(weekDays[0])}–{ddmm(weekDays[6])}
+                {weekDays[0].getUTCFullYear()}
+              </div>
+              <button
+                type="button"
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm hover:bg-muted"
+                onClick={() => setWeekStart(fmtIso(addDays(weekStartDate, 7)))}
+              >
+                Woche →
+              </button>
+              <button
+                type="button"
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm hover:bg-muted"
+                onClick={() => setWeekStart(fmtIso(mondayOf(parseIsoDate(todayIso()))))}
+              >
+                Heute
+              </button>
+            </div>
+          </Card>
+          <WeeklyPlan
+            data={weeklyQ.data}
+            isLoading={weeklyQ.isLoading}
+            weekDays={weekDays}
+          />
+        </TabsContent>
 
         <TabsContent value="summary">
           <Card className="overflow-x-auto">
@@ -533,5 +606,223 @@ function PayrollRow({
         />
       </TableCell>
     </TableRow>
+  );
+}
+
+type WeeklyEntry = {
+  id: string;
+  staffId: string;
+  displayName: string;
+  department: Department;
+  businessDate: string;
+  startedAt: string;
+  endedAt: string;
+};
+
+type WeeklyData = {
+  weekStart: string;
+  weekEnd: string;
+  entries: WeeklyEntry[];
+  crossLocationDates: Record<string, string[]>;
+};
+
+function fmtDec(n: number): string {
+  return n.toFixed(2).replace(".", ",");
+}
+
+function fmtHHMM(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleTimeString("de-DE", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/Berlin",
+  });
+}
+
+function dayHeader(d: Date): string {
+  const names = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+  return `${names[d.getUTCDay()]} ${ddmm(d)}`;
+}
+
+function WeeklyPlan({
+  data,
+  isLoading,
+  weekDays,
+}: {
+  data: WeeklyData | undefined;
+  isLoading: boolean;
+  weekDays: Date[];
+}) {
+  const entries = data?.entries ?? [];
+  const crossDates = data?.crossLocationDates ?? {};
+
+  // Gruppieren: staffId → { entries-by-date, totals }
+  type Row = {
+    staffId: string;
+    displayName: string;
+    department: Department;
+    entriesByDate: Map<string, WeeklyEntry[]>;
+    totals: {
+      total: number;
+      evening: number;
+      night: number;
+      sunHol: number;
+    };
+  };
+  const rows = new Map<string, Row>();
+  for (const e of entries) {
+    let row = rows.get(e.staffId);
+    if (!row) {
+      row = {
+        staffId: e.staffId,
+        displayName: e.displayName,
+        department: e.department,
+        entriesByDate: new Map(),
+        totals: { total: 0, evening: 0, night: 0, sunHol: 0 },
+      };
+      rows.set(e.staffId, row);
+    }
+    const arr = row.entriesByDate.get(e.businessDate) ?? [];
+    arr.push(e);
+    row.entriesByDate.set(e.businessDate, arr);
+    const r = computeShiftHours(e.startedAt, e.endedAt, e.businessDate);
+    row.totals.total += r.totalHours;
+    row.totals.evening += r.eveningHours;
+    row.totals.night += r.nightHours;
+    row.totals.sunHol += r.sundayHolidayHours;
+  }
+
+  const byDept = new Map<Department, Row[]>();
+  for (const dept of DEPT_ORDER) byDept.set(dept, []);
+  for (const row of rows.values()) {
+    const list = byDept.get(row.department) ?? [];
+    list.push(row);
+    byDept.set(row.department, list);
+  }
+  for (const dept of DEPT_ORDER) {
+    const list = byDept.get(dept) ?? [];
+    list.sort((a, b) => a.displayName.localeCompare(b.displayName, "de"));
+  }
+
+  const dayMeta = weekDays.map((d) => {
+    const iso = fmtIso(d);
+    const isSun = d.getUTCDay() === 0;
+    const isHol = isBavarianHoliday(d);
+    return { date: d, iso, isSun, isHol, isSunOrHol: isSundayOrHoliday(d) };
+  });
+
+  const totalCols = 1 + 7 + 6; // Mitarbeiter + 7 Tage + 6 Summen
+
+  return (
+    <Card className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-[150px] min-w-[150px]">Mitarbeiter</TableHead>
+            {dayMeta.map((dm) => (
+              <TableHead
+                key={dm.iso}
+                className={`text-center whitespace-nowrap ${dm.isHol ? "bg-yellow-50" : dm.isSun ? "bg-gray-100" : ""}`}
+              >
+                {dayHeader(dm.date)}
+                {dm.isHol && (
+                  <span className="block text-[10px] font-normal text-muted-foreground">
+                    (Fei)
+                  </span>
+                )}
+              </TableHead>
+            ))}
+            <TableHead className="text-right">Ges</TableHead>
+            <TableHead className="text-right">20–24</TableHead>
+            <TableHead className="text-right">24–x</TableHead>
+            <TableHead className="text-right">So/Fei</TableHead>
+            <TableHead className="text-right">U</TableHead>
+            <TableHead className="text-right">K</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {isLoading && (
+            <TableRow>
+              <TableCell colSpan={totalCols} className="text-center text-muted-foreground">
+                Lade…
+              </TableCell>
+            </TableRow>
+          )}
+          {!isLoading && rows.size === 0 && (
+            <TableRow>
+              <TableCell colSpan={totalCols} className="text-center text-muted-foreground">
+                Keine Einträge in dieser Woche.
+              </TableCell>
+            </TableRow>
+          )}
+          {DEPT_ORDER.map((dept) => {
+            const list = byDept.get(dept) ?? [];
+            if (list.length === 0) return null;
+            return (
+              <Fragment key={`w-${dept}`}>
+                <TableRow className={DEPT_BG[dept]}>
+                  <TableCell colSpan={totalCols} className="font-semibold text-foreground">
+                    {DEPT_HEADER_LABEL[dept]}
+                  </TableCell>
+                </TableRow>
+                {list.map((row) => {
+                  const cross = new Set(crossDates[row.staffId] ?? []);
+                  return (
+                    <TableRow key={row.staffId}>
+                      <TableCell className="relative pl-3 font-medium">
+                        <span
+                          className={`absolute left-0 top-0 bottom-0 w-[2px] ${DEPT_BAR[row.department]}`}
+                        />
+                        {row.displayName}
+                      </TableCell>
+                      {dayMeta.map((dm) => {
+                        const dayEntries = row.entriesByDate.get(dm.iso) ?? [];
+                        const hasCross = cross.has(dm.iso) && dayEntries.length === 0;
+                        return (
+                          <TableCell
+                            key={dm.iso}
+                            className={`text-center tabular-nums text-xs ${dm.isHol ? "bg-yellow-50" : dm.isSun ? "bg-gray-50" : ""}`}
+                          >
+                            {dayEntries.length === 0 ? (
+                              hasCross ? (
+                                <span className="text-muted-foreground">×</span>
+                              ) : (
+                                ""
+                              )
+                            ) : (
+                              <div className="flex flex-col gap-0.5">
+                                {dayEntries.map((e) => (
+                                  <span key={e.id} className="whitespace-nowrap">
+                                    {fmtHHMM(e.startedAt)}–{fmtHHMM(e.endedAt)}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </TableCell>
+                        );
+                      })}
+                      <TableCell className="text-right tabular-nums font-medium">
+                        {fmtDec(row.totals.total)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {fmtDec(row.totals.evening)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {fmtDec(row.totals.night)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {fmtDec(row.totals.sunHol)}
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground">–</TableCell>
+                      <TableCell className="text-right text-muted-foreground">–</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </Fragment>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </Card>
   );
 }
