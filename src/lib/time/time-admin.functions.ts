@@ -576,3 +576,140 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
       crossLocationDates,
     };
   });
+
+// B6c — Inline-Edit/Create für Wochenplan (Admin)
+// Schmaler Wrapper, der nur Start/Ende setzt und break_minutes erhält bzw. 0 setzt.
+
+export const setTimeEntryShift = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        startedAt: z.string().datetime(),
+        endedAt: z.string().datetime(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+      if (new Date(data.endedAt).getTime() <= new Date(data.startedAt).getTime()) {
+        throw new Error("Ende muss nach dem Beginn liegen.");
+      }
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: before, error: loadErr } = await supabaseAdmin
+        .from("time_entries")
+        .select("*")
+        .eq("id", data.id)
+        .eq("organization_id", caller.organizationId)
+        .maybeSingle();
+      if (loadErr) throw loadErr;
+      if (!before) throw new Error("Eintrag nicht gefunden.");
+
+      const newBusinessDate = businessDateOf(new Date(data.startedAt));
+      await assertBusinessDateUnlocked(supabaseAdmin, caller.organizationId, before.business_date);
+      if (newBusinessDate !== before.business_date) {
+        await assertBusinessDateUnlocked(supabaseAdmin, caller.organizationId, newBusinessDate);
+      }
+
+      const { error } = await supabaseAdmin
+        .from("time_entries")
+        .update({
+          started_at: data.startedAt,
+          ended_at: data.endedAt,
+          business_date: newBusinessDate,
+        })
+        .eq("id", data.id)
+        .eq("organization_id", caller.organizationId);
+      if (error) throw error;
+
+      return {
+        result: { ok: true as const },
+        audit: {
+          action: "time_entry.shift_update",
+          entity: "time_entry",
+          entityId: data.id,
+          meta: {
+            reason: "Wochenplan inline edit",
+            before: {
+              startedAt: before.started_at,
+              endedAt: before.ended_at,
+              businessDate: before.business_date,
+            },
+            after: {
+              startedAt: data.startedAt,
+              endedAt: data.endedAt,
+              businessDate: newBusinessDate,
+            },
+          },
+        },
+      };
+    });
+  });
+
+export const createTimeEntryShift = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        staffId: z.string().uuid(),
+        locationId: z.string().uuid(),
+        startedAt: z.string().datetime(),
+        endedAt: z.string().datetime(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+      if (new Date(data.endedAt).getTime() <= new Date(data.startedAt).getTime()) {
+        throw new Error("Ende muss nach dem Beginn liegen.");
+      }
+      const businessDate = businessDateOf(new Date(data.startedAt));
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      await assertBusinessDateUnlocked(supabaseAdmin, caller.organizationId, businessDate);
+
+      const { data: staff, error: sErr } = await supabaseAdmin
+        .from("staff")
+        .select("id")
+        .eq("id", data.staffId)
+        .eq("organization_id", caller.organizationId)
+        .maybeSingle();
+      if (sErr) throw sErr;
+      if (!staff) throw new Error("Mitarbeiter nicht in dieser Organisation.");
+
+      const { data: created, error } = await supabaseAdmin
+        .from("time_entries")
+        .insert({
+          organization_id: caller.organizationId,
+          staff_id: data.staffId,
+          location_id: data.locationId,
+          started_at: data.startedAt,
+          ended_at: data.endedAt,
+          business_date: businessDate,
+          break_minutes: 0,
+          source: "manual",
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+
+      return {
+        result: { id: created.id },
+        audit: {
+          action: "time_entry.shift_create",
+          entity: "time_entry",
+          entityId: created.id,
+          meta: {
+            reason: "Wochenplan inline create",
+            staffId: data.staffId,
+            locationId: data.locationId,
+            businessDate,
+            startedAt: data.startedAt,
+            endedAt: data.endedAt,
+          },
+        },
+      };
+    });
+  });
