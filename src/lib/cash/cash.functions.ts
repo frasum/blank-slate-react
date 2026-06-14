@@ -654,6 +654,8 @@ const updateSessionSchema = z.object({
   vorschussCents: z.number().int().default(0),
   einladungCents: z.number().int().default(0),
   sonstigeEinnahmeCents: z.number().int().default(0),
+  vectronDailyTotalCents: z.number().int().default(0),
+  cashActualCents: z.number().int().nullable().default(null),
   notes: z.string().max(2000).nullable().default(null),
 });
 
@@ -691,6 +693,8 @@ export async function updateSessionCore(caller: AdminCaller, data: UpdateSession
         vorschuss_cents: data.vorschussCents,
         einladung_cents: data.einladungCents,
         sonstige_einnahme_cents: data.sonstigeEinnahmeCents,
+        vectron_daily_total_cents: data.vectronDailyTotalCents,
+        cash_actual_cents: data.cashActualCents,
         notes: data.notes,
       })
       .eq("id", session.id)
