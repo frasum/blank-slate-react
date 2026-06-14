@@ -82,7 +82,7 @@ function KasseSaldoPage() {
     enabled: fromDate <= toDate,
   });
 
-  const rows: CashLedgerRow[] = q.data ?? [];
+  const rows: CashLedgerRow[] = useMemo(() => q.data ?? [], [q.data]);
 
   const totals = useMemo(() => {
     let rev = 0;
