@@ -1424,6 +1424,7 @@ export { CashLockedError };
 // = opening[N+1] strikt innerhalb des Bereichs gilt.
 
 import { accumulateChain, type DayInput, type TransferDirection } from "./cash-ledger";
+import { computeSafeChain, type SafeDayInput } from "./safe-balance";
 
 export type CashLedgerRow = {
   businessDate: string;
@@ -1433,6 +1434,10 @@ export type CashLedgerRow = {
   totalExpensesCents: number;
   closingBalanceCents: number;
   differenzCents: number;
+  cashActualCents: number | null;
+  surplusCents: number | null;
+  shortfallCents: number | null;
+  safeBalanceCents: number;
 };
 
 export const getCashLedger = createServerFn({ method: "GET" })
