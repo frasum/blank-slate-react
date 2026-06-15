@@ -72,79 +72,81 @@ export function CellQuickPopover({
           />
         ) : (
           <>
-        <div className="mb-2 text-xs font-medium">Schicht anlegen — Skill wählen</div>
-        {profileSkills.length > 0 && (
-          <div className="mb-2">
-            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Profil-Skills
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {profileSkills.map((s) => (
-                <SkillChip key={s.id} skill={s} disabled={busy} onClick={() => onPick(s.id)} />
-              ))}
-            </div>
-          </div>
-        )}
-        {otherSkills.length > 0 && (
-          <div>
-            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Weitere
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {otherSkills.map((s) => (
-                <SkillChip
-                  key={s.id}
-                  skill={s}
-                  disabled={busy}
-                  faded
-                  onClick={() => onPick(s.id)}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-        {profileSkills.length === 0 && otherSkills.length === 0 && (
-          <span className="text-xs text-muted-foreground">Keine passenden Skills hinterlegt.</span>
-        )}
-        <div className="mt-3 border-t pt-2">
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={busy}
-            onClick={isUnavailable ? onClearUnavailable : onSetUnavailable}
-            className="h-7 w-full text-xs"
-          >
-            {isUnavailable ? (
-              <>
-                <CalendarCheck className="mr-1.5 h-3.5 w-3.5" /> Verfügbarkeit wiederherstellen
-              </>
-            ) : (
-              <>
-                <CalendarX className="mr-1.5 h-3.5 w-3.5" /> Als nicht verfügbar markieren
-              </>
+            <div className="mb-2 text-xs font-medium">Schicht anlegen — Skill wählen</div>
+            {profileSkills.length > 0 && (
+              <div className="mb-2">
+                <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Profil-Skills
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {profileSkills.map((s) => (
+                    <SkillChip key={s.id} skill={s} disabled={busy} onClick={() => onPick(s.id)} />
+                  ))}
+                </div>
+              </div>
             )}
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={busy}
-            onClick={absenceType === "urlaub" ? onClearAbsence : () => setMode("urlaub")}
-            className="mt-2 h-7 w-full text-xs"
-          >
-            <Umbrella className="mr-1.5 h-3.5 w-3.5 text-green-600" />
-            {absenceType === "urlaub" ? "Urlaub entfernen" : "Urlaub eintragen"}
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={busy}
-            onClick={absenceType === "krank" ? onClearAbsence : () => setMode("krank")}
-            className="mt-2 h-7 w-full text-xs"
-          >
-            <HeartPulse className="mr-1.5 h-3.5 w-3.5 text-red-600" />
-            {absenceType === "krank" ? "Krank entfernen" : "Krank eintragen"}
-          </Button>
-        </div>
+            {otherSkills.length > 0 && (
+              <div>
+                <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Weitere
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {otherSkills.map((s) => (
+                    <SkillChip
+                      key={s.id}
+                      skill={s}
+                      disabled={busy}
+                      faded
+                      onClick={() => onPick(s.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+            {profileSkills.length === 0 && otherSkills.length === 0 && (
+              <span className="text-xs text-muted-foreground">
+                Keine passenden Skills hinterlegt.
+              </span>
+            )}
+            <div className="mt-3 border-t pt-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy}
+                onClick={isUnavailable ? onClearUnavailable : onSetUnavailable}
+                className="h-7 w-full text-xs"
+              >
+                {isUnavailable ? (
+                  <>
+                    <CalendarCheck className="mr-1.5 h-3.5 w-3.5" /> Verfügbarkeit wiederherstellen
+                  </>
+                ) : (
+                  <>
+                    <CalendarX className="mr-1.5 h-3.5 w-3.5" /> Als nicht verfügbar markieren
+                  </>
+                )}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy}
+                onClick={absenceType === "urlaub" ? onClearAbsence : () => setMode("urlaub")}
+                className="mt-2 h-7 w-full text-xs"
+              >
+                <Umbrella className="mr-1.5 h-3.5 w-3.5 text-green-600" />
+                {absenceType === "urlaub" ? "Urlaub entfernen" : "Urlaub eintragen"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy}
+                onClick={absenceType === "krank" ? onClearAbsence : () => setMode("krank")}
+                className="mt-2 h-7 w-full text-xs"
+              >
+                <HeartPulse className="mr-1.5 h-3.5 w-3.5 text-red-600" />
+                {absenceType === "krank" ? "Krank entfernen" : "Krank eintragen"}
+              </Button>
+            </div>
           </>
         )}
       </PopoverContent>

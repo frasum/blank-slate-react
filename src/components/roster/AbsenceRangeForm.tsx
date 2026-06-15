@@ -132,7 +132,13 @@ export function AbsenceRangeForm({
         <p className="text-[11px] text-muted-foreground">Keine Schichten im Zeitraum.</p>
       )}
       <div className="flex justify-end gap-1.5 pt-1">
-        <Button size="sm" variant="ghost" disabled={busy} onClick={onCancel} className="h-7 text-xs">
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={busy}
+          onClick={onCancel}
+          className="h-7 text-xs"
+        >
           Abbrechen
         </Button>
         <Button
