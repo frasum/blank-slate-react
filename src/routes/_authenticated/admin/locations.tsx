@@ -116,30 +116,30 @@ function LocationRow(props: {
   return (
     <div className="max-w-lg space-y-2">
       <div className="flex items-center gap-2">
-      <input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
-      />
-      <button
-        onClick={() => props.onSave(name)}
-        disabled={name === props.name}
-        className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground hover:bg-accent disabled:opacity-50"
-      >
-        Speichern
-      </button>
-      <button
-        onClick={() => setDisplayOpen((v) => !v)}
-        className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground hover:bg-accent"
-      >
-        Display
-      </button>
-      <button
-        onClick={() => props.onDelete()}
-        className="rounded-md px-3 py-2 text-sm text-destructive hover:underline"
-      >
-        Löschen
-      </button>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
+        />
+        <button
+          onClick={() => props.onSave(name)}
+          disabled={name === props.name}
+          className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground hover:bg-accent disabled:opacity-50"
+        >
+          Speichern
+        </button>
+        <button
+          onClick={() => setDisplayOpen((v) => !v)}
+          className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground hover:bg-accent"
+        >
+          Display
+        </button>
+        <button
+          onClick={() => props.onDelete()}
+          className="rounded-md px-3 py-2 text-sm text-destructive hover:underline"
+        >
+          Löschen
+        </button>
       </div>
       {displayOpen && <DisplayPanel locationId={props.id} />}
     </div>
@@ -159,8 +159,7 @@ function DisplayPanel({ locationId }: { locationId: string }) {
     queryFn: () => callGet({ data: { locationId } }),
   });
 
-  const refresh = () =>
-    qc.invalidateQueries({ queryKey: ["display-settings", locationId] });
+  const refresh = () => qc.invalidateQueries({ queryKey: ["display-settings", locationId] });
 
   const upsertMut = useMutation({
     mutationFn: (input: { isEnabled?: boolean; refreshIntervalSeconds?: number }) =>

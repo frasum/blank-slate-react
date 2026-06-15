@@ -136,26 +136,14 @@ function DisplayPage() {
         <Column title="Küche" shifts={kitchen} accent="bg-orange-500/10 border-orange-500/30" />
         <Column title="Service" shifts={service} accent="bg-sky-500/10 border-sky-500/30" />
         {other.length > 0 && (
-          <Column
-            title="Sonstige"
-            shifts={other}
-            accent="bg-slate-500/10 border-slate-500/30"
-          />
+          <Column title="Sonstige" shifts={other} accent="bg-slate-500/10 border-slate-500/30" />
         )}
       </main>
     </div>
   );
 }
 
-function Column({
-  title,
-  shifts,
-  accent,
-}: {
-  title: string;
-  shifts: ShiftDto[];
-  accent: string;
-}) {
+function Column({ title, shifts, accent }: { title: string; shifts: ShiftDto[]; accent: string }) {
   return (
     <section className={`rounded-2xl border p-6 ${accent}`}>
       <h2 className="mb-4 text-2xl font-semibold">{title}</h2>
