@@ -1,21 +1,20 @@
-// D1/D2a — Dienstplan-Grid. D1 = Read-only. D2a = Manager+ können Schichten
-// per Klick auf Zellen anlegen/ändern/löschen; Updates kommen per Realtime
-// live bei allen Clients an. Periode 'locked' = serverseitig blockiert.
+// D2a/D2b/D2c/D2f — Dienstplan-Seite. Schlanke Shell: lädt Periode/Standort,
+// abonniert Realtime, ruft Server-Functions auf. UI in <RosterGrid>.
+// Erhaltungs-Constraints: Realtime, Cross-Booking-Markierung, Service-Marker,
+// GL→Service-Mapping bleiben funktional erhalten (vgl. .lovable/plan.md).
 
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import * as React from "react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useDensity } from "@/hooks/use-density";
 import { listLocations } from "@/lib/admin/locations.functions";
 import { listPeriods } from "@/lib/time/time-admin.functions";
-import { serviceMarker } from "@/lib/roster/service-marker";
 import {
   createRosterShift,
   deleteRosterShift,
@@ -23,13 +22,16 @@ import {
   getStaffForRoster,
   getStaffCrossBookings,
   listSkills,
+  moveRosterShift,
   updateRosterShiftSkill,
   updateRosterShiftStatus,
   type RosterShift,
-  type RosterCrossBooking,
   type RosterSkill,
-  type RosterStaffRow,
 } from "@/lib/roster/roster.functions";
+import { RosterGrid } from "@/components/roster/RosterGrid";
+import { PaintToolbar, type PaintSelection } from "@/components/roster/PaintToolbar";
+import { SkillFilterChips } from "@/components/roster/SkillFilterChips";
+import { DensityToggle } from "@/components/roster/DensityToggle";
 
 export const Route = createFileRoute("/_authenticated/admin/dienstplan")({
   head: () => ({ meta: [{ title: "Dienstplan" }] }),
@@ -38,26 +40,7 @@ export const Route = createFileRoute("/_authenticated/admin/dienstplan")({
 
 type GridArea = "kitchen" | "service";
 
-const AREA_LABEL: Record<GridArea, string> = {
-  kitchen: "KÜCHE",
-  service: "SERVICE",
-};
-const AREA_BAR: Record<GridArea, string> = {
-  kitchen: "bg-orange-400",
-  service: "bg-blue-400",
-};
-const AREA_BG: Record<GridArea, string> = {
-  kitchen: "bg-orange-50",
-  service: "bg-blue-50",
-};
-const AREA_ORDER: GridArea[] = ["kitchen", "service"];
-const AREA_SHORT: Record<"kitchen" | "service" | "gl", string> = {
-  kitchen: "Küche",
-  service: "Service",
-  gl: "Service",
-};
-
-function parseIsoDate(iso: string): Date {
+function parseIso(iso: string): Date {
   return new Date(`${iso}T12:00:00Z`);
 }
 function fmtIso(d: Date): string {
@@ -70,218 +53,16 @@ function addDays(d: Date, n: number): Date {
 }
 function daysBetween(fromIso: string, toIso: string): string[] {
   const out: string[] = [];
-  let cur = parseIsoDate(fromIso);
-  const end = parseIsoDate(toIso);
+  let cur = parseIso(fromIso);
+  const end = parseIso(toIso);
   while (cur.getTime() <= end.getTime()) {
     out.push(fmtIso(cur));
     cur = addDays(cur, 1);
   }
   return out;
 }
-function isWeekend(iso: string): boolean {
-  const dow = parseIsoDate(iso).getUTCDay();
-  return dow === 0 || dow === 6;
-}
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
-}
-function abbr(name: string | null | undefined): string {
-  if (!name) return "";
-  const trimmed = name.trim();
-  if (trimmed.length === 0) return "";
-  return trimmed.slice(0, 2).toUpperCase();
-}
-function dayLabel(iso: string): string {
-  const d = parseIsoDate(iso);
-  const dows = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
-  return `${dows[d.getUTCDay()]} ${String(d.getUTCDate()).padStart(2, "0")}.${String(d.getUTCMonth() + 1).padStart(2, "0")}.`;
-}
-
-// Skills, die der Mitarbeiter laut staff_skills hat. Falls leer:
-// Fallback = alle Skills der zur Area passenden Kategorie.
-function skillsForCell(
-  staffRow: RosterStaffRow,
-  area: GridArea,
-  allSkills: RosterSkill[],
-): RosterSkill[] {
-  const assigned = allSkills.filter((s) => staffRow.skillIds.includes(s.id));
-  // Service-Bereich akzeptiert auch gl/other Skills (GL, Hausmeister)
-  const allowedCategories =
-    area === "service"
-      ? new Set<RosterSkill["category"]>(["service", "gl", "other"])
-      : new Set<RosterSkill["category"]>(["kitchen"]);
-  if (assigned.length > 0) {
-    return assigned.filter((s) => allowedCategories.has(s.category));
-  }
-  return allSkills.filter((s) => allowedCategories.has(s.category));
-}
-
-function PillVisual({ shift, area }: { shift: RosterShift; area: GridArea }) {
-  const opacity = shift.status === "confirmed" ? "opacity-100" : "opacity-70";
-  if (area === "service") {
-    const label = serviceMarker(shift.skillName);
-    return (
-      <div
-        className={`mx-auto flex h-6 w-10 items-center justify-center rounded border border-foreground/40 bg-background text-[11px] font-bold text-foreground ${opacity}`}
-        title={`${shift.skillName ?? "—"} (${shift.status})`}
-      >
-        {label}
-      </div>
-    );
-  }
-  const bg = shift.skillColor ?? "#9ca3af";
-  return (
-    <div
-      className={`mx-auto flex h-6 w-10 items-center justify-center rounded text-[11px] font-bold text-white ${opacity}`}
-      style={{ backgroundColor: bg }}
-      title={`${shift.skillName ?? "—"} (${shift.status})`}
-    >
-      {abbr(shift.skillName)}
-    </div>
-  );
-}
-
-function EmptyCellMarker({ canEdit }: { canEdit: boolean }) {
-  return (
-    <div
-      className={`mx-auto h-6 w-10 rounded border border-dashed ${
-        canEdit ? "border-muted-foreground/30 hover:border-primary" : "border-transparent"
-      }`}
-    />
-  );
-}
-
-type CellAction =
-  | { kind: "create"; staffId: string; shiftDate: string; area: GridArea; skillId: string | null }
-  | { kind: "delete"; id: string }
-  | { kind: "status"; id: string; status: "planned" | "confirmed" }
-  | { kind: "skill"; id: string; skillId: string };
-
-function CellPopover({
-  open,
-  onOpenChange,
-  staffRow,
-  area,
-  iso,
-  shift,
-  allSkills,
-  onAction,
-  busy,
-  children,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  staffRow: RosterStaffRow;
-  area: GridArea;
-  iso: string;
-  shift: RosterShift | undefined;
-  allSkills: RosterSkill[];
-  onAction: (a: CellAction) => void;
-  busy: boolean;
-  children: React.ReactNode;
-}) {
-  const candidates = skillsForCell(staffRow, area, allSkills);
-
-  return (
-    <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverTrigger asChild>{children}</PopoverTrigger>
-      <PopoverContent className="w-64 p-3" align="center">
-        <div className="mb-2 text-xs text-muted-foreground">
-          {staffRow.displayName} · {AREA_LABEL[area]} · {dayLabel(iso)}
-        </div>
-
-        {shift ? (
-          <>
-            <div className="mb-2 text-xs font-medium">Skill ändern</div>
-            <div className="mb-3 flex flex-wrap gap-1.5">
-              {candidates.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  disabled={busy}
-                  onClick={() => onAction({ kind: "skill", id: shift.id, skillId: s.id })}
-                  className={`rounded px-2 py-1 text-[11px] font-bold text-white disabled:opacity-50 ${
-                    s.id === shift.skillId ? "ring-2 ring-offset-1 ring-foreground" : ""
-                  }`}
-                  style={{ backgroundColor: s.color ?? "#9ca3af" }}
-                >
-                  {s.name}
-                </button>
-              ))}
-              {candidates.length === 0 && (
-                <span className="text-xs text-muted-foreground">Keine Skills verfügbar.</span>
-              )}
-            </div>
-
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <span className="text-xs font-medium">Status</span>
-              <div className="flex gap-1">
-                <Button
-                  size="sm"
-                  variant={shift.status === "planned" ? "default" : "outline"}
-                  disabled={busy || shift.status === "planned"}
-                  onClick={() => onAction({ kind: "status", id: shift.id, status: "planned" })}
-                  className="h-7 text-xs"
-                >
-                  geplant
-                </Button>
-                <Button
-                  size="sm"
-                  variant={shift.status === "confirmed" ? "default" : "outline"}
-                  disabled={busy || shift.status === "confirmed"}
-                  onClick={() => onAction({ kind: "status", id: shift.id, status: "confirmed" })}
-                  className="h-7 text-xs"
-                >
-                  bestätigt
-                </Button>
-              </div>
-            </div>
-
-            <Button
-              size="sm"
-              variant="destructive"
-              disabled={busy}
-              onClick={() => onAction({ kind: "delete", id: shift.id })}
-              className="h-7 w-full text-xs"
-            >
-              Schicht löschen
-            </Button>
-          </>
-        ) : (
-          <>
-            <div className="mb-2 text-xs font-medium">Schicht anlegen — Skill wählen</div>
-            <div className="flex flex-wrap gap-1.5">
-              {candidates.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  disabled={busy}
-                  onClick={() =>
-                    onAction({
-                      kind: "create",
-                      staffId: staffRow.staffId,
-                      shiftDate: iso,
-                      area,
-                      skillId: s.id,
-                    })
-                  }
-                  className="rounded px-2 py-1 text-[11px] font-bold text-white disabled:opacity-50"
-                  style={{ backgroundColor: s.color ?? "#9ca3af" }}
-                >
-                  {s.name}
-                </button>
-              ))}
-              {candidates.length === 0 && (
-                <span className="text-xs text-muted-foreground">
-                  Keine passenden Skills hinterlegt.
-                </span>
-              )}
-            </div>
-          </>
-        )}
-      </PopoverContent>
-    </Popover>
-  );
 }
 
 function DienstplanPage() {
@@ -297,12 +78,16 @@ function DienstplanPage() {
 
   const [periodId, setPeriodId] = useState<string | null>(null);
   const [locationId, setLocationId] = useState<string | null>(null);
-  const [openCell, setOpenCell] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [activeArea, setActiveArea] = useState<GridArea>("kitchen");
+  const [skillFilter, setSkillFilter] = useState<string[]>([]);
+  const [paintEnabled, setPaintEnabled] = useState(false);
+  const [paint, setPaint] = useState<PaintSelection>(null);
+  const [density, setDensity] = useDensity();
 
   const periods = useMemo(() => periodsQ.data ?? [], [periodsQ.data]);
   const locations = useMemo(() => locationsQ.data ?? [], [locationsQ.data]);
-  const allSkills = useMemo(() => skillsQ.data ?? [], [skillsQ.data]);
+  const allSkills: RosterSkill[] = useMemo(() => skillsQ.data ?? [], [skillsQ.data]);
 
   const effectivePeriod = useMemo(() => {
     if (periodId) return periods.find((p) => p.id === periodId) ?? null;
@@ -322,14 +107,13 @@ function DienstplanPage() {
     queryFn: () => getStaffForRoster({ data: { locationId: effectiveLocationId! } }),
     enabled: !!effectiveLocationId,
   });
-  const shiftsKey = [
-    "roster-shifts",
-    effectiveLocationId,
-    effectivePeriod?.startDate,
-    effectivePeriod?.endDate,
-  ];
   const shiftsQ = useQuery({
-    queryKey: shiftsKey,
+    queryKey: [
+      "roster-shifts",
+      effectiveLocationId,
+      effectivePeriod?.startDate,
+      effectivePeriod?.endDate,
+    ],
     queryFn: () =>
       getRosterShifts({
         data: {
@@ -340,7 +124,6 @@ function DienstplanPage() {
       }),
     enabled: !!effectiveLocationId && !!effectivePeriod,
   });
-
   const crossQ = useQuery({
     queryKey: ["roster-cross-bookings", effectivePeriod?.startDate, effectivePeriod?.endDate],
     queryFn: () =>
@@ -353,7 +136,7 @@ function DienstplanPage() {
     enabled: !!effectivePeriod,
   });
 
-  // Realtime: jede Änderung an roster_shifts der aktuellen Org → Query invalidieren.
+  // Realtime: jede Änderung an roster_shifts → invalidate (live update).
   useEffect(() => {
     if (!effectiveLocationId) return;
     const channel = supabase
@@ -369,72 +152,137 @@ function DienstplanPage() {
   }, [effectiveLocationId, qc]);
 
   const staff = useMemo(() => staffQ.data ?? [], [staffQ.data]);
-  const shifts = useMemo(() => shiftsQ.data ?? [], [shiftsQ.data]);
-  const crossBookings = useMemo<RosterCrossBooking[]>(() => crossQ.data ?? [], [crossQ.data]);
+  const shifts: RosterShift[] = useMemo(() => shiftsQ.data ?? [], [shiftsQ.data]);
+  const crossBookings = useMemo(() => crossQ.data ?? [], [crossQ.data]);
 
-  const shiftIndex = useMemo(() => {
-    const m = new Map<string, RosterShift>();
-    for (const s of shifts) {
-      m.set(`${s.staffId}|${s.shiftDate}|${s.area}`, s);
-    }
-    return m;
-  }, [shifts]);
+  // Skill-Filter (Mehrfach, ODER): nur Mitarbeiter zeigen, die mind. einen
+  // der gewählten Skills haben. Leere Auswahl = alle.
+  const filteredStaff = useMemo(() => {
+    if (skillFilter.length === 0) return staff;
+    return staff.filter((r) => r.skillIds.some((sid) => skillFilter.includes(sid)));
+  }, [staff, skillFilter]);
 
-  // Index aller Buchungen pro (staffId, date), gesamtorgweit/standortweit.
-  const bookingsByStaffDate = useMemo(() => {
-    const m = new Map<string, RosterCrossBooking[]>();
-    for (const b of crossBookings) {
-      const k = `${b.staffId}|${b.shiftDate}`;
-      const arr = m.get(k) ?? [];
-      arr.push(b);
-      m.set(k, arr);
-    }
-    return m;
-  }, [crossBookings]);
+  // Skill-Pool fürs Paint-Toolbar: passende Kategorien je aktivem Tab.
+  const paintSkills = useMemo(() => {
+    const allowed =
+      activeArea === "service"
+        ? new Set<RosterSkill["category"]>(["service", "gl", "other"])
+        : new Set<RosterSkill["category"]>(["kitchen"]);
+    return allSkills.filter((s) => allowed.has(s.category));
+  }, [allSkills, activeArea]);
 
-  const grouped = useMemo(() => {
-    const g = new Map<GridArea, RosterStaffRow[]>();
-    for (const a of AREA_ORDER) g.set(a, []);
-    for (const row of staff) g.get(row.department)?.push(row);
-    return g;
-  }, [staff]);
+  // Filter-Chips zeigen ebenfalls nur Skills der aktiven Area-Kategorien.
+  const filterSkills = paintSkills;
 
-  async function handleAction(a: CellAction) {
-    if (!canEdit || periodLocked) return;
+  async function handleCreate(staffId: string, iso: string, area: GridArea, skillId: string) {
+    if (!canEdit || periodLocked || !effectiveLocationId) return;
     setBusy(true);
     try {
-      if (a.kind === "create") {
-        await createRosterShift({
-          data: {
-            locationId: effectiveLocationId!,
-            staffId: a.staffId,
-            shiftDate: a.shiftDate,
-            area: a.area,
-            skillId: a.skillId,
-          },
-        });
-        toast.success("Schicht angelegt");
-      } else if (a.kind === "delete") {
-        await deleteRosterShift({ data: { id: a.id } });
-        toast.success("Schicht gelöscht");
-      } else if (a.kind === "status") {
-        await updateRosterShiftStatus({ data: { id: a.id, status: a.status } });
-      } else if (a.kind === "skill") {
-        await updateRosterShiftSkill({ data: { id: a.id, skillId: a.skillId } });
-      }
-      setOpenCell(null);
+      await createRosterShift({
+        data: {
+          locationId: effectiveLocationId,
+          staffId,
+          shiftDate: iso,
+          area,
+          skillId,
+        },
+      });
       qc.invalidateQueries({ queryKey: ["roster-shifts"] });
       qc.invalidateQueries({ queryKey: ["roster-cross-bookings"] });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      toast.error(msg);
+      toast.error(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
     }
   }
 
+  async function handleDelete(id: string) {
+    if (!canEdit || periodLocked) return;
+    setBusy(true);
+    try {
+      await deleteRosterShift({ data: { id } });
+      qc.invalidateQueries({ queryKey: ["roster-shifts"] });
+      qc.invalidateQueries({ queryKey: ["roster-cross-bookings"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleChangeSkill(id: string, skillId: string) {
+    if (!canEdit || periodLocked) return;
+    setBusy(true);
+    try {
+      await updateRosterShiftSkill({ data: { id, skillId } });
+      qc.invalidateQueries({ queryKey: ["roster-shifts"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleChangeStatus(id: string, status: "planned" | "confirmed") {
+    if (!canEdit || periodLocked) return;
+    setBusy(true);
+    try {
+      await updateRosterShiftStatus({ data: { id, status } });
+      qc.invalidateQueries({ queryKey: ["roster-shifts"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+
+  async function handleDragEnd(e: DragEndEvent) {
+    if (!canEdit || periodLocked) return;
+    const { active, over } = e;
+    if (!over) return;
+    const shift = active.data.current?.shift as RosterShift | undefined;
+    const target = over.data.current as
+      | { staffId?: string; iso?: string; area?: GridArea }
+      | undefined;
+    if (!shift || !target?.staffId || !target?.iso || !target?.area) return;
+    if (
+      shift.staffId === target.staffId &&
+      shift.shiftDate === target.iso &&
+      shift.area === target.area
+    ) {
+      return;
+    }
+    setBusy(true);
+    try {
+      await moveRosterShift({
+        data: {
+          id: shift.id,
+          staffId: target.staffId,
+          shiftDate: target.iso,
+          area: target.area,
+        },
+      });
+      qc.invalidateQueries({ queryKey: ["roster-shifts"] });
+      qc.invalidateQueries({ queryKey: ["roster-cross-bookings"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function togglePaint() {
+    setPaintEnabled((v) => {
+      const next = !v;
+      if (!next) setPaint(null);
+      return next;
+    });
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <TooltipProvider delayDuration={150}>
         <header className="flex flex-wrap items-end gap-4">
           <div>
@@ -445,7 +293,7 @@ function DienstplanPage() {
                 periodLocked ? (
                   <span className="text-destructive">Periode gesperrt.</span>
                 ) : (
-                  <span>Klick in Zelle zum Bearbeiten.</span>
+                  <span>Klick / Paint / Drag &amp; Drop zum Bearbeiten.</span>
                 )
               ) : (
                 <span>(Read-only)</span>
@@ -481,6 +329,10 @@ function DienstplanPage() {
                 ))}
               </select>
             </label>
+            <label className="flex flex-col gap-1 text-xs">
+              <span className="text-muted-foreground">Darstellung</span>
+              <DensityToggle value={density} onChange={setDensity} />
+            </label>
           </div>
         </header>
 
@@ -491,143 +343,45 @@ function DienstplanPage() {
         ) : !effectiveLocationId ? (
           <Card className="p-6 text-sm text-muted-foreground">Kein Standort verfügbar.</Card>
         ) : (
-          <Card className="overflow-x-auto">
-            <table className="w-full border-collapse text-xs">
-              <thead>
-                <tr className="border-b bg-muted/50">
-                  <th className="sticky left-0 z-10 min-w-[180px] bg-muted/50 px-3 py-2 text-left font-medium">
-                    Mitarbeiter
-                  </th>
-                  {days.map((iso) => {
-                    const we = isWeekend(iso);
-                    const isToday = iso === today;
-                    return (
-                      <th
-                        key={iso}
-                        className={`min-w-[56px] px-1 py-2 text-center font-medium ${
-                          we ? "bg-muted text-muted-foreground" : ""
-                        } ${isToday ? "ring-2 ring-primary ring-inset" : ""}`}
-                      >
-                        {dayLabel(iso)}
-                      </th>
-                    );
-                  })}
-                </tr>
-              </thead>
-              <tbody>
-                {AREA_ORDER.map((area) => {
-                  const rows = grouped.get(area) ?? [];
-                  if (rows.length === 0) return null;
-                  return (
-                    <React.Fragment key={`area-${area}`}>
-                      <tr className={AREA_BG[area]}>
-                        <td
-                          colSpan={days.length + 1}
-                          className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-foreground"
-                        >
-                          <span
-                            className={`mr-2 inline-block h-2 w-2 rounded-full ${AREA_BAR[area]}`}
-                          />
-                          {AREA_LABEL[area]}
-                        </td>
-                      </tr>
-                      {rows.map((row) => (
-                        <tr
-                          key={`${area}-${row.staffId}`}
-                          className="border-b last:border-b-0 hover:bg-muted/30"
-                        >
-                          <td className="sticky left-0 z-10 min-w-[180px] bg-background px-3 py-1.5 font-medium">
-                            {row.displayName}
-                          </td>
-                          {days.map((iso) => {
-                            const we = isWeekend(iso);
-                            const isToday = iso === today;
-                            const shift = shiftIndex.get(`${row.staffId}|${iso}|${area}`);
-                            const cellKey = `${row.staffId}|${iso}|${area}`;
-                            const editable = canEdit && !periodLocked;
-                            const otherBookings = !shift
-                              ? (bookingsByStaffDate.get(`${row.staffId}|${iso}`) ?? [])
-                              : [];
-                            const cellBody = shift ? (
-                              <PillVisual shift={shift} area={area} />
-                            ) : (
-                              <EmptyCellMarker canEdit={editable} />
-                            );
-                            return (
-                              <td
-                                key={iso}
-                                className={`relative px-0.5 py-1 text-center ${
-                                  we ? "bg-muted/40" : ""
-                                } ${isToday ? "bg-primary/5" : ""}`}
-                              >
-                                {editable ? (
-                                  <CellPopover
-                                    open={openCell === cellKey}
-                                    onOpenChange={(o) => setOpenCell(o ? cellKey : null)}
-                                    staffRow={row}
-                                    area={area}
-                                    iso={iso}
-                                    shift={shift}
-                                    allSkills={allSkills}
-                                    onAction={handleAction}
-                                    busy={busy}
-                                  >
-                                    <button
-                                      type="button"
-                                      className="block w-full cursor-pointer bg-transparent"
-                                      aria-label={
-                                        shift
-                                          ? `Schicht bearbeiten: ${row.displayName}, ${iso}`
-                                          : `Schicht anlegen: ${row.displayName}, ${iso}`
-                                      }
-                                    >
-                                      {cellBody}
-                                    </button>
-                                  </CellPopover>
-                                ) : (
-                                  cellBody
-                                )}
-                                {otherBookings.length > 0 && (
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <span
-                                        className="absolute right-0.5 top-0.5 inline-block h-1.5 w-1.5 rounded-full bg-red-500"
-                                        aria-label="Bereits anderswo eingeteilt"
-                                      />
-                                    </TooltipTrigger>
-                                    <TooltipContent className="max-w-xs">
-                                      <div className="space-y-0.5 text-xs">
-                                        {otherBookings.map((b, i) => (
-                                          <div key={i}>
-                                            Bereits: {b.locationName} · {AREA_SHORT[b.area]}
-                                            {b.skillName ? ` · ${b.skillName}` : ""}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                )}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </React.Fragment>
-                  );
-                })}
-                {staff.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={days.length + 1}
-                      className="px-3 py-6 text-center text-muted-foreground"
-                    >
-                      Keine Mitarbeiter an diesem Standort.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </Card>
+          <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+            {canEdit && !periodLocked && (
+              <PaintToolbar
+                enabled={paintEnabled}
+                onToggle={togglePaint}
+                skills={paintSkills}
+                active={paintEnabled ? paint : null}
+                onChange={setPaint}
+              />
+            )}
+            <SkillFilterChips
+              skills={filterSkills}
+              selected={skillFilter}
+              onChange={setSkillFilter}
+            />
+            <RosterGrid
+              activeArea={activeArea}
+              onActiveAreaChange={(a) => {
+                setActiveArea(a);
+                setPaint(null); // Paint-Auswahl zurücksetzen, da Skill-Pool wechselt
+                setSkillFilter([]);
+              }}
+              days={days}
+              today={today}
+              staff={filteredStaff}
+              shifts={shifts}
+              allSkills={allSkills}
+              crossBookings={crossBookings}
+              density={density}
+              canEdit={canEdit}
+              locked={!!periodLocked}
+              paint={paintEnabled ? paint : null}
+              busy={busy}
+              onCreate={handleCreate}
+              onDelete={handleDelete}
+              onChangeSkill={handleChangeSkill}
+              onChangeStatus={handleChangeStatus}
+            />
+          </DndContext>
         )}
       </TooltipProvider>
     </div>
