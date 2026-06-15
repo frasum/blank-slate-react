@@ -226,6 +226,46 @@ function KassePage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // -------------------- Manuelle Neuanlage --------------------
+  const [createSettlement, setCreateSettlement] = useState<CreateState | null>(null);
+  const sessionLocationId = ovQ.data?.session?.location_id ?? null;
+  const eligibleStaff = (staffQ.data ?? []).filter(
+    (s) => s.isActive && (sessionLocationId === null || s.locationIds.includes(sessionLocationId)),
+  );
+  const createSettlementMut = useMutation({
+    mutationFn: () => {
+      if (!createSettlement) throw new Error("invalid state");
+      if (!sessionId) throw new Error("Keine Session");
+      if (!createSettlement.staffId) throw new Error("Bitte einen Kellner wählen.");
+      const pos = parseEuroToCents(createSettlement.posSales);
+      const card = parseEuroToCents(createSettlement.cardTotal);
+      const hilf = parseEuroToCents(createSettlement.hilfMahl);
+      const open = parseEuroToCents(createSettlement.openInvoices);
+      const cash = parseEuroToCents(createSettlement.cashHandedIn);
+      if (pos === null || card === null || hilf === null || open === null || cash === null) {
+        throw new Error("Bitte gültige Eurobeträge eintragen.");
+      }
+      return callAdminCreate({
+        data: {
+          sessionId,
+          staffId: createSettlement.staffId,
+          posSalesCents: pos,
+          cardTotalCents: card,
+          hilfMahlCents: hilf,
+          openInvoicesCents: open,
+          cashHandedInCents: cash,
+          reason: createSettlement.reason,
+        },
+      });
+    },
+    onSuccess: () => {
+      toast.success("Abrechnung angelegt.");
+      setCreateSettlement(null);
+      void invalidate();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   // -------------------- Footer-Aktionen --------------------
   const finalizeMut = useMutation({
     mutationFn: () => {
