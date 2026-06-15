@@ -258,6 +258,7 @@ function ZeitUebersichtPage() {
   );
   const { week: currentWeekNo } = isoWeek(weekStartDate);
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<string>("weekly");
 
   // Wochen-Chips für den gewählten Monat (alle KW, die mind. einen Tag des Monats enthalten).
   const monthWeeks = useMemo(() => {
