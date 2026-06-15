@@ -1,7 +1,7 @@
 // B6 — Arbeitszeitübersicht (Zusammenfassung + Buchhaltung), 1:1 nach tagesabrechnung.
 
 import { createFileRoute } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Fragment, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -41,6 +41,15 @@ import {
   upsertPayrollNote,
 } from "@/lib/time/time-admin.functions";
 import { computeShiftHours, isBavarianHoliday, isSundayOrHoliday } from "@/lib/time/shift-hours";
+import {
+  buildFileBaseName,
+  buildWeeklyPdf,
+  buildWeeklyXlsx,
+  downloadBlob,
+  type WeeklyExportInput,
+  type WeeklyExportRow,
+} from "@/lib/time/weekly-export";
+import { FileDown, FileSpreadsheet, Search } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/zeit-uebersicht")({
   head: () => ({ meta: [{ title: "Zeitübersicht" }] }),
@@ -209,8 +218,14 @@ function ZeitUebersichtPage() {
     queryKey: ["admin-locations"],
     queryFn: () => fetchLocations(),
   });
-  const [locationId, setLocationId] = useState<string>("");
-  const effectiveLocationId = locationId || locationsQ.data?.[0]?.id || "";
+  const locations = locationsQ.data ?? [];
+  // Wochenplan-Location-Filter: konkrete Location-ID oder "all".
+  const [locationFilter, setLocationFilter] = useState<string>("");
+  const effectiveLocationId =
+    locationFilter && locationFilter !== "all"
+      ? locationFilter
+      : (locations[0]?.id ?? "");
+  const isAllLocations = locationFilter === "all";
 
   // Periodenwahl
   const periodsQ = useQuery({
@@ -228,7 +243,11 @@ function ZeitUebersichtPage() {
   const fromDate = selectedPeriod ? selectedPeriod.startDate : manualFrom;
   const toDate = selectedPeriod ? selectedPeriod.endDate : manualTo;
 
-  // Wochenplan: aktuelle Woche (Montag).
+  // Wochenplan: aktueller Monat + Woche.
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
   const [weekStart, setWeekStart] = useState<string>(() =>
     fmtIso(mondayOf(parseIsoDate(todayIso()))),
   );
@@ -238,12 +257,84 @@ function ZeitUebersichtPage() {
     [weekStartDate],
   );
   const { week: currentWeekNo } = isoWeek(weekStartDate);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<string>("weekly");
 
-  const weeklyQ = useQuery({
+  // Wochen-Chips für den gewählten Monat (alle KW, die mind. einen Tag des Monats enthalten).
+  const monthWeeks = useMemo(() => {
+    const [y, m] = selectedMonth.split("-").map((s) => Number.parseInt(s, 10));
+    const firstDay = new Date(Date.UTC(y, m - 1, 1));
+    const lastDay = new Date(Date.UTC(y, m, 0));
+    const chips: { idx: number; start: string; end: string; label: string; weekNo: number }[] = [];
+    let cursor = mondayOf(firstDay);
+    let i = 1;
+    while (cursor.getTime() <= lastDay.getTime()) {
+      const end = addDays(cursor, 6);
+      const wk = isoWeek(cursor);
+      chips.push({
+        idx: i,
+        start: fmtIso(cursor),
+        end: fmtIso(end),
+        label: `W${i} (${ddmm(cursor)}–${ddmm(end)})`,
+        weekNo: wk.week,
+      });
+      cursor = addDays(cursor, 7);
+      i++;
+    }
+    return chips;
+  }, [selectedMonth]);
+
+  // Monats-Optionen: 6 Monate zurück bis 6 Monate vor.
+  const monthOptions = useMemo(() => {
+    const opts: { value: string; label: string }[] = [];
+    const now = new Date();
+    for (let off = -6; off <= 6; off++) {
+      const d = new Date(now.getFullYear(), now.getMonth() + off, 1);
+      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const label = `${MONTH_DE[d.getMonth()]} ${d.getFullYear()}`;
+      opts.push({ value, label });
+    }
+    return opts;
+  }, []);
+
+  // Wenn "Alle Standorte" gewählt: pro Location parallel laden + clientseitig mergen.
+  const allLocationQueries = useQueries({
+    queries: isAllLocations
+      ? locations.map((l) => ({
+          queryKey: ["weekly-entries", l.id, weekStart],
+          queryFn: () => fetchWeekly({ data: { locationId: l.id, weekStart } }),
+          enabled: Boolean(weekStart),
+        }))
+      : [],
+  });
+
+  const weeklyQSingle = useQuery({
     queryKey: ["weekly-entries", effectiveLocationId, weekStart],
     queryFn: () => fetchWeekly({ data: { locationId: effectiveLocationId, weekStart } }),
-    enabled: Boolean(effectiveLocationId),
+    enabled: Boolean(effectiveLocationId) && !isAllLocations,
   });
+
+  // Zusammengeführte Wochen-Daten.
+  const weeklyData = useMemo<WeeklyData | undefined>(() => {
+    if (isAllLocations) {
+      const merged: WeeklyData = {
+        weekStart,
+        weekEnd: fmtIso(addDays(weekStartDate, 6)),
+        entries: [],
+        crossLocationDates: {},
+      };
+      for (const q of allLocationQueries) {
+        const d = q.data as WeeklyData | undefined;
+        if (!d) continue;
+        merged.entries.push(...d.entries);
+      }
+      return merged;
+    }
+    return weeklyQSingle.data;
+  }, [isAllLocations, allLocationQueries, weeklyQSingle.data, weekStart, weekStartDate]);
+  const weeklyLoading = isAllLocations
+    ? allLocationQueries.some((q) => q.isLoading)
+    : weeklyQSingle.isLoading;
 
   const overviewQ = useQuery({
     queryKey: ["time-overview", effectiveLocationId, fromDate, toDate],
@@ -413,6 +504,120 @@ function ZeitUebersichtPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // ============ Wochenplan-Aggregation (für Render + Export) ============
+  const weeklyExportInput = useMemo<WeeklyExportInput | null>(() => {
+    const data = weeklyData;
+    if (!data) return null;
+    const days = weekDays.map((d) => ({
+      iso: fmtIso(d),
+      label: dayHeader(d),
+      isSunOrHol: isSundayOrHoliday(d),
+    }));
+
+    type AccRow = {
+      staffId: string;
+      displayName: string;
+      department: Department;
+      byDate: Map<string, WeeklyEntry[]>;
+      totals: { total: number; evening: number; night: number; sunHol: number };
+    };
+    const rowMap = new Map<string, AccRow>();
+    for (const e of data.entries) {
+      let r = rowMap.get(e.staffId);
+      if (!r) {
+        r = {
+          staffId: e.staffId,
+          displayName: e.displayName,
+          department: e.department,
+          byDate: new Map(),
+          totals: { total: 0, evening: 0, night: 0, sunHol: 0 },
+        };
+        rowMap.set(e.staffId, r);
+      }
+      const arr = r.byDate.get(e.businessDate) ?? [];
+      arr.push(e);
+      r.byDate.set(e.businessDate, arr);
+      const s = computeShiftHours(e.startedAt, e.endedAt, e.businessDate);
+      r.totals.total += s.totalHours;
+      r.totals.evening += s.eveningHours;
+      r.totals.night += s.nightHours;
+      r.totals.sunHol += s.sundayHolidayHours;
+    }
+    const cross = data.crossLocationDates ?? {};
+    const q = searchQuery.trim().toLowerCase();
+
+    const buildExportRow = (r: AccRow): WeeklyExportRow => ({
+      staffId: r.staffId,
+      displayName: r.displayName,
+      department: r.department,
+      days: days.map((d) => {
+        const dayEntries = r.byDate.get(d.iso) ?? [];
+        return {
+          iso: d.iso,
+          label: d.label,
+          isSunOrHol: d.isSunOrHol,
+          shifts: dayEntries.map((e) => ({
+            from: fmtHHMM(e.startedAt),
+            to: fmtHHMM(e.endedAt),
+          })),
+          crossLocation:
+            dayEntries.length === 0 && (cross[r.staffId] ?? []).includes(d.iso),
+        };
+      }),
+      totals: r.totals,
+    });
+
+    const rowsByDept: WeeklyExportInput["rowsByDept"] = DEPT_ORDER.map((dept) => ({
+      dept,
+      deptLabel: DEPT_HEADER_LABEL[dept],
+      rows: Array.from(rowMap.values())
+        .filter((r) => r.department === dept)
+        .filter((r) => q === "" || r.displayName.toLowerCase().includes(q))
+        .sort((a, b) => a.displayName.localeCompare(b.displayName, "de"))
+        .map(buildExportRow),
+    }));
+
+    const locLabel = isAllLocations
+      ? "Alle"
+      : (locations.find((l) => l.id === effectiveLocationId)?.name ?? "");
+    const wk = isoWeek(weekStartDate);
+    return {
+      locationLabel: locLabel,
+      weekNo: wk.week,
+      weekYear: wk.year,
+      rangeLabel: `${ddmm(weekDays[0])}–${ddmm(weekDays[6])}${weekDays[6].getUTCFullYear()}`,
+      days,
+      rowsByDept,
+    };
+  }, [
+    weeklyData,
+    weekDays,
+    weekStartDate,
+    searchQuery,
+    isAllLocations,
+    locations,
+    effectiveLocationId,
+  ]);
+
+  const handleExportXlsx = async () => {
+    if (!weeklyExportInput) return;
+    try {
+      const blob = await buildWeeklyXlsx(weeklyExportInput);
+      downloadBlob(blob, `${buildFileBaseName(weeklyExportInput)}.xlsx`);
+    } catch (e) {
+      toast.error((e as Error).message || "Excel-Export fehlgeschlagen");
+    }
+  };
+  const handleExportPdf = () => {
+    if (!weeklyExportInput) return;
+    try {
+      const blob = buildWeeklyPdf(weeklyExportInput);
+      downloadBlob(blob, `${buildFileBaseName(weeklyExportInput)}.pdf`);
+    } catch (e) {
+      toast.error((e as Error).message || "PDF-Export fehlgeschlagen");
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -422,103 +627,177 @@ function ZeitUebersichtPage() {
         </p>
       </div>
 
-      <Card className="p-4">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="space-y-1">
-            <Label htmlFor="loc">Standort</Label>
-            <select
-              id="loc"
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-              value={effectiveLocationId}
-              onChange={(e) => setLocationId(e.target.value)}
-            >
-              {(locationsQ.data ?? []).map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="from">Von</Label>
-            <Input
-              id="from"
-              type="date"
-              value={fromDate}
-              onChange={(e) => setManualFrom(e.target.value)}
-              disabled={Boolean(selectedPeriod)}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="to">Bis</Label>
-            <Input
-              id="to"
-              type="date"
-              value={toDate}
-              onChange={(e) => setManualTo(e.target.value)}
-              disabled={Boolean(selectedPeriod)}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="period">Periode</Label>
-            <select
-              id="period"
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-              value={effectivePeriodId}
-              onChange={(e) => setSelectedPeriodId(e.target.value)}
-            >
-              <option value="">— freie Auswahl —</option>
-              {periods.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.label} {p.status === "locked" ? "🔒" : ""}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </Card>
-
-      <Tabs defaultValue="weekly">
-        <TabsList>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="flex-wrap">
           <TabsTrigger value="weekly">Wochenplan</TabsTrigger>
           <TabsTrigger value="summary">Zusammenfassung</TabsTrigger>
           <TabsTrigger value="payroll">Buchhaltung</TabsTrigger>
           <TabsTrigger value="periods">Perioden</TabsTrigger>
+          <TabsTrigger value="brutto-netto">Brutto/Netto</TabsTrigger>
+          <TabsTrigger value="provision">Provision</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="weekly">
-          <Card className="p-4 mb-3">
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                className="h-9 rounded-md border border-input bg-background px-3 text-sm hover:bg-muted"
-                onClick={() => setWeekStart(fmtIso(addDays(weekStartDate, -7)))}
-              >
-                ← Woche
-              </button>
-              <div className="text-sm font-medium tabular-nums">
-                KW {currentWeekNo} · {ddmm(weekDays[0])}–{ddmm(weekDays[6])}
-                {weekDays[0].getUTCFullYear()}
+        {(activeTab === "summary" || activeTab === "payroll") && (
+          <Card className="my-3 p-3">
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="loc-zr">Standort</Label>
+                <select
+                  id="loc-zr"
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  value={effectiveLocationId}
+                  onChange={(e) => setLocationFilter(e.target.value)}
+                >
+                  {locations.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}
+                    </option>
+                  ))}
+                </select>
               </div>
-              <button
-                type="button"
-                className="h-9 rounded-md border border-input bg-background px-3 text-sm hover:bg-muted"
-                onClick={() => setWeekStart(fmtIso(addDays(weekStartDate, 7)))}
+              <div className="space-y-1">
+                <Label htmlFor="from">Von</Label>
+                <Input
+                  id="from"
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setManualFrom(e.target.value)}
+                  disabled={Boolean(selectedPeriod)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="to">Bis</Label>
+                <Input
+                  id="to"
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setManualTo(e.target.value)}
+                  disabled={Boolean(selectedPeriod)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="period">Periode</Label>
+                <select
+                  id="period"
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  value={effectivePeriodId}
+                  onChange={(e) => setSelectedPeriodId(e.target.value)}
+                >
+                  <option value="">— freie Auswahl —</option>
+                  {periods.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.label} {p.status === "locked" ? "🔒" : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        <TabsContent value="weekly">
+          <Card className="p-4 mb-3 space-y-3">
+            {/* Zeile 1: Monat + Location-Pills + Exporte */}
+            <div className="flex flex-wrap items-center gap-3">
+              <select
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
               >
-                Woche →
-              </button>
+                {monthOptions.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              <div className="inline-flex rounded-md border border-input bg-background p-1">
+                {locations.map((l) => {
+                  const active =
+                    (locationFilter || locations[0]?.id) === l.id && !isAllLocations;
+                  return (
+                    <button
+                      key={l.id}
+                      type="button"
+                      onClick={() => setLocationFilter(l.id)}
+                      className={`h-7 rounded px-3 text-sm transition ${
+                        active
+                          ? "bg-primary text-primary-foreground"
+                          : "text-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {l.name}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => setLocationFilter("all")}
+                  className={`h-7 rounded px-3 text-sm transition ${
+                    isAllLocations
+                      ? "bg-primary text-primary-foreground"
+                      : "text-foreground hover:bg-muted"
+                  }`}
+                >
+                  Alle
+                </button>
+              </div>
+              <div className="ml-auto flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={handleExportPdf}>
+                  <FileDown className="mr-1 h-4 w-4" /> PDF
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleExportXlsx}>
+                  <FileSpreadsheet className="mr-1 h-4 w-4" /> Excel
+                </Button>
+              </div>
+            </div>
+            {/* Zeile 2: Wochen-Chips */}
+            <div className="flex flex-wrap items-center gap-2">
+              {monthWeeks.map((c) => {
+                const active = c.start === weekStart;
+                return (
+                  <button
+                    key={c.start}
+                    type="button"
+                    onClick={() => setWeekStart(c.start)}
+                    className={`h-8 rounded-md px-3 text-sm transition ${
+                      active
+                        ? "bg-foreground text-background"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    }`}
+                  >
+                    <span className="font-semibold">W{c.idx}</span>{" "}
+                    <span className="opacity-80">
+                      ({ddmm(parseIsoDate(c.start))}–{ddmm(parseIsoDate(c.end))})
+                    </span>
+                  </button>
+                );
+              })}
               <button
                 type="button"
-                className="h-9 rounded-md border border-input bg-background px-3 text-sm hover:bg-muted"
                 onClick={() => setWeekStart(fmtIso(mondayOf(parseIsoDate(todayIso()))))}
+                className="ml-auto h-8 rounded-md border border-input bg-background px-3 text-xs hover:bg-muted"
               >
                 Heute
               </button>
             </div>
+            {/* Zeile 3: Suche */}
+            <div className="relative max-w-xs">
+              <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Mitarbeiter suchen…"
+                className="h-9 pl-8"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <div className="text-xs text-muted-foreground tabular-nums">
+              KW {currentWeekNo} · {ddmm(weekDays[0])}–{ddmm(weekDays[6])}
+              {weekDays[6].getUTCFullYear()}
+            </div>
           </Card>
           <WeeklyPlan
-            data={weeklyQ.data}
-            isLoading={weeklyQ.isLoading}
+            input={weeklyExportInput}
+            isLoading={weeklyLoading}
             weekDays={weekDays}
             isAdmin={isAdmin}
             onEdit={(e) =>
@@ -541,7 +820,24 @@ function ZeitUebersichtPage() {
                 to: "",
               })
             }
+            entriesById={useMemo(() => {
+              const m = new Map<string, WeeklyEntry>();
+              for (const e of weeklyData?.entries ?? []) m.set(e.id, e);
+              return m;
+            }, [weeklyData])}
           />
+        </TabsContent>
+
+        <TabsContent value="brutto-netto">
+          <Card className="p-6 text-sm text-muted-foreground">
+            Brutto/Netto-Auswertung wird im nächsten Schritt umgesetzt.
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="provision">
+          <Card className="p-6 text-sm text-muted-foreground">
+            Provisions-Auswertung wird im nächsten Schritt umgesetzt.
+          </Card>
         </TabsContent>
 
         <TabsContent value="summary">
@@ -897,103 +1193,109 @@ function dayHeader(d: Date): string {
 }
 
 function WeeklyPlan({
-  data,
+  input,
   isLoading,
   weekDays,
   isAdmin,
   onEdit,
   onCreate,
+  entriesById,
 }: {
-  data: WeeklyData | undefined;
+  input: WeeklyExportInput | null;
   isLoading: boolean;
   weekDays: Date[];
   isAdmin: boolean;
   onEdit: (entry: WeeklyEntry) => void;
   onCreate: (staffId: string, staffName: string, dateIso: string) => void;
+  entriesById: Map<string, WeeklyEntry>;
 }) {
-  const entries = data?.entries ?? [];
-  const crossDates = data?.crossLocationDates ?? {};
+  // Header-Tagesmeta (Wochentag-Label + Feiertags-Hint)
+  const dayMeta = weekDays.map((d) => ({
+    date: d,
+    iso: fmtIso(d),
+    isSun: d.getUTCDay() === 0,
+    isHol: isBavarianHoliday(d),
+    isSunOrHol: isSundayOrHoliday(d),
+  }));
 
-  // Gruppieren: staffId → { entries-by-date, totals }
-  type Row = {
-    staffId: string;
-    displayName: string;
-    department: Department;
-    entriesByDate: Map<string, WeeklyEntry[]>;
-    totals: {
-      total: number;
-      evening: number;
-      night: number;
-      sunHol: number;
-    };
-  };
-  const rows = new Map<string, Row>();
-  for (const e of entries) {
-    let row = rows.get(e.staffId);
-    if (!row) {
-      row = {
-        staffId: e.staffId,
-        displayName: e.displayName,
-        department: e.department,
-        entriesByDate: new Map(),
-        totals: { total: 0, evening: 0, night: 0, sunHol: 0 },
-      };
-      rows.set(e.staffId, row);
+  // Spalten: Mitarbeiter + 7×2 (Anfang/Ende) + 6 Summen
+  const totalCols = 1 + 14 + 6;
+
+  const groups = input?.rowsByDept ?? [];
+  const anyRows = groups.some((g) => g.rows.length > 0);
+
+  // Hilfsfunktion: aus staffId + ISO → die echten WeeklyEntry-Objekte
+  // (für onEdit/onCreate, da WeeklyExportRow nur Strings hält).
+  const findEntries = (staffId: string, iso: string): WeeklyEntry[] => {
+    const out: WeeklyEntry[] = [];
+    for (const e of entriesById.values()) {
+      if (e.staffId === staffId && e.businessDate === iso) out.push(e);
     }
-    const arr = row.entriesByDate.get(e.businessDate) ?? [];
-    arr.push(e);
-    row.entriesByDate.set(e.businessDate, arr);
-    const r = computeShiftHours(e.startedAt, e.endedAt, e.businessDate);
-    row.totals.total += r.totalHours;
-    row.totals.evening += r.eveningHours;
-    row.totals.night += r.nightHours;
-    row.totals.sunHol += r.sundayHolidayHours;
-  }
-
-  const byDept = new Map<Department, Row[]>();
-  for (const dept of DEPT_ORDER) byDept.set(dept, []);
-  for (const row of rows.values()) {
-    const list = byDept.get(row.department) ?? [];
-    list.push(row);
-    byDept.set(row.department, list);
-  }
-  for (const dept of DEPT_ORDER) {
-    const list = byDept.get(dept) ?? [];
-    list.sort((a, b) => a.displayName.localeCompare(b.displayName, "de"));
-  }
-
-  const dayMeta = weekDays.map((d) => {
-    const iso = fmtIso(d);
-    const isSun = d.getUTCDay() === 0;
-    const isHol = isBavarianHoliday(d);
-    return { date: d, iso, isSun, isHol, isSunOrHol: isSundayOrHoliday(d) };
-  });
-
-  const totalCols = 1 + 7 + 6; // Mitarbeiter + 7 Tage + 6 Summen
+    return out;
+  };
 
   return (
     <Card className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[150px] min-w-[150px]">Mitarbeiter</TableHead>
+            <TableHead rowSpan={2} className="w-[140px] min-w-[140px] align-bottom">
+              Mitarbeiter
+            </TableHead>
             {dayMeta.map((dm) => (
               <TableHead
                 key={dm.iso}
-                className={`text-center whitespace-nowrap ${dm.isHol ? "bg-yellow-50" : dm.isSun ? "bg-gray-100" : ""}`}
+                colSpan={2}
+                className={`text-center whitespace-nowrap border-l ${
+                  dm.isHol ? "bg-yellow-50" : dm.isSun ? "bg-gray-100" : ""
+                }`}
               >
                 {dayHeader(dm.date)}
                 {dm.isHol && (
-                  <span className="block text-[10px] font-normal text-muted-foreground">(Fei)</span>
+                  <span className="block text-[10px] font-normal text-muted-foreground">
+                    (Fei)
+                  </span>
                 )}
               </TableHead>
             ))}
-            <TableHead className="text-right">Ges</TableHead>
-            <TableHead className="text-right">20–24</TableHead>
-            <TableHead className="text-right">24–x</TableHead>
-            <TableHead className="text-right">So/Fei</TableHead>
-            <TableHead className="text-right">U</TableHead>
-            <TableHead className="text-right">K</TableHead>
+            <TableHead rowSpan={2} className="text-right align-bottom border-l">
+              Ges
+            </TableHead>
+            <TableHead rowSpan={2} className="text-right align-bottom">
+              20–24
+            </TableHead>
+            <TableHead rowSpan={2} className="text-right align-bottom">
+              24–x
+            </TableHead>
+            <TableHead rowSpan={2} className="text-right align-bottom">
+              So/Fei
+            </TableHead>
+            <TableHead rowSpan={2} className="text-right align-bottom">
+              U
+            </TableHead>
+            <TableHead rowSpan={2} className="text-right align-bottom">
+              K
+            </TableHead>
+          </TableRow>
+          <TableRow>
+            {dayMeta.map((dm) => (
+              <Fragment key={`sub-${dm.iso}`}>
+                <TableHead
+                  className={`text-center text-[10px] font-normal text-muted-foreground border-l ${
+                    dm.isHol ? "bg-yellow-50" : dm.isSun ? "bg-gray-100" : ""
+                  }`}
+                >
+                  Anf.
+                </TableHead>
+                <TableHead
+                  className={`text-center text-[10px] font-normal text-muted-foreground ${
+                    dm.isHol ? "bg-yellow-50" : dm.isSun ? "bg-gray-100" : ""
+                  }`}
+                >
+                  Ende
+                </TableHead>
+              </Fragment>
+            ))}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -1004,101 +1306,95 @@ function WeeklyPlan({
               </TableCell>
             </TableRow>
           )}
-          {!isLoading && rows.size === 0 && (
+          {!isLoading && !anyRows && (
             <TableRow>
               <TableCell colSpan={totalCols} className="text-center text-muted-foreground">
                 Keine Einträge in dieser Woche.
               </TableCell>
             </TableRow>
           )}
-          {DEPT_ORDER.map((dept) => {
-            const list = byDept.get(dept) ?? [];
-            if (list.length === 0) return null;
+          {groups.map((grp) => {
+            if (grp.rows.length === 0) return null;
             return (
-              <Fragment key={`w-${dept}`}>
-                <TableRow className={DEPT_BG[dept]}>
+              <Fragment key={`w-${grp.dept}`}>
+                <TableRow className={DEPT_BG[grp.dept]}>
                   <TableCell colSpan={totalCols} className="font-semibold text-foreground">
-                    {DEPT_HEADER_LABEL[dept]}
+                    {grp.deptLabel}
                   </TableCell>
                 </TableRow>
-                {list.map((row) => {
-                  const cross = new Set(crossDates[row.staffId] ?? []);
-                  return (
-                    <TableRow key={row.staffId}>
-                      <TableCell className="relative pl-3 font-medium">
-                        <span
-                          className={`absolute left-0 top-0 bottom-0 w-[2px] ${DEPT_BAR[row.department]}`}
-                        />
-                        {row.displayName}
-                      </TableCell>
-                      {dayMeta.map((dm) => {
-                        const dayEntries = row.entriesByDate.get(dm.iso) ?? [];
-                        const hasCross = cross.has(dm.iso) && dayEntries.length === 0;
-                        const cellBg = dm.isHol ? "bg-yellow-50" : dm.isSun ? "bg-gray-50" : "";
-                        const clickable = isAdmin;
+                {grp.rows.map((row) => (
+                  <TableRow key={row.staffId}>
+                    <TableCell className="relative pl-3 font-medium">
+                      <span
+                        className={`absolute left-0 top-0 bottom-0 w-[2px] ${DEPT_BAR[row.department]}`}
+                      />
+                      {row.displayName}
+                    </TableCell>
+                    {row.days.map((day, idx) => {
+                      const dm = dayMeta[idx];
+                      const cellBg = dm.isHol ? "bg-yellow-50" : dm.isSun ? "bg-gray-50" : "";
+                      const empty = day.shifts.length === 0;
+                      const clickable = isAdmin;
+                      const handleClick = () => {
+                        if (!clickable) return;
+                        if (empty) {
+                          onCreate(row.staffId, row.displayName, day.iso);
+                          return;
+                        }
+                        const found = findEntries(row.staffId, day.iso);
+                        if (found.length === 1) onEdit(found[0]);
+                      };
+                      const renderShift = (which: "from" | "to") => {
+                        if (empty) {
+                          if (day.crossLocation && which === "from")
+                            return <span className="text-muted-foreground">×</span>;
+                          if (clickable && which === "from")
+                            return <span className="text-muted-foreground/40">+</span>;
+                          return "";
+                        }
                         return (
-                          <TableCell
-                            key={dm.iso}
-                            onClick={
-                              clickable
-                                ? () => {
-                                    if (dayEntries.length === 0) {
-                                      onCreate(row.staffId, row.displayName, dm.iso);
-                                    } else if (dayEntries.length === 1) {
-                                      onEdit(dayEntries[0]);
-                                    }
-                                  }
-                                : undefined
-                            }
-                            className={`min-h-[40px] p-1 text-center align-middle font-mono text-sm ${cellBg} ${clickable ? "cursor-pointer hover:bg-muted/60" : ""}`}
-                          >
-                            {dayEntries.length === 0 ? (
-                              hasCross ? (
-                                <span className="text-muted-foreground">×</span>
-                              ) : isAdmin ? (
-                                <span className="text-muted-foreground/40">+</span>
-                              ) : (
-                                ""
-                              )
-                            ) : (
-                              <div className="flex flex-col divide-y divide-border/60">
-                                {dayEntries.map((e) => (
-                                  <button
-                                    type="button"
-                                    key={e.id}
-                                    disabled={!isAdmin}
-                                    onClick={(ev) => {
-                                      if (!isAdmin) return;
-                                      ev.stopPropagation();
-                                      onEdit(e);
-                                    }}
-                                    className="whitespace-nowrap py-0.5 text-center disabled:cursor-default"
-                                  >
-                                    {fmtHHMM(e.startedAt)}–{fmtHHMM(e.endedAt)}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </TableCell>
+                          <div className="flex flex-col divide-y divide-border/60">
+                            {day.shifts.map((s, i) => (
+                              <span key={i} className="py-0.5 tabular-nums">
+                                {s[which]}
+                              </span>
+                            ))}
+                          </div>
                         );
-                      })}
-                      <TableCell className="text-right tabular-nums font-medium">
-                        {fmtDec(row.totals.total)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {fmtDec(row.totals.evening)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {fmtDec(row.totals.night)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {fmtDec(row.totals.sunHol)}
-                      </TableCell>
-                      <TableCell className="text-right text-muted-foreground">–</TableCell>
-                      <TableCell className="text-right text-muted-foreground">–</TableCell>
-                    </TableRow>
-                  );
-                })}
+                      };
+                      return (
+                        <Fragment key={day.iso}>
+                          <TableCell
+                            onClick={handleClick}
+                            className={`border-l p-1 text-center align-middle font-mono text-sm ${cellBg} ${clickable ? "cursor-pointer hover:bg-muted/60" : ""}`}
+                          >
+                            {renderShift("from")}
+                          </TableCell>
+                          <TableCell
+                            onClick={handleClick}
+                            className={`p-1 text-center align-middle font-mono text-sm ${cellBg} ${clickable ? "cursor-pointer hover:bg-muted/60" : ""}`}
+                          >
+                            {renderShift("to")}
+                          </TableCell>
+                        </Fragment>
+                      );
+                    })}
+                    <TableCell className="text-right tabular-nums font-medium border-l">
+                      {fmtDec(row.totals.total)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {fmtDec(row.totals.evening)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {fmtDec(row.totals.night)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {fmtDec(row.totals.sunHol)}
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground">–</TableCell>
+                    <TableCell className="text-right text-muted-foreground">–</TableCell>
+                  </TableRow>
+                ))}
               </Fragment>
             );
           })}
