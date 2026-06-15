@@ -431,11 +431,11 @@ export const getTipPoolOverview = createServerFn({ method: "GET" })
 export async function getTipPoolOverviewCore(
   caller: AdminCaller,
   data: { sessionId: string },
-): Promise<TipPoolResult & { staffNames: Record<string, string> }> {
+): Promise<TipPoolResult & { staffNames: Record<string, string>; manualStaffIds: string[] }> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
 
-  const [settlementsRes, timeRes] = await Promise.all([
+  const [settlementsRes, timeRes, manualRes] = await Promise.all([
     supabaseAdmin
       .from("waiter_settlements")
       .select(
@@ -451,9 +451,15 @@ export async function getTipPoolOverviewCore(
       .eq("location_id", session.location_id)
       .eq("business_date", session.business_date)
       .not("ended_at", "is", null),
+    supabaseAdmin
+      .from("session_tip_pool_entries")
+      .select("staff_id, department, hours_minutes")
+      .eq("organization_id", caller.organizationId)
+      .eq("session_id", session.id),
   ]);
   if (settlementsRes.error) throw settlementsRes.error;
   if (timeRes.error) throw timeRes.error;
+  if (manualRes.error) throw manualRes.error;
 
   const settlements = (settlementsRes.data ?? []).map((r) => ({
     staffId: r.staff_id,
@@ -462,11 +468,32 @@ export async function getTipPoolOverviewCore(
     openInvoicesCents: Number(r.open_invoices_cents),
     kitchenTipCents: Number(r.kitchen_tip_cents),
   }));
-  const timeEntries = (timeRes.data ?? [])
+  const manualByStaff = new Map<
+    string,
+    { department: StaffDepartment; hoursMinutes: number }
+  >();
+  for (const r of manualRes.data ?? []) {
+    manualByStaff.set(r.staff_id, {
+      department: r.department as StaffDepartment,
+      hoursMinutes: Number(r.hours_minutes),
+    });
+  }
+
+  const rawTimeEntries = (timeRes.data ?? [])
     .filter(
       (r): r is { staff_id: string; started_at: string; ended_at: string } => r.ended_at !== null,
     )
     .map((r) => ({ staffId: r.staff_id, startedAt: r.started_at, endedAt: r.ended_at }));
+  // Manuelle Einträge überschreiben Stempelzeiten desselben Mitarbeiters
+  // vollständig — keine Vermischung.
+  const timeEntries = rawTimeEntries.filter((te) => !manualByStaff.has(te.staffId));
+  const syntheticBase = new Date(session.business_date + "T00:00:00Z").getTime();
+  for (const [staffId, m] of manualByStaff) {
+    if (m.hoursMinutes <= 0) continue;
+    const startedAt = new Date(syntheticBase).toISOString();
+    const endedAt = new Date(syntheticBase + m.hoursMinutes * 60_000).toISOString();
+    timeEntries.push({ staffId, startedAt, endedAt });
+  }
 
   const kitchenPoolCents = settlements.reduce((s, x) => s + x.kitchenTipCents, 0);
   const tipTotalCents = settlements.reduce(
@@ -476,7 +503,11 @@ export async function getTipPoolOverviewCore(
   const servicePoolCents = tipTotalCents - kitchenPoolCents;
 
   const staffIds = Array.from(
-    new Set<string>([...settlements.map((s) => s.staffId), ...timeEntries.map((t) => t.staffId)]),
+    new Set<string>([
+      ...settlements.map((s) => s.staffId),
+      ...timeEntries.map((t) => t.staffId),
+      ...manualByStaff.keys(),
+    ]),
   );
 
   const staffDepartments = new Map<string, StaffDepartment>();
@@ -508,6 +539,13 @@ export async function getTipPoolOverviewCore(
     }
   }
 
+  // Manuelle Einträge erzwingen Department + Teilnahme;
+  // hours_minutes = 0 = explizit ausgeschlossen.
+  for (const [staffId, m] of manualByStaff) {
+    staffDepartments.set(staffId, m.department);
+    staffParticipates.set(staffId, m.hoursMinutes > 0);
+  }
+
   const result = computeTipPool({
     kitchenPoolCents,
     servicePoolCents,
@@ -517,7 +555,7 @@ export async function getTipPoolOverviewCore(
     staffParticipates,
   });
 
-  return { ...result, staffNames };
+  return { ...result, staffNames, manualStaffIds: Array.from(manualByStaff.keys()) };
 }
 
 // ------------------------------------------------------------------------
