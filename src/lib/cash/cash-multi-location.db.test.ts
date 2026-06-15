@@ -143,10 +143,7 @@ describe.skipIf(!dbTestsEnabled)("cash multi-location (DB)", () => {
     }
   });
 
-  // Zusätzliche Absicherung NEBEN dem Write-Path-Poll in .github/workflows/ci.yml
-  // gegen sporadische PGRST204-Hänger beim guest_count-Write — der Poll bleibt
-  // Primärlösung; { retry: 2 } fängt nur den Restjitter ab.
-  it("(c) Wasserlinie auf A blockt A, lässt B unberührt", { retry: 2 }, async () => {
+  it("(c) Wasserlinie auf A blockt A, lässt B unberührt", async () => {
     await setCashLockCore(adminCaller(), {
       locationId: org.defaultLocationId,
       throughDate: businessDate,
