@@ -832,15 +832,22 @@ function SettlementsCard({
   data,
   correctable,
   onCorrect,
+  onCreate,
 }: {
   data: Overview;
   correctable: boolean;
   onCorrect: (row: SettlementRow) => void;
+  onCreate: () => void;
 }) {
   const rows = data.settlements;
   return (
     <Card>
-      <div className="border-b px-4 py-3 text-sm font-medium">Kellner-Abrechnungen</div>
+      <div className="flex items-center justify-between border-b px-4 py-3">
+        <div className="text-sm font-medium">Kellner-Abrechnungen</div>
+        <Button size="sm" variant="outline" disabled={!correctable} onClick={onCreate}>
+          Neue Abrechnung
+        </Button>
+      </div>
       <Table>
         <TableHeader>
           <TableRow>
