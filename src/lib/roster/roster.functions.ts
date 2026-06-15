@@ -437,3 +437,104 @@ export const updateRosterShiftSkill = createServerFn({ method: "POST" })
       };
     });
   });
+
+// D2f — Schicht verschieben (Drag & Drop). Lock-Check auf BEIDEN Daten.
+// Kollisions-Pre-Check liefert eine Klartext-Fehlermeldung statt
+// Unique-Violation aus der DB.
+export const moveRosterShift = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        staffId: z.string().uuid(),
+        shiftDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        area: z.enum(["kitchen", "service", "gl"]),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
+    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: snap, error: loadErr } = await supabaseAdmin
+        .from("roster_shifts")
+        .select("location_id, staff_id, shift_date, area, skill_id, status")
+        .eq("id", data.id)
+        .eq("organization_id", caller.organizationId)
+        .maybeSingle();
+      if (loadErr) throw loadErr;
+      if (!snap) throw new Error("Schicht nicht gefunden.");
+
+      // No-op guard: nichts ändert sich.
+      if (
+        snap.staff_id === data.staffId &&
+        snap.shift_date === data.shiftDate &&
+        snap.area === data.area
+      ) {
+        return {
+          result: { ok: true as const },
+          audit: {
+            action: "roster_shift.move",
+            entity: "roster_shift",
+            entityId: data.id,
+            meta: { noop: true },
+          },
+        };
+      }
+
+      // Lock-Check auf alte UND neue shift_date.
+      await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, snap.shift_date);
+      if (snap.shift_date !== data.shiftDate) {
+        await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, data.shiftDate);
+      }
+
+      // Konflikt-Pre-Check auf Zielzelle.
+      const { data: clash, error: clashErr } = await supabaseAdmin
+        .from("roster_shifts")
+        .select("id")
+        .eq("organization_id", caller.organizationId)
+        .eq("location_id", snap.location_id)
+        .eq("staff_id", data.staffId)
+        .eq("shift_date", data.shiftDate)
+        .eq("area", data.area)
+        .neq("id", data.id)
+        .maybeSingle();
+      if (clashErr) throw clashErr;
+      if (clash) {
+        throw new Error("Mitarbeiter ist an diesem Tag in diesem Bereich bereits eingeteilt.");
+      }
+
+      const { error } = await supabaseAdmin
+        .from("roster_shifts")
+        .update({
+          staff_id: data.staffId,
+          shift_date: data.shiftDate,
+          area: data.area,
+        })
+        .eq("id", data.id)
+        .eq("organization_id", caller.organizationId);
+      if (error) throw error;
+
+      return {
+        result: { ok: true as const },
+        audit: {
+          action: "roster_shift.move",
+          entity: "roster_shift",
+          entityId: data.id,
+          meta: {
+            before: {
+              staffId: snap.staff_id,
+              shiftDate: snap.shift_date,
+              area: snap.area,
+            },
+            after: {
+              staffId: data.staffId,
+              shiftDate: data.shiftDate,
+              area: data.area,
+            },
+          },
+        },
+      };
+    });
+  });
