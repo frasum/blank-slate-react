@@ -93,6 +93,12 @@ export type RosterAvailability = {
   date: string;
 };
 
+export type RosterAbsence = {
+  staffId: string;
+  date: string;
+  type: "urlaub";
+};
+
 export const getRosterShifts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
