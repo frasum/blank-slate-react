@@ -428,6 +428,10 @@ function DropCell({
   // Nicht-verfügbar wird als dezente, gefüllte graue Box dargestellt – aber nur,
   // wenn die Zelle leer ist. Liegt eine Schicht-Pille drin, gewinnt die Pille.
   const showUnavailableBox = unavailable && !hasShift;
+  // Hat die Zelle SOWOHL eine Schicht ALS AUCH den Unavailability-Marker, sollen
+  // beide Infos lesbar bleiben: gestrichelter Rahmen über der Pille + grauer
+  // Punkt unten links (analog zum roten Cross-Booking-Punkt oben rechts).
+  const showUnavailableOnShift = unavailable && hasShift;
   const tdInner = (
     <td
       ref={setNodeRef}
@@ -447,13 +451,32 @@ function DropCell({
         />
       ) : null}
       {children}
+      {showUnavailableOnShift ? (
+        <>
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-1 z-20 rounded-md"
+            style={{
+              outline: "1.5px dashed hsl(var(--muted-foreground)/0.55)",
+              outlineOffset: "-1px",
+            }}
+          />
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute bottom-1 left-1 z-20 h-1.5 w-1.5 rounded-full"
+            style={{ backgroundColor: "hsl(var(--muted-foreground)/0.6)" }}
+          />
+        </>
+      ) : null}
     </td>
   );
   if (!unavailable) return tdInner;
   return (
     <Tooltip>
       <TooltipTrigger asChild>{tdInner}</TooltipTrigger>
-      <TooltipContent>Nicht verfügbar</TooltipContent>
+      <TooltipContent>
+        {hasShift ? "War als nicht verfügbar markiert" : "Nicht verfügbar"}
+      </TooltipContent>
     </Tooltip>
   );
 }
