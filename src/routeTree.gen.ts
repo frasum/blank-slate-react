@@ -37,6 +37,7 @@ import { Route as AuthenticatedAdminBestellungWeinRouteImport } from './routes/_
 import { Route as AuthenticatedAdminBestellungWarenkorbRouteImport } from './routes/_authenticated/admin/bestellung.warenkorb'
 import { Route as AuthenticatedAdminBestellungLieferantenRouteImport } from './routes/_authenticated/admin/bestellung.lieferanten'
 import { Route as AuthenticatedAdminBestellungInventurRouteImport } from './routes/_authenticated/admin/bestellung.inventur'
+import { Route as AuthenticatedAdminBestellungEasyorderRouteImport } from './routes/_authenticated/admin/bestellung.easyorder'
 import { Route as AuthenticatedAdminBestellungBestellungenRouteImport } from './routes/_authenticated/admin/bestellung.bestellungen'
 import { Route as AuthenticatedAdminBestellungArtikelRouteImport } from './routes/_authenticated/admin/bestellung.artikel'
 
@@ -197,6 +198,12 @@ const AuthenticatedAdminBestellungInventurRoute =
     path: '/inventur',
     getParentRoute: () => AuthenticatedAdminBestellungRoute,
   } as any)
+const AuthenticatedAdminBestellungEasyorderRoute =
+  AuthenticatedAdminBestellungEasyorderRouteImport.update({
+    id: '/easyorder',
+    path: '/easyorder',
+    getParentRoute: () => AuthenticatedAdminBestellungRoute,
+  } as any)
 const AuthenticatedAdminBestellungBestellungenRoute =
   AuthenticatedAdminBestellungBestellungenRouteImport.update({
     id: '/bestellungen',
@@ -230,6 +237,7 @@ export interface FileRoutesByFullPath {
   '/zeit/': typeof AuthenticatedZeitIndexRoute
   '/admin/bestellung/artikel': typeof AuthenticatedAdminBestellungArtikelRoute
   '/admin/bestellung/bestellungen': typeof AuthenticatedAdminBestellungBestellungenRoute
+  '/admin/bestellung/easyorder': typeof AuthenticatedAdminBestellungEasyorderRoute
   '/admin/bestellung/inventur': typeof AuthenticatedAdminBestellungInventurRoute
   '/admin/bestellung/lieferanten': typeof AuthenticatedAdminBestellungLieferantenRoute
   '/admin/bestellung/warenkorb': typeof AuthenticatedAdminBestellungWarenkorbRoute
@@ -258,6 +266,7 @@ export interface FileRoutesByTo {
   '/zeit': typeof AuthenticatedZeitIndexRoute
   '/admin/bestellung/artikel': typeof AuthenticatedAdminBestellungArtikelRoute
   '/admin/bestellung/bestellungen': typeof AuthenticatedAdminBestellungBestellungenRoute
+  '/admin/bestellung/easyorder': typeof AuthenticatedAdminBestellungEasyorderRoute
   '/admin/bestellung/inventur': typeof AuthenticatedAdminBestellungInventurRoute
   '/admin/bestellung/lieferanten': typeof AuthenticatedAdminBestellungLieferantenRoute
   '/admin/bestellung/warenkorb': typeof AuthenticatedAdminBestellungWarenkorbRoute
@@ -291,6 +300,7 @@ export interface FileRoutesById {
   '/_authenticated/zeit/': typeof AuthenticatedZeitIndexRoute
   '/_authenticated/admin/bestellung/artikel': typeof AuthenticatedAdminBestellungArtikelRoute
   '/_authenticated/admin/bestellung/bestellungen': typeof AuthenticatedAdminBestellungBestellungenRoute
+  '/_authenticated/admin/bestellung/easyorder': typeof AuthenticatedAdminBestellungEasyorderRoute
   '/_authenticated/admin/bestellung/inventur': typeof AuthenticatedAdminBestellungInventurRoute
   '/_authenticated/admin/bestellung/lieferanten': typeof AuthenticatedAdminBestellungLieferantenRoute
   '/_authenticated/admin/bestellung/warenkorb': typeof AuthenticatedAdminBestellungWarenkorbRoute
@@ -324,6 +334,7 @@ export interface FileRouteTypes {
     | '/zeit/'
     | '/admin/bestellung/artikel'
     | '/admin/bestellung/bestellungen'
+    | '/admin/bestellung/easyorder'
     | '/admin/bestellung/inventur'
     | '/admin/bestellung/lieferanten'
     | '/admin/bestellung/warenkorb'
@@ -352,6 +363,7 @@ export interface FileRouteTypes {
     | '/zeit'
     | '/admin/bestellung/artikel'
     | '/admin/bestellung/bestellungen'
+    | '/admin/bestellung/easyorder'
     | '/admin/bestellung/inventur'
     | '/admin/bestellung/lieferanten'
     | '/admin/bestellung/warenkorb'
@@ -384,6 +396,7 @@ export interface FileRouteTypes {
     | '/_authenticated/zeit/'
     | '/_authenticated/admin/bestellung/artikel'
     | '/_authenticated/admin/bestellung/bestellungen'
+    | '/_authenticated/admin/bestellung/easyorder'
     | '/_authenticated/admin/bestellung/inventur'
     | '/_authenticated/admin/bestellung/lieferanten'
     | '/_authenticated/admin/bestellung/warenkorb'
@@ -601,6 +614,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminBestellungInventurRouteImport
       parentRoute: typeof AuthenticatedAdminBestellungRoute
     }
+    '/_authenticated/admin/bestellung/easyorder': {
+      id: '/_authenticated/admin/bestellung/easyorder'
+      path: '/easyorder'
+      fullPath: '/admin/bestellung/easyorder'
+      preLoaderRoute: typeof AuthenticatedAdminBestellungEasyorderRouteImport
+      parentRoute: typeof AuthenticatedAdminBestellungRoute
+    }
     '/_authenticated/admin/bestellung/bestellungen': {
       id: '/_authenticated/admin/bestellung/bestellungen'
       path: '/bestellungen'
@@ -621,6 +641,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedAdminBestellungRouteChildren {
   AuthenticatedAdminBestellungArtikelRoute: typeof AuthenticatedAdminBestellungArtikelRoute
   AuthenticatedAdminBestellungBestellungenRoute: typeof AuthenticatedAdminBestellungBestellungenRoute
+  AuthenticatedAdminBestellungEasyorderRoute: typeof AuthenticatedAdminBestellungEasyorderRoute
   AuthenticatedAdminBestellungInventurRoute: typeof AuthenticatedAdminBestellungInventurRoute
   AuthenticatedAdminBestellungLieferantenRoute: typeof AuthenticatedAdminBestellungLieferantenRoute
   AuthenticatedAdminBestellungWarenkorbRoute: typeof AuthenticatedAdminBestellungWarenkorbRoute
@@ -635,6 +656,8 @@ const AuthenticatedAdminBestellungRouteChildren: AuthenticatedAdminBestellungRou
       AuthenticatedAdminBestellungArtikelRoute,
     AuthenticatedAdminBestellungBestellungenRoute:
       AuthenticatedAdminBestellungBestellungenRoute,
+    AuthenticatedAdminBestellungEasyorderRoute:
+      AuthenticatedAdminBestellungEasyorderRoute,
     AuthenticatedAdminBestellungInventurRoute:
       AuthenticatedAdminBestellungInventurRoute,
     AuthenticatedAdminBestellungLieferantenRoute:
