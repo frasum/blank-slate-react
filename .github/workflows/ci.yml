@@ -77,16 +77,22 @@ jobs:
           DB_URL=$(supabase status -o env | grep '^DB_URL=' | cut -d= -f2- | tr -d '"')
           SUPA_URL=$(supabase status -o env | grep '^API_URL=' | cut -d= -f2- | tr -d '"')
           SUPA_SVC=$(supabase status -o env | grep '^SERVICE_ROLE_KEY=' | cut -d= -f2- | tr -d '"')
+          REST_CONTAINER=$(docker ps --filter "name=supabase_rest" --format "{{.Names}}" | head -n1 || true)
           reload_postgrest_schema() {
             psql "$DB_URL" -c "NOTIFY pgrst, 'reload schema';"
-            REST_CONTAINER=$(docker ps --filter "name=supabase_rest" --format "{{.Names}}" | head -n1 || true)
             if [ -n "$REST_CONTAINER" ]; then
               docker kill --signal=SIGUSR1 "$REST_CONTAINER" > /dev/null 2>&1 || true
             fi
           }
 
+          # Ein voller Container-Restart erzwingt einen frischen Schema-Read
+          # und umgeht Race-Conditions mit dem NOTIFY/SIGUSR1-Listener.
+          if [ -n "$REST_CONTAINER" ]; then
+            docker restart "$REST_CONTAINER" > /dev/null 2>&1 || true
+          fi
+          sleep 3
           reload_postgrest_schema
-          for i in $(seq 1 30); do
+          for i in $(seq 1 60); do
             if psql "$DB_URL" -v ON_ERROR_STOP=1 -c \
                "BEGIN; UPDATE public.sessions SET guest_count = guest_count WHERE false; ROLLBACK;" \
                > /dev/null 2>&1; then
@@ -100,11 +106,17 @@ jobs:
                 exit 0
               fi
             fi
-            echo "Waiting for PostgREST write-path schema cache... ($i/30)"
+            echo "Waiting for PostgREST write-path schema cache... ($i/60)"
             reload_postgrest_schema
             sleep 2
           done
           echo "::error::PostgREST write-path schema cache did not accept sessions.guest_count in time"
+          echo "---- PostgREST container logs (tail) ----"
+          if [ -n "$REST_CONTAINER" ]; then
+            docker logs --tail 50 "$REST_CONTAINER" 2>&1 || true
+          fi
+          echo "---- sessions columns in DB ----"
+          psql "$DB_URL" -c "\d public.sessions" || true
           exit 1
       - name: Run DB integration tests
         # Vitest-Positional-Args sind Substring-Filter, KEINE Globs
