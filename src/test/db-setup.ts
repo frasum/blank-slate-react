@@ -171,25 +171,29 @@ export async function seedOrg(label: string): Promise<SeededOrg> {
   };
 
   const mkLocation: SeededOrg["mkLocation"] = async (name) => {
-    const { data, error } = await service
-      .from("locations")
-      .insert({
-        organization_id: orgId,
-        name: name ?? `Standort ${Math.random().toString(36).slice(2, 6)}`,
-      })
-      .select("id")
-      .single();
+    const { data, error } = await withDbInsertRetry("mkLocation", () =>
+      service
+        .from("locations")
+        .insert({
+          organization_id: orgId,
+          name: name ?? `Standort ${Math.random().toString(36).slice(2, 6)}`,
+        })
+        .select("id")
+        .single(),
+    );
     if (error || !data) throw new Error(`mkLocation failed: ${error?.message}`);
     return data.id;
   };
 
   const bindStaffLocation: SeededOrg["bindStaffLocation"] = async (staffId, locationId) => {
-    const { error } = await service.from("staff_locations").insert({
-      organization_id: orgId,
-      staff_id: staffId,
-      location_id: locationId,
-      department: "service",
-    });
+    const { error } = await withDbInsertRetry("bindStaffLocation", () =>
+      service.from("staff_locations").insert({
+        organization_id: orgId,
+        staff_id: staffId,
+        location_id: locationId,
+        department: "service",
+      }),
+    );
     if (error && !`${error.message}`.includes("duplicate")) {
       throw new Error(`bindStaffLocation failed: ${error.message}`);
     }
