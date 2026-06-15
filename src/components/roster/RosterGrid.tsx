@@ -279,7 +279,8 @@ export function RosterGrid({
                       const pickedSkills = skillsForCell(row, activeArea, allSkills);
                       const candidates = [...pickedSkills.profile, ...pickedSkills.other];
                       const isUnavailable = unavailableSet.has(`${row.staffId}|${iso}`);
-                      const isAbsent = absenceSet.has(`${row.staffId}|${iso}`);
+                      const absenceType = absenceMap.get(`${row.staffId}|${iso}`) ?? null;
+                      const isAbsent = absenceType !== null;
                       return (
                         <DropCell
                           key={iso}
@@ -293,6 +294,7 @@ export function RosterGrid({
                           unavailable={isUnavailable}
                           hasShift={!!shift}
                           absent={isAbsent}
+                          absenceType={absenceType}
                         >
                           {shift ? (
                             <PillConfirmPopover
