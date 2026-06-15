@@ -1,9 +1,11 @@
 // Klick auf eine bestehende Pille → Popover mit Skill-Wechsler,
 // Status-Toggle (geplant/bestätigt) und Löschen.
+import * as React from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Trash2, CalendarX, CalendarCheck, Umbrella, HeartPulse } from "lucide-react";
 import type { RosterShift, RosterSkill } from "@/lib/roster/roster.functions";
+import { AbsenceRangeForm } from "./AbsenceRangeForm";
 
 type Props = {
   open: boolean;
@@ -20,8 +22,13 @@ type Props = {
   onSetUnavailable: () => void;
   onClearUnavailable: () => void;
   absenceType: "urlaub" | "krank" | null;
-  onSetAbsence: (type: "urlaub" | "krank") => void;
+  onSetAbsenceRange: (
+    fromIso: string,
+    toIso: string,
+    type: "urlaub" | "krank",
+  ) => void | Promise<void>;
   onClearAbsence: () => void;
+  staffShiftDates: string[];
 };
 
 function fmtDate(iso: string): string {
