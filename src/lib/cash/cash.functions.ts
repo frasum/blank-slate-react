@@ -141,6 +141,7 @@ export async function assertStaffBoundToLocation(
     .eq("organization_id", orgId)
     .eq("staff_id", staffId)
     .eq("location_id", locationId)
+    .limit(1)
     .maybeSingle();
   if (error) throw error;
   if (!data) throw new StaffLocationNotBoundError(staffId, locationId);
