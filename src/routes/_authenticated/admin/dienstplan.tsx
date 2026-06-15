@@ -26,6 +26,7 @@ import {
   clearUnavailable,
   getAbsences,
   setAbsence,
+  setAbsenceRange,
   clearAbsence,
   listSkills,
   moveRosterShift,
@@ -370,12 +371,28 @@ function DienstplanPage() {
     }
   }
 
-  async function handleSetAbsence(staffId: string, iso: string, type: "urlaub" | "krank") {
+  async function handleSetAbsenceRange(
+    staffId: string,
+    fromIso: string,
+    toIso: string,
+    type: "urlaub" | "krank",
+  ) {
     if (!canEdit) return;
     setBusy(true);
     try {
-      await setAbsence({ data: { staffId, date: iso, type } });
+      const res = await setAbsenceRange({
+        data: { staffId, fromDate: fromIso, toDate: toIso, type },
+      });
       qc.invalidateQueries({ queryKey: ["roster-absence"] });
+      qc.invalidateQueries({ queryKey: ["roster-shifts"] });
+      const label = type === "urlaub" ? "Urlaub" : "Krank";
+      const days = res.daysCount;
+      const del = res.deletedShiftCount;
+      toast.success(
+        del > 0
+          ? `${label} für ${days} ${days === 1 ? "Tag" : "Tage"} eingetragen — ${del} ${del === 1 ? "Schicht" : "Schichten"} entfernt.`
+          : `${label} für ${days} ${days === 1 ? "Tag" : "Tage"} eingetragen.`,
+      );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
     } finally {
@@ -499,7 +516,7 @@ function DienstplanPage() {
               onChangeStatus={handleChangeStatus}
               onSetUnavailable={handleSetUnavailable}
               onClearUnavailable={handleClearUnavailable}
-              onSetAbsence={handleSetAbsence}
+              onSetAbsenceRange={handleSetAbsenceRange}
               onClearAbsence={handleClearAbsence}
             />
           </DndContext>
