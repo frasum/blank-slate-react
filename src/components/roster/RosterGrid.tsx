@@ -500,10 +500,7 @@ function DropCell({
       {showAbsenceCorner ? (
         <Tooltip>
           <TooltipTrigger asChild>
-            <span
-              aria-hidden="true"
-              className="pointer-events-none absolute left-0.5 top-0.5 z-20"
-            >
+            <span aria-hidden="true" className="pointer-events-none absolute left-0.5 top-0.5 z-20">
               <Umbrella className="h-3 w-3 text-green-600" />
             </span>
           </TooltipTrigger>

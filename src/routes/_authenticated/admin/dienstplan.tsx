@@ -180,13 +180,9 @@ function DienstplanPage() {
           qc.invalidateQueries({ queryKey: ["roster-availability"] });
         },
       )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "roster_absence" },
-        () => {
-          qc.invalidateQueries({ queryKey: ["roster-absence"] });
-        },
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "roster_absence" }, () => {
+        qc.invalidateQueries({ queryKey: ["roster-absence"] });
+      })
       .subscribe();
     return () => {
       void supabase.removeChannel(channel);
