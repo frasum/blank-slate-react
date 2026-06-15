@@ -525,7 +525,7 @@ export async function listRevenueChannelsCore(caller: AdminCaller, locationId?: 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   let query = supabaseAdmin
     .from("revenue_channels")
-    .select("id, label, sort_order, is_active")
+    .select("id, label, kind, sort_order, is_active")
     .eq("organization_id", caller.organizationId);
   if (locationId) query = query.eq("location_id", locationId);
   const { data, error } = await query
@@ -535,6 +535,7 @@ export async function listRevenueChannelsCore(caller: AdminCaller, locationId?: 
   return (data ?? []).map((r) => ({
     id: r.id,
     label: r.label,
+    kind: r.kind as string,
     sortOrder: r.sort_order,
     isActive: r.is_active,
   }));

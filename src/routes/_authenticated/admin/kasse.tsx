@@ -398,12 +398,53 @@ function KassePage() {
                 void invalidate();
               })
             }
+            expenses={ovQ.data?.expenses ?? []}
+            advances={ovQ.data?.advances ?? []}
+            staff={staffQ.data ?? []}
+            onAddExpense={(desc, cents) =>
+              callAddSat({
+                data: {
+                  sessionId: sessionId!,
+                  kind: "expense",
+                  description: desc,
+                  amountCents: cents,
+                },
+              }).then(() => {
+                toast.success("Ausgabe hinzugefügt.");
+                void invalidate();
+              })
+            }
+            onRemoveExpense={(id) =>
+              callRemoveSat({ data: { sessionId: sessionId!, kind: "expense", id } }).then(() => {
+                toast.success("Entfernt.");
+                void invalidate();
+              })
+            }
+            onAddAdvance={(staffId, cents, note) =>
+              callAddSat({
+                data: {
+                  sessionId: sessionId!,
+                  kind: "advance",
+                  staffId,
+                  amountCents: cents,
+                  note,
+                },
+              }).then(() => {
+                toast.success("Vorschuss hinzugefügt.");
+                void invalidate();
+              })
+            }
+            onRemoveAdvance={(id) =>
+              callRemoveSat({ data: { sessionId: sessionId!, kind: "advance", id } }).then(() => {
+                toast.success("Entfernt.");
+                void invalidate();
+              })
+            }
           />
 
           <SatellitesCard
             sessionId={sessionId!}
             overview={ovQ.data}
-            staff={staffQ.data ?? []}
             writable={writable}
             onAdd={(payload) =>
               callAddSat({ data: payload }).then(() => {
@@ -748,13 +789,36 @@ function SessionFieldsCard({
   terminals,
   writable,
   onSave,
+  expenses,
+  advances,
+  staff,
+  onAddExpense,
+  onRemoveExpense,
+  onAddAdvance,
+  onRemoveAdvance,
 }: {
   sessionId: string;
   overview: Overview;
-  channels: { id: string; label: string; isActive: boolean }[];
+  channels: { id: string; label: string; kind: string; isActive: boolean }[];
   terminals: { id: string; label: string; isActive: boolean }[];
   writable: boolean;
   onSave: (data: UpdatePayload) => Promise<unknown>;
+  expenses: Array<{ id: string; description: string | null; amountCents: number }>;
+  advances: Array<{
+    id: string;
+    staffId: string;
+    amountCents: number;
+    note: string | null;
+  }>;
+  staff: { id: string; displayName: string }[];
+  onAddExpense: (description: string, amountCents: number) => Promise<unknown>;
+  onRemoveExpense: (id: string) => Promise<unknown>;
+  onAddAdvance: (
+    staffId: string,
+    amountCents: number,
+    note: string | null,
+  ) => Promise<unknown>;
+  onRemoveAdvance: (id: string) => Promise<unknown>;
 }) {
   type Row = { id: string; euro: string };
   const initialChannels: Row[] = channels.map((c) => {
@@ -884,156 +948,297 @@ function SessionFieldsCard({
 
   const channelById = Object.fromEntries(channels.map((c) => [c.id, c]));
   const terminalById = Object.fromEntries(terminals.map((t) => [t.id, t]));
+  const posRows = chRows.filter((r) => channelById[r.id]?.kind === "pos");
+  const delivRows = chRows.filter((r) => channelById[r.id]?.kind?.startsWith("delivery_"));
+
+  const posEuroTotal = posRows.reduce((s, r) => s + (parseEuroToCents(r.euro) ?? 0), 0);
+  const delivEuroTotal = delivRows.reduce((s, r) => s + (parseEuroToCents(r.euro) ?? 0), 0);
+  const takeawayPct =
+    posEuroTotal > 0
+      ? new Intl.NumberFormat("de-DE", {
+          minimumFractionDigits: 1,
+          maximumFractionDigits: 1,
+        }).format((delivEuroTotal / posEuroTotal) * 100) + " %"
+      : null;
+
+  const guestNum = parseInt(misc.guestCount || "0", 10);
+  const avgPerGuest =
+    guestNum > 0 && posEuroTotal > 0
+      ? fmtCents(Math.round(posEuroTotal / guestNum)) + " €"
+      : null;
+
+  const staffName = (id: string) =>
+    staff.find((s) => s.id === id)?.displayName ?? id.slice(0, 8);
 
   return (
-    <Card className="space-y-4 p-4">
-      <div className="text-sm font-medium">Session-Felder</div>
+    <div className="space-y-4">
+      <div className="grid lg:grid-cols-[minmax(320px,2fr)_minmax(400px,3fr)] gap-4">
+        {/* ── LEFT COLUMN ── */}
+        <div className="border rounded-lg overflow-hidden shadow-sm">
+          <ExcelSectionHeader label="Umsatz" colorClass="border-l-primary" />
+          <table className="w-full text-sm">
+            <tbody>
+              {posRows.map((r) => (
+                <ExcelInputRow
+                  key={r.id}
+                  label={channelById[r.id]?.label ?? r.id}
+                  value={r.euro}
+                  disabled={!writable}
+                  onChange={(v) => {
+                    const next = [...chRows];
+                    const i = chRows.findIndex((x) => x.id === r.id);
+                    next[i] = { ...r, euro: v };
+                    setChRows(next);
+                  }}
+                />
+              ))}
+              <tr className="border-b hover:bg-muted/20 transition-colors">
+                <td className="px-3 py-1.5 font-medium text-foreground">Gästeanzahl</td>
+                <td className="px-3 py-1.5 w-44">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={misc.guestCount}
+                      placeholder="0"
+                      onChange={(e) =>
+                        setMisc({
+                          ...misc,
+                          guestCount: e.target.value.replace(/\D/g, ""),
+                        })
+                      }
+                      className="h-7 text-sm w-20 text-right font-mono"
+                      disabled={!writable}
+                    />
+                    {avgPerGuest && (
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">
+                        ⌀ {avgPerGuest}
+                      </span>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
 
-      <Section title="Gäste & Gutscheine">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className="space-y-1">
-            <Label htmlFor="sess-guest-count">Gästezahl</Label>
-            <Input
-              id="sess-guest-count"
-              type="number"
-              min={0}
-              step={1}
-              inputMode="numeric"
-              disabled={!writable}
-              value={misc.guestCount}
-              onChange={(e) => setMisc({ ...misc, guestCount: e.target.value })}
-            />
+          <ExcelSectionHeader label="Kreditkarten" colorClass="border-l-amber-500" />
+          <table className="w-full text-sm">
+            <tbody>
+              {tmRows.map((r, idx) => (
+                <ExcelInputRow
+                  key={r.id}
+                  label={terminalById[r.id]?.label ?? r.id}
+                  value={r.euro}
+                  disabled={!writable}
+                  onChange={(v) => {
+                    const next = [...tmRows];
+                    next[idx] = { ...r, euro: v };
+                    setTmRows(next);
+                  }}
+                />
+              ))}
+            </tbody>
+          </table>
+
+          <div className="bg-muted/50 px-3 py-2 border-y border-l-4 border-l-emerald-500 flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Take Away
+            </span>
+            {takeawayPct && (
+              <span className="text-xs text-muted-foreground tabular-nums">{takeawayPct}</span>
+            )}
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="sess-vouchers-sold">Gutscheine verkauft (€)</Label>
-            <Input
-              id="sess-vouchers-sold"
-              inputMode="decimal"
-              disabled={!writable}
-              value={misc.vouchersSold}
-              onChange={(e) => setMisc({ ...misc, vouchersSold: e.target.value })}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="sess-vouchers-redeemed">Gutscheine eingelöst (€)</Label>
-            <Input
-              id="sess-vouchers-redeemed"
-              inputMode="decimal"
-              disabled={!writable}
-              value={misc.vouchersRedeemed}
-              onChange={(e) => setMisc({ ...misc, vouchersRedeemed: e.target.value })}
-            />
+          <table className="w-full text-sm">
+            <tbody>
+              {delivRows.map((r) => (
+                <ExcelInputRow
+                  key={r.id}
+                  label={channelById[r.id]?.label ?? r.id}
+                  value={r.euro}
+                  disabled={!writable}
+                  onChange={(v) => {
+                    const next = [...chRows];
+                    const i = chRows.findIndex((x) => x.id === r.id);
+                    next[i] = { ...r, euro: v };
+                    setChRows(next);
+                  }}
+                />
+              ))}
+            </tbody>
+          </table>
+
+          <ExcelSectionHeader
+            label="Gutscheine & Sonstiges"
+            colorClass="border-l-violet-500"
+          />
+          <table className="w-full text-sm">
+            <tbody>
+              <ExcelInputRow
+                label="Gutscheine verkauft"
+                value={misc.vouchersSold}
+                disabled={!writable}
+                onChange={(v) => setMisc({ ...misc, vouchersSold: v })}
+              />
+              <ExcelInputRow
+                label="Gutscheine eingelöst"
+                value={misc.vouchersRedeemed}
+                disabled={!writable}
+                onChange={(v) => setMisc({ ...misc, vouchersRedeemed: v })}
+              />
+              <ExcelInputRow
+                label="Finedine-Gutscheine"
+                value={misc.finedineVouchers}
+                disabled={!writable}
+                onChange={(v) => setMisc({ ...misc, finedineVouchers: v })}
+              />
+              <ExcelInputRow
+                label="Einladung (Abzug)"
+                value={misc.einladung}
+                disabled={!writable}
+                onChange={(v) => setMisc({ ...misc, einladung: v })}
+              />
+              <ExcelInputRow
+                label="Sonstige Einnahme"
+                value={misc.sonstige}
+                disabled={!writable}
+                onChange={(v) => setMisc({ ...misc, sonstige: v })}
+              />
+              <ExcelInputRow
+                label="Vorschuss (Abzug)"
+                value={misc.vorschuss}
+                disabled={!writable}
+                onChange={(v) => setMisc({ ...misc, vorschuss: v })}
+              />
+            </tbody>
+          </table>
+
+          <ExcelSectionHeader label="Kontrolle" colorClass="border-l-muted-foreground" />
+          <table className="w-full text-sm">
+            <tbody>
+              <ExcelInputRow
+                label="Vectron Tagesumsatz (Kontrolle)"
+                value={misc.vectron}
+                disabled={!writable}
+                onChange={(v) => setMisc({ ...misc, vectron: v })}
+              />
+              <ExcelInputRow
+                label="Kassenbestand nach Abschluss"
+                value={misc.cashActual}
+                disabled={!writable}
+                onChange={(v) => setMisc({ ...misc, cashActual: v })}
+              />
+            </tbody>
+          </table>
+          <div className="px-3 py-2 border-t">
+            <CashActualHint value={misc.cashActual} />
           </div>
         </div>
-      </Section>
 
-      <Section title="Kanäle">
-        {chRows.length === 0 && (
-          <p className="text-xs text-muted-foreground">Keine Kanäle konfiguriert.</p>
-        )}
-        {chRows.map((r, idx) => (
-          <EuroRow
-            key={r.id}
-            label={`${channelById[r.id]?.label ?? r.id}${channelById[r.id]?.isActive === false ? " (inaktiv)" : ""}`}
-            value={r.euro}
-            disabled={!writable}
-            onChange={(v) => {
-              const next = [...chRows];
-              next[idx] = { ...r, euro: v };
-              setChRows(next);
-            }}
-          />
-        ))}
-      </Section>
+        {/* ── RIGHT COLUMN ── */}
+        <div className="space-y-4">
+          <div className="border rounded-lg overflow-hidden">
+            <div className="bg-muted/50 px-3 py-2 border-b">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Nachricht / Besonderheiten / Probleme
+              </span>
+            </div>
+            <div className="p-3">
+              <Textarea
+                placeholder="Hinweise für die Chefin…"
+                value={misc.notes}
+                onChange={(e) => setMisc({ ...misc, notes: e.target.value })}
+                rows={4}
+                className="border-0 bg-transparent p-0 focus-visible:ring-0 resize-none"
+                disabled={!writable}
+              />
+            </div>
+          </div>
 
-      <Section title="Terminals">
-        {tmRows.length === 0 && (
-          <p className="text-xs text-muted-foreground">Keine Terminals konfiguriert.</p>
-        )}
-        {tmRows.map((r, idx) => (
-          <EuroRow
-            key={r.id}
-            label={`${terminalById[r.id]?.label ?? r.id}${terminalById[r.id]?.isActive === false ? " (inaktiv)" : ""}`}
-            value={r.euro}
-            disabled={!writable}
-            onChange={(v) => {
-              const next = [...tmRows];
-              next[idx] = { ...r, euro: v };
-              setTmRows(next);
-            }}
-          />
-        ))}
-      </Section>
+          <div className="border rounded-lg overflow-hidden">
+            <div className="bg-muted/50 px-3 py-2 border-b">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Ausgaben
+              </span>
+            </div>
+            <div className="p-3 space-y-2">
+              {expenses.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Keine Ausgaben.</p>
+              ) : (
+                <ul className="space-y-1 text-sm">
+                  {expenses.map((e) => (
+                    <li key={e.id} className="flex items-center justify-between gap-2">
+                      <span className="flex-1 truncate">{e.description ?? "—"}</span>
+                      <span className="font-mono tabular-nums">
+                        {fmtCents(e.amountCents)} €
+                      </span>
+                      {writable && (
+                        <button
+                          className="text-destructive hover:opacity-70 text-xs"
+                          onClick={() => void onRemoveExpense(e.id)}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {writable && <ExpenseForm writable={writable} onAdd={onAddExpense} />}
+            </div>
+          </div>
 
-      <Section title="Sonstiges">
-        <EuroRow
-          label="Finedine-Gutscheine"
-          value={misc.finedineVouchers}
-          disabled={!writable}
-          onChange={(v) => setMisc({ ...misc, finedineVouchers: v })}
-        />
-        {/* "Open Tabs (Abzug)" UI ausgeblendet; Wert wird weiterhin als 0 an updateSession übergeben. */}
-        <EuroRow
-          label="Vorschuss (Abzug)"
-          value={misc.vorschuss}
-          disabled={!writable}
-          onChange={(v) => setMisc({ ...misc, vorschuss: v })}
-        />
-        <EuroRow
-          label="Einladung (Abzug)"
-          value={misc.einladung}
-          disabled={!writable}
-          onChange={(v) => setMisc({ ...misc, einladung: v })}
-        />
-        <EuroRow
-          label="Sonstige Einnahme"
-          value={misc.sonstige}
-          disabled={!writable}
-          onChange={(v) => setMisc({ ...misc, sonstige: v })}
-        />
-        <div className="space-y-1">
-          <Label>Notiz</Label>
-          <Textarea
-            disabled={!writable}
-            value={misc.notes}
-            onChange={(e) => setMisc({ ...misc, notes: e.target.value })}
-            rows={2}
-            maxLength={2000}
-          />
+          <div className="border rounded-lg overflow-hidden">
+            <div className="bg-muted/50 px-3 py-2 border-b">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Vorschüsse
+              </span>
+            </div>
+            <div className="p-3 space-y-2">
+              {advances.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Keine Vorschüsse.</p>
+              ) : (
+                <ul className="space-y-1 text-sm">
+                  {advances.map((a) => (
+                    <li key={a.id} className="flex items-center justify-between gap-2">
+                      <span className="flex-1 truncate">
+                        {staffName(a.staffId)}
+                        {a.note ? ` · ${a.note}` : ""}
+                      </span>
+                      <span className="font-mono tabular-nums">
+                        {fmtCents(a.amountCents)} €
+                      </span>
+                      {writable && (
+                        <button
+                          className="text-destructive hover:opacity-70 text-xs"
+                          onClick={() => void onRemoveAdvance(a.id)}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {writable && (
+                <AdvanceForm writable={writable} staff={staff} onAdd={onAddAdvance} />
+              )}
+            </div>
+          </div>
         </div>
-      </Section>
+      </div>
 
-      <Section title="Kontrolle">
-        <EuroRow
-          label="Vectron Tagesumsatz (Kontrolle)"
-          value={misc.vectron}
-          disabled={!writable}
-          onChange={(v) => setMisc({ ...misc, vectron: v })}
-        />
-        <EuroRow
-          label="Kassenbestand nach Abschluss"
-          value={misc.cashActual}
-          disabled={!writable}
-          onChange={(v) => setMisc({ ...misc, cashActual: v })}
-        />
-        <CashActualHint value={misc.cashActual} />
-      </Section>
-
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-3">
+        {!writable && (
+          <p className="text-xs text-muted-foreground self-center">
+            Schreibgeschützt (Session ist {sess.status}).
+          </p>
+        )}
         <Button disabled={!writable || saving} onClick={handleSave}>
           {saving ? "Speichert…" : "Session speichern"}
         </Button>
       </div>
-      {!writable && (
-        <p className="text-xs text-muted-foreground">
-          Schreibgeschützt (Session ist {sess.status}
-          {sess.status !== "locked" && overview.cashLockedThroughDate
-            ? ` und/oder unter Wasserlinie ≤ ${overview.cashLockedThroughDate}`
-            : ""}
-          ).
-        </p>
-      )}
-    </Card>
+    </div>
   );
 }
 
@@ -1085,7 +1290,23 @@ function CashActualHint({ value }: { value: string }) {
   );
 }
 
-function EuroRow({
+function ExcelSectionHeader({
+  label,
+  colorClass,
+}: {
+  label: string;
+  colorClass: string;
+}) {
+  return (
+    <div className={`bg-muted/50 px-3 py-2 border-y border-l-4 ${colorClass}`}>
+      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </span>
+    </div>
+  );
+}
+
+function ExcelInputRow({
   label,
   value,
   onChange,
@@ -1097,17 +1318,18 @@ function EuroRow({
   disabled?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-3">
-      <Label className="min-w-[14rem] flex-1 text-sm">{label}</Label>
-      <Input
-        className="w-32 text-right font-mono"
-        inputMode="decimal"
-        value={value}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
-      />
-      <span className="text-sm text-muted-foreground">€</span>
-    </div>
+    <tr className="border-b last:border-b-0 hover:bg-muted/20 transition-colors">
+      <td className="px-3 py-1.5 font-medium text-foreground">{label}</td>
+      <td className="px-3 py-1.5 w-36">
+        <Input
+          className="h-7 text-sm text-right font-mono border-primary/20 bg-primary/5"
+          inputMode="decimal"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+        />
+      </td>
+    </tr>
   );
 }
 
@@ -1120,14 +1342,12 @@ type SatKind = "expense" | "advance" | "card_transaction" | "bank_deposit" | "re
 function SatellitesCard({
   sessionId,
   overview,
-  staff,
   writable,
   onAdd,
   onRemove,
 }: {
   sessionId: string;
   overview: Overview;
-  staff: { id: string; displayName: string }[];
   writable: boolean;
   onAdd: (
     payload:
@@ -1161,46 +1381,9 @@ function SatellitesCard({
   ) => Promise<unknown>;
   onRemove: (args: { sessionId: string; kind: SatKind; id: string }) => Promise<unknown>;
 }) {
-  const staffName = (id: string) => staff.find((s) => s.id === id)?.displayName ?? id.slice(0, 8);
-
   return (
     <Card className="space-y-4 p-4">
       <div className="text-sm font-medium">Satelliten</div>
-
-      <SatList
-        title="Ausgaben"
-        items={overview.expenses.map((e) => ({
-          id: e.id,
-          left: e.description ?? "—",
-          cents: e.amountCents,
-        }))}
-        writable={writable}
-        onRemove={(id) => onRemove({ sessionId, kind: "expense", id })}
-      />
-      <ExpenseForm
-        writable={writable}
-        onAdd={(description, cents) =>
-          onAdd({ sessionId, kind: "expense", description, amountCents: cents })
-        }
-      />
-
-      <SatList
-        title="Vorschüsse"
-        items={overview.advances.map((a) => ({
-          id: a.id,
-          left: `${staffName(a.staffId)}${a.note ? ` · ${a.note}` : ""}`,
-          cents: a.amountCents,
-        }))}
-        writable={writable}
-        onRemove={(id) => onRemove({ sessionId, kind: "advance", id })}
-      />
-      <AdvanceForm
-        writable={writable}
-        staff={staff}
-        onAdd={(staffId, cents, note) =>
-          onAdd({ sessionId, kind: "advance", staffId, amountCents: cents, note })
-        }
-      />
 
       <SatList
         title="Kartenumsätze"
