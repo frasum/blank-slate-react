@@ -1343,14 +1343,12 @@ type SatKind = "expense" | "advance" | "card_transaction" | "bank_deposit" | "re
 function SatellitesCard({
   sessionId,
   overview,
-  staff,
   writable,
   onAdd,
   onRemove,
 }: {
   sessionId: string;
   overview: Overview;
-  staff: { id: string; displayName: string }[];
   writable: boolean;
   onAdd: (
     payload:
@@ -1384,46 +1382,9 @@ function SatellitesCard({
   ) => Promise<unknown>;
   onRemove: (args: { sessionId: string; kind: SatKind; id: string }) => Promise<unknown>;
 }) {
-  const staffName = (id: string) => staff.find((s) => s.id === id)?.displayName ?? id.slice(0, 8);
-
   return (
     <Card className="space-y-4 p-4">
       <div className="text-sm font-medium">Satelliten</div>
-
-      <SatList
-        title="Ausgaben"
-        items={overview.expenses.map((e) => ({
-          id: e.id,
-          left: e.description ?? "—",
-          cents: e.amountCents,
-        }))}
-        writable={writable}
-        onRemove={(id) => onRemove({ sessionId, kind: "expense", id })}
-      />
-      <ExpenseForm
-        writable={writable}
-        onAdd={(description, cents) =>
-          onAdd({ sessionId, kind: "expense", description, amountCents: cents })
-        }
-      />
-
-      <SatList
-        title="Vorschüsse"
-        items={overview.advances.map((a) => ({
-          id: a.id,
-          left: `${staffName(a.staffId)}${a.note ? ` · ${a.note}` : ""}`,
-          cents: a.amountCents,
-        }))}
-        writable={writable}
-        onRemove={(id) => onRemove({ sessionId, kind: "advance", id })}
-      />
-      <AdvanceForm
-        writable={writable}
-        staff={staff}
-        onAdd={(staffId, cents, note) =>
-          onAdd({ sessionId, kind: "advance", staffId, amountCents: cents, note })
-        }
-      />
 
       <SatList
         title="Kartenumsätze"
