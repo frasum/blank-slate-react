@@ -1,7 +1,7 @@
 // B6 — Arbeitszeitübersicht (Zusammenfassung + Buchhaltung), 1:1 nach tagesabrechnung.
 
 import { createFileRoute } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Fragment, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -41,6 +41,15 @@ import {
   upsertPayrollNote,
 } from "@/lib/time/time-admin.functions";
 import { computeShiftHours, isBavarianHoliday, isSundayOrHoliday } from "@/lib/time/shift-hours";
+import {
+  buildFileBaseName,
+  buildWeeklyPdf,
+  buildWeeklyXlsx,
+  downloadBlob,
+  type WeeklyExportInput,
+  type WeeklyExportRow,
+} from "@/lib/time/weekly-export";
+import { FileDown, FileSpreadsheet, Search } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/zeit-uebersicht")({
   head: () => ({ meta: [{ title: "Zeitübersicht" }] }),
