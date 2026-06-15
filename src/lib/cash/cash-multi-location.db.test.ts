@@ -143,7 +143,7 @@ describe.skipIf(!dbTestsEnabled)("cash multi-location (DB)", () => {
     }
   });
 
-  it("(c) Wasserlinie auf A blockt A, lässt B unberührt", { retry: 3 }, async () => {
+  it("(c) Wasserlinie auf A blockt A, lässt B unberührt", async () => {
     await setCashLockCore(adminCaller(), {
       locationId: org.defaultLocationId,
       throughDate: businessDate,
