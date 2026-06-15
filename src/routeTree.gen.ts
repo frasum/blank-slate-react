@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as DisplayLocationIdRouteImport } from './routes/display.$locationId'
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
 import { Route as AuthenticatedZeitIndexRouteImport } from './routes/_authenticated/zeit/index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
@@ -26,6 +27,7 @@ import { Route as AuthenticatedAdminKasseRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAdminImportZuordnungenRouteImport } from './routes/_authenticated/admin/import-zuordnungen'
 import { Route as AuthenticatedAdminDienstplanRouteImport } from './routes/_authenticated/admin/dienstplan'
 import { Route as AuthenticatedAdminStaffIndexRouteImport } from './routes/_authenticated/admin/staff.index'
+import { Route as ApiPublicDisplayLocationIdRouteImport } from './routes/api/public/display.$locationId'
 import { Route as AuthenticatedAdminStaffNewRouteImport } from './routes/_authenticated/admin/staff.new'
 import { Route as AuthenticatedAdminStaffStaffIdRouteImport } from './routes/_authenticated/admin/staff.$staffId'
 
@@ -42,6 +44,11 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const DisplayLocationIdRoute = DisplayLocationIdRouteImport.update({
+  id: '/display/$locationId',
+  path: '/display/$locationId',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminRouteRoute = AuthenticatedAdminRouteRouteImport.update({
   id: '/admin',
@@ -121,6 +128,12 @@ const AuthenticatedAdminStaffIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedAdminStaffRoute,
   } as any)
+const ApiPublicDisplayLocationIdRoute =
+  ApiPublicDisplayLocationIdRouteImport.update({
+    id: '/api/public/display/$locationId',
+    path: '/api/public/display/$locationId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedAdminStaffNewRoute =
   AuthenticatedAdminStaffNewRouteImport.update({
     id: '/new',
@@ -138,6 +151,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/auth': typeof AuthRoute
   '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
+  '/display/$locationId': typeof DisplayLocationIdRoute
   '/admin/dienstplan': typeof AuthenticatedAdminDienstplanRoute
   '/admin/import-zuordnungen': typeof AuthenticatedAdminImportZuordnungenRoute
   '/admin/kasse': typeof AuthenticatedAdminKasseRoute
@@ -152,10 +166,12 @@ export interface FileRoutesByFullPath {
   '/zeit/': typeof AuthenticatedZeitIndexRoute
   '/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
   '/admin/staff/new': typeof AuthenticatedAdminStaffNewRoute
+  '/api/public/display/$locationId': typeof ApiPublicDisplayLocationIdRoute
   '/admin/staff/': typeof AuthenticatedAdminStaffIndexRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
+  '/display/$locationId': typeof DisplayLocationIdRoute
   '/': typeof AuthenticatedIndexRoute
   '/admin/dienstplan': typeof AuthenticatedAdminDienstplanRoute
   '/admin/import-zuordnungen': typeof AuthenticatedAdminImportZuordnungenRoute
@@ -170,6 +186,7 @@ export interface FileRoutesByTo {
   '/zeit': typeof AuthenticatedZeitIndexRoute
   '/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
   '/admin/staff/new': typeof AuthenticatedAdminStaffNewRoute
+  '/api/public/display/$locationId': typeof ApiPublicDisplayLocationIdRoute
   '/admin/staff': typeof AuthenticatedAdminStaffIndexRoute
 }
 export interface FileRoutesById {
@@ -177,6 +194,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteRouteWithChildren
+  '/display/$locationId': typeof DisplayLocationIdRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/admin/dienstplan': typeof AuthenticatedAdminDienstplanRoute
   '/_authenticated/admin/import-zuordnungen': typeof AuthenticatedAdminImportZuordnungenRoute
@@ -192,6 +210,7 @@ export interface FileRoutesById {
   '/_authenticated/zeit/': typeof AuthenticatedZeitIndexRoute
   '/_authenticated/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
   '/_authenticated/admin/staff/new': typeof AuthenticatedAdminStaffNewRoute
+  '/api/public/display/$locationId': typeof ApiPublicDisplayLocationIdRoute
   '/_authenticated/admin/staff/': typeof AuthenticatedAdminStaffIndexRoute
 }
 export interface FileRouteTypes {
@@ -200,6 +219,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/admin'
+    | '/display/$locationId'
     | '/admin/dienstplan'
     | '/admin/import-zuordnungen'
     | '/admin/kasse'
@@ -214,10 +234,12 @@ export interface FileRouteTypes {
     | '/zeit/'
     | '/admin/staff/$staffId'
     | '/admin/staff/new'
+    | '/api/public/display/$locationId'
     | '/admin/staff/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
+    | '/display/$locationId'
     | '/'
     | '/admin/dienstplan'
     | '/admin/import-zuordnungen'
@@ -232,12 +254,14 @@ export interface FileRouteTypes {
     | '/zeit'
     | '/admin/staff/$staffId'
     | '/admin/staff/new'
+    | '/api/public/display/$locationId'
     | '/admin/staff'
   id:
     | '__root__'
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/admin'
+    | '/display/$locationId'
     | '/_authenticated/'
     | '/_authenticated/admin/dienstplan'
     | '/_authenticated/admin/import-zuordnungen'
@@ -253,12 +277,15 @@ export interface FileRouteTypes {
     | '/_authenticated/zeit/'
     | '/_authenticated/admin/staff/$staffId'
     | '/_authenticated/admin/staff/new'
+    | '/api/public/display/$locationId'
     | '/_authenticated/admin/staff/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  DisplayLocationIdRoute: typeof DisplayLocationIdRoute
+  ApiPublicDisplayLocationIdRoute: typeof ApiPublicDisplayLocationIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -283,6 +310,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/display/$locationId': {
+      id: '/display/$locationId'
+      path: '/display/$locationId'
+      fullPath: '/display/$locationId'
+      preLoaderRoute: typeof DisplayLocationIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin': {
       id: '/_authenticated/admin'
@@ -382,6 +416,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminStaffIndexRouteImport
       parentRoute: typeof AuthenticatedAdminStaffRoute
     }
+    '/api/public/display/$locationId': {
+      id: '/api/public/display/$locationId'
+      path: '/api/public/display/$locationId'
+      fullPath: '/api/public/display/$locationId'
+      preLoaderRoute: typeof ApiPublicDisplayLocationIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/admin/staff/new': {
       id: '/_authenticated/admin/staff/new'
       path: '/new'
@@ -471,6 +512,8 @@ const AuthenticatedRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  DisplayLocationIdRoute: DisplayLocationIdRoute,
+  ApiPublicDisplayLocationIdRoute: ApiPublicDisplayLocationIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

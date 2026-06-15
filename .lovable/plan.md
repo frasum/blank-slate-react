@@ -1,68 +1,89 @@
 ## Ziel
-Die Kasse-Seite (`/admin/kasse`) auf den gewohnten **Tagesabrechnung**-Look bringen – gleiche Überschriften, Reihenfolge, Datums-Picker, PDF-Export – plus drei neue Felder, die das Team aus der alten App kennt: **Gästezahl**, **Gutscheine verkauft**, **Gutscheine eingelöst**.
 
-## Empfehlungen zu den offenen Punkten
-- **Layout:** *Sektionen-Variante* (nicht 1:1 das alte `ExcelLayout`). Vertraute Begriffe und Reihenfolge in unserem flexiblen Cent-Schema.
-- **Datenfelder:** Bestehende `revenue_channels` (POS/SOUSE/Wolt/Vectron) und `payment_terminals` weiternutzen + **3 neue Spalten in `sessions`**.
-- **Umfang:** PDF + DateSelector (◀ Kalender ▶ Heute) – beides.
+Display-Anzeige pro Filiale, die ohne Login per öffentlicher Token-URL aufrufbar ist (z. B. für TV/Tablet in der Küche). Anzeige: heutige Schichten der Filiale, gruppiert nach Bereich (Kitchen/Service), mit Mitarbeitername und Skill.
 
-## Schema-Änderung (eine Migration)
-`ALTER TABLE public.sessions ADD COLUMN`:
-- `guest_count integer NOT NULL DEFAULT 0` – Gästezahl
-- `vouchers_sold_cents integer NOT NULL DEFAULT 0` – Gutschein-Verkauf (€-Cents)
-- `vouchers_redeemed_cents integer NOT NULL DEFAULT 0` – Gutschein-Einlösung (€-Cents)
+Scope = **Minimum** (laut Bestätigung):
+- Öffentliche URL mit Sicherheits-Token
+- Anzeige des Dienstplans (heute, optional Wochenansicht)
+- Token im Admin sehen + neu generieren (Copy-Link)
 
-CHECK-Constraints: `>= 0`. Keine neuen Policies (sessions hat schon RLS). Cent-Konvention bleibt projektweit konsistent.
+Bewusst NICHT in diesem Schritt: QR-Code, Druck/Download, Work-Areas-Filter, Rotation, Custom-Message, Dark-Mode-Zeiten.
 
-## Server-Functions (minimal-invasiv)
-Bestehende `updateSession` in `src/lib/cash/cash.functions.ts` um die drei optionalen Felder erweitern (gleiches Schreib-Gate `status='open' && !underWaterline`). `getCashOverview` liefert sie automatisch mit `select *` zurück; im DTO ergänzen.
+## Was gebaut wird
 
-## UI-Umbau `src/routes/_authenticated/admin/kasse.tsx`
-Reiner Frontend-Refactor; Reihenfolge wie in der alten Tagesabrechnung:
+### 1. Datenbank-Migration: `display_settings`
 
-```text
-Header:  Kasse · Mittwoch, 15. Juni 2026
-         [DateSelector ◀ Kalender ▶ Heute]  [PDF Export]
-         Erstellt von … · Zuletzt bearbeitet von …
+Neue Tabelle scoped pro Filiale (`location_id`, `organization_id`), mit:
+- `display_token` (32-Byte Hex, default `encode(gen_random_bytes(32),'hex')`, einzigartig)
+- `is_enabled` (bool)
+- `refresh_interval_seconds` (default 60)
+- `created_at`, `updated_at`
 
-[SessionLockedBanner – nur wenn gesperrt]
+RLS:
+- `SELECT/INSERT/UPDATE/DELETE`: nur Manager+Admin der Organisation (über `has_min_permission('manager')` + `organization_id = current_organization_id()`).
+- Token-Validierung läuft serverseitig im öffentlichen Endpoint (RLS-bypass), niemals direkt vom Client gegen die Tabelle.
+- `GRANT`s gemäß Projektregel; kein `anon`-Grant.
 
-StatCards-Reihe:  Kassiert · Karten · Lieferdienste · Bargeld
+### 2. Öffentlicher Server-Route-Endpoint
 
-▸ Gäste & Gutscheine          ← NEU: guest_count, vouchers_sold, vouchers_redeemed
-▸ Umsätze (Kanäle)            – revenue_channels
-▸ Karten-Terminals            – payment_terminals
-▸ Kellner-Abrechnungen        – waiter_settlements (unverändert)
-▸ Trinkgeld-Pool              – TipPoolOverview (unverändert)
-▸ Vorschüsse                  – session_advances
-▸ Ausgaben                    – session_expenses
-▸ Banktresor / Übergaben      – session_register_transfers + bank_deposits
-▸ Notizen
-▸ Status & Abschluss          – finalize/lock-Buttons (unverändert)
-```
+Datei: `src/routes/api/public/display.$locationId.ts`
 
-Neue/portierte Komponenten (rein präsentational, in `src/components/cash/`):
-- `DateSelector.tsx` – 1:1 Port (ChevronLeft / Popover-Kalender / ChevronRight / „Heute"). Geschäftstag-Cutoff 03:00 Europe/Berlin via kleinem `businessDate.ts`-Helper.
-- `StatCard.tsx` – KPI-Kachel (Label, Wert, optional Differenz-Pille).
-- `SectionCard.tsx` – Karten-Wrapper mit gewohntem Titel-Stil.
-- `GuestsVouchersSection.tsx` – Zahl-Input (Gäste) + zwei `CurrencyInput` (Gutscheine verkauft/eingelöst), Auto-Save via `updateSession`-Mutation.
+- `GET` ohne Auth (Pfad `/api/public/*` bypasst Login).
+- Liest `?token=...` aus der Query.
+- Lädt `display_settings` per `supabaseAdmin` und vergleicht Token **timing-safe**.
+- Wenn ok und `is_enabled=true`: lädt Location, alle aktiven Staff der Filiale, `roster_shifts` für heute (+ optional Woche), `skills`.
+- Liefert ein schlankes DTO: `{ location, shifts: [{staffName, area, skillName, status}], generatedAt, refreshIntervalSeconds }`.
+- Keine PII außer Vorname/Nachname (gewollt: das ist der Dienstplan).
+- Antworten: 401 bei falschem/fehlendem Token, 403 wenn disabled, 200 sonst.
 
-## PDF-Export
-Neue Server-Function `exportDailySummaryPdf` in `src/lib/cash/pdf.functions.ts`:
-- liest `getCashOverview` + `getTipPoolOverview` server-seitig,
-- rendert mit `pdf-lib` (Worker-kompatibel; kein jsPDF/DOM nötig),
-- gibt Bytes als `Uint8Array` zurück.
+### 3. Öffentliche Anzeige-Route
 
-Client zeigt das PDF im bestehenden `Dialog` als Vorschau (Blob-URL im iframe) und bietet Download `Tagesabrechnung_YYYY-MM-DD.pdf`. PDF-Inhalt: Kopf (Datum, Standort, Ersteller) · **Gäste & Gutscheine** · Umsätze · Karten · Kellner · Trinkgeld-Pool · Ausgaben/Vorschüsse · Saldo.
+Datei: `src/routes/display.$locationId.tsx` (oben in `src/routes/`, **nicht** unter `_authenticated`).
 
-## Bewusst NICHT enthalten
-- Kein Spicery-Zähler, keine weiteren Sonderfelder (erst auf Bestellung).
-- Keine Änderung an `cash.functions.ts`-Signaturen außer `updateSession`-Payload.
-- Kein Eingriff in Dienstplan, Zeiterfassung, Auth oder `kasse-saldo.tsx`.
+- Fetcht den Endpoint aus Schritt 2 alle `refreshIntervalSeconds`.
+- Vollbild-Layout, dunkler Hintergrund, große Schrift.
+- Header: Filialname + aktuelle Uhrzeit + Datum.
+- Body: zwei Spalten (Küche / Service), je Liste der Mitarbeitenden mit Skill-Badge.
+- Loading / Error / Disabled-States.
 
-## Akzeptanz
-- Drei neue Felder erscheinen oben in „Gäste & Gutscheine" und sind speicher-/sperr-kompatibel.
-- Header zeigt Datum als `EEEE, d. MMMM yyyy` (de) + DateSelector ◀ Kalender ▶ Heute.
-- Sektions-Überschriften und Reihenfolge entsprechen der alten Tagesabrechnung.
-- PDF-Export-Button öffnet Vorschau, listet auch Gäste & Gutscheine.
-- Build grün, eine neue Migration, keine RLS-Lücken.
+### 4. Admin-UI: Display-Einstellungen
+
+In `src/routes/_authenticated/admin/locations.tsx` pro Filiale Button „Display" → Dialog:
+- Status (aktiv/inaktiv) togglen.
+- Anzeige-URL `https://…/display/{locationId}?token=…` mit „Kopieren"-Button.
+- „Neuen Token generieren" (widerruft alte URL).
+- Refresh-Intervall (Sekunden).
+
+Serverlogik in `src/lib/display/display.functions.ts`:
+- `getDisplaySettings(locationId)`
+- `upsertDisplaySettings(locationId, patch)`
+- `regenerateDisplayToken(settingsId)`
+Alle mit `requireSupabaseAuth` + Rolle ≥ manager.
+
+## Technische Details
+
+- Stack: TanStack Start, `createServerFn` für Admin-Ops, `createFileRoute` mit `server.handlers.GET` für den öffentlichen Endpoint.
+- `supabaseAdmin` nur **innerhalb** des Handlers importieren (`const { supabaseAdmin } = await import('@/integrations/supabase/client.server')`), nicht auf Modul-Ebene.
+- Token-Vergleich: `crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b))` nach Längencheck.
+- Kein Realtime im Minimum — Auto-Refresh per Polling reicht.
+- Token wird **nie** geloggt (Projektregel).
+
+## Aus thaitime übernommen, an tococo angepasst
+
+| thaitime | tococo |
+|---|---|
+| `branch_id` | `location_id` |
+| `schedule_entries` (mit start/end time) | `roster_shifts` (nur `shift_date` + `area` + `skill_id`) |
+| Edge Function `schedule-display` | TSS Server-Route `/api/public/display/$locationId` |
+| `/display/:branchSlug` | `/display/$locationId` |
+| `react-router-dom` | `@tanstack/react-router` |
+
+Keine 1:1-Kopie der Komponenten — die thaitime-Anzeige enthält Geburtstage, Rotation, Abwesenheiten, Schichtzähler usw., die hier bewusst weggelassen werden.
+
+## Reihenfolge
+
+1. Migration erstellen (Tabelle + RLS + Grants).
+2. Server-Functions + öffentlicher Endpoint.
+3. Öffentliche Anzeige-Route.
+4. Admin-Dialog in Locations-Seite.
+5. Manuell testen: Token kopieren → in privatem Fenster öffnen → Anzeige + Auto-Refresh.
