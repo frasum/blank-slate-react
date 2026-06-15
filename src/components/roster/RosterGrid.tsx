@@ -404,6 +404,7 @@ function DropCell({
   today,
   paintKind,
   unavailable,
+  hasShift,
   children,
 }: {
   staffId: string;
@@ -414,6 +415,7 @@ function DropCell({
   today: boolean;
   paintKind: "skill" | "eraser" | null;
   unavailable: boolean;
+  hasShift: boolean;
   children: React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({
@@ -423,30 +425,27 @@ function DropCell({
   });
   const cursor =
     paintKind === "skill" ? "cursor-crosshair" : paintKind === "eraser" ? "cursor-not-allowed" : "";
-  // Diagonale Schraffur als Zellen-Hintergrund (etwas kräftiger als Weekend-Grau,
-  // damit sich beides nicht beißt). Pille/Marker liegt darüber.
-  const hatchBg = unavailable
-    ? "repeating-linear-gradient(135deg, hsl(var(--muted-foreground)/0.35) 0 3px, transparent 3px 7px)"
-    : undefined;
+  // Nicht-verfügbar wird als dezente, gefüllte graue Box dargestellt – aber nur,
+  // wenn die Zelle leer ist. Liegt eine Schicht-Pille drin, gewinnt die Pille.
+  const showUnavailableBox = unavailable && !hasShift;
   const tdInner = (
     <td
       ref={setNodeRef}
       className={cn(
         "relative px-0.5 py-1 text-center align-middle",
-        weekend && !unavailable && "bg-muted/40",
+        weekend && "bg-muted/40",
         today && "bg-primary/5",
         isOver && editable && "bg-accent/20 ring-1 ring-accent ring-inset",
         editable && cursor,
       )}
-      style={
-        hatchBg
-          ? {
-              backgroundImage: hatchBg,
-              backgroundColor: "hsl(var(--muted-foreground)/0.06)",
-            }
-          : undefined
-      }
     >
+      {showUnavailableBox ? (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-1 z-0 rounded-md"
+          style={{ backgroundColor: "hsl(var(--muted-foreground)/0.22)" }}
+        />
+      ) : null}
       {children}
     </td>
   );
