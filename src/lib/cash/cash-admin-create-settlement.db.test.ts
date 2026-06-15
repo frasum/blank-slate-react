@@ -6,6 +6,7 @@
 //       WaiterSettlementAlreadyExistsError.
 //   (c) Staff nicht an Session-Location gebunden →
 //       StaffLocationNotBoundError.
+//   (d) Wasserlinie überdeckt Geschäftstag → CashLockedError.
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { dbTestsEnabled, seedOrg, type SeededOrg, type SeededUser } from "@/test/db-setup";
@@ -13,6 +14,7 @@ import {
   adminCreateWaiterSettlementCore,
   WaiterSettlementAlreadyExistsError,
   StaffLocationNotBoundError,
+  CashLockedError,
 } from "./cash.functions";
 import type { AdminCaller } from "@/lib/admin/admin-context";
 
@@ -127,5 +129,38 @@ describe.skipIf(!dbTestsEnabled)("adminCreateWaiterSettlementCore (DB)", () => {
         reason: "Test",
       }),
     ).rejects.toBeInstanceOf(StaffLocationNotBoundError);
+  });
+
+  it("(d) Wasserlinie aktiv → CashLockedError", async () => {
+    const { data: bd } = await org.service.rpc("current_business_date");
+    // Wasserlinie auf heute setzen (überdeckt den Geschäftstag der Session).
+    await org.service.from("cash_locks").upsert(
+      {
+        organization_id: org.orgId,
+        location_id: org.defaultLocationId,
+        locked_through_date: bd as unknown as string,
+      },
+      { onConflict: "organization_id,location_id" },
+    );
+    // Frischer Waiter, damit nicht der Duplikat-Pfad zuerst greift.
+    const waiterC = await org.mkUser("staff");
+    await expect(
+      adminCreateWaiterSettlementCore(m(), {
+        sessionId,
+        staffId: waiterC.staffId,
+        posSalesCents: 1,
+        cardTotalCents: 0,
+        hilfMahlCents: 0,
+        openInvoicesCents: 0,
+        cashHandedInCents: 1,
+        reason: "Test Wasserlinie",
+      }),
+    ).rejects.toBeInstanceOf(CashLockedError);
+    // Wasserlinie wieder aufheben (Cleanup für nachfolgende Suite-Aufrufe).
+    await org.service
+      .from("cash_locks")
+      .delete()
+      .eq("organization_id", org.orgId)
+      .eq("location_id", org.defaultLocationId);
   });
 });
