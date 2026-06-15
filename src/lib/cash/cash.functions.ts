@@ -61,6 +61,18 @@ export class StaffLocationNotBoundError extends Error {
   }
 }
 
+export class WaiterSettlementAlreadyExistsError extends Error {
+  constructor(
+    public readonly sessionId: string,
+    public readonly staffId: string,
+  ) {
+    super(
+      "Für diesen Kellner existiert bereits eine aktive Abrechnung. Bitte Korrektur statt Neuanlage verwenden.",
+    );
+    this.name = "WaiterSettlementAlreadyExistsError";
+  }
+}
+
 // ------------------------------------------------------------------------
 // Hilfsfunktionen
 // ------------------------------------------------------------------------
@@ -1412,6 +1424,120 @@ export async function correctWaiterSettlementCore(
 
 // Re-export für UI/Test-Konsum.
 export { CashLockedError };
+
+// ------------------------------------------------------------------------
+// Admin: Manuelle Neuanlage einer Kellner-Abrechnung
+// ------------------------------------------------------------------------
+//
+// Reine Geld-Erfassung durch Admin/Manager. KEIN Auto-Clockout (im
+// Gegensatz zu submitWaiterSettlement). Kitchen-Tip-Rate wird zum
+// Zeitpunkt der Anlage aus den aktuellen Org-Settings gesnapshottet
+// (es gibt kein Original, von dem geerbt werden könnte).
+
+const adminCreateSettlementSchema = z.object({
+  sessionId: z.string().uuid(),
+  staffId: z.string().uuid(),
+  posSalesCents: z.number().int().min(0),
+  cardTotalCents: z.number().int().min(0),
+  hilfMahlCents: z.number().int().min(0),
+  openInvoicesCents: z.number().int().min(0),
+  cashHandedInCents: z.number().int().min(0),
+  reason: z.string().trim().min(3).max(500),
+});
+
+export const adminCreateWaiterSettlement = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => adminCreateSettlementSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    return adminCreateWaiterSettlementCore(caller, data);
+  });
+
+export type AdminCreateSettlementInput = z.infer<typeof adminCreateSettlementSchema>;
+
+export async function adminCreateWaiterSettlementCore(
+  caller: AdminCaller,
+  data: AdminCreateSettlementInput,
+) {
+  return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+    const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
+    const waterline = await loadLocationCashLock(caller.organizationId, session.location_id);
+    // Anlage erlaubt bei open/finalized; gesperrt bei locked/Wasserlinie
+    // (gleiche Regeln wie correctWaiterSettlement).
+    assertCashWritable({
+      businessDate: session.business_date,
+      sessionStatus: session.status as "open" | "finalized" | "locked",
+      sessionLockedAt: session.locked_at,
+      cashLockedThroughDate: waterline,
+    });
+
+    await assertStaffBoundToLocation(caller.organizationId, data.staffId, session.location_id);
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Duplikate verhindern — falls bereits aktive Zeile, Korrektur-Pfad nutzen.
+    const { data: existing, error: exErr } = await supabaseAdmin
+      .from("waiter_settlements")
+      .select("id, status")
+      .eq("organization_id", caller.organizationId)
+      .eq("session_id", session.id)
+      .eq("staff_id", data.staffId)
+      .neq("status", "superseded")
+      .maybeSingle();
+    if (exErr) throw exErr;
+    if (existing) throw new WaiterSettlementAlreadyExistsError(session.id, data.staffId);
+
+    const settings = await loadOrgSettings(caller.organizationId);
+    const calc = calcWaiterSettlement({
+      posSalesCents: data.posSalesCents,
+      cardTotalCents: data.cardTotalCents,
+      hilfMahlCents: data.hilfMahlCents,
+      openInvoicesCents: data.openInvoicesCents,
+      kitchenTipRate: settings.kitchenTipRate,
+    });
+
+    const { data: created, error: insErr } = await supabaseAdmin
+      .from("waiter_settlements")
+      .insert({
+        organization_id: caller.organizationId,
+        session_id: session.id,
+        staff_id: data.staffId,
+        pos_sales_cents: data.posSalesCents,
+        card_total_cents: data.cardTotalCents,
+        hilf_mahl_cents: data.hilfMahlCents,
+        open_invoices_cents: data.openInvoicesCents,
+        cash_handed_in_cents: data.cashHandedInCents,
+        differenz_cents: calc.differenzCents,
+        kitchen_tip_cents: calc.kitchenTipCents,
+        kitchen_tip_rate: settings.kitchenTipRate,
+        status: "submitted",
+        submitted_at: new Date().toISOString(),
+      })
+      .select("id")
+      .single();
+    if (insErr) throw insErr;
+
+    return {
+      result: {
+        newId: created.id,
+        differenzCents: calc.differenzCents,
+        kitchenTipCents: calc.kitchenTipCents,
+      },
+      audit: {
+        action: "cash.settlement.admin_created",
+        entity: "waiter_settlement",
+        entityId: created.id,
+        meta: {
+          sessionId: session.id,
+          staffId: data.staffId,
+          businessDate: session.business_date,
+          reason: data.reason,
+          kitchenTipRate: settings.kitchenTipRate,
+        },
+      },
+    };
+  });
+}
 
 // ------------------------------------------------------------------------
 // B3c-2 — Kassensaldo-Kette (Carry-over) über einen Datumsbereich

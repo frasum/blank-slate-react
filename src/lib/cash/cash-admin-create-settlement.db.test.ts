@@ -1,0 +1,131 @@
+// DB-Integrationstest für adminCreateWaiterSettlementCore.
+// Geprüft:
+//   (a) Happy Path: Insert → status=submitted, korrekte differenz_cents
+//       und kitchen_tip_cents, KEIN Auto-Clockout.
+//   (b) Duplikat-Schutz: zweiter Aufruf für (session, staff) →
+//       WaiterSettlementAlreadyExistsError.
+//   (c) Staff nicht an Session-Location gebunden →
+//       StaffLocationNotBoundError.
+
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { dbTestsEnabled, seedOrg, type SeededOrg, type SeededUser } from "@/test/db-setup";
+import {
+  adminCreateWaiterSettlementCore,
+  WaiterSettlementAlreadyExistsError,
+  StaffLocationNotBoundError,
+} from "./cash.functions";
+import type { AdminCaller } from "@/lib/admin/admin-context";
+
+describe.skipIf(!dbTestsEnabled)("adminCreateWaiterSettlementCore (DB)", () => {
+  let org: SeededOrg;
+  let manager: SeededUser;
+  let waiterA: SeededUser;
+  let waiterB: SeededUser;
+  let sessionId: string;
+
+  function m(): AdminCaller {
+    return {
+      userId: manager.userId,
+      staffId: manager.staffId,
+      organizationId: org.orgId,
+      role: "manager",
+    };
+  }
+
+  beforeAll(async () => {
+    org = await seedOrg("cash-admin-create");
+    manager = await org.mkUser("manager");
+    waiterA = await org.mkUser("staff");
+    waiterB = await org.mkUser("staff");
+
+    // waiterB Bindung an Default-Location entfernen → not-bound-Pfad.
+    await org.service
+      .from("staff_locations")
+      .delete()
+      .eq("organization_id", org.orgId)
+      .eq("staff_id", waiterB.staffId)
+      .eq("location_id", org.defaultLocationId);
+
+    await org.service
+      .from("organization_settings")
+      .upsert(
+        { organization_id: org.orgId, kitchen_tip_rate: 0.05 },
+        { onConflict: "organization_id" },
+      );
+
+    const { data: bd } = await org.service.rpc("current_business_date");
+    const { data: sess } = await org.service
+      .from("sessions")
+      .insert({
+        organization_id: org.orgId,
+        location_id: org.defaultLocationId,
+        business_date: bd as unknown as string,
+        status: "open",
+      })
+      .select("id")
+      .single();
+    sessionId = sess!.id;
+  });
+
+  afterAll(async () => {
+    await org.cleanup();
+  });
+
+  it("(a) Happy Path: angelegt, korrekt berechnet, kein Auto-Clockout", async () => {
+    const res = await adminCreateWaiterSettlementCore(m(), {
+      sessionId,
+      staffId: waiterA.staffId,
+      posSalesCents: 100000,
+      cardTotalCents: 20000,
+      hilfMahlCents: 0,
+      openInvoicesCents: 0,
+      cashHandedInCents: 80000,
+      reason: "Nacherfassung — Kellner war krank",
+    });
+    expect(res.newId).toBeTruthy();
+
+    const { data: row } = await org.service
+      .from("waiter_settlements")
+      .select(
+        "status, kitchen_tip_rate, differenz_cents, kitchen_tip_cents, auto_clockout_time_entry_id, corrected_from_id",
+      )
+      .eq("id", res.newId)
+      .single();
+    expect(row?.status).toBe("submitted");
+    expect(Number(row?.kitchen_tip_rate)).toBe(0.05);
+    expect(row?.auto_clockout_time_entry_id).toBeNull();
+    expect(row?.corrected_from_id).toBeNull();
+    expect(row?.differenz_cents).toBe(res.differenzCents);
+    expect(row?.kitchen_tip_cents).toBe(res.kitchenTipCents);
+  });
+
+  it("(b) Duplikat: zweiter Aufruf → WaiterSettlementAlreadyExistsError", async () => {
+    await expect(
+      adminCreateWaiterSettlementCore(m(), {
+        sessionId,
+        staffId: waiterA.staffId,
+        posSalesCents: 1,
+        cardTotalCents: 0,
+        hilfMahlCents: 0,
+        openInvoicesCents: 0,
+        cashHandedInCents: 1,
+        reason: "Doppel",
+      }),
+    ).rejects.toBeInstanceOf(WaiterSettlementAlreadyExistsError);
+  });
+
+  it("(c) Staff nicht an Location gebunden → StaffLocationNotBoundError", async () => {
+    await expect(
+      adminCreateWaiterSettlementCore(m(), {
+        sessionId,
+        staffId: waiterB.staffId,
+        posSalesCents: 1,
+        cardTotalCents: 0,
+        hilfMahlCents: 0,
+        openInvoicesCents: 0,
+        cashHandedInCents: 1,
+        reason: "Test",
+      }),
+    ).rejects.toBeInstanceOf(StaffLocationNotBoundError);
+  });
+});

@@ -43,6 +43,7 @@ import { listStaff } from "@/lib/admin/staff.functions";
 import { listLocations } from "@/lib/admin/locations.functions";
 import {
   addSessionSatellite,
+  adminCreateWaiterSettlement,
   correctWaiterSettlement,
   finalizeSession,
   getCashOverview,
@@ -96,6 +97,26 @@ type CorrectState = {
   reason: string;
 };
 
+type CreateState = {
+  staffId: string;
+  posSales: string;
+  cardTotal: string;
+  hilfMahl: string;
+  openInvoices: string;
+  cashHandedIn: string;
+  reason: string;
+};
+
+const EMPTY_CREATE: CreateState = {
+  staffId: "",
+  posSales: "",
+  cardTotal: "",
+  hilfMahl: "",
+  openInvoices: "",
+  cashHandedIn: "",
+  reason: "",
+};
+
 function KassePage() {
   const { identity } = Route.useRouteContext();
   const isAdmin = identity.role === "admin";
@@ -116,6 +137,7 @@ function KassePage() {
   const callFinalize = useServerFn(finalizeSession);
   const callLock = useServerFn(lockSession);
   const callCorrect = useServerFn(correctWaiterSettlement);
+  const callAdminCreate = useServerFn(adminCreateWaiterSettlement);
   const callCashLock = useServerFn(setCashLock);
 
   const locationsQ = useQuery({
@@ -199,6 +221,45 @@ function KassePage() {
     onSuccess: () => {
       toast.success("Korrektur eingetragen.");
       setCorrect(null);
+      void invalidate();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // -------------------- Manuelle Neuanlage --------------------
+  const [createSettlement, setCreateSettlement] = useState<CreateState | null>(null);
+  const eligibleStaff = (staffQ.data ?? []).filter(
+    (s) => s.isActive && (locationId === "" || s.locationIds.includes(locationId)),
+  );
+  const createSettlementMut = useMutation({
+    mutationFn: () => {
+      if (!createSettlement) throw new Error("invalid state");
+      if (!sessionId) throw new Error("Keine Session");
+      if (!createSettlement.staffId) throw new Error("Bitte einen Kellner wählen.");
+      const pos = parseEuroToCents(createSettlement.posSales);
+      const card = parseEuroToCents(createSettlement.cardTotal);
+      const hilf = parseEuroToCents(createSettlement.hilfMahl);
+      const open = parseEuroToCents(createSettlement.openInvoices);
+      const cash = parseEuroToCents(createSettlement.cashHandedIn);
+      if (pos === null || card === null || hilf === null || open === null || cash === null) {
+        throw new Error("Bitte gültige Eurobeträge eintragen.");
+      }
+      return callAdminCreate({
+        data: {
+          sessionId,
+          staffId: createSettlement.staffId,
+          posSalesCents: pos,
+          cardTotalCents: card,
+          hilfMahlCents: hilf,
+          openInvoicesCents: open,
+          cashHandedInCents: cash,
+          reason: createSettlement.reason,
+        },
+      });
+    },
+    onSuccess: () => {
+      toast.success("Abrechnung angelegt.");
+      setCreateSettlement(null);
       void invalidate();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -372,6 +433,7 @@ function KassePage() {
           <SettlementsCard
             data={ovQ.data}
             correctable={correctable}
+            onCreate={() => setCreateSettlement(EMPTY_CREATE)}
             onCorrect={(row) =>
               setCorrect({
                 originalId: row.id,
@@ -617,6 +679,95 @@ function KassePage() {
         </DialogContent>
       </Dialog>
 
+      {/* --- Manuelle Neuanlage-Dialog --- */}
+      <Dialog
+        open={createSettlement !== null}
+        onOpenChange={(o) => !o && setCreateSettlement(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Abrechnung manuell anlegen</DialogTitle>
+            <DialogDescription>
+              Erfasst eine neue Kellner-Abrechnung als Admin. Kein automatisches Ausstempeln.
+              Trinkgeldsatz wird aus den aktuellen Org-Einstellungen übernommen.
+            </DialogDescription>
+          </DialogHeader>
+          {createSettlement && (
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label>Kellner *</Label>
+                <Select
+                  value={createSettlement.staffId}
+                  onValueChange={(v) => setCreateSettlement({ ...createSettlement, staffId: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Kellner wählen…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {eligibleStaff.length === 0 && (
+                      <div className="px-3 py-2 text-sm text-muted-foreground">
+                        Keine passenden Mitarbeiter.
+                      </div>
+                    )}
+                    {eligibleStaff.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.displayName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {(
+                [
+                  ["posSales", "Kassenbon (POS)"],
+                  ["cardTotal", "EC-/Kartensumme"],
+                  ["hilfMahl", "Hilfsmahlzeiten"],
+                  ["openInvoices", "Offene Rechnungen"],
+                  ["cashHandedIn", "Abgegebenes Bargeld"],
+                ] as const
+              ).map(([key, label]) => (
+                <div key={key} className="space-y-1">
+                  <Label>{label} (€)</Label>
+                  <Input
+                    inputMode="decimal"
+                    value={createSettlement[key]}
+                    onChange={(e) =>
+                      setCreateSettlement({ ...createSettlement, [key]: e.target.value })
+                    }
+                  />
+                </div>
+              ))}
+              <div className="space-y-1">
+                <Label>Begründung *</Label>
+                <Input
+                  placeholder="z. B. Nacherfassung — Kellner war krank"
+                  value={createSettlement.reason}
+                  onChange={(e) =>
+                    setCreateSettlement({ ...createSettlement, reason: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateSettlement(null)}>
+              Abbrechen
+            </Button>
+            <Button
+              disabled={
+                !createSettlement ||
+                !createSettlement.staffId ||
+                createSettlement.reason.trim().length < 3 ||
+                createSettlementMut.isPending
+              }
+              onClick={() => createSettlementMut.mutate()}
+            >
+              {createSettlementMut.isPending ? "Speichert…" : "Abrechnung anlegen"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* --- Finalize/Lock-Confirms --- */}
       <Dialog open={finalizeConfirm} onOpenChange={setFinalizeConfirm}>
         <DialogContent>
@@ -681,15 +832,22 @@ function SettlementsCard({
   data,
   correctable,
   onCorrect,
+  onCreate,
 }: {
   data: Overview;
   correctable: boolean;
   onCorrect: (row: SettlementRow) => void;
+  onCreate: () => void;
 }) {
   const rows = data.settlements;
   return (
     <Card>
-      <div className="border-b px-4 py-3 text-sm font-medium">Kellner-Abrechnungen</div>
+      <div className="flex items-center justify-between border-b px-4 py-3">
+        <div className="text-sm font-medium">Kellner-Abrechnungen</div>
+        <Button size="sm" variant="outline" disabled={!correctable} onClick={onCreate}>
+          Neue Abrechnung
+        </Button>
+      </div>
       <Table>
         <TableHeader>
           <TableRow>
@@ -813,11 +971,7 @@ function SessionFieldsCard({
   staff: { id: string; displayName: string }[];
   onAddExpense: (description: string, amountCents: number) => Promise<unknown>;
   onRemoveExpense: (id: string) => Promise<unknown>;
-  onAddAdvance: (
-    staffId: string,
-    amountCents: number,
-    note: string | null,
-  ) => Promise<unknown>;
+  onAddAdvance: (staffId: string, amountCents: number, note: string | null) => Promise<unknown>;
   onRemoveAdvance: (id: string) => Promise<unknown>;
 }) {
   type Row = { id: string; euro: string };
@@ -963,12 +1117,9 @@ function SessionFieldsCard({
 
   const guestNum = parseInt(misc.guestCount || "0", 10);
   const avgPerGuest =
-    guestNum > 0 && posEuroTotal > 0
-      ? fmtCents(Math.round(posEuroTotal / guestNum)) + " €"
-      : null;
+    guestNum > 0 && posEuroTotal > 0 ? fmtCents(Math.round(posEuroTotal / guestNum)) + " €" : null;
 
-  const staffName = (id: string) =>
-    staff.find((s) => s.id === id)?.displayName ?? id.slice(0, 8);
+  const staffName = (id: string) => staff.find((s) => s.id === id)?.displayName ?? id.slice(0, 8);
 
   return (
     <div className="space-y-4">
@@ -1068,10 +1219,7 @@ function SessionFieldsCard({
             </tbody>
           </table>
 
-          <ExcelSectionHeader
-            label="Gutscheine & Sonstiges"
-            colorClass="border-l-violet-500"
-          />
+          <ExcelSectionHeader label="Gutscheine & Sonstiges" colorClass="border-l-violet-500" />
           <table className="w-full text-sm">
             <tbody>
               <ExcelInputRow
@@ -1169,9 +1317,7 @@ function SessionFieldsCard({
                   {expenses.map((e) => (
                     <li key={e.id} className="flex items-center justify-between gap-2">
                       <span className="flex-1 truncate">{e.description ?? "—"}</span>
-                      <span className="font-mono tabular-nums">
-                        {fmtCents(e.amountCents)} €
-                      </span>
+                      <span className="font-mono tabular-nums">{fmtCents(e.amountCents)} €</span>
                       {writable && (
                         <button
                           className="text-destructive hover:opacity-70 text-xs"
@@ -1205,9 +1351,7 @@ function SessionFieldsCard({
                         {staffName(a.staffId)}
                         {a.note ? ` · ${a.note}` : ""}
                       </span>
-                      <span className="font-mono tabular-nums">
-                        {fmtCents(a.amountCents)} €
-                      </span>
+                      <span className="font-mono tabular-nums">{fmtCents(a.amountCents)} €</span>
                       {writable && (
                         <button
                           className="text-destructive hover:opacity-70 text-xs"
@@ -1220,9 +1364,7 @@ function SessionFieldsCard({
                   ))}
                 </ul>
               )}
-              {writable && (
-                <AdvanceForm writable={writable} staff={staff} onAdd={onAddAdvance} />
-              )}
+              {writable && <AdvanceForm writable={writable} staff={staff} onAdd={onAddAdvance} />}
             </div>
           </div>
         </div>
@@ -1290,13 +1432,7 @@ function CashActualHint({ value }: { value: string }) {
   );
 }
 
-function ExcelSectionHeader({
-  label,
-  colorClass,
-}: {
-  label: string;
-  colorClass: string;
-}) {
+function ExcelSectionHeader({ label, colorClass }: { label: string; colorClass: string }) {
   return (
     <div className={`bg-muted/50 px-3 py-2 border-y border-l-4 ${colorClass}`}>
       <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
