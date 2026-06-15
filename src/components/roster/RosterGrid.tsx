@@ -56,6 +56,7 @@ type Props = {
   shifts: RosterShift[];
   allSkills: RosterSkill[];
   crossBookings: RosterCrossBooking[];
+  unavailableSet: Set<string>;
   density: Density;
   canEdit: boolean;
   locked: boolean;
@@ -65,6 +66,8 @@ type Props = {
   onDelete: (id: string) => Promise<void> | void;
   onChangeSkill: (id: string, skillId: string) => Promise<void> | void;
   onChangeStatus: (id: string, status: "planned" | "confirmed") => Promise<void> | void;
+  onSetUnavailable: (staffId: string, iso: string) => Promise<void> | void;
+  onClearUnavailable: (staffId: string, iso: string) => Promise<void> | void;
 };
 
 export function RosterGrid({
@@ -76,6 +79,7 @@ export function RosterGrid({
   shifts,
   allSkills,
   crossBookings,
+  unavailableSet,
   density,
   canEdit,
   locked,
@@ -85,6 +89,8 @@ export function RosterGrid({
   onDelete,
   onChangeSkill,
   onChangeStatus,
+  onSetUnavailable,
+  onClearUnavailable,
 }: Props) {
   const [openCell, setOpenCell] = React.useState<string | null>(null);
   const [openPill, setOpenPill] = React.useState<string | null>(null);
