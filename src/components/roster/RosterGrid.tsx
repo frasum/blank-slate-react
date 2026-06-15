@@ -279,6 +279,7 @@ export function RosterGrid({
                       const pickedSkills = skillsForCell(row, activeArea, allSkills);
                       const candidates = [...pickedSkills.profile, ...pickedSkills.other];
                       const isUnavailable = unavailableSet.has(`${row.staffId}|${iso}`);
+                      const isAbsent = absenceSet.has(`${row.staffId}|${iso}`);
                       return (
                         <DropCell
                           key={iso}
@@ -291,6 +292,7 @@ export function RosterGrid({
                           paintKind={paint?.kind ?? null}
                           unavailable={isUnavailable}
                           hasShift={!!shift}
+                          absent={isAbsent}
                         >
                           {shift ? (
                             <PillConfirmPopover
@@ -319,6 +321,15 @@ export function RosterGrid({
                               }}
                               onClearUnavailable={async () => {
                                 await onClearUnavailable(shift.staffId, shift.shiftDate);
+                                setOpenPill(null);
+                              }}
+                              isAbsent={isAbsent}
+                              onSetAbsence={async () => {
+                                await onSetAbsence(shift.staffId, shift.shiftDate);
+                                setOpenPill(null);
+                              }}
+                              onClearAbsence={async () => {
+                                await onClearAbsence(shift.staffId, shift.shiftDate);
                                 setOpenPill(null);
                               }}
                             >
@@ -356,6 +367,15 @@ export function RosterGrid({
                               }}
                               onClearUnavailable={async () => {
                                 await onClearUnavailable(row.staffId, iso);
+                                setOpenCell(null);
+                              }}
+                              isAbsent={isAbsent}
+                              onSetAbsence={async () => {
+                                await onSetAbsence(row.staffId, iso);
+                                setOpenCell(null);
+                              }}
+                              onClearAbsence={async () => {
+                                await onClearAbsence(row.staffId, iso);
                                 setOpenCell(null);
                               }}
                             />
