@@ -9,6 +9,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { Download, FileText, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -54,6 +55,7 @@ import {
   setCashLock,
   updateSession,
 } from "@/lib/cash/cash.functions";
+import { generateDailySummaryPdf } from "@/lib/cash/pdfExport";
 
 export const Route = createFileRoute("/_authenticated/admin/kasse")({
   head: () => ({ meta: [{ title: "Kasse" }] }),
@@ -243,6 +245,58 @@ function KassePage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // -------------------- PDF Export --------------------
+  const [pdfPreview, setPdfPreview] = useState<{ blobUrl: string; blob: Blob; fileName: string } | null>(null);
+  function handleExportPdf() {
+    const ov = ovQ.data;
+    if (!ov?.session) {
+      toast.error("Keine Session für diesen Tag.");
+      return;
+    }
+    const channels = (channelsQ.data ?? []).map((c) => ({ id: c.id, label: c.label }));
+    const terminals = (terminalsQ.data ?? []).map((t) => ({ id: t.id, label: t.label }));
+    const staffById = new Map((staffQ.data ?? []).map((s) => [s.id, s.displayName]));
+    const locationName =
+      (locationsQ.data ?? []).find((l) => l.id === locationId)?.name ?? undefined;
+    try {
+      const out = generateDailySummaryPdf({
+        session: ov.session as unknown as Parameters<typeof generateDailySummaryPdf>[0]["session"],
+        locationName,
+        channels,
+        channelAmounts: ov.channelAmounts,
+        terminals,
+        terminalAmounts: ov.terminalAmounts,
+        settlements: ov.settlements.map((s) => ({
+          staffName: s.staffName,
+          status: s.status as string,
+          pos_sales_cents: Number(s.pos_sales_cents),
+          card_total_cents: Number(s.card_total_cents),
+          hilf_mahl_cents: Number(s.hilf_mahl_cents),
+          open_invoices_cents: Number(s.open_invoices_cents),
+          cash_handed_in_cents: Number(s.cash_handed_in_cents),
+          differenz_cents: Number(s.differenz_cents),
+          kitchen_tip_cents: Number(s.kitchen_tip_cents),
+        })),
+        expenses: ov.expenses.map((e) => ({
+          description: e.description,
+          amountCents: e.amountCents,
+        })),
+        advances: ov.advances.map((a) => ({
+          staffName: staffById.get(a.staffId) ?? a.staffId.slice(0, 8),
+          amountCents: a.amountCents,
+          note: a.note,
+        })),
+      });
+      setPdfPreview(out);
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  }
+  function closePdfPreview() {
+    if (pdfPreview) URL.revokeObjectURL(pdfPreview.blobUrl);
+    setPdfPreview(null);
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -287,6 +341,12 @@ function KassePage() {
             </Badge>
           )}
           {underWaterline && <Badge variant="destructive">≤ {lockedThrough} gesperrt</Badge>}
+          {ovQ.data?.session && (
+            <Button variant="outline" onClick={handleExportPdf} className="gap-2">
+              <Download className="h-4 w-4" />
+              PDF Export
+            </Button>
+          )}
         </div>
       </div>
 
@@ -415,6 +475,47 @@ function KassePage() {
           </div>
         </Card>
       )}
+
+      {/* --- PDF-Vorschau --- */}
+      <Dialog open={pdfPreview !== null} onOpenChange={(o) => !o && closePdfPreview()}>
+        <DialogContent className="flex h-[85vh] max-w-5xl flex-col p-0">
+          <DialogHeader className="border-b px-6 py-4">
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              {pdfPreview?.fileName ?? "PDF Vorschau"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="min-h-0 flex-1 p-2">
+            {pdfPreview && (
+              <iframe
+                title="Tagesabrechnung PDF Vorschau"
+                src={pdfPreview.blobUrl}
+                className="h-full w-full rounded border"
+              />
+            )}
+          </div>
+          <DialogFooter className="gap-2 border-t px-6 py-4">
+            <Button variant="outline" onClick={closePdfPreview}>
+              <X className="mr-2 h-4 w-4" />
+              Schließen
+            </Button>
+            <Button
+              onClick={() => {
+                if (!pdfPreview) return;
+                const a = document.createElement("a");
+                a.href = pdfPreview.blobUrl;
+                a.download = pdfPreview.fileName;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+              }}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Herunterladen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* --- Korrektur-Dialog --- */}
       <Dialog open={correct !== null} onOpenChange={(o) => !o && setCorrect(null)}>
