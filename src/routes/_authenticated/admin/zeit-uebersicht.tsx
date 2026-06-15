@@ -428,27 +428,6 @@ function ZeitUebersichtPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // Inline-Edit-Dialog State
-  const [editor, setEditor] = useState<
-    | null
-    | {
-        mode: "edit";
-        id: string;
-        staffName: string;
-        dateIso: string;
-        from: string;
-        to: string;
-      }
-    | {
-        mode: "create";
-        staffId: string;
-        staffName: string;
-        dateIso: string;
-        from: string;
-        to: string;
-      }
-  >(null);
-
   function invalidateWeekly() {
     void qc.invalidateQueries({
       queryKey: ["weekly-entries", effectiveLocationId, weekStart],
@@ -460,7 +439,6 @@ function ZeitUebersichtPage() {
       callSetShift({ data: vars }),
     onSuccess: () => {
       invalidateWeekly();
-      setEditor(null);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -473,7 +451,6 @@ function ZeitUebersichtPage() {
     }) => callCreateShift({ data: vars }),
     onSuccess: () => {
       invalidateWeekly();
-      setEditor(null);
     },
     onError: (e: Error) => toast.error(e.message),
   });
