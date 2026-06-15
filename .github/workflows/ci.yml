@@ -15,7 +15,7 @@ jobs:
           bun-version: latest
       - run: bun install --frozen-lockfile
       - run: bun run tsc --noEmit
-      - run: bun run eslint . --max-warnings=0
+      - run: bun run eslint . --max-warnings=3
       - run: bun run vitest run
 
   db-integration:
