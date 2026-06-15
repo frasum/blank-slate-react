@@ -341,6 +341,12 @@ function KassePage() {
             </Badge>
           )}
           {underWaterline && <Badge variant="destructive">≤ {lockedThrough} gesperrt</Badge>}
+          {ovQ.data?.session && (
+            <Button variant="outline" onClick={handleExportPdf} className="gap-2">
+              <Download className="h-4 w-4" />
+              PDF Export
+            </Button>
+          )}
         </div>
       </div>
 
