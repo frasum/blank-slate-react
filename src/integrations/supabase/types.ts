@@ -1160,6 +1160,60 @@ export type Database = {
           },
         ]
       }
+      session_tip_pool_entries: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          department: Database["public"]["Enums"]["staff_department"]
+          hours_minutes: number
+          id: string
+          note: string | null
+          organization_id: string
+          session_id: string
+          staff_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          department: Database["public"]["Enums"]["staff_department"]
+          hours_minutes: number
+          id?: string
+          note?: string | null
+          organization_id: string
+          session_id: string
+          staff_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          department?: Database["public"]["Enums"]["staff_department"]
+          hours_minutes?: number
+          id?: string
+          note?: string | null
+          organization_id?: string
+          session_id?: string
+          staff_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_tip_pool_entries_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_tip_pool_entries_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sessions: {
         Row: {
           business_date: string
