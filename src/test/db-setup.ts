@@ -55,26 +55,52 @@ export type SeededOrg = {
 };
 
 const PASSWORD = "Test-Password-123!";
+const UPSTREAM_BOOT_ERROR = "invalid response was received from the upstream server";
+
+type DbInsertResult<T> = {
+  data: T | null;
+  error: { message: string } | null;
+};
+
+function isUpstreamBootError(error: { message: string } | null): boolean {
+  return error?.message.toLowerCase().includes(UPSTREAM_BOOT_ERROR) ?? false;
+}
+
+async function pause(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function withDbInsertRetry<T>(
+  label: string,
+  operation: () => PromiseLike<DbInsertResult<T>>,
+): Promise<DbInsertResult<T>> {
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const result = await operation();
+    if (!isUpstreamBootError(result.error) || attempt === 3) return result;
+    await pause(500);
+  }
+  throw new Error(`${label} retry loop exhausted unexpectedly`);
+}
 
 export async function seedOrg(label: string): Promise<SeededOrg> {
   const service = getServiceClient();
   const orgName = `${label}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const { data: org, error: orgErr } = await service
-    .from("organizations")
-    .insert({ name: orgName })
-    .select("id")
-    .single();
+  const { data: org, error: orgErr } = await withDbInsertRetry("org insert", () =>
+    service.from("organizations").insert({ name: orgName }).select("id").single(),
+  );
   if (orgErr || !org) throw new Error(`org insert failed: ${orgErr?.message}`);
   const orgId = org.id;
 
   // Default-Standort: nahezu alle Bestandstests gehen davon aus, dass es
   // genau einen Standort gibt. Der Default wird automatisch angelegt;
   // mkUser bindet neue staff per default daran.
-  const { data: defLoc, error: locErr } = await service
-    .from("locations")
-    .insert({ organization_id: orgId, name: "Hauptstandort" })
-    .select("id")
-    .single();
+  const { data: defLoc, error: locErr } = await withDbInsertRetry("location seed", () =>
+    service
+      .from("locations")
+      .insert({ organization_id: orgId, name: "Hauptstandort" })
+      .select("id")
+      .single(),
+  );
   if (locErr || !defLoc) throw new Error(`location seed failed: ${locErr?.message}`);
   const defaultLocationId = defLoc.id;
 
@@ -93,45 +119,53 @@ export async function seedOrg(label: string): Promise<SeededOrg> {
     const userId = u.user.id;
     createdUsers.push(userId);
 
-    const { data: staff, error: sErr } = await service
-      .from("staff")
-      .insert({
-        organization_id: orgId,
-        first_name: tag,
-        last_name: "Test",
-        display_name: `${tag} ${userId.slice(0, 6)}`,
-        email,
-        is_active: opts?.isActive ?? true,
-      })
-      .select("id")
-      .single();
+    const { data: staff, error: sErr } = await withDbInsertRetry("staff insert", () =>
+      service
+        .from("staff")
+        .insert({
+          organization_id: orgId,
+          first_name: tag,
+          last_name: "Test",
+          display_name: `${tag} ${userId.slice(0, 6)}`,
+          email,
+          is_active: opts?.isActive ?? true,
+        })
+        .select("id")
+        .single(),
+    );
     if (sErr || !staff) throw new Error(`staff insert failed: ${sErr?.message}`);
     createdStaff.push(staff.id);
 
-    const { error: linkErr } = await service.from("user_links").insert({
-      user_id: userId,
-      staff_id: staff.id,
-      organization_id: orgId,
-    });
+    const { error: linkErr } = await withDbInsertRetry("user_links insert", () =>
+      service.from("user_links").insert({
+        user_id: userId,
+        staff_id: staff.id,
+        organization_id: orgId,
+      }),
+    );
     if (linkErr) throw new Error(`user_links insert failed: ${linkErr.message}`);
 
     if (role) {
-      const { error: raErr } = await service.from("role_assignments").insert({
-        staff_id: staff.id,
-        organization_id: orgId,
-        role,
-      });
+      const { error: raErr } = await withDbInsertRetry("role_assignments insert", () =>
+        service.from("role_assignments").insert({
+          staff_id: staff.id,
+          organization_id: orgId,
+          role,
+        }),
+      );
       if (raErr) throw new Error(`role_assignments insert failed: ${raErr.message}`);
     }
 
     // Default-Bindung Standort: ohne staff_locations-Eintrag kann der
     // Kellner serverseitig keine Settlement abgeben (B3-Modellkorrektur A).
-    const { error: slErr } = await service.from("staff_locations").insert({
-      organization_id: orgId,
-      staff_id: staff.id,
-      location_id: defaultLocationId,
-      department: "service",
-    });
+    const { error: slErr } = await withDbInsertRetry("staff_locations seed", () =>
+      service.from("staff_locations").insert({
+        organization_id: orgId,
+        staff_id: staff.id,
+        location_id: defaultLocationId,
+        department: "service",
+      }),
+    );
     if (slErr) throw new Error(`staff_locations seed failed: ${slErr.message}`);
 
     return { userId, staffId: staff.id, email, password: PASSWORD };
