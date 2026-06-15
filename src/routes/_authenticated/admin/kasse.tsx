@@ -137,6 +137,7 @@ function KassePage() {
   const callFinalize = useServerFn(finalizeSession);
   const callLock = useServerFn(lockSession);
   const callCorrect = useServerFn(correctWaiterSettlement);
+  const callAdminCreate = useServerFn(adminCreateWaiterSettlement);
   const callCashLock = useServerFn(setCashLock);
 
   const locationsQ = useQuery({
