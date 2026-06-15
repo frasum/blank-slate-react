@@ -32,6 +32,7 @@ import { Route as AuthenticatedAdminBestellungIndexRouteImport } from './routes/
 import { Route as ApiPublicDisplayLocationIdRouteImport } from './routes/api/public/display.$locationId'
 import { Route as AuthenticatedAdminStaffNewRouteImport } from './routes/_authenticated/admin/staff.new'
 import { Route as AuthenticatedAdminStaffStaffIdRouteImport } from './routes/_authenticated/admin/staff.$staffId'
+import { Route as AuthenticatedAdminBestellungWeinRouteImport } from './routes/_authenticated/admin/bestellung.wein'
 import { Route as AuthenticatedAdminBestellungWarenkorbRouteImport } from './routes/_authenticated/admin/bestellung.warenkorb'
 import { Route as AuthenticatedAdminBestellungLieferantenRouteImport } from './routes/_authenticated/admin/bestellung.lieferanten'
 import { Route as AuthenticatedAdminBestellungInventurRouteImport } from './routes/_authenticated/admin/bestellung.inventur'
@@ -165,6 +166,12 @@ const AuthenticatedAdminStaffStaffIdRoute =
     path: '/$staffId',
     getParentRoute: () => AuthenticatedAdminStaffRoute,
   } as any)
+const AuthenticatedAdminBestellungWeinRoute =
+  AuthenticatedAdminBestellungWeinRouteImport.update({
+    id: '/wein',
+    path: '/wein',
+    getParentRoute: () => AuthenticatedAdminBestellungRoute,
+  } as any)
 const AuthenticatedAdminBestellungWarenkorbRoute =
   AuthenticatedAdminBestellungWarenkorbRouteImport.update({
     id: '/warenkorb',
@@ -219,6 +226,7 @@ export interface FileRoutesByFullPath {
   '/admin/bestellung/inventur': typeof AuthenticatedAdminBestellungInventurRoute
   '/admin/bestellung/lieferanten': typeof AuthenticatedAdminBestellungLieferantenRoute
   '/admin/bestellung/warenkorb': typeof AuthenticatedAdminBestellungWarenkorbRoute
+  '/admin/bestellung/wein': typeof AuthenticatedAdminBestellungWeinRoute
   '/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
   '/admin/staff/new': typeof AuthenticatedAdminStaffNewRoute
   '/api/public/display/$locationId': typeof ApiPublicDisplayLocationIdRoute
@@ -245,6 +253,7 @@ export interface FileRoutesByTo {
   '/admin/bestellung/inventur': typeof AuthenticatedAdminBestellungInventurRoute
   '/admin/bestellung/lieferanten': typeof AuthenticatedAdminBestellungLieferantenRoute
   '/admin/bestellung/warenkorb': typeof AuthenticatedAdminBestellungWarenkorbRoute
+  '/admin/bestellung/wein': typeof AuthenticatedAdminBestellungWeinRoute
   '/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
   '/admin/staff/new': typeof AuthenticatedAdminStaffNewRoute
   '/api/public/display/$locationId': typeof ApiPublicDisplayLocationIdRoute
@@ -276,6 +285,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/bestellung/inventur': typeof AuthenticatedAdminBestellungInventurRoute
   '/_authenticated/admin/bestellung/lieferanten': typeof AuthenticatedAdminBestellungLieferantenRoute
   '/_authenticated/admin/bestellung/warenkorb': typeof AuthenticatedAdminBestellungWarenkorbRoute
+  '/_authenticated/admin/bestellung/wein': typeof AuthenticatedAdminBestellungWeinRoute
   '/_authenticated/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
   '/_authenticated/admin/staff/new': typeof AuthenticatedAdminStaffNewRoute
   '/api/public/display/$locationId': typeof ApiPublicDisplayLocationIdRoute
@@ -307,6 +317,7 @@ export interface FileRouteTypes {
     | '/admin/bestellung/inventur'
     | '/admin/bestellung/lieferanten'
     | '/admin/bestellung/warenkorb'
+    | '/admin/bestellung/wein'
     | '/admin/staff/$staffId'
     | '/admin/staff/new'
     | '/api/public/display/$locationId'
@@ -333,6 +344,7 @@ export interface FileRouteTypes {
     | '/admin/bestellung/inventur'
     | '/admin/bestellung/lieferanten'
     | '/admin/bestellung/warenkorb'
+    | '/admin/bestellung/wein'
     | '/admin/staff/$staffId'
     | '/admin/staff/new'
     | '/api/public/display/$locationId'
@@ -363,6 +375,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/bestellung/inventur'
     | '/_authenticated/admin/bestellung/lieferanten'
     | '/_authenticated/admin/bestellung/warenkorb'
+    | '/_authenticated/admin/bestellung/wein'
     | '/_authenticated/admin/staff/$staffId'
     | '/_authenticated/admin/staff/new'
     | '/api/public/display/$locationId'
@@ -540,6 +553,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminStaffStaffIdRouteImport
       parentRoute: typeof AuthenticatedAdminStaffRoute
     }
+    '/_authenticated/admin/bestellung/wein': {
+      id: '/_authenticated/admin/bestellung/wein'
+      path: '/wein'
+      fullPath: '/admin/bestellung/wein'
+      preLoaderRoute: typeof AuthenticatedAdminBestellungWeinRouteImport
+      parentRoute: typeof AuthenticatedAdminBestellungRoute
+    }
     '/_authenticated/admin/bestellung/warenkorb': {
       id: '/_authenticated/admin/bestellung/warenkorb'
       path: '/warenkorb'
@@ -584,6 +604,7 @@ interface AuthenticatedAdminBestellungRouteChildren {
   AuthenticatedAdminBestellungInventurRoute: typeof AuthenticatedAdminBestellungInventurRoute
   AuthenticatedAdminBestellungLieferantenRoute: typeof AuthenticatedAdminBestellungLieferantenRoute
   AuthenticatedAdminBestellungWarenkorbRoute: typeof AuthenticatedAdminBestellungWarenkorbRoute
+  AuthenticatedAdminBestellungWeinRoute: typeof AuthenticatedAdminBestellungWeinRoute
   AuthenticatedAdminBestellungIndexRoute: typeof AuthenticatedAdminBestellungIndexRoute
 }
 
@@ -599,6 +620,8 @@ const AuthenticatedAdminBestellungRouteChildren: AuthenticatedAdminBestellungRou
       AuthenticatedAdminBestellungLieferantenRoute,
     AuthenticatedAdminBestellungWarenkorbRoute:
       AuthenticatedAdminBestellungWarenkorbRoute,
+    AuthenticatedAdminBestellungWeinRoute:
+      AuthenticatedAdminBestellungWeinRoute,
     AuthenticatedAdminBestellungIndexRoute:
       AuthenticatedAdminBestellungIndexRoute,
   }
