@@ -646,7 +646,7 @@ function EmptyCell({
       isUnavailable={isUnavailable}
       onSetUnavailable={onSetUnavailable}
       onClearUnavailable={onClearUnavailable}
-      isAbsent={isAbsent}
+      absenceType={absenceType}
       onSetAbsence={onSetAbsence}
       onClearAbsence={onClearAbsence}
     >
