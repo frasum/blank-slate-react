@@ -32,6 +32,7 @@ import { Route as AuthenticatedAdminBestellungIndexRouteImport } from './routes/
 import { Route as ApiPublicDisplayLocationIdRouteImport } from './routes/api/public/display.$locationId'
 import { Route as AuthenticatedAdminStaffNewRouteImport } from './routes/_authenticated/admin/staff.new'
 import { Route as AuthenticatedAdminStaffStaffIdRouteImport } from './routes/_authenticated/admin/staff.$staffId'
+import { Route as AuthenticatedAdminBestellungWarenkorbRouteImport } from './routes/_authenticated/admin/bestellung.warenkorb'
 import { Route as AuthenticatedAdminBestellungLieferantenRouteImport } from './routes/_authenticated/admin/bestellung.lieferanten'
 import { Route as AuthenticatedAdminBestellungArtikelRouteImport } from './routes/_authenticated/admin/bestellung.artikel'
 
@@ -162,6 +163,12 @@ const AuthenticatedAdminStaffStaffIdRoute =
     path: '/$staffId',
     getParentRoute: () => AuthenticatedAdminStaffRoute,
   } as any)
+const AuthenticatedAdminBestellungWarenkorbRoute =
+  AuthenticatedAdminBestellungWarenkorbRouteImport.update({
+    id: '/warenkorb',
+    path: '/warenkorb',
+    getParentRoute: () => AuthenticatedAdminBestellungRoute,
+  } as any)
 const AuthenticatedAdminBestellungLieferantenRoute =
   AuthenticatedAdminBestellungLieferantenRouteImport.update({
     id: '/lieferanten',
@@ -195,6 +202,7 @@ export interface FileRoutesByFullPath {
   '/zeit/': typeof AuthenticatedZeitIndexRoute
   '/admin/bestellung/artikel': typeof AuthenticatedAdminBestellungArtikelRoute
   '/admin/bestellung/lieferanten': typeof AuthenticatedAdminBestellungLieferantenRoute
+  '/admin/bestellung/warenkorb': typeof AuthenticatedAdminBestellungWarenkorbRoute
   '/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
   '/admin/staff/new': typeof AuthenticatedAdminStaffNewRoute
   '/api/public/display/$locationId': typeof ApiPublicDisplayLocationIdRoute
@@ -218,6 +226,7 @@ export interface FileRoutesByTo {
   '/zeit': typeof AuthenticatedZeitIndexRoute
   '/admin/bestellung/artikel': typeof AuthenticatedAdminBestellungArtikelRoute
   '/admin/bestellung/lieferanten': typeof AuthenticatedAdminBestellungLieferantenRoute
+  '/admin/bestellung/warenkorb': typeof AuthenticatedAdminBestellungWarenkorbRoute
   '/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
   '/admin/staff/new': typeof AuthenticatedAdminStaffNewRoute
   '/api/public/display/$locationId': typeof ApiPublicDisplayLocationIdRoute
@@ -246,6 +255,7 @@ export interface FileRoutesById {
   '/_authenticated/zeit/': typeof AuthenticatedZeitIndexRoute
   '/_authenticated/admin/bestellung/artikel': typeof AuthenticatedAdminBestellungArtikelRoute
   '/_authenticated/admin/bestellung/lieferanten': typeof AuthenticatedAdminBestellungLieferantenRoute
+  '/_authenticated/admin/bestellung/warenkorb': typeof AuthenticatedAdminBestellungWarenkorbRoute
   '/_authenticated/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
   '/_authenticated/admin/staff/new': typeof AuthenticatedAdminStaffNewRoute
   '/api/public/display/$locationId': typeof ApiPublicDisplayLocationIdRoute
@@ -274,6 +284,7 @@ export interface FileRouteTypes {
     | '/zeit/'
     | '/admin/bestellung/artikel'
     | '/admin/bestellung/lieferanten'
+    | '/admin/bestellung/warenkorb'
     | '/admin/staff/$staffId'
     | '/admin/staff/new'
     | '/api/public/display/$locationId'
@@ -297,6 +308,7 @@ export interface FileRouteTypes {
     | '/zeit'
     | '/admin/bestellung/artikel'
     | '/admin/bestellung/lieferanten'
+    | '/admin/bestellung/warenkorb'
     | '/admin/staff/$staffId'
     | '/admin/staff/new'
     | '/api/public/display/$locationId'
@@ -324,6 +336,7 @@ export interface FileRouteTypes {
     | '/_authenticated/zeit/'
     | '/_authenticated/admin/bestellung/artikel'
     | '/_authenticated/admin/bestellung/lieferanten'
+    | '/_authenticated/admin/bestellung/warenkorb'
     | '/_authenticated/admin/staff/$staffId'
     | '/_authenticated/admin/staff/new'
     | '/api/public/display/$locationId'
@@ -501,6 +514,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminStaffStaffIdRouteImport
       parentRoute: typeof AuthenticatedAdminStaffRoute
     }
+    '/_authenticated/admin/bestellung/warenkorb': {
+      id: '/_authenticated/admin/bestellung/warenkorb'
+      path: '/warenkorb'
+      fullPath: '/admin/bestellung/warenkorb'
+      preLoaderRoute: typeof AuthenticatedAdminBestellungWarenkorbRouteImport
+      parentRoute: typeof AuthenticatedAdminBestellungRoute
+    }
     '/_authenticated/admin/bestellung/lieferanten': {
       id: '/_authenticated/admin/bestellung/lieferanten'
       path: '/lieferanten'
@@ -521,6 +541,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedAdminBestellungRouteChildren {
   AuthenticatedAdminBestellungArtikelRoute: typeof AuthenticatedAdminBestellungArtikelRoute
   AuthenticatedAdminBestellungLieferantenRoute: typeof AuthenticatedAdminBestellungLieferantenRoute
+  AuthenticatedAdminBestellungWarenkorbRoute: typeof AuthenticatedAdminBestellungWarenkorbRoute
   AuthenticatedAdminBestellungIndexRoute: typeof AuthenticatedAdminBestellungIndexRoute
 }
 
@@ -530,6 +551,8 @@ const AuthenticatedAdminBestellungRouteChildren: AuthenticatedAdminBestellungRou
       AuthenticatedAdminBestellungArtikelRoute,
     AuthenticatedAdminBestellungLieferantenRoute:
       AuthenticatedAdminBestellungLieferantenRoute,
+    AuthenticatedAdminBestellungWarenkorbRoute:
+      AuthenticatedAdminBestellungWarenkorbRoute,
     AuthenticatedAdminBestellungIndexRoute:
       AuthenticatedAdminBestellungIndexRoute,
   }
