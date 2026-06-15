@@ -588,8 +588,10 @@ function EmptyCell({
   onSetUnavailable,
   onClearUnavailable,
   absenceType,
-  onSetAbsence,
+  onSetAbsenceRange,
   onClearAbsence,
+  defaultDate,
+  staffShiftDates,
 }: {
   row: RosterStaffRow;
   iso: string;
@@ -607,8 +609,14 @@ function EmptyCell({
   onSetUnavailable: () => void;
   onClearUnavailable: () => void;
   absenceType: "urlaub" | "krank" | null;
-  onSetAbsence: (type: "urlaub" | "krank") => void;
+  onSetAbsenceRange: (
+    fromIso: string,
+    toIso: string,
+    type: "urlaub" | "krank",
+  ) => void | Promise<void>;
   onClearAbsence: () => void;
+  defaultDate: string;
+  staffShiftDates: string[];
 }) {
   const { profile, other } = skillsForCell(row, activeArea, allSkills);
   const marker = (
