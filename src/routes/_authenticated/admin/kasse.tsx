@@ -107,16 +107,6 @@ type CreateState = {
   reason: string;
 };
 
-const EMPTY_CREATE: CreateState = {
-  staffId: "",
-  posSales: "",
-  cardTotal: "",
-  hilfMahl: "",
-  openInvoices: "",
-  cashHandedIn: "",
-  reason: "",
-};
-
 function KassePage() {
   const { identity } = Route.useRouteContext();
   const isAdmin = identity.role === "admin";
@@ -433,7 +423,19 @@ function KassePage() {
           <SettlementsCard
             data={ovQ.data}
             correctable={correctable}
-            onCreate={() => setCreateSettlement(EMPTY_CREATE)}
+            onCreate={() =>
+              setCreateSettlement({
+                staffId:
+                  (staffQ.data ?? []).find((s) => s.isActive && s.locationIds.includes(locationId))
+                    ?.id ?? "",
+                posSales: "0.00",
+                cardTotal: "0.00",
+                hilfMahl: "0.00",
+                openInvoices: "0.00",
+                cashHandedIn: "0.00",
+                reason: "",
+              })
+            }
             onCorrect={(row) =>
               setCorrect({
                 originalId: row.id,
