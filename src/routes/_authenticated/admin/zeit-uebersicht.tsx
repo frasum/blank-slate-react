@@ -800,26 +800,26 @@ function ZeitUebersichtPage() {
             isLoading={weeklyLoading}
             weekDays={weekDays}
             isAdmin={isAdmin}
-            onEdit={(e) =>
-              setEditor({
-                mode: "edit",
-                id: e.id,
-                staffName: e.displayName,
-                dateIso: e.businessDate,
-                from: fmtHHMM(e.startedAt),
-                to: fmtHHMM(e.endedAt),
-              })
-            }
-            onCreate={(staffId, staffName, dateIso) =>
-              setEditor({
-                mode: "create",
+            pending={setShiftMut.isPending || createShiftMut.isPending}
+            onUpdateInline={(id, iso, from, to) => {
+              const startedAt = buildIsoFromLocal(iso, from);
+              const endedAt = buildIsoFromLocal(iso, to, from);
+              setShiftMut.mutate({ id, startedAt, endedAt });
+            }}
+            onCreateInline={(staffId, iso, from, to) => {
+              if (!effectiveLocationId) {
+                toast.error("Bitte erst einen Standort wählen.");
+                return;
+              }
+              const startedAt = buildIsoFromLocal(iso, from);
+              const endedAt = buildIsoFromLocal(iso, to, from);
+              createShiftMut.mutate({
                 staffId,
-                staffName,
-                dateIso,
-                from: "",
-                to: "",
-              })
-            }
+                locationId: effectiveLocationId,
+                startedAt,
+                endedAt,
+              });
+            }}
             entriesById={useMemo(() => {
               const m = new Map<string, WeeklyEntry>();
               for (const e of weeklyData?.entries ?? []) m.set(e.id, e);
