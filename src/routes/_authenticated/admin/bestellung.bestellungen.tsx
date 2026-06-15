@@ -152,7 +152,7 @@ function BestellungenPage() {
                     <td className="px-3 py-2 text-muted-foreground">
                       {new Date(o.created_at).toLocaleString("de-DE")}
                     </td>
-                    <td className="px-3 py-2">{suppliersById.get(o.supplier_id) ?? "—"}</td>
+                    <td className="px-3 py-2">{suppliersById.get(o.supplier_id)?.name ?? "—"}</td>
                     <td className="px-3 py-2">
                       <span
                         className={
