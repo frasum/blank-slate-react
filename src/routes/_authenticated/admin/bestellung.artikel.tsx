@@ -200,9 +200,9 @@ function ArtikelPage() {
   });
 
   const onNewUnit = () => {
-    const name = window.prompt("Name der Einheit (z. B. „Kiste")?")?.trim();
+    const name = window.prompt("Name der Einheit (z. B. Kiste)?")?.trim();
     if (!name) return;
-    const abbr = window.prompt("Abkürzung (z. B. „Kr")?")?.trim();
+    const abbr = window.prompt("Abkürzung (z. B. Kr)?")?.trim();
     if (!abbr) return;
     newUnitMut.mutate({ name, abbreviation: abbr });
   };
