@@ -24,6 +24,9 @@ import {
   getAvailability,
   setUnavailable,
   clearUnavailable,
+  getAbsences,
+  setAbsence,
+  clearAbsence,
   listSkills,
   moveRosterShift,
   updateRosterShiftSkill,
@@ -149,6 +152,17 @@ function DienstplanPage() {
       }),
     enabled: !!effectivePeriod,
   });
+  const absenceQ = useQuery({
+    queryKey: ["roster-absence", effectivePeriod?.startDate, effectivePeriod?.endDate],
+    queryFn: () =>
+      getAbsences({
+        data: {
+          fromDate: effectivePeriod!.startDate,
+          toDate: effectivePeriod!.endDate,
+        },
+      }),
+    enabled: !!effectivePeriod,
+  });
 
   // Realtime: jede Änderung an roster_shifts → invalidate (live update).
   useEffect(() => {
@@ -166,6 +180,9 @@ function DienstplanPage() {
           qc.invalidateQueries({ queryKey: ["roster-availability"] });
         },
       )
+      .on("postgres_changes", { event: "*", schema: "public", table: "roster_absence" }, () => {
+        qc.invalidateQueries({ queryKey: ["roster-absence"] });
+      })
       .subscribe();
     return () => {
       void supabase.removeChannel(channel);
@@ -181,6 +198,12 @@ function DienstplanPage() {
     for (const a of unavailable) s.add(`${a.staffId}|${a.date}`);
     return s;
   }, [unavailable]);
+  const absences = useMemo(() => absenceQ.data ?? [], [absenceQ.data]);
+  const absenceSet = useMemo(() => {
+    const s = new Set<string>();
+    for (const a of absences) s.add(`${a.staffId}|${a.date}`);
+    return s;
+  }, [absences]);
   const staffNameById = useMemo(() => {
     const m = new Map<string, string>();
     for (const r of staff) m.set(r.staffId, r.displayName);
@@ -347,6 +370,32 @@ function DienstplanPage() {
     }
   }
 
+  async function handleSetAbsence(staffId: string, iso: string) {
+    if (!canEdit) return;
+    setBusy(true);
+    try {
+      await setAbsence({ data: { staffId, date: iso } });
+      qc.invalidateQueries({ queryKey: ["roster-absence"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleClearAbsence(staffId: string, iso: string) {
+    if (!canEdit) return;
+    setBusy(true);
+    try {
+      await clearAbsence({ data: { staffId, date: iso } });
+      qc.invalidateQueries({ queryKey: ["roster-absence"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="space-y-4">
       <TooltipProvider delayDuration={150}>
@@ -438,6 +487,7 @@ function DienstplanPage() {
               allSkills={allSkills}
               crossBookings={crossBookings}
               unavailableSet={unavailableSet}
+              absenceSet={absenceSet}
               density={density}
               canEdit={canEdit}
               locked={!!periodLocked}
@@ -449,6 +499,8 @@ function DienstplanPage() {
               onChangeStatus={handleChangeStatus}
               onSetUnavailable={handleSetUnavailable}
               onClearUnavailable={handleClearUnavailable}
+              onSetAbsence={handleSetAbsence}
+              onClearAbsence={handleClearAbsence}
             />
           </DndContext>
         )}

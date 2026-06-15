@@ -2,7 +2,7 @@
 // und Schicht anlegen. Profil-Skills oben, weitere darunter.
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { CalendarX, CalendarCheck } from "lucide-react";
+import { CalendarX, CalendarCheck, Umbrella } from "lucide-react";
 import type { RosterSkill } from "@/lib/roster/roster.functions";
 
 type Props = {
@@ -16,6 +16,9 @@ type Props = {
   isUnavailable: boolean;
   onSetUnavailable: () => void;
   onClearUnavailable: () => void;
+  isAbsent: boolean;
+  onSetAbsence: () => void;
+  onClearAbsence: () => void;
 };
 
 export function CellQuickPopover({
@@ -29,6 +32,9 @@ export function CellQuickPopover({
   isUnavailable,
   onSetUnavailable,
   onClearUnavailable,
+  isAbsent,
+  onSetAbsence,
+  onClearAbsence,
 }: Props) {
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
@@ -90,6 +96,16 @@ export function CellQuickPopover({
                 <CalendarX className="mr-1.5 h-3.5 w-3.5" /> Als nicht verfügbar markieren
               </>
             )}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy}
+            onClick={isAbsent ? onClearAbsence : onSetAbsence}
+            className="mt-2 h-7 w-full text-xs"
+          >
+            <Umbrella className="mr-1.5 h-3.5 w-3.5 text-green-600" />
+            {isAbsent ? "Urlaub entfernen" : "Urlaub eintragen"}
           </Button>
         </div>
       </PopoverContent>
