@@ -60,6 +60,7 @@ describe.skipIf(!dbTestsEnabled)("finalize → update vs. correct (DB)", () => {
       channelAmounts: [],
       terminalAmounts: [],
       vouchersSoldCents: 0,
+      guestCount: 0,
       vouchersRedeemedCents: 0,
       finedineVouchersCents: 0,
       opentabsDeductionCents: 0,

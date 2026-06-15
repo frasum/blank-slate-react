@@ -633,6 +633,7 @@ type UpdatePayload = {
   sonstigeEinnahmeCents: number;
   vectronDailyTotalCents: number;
   cashActualCents: number | null;
+  guestCount: number;
   notes: string | null;
 };
 
@@ -671,6 +672,7 @@ function SessionFieldsCard({
     sonstige: string;
     vectron: string;
     cashActual: string;
+    guestCount: string;
     notes: string;
   };
   const initialMisc: Misc = {
@@ -686,6 +688,7 @@ function SessionFieldsCard({
       sess.cash_actual_cents === null || sess.cash_actual_cents === undefined
         ? ""
         : (Number(sess.cash_actual_cents) / 100).toFixed(2),
+    guestCount: String((sess as { guest_count?: number | null }).guest_count ?? 0),
     notes: sess.notes ?? "",
   };
 
@@ -725,6 +728,8 @@ function SessionFieldsCard({
     const ve = parseEuroToCents(misc.vectron);
     const caRaw = misc.cashActual.trim();
     const caParsed = caRaw === "" ? null : parseEuroToCents(caRaw);
+    const gcRaw = misc.guestCount.trim();
+    const gcParsed = gcRaw === "" ? 0 : Number.parseInt(gcRaw, 10);
     if (
       vs === null ||
       vr === null ||
@@ -734,7 +739,9 @@ function SessionFieldsCard({
       ei === null ||
       so === null ||
       ve === null ||
-      (caRaw !== "" && caParsed === null)
+      (caRaw !== "" && caParsed === null) ||
+      !Number.isFinite(gcParsed) ||
+      gcParsed < 0
     )
       return null;
     return {
@@ -749,6 +756,7 @@ function SessionFieldsCard({
       sonstigeEinnahmeCents: so,
       vectronDailyTotalCents: ve,
       cashActualCents: caParsed,
+      guestCount: gcParsed,
       notes: misc.notes.trim() === "" ? null : misc.notes,
     };
   }
@@ -775,6 +783,44 @@ function SessionFieldsCard({
   return (
     <Card className="space-y-4 p-4">
       <div className="text-sm font-medium">Session-Felder</div>
+
+      <Section title="Gäste & Gutscheine">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="space-y-1">
+            <Label htmlFor="sess-guest-count">Gästezahl</Label>
+            <Input
+              id="sess-guest-count"
+              type="number"
+              min={0}
+              step={1}
+              inputMode="numeric"
+              disabled={!writable}
+              value={misc.guestCount}
+              onChange={(e) => setMisc({ ...misc, guestCount: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="sess-vouchers-sold">Gutscheine verkauft (€)</Label>
+            <Input
+              id="sess-vouchers-sold"
+              inputMode="decimal"
+              disabled={!writable}
+              value={misc.vouchersSold}
+              onChange={(e) => setMisc({ ...misc, vouchersSold: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="sess-vouchers-redeemed">Gutscheine eingelöst (€)</Label>
+            <Input
+              id="sess-vouchers-redeemed"
+              inputMode="decimal"
+              disabled={!writable}
+              value={misc.vouchersRedeemed}
+              onChange={(e) => setMisc({ ...misc, vouchersRedeemed: e.target.value })}
+            />
+          </div>
+        </div>
+      </Section>
 
       <Section title="Kanäle">
         {chRows.length === 0 && (
@@ -814,19 +860,7 @@ function SessionFieldsCard({
         ))}
       </Section>
 
-      <Section title="Gutscheine & Sonstiges">
-        <EuroRow
-          label="Gutscheine verkauft"
-          value={misc.vouchersSold}
-          disabled={!writable}
-          onChange={(v) => setMisc({ ...misc, vouchersSold: v })}
-        />
-        <EuroRow
-          label="Gutscheine eingelöst"
-          value={misc.vouchersRedeemed}
-          disabled={!writable}
-          onChange={(v) => setMisc({ ...misc, vouchersRedeemed: v })}
-        />
+      <Section title="Sonstiges">
         <EuroRow
           label="Finedine-Gutscheine"
           value={misc.finedineVouchers}

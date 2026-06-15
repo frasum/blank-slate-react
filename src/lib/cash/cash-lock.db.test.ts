@@ -126,6 +126,7 @@ describe.skipIf(!dbTestsEnabled)("cash lock — Session-Sperre + Wasserlinie (DB
       channelAmounts: [],
       terminalAmounts: [],
       vouchersSoldCents: 0,
+      guestCount: 0,
       vouchersRedeemedCents: 0,
       finedineVouchersCents: 0,
       opentabsDeductionCents: 0,
