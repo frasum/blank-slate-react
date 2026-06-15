@@ -1,9 +1,11 @@
 // Klick in eine leere Zelle ohne aktiven Paint-Modus → Skill wählen
 // und Schicht anlegen. Profil-Skills oben, weitere darunter.
+import * as React from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { CalendarX, CalendarCheck, Umbrella, HeartPulse } from "lucide-react";
 import type { RosterSkill } from "@/lib/roster/roster.functions";
+import { AbsenceRangeForm } from "./AbsenceRangeForm";
 
 type Props = {
   open: boolean;
@@ -17,8 +19,14 @@ type Props = {
   onSetUnavailable: () => void;
   onClearUnavailable: () => void;
   absenceType: "urlaub" | "krank" | null;
-  onSetAbsence: (type: "urlaub" | "krank") => void;
+  onSetAbsenceRange: (
+    fromIso: string,
+    toIso: string,
+    type: "urlaub" | "krank",
+  ) => void | Promise<void>;
   onClearAbsence: () => void;
+  defaultDate: string;
+  staffShiftDates: string[];
 };
 
 export function CellQuickPopover({
@@ -33,9 +41,15 @@ export function CellQuickPopover({
   onSetUnavailable,
   onClearUnavailable,
   absenceType,
-  onSetAbsence,
+  onSetAbsenceRange,
   onClearAbsence,
+  defaultDate,
+  staffShiftDates,
 }: Props) {
+  const [mode, setMode] = React.useState<"menu" | "urlaub" | "krank">("menu");
+  React.useEffect(() => {
+    if (!open) setMode("menu");
+  }, [open]);
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
@@ -45,6 +59,19 @@ export function CellQuickPopover({
         className="w-64 p-3"
         onClick={(e) => e.stopPropagation()}
       >
+        {mode !== "menu" ? (
+          <AbsenceRangeForm
+            type={mode}
+            defaultDate={defaultDate}
+            staffShiftDates={staffShiftDates}
+            busy={busy}
+            onCancel={() => setMode("menu")}
+            onSubmit={async (from, to) => {
+              await onSetAbsenceRange(from, to, mode);
+            }}
+          />
+        ) : (
+          <>
         <div className="mb-2 text-xs font-medium">Schicht anlegen — Skill wählen</div>
         {profileSkills.length > 0 && (
           <div className="mb-2">
@@ -101,7 +128,7 @@ export function CellQuickPopover({
             size="sm"
             variant="outline"
             disabled={busy}
-            onClick={absenceType === "urlaub" ? onClearAbsence : () => onSetAbsence("urlaub")}
+            onClick={absenceType === "urlaub" ? onClearAbsence : () => setMode("urlaub")}
             className="mt-2 h-7 w-full text-xs"
           >
             <Umbrella className="mr-1.5 h-3.5 w-3.5 text-green-600" />
@@ -111,13 +138,15 @@ export function CellQuickPopover({
             size="sm"
             variant="outline"
             disabled={busy}
-            onClick={absenceType === "krank" ? onClearAbsence : () => onSetAbsence("krank")}
+            onClick={absenceType === "krank" ? onClearAbsence : () => setMode("krank")}
             className="mt-2 h-7 w-full text-xs"
           >
             <HeartPulse className="mr-1.5 h-3.5 w-3.5 text-red-600" />
             {absenceType === "krank" ? "Krank entfernen" : "Krank eintragen"}
           </Button>
         </div>
+          </>
+        )}
       </PopoverContent>
     </Popover>
   );
