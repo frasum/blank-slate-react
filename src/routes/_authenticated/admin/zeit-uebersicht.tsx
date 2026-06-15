@@ -10,13 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -428,27 +421,6 @@ function ZeitUebersichtPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // Inline-Edit-Dialog State
-  const [editor, setEditor] = useState<
-    | null
-    | {
-        mode: "edit";
-        id: string;
-        staffName: string;
-        dateIso: string;
-        from: string;
-        to: string;
-      }
-    | {
-        mode: "create";
-        staffId: string;
-        staffName: string;
-        dateIso: string;
-        from: string;
-        to: string;
-      }
-  >(null);
-
   function invalidateWeekly() {
     void qc.invalidateQueries({
       queryKey: ["weekly-entries", effectiveLocationId, weekStart],
@@ -460,7 +432,6 @@ function ZeitUebersichtPage() {
       callSetShift({ data: vars }),
     onSuccess: () => {
       invalidateWeekly();
-      setEditor(null);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -473,7 +444,6 @@ function ZeitUebersichtPage() {
     }) => callCreateShift({ data: vars }),
     onSuccess: () => {
       invalidateWeekly();
-      setEditor(null);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -800,26 +770,26 @@ function ZeitUebersichtPage() {
             isLoading={weeklyLoading}
             weekDays={weekDays}
             isAdmin={isAdmin}
-            onEdit={(e) =>
-              setEditor({
-                mode: "edit",
-                id: e.id,
-                staffName: e.displayName,
-                dateIso: e.businessDate,
-                from: fmtHHMM(e.startedAt),
-                to: fmtHHMM(e.endedAt),
-              })
-            }
-            onCreate={(staffId, staffName, dateIso) =>
-              setEditor({
-                mode: "create",
+            pending={setShiftMut.isPending || createShiftMut.isPending}
+            onUpdateInline={(id, iso, from, to) => {
+              const startedAt = buildIsoFromLocal(iso, from);
+              const endedAt = buildIsoFromLocal(iso, to, from);
+              setShiftMut.mutate({ id, startedAt, endedAt });
+            }}
+            onCreateInline={(staffId, iso, from, to) => {
+              if (!effectiveLocationId) {
+                toast.error("Bitte erst einen Standort wählen.");
+                return;
+              }
+              const startedAt = buildIsoFromLocal(iso, from);
+              const endedAt = buildIsoFromLocal(iso, to, from);
+              createShiftMut.mutate({
                 staffId,
-                staffName,
-                dateIso,
-                from: "",
-                to: "",
-              })
-            }
+                locationId: effectiveLocationId,
+                startedAt,
+                endedAt,
+              });
+            }}
             entriesById={useMemo(() => {
               const m = new Map<string, WeeklyEntry>();
               for (const e of weeklyData?.entries ?? []) m.set(e.id, e);
@@ -1037,27 +1007,6 @@ function ZeitUebersichtPage() {
           />
         </TabsContent>
       </Tabs>
-
-      <ShiftEditorDialog
-        state={editor}
-        onClose={() => setEditor(null)}
-        onSubmit={(from, to) => {
-          if (!editor) return;
-          const startedAt = buildIsoFromLocal(editor.dateIso, from);
-          const endedAt = buildIsoFromLocal(editor.dateIso, to, from);
-          if (editor.mode === "edit") {
-            setShiftMut.mutate({ id: editor.id, startedAt, endedAt });
-          } else {
-            createShiftMut.mutate({
-              staffId: editor.staffId,
-              locationId: effectiveLocationId,
-              startedAt,
-              endedAt,
-            });
-          }
-        }}
-        pending={setShiftMut.isPending || createShiftMut.isPending}
-      />
     </div>
   );
 }
@@ -1197,17 +1146,19 @@ function WeeklyPlan({
   isLoading,
   weekDays,
   isAdmin,
-  onEdit,
-  onCreate,
   entriesById,
+  pending,
+  onUpdateInline,
+  onCreateInline,
 }: {
   input: WeeklyExportInput | null;
   isLoading: boolean;
   weekDays: Date[];
   isAdmin: boolean;
-  onEdit: (entry: WeeklyEntry) => void;
-  onCreate: (staffId: string, staffName: string, dateIso: string) => void;
   entriesById: Map<string, WeeklyEntry>;
+  pending: boolean;
+  onUpdateInline: (id: string, iso: string, from: string, to: string) => void;
+  onCreateInline: (staffId: string, iso: string, from: string, to: string) => void;
 }) {
   // Header-Tagesmeta (Wochentag-Label + Feiertags-Hint)
   const dayMeta = weekDays.map((d) => ({
@@ -1232,6 +1183,76 @@ function WeeklyPlan({
       if (e.staffId === staffId && e.businessDate === iso) out.push(e);
     }
     return out;
+  };
+
+  type EditState = {
+    staffId: string;
+    iso: string;
+    field: "from" | "to";
+    from: string;
+    to: string;
+    existingId: string | null;
+    origFrom: string;
+    origTo: string;
+  };
+  const [edit, setEdit] = useState<EditState | null>(null);
+  const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+  const startEdit = (staffId: string, iso: string, field: "from" | "to") => {
+    if (!isAdmin) return;
+    const found = findEntries(staffId, iso);
+    if (found.length > 1) return;
+    if (found.length === 1) {
+      const f = fmtHHMM(found[0].startedAt);
+      const t = fmtHHMM(found[0].endedAt);
+      setEdit({
+        staffId,
+        iso,
+        field,
+        from: f,
+        to: t,
+        existingId: found[0].id,
+        origFrom: f,
+        origTo: t,
+      });
+    } else {
+      setEdit({
+        staffId,
+        iso,
+        field,
+        from: "15:00",
+        to: "23:00",
+        existingId: null,
+        origFrom: "",
+        origTo: "",
+      });
+    }
+  };
+
+  const cellKey = (staffId: string, iso: string) => `${staffId}|${iso}`;
+
+  const commit = (e: EditState) => {
+    if (!HHMM.test(e.from) || !HHMM.test(e.to)) {
+      toast.error("Ungültige Uhrzeit.");
+      return;
+    }
+    if (e.existingId) {
+      if (e.from === e.origFrom && e.to === e.origTo) return;
+      onUpdateInline(e.existingId, e.iso, e.from, e.to);
+    } else {
+      onCreateInline(e.staffId, e.iso, e.from, e.to);
+    }
+  };
+
+  const handleBlur = (
+    ev: React.FocusEvent<HTMLInputElement>,
+    current: EditState,
+  ) => {
+    const next = ev.relatedTarget as HTMLElement | null;
+    const nextKey = next?.getAttribute?.("data-edit-key");
+    if (nextKey === cellKey(current.staffId, current.iso)) return;
+    commit(current);
+    setEdit(null);
   };
 
   return (
@@ -1335,20 +1356,52 @@ function WeeklyPlan({
                       const cellBg = dm.isHol ? "bg-yellow-50" : dm.isSun ? "bg-gray-50" : "";
                       const empty = day.shifts.length === 0;
                       const clickable = isAdmin;
-                      const handleClick = () => {
-                        if (!clickable) return;
-                        if (empty) {
-                          onCreate(row.staffId, row.displayName, day.iso);
-                          return;
-                        }
-                        const found = findEntries(row.staffId, day.iso);
-                        if (found.length === 1) onEdit(found[0]);
+                      const multi = day.shifts.length > 1;
+                      const isEditingCell =
+                        edit !== null &&
+                        edit.staffId === row.staffId &&
+                        edit.iso === day.iso;
+                      const editable = clickable && !multi;
+                      const handleCellClick = (which: "from" | "to") => {
+                        if (!editable) return;
+                        if (isEditingCell) return;
+                        startEdit(row.staffId, day.iso, which);
                       };
                       const renderShift = (which: "from" | "to") => {
+                        if (isEditingCell) {
+                          const val = which === "from" ? edit.from : edit.to;
+                          return (
+                            <input
+                              type="time"
+                              value={val}
+                              autoFocus={edit.field === which}
+                              disabled={pending}
+                              data-edit-key={cellKey(row.staffId, day.iso)}
+                              onChange={(ev) =>
+                                setEdit({
+                                  ...edit,
+                                  [which]: ev.target.value,
+                                } as EditState)
+                              }
+                              onKeyDown={(ev) => {
+                                if (ev.key === "Enter") {
+                                  ev.preventDefault();
+                                  commit(edit);
+                                  setEdit(null);
+                                } else if (ev.key === "Escape") {
+                                  ev.preventDefault();
+                                  setEdit(null);
+                                }
+                              }}
+                              onBlur={(ev) => handleBlur(ev, edit)}
+                              className={`w-[64px] h-6 px-1 text-center font-mono text-sm rounded border border-primary/50 bg-background ${pending ? "opacity-60" : ""}`}
+                            />
+                          );
+                        }
                         if (empty) {
                           if (day.crossLocation && which === "from")
                             return <span className="text-muted-foreground">×</span>;
-                          if (clickable && which === "from")
+                          if (editable && which === "from")
                             return <span className="text-muted-foreground/40">+</span>;
                           return "";
                         }
@@ -1365,14 +1418,14 @@ function WeeklyPlan({
                       return (
                         <Fragment key={day.iso}>
                           <TableCell
-                            onClick={handleClick}
-                            className={`border-l p-1 text-center align-middle font-mono text-sm ${cellBg} ${clickable ? "cursor-pointer hover:bg-muted/60" : ""}`}
+                            onClick={() => handleCellClick("from")}
+                            className={`border-l p-1 text-center align-middle font-mono text-sm ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
                           >
                             {renderShift("from")}
                           </TableCell>
                           <TableCell
-                            onClick={handleClick}
-                            className={`p-1 text-center align-middle font-mono text-sm ${cellBg} ${clickable ? "cursor-pointer hover:bg-muted/60" : ""}`}
+                            onClick={() => handleCellClick("to")}
+                            className={`p-1 text-center align-middle font-mono text-sm ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
                           >
                             {renderShift("to")}
                           </TableCell>
@@ -1403,101 +1456,6 @@ function WeeklyPlan({
     </Card>
   );
 }
-type EditorState =
-  | { mode: "edit"; id: string; staffName: string; dateIso: string; from: string; to: string }
-  | {
-      mode: "create";
-      staffId: string;
-      staffName: string;
-      dateIso: string;
-      from: string;
-      to: string;
-    };
-
-function ShiftEditorDialog({
-  state,
-  onClose,
-  onSubmit,
-  pending,
-}: {
-  state: EditorState | null;
-  onClose: () => void;
-  onSubmit: (from: string, to: string) => void;
-  pending: boolean;
-}) {
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  const open = state !== null;
-  // Reset Felder bei jedem Öffnen
-  useMemo(() => {
-    if (state) {
-      setFrom(state.from);
-      setTo(state.to);
-    }
-  }, [state]);
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        if (!o) onClose();
-      }}
-    >
-      <DialogContent className="sm:max-w-[360px]">
-        <DialogHeader>
-          <DialogTitle>
-            {state?.mode === "create" ? "Neue Schicht" : "Schicht bearbeiten"}
-          </DialogTitle>
-        </DialogHeader>
-        {state && (
-          <div className="space-y-3">
-            <div className="text-sm text-muted-foreground">
-              {state.staffName} · {state.dateIso}
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label htmlFor="shift-from">Von</Label>
-                <Input
-                  id="shift-from"
-                  type="time"
-                  value={from}
-                  onChange={(e) => setFrom(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="shift-to">Bis</Label>
-                <Input
-                  id="shift-to"
-                  type="time"
-                  value={to}
-                  onChange={(e) => setTo(e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-        )}
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={pending}>
-            Abbrechen
-          </Button>
-          <Button
-            onClick={() => {
-              if (!/^\d{2}:\d{2}$/.test(from) || !/^\d{2}:\d{2}$/.test(to)) {
-                toast.error("Bitte gültige Zeiten eingeben.");
-                return;
-              }
-              onSubmit(from, to);
-            }}
-            disabled={pending}
-          >
-            Speichern
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 type Period = {
   id: string;
   label: string;
