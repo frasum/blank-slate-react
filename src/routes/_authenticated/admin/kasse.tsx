@@ -228,9 +228,8 @@ function KassePage() {
 
   // -------------------- Manuelle Neuanlage --------------------
   const [createSettlement, setCreateSettlement] = useState<CreateState | null>(null);
-  const sessionLocationId = ovQ.data?.session?.location_id ?? null;
   const eligibleStaff = (staffQ.data ?? []).filter(
-    (s) => s.isActive && (sessionLocationId === null || s.locationIds.includes(sessionLocationId)),
+    (s) => s.isActive && (locationId === "" || s.locationIds.includes(locationId)),
   );
   const createSettlementMut = useMutation({
     mutationFn: () => {
