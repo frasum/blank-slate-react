@@ -325,24 +325,9 @@ export function RosterGrid({
                                 await onClearUnavailable(shift.staffId, shift.shiftDate);
                                 setOpenPill(null);
                               }}
-                              isAbsent={isAbsent}
-                              onSetAbsence={async () => {
-                                /* not used: absent map already controls */
-                              }}
-                              onClearAbsence={async () => {
-                                /* not used */
-                              }}
-                            >
-                              <span className="block">
-                                <ShiftPill
-                                  shift={shift}
-                                  area={activeArea}
-                                  draggable={editable}
-                                  density={density}
-                                  onClick={() => void handlePillClick(shift)}
-                                />
-                              </span>
-                            </PillConfirmPopover>
+                              absenceType={absenceType}
+                              onSetAbsence={async (t) => {
+                                await onSetAbsence(shift.staffId, shift.shiftDate, t);
                                 setOpenPill(null);
                               }}
                               onClearAbsence={async () => {
@@ -386,9 +371,9 @@ export function RosterGrid({
                                 await onClearUnavailable(row.staffId, iso);
                                 setOpenCell(null);
                               }}
-                              isAbsent={isAbsent}
-                              onSetAbsence={async () => {
-                                await onSetAbsence(row.staffId, iso);
+                              absenceType={absenceType}
+                              onSetAbsence={async (t) => {
+                                await onSetAbsence(row.staffId, iso, t);
                                 setOpenCell(null);
                               }}
                               onClearAbsence={async () => {
