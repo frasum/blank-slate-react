@@ -25,7 +25,6 @@ import {
   setUnavailable,
   clearUnavailable,
   getAbsences,
-  setAbsence,
   setAbsenceRange,
   clearAbsence,
   listSkills,
