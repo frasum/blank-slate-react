@@ -97,6 +97,26 @@ type CorrectState = {
   reason: string;
 };
 
+type CreateState = {
+  staffId: string;
+  posSales: string;
+  cardTotal: string;
+  hilfMahl: string;
+  openInvoices: string;
+  cashHandedIn: string;
+  reason: string;
+};
+
+const EMPTY_CREATE: CreateState = {
+  staffId: "",
+  posSales: "",
+  cardTotal: "",
+  hilfMahl: "",
+  openInvoices: "",
+  cashHandedIn: "",
+  reason: "",
+};
+
 function KassePage() {
   const { identity } = Route.useRouteContext();
   const isAdmin = identity.role === "admin";
