@@ -654,6 +654,7 @@ const updateSessionSchema = z.object({
   sonstigeEinnahmeCents: z.number().int().default(0),
   vectronDailyTotalCents: z.number().int().optional(),
   cashActualCents: z.number().int().nullable().optional(),
+  guestCount: z.number().int().nonnegative().default(0),
   notes: z.string().max(2000).nullable().default(null),
 });
 
@@ -693,6 +694,7 @@ export async function updateSessionCore(caller: AdminCaller, data: UpdateSession
         sonstige_einnahme_cents: data.sonstigeEinnahmeCents,
         vectron_daily_total_cents: data.vectronDailyTotalCents ?? 0,
         cash_actual_cents: data.cashActualCents ?? null,
+        guest_count: data.guestCount,
         notes: data.notes,
       })
       .eq("id", session.id)
