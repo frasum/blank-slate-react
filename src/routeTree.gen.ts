@@ -34,6 +34,7 @@ import { Route as AuthenticatedAdminStaffNewRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminStaffStaffIdRouteImport } from './routes/_authenticated/admin/staff.$staffId'
 import { Route as AuthenticatedAdminBestellungWarenkorbRouteImport } from './routes/_authenticated/admin/bestellung.warenkorb'
 import { Route as AuthenticatedAdminBestellungLieferantenRouteImport } from './routes/_authenticated/admin/bestellung.lieferanten'
+import { Route as AuthenticatedAdminBestellungInventurRouteImport } from './routes/_authenticated/admin/bestellung.inventur'
 import { Route as AuthenticatedAdminBestellungBestellungenRouteImport } from './routes/_authenticated/admin/bestellung.bestellungen'
 import { Route as AuthenticatedAdminBestellungArtikelRouteImport } from './routes/_authenticated/admin/bestellung.artikel'
 
@@ -176,6 +177,12 @@ const AuthenticatedAdminBestellungLieferantenRoute =
     path: '/lieferanten',
     getParentRoute: () => AuthenticatedAdminBestellungRoute,
   } as any)
+const AuthenticatedAdminBestellungInventurRoute =
+  AuthenticatedAdminBestellungInventurRouteImport.update({
+    id: '/inventur',
+    path: '/inventur',
+    getParentRoute: () => AuthenticatedAdminBestellungRoute,
+  } as any)
 const AuthenticatedAdminBestellungBestellungenRoute =
   AuthenticatedAdminBestellungBestellungenRouteImport.update({
     id: '/bestellungen',
@@ -209,6 +216,7 @@ export interface FileRoutesByFullPath {
   '/zeit/': typeof AuthenticatedZeitIndexRoute
   '/admin/bestellung/artikel': typeof AuthenticatedAdminBestellungArtikelRoute
   '/admin/bestellung/bestellungen': typeof AuthenticatedAdminBestellungBestellungenRoute
+  '/admin/bestellung/inventur': typeof AuthenticatedAdminBestellungInventurRoute
   '/admin/bestellung/lieferanten': typeof AuthenticatedAdminBestellungLieferantenRoute
   '/admin/bestellung/warenkorb': typeof AuthenticatedAdminBestellungWarenkorbRoute
   '/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
@@ -234,6 +242,7 @@ export interface FileRoutesByTo {
   '/zeit': typeof AuthenticatedZeitIndexRoute
   '/admin/bestellung/artikel': typeof AuthenticatedAdminBestellungArtikelRoute
   '/admin/bestellung/bestellungen': typeof AuthenticatedAdminBestellungBestellungenRoute
+  '/admin/bestellung/inventur': typeof AuthenticatedAdminBestellungInventurRoute
   '/admin/bestellung/lieferanten': typeof AuthenticatedAdminBestellungLieferantenRoute
   '/admin/bestellung/warenkorb': typeof AuthenticatedAdminBestellungWarenkorbRoute
   '/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
@@ -264,6 +273,7 @@ export interface FileRoutesById {
   '/_authenticated/zeit/': typeof AuthenticatedZeitIndexRoute
   '/_authenticated/admin/bestellung/artikel': typeof AuthenticatedAdminBestellungArtikelRoute
   '/_authenticated/admin/bestellung/bestellungen': typeof AuthenticatedAdminBestellungBestellungenRoute
+  '/_authenticated/admin/bestellung/inventur': typeof AuthenticatedAdminBestellungInventurRoute
   '/_authenticated/admin/bestellung/lieferanten': typeof AuthenticatedAdminBestellungLieferantenRoute
   '/_authenticated/admin/bestellung/warenkorb': typeof AuthenticatedAdminBestellungWarenkorbRoute
   '/_authenticated/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
@@ -294,6 +304,7 @@ export interface FileRouteTypes {
     | '/zeit/'
     | '/admin/bestellung/artikel'
     | '/admin/bestellung/bestellungen'
+    | '/admin/bestellung/inventur'
     | '/admin/bestellung/lieferanten'
     | '/admin/bestellung/warenkorb'
     | '/admin/staff/$staffId'
@@ -319,6 +330,7 @@ export interface FileRouteTypes {
     | '/zeit'
     | '/admin/bestellung/artikel'
     | '/admin/bestellung/bestellungen'
+    | '/admin/bestellung/inventur'
     | '/admin/bestellung/lieferanten'
     | '/admin/bestellung/warenkorb'
     | '/admin/staff/$staffId'
@@ -348,6 +360,7 @@ export interface FileRouteTypes {
     | '/_authenticated/zeit/'
     | '/_authenticated/admin/bestellung/artikel'
     | '/_authenticated/admin/bestellung/bestellungen'
+    | '/_authenticated/admin/bestellung/inventur'
     | '/_authenticated/admin/bestellung/lieferanten'
     | '/_authenticated/admin/bestellung/warenkorb'
     | '/_authenticated/admin/staff/$staffId'
@@ -541,6 +554,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminBestellungLieferantenRouteImport
       parentRoute: typeof AuthenticatedAdminBestellungRoute
     }
+    '/_authenticated/admin/bestellung/inventur': {
+      id: '/_authenticated/admin/bestellung/inventur'
+      path: '/inventur'
+      fullPath: '/admin/bestellung/inventur'
+      preLoaderRoute: typeof AuthenticatedAdminBestellungInventurRouteImport
+      parentRoute: typeof AuthenticatedAdminBestellungRoute
+    }
     '/_authenticated/admin/bestellung/bestellungen': {
       id: '/_authenticated/admin/bestellung/bestellungen'
       path: '/bestellungen'
@@ -561,6 +581,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedAdminBestellungRouteChildren {
   AuthenticatedAdminBestellungArtikelRoute: typeof AuthenticatedAdminBestellungArtikelRoute
   AuthenticatedAdminBestellungBestellungenRoute: typeof AuthenticatedAdminBestellungBestellungenRoute
+  AuthenticatedAdminBestellungInventurRoute: typeof AuthenticatedAdminBestellungInventurRoute
   AuthenticatedAdminBestellungLieferantenRoute: typeof AuthenticatedAdminBestellungLieferantenRoute
   AuthenticatedAdminBestellungWarenkorbRoute: typeof AuthenticatedAdminBestellungWarenkorbRoute
   AuthenticatedAdminBestellungIndexRoute: typeof AuthenticatedAdminBestellungIndexRoute
@@ -572,6 +593,8 @@ const AuthenticatedAdminBestellungRouteChildren: AuthenticatedAdminBestellungRou
       AuthenticatedAdminBestellungArtikelRoute,
     AuthenticatedAdminBestellungBestellungenRoute:
       AuthenticatedAdminBestellungBestellungenRoute,
+    AuthenticatedAdminBestellungInventurRoute:
+      AuthenticatedAdminBestellungInventurRoute,
     AuthenticatedAdminBestellungLieferantenRoute:
       AuthenticatedAdminBestellungLieferantenRoute,
     AuthenticatedAdminBestellungWarenkorbRoute:
