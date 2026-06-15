@@ -282,10 +282,10 @@ export function RosterGrid({
                       const we = isWeekendIso(iso);
                       const isToday = iso === today;
                       const others = !shift
-                        ? (otherByStaffDate.get(`${row.staffId}|${iso}`) ?? []).filter(
-                            (b) => !(b.locationId && b.area === activeArea),
-                          )
+                        ? (otherByStaffDate.get(`${row.staffId}|${iso}`) ?? [])
                         : [];
+                      const pickedSkills = skillsForCell(row, activeArea, allSkills);
+                      const candidates = [...pickedSkills.profile, ...pickedSkills.other];
                       return (
                         <DropCell
                           key={iso}
@@ -302,9 +302,7 @@ export function RosterGrid({
                               open={openPill === shift.id}
                               onOpenChange={(o) => setOpenPill(o ? shift.id : null)}
                               shift={shift}
-                              candidates={skillsForCell(row, activeArea, allSkills).profile.concat(
-                                skillsForCell(row, activeArea, allSkills).other,
-                              )}
+                              candidates={candidates}
                               busy={busy}
                               onChangeSkill={async (sid) => {
                                 await onChangeSkill(shift.id, sid);
