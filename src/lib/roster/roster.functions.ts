@@ -543,3 +543,100 @@ export const moveRosterShift = createServerFn({ method: "POST" })
       };
     });
   });
+
+// =========================================================================
+// D2f — Verfügbarkeiten (mitarbeiterweit, ohne Standortbezug)
+// =========================================================================
+
+export const getAvailability = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }): Promise<RosterAvailability[]> => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, READ_ROLES);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin
+      .from("roster_availability")
+      .select("staff_id, date")
+      .eq("organization_id", caller.organizationId)
+      .gte("date", data.fromDate)
+      .lte("date", data.toDate);
+    if (error) throw error;
+    return (rows ?? []).map((r) => ({
+      staffId: r.staff_id as string,
+      date: r.date as string,
+    }));
+  });
+
+export const setUnavailable = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        staffId: z.string().uuid(),
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
+    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { error } = await supabaseAdmin.from("roster_availability").upsert(
+        {
+          organization_id: caller.organizationId,
+          staff_id: data.staffId,
+          date: data.date,
+          type: "unavailable",
+        },
+        { onConflict: "staff_id,date", ignoreDuplicates: true },
+      );
+      if (error) throw error;
+      return {
+        result: { ok: true as const },
+        audit: {
+          action: "roster_availability.set",
+          entity: "roster_availability",
+          meta: { staffId: data.staffId, date: data.date, type: "unavailable" },
+        },
+      };
+    });
+  });
+
+export const clearUnavailable = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        staffId: z.string().uuid(),
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
+    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { error } = await supabaseAdmin
+        .from("roster_availability")
+        .delete()
+        .eq("organization_id", caller.organizationId)
+        .eq("staff_id", data.staffId)
+        .eq("date", data.date);
+      if (error) throw error;
+      return {
+        result: { ok: true as const },
+        audit: {
+          action: "roster_availability.clear",
+          entity: "roster_availability",
+          meta: { staffId: data.staffId, date: data.date },
+        },
+      };
+    });
+  });
