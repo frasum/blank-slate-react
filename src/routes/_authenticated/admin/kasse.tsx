@@ -790,13 +790,36 @@ function SessionFieldsCard({
   terminals,
   writable,
   onSave,
+  expenses,
+  advances,
+  staff,
+  onAddExpense,
+  onRemoveExpense,
+  onAddAdvance,
+  onRemoveAdvance,
 }: {
   sessionId: string;
   overview: Overview;
-  channels: { id: string; label: string; isActive: boolean }[];
+  channels: { id: string; label: string; kind: string; isActive: boolean }[];
   terminals: { id: string; label: string; isActive: boolean }[];
   writable: boolean;
   onSave: (data: UpdatePayload) => Promise<unknown>;
+  expenses: Array<{ id: string; description: string | null; amountCents: number }>;
+  advances: Array<{
+    id: string;
+    staffId: string;
+    amountCents: number;
+    note: string | null;
+  }>;
+  staff: { id: string; displayName: string }[];
+  onAddExpense: (description: string, amountCents: number) => Promise<unknown>;
+  onRemoveExpense: (id: string) => Promise<unknown>;
+  onAddAdvance: (
+    staffId: string,
+    amountCents: number,
+    note: string | null,
+  ) => Promise<unknown>;
+  onRemoveAdvance: (id: string) => Promise<unknown>;
 }) {
   type Row = { id: string; euro: string };
   const initialChannels: Row[] = channels.map((c) => {
