@@ -152,6 +152,54 @@ export type Database = {
           },
         ]
       }
+      display_settings: {
+        Row: {
+          created_at: string
+          display_token: string
+          id: string
+          is_enabled: boolean
+          location_id: string
+          organization_id: string
+          refresh_interval_seconds: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_token?: string
+          id?: string
+          is_enabled?: boolean
+          location_id: string
+          organization_id: string
+          refresh_interval_seconds?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_token?: string
+          id?: string
+          is_enabled?: boolean
+          location_id?: string
+          organization_id?: string
+          refresh_interval_seconds?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "display_settings_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: true
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "display_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       import_runs: {
         Row: {
           counters: Json
