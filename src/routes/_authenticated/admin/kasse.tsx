@@ -527,7 +527,13 @@ function KassePage() {
             }
           />
 
-          <TipPoolCard sessionId={sessionId!} hasSettlements={ovQ.data.settlements.length > 0} />
+          <TipPoolCard
+            sessionId={sessionId!}
+            locationId={locationId}
+            hasSettlements={ovQ.data.settlements.length > 0}
+            editable={correctable}
+            staffList={staffQ.data ?? []}
+          />
 
           <Card className="flex flex-wrap gap-3 p-4">
             <Button
