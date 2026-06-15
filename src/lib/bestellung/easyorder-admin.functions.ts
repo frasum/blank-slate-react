@@ -90,9 +90,7 @@ export async function listEasyOrderAccessCore(
   return (staff ?? []).map((s) => ({
     staffId: s.id,
     staffName: s.display_name,
-    entries: (byStaff.get(s.id) ?? []).sort((x, y) =>
-      x.locationName.localeCompare(y.locationName),
-    ),
+    entries: (byStaff.get(s.id) ?? []).sort((x, y) => x.locationName.localeCompare(y.locationName)),
   }));
 }
 
@@ -133,18 +131,16 @@ export async function grantEasyOrderAccessCore(
   await assertStaffInOrg(admin, organizationId, input.staffId);
   await assertLocationInOrg(admin, organizationId, input.locationId);
 
-  const { error } = await admin
-    .from("staff_easyorder_access")
-    .upsert(
-      {
-        organization_id: organizationId,
-        staff_id: input.staffId,
-        location_id: input.locationId,
-        can_add_free_items: input.canAddFreeItems,
-        is_active: input.isActive,
-      },
-      { onConflict: "staff_id,location_id" },
-    );
+  const { error } = await admin.from("staff_easyorder_access").upsert(
+    {
+      organization_id: organizationId,
+      staff_id: input.staffId,
+      location_id: input.locationId,
+      can_add_free_items: input.canAddFreeItems,
+      is_active: input.isActive,
+    },
+    { onConflict: "staff_id,location_id" },
+  );
   if (error) throw new Error(error.message);
   return { ok: true };
 }

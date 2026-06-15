@@ -68,8 +68,7 @@ function EasyOrderAdminPage() {
     queryFn: () => listSuppliers({ data: {} }),
   });
 
-  const invalidate = () =>
-    qc.invalidateQueries({ queryKey: ["easyorder-admin", "access"] });
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["easyorder-admin", "access"] });
 
   const grantMut = useMutation({
     mutationFn: (input: Parameters<typeof callGrant>[0]) => callGrant(input),
@@ -88,20 +87,19 @@ function EasyOrderAdminPage() {
     grantMut.error ?? revokeMut.error ?? whitelistMut.error ?? accessQ.error ?? null;
 
   const [addOpen, setAddOpen] = useState(false);
-  const [revokeTarget, setRevokeTarget] = useState<
-    | { staffId: string; staffName: string; locationId: string; locationName: string }
-    | null
-  >(null);
-  const [whitelistTarget, setWhitelistTarget] = useState<
-    | {
-        staffId: string;
-        staffName: string;
-        locationId: string;
-        locationName: string;
-        current: string[];
-      }
-    | null
-  >(null);
+  const [revokeTarget, setRevokeTarget] = useState<{
+    staffId: string;
+    staffName: string;
+    locationId: string;
+    locationName: string;
+  } | null>(null);
+  const [whitelistTarget, setWhitelistTarget] = useState<{
+    staffId: string;
+    staffName: string;
+    locationId: string;
+    locationName: string;
+    current: string[];
+  } | null>(null);
 
   const staff = staffQ.data ?? [];
   const locations = locationsQ.data ?? [];
@@ -133,9 +131,7 @@ function EasyOrderAdminPage() {
       {accessQ.isLoading ? (
         <p className="text-sm text-muted-foreground">Lädt …</p>
       ) : access.filter((r) => r.entries.length > 0).length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          Noch keine EasyOrder-Zugriffe vergeben.
-        </p>
+        <p className="text-sm text-muted-foreground">Noch keine EasyOrder-Zugriffe vergeben.</p>
       ) : (
         <div className="rounded-md border border-border">
           <Table>
@@ -238,10 +234,7 @@ function EasyOrderAdminPage() {
           locations={locations}
           onClose={() => setAddOpen(false)}
           onSubmit={(input) => {
-            grantMut.mutate(
-              { data: input },
-              { onSuccess: () => setAddOpen(false) },
-            );
+            grantMut.mutate({ data: input }, { onSuccess: () => setAddOpen(false) });
           }}
           submitting={grantMut.isPending}
         />
@@ -254,8 +247,8 @@ function EasyOrderAdminPage() {
               <DialogTitle>Zugriff widerrufen?</DialogTitle>
               <DialogDescription>
                 {revokeTarget.staffName} verliert den EasyOrder-Zugriff für{" "}
-                {revokeTarget.locationName}. Die Lieferanten-Whitelist für diesen Standort
-                wird ebenfalls entfernt.
+                {revokeTarget.locationName}. Die Lieferanten-Whitelist für diesen Standort wird
+                ebenfalls entfernt.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
@@ -376,9 +369,7 @@ function AddAccessDialog(props: {
           </Button>
           <Button
             disabled={!canSubmit || props.submitting}
-            onClick={() =>
-              props.onSubmit({ staffId, locationId, canAddFreeItems, isActive: true })
-            }
+            onClick={() => props.onSubmit({ staffId, locationId, canAddFreeItems, isActive: true })}
           >
             Speichern
           </Button>
@@ -434,10 +425,7 @@ function WhitelistDialog(props: {
                 key={s.id}
                 className="flex cursor-pointer items-center gap-3 rounded border border-border px-3 py-2 hover:bg-accent"
               >
-                <Checkbox
-                  checked={selected.has(s.id)}
-                  onCheckedChange={() => toggle(s.id)}
-                />
+                <Checkbox checked={selected.has(s.id)} onCheckedChange={() => toggle(s.id)} />
                 <span className="text-sm">{s.name}</span>
               </label>
             ))
@@ -447,10 +435,7 @@ function WhitelistDialog(props: {
           <Button variant="outline" onClick={props.onClose}>
             Abbrechen
           </Button>
-          <Button
-            disabled={props.submitting}
-            onClick={() => props.onSubmit(Array.from(selected))}
-          >
+          <Button disabled={props.submitting} onClick={() => props.onSubmit(Array.from(selected))}>
             Speichern ({selected.size === 0 ? "alle" : selected.size})
           </Button>
         </DialogFooter>
