@@ -431,6 +431,7 @@ function DropCell({
   paintKind,
   unavailable,
   hasShift,
+  absent,
   children,
 }: {
   staffId: string;
@@ -442,6 +443,7 @@ function DropCell({
   paintKind: "skill" | "eraser" | null;
   unavailable: boolean;
   hasShift: boolean;
+  absent: boolean;
   children: React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({
@@ -451,9 +453,12 @@ function DropCell({
   });
   const cursor =
     paintKind === "skill" ? "cursor-crosshair" : paintKind === "eraser" ? "cursor-not-allowed" : "";
+  // Urlaub hat Vorrang vor der grauen Unavailable-Box, wenn beides leer ist.
   // Nicht-verfügbar wird als dezente, gefüllte graue Box dargestellt – aber nur,
-  // wenn die Zelle leer ist. Liegt eine Schicht-Pille drin, gewinnt die Pille.
-  const showUnavailableBox = unavailable && !hasShift;
+  // wenn die Zelle leer ist UND kein Urlaub markiert ist. Pille gewinnt sonst.
+  const showUnavailableBox = unavailable && !hasShift && !absent;
+  const showAbsenceFull = absent && !hasShift;
+  const showAbsenceCorner = absent && hasShift;
   // Hat die Zelle SOWOHL eine Schicht ALS AUCH den Unavailability-Marker, sollen
   // beide Infos lesbar bleiben: gestrichelter Rahmen über der Pille + grauer
   // Punkt unten links (analog zum roten Cross-Booking-Punkt oben rechts).
@@ -478,7 +483,33 @@ function DropCell({
           }}
         />
       ) : null}
+      {showAbsenceFull ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center"
+            >
+              <Umbrella className="h-4 w-4 text-green-600" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>Urlaub</TooltipContent>
+        </Tooltip>
+      ) : null}
       {children}
+      {showAbsenceCorner ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute left-0.5 top-0.5 z-20"
+            >
+              <Umbrella className="h-3 w-3 text-green-600" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>Urlaub</TooltipContent>
+        </Tooltip>
+      ) : null}
       {showUnavailableOnShift ? (
         <>
           <span
