@@ -195,67 +195,65 @@ function LieferantenPage() {
               </tr>
             </thead>
             <tbody>
-              {q.data.map((s) => (
-                <tr key={s.id} className="border-t border-border align-top">
-                  <td className="px-3 py-2 font-medium text-foreground">{s.name}</td>
-                  <td className="px-3 py-2 text-muted-foreground">{s.email ?? "—"}</td>
-                  <td className="px-3 py-2 text-muted-foreground">
-                    {(s.delivery_days ?? []).join(", ") || "—"}
-                  </td>
-                  <td className="px-3 py-2 text-muted-foreground">{fmtTime(s.order_deadline)}</td>
-                  <td className="px-3 py-2 text-muted-foreground">{fmtEuro(s.min_order_value_cents)}</td>
-                  <td className="px-3 py-2">
-                    <button
-                      onClick={() => toggleMut.mutate({ id: s.id, isActive: !s.is_active })}
-                      className={
-                        s.is_active
-                          ? "rounded bg-green-100 px-2 py-0.5 text-xs text-green-800 dark:bg-green-900/30 dark:text-green-300"
-                          : "rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground"
-                      }
-                    >
-                      {s.is_active ? "aktiv" : "inaktiv"}
-                    </button>
-                  </td>
-                  <td className="px-3 py-2 text-right">
-                    <button
-                      onClick={() => setEditingId(editingId === s.id ? null : s.id)}
-                      className="rounded border border-input bg-background px-2 py-1 text-xs hover:bg-accent"
-                    >
-                      {editingId === s.id ? "Schließen" : "Bearbeiten"}
-                    </button>
-                  </td>
-                </tr>
-              )).flatMap((tr, i) => {
-                const supplier = q.data[i];
-                if (editingId !== supplier.id) return [tr];
+              {q.data.flatMap((s) => {
+                const row = (
+                  <tr key={s.id} className="border-t border-border align-top">
+                    <td className="px-3 py-2 font-medium text-foreground">{s.name}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{s.email ?? "—"}</td>
+                    <td className="px-3 py-2 text-muted-foreground">
+                      {(s.delivery_days ?? []).join(", ") || "—"}
+                    </td>
+                    <td className="px-3 py-2 text-muted-foreground">{fmtTime(s.order_deadline)}</td>
+                    <td className="px-3 py-2 text-muted-foreground">
+                      {fmtEuro(s.min_order_value_cents)}
+                    </td>
+                    <td className="px-3 py-2">
+                      <button
+                        onClick={() => toggleMut.mutate({ id: s.id, isActive: !s.is_active })}
+                        className={
+                          s.is_active
+                            ? "rounded bg-green-100 px-2 py-0.5 text-xs text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                            : "rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+                        }
+                      >
+                        {s.is_active ? "aktiv" : "inaktiv"}
+                      </button>
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      <button
+                        onClick={() => setEditingId(editingId === s.id ? null : s.id)}
+                        className="rounded border border-input bg-background px-2 py-1 text-xs hover:bg-accent"
+                      >
+                        {editingId === s.id ? "Schließen" : "Bearbeiten"}
+                      </button>
+                    </td>
+                  </tr>
+                );
+                if (editingId !== s.id) return [row];
                 return [
-                  tr,
-                  <tr key={supplier.id + "-edit"} className="border-t border-border bg-muted/20">
+                  row,
+                  <tr key={s.id + "-edit"} className="border-t border-border bg-muted/20">
                     <td colSpan={7} className="px-3 py-4">
                       <SupplierForm
                         initial={{
-                          name: supplier.name,
-                          email: supplier.email ?? "",
-                          phone: supplier.phone ?? "",
-                          address: supplier.address ?? "",
-                          customerNumber: supplier.customer_number ?? "",
-                          contactPerson: supplier.contact_person ?? "",
-                          notes: supplier.notes ?? "",
-                          deliveryDays: supplier.delivery_days ?? [],
-                          orderDeadline: supplier.order_deadline
-                            ? supplier.order_deadline.slice(0, 5)
-                            : "",
+                          name: s.name,
+                          email: s.email ?? "",
+                          phone: s.phone ?? "",
+                          address: s.address ?? "",
+                          customerNumber: s.customer_number ?? "",
+                          contactPerson: s.contact_person ?? "",
+                          notes: s.notes ?? "",
+                          deliveryDays: s.delivery_days ?? [],
+                          orderDeadline: s.order_deadline ? s.order_deadline.slice(0, 5) : "",
                           minOrderValueEuro:
-                            supplier.min_order_value_cents != null
-                              ? (supplier.min_order_value_cents / 100)
-                                  .toFixed(2)
-                                  .replace(".", ",")
+                            s.min_order_value_cents != null
+                              ? (s.min_order_value_cents / 100).toFixed(2).replace(".", ",")
                               : "",
-                          sortOrder: supplier.sort_order ?? 0,
+                          sortOrder: s.sort_order ?? 0,
                         }}
                         submitLabel="Speichern"
                         submitting={updateMut.isPending}
-                        onSubmit={(d) => updateMut.mutate({ id: supplier.id, draft: d })}
+                        onSubmit={(d) => updateMut.mutate({ id: s.id, draft: d })}
                         onCancel={() => setEditingId(null)}
                       />
                     </td>
