@@ -390,14 +390,16 @@ export function RosterGrid({
                                 setOpenCell(null);
                               }}
                               absenceType={absenceType}
-                              onSetAbsence={async (t) => {
-                                await onSetAbsence(row.staffId, iso, t);
+                              onSetAbsenceRange={async (from, to, t) => {
+                                await onSetAbsenceRange(row.staffId, from, to, t);
                                 setOpenCell(null);
                               }}
                               onClearAbsence={async () => {
                                 await onClearAbsence(row.staffId, iso);
                                 setOpenCell(null);
                               }}
+                              defaultDate={iso}
+                              staffShiftDates={shiftDatesByStaff.get(row.staffId) ?? []}
                             />
                           )}
                         </DropCell>
