@@ -455,7 +455,7 @@ function DienstplanPage() {
               >
                 {periods.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.label} ({p.startDate} – {p.endDate})
+                    {p.label}
                   </option>
                 ))}
               </select>
