@@ -7,13 +7,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import {
-  DndContext,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from "@dnd-kit/core";
+import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { Card } from "@/components/ui/card";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
@@ -180,12 +174,7 @@ function DienstplanPage() {
   // Filter-Chips zeigen ebenfalls nur Skills der aktiven Area-Kategorien.
   const filterSkills = paintSkills;
 
-  async function handleCreate(
-    staffId: string,
-    iso: string,
-    area: GridArea,
-    skillId: string,
-  ) {
+  async function handleCreate(staffId: string, iso: string, area: GridArea, skillId: string) {
     if (!canEdit || periodLocked || !effectiveLocationId) return;
     setBusy(true);
     try {

@@ -63,9 +63,7 @@ export function CellQuickPopover({
           </div>
         )}
         {profileSkills.length === 0 && otherSkills.length === 0 && (
-          <span className="text-xs text-muted-foreground">
-            Keine passenden Skills hinterlegt.
-          </span>
+          <span className="text-xs text-muted-foreground">Keine passenden Skills hinterlegt.</span>
         )}
       </PopoverContent>
     </Popover>

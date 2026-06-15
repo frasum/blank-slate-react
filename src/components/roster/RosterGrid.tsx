@@ -76,12 +76,7 @@ type Props = {
   locked: boolean;
   paint: PaintSelection;
   busy: boolean;
-  onCreate: (
-    staffId: string,
-    iso: string,
-    area: GridArea,
-    skillId: string,
-  ) => Promise<void> | void;
+  onCreate: (staffId: string, iso: string, area: GridArea, skillId: string) => Promise<void> | void;
   onDelete: (id: string) => Promise<void> | void;
   onChangeSkill: (id: string, skillId: string) => Promise<void> | void;
   onChangeStatus: (id: string, status: "planned" | "confirmed") => Promise<void> | void;
@@ -337,9 +332,7 @@ export function RosterGrid({
                               busy={busy}
                               paintActive={paint !== null}
                               open={openCell === `${row.staffId}|${iso}`}
-                              onOpenChange={(o) =>
-                                setOpenCell(o ? `${row.staffId}|${iso}` : null)
-                              }
+                              onOpenChange={(o) => setOpenCell(o ? `${row.staffId}|${iso}` : null)}
                               onPick={async (skillId) => {
                                 await onCreate(row.staffId, iso, activeArea, skillId);
                                 setOpenCell(null);
@@ -414,11 +407,7 @@ function DropCell({
     disabled: !editable,
   });
   const cursor =
-    paintKind === "skill"
-      ? "cursor-crosshair"
-      : paintKind === "eraser"
-        ? "cursor-not-allowed"
-        : "";
+    paintKind === "skill" ? "cursor-crosshair" : paintKind === "eraser" ? "cursor-not-allowed" : "";
   return (
     <td
       ref={setNodeRef}
@@ -474,9 +463,7 @@ function EmptyCell({
       aria-label={`Schicht anlegen: ${row.displayName}, ${iso}`}
       className={cn(
         "mx-auto block h-6 w-10 rounded border border-dashed bg-transparent",
-        editable
-          ? "border-muted-foreground/30 hover:border-primary"
-          : "border-transparent",
+        editable ? "border-muted-foreground/30 hover:border-primary" : "border-transparent",
       )}
     />
   );
