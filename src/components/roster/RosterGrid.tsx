@@ -69,7 +69,12 @@ type Props = {
   onChangeStatus: (id: string, status: "planned" | "confirmed") => Promise<void> | void;
   onSetUnavailable: (staffId: string, iso: string) => Promise<void> | void;
   onClearUnavailable: (staffId: string, iso: string) => Promise<void> | void;
-  onSetAbsence: (staffId: string, iso: string, type: "urlaub" | "krank") => Promise<void> | void;
+  onSetAbsenceRange: (
+    staffId: string,
+    fromIso: string,
+    toIso: string,
+    type: "urlaub" | "krank",
+  ) => Promise<void> | void;
   onClearAbsence: (staffId: string, iso: string) => Promise<void> | void;
 };
 
@@ -95,7 +100,7 @@ export function RosterGrid({
   onChangeStatus,
   onSetUnavailable,
   onClearUnavailable,
-  onSetAbsence,
+  onSetAbsenceRange,
   onClearAbsence,
 }: Props) {
   const [openCell, setOpenCell] = React.useState<string | null>(null);
