@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { cancelOrder, getOrder, listOrders } from "@/lib/bestellung/orders.functions";
+import { cancelOrder, getOrder, listOrders, sendOrderEmail } from "@/lib/bestellung/orders.functions";
 import { listSuppliers } from "@/lib/bestellung/suppliers.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/bestellung/bestellungen")({
@@ -33,6 +33,7 @@ function fmtEuro(cents: number | null | undefined): string {
 function BestellungenPage() {
   const qc = useQueryClient();
   const callCancel = useServerFn(cancelOrder);
+  const callSend = useServerFn(sendOrderEmail);
 
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [supplierFilter, setSupplierFilter] = useState<string>("");
@@ -60,8 +61,8 @@ function BestellungenPage() {
   });
 
   const suppliersById = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const s of suppliersQ.data ?? []) m.set(s.id, s.name);
+    const m = new Map<string, { name: string; email: string | null }>();
+    for (const s of suppliersQ.data ?? []) m.set(s.id, { name: s.name, email: s.email });
     return m;
   }, [suppliersQ.data]);
 
@@ -70,6 +71,20 @@ function BestellungenPage() {
     onSuccess: () => {
       setMsg("Bestellung storniert.");
       qc.invalidateQueries({ queryKey: ["bestellung", "orders"] });
+    },
+    onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
+  });
+
+  const sendMut = useMutation({
+    mutationFn: (orderId: string) => callSend({ data: { orderId } }),
+    onSuccess: (_res, orderId) => {
+      const supplierName = (() => {
+        const o = ordersQ.data?.find((x) => x.id === orderId);
+        return o ? suppliersById.get(o.supplier_id)?.name ?? "Lieferant" : "Lieferant";
+      })();
+      setMsg(`Bestellung an ${supplierName} gesendet.`);
+      qc.invalidateQueries({ queryKey: ["bestellung", "orders"] });
+      qc.invalidateQueries({ queryKey: ["bestellung", "order"] });
     },
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
   });
@@ -158,12 +173,31 @@ function BestellungenPage() {
                       {fmtEuro(o.total_amount_cents)}
                     </td>
                     <td className="px-3 py-2 text-right">
-                      <button
-                        onClick={() => setExpanded(expanded === o.id ? null : o.id)}
-                        className="rounded border border-input bg-background px-2 py-1 text-xs hover:bg-accent"
-                      >
-                        {expanded === o.id ? "Schließen" : "Details"}
-                      </button>
+                      <div className="flex justify-end gap-2">
+                        {o.status !== "cancelled" && (
+                          <button
+                            onClick={() => sendMut.mutate(o.id)}
+                            disabled={
+                              sendMut.isPending ||
+                              !suppliersById.get(o.supplier_id)?.email
+                            }
+                            title={
+                              !suppliersById.get(o.supplier_id)?.email
+                                ? "Lieferant hat keine E-Mail-Adresse hinterlegt"
+                                : undefined
+                            }
+                            className="rounded border border-input bg-background px-2 py-1 text-xs hover:bg-accent disabled:opacity-50"
+                          >
+                            {o.email_sent ? "Erneut senden" : "Per E-Mail senden"}
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setExpanded(expanded === o.id ? null : o.id)}
+                          className="rounded border border-input bg-background px-2 py-1 text-xs hover:bg-accent"
+                        >
+                          {expanded === o.id ? "Schließen" : "Details"}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -177,6 +211,7 @@ function BestellungenPage() {
                         canCancel={o.status !== "cancelled"}
                         onCancel={() => cancelMut.mutate(o.id)}
                         cancelling={cancelMut.isPending}
+                        supplierHasEmail={!!suppliersById.get(o.supplier_id)?.email}
                       />
                     </td>
                   </tr>,
@@ -195,6 +230,7 @@ function OrderDetail(props: {
   canCancel: boolean;
   onCancel: () => void;
   cancelling: boolean;
+  supplierHasEmail: boolean;
 }) {
   const detailQ = useQuery({
     queryKey: ["bestellung", "order", props.orderId],
@@ -205,6 +241,11 @@ function OrderDetail(props: {
   const { order, items } = detailQ.data;
   return (
     <div className="space-y-3">
+      {!props.supplierHasEmail && (
+        <p className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
+          Kein E-Mail-Versand möglich — Lieferant hat keine Adresse.
+        </p>
+      )}
       <div className="grid grid-cols-1 gap-2 md:grid-cols-3 text-xs">
         <div>
           <p className="uppercase tracking-wide text-muted-foreground">Lieferdatum</p>
