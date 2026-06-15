@@ -494,10 +494,14 @@ function DropCell({
               aria-hidden="true"
               className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center"
             >
-              <Umbrella className="h-4 w-4 text-green-600" />
+              {absenceType === "krank" ? (
+                <HeartPulse className="h-4 w-4 text-red-600" />
+              ) : (
+                <Umbrella className="h-4 w-4 text-green-600" />
+              )}
             </span>
           </TooltipTrigger>
-          <TooltipContent>Urlaub</TooltipContent>
+          <TooltipContent>{absenceType === "krank" ? "Krank" : "Urlaub"}</TooltipContent>
         </Tooltip>
       ) : null}
       {children}
@@ -505,10 +509,14 @@ function DropCell({
         <Tooltip>
           <TooltipTrigger asChild>
             <span aria-hidden="true" className="pointer-events-none absolute left-0.5 top-0.5 z-20">
-              <Umbrella className="h-3 w-3 text-green-600" />
+              {absenceType === "krank" ? (
+                <HeartPulse className="h-3 w-3 text-red-600" />
+              ) : (
+                <Umbrella className="h-3 w-3 text-green-600" />
+              )}
             </span>
           </TooltipTrigger>
-          <TooltipContent>Urlaub</TooltipContent>
+          <TooltipContent>{absenceType === "krank" ? "Krank" : "Urlaub"}</TooltipContent>
         </Tooltip>
       ) : null}
       {showUnavailableOnShift ? (
