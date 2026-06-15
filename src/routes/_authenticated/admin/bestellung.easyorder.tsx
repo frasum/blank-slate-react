@@ -172,10 +172,10 @@ function EasyOrderCart(props: {
     return Array.from(m.values()).sort((x, y) => x.supplierName.localeCompare(y.supplierName));
   }, [filtered]);
 
-  const totalItems =
-    Object.values(qty).reduce((s, q) => s + (q > 0 ? q : 0), 0) +
-    freeItems.reduce((s, fi) => s + fi.quantity, 0);
-  const cartEmpty = totalItems === 0;
+  const catalogQtyCount = Object.values(qty).reduce((s, q) => s + (q > 0 ? q : 0), 0);
+  const totalItems = catalogQtyCount + freeItems.reduce((s, fi) => s + fi.quantity, 0);
+  // Server-Validierung (zod) verlangt mindestens 1 Katalog-Artikel.
+  const cartEmpty = catalogQtyCount === 0;
 
   const setItemQty = (articleId: string, next: number) => {
     const n = Math.max(0, Math.min(9999, Math.floor(next)));
@@ -192,11 +192,11 @@ function EasyOrderCart(props: {
     const items = Object.entries(qty)
       .filter(([, q]) => q > 0)
       .map(([articleId, quantity]) => ({ articleId, quantity }));
-    if (items.length === 0 && freeItems.length === 0) return;
+    if (items.length === 0) return;
     placeMut.mutate({
       data: {
         locationId,
-        items: items.length > 0 ? items : ([{ articleId: "", quantity: 0 }] as never),
+        items,
         freeTextItems: freeItems.length > 0 ? freeItems : undefined,
         notes: notes.trim() ? notes.trim() : undefined,
       },
