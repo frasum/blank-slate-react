@@ -1291,7 +1291,23 @@ function CashActualHint({ value }: { value: string }) {
   );
 }
 
-function EuroRow({
+function ExcelSectionHeader({
+  label,
+  colorClass,
+}: {
+  label: string;
+  colorClass: string;
+}) {
+  return (
+    <div className={`bg-muted/50 px-3 py-2 border-y border-l-4 ${colorClass}`}>
+      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </span>
+    </div>
+  );
+}
+
+function ExcelInputRow({
   label,
   value,
   onChange,
@@ -1303,17 +1319,18 @@ function EuroRow({
   disabled?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-3">
-      <Label className="min-w-[14rem] flex-1 text-sm">{label}</Label>
-      <Input
-        className="w-32 text-right font-mono"
-        inputMode="decimal"
-        value={value}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
-      />
-      <span className="text-sm text-muted-foreground">€</span>
-    </div>
+    <tr className="border-b last:border-b-0 hover:bg-muted/20 transition-colors">
+      <td className="px-3 py-1.5 font-medium text-foreground">{label}</td>
+      <td className="px-3 py-1.5 w-36">
+        <Input
+          className="h-7 text-sm text-right font-mono border-primary/20 bg-primary/5"
+          inputMode="decimal"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+        />
+      </td>
+    </tr>
   );
 }
 
