@@ -96,7 +96,7 @@ export type RosterAvailability = {
 export type RosterAbsence = {
   staffId: string;
   date: string;
-  type: "urlaub";
+  type: "urlaub" | "krank";
 };
 
 export const getRosterShifts = createServerFn({ method: "GET" })
