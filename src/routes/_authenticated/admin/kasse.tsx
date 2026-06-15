@@ -678,6 +678,95 @@ function KassePage() {
         </DialogContent>
       </Dialog>
 
+      {/* --- Manuelle Neuanlage-Dialog --- */}
+      <Dialog
+        open={createSettlement !== null}
+        onOpenChange={(o) => !o && setCreateSettlement(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Abrechnung manuell anlegen</DialogTitle>
+            <DialogDescription>
+              Erfasst eine neue Kellner-Abrechnung als Admin. Kein automatisches Ausstempeln.
+              Trinkgeldsatz wird aus den aktuellen Org-Einstellungen übernommen.
+            </DialogDescription>
+          </DialogHeader>
+          {createSettlement && (
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label>Kellner *</Label>
+                <Select
+                  value={createSettlement.staffId}
+                  onValueChange={(v) => setCreateSettlement({ ...createSettlement, staffId: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Kellner wählen…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {eligibleStaff.length === 0 && (
+                      <div className="px-3 py-2 text-sm text-muted-foreground">
+                        Keine passenden Mitarbeiter.
+                      </div>
+                    )}
+                    {eligibleStaff.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.displayName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {(
+                [
+                  ["posSales", "Kassenbon (POS)"],
+                  ["cardTotal", "EC-/Kartensumme"],
+                  ["hilfMahl", "Hilfsmahlzeiten"],
+                  ["openInvoices", "Offene Rechnungen"],
+                  ["cashHandedIn", "Abgegebenes Bargeld"],
+                ] as const
+              ).map(([key, label]) => (
+                <div key={key} className="space-y-1">
+                  <Label>{label} (€)</Label>
+                  <Input
+                    inputMode="decimal"
+                    value={createSettlement[key]}
+                    onChange={(e) =>
+                      setCreateSettlement({ ...createSettlement, [key]: e.target.value })
+                    }
+                  />
+                </div>
+              ))}
+              <div className="space-y-1">
+                <Label>Begründung *</Label>
+                <Input
+                  placeholder="z. B. Nacherfassung — Kellner war krank"
+                  value={createSettlement.reason}
+                  onChange={(e) =>
+                    setCreateSettlement({ ...createSettlement, reason: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateSettlement(null)}>
+              Abbrechen
+            </Button>
+            <Button
+              disabled={
+                !createSettlement ||
+                !createSettlement.staffId ||
+                createSettlement.reason.trim().length < 3 ||
+                createSettlementMut.isPending
+              }
+              onClick={() => createSettlementMut.mutate()}
+            >
+              {createSettlementMut.isPending ? "Speichert…" : "Abrechnung anlegen"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* --- Finalize/Lock-Confirms --- */}
       <Dialog open={finalizeConfirm} onOpenChange={setFinalizeConfirm}>
         <DialogContent>
