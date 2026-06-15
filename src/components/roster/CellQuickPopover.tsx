@@ -1,6 +1,8 @@
 // Klick in eine leere Zelle ohne aktiven Paint-Modus → Skill wählen
 // und Schicht anlegen. Profil-Skills oben, weitere darunter.
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { CalendarX, CalendarCheck } from "lucide-react";
 import type { RosterSkill } from "@/lib/roster/roster.functions";
 
 type Props = {
@@ -11,6 +13,9 @@ type Props = {
   otherSkills: RosterSkill[];
   busy: boolean;
   onPick: (skillId: string) => void;
+  isUnavailable: boolean;
+  onSetUnavailable: () => void;
+  onClearUnavailable: () => void;
 };
 
 export function CellQuickPopover({
@@ -21,6 +26,9 @@ export function CellQuickPopover({
   otherSkills,
   busy,
   onPick,
+  isUnavailable,
+  onSetUnavailable,
+  onClearUnavailable,
 }: Props) {
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
@@ -65,6 +73,25 @@ export function CellQuickPopover({
         {profileSkills.length === 0 && otherSkills.length === 0 && (
           <span className="text-xs text-muted-foreground">Keine passenden Skills hinterlegt.</span>
         )}
+        <div className="mt-3 border-t pt-2">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy}
+            onClick={isUnavailable ? onClearUnavailable : onSetUnavailable}
+            className="h-7 w-full text-xs"
+          >
+            {isUnavailable ? (
+              <>
+                <CalendarCheck className="mr-1.5 h-3.5 w-3.5" /> Verfügbarkeit wiederherstellen
+              </>
+            ) : (
+              <>
+                <CalendarX className="mr-1.5 h-3.5 w-3.5" /> Als nicht verfügbar markieren
+              </>
+            )}
+          </Button>
+        </div>
       </PopoverContent>
     </Popover>
   );
