@@ -327,7 +327,22 @@ export function RosterGrid({
                               }}
                               isAbsent={isAbsent}
                               onSetAbsence={async () => {
-                                await onSetAbsence(shift.staffId, shift.shiftDate);
+                                /* not used: absent map already controls */
+                              }}
+                              onClearAbsence={async () => {
+                                /* not used */
+                              }}
+                            >
+                              <span className="block">
+                                <ShiftPill
+                                  shift={shift}
+                                  area={activeArea}
+                                  draggable={editable}
+                                  density={density}
+                                  onClick={() => void handlePillClick(shift)}
+                                />
+                              </span>
+                            </PillConfirmPopover>
                                 setOpenPill(null);
                               }}
                               onClearAbsence={async () => {
