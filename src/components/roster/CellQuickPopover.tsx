@@ -2,7 +2,7 @@
 // und Schicht anlegen. Profil-Skills oben, weitere darunter.
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { CalendarX, CalendarCheck, Umbrella } from "lucide-react";
+import { CalendarX, CalendarCheck, Umbrella, HeartPulse } from "lucide-react";
 import type { RosterSkill } from "@/lib/roster/roster.functions";
 
 type Props = {
@@ -16,8 +16,8 @@ type Props = {
   isUnavailable: boolean;
   onSetUnavailable: () => void;
   onClearUnavailable: () => void;
-  isAbsent: boolean;
-  onSetAbsence: () => void;
+  absenceType: "urlaub" | "krank" | null;
+  onSetAbsence: (type: "urlaub" | "krank") => void;
   onClearAbsence: () => void;
 };
 
@@ -32,7 +32,7 @@ export function CellQuickPopover({
   isUnavailable,
   onSetUnavailable,
   onClearUnavailable,
-  isAbsent,
+  absenceType,
   onSetAbsence,
   onClearAbsence,
 }: Props) {
@@ -101,11 +101,21 @@ export function CellQuickPopover({
             size="sm"
             variant="outline"
             disabled={busy}
-            onClick={isAbsent ? onClearAbsence : onSetAbsence}
+            onClick={absenceType === "urlaub" ? onClearAbsence : () => onSetAbsence("urlaub")}
             className="mt-2 h-7 w-full text-xs"
           >
             <Umbrella className="mr-1.5 h-3.5 w-3.5 text-green-600" />
-            {isAbsent ? "Urlaub entfernen" : "Urlaub eintragen"}
+            {absenceType === "urlaub" ? "Urlaub entfernen" : "Urlaub eintragen"}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy}
+            onClick={absenceType === "krank" ? onClearAbsence : () => onSetAbsence("krank")}
+            className="mt-2 h-7 w-full text-xs"
+          >
+            <HeartPulse className="mr-1.5 h-3.5 w-3.5 text-red-600" />
+            {absenceType === "krank" ? "Krank entfernen" : "Krank eintragen"}
           </Button>
         </div>
       </PopoverContent>
