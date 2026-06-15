@@ -860,19 +860,7 @@ function SessionFieldsCard({
         ))}
       </Section>
 
-      <Section title="Gutscheine & Sonstiges">
-        <EuroRow
-          label="Gutscheine verkauft"
-          value={misc.vouchersSold}
-          disabled={!writable}
-          onChange={(v) => setMisc({ ...misc, vouchersSold: v })}
-        />
-        <EuroRow
-          label="Gutscheine eingelöst"
-          value={misc.vouchersRedeemed}
-          disabled={!writable}
-          onChange={(v) => setMisc({ ...misc, vouchersRedeemed: v })}
-        />
+      <Section title="Sonstiges">
         <EuroRow
           label="Finedine-Gutscheine"
           value={misc.finedineVouchers}
