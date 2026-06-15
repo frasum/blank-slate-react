@@ -447,7 +447,10 @@ function DropCell({
         <span
           aria-hidden="true"
           className="pointer-events-none absolute inset-1 z-0 rounded-md"
-          style={{ backgroundColor: "hsl(var(--muted-foreground)/0.22)" }}
+          style={{
+            backgroundColor:
+              "color-mix(in oklch, var(--muted-foreground) 30%, transparent)",
+          }}
         />
       ) : null}
       {children}
@@ -457,14 +460,18 @@ function DropCell({
             aria-hidden="true"
             className="pointer-events-none absolute inset-1 z-20 rounded-md"
             style={{
-              outline: "1.5px dashed hsl(var(--muted-foreground)/0.55)",
+              outline:
+                "1.5px dashed color-mix(in oklch, var(--muted-foreground) 65%, transparent)",
               outlineOffset: "-1px",
             }}
           />
           <span
             aria-hidden="true"
             className="pointer-events-none absolute bottom-1 left-1 z-20 h-1.5 w-1.5 rounded-full"
-            style={{ backgroundColor: "hsl(var(--muted-foreground)/0.6)" }}
+            style={{
+              backgroundColor:
+                "color-mix(in oklch, var(--muted-foreground) 75%, transparent)",
+            }}
           />
         </>
       ) : null}
