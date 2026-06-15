@@ -165,7 +165,7 @@ export function PillConfirmPopover({
             size="sm"
             variant="outline"
             disabled={busy}
-            onClick={absenceType === "urlaub" ? onClearAbsence : () => onSetAbsence("urlaub")}
+            onClick={absenceType === "urlaub" ? onClearAbsence : () => setMode("urlaub")}
             className="mt-2 h-7 w-full text-xs"
           >
             <Umbrella className="mr-1.5 h-3.5 w-3.5 text-green-600" />
@@ -177,12 +177,14 @@ export function PillConfirmPopover({
             size="sm"
             variant="outline"
             disabled={busy}
-            onClick={absenceType === "krank" ? onClearAbsence : () => onSetAbsence("krank")}
+            onClick={absenceType === "krank" ? onClearAbsence : () => setMode("krank")}
             className="mt-2 h-7 w-full text-xs"
           >
             <HeartPulse className="mr-1.5 h-3.5 w-3.5 text-red-600" />
             {absenceType === "krank" ? "Krank entfernen" : "Krank eintragen"}
           </Button>
+        )}
+          </>
         )}
       </PopoverContent>
     </Popover>
