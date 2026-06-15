@@ -558,6 +558,9 @@ function EmptyCell({
   isUnavailable,
   onSetUnavailable,
   onClearUnavailable,
+  isAbsent,
+  onSetAbsence,
+  onClearAbsence,
 }: {
   row: RosterStaffRow;
   iso: string;
@@ -574,6 +577,9 @@ function EmptyCell({
   isUnavailable: boolean;
   onSetUnavailable: () => void;
   onClearUnavailable: () => void;
+  isAbsent: boolean;
+  onSetAbsence: () => void;
+  onClearAbsence: () => void;
 }) {
   const { profile, other } = skillsForCell(row, activeArea, allSkills);
   const marker = (
@@ -631,6 +637,9 @@ function EmptyCell({
       isUnavailable={isUnavailable}
       onSetUnavailable={onSetUnavailable}
       onClearUnavailable={onClearUnavailable}
+      isAbsent={isAbsent}
+      onSetAbsence={onSetAbsence}
+      onClearAbsence={onClearAbsence}
     >
       {cellInner}
     </CellQuickPopover>
