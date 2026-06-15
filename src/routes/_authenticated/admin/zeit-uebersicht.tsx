@@ -1037,27 +1037,6 @@ function ZeitUebersichtPage() {
           />
         </TabsContent>
       </Tabs>
-
-      <ShiftEditorDialog
-        state={editor}
-        onClose={() => setEditor(null)}
-        onSubmit={(from, to) => {
-          if (!editor) return;
-          const startedAt = buildIsoFromLocal(editor.dateIso, from);
-          const endedAt = buildIsoFromLocal(editor.dateIso, to, from);
-          if (editor.mode === "edit") {
-            setShiftMut.mutate({ id: editor.id, startedAt, endedAt });
-          } else {
-            createShiftMut.mutate({
-              staffId: editor.staffId,
-              locationId: effectiveLocationId,
-              startedAt,
-              endedAt,
-            });
-          }
-        }}
-        pending={setShiftMut.isPending || createShiftMut.isPending}
-      />
     </div>
   );
 }
