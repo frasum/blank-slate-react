@@ -3,7 +3,7 @@
 // Paint-Mode-Klicklogik. Service-Schichten nutzen service-marker.ts.
 import * as React from "react";
 import { useDroppable } from "@dnd-kit/core";
-import { ChefHat, UtensilsCrossed } from "lucide-react";
+import { ChefHat, UtensilsCrossed, Umbrella } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -57,6 +57,7 @@ type Props = {
   allSkills: RosterSkill[];
   crossBookings: RosterCrossBooking[];
   unavailableSet: Set<string>;
+  absenceSet: Set<string>;
   density: Density;
   canEdit: boolean;
   locked: boolean;
@@ -68,6 +69,8 @@ type Props = {
   onChangeStatus: (id: string, status: "planned" | "confirmed") => Promise<void> | void;
   onSetUnavailable: (staffId: string, iso: string) => Promise<void> | void;
   onClearUnavailable: (staffId: string, iso: string) => Promise<void> | void;
+  onSetAbsence: (staffId: string, iso: string) => Promise<void> | void;
+  onClearAbsence: (staffId: string, iso: string) => Promise<void> | void;
 };
 
 export function RosterGrid({
@@ -80,6 +83,7 @@ export function RosterGrid({
   allSkills,
   crossBookings,
   unavailableSet,
+  absenceSet,
   density,
   canEdit,
   locked,
@@ -91,6 +95,8 @@ export function RosterGrid({
   onChangeStatus,
   onSetUnavailable,
   onClearUnavailable,
+  onSetAbsence,
+  onClearAbsence,
 }: Props) {
   const [openCell, setOpenCell] = React.useState<string | null>(null);
   const [openPill, setOpenPill] = React.useState<string | null>(null);
