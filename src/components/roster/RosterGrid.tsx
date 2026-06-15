@@ -675,8 +675,10 @@ function EmptyCell({
       onSetUnavailable={onSetUnavailable}
       onClearUnavailable={onClearUnavailable}
       absenceType={absenceType}
-      onSetAbsence={onSetAbsence}
+      onSetAbsenceRange={onSetAbsenceRange}
       onClearAbsence={onClearAbsence}
+      defaultDate={defaultDate}
+      staffShiftDates={staffShiftDates}
     >
       {cellInner}
     </CellQuickPopover>
