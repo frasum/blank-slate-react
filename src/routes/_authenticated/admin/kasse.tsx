@@ -426,9 +426,8 @@ function KassePage() {
             onCreate={() =>
               setCreateSettlement({
                 staffId:
-                  (staffQ.data ?? []).find(
-                    (s) => s.isActive && s.locationIds.includes(locationId),
-                  )?.id ?? "",
+                  (staffQ.data ?? []).find((s) => s.isActive && s.locationIds.includes(locationId))
+                    ?.id ?? "",
                 posSales: "0.00",
                 cardTotal: "0.00",
                 hilfMahl: "0.00",
