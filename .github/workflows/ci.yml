@@ -62,7 +62,13 @@ jobs:
             echo "SUPABASE_DB_TESTS=1"
           } >> "$GITHUB_ENV"
       - name: Reset DB (apply all migrations cleanly)
-        run: supabase db reset --no-seed
+        run: |
+          supabase db reset --no-seed
+
+          # Final explicit reload (belt-and-suspenders) + settle.
+          DB_URL=$(supabase status -o env | grep '^DB_URL=' | cut -d= -f2- | tr -d '"')
+          psql "$DB_URL" -c "NOTIFY pgrst, 'reload schema';" || true
+          sleep 3
       - name: Wait for PostgREST after reset
         run: |
           for i in $(seq 1 30); do
