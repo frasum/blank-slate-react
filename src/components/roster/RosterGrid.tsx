@@ -434,6 +434,7 @@ function DropCell({
   unavailable,
   hasShift,
   absent,
+  absenceType,
   children,
 }: {
   staffId: string;
@@ -446,6 +447,7 @@ function DropCell({
   unavailable: boolean;
   hasShift: boolean;
   absent: boolean;
+  absenceType: "urlaub" | "krank" | null;
   children: React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({
