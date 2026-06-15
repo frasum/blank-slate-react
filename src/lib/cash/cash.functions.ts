@@ -61,6 +61,18 @@ export class StaffLocationNotBoundError extends Error {
   }
 }
 
+export class WaiterSettlementAlreadyExistsError extends Error {
+  constructor(
+    public readonly sessionId: string,
+    public readonly staffId: string,
+  ) {
+    super(
+      "Für diesen Kellner existiert bereits eine aktive Abrechnung. Bitte Korrektur statt Neuanlage verwenden.",
+    );
+    this.name = "WaiterSettlementAlreadyExistsError";
+  }
+}
+
 // ------------------------------------------------------------------------
 // Hilfsfunktionen
 // ------------------------------------------------------------------------
