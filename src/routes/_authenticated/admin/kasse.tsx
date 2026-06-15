@@ -433,6 +433,7 @@ function KassePage() {
           <SettlementsCard
             data={ovQ.data}
             correctable={correctable}
+            onCreate={() => setCreateSettlement(EMPTY_CREATE)}
             onCorrect={(row) =>
               setCorrect({
                 originalId: row.id,
