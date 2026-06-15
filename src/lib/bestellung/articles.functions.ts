@@ -40,6 +40,11 @@ const ArticleInput = z.object({
   packagingUnit: z.number().int().min(1).optional().nullable(),
   imageUrl: z.string().trim().max(500).optional().or(z.literal("")).transform((v) => (v ? v : null)),
   sortOrder: z.number().int().min(0).max(9999).optional(),
+  // Welle 3-A: optionale Wein-Felder. Für nicht-Weine bleiben sie leer/null.
+  grapeVariety: z.string().trim().max(200).optional().or(z.literal("")).transform((v) => (v ? v : null)),
+  originCountry: z.string().trim().max(120).optional().or(z.literal("")).transform((v) => (v ? v : null)),
+  foodPairings: z.string().trim().max(2000).optional().or(z.literal("")).transform((v) => (v ? v : null)),
+  specialAttributes: z.array(z.string().trim().min(1).max(60)).optional().nullable(),
 });
 
 export const listArticles = createServerFn({ method: "GET" })
@@ -51,6 +56,7 @@ export const listArticles = createServerFn({ method: "GET" })
         category: z.string().trim().min(1).max(120).optional(),
         search: z.string().trim().min(1).max(200).optional(),
         includeInactive: z.boolean().optional(),
+        onlyWine: z.boolean().optional(),
       })
       .partial()
       .parse(input ?? {}),
@@ -61,7 +67,7 @@ export const listArticles = createServerFn({ method: "GET" })
     let q = supabaseAdmin
       .from("articles")
       .select(
-        "id, supplier_id, name, sku, description, category, unit, order_unit_id, price_cents, packaging_unit, image_url, is_active, sort_order, created_at, updated_at",
+        "id, supplier_id, name, sku, description, category, unit, order_unit_id, price_cents, packaging_unit, image_url, is_active, sort_order, created_at, updated_at, grape_variety, origin_country, food_pairings, special_attributes",
       )
       .eq("organization_id", caller.organizationId)
       .order("sort_order")
@@ -69,6 +75,7 @@ export const listArticles = createServerFn({ method: "GET" })
     if (!data.includeInactive) q = q.eq("is_active", true);
     if (data.supplierId) q = q.eq("supplier_id", data.supplierId);
     if (data.category) q = q.eq("category", data.category);
+    if (data.onlyWine) q = q.eq("category", "Wein");
     if (data.search) q = q.or(`name.ilike.%${data.search}%,sku.ilike.%${data.search}%`);
     const { data: rows, error } = await q;
     if (error) throw error;
@@ -126,6 +133,10 @@ export const createArticle = createServerFn({ method: "POST" })
           packaging_unit: data.packagingUnit ?? null,
           image_url: data.imageUrl,
           sort_order: data.sortOrder ?? 0,
+          grape_variety: data.grapeVariety,
+          origin_country: data.originCountry,
+          food_pairings: data.foodPairings,
+          special_attributes: data.specialAttributes ?? null,
         })
         .select("id")
         .single();
@@ -174,6 +185,10 @@ export const updateArticle = createServerFn({ method: "POST" })
           packaging_unit: data.packagingUnit ?? null,
           image_url: data.imageUrl,
           sort_order: data.sortOrder ?? 0,
+          grape_variety: data.grapeVariety,
+          origin_country: data.originCountry,
+          food_pairings: data.foodPairings,
+          special_attributes: data.specialAttributes ?? null,
         })
         .eq("id", data.articleId)
         .eq("organization_id", caller.organizationId);

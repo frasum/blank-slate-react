@@ -21,6 +21,8 @@ function BestellungLayout() {
         <SubLink to="/admin/bestellung/lieferanten">Lieferanten</SubLink>
         <SubLink to="/admin/bestellung/artikel">Artikel</SubLink>
         <SubLink to="/admin/bestellung/inventur">Inventur</SubLink>
+        <SubLink to="/admin/bestellung/wein">Wein</SubLink>
+        <SubLink to="/admin/bestellung/wein-quiz">Wein-Quiz</SubLink>
       </nav>
       <Outlet />
     </div>
