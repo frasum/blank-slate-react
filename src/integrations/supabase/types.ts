@@ -2571,6 +2571,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_order_from_cart: {
+        Args: { p_notes?: string; p_org_id: string; p_user_id: string }
+        Returns: string[]
+      }
       current_business_date: { Args: never; Returns: string }
       current_organization_id: { Args: never; Returns: string }
       current_role: {
