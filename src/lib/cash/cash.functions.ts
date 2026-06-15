@@ -1928,3 +1928,145 @@ export async function getCashLedgerCore(
     };
   });
 }
+
+// ------------------------------------------------------------------------
+// B4 — Manuelle Trinkgeldpool-Einträge (Manager+)
+// ------------------------------------------------------------------------
+//
+// Ein manueller Eintrag pro (session, staff) ersetzt — falls vorhanden —
+// die aus time_entries abgeleiteten Pool-Stunden desselben Mitarbeiters
+// vollständig. hours_minutes = 0 schließt den Mitarbeiter explizit aus.
+
+const tipPoolEntryUpsertSchema = z.object({
+  sessionId: z.string().uuid(),
+  staffId: z.string().uuid(),
+  department: z.enum(["kitchen", "service"]),
+  hoursMinutes: z.number().int().min(0).max(1440),
+  note: z.string().trim().max(500).optional(),
+});
+
+export type SessionTipPoolEntry = {
+  staffId: string;
+  department: "kitchen" | "service";
+  hoursMinutes: number;
+  note: string | null;
+};
+
+export const listSessionTipPoolEntries = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ sessionId: z.string().uuid() }).parse(input ?? {}))
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
+    const { data: rows, error } = await supabaseAdmin
+      .from("session_tip_pool_entries")
+      .select("staff_id, department, hours_minutes, note")
+      .eq("organization_id", caller.organizationId)
+      .eq("session_id", session.id);
+    if (error) throw error;
+    return (rows ?? []).map<SessionTipPoolEntry>((r) => ({
+      staffId: r.staff_id,
+      department: r.department as "kitchen" | "service",
+      hoursMinutes: Number(r.hours_minutes),
+      note: r.note,
+    }));
+  });
+
+export const upsertSessionTipPoolEntry = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => tipPoolEntryUpsertSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    return upsertSessionTipPoolEntryCore(caller, data);
+  });
+
+export async function upsertSessionTipPoolEntryCore(
+  caller: AdminCaller,
+  data: z.infer<typeof tipPoolEntryUpsertSchema>,
+) {
+  return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+    const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
+    const waterline = await loadLocationCashLock(caller.organizationId, session.location_id);
+    assertCashWritable({
+      businessDate: session.business_date,
+      sessionStatus: session.status as "open" | "finalized" | "locked",
+      sessionLockedAt: session.locked_at,
+      cashLockedThroughDate: waterline,
+    });
+    await assertStaffBoundToLocation(caller.organizationId, data.staffId, session.location_id);
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error: upErr } = await supabaseAdmin
+      .from("session_tip_pool_entries")
+      .upsert(
+        {
+          organization_id: caller.organizationId,
+          session_id: session.id,
+          staff_id: data.staffId,
+          department: data.department,
+          hours_minutes: data.hoursMinutes,
+          note: data.note ?? null,
+          created_by: caller.userId,
+        },
+        { onConflict: "session_id,staff_id" },
+      );
+    if (upErr) throw upErr;
+
+    return {
+      result: { ok: true as const },
+      audit: {
+        action: "cash.tip_pool.manual_upsert",
+        entity: "session_tip_pool_entry",
+        meta: {
+          sessionId: session.id,
+          staffId: data.staffId,
+          department: data.department,
+          hoursMinutes: data.hoursMinutes,
+        },
+      },
+    };
+  });
+}
+
+export const deleteSessionTipPoolEntry = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({ sessionId: z.string().uuid(), staffId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    return deleteSessionTipPoolEntryCore(caller, data);
+  });
+
+export async function deleteSessionTipPoolEntryCore(
+  caller: AdminCaller,
+  data: { sessionId: string; staffId: string },
+) {
+  return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+    const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
+    const waterline = await loadLocationCashLock(caller.organizationId, session.location_id);
+    assertCashWritable({
+      businessDate: session.business_date,
+      sessionStatus: session.status as "open" | "finalized" | "locked",
+      sessionLockedAt: session.locked_at,
+      cashLockedThroughDate: waterline,
+    });
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("session_tip_pool_entries")
+      .delete()
+      .eq("organization_id", caller.organizationId)
+      .eq("session_id", session.id)
+      .eq("staff_id", data.staffId);
+    if (error) throw error;
+    return {
+      result: { ok: true as const },
+      audit: {
+        action: "cash.tip_pool.manual_delete",
+        entity: "session_tip_pool_entry",
+        meta: { sessionId: session.id, staffId: data.staffId },
+      },
+    };
+  });
+}
