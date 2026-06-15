@@ -445,7 +445,6 @@ function KassePage() {
           <SatellitesCard
             sessionId={sessionId!}
             overview={ovQ.data}
-            staff={staffQ.data ?? []}
             writable={writable}
             onAdd={(payload) =>
               callAddSat({ data: payload }).then(() => {
