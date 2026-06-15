@@ -96,7 +96,7 @@ export type RosterAvailability = {
 export type RosterAbsence = {
   staffId: string;
   date: string;
-  type: "urlaub";
+  type: "urlaub" | "krank";
 };
 
 export const getRosterShifts = createServerFn({ method: "GET" })
@@ -674,7 +674,7 @@ export const getAbsences = createServerFn({ method: "GET" })
     return (rows ?? []).map((r) => ({
       staffId: r.staff_id as string,
       date: r.date as string,
-      type: (r.type as "urlaub") ?? "urlaub",
+      type: ((r.type as "urlaub" | "krank") ?? "urlaub") as "urlaub" | "krank",
     }));
   });
 
@@ -685,6 +685,7 @@ export const setAbsence = createServerFn({ method: "POST" })
       .object({
         staffId: z.string().uuid(),
         date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        type: z.enum(["urlaub", "krank"]).optional().default("urlaub"),
       })
       .parse(input),
   )
@@ -697,9 +698,9 @@ export const setAbsence = createServerFn({ method: "POST" })
           organization_id: caller.organizationId,
           staff_id: data.staffId,
           date: data.date,
-          type: "urlaub",
+          type: data.type,
         },
-        { onConflict: "staff_id,date", ignoreDuplicates: true },
+        { onConflict: "staff_id,date" },
       );
       if (error) throw error;
       return {
@@ -707,7 +708,7 @@ export const setAbsence = createServerFn({ method: "POST" })
         audit: {
           action: "roster_absence.set",
           entity: "roster_absence",
-          meta: { staffId: data.staffId, date: data.date, type: "urlaub" },
+          meta: { staffId: data.staffId, date: data.date, type: data.type },
         },
       };
     });

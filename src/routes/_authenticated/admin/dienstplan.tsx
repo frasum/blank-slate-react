@@ -199,10 +199,10 @@ function DienstplanPage() {
     return s;
   }, [unavailable]);
   const absences = useMemo(() => absenceQ.data ?? [], [absenceQ.data]);
-  const absenceSet = useMemo(() => {
-    const s = new Set<string>();
-    for (const a of absences) s.add(`${a.staffId}|${a.date}`);
-    return s;
+  const absenceMap = useMemo(() => {
+    const m = new Map<string, "urlaub" | "krank">();
+    for (const a of absences) m.set(`${a.staffId}|${a.date}`, a.type);
+    return m;
   }, [absences]);
   const staffNameById = useMemo(() => {
     const m = new Map<string, string>();
@@ -370,11 +370,11 @@ function DienstplanPage() {
     }
   }
 
-  async function handleSetAbsence(staffId: string, iso: string) {
+  async function handleSetAbsence(staffId: string, iso: string, type: "urlaub" | "krank") {
     if (!canEdit) return;
     setBusy(true);
     try {
-      await setAbsence({ data: { staffId, date: iso } });
+      await setAbsence({ data: { staffId, date: iso, type } });
       qc.invalidateQueries({ queryKey: ["roster-absence"] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
@@ -487,7 +487,7 @@ function DienstplanPage() {
               allSkills={allSkills}
               crossBookings={crossBookings}
               unavailableSet={unavailableSet}
-              absenceSet={absenceSet}
+              absenceMap={absenceMap}
               density={density}
               canEdit={canEdit}
               locked={!!periodLocked}

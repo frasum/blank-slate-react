@@ -3,7 +3,7 @@
 // Paint-Mode-Klicklogik. Service-Schichten nutzen service-marker.ts.
 import * as React from "react";
 import { useDroppable } from "@dnd-kit/core";
-import { ChefHat, UtensilsCrossed, Umbrella } from "lucide-react";
+import { ChefHat, UtensilsCrossed, Umbrella, HeartPulse } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -57,7 +57,7 @@ type Props = {
   allSkills: RosterSkill[];
   crossBookings: RosterCrossBooking[];
   unavailableSet: Set<string>;
-  absenceSet: Set<string>;
+  absenceMap: Map<string, "urlaub" | "krank">;
   density: Density;
   canEdit: boolean;
   locked: boolean;
@@ -69,7 +69,7 @@ type Props = {
   onChangeStatus: (id: string, status: "planned" | "confirmed") => Promise<void> | void;
   onSetUnavailable: (staffId: string, iso: string) => Promise<void> | void;
   onClearUnavailable: (staffId: string, iso: string) => Promise<void> | void;
-  onSetAbsence: (staffId: string, iso: string) => Promise<void> | void;
+  onSetAbsence: (staffId: string, iso: string, type: "urlaub" | "krank") => Promise<void> | void;
   onClearAbsence: (staffId: string, iso: string) => Promise<void> | void;
 };
 
@@ -83,7 +83,7 @@ export function RosterGrid({
   allSkills,
   crossBookings,
   unavailableSet,
-  absenceSet,
+  absenceMap,
   density,
   canEdit,
   locked,
@@ -279,7 +279,8 @@ export function RosterGrid({
                       const pickedSkills = skillsForCell(row, activeArea, allSkills);
                       const candidates = [...pickedSkills.profile, ...pickedSkills.other];
                       const isUnavailable = unavailableSet.has(`${row.staffId}|${iso}`);
-                      const isAbsent = absenceSet.has(`${row.staffId}|${iso}`);
+                      const absenceType = absenceMap.get(`${row.staffId}|${iso}`) ?? null;
+                      const isAbsent = absenceType !== null;
                       return (
                         <DropCell
                           key={iso}
@@ -293,6 +294,7 @@ export function RosterGrid({
                           unavailable={isUnavailable}
                           hasShift={!!shift}
                           absent={isAbsent}
+                          absenceType={absenceType}
                         >
                           {shift ? (
                             <PillConfirmPopover
@@ -323,9 +325,9 @@ export function RosterGrid({
                                 await onClearUnavailable(shift.staffId, shift.shiftDate);
                                 setOpenPill(null);
                               }}
-                              isAbsent={isAbsent}
-                              onSetAbsence={async () => {
-                                await onSetAbsence(shift.staffId, shift.shiftDate);
+                              absenceType={absenceType}
+                              onSetAbsence={async (t) => {
+                                await onSetAbsence(shift.staffId, shift.shiftDate, t);
                                 setOpenPill(null);
                               }}
                               onClearAbsence={async () => {
@@ -369,9 +371,9 @@ export function RosterGrid({
                                 await onClearUnavailable(row.staffId, iso);
                                 setOpenCell(null);
                               }}
-                              isAbsent={isAbsent}
-                              onSetAbsence={async () => {
-                                await onSetAbsence(row.staffId, iso);
+                              absenceType={absenceType}
+                              onSetAbsence={async (t) => {
+                                await onSetAbsence(row.staffId, iso, t);
                                 setOpenCell(null);
                               }}
                               onClearAbsence={async () => {
@@ -432,6 +434,7 @@ function DropCell({
   unavailable,
   hasShift,
   absent,
+  absenceType,
   children,
 }: {
   staffId: string;
@@ -444,6 +447,7 @@ function DropCell({
   unavailable: boolean;
   hasShift: boolean;
   absent: boolean;
+  absenceType: "urlaub" | "krank" | null;
   children: React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({
@@ -490,10 +494,14 @@ function DropCell({
               aria-hidden="true"
               className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center"
             >
-              <Umbrella className="h-4 w-4 text-green-600" />
+              {absenceType === "krank" ? (
+                <HeartPulse className="h-4 w-4 text-red-600" />
+              ) : (
+                <Umbrella className="h-4 w-4 text-green-600" />
+              )}
             </span>
           </TooltipTrigger>
-          <TooltipContent>Urlaub</TooltipContent>
+          <TooltipContent>{absenceType === "krank" ? "Krank" : "Urlaub"}</TooltipContent>
         </Tooltip>
       ) : null}
       {children}
@@ -501,10 +509,14 @@ function DropCell({
         <Tooltip>
           <TooltipTrigger asChild>
             <span aria-hidden="true" className="pointer-events-none absolute left-0.5 top-0.5 z-20">
-              <Umbrella className="h-3 w-3 text-green-600" />
+              {absenceType === "krank" ? (
+                <HeartPulse className="h-3 w-3 text-red-600" />
+              ) : (
+                <Umbrella className="h-3 w-3 text-green-600" />
+              )}
             </span>
           </TooltipTrigger>
-          <TooltipContent>Urlaub</TooltipContent>
+          <TooltipContent>{absenceType === "krank" ? "Krank" : "Urlaub"}</TooltipContent>
         </Tooltip>
       ) : null}
       {showUnavailableOnShift ? (
@@ -555,7 +567,7 @@ function EmptyCell({
   isUnavailable,
   onSetUnavailable,
   onClearUnavailable,
-  isAbsent,
+  absenceType,
   onSetAbsence,
   onClearAbsence,
 }: {
@@ -574,8 +586,8 @@ function EmptyCell({
   isUnavailable: boolean;
   onSetUnavailable: () => void;
   onClearUnavailable: () => void;
-  isAbsent: boolean;
-  onSetAbsence: () => void;
+  absenceType: "urlaub" | "krank" | null;
+  onSetAbsence: (type: "urlaub" | "krank") => void;
   onClearAbsence: () => void;
 }) {
   const { profile, other } = skillsForCell(row, activeArea, allSkills);
@@ -634,7 +646,7 @@ function EmptyCell({
       isUnavailable={isUnavailable}
       onSetUnavailable={onSetUnavailable}
       onClearUnavailable={onClearUnavailable}
-      isAbsent={isAbsent}
+      absenceType={absenceType}
       onSetAbsence={onSetAbsence}
       onClearAbsence={onClearAbsence}
     >
