@@ -107,16 +107,6 @@ type CreateState = {
   reason: string;
 };
 
-const EMPTY_CREATE: CreateState = {
-  staffId: "",
-  posSales: "",
-  cardTotal: "",
-  hilfMahl: "",
-  openInvoices: "",
-  cashHandedIn: "",
-  reason: "",
-};
-
 function KassePage() {
   const { identity } = Route.useRouteContext();
   const isAdmin = identity.role === "admin";
