@@ -11,6 +11,12 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { runGuarded } from "@/lib/admin/admin-call";
 import { writeAuditLog } from "@/lib/admin/audit";
+import {
+  buildOrderEmailHtml,
+  buildOrderEmailSubject,
+  buildOrderEmailText,
+  type OrderEmailData,
+} from "./order-email";
 
 const READ_ROLES = ["staff", "manager", "admin"] as const;
 
