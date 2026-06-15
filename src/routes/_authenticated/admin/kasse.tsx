@@ -245,6 +245,58 @@ function KassePage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // -------------------- PDF Export --------------------
+  const [pdfPreview, setPdfPreview] = useState<{ blobUrl: string; blob: Blob; fileName: string } | null>(null);
+  function handleExportPdf() {
+    const ov = ovQ.data;
+    if (!ov?.session) {
+      toast.error("Keine Session für diesen Tag.");
+      return;
+    }
+    const channels = (channelsQ.data ?? []).map((c) => ({ id: c.id, label: c.label }));
+    const terminals = (terminalsQ.data ?? []).map((t) => ({ id: t.id, label: t.label }));
+    const staffById = new Map((staffQ.data ?? []).map((s) => [s.id, s.displayName]));
+    const locationName =
+      (locationsQ.data ?? []).find((l) => l.id === locationId)?.name ?? undefined;
+    try {
+      const out = generateDailySummaryPdf({
+        session: ov.session as unknown as Parameters<typeof generateDailySummaryPdf>[0]["session"],
+        locationName,
+        channels,
+        channelAmounts: ov.channelAmounts,
+        terminals,
+        terminalAmounts: ov.terminalAmounts,
+        settlements: ov.settlements.map((s) => ({
+          staffName: s.staffName,
+          status: s.status as string,
+          pos_sales_cents: Number(s.pos_sales_cents),
+          card_total_cents: Number(s.card_total_cents),
+          hilf_mahl_cents: Number(s.hilf_mahl_cents),
+          open_invoices_cents: Number(s.open_invoices_cents),
+          cash_handed_in_cents: Number(s.cash_handed_in_cents),
+          differenz_cents: Number(s.differenz_cents),
+          kitchen_tip_cents: Number(s.kitchen_tip_cents),
+        })),
+        expenses: ov.expenses.map((e) => ({
+          description: e.description,
+          amountCents: e.amountCents,
+        })),
+        advances: ov.advances.map((a) => ({
+          staffName: staffById.get(a.staffId) ?? a.staffId.slice(0, 8),
+          amountCents: a.amountCents,
+          note: a.note,
+        })),
+      });
+      setPdfPreview(out);
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  }
+  function closePdfPreview() {
+    if (pdfPreview) URL.revokeObjectURL(pdfPreview.blobUrl);
+    setPdfPreview(null);
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
