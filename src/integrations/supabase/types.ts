@@ -1121,6 +1121,7 @@ export type Database = {
           finalized_at: string | null
           finalized_by: string | null
           finedine_vouchers_cents: number
+          guest_count: number
           id: string
           location_id: string
           locked_at: string | null
@@ -1145,6 +1146,7 @@ export type Database = {
           finalized_at?: string | null
           finalized_by?: string | null
           finedine_vouchers_cents?: number
+          guest_count?: number
           id?: string
           location_id: string
           locked_at?: string | null
@@ -1169,6 +1171,7 @@ export type Database = {
           finalized_at?: string | null
           finalized_by?: string | null
           finedine_vouchers_cents?: number
+          guest_count?: number
           id?: string
           location_id?: string
           locked_at?: string | null

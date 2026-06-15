@@ -1,74 +1,68 @@
 ## Ziel
+Die Kasse-Seite (`/admin/kasse`) auf den gewohnten **Tagesabrechnung**-Look bringen – gleiche Überschriften, Reihenfolge, Datums-Picker, PDF-Export – plus drei neue Felder, die das Team aus der alten App kennt: **Gästezahl**, **Gutscheine verkauft**, **Gutscheine eingelöst**.
 
-Beim Eintragen von Urlaub oder Krankheit wird statt eines einzelnen Tages ein Zeitraum (Von / Bis) gesetzt. Im Zeitraum vorhandene Schichten desselben Mitarbeiters werden automatisch entfernt.
+## Empfehlungen zu den offenen Punkten
+- **Layout:** *Sektionen-Variante* (nicht 1:1 das alte `ExcelLayout`). Vertraute Begriffe und Reihenfolge in unserem flexiblen Cent-Schema.
+- **Datenfelder:** Bestehende `revenue_channels` (POS/SOUSE/Wolt/Vectron) und `payment_terminals` weiternutzen + **3 neue Spalten in `sessions`**.
+- **Umfang:** PDF + DateSelector (◀ Kalender ▶ Heute) – beides.
 
-## UX im Zell-Popover
+## Schema-Änderung (eine Migration)
+`ALTER TABLE public.sessions ADD COLUMN`:
+- `guest_count integer NOT NULL DEFAULT 0` – Gästezahl
+- `vouchers_sold_cents integer NOT NULL DEFAULT 0` – Gutschein-Verkauf (€-Cents)
+- `vouchers_redeemed_cents integer NOT NULL DEFAULT 0` – Gutschein-Einlösung (€-Cents)
 
-Klick auf „Urlaub eintragen" oder „Krank eintragen" wechselt das Popover auf einen kleinen Eingabemodus:
+CHECK-Constraints: `>= 0`. Keine neuen Policies (sessions hat schon RLS). Cent-Konvention bleibt projektweit konsistent.
+
+## Server-Functions (minimal-invasiv)
+Bestehende `updateSession` in `src/lib/cash/cash.functions.ts` um die drei optionalen Felder erweitern (gleiches Schreib-Gate `status='open' && !underWaterline`). `getCashOverview` liefert sie automatisch mit `select *` zurück; im DTO ergänzen.
+
+## UI-Umbau `src/routes/_authenticated/admin/kasse.tsx`
+Reiner Frontend-Refactor; Reihenfolge wie in der alten Tagesabrechnung:
 
 ```text
-Urlaub eintragen
-Von   [ 15.06.2026 ]
-Bis   [ 19.06.2026 ]
-Hinweis: 3 Schichten im Zeitraum werden entfernt.
-[ Abbrechen ]  [ Eintragen ]
+Header:  Kasse · Mittwoch, 15. Juni 2026
+         [DateSelector ◀ Kalender ▶ Heute]  [PDF Export]
+         Erstellt von … · Zuletzt bearbeitet von …
+
+[SessionLockedBanner – nur wenn gesperrt]
+
+StatCards-Reihe:  Kassiert · Karten · Lieferdienste · Bargeld
+
+▸ Gäste & Gutscheine          ← NEU: guest_count, vouchers_sold, vouchers_redeemed
+▸ Umsätze (Kanäle)            – revenue_channels
+▸ Karten-Terminals            – payment_terminals
+▸ Kellner-Abrechnungen        – waiter_settlements (unverändert)
+▸ Trinkgeld-Pool              – TipPoolOverview (unverändert)
+▸ Vorschüsse                  – session_advances
+▸ Ausgaben                    – session_expenses
+▸ Banktresor / Übergaben      – session_register_transfers + bank_deposits
+▸ Notizen
+▸ Status & Abschluss          – finalize/lock-Buttons (unverändert)
 ```
 
-- „Von" wird mit dem geklickten Tag vorbelegt, „Bis" identisch (Standard = 1 Tag).
-- Beide Felder sind Shadcn-Datepicker im Popover (`pointer-events-auto`).
-- Validierung: `Bis >= Von`, sonst Button disabled.
-- Live-Hinweis: Anzahl der Schichten dieses Mitarbeiters im gewählten Zeitraum (aus dem bereits geladenen `shifts`-Array, kein Roundtrip).
-- Bestehende Buttons „Urlaub entfernen" / „Krank entfernen" entfernen weiterhin nur den geklickten Tag.
+Neue/portierte Komponenten (rein präsentational, in `src/components/cash/`):
+- `DateSelector.tsx` – 1:1 Port (ChevronLeft / Popover-Kalender / ChevronRight / „Heute"). Geschäftstag-Cutoff 03:00 Europe/Berlin via kleinem `businessDate.ts`-Helper.
+- `StatCard.tsx` – KPI-Kachel (Label, Wert, optional Differenz-Pille).
+- `SectionCard.tsx` – Karten-Wrapper mit gewohntem Titel-Stil.
+- `GuestsVouchersSection.tsx` – Zahl-Input (Gäste) + zwei `CurrencyInput` (Gutscheine verkauft/eingelöst), Auto-Save via `updateSession`-Mutation.
 
-Identisches Verhalten im Pillen-Popover (Klick auf Schicht).
+## PDF-Export
+Neue Server-Function `exportDailySummaryPdf` in `src/lib/cash/pdf.functions.ts`:
+- liest `getCashOverview` + `getTipPoolOverview` server-seitig,
+- rendert mit `pdf-lib` (Worker-kompatibel; kein jsPDF/DOM nötig),
+- gibt Bytes als `Uint8Array` zurück.
 
-## Datenmodell
+Client zeigt das PDF im bestehenden `Dialog` als Vorschau (Blob-URL im iframe) und bietet Download `Tagesabrechnung_YYYY-MM-DD.pdf`. PDF-Inhalt: Kopf (Datum, Standort, Ersteller) · **Gäste & Gutscheine** · Umsätze · Karten · Kellner · Trinkgeld-Pool · Ausgaben/Vorschüsse · Saldo.
 
-Keine Schema-Änderung. `roster_absence` bleibt ein Eintrag pro `(staff_id, date)`. Der Zeitraum wird serverseitig in einzelne Tageseinträge expandiert. Das hält Anzeige (`absenceMap`), Realtime und Auswertungen unverändert.
+## Bewusst NICHT enthalten
+- Kein Spicery-Zähler, keine weiteren Sonderfelder (erst auf Bestellung).
+- Keine Änderung an `cash.functions.ts`-Signaturen außer `updateSession`-Payload.
+- Kein Eingriff in Dienstplan, Zeiterfassung, Auth oder `kasse-saldo.tsx`.
 
-## Server-Funktion `setAbsenceRange`
-
-Neue Funktion in `src/lib/roster/roster.functions.ts`, parallel zu `setAbsence`:
-
-- Input: `{ staffId, fromDate, toDate, type: 'urlaub' | 'krank' }`, Zod-validiert, `toDate >= fromDate`, max. Spannweite z. B. 92 Tage als Schutz.
-- Rolle: `manager`+ (wie `setAbsence`).
-- Ablauf (Service-Role):
-  1. Tagesliste aus `[fromDate, toDate]` generieren (UTC-sicher).
-  2. `upsert` auf `roster_absence` mit allen Tagen (`onConflict: staff_id,date`) → setzt/überschreibt `type`.
-  3. `delete` auf `roster_shifts` für `staff_id = X AND shift_date BETWEEN from AND to` (im Org-Scope). Greift auf alle Standorte/Areas, weil Abwesenheit mitarbeiterweit ist.
-  4. Audit-Eintrag mit `action: 'roster_absence.set_range'`, `meta: { staffId, fromDate, toDate, type, deletedShiftCount }`.
-- Rückgabe: `{ ok: true, deletedShiftCount, daysCount }` für Toast-Feedback.
-
-`setAbsence` (Einzeltag) bleibt bestehen für Abwärtskompatibilität, wird aber vom UI nicht mehr aufgerufen — das Popover ruft immer `setAbsenceRange`.
-
-## Frontend-Anpassungen
-
-`src/routes/_authenticated/admin/dienstplan.tsx`:
-- `handleSetAbsence` → `handleSetAbsenceRange(staffId, from, to, type)`. Invalidiert `roster-absence` UND `roster-shifts`. Toast: „Urlaub für 5 Tage eingetragen, 2 Schichten entfernt".
-- Realtime-Subscription auf `roster_shifts` ist bereits vorhanden — Grid aktualisiert sich selbst.
-
-`src/components/roster/CellQuickPopover.tsx` und `PillConfirmPopover.tsx`:
-- Neuer interner State `mode: 'menu' | 'range-urlaub' | 'range-krank'`.
-- Im Range-Modus: zwei Datepicker, Hinweistext mit Schichtanzahl, „Eintragen"/„Abbrechen".
-- Prop-Signatur: `onSetAbsenceRange: (from: string, to: string, type) => Promise<void>` ersetzt `onSetAbsence`. „Entfernen" bleibt einzeltagsbezogen.
-- Damit der Schicht-Konflikthinweis berechnet werden kann: zusätzliche Prop `shiftsForStaff: Array<{ shiftDate: string }>` (aus `shifts` in `RosterGrid` gefiltert nach `staffId`).
-
-`src/components/roster/RosterGrid.tsx`:
-- Reicht `shiftsForStaff` und die neue Callback-Signatur durch.
-
-## Edge Cases
-
-- „Krank" über einen Zeitraum, in dem teilweise schon „Urlaub" steht → wird mit `upsert` auf `krank` überschrieben (gewollt: zuletzt eingetragener Typ gewinnt pro Tag).
-- Wochenenden im Zeitraum: zählen mit (kein Sonderhandling — Restaurantbetrieb).
-- Periode gesperrt (`periodLocked`): „Eintragen"-Button disabled, wie bisher bei anderen Edits.
-
-## Verifikation
-
-- `npx prettier --write` + `npx eslint --max-warnings=0` auf geänderte Dateien.
-- Manueller Test: 1) Urlaub Mo–Fr eintragen → 5 grüne Schirme, geplante Schichten weg. 2) Krank Mi–Do überschreibt → Mi/Do werden rot. 3) Einzeltag-„Entfernen" auf Mi → nur Mi wird leer.
-
-## Nicht im Scope
-
-- Bearbeiten eines bestehenden Zeitraums als Block (Verlängern/Kürzen) — bleibt manuell pro Tag.
-- Halbe Tage, Stundenangaben.
-- Schema-Erweiterung um `absence_periods`-Tabelle (bewusst weggelassen, um Anzeige/Realtime unverändert zu lassen).
+## Akzeptanz
+- Drei neue Felder erscheinen oben in „Gäste & Gutscheine" und sind speicher-/sperr-kompatibel.
+- Header zeigt Datum als `EEEE, d. MMMM yyyy` (de) + DateSelector ◀ Kalender ▶ Heute.
+- Sektions-Überschriften und Reihenfolge entsprechen der alten Tagesabrechnung.
+- PDF-Export-Button öffnet Vorschau, listet auch Gäste & Gutscheine.
+- Build grün, eine neue Migration, keine RLS-Lücken.
