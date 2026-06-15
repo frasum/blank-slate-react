@@ -1193,103 +1193,109 @@ function dayHeader(d: Date): string {
 }
 
 function WeeklyPlan({
-  data,
+  input,
   isLoading,
   weekDays,
   isAdmin,
   onEdit,
   onCreate,
+  entriesById,
 }: {
-  data: WeeklyData | undefined;
+  input: WeeklyExportInput | null;
   isLoading: boolean;
   weekDays: Date[];
   isAdmin: boolean;
   onEdit: (entry: WeeklyEntry) => void;
   onCreate: (staffId: string, staffName: string, dateIso: string) => void;
+  entriesById: Map<string, WeeklyEntry>;
 }) {
-  const entries = data?.entries ?? [];
-  const crossDates = data?.crossLocationDates ?? {};
+  // Header-Tagesmeta (Wochentag-Label + Feiertags-Hint)
+  const dayMeta = weekDays.map((d) => ({
+    date: d,
+    iso: fmtIso(d),
+    isSun: d.getUTCDay() === 0,
+    isHol: isBavarianHoliday(d),
+    isSunOrHol: isSundayOrHoliday(d),
+  }));
 
-  // Gruppieren: staffId → { entries-by-date, totals }
-  type Row = {
-    staffId: string;
-    displayName: string;
-    department: Department;
-    entriesByDate: Map<string, WeeklyEntry[]>;
-    totals: {
-      total: number;
-      evening: number;
-      night: number;
-      sunHol: number;
-    };
-  };
-  const rows = new Map<string, Row>();
-  for (const e of entries) {
-    let row = rows.get(e.staffId);
-    if (!row) {
-      row = {
-        staffId: e.staffId,
-        displayName: e.displayName,
-        department: e.department,
-        entriesByDate: new Map(),
-        totals: { total: 0, evening: 0, night: 0, sunHol: 0 },
-      };
-      rows.set(e.staffId, row);
+  // Spalten: Mitarbeiter + 7×2 (Anfang/Ende) + 6 Summen
+  const totalCols = 1 + 14 + 6;
+
+  const groups = input?.rowsByDept ?? [];
+  const anyRows = groups.some((g) => g.rows.length > 0);
+
+  // Hilfsfunktion: aus staffId + ISO → die echten WeeklyEntry-Objekte
+  // (für onEdit/onCreate, da WeeklyExportRow nur Strings hält).
+  const findEntries = (staffId: string, iso: string): WeeklyEntry[] => {
+    const out: WeeklyEntry[] = [];
+    for (const e of entriesById.values()) {
+      if (e.staffId === staffId && e.businessDate === iso) out.push(e);
     }
-    const arr = row.entriesByDate.get(e.businessDate) ?? [];
-    arr.push(e);
-    row.entriesByDate.set(e.businessDate, arr);
-    const r = computeShiftHours(e.startedAt, e.endedAt, e.businessDate);
-    row.totals.total += r.totalHours;
-    row.totals.evening += r.eveningHours;
-    row.totals.night += r.nightHours;
-    row.totals.sunHol += r.sundayHolidayHours;
-  }
-
-  const byDept = new Map<Department, Row[]>();
-  for (const dept of DEPT_ORDER) byDept.set(dept, []);
-  for (const row of rows.values()) {
-    const list = byDept.get(row.department) ?? [];
-    list.push(row);
-    byDept.set(row.department, list);
-  }
-  for (const dept of DEPT_ORDER) {
-    const list = byDept.get(dept) ?? [];
-    list.sort((a, b) => a.displayName.localeCompare(b.displayName, "de"));
-  }
-
-  const dayMeta = weekDays.map((d) => {
-    const iso = fmtIso(d);
-    const isSun = d.getUTCDay() === 0;
-    const isHol = isBavarianHoliday(d);
-    return { date: d, iso, isSun, isHol, isSunOrHol: isSundayOrHoliday(d) };
-  });
-
-  const totalCols = 1 + 7 + 6; // Mitarbeiter + 7 Tage + 6 Summen
+    return out;
+  };
 
   return (
     <Card className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[150px] min-w-[150px]">Mitarbeiter</TableHead>
+            <TableHead rowSpan={2} className="w-[140px] min-w-[140px] align-bottom">
+              Mitarbeiter
+            </TableHead>
             {dayMeta.map((dm) => (
               <TableHead
                 key={dm.iso}
-                className={`text-center whitespace-nowrap ${dm.isHol ? "bg-yellow-50" : dm.isSun ? "bg-gray-100" : ""}`}
+                colSpan={2}
+                className={`text-center whitespace-nowrap border-l ${
+                  dm.isHol ? "bg-yellow-50" : dm.isSun ? "bg-gray-100" : ""
+                }`}
               >
                 {dayHeader(dm.date)}
                 {dm.isHol && (
-                  <span className="block text-[10px] font-normal text-muted-foreground">(Fei)</span>
+                  <span className="block text-[10px] font-normal text-muted-foreground">
+                    (Fei)
+                  </span>
                 )}
               </TableHead>
             ))}
-            <TableHead className="text-right">Ges</TableHead>
-            <TableHead className="text-right">20–24</TableHead>
-            <TableHead className="text-right">24–x</TableHead>
-            <TableHead className="text-right">So/Fei</TableHead>
-            <TableHead className="text-right">U</TableHead>
-            <TableHead className="text-right">K</TableHead>
+            <TableHead rowSpan={2} className="text-right align-bottom border-l">
+              Ges
+            </TableHead>
+            <TableHead rowSpan={2} className="text-right align-bottom">
+              20–24
+            </TableHead>
+            <TableHead rowSpan={2} className="text-right align-bottom">
+              24–x
+            </TableHead>
+            <TableHead rowSpan={2} className="text-right align-bottom">
+              So/Fei
+            </TableHead>
+            <TableHead rowSpan={2} className="text-right align-bottom">
+              U
+            </TableHead>
+            <TableHead rowSpan={2} className="text-right align-bottom">
+              K
+            </TableHead>
+          </TableRow>
+          <TableRow>
+            {dayMeta.map((dm) => (
+              <Fragment key={`sub-${dm.iso}`}>
+                <TableHead
+                  className={`text-center text-[10px] font-normal text-muted-foreground border-l ${
+                    dm.isHol ? "bg-yellow-50" : dm.isSun ? "bg-gray-100" : ""
+                  }`}
+                >
+                  Anf.
+                </TableHead>
+                <TableHead
+                  className={`text-center text-[10px] font-normal text-muted-foreground ${
+                    dm.isHol ? "bg-yellow-50" : dm.isSun ? "bg-gray-100" : ""
+                  }`}
+                >
+                  Ende
+                </TableHead>
+              </Fragment>
+            ))}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -1300,101 +1306,95 @@ function WeeklyPlan({
               </TableCell>
             </TableRow>
           )}
-          {!isLoading && rows.size === 0 && (
+          {!isLoading && !anyRows && (
             <TableRow>
               <TableCell colSpan={totalCols} className="text-center text-muted-foreground">
                 Keine Einträge in dieser Woche.
               </TableCell>
             </TableRow>
           )}
-          {DEPT_ORDER.map((dept) => {
-            const list = byDept.get(dept) ?? [];
-            if (list.length === 0) return null;
+          {groups.map((grp) => {
+            if (grp.rows.length === 0) return null;
             return (
-              <Fragment key={`w-${dept}`}>
-                <TableRow className={DEPT_BG[dept]}>
+              <Fragment key={`w-${grp.dept}`}>
+                <TableRow className={DEPT_BG[grp.dept]}>
                   <TableCell colSpan={totalCols} className="font-semibold text-foreground">
-                    {DEPT_HEADER_LABEL[dept]}
+                    {grp.deptLabel}
                   </TableCell>
                 </TableRow>
-                {list.map((row) => {
-                  const cross = new Set(crossDates[row.staffId] ?? []);
-                  return (
-                    <TableRow key={row.staffId}>
-                      <TableCell className="relative pl-3 font-medium">
-                        <span
-                          className={`absolute left-0 top-0 bottom-0 w-[2px] ${DEPT_BAR[row.department]}`}
-                        />
-                        {row.displayName}
-                      </TableCell>
-                      {dayMeta.map((dm) => {
-                        const dayEntries = row.entriesByDate.get(dm.iso) ?? [];
-                        const hasCross = cross.has(dm.iso) && dayEntries.length === 0;
-                        const cellBg = dm.isHol ? "bg-yellow-50" : dm.isSun ? "bg-gray-50" : "";
-                        const clickable = isAdmin;
+                {grp.rows.map((row) => (
+                  <TableRow key={row.staffId}>
+                    <TableCell className="relative pl-3 font-medium">
+                      <span
+                        className={`absolute left-0 top-0 bottom-0 w-[2px] ${DEPT_BAR[row.department]}`}
+                      />
+                      {row.displayName}
+                    </TableCell>
+                    {row.days.map((day, idx) => {
+                      const dm = dayMeta[idx];
+                      const cellBg = dm.isHol ? "bg-yellow-50" : dm.isSun ? "bg-gray-50" : "";
+                      const empty = day.shifts.length === 0;
+                      const clickable = isAdmin;
+                      const handleClick = () => {
+                        if (!clickable) return;
+                        if (empty) {
+                          onCreate(row.staffId, row.displayName, day.iso);
+                          return;
+                        }
+                        const found = findEntries(row.staffId, day.iso);
+                        if (found.length === 1) onEdit(found[0]);
+                      };
+                      const renderShift = (which: "from" | "to") => {
+                        if (empty) {
+                          if (day.crossLocation && which === "from")
+                            return <span className="text-muted-foreground">×</span>;
+                          if (clickable && which === "from")
+                            return <span className="text-muted-foreground/40">+</span>;
+                          return "";
+                        }
                         return (
-                          <TableCell
-                            key={dm.iso}
-                            onClick={
-                              clickable
-                                ? () => {
-                                    if (dayEntries.length === 0) {
-                                      onCreate(row.staffId, row.displayName, dm.iso);
-                                    } else if (dayEntries.length === 1) {
-                                      onEdit(dayEntries[0]);
-                                    }
-                                  }
-                                : undefined
-                            }
-                            className={`min-h-[40px] p-1 text-center align-middle font-mono text-sm ${cellBg} ${clickable ? "cursor-pointer hover:bg-muted/60" : ""}`}
-                          >
-                            {dayEntries.length === 0 ? (
-                              hasCross ? (
-                                <span className="text-muted-foreground">×</span>
-                              ) : isAdmin ? (
-                                <span className="text-muted-foreground/40">+</span>
-                              ) : (
-                                ""
-                              )
-                            ) : (
-                              <div className="flex flex-col divide-y divide-border/60">
-                                {dayEntries.map((e) => (
-                                  <button
-                                    type="button"
-                                    key={e.id}
-                                    disabled={!isAdmin}
-                                    onClick={(ev) => {
-                                      if (!isAdmin) return;
-                                      ev.stopPropagation();
-                                      onEdit(e);
-                                    }}
-                                    className="whitespace-nowrap py-0.5 text-center disabled:cursor-default"
-                                  >
-                                    {fmtHHMM(e.startedAt)}–{fmtHHMM(e.endedAt)}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </TableCell>
+                          <div className="flex flex-col divide-y divide-border/60">
+                            {day.shifts.map((s, i) => (
+                              <span key={i} className="py-0.5 tabular-nums">
+                                {s[which]}
+                              </span>
+                            ))}
+                          </div>
                         );
-                      })}
-                      <TableCell className="text-right tabular-nums font-medium">
-                        {fmtDec(row.totals.total)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {fmtDec(row.totals.evening)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {fmtDec(row.totals.night)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {fmtDec(row.totals.sunHol)}
-                      </TableCell>
-                      <TableCell className="text-right text-muted-foreground">–</TableCell>
-                      <TableCell className="text-right text-muted-foreground">–</TableCell>
-                    </TableRow>
-                  );
-                })}
+                      };
+                      return (
+                        <Fragment key={day.iso}>
+                          <TableCell
+                            onClick={handleClick}
+                            className={`border-l p-1 text-center align-middle font-mono text-sm ${cellBg} ${clickable ? "cursor-pointer hover:bg-muted/60" : ""}`}
+                          >
+                            {renderShift("from")}
+                          </TableCell>
+                          <TableCell
+                            onClick={handleClick}
+                            className={`p-1 text-center align-middle font-mono text-sm ${cellBg} ${clickable ? "cursor-pointer hover:bg-muted/60" : ""}`}
+                          >
+                            {renderShift("to")}
+                          </TableCell>
+                        </Fragment>
+                      );
+                    })}
+                    <TableCell className="text-right tabular-nums font-medium border-l">
+                      {fmtDec(row.totals.total)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {fmtDec(row.totals.evening)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {fmtDec(row.totals.night)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {fmtDec(row.totals.sunHol)}
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground">–</TableCell>
+                    <TableCell className="text-right text-muted-foreground">–</TableCell>
+                  </TableRow>
+                ))}
               </Fragment>
             );
           })}
