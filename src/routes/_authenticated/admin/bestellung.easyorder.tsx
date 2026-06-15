@@ -112,8 +112,14 @@ function EasyOrderCart(props: {
   onSwitchLocation: () => void;
   callPlace: CallPlaceFn;
 }) {
-  const { locationId, locationName, canAddFreeItems, canSwitchLocation, onSwitchLocation, callPlace } =
-    props;
+  const {
+    locationId,
+    locationName,
+    canAddFreeItems,
+    canSwitchLocation,
+    onSwitchLocation,
+    callPlace,
+  } = props;
 
   const catalogQ = useQuery({
     queryKey: ["easyorder", "catalog", locationId],
@@ -156,8 +162,7 @@ function EasyOrderCart(props: {
     const s = search.trim().toLowerCase();
     if (!s) return articles;
     return articles.filter(
-      (a) =>
-        a.name.toLowerCase().includes(s) || (a.sku ?? "").toLowerCase().includes(s),
+      (a) => a.name.toLowerCase().includes(s) || (a.sku ?? "").toLowerCase().includes(s),
     );
   }, [articles, search]);
 
@@ -435,11 +440,7 @@ function EasyOrderCart(props: {
   );
 }
 
-function Stepper(props: {
-  value: number;
-  onChange: (next: number) => void;
-  min?: number;
-}) {
+function Stepper(props: { value: number; onChange: (next: number) => void; min?: number }) {
   const { value, onChange, min = 0 } = props;
   return (
     <div className="flex items-center gap-1">
