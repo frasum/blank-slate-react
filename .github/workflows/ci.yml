@@ -61,68 +61,21 @@ jobs:
             echo "SUPABASE_SERVICE_ROLE_KEY=$SUPA_SVC"
             echo "SUPABASE_DB_TESTS=1"
           } >> "$GITHUB_ENV"
-      - name: Force PostgREST schema cache reload + wait for WRITE path
-        # `NOTIFY pgrst, 'reload schema'` am Ende einer Migration kann während
-        # `supabase start` verloren gehen, wenn PostgREST den Listener noch
-        # nicht aufgesetzt hat → PGRST204 für frisch hinzugefügte Spalten
-        # (z.B. sessions.guest_count). Ein reiner SELECT-Poll wärmt nur den
-        # Read-Path; der WRITE-Path (PATCH/UPDATE über PostgREST) kann noch
-        # einen veralteten Schema-Cache haben. Daher hier den Write-Path
-        # explizit testen: erst ein harmloses UPDATE in einer Transaktion
-        # (sofort ROLLBACK), dann ein PATCH gegen PostgREST auf eine nicht
-        # existierende id — der ändert nichts, prüft aber, dass guest_count
-        # im Write-Path akzeptiert wird (kein PGRST204).
+      - name: Reset DB (apply all migrations cleanly)
+        run: supabase db reset --no-seed
+      - name: Wait for PostgREST after reset
         run: |
-          set -euo pipefail
-          DB_URL=$(supabase status -o env | grep '^DB_URL=' | cut -d= -f2- | tr -d '"')
-          SUPA_URL=$(supabase status -o env | grep '^API_URL=' | cut -d= -f2- | tr -d '"')
-          SUPA_SVC=$(supabase status -o env | grep '^SERVICE_ROLE_KEY=' | cut -d= -f2- | tr -d '"')
-          REST_CONTAINER=$(docker ps --filter "name=supabase_rest" --format "{{.Names}}" | head -n1 || true)
-          reload_postgrest_schema() {
-            psql "$DB_URL" -c "NOTIFY pgrst, 'reload schema';"
-            if [ -n "$REST_CONTAINER" ]; then
-              docker kill --signal=SIGUSR1 "$REST_CONTAINER" > /dev/null 2>&1 || true
+          for i in $(seq 1 30); do
+            if curl -sf "$SUPABASE_URL/rest/v1/sessions?select=id&limit=1" \
+                 -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+                 -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" > /dev/null 2>&1; then
+              echo "PostgREST ready after reset"
+              exit 0
             fi
-          }
-
-          # Ein voller Container-Restart erzwingt einen frischen Schema-Read
-          # und umgeht Race-Conditions mit dem NOTIFY/SIGUSR1-Listener.
-          if [ -n "$REST_CONTAINER" ]; then
-            docker restart "$REST_CONTAINER" > /dev/null 2>&1 || true
-          fi
-          sleep 3
-          reload_postgrest_schema
-          for i in $(seq 1 60); do
-            # Write-path probe: PATCH with guest_count. We do NOT rely on curl -f.
-            # Capture body + HTTP status. The ONLY outcome that means "cache stale"
-            # is PGRST204 (unknown column). Anything else (200/204/404/even a
-            # no-row update) means the WRITE schema is current → proceed.
-            RESP=$(curl -s -o /tmp/probe_body -w "%{http_code}" \
-                -X PATCH "$SUPA_URL/rest/v1/sessions?id=eq.00000000-0000-0000-0000-000000000000" \
-                -H "apikey: $SUPA_SVC" \
-                -H "Authorization: Bearer $SUPA_SVC" \
-                -H "Content-Type: application/json" \
-                -H "Prefer: return=minimal" \
-                -d '{"guest_count":0}' || true)
-            BODY=$(cat /tmp/probe_body 2>/dev/null || true)
-            # PGRST204 = column not in schema cache → still stale, keep waiting.
-            if echo "$BODY" | grep -q "PGRST204" || echo "$BODY" | grep -qi "guest_count"; then
-              echo "Schema cache stale (PGRST204), waiting... ($i/60)"
-              reload_postgrest_schema
-              sleep 2
-              continue
-            fi
-            # Any non-PGRST204 response means guest_count is known to the write path.
-            echo "PostgREST write-path cache aktuell (guest_count akzeptiert, HTTP $RESP)"
-            exit 0
+            echo "Waiting for PostgREST after reset... ($i/30)"
+            sleep 2
           done
-          echo "::error::PostgREST write-path schema cache did not accept sessions.guest_count in time"
-          echo "---- PostgREST container logs (tail) ----"
-          if [ -n "$REST_CONTAINER" ]; then
-            docker logs --tail 50 "$REST_CONTAINER" 2>&1 || true
-          fi
-          echo "---- sessions columns in DB ----"
-          psql "$DB_URL" -c "\d public.sessions" || true
+          echo "::error::PostgREST not ready after db reset"
           exit 1
       - name: Run DB integration tests
         # Vitest-Positional-Args sind Substring-Filter, KEINE Globs
