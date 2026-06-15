@@ -14,10 +14,7 @@
 
 import { describe, it, expect, beforeAll } from "vitest";
 import { dbTestsEnabled, seedOrg, type SeededOrg, type SeededUser } from "@/test/db-setup";
-import {
-  getEasyOrderCatalogCore,
-  placeEasyOrderCore,
-} from "./easyorder.functions";
+import { getEasyOrderCatalogCore, placeEasyOrderCore } from "./easyorder.functions";
 import type { AdminCaller } from "@/lib/admin/admin-context";
 
 describe.skipIf(!dbTestsEnabled)("easyorder (DB)", () => {
@@ -137,10 +134,7 @@ describe.skipIf(!dbTestsEnabled)("easyorder (DB)", () => {
   });
 
   async function countOrders(): Promise<number> {
-    const { data } = await org.service
-      .from("orders")
-      .select("id")
-      .eq("organization_id", org.orgId);
+    const { data } = await org.service.from("orders").select("id").eq("organization_id", org.orgId);
     return data?.length ?? 0;
   }
 
@@ -197,9 +191,7 @@ describe.skipIf(!dbTestsEnabled)("easyorder (DB)", () => {
       placeEasyOrderCore(org.service, callerOf(staffUserD), {
         locationId: org.defaultLocationId,
         items: [{ articleId: artA1, quantity: 1 }],
-        freeTextItems: [
-          { supplierId: supplierA, name: "Sondergewürz", quantity: 2 },
-        ],
+        freeTextItems: [{ supplierId: supplierA, name: "Sondergewürz", quantity: 2 }],
       }),
     ).rejects.toThrow(/Freitext/);
   });

@@ -2028,12 +2028,7 @@ function TipPoolCard({
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <div className="text-sm font-medium">Trinkgeld-Pool</div>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={!editable}
-          onClick={() => setEditOpen(true)}
-        >
+        <Button size="sm" variant="outline" disabled={!editable} onClick={() => setEditOpen(true)}>
           Pool bearbeiten
         </Button>
       </div>

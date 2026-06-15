@@ -29,12 +29,49 @@ function makeAuditWriter(caller: { organizationId: string; userId: string; staff
 
 const SupplierInput = z.object({
   name: z.string().trim().min(1).max(200),
-  email: z.string().trim().email().max(200).optional().or(z.literal("")).transform((v) => (v ? v : null)),
-  phone: z.string().trim().max(60).optional().or(z.literal("")).transform((v) => (v ? v : null)),
-  address: z.string().trim().max(500).optional().or(z.literal("")).transform((v) => (v ? v : null)),
-  customerNumber: z.string().trim().max(80).optional().or(z.literal("")).transform((v) => (v ? v : null)),
-  contactPerson: z.string().trim().max(120).optional().or(z.literal("")).transform((v) => (v ? v : null)),
-  notes: z.string().trim().max(2000).optional().or(z.literal("")).transform((v) => (v ? v : null)),
+  email: z
+    .string()
+    .trim()
+    .email()
+    .max(200)
+    .optional()
+    .or(z.literal(""))
+    .transform((v) => (v ? v : null)),
+  phone: z
+    .string()
+    .trim()
+    .max(60)
+    .optional()
+    .or(z.literal(""))
+    .transform((v) => (v ? v : null)),
+  address: z
+    .string()
+    .trim()
+    .max(500)
+    .optional()
+    .or(z.literal(""))
+    .transform((v) => (v ? v : null)),
+  customerNumber: z
+    .string()
+    .trim()
+    .max(80)
+    .optional()
+    .or(z.literal(""))
+    .transform((v) => (v ? v : null)),
+  contactPerson: z
+    .string()
+    .trim()
+    .max(120)
+    .optional()
+    .or(z.literal(""))
+    .transform((v) => (v ? v : null)),
+  notes: z
+    .string()
+    .trim()
+    .max(2000)
+    .optional()
+    .or(z.literal(""))
+    .transform((v) => (v ? v : null)),
   deliveryDays: z.array(z.string().min(1).max(8)).max(7).optional().nullable(),
   orderDeadline: z
     .string()
@@ -111,9 +148,7 @@ export const createSupplier = createServerFn({ method: "POST" })
 
 export const updateSupplier = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
-    SupplierInput.extend({ supplierId: z.string().uuid() }).parse(input),
-  )
+  .inputValidator((input) => SupplierInput.extend({ supplierId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
     return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {

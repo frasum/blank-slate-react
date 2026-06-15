@@ -59,8 +59,7 @@ function InventurPage() {
 
   const sessionsQ = useQuery({
     queryKey: ["inventur", "sessions", locationId],
-    queryFn: () =>
-      listInventorySessions({ data: locationId ? { locationId } : {} }),
+    queryFn: () => listInventorySessions({ data: locationId ? { locationId } : {} }),
     enabled: !!locationId,
   });
 
@@ -133,9 +132,7 @@ function InventurPage() {
         <div className="border-b border-border bg-muted/30 px-3 py-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           Inventuren
         </div>
-        {sessionsQ.isLoading && (
-          <p className="px-3 py-3 text-sm text-muted-foreground">Lädt …</p>
-        )}
+        {sessionsQ.isLoading && <p className="px-3 py-3 text-sm text-muted-foreground">Lädt …</p>}
         {!sessionsQ.isLoading && (sessionsQ.data ?? []).length === 0 && (
           <p className="px-3 py-3 text-sm text-muted-foreground">Keine Inventuren bisher.</p>
         )}
@@ -248,10 +245,7 @@ function OpenSession({
               {completing ? "Schließe …" : "Inventur abschließen"}
             </button>
           )}
-          <button
-            onClick={onClose}
-            className="text-xs text-muted-foreground hover:text-foreground"
-          >
+          <button onClick={onClose} className="text-xs text-muted-foreground hover:text-foreground">
             Schließen
           </button>
         </div>

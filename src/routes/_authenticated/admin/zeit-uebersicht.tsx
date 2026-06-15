@@ -215,9 +215,7 @@ function ZeitUebersichtPage() {
   // Wochenplan-Location-Filter: konkrete Location-ID oder "all".
   const [locationFilter, setLocationFilter] = useState<string>("");
   const effectiveLocationId =
-    locationFilter && locationFilter !== "all"
-      ? locationFilter
-      : (locations[0]?.id ?? "");
+    locationFilter && locationFilter !== "all" ? locationFilter : (locations[0]?.id ?? "");
   const isAllLocations = locationFilter === "all";
 
   // Periodenwahl
@@ -530,8 +528,7 @@ function ZeitUebersichtPage() {
             from: fmtHHMM(e.startedAt),
             to: fmtHHMM(e.endedAt),
           })),
-          crossLocation:
-            dayEntries.length === 0 && (cross[r.staffId] ?? []).includes(d.iso),
+          crossLocation: dayEntries.length === 0 && (cross[r.staffId] ?? []).includes(d.iso),
         };
       }),
       totals: r.totals,
@@ -682,8 +679,7 @@ function ZeitUebersichtPage() {
               </select>
               <div className="inline-flex rounded-md border border-input bg-background p-1">
                 {locations.map((l) => {
-                  const active =
-                    (locationFilter || locations[0]?.id) === l.id && !isAllLocations;
+                  const active = (locationFilter || locations[0]?.id) === l.id && !isAllLocations;
                   return (
                     <button
                       key={l.id}
@@ -1244,10 +1240,7 @@ function WeeklyPlan({
     }
   };
 
-  const handleBlur = (
-    ev: React.FocusEvent<HTMLInputElement>,
-    current: EditState,
-  ) => {
+  const handleBlur = (ev: React.FocusEvent<HTMLInputElement>, current: EditState) => {
     const next = ev.relatedTarget as HTMLElement | null;
     const nextKey = next?.getAttribute?.("data-edit-key");
     if (nextKey === cellKey(current.staffId, current.iso)) return;
@@ -1273,9 +1266,7 @@ function WeeklyPlan({
               >
                 {dayHeader(dm.date)}
                 {dm.isHol && (
-                  <span className="block text-[10px] font-normal text-muted-foreground">
-                    (Fei)
-                  </span>
+                  <span className="block text-[10px] font-normal text-muted-foreground">(Fei)</span>
                 )}
               </TableHead>
             ))}
@@ -1358,9 +1349,7 @@ function WeeklyPlan({
                       const clickable = isAdmin;
                       const multi = day.shifts.length > 1;
                       const isEditingCell =
-                        edit !== null &&
-                        edit.staffId === row.staffId &&
-                        edit.iso === day.iso;
+                        edit !== null && edit.staffId === row.staffId && edit.iso === day.iso;
                       const editable = clickable && !multi;
                       const handleCellClick = (which: "from" | "to") => {
                         if (!editable) return;

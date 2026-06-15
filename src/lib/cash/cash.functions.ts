@@ -468,10 +468,7 @@ export async function getTipPoolOverviewCore(
     openInvoicesCents: Number(r.open_invoices_cents),
     kitchenTipCents: Number(r.kitchen_tip_cents),
   }));
-  const manualByStaff = new Map<
-    string,
-    { department: StaffDepartment; hoursMinutes: number }
-  >();
+  const manualByStaff = new Map<string, { department: StaffDepartment; hoursMinutes: number }>();
   for (const r of manualRes.data ?? []) {
     manualByStaff.set(r.staff_id, {
       department: r.department as StaffDepartment,
@@ -1997,20 +1994,18 @@ export async function upsertSessionTipPoolEntryCore(
     await assertStaffBoundToLocation(caller.organizationId, data.staffId, session.location_id);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error: upErr } = await supabaseAdmin
-      .from("session_tip_pool_entries")
-      .upsert(
-        {
-          organization_id: caller.organizationId,
-          session_id: session.id,
-          staff_id: data.staffId,
-          department: data.department,
-          hours_minutes: data.hoursMinutes,
-          note: data.note ?? null,
-          created_by: caller.userId,
-        },
-        { onConflict: "session_id,staff_id" },
-      );
+    const { error: upErr } = await supabaseAdmin.from("session_tip_pool_entries").upsert(
+      {
+        organization_id: caller.organizationId,
+        session_id: session.id,
+        staff_id: data.staffId,
+        department: data.department,
+        hours_minutes: data.hoursMinutes,
+        note: data.note ?? null,
+        created_by: caller.userId,
+      },
+      { onConflict: "session_id,staff_id" },
+    );
     if (upErr) throw upErr;
 
     return {

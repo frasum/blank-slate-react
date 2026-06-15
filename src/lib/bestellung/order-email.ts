@@ -56,7 +56,9 @@ export function buildOrderEmailHtml(d: OrderEmailData): string {
   const rows = d.items
     .map((it) => {
       const name = escapeHtml(it.articleName);
-      const sku = it.sku ? `<div style="font-size:11px;color:#666">${escapeHtml(it.sku)}</div>` : "";
+      const sku = it.sku
+        ? `<div style="font-size:11px;color:#666">${escapeHtml(it.sku)}</div>`
+        : "";
       const qty = `${it.quantity} ${escapeHtml(it.unit)}`;
       const unitP = it.isFreeText ? "—" : fmtEur(it.unitPriceCents);
       const lineT = it.isFreeText ? "—" : fmtEur(it.totalPriceCents);

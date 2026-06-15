@@ -179,11 +179,7 @@ function WeinPage() {
           <span className="block uppercase tracking-wide text-muted-foreground">
             Suche (Name, Rebsorte, Herkunft)
           </span>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className={inputCls}
-          />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} className={inputCls} />
         </label>
         <label className="flex items-center gap-2 text-sm text-muted-foreground">
           <input
@@ -237,23 +233,14 @@ function WeinPage() {
               <div className="text-right font-mono text-sm">{fmtEuro(w.price_cents)}</div>
             </div>
             <dl className="mt-3 space-y-1 text-sm">
-              {w.grape_variety && (
-                <Row label="Rebsorte" value={w.grape_variety} />
-              )}
-              {w.origin_country && (
-                <Row label="Herkunft" value={w.origin_country} />
-              )}
-              {w.food_pairings && (
-                <Row label="Passt zu" value={w.food_pairings} />
-              )}
+              {w.grape_variety && <Row label="Rebsorte" value={w.grape_variety} />}
+              {w.origin_country && <Row label="Herkunft" value={w.origin_country} />}
+              {w.food_pairings && <Row label="Passt zu" value={w.food_pairings} />}
             </dl>
             {Array.isArray(w.special_attributes) && w.special_attributes.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-1">
                 {w.special_attributes.map((a) => (
-                  <span
-                    key={a}
-                    className="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary"
-                  >
+                  <span key={a} className="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">
                     {a}
                   </span>
                 ))}
@@ -329,8 +316,7 @@ function WineForm(props: {
   onCancel: () => void;
 }) {
   const [d, setD] = useState<WineDraft>(props.initial);
-  const set = <K extends keyof WineDraft>(k: K, v: WineDraft[K]) =>
-    setD((p) => ({ ...p, [k]: v }));
+  const set = <K extends keyof WineDraft>(k: K, v: WineDraft[K]) => setD((p) => ({ ...p, [k]: v }));
 
   const toggleAttr = (attr: string) => {
     setD((p) => ({

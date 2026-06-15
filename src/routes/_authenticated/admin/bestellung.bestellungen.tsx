@@ -5,7 +5,12 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { cancelOrder, getOrder, listOrders, sendOrderEmail } from "@/lib/bestellung/orders.functions";
+import {
+  cancelOrder,
+  getOrder,
+  listOrders,
+  sendOrderEmail,
+} from "@/lib/bestellung/orders.functions";
 import { listSuppliers } from "@/lib/bestellung/suppliers.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/bestellung/bestellungen")({
@@ -80,7 +85,7 @@ function BestellungenPage() {
     onSuccess: (_res, orderId) => {
       const supplierName = (() => {
         const o = ordersQ.data?.find((x) => x.id === orderId);
-        return o ? suppliersById.get(o.supplier_id)?.name ?? "Lieferant" : "Lieferant";
+        return o ? (suppliersById.get(o.supplier_id)?.name ?? "Lieferant") : "Lieferant";
       })();
       setMsg(`Bestellung an ${supplierName} gesendet.`);
       qc.invalidateQueries({ queryKey: ["bestellung", "orders"] });
@@ -177,10 +182,7 @@ function BestellungenPage() {
                         {o.status !== "cancelled" && (
                           <button
                             onClick={() => sendMut.mutate(o.id)}
-                            disabled={
-                              sendMut.isPending ||
-                              !suppliersById.get(o.supplier_id)?.email
-                            }
+                            disabled={sendMut.isPending || !suppliersById.get(o.supplier_id)?.email}
                             title={
                               !suppliersById.get(o.supplier_id)?.email
                                 ? "Lieferant hat keine E-Mail-Adresse hinterlegt"
@@ -300,8 +302,7 @@ function OrderDetail(props: {
       </table>
       <div className="flex items-center justify-between border-t border-border pt-2">
         <p className="text-sm">
-          Gesamt:{" "}
-          <span className="font-mono font-medium">{fmtEuro(order.total_amount_cents)}</span>
+          Gesamt: <span className="font-mono font-medium">{fmtEuro(order.total_amount_cents)}</span>
         </p>
         {props.canCancel && (
           <button

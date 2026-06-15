@@ -42,7 +42,10 @@ export const saveWineQuizScore = createServerFn({ method: "POST" })
 export const listWineQuizScores = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
-    z.object({ limit: z.number().int().min(1).max(100).optional() }).partial().parse(input ?? {}),
+    z
+      .object({ limit: z.number().int().min(1).max(100).optional() })
+      .partial()
+      .parse(input ?? {}),
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "staff");

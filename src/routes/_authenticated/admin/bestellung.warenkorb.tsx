@@ -91,12 +91,18 @@ function WarenkorbPage() {
   });
 
   const suppliersById = useMemo(() => {
-    const m = new Map<string, { id: string; name: string; email: string | null; min_order_value_cents: number | null }>();
+    const m = new Map<
+      string,
+      { id: string; name: string; email: string | null; min_order_value_cents: number | null }
+    >();
     for (const s of suppliersQ.data ?? []) m.set(s.id, s);
     return m;
   }, [suppliersQ.data]);
   const articlesById = useMemo(() => {
-    const m = new Map<string, { id: string; name: string; unit: string; price_cents: number; supplier_id: string }>();
+    const m = new Map<
+      string,
+      { id: string; name: string; unit: string; price_cents: number; supplier_id: string }
+    >();
     for (const a of allArticlesQ.data ?? []) m.set(a.id, a);
     return m;
   }, [allArticlesQ.data]);
@@ -116,8 +122,7 @@ function WarenkorbPage() {
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
   });
   const updateMut = useMutation({
-    mutationFn: (input: { itemId: string; quantity: number }) =>
-      callUpdate({ data: input }),
+    mutationFn: (input: { itemId: string; quantity: number }) => callUpdate({ data: input }),
     onSuccess: refreshCart,
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
   });
@@ -178,7 +183,7 @@ function WarenkorbPage() {
     for (const it of items) {
       const sid = it.supplier_id ?? "—";
       const a = it.article_id ? articlesById.get(it.article_id) : undefined;
-      const unitPrice = it.is_free_text_item ? 0 : a?.price_cents ?? 0;
+      const unitPrice = it.is_free_text_item ? 0 : (a?.price_cents ?? 0);
       const g = map.get(sid) ?? { supplierId: sid, rows: [], subtotalCents: 0 };
       g.rows.push(it);
       g.subtotalCents += unitPrice * it.quantity;
@@ -203,9 +208,7 @@ function WarenkorbPage() {
             <span className="uppercase tracking-wide text-muted-foreground">Standort *</span>
             <select
               value={cart?.location_id ?? ""}
-              onChange={(e) =>
-                metaMut.mutate({ data: { locationId: e.target.value || null } })
-              }
+              onChange={(e) => metaMut.mutate({ data: { locationId: e.target.value || null } })}
               className={selectCls}
             >
               <option value="">— wählen —</option>
@@ -221,9 +224,7 @@ function WarenkorbPage() {
             <input
               type="date"
               value={cart?.delivery_date ?? ""}
-              onChange={(e) =>
-                metaMut.mutate({ data: { deliveryDate: e.target.value || null } })
-              }
+              onChange={(e) => metaMut.mutate({ data: { deliveryDate: e.target.value || null } })}
               className={inputCls}
             />
           </label>
@@ -231,9 +232,7 @@ function WarenkorbPage() {
             <span className="uppercase tracking-wide text-muted-foreground">Zeitfenster</span>
             <input
               value={cart?.time_window ?? ""}
-              onChange={(e) =>
-                metaMut.mutate({ data: { timeWindow: e.target.value || null } })
-              }
+              onChange={(e) => metaMut.mutate({ data: { timeWindow: e.target.value || null } })}
               placeholder="z. B. 08:00–10:00"
               className={inputCls}
             />
@@ -373,7 +372,11 @@ function WarenkorbPage() {
                 <div className="text-right text-sm">
                   <p className="font-mono">{fmtEuro(g.subtotalCents)}</p>
                   {min != null && (
-                    <p className={belowMin ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>
+                    <p
+                      className={
+                        belowMin ? "text-xs text-destructive" : "text-xs text-muted-foreground"
+                      }
+                    >
                       Mindest: {fmtEuro(min)}
                     </p>
                   )}
@@ -393,9 +396,9 @@ function WarenkorbPage() {
                 <tbody>
                   {g.rows.map((it) => {
                     const a = it.article_id ? articlesById.get(it.article_id) : undefined;
-                    const name = it.is_free_text_item ? it.free_text_name : a?.name ?? "—";
+                    const name = it.is_free_text_item ? it.free_text_name : (a?.name ?? "—");
                     const unit = it.is_free_text_item ? it.free_text_unit : a?.unit;
-                    const unitPrice = it.is_free_text_item ? null : a?.price_cents ?? null;
+                    const unitPrice = it.is_free_text_item ? null : (a?.price_cents ?? null);
                     const sum = (unitPrice ?? 0) * it.quantity;
                     return (
                       <tr key={it.id} className="border-t border-border">
@@ -462,7 +465,9 @@ function WarenkorbPage() {
             </button>
           </div>
           <label className="block space-y-1 text-xs">
-            <span className="uppercase tracking-wide text-muted-foreground">Notiz (an alle Lieferanten)</span>
+            <span className="uppercase tracking-wide text-muted-foreground">
+              Notiz (an alle Lieferanten)
+            </span>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -496,9 +501,7 @@ function WarenkorbPage() {
             </button>
           </div>
           {!cart?.location_id && (
-            <p className="mt-2 text-xs text-destructive">
-              Bitte zuerst Standort wählen.
-            </p>
+            <p className="mt-2 text-xs text-destructive">Bitte zuerst Standort wählen.</p>
           )}
         </section>
       )}
