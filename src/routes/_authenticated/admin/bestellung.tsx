@@ -17,6 +17,7 @@ function BestellungLayout() {
       </div>
       <nav className="flex flex-wrap items-center gap-4 border-b border-border text-sm">
         <SubLink to="/admin/bestellung/warenkorb">Warenkorb</SubLink>
+        <SubLink to="/admin/bestellung/easyorder">EasyOrder</SubLink>
         <SubLink to="/admin/bestellung/bestellungen">Bestellungen</SubLink>
         <SubLink to="/admin/bestellung/lieferanten">Lieferanten</SubLink>
         <SubLink to="/admin/bestellung/artikel">Artikel</SubLink>
