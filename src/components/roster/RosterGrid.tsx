@@ -69,7 +69,12 @@ type Props = {
   onChangeStatus: (id: string, status: "planned" | "confirmed") => Promise<void> | void;
   onSetUnavailable: (staffId: string, iso: string) => Promise<void> | void;
   onClearUnavailable: (staffId: string, iso: string) => Promise<void> | void;
-  onSetAbsence: (staffId: string, iso: string, type: "urlaub" | "krank") => Promise<void> | void;
+  onSetAbsenceRange: (
+    staffId: string,
+    fromIso: string,
+    toIso: string,
+    type: "urlaub" | "krank",
+  ) => Promise<void> | void;
   onClearAbsence: (staffId: string, iso: string) => Promise<void> | void;
 };
 
@@ -95,7 +100,7 @@ export function RosterGrid({
   onChangeStatus,
   onSetUnavailable,
   onClearUnavailable,
-  onSetAbsence,
+  onSetAbsenceRange,
   onClearAbsence,
 }: Props) {
   const [openCell, setOpenCell] = React.useState<string | null>(null);
@@ -113,6 +118,18 @@ export function RosterGrid({
     for (const s of shifts) m.set(`${s.staffId}|${s.shiftDate}|${s.area}`, s);
     return m;
   }, [shifts]);
+
+  // Alle Schicht-Tage pro Mitarbeiter (über alle Standorte/Areas) — Basis für die
+  // Vorab-Anzeige im Abwesenheits-Zeitraum-Formular.
+  const shiftDatesByStaff = React.useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const b of crossBookings) {
+      const arr = m.get(b.staffId) ?? [];
+      arr.push(b.shiftDate);
+      m.set(b.staffId, arr);
+    }
+    return m;
+  }, [crossBookings]);
 
   // Tages-Zählung pro (iso, area=activeArea).
   const dayCount = React.useMemo(() => {
@@ -326,14 +343,15 @@ export function RosterGrid({
                                 setOpenPill(null);
                               }}
                               absenceType={absenceType}
-                              onSetAbsence={async (t) => {
-                                await onSetAbsence(shift.staffId, shift.shiftDate, t);
+                              onSetAbsenceRange={async (from, to, t) => {
+                                await onSetAbsenceRange(shift.staffId, from, to, t);
                                 setOpenPill(null);
                               }}
                               onClearAbsence={async () => {
                                 await onClearAbsence(shift.staffId, shift.shiftDate);
                                 setOpenPill(null);
                               }}
+                              staffShiftDates={shiftDatesByStaff.get(shift.staffId) ?? []}
                             >
                               <span className="block">
                                 <ShiftPill
@@ -372,14 +390,16 @@ export function RosterGrid({
                                 setOpenCell(null);
                               }}
                               absenceType={absenceType}
-                              onSetAbsence={async (t) => {
-                                await onSetAbsence(row.staffId, iso, t);
+                              onSetAbsenceRange={async (from, to, t) => {
+                                await onSetAbsenceRange(row.staffId, from, to, t);
                                 setOpenCell(null);
                               }}
                               onClearAbsence={async () => {
                                 await onClearAbsence(row.staffId, iso);
                                 setOpenCell(null);
                               }}
+                              defaultDate={iso}
+                              staffShiftDates={shiftDatesByStaff.get(row.staffId) ?? []}
                             />
                           )}
                         </DropCell>
@@ -568,8 +588,10 @@ function EmptyCell({
   onSetUnavailable,
   onClearUnavailable,
   absenceType,
-  onSetAbsence,
+  onSetAbsenceRange,
   onClearAbsence,
+  defaultDate,
+  staffShiftDates,
 }: {
   row: RosterStaffRow;
   iso: string;
@@ -587,8 +609,14 @@ function EmptyCell({
   onSetUnavailable: () => void;
   onClearUnavailable: () => void;
   absenceType: "urlaub" | "krank" | null;
-  onSetAbsence: (type: "urlaub" | "krank") => void;
+  onSetAbsenceRange: (
+    fromIso: string,
+    toIso: string,
+    type: "urlaub" | "krank",
+  ) => void | Promise<void>;
   onClearAbsence: () => void;
+  defaultDate: string;
+  staffShiftDates: string[];
 }) {
   const { profile, other } = skillsForCell(row, activeArea, allSkills);
   const marker = (
@@ -647,8 +675,10 @@ function EmptyCell({
       onSetUnavailable={onSetUnavailable}
       onClearUnavailable={onClearUnavailable}
       absenceType={absenceType}
-      onSetAbsence={onSetAbsence}
+      onSetAbsenceRange={onSetAbsenceRange}
       onClearAbsence={onClearAbsence}
+      defaultDate={defaultDate}
+      staffShiftDates={staffShiftDates}
     >
       {cellInner}
     </CellQuickPopover>

@@ -745,3 +745,74 @@ export const clearAbsence = createServerFn({ method: "POST" })
       };
     });
   });
+
+function expandDateRange(fromIso: string, toIso: string): string[] {
+  const out: string[] = [];
+  const start = new Date(`${fromIso}T00:00:00Z`);
+  const end = new Date(`${toIso}T00:00:00Z`);
+  for (let d = new Date(start); d.getTime() <= end.getTime(); d.setUTCDate(d.getUTCDate() + 1)) {
+    out.push(d.toISOString().slice(0, 10));
+  }
+  return out;
+}
+
+export const setAbsenceRange = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        staffId: z.string().uuid(),
+        fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        type: z.enum(["urlaub", "krank"]),
+      })
+      .refine((v) => v.toDate >= v.fromDate, { message: "toDate muss >= fromDate sein" })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
+    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+      const days = expandDateRange(data.fromDate, data.toDate);
+      if (days.length > 92) {
+        throw new Error("Zeitraum darf maximal 92 Tage umfassen.");
+      }
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const rows = days.map((d) => ({
+        organization_id: caller.organizationId,
+        staff_id: data.staffId,
+        date: d,
+        type: data.type,
+      }));
+      const { error: upErr } = await supabaseAdmin
+        .from("roster_absence")
+        .upsert(rows, { onConflict: "staff_id,date" });
+      if (upErr) throw upErr;
+
+      const { data: deleted, error: delErr } = await supabaseAdmin
+        .from("roster_shifts")
+        .delete()
+        .eq("organization_id", caller.organizationId)
+        .eq("staff_id", data.staffId)
+        .gte("shift_date", data.fromDate)
+        .lte("shift_date", data.toDate)
+        .select("id");
+      if (delErr) throw delErr;
+      const deletedShiftCount = deleted?.length ?? 0;
+
+      return {
+        result: { ok: true as const, daysCount: days.length, deletedShiftCount },
+        audit: {
+          action: "roster_absence.set_range",
+          entity: "roster_absence",
+          meta: {
+            staffId: data.staffId,
+            fromDate: data.fromDate,
+            toDate: data.toDate,
+            type: data.type,
+            daysCount: days.length,
+            deletedShiftCount,
+          },
+        },
+      };
+    });
+  });
