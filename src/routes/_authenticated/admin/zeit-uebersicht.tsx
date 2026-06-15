@@ -626,7 +626,7 @@ function ZeitUebersichtPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="weekly">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex-wrap">
           <TabsTrigger value="weekly">Wochenplan</TabsTrigger>
           <TabsTrigger value="summary">Zusammenfassung</TabsTrigger>
@@ -635,6 +635,64 @@ function ZeitUebersichtPage() {
           <TabsTrigger value="brutto-netto">Brutto/Netto</TabsTrigger>
           <TabsTrigger value="provision">Provision</TabsTrigger>
         </TabsList>
+
+        {(activeTab === "summary" || activeTab === "payroll") && (
+          <Card className="my-3 p-3">
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="loc-zr">Standort</Label>
+                <select
+                  id="loc-zr"
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  value={effectiveLocationId}
+                  onChange={(e) => setLocationFilter(e.target.value)}
+                >
+                  {locations.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="from">Von</Label>
+                <Input
+                  id="from"
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setManualFrom(e.target.value)}
+                  disabled={Boolean(selectedPeriod)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="to">Bis</Label>
+                <Input
+                  id="to"
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setManualTo(e.target.value)}
+                  disabled={Boolean(selectedPeriod)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="period">Periode</Label>
+                <select
+                  id="period"
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  value={effectivePeriodId}
+                  onChange={(e) => setSelectedPeriodId(e.target.value)}
+                >
+                  <option value="">— freie Auswahl —</option>
+                  {periods.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.label} {p.status === "locked" ? "🔒" : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </Card>
+        )}
 
         <TabsContent value="weekly">
           <Card className="p-4 mb-3 space-y-3">
