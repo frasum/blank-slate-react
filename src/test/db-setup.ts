@@ -57,8 +57,7 @@ export type SeededOrg = {
 const PASSWORD = "Test-Password-123!";
 const UPSTREAM_BOOT_ERROR = "invalid response was received from the upstream server";
 
-type DbInsertResult<T> = {
-  data: T | null;
+type DbInsertResult = {
   error: { message: string } | null;
 };
 
@@ -70,10 +69,10 @@ async function pause(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function withDbInsertRetry<T>(
+async function withDbInsertRetry<TResult extends DbInsertResult>(
   label: string,
-  operation: () => PromiseLike<DbInsertResult<T>>,
-): Promise<DbInsertResult<T>> {
+  operation: () => PromiseLike<TResult>,
+): Promise<TResult> {
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     const result = await operation();
     if (!isUpstreamBootError(result.error) || attempt === 3) return result;
