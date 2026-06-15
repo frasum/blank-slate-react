@@ -343,14 +343,15 @@ export function RosterGrid({
                                 setOpenPill(null);
                               }}
                               absenceType={absenceType}
-                              onSetAbsence={async (t) => {
-                                await onSetAbsence(shift.staffId, shift.shiftDate, t);
+                              onSetAbsenceRange={async (from, to, t) => {
+                                await onSetAbsenceRange(shift.staffId, from, to, t);
                                 setOpenPill(null);
                               }}
                               onClearAbsence={async () => {
                                 await onClearAbsence(shift.staffId, shift.shiftDate);
                                 setOpenPill(null);
                               }}
+                              staffShiftDates={shiftDatesByStaff.get(shift.staffId) ?? []}
                             >
                               <span className="block">
                                 <ShiftPill
