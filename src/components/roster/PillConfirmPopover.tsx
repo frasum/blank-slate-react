@@ -52,9 +52,14 @@ export function PillConfirmPopover({
   onSetUnavailable,
   onClearUnavailable,
   absenceType,
-  onSetAbsence,
+  onSetAbsenceRange,
   onClearAbsence,
+  staffShiftDates,
 }: Props) {
+  const [mode, setMode] = React.useState<"menu" | "urlaub" | "krank">("menu");
+  React.useEffect(() => {
+    if (!open) setMode("menu");
+  }, [open]);
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
@@ -64,6 +69,19 @@ export function PillConfirmPopover({
         className="w-64 p-3"
         onClick={(e) => e.stopPropagation()}
       >
+        {mode !== "menu" ? (
+          <AbsenceRangeForm
+            type={mode}
+            defaultDate={shift.shiftDate}
+            staffShiftDates={staffShiftDates}
+            busy={busy}
+            onCancel={() => setMode("menu")}
+            onSubmit={async (from, to) => {
+              await onSetAbsenceRange(from, to, mode);
+            }}
+          />
+        ) : (
+          <>
         <div className="mb-2 text-xs text-muted-foreground">
           {shift.staffName} · {fmtDate(shift.shiftDate)}
         </div>
