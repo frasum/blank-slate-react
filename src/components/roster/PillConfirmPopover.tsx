@@ -2,7 +2,7 @@
 // Status-Toggle (geplant/bestätigt) und Löschen.
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
+import { Trash2, CalendarX, CalendarCheck } from "lucide-react";
 import type { RosterShift, RosterSkill } from "@/lib/roster/roster.functions";
 
 type Props = {
@@ -12,9 +12,13 @@ type Props = {
   shift: RosterShift;
   candidates: RosterSkill[];
   busy: boolean;
+  isUnavailable: boolean;
+  canEdit: boolean;
   onChangeSkill: (skillId: string) => void;
   onChangeStatus: (status: "planned" | "confirmed") => void;
   onDelete: () => void;
+  onSetUnavailable: () => void;
+  onClearUnavailable: () => void;
 };
 
 function fmtDate(iso: string): string {
@@ -30,9 +34,13 @@ export function PillConfirmPopover({
   shift,
   candidates,
   busy,
+  isUnavailable,
+  canEdit,
   onChangeSkill,
   onChangeStatus,
   onDelete,
+  onSetUnavailable,
+  onClearUnavailable,
 }: Props) {
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
@@ -101,6 +109,26 @@ export function PillConfirmPopover({
         >
           <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Schicht löschen
         </Button>
+
+        {canEdit && (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy}
+            onClick={isUnavailable ? onClearUnavailable : onSetUnavailable}
+            className="mt-2 h-7 w-full text-xs"
+          >
+            {isUnavailable ? (
+              <>
+                <CalendarCheck className="mr-1.5 h-3.5 w-3.5" /> Verfügbarkeit wiederherstellen
+              </>
+            ) : (
+              <>
+                <CalendarX className="mr-1.5 h-3.5 w-3.5" /> Als nicht verfügbar markieren
+              </>
+            )}
+          </Button>
+        )}
       </PopoverContent>
     </Popover>
   );
