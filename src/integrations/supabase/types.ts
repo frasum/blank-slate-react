@@ -620,6 +620,48 @@ export type Database = {
           },
         ]
       }
+      roster_availability: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          organization_id: string
+          staff_id: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          organization_id: string
+          staff_id: string
+          type?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          organization_id?: string
+          staff_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roster_availability_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roster_availability_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       roster_shifts: {
         Row: {
           area: Database["public"]["Enums"]["staff_department"]
