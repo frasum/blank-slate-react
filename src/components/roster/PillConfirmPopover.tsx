@@ -2,7 +2,7 @@
 // Status-Toggle (geplant/bestätigt) und Löschen.
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { Trash2, CalendarX, CalendarCheck } from "lucide-react";
+import { Trash2, CalendarX, CalendarCheck, Umbrella } from "lucide-react";
 import type { RosterShift, RosterSkill } from "@/lib/roster/roster.functions";
 
 type Props = {
@@ -19,6 +19,9 @@ type Props = {
   onDelete: () => void;
   onSetUnavailable: () => void;
   onClearUnavailable: () => void;
+  isAbsent: boolean;
+  onSetAbsence: () => void;
+  onClearAbsence: () => void;
 };
 
 function fmtDate(iso: string): string {
@@ -41,6 +44,9 @@ export function PillConfirmPopover({
   onDelete,
   onSetUnavailable,
   onClearUnavailable,
+  isAbsent,
+  onSetAbsence,
+  onClearAbsence,
 }: Props) {
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
@@ -127,6 +133,18 @@ export function PillConfirmPopover({
                 <CalendarX className="mr-1.5 h-3.5 w-3.5" /> Als nicht verfügbar markieren
               </>
             )}
+          </Button>
+        )}
+        {canEdit && (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy}
+            onClick={isAbsent ? onClearAbsence : onSetAbsence}
+            className="mt-2 h-7 w-full text-xs"
+          >
+            <Umbrella className="mr-1.5 h-3.5 w-3.5 text-green-600" />
+            {isAbsent ? "Urlaub entfernen" : "Urlaub eintragen"}
           </Button>
         )}
       </PopoverContent>
