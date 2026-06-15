@@ -425,7 +425,7 @@ function DropCell({
   // Diagonale Schraffur als Zellen-Hintergrund (etwas kräftiger als Weekend-Grau,
   // damit sich beides nicht beißt). Pille/Marker liegt darüber.
   const hatchBg = unavailable
-    ? "repeating-linear-gradient(135deg, hsl(var(--muted-foreground)/0.16) 0 2px, transparent 2px 6px)"
+    ? "repeating-linear-gradient(135deg, hsl(var(--muted-foreground)/0.35) 0 3px, transparent 3px 7px)"
     : undefined;
   const tdInner = (
     <td
@@ -437,7 +437,14 @@ function DropCell({
         isOver && editable && "bg-accent/20 ring-1 ring-accent ring-inset",
         editable && cursor,
       )}
-      style={hatchBg ? { backgroundImage: hatchBg } : undefined}
+      style={
+        hatchBg
+          ? {
+              backgroundImage: hatchBg,
+              backgroundColor: "hsl(var(--muted-foreground)/0.06)",
+            }
+          : undefined
+      }
     >
       {children}
     </td>
