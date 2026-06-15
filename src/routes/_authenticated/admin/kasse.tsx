@@ -246,7 +246,11 @@ function KassePage() {
   });
 
   // -------------------- PDF Export --------------------
-  const [pdfPreview, setPdfPreview] = useState<{ blobUrl: string; blob: Blob; fileName: string } | null>(null);
+  const [pdfPreview, setPdfPreview] = useState<{
+    blobUrl: string;
+    blob: Blob;
+    fileName: string;
+  } | null>(null);
   function handleExportPdf() {
     const ov = ovQ.data;
     if (!ov?.session) {

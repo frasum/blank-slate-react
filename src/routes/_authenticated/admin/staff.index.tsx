@@ -19,10 +19,7 @@ function StaffListPage() {
     if (!data) return data;
     return showInactive ? data : data.filter((s) => s.isActive);
   }, [data, showInactive]);
-  const inactiveCount = useMemo(
-    () => (data ? data.filter((s) => !s.isActive).length : 0),
-    [data],
-  );
+  const inactiveCount = useMemo(() => (data ? data.filter((s) => !s.isActive).length : 0), [data]);
 
   return (
     <div className="space-y-6">
