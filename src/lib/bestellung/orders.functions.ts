@@ -33,21 +33,6 @@ function makeAuditWriter(caller: { organizationId: string; userId: string; staff
   };
 }
 
-function buildDeliveryAddress(loc: {
-  street: string | null;
-  postal_code: string | null;
-  city: string | null;
-  delivery_notes: string | null;
-  name: string;
-}): string {
-  const lines: string[] = [loc.name];
-  if (loc.street) lines.push(loc.street);
-  const cityLine = [loc.postal_code, loc.city].filter(Boolean).join(" ").trim();
-  if (cityLine) lines.push(cityLine);
-  if (loc.delivery_notes) lines.push(loc.delivery_notes);
-  return lines.join("\n");
-}
-
 export const createOrderFromCart = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
@@ -61,130 +46,19 @@ export const createOrderFromCart = createServerFn({ method: "POST" })
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
     return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-      const { data: cart, error: cartErr } = await supabaseAdmin
-        .from("carts")
-        .select("id, location_id, delivery_date, time_window")
-        .eq("organization_id", caller.organizationId)
-        .eq("user_id", caller.userId)
-        .maybeSingle();
-      if (cartErr) throw cartErr;
-      if (!cart) throw new Error("Kein aktiver Warenkorb.");
-      if (!cart.location_id) throw new Error("Standort wählen, bevor du bestellst.");
-
-      const { data: loc, error: locErr } = await supabaseAdmin
-        .from("locations")
-        .select("id, name, street, postal_code, city, delivery_notes")
-        .eq("id", cart.location_id)
-        .eq("organization_id", caller.organizationId)
-        .maybeSingle();
-      if (locErr) throw locErr;
-      if (!loc) throw new Error("Standort nicht gefunden.");
-      const deliveryAddress = buildDeliveryAddress(loc);
-
-      const { data: items, error: itemsErr } = await supabaseAdmin
-        .from("cart_items")
-        .select("id, article_id, supplier_id, quantity, is_free_text_item, free_text_name, free_text_unit")
-        .eq("cart_id", cart.id);
-      if (itemsErr) throw itemsErr;
-      if (!items || items.length === 0) throw new Error("Warenkorb ist leer.");
-
-      // Artikel-Snapshots vorab laden.
-      const articleIds = Array.from(
-        new Set(items.map((i) => i.article_id).filter((x): x is string => !!x)),
-      );
-      const articlesById = new Map<
-        string,
-        { id: string; name: string; sku: string | null; unit: string; price_cents: number; supplier_id: string }
-      >();
-      if (articleIds.length > 0) {
-        const { data: arts, error: aErr } = await supabaseAdmin
-          .from("articles")
-          .select("id, name, sku, unit, price_cents, supplier_id")
-          .in("id", articleIds)
-          .eq("organization_id", caller.organizationId);
-        if (aErr) throw aErr;
-        for (const a of arts ?? []) articlesById.set(a.id, a);
-      }
-
-      // Gruppieren nach supplier_id.
-      const groups = new Map<string, typeof items>();
-      for (const it of items) {
-        const sid = it.supplier_id;
-        if (!sid) throw new Error("Cart-Item ohne Lieferant.");
-        const arr = groups.get(sid) ?? [];
-        arr.push(it);
-        groups.set(sid, arr);
-      }
-
-      const createdOrderIds: string[] = [];
-      for (const [supplierId, group] of groups) {
-        const { data: order, error: oErr } = await supabaseAdmin
-          .from("orders")
-          .insert({
-            organization_id: caller.organizationId,
-            supplier_id: supplierId,
-            location_id: cart.location_id,
-            status: "pending",
-            total_amount_cents: 0,
-            delivery_date: cart.delivery_date,
-            time_window: cart.time_window,
-            delivery_address: deliveryAddress,
-            notes: data.notes ?? null,
-          })
-          .select("id")
-          .single();
-        if (oErr) throw oErr;
-
-        let total = 0;
-        const orderItemRows = group.map((it) => {
-          const a = it.article_id ? articlesById.get(it.article_id) : undefined;
-          const name = it.is_free_text_item
-            ? it.free_text_name ?? "Freitext"
-            : a?.name ?? "Artikel";
-          const unit = it.is_free_text_item
-            ? it.free_text_unit ?? "Stk"
-            : a?.unit ?? "Stk";
-          const unitPrice = it.is_free_text_item ? 0 : a?.price_cents ?? 0;
-          const totalPrice = unitPrice * it.quantity;
-          total += totalPrice;
-          return {
-            organization_id: caller.organizationId,
-            order_id: order.id,
-            article_id: it.article_id,
-            article_name: name,
-            sku: a?.sku ?? null,
-            quantity: it.quantity,
-            unit,
-            unit_price_cents: unitPrice,
-            total_price_cents: totalPrice,
-            is_free_text_item: it.is_free_text_item,
-          };
-        });
-        const { error: oiErr } = await supabaseAdmin.from("order_items").insert(orderItemRows);
-        if (oiErr) throw oiErr;
-
-        const { error: upErr } = await supabaseAdmin
-          .from("orders")
-          .update({ total_amount_cents: total })
-          .eq("id", order.id);
-        if (upErr) throw upErr;
-        createdOrderIds.push(order.id);
-      }
-
-      // Cart leeren.
-      const { error: delErr } = await supabaseAdmin
-        .from("cart_items")
-        .delete()
-        .eq("cart_id", cart.id);
-      if (delErr) throw delErr;
-
+      const { data: orderIds, error } = await supabaseAdmin.rpc("create_order_from_cart", {
+        p_org_id: caller.organizationId,
+        p_user_id: caller.userId,
+        p_notes: data.notes ?? null,
+      });
+      if (error) throw new Error(error.message);
+      const ids = (orderIds ?? []) as string[];
       return {
-        result: { orderIds: createdOrderIds },
+        result: { orderIds: ids },
         audit: {
           action: "order.create",
           entity: "order",
-          meta: { orderIds: createdOrderIds, supplierCount: groups.size },
+          meta: { orderIds: ids, supplierCount: ids.length },
         },
       };
     });
