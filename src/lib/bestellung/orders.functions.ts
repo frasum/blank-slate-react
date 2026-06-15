@@ -77,8 +77,14 @@ export const listOrders = createServerFn({ method: "GET" })
       .object({
         status: z.enum(["pending", "sent", "confirmed", "cancelled"]).optional(),
         supplierId: z.string().uuid().optional(),
-        from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-        to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        from: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
+        to: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
       })
       .partial()
       .parse(input ?? {}),
@@ -179,7 +185,8 @@ export const sendOrderEmail = createServerFn({ method: "POST" })
       const apiKey = env.MAILERSEND_API_KEY;
       const fromEmail = env.MAILERSEND_FROM_EMAIL;
       const fromName = env.MAILERSEND_FROM_NAME ?? "Bestellung COCO";
-      if (!apiKey) throw new Error("Mailversand ist nicht konfiguriert (MAILERSEND_API_KEY fehlt).");
+      if (!apiKey)
+        throw new Error("Mailversand ist nicht konfiguriert (MAILERSEND_API_KEY fehlt).");
       if (!fromEmail) throw new Error("Absenderadresse fehlt (MAILERSEND_FROM_EMAIL).");
 
       const { data: order, error: oErr } = await supabaseAdmin
@@ -203,8 +210,7 @@ export const sendOrderEmail = createServerFn({ method: "POST" })
         .maybeSingle();
       if (sErr) throw sErr;
       if (!supplier) throw new Error("Lieferant nicht gefunden.");
-      if (!supplier.email)
-        throw new Error("Lieferant hat keine E-Mail-Adresse hinterlegt.");
+      if (!supplier.email) throw new Error("Lieferant hat keine E-Mail-Adresse hinterlegt.");
 
       let restaurantName = "";
       if (order.location_id) {
@@ -264,9 +270,7 @@ export const sendOrderEmail = createServerFn({ method: "POST" })
       // 202 Accepted = Erfolg (asynchroner Versand). res.ok deckt 202 ab.
       if (!res.ok) {
         const body = await res.text().catch(() => "");
-        throw new Error(
-          `Mailversand fehlgeschlagen (${res.status}). ${body.slice(0, 300)}`,
-        );
+        throw new Error(`Mailversand fehlgeschlagen (${res.status}). ${body.slice(0, 300)}`);
       }
 
       const { error: upErr } = await supabaseAdmin

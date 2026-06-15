@@ -184,9 +184,7 @@ describe.skipIf(!dbTestsEnabled)("create_order_from_cart (DB-RPC)", () => {
   });
 
   it("(e) ATOMARITÄT: cart_item mit supplier_id = NULL → Rollback, nichts angelegt", async () => {
-    const cartId = await seedCart([
-      { article_id: artA1, supplier_id: supplierA, quantity: 2 },
-    ]);
+    const cartId = await seedCart([{ article_id: artA1, supplier_id: supplierA, quantity: 2 }]);
     await org.service.from("cart_items").insert({
       organization_id: org.orgId,
       cart_id: cartId,

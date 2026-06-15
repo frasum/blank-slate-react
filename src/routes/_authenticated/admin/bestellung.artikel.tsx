@@ -169,9 +169,7 @@ function ArtikelPage() {
           unit: input.draft.unit || "Stk",
           orderUnitId: input.draft.orderUnitId || null,
           priceCents: cents,
-          packagingUnit: input.draft.packagingUnit
-            ? parseInt(input.draft.packagingUnit, 10)
-            : null,
+          packagingUnit: input.draft.packagingUnit ? parseInt(input.draft.packagingUnit, 10) : null,
           imageUrl: input.draft.imageUrl,
           sortOrder: input.draft.sortOrder,
         },
@@ -193,8 +191,7 @@ function ArtikelPage() {
   });
 
   const newUnitMut = useMutation({
-    mutationFn: (input: { name: string; abbreviation: string }) =>
-      callCreateUnit({ data: input }),
+    mutationFn: (input: { name: string; abbreviation: string }) => callCreateUnit({ data: input }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["bestellung", "order-units"] }),
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
   });
@@ -452,7 +449,11 @@ function ArticleForm(props: {
           />
         </Field>
         <Field label="Verkaufseinheit">
-          <input value={d.unit} onChange={(e) => set("unit", e.target.value)} className={inputCls} />
+          <input
+            value={d.unit}
+            onChange={(e) => set("unit", e.target.value)}
+            className={inputCls}
+          />
         </Field>
         <Field label="Bestell-Gebinde">
           <div className="flex gap-2">

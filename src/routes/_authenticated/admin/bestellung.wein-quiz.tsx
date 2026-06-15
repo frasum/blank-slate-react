@@ -7,10 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listArticles } from "@/lib/bestellung/articles.functions";
 import { listStaff } from "@/lib/admin/staff.functions";
-import {
-  listWineQuizScores,
-  saveWineQuizScore,
-} from "@/lib/bestellung/wine-quiz.functions";
+import { listWineQuizScores, saveWineQuizScore } from "@/lib/bestellung/wine-quiz.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/bestellung/wein-quiz")({
   head: () => ({ meta: [{ title: "Wein-Quiz · Bestellung" }] }),
@@ -224,8 +221,8 @@ function WeinQuizPage() {
       <div className="space-y-4">
         {!enoughWines && (
           <p className="rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
-            Es sind erst {wines.length} Weine im Katalog. Lege mindestens 4 Weine mit Rebsorte
-            und Herkunft an, damit Quiz-Fragen erzeugt werden können.
+            Es sind erst {wines.length} Weine im Katalog. Lege mindestens 4 Weine mit Rebsorte und
+            Herkunft an, damit Quiz-Fragen erzeugt werden können.
           </p>
         )}
 

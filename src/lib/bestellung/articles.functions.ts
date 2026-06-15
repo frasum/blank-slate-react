@@ -31,19 +31,61 @@ function makeAuditWriter(caller: { organizationId: string; userId: string; staff
 const ArticleInput = z.object({
   supplierId: z.string().uuid(),
   name: z.string().trim().min(1).max(200),
-  sku: z.string().trim().max(120).optional().or(z.literal("")).transform((v) => (v ? v : null)),
-  description: z.string().trim().max(2000).optional().or(z.literal("")).transform((v) => (v ? v : null)),
-  category: z.string().trim().max(120).optional().or(z.literal("")).transform((v) => (v ? v : null)),
+  sku: z
+    .string()
+    .trim()
+    .max(120)
+    .optional()
+    .or(z.literal(""))
+    .transform((v) => (v ? v : null)),
+  description: z
+    .string()
+    .trim()
+    .max(2000)
+    .optional()
+    .or(z.literal(""))
+    .transform((v) => (v ? v : null)),
+  category: z
+    .string()
+    .trim()
+    .max(120)
+    .optional()
+    .or(z.literal(""))
+    .transform((v) => (v ? v : null)),
   unit: z.string().trim().min(1).max(40).default("Stk"),
   orderUnitId: z.string().uuid().optional().nullable(),
   priceCents: z.number().int().min(0),
   packagingUnit: z.number().int().min(1).optional().nullable(),
-  imageUrl: z.string().trim().max(500).optional().or(z.literal("")).transform((v) => (v ? v : null)),
+  imageUrl: z
+    .string()
+    .trim()
+    .max(500)
+    .optional()
+    .or(z.literal(""))
+    .transform((v) => (v ? v : null)),
   sortOrder: z.number().int().min(0).max(9999).optional(),
   // Welle 3-A: optionale Wein-Felder. Für nicht-Weine bleiben sie leer/null.
-  grapeVariety: z.string().trim().max(200).optional().or(z.literal("")).transform((v) => (v ? v : null)),
-  originCountry: z.string().trim().max(120).optional().or(z.literal("")).transform((v) => (v ? v : null)),
-  foodPairings: z.string().trim().max(2000).optional().or(z.literal("")).transform((v) => (v ? v : null)),
+  grapeVariety: z
+    .string()
+    .trim()
+    .max(200)
+    .optional()
+    .or(z.literal(""))
+    .transform((v) => (v ? v : null)),
+  originCountry: z
+    .string()
+    .trim()
+    .max(120)
+    .optional()
+    .or(z.literal(""))
+    .transform((v) => (v ? v : null)),
+  foodPairings: z
+    .string()
+    .trim()
+    .max(2000)
+    .optional()
+    .or(z.literal(""))
+    .transform((v) => (v ? v : null)),
   specialAttributes: z.array(z.string().trim().min(1).max(60)).optional().nullable(),
 });
 
@@ -155,9 +197,7 @@ export const createArticle = createServerFn({ method: "POST" })
 
 export const updateArticle = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
-    ArticleInput.extend({ articleId: z.string().uuid() }).parse(input),
-  )
+  .inputValidator((input) => ArticleInput.extend({ articleId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
     return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {

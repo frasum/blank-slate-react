@@ -71,10 +71,7 @@ describe.skipIf(!dbTestsEnabled)("wein-quiz (DB)", () => {
     const tmpUser = await org.mkUser("staff");
     const scoreId = await insertScore(tmpUser.staffId, "Ephemeral Eve", 700);
 
-    const { error: delErr } = await org.service
-      .from("staff")
-      .delete()
-      .eq("id", tmpUser.staffId);
+    const { error: delErr } = await org.service.from("staff").delete().eq("id", tmpUser.staffId);
     expect(delErr).toBeNull();
 
     const { data } = await org.service

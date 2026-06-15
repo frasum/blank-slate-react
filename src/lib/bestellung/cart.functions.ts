@@ -18,7 +18,14 @@ const ALLOWED_ROLES = ["staff", "manager", "admin"] as const;
 async function ensureCart(
   organizationId: string,
   userId: string,
-): Promise<{ id: string; organization_id: string; user_id: string; location_id: string | null; delivery_date: string | null; time_window: string | null }> {
+): Promise<{
+  id: string;
+  organization_id: string;
+  user_id: string;
+  location_id: string | null;
+  delivery_date: string | null;
+  time_window: string | null;
+}> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data: existing, error: selErr } = await supabaseAdmin
     .from("carts")
@@ -45,7 +52,9 @@ export const getActiveCart = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: items, error } = await supabaseAdmin
       .from("cart_items")
-      .select("id, cart_id, article_id, supplier_id, quantity, is_free_text_item, free_text_name, free_text_unit, created_at")
+      .select(
+        "id, cart_id, article_id, supplier_id, quantity, is_free_text_item, free_text_name, free_text_unit, created_at",
+      )
       .eq("cart_id", cart.id)
       .order("created_at");
     if (error) throw error;
@@ -58,7 +67,11 @@ export const setCartMeta = createServerFn({ method: "POST" })
     z
       .object({
         locationId: z.string().uuid().nullable().optional(),
-        deliveryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+        deliveryDate: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .nullable()
+          .optional(),
         timeWindow: z.string().trim().max(120).nullable().optional(),
       })
       .parse(input ?? {}),
@@ -175,7 +188,9 @@ export const addCartItem = createServerFn({ method: "POST" })
 export const updateCartItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
-    z.object({ itemId: z.string().uuid(), quantity: z.number().int().min(1).max(9999) }).parse(input),
+    z
+      .object({ itemId: z.string().uuid(), quantity: z.number().int().min(1).max(9999) })
+      .parse(input),
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, ALLOWED_ROLES);
@@ -224,7 +239,9 @@ export const listCartDrafts = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await supabaseAdmin
       .from("cart_drafts")
-      .select("id, name, location_id, desired_delivery_date, desired_time_window, notes, updated_at, created_at")
+      .select(
+        "id, name, location_id, desired_delivery_date, desired_time_window, notes, updated_at, created_at",
+      )
       .eq("organization_id", caller.organizationId)
       .eq("user_id", caller.userId)
       .order("updated_at", { ascending: false });
@@ -249,7 +266,9 @@ export const saveCartAsDraft = createServerFn({ method: "POST" })
 
     const { data: items, error: itemsErr } = await supabaseAdmin
       .from("cart_items")
-      .select("article_id, supplier_id, quantity, is_free_text_item, free_text_name, free_text_unit")
+      .select(
+        "article_id, supplier_id, quantity, is_free_text_item, free_text_name, free_text_unit",
+      )
       .eq("cart_id", cart.id);
     if (itemsErr) throw itemsErr;
     if (!items || items.length === 0) throw new Error("Warenkorb ist leer.");
@@ -311,7 +330,9 @@ export const loadDraftIntoCart = createServerFn({ method: "POST" })
 
     const { data: items, error: iErr } = await supabaseAdmin
       .from("cart_draft_items")
-      .select("article_id, supplier_id, quantity, is_free_text_item, free_text_name, free_text_unit")
+      .select(
+        "article_id, supplier_id, quantity, is_free_text_item, free_text_name, free_text_unit",
+      )
       .eq("draft_id", draft.id);
     if (iErr) throw iErr;
 

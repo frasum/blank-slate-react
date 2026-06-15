@@ -58,7 +58,10 @@ function parseEuroToCents(value: string): number | null {
 
 function fmtEuro(cents: number | null | undefined): string {
   if (cents == null) return "—";
-  return (cents / 100).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+  return (
+    (cents / 100).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) +
+    " €"
+  );
 }
 
 function fmtTime(t: string | null | undefined): string {
@@ -305,7 +308,11 @@ function SupplierForm(props: {
           />
         </Field>
         <Field label="Telefon">
-          <input value={d.phone} onChange={(e) => set("phone", e.target.value)} className={inputCls} />
+          <input
+            value={d.phone}
+            onChange={(e) => set("phone", e.target.value)}
+            className={inputCls}
+          />
         </Field>
         <Field label="Ansprechpartner">
           <input
@@ -315,7 +322,11 @@ function SupplierForm(props: {
           />
         </Field>
         <Field label="Adresse">
-          <input value={d.address} onChange={(e) => set("address", e.target.value)} className={inputCls} />
+          <input
+            value={d.address}
+            onChange={(e) => set("address", e.target.value)}
+            className={inputCls}
+          />
         </Field>
         <Field label="Unsere Kundennummer">
           <input
