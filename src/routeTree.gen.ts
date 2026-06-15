@@ -33,6 +33,7 @@ import { Route as ApiPublicDisplayLocationIdRouteImport } from './routes/api/pub
 import { Route as AuthenticatedAdminStaffNewRouteImport } from './routes/_authenticated/admin/staff.new'
 import { Route as AuthenticatedAdminStaffStaffIdRouteImport } from './routes/_authenticated/admin/staff.$staffId'
 import { Route as AuthenticatedAdminBestellungLieferantenRouteImport } from './routes/_authenticated/admin/bestellung.lieferanten'
+import { Route as AuthenticatedAdminBestellungArtikelRouteImport } from './routes/_authenticated/admin/bestellung.artikel'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -167,6 +168,12 @@ const AuthenticatedAdminBestellungLieferantenRoute =
     path: '/lieferanten',
     getParentRoute: () => AuthenticatedAdminBestellungRoute,
   } as any)
+const AuthenticatedAdminBestellungArtikelRoute =
+  AuthenticatedAdminBestellungArtikelRouteImport.update({
+    id: '/artikel',
+    path: '/artikel',
+    getParentRoute: () => AuthenticatedAdminBestellungRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -186,6 +193,7 @@ export interface FileRoutesByFullPath {
   '/zeit/abrechnung': typeof AuthenticatedZeitAbrechnungRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/zeit/': typeof AuthenticatedZeitIndexRoute
+  '/admin/bestellung/artikel': typeof AuthenticatedAdminBestellungArtikelRoute
   '/admin/bestellung/lieferanten': typeof AuthenticatedAdminBestellungLieferantenRoute
   '/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
   '/admin/staff/new': typeof AuthenticatedAdminStaffNewRoute
@@ -208,6 +216,7 @@ export interface FileRoutesByTo {
   '/zeit/abrechnung': typeof AuthenticatedZeitAbrechnungRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/zeit': typeof AuthenticatedZeitIndexRoute
+  '/admin/bestellung/artikel': typeof AuthenticatedAdminBestellungArtikelRoute
   '/admin/bestellung/lieferanten': typeof AuthenticatedAdminBestellungLieferantenRoute
   '/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
   '/admin/staff/new': typeof AuthenticatedAdminStaffNewRoute
@@ -235,6 +244,7 @@ export interface FileRoutesById {
   '/_authenticated/zeit/abrechnung': typeof AuthenticatedZeitAbrechnungRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/zeit/': typeof AuthenticatedZeitIndexRoute
+  '/_authenticated/admin/bestellung/artikel': typeof AuthenticatedAdminBestellungArtikelRoute
   '/_authenticated/admin/bestellung/lieferanten': typeof AuthenticatedAdminBestellungLieferantenRoute
   '/_authenticated/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
   '/_authenticated/admin/staff/new': typeof AuthenticatedAdminStaffNewRoute
@@ -262,6 +272,7 @@ export interface FileRouteTypes {
     | '/zeit/abrechnung'
     | '/admin/'
     | '/zeit/'
+    | '/admin/bestellung/artikel'
     | '/admin/bestellung/lieferanten'
     | '/admin/staff/$staffId'
     | '/admin/staff/new'
@@ -284,6 +295,7 @@ export interface FileRouteTypes {
     | '/zeit/abrechnung'
     | '/admin'
     | '/zeit'
+    | '/admin/bestellung/artikel'
     | '/admin/bestellung/lieferanten'
     | '/admin/staff/$staffId'
     | '/admin/staff/new'
@@ -310,6 +322,7 @@ export interface FileRouteTypes {
     | '/_authenticated/zeit/abrechnung'
     | '/_authenticated/admin/'
     | '/_authenticated/zeit/'
+    | '/_authenticated/admin/bestellung/artikel'
     | '/_authenticated/admin/bestellung/lieferanten'
     | '/_authenticated/admin/staff/$staffId'
     | '/_authenticated/admin/staff/new'
@@ -495,16 +508,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminBestellungLieferantenRouteImport
       parentRoute: typeof AuthenticatedAdminBestellungRoute
     }
+    '/_authenticated/admin/bestellung/artikel': {
+      id: '/_authenticated/admin/bestellung/artikel'
+      path: '/artikel'
+      fullPath: '/admin/bestellung/artikel'
+      preLoaderRoute: typeof AuthenticatedAdminBestellungArtikelRouteImport
+      parentRoute: typeof AuthenticatedAdminBestellungRoute
+    }
   }
 }
 
 interface AuthenticatedAdminBestellungRouteChildren {
+  AuthenticatedAdminBestellungArtikelRoute: typeof AuthenticatedAdminBestellungArtikelRoute
   AuthenticatedAdminBestellungLieferantenRoute: typeof AuthenticatedAdminBestellungLieferantenRoute
   AuthenticatedAdminBestellungIndexRoute: typeof AuthenticatedAdminBestellungIndexRoute
 }
 
 const AuthenticatedAdminBestellungRouteChildren: AuthenticatedAdminBestellungRouteChildren =
   {
+    AuthenticatedAdminBestellungArtikelRoute:
+      AuthenticatedAdminBestellungArtikelRoute,
     AuthenticatedAdminBestellungLieferantenRoute:
       AuthenticatedAdminBestellungLieferantenRoute,
     AuthenticatedAdminBestellungIndexRoute:
