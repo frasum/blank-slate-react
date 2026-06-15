@@ -218,8 +218,14 @@ function ZeitUebersichtPage() {
     queryKey: ["admin-locations"],
     queryFn: () => fetchLocations(),
   });
-  const [locationId, setLocationId] = useState<string>("");
-  const effectiveLocationId = locationId || locationsQ.data?.[0]?.id || "";
+  const locations = locationsQ.data ?? [];
+  // Wochenplan-Location-Filter: konkrete Location-ID oder "all".
+  const [locationFilter, setLocationFilter] = useState<string>("");
+  const effectiveLocationId =
+    locationFilter && locationFilter !== "all"
+      ? locationFilter
+      : (locations[0]?.id ?? "");
+  const isAllLocations = locationFilter === "all";
 
   // Periodenwahl
   const periodsQ = useQuery({
@@ -237,7 +243,11 @@ function ZeitUebersichtPage() {
   const fromDate = selectedPeriod ? selectedPeriod.startDate : manualFrom;
   const toDate = selectedPeriod ? selectedPeriod.endDate : manualTo;
 
-  // Wochenplan: aktuelle Woche (Montag).
+  // Wochenplan: aktueller Monat + Woche.
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
   const [weekStart, setWeekStart] = useState<string>(() =>
     fmtIso(mondayOf(parseIsoDate(todayIso()))),
   );
@@ -247,12 +257,83 @@ function ZeitUebersichtPage() {
     [weekStartDate],
   );
   const { week: currentWeekNo } = isoWeek(weekStartDate);
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
-  const weeklyQ = useQuery({
+  // Wochen-Chips für den gewählten Monat (alle KW, die mind. einen Tag des Monats enthalten).
+  const monthWeeks = useMemo(() => {
+    const [y, m] = selectedMonth.split("-").map((s) => Number.parseInt(s, 10));
+    const firstDay = new Date(Date.UTC(y, m - 1, 1));
+    const lastDay = new Date(Date.UTC(y, m, 0));
+    const chips: { idx: number; start: string; end: string; label: string; weekNo: number }[] = [];
+    let cursor = mondayOf(firstDay);
+    let i = 1;
+    while (cursor.getTime() <= lastDay.getTime()) {
+      const end = addDays(cursor, 6);
+      const wk = isoWeek(cursor);
+      chips.push({
+        idx: i,
+        start: fmtIso(cursor),
+        end: fmtIso(end),
+        label: `W${i} (${ddmm(cursor)}–${ddmm(end)})`,
+        weekNo: wk.week,
+      });
+      cursor = addDays(cursor, 7);
+      i++;
+    }
+    return chips;
+  }, [selectedMonth]);
+
+  // Monats-Optionen: 6 Monate zurück bis 6 Monate vor.
+  const monthOptions = useMemo(() => {
+    const opts: { value: string; label: string }[] = [];
+    const now = new Date();
+    for (let off = -6; off <= 6; off++) {
+      const d = new Date(now.getFullYear(), now.getMonth() + off, 1);
+      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const label = `${MONTH_DE[d.getMonth()]} ${d.getFullYear()}`;
+      opts.push({ value, label });
+    }
+    return opts;
+  }, []);
+
+  // Wenn "Alle Standorte" gewählt: pro Location parallel laden + clientseitig mergen.
+  const allLocationQueries = useQueries({
+    queries: isAllLocations
+      ? locations.map((l) => ({
+          queryKey: ["weekly-entries", l.id, weekStart],
+          queryFn: () => fetchWeekly({ data: { locationId: l.id, weekStart } }),
+          enabled: Boolean(weekStart),
+        }))
+      : [],
+  });
+
+  const weeklyQSingle = useQuery({
     queryKey: ["weekly-entries", effectiveLocationId, weekStart],
     queryFn: () => fetchWeekly({ data: { locationId: effectiveLocationId, weekStart } }),
-    enabled: Boolean(effectiveLocationId),
+    enabled: Boolean(effectiveLocationId) && !isAllLocations,
   });
+
+  // Zusammengeführte Wochen-Daten.
+  const weeklyData = useMemo<WeeklyData | undefined>(() => {
+    if (isAllLocations) {
+      const merged: WeeklyData = {
+        weekStart,
+        weekEnd: fmtIso(addDays(weekStartDate, 6)),
+        entries: [],
+        crossLocationDates: {},
+      };
+      for (const q of allLocationQueries) {
+        const d = q.data as WeeklyData | undefined;
+        if (!d) continue;
+        merged.entries.push(...d.entries);
+      }
+      return merged;
+    }
+    return weeklyQSingle.data;
+  }, [isAllLocations, allLocationQueries, weeklyQSingle.data, weekStart, weekStartDate]);
+  const weeklyLoading = isAllLocations
+    ? allLocationQueries.some((q) => q.isLoading)
+    : weeklyQSingle.isLoading;
 
   const overviewQ = useQuery({
     queryKey: ["time-overview", effectiveLocationId, fromDate, toDate],
@@ -525,32 +606,8 @@ function ZeitUebersichtPage() {
               </button>
             </div>
           </Card>
-          <WeeklyPlan
-            data={weeklyQ.data}
-            isLoading={weeklyQ.isLoading}
-            weekDays={weekDays}
-            isAdmin={isAdmin}
-            onEdit={(e) =>
-              setEditor({
-                mode: "edit",
-                id: e.id,
-                staffName: e.displayName,
-                dateIso: e.businessDate,
-                from: fmtHHMM(e.startedAt),
-                to: fmtHHMM(e.endedAt),
-              })
-            }
-            onCreate={(staffId, staffName, dateIso) =>
-              setEditor({
-                mode: "create",
-                staffId,
-                staffName,
-                dateIso,
-                from: "",
-                to: "",
-              })
-            }
-          />
+          {/* dummy: ersetzt unten durch neuen Wochenplan-Block */}
+          <></>
         </TabsContent>
 
         <TabsContent value="summary">
