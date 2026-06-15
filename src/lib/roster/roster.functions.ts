@@ -88,6 +88,11 @@ export type RosterCrossBooking = {
   skillName: string | null;
 };
 
+export type RosterAvailability = {
+  staffId: string;
+  date: string;
+};
+
 export const getRosterShifts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
