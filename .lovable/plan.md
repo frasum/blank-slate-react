@@ -1,66 +1,55 @@
-# Umbau /admin/zeit-uebersicht — komplette Shell + neuer Wochenplan
+## Ziel
 
-Ziel: UI der Referenz (Tabs oben, Monat-Dropdown + Location-Pills + PDF/Excel rechts, Wochen-Chips W1–W5, Suchfeld, Wochen-Tabelle mit getrennten Anfang/Ende-Spalten pro Tag) 1:1 nach `/admin/zeit-uebersicht` übernehmen.
+Klick auf eine Anf./Ende-Zelle im Wochenplan öffnet **kein** Dialog mehr, sondern macht die Zelle direkt editierbar (HH:MM-Input). Speichern passiert per Enter / Tab / Blur. Dialog wird für den Standard-Fall (max. 1 Schicht pro Tag) komplett ersetzt.
 
-## Server (keine Migrationen, keine neuen Tabellen)
+## Verhalten
 
-Bestehende Server-Functions bleiben unverändert: `getTimeOverview`, `getWeeklyTimeEntries`, `listLocations`, `listPeriods`, `listPayrollNotes`, `upsertPayrollNote`, `setTimeEntryShift`, `createTimeEntryShift`, `createPeriod`, `togglePeriodLock`, `deletePeriod`. Domänenlogik (`computeShiftHours`, `isBavarianHoliday`) unverändert.
+**Leerer Tag**
+- Klick auf Anf.-Zelle → Input mit Default `15:00`, automatisch fokussiert + markiert.
+- Klick auf Ende-Zelle → Input mit Default `23:00`.
+- Nach Eingabe Anf. + Tab → Cursor springt in die Ende-Zelle (noch kein Save).
+- Sobald **beide** Werte (Anf. und Ende) vorhanden + valide sind und Blur/Enter passiert → `createShiftMut` feuert.
+- Esc verwirft die Eingabe.
 
-## Header-Shell (oberhalb der Tabs)
+**Tag mit genau einer Schicht**
+- Klick auf Anf./Ende → Wert wird zum Input, vorbelegt mit aktuellem Wert.
+- Enter/Blur → `setShiftMut` mit der zugehörigen `id`, dem unveränderten anderen Wert und dem neuen.
+- Esc verwirft.
 
-Alte Filter-Karte (Standort/Von/Bis/Periode-Dropdown) entfällt **für den Wochenplan-Tab**. Für `Zusammenfassung`, `Buchhaltung`, `Perioden` bleibt eine kompakte Filter-Zeile (Periode + Von/Bis) erhalten, weil diese Tabs einen Zeitraum brauchen.
+**Tag mit mehreren Schichten / Cross-Location**
+- Bleibt **read-only** (kein Inline-Edit, kein Dialog), wie heute bereits durch `findEntries(...).length === 1`-Guard.
 
-Tab-Reihenfolge: `Wochenplan | Zusammenfassung | Buchhaltung | Perioden | Brutto/Netto | Provision`. Letzte beide als Platzhalter-Tabs mit „in Vorbereitung"-Karte.
+## Validierung
 
-## Wochenplan-Header (neu)
+- Pattern: `^([01]\d|2[0-3]):[0-5]\d$`. Bei ungültigem Wert: Input rot umranden, kein Save, Toast `Ungültige Uhrzeit`.
+- Datumsteil aus `day.iso` + Zeit → ISO-String wie bisher in `ShiftEditorDialog` zusammengebaut. Logik 1:1 aus dem Dialog (`combineDateTimeISO`) in eine kleine Helper-Fn ziehen, um Doppelung zu vermeiden.
+- Bei `setShift` für eine bestehende Schicht: den nicht-editierten Wert (z. B. `endedAt` beim Bearbeiten von Anf.) aus der Quelle nehmen.
 
-Zeile 1:
-- Monat-Dropdown (z. B. „Juni 2026") — steuert, welche ISO-Wochen als Chips erscheinen (alle KW, die mind. einen Tag des Monats enthalten).
-- Location-Pills, **dynamisch** aus `listLocations()` + Pill „Alle" (Aggregation aller Standorte). Aktiv = solid, inaktiv = ghost.
-- Rechtsbündig: Buttons `PDF` und `Excel`, beide exportieren die aktuell sichtbare Wochen-Tabelle.
+## Tastatur
 
-Zeile 2:
-- Wochen-Chips `W1 (26.05.–31.05.)` … `W5 (22.06.–25.06.)`, dynamisch aus dem gewählten Monat. Klick = `weekStart` setzen.
+- Enter = Save + Blur.
+- Tab = Save (falls Wert sich änderte) + nächste Zelle.
+- Esc = Abbruch ohne Save.
 
-Zeile 3:
-- Mitarbeiter-Suchfeld (Client-Filter auf `displayName`, case-insensitive).
+## UI-Details
 
-State: `selectedMonth` (`YYYY-MM`, Default = aktueller Monat), `selectedLocationId | "all"`, `weekStart` (ISO Montag), `query`.
+- Inputs: `w-[58px] h-7 text-center font-mono text-sm`, Border `border-primary/40`, Hintergrund passend zur Zelle (Sonntag/Feiertag-Bg beibehalten).
+- Während laufender Mutation: Input disabled + Opacity 60 %.
+- Hover-Affordance (`+` Symbol) bleibt für leere Zellen erhalten.
 
-## Wochen-Tabelle (Layout)
+## Code-Änderungen (eine Datei)
 
-Spalten: `Mitarbeiter` | je Tag **zwei Sub-Spalten** (`Anfang`/`Ende`) | `Ges` | `20–24` | `24–x` | `So/Fei` | `U` | `K`.
+`src/routes/_authenticated/admin/zeit-uebersicht.tsx`:
 
-Pro Tageszelle:
-- Schicht vorhanden → zwei Zellen mit `HH:MM` / `HH:MM` (mehrere Schichten gestapelt). Klick öffnet bestehenden `ShiftEditorDialog`.
-- Keine Schicht, aber Cross-Location-Indikator → `×` (heller, mittig, hellgelber Hintergrund).
-- Leer + Admin → klickbares `+` zum Anlegen.
+1. **`WeeklyPlan`** — neuen lokalen Zellen-State (`editingKey: \`${staffId}|${iso}|from|to\``, plus Draft-Werte `from`/`to` pro Zeile-Tag). Render-Logik in `renderShift` ersetzen: wenn `editingKey` matched → `<input>` statt Text.
+2. **Save-Hooks** — `WeeklyPlan` bekommt zusätzliche Props `onCreateInline(staffId, locationId, iso, from, to)` und `onUpdateInline(id, iso, from, to)`. Im Parent (`ZeitUebersichtPage`) mit den bestehenden `createShiftMut`/`setShiftMut` verdrahten.
+3. **Helper** — `combineDateTimeISO(iso, hhmm)` und `isValidHHMM` aus `ShiftEditorDialog` an das Modul-Top-Level ziehen, damit beide Stellen sie nutzen können.
+4. **`onCreate` / `onEdit` Props** — bleiben für eventuelle Spezialfälle bestehen, werden aus dem Klick-Handler aber entfernt (`handleClick` löst nur noch das Inline-Editing aus). Wenn `found.length > 1` → Klick macht nichts (read-only).
+5. **`ShiftEditorDialog`** — bleibt im File für zukünftige Wiederverwendung, wird aber nicht mehr gemountet (`<ShiftEditorDialog … />` wird entfernt, `editor`-State + Import-Block aufräumen). Falls du den Dialog behalten möchtest, sag Bescheid — ich kann ihn als "Erweitert"-Eintrag in einem Hover-Menü lassen.
 
-Departement-Trennzeilen (Küche / Service / Geschäftsleitung) als gefärbte Header-Reihen (`bg-orange-50/blue-50/gray-50` wie heute), kleiner Akzent-Balken links pro Mitarbeiterzeile.
+## Nicht im Scope
 
-„Alle"-Modus: Einträge aller Standorte aggregiert (zweite Server-Query je Location parallel via React Query, dann clientseitig mergen). Cross-Location-`×` entfällt im Alle-Modus.
-
-## Exporte
-
-- **Excel**: Paket `exceljs` neu (kein bestehendes XLSX-Tool im Repo). Datei: `Wochenplan_<Location>_KW<NN>_<YYYY>.xlsx`. Spalten exakt wie UI, Department-Trennzeilen mit Fettdruck, Sonn-/Feiertage farbig hinterlegt, Spaltenbreiten autosize.
-- **PDF**: `jsPDF` + `jspdf-autotable` (bereits installiert). Querformat A4, gleiche Spalten, gleicher Dateiname `.pdf`. Header mit Location + KW + Zeitraum.
-
-Beide Generatoren als pure Funktionen in `src/lib/time/weekly-export.ts` (`buildWeeklyXlsx`, `buildWeeklyPdf`) — testbar, ohne React-Abhängigkeit.
-
-## Tabs Brutto/Netto + Provision
-
-Platzhalter-Karten mit Hinweis „Wird im nächsten Schritt umgesetzt". Kein Backend-Aufruf.
-
-## Nicht Teil dieses Umbaus
-
-- Keine Änderung an `getWeeklyTimeEntries` / DB-Schema.
-- Keine neuen RLS-Policies.
-- Inhalt von `Zusammenfassung`, `Buchhaltung`, `Perioden` bleibt funktional unverändert (nur ggf. minimaler Spacing-Fix).
-- Brutto/Netto- und Provisions-Logik kommt in separatem Auftrag.
-
-## Reihenfolge der Umsetzung
-
-1. `bun add exceljs` (für Excel-Export).
-2. `src/lib/time/weekly-export.ts` mit `buildWeeklyXlsx` + `buildWeeklyPdf` + Unit-Helfern.
-3. `zeit-uebersicht.tsx` umbauen: neue Header-Shell, neue Wochenplan-Tabelle (Anfang/Ende-Spalten, Suche, Pills, Monats-Chips, Export-Buttons). Bestehende Tabs/Dialog bleiben.
-4. tsc + Smoke-Test im Preview.
+- Multi-Schicht-Editor (mehrere Schichten pro Tag).
+- Verschieben von Schichten zwischen Standorten.
+- Pause/Notiz-Eingabe in der Grid-Zelle.
+- Backend / Server-Funktionen (unverändert).
