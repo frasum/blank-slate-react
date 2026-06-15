@@ -1197,17 +1197,19 @@ function WeeklyPlan({
   isLoading,
   weekDays,
   isAdmin,
-  onEdit,
-  onCreate,
   entriesById,
+  pending,
+  onUpdateInline,
+  onCreateInline,
 }: {
   input: WeeklyExportInput | null;
   isLoading: boolean;
   weekDays: Date[];
   isAdmin: boolean;
-  onEdit: (entry: WeeklyEntry) => void;
-  onCreate: (staffId: string, staffName: string, dateIso: string) => void;
   entriesById: Map<string, WeeklyEntry>;
+  pending: boolean;
+  onUpdateInline: (id: string, iso: string, from: string, to: string) => void;
+  onCreateInline: (staffId: string, iso: string, from: string, to: string) => void;
 }) {
   // Header-Tagesmeta (Wochentag-Label + Feiertags-Hint)
   const dayMeta = weekDays.map((d) => ({
@@ -1232,6 +1234,76 @@ function WeeklyPlan({
       if (e.staffId === staffId && e.businessDate === iso) out.push(e);
     }
     return out;
+  };
+
+  type EditState = {
+    staffId: string;
+    iso: string;
+    field: "from" | "to";
+    from: string;
+    to: string;
+    existingId: string | null;
+    origFrom: string;
+    origTo: string;
+  };
+  const [edit, setEdit] = useState<EditState | null>(null);
+  const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+  const startEdit = (staffId: string, iso: string, field: "from" | "to") => {
+    if (!isAdmin) return;
+    const found = findEntries(staffId, iso);
+    if (found.length > 1) return;
+    if (found.length === 1) {
+      const f = fmtHHMM(found[0].startedAt);
+      const t = fmtHHMM(found[0].endedAt);
+      setEdit({
+        staffId,
+        iso,
+        field,
+        from: f,
+        to: t,
+        existingId: found[0].id,
+        origFrom: f,
+        origTo: t,
+      });
+    } else {
+      setEdit({
+        staffId,
+        iso,
+        field,
+        from: "15:00",
+        to: "23:00",
+        existingId: null,
+        origFrom: "",
+        origTo: "",
+      });
+    }
+  };
+
+  const cellKey = (staffId: string, iso: string) => `${staffId}|${iso}`;
+
+  const commit = (e: EditState) => {
+    if (!HHMM.test(e.from) || !HHMM.test(e.to)) {
+      toast.error("Ungültige Uhrzeit.");
+      return;
+    }
+    if (e.existingId) {
+      if (e.from === e.origFrom && e.to === e.origTo) return;
+      onUpdateInline(e.existingId, e.iso, e.from, e.to);
+    } else {
+      onCreateInline(e.staffId, e.iso, e.from, e.to);
+    }
+  };
+
+  const handleBlur = (
+    ev: React.FocusEvent<HTMLInputElement>,
+    current: EditState,
+  ) => {
+    const next = ev.relatedTarget as HTMLElement | null;
+    const nextKey = next?.getAttribute?.("data-edit-key");
+    if (nextKey === cellKey(current.staffId, current.iso)) return;
+    commit(current);
+    setEdit(null);
   };
 
   return (
@@ -1335,20 +1407,52 @@ function WeeklyPlan({
                       const cellBg = dm.isHol ? "bg-yellow-50" : dm.isSun ? "bg-gray-50" : "";
                       const empty = day.shifts.length === 0;
                       const clickable = isAdmin;
-                      const handleClick = () => {
-                        if (!clickable) return;
-                        if (empty) {
-                          onCreate(row.staffId, row.displayName, day.iso);
-                          return;
-                        }
-                        const found = findEntries(row.staffId, day.iso);
-                        if (found.length === 1) onEdit(found[0]);
+                      const multi = day.shifts.length > 1;
+                      const isEditingCell =
+                        edit !== null &&
+                        edit.staffId === row.staffId &&
+                        edit.iso === day.iso;
+                      const editable = clickable && !multi;
+                      const handleCellClick = (which: "from" | "to") => {
+                        if (!editable) return;
+                        if (isEditingCell) return;
+                        startEdit(row.staffId, day.iso, which);
                       };
                       const renderShift = (which: "from" | "to") => {
+                        if (isEditingCell) {
+                          const val = which === "from" ? edit.from : edit.to;
+                          return (
+                            <input
+                              type="time"
+                              value={val}
+                              autoFocus={edit.field === which}
+                              disabled={pending}
+                              data-edit-key={cellKey(row.staffId, day.iso)}
+                              onChange={(ev) =>
+                                setEdit({
+                                  ...edit,
+                                  [which]: ev.target.value,
+                                } as EditState)
+                              }
+                              onKeyDown={(ev) => {
+                                if (ev.key === "Enter") {
+                                  ev.preventDefault();
+                                  commit(edit);
+                                  setEdit(null);
+                                } else if (ev.key === "Escape") {
+                                  ev.preventDefault();
+                                  setEdit(null);
+                                }
+                              }}
+                              onBlur={(ev) => handleBlur(ev, edit)}
+                              className={`w-[64px] h-6 px-1 text-center font-mono text-sm rounded border border-primary/50 bg-background ${pending ? "opacity-60" : ""}`}
+                            />
+                          );
+                        }
                         if (empty) {
                           if (day.crossLocation && which === "from")
                             return <span className="text-muted-foreground">×</span>;
-                          if (clickable && which === "from")
+                          if (editable && which === "from")
                             return <span className="text-muted-foreground/40">+</span>;
                           return "";
                         }
@@ -1365,14 +1469,14 @@ function WeeklyPlan({
                       return (
                         <Fragment key={day.iso}>
                           <TableCell
-                            onClick={handleClick}
-                            className={`border-l p-1 text-center align-middle font-mono text-sm ${cellBg} ${clickable ? "cursor-pointer hover:bg-muted/60" : ""}`}
+                            onClick={() => handleCellClick("from")}
+                            className={`border-l p-1 text-center align-middle font-mono text-sm ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
                           >
                             {renderShift("from")}
                           </TableCell>
                           <TableCell
-                            onClick={handleClick}
-                            className={`p-1 text-center align-middle font-mono text-sm ${cellBg} ${clickable ? "cursor-pointer hover:bg-muted/60" : ""}`}
+                            onClick={() => handleCellClick("to")}
+                            className={`p-1 text-center align-middle font-mono text-sm ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
                           >
                             {renderShift("to")}
                           </TableCell>
