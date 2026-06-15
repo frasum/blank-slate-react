@@ -49,7 +49,7 @@ export const createOrderFromCart = createServerFn({ method: "POST" })
       const { data: orderIds, error } = await supabaseAdmin.rpc("create_order_from_cart", {
         p_org_id: caller.organizationId,
         p_user_id: caller.userId,
-        p_notes: data.notes ?? null,
+        p_notes: data.notes,
       });
       if (error) throw new Error(error.message);
       const ids = (orderIds ?? []) as string[];
