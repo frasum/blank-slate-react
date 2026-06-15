@@ -67,16 +67,20 @@ export type Database = {
           category: string | null
           created_at: string
           description: string | null
+          food_pairings: string | null
+          grape_variety: string | null
           id: string
           image_url: string | null
           is_active: boolean
           name: string
           order_unit_id: string | null
           organization_id: string
+          origin_country: string | null
           packaging_unit: number | null
           price_cents: number
           sku: string | null
           sort_order: number
+          special_attributes: string[] | null
           supplier_id: string
           unit: string
           updated_at: string
@@ -85,16 +89,20 @@ export type Database = {
           category?: string | null
           created_at?: string
           description?: string | null
+          food_pairings?: string | null
+          grape_variety?: string | null
           id?: string
           image_url?: string | null
           is_active?: boolean
           name: string
           order_unit_id?: string | null
           organization_id: string
+          origin_country?: string | null
           packaging_unit?: number | null
           price_cents?: number
           sku?: string | null
           sort_order?: number
+          special_attributes?: string[] | null
           supplier_id: string
           unit?: string
           updated_at?: string
@@ -103,16 +111,20 @@ export type Database = {
           category?: string | null
           created_at?: string
           description?: string | null
+          food_pairings?: string | null
+          grape_variety?: string | null
           id?: string
           image_url?: string | null
           is_active?: boolean
           name?: string
           order_unit_id?: string | null
           organization_id?: string
+          origin_country?: string | null
           packaging_unit?: number | null
           price_cents?: number
           sku?: string | null
           sort_order?: number
+          special_attributes?: string[] | null
           supplier_id?: string
           unit?: string
           updated_at?: string
@@ -2692,6 +2704,57 @@ export type Database = {
           },
           {
             foreignKeyName: "waiter_settlements_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wine_quiz_scores: {
+        Row: {
+          correct_answers: number
+          id: string
+          level_reached: number
+          organization_id: string
+          played_at: string
+          questions_answered: number
+          score: number
+          staff_id: string | null
+          staff_name: string
+        }
+        Insert: {
+          correct_answers?: number
+          id?: string
+          level_reached?: number
+          organization_id: string
+          played_at?: string
+          questions_answered?: number
+          score?: number
+          staff_id?: string | null
+          staff_name: string
+        }
+        Update: {
+          correct_answers?: number
+          id?: string
+          level_reached?: number
+          organization_id?: string
+          played_at?: string
+          questions_answered?: number
+          score?: number
+          staff_id?: string | null
+          staff_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wine_quiz_scores_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wine_quiz_scores_staff_id_fkey"
             columns: ["staff_id"]
             isOneToOne: false
             referencedRelation: "staff"
