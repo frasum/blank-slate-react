@@ -768,6 +768,8 @@ export type Database = {
           created_at: string
           delivery_address: string | null
           delivery_date: string | null
+          email_error: string | null
+          email_message_id: string | null
           email_sent: boolean
           email_sent_at: string | null
           id: string
@@ -787,6 +789,8 @@ export type Database = {
           created_at?: string
           delivery_address?: string | null
           delivery_date?: string | null
+          email_error?: string | null
+          email_message_id?: string | null
           email_sent?: boolean
           email_sent_at?: string | null
           id?: string
@@ -806,6 +810,8 @@ export type Database = {
           created_at?: string
           delivery_address?: string | null
           delivery_date?: string | null
+          email_error?: string | null
+          email_message_id?: string | null
           email_sent?: boolean
           email_sent_at?: string | null
           id?: string
@@ -847,6 +853,8 @@ export type Database = {
         Row: {
           created_at: string
           kitchen_tip_rate: number
+          order_email_bcc: string | null
+          order_email_reply_to: string | null
           organization_id: string
           time_locked_through_date: string | null
           updated_at: string
@@ -854,6 +862,8 @@ export type Database = {
         Insert: {
           created_at?: string
           kitchen_tip_rate?: number
+          order_email_bcc?: string | null
+          order_email_reply_to?: string | null
           organization_id: string
           time_locked_through_date?: string | null
           updated_at?: string
@@ -861,6 +871,8 @@ export type Database = {
         Update: {
           created_at?: string
           kitchen_tip_rate?: number
+          order_email_bcc?: string | null
+          order_email_reply_to?: string | null
           organization_id?: string
           time_locked_through_date?: string | null
           updated_at?: string
