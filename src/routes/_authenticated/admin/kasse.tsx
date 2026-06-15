@@ -398,6 +398,48 @@ function KassePage() {
                 void invalidate();
               })
             }
+            expenses={ovQ.data?.expenses ?? []}
+            advances={ovQ.data?.advances ?? []}
+            staff={staffQ.data ?? []}
+            onAddExpense={(desc, cents) =>
+              callAddSat({
+                data: {
+                  sessionId: sessionId!,
+                  kind: "expense",
+                  description: desc,
+                  amountCents: cents,
+                },
+              }).then(() => {
+                toast.success("Ausgabe hinzugefügt.");
+                void invalidate();
+              })
+            }
+            onRemoveExpense={(id) =>
+              callRemoveSat({ data: { sessionId: sessionId!, kind: "expense", id } }).then(() => {
+                toast.success("Entfernt.");
+                void invalidate();
+              })
+            }
+            onAddAdvance={(staffId, cents, note) =>
+              callAddSat({
+                data: {
+                  sessionId: sessionId!,
+                  kind: "advance",
+                  staffId,
+                  amountCents: cents,
+                  note,
+                },
+              }).then(() => {
+                toast.success("Vorschuss hinzugefügt.");
+                void invalidate();
+              })
+            }
+            onRemoveAdvance={(id) =>
+              callRemoveSat({ data: { sessionId: sessionId!, kind: "advance", id } }).then(() => {
+                toast.success("Entfernt.");
+                void invalidate();
+              })
+            }
           />
 
           <SatellitesCard
