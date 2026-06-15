@@ -119,6 +119,18 @@ export function RosterGrid({
     return m;
   }, [shifts]);
 
+  // Alle Schicht-Tage pro Mitarbeiter (über alle Standorte/Areas) — Basis für die
+  // Vorab-Anzeige im Abwesenheits-Zeitraum-Formular.
+  const shiftDatesByStaff = React.useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const b of crossBookings) {
+      const arr = m.get(b.staffId) ?? [];
+      arr.push(b.shiftDate);
+      m.set(b.staffId, arr);
+    }
+    return m;
+  }, [crossBookings]);
+
   // Tages-Zählung pro (iso, area=activeArea).
   const dayCount = React.useMemo(() => {
     const m = new Map<string, number>();
