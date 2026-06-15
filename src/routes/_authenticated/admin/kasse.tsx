@@ -971,11 +971,7 @@ function SessionFieldsCard({
   staff: { id: string; displayName: string }[];
   onAddExpense: (description: string, amountCents: number) => Promise<unknown>;
   onRemoveExpense: (id: string) => Promise<unknown>;
-  onAddAdvance: (
-    staffId: string,
-    amountCents: number,
-    note: string | null,
-  ) => Promise<unknown>;
+  onAddAdvance: (staffId: string, amountCents: number, note: string | null) => Promise<unknown>;
   onRemoveAdvance: (id: string) => Promise<unknown>;
 }) {
   type Row = { id: string; euro: string };
@@ -1121,12 +1117,9 @@ function SessionFieldsCard({
 
   const guestNum = parseInt(misc.guestCount || "0", 10);
   const avgPerGuest =
-    guestNum > 0 && posEuroTotal > 0
-      ? fmtCents(Math.round(posEuroTotal / guestNum)) + " €"
-      : null;
+    guestNum > 0 && posEuroTotal > 0 ? fmtCents(Math.round(posEuroTotal / guestNum)) + " €" : null;
 
-  const staffName = (id: string) =>
-    staff.find((s) => s.id === id)?.displayName ?? id.slice(0, 8);
+  const staffName = (id: string) => staff.find((s) => s.id === id)?.displayName ?? id.slice(0, 8);
 
   return (
     <div className="space-y-4">
@@ -1226,10 +1219,7 @@ function SessionFieldsCard({
             </tbody>
           </table>
 
-          <ExcelSectionHeader
-            label="Gutscheine & Sonstiges"
-            colorClass="border-l-violet-500"
-          />
+          <ExcelSectionHeader label="Gutscheine & Sonstiges" colorClass="border-l-violet-500" />
           <table className="w-full text-sm">
             <tbody>
               <ExcelInputRow
@@ -1327,9 +1317,7 @@ function SessionFieldsCard({
                   {expenses.map((e) => (
                     <li key={e.id} className="flex items-center justify-between gap-2">
                       <span className="flex-1 truncate">{e.description ?? "—"}</span>
-                      <span className="font-mono tabular-nums">
-                        {fmtCents(e.amountCents)} €
-                      </span>
+                      <span className="font-mono tabular-nums">{fmtCents(e.amountCents)} €</span>
                       {writable && (
                         <button
                           className="text-destructive hover:opacity-70 text-xs"
@@ -1363,9 +1351,7 @@ function SessionFieldsCard({
                         {staffName(a.staffId)}
                         {a.note ? ` · ${a.note}` : ""}
                       </span>
-                      <span className="font-mono tabular-nums">
-                        {fmtCents(a.amountCents)} €
-                      </span>
+                      <span className="font-mono tabular-nums">{fmtCents(a.amountCents)} €</span>
                       {writable && (
                         <button
                           className="text-destructive hover:opacity-70 text-xs"
@@ -1378,9 +1364,7 @@ function SessionFieldsCard({
                   ))}
                 </ul>
               )}
-              {writable && (
-                <AdvanceForm writable={writable} staff={staff} onAdd={onAddAdvance} />
-              )}
+              {writable && <AdvanceForm writable={writable} staff={staff} onAdd={onAddAdvance} />}
             </div>
           </div>
         </div>
@@ -1448,13 +1432,7 @@ function CashActualHint({ value }: { value: string }) {
   );
 }
 
-function ExcelSectionHeader({
-  label,
-  colorClass,
-}: {
-  label: string;
-  colorClass: string;
-}) {
+function ExcelSectionHeader({ label, colorClass }: { label: string; colorClass: string }) {
   return (
     <div className={`bg-muted/50 px-3 py-2 border-y border-l-4 ${colorClass}`}>
       <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
