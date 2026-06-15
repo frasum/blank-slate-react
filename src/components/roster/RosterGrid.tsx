@@ -284,6 +284,7 @@ export function RosterGrid({
                           today={isToday}
                           paintKind={paint?.kind ?? null}
                           unavailable={isUnavailable}
+                          hasShift={!!shift}
                         >
                           {shift ? (
                             <PillConfirmPopover
