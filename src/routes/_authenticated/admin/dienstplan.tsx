@@ -21,6 +21,9 @@ import {
   getRosterShifts,
   getStaffForRoster,
   getStaffCrossBookings,
+  getAvailability,
+  setUnavailable,
+  clearUnavailable,
   listSkills,
   moveRosterShift,
   updateRosterShiftSkill,
@@ -135,6 +138,17 @@ function DienstplanPage() {
       }),
     enabled: !!effectivePeriod,
   });
+  const availabilityQ = useQuery({
+    queryKey: ["roster-availability", effectivePeriod?.startDate, effectivePeriod?.endDate],
+    queryFn: () =>
+      getAvailability({
+        data: {
+          fromDate: effectivePeriod!.startDate,
+          toDate: effectivePeriod!.endDate,
+        },
+      }),
+    enabled: !!effectivePeriod,
+  });
 
   // Realtime: jede Änderung an roster_shifts → invalidate (live update).
   useEffect(() => {
@@ -145,6 +159,13 @@ function DienstplanPage() {
         qc.invalidateQueries({ queryKey: ["roster-shifts"] });
         qc.invalidateQueries({ queryKey: ["roster-cross-bookings"] });
       })
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "roster_availability" },
+        () => {
+          qc.invalidateQueries({ queryKey: ["roster-availability"] });
+        },
+      )
       .subscribe();
     return () => {
       void supabase.removeChannel(channel);
@@ -154,6 +175,23 @@ function DienstplanPage() {
   const staff = useMemo(() => staffQ.data ?? [], [staffQ.data]);
   const shifts: RosterShift[] = useMemo(() => shiftsQ.data ?? [], [shiftsQ.data]);
   const crossBookings = useMemo(() => crossQ.data ?? [], [crossQ.data]);
+  const unavailable = useMemo(() => availabilityQ.data ?? [], [availabilityQ.data]);
+  const unavailableSet = useMemo(() => {
+    const s = new Set<string>();
+    for (const a of unavailable) s.add(`${a.staffId}|${a.date}`);
+    return s;
+  }, [unavailable]);
+  const staffNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const r of staff) m.set(r.staffId, r.displayName);
+    return m;
+  }, [staff]);
+
+  function warnIfUnavailable(staffId: string, iso: string) {
+    if (!unavailableSet.has(`${staffId}|${iso}`)) return;
+    const name = staffNameById.get(staffId) ?? "Mitarbeiter";
+    toast.message(`Hinweis: ${name} ist an diesem Tag als nicht verfügbar markiert.`);
+  }
 
   // Skill-Filter (Mehrfach, ODER): nur Mitarbeiter zeigen, die mind. einen
   // der gewählten Skills haben. Leere Auswahl = alle.
@@ -189,6 +227,7 @@ function DienstplanPage() {
       });
       qc.invalidateQueries({ queryKey: ["roster-shifts"] });
       qc.invalidateQueries({ queryKey: ["roster-cross-bookings"] });
+      warnIfUnavailable(staffId, iso);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
     } finally {
@@ -266,6 +305,7 @@ function DienstplanPage() {
       });
       qc.invalidateQueries({ queryKey: ["roster-shifts"] });
       qc.invalidateQueries({ queryKey: ["roster-cross-bookings"] });
+      warnIfUnavailable(target.staffId, target.iso);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
     } finally {
@@ -279,6 +319,32 @@ function DienstplanPage() {
       if (!next) setPaint(null);
       return next;
     });
+  }
+
+  async function handleSetUnavailable(staffId: string, iso: string) {
+    if (!canEdit) return;
+    setBusy(true);
+    try {
+      await setUnavailable({ data: { staffId, date: iso } });
+      qc.invalidateQueries({ queryKey: ["roster-availability"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleClearUnavailable(staffId: string, iso: string) {
+    if (!canEdit) return;
+    setBusy(true);
+    try {
+      await clearUnavailable({ data: { staffId, date: iso } });
+      qc.invalidateQueries({ queryKey: ["roster-availability"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -371,6 +437,7 @@ function DienstplanPage() {
               shifts={shifts}
               allSkills={allSkills}
               crossBookings={crossBookings}
+              unavailableSet={unavailableSet}
               density={density}
               canEdit={canEdit}
               locked={!!periodLocked}
@@ -380,6 +447,8 @@ function DienstplanPage() {
               onDelete={handleDelete}
               onChangeSkill={handleChangeSkill}
               onChangeStatus={handleChangeStatus}
+              onSetUnavailable={handleSetUnavailable}
+              onClearUnavailable={handleClearUnavailable}
             />
           </DndContext>
         )}

@@ -56,6 +56,7 @@ type Props = {
   shifts: RosterShift[];
   allSkills: RosterSkill[];
   crossBookings: RosterCrossBooking[];
+  unavailableSet: Set<string>;
   density: Density;
   canEdit: boolean;
   locked: boolean;
@@ -65,6 +66,8 @@ type Props = {
   onDelete: (id: string) => Promise<void> | void;
   onChangeSkill: (id: string, skillId: string) => Promise<void> | void;
   onChangeStatus: (id: string, status: "planned" | "confirmed") => Promise<void> | void;
+  onSetUnavailable: (staffId: string, iso: string) => Promise<void> | void;
+  onClearUnavailable: (staffId: string, iso: string) => Promise<void> | void;
 };
 
 export function RosterGrid({
@@ -76,6 +79,7 @@ export function RosterGrid({
   shifts,
   allSkills,
   crossBookings,
+  unavailableSet,
   density,
   canEdit,
   locked,
@@ -85,6 +89,8 @@ export function RosterGrid({
   onDelete,
   onChangeSkill,
   onChangeStatus,
+  onSetUnavailable,
+  onClearUnavailable,
 }: Props) {
   const [openCell, setOpenCell] = React.useState<string | null>(null);
   const [openPill, setOpenPill] = React.useState<string | null>(null);
@@ -266,6 +272,7 @@ export function RosterGrid({
                         : [];
                       const pickedSkills = skillsForCell(row, activeArea, allSkills);
                       const candidates = [...pickedSkills.profile, ...pickedSkills.other];
+                      const isUnavailable = unavailableSet.has(`${row.staffId}|${iso}`);
                       return (
                         <DropCell
                           key={iso}
@@ -276,6 +283,7 @@ export function RosterGrid({
                           weekend={we}
                           today={isToday}
                           paintKind={paint?.kind ?? null}
+                          unavailable={isUnavailable}
                         >
                           {shift ? (
                             <PillConfirmPopover
@@ -284,6 +292,8 @@ export function RosterGrid({
                               shift={shift}
                               candidates={candidates}
                               busy={busy}
+                              isUnavailable={isUnavailable}
+                              canEdit={editable}
                               onChangeSkill={async (sid) => {
                                 await onChangeSkill(shift.id, sid);
                                 setOpenPill(null);
@@ -294,6 +304,14 @@ export function RosterGrid({
                               }}
                               onDelete={async () => {
                                 await onDelete(shift.id);
+                                setOpenPill(null);
+                              }}
+                              onSetUnavailable={async () => {
+                                await onSetUnavailable(shift.staffId, shift.shiftDate);
+                                setOpenPill(null);
+                              }}
+                              onClearUnavailable={async () => {
+                                await onClearUnavailable(shift.staffId, shift.shiftDate);
                                 setOpenPill(null);
                               }}
                             >
@@ -324,6 +342,15 @@ export function RosterGrid({
                               }}
                               onCellClick={() => void handleEmptyCellClick(row, iso)}
                               others={others}
+                              isUnavailable={isUnavailable}
+                              onSetUnavailable={async () => {
+                                await onSetUnavailable(row.staffId, iso);
+                                setOpenCell(null);
+                              }}
+                              onClearUnavailable={async () => {
+                                await onClearUnavailable(row.staffId, iso);
+                                setOpenCell(null);
+                              }}
                             />
                           )}
                         </DropCell>
@@ -375,6 +402,7 @@ function DropCell({
   weekend,
   today,
   paintKind,
+  unavailable,
   children,
 }: {
   staffId: string;
@@ -384,6 +412,7 @@ function DropCell({
   weekend: boolean;
   today: boolean;
   paintKind: "skill" | "eraser" | null;
+  unavailable: boolean;
   children: React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({
@@ -393,19 +422,32 @@ function DropCell({
   });
   const cursor =
     paintKind === "skill" ? "cursor-crosshair" : paintKind === "eraser" ? "cursor-not-allowed" : "";
-  return (
+  // Diagonale Schraffur als Zellen-Hintergrund (etwas kräftiger als Weekend-Grau,
+  // damit sich beides nicht beißt). Pille/Marker liegt darüber.
+  const hatchBg = unavailable
+    ? "repeating-linear-gradient(135deg, hsl(var(--muted-foreground)/0.16) 0 2px, transparent 2px 6px)"
+    : undefined;
+  const tdInner = (
     <td
       ref={setNodeRef}
       className={cn(
         "relative px-0.5 py-1 text-center align-middle",
-        weekend && "bg-muted/40",
+        weekend && !unavailable && "bg-muted/40",
         today && "bg-primary/5",
         isOver && editable && "bg-accent/20 ring-1 ring-accent ring-inset",
         editable && cursor,
       )}
+      style={hatchBg ? { backgroundImage: hatchBg } : undefined}
     >
       {children}
     </td>
+  );
+  if (!unavailable) return tdInner;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{tdInner}</TooltipTrigger>
+      <TooltipContent>Nicht verfügbar</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -422,6 +464,9 @@ function EmptyCell({
   onPick,
   onCellClick,
   others,
+  isUnavailable,
+  onSetUnavailable,
+  onClearUnavailable,
 }: {
   row: RosterStaffRow;
   iso: string;
@@ -435,6 +480,9 @@ function EmptyCell({
   onPick: (skillId: string) => void;
   onCellClick: () => void;
   others: RosterCrossBooking[];
+  isUnavailable: boolean;
+  onSetUnavailable: () => void;
+  onClearUnavailable: () => void;
 }) {
   const { profile, other } = skillsForCell(row, activeArea, allSkills);
   const marker = (
@@ -489,6 +537,9 @@ function EmptyCell({
       otherSkills={other}
       busy={busy}
       onPick={onPick}
+      isUnavailable={isUnavailable}
+      onSetUnavailable={onSetUnavailable}
+      onClearUnavailable={onClearUnavailable}
     >
       {cellInner}
     </CellQuickPopover>
