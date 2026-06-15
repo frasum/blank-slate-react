@@ -567,7 +567,7 @@ function EmptyCell({
   isUnavailable,
   onSetUnavailable,
   onClearUnavailable,
-  isAbsent,
+  absenceType,
   onSetAbsence,
   onClearAbsence,
 }: {
@@ -586,8 +586,8 @@ function EmptyCell({
   isUnavailable: boolean;
   onSetUnavailable: () => void;
   onClearUnavailable: () => void;
-  isAbsent: boolean;
-  onSetAbsence: () => void;
+  absenceType: "urlaub" | "krank" | null;
+  onSetAbsence: (type: "urlaub" | "krank") => void;
   onClearAbsence: () => void;
 }) {
   const { profile, other } = skillsForCell(row, activeArea, allSkills);
