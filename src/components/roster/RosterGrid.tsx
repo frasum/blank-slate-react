@@ -45,22 +45,7 @@ function dayHeader(iso: string): { dow: string; dm: string } {
   };
 }
 
-export function skillsForCell(
-  staffRow: RosterStaffRow,
-  area: GridArea,
-  allSkills: RosterSkill[],
-): { profile: RosterSkill[]; other: RosterSkill[] } {
-  const allowed =
-    area === "service"
-      ? new Set<RosterSkill["category"]>(["service", "gl", "other"])
-      : new Set<RosterSkill["category"]>(["kitchen"]);
-  const inArea = allSkills.filter((s) => allowed.has(s.category));
-  const owned = new Set(staffRow.skillIds);
-  const profile = inArea.filter((s) => owned.has(s.id));
-  if (profile.length === 0) return { profile: inArea, other: [] };
-  const other = inArea.filter((s) => !owned.has(s.id));
-  return { profile, other };
-}
+import { skillsForCell } from "./skills-for-cell";
 
 type Props = {
   activeArea: GridArea;
