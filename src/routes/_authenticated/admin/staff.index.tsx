@@ -101,7 +101,7 @@ function StaffListPage() {
                 <tr>
                   <td className="px-3 py-6 text-center text-muted-foreground" colSpan={6}>
                     {data && data.length > 0
-                      ? "Keine aktiven Mitarbeiter. Aktiviere „Inaktive anzeigen"."
+                      ? 'Keine aktiven Mitarbeiter. Aktiviere „Inaktive anzeigen".'
                       : "Noch keine Mitarbeiter."}
                   </td>
                 </tr>
