@@ -272,6 +272,7 @@ export function RosterGrid({
                         : [];
                       const pickedSkills = skillsForCell(row, activeArea, allSkills);
                       const candidates = [...pickedSkills.profile, ...pickedSkills.other];
+                      const isUnavailable = unavailableSet.has(`${row.staffId}|${iso}`);
                       return (
                         <DropCell
                           key={iso}
@@ -282,6 +283,7 @@ export function RosterGrid({
                           weekend={we}
                           today={isToday}
                           paintKind={paint?.kind ?? null}
+                          unavailable={isUnavailable}
                         >
                           {shift ? (
                             <PillConfirmPopover
@@ -290,6 +292,8 @@ export function RosterGrid({
                               shift={shift}
                               candidates={candidates}
                               busy={busy}
+                              isUnavailable={isUnavailable}
+                              canEdit={editable}
                               onChangeSkill={async (sid) => {
                                 await onChangeSkill(shift.id, sid);
                                 setOpenPill(null);
@@ -300,6 +304,14 @@ export function RosterGrid({
                               }}
                               onDelete={async () => {
                                 await onDelete(shift.id);
+                                setOpenPill(null);
+                              }}
+                              onSetUnavailable={async () => {
+                                await onSetUnavailable(shift.staffId, shift.shiftDate);
+                                setOpenPill(null);
+                              }}
+                              onClearUnavailable={async () => {
+                                await onClearUnavailable(shift.staffId, shift.shiftDate);
                                 setOpenPill(null);
                               }}
                             >
@@ -330,6 +342,15 @@ export function RosterGrid({
                               }}
                               onCellClick={() => void handleEmptyCellClick(row, iso)}
                               others={others}
+                              isUnavailable={isUnavailable}
+                              onSetUnavailable={async () => {
+                                await onSetUnavailable(row.staffId, iso);
+                                setOpenCell(null);
+                              }}
+                              onClearUnavailable={async () => {
+                                await onClearUnavailable(row.staffId, iso);
+                                setOpenCell(null);
+                              }}
                             />
                           )}
                         </DropCell>
