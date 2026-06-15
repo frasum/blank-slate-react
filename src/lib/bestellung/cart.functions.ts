@@ -67,7 +67,11 @@ export const setCartMeta = createServerFn({ method: "POST" })
     const caller = await loadAdminCaller(context.supabase, context.userId, ALLOWED_ROLES);
     const cart = await ensureCart(caller.organizationId, caller.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const patch: Record<string, unknown> = {};
+    const patch: {
+      location_id?: string | null;
+      delivery_date?: string | null;
+      time_window?: string | null;
+    } = {};
     if (data.locationId !== undefined) patch.location_id = data.locationId;
     if (data.deliveryDate !== undefined) patch.delivery_date = data.deliveryDate;
     if (data.timeWindow !== undefined) patch.time_window = data.timeWindow || null;
