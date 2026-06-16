@@ -19,7 +19,12 @@ import {
   setArticleActive,
   updateArticle,
 } from "@/lib/bestellung/articles.functions";
-import { addCartItem, getActiveCart, removeCartItem, updateCartItem } from "@/lib/bestellung/cart.functions";
+import {
+  addCartItem,
+  getActiveCart,
+  removeCartItem,
+  updateCartItem,
+} from "@/lib/bestellung/cart.functions";
 import { getLastOrderByArticle } from "@/lib/bestellung/orders.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/bestellung/lieferanten")({
@@ -147,10 +152,8 @@ function LieferantenPage() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const refreshSuppliers = () =>
-    qc.invalidateQueries({ queryKey: ["bestellung", "suppliers"] });
-  const refreshArticles = () =>
-    qc.invalidateQueries({ queryKey: ["bestellung", "articles"] });
+  const refreshSuppliers = () => qc.invalidateQueries({ queryKey: ["bestellung", "suppliers"] });
+  const refreshArticles = () => qc.invalidateQueries({ queryKey: ["bestellung", "articles"] });
   const refreshCart = () => qc.invalidateQueries({ queryKey: ["bestellung", "cart"] });
 
   // Cart-Map: articleId → { itemId, quantity }
@@ -318,8 +321,7 @@ function LieferantenPage() {
   });
 
   const updateCartMut = useMutation({
-    mutationFn: (input: { itemId: string; quantity: number }) =>
-      callUpdateCart({ data: input }),
+    mutationFn: (input: { itemId: string; quantity: number }) => callUpdateCart({ data: input }),
     onSuccess: refreshCart,
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
   });
@@ -382,9 +384,7 @@ function LieferantenPage() {
         />
       )}
 
-      {suppliersQ.isLoading && (
-        <p className="text-sm text-muted-foreground">Lädt …</p>
-      )}
+      {suppliersQ.isLoading && <p className="text-sm text-muted-foreground">Lädt …</p>}
       {!suppliersQ.isLoading && filteredSuppliers.length === 0 && (
         <p className="text-sm text-muted-foreground">
           {search ? "Keine Treffer." : "Noch keine Lieferanten."}
@@ -411,11 +411,10 @@ function LieferantenPage() {
                   </span>
                   <span className="font-medium text-foreground">{s.name}</span>
                 </button>
+                <span className="text-xs text-muted-foreground">{s.phone ?? s.email ?? ""}</span>
                 <span className="text-xs text-muted-foreground">
-                  {s.phone ?? s.email ?? ""}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {(s.delivery_days ?? []).join(", ") || "—"} · Bestellschluss {fmtTime(s.order_deadline)} · MBW {fmtEuro(s.min_order_value_cents)}
+                  {(s.delivery_days ?? []).join(", ") || "—"} · Bestellschluss{" "}
+                  {fmtTime(s.order_deadline)} · MBW {fmtEuro(s.min_order_value_cents)}
                 </span>
                 <div className="ml-auto flex items-center gap-2">
                   <button
@@ -470,9 +469,7 @@ function LieferantenPage() {
               {isOpen && (
                 <div className="border-t border-border">
                   {arts.length === 0 ? (
-                    <p className="px-3 py-3 text-sm text-muted-foreground">
-                      Noch keine Artikel.
-                    </p>
+                    <p className="px-3 py-3 text-sm text-muted-foreground">Noch keine Artikel.</p>
                   ) : (
                     <table className="w-full text-sm">
                       <thead className="bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -687,31 +684,74 @@ function SupplierForm(props: {
     >
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <Field label="Name *">
-          <input required value={d.name} onChange={(e) => set("name", e.target.value)} className={inputCls} />
+          <input
+            required
+            value={d.name}
+            onChange={(e) => set("name", e.target.value)}
+            className={inputCls}
+          />
         </Field>
         <Field label="E-Mail (Bestell-Empfänger)">
-          <input type="email" value={d.email} onChange={(e) => set("email", e.target.value)} className={inputCls} />
+          <input
+            type="email"
+            value={d.email}
+            onChange={(e) => set("email", e.target.value)}
+            className={inputCls}
+          />
         </Field>
         <Field label="Telefon">
-          <input value={d.phone} onChange={(e) => set("phone", e.target.value)} className={inputCls} />
+          <input
+            value={d.phone}
+            onChange={(e) => set("phone", e.target.value)}
+            className={inputCls}
+          />
         </Field>
         <Field label="Ansprechpartner">
-          <input value={d.contactPerson} onChange={(e) => set("contactPerson", e.target.value)} className={inputCls} />
+          <input
+            value={d.contactPerson}
+            onChange={(e) => set("contactPerson", e.target.value)}
+            className={inputCls}
+          />
         </Field>
         <Field label="Adresse">
-          <input value={d.address} onChange={(e) => set("address", e.target.value)} className={inputCls} />
+          <input
+            value={d.address}
+            onChange={(e) => set("address", e.target.value)}
+            className={inputCls}
+          />
         </Field>
         <Field label="Unsere Kundennummer">
-          <input value={d.customerNumber} onChange={(e) => set("customerNumber", e.target.value)} className={inputCls} />
+          <input
+            value={d.customerNumber}
+            onChange={(e) => set("customerNumber", e.target.value)}
+            className={inputCls}
+          />
         </Field>
         <Field label="Bestellschluss (HH:MM)">
-          <input type="time" value={d.orderDeadline} onChange={(e) => set("orderDeadline", e.target.value)} className={inputCls} />
+          <input
+            type="time"
+            value={d.orderDeadline}
+            onChange={(e) => set("orderDeadline", e.target.value)}
+            className={inputCls}
+          />
         </Field>
         <Field label="Mindestbestellwert (€)">
-          <input inputMode="decimal" placeholder="z. B. 50,00" value={d.minOrderValueEuro} onChange={(e) => set("minOrderValueEuro", e.target.value)} className={inputCls} />
+          <input
+            inputMode="decimal"
+            placeholder="z. B. 50,00"
+            value={d.minOrderValueEuro}
+            onChange={(e) => set("minOrderValueEuro", e.target.value)}
+            className={inputCls}
+          />
         </Field>
         <Field label="Sortierung">
-          <input type="number" min={0} value={d.sortOrder} onChange={(e) => set("sortOrder", parseInt(e.target.value, 10) || 0)} className={inputCls} />
+          <input
+            type="number"
+            min={0}
+            value={d.sortOrder}
+            onChange={(e) => set("sortOrder", parseInt(e.target.value, 10) || 0)}
+            className={inputCls}
+          />
         </Field>
         <Field label="Liefertage">
           <div className="flex flex-wrap gap-1">
@@ -741,7 +781,12 @@ function SupplierForm(props: {
         </Field>
       </div>
       <Field label="Notizen">
-        <textarea value={d.notes} onChange={(e) => set("notes", e.target.value)} rows={2} className={inputCls} />
+        <textarea
+          value={d.notes}
+          onChange={(e) => set("notes", e.target.value)}
+          rows={2}
+          className={inputCls}
+        />
       </Field>
       <div className="flex items-center gap-2">
         <button
@@ -783,26 +828,57 @@ function ArticleForm(props: {
     >
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <Field label="Name *">
-          <input required value={d.name} onChange={(e) => set("name", e.target.value)} className={inputCls} />
+          <input
+            required
+            value={d.name}
+            onChange={(e) => set("name", e.target.value)}
+            className={inputCls}
+          />
         </Field>
         <Field label="SKU">
           <input value={d.sku} onChange={(e) => set("sku", e.target.value)} className={inputCls} />
         </Field>
         <Field label="Kategorie">
-          <input value={d.category} onChange={(e) => set("category", e.target.value)} className={inputCls} />
+          <input
+            value={d.category}
+            onChange={(e) => set("category", e.target.value)}
+            className={inputCls}
+          />
         </Field>
         <Field label="Einheit *">
-          <input required value={d.unit} onChange={(e) => set("unit", e.target.value)} className={inputCls} />
+          <input
+            required
+            value={d.unit}
+            onChange={(e) => set("unit", e.target.value)}
+            className={inputCls}
+          />
         </Field>
         <Field label="Preis (€)">
-          <input inputMode="decimal" placeholder="z. B. 12,90" value={d.priceEuro} onChange={(e) => set("priceEuro", e.target.value)} className={inputCls} />
+          <input
+            inputMode="decimal"
+            placeholder="z. B. 12,90"
+            value={d.priceEuro}
+            onChange={(e) => set("priceEuro", e.target.value)}
+            className={inputCls}
+          />
         </Field>
         <Field label="Stk/BE">
-          <input type="number" min={1} value={d.packagingUnit} onChange={(e) => set("packagingUnit", e.target.value)} className={inputCls} />
+          <input
+            type="number"
+            min={1}
+            value={d.packagingUnit}
+            onChange={(e) => set("packagingUnit", e.target.value)}
+            className={inputCls}
+          />
         </Field>
       </div>
       <Field label="Beschreibung">
-        <textarea value={d.description} onChange={(e) => set("description", e.target.value)} rows={2} className={inputCls} />
+        <textarea
+          value={d.description}
+          onChange={(e) => set("description", e.target.value)}
+          rows={2}
+          className={inputCls}
+        />
       </Field>
       <div className="flex items-center gap-2">
         <button
