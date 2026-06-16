@@ -656,6 +656,27 @@ function KassePage() {
           </DialogHeader>
           {correct && (
             <div className="space-y-3">
+              <div className="space-y-1">
+                <Label>Partner-Kellner (optional)</Label>
+                <Select
+                  value={correct.partnerStaffId || "none"}
+                  onValueChange={(v) =>
+                    setCorrect({ ...correct, partnerStaffId: v === "none" ? "" : v })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Kein Partner" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Kein Partner —</SelectItem>
+                    {eligibleStaff.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.displayName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               {(
                 [
                   ["posSales", "Kassenbon (POS)"],
