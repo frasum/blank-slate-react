@@ -736,6 +736,32 @@ function KassePage() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-1">
+                <Label>Partner-Kellner (optional)</Label>
+                <Select
+                  value={createSettlement.partnerStaffId || "none"}
+                  onValueChange={(v) =>
+                    setCreateSettlement({
+                      ...createSettlement,
+                      partnerStaffId: v === "none" ? "" : v,
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Kein Partner" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Kein Partner —</SelectItem>
+                    {eligibleStaff
+                      .filter((s) => s.id !== createSettlement.staffId)
+                      .map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.displayName}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
               {(
                 [
                   ["posSales", "Kassenbon (POS)"],
