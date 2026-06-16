@@ -27,10 +27,16 @@ export function computeTipTotalCents(
     cashHandedInCents: number;
     posSalesCents: number;
     openInvoicesCents: number;
+    hilfMahlCents: number;
   }>,
 ): number {
   return settlements.reduce(
-    (s, x) => s + x.cardTotalCents + x.cashHandedInCents - x.posSalesCents - x.openInvoicesCents,
+    // Angeglichen an Tagesabrechnung (16.06.2026):
+    //   open_invoices wird wie Bargeld behandelt (addiert, nicht abgezogen),
+    //   hilf_mahl wird zusätzlich abgezogen (Mitarbeiteressen mindert Trinkgeld).
+    //   Verhindert künstlich negative Pools bei hohen offenen Rechnungen.
+    (s, x) =>
+      s + x.cardTotalCents + x.cashHandedInCents + x.openInvoicesCents - x.posSalesCents - x.hilfMahlCents,
     0,
   );
 }
