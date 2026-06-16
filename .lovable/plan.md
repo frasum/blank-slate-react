@@ -1,45 +1,43 @@
 ## Ziel
-Trinkgeld-Pool-Formel in COCO an Tagesabrechnung angleichen, sodass offene Rechnungen den Pool nicht künstlich ins Minus drücken und Hilfsmahlzeiten korrekt abgezogen werden.
 
-## Änderung (eine Datei: `src/lib/cash/tip-pool.ts`)
+Die 5 verbleibenden `react-hooks/exhaustive-deps`-Warnungen sauber beheben — ohne Verhaltensänderung, nur Stabilisierung von Memo-/Effect-Dependencies.
 
-`computeTipTotalCents` von
+## Änderungen
 
+### 1) `src/components/bestellung/CartDrawer.tsx` (Zeile 110)
+`const items = cartQ.data?.items ?? [];` → in `useMemo` wrappen:
 ```ts
-return Σ (card + cash − pos − open)
+const items = useMemo(() => cartQ.data?.items ?? [], [cartQ.data?.items]);
 ```
+Damit bleibt die Referenz stabil, solange die Server-Daten gleich sind → `groups`-Memo (Zeile 125, Dep `items`) wird nicht mehr jedes Render invalidiert.
 
-auf
-
+### 2) `src/routes/_authenticated/admin/bestellung.easyorder.tsx` (Zeile 165)
+`const articles = catalogQ.data?.articles ?? [];` → ebenfalls memoizen:
 ```ts
-return Σ (card + cash + open − pos − hilf)
+const articles = useMemo(() => catalogQ.data?.articles ?? [], [catalogQ.data?.articles]);
 ```
+Stabilisiert beide Folge-Memos (`suppliers`, `filtered`).
 
-umstellen. Eingangstyp bekommt zusätzlich `hilfMahlCents: number`.
+### 3) `src/routes/_authenticated/admin/zeit-uebersicht.tsx` (Zeile 214)
+`const locations = locationsQ.data ?? [];` → memoizen:
+```ts
+const locations = useMemo(() => locationsQ.data ?? [], [locationsQ.data]);
+```
+Stabilisiert das große `weeklyExportInput`-Memo (Zeile 559, Dep `locations`).
 
-**Konsequenz**:
-- `servicePoolCents = tipTotal − kitchenPoolCents` bleibt strukturell gleich; nur die Basis ändert sich.
-- `kitchenPoolCents` (Summe der `kitchen_tip_cents` aus Settlements) bleibt **unverändert** — Küchen-Trinkgeld weiterhin `POS × Rate`.
-- `differenz_cents` der Kellner-Abrechnung bleibt **unverändert** — die Bargeld-Soll-Logik ist davon nicht betroffen.
-- `safe-balance`, `cash-ledger`, `waiter-settlement` werden **nicht** angefasst.
+### 4) `src/routes/_authenticated/admin/bestellung.inventur.tsx` (Zeile 321)
+`useEffect(..., [item?.storage_1, item?.storage_2])` → `item` in die Deps aufnehmen:
+```ts
+}, [item, item?.storage_1, item?.storage_2]);
+```
+Der Effekt liest `item` direkt — das ist die korrekte Dep-Liste. Verhalten ändert sich nicht, weil sich `item` nur dann ändert, wenn auch die Werte/Identität neu sind.
 
-## Caller-Anpassung
-`computeSessionTipPoolCore` (`src/lib/cash/cash.functions.ts`, ~Z. 499/556) ergänzt `hilf_mahl_cents` im Settlement-SELECT und reicht die Summe an `computeTipTotalCents`/`computeTipPool` weiter. Sonst nichts.
+## Verifikation
 
-## Tests
-- `src/lib/cash/tip-pool.test.ts`: Bestehende Fälle anpassen (Vorzeichen `open` / neue `hilf`-Variable), einen Charakterisierungstest mit Spot-Check 06.03 YUM hinzufügen (Drei-Wege-Vergleich aus dem `arbeitsweise.md`-Eintrag) und einen neuen Negativ-Test: Tag mit großer offener Rechnung (z. B. 12.05. PON spicery, open = 850,63 €) → Pool **nicht** mehr negativ.
-- `src/lib/cash/cash.functions` betreffende DB-Tests grün halten.
+- `bun run eslint .` → 0 Errors, 0 der oben genannten Warnings
+- `bun run tsc --noEmit` → grün
+- `bun run vitest run` → unverändert grün (rein UI-/Hook-Cleanup, keine Logik)
 
-## Wirkung auf bestehende Anzeige
-- `/admin/trinkgeld-rest`: Tage mit hohen offenen Rechnungen (11.05./12.05./20.05. etc.) zeigen künftig realistische, positive Restcents.
-- Pool-Overview in `/admin/kasse` rechnet rückwirkend mit neuer Formel — historische Auszahlungen sind längst durch, es geht nur um die Anzeige.
+## Nicht im Scope
 
-## Explizit NICHT enthalten
-- Keine Schema-Migration.
-- Keine Änderung an `calcWaiterSettlement` / `differenz_cents`.
-- Keine UI-Änderung außerhalb der automatisch neu berechneten Zahlen.
-- Keine Backfill-/Nachzahlungs-Logik.
-- Keine Übernahme der Tagesabrechnung-„gleichmäßig pro Kopf"-Verteilung — COCO bleibt bei „nach Stunden" (war bewusste Entscheidung, siehe `arbeitsweise.md`-Eintrag).
-
-## Offene Frage vor Umsetzung
-Tagesabrechnung zieht `hilf_mahl` vom Trinkgeld ab — du hast in deiner Frage nur `open` erwähnt. Soll ich `hilf_mahl` mitziehen (volle 1:1-Angleichung) oder nur `open` umdrehen?
+Keine Verhaltensänderungen, keine sonstigen Refactorings, keine Änderungen an Server-Funktionen oder Datenfluss.
