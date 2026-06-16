@@ -39,6 +39,17 @@ function fmtEuroCsv(cents: number): string {
   return (cents / 100).toFixed(2).replace(".", ",");
 }
 
+const WEEKDAYS_DE = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"] as const;
+function fmtDate(iso: string): string {
+  // iso: "YYYY-MM-DD" → "Mi 01.06"
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  const wd = WEEKDAYS_DE[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+  const dd = String(d).padStart(2, "0");
+  const mm = String(m).padStart(2, "0");
+  return `${wd} ${dd}.${mm}`;
+}
+
 function monthStartIso(d: Date): string {
   return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
 }
@@ -192,7 +203,7 @@ function KasseSaldoPage() {
                     key={r.businessDate}
                     className={locked ? "italic text-muted-foreground" : undefined}
                   >
-                    <TableCell>{r.businessDate}</TableCell>
+                     <TableCell>{fmtDate(r.businessDate)}</TableCell>
                     <TableCell>{r.status}</TableCell>
                     <TableCell className="text-right tabular-nums">
                       {fmtEuro(r.openingBalanceCents)}
