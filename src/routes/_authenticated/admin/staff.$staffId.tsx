@@ -18,6 +18,7 @@ import {
   listSkills,
   type SkillCategory,
 } from "@/lib/admin/skills.functions";
+import { TabButton } from "@/components/ui/nav-tab";
 
 export const Route = createFileRoute("/_authenticated/admin/staff/$staffId")({
   head: () => ({ meta: [{ title: "Mitarbeiter · Verwaltung" }] }),
@@ -50,7 +51,7 @@ function StaffDetailPage() {
         </p>
       </div>
 
-      <div role="tablist" className="flex gap-1 border-b border-border">
+      <div role="tablist" className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border">
         {(
           [
             ["basics", "Stammdaten"],
@@ -61,19 +62,9 @@ function StaffDetailPage() {
             ["badges", "Badges"],
           ] as [Tab, string][]
         ).map(([k, label]) => (
-          <button
-            key={k}
-            role="tab"
-            aria-selected={tab === k}
-            onClick={() => setTab(k)}
-            className={`px-3 py-2 text-sm ${
-              tab === k
-                ? "border-b-2 border-primary text-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
+          <TabButton key={k} active={tab === k} onClick={() => setTab(k)}>
             {label}
-          </button>
+          </TabButton>
         ))}
       </div>
 
