@@ -1,0 +1,2 @@
+ALTER TABLE public.staff_compensation ADD COLUMN hourly_rate_2 numeric;
+COMMENT ON COLUMN public.staff_compensation.hourly_rate_2 IS 'Zweiter Stundenlohn für Mitarbeiter, die in zwei verschiedenen Arbeitsbereichen eingeteilt werden (z. B. Service/Küche). NULL = nicht zutreffend.';

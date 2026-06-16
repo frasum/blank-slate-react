@@ -2107,6 +2107,7 @@ export type Database = {
         Row: {
           created_at: string
           hourly_rate: number
+          hourly_rate_2: number | null
           id: string
           organization_id: string
           staff_id: string
@@ -2116,6 +2117,7 @@ export type Database = {
         Insert: {
           created_at?: string
           hourly_rate: number
+          hourly_rate_2?: number | null
           id?: string
           organization_id: string
           staff_id: string
@@ -2125,6 +2127,7 @@ export type Database = {
         Update: {
           created_at?: string
           hourly_rate?: number
+          hourly_rate_2?: number | null
           id?: string
           organization_id?: string
           staff_id?: string
