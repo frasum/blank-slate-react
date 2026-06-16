@@ -95,12 +95,13 @@ async function loadOrgSettings(orgId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("organization_settings")
-    .select("kitchen_tip_rate")
+    .select("kitchen_tip_rate, tip_pool_min_hours")
     .eq("organization_id", orgId)
     .maybeSingle();
   if (error) throw error;
   return {
     kitchenTipRate: Number(data?.kitchen_tip_rate ?? 0.02),
+    tipPoolMinHours: Number(data?.tip_pool_min_hours ?? 2.5),
   };
 }
 
