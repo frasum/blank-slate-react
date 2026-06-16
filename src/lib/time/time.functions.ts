@@ -20,6 +20,7 @@ import { businessDateOf } from "@/lib/business-date";
 import { canClockIn, canClockOut, denialMessage } from "./time-rules";
 import { writeAuditLog } from "@/lib/admin/audit";
 import { arbzgMinimumBreak, isArbzgShort, grossMinutesBetween } from "./break-rules";
+import { assertWithinFence } from "@/lib/geo/server-check";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -62,17 +63,21 @@ export async function loadStaffCaller(
 
 export async function loadOpenEntry(
   staffId: string,
-): Promise<{ id: string; startedAt: Date } | null> {
+): Promise<{ id: string; startedAt: Date; locationId: string | null } | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("time_entries")
-    .select("id, started_at")
+    .select("id, started_at, location_id")
     .eq("staff_id", staffId)
     .is("ended_at", null)
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
-  return { id: data.id, startedAt: new Date(data.started_at) };
+  return {
+    id: data.id,
+    startedAt: new Date(data.started_at),
+    locationId: data.location_id ?? null,
+  };
 }
 
 async function resolveDefaultLocation(
