@@ -1,74 +1,47 @@
-## Diagnose
+## Ziel
+Das hochgeladene COCO-Logo als zentrales Markenbild ersetzen:
+1. Loginscreen (`/auth`)
+2. Header eingeloggter Bereich (überall wo `<BrandLockup size="sm" />` und `size="lg"` verwendet wird)
+3. Favicon
+4. OG/Twitter-Image
+5. Dark-Mode-Variante für 1 + 2
 
-Aktuell stehen **9 gleichrangige Tabs** in einer Reihe (Mitarbeiter, Zeitübersicht, Dienstplan, Kasse, Kassensaldo, Bestellung, Standorte, Migration, Zuordnungen) und die Verwaltungs-Startseite zeigt nochmal Karten für Mitarbeiter/Standorte — also doppelt zur Top-Nav. Zudem gehören mehrere Tabs offensichtlich zusammen:
+## Umsetzung
 
-- **Kasse + Kassensaldo** → ein Thema, zwei Klicks
-- **Zeitübersicht + Dienstplan** → beides „Personalzeit"
-- **Mitarbeiter** ist Stammdaten, steht aber gleichberechtigt zu Tools
-- **Migration + Zuordnungen** sind reine Admin/System-Werkzeuge und sollten optisch hinten/leiser sein
-- **Bestellung** hat als einziges Modul bereits eine saubere Sub-Nav — das wird zum Vorbild für alle anderen
+### 1. Assets erzeugen & hochladen
+- **Light-Variante (Original, dunkelblau auf hell):**
+  `lovable-assets create --file /mnt/user-uploads/Bildschirmfoto_2026-06-16_um_11.45.58.png --filename coco-logo-light.png > src/assets/coco-logo-light.png.asset.json`
+- **Dark-Variante (per `imagegen--edit_image`):** Strichführung weiß/hell auf transparent, gleiche Proportionen → `src/assets/coco-logo-dark.png.asset.json`.
+- **Favicon (quadratisch, Infinity-Mark ohne Tagline, transparent, 512×512):** per `imagegen--edit_image` → `src/assets/coco-favicon.png.asset.json`. Eine Variante reicht (transparent funktioniert in beiden Tab-Modi).
+- **OG-Image (1200×630, Logo zentriert, heller Markenhintergrund):** per `imagegen--edit_image` → `src/assets/coco-og.png.asset.json`. Statisch, Crawler rendern keinen Dark-Mode.
 
-## Vorschlag: 5 Bereiche, zweistufiger Header
-
-Top-Nav reduziert sich auf **5 Bereiche**. Jeder Bereich rendert direkt darunter eine eigene **Sub-Nav-Zeile** (das Muster, das `bestellung.tsx` schon nutzt). So sieht man oben den Kontext, darunter sofort die Werkzeuge des Bereichs — keine versteckten Dropdowns, keine Doppel-Klicks.
-
-```text
-┌───────────────────────────────────────────────────────────────────────────┐
-│  COCO  /  Verwaltung                                            ← Zurück   │
-│                                                                            │
-│  Personal   Kasse   Bestellung   Stammdaten      ·      System            │
-│  ─────────                                                                 │
-│  Mitarbeiter · Dienstplan · Zeitübersicht                                  │
-└───────────────────────────────────────────────────────────────────────────┘
+### 2. `BrandLockup` umbauen (`src/components/brand-lockup.tsx`)
+Statt Text-Wortmarke wird in beiden Größen das hochgeladene Logo gerendert (enthält Wortmarke + Tagline bereits). Beide Varianten parallel mit Tailwind-Dark-Klassen:
+```tsx
+<img src={logoLight.url} alt="COCO – Central Operations Cockpit"
+     className={cn("h-auto block dark:hidden", sizeClass)} />
+<img src={logoDark.url}  alt="COCO – Central Operations Cockpit"
+     className={cn("h-auto hidden dark:block", sizeClass)} />
 ```
+- `size="sm"` → `max-w-[140px]` (Admin-Header, Tagline im verkleinerten Logo gut lesbar; falls zu fein, fällt der Header-Text auf `sr-only`-Alt zurück — wird beim ersten Build visuell verifiziert).
+- `size="lg"` → `max-w-xs mx-auto` (Auth/Hub).
+- Komponentensignatur bleibt unverändert → alle Call-Sites (`__root.tsx`, `_authenticated/index.tsx`, `auth.tsx`, etc.) brauchen keine Änderung.
 
-### Bereiche und Inhalte
+### 3. Favicon (`src/routes/__root.tsx`)
+- Vorhandene Favicon-`links` ersetzen durch:
+  - `{ rel: "icon", type: "image/png", href: cocoFavicon.url }`
+  - `{ rel: "apple-touch-icon", href: cocoFavicon.url }`
 
-| Bereich        | Sub-Nav                                                    | Ziel-Route (URL bleibt)                  |
-| -------------- | ---------------------------------------------------------- | ---------------------------------------- |
-| **Personal**   | Mitarbeiter · Dienstplan · Zeitübersicht                  | `/admin/staff`, `/admin/dienstplan`, `/admin/zeit-uebersicht` |
-| **Kasse**      | Tagesabschlüsse · Saldo                                    | `/admin/kasse`, `/admin/kasse-saldo`     |
-| **Bestellung** | Warenkorb · EasyOrder · EasyOrder-Verwaltung · Bestellungen · Lieferanten · Artikel · Inventur · Wein · Wein-Quiz | wie heute |
-| **Stammdaten** | Standorte                                                  | `/admin/locations`                       |
-| **System** (nur `admin`, optisch leiser, rechts nach Trenner) | Migration · Zuordnungen | `/admin/migration`, `/admin/import-zuordnungen` |
+### 4. OG/Twitter-Image (`src/routes/__root.tsx`)
+Im `head().meta`-Array setzen:
+- `{ property: "og:image", content: cocoOg.url }`
+- `{ name: "twitter:image", content: cocoOg.url }`
+- `{ name: "twitter:card", content: "summary_large_image" }`
 
-Payroll-Rolle: unverändert — nur `/admin/zeit-uebersicht`, keine Bereichs-Nav.
+### 5. Verifikation
+Preview-Screenshot auf `/auth` (light + dark) und auf einer Admin-Route, um zu prüfen dass das `sm`-Logo im Header sauber sitzt und nicht zu groß wird.
 
-### Active-Logik
-
-Der Top-Tab eines Bereichs ist aktiv, wenn der aktuelle Pfad mit einer seiner Routen beginnt (z. B. `/admin/staff*` → „Personal" aktiv). Active-Style: voller Foreground + Unterstrich, wie heute. Sub-Nav nutzt das bestehende `activeProps`-Muster.
-
-### Default-Landingpage je Bereich
-
-Klick auf „Personal" landet auf `/admin/staff` (häufigster Einstieg), „Kasse" auf `/admin/kasse`, „Stammdaten" auf `/admin/locations`. Bestellung behält `/admin/bestellung` (Übersicht). System landet auf `/admin/migration`.
-
-### Verwaltungs-Startseite `/admin`
-
-Wird zur **echten Übersicht**, nicht zur dritten Nav-Variante: die 5 Bereiche als Karten, jede mit den enthaltenen Werkzeugen als kurze Aufzählung. Keine Dopplung mehr zur Top-Nav, sondern die Karte erklärt, was drinsteckt:
-
-```text
-┌─────────────────────────────┐  ┌─────────────────────────────┐
-│ Personal                  → │  │ Kasse                     → │
-│ Mitarbeiter, Dienstplan,    │  │ Tagesabschlüsse, Saldo      │
-│ Zeitübersicht               │  │                             │
-└─────────────────────────────┘  └─────────────────────────────┘
-┌─────────────────────────────┐  ┌─────────────────────────────┐
-│ Bestellung                → │  │ Stammdaten                → │
-│ Warenkorb, EasyOrder, …     │  │ Standorte                   │
-└─────────────────────────────┘  └─────────────────────────────┘
-                  ┌─────────────────────────────┐
-                  │ System (admin)            → │
-                  │ Migration, Zuordnungen      │
-                  └─────────────────────────────┘
-```
-
-## Umsetzungs-Schritte (kein DB-/Routen-Umbau)
-
-1. **`admin/route.tsx`**: Top-Nav neu schreiben — 5 Gruppen statt 9 Items. Helper `groupActive(prefixes: string[])` für Pfad-Prefix-Match. „System"-Gruppe nach einem `·`-Trenner, leicht gedimmt, nur für `admin`.
-2. **Sub-Nav für die neuen Gruppen**: pro Gruppe eine kleine `<GroupSubnav>`-Komponente (Personal, Kasse, Stammdaten, System), gerendert direkt unter der Top-Nav-Zeile, sobald der Pfad zur Gruppe passt. Für „Bestellung" bleibt die existierende Sub-Nav in `bestellung.tsx` unverändert.
-3. **`admin/index.tsx`**: 5 Bereichs-Karten statt 2; jede Karte verlinkt auf die Default-Route ihres Bereichs und listet die enthaltenen Werkzeuge.
-4. **Keine URL-Änderungen**, keine Routen-Dateien verschoben, keine DB-Migration, keine Logik-Änderung. Payroll-Redirect bleibt.
-
-## Offene Frage vor dem Bauen
-
-Soll die Reihenfolge der 5 Bereiche so bleiben (Personal → Kasse → Bestellung → Stammdaten → System), oder hast du eine andere Priorität für den Alltag? Wenn keine Antwort, baue ich in dieser Reihenfolge.
+## Hinweise
+- Crawler-Cache: Link-Vorschauen aktualisieren erst nach Re-Scrape.
+- Separates Dark-Favicon nicht nötig (transparent funktioniert in beiden Tab-Themes).
+- `BrandLockup`-Datei behält Namen und API — nur die Implementierung wechselt von Text zu `<img>`.
