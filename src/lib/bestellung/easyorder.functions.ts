@@ -260,7 +260,7 @@ export async function placeEasyOrderCore(
   });
   if (rpcErr) throw new Error(rpcErr.message);
 
-  const ids = (orderIds ?? []) as string[];
+  const createdIds = (orderIds ?? []) as string[];
 
   // 6. Auto-Versand (nur wenn Mitarbeiter freigeschaltet ist).
   const { data: staffRow } = await admin
@@ -272,9 +272,9 @@ export async function placeEasyOrderCore(
   const autoSendAttempted = staffRow?.can_easyorder_auto_send === true;
 
   const sendResults: EasyOrderSendResult[] = [];
-  if (autoSendAttempted && ids.length > 0) {
+  if (autoSendAttempted && createdIds.length > 0) {
     const { sendOrderEmailWithAdmin } = await import("./send-order-email.server");
-    for (const orderId of ids) {
+    for (const orderId of createdIds) {
       try {
         const r = await sendOrderEmailWithAdmin(admin, caller.organizationId, orderId);
         sendResults.push({ orderId, ok: true, orderNumber: r.orderNumber });
@@ -288,7 +288,7 @@ export async function placeEasyOrderCore(
     }
   }
 
-  return { orderIds: ids, autoSendAttempted, sendResults };
+  return { orderIds: createdIds, autoSendAttempted, sendResults };
 }
 
 // ---------------------------------------------------------------------------
