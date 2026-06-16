@@ -496,7 +496,7 @@ async function computeSessionTipPoolCore(
     supabaseAdmin
       .from("waiter_settlements")
       .select(
-        "staff_id, pos_sales_cents, card_total_cents, cash_handed_in_cents, open_invoices_cents, kitchen_tip_cents, status",
+        "staff_id, pos_sales_cents, card_total_cents, cash_handed_in_cents, open_invoices_cents, hilf_mahl_cents, kitchen_tip_cents, status",
       )
       .eq("organization_id", caller.organizationId)
       .eq("session_id", session.id)
@@ -524,6 +524,7 @@ async function computeSessionTipPoolCore(
     cardTotalCents: Number(r.card_total_cents),
     cashHandedInCents: Number(r.cash_handed_in_cents),
     openInvoicesCents: Number(r.open_invoices_cents),
+    hilfMahlCents: Number(r.hilf_mahl_cents),
     kitchenTipCents: Number(r.kitchen_tip_cents),
   }));
   const manualByStaff = new Map<string, { department: StaffDepartment; hoursMinutes: number }>();
