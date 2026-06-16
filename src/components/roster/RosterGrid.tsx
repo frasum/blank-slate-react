@@ -497,6 +497,7 @@ function DropCell({
   // beide Infos lesbar bleiben: gestrichelter Rahmen über der Pille + grauer
   // Punkt unten links (analog zum roten Cross-Booking-Punkt oben rechts).
   const showUnavailableOnShift = unavailable && hasShift;
+  const showBirthdayFull = birthday && !hasShift && !absent && !showUnavailableBox;
   const tdInner = (
     <td
       ref={setNodeRef}
@@ -534,8 +535,21 @@ function DropCell({
           <TooltipContent>{absenceType === "krank" ? "Krank" : "Urlaub"}</TooltipContent>
         </Tooltip>
       ) : null}
+      {showBirthdayFull ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-1 z-10 flex items-center justify-center rounded-md bg-pink-500/15"
+            >
+              <Cake className="h-5 w-5 text-pink-600" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{birthdayLabel ?? "Geburtstag"}</TooltipContent>
+        </Tooltip>
+      ) : null}
       {children}
-      {birthday ? (
+      {birthday && hasShift ? (
         <Tooltip>
           <TooltipTrigger asChild>
             <span
