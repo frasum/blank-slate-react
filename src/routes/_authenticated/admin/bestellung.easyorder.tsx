@@ -146,7 +146,9 @@ function EasyOrderCart(props: {
   } | null>(null);
 
   const placeMut = useMutation({
-    mutationFn: async (input: NonNullable<Parameters<typeof callPlace>[0]>) => {
+    mutationFn: async (input: {
+      data: Omit<Parameters<typeof placeEasyOrder>[0]["data"], "geo">;
+    }) => {
       const fix = await getCurrentPosition();
       return callPlace({ data: { ...input.data, geo: fix } });
     },
