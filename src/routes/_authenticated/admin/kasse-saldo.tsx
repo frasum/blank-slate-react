@@ -192,7 +192,7 @@ function KasseSaldoPage() {
                     key={r.businessDate}
                     className={locked ? "italic text-muted-foreground" : undefined}
                   >
-                    <TableCell>{r.businessDate}</TableCell>
+                     <TableCell>{fmtDate(r.businessDate)}</TableCell>
                     <TableCell>{r.status}</TableCell>
                     <TableCell className="text-right tabular-nums">
                       {fmtEuro(r.openingBalanceCents)}
