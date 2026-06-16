@@ -12,8 +12,9 @@
 //   * staffParticipates — staff.participates_in_pool je Mitarbeiter
 //
 // Verteilung pro Pool:
-//   anteil = FLOOR(pool * eigene_stunden / gesamt_stunden)
-//   Rundungsrest verbleibt im Pool (kein Trickle-Down, kein Ausgleich).
+//   anteil = FLOOR(pool * eigene_stunden / gesamt_stunden) auf vollen EURO
+//   (Vielfache von 100 Cent). Der Restcent bleibt im Pool / Tagesbargeld
+//   (kein Trickle-Down, kein Ausgleich).
 //
 // GL ist aus beiden Pools ausgeschlossen. Nicht-teilnehmende
 // Mitarbeiter ebenfalls. Leere Stunden → alle Anteile 0, Rest = Pool.
@@ -103,7 +104,7 @@ function distribute(
   }
   let distributed = 0;
   const shares: TipPoolShare[] = participants.map((p) => {
-    const share = Math.floor((poolCents * p.hours) / totalHours);
+    const share = Math.floor((poolCents * p.hours) / totalHours / 100) * 100;
     distributed += share;
     return {
       staffId: p.staffId,
