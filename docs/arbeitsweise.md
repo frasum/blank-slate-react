@@ -109,19 +109,19 @@ Immer **26. eines Monats bis einschließlich 25. des Folgemonats**. Label = Mona
 
 ## 6. Aktueller Modul-Status (17.06.2026)
 
-| Modul                                                                 | Status   |
-| --------------------------------------------------------------------- | -------- |
-| B3 Kasse + B4 Trinkgeld + B5 Tresor                                   | ✅       |
-| B6 Zeitübersicht (Wochenplan/Zusammenfassung/Buchhaltung/Perioden)    | ✅       |
-| B7 Perioden (26.–25.) + Import Jan–Sep 2026                           | ✅       |
-| B8 Lohnbüro-Rolle (payroll)                                           | ✅       |
-| D1 Dienstplan-Datenmodell + Grid                                      | ✅       |
-| D2a–e Dienstplan editierbar, Realtime, Service-Symbole, Cross-Booking | ✅       |
-| Dienstplan-Migration (4498 Schichten aus thaitime)                    | ✅       |
-| D3 Öffentliches Display (Token-URL, Auto-Refresh, Rotation, Legende)  | ⏳ offen |
+| Modul                                                                  | Status   |
+| ---------------------------------------------------------------------- | -------- |
+| B3 Kasse + B4 Trinkgeld + B5 Tresor                                    | ✅       |
+| B6 Zeitübersicht (Wochenplan/Zusammenfassung/Buchhaltung/Perioden)     | ✅       |
+| B7 Perioden (26.–25.) + Import Jan–Sep 2026                            | ✅       |
+| B8 Lohnbüro-Rolle (payroll)                                            | ✅       |
+| D1 Dienstplan-Datenmodell + Grid                                       | ✅       |
+| D2a–e Dienstplan editierbar, Realtime, Service-Symbole, Cross-Booking  | ✅       |
+| Dienstplan-Migration (4498 Schichten aus thaitime)                     | ✅       |
+| D3 Öffentliches Display (Token-URL, Auto-Refresh, Rotation, Legende)   | ⏳ offen |
 | M4 Lohn — Rechen-Kern (Stufe 1/3): PAP 2026 + SV, edlohn-cent-getestet | ✅       |
-| M4 Lohn — Datenmodell+Serverfn (Stufe 2/3) · UI (Stufe 3/3)           | ⏳ offen |
-| Provision (wochenbasiert)                                             | ⏳ offen |
+| M4 Lohn — Datenmodell+Serverfn (Stufe 2/3) · UI (Stufe 3/3)            | ⏳ offen |
+| Provision (wochenbasiert)                                              | ⏳ offen |
 
 **Stand 16.06.2026 (Session-Nachzug):**
 
