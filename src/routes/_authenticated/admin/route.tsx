@@ -22,7 +22,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
     if (identity.role !== "admin" && identity.role !== "manager" && identity.role !== "payroll") {
       throw redirect({ to: "/" });
     }
-    // Lohnbüro darf NUR die Zeitübersicht sehen.
+    // Lohnbüro darf NUR die Arbeitszeiten sehen.
     if (identity.role === "payroll" && location.pathname !== "/admin/zeit-uebersicht") {
       throw redirect({ to: "/admin/zeit-uebersicht" });
     }
@@ -53,7 +53,7 @@ const GROUPS: Group[] = [
     sub: [
       { to: "/admin/staff", label: "Mitarbeiter" },
       { to: "/admin/dienstplan", label: "Dienstplan" },
-      { to: "/admin/zeit-uebersicht", label: "Zeitübersicht" },
+      { to: "/admin/zeit-uebersicht", label: "Arbeitszeiten" },
     ],
   },
   {
@@ -141,7 +141,7 @@ function AdminLayout() {
           {isPayroll ? (
             <nav className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border/60 pb-0 text-sm">
               <Link to="/admin/zeit-uebersicht" className={tabClass(true)}>
-                Zeitübersicht
+                Arbeitszeiten
               </Link>
             </nav>
           ) : (

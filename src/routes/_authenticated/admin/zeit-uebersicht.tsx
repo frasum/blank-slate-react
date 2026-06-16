@@ -45,7 +45,7 @@ import {
 import { FileDown, FileSpreadsheet, Search } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/zeit-uebersicht")({
-  head: () => ({ meta: [{ title: "Zeitübersicht" }] }),
+  head: () => ({ meta: [{ title: "Arbeitszeiten" }] }),
   component: ZeitUebersichtPage,
 });
 
@@ -588,7 +588,7 @@ function ZeitUebersichtPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Zeitübersicht</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Arbeitszeiten</h1>
         <p className="text-sm text-muted-foreground">
           Arbeitszeit nach Kalenderwochen und Lohnbuchhaltungs-Übersicht.
         </p>
