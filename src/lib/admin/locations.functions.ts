@@ -9,6 +9,26 @@ import { loadAdminCaller } from "./admin-context";
 import { runGuarded } from "./admin-call";
 import { writeAuditLog } from "./audit";
 
+// Optionales Freitext-Feld: leere Strings → null, sonst getrimmt.
+const optText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .optional()
+    .nullable()
+    .transform((v) => (v == null || v === "" ? null : v));
+
+const detailsShape = {
+  street: optText(200),
+  postal_code: optText(20),
+  city: optText(120),
+  delivery_notes: optText(500),
+  phone: optText(40),
+  contact_name: optText(120),
+  contact_phone: optText(40),
+};
+
 function makeAuditWriter(caller: { organizationId: string; userId: string; staffId: string }) {
   return async (entry: {
     action: string;
@@ -39,7 +59,9 @@ export const listLocations = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await supabaseAdmin
       .from("locations")
-      .select("id, name, timezone")
+      .select(
+        "id, name, timezone, street, postal_code, city, delivery_notes, phone, contact_name, contact_phone",
+      )
       .eq("organization_id", caller.organizationId)
       .order("name");
     if (error) throw error;
@@ -48,14 +70,26 @@ export const listLocations = createServerFn({ method: "GET" })
 
 export const createLocation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ name: z.string().trim().min(1).max(120) }).parse(input))
+  .inputValidator((input) =>
+    z.object({ name: z.string().trim().min(1).max(120), ...detailsShape }).parse(input),
+  )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
     return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: row, error } = await supabaseAdmin
         .from("locations")
-        .insert({ organization_id: caller.organizationId, name: data.name })
+        .insert({
+          organization_id: caller.organizationId,
+          name: data.name,
+          street: data.street,
+          postal_code: data.postal_code,
+          city: data.city,
+          delivery_notes: data.delivery_notes,
+          phone: data.phone,
+          contact_name: data.contact_name,
+          contact_phone: data.contact_phone,
+        })
         .select("id")
         .single();
       if (error) throw error;
@@ -75,7 +109,11 @@ export const updateLocation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
     z
-      .object({ locationId: z.string().uuid(), name: z.string().trim().min(1).max(120) })
+      .object({
+        locationId: z.string().uuid(),
+        name: z.string().trim().min(1).max(120),
+        ...detailsShape,
+      })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
@@ -84,7 +122,16 @@ export const updateLocation = createServerFn({ method: "POST" })
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { error } = await supabaseAdmin
         .from("locations")
-        .update({ name: data.name })
+        .update({
+          name: data.name,
+          street: data.street,
+          postal_code: data.postal_code,
+          city: data.city,
+          delivery_notes: data.delivery_notes,
+          phone: data.phone,
+          contact_name: data.contact_name,
+          contact_phone: data.contact_phone,
+        })
         .eq("id", data.locationId)
         .eq("organization_id", caller.organizationId);
       if (error) throw error;

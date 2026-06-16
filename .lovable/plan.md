@@ -1,45 +1,33 @@
-## Status quo
-`.prettierignore` deckt: `node_modules`, `dist`, `.output`, `.vinxi`, Lockfiles, `routeTree.gen.ts`, Supabase-Types, `.lovable/`.
+## Ziel
 
-`.gitignore` listet zusätzliche generierte/Build-/Tooling-Pfade, die Prettier aktuell mitformatieren würde, falls dort jemals matchbare Dateien landen.
+Im Admin-Bereich `/admin/locations` sollen pro Standort Adresse, Telefonnummer und Kontaktperson (Name + Telefon) gepflegt werden können. Die Adressspalten `street`, `postal_code`, `city`, `delivery_notes` existieren bereits in `public.locations` (bisher nur über `create_order_from_cart` als Lieferadresse genutzt), sind aber im UI nicht editierbar.
 
-## Zu ergänzen
-Folgende Einträge **fehlen** in `.prettierignore` und sollen ergänzt werden (alle entweder generiert, von Tools verwaltet oder explizit kein Code):
+## Schritte
 
-```
-# Build- & SSR-Output (zusätzlich zu dist)
-dist-ssr/
-.nitro/
-.tanstack/
-.wrangler/
+### 1. Migration: neue Spalten auf `public.locations`
+- `phone text` (Standort-Telefon)
+- `contact_name text` (Kontaktperson)
+- `contact_phone text` (Telefon Kontaktperson)
+- Alle nullable, kein Default. Bestehende Grants/RLS unverändert (Spalten erben Policies).
 
-# Lokale Env- & Daten-Dumps
-.env
-.env.*.local
-.dev.vars
-*.csv
+### 2. Server-Funktionen `src/lib/admin/locations.functions.ts`
+- `listLocations`: Select um `street, postal_code, city, delivery_notes, phone, contact_name, contact_phone` erweitern.
+- `createLocation`: Optionale Felder im Zod-Schema (`.trim().max(...).optional().nullable()`), leere Strings → `null`. Insert mit den neuen Feldern. Audit-Meta nur mit `name` (keine PII im Audit-Log).
+- `updateLocation`: Gleiches Schema, Update mit allen Feldern. Audit-Meta `{ name }`.
+- Längenlimits: `street` 200, `postal_code` 20, `city` 120, `delivery_notes` 500, `phone`/`contact_phone` 40, `contact_name` 120.
 
-# Coverage / Test-Artefakte
-coverage/
+### 3. UI `src/routes/_authenticated/admin/locations.tsx`
+- Anlegen-Formular und Bearbeiten-Zeile um Eingabefelder erweitern: Name, Telefon, Kontaktperson (Name), Kontaktperson (Telefon), Straße, PLZ, Ort, Lieferhinweise.
+- Listenansicht zeigt Adresse + Telefon kompakt unter dem Namen.
+- Keine clientseitige Validierung über Pflichtlängen hinaus; Zod auf dem Server ist die Quelle der Wahrheit.
 
-# Logs
-logs/
-*.log
+### 4. Tests / Verifikation
+- `bun run typecheck` und `bunx prettier --check .` müssen grün bleiben.
+- Bestehender Test `src/lib/bestellung/create-order-from-cart.db.test.ts` darf nicht brechen (nutzt `street/postal_code/city/delivery_notes`).
+- Manuell: Standort anlegen → bearbeiten → Felder bleiben gespeichert; in der Bestellung erscheint die Adresse weiterhin korrekt als Lieferadresse.
 
-# Editor-Artefakte
-.DS_Store
-```
+## Nicht im Scope
 
-Begründungen kurz:
-- `dist-ssr`, `.nitro`, `.tanstack`, `.wrangler` — Build- bzw. SSR-Output (Tanstack Start / Cloudflare).
-- `.env*`, `.dev.vars`, `*.csv` — passend zur Projektregel „keine Personaldaten/CSVs im Repo" (Lektion thaitime); falls doch lokal vorhanden, nicht formatieren.
-- `coverage/` — falls Vitest mal mit Coverage läuft.
-- `logs/`, `*.log`, `.DS_Store` — pure Noise.
-
-## Nicht ergänzt (bewusst)
-- `supabase/migrations/*.sql` — SQL ist kein Prettier-Format, wird ignoriert.
-- `.github/`, `.workspace/`, `public/` — enthalten Source/Konfigurationsdateien, die formatiert werden sollen.
-- Eigene Glob-Negation für `routeTree.gen.ts` ist schon drin.
-
-## Verifikation
-Nach dem Patch einmal `bunx prettier --check .` ausführen — muss weiterhin grün sein.
+- Keine Nutzung der neuen `phone`/`contact_*`-Felder an anderen Stellen (Bestellung, Display etc.) — das folgt erst, wenn die konkrete Verwendungsstelle beauftragt wird.
+- Keine Änderungen an `staff_personal_details`, `suppliers` o. ä.
+- Kein Telefon-Format-Parsing; freier Text.

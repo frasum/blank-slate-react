@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -19,12 +19,45 @@ export const Route = createFileRoute("/_authenticated/admin/locations")({
   component: LocationsPage,
 });
 
+type LocationDetails = {
+  street: string;
+  postal_code: string;
+  city: string;
+  delivery_notes: string;
+  phone: string;
+  contact_name: string;
+  contact_phone: string;
+};
+
+const emptyDetails: LocationDetails = {
+  street: "",
+  postal_code: "",
+  city: "",
+  delivery_notes: "",
+  phone: "",
+  contact_name: "",
+  contact_phone: "",
+};
+
+function toPayload(d: LocationDetails) {
+  return {
+    street: d.street || null,
+    postal_code: d.postal_code || null,
+    city: d.city || null,
+    delivery_notes: d.delivery_notes || null,
+    phone: d.phone || null,
+    contact_name: d.contact_name || null,
+    contact_phone: d.contact_phone || null,
+  };
+}
+
 function LocationsPage() {
   const queryClient = useQueryClient();
   const callCreate = useServerFn(createLocation);
   const callUpdate = useServerFn(updateLocation);
   const callDelete = useServerFn(deleteLocation);
   const [newName, setNewName] = useState("");
+  const [newDetails, setNewDetails] = useState<LocationDetails>(emptyDetails);
   const [msg, setMsg] = useState<string | null>(null);
 
   const locationsQ = useQuery({
@@ -35,17 +68,18 @@ function LocationsPage() {
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["admin", "locations"] });
 
   const createMut = useMutation({
-    mutationFn: () => callCreate({ data: { name: newName } }),
+    mutationFn: () => callCreate({ data: { name: newName, ...toPayload(newDetails) } }),
     onSuccess: () => {
       setNewName("");
+      setNewDetails(emptyDetails);
       setMsg(null);
       return refresh();
     },
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
   });
   const updateMut = useMutation({
-    mutationFn: ({ id, name }: { id: string; name: string }) =>
-      callUpdate({ data: { locationId: id, name } }),
+    mutationFn: ({ id, name, details }: { id: string; name: string; details: LocationDetails }) =>
+      callUpdate({ data: { locationId: id, name, ...toPayload(details) } }),
     onSuccess: refresh,
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
   });
@@ -60,20 +94,24 @@ function LocationsPage() {
       <h1 className="text-2xl font-semibold tracking-tight text-foreground">Standorte</h1>
 
       <form
-        className="flex max-w-lg gap-2"
+        className="max-w-2xl space-y-3 rounded-md border border-input bg-muted/30 p-4"
         onSubmit={(e) => {
           e.preventDefault();
           setMsg(null);
           createMut.mutate();
         }}
       >
-        <input
-          required
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          placeholder="Standortname"
-          className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
-        />
+        <p className="text-sm font-medium text-foreground">Neuen Standort anlegen</p>
+        <Field label="Name *">
+          <input
+            required
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="Standortname"
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          />
+        </Field>
+        <DetailsFields value={newDetails} onChange={setNewDetails} />
         <button
           type="submit"
           disabled={createMut.isPending}
@@ -86,13 +124,12 @@ function LocationsPage() {
       {msg && <p className="text-sm text-destructive">{msg}</p>}
 
       {locationsQ.data && (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {locationsQ.data.map((loc) => (
             <LocationRow
               key={loc.id}
-              id={loc.id}
-              name={loc.name}
-              onSave={(name) => updateMut.mutate({ id: loc.id, name })}
+              loc={loc}
+              onSave={(name, details) => updateMut.mutate({ id: loc.id, name, details })}
               onDelete={() => deleteMut.mutate(loc.id)}
             />
           ))}
@@ -105,43 +142,207 @@ function LocationsPage() {
   );
 }
 
-function LocationRow(props: {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block space-y-1 text-sm">
+      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+function DetailsFields({
+  value,
+  onChange,
+}: {
+  value: LocationDetails;
+  onChange: (next: LocationDetails) => void;
+}) {
+  const set = <K extends keyof LocationDetails>(key: K, v: string) =>
+    onChange({ ...value, [key]: v });
+  const inputCls = "w-full rounded-md border border-input bg-background px-3 py-2 text-sm";
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Field label="Telefon (Standort)">
+          <input
+            value={value.phone}
+            onChange={(e) => set("phone", e.target.value)}
+            maxLength={40}
+            className={inputCls}
+          />
+        </Field>
+        <div />
+        <Field label="Kontaktperson · Name">
+          <input
+            value={value.contact_name}
+            onChange={(e) => set("contact_name", e.target.value)}
+            maxLength={120}
+            className={inputCls}
+          />
+        </Field>
+        <Field label="Kontaktperson · Telefon">
+          <input
+            value={value.contact_phone}
+            onChange={(e) => set("contact_phone", e.target.value)}
+            maxLength={40}
+            className={inputCls}
+          />
+        </Field>
+      </div>
+      <Field label="Straße & Hausnummer">
+        <input
+          value={value.street}
+          onChange={(e) => set("street", e.target.value)}
+          maxLength={200}
+          className={inputCls}
+        />
+      </Field>
+      <div className="grid grid-cols-3 gap-3">
+        <Field label="PLZ">
+          <input
+            value={value.postal_code}
+            onChange={(e) => set("postal_code", e.target.value)}
+            maxLength={20}
+            className={inputCls}
+          />
+        </Field>
+        <div className="col-span-2">
+          <Field label="Ort">
+            <input
+              value={value.city}
+              onChange={(e) => set("city", e.target.value)}
+              maxLength={120}
+              className={inputCls}
+            />
+          </Field>
+        </div>
+      </div>
+      <Field label="Lieferhinweise">
+        <textarea
+          value={value.delivery_notes}
+          onChange={(e) => set("delivery_notes", e.target.value)}
+          maxLength={500}
+          rows={2}
+          className={inputCls}
+        />
+      </Field>
+    </div>
+  );
+}
+
+type LocationRowData = {
   id: string;
   name: string;
-  onSave: (name: string) => void;
+  street: string | null;
+  postal_code: string | null;
+  city: string | null;
+  delivery_notes: string | null;
+  phone: string | null;
+  contact_name: string | null;
+  contact_phone: string | null;
+};
+
+function LocationRow(props: {
+  loc: LocationRowData;
+  onSave: (name: string, details: LocationDetails) => void;
   onDelete: () => void;
 }) {
-  const [name, setName] = useState(props.name);
+  const [name, setName] = useState(props.loc.name);
+  const [details, setDetails] = useState<LocationDetails>(() => ({
+    street: props.loc.street ?? "",
+    postal_code: props.loc.postal_code ?? "",
+    city: props.loc.city ?? "",
+    delivery_notes: props.loc.delivery_notes ?? "",
+    phone: props.loc.phone ?? "",
+    contact_name: props.loc.contact_name ?? "",
+    contact_phone: props.loc.contact_phone ?? "",
+  }));
+  const [open, setOpen] = useState(false);
   const [displayOpen, setDisplayOpen] = useState(false);
+
+  // Wenn der Server-State sich ändert (z. B. nach Refresh), lokalen State synchronisieren.
+  useEffect(() => {
+    setName(props.loc.name);
+    setDetails({
+      street: props.loc.street ?? "",
+      postal_code: props.loc.postal_code ?? "",
+      city: props.loc.city ?? "",
+      delivery_notes: props.loc.delivery_notes ?? "",
+      phone: props.loc.phone ?? "",
+      contact_name: props.loc.contact_name ?? "",
+      contact_phone: props.loc.contact_phone ?? "",
+    });
+  }, [props.loc]);
+
+  const dirty =
+    name !== props.loc.name ||
+    details.street !== (props.loc.street ?? "") ||
+    details.postal_code !== (props.loc.postal_code ?? "") ||
+    details.city !== (props.loc.city ?? "") ||
+    details.delivery_notes !== (props.loc.delivery_notes ?? "") ||
+    details.phone !== (props.loc.phone ?? "") ||
+    details.contact_name !== (props.loc.contact_name ?? "") ||
+    details.contact_phone !== (props.loc.contact_phone ?? "");
+
+  const summary = [
+    [props.loc.street, [props.loc.postal_code, props.loc.city].filter(Boolean).join(" ")]
+      .filter(Boolean)
+      .join(", "),
+    props.loc.phone,
+    props.loc.contact_name &&
+      `${props.loc.contact_name}${props.loc.contact_phone ? ` (${props.loc.contact_phone})` : ""}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
-    <div className="max-w-lg space-y-2">
-      <div className="flex items-center gap-2">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
-        />
+    <div className="max-w-2xl space-y-2 rounded-md border border-input bg-background p-3">
+      <div className="flex items-start gap-2">
         <button
-          onClick={() => props.onSave(name)}
-          disabled={name === props.name}
-          className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground hover:bg-accent disabled:opacity-50"
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="flex-1 text-left"
+          aria-expanded={open}
         >
-          Speichern
+          <p className="text-sm font-medium text-foreground">{props.loc.name}</p>
+          {summary && <p className="text-xs text-muted-foreground">{summary}</p>}
         </button>
         <button
           onClick={() => setDisplayOpen((v) => !v)}
-          className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground hover:bg-accent"
+          className="rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground hover:bg-accent"
         >
           Display
         </button>
         <button
           onClick={() => props.onDelete()}
-          className="rounded-md px-3 py-2 text-sm text-destructive hover:underline"
+          className="rounded-md px-3 py-1.5 text-sm text-destructive hover:underline"
         >
           Löschen
         </button>
       </div>
-      {displayOpen && <DisplayPanel locationId={props.id} />}
+      {open && (
+        <div className="space-y-3 border-t border-input pt-3">
+          <Field label="Name *">
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+          </Field>
+          <DetailsFields value={details} onChange={setDetails} />
+          <button
+            onClick={() => props.onSave(name, details)}
+            disabled={!dirty || name.trim() === ""}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
+            Speichern
+          </button>
+        </div>
+      )}
+      {displayOpen && <DisplayPanel locationId={props.loc.id} />}
     </div>
   );
 }
