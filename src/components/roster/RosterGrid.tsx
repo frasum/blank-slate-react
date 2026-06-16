@@ -3,7 +3,7 @@
 // Paint-Mode-Klicklogik. Service-Schichten nutzen service-marker.ts.
 import * as React from "react";
 import { useDroppable } from "@dnd-kit/core";
-import { ChefHat, UtensilsCrossed, Umbrella, HeartPulse } from "lucide-react";
+import { ChefHat, UtensilsCrossed, Umbrella, HeartPulse, Cake } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -298,6 +298,8 @@ export function RosterGrid({
                       const isUnavailable = unavailableSet.has(`${row.staffId}|${iso}`);
                       const absenceType = absenceMap.get(`${row.staffId}|${iso}`) ?? null;
                       const isAbsent = absenceType !== null;
+                      const isBirthday =
+                        row.dateOfBirth != null && row.dateOfBirth.slice(5, 10) === iso.slice(5, 10);
                       return (
                         <DropCell
                           key={iso}
@@ -312,6 +314,10 @@ export function RosterGrid({
                           hasShift={!!shift}
                           absent={isAbsent}
                           absenceType={absenceType}
+                          birthday={isBirthday}
+                          birthdayLabel={
+                            isBirthday ? `Geburtstag: ${row.displayName}` : null
+                          }
                         >
                           {shift ? (
                             <PillConfirmPopover
