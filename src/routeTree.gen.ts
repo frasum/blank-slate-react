@@ -34,6 +34,7 @@ import { Route as AuthenticatedAdminStaffStaffIdRouteImport } from './routes/_au
 import { Route as AuthenticatedAdminBestellungWeinQuizRouteImport } from './routes/_authenticated/admin/bestellung.wein-quiz'
 import { Route as AuthenticatedAdminBestellungWeinRouteImport } from './routes/_authenticated/admin/bestellung.wein'
 import { Route as AuthenticatedAdminBestellungWarenkorbRouteImport } from './routes/_authenticated/admin/bestellung.warenkorb'
+import { Route as AuthenticatedAdminBestellungLieferantenRouteImport } from './routes/_authenticated/admin/bestellung.lieferanten'
 import { Route as AuthenticatedAdminBestellungInventurRouteImport } from './routes/_authenticated/admin/bestellung.inventur'
 import { Route as AuthenticatedAdminBestellungEasyorderVerwaltungRouteImport } from './routes/_authenticated/admin/bestellung.easyorder-verwaltung'
 import { Route as AuthenticatedAdminBestellungEasyorderRouteImport } from './routes/_authenticated/admin/bestellung.easyorder'
@@ -179,6 +180,12 @@ const AuthenticatedAdminBestellungWarenkorbRoute =
     path: '/warenkorb',
     getParentRoute: () => AuthenticatedAdminBestellungRoute,
   } as any)
+const AuthenticatedAdminBestellungLieferantenRoute =
+  AuthenticatedAdminBestellungLieferantenRouteImport.update({
+    id: '/lieferanten',
+    path: '/lieferanten',
+    getParentRoute: () => AuthenticatedAdminBestellungRoute,
+  } as any)
 const AuthenticatedAdminBestellungInventurRoute =
   AuthenticatedAdminBestellungInventurRouteImport.update({
     id: '/inventur',
@@ -225,6 +232,7 @@ export interface FileRoutesByFullPath {
   '/admin/bestellung/easyorder': typeof AuthenticatedAdminBestellungEasyorderRoute
   '/admin/bestellung/easyorder-verwaltung': typeof AuthenticatedAdminBestellungEasyorderVerwaltungRoute
   '/admin/bestellung/inventur': typeof AuthenticatedAdminBestellungInventurRoute
+  '/admin/bestellung/lieferanten': typeof AuthenticatedAdminBestellungLieferantenRoute
   '/admin/bestellung/warenkorb': typeof AuthenticatedAdminBestellungWarenkorbRoute
   '/admin/bestellung/wein': typeof AuthenticatedAdminBestellungWeinRoute
   '/admin/bestellung/wein-quiz': typeof AuthenticatedAdminBestellungWeinQuizRoute
@@ -252,6 +260,7 @@ export interface FileRoutesByTo {
   '/admin/bestellung/easyorder': typeof AuthenticatedAdminBestellungEasyorderRoute
   '/admin/bestellung/easyorder-verwaltung': typeof AuthenticatedAdminBestellungEasyorderVerwaltungRoute
   '/admin/bestellung/inventur': typeof AuthenticatedAdminBestellungInventurRoute
+  '/admin/bestellung/lieferanten': typeof AuthenticatedAdminBestellungLieferantenRoute
   '/admin/bestellung/warenkorb': typeof AuthenticatedAdminBestellungWarenkorbRoute
   '/admin/bestellung/wein': typeof AuthenticatedAdminBestellungWeinRoute
   '/admin/bestellung/wein-quiz': typeof AuthenticatedAdminBestellungWeinQuizRoute
@@ -284,6 +293,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/bestellung/easyorder': typeof AuthenticatedAdminBestellungEasyorderRoute
   '/_authenticated/admin/bestellung/easyorder-verwaltung': typeof AuthenticatedAdminBestellungEasyorderVerwaltungRoute
   '/_authenticated/admin/bestellung/inventur': typeof AuthenticatedAdminBestellungInventurRoute
+  '/_authenticated/admin/bestellung/lieferanten': typeof AuthenticatedAdminBestellungLieferantenRoute
   '/_authenticated/admin/bestellung/warenkorb': typeof AuthenticatedAdminBestellungWarenkorbRoute
   '/_authenticated/admin/bestellung/wein': typeof AuthenticatedAdminBestellungWeinRoute
   '/_authenticated/admin/bestellung/wein-quiz': typeof AuthenticatedAdminBestellungWeinQuizRoute
@@ -316,6 +326,7 @@ export interface FileRouteTypes {
     | '/admin/bestellung/easyorder'
     | '/admin/bestellung/easyorder-verwaltung'
     | '/admin/bestellung/inventur'
+    | '/admin/bestellung/lieferanten'
     | '/admin/bestellung/warenkorb'
     | '/admin/bestellung/wein'
     | '/admin/bestellung/wein-quiz'
@@ -343,6 +354,7 @@ export interface FileRouteTypes {
     | '/admin/bestellung/easyorder'
     | '/admin/bestellung/easyorder-verwaltung'
     | '/admin/bestellung/inventur'
+    | '/admin/bestellung/lieferanten'
     | '/admin/bestellung/warenkorb'
     | '/admin/bestellung/wein'
     | '/admin/bestellung/wein-quiz'
@@ -374,6 +386,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/bestellung/easyorder'
     | '/_authenticated/admin/bestellung/easyorder-verwaltung'
     | '/_authenticated/admin/bestellung/inventur'
+    | '/_authenticated/admin/bestellung/lieferanten'
     | '/_authenticated/admin/bestellung/warenkorb'
     | '/_authenticated/admin/bestellung/wein'
     | '/_authenticated/admin/bestellung/wein-quiz'
@@ -568,6 +581,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminBestellungWarenkorbRouteImport
       parentRoute: typeof AuthenticatedAdminBestellungRoute
     }
+    '/_authenticated/admin/bestellung/lieferanten': {
+      id: '/_authenticated/admin/bestellung/lieferanten'
+      path: '/lieferanten'
+      fullPath: '/admin/bestellung/lieferanten'
+      preLoaderRoute: typeof AuthenticatedAdminBestellungLieferantenRouteImport
+      parentRoute: typeof AuthenticatedAdminBestellungRoute
+    }
     '/_authenticated/admin/bestellung/inventur': {
       id: '/_authenticated/admin/bestellung/inventur'
       path: '/inventur'
@@ -604,6 +624,7 @@ interface AuthenticatedAdminBestellungRouteChildren {
   AuthenticatedAdminBestellungEasyorderRoute: typeof AuthenticatedAdminBestellungEasyorderRoute
   AuthenticatedAdminBestellungEasyorderVerwaltungRoute: typeof AuthenticatedAdminBestellungEasyorderVerwaltungRoute
   AuthenticatedAdminBestellungInventurRoute: typeof AuthenticatedAdminBestellungInventurRoute
+  AuthenticatedAdminBestellungLieferantenRoute: typeof AuthenticatedAdminBestellungLieferantenRoute
   AuthenticatedAdminBestellungWarenkorbRoute: typeof AuthenticatedAdminBestellungWarenkorbRoute
   AuthenticatedAdminBestellungWeinRoute: typeof AuthenticatedAdminBestellungWeinRoute
   AuthenticatedAdminBestellungWeinQuizRoute: typeof AuthenticatedAdminBestellungWeinQuizRoute
@@ -620,6 +641,8 @@ const AuthenticatedAdminBestellungRouteChildren: AuthenticatedAdminBestellungRou
       AuthenticatedAdminBestellungEasyorderVerwaltungRoute,
     AuthenticatedAdminBestellungInventurRoute:
       AuthenticatedAdminBestellungInventurRoute,
+    AuthenticatedAdminBestellungLieferantenRoute:
+      AuthenticatedAdminBestellungLieferantenRoute,
     AuthenticatedAdminBestellungWarenkorbRoute:
       AuthenticatedAdminBestellungWarenkorbRoute,
     AuthenticatedAdminBestellungWeinRoute:

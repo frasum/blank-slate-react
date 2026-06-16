@@ -164,7 +164,6 @@ function LieferantenPage() {
 
   // Artikel pro Lieferant gruppieren + Suche.
   const articlesBySupplier = useMemo(() => {
-    const m = new Map<string, typeof articlesQ.data extends infer T ? T : never>();
     const all = articlesQ.data ?? [];
     const grouped = new Map<string, typeof all>();
     for (const a of all) {
