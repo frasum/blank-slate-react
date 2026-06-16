@@ -1,4 +1,10 @@
 /**
+ * Adapted from https://github.com/canida-software/lohnsteuer (MIT)
+ * Copyright (c) 2026 Canida Software
+ * Original source faithfully ports the official BMF Programmablaufplan 2026
+ * (Stand 2025-10-23). Local modifications: import path only.
+ */
+/**
  * Type definitions for the German Wage Tax (Lohnsteuer) PAP algorithm.
  *
  * Extracted from the official BMF Programmablaufplan (PAP) XML pseudocode.

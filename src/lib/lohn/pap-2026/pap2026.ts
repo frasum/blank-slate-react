@@ -1,4 +1,10 @@
 /**
+ * Adapted from https://github.com/canida-software/lohnsteuer (MIT)
+ * Copyright (c) 2026 Canida Software
+ * Original source faithfully ports the official BMF Programmablaufplan 2026
+ * (Stand 2025-10-23). Local modifications: import path only.
+ */
+/**
  * PAP 2026 -- Lohnsteuer Programmablaufplan for 2026 (Version 1.0)
  *
  * Faithfully translated from the official BMF XML pseudocode:
