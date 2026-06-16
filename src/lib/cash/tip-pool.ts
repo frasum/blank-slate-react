@@ -20,6 +20,20 @@
 
 export type StaffDepartment = "kitchen" | "service" | "gl";
 
+export function computeTipTotalCents(
+  settlements: Array<{
+    cardTotalCents: number;
+    cashHandedInCents: number;
+    posSalesCents: number;
+    openInvoicesCents: number;
+  }>,
+): number {
+  return settlements.reduce(
+    (s, x) => s + x.cardTotalCents + x.cashHandedInCents - x.posSalesCents - x.openInvoicesCents,
+    0,
+  );
+}
+
 export type TipPoolInput = {
   kitchenPoolCents: number;
   servicePoolCents: number;

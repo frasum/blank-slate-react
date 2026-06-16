@@ -18,7 +18,12 @@ import { runGuarded } from "@/lib/admin/admin-call";
 import { writeAuditLog } from "@/lib/admin/audit";
 import { arbzgMinimumBreak, grossMinutesBetween } from "@/lib/time/break-rules";
 import { calcWaiterSettlement } from "./waiter-settlement";
-import { computeTipPool, type TipPoolResult, type StaffDepartment } from "./tip-pool";
+import {
+  computeTipPool,
+  computeTipTotalCents,
+  type TipPoolResult,
+  type StaffDepartment,
+} from "./tip-pool";
 import { assertCashWritable, CashLockedError } from "./cash-lock";
 import type { Json } from "@/integrations/supabase/types";
 import { ForbiddenError } from "@/lib/admin/role-guard";
@@ -439,7 +444,7 @@ export async function getTipPoolOverviewCore(
     supabaseAdmin
       .from("waiter_settlements")
       .select(
-        "staff_id, pos_sales_cents, card_total_cents, open_invoices_cents, kitchen_tip_cents, status",
+        "staff_id, pos_sales_cents, card_total_cents, cash_handed_in_cents, open_invoices_cents, kitchen_tip_cents, status",
       )
       .eq("organization_id", caller.organizationId)
       .eq("session_id", session.id)
@@ -465,6 +470,7 @@ export async function getTipPoolOverviewCore(
     staffId: r.staff_id,
     posSalesCents: Number(r.pos_sales_cents),
     cardTotalCents: Number(r.card_total_cents),
+    cashHandedInCents: Number(r.cash_handed_in_cents),
     openInvoicesCents: Number(r.open_invoices_cents),
     kitchenTipCents: Number(r.kitchen_tip_cents),
   }));
@@ -493,10 +499,7 @@ export async function getTipPoolOverviewCore(
   }
 
   const kitchenPoolCents = settlements.reduce((s, x) => s + x.kitchenTipCents, 0);
-  const tipTotalCents = settlements.reduce(
-    (s, x) => s + x.posSalesCents + x.cardTotalCents - x.openInvoicesCents,
-    0,
-  );
+  const tipTotalCents = computeTipTotalCents(settlements);
   const servicePoolCents = tipTotalCents - kitchenPoolCents;
 
   const staffIds = Array.from(

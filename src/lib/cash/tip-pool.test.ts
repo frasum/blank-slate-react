@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { computeTipPool } from "./tip-pool";
+import { describe, expect, it, test } from "vitest";
+import { computeTipPool, computeTipTotalCents } from "./tip-pool";
 
 function iso(h: number, m = 0): string {
   const d = new Date("2025-06-01T00:00:00Z");
@@ -124,4 +124,19 @@ describe("computeTipPool", () => {
     expect(r.kitchenRemainder).toBe(1_234);
     expect(r.serviceRemainder).toBe(5_678);
   });
+});
+
+test("computeTipTotalCents: echtes Trinkgeld (26.04. YUM)", () => {
+  const total = computeTipTotalCents([
+    {
+      cardTotalCents: 198608,
+      cashHandedInCents: 34700,
+      posSalesCents: 215400,
+      openInvoicesCents: 0,
+    }, // KRISS
+    { cardTotalCents: 50666, cashHandedInCents: 23000, posSalesCents: 68330, openInvoicesCents: 0 }, // JASMIN
+    { cardTotalCents: 0, cashHandedInCents: 6000, posSalesCents: 5780, openInvoicesCents: 0 }, // TU
+  ]);
+  expect(total).toBe(23464);
+  expect(total - 5791).toBe(17673);
 });
