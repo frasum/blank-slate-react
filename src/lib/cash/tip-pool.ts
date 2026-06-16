@@ -132,9 +132,7 @@ export function computeTipPool(input: TipPoolInput): TipPoolResult {
   const kitchen: Array<{ staffId: string; hours: number; department: "kitchen" }> = [];
   const service: Array<{ staffId: string; hours: number; department: "service" }> = [];
   const excludedByMinHours: TipPoolResult["excludedByMinHours"] = [];
-  const minHours = input.minHoursPerDay && input.minHoursPerDay > 0
-    ? input.minHoursPerDay
-    : 0;
+  const minHours = input.minHoursPerDay && input.minHoursPerDay > 0 ? input.minHoursPerDay : 0;
 
   for (const staffId of staffIds) {
     if (input.staffParticipates.get(staffId) === false) continue;
