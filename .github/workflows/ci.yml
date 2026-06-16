@@ -10,6 +10,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Guard – keine doppelte arbeitsweise.md (Casing)
+        run: |
+          count=$(git ls-files docs/ | grep -ci 'arbeitsweise\.md$')
+          if [ "$count" -gt 1 ]; then
+            echo "Fehler: mehrere arbeitsweise.md-Dateien (Groß-/Kleinschreibung):"
+            git ls-files docs/ | grep -i 'arbeitsweise\.md$'
+            echo "Kanonisch ist NUR docs/arbeitsweise.md (klein)."
+            exit 1
+          fi
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
