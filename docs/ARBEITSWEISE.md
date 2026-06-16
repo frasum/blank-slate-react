@@ -1,88 +1,147 @@
-Arbeitsweise & Stammdaten-Referenz — COCO
+# Arbeitsweise & Stammdaten-Referenz — COCO
 
 Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen Baublock konsultiert. Bewusst kurz gehalten — Architektur-Begründungen stehen im gruendungsdokument.md, nicht hier.
 
-Stand: 14.06.2026
+Stand: 15.06.2026
 
-1. Rollenverteilung im Team
+## 1. Rollenverteilung im Team
 
 Drei Rollen, klar getrennt:
 
-Lovable Agent = Baumeister. Schreibt Code, Migrationen, UI auf Basis eines präzisen Prompts. Committet nach main.
-
-Claude = Architekt / Prüfer. Schreibt die Prompts (mit „Nicht anfassen"-Liste und Erfolgs-Gate), prüft jeden Commit via git fetch + Tests + ESLint, gibt Migrations-Vorab-SQL aus.
-
-Frank = entscheidet & führt SQL aus. Gibt Prompts an Lovable, genehmigt, führt alle SQL-Statements selbst im Supabase-Editor aus (Datenhoheit).
+- **Lovable Agent** = Baumeister. Schreibt Code, Migrationen, UI auf Basis eines präzisen Prompts. Committet nach main.
+- **Claude** = Architekt / Prüfer. Schreibt die Prompts (mit „Nicht anfassen"-Liste und Erfolgs-Gate), prüft jeden Commit via git fetch + Tests + ESLint, gibt Migrations-Vorab-SQL aus.
+- **Frank** = entscheidet & führt SQL aus. Gibt Prompts an Lovable, genehmigt, führt alle SQL-Statements selbst im Supabase-Editor aus (Datenhoheit).
 
 Begründung: Bei einem System mit Geld, Arbeitszeit und RLS sind stille Fehler teuer. Die Dreiteilung erzwingt einen Review-Loop und verhindert „stille Lösungen".
 
-2. Review-Loop (nach jedem Lovable-Commit)
+## 2. Review-Loop (nach jedem Lovable-Commit)
 
+```
 git fetch -q origin && git reset -q --hard origin/HEAD
 git log --oneline <letzter-SHA>..origin/HEAD
 npx eslint src/ --max-warnings=0
 npx vitest run
+```
 
 Erst wenn ESLint 0 Fehler und alle Tests grün sind → ABGENOMMEN.
 
-3. Pflicht-Regeln (aus Erfahrung teuer gelernt)
+## 3. Pflicht-Regeln (aus Erfahrung teuer gelernt)
 
-Prettier/ESLint VOR jedem Commit. Jeder Lovable-Prompt endet mit: „Vor dem Commit: npx prettier --write + npx eslint --fix über alle geänderten Dateien. CI muss grün sein." → Spart die wiederkehrenden Formatierungs-Nachzieher.
+- **Prettier/ESLint VOR jedem Commit.** Jeder Lovable-Prompt endet mit: „Vor dem Commit: `npx prettier --write` + `npx eslint --fix` über alle geänderten Dateien. CI muss grün sein." → Spart die wiederkehrenden Formatierungs-Nachzieher.
+- **CI nach JEDEM Commit prüfen**, nicht erst wenn rote Runs auflaufen. (Lektion: zwischen CI #75 und #88 waren ~13 rote Runs unbemerkt.)
+- **Migrationen immer als Vorab-SQL-Skizze im Prompt mitgeben** — nicht Lovable raten lassen. Reduziert Schema-Fehler erheblich.
+- **Massen-SQL in Batches** (max. ~2000–2500 Zeilen pro Datei), sonst bricht der Supabase-Editor mit Connection-Fehler ab. Bei Fehler einfach nochmal „Run".
+- **CI-Jobs:** `check` (tsc+eslint+vitest) muss grün sein. `db-integration` ist gelegentlich flaky („role_assignments insert failed: upstream") — das ist ein Timing-Problem des lokalen Supabase-Stacks, kein Code-Bug.
 
-CI nach JEDEM Commit prüfen, nicht erst wenn rote Runs auflaufen. (Lektion: zwischen CI #75 und #88 waren ~13 rote Runs unbemerkt.)
+## 4. Stammdaten-Referenz (COCO Produktion)
 
-Migrationen immer als Vorab-SQL-Skizze im Prompt mitgeben — nicht Lovable raten lassen. Reduziert Schema-Fehler erheblich.
+### Organisation
 
-Massen-SQL in Batches (max. ~2000–2500 Zeilen pro Datei), sonst bricht der Supabase-Editor mit Connection-Fehler ab. Bei Fehler einfach nochmal „Run".
+| ID | organization_id |
+|---|---|
+|  | `77838674-26c1-40dd-9b74-eb1041e79b95` |
 
-CI-Jobs: check (tsc+eslint+vitest) muss grün sein. db-integration ist gelegentlich flaky („role_assignments insert failed: upstream") — das ist ein Timing-Problem des lokalen Supabase-Stacks, kein Code-Bug.
+### Standorte (locations)
 
-4. Stammdaten-Referenz (COCO Produktion)
+| Name | location_id |
+|---|---|
+| Spicery | `44a99e7e-93be-44b1-89ab-38e364a02ddc` |
+| YUM | `14c2d773-6c5f-4a24-ba00-1c726f277091` |
+| TSB | `7918a4cd-0388-49b3-abfb-8105b8f17815` |
 
-Organisation
+### Rollen
 
-IDorganization_id77838674-26c1-40dd-9b74-eb1041e79b95
+`admin > manager > staff` (Hierarchie) + `payroll` (Seitenrolle, nur Lesezugriff auf Zeitübersicht/Perioden/Buchhaltung, kein Schreibrecht).
 
-Standorte (locations)
-
-Namelocation_idSpicery44a99e7e-93be-44b1-89ab-38e364a02ddcYUM14c2d773-6c5f-4a24-ba00-1c726f277091TSB7918a4cd-0388-49b3-abfb-8105b8f17815
-
-Rollen
-
-admin > manager > staff (Hierarchie) + payroll (Seitenrolle, nur Lesezugriff auf Zeitübersicht/Perioden/Buchhaltung, kein Schreibrecht).
-
-Abrechnungsperioden
+### Abrechnungsperioden
 
 Immer 26. eines Monats bis einschließlich 25. des Folgemonats. Label = Monat des End-Datums. Beispiel: „Juni 2026" = 26.05.–25.06.2026.
 
-Skills (skills-Tabelle, je Kategorie)
+### Skills (skills-Tabelle, je Kategorie)
 
-NameKategorieFarbeVSkitchen#bae6fdPASSkitchen#fecdd3SPÜLENkitchen#d1fae5COkitchen#fed7aaSERVICEservice#dbeafeBARservice#ede9fe19 Uhrservice#99f6e4GLgl#ffe4e6Hausmeisterother#e7e5e4
+| Name | Kategorie | Farbe |
+|---|---|---|
+| VS | kitchen | `#bae6fd` |
+| PASS | kitchen | `#fecdd3` |
+| SPÜLEN | kitchen | `#d1fae5` |
+| CO | kitchen | `#fed7aa` |
+| SERVICE | service | `#dbeafe` |
+| BAR | service | `#ede9fe` |
+| 19 Uhr | service | `#99f6e4` |
+| GL | gl | `#ffe4e6` |
+| Hausmeister | other | `#e7e5e4` |
 
-5. Alt-System → COCO Mappings (für Daten-Migrationen)
+## 5. Alt-System → COCO Mappings (für Daten-Migrationen)
 
-Quell-Repos (Lovable/GitHub, frasum)
+### Quell-Repos (Lovable/GitHub, frasum)
 
-COCO (Ziel): blank-slate-react
+- **COCO (Ziel):** blank-slate-react
+- **tagesabrechnung** (Kasse/Zeit-Quelle)
+- **bunker-shift-flow** (Dienstplan-UI-Vorlage: RosterGrid, Paint-Tool)
+- **thaitime-12f46b18** (Dienstplan-Daten + Display-Vorlage)
 
-tagesabrechnung (Kasse/Zeit-Quelle)
+### thaitime → COCO Standort-Mapping
 
-bunker-shift-flow (Dienstplan-UI-Vorlage: RosterGrid, Paint-Tool)
+| thaitime branch | COCO location |
+|---|---|
+| spicery `83f56090…` | Spicery |
+| yum `f1229497…` | YUM |
+| TSB `2b00f500…` | TSB |
 
-thaitime-12f46b18 (Dienstplan-Daten + Display-Vorlage)
+### thaitime → COCO Skill-Mapping (Dienstplan)
 
-thaitime → COCO Standort-Mapping
+| thaitime | COCO |
+|---|---|
+| Vorspeise | VS |
+| pass | PASS |
+| spülen | SPÜLEN |
+| Kochen 1, Kochen 2 | CO |
+| Service 1–4 | SERVICE |
+| Bar | BAR |
+| 19 Uhr | 19 Uhr |
+| GL | GL |
+| Hausmeister | Hausmeister |
 
-thaitime branchCOCO locationspicery 83f56090…Spiceryyum f1229497…YUMTSB 2b00f500…TSB
-
-thaitime → COCO Skill-Mapping (Dienstplan)
-
-thaitimeCOCOVorspeiseVSpassPASSspülenSPÜLENKochen 1, Kochen 2COService 1–4SERVICEBarBAR19 Uhr19 UhrGLGLHausmeisterHausmeister
-
-Mitarbeiter-Mapping
+### Mitarbeiter-Mapping
 
 Über das Nickname in Klammern im thaitime-Vornamen, z.B. „Adisorn (SORN)" → COCO display_name „SORN". Sonderfall: „Sumitr (PAE)" → SUMITR. „Lasse" existiert nicht in COCO (ignoriert).
 
-6. Aktueller Modul-Status (14.06.2026)
+## 6. Aktueller Modul-Status (15.06.2026)
 
-ModulStatusB3 Kasse + B4 Trinkgeld + B5 Tresor✅B6 Zeitübersicht (Wochenplan/Zusammenfassung/Buchhaltung/Perioden)✅B7 Perioden (26.–25.) + Import Jan–Sep 2026✅B8 Lohnbüro-Rolle (payroll)✅D1 Dienstplan-Datenmodell + Grid✅D2a–e Dienstplan editierbar, Realtime, Service-Symbole, Cross-Booking✅Dienstplan-Migration (4498 Schichten aus thaitime)✅D3 Öffentliches Display (Token-URL, Auto-Refresh, Rotation, Legende)⏳ offenBrutto/Netto (Lohnberechnung, SFN, Steuerklassen)⏳ offenProvision (wochenbasiert)⏳ offen
+| Modul | Status |
+|---|---|
+| B3 Kasse + B4 Trinkgeld + B5 Tresor | ✅ |
+| B6 Zeitübersicht (Wochenplan/Zusammenfassung/Buchhaltung/Perioden) | ✅ |
+| B7 Perioden (26.–25.) + Import Jan–Sep 2026 | ✅ |
+| B8 Lohnbüro-Rolle (payroll) | ✅ |
+| D1 Dienstplan-Datenmodell + Grid | ✅ |
+| D2a–e Dienstplan editierbar, Realtime, Service-Symbole, Cross-Booking | ✅ |
+| Dienstplan-Migration (4498 Schichten aus thaitime) | ✅ |
+| D3 Öffentliches Display (Token-URL, Auto-Refresh, Rotation, Legende) | ⏳ offen |
+| Brutto/Netto (Lohnberechnung, SFN, Steuerklassen) | ⏳ offen |
+| Provision (wochenbasiert) | ⏳ offen |
+
+Offen aus B3/B4 (Echtbetrieb-Hebel): Trinkgeld-Pool-Verteilung als eigener Baustein (`useCommissionData`-Logik: Pool/Tag = Σ max(0,(Tagesumsatz − minRevenue × Kellnerzahl) × commissionPct%), Verteilung nach Stunden), B3c-1 manuelles E2E, B3c-2 (Saldo/Export). Hängt an D-M2-1 (Auto-Ausstempeln bei Abrechnungs-Abgabe) — erst damit stempelt das Team in COCO um.
+
+## 7. Modul M5 — Bestellwesen (bestellung.pro-Migration), Stand 15.06.2026
+
+Quelle der Wahrheit: Legacy `bestellung` (Repo `bestellung-5fff1793`, hat `SYSTEM_BLUEPRINT.md`). In „Wellen" gebaut. Geld = BIGINT cents. Alle Server-Fns Cloudflare-kompatibel (kein Edge-Function, kein SMTP).
+
+| Welle | Inhalt | Status |
+|---|---|---|
+| Welle 1 | Bestell-Kern (9 Tabellen, atomare RPC `create_order_from_cart`, E-Mail via MailerSend) | ✅ LIVE |
+| Welle 2 | Inventur (per-Standort, 2 Lagerorte, Bestandswert) | ✅ LIVE |
+| Welle 3-A/B | Wein-Katalog + Quiz (`category='Wein'`, `wine_quiz_scores`) | ✅ LIVE |
+| Welle 3-C | KI-Weinrecherche (Firecrawl + Perplexity) | ⏳ offen (optional) |
+| Welle 4 | EasyOrder (4-A Schema, 4-B Resolver, 4-C UI, 4-D Verwaltung) | ✅ Code fertig; Live-Deploy 4-B/C/D offen |
+| Stammdaten | 40 Lieferanten + ~1335 Artikel importiert | ✅ LIVE |
+
+**EasyOrder-Architektur (wichtig):** Staff bestellt vereinfacht über COCOs bestehenden PIN-Login (`validatePin` → echte Supabase-Session via Shadow-User → RLS greift). KEIN Legacy-bcrypt-Edge-Function-Modell (das war die `tagesabrechnung`-Lücke: PIN ohne Session → keine RLS). An bestehende `staff` gekoppelt (keine `employees`-Tabelle). Tabellen `staff_easyorder_access` + `staff_easyorder_suppliers` (4-A, live, RLS manager+). 4-B `easyorder.functions.ts`: `staffId` IMMER aus `auth.uid` via `loadAdminCaller`, nie vom Client; alle Permission-Checks server-seitig; nutzt die atomare RPC. 4-D `easyorder-admin.functions.ts`: manager-gated, Cross-Org-Validierung (`assertStaffInOrg`/`assertLocationInOrg`/supplier-count).
+
+**Offen M5:** 3-C (optional), Live-Deploy + RLS-CSV-Verifikation von Welle 4 (4-A war live), MailerSend SPF/DKIM in Hostinger-DNS + Secrets `MAILERSEND_API_KEY`/`FROM_EMAIL`/`FROM_NAME` (Frank-Seite) für echten Mailversand. Niedrige Prio: Lieferanten-Namensvarianten in UI prüfen.
+
+## 8. CI-Befund (15.06.2026): db-integration Schema-Cache-Blocker
+
+Bekanntes Supabase/PostgREST-Problem (Issues #42183, #39446): nach Migrationen kennt der PostgREST-Schema-Cache neue Tabellen/Spalten nicht (`PGRST204 guest_count` / `PGRST205 wine_quiz_scores`). 4 DB-Tests scheitern dauerhaft daran (im Test-SETUP beim suppliers-Insert, NICHT in der Logik). 75/79 DB-Tests grün. 4 CI-Fix-Versuche (Container-Restart, Probe-Logik, db reset, `pgrst_watch`-Event-Trigger) lösten es im CI nicht. **Entscheidung:** `db-integration` via `continue-on-error` NON-BLOCKING — läuft + reportet, blockiert aber nicht den grünen Gesamtstatus. `check`-Job (tsc+eslint+vitest) bleibt blockierend. Revisiten wenn Supabase-CLI den Cache-Reload nach `db reset` fixt → `continue-on-error` entfernen. Konsequenz: EasyOrder 4-B/4-D Sicherheits-DB-Tests statisch wasserdicht, aber nicht real in CI bewiesen (scheitern im Setup, nicht an der Logik). Der `pgrst_watch`-Trigger bleibt drin (hilft in Produktion).
+
+Hinweis CI: `max-warnings` inzwischen auf 5 (5 tolerierte `react-hooks/exhaustive-deps`-Warnings: inventur/warenkorb/zeit-uebersicht + 2 in `easyorder.tsx`). Bei Gelegenheit bewusst aufräumen, nicht nebenbei (Logik-nahe `useMemo`-Änderung).
