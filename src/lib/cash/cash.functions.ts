@@ -1758,6 +1758,7 @@ import { computeSafeChain, type SafeDayInput } from "./safe-balance";
 export type CashDayAgg = {
   statuses: Set<string>;
   grossRevenue: number;
+  vectronDailyTotal: number;
   cardTotal: number;
   deliverySouse: number;
   deliveryWolt: number;
@@ -1792,6 +1793,7 @@ function makeEmptyAgg(): CashDayAgg {
   return {
     statuses: new Set(),
     grossRevenue: 0,
+    vectronDailyTotal: 0,
     cardTotal: 0,
     deliverySouse: 0,
     deliveryWolt: 0,
@@ -1828,7 +1830,7 @@ export async function loadCashDayAggregates(
   const { data: sessions, error: sErr } = await supabaseAdmin
     .from("sessions")
     .select(
-      "id, business_date, status, location_id, opening_balance_cents, vouchers_sold_cents, vouchers_redeemed_cents, finedine_vouchers_cents, vorschuss_cents, einladung_cents, sonstige_einnahme_cents, cash_actual_cents",
+      "id, business_date, status, location_id, opening_balance_cents, vouchers_sold_cents, vouchers_redeemed_cents, finedine_vouchers_cents, vorschuss_cents, einladung_cents, sonstige_einnahme_cents, cash_actual_cents, vectron_daily_total_cents",
     )
     .eq("organization_id", caller.organizationId)
     .gte("business_date", data.fromDate)
@@ -1916,6 +1918,7 @@ export async function loadCashDayAggregates(
     a.einladung += Number(s.einladung_cents ?? 0);
     a.sonstige += Number(s.sonstige_einnahme_cents ?? 0);
     a.vorschuss += Number(s.vorschuss_cents ?? 0);
+    a.vectronDailyTotal += Number(s.vectron_daily_total_cents ?? 0);
     if (s.business_date === firstDate) {
       a.openingBalance += Number(s.opening_balance_cents ?? 0);
     }
@@ -2160,10 +2163,13 @@ export async function getCashDailyBreakdownCore(
   const { sortedDates, byDate } = await loadCashDayAggregates(caller, data);
   return sortedDates.map((date) => {
     const a = byDate.get(date)!;
-    const day = aggToDayInput(date, a);
+    const day: DayInput = {
+      ...aggToDayInput(date, a),
+      grossRevenueCents: a.vectronDailyTotal,
+    };
     return {
       businessDate: date,
-      tagesumsatzCents: a.grossRevenue,
+      tagesumsatzCents: a.vectronDailyTotal,
       kreditkartenCents: a.cardTotal,
       deliverySouseCents: a.deliverySouse,
       deliveryWoltCents: a.deliveryWolt,
