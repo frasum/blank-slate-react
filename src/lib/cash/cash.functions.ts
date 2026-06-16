@@ -1742,8 +1742,288 @@ export async function adminCreateWaiterSettlementCore(
 // opening_balance_cents aller Sessions an diesem Tag — damit closing[N]
 // = opening[N+1] strikt innerhalb des Bereichs gilt.
 
-import { accumulateChain, type DayInput, type TransferDirection } from "./cash-ledger";
+import {
+  accumulateChain,
+  computeDailyCash,
+  effectiveVorschussCents,
+  type DayInput,
+  type TransferDirection,
+} from "./cash-ledger";
 import { computeSafeChain, type SafeDayInput } from "./safe-balance";
+
+// Pro Tag aggregierter Roh-Datensatz. Wird sowohl von getCashLedgerCore
+// (Saldokette) als auch von getCashDailyBreakdownCore (Bargeldübersicht)
+// genutzt. Felder & Befüllung sind 1:1 aus der vorherigen Inline-Variante
+// in getCashLedgerCore extrahiert — keine Verhaltensänderung.
+export type CashDayAgg = {
+  statuses: Set<string>;
+  grossRevenue: number;
+  cardTotal: number;
+  deliverySouse: number;
+  deliveryWolt: number;
+  vouchersSold: number;
+  vouchersRedeemed: number;
+  finedine: number;
+  einladung: number;
+  sonstige: number;
+  vorschuss: number;
+  openInvoices: number[];
+  expenses: number[];
+  advances: number[];
+  bankDeposits: number[];
+  cardTransactions: number[];
+  transfers: Array<{ direction: TransferDirection; amountCents: number }>;
+  openingBalance: number;
+  totalRevenueGross: number;
+  totalExpenses: number;
+  differenz: number;
+  cashActualSum: number;
+  cashActualCount: number;
+  sessionCount: number;
+};
+
+export type CashDayAggregates = {
+  sortedDates: string[];
+  firstDate: string;
+  byDate: Map<string, CashDayAgg>;
+};
+
+function makeEmptyAgg(): CashDayAgg {
+  return {
+    statuses: new Set(),
+    grossRevenue: 0,
+    cardTotal: 0,
+    deliverySouse: 0,
+    deliveryWolt: 0,
+    vouchersSold: 0,
+    vouchersRedeemed: 0,
+    finedine: 0,
+    einladung: 0,
+    sonstige: 0,
+    vorschuss: 0,
+    openInvoices: [],
+    expenses: [],
+    advances: [],
+    bankDeposits: [],
+    cardTransactions: [],
+    transfers: [],
+    openingBalance: 0,
+    totalRevenueGross: 0,
+    totalExpenses: 0,
+    differenz: 0,
+    cashActualSum: 0,
+    cashActualCount: 0,
+    sessionCount: 0,
+  };
+}
+
+// 1:1-Extraktion der bisherigen Inline-Reads + Aggregation aus
+// getCashLedgerCore. Verhaltensgleich.
+export async function loadCashDayAggregates(
+  caller: AdminCaller,
+  data: { fromDate: string; toDate: string },
+): Promise<CashDayAggregates> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  const { data: sessions, error: sErr } = await supabaseAdmin
+    .from("sessions")
+    .select(
+      "id, business_date, status, location_id, opening_balance_cents, vouchers_sold_cents, vouchers_redeemed_cents, finedine_vouchers_cents, vorschuss_cents, einladung_cents, sonstige_einnahme_cents, cash_actual_cents",
+    )
+    .eq("organization_id", caller.organizationId)
+    .gte("business_date", data.fromDate)
+    .lte("business_date", data.toDate)
+    .order("business_date", { ascending: true });
+  if (sErr) throw sErr;
+  if (!sessions || sessions.length === 0) {
+    return { sortedDates: [], firstDate: "", byDate: new Map() };
+  }
+
+  const sessionIds = sessions.map((s) => s.id);
+
+  const [chRes, tRes, expRes, advRes, depRes, trRes, wsRes] = await Promise.all([
+    supabaseAdmin
+      .from("session_channel_amounts")
+      .select("session_id, amount_cents, revenue_channels(kind)")
+      .eq("organization_id", caller.organizationId)
+      .in("session_id", sessionIds),
+    supabaseAdmin
+      .from("session_terminal_amounts")
+      .select("session_id, amount_cents")
+      .eq("organization_id", caller.organizationId)
+      .in("session_id", sessionIds),
+    supabaseAdmin
+      .from("session_expenses")
+      .select("session_id, amount_cents")
+      .eq("organization_id", caller.organizationId)
+      .in("session_id", sessionIds),
+    supabaseAdmin
+      .from("session_advances")
+      .select("session_id, amount_cents")
+      .eq("organization_id", caller.organizationId)
+      .in("session_id", sessionIds),
+    supabaseAdmin
+      .from("session_bank_deposits")
+      .select("session_id, amount_cents")
+      .eq("organization_id", caller.organizationId)
+      .in("session_id", sessionIds),
+    supabaseAdmin
+      .from("session_register_transfers")
+      .select("session_id, direction, amount_cents")
+      .eq("organization_id", caller.organizationId)
+      .in("session_id", sessionIds),
+    supabaseAdmin
+      .from("waiter_settlements")
+      .select("session_id, open_invoices_cents, differenz_cents, status")
+      .eq("organization_id", caller.organizationId)
+      .in("session_id", sessionIds)
+      .neq("status", "superseded"),
+  ]);
+  if (chRes.error) throw chRes.error;
+  if (tRes.error) throw tRes.error;
+  if (expRes.error) throw expRes.error;
+  if (advRes.error) throw advRes.error;
+  if (depRes.error) throw depRes.error;
+  if (trRes.error) throw trRes.error;
+  if (wsRes.error) throw wsRes.error;
+
+  const byDate = new Map<string, CashDayAgg>();
+  const sessionDate = new Map<string, string>();
+  const sortedDates = Array.from(new Set(sessions.map((s) => s.business_date))).sort();
+  const firstDate = sortedDates[0];
+
+  function getAgg(date: string): CashDayAgg {
+    let a = byDate.get(date);
+    if (!a) {
+      a = makeEmptyAgg();
+      byDate.set(date, a);
+    }
+    return a;
+  }
+
+  for (const s of sessions) {
+    sessionDate.set(s.id, s.business_date);
+    const a = getAgg(s.business_date);
+    a.statuses.add(s.status as string);
+    a.sessionCount += 1;
+    if (s.cash_actual_cents !== null && s.cash_actual_cents !== undefined) {
+      a.cashActualSum += Number(s.cash_actual_cents);
+      a.cashActualCount += 1;
+    }
+    a.vouchersSold += Number(s.vouchers_sold_cents ?? 0);
+    a.vouchersRedeemed += Number(s.vouchers_redeemed_cents ?? 0);
+    a.finedine += Number(s.finedine_vouchers_cents ?? 0);
+    a.einladung += Number(s.einladung_cents ?? 0);
+    a.sonstige += Number(s.sonstige_einnahme_cents ?? 0);
+    a.vorschuss += Number(s.vorschuss_cents ?? 0);
+    if (s.business_date === firstDate) {
+      a.openingBalance += Number(s.opening_balance_cents ?? 0);
+    }
+  }
+
+  for (const r of chRes.data ?? []) {
+    const d = sessionDate.get(r.session_id);
+    if (!d) continue;
+    const a = getAgg(d);
+    const amt = Number(r.amount_cents);
+    a.totalRevenueGross += amt;
+    const kind = (r.revenue_channels as { kind: string } | null)?.kind ?? null;
+    switch (kind) {
+      case "pos":
+        a.grossRevenue += amt;
+        break;
+      case "delivery_souse":
+      case "delivery_vectron":
+        a.deliverySouse += amt;
+        break;
+      case "delivery_wolt":
+        a.deliveryWolt += amt;
+        break;
+      case "voucher_sold":
+        a.vouchersSold += amt;
+        break;
+      case "voucher_redeemed":
+        a.vouchersRedeemed += amt;
+        break;
+      case "finedine":
+        a.finedine += amt;
+        break;
+      case "einladung":
+        a.einladung += amt;
+        break;
+      case "sonstige":
+        a.sonstige += amt;
+        break;
+      default:
+        break;
+    }
+  }
+  for (const r of tRes.data ?? []) {
+    const d = sessionDate.get(r.session_id);
+    if (!d) continue;
+    getAgg(d).cardTotal += Number(r.amount_cents);
+  }
+  for (const r of expRes.data ?? []) {
+    const d = sessionDate.get(r.session_id);
+    if (!d) continue;
+    const a = getAgg(d);
+    const amt = Number(r.amount_cents);
+    a.expenses.push(amt);
+    a.totalExpenses += amt;
+  }
+  for (const r of advRes.data ?? []) {
+    const d = sessionDate.get(r.session_id);
+    if (!d) continue;
+    getAgg(d).advances.push(Number(r.amount_cents));
+  }
+  for (const r of depRes.data ?? []) {
+    const d = sessionDate.get(r.session_id);
+    if (!d) continue;
+    getAgg(d).bankDeposits.push(Number(r.amount_cents));
+  }
+  for (const r of trRes.data ?? []) {
+    const d = sessionDate.get(r.session_id);
+    if (!d) continue;
+    getAgg(d).transfers.push({
+      direction: r.direction as TransferDirection,
+      amountCents: Number(r.amount_cents),
+    });
+  }
+  for (const r of wsRes.data ?? []) {
+    const d = sessionDate.get(r.session_id);
+    if (!d) continue;
+    const a = getAgg(d);
+    a.openInvoices.push(Number(r.open_invoices_cents));
+    a.differenz += Number(r.differenz_cents);
+  }
+
+  return { sortedDates, firstDate, byDate };
+}
+
+// 1:1-Extraktion der bisherigen Agg → DayInput-Abbildung.
+export function aggToDayInput(date: string, a: CashDayAgg): DayInput {
+  return {
+    businessDate: date,
+    grossRevenueCents: a.grossRevenue,
+    cardTotalCents: a.cardTotal,
+    deliverySouseCents: a.deliverySouse,
+    deliveryWoltCents: a.deliveryWolt,
+    vouchersSoldCents: a.vouchersSold,
+    vouchersRedeemedCents: a.vouchersRedeemed,
+    finedineVouchersCents: a.finedine,
+    einladungCents: a.einladung,
+    openInvoicesCents: a.openInvoices,
+    sonstigeEinnahmeCents: a.sonstige,
+    vorschussCents: a.vorschuss,
+    satellites: {
+      expensesCents: a.expenses,
+      advancesCents: a.advances,
+      cardTransactionsCents: a.cardTransactions,
+      bankDepositsCents: a.bankDeposits,
+      registerTransfers: a.transfers,
+    },
+  };
+}
 
 export type CashLedgerRow = {
   businessDate: string;
