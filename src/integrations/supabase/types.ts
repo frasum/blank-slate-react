@@ -1913,6 +1913,7 @@ export type Database = {
           organization_id: string
           sonstige_einnahme_cents: number
           status: Database["public"]["Enums"]["session_status"]
+          tip_pool_settlement_only: boolean
           updated_at: string
           vectron_daily_total_cents: number
           vorschuss_cents: number
@@ -1938,6 +1939,7 @@ export type Database = {
           organization_id: string
           sonstige_einnahme_cents?: number
           status?: Database["public"]["Enums"]["session_status"]
+          tip_pool_settlement_only?: boolean
           updated_at?: string
           vectron_daily_total_cents?: number
           vorschuss_cents?: number
@@ -1963,6 +1965,7 @@ export type Database = {
           organization_id?: string
           sonstige_einnahme_cents?: number
           status?: Database["public"]["Enums"]["session_status"]
+          tip_pool_settlement_only?: boolean
           updated_at?: string
           vectron_daily_total_cents?: number
           vorschuss_cents?: number
