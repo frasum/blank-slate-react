@@ -3,6 +3,7 @@
 // in 1-C/1-D. payroll darf hier nicht rein (Top-Level-Gate in admin/route.tsx).
 
 import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
+import { CartDrawer } from "@/components/bestellung/CartDrawer";
 
 export const Route = createFileRoute("/_authenticated/admin/bestellung")({
   head: () => ({ meta: [{ title: "Bestellung · Verwaltung" }] }),
@@ -16,7 +17,6 @@ function BestellungLayout() {
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Bestellung</h1>
       </div>
       <nav className="flex flex-wrap items-center gap-4 border-b border-border text-sm">
-        <SubLink to="/admin/bestellung/warenkorb">Warenkorb</SubLink>
         <SubLink to="/admin/bestellung/easyorder">EasyOrder</SubLink>
         <SubLink to="/admin/bestellung/easyorder-verwaltung">EasyOrder-Verwaltung</SubLink>
         <SubLink to="/admin/bestellung/bestellungen">Bestellungen</SubLink>
@@ -26,6 +26,7 @@ function BestellungLayout() {
         <SubLink to="/admin/bestellung/wein-quiz">Wein-Quiz</SubLink>
       </nav>
       <Outlet />
+      <CartDrawer />
     </div>
   );
 }
