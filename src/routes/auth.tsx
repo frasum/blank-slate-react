@@ -12,6 +12,7 @@ import { createFileRoute, redirect, useNavigate, useRouter } from "@tanstack/rea
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { validatePin, resolveBadgeToken } from "@/lib/auth/auth-flows.functions";
+import { BrandLockup } from "@/components/brand-lockup";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
@@ -20,7 +21,7 @@ export const Route = createFileRoute("/auth")({
     if (data.user) throw redirect({ to: "/" });
   },
   head: () => ({
-    meta: [{ title: "Anmelden · Betriebsplattform" }, { name: "robots", content: "noindex" }],
+    meta: [{ title: "Anmelden · COCO" }, { name: "robots", content: "noindex" }],
   }),
   component: AuthPage,
 });
@@ -39,12 +40,10 @@ function AuthPage() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="w-full max-w-sm space-y-6">
-        <header className="space-y-1 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Anmelden</h1>
-          <p className="text-sm text-muted-foreground">Betriebsplattform</p>
-        </header>
+    <main className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
+      <div className="w-full max-w-sm space-y-8">
+        <BrandLockup size="lg" />
+        <p className="text-center text-sm font-medium text-foreground">Anmelden</p>
 
         <div role="tablist" className="flex rounded-md border border-input p-1">
           {(["password", "pin", "badge"] as Tab[]).map((t) => (
