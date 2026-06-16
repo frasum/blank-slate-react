@@ -134,18 +134,18 @@ Immer **26. eines Monats bis einschließlich 25. des Folgemonats**. Label = Mona
   TSB hat keine Kasse-Sessions (nur Dienstplan). Pilot (26.04–25.05) unberührt; 4 manuelle
   Juni-Testtage gelöscht + aus Quelle neu importiert.
 - **`tip_pool_settlement_only`-Flag** (Migration `20260616195215`, „Option A"): an
-    migrierten Kasse-Tagen bestimmt **nur die Kasse** den Trinkgeld-Pool — `time_entries`
-    fügen **keine** zusätzlichen Pool-Köpfe hinzu. Alle bestehenden Sessions = `true`; neue
-    Live-Sessions default `false` (Live-Verhalten unverändert).
-- **Zusatzkellner-Logik:** Eine Kellnerabrechnung gehört zu *einer Kasse*, nicht zu *einer
-    Person* — mehrere Kellner pro Abrechnung möglich (`additional_waiters`, bis zu 4), alle
-    sind Service-Pool-**Mitglieder**, Geld zählt einmal. 156 Zusatzkellner als Service-
-`session_tip_pool_entries` nachimportiert (Stunden = Schichtstunden des Primär-Kellners).
+  migrierten Kasse-Tagen bestimmt **nur die Kasse** den Trinkgeld-Pool — `time_entries`
+  fügen **keine** zusätzlichen Pool-Köpfe hinzu. Alle bestehenden Sessions = `true`; neue
+  Live-Sessions default `false` (Live-Verhalten unverändert).
+- **Zusatzkellner-Logik:** Eine Kellnerabrechnung gehört zu _einer Kasse_, nicht zu _einer
+  Person_ — mehrere Kellner pro Abrechnung möglich (`additional_waiters`, bis zu 4), alle
+  sind Service-Pool-**Mitglieder**, Geld zählt einmal. 156 Zusatzkellner als Service-
+  `session_tip_pool_entries` nachimportiert (Stunden = Schichtstunden des Primär-Kellners).
 - **Spot-Check 06.03 YUM:** Drei-Wege deckungsgleich (COCO = CSV-Quelle = tagesabrechnung)
-    bei Umsatz, Settlements, Pool-Besetzung (Service 5 inkl. Kriss, Küche 110,93 €). Bewusste
-    Rest-Differenzen (Historie längst ausgezahlt): COCO verteilt **nach Stunden** (~81 €),
-    tagesabrechnung **gleichmäßig** (81,69 €); **EM** bleibt im COCO-Küchen-Pool (das
-    „kein Pool"-Flag steckte nicht in den Quell-`kitchen_shifts`).
+  bei Umsatz, Settlements, Pool-Besetzung (Service 5 inkl. Kriss, Küche 110,93 €). Bewusste
+  Rest-Differenzen (Historie längst ausgezahlt): COCO verteilt **nach Stunden** (~81 €),
+  tagesabrechnung **gleichmäßig** (81,69 €); **EM** bleibt im COCO-Küchen-Pool (das
+  „kein Pool"-Flag steckte nicht in den Quell-`kitchen_shifts`).
 
 **Offen aus B3/B4** (Echtbetrieb-Hebel): Trinkgeld-Pool-Verteilung als eigener Baustein (`useCommissionData`-Logik: Pool/Tag = Σ max(0,(Tagesumsatz − minRevenue × Kellnerzahl) × commissionPct%), Verteilung nach Stunden), B3c-1 manuelles E2E, B3c-2 (Saldo/Export). Hängt an D-M2-1 (Auto-Ausstempeln bei Abrechnungs-Abgabe) — erst damit stempelt das Team in COCO um.
 
