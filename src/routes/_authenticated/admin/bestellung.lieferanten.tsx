@@ -3,7 +3,7 @@
 // mit „letzte Bestellung" und Direkt-in-Warenkorb. CRUD für Lieferanten und
 // Artikel inline. Manager+ für Schreibrechte; Add-to-Cart auch für staff.
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -492,8 +492,8 @@ function LieferantenPage() {
                           const last = lastOrderQ.data?.[a.id];
                           const isArtEditing = editingArticleId === a.id;
                           return (
-                            <>
-                              <tr key={a.id} className="border-t border-border align-top">
+                            <Fragment key={a.id}>
+                              <tr className="border-t border-border align-top">
                                 <td className="px-3 py-2">
                                   <div className="flex items-center gap-1">
                                     <button
@@ -588,7 +588,7 @@ function LieferantenPage() {
                                 </td>
                               </tr>
                               {isArtEditing && (
-                                <tr key={a.id + "-edit"} className="border-t border-border bg-muted/20">
+                                <tr className="border-t border-border bg-muted/20">
                                   <td colSpan={7} className="px-3 py-4">
                                     <ArticleForm
                                       initial={{
@@ -617,7 +617,7 @@ function LieferantenPage() {
                                   </td>
                                 </tr>
                               )}
-                            </>
+                            </Fragment>
                           );
                         })}
                       </tbody>
