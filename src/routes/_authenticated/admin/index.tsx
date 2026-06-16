@@ -1,9 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { getMyIdentity } from "@/lib/auth/me.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/")({
   head: () => ({ meta: [{ title: "Verwaltung" }] }),
-  loader: () => getMyIdentity(),
   component: AdminIndex,
 });
 
@@ -28,7 +26,7 @@ const CARDS: Card[] = [
 ];
 
 function AdminIndex() {
-  const identity = Route.useLoaderData();
+  const { identity } = Route.useRouteContext();
   const cards = CARDS.filter((c) => !c.adminOnly || identity.role === "admin");
   return (
     <div className="space-y-6">
