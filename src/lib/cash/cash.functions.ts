@@ -1742,43 +1742,87 @@ export async function adminCreateWaiterSettlementCore(
 // opening_balance_cents aller Sessions an diesem Tag — damit closing[N]
 // = opening[N+1] strikt innerhalb des Bereichs gilt.
 
-import { accumulateChain, type DayInput, type TransferDirection } from "./cash-ledger";
+import {
+  accumulateChain,
+  computeDailyCash,
+  effectiveVorschussCents,
+  type DayInput,
+  type TransferDirection,
+} from "./cash-ledger";
 import { computeSafeChain, type SafeDayInput } from "./safe-balance";
 
-export type CashLedgerRow = {
-  businessDate: string;
-  status: "open" | "finalized" | "locked" | "mixed" | "none";
-  openingBalanceCents: number;
-  totalRevenueCents: number;
-  totalExpensesCents: number;
-  closingBalanceCents: number;
-  differenzCents: number;
-  cashActualCents: number | null;
-  surplusCents: number | null;
-  shortfallCents: number | null;
-  safeBalanceCents: number;
+// Pro Tag aggregierter Roh-Datensatz. Wird sowohl von getCashLedgerCore
+// (Saldokette) als auch von getCashDailyBreakdownCore (Bargeldübersicht)
+// genutzt. Felder & Befüllung sind 1:1 aus der vorherigen Inline-Variante
+// in getCashLedgerCore extrahiert — keine Verhaltensänderung.
+export type CashDayAgg = {
+  statuses: Set<string>;
+  grossRevenue: number;
+  cardTotal: number;
+  deliverySouse: number;
+  deliveryWolt: number;
+  vouchersSold: number;
+  vouchersRedeemed: number;
+  finedine: number;
+  einladung: number;
+  sonstige: number;
+  vorschuss: number;
+  openInvoices: number[];
+  expenses: number[];
+  advances: number[];
+  bankDeposits: number[];
+  cardTransactions: number[];
+  transfers: Array<{ direction: TransferDirection; amountCents: number }>;
+  openingBalance: number;
+  totalRevenueGross: number;
+  totalExpenses: number;
+  differenz: number;
+  cashActualSum: number;
+  cashActualCount: number;
+  sessionCount: number;
 };
 
-export const getCashLedger = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
-    z
-      .object({
-        fromDate: z.string().regex(ISO_DATE),
-        toDate: z.string().regex(ISO_DATE),
-      })
-      .refine((v) => v.fromDate <= v.toDate, { message: "fromDate > toDate" })
-      .parse(input),
-  )
-  .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
-    return getCashLedgerCore(caller, data);
-  });
+export type CashDayAggregates = {
+  sortedDates: string[];
+  firstDate: string;
+  byDate: Map<string, CashDayAgg>;
+};
 
-export async function getCashLedgerCore(
+function makeEmptyAgg(): CashDayAgg {
+  return {
+    statuses: new Set(),
+    grossRevenue: 0,
+    cardTotal: 0,
+    deliverySouse: 0,
+    deliveryWolt: 0,
+    vouchersSold: 0,
+    vouchersRedeemed: 0,
+    finedine: 0,
+    einladung: 0,
+    sonstige: 0,
+    vorschuss: 0,
+    openInvoices: [],
+    expenses: [],
+    advances: [],
+    bankDeposits: [],
+    cardTransactions: [],
+    transfers: [],
+    openingBalance: 0,
+    totalRevenueGross: 0,
+    totalExpenses: 0,
+    differenz: 0,
+    cashActualSum: 0,
+    cashActualCount: 0,
+    sessionCount: 0,
+  };
+}
+
+// 1:1-Extraktion der bisherigen Inline-Reads + Aggregation aus
+// getCashLedgerCore. Verhaltensgleich.
+export async function loadCashDayAggregates(
   caller: AdminCaller,
   data: { fromDate: string; toDate: string },
-): Promise<CashLedgerRow[]> {
+): Promise<CashDayAggregates> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
   const { data: sessions, error: sErr } = await supabaseAdmin
@@ -1791,16 +1835,9 @@ export async function getCashLedgerCore(
     .lte("business_date", data.toDate)
     .order("business_date", { ascending: true });
   if (sErr) throw sErr;
-  if (!sessions || sessions.length === 0) return [];
-
-  const { data: org, error: orgErr } = await supabaseAdmin
-    .from("organizations")
-    .select("cash_balance_target_cents, opening_safe_balance_cents")
-    .eq("id", caller.organizationId)
-    .maybeSingle();
-  if (orgErr) throw orgErr;
-  const cashTarget = Number(org?.cash_balance_target_cents ?? 200_000);
-  const openingSafe = Number(org?.opening_safe_balance_cents ?? 200_000);
+  if (!sessions || sessions.length === 0) {
+    return { sortedDates: [], firstDate: "", byDate: new Map() };
+  }
 
   const sessionIds = sessions.map((s) => s.id);
 
@@ -1850,68 +1887,15 @@ export async function getCashLedgerCore(
   if (trRes.error) throw trRes.error;
   if (wsRes.error) throw wsRes.error;
 
-  type Agg = {
-    statuses: Set<string>;
-    grossRevenue: number;
-    cardTotal: number;
-    deliverySouse: number;
-    deliveryWolt: number;
-    vouchersSold: number;
-    vouchersRedeemed: number;
-    finedine: number;
-    einladung: number;
-    sonstige: number;
-    vorschuss: number;
-    openInvoices: number[];
-    expenses: number[];
-    advances: number[];
-    bankDeposits: number[];
-    cardTransactions: number[];
-    transfers: Array<{ direction: TransferDirection; amountCents: number }>;
-    openingBalance: number;
-    totalRevenueGross: number;
-    totalExpenses: number;
-    differenz: number;
-    cashActualSum: number;
-    cashActualCount: number;
-    sessionCount: number;
-  };
-  const byDate = new Map<string, Agg>();
+  const byDate = new Map<string, CashDayAgg>();
   const sessionDate = new Map<string, string>();
-  const firstDateSessions = new Set<string>();
-
   const sortedDates = Array.from(new Set(sessions.map((s) => s.business_date))).sort();
   const firstDate = sortedDates[0];
 
-  function getAgg(date: string): Agg {
+  function getAgg(date: string): CashDayAgg {
     let a = byDate.get(date);
     if (!a) {
-      a = {
-        statuses: new Set(),
-        grossRevenue: 0,
-        cardTotal: 0,
-        deliverySouse: 0,
-        deliveryWolt: 0,
-        vouchersSold: 0,
-        vouchersRedeemed: 0,
-        finedine: 0,
-        einladung: 0,
-        sonstige: 0,
-        vorschuss: 0,
-        openInvoices: [],
-        expenses: [],
-        advances: [],
-        bankDeposits: [],
-        cardTransactions: [],
-        transfers: [],
-        openingBalance: 0,
-        totalRevenueGross: 0,
-        totalExpenses: 0,
-        differenz: 0,
-        cashActualSum: 0,
-        cashActualCount: 0,
-        sessionCount: 0,
-      };
+      a = makeEmptyAgg();
       byDate.set(date, a);
     }
     return a;
@@ -1919,7 +1903,6 @@ export async function getCashLedgerCore(
 
   for (const s of sessions) {
     sessionDate.set(s.id, s.business_date);
-    if (s.business_date === firstDate) firstDateSessions.add(s.id);
     const a = getAgg(s.business_date);
     a.statuses.add(s.status as string);
     a.sessionCount += 1;
@@ -1927,8 +1910,6 @@ export async function getCashLedgerCore(
       a.cashActualSum += Number(s.cash_actual_cents);
       a.cashActualCount += 1;
     }
-    // Session-Pauschalfelder (Quirk: vorschuss wird ignoriert, falls
-    // advances-Satellit vorhanden — siehe effectiveVorschussCents).
     a.vouchersSold += Number(s.vouchers_sold_cents ?? 0);
     a.vouchersRedeemed += Number(s.vouchers_redeemed_cents ?? 0);
     a.finedine += Number(s.finedine_vouchers_cents ?? 0);
@@ -2016,36 +1997,89 @@ export async function getCashLedgerCore(
     a.differenz += Number(r.differenz_cents);
   }
 
-  const days: DayInput[] = sortedDates.map((date) => {
-    const a = getAgg(date);
-    return {
-      businessDate: date,
-      grossRevenueCents: a.grossRevenue,
-      cardTotalCents: a.cardTotal,
-      deliverySouseCents: a.deliverySouse,
-      deliveryWoltCents: a.deliveryWolt,
-      vouchersSoldCents: a.vouchersSold,
-      vouchersRedeemedCents: a.vouchersRedeemed,
-      finedineVouchersCents: a.finedine,
-      einladungCents: a.einladung,
-      openInvoicesCents: a.openInvoices,
-      sonstigeEinnahmeCents: a.sonstige,
-      vorschussCents: a.vorschuss,
-      satellites: {
-        expensesCents: a.expenses,
-        advancesCents: a.advances,
-        cardTransactionsCents: a.cardTransactions,
-        bankDepositsCents: a.bankDeposits,
-        registerTransfers: a.transfers,
-      },
-    };
+  return { sortedDates, firstDate, byDate };
+}
+
+// 1:1-Extraktion der bisherigen Agg → DayInput-Abbildung.
+export function aggToDayInput(date: string, a: CashDayAgg): DayInput {
+  return {
+    businessDate: date,
+    grossRevenueCents: a.grossRevenue,
+    cardTotalCents: a.cardTotal,
+    deliverySouseCents: a.deliverySouse,
+    deliveryWoltCents: a.deliveryWolt,
+    vouchersSoldCents: a.vouchersSold,
+    vouchersRedeemedCents: a.vouchersRedeemed,
+    finedineVouchersCents: a.finedine,
+    einladungCents: a.einladung,
+    openInvoicesCents: a.openInvoices,
+    sonstigeEinnahmeCents: a.sonstige,
+    vorschussCents: a.vorschuss,
+    satellites: {
+      expensesCents: a.expenses,
+      advancesCents: a.advances,
+      cardTransactionsCents: a.cardTransactions,
+      bankDepositsCents: a.bankDeposits,
+      registerTransfers: a.transfers,
+    },
+  };
+}
+
+export type CashLedgerRow = {
+  businessDate: string;
+  status: "open" | "finalized" | "locked" | "mixed" | "none";
+  openingBalanceCents: number;
+  totalRevenueCents: number;
+  totalExpensesCents: number;
+  closingBalanceCents: number;
+  differenzCents: number;
+  cashActualCents: number | null;
+  surplusCents: number | null;
+  shortfallCents: number | null;
+  safeBalanceCents: number;
+};
+
+export const getCashLedger = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        fromDate: z.string().regex(ISO_DATE),
+        toDate: z.string().regex(ISO_DATE),
+      })
+      .refine((v) => v.fromDate <= v.toDate, { message: "fromDate > toDate" })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    return getCashLedgerCore(caller, data);
   });
 
-  const openingBalanceCents = getAgg(firstDate).openingBalance;
+export async function getCashLedgerCore(
+  caller: AdminCaller,
+  data: { fromDate: string; toDate: string },
+): Promise<CashLedgerRow[]> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  const { sortedDates, firstDate, byDate } = await loadCashDayAggregates(caller, data);
+  if (sortedDates.length === 0) return [];
+
+  const { data: org, error: orgErr } = await supabaseAdmin
+    .from("organizations")
+    .select("cash_balance_target_cents, opening_safe_balance_cents")
+    .eq("id", caller.organizationId)
+    .maybeSingle();
+  if (orgErr) throw orgErr;
+  const cashTarget = Number(org?.cash_balance_target_cents ?? 200_000);
+  const openingSafe = Number(org?.opening_safe_balance_cents ?? 200_000);
+
+  const days: DayInput[] = sortedDates.map((date) => aggToDayInput(date, byDate.get(date)!));
+
+  const openingBalanceCents = byDate.get(firstDate)!.openingBalance;
   const chain = accumulateChain(openingBalanceCents, days);
 
   const safeDays: SafeDayInput[] = sortedDates.map((date) => {
-    const a = getAgg(date);
+    const a = byDate.get(date)!;
     return {
       businessDate: date,
       cashActualCents: a.cashActualCount > 0 ? a.cashActualSum : null,
@@ -2056,7 +2090,7 @@ export async function getCashLedgerCore(
   const safeChain = computeSafeChain(openingSafe, safeDays);
 
   return sortedDates.map((date, i) => {
-    const a = getAgg(date);
+    const a = byDate.get(date)!;
     const r = chain[i];
     const sr = safeChain[i];
     const statuses = Array.from(a.statuses);
@@ -2078,6 +2112,70 @@ export async function getCashLedgerCore(
       surplusCents: sr.surplusCents,
       shortfallCents: sr.shortfallCents,
       safeBalanceCents: sr.safeBalanceCents,
+    };
+  });
+}
+
+// ------------------------------------------------------------------------
+// Tägliche Bargeldübersicht (kein Carry-over, pro Tag eigenständig)
+// ------------------------------------------------------------------------
+
+export type CashDailyRow = {
+  businessDate: string;
+  tagesumsatzCents: number;
+  kreditkartenCents: number;
+  deliverySouseCents: number;
+  deliveryWoltCents: number;
+  finedineCents: number;
+  vouchersRedeemedCents: number;
+  vouchersSoldCents: number;
+  einladungCents: number;
+  openInvoicesCents: number;
+  vorschussCents: number;
+  expensesCents: number;
+  sonstigeEinnahmeCents: number;
+  bargeldCents: number;
+};
+
+export const getCashDailyBreakdown = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        fromDate: z.string().regex(ISO_DATE),
+        toDate: z.string().regex(ISO_DATE),
+      })
+      .refine((v) => v.fromDate <= v.toDate, { message: "fromDate > toDate" })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    return getCashDailyBreakdownCore(caller, data);
+  });
+
+export async function getCashDailyBreakdownCore(
+  caller: AdminCaller,
+  data: { fromDate: string; toDate: string },
+): Promise<CashDailyRow[]> {
+  const { sortedDates, byDate } = await loadCashDayAggregates(caller, data);
+  return sortedDates.map((date) => {
+    const a = byDate.get(date)!;
+    const day = aggToDayInput(date, a);
+    return {
+      businessDate: date,
+      tagesumsatzCents: a.grossRevenue,
+      kreditkartenCents: a.cardTotal,
+      deliverySouseCents: a.deliverySouse,
+      deliveryWoltCents: a.deliveryWolt,
+      finedineCents: a.finedine,
+      vouchersRedeemedCents: a.vouchersRedeemed,
+      vouchersSoldCents: a.vouchersSold,
+      einladungCents: a.einladung,
+      openInvoicesCents: a.openInvoices.reduce((s, x) => s + x, 0),
+      vorschussCents: effectiveVorschussCents(day),
+      expensesCents: a.expenses.reduce((s, x) => s + x, 0),
+      sonstigeEinnahmeCents: a.sonstige,
+      bargeldCents: computeDailyCash(day),
     };
   });
 }
