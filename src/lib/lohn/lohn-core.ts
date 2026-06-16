@@ -5,17 +5,8 @@
 
 import { KIRCHENSTEUER_BAYERN_PROZENT, LZZ_MONAT } from "./config-2026";
 import { lohnsteuer2026 } from "./lohnsteuer-2026";
-import {
-  svBeitraege,
-  svBeitraegeMinijob,
-  type SvErgebnis,
-} from "./sv-2026";
-import type {
-  Entgeltzeile,
-  Kategorie,
-  LohnEingabe,
-  LohnErgebnis,
-} from "./types";
+import { svBeitraege, svBeitraegeMinijob, type SvErgebnis } from "./sv-2026";
+import type { Entgeltzeile, Kategorie, LohnEingabe, LohnErgebnis } from "./types";
 
 function sumBy(zeilen: Entgeltzeile[], pred: (k: Kategorie) => boolean): number {
   let s = 0;
@@ -78,9 +69,7 @@ export function berechneLohn(eingabe: LohnEingabe): LohnErgebnis {
     lstCent = papErgebnis.lstlzzCent;
     soliCent = papErgebnis.solzlzzCent;
     if (person.kirchensteuerBayern) {
-      kistCent = roundCent(
-        (papErgebnis.bkCent * KIRCHENSTEUER_BAYERN_PROZENT) / 100,
-      );
+      kistCent = roundCent((papErgebnis.bkCent * KIRCHENSTEUER_BAYERN_PROZENT) / 100);
     }
     sv = svBeitraege({ stSvBruttoCent, person });
   }
@@ -98,11 +87,7 @@ export function berechneLohn(eingabe: LohnEingabe): LohnErgebnis {
 
   // --- Schritt F: Auszahlung ---
   const summeAbzug = sumBy(zeilen, (k) => k === "abzug");
-  const auszahlungCent =
-    gesamtnettoCent -
-    summeSachbezugFrei -
-    summeMahlzeitenPaust -
-    summeAbzug;
+  const auszahlungCent = gesamtnettoCent - summeSachbezugFrei - summeMahlzeitenPaust - summeAbzug;
 
   return {
     gesamtbruttoCent,
@@ -119,10 +104,7 @@ export function berechneLohn(eingabe: LohnEingabe): LohnErgebnis {
   };
 }
 
-function clampPva(
-  kinderzahl: number,
-  elterneigenschaft: boolean,
-): 0 | 1 | 2 | 3 | 4 {
+function clampPva(kinderzahl: number, elterneigenschaft: boolean): 0 | 1 | 2 | 3 | 4 {
   if (!elterneigenschaft || kinderzahl < 2) return 0;
   const v = Math.min(kinderzahl, 5) - 1;
   return v as 0 | 1 | 2 | 3 | 4;

@@ -57,8 +57,7 @@ export function svBeitraege(e: SvEingabe): SvErgebnis {
   const bemessungKvPv = Math.min(e.stSvBruttoCent, BBG_MONAT_2026_CENT.KV_PV);
   const bemessungRvAv = Math.min(e.stSvBruttoCent, BBG_MONAT_2026_CENT.RV_AV);
 
-  const kvSatz =
-    SV_SAETZE_2026.KV_AN_PROZENT + e.person.kvzProzent / 2;
+  const kvSatz = SV_SAETZE_2026.KV_AN_PROZENT + e.person.kvzProzent / 2;
   const pvSatz = pvSatzProzent(e.person);
 
   return {
@@ -77,9 +76,7 @@ export function svBeitraegeMinijob(e: MinijobEingabe): SvErgebnis {
     // cent-gerundet (standard-SV-Mechanik), nicht direkt 3,6 % — sonst 1 Cent Abweichung.
     rvCent:
       roundCent((e.aushilfeZeitlohnCent * SV_SAETZE_2026.RV_GESAMT_PROZENT) / 100) -
-      roundCent(
-        (e.aushilfeZeitlohnCent * SV_SAETZE_2026.MINIJOB_AG_PAUSCHAL_RV_PROZENT) / 100,
-      ),
+      roundCent((e.aushilfeZeitlohnCent * SV_SAETZE_2026.MINIJOB_AG_PAUSCHAL_RV_PROZENT) / 100),
     avCent: 0,
     pvCent: 0,
   };
