@@ -73,9 +73,13 @@ export function svBeitraege(e: SvEingabe): SvErgebnis {
 export function svBeitraegeMinijob(e: MinijobEingabe): SvErgebnis {
   return {
     kvCent: 0,
-    rvCent: roundCent(
-      (e.aushilfeZeitlohnCent * SV_SAETZE_2026.MINIJOB_RV_AN_PROZENT) / 100,
-    ),
+    // AN-RV im Minijob = Gesamt(18,6 %) − AG-Pauschale(15 %), jeweils
+    // cent-gerundet (standard-SV-Mechanik), nicht direkt 3,6 % — sonst 1 Cent Abweichung.
+    rvCent:
+      roundCent((e.aushilfeZeitlohnCent * SV_SAETZE_2026.RV_GESAMT_PROZENT) / 100) -
+      roundCent(
+        (e.aushilfeZeitlohnCent * SV_SAETZE_2026.MINIJOB_AG_PAUSCHAL_RV_PROZENT) / 100,
+      ),
     avCent: 0,
     pvCent: 0,
   };

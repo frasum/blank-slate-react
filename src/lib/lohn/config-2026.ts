@@ -24,10 +24,16 @@ export const SV_SAETZE_2026 = {
    */
   PV_KIND_ABSCHLAG_PP: 0.25,
   /**
-   * Minijob: Eigenanteil des Arbeitnehmers zur Rentenversicherung,
-   * berechnet ausschließlich auf den Aushilfe-Zeitlohn.
+   * Minijob: Eigenanteil des Arbeitnehmers zur Rentenversicherung (informativ,
+   * 18,6 % − 15 % = 3,6 %). NICHT direkt für die Rechnung verwenden — der
+   * AN-Anteil wird als Differenz aus Gesamt(18,6 %) und AG-Pauschale(15 %),
+   * jeweils cent-gerundet, ermittelt (sonst 1 Cent Abweichung zu edlohn).
    */
   MINIJOB_RV_AN_PROZENT: 3.6,
+  /** Voller RV-Gesamtbeitragssatz 2026 (AG+AN), Basis der Minijob-AN-Differenzrechnung. */
+  RV_GESAMT_PROZENT: 18.6,
+  /** Minijob: pauschaler AG-RV-Beitrag. AN-Anteil = Gesamt(18,6 %) − diese Pauschale. */
+  MINIJOB_AG_PAUSCHAL_RV_PROZENT: 15.0,
 } as const;
 
 /**
