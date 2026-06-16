@@ -77,7 +77,7 @@ export const getStaff = createServerFn({ method: "GET" })
     const { data: staff, error } = await supabaseAdmin
       .from("staff")
       .select(
-        "id, organization_id, first_name, last_name, display_name, email, phone, is_active, role_assignments(role), staff_locations(location_id), staff_pins(id)",
+        "id, organization_id, first_name, last_name, display_name, email, phone, is_active, participates_in_pool, role_assignments(role), staff_locations(location_id), staff_pins(id)",
       )
       .eq("id", data.staffId)
       .eq("organization_id", caller.organizationId)
@@ -93,6 +93,7 @@ export const getStaff = createServerFn({ method: "GET" })
       email: staff.email,
       phone: staff.phone,
       isActive: staff.is_active,
+      participatesInPool: staff.participates_in_pool,
       role: (ra && ra.length > 0 ? ra[0].role : null) as AppRole | null,
       locationIds: (staff.staff_locations ?? []).map((l) => l.location_id),
       hasPin: staff.staff_pins !== null,
@@ -314,6 +315,33 @@ export const assignStaffLocations = createServerFn({ method: "POST" })
           entity: "staff",
           entityId: data.staffId,
           meta: { locationIds: data.locationIds },
+        },
+      };
+    });
+  });
+
+export const setStaffParticipatesInPool = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({ staffId: z.string().uuid(), participates: z.boolean() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { error } = await supabaseAdmin
+        .from("staff")
+        .update({ participates_in_pool: data.participates })
+        .eq("id", data.staffId)
+        .eq("organization_id", caller.organizationId);
+      if (error) throw error;
+      return {
+        result: { ok: true as const },
+        audit: {
+          action: "staff.set_participates_in_pool",
+          entity: "staff",
+          entityId: data.staffId,
+          meta: { participates: data.participates },
         },
       };
     });

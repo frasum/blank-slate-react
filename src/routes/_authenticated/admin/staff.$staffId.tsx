@@ -7,6 +7,7 @@ import {
   getStaff,
   setStaffActive,
   setStaffRole,
+  setStaffParticipatesInPool,
   updateStaffBasics,
 } from "@/lib/admin/staff.functions";
 import { listLocations } from "@/lib/admin/locations.functions";
@@ -99,10 +100,12 @@ function BasicsTab({
     displayName: string;
     email: string | null;
     phone: string | null;
+    participatesInPool: boolean;
   };
 }) {
   const queryClient = useQueryClient();
   const callUpdate = useServerFn(updateStaffBasics);
+  const callSetPool = useServerFn(setStaffParticipatesInPool);
   const [form, setForm] = useState({
     firstName: staff.firstName,
     lastName: staff.lastName,
@@ -111,6 +114,7 @@ function BasicsTab({
     phone: staff.phone ?? "",
   });
   const [msg, setMsg] = useState<string | null>(null);
+  const [poolMsg, setPoolMsg] = useState<string | null>(null);
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -129,6 +133,16 @@ function BasicsTab({
       await queryClient.invalidateQueries({ queryKey: ["admin", "staff"] });
     },
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
+  });
+
+  const poolMutation = useMutation({
+    mutationFn: (participates: boolean) =>
+      callSetPool({ data: { staffId: staff.id, participates } }),
+    onSuccess: async () => {
+      setPoolMsg("Gespeichert.");
+      await queryClient.invalidateQueries({ queryKey: ["admin", "staff"] });
+    },
+    onError: (e: unknown) => setPoolMsg(e instanceof Error ? e.message : "Fehler."),
   });
 
   return (
@@ -177,6 +191,28 @@ function BasicsTab({
       >
         {mutation.isPending ? "Speichern…" : "Speichern"}
       </button>
+      <div className="mt-4 space-y-2 border-t border-border pt-4">
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={staff.participatesInPool}
+            disabled={poolMutation.isPending}
+            onChange={(e) => {
+              setPoolMsg(null);
+              poolMutation.mutate(e.target.checked);
+            }}
+            className="mt-0.5"
+          />
+          <span>
+            <span className="text-foreground">Am Trinkgeldpool teilnehmen</span>
+            <span className="block text-xs text-muted-foreground">
+              Deaktivieren schließt diesen Mitarbeiter aus Küchen- und Service-Pool aus.
+              Geschäftsleitung ist strukturell ausgeschlossen.
+            </span>
+          </span>
+        </label>
+        {poolMsg && <p className="text-xs text-muted-foreground">{poolMsg}</p>}
+      </div>
     </form>
   );
 }
