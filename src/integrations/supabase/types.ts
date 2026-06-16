@@ -2034,6 +2034,7 @@ export type Database = {
       }
       staff: {
         Row: {
+          can_easyorder_auto_send: boolean
           contracted_hours_per_month: number | null
           created_at: string
           display_name: string
@@ -2049,6 +2050,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          can_easyorder_auto_send?: boolean
           contracted_hours_per_month?: number | null
           created_at?: string
           display_name: string
@@ -2064,6 +2066,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          can_easyorder_auto_send?: boolean
           contracted_hours_per_month?: number | null
           created_at?: string
           display_name?: string
