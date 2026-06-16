@@ -1,29 +1,45 @@
 ## Ziel
-KRISS nachträglich als Partner zur ANDI-Abrechnung in Session 2026-06-10 (Standort YUM) eintragen.
+Trinkgeld-Pool-Formel in COCO an Tagesabrechnung angleichen, sodass offene Rechnungen den Pool nicht künstlich ins Minus drücken und Hilfsmahlzeiten korrekt abgezogen werden.
 
-## Schritt
-Einzelnes Daten-Update über das Insert-Tool:
+## Änderung (eine Datei: `src/lib/cash/tip-pool.ts`)
 
-```sql
-UPDATE public.waiter_settlements
-SET partner_staff_id = '82a2b8ec-5cbb-4790-ba6a-b7baa3af7f59' -- KRISS
-WHERE id = '3708e107-ee47-425c-88fc-190b4db72b6b'              -- ANDI / Session 2026-06-10
-  AND partner_staff_id IS NULL;
+`computeTipTotalCents` von
+
+```ts
+return Σ (card + cash − pos − open)
 ```
 
-Erfüllt automatisch die bestehenden DB-Constraints:
-- CHECK: `partner_staff_id <> staff_id` ✓ (KRISS ≠ ANDI)
-- Partial UNIQUE `(session_id, partner_staff_id)`: keine andere Zeile in dieser Session hat KRISS als Partner ✓
-- KRISS hat in dieser Session keine eigene Zeile, also keine Kollision mit `assertPartnerFree`-Logik ✓
+auf
 
-## Wirkung im UI
-In `SettlementsCard` erscheint die ANDI-Zeile künftig mit Badge **„Paar"** und (sofern aktiviert) Hinweis auf KRISS. Es entsteht **keine** zusätzliche eigene Zeile für KRISS — paarweise Abrechnungen werden bewusst als eine Zeile geführt (Entscheidung „a/a").
+```ts
+return Σ (card + cash + open − pos − hilf)
+```
 
-## Nicht enthalten
-- Keine Schemaänderung.
-- Keine neue eigenständige KRISS-Settlement-Zeile.
-- Keine Änderung an Trinkgeld-Pool / Korrektur-Historie.
-- Keine UI-Änderung.
+umstellen. Eingangstyp bekommt zusätzlich `hilfMahlCents: number`.
 
-## Folge-Frage
-Falls KRISS für weitere vergangene Sessions ebenfalls als Partner fehlt, bitte separat melden — wir machen das pro Session gezielt, kein Massen-Backfill ohne Liste.
+**Konsequenz**:
+- `servicePoolCents = tipTotal − kitchenPoolCents` bleibt strukturell gleich; nur die Basis ändert sich.
+- `kitchenPoolCents` (Summe der `kitchen_tip_cents` aus Settlements) bleibt **unverändert** — Küchen-Trinkgeld weiterhin `POS × Rate`.
+- `differenz_cents` der Kellner-Abrechnung bleibt **unverändert** — die Bargeld-Soll-Logik ist davon nicht betroffen.
+- `safe-balance`, `cash-ledger`, `waiter-settlement` werden **nicht** angefasst.
+
+## Caller-Anpassung
+`computeSessionTipPoolCore` (`src/lib/cash/cash.functions.ts`, ~Z. 499/556) ergänzt `hilf_mahl_cents` im Settlement-SELECT und reicht die Summe an `computeTipTotalCents`/`computeTipPool` weiter. Sonst nichts.
+
+## Tests
+- `src/lib/cash/tip-pool.test.ts`: Bestehende Fälle anpassen (Vorzeichen `open` / neue `hilf`-Variable), einen Charakterisierungstest mit Spot-Check 06.03 YUM hinzufügen (Drei-Wege-Vergleich aus dem `arbeitsweise.md`-Eintrag) und einen neuen Negativ-Test: Tag mit großer offener Rechnung (z. B. 12.05. PON spicery, open = 850,63 €) → Pool **nicht** mehr negativ.
+- `src/lib/cash/cash.functions` betreffende DB-Tests grün halten.
+
+## Wirkung auf bestehende Anzeige
+- `/admin/trinkgeld-rest`: Tage mit hohen offenen Rechnungen (11.05./12.05./20.05. etc.) zeigen künftig realistische, positive Restcents.
+- Pool-Overview in `/admin/kasse` rechnet rückwirkend mit neuer Formel — historische Auszahlungen sind längst durch, es geht nur um die Anzeige.
+
+## Explizit NICHT enthalten
+- Keine Schema-Migration.
+- Keine Änderung an `calcWaiterSettlement` / `differenz_cents`.
+- Keine UI-Änderung außerhalb der automatisch neu berechneten Zahlen.
+- Keine Backfill-/Nachzahlungs-Logik.
+- Keine Übernahme der Tagesabrechnung-„gleichmäßig pro Kopf"-Verteilung — COCO bleibt bei „nach Stunden" (war bewusste Entscheidung, siehe `arbeitsweise.md`-Eintrag).
+
+## Offene Frage vor Umsetzung
+Tagesabrechnung zieht `hilf_mahl` vom Trinkgeld ab — du hast in deiner Frage nur `open` erwähnt. Soll ich `hilf_mahl` mitziehen (volle 1:1-Angleichung) oder nur `open` umdrehen?
