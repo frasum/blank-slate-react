@@ -26,7 +26,6 @@ import {
   updateCartItem,
 } from "@/lib/bestellung/cart.functions";
 import { getLastOrderByArticle } from "@/lib/bestellung/orders.functions";
-import { SendOrderDialog } from "@/components/bestellung/SendOrderDialog";
 
 export const Route = createFileRoute("/_authenticated/admin/bestellung/lieferanten")({
   head: () => ({ meta: [{ title: "Lieferanten · Bestellung" }] }),
@@ -134,8 +133,6 @@ function LieferantenPage() {
   const [addingArticleFor, setAddingArticleFor] = useState<string | null>(null);
   const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
-  const [sendForSupplier, setSendForSupplier] = useState<string | null>(null);
-
   const suppliersQ = useQuery({
     queryKey: ["bestellung", "suppliers", { includeInactive: showInactive }],
     queryFn: () => listSuppliers({ data: { includeInactive: showInactive } }),
@@ -163,19 +160,6 @@ function LieferantenPage() {
     const m = new Map<string, { itemId: string; quantity: number }>();
     for (const it of cartQ.data?.items ?? []) {
       if (it.article_id) m.set(it.article_id, { itemId: it.id, quantity: it.quantity });
-    }
-    return m;
-  }, [cartQ.data]);
-
-  // Pro Lieferant: aktuelle Warenkorb-Positionen (Anzahl Items + Stückzahl).
-  const cartBySupplier = useMemo(() => {
-    const m = new Map<string, { lines: number; quantity: number }>();
-    for (const it of cartQ.data?.items ?? []) {
-      if (!it.supplier_id) continue;
-      const cur = m.get(it.supplier_id) ?? { lines: 0, quantity: 0 };
-      cur.lines += 1;
-      cur.quantity += it.quantity;
-      m.set(it.supplier_id, cur);
     }
     return m;
   }, [cartQ.data]);
@@ -432,27 +416,6 @@ function LieferantenPage() {
                   {fmtTime(s.order_deadline)} · MBW {fmtEuro(s.min_order_value_cents)}
                 </span>
                 <div className="ml-auto flex items-center gap-2">
-                  {(() => {
-                    const cb = cartBySupplier.get(s.id);
-                    if (!cb) return null;
-                    return (
-                      <button
-                        onClick={() => {
-                          setSendForSupplier(s.id);
-                          setMsg(null);
-                        }}
-                        disabled={!s.email}
-                        title={
-                          !s.email
-                            ? "Lieferant hat keine E-Mail-Adresse hinterlegt"
-                            : `${cb.lines} Position(en) · ${cb.quantity} Stk`
-                        }
-                        className="rounded-md bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                      >
-                        Bestellen ({cb.lines})
-                      </button>
-                    );
-                  })()}
                   <button
                     onClick={() => toggleSupMut.mutate({ id: s.id, isActive: !s.is_active })}
                     className={
@@ -683,16 +646,6 @@ function LieferantenPage() {
           );
         })}
       </div>
-      {sendForSupplier && (
-        <SendOrderDialog
-          open={!!sendForSupplier}
-          onOpenChange={(o) => {
-            if (!o) setSendForSupplier(null);
-          }}
-          supplierId={sendForSupplier}
-          onSent={() => setMsg("Bestellung versendet.")}
-        />
-      )}
     </div>
   );
 }
