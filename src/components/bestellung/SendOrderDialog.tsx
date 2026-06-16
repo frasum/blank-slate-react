@@ -72,10 +72,7 @@ export function SendOrderDialog({ open, onOpenChange, supplierId, onSent }: Prop
   const items = allItems.filter((it) => it.supplier_id === supplierId);
 
   const articlesById = useMemo(() => {
-    const m = new Map<
-      string,
-      { id: string; name: string; unit: string; price_cents: number }
-    >();
+    const m = new Map<string, { id: string; name: string; unit: string; price_cents: number }>();
     for (const a of articlesQ.data ?? []) m.set(a.id, a);
     return m;
   }, [articlesQ.data]);
@@ -152,9 +149,7 @@ export function SendOrderDialog({ open, onOpenChange, supplierId, onSent }: Prop
               <p className="uppercase tracking-wide text-muted-foreground">Standort</p>
               <select
                 value={cart?.location_id ?? ""}
-                onChange={(e) =>
-                  metaMut.mutate({ data: { locationId: e.target.value || null } })
-                }
+                onChange={(e) => metaMut.mutate({ data: { locationId: e.target.value || null } })}
                 className={inputCls}
               >
                 <option value="">— wählen —</option>

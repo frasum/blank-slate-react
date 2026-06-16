@@ -141,11 +141,7 @@ function AdminLayout() {
                 {primaryGroups.map((g) => {
                   const active = activeGroup?.key === g.key;
                   return (
-                    <Link
-                      key={g.key}
-                      to={g.default}
-                      className={tabClass(active)}
-                    >
+                    <Link key={g.key} to={g.default} className={tabClass(active)}>
                       {g.label}
                     </Link>
                   );
@@ -158,11 +154,7 @@ function AdminLayout() {
                     {systemGroups.map((g) => {
                       const active = activeGroup?.key === g.key;
                       return (
-                        <Link
-                          key={g.key}
-                          to={g.default}
-                          className={tabClass(active)}
-                        >
+                        <Link key={g.key} to={g.default} className={tabClass(active)}>
                           {g.label}
                         </Link>
                       );
