@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { arbzgMinimumBreak } from "@/lib/time/break-rules";
 import { clockIn, clockOut, getMyOpenEntry, listMyEntries } from "@/lib/time/time.functions";
+import { formatShortDate } from "@/lib/format-date";
 
 export const Route = createFileRoute("/_authenticated/zeit/")({
   head: () => ({
@@ -35,14 +36,6 @@ function formatDuration(ms: number): string {
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("de-DE", {
-    weekday: "short",
-    day: "2-digit",
-    month: "2-digit",
-  });
 }
 
 function ZeitPage() {
@@ -201,7 +194,7 @@ function ZeitPage() {
             listQuery.data.map((e) => (
               <div key={e.id} className="flex items-center justify-between px-4 py-3 text-sm">
                 <div>
-                  <div className="font-medium">{formatDate(e.startedAt)}</div>
+                  <div className="font-medium">{formatShortDate(new Date(e.startedAt))}</div>
                   <div className="text-muted-foreground">
                     {formatTime(e.startedAt)} – {e.endedAt ? formatTime(e.endedAt) : "läuft"}
                   </div>
