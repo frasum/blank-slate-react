@@ -330,10 +330,18 @@ export async function getCashOverviewCore(
   return {
     businessDate,
     session,
-    settlements: (settlementsRes.data ?? []).map((s) => ({
-      ...s,
-      staffName: (s.staff as { display_name: string } | null)?.display_name ?? "—",
-    })),
+    settlements: (settlementsRes.data ?? []).map((s) => {
+      const primary =
+        (s.primary_staff as { display_name: string } | null)?.display_name ?? "—";
+      const partner =
+        (s.partner_staff as { display_name: string } | null)?.display_name ?? null;
+      return {
+        ...s,
+        staffName: partner ? `${primary} + ${partner}` : primary,
+        primaryStaffName: primary,
+        partnerStaffName: partner,
+      };
+    }),
     channelAmounts: (channelAmtRes.data ?? []).map((r) => ({
       channelId: r.channel_id,
       amountCents: Number(r.amount_cents),
