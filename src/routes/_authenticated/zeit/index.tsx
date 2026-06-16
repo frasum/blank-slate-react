@@ -27,6 +27,12 @@ export const Route = createFileRoute("/_authenticated/zeit/")({
   component: ZeitPage,
 });
 
+function formatGpsErr(err: unknown): string {
+  if (err instanceof GpsError) return err.message;
+  if (err instanceof Error) return err.message;
+  return "Unbekannter Fehler.";
+}
+
 function formatDuration(ms: number): string {
   const totalSec = Math.max(0, Math.floor(ms / 1000));
   const h = Math.floor(totalSec / 3600);
