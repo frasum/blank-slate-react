@@ -1918,6 +1918,7 @@ export async function loadCashDayAggregates(
     a.einladung += Number(s.einladung_cents ?? 0);
     a.sonstige += Number(s.sonstige_einnahme_cents ?? 0);
     a.vorschuss += Number(s.vorschuss_cents ?? 0);
+    a.vectronDailyTotal += Number(s.vectron_daily_total_cents ?? 0);
     if (s.business_date === firstDate) {
       a.openingBalance += Number(s.opening_balance_cents ?? 0);
     }
