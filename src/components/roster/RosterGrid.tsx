@@ -3,7 +3,7 @@
 // Paint-Mode-Klicklogik. Service-Schichten nutzen service-marker.ts.
 import * as React from "react";
 import { useDroppable } from "@dnd-kit/core";
-import { ChefHat, UtensilsCrossed, Umbrella, HeartPulse } from "lucide-react";
+import { ChefHat, UtensilsCrossed, Umbrella, HeartPulse, Cake } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -298,6 +298,8 @@ export function RosterGrid({
                       const isUnavailable = unavailableSet.has(`${row.staffId}|${iso}`);
                       const absenceType = absenceMap.get(`${row.staffId}|${iso}`) ?? null;
                       const isAbsent = absenceType !== null;
+                      const isBirthday =
+                        row.dateOfBirth != null && row.dateOfBirth.slice(5, 10) === iso.slice(5, 10);
                       return (
                         <DropCell
                           key={iso}
@@ -312,6 +314,10 @@ export function RosterGrid({
                           hasShift={!!shift}
                           absent={isAbsent}
                           absenceType={absenceType}
+                          birthday={isBirthday}
+                          birthdayLabel={
+                            isBirthday ? `Geburtstag: ${row.displayName}` : null
+                          }
                         >
                           {shift ? (
                             <PillConfirmPopover
@@ -455,6 +461,8 @@ function DropCell({
   hasShift,
   absent,
   absenceType,
+  birthday,
+  birthdayLabel,
   children,
 }: {
   staffId: string;
@@ -468,6 +476,8 @@ function DropCell({
   hasShift: boolean;
   absent: boolean;
   absenceType: "urlaub" | "krank" | null;
+  birthday: boolean;
+  birthdayLabel: string | null;
   children: React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({
@@ -525,6 +535,19 @@ function DropCell({
         </Tooltip>
       ) : null}
       {children}
+      {birthday ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute right-0.5 top-0.5 z-30"
+            >
+              <Cake className="h-3 w-3 text-pink-500" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{birthdayLabel ?? "Geburtstag"}</TooltipContent>
+        </Tooltip>
+      ) : null}
       {showAbsenceCorner ? (
         <Tooltip>
           <TooltipTrigger asChild>
