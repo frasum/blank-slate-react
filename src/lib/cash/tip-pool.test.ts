@@ -10,7 +10,7 @@ function iso(h: number, m = 0): string {
 const participatesAll = (ids: string[]) => new Map(ids.map((id) => [id, true]));
 
 describe("computeTipPool", () => {
-  it("(a) Normalfall: 2 Küche + 2 Service mit unterschiedlichen Stunden", () => {
+  it("(a) Normalfall: 2 Küche + 2 Service mit unterschiedlichen Stunden (Euro-Abrundung)", () => {
     const r = computeTipPool({
       kitchenPoolCents: 10_000,
       servicePoolCents: 30_000,
@@ -30,15 +30,16 @@ describe("computeTipPool", () => {
       staffParticipates: participatesAll(["k1", "k2", "s1", "s2"]),
     });
     const byId = new Map(r.shares.map((s) => [s.staffId, s]));
-    expect(byId.get("k1")!.shareCents).toBe(Math.floor((10_000 * 8) / 12));
-    expect(byId.get("k2")!.shareCents).toBe(Math.floor((10_000 * 4) / 12));
-    expect(byId.get("s1")!.shareCents).toBe(Math.floor((30_000 * 10) / 15));
-    expect(byId.get("s2")!.shareCents).toBe(Math.floor((30_000 * 5) / 15));
+    // Euro-Abrundung: FLOOR(... / 100) * 100
+    expect(byId.get("k1")!.shareCents).toBe(6_600); // 10000*8/12=6666,67 → 6600
+    expect(byId.get("k2")!.shareCents).toBe(3_300); // 10000*4/12=3333,33 → 3300
+    expect(byId.get("s1")!.shareCents).toBe(20_000); // glatt
+    expect(byId.get("s2")!.shareCents).toBe(10_000); // glatt
   });
 
-  it("(b) Rundungsrest bleibt im Pool", () => {
+  it("(b) Rundungsrest bleibt im Pool (Euro)", () => {
     const r = computeTipPool({
-      kitchenPoolCents: 100,
+      kitchenPoolCents: 299,
       servicePoolCents: 0,
       settlements: [],
       timeEntries: [
@@ -54,9 +55,10 @@ describe("computeTipPool", () => {
       staffParticipates: participatesAll(["k1", "k2", "k3"]),
     });
     const sum = r.shares.reduce((s, x) => s + x.shareCents, 0);
-    expect(sum).toBe(99);
-    expect(r.kitchenRemainder).toBe(1);
-    expect(sum + r.kitchenRemainder).toBe(100);
+    // 299/3 = 99,67 Cent → FLOOR auf Euro = 0 pro Person; alles bleibt Rest
+    expect(sum).toBe(0);
+    expect(r.kitchenRemainder).toBe(299);
+    expect(sum + r.kitchenRemainder).toBe(299);
   });
 
   it("(c) participates_in_pool=false wird ausgeschlossen", () => {
@@ -123,6 +125,79 @@ describe("computeTipPool", () => {
     expect(r.shares.every((x) => x.shareCents === 0)).toBe(true);
     expect(r.kitchenRemainder).toBe(1_234);
     expect(r.serviceRemainder).toBe(5_678);
+  });
+});
+
+describe("computeTipPool: Euro-Abrundung der Auszahlung", () => {
+  it("Service 176,73 € / 3 Personen ~gleich → je 58,00 €, Rest 2,73 €", () => {
+    const r = computeTipPool({
+      kitchenPoolCents: 0,
+      servicePoolCents: 17_673,
+      settlements: [],
+      timeEntries: [
+        // 7,12 / 7,13 / 7,13 h
+        { staffId: "a", startedAt: iso(10, 0), endedAt: iso(17, 7, 12) },
+        { staffId: "b", startedAt: iso(10, 0), endedAt: iso(17, 7, 48) },
+        { staffId: "c", startedAt: iso(10, 0), endedAt: iso(17, 7, 48) },
+      ],
+      staffDepartments: new Map<string, "kitchen" | "service" | "gl">([
+        ["a", "service"],
+        ["b", "service"],
+        ["c", "service"],
+      ]),
+      staffParticipates: participatesAll(["a", "b", "c"]),
+    });
+    for (const s of r.shares) expect(s.shareCents).toBe(5_800);
+    expect(r.serviceRemainder).toBe(273);
+  });
+
+  it("Pool 50,99 € / 1 Person → 50,00 €, Rest 99 Cent", () => {
+    const r = computeTipPool({
+      kitchenPoolCents: 0,
+      servicePoolCents: 5_099,
+      settlements: [],
+      timeEntries: [{ staffId: "x", startedAt: iso(10), endedAt: iso(15) }],
+      staffDepartments: new Map<string, "kitchen" | "service" | "gl">([["x", "service"]]),
+      staffParticipates: participatesAll(["x"]),
+    });
+    expect(r.shares).toHaveLength(1);
+    expect(r.shares[0].shareCents).toBe(5_000);
+    expect(r.serviceRemainder).toBe(99);
+  });
+
+  it("Leerer Pool / 0 Stunden: alle shareCents=0, remainder=pool", () => {
+    const r = computeTipPool({
+      kitchenPoolCents: 0,
+      servicePoolCents: 4_242,
+      settlements: [],
+      timeEntries: [],
+      staffDepartments: new Map<string, "kitchen" | "service" | "gl">([["s1", "service"]]),
+      staffParticipates: participatesAll(["s1"]),
+    });
+    expect(r.shares.every((x) => x.shareCents === 0)).toBe(true);
+    expect(r.serviceRemainder).toBe(4_242);
+  });
+
+  it("Küche 100,00 € bei 5 h / 3 h → 62,00 € / 37,00 €, Rest 1,00 €", () => {
+    const r = computeTipPool({
+      kitchenPoolCents: 10_000,
+      servicePoolCents: 0,
+      settlements: [],
+      timeEntries: [
+        { staffId: "k1", startedAt: iso(10), endedAt: iso(15) }, // 5h
+        { staffId: "k2", startedAt: iso(10), endedAt: iso(13) }, // 3h
+      ],
+      staffDepartments: new Map<string, "kitchen" | "service" | "gl">([
+        ["k1", "kitchen"],
+        ["k2", "kitchen"],
+      ]),
+      staffParticipates: participatesAll(["k1", "k2"]),
+    });
+    const byId = new Map(r.shares.map((s) => [s.staffId, s]));
+    // 10000*5/8=6250 → 6200; 10000*3/8=3750 → 3700; Rest=100
+    expect(byId.get("k1")!.shareCents).toBe(6_200);
+    expect(byId.get("k2")!.shareCents).toBe(3_700);
+    expect(r.kitchenRemainder).toBe(100);
   });
 });
 
