@@ -38,17 +38,17 @@ Erst wenn ESLint 0 Fehler und alle Tests grün sind → ABGENOMMEN.
 
 ### Organisation
 
-| ID | organization_id |
-|---|---|
-| | `77838674-26c1-40dd-9b74-eb1041e79b95` |
+| ID  | organization_id                        |
+| --- | -------------------------------------- |
+|     | `77838674-26c1-40dd-9b74-eb1041e79b95` |
 
 ### Standorte (locations)
 
-| Name | location_id |
-|---|---|
+| Name    | location_id                            |
+| ------- | -------------------------------------- |
 | Spicery | `44a99e7e-93be-44b1-89ab-38e364a02ddc` |
-| YUM | `14c2d773-6c5f-4a24-ba00-1c726f277091` |
-| TSB | `7918a4cd-0388-49b3-abfb-8105b8f17815` |
+| YUM     | `14c2d773-6c5f-4a24-ba00-1c726f277091` |
+| TSB     | `7918a4cd-0388-49b3-abfb-8105b8f17815` |
 
 ### Rollen
 
@@ -60,17 +60,17 @@ Immer **26. eines Monats bis einschließlich 25. des Folgemonats**. Label = Mona
 
 ### Skills (skills-Tabelle, je Kategorie)
 
-| Name | Kategorie | Farbe |
-|---|---|---|
-| VS | kitchen | `#bae6fd` |
-| PASS | kitchen | `#fecdd3` |
-| SPÜLEN | kitchen | `#d1fae5` |
-| CO | kitchen | `#fed7aa` |
-| SERVICE | service | `#dbeafe` |
-| BAR | service | `#ede9fe` |
-| 19 Uhr | service | `#99f6e4` |
-| GL | gl | `#ffe4e6` |
-| Hausmeister | other | `#e7e5e4` |
+| Name        | Kategorie | Farbe     |
+| ----------- | --------- | --------- |
+| VS          | kitchen   | `#bae6fd` |
+| PASS        | kitchen   | `#fecdd3` |
+| SPÜLEN      | kitchen   | `#d1fae5` |
+| CO          | kitchen   | `#fed7aa` |
+| SERVICE     | service   | `#dbeafe` |
+| BAR         | service   | `#ede9fe` |
+| 19 Uhr      | service   | `#99f6e4` |
+| GL          | gl        | `#ffe4e6` |
+| Hausmeister | other     | `#e7e5e4` |
 
 ## 5. Alt-System → COCO Mappings (für Daten-Migrationen)
 
@@ -83,25 +83,25 @@ Immer **26. eines Monats bis einschließlich 25. des Folgemonats**. Label = Mona
 
 ### thaitime → COCO Standort-Mapping
 
-| thaitime branch | COCO location |
-|---|---|
-| `spicery 83f56090…` | Spicery |
-| `yum f1229497…` | YUM |
-| `TSB 2b00f500…` | TSB |
+| thaitime branch     | COCO location |
+| ------------------- | ------------- |
+| `spicery 83f56090…` | Spicery       |
+| `yum f1229497…`     | YUM           |
+| `TSB 2b00f500…`     | TSB           |
 
 ### thaitime → COCO Skill-Mapping (Dienstplan)
 
-| thaitime | COCO |
-|---|---|
-| Vorspeise | VS |
-| pass | PASS |
-| spülen | SPÜLEN |
-| Kochen 1, Kochen 2 | CO |
-| Service 1–4 | SERVICE |
-| Bar | BAR |
-| 19 Uhr | 19 Uhr |
-| GL | GL |
-| Hausmeister | Hausmeister |
+| thaitime           | COCO        |
+| ------------------ | ----------- |
+| Vorspeise          | VS          |
+| pass               | PASS        |
+| spülen             | SPÜLEN      |
+| Kochen 1, Kochen 2 | CO          |
+| Service 1–4        | SERVICE     |
+| Bar                | BAR         |
+| 19 Uhr             | 19 Uhr      |
+| GL                 | GL          |
+| Hausmeister        | Hausmeister |
 
 ### Mitarbeiter-Mapping
 
@@ -109,18 +109,18 @@ Immer **26. eines Monats bis einschließlich 25. des Folgemonats**. Label = Mona
 
 ## 6. Aktueller Modul-Status (15.06.2026)
 
-| Modul | Status |
-|---|---|
-| B3 Kasse + B4 Trinkgeld + B5 Tresor | ✅ |
-| B6 Zeitübersicht (Wochenplan/Zusammenfassung/Buchhaltung/Perioden) | ✅ |
-| B7 Perioden (26.–25.) + Import Jan–Sep 2026 | ✅ |
-| B8 Lohnbüro-Rolle (payroll) | ✅ |
-| D1 Dienstplan-Datenmodell + Grid | ✅ |
-| D2a–e Dienstplan editierbar, Realtime, Service-Symbole, Cross-Booking | ✅ |
-| Dienstplan-Migration (4498 Schichten aus thaitime) | ✅ |
-| D3 Öffentliches Display (Token-URL, Auto-Refresh, Rotation, Legende) | ⏳ offen |
-| Brutto/Netto (Lohnberechnung, SFN, Steuerklassen) | ⏳ offen |
-| Provision (wochenbasiert) | ⏳ offen |
+| Modul                                                                 | Status   |
+| --------------------------------------------------------------------- | -------- |
+| B3 Kasse + B4 Trinkgeld + B5 Tresor                                   | ✅       |
+| B6 Zeitübersicht (Wochenplan/Zusammenfassung/Buchhaltung/Perioden)    | ✅       |
+| B7 Perioden (26.–25.) + Import Jan–Sep 2026                           | ✅       |
+| B8 Lohnbüro-Rolle (payroll)                                           | ✅       |
+| D1 Dienstplan-Datenmodell + Grid                                      | ✅       |
+| D2a–e Dienstplan editierbar, Realtime, Service-Symbole, Cross-Booking | ✅       |
+| Dienstplan-Migration (4498 Schichten aus thaitime)                    | ✅       |
+| D3 Öffentliches Display (Token-URL, Auto-Refresh, Rotation, Legende)  | ⏳ offen |
+| Brutto/Netto (Lohnberechnung, SFN, Steuerklassen)                     | ⏳ offen |
+| Provision (wochenbasiert)                                             | ⏳ offen |
 
 **Offen aus B3/B4** (Echtbetrieb-Hebel): Trinkgeld-Pool-Verteilung als eigener Baustein (`useCommissionData`-Logik: Pool/Tag = Σ max(0,(Tagesumsatz − minRevenue × Kellnerzahl) × commissionPct%), Verteilung nach Stunden), B3c-1 manuelles E2E, B3c-2 (Saldo/Export). Hängt an D-M2-1 (Auto-Ausstempeln bei Abrechnungs-Abgabe) — erst damit stempelt das Team in COCO um.
 
@@ -128,14 +128,14 @@ Immer **26. eines Monats bis einschließlich 25. des Folgemonats**. Label = Mona
 
 Quelle der Wahrheit: Legacy `bestellung` (Repo `bestellung-5fff1793`, hat `SYSTEM_BLUEPRINT.md`). In „Wellen" gebaut. Geld = BIGINT cents. Alle Server-Fns Cloudflare-kompatibel (kein Edge-Function, kein SMTP).
 
-| Welle | Inhalt | Status |
-|---|---|---|
-| Welle 1 | Bestell-Kern (9 Tabellen, atomare RPC `create_order_from_cart`, E-Mail via MailerSend) | ✅ LIVE |
-| Welle 2 | Inventur (per-Standort, 2 Lagerorte, Bestandswert) | ✅ LIVE |
-| Welle 3-A/B | Wein-Katalog + Quiz (`category='Wein'`, `wine_quiz_scores`) | ✅ LIVE |
-| Welle 3-C | KI-Weinrecherche (Firecrawl + Perplexity) | ⏳ offen (optional) |
-| Welle 4 | EasyOrder (4-A Schema, 4-B Resolver, 4-C UI, 4-D Verwaltung) | ✅ Code fertig; Live-Deploy 4-B/C/D offen |
-| Stammdaten | 40 Lieferanten + ~1335 Artikel importiert | ✅ LIVE |
+| Welle       | Inhalt                                                                                 | Status                                    |
+| ----------- | -------------------------------------------------------------------------------------- | ----------------------------------------- |
+| Welle 1     | Bestell-Kern (9 Tabellen, atomare RPC `create_order_from_cart`, E-Mail via MailerSend) | ✅ LIVE                                   |
+| Welle 2     | Inventur (per-Standort, 2 Lagerorte, Bestandswert)                                     | ✅ LIVE                                   |
+| Welle 3-A/B | Wein-Katalog + Quiz (`category='Wein'`, `wine_quiz_scores`)                            | ✅ LIVE                                   |
+| Welle 3-C   | KI-Weinrecherche (Firecrawl + Perplexity)                                              | ⏳ offen (optional)                       |
+| Welle 4     | EasyOrder (4-A Schema, 4-B Resolver, 4-C UI, 4-D Verwaltung)                           | ✅ Code fertig; Live-Deploy 4-B/C/D offen |
+| Stammdaten  | 40 Lieferanten + ~1335 Artikel importiert                                              | ✅ LIVE                                   |
 
 **Historischer Bestell-Import (16.06.2026):** 45 abgeschlossene (`confirmed`) Bestellungen + 367 Positionen aus Legacy `bestellung` nach COCO `orders`/`order_items` importiert (alle Standort YUM, Zeitraum Dez 2025–Mai 2026). Einmaliges Direkt-SQL im Supabase-Editor, NICHT als Migration committet (setzt existierende Lieferanten voraus). Mapping: Lieferanten per Name → COCO-ID (12/12, Legacy-UUIDs nicht erhalten); Standort → YUM; Geld → cents; `order_number` original übernommen. Bewusst NICHT mitgenommen: `pending`-Bestellungen (34); `order_items.article_id` bleibt NULL (Legacy-Artikel-IDs existieren in COCO nicht — `article_name`/`sku`/Preise als Text erhalten); `email_sent`/`confirmed_at`/`delivery_date` (nicht im Export). Verifiziert: 45/367. Optionaler Nachzug offen: Artikel-Verlinkung per Name+Lieferant-Match (separates UPDATE-Skript).
 

@@ -3,10 +3,12 @@
 Reine UI-Prüfung gegen die B3b/B3c-1a Server-Functions.
 
 ## Voraussetzungen
+
 - Org mit `kitchen_tip_rate` gesetzt; je ein Login als Admin / Manager / Kellner.
 - Mindestens ein aktiver `revenue_channel` und ein `payment_terminal`.
 
 ## Ablauf
+
 1. Kellner stempelt sich in `/zeit` ein.
 2. Manager öffnet `/admin/kasse` für heute. Falls keine Session offen ist:
    „Session anlegen" → `getOrCreateOpenSession`. Badge zeigt `open`.
@@ -30,6 +32,7 @@ Reine UI-Prüfung gegen die B3b/B3c-1a Server-Functions.
    Begründung (`setCashLock`). Re-Save auf älteren Tag → `CashLockedError`.
 
 ## Negativ-Pfade
+
 - Kellner ruft `/zeit/abrechnung` ohne offene Session → Hinweis, keine
   Eingabe möglich.
 - Doppel-Submit → `idempotent: true`, Toast „bereits abgegeben".
@@ -37,5 +40,6 @@ Reine UI-Prüfung gegen die B3b/B3c-1a Server-Functions.
   harte Prüfung serverseitig in `loadAdminCaller`.
 
 ## Nicht im Scope
+
 - Saldo/Carry-over/CSV/Abgleich → B3c-2.
 - Stammdaten-Pflege Kanäle/Terminals → separater Mini-Commit.
