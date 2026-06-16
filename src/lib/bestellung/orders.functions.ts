@@ -165,6 +165,122 @@ export const cancelOrder = createServerFn({ method: "POST" })
     });
   });
 
+// Welle 1-E (Lieferanten-Katalog): Pro Artikel die jüngste, nicht stornierte
+// Bestellung als (Datum, Menge, Wer). „Wer" wird aus dem Audit-Log gelesen
+// (orders trägt keinen user_id); fehlt der Audit-Eintrag oder der Staff-Name,
+// bleibt orderedBy=null.
+export const getLastOrderByArticle = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, READ_ROLES);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Schritt 1: order_items + orders (jüngste, nicht stornierte zuerst).
+    const { data: rows, error } = await supabaseAdmin
+      .from("order_items")
+      .select(
+        "article_id, quantity, unit, orders!inner(id, created_at, status, organization_id)",
+      )
+      .eq("organization_id", caller.organizationId)
+      .eq("orders.organization_id", caller.organizationId)
+      .neq("orders.status", "cancelled")
+      .not("article_id", "is", null)
+      .order("created_at", { foreignTable: "orders", ascending: false })
+      .limit(2000);
+    if (error) throw error;
+
+    type Row = {
+      article_id: string | null;
+      quantity: number;
+      unit: string | null;
+      orders: { id: string; created_at: string; status: string } | null;
+    };
+    const typed = (rows ?? []) as unknown as Row[];
+
+    const lastByArticle = new Map<
+      string,
+      { orderId: string; date: string; quantity: number; unit: string | null }
+    >();
+    for (const r of typed) {
+      if (!r.article_id || !r.orders) continue;
+      if (lastByArticle.has(r.article_id)) continue;
+      lastByArticle.set(r.article_id, {
+        orderId: r.orders.id,
+        date: r.orders.created_at,
+        quantity: Number(r.quantity),
+        unit: r.unit,
+      });
+    }
+
+    if (lastByArticle.size === 0) {
+      return {} as Record<
+        string,
+        { date: string; quantity: number; unit: string | null; orderedBy: string | null }
+      >;
+    }
+
+    // Schritt 2: Audit-Log → Map orderId → actor_staff_id.
+    // order.create-Einträge enthalten meta.orderIds: string[] (mehrere Orders
+    // pro Cart-Auslösung). Wir scannen die letzten 1000 Einträge der Org und
+    // bauen die Zuordnung in JS.
+    const { data: auditRows, error: aErr } = await supabaseAdmin
+      .from("audit_log")
+      .select("actor_staff_id, meta")
+      .eq("organization_id", caller.organizationId)
+      .eq("entity", "order")
+      .eq("action", "order.create")
+      .order("created_at", { ascending: false })
+      .limit(1000);
+    if (aErr) throw aErr;
+
+    const staffByOrder = new Map<string, string>();
+    for (const a of auditRows ?? []) {
+      if (!a.actor_staff_id) continue;
+      const meta = (a.meta ?? {}) as { orderIds?: unknown };
+      const ids = Array.isArray(meta.orderIds) ? meta.orderIds : [];
+      for (const oid of ids) {
+        if (typeof oid === "string" && !staffByOrder.has(oid)) {
+          staffByOrder.set(oid, a.actor_staff_id);
+        }
+      }
+    }
+
+    // Schritt 3: Staff-Namen für die referenzierten Staff-IDs nachladen.
+    const staffIds = Array.from(new Set(Array.from(staffByOrder.values())));
+    const nameByStaff = new Map<string, string>();
+    if (staffIds.length > 0) {
+      const { data: staffRows, error: sErr } = await supabaseAdmin
+        .from("staff")
+        .select("id, display_name, first_name, last_name")
+        .eq("organization_id", caller.organizationId)
+        .in("id", staffIds);
+      if (sErr) throw sErr;
+      for (const s of staffRows ?? []) {
+        const name =
+          (s.display_name && s.display_name.trim()) ||
+          `${s.first_name ?? ""} ${s.last_name ?? ""}`.trim() ||
+          null;
+        if (name) nameByStaff.set(s.id, name);
+      }
+    }
+
+    const out: Record<
+      string,
+      { date: string; quantity: number; unit: string | null; orderedBy: string | null }
+    > = {};
+    for (const [articleId, info] of lastByArticle.entries()) {
+      const staffId = staffByOrder.get(info.orderId) ?? null;
+      const orderedBy = staffId ? (nameByStaff.get(staffId) ?? null) : null;
+      out[articleId] = {
+        date: info.date,
+        quantity: info.quantity,
+        unit: info.unit,
+        orderedBy,
+      };
+    }
+    return out;
+  });
+
 // Welle 1-D — Mailversand an Lieferanten via MailerSend HTTP-API (kein SMTP,
 // Cloudflare Workers können keine SMTP-Sockets öffnen). Secrets werden INSIDE
 // des Handlers gelesen (Module-Scope process.env ist im Worker undefined).
