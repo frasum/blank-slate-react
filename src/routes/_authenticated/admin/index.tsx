@@ -22,7 +22,13 @@ const CARDS: Card[] = [
     items: "Warenkorb, EasyOrder, Bestellungen, Lieferanten, Artikel, Inventur, Wein",
   },
   { to: "/admin/locations", title: "Stammdaten", items: "Standorte" },
-  { to: "/admin/migration", title: "System", items: "Migration, Zuordnungen", adminOnly: true, muted: true },
+  {
+    to: "/admin/migration",
+    title: "System",
+    items: "Migration, Zuordnungen",
+    adminOnly: true,
+    muted: true,
+  },
 ];
 
 function AdminIndex() {
