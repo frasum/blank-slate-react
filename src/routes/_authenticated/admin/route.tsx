@@ -7,6 +7,7 @@
 import { createFileRoute, Link, Outlet, redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyIdentity } from "@/lib/auth/me.functions";
+import { BrandLockup } from "@/components/brand-lockup";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: async ({ location }) => {
@@ -35,17 +36,29 @@ function AdminLayout() {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
-          <div className="flex items-center gap-6">
-            <Link to="/admin" className="text-sm font-semibold text-foreground">
-              Verwaltung
+        <div className="mx-auto max-w-6xl px-6 pt-3">
+          <div className="flex items-center justify-between pb-2">
+            <div className="flex items-center gap-3">
+              <Link to="/" aria-label="COCO Startseite">
+                <BrandLockup size="sm" />
+              </Link>
+              <span className="text-border" aria-hidden>
+                /
+              </span>
+              <Link to="/admin" className="text-sm font-semibold text-foreground">
+                Verwaltung
+              </Link>
+            </div>
+            <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
+              ← Zurück
             </Link>
-            <nav className="flex items-center gap-4 text-sm">
+          </div>
+          <nav className="flex flex-wrap items-center gap-x-5 gap-y-1 pb-1 text-sm">
               {!isPayroll && (
                 <Link
                   to="/admin/staff"
-                  className="text-muted-foreground hover:text-foreground"
-                  activeProps={{ className: "text-foreground" }}
+                  className="-mb-px border-b-2 border-transparent pb-2 text-muted-foreground transition-colors hover:text-foreground"
+                  activeProps={{ className: "-mb-px border-b-2 border-foreground pb-2 text-foreground" }}
                 >
                   Mitarbeiter
                 </Link>
@@ -53,24 +66,24 @@ function AdminLayout() {
               {!isPayroll && (
                 <Link
                   to="/admin/zeit"
-                  className="text-muted-foreground hover:text-foreground"
-                  activeProps={{ className: "text-foreground" }}
+                  className="-mb-px border-b-2 border-transparent pb-2 text-muted-foreground transition-colors hover:text-foreground"
+                  activeProps={{ className: "-mb-px border-b-2 border-foreground pb-2 text-foreground" }}
                 >
                   Zeit
                 </Link>
               )}
               <Link
                 to="/admin/zeit-uebersicht"
-                className="text-muted-foreground hover:text-foreground"
-                activeProps={{ className: "text-foreground" }}
+                className="-mb-px border-b-2 border-transparent pb-2 text-muted-foreground transition-colors hover:text-foreground"
+                activeProps={{ className: "-mb-px border-b-2 border-foreground pb-2 text-foreground" }}
               >
                 Zeitübersicht
               </Link>
               {!isPayroll && (
                 <Link
                   to="/admin/dienstplan"
-                  className="text-muted-foreground hover:text-foreground"
-                  activeProps={{ className: "text-foreground" }}
+                  className="-mb-px border-b-2 border-transparent pb-2 text-muted-foreground transition-colors hover:text-foreground"
+                  activeProps={{ className: "-mb-px border-b-2 border-foreground pb-2 text-foreground" }}
                 >
                   Dienstplan
                 </Link>
@@ -78,8 +91,8 @@ function AdminLayout() {
               {!isPayroll && (
                 <Link
                   to="/admin/kasse"
-                  className="text-muted-foreground hover:text-foreground"
-                  activeProps={{ className: "text-foreground" }}
+                  className="-mb-px border-b-2 border-transparent pb-2 text-muted-foreground transition-colors hover:text-foreground"
+                  activeProps={{ className: "-mb-px border-b-2 border-foreground pb-2 text-foreground" }}
                 >
                   Kasse
                 </Link>
@@ -87,8 +100,8 @@ function AdminLayout() {
               {!isPayroll && (
                 <Link
                   to="/admin/kasse-saldo"
-                  className="text-muted-foreground hover:text-foreground"
-                  activeProps={{ className: "text-foreground" }}
+                  className="-mb-px border-b-2 border-transparent pb-2 text-muted-foreground transition-colors hover:text-foreground"
+                  activeProps={{ className: "-mb-px border-b-2 border-foreground pb-2 text-foreground" }}
                 >
                   Kassensaldo
                 </Link>
@@ -96,8 +109,8 @@ function AdminLayout() {
               {!isPayroll && (
                 <Link
                   to="/admin/bestellung"
-                  className="text-muted-foreground hover:text-foreground"
-                  activeProps={{ className: "text-foreground" }}
+                  className="-mb-px border-b-2 border-transparent pb-2 text-muted-foreground transition-colors hover:text-foreground"
+                  activeProps={{ className: "-mb-px border-b-2 border-foreground pb-2 text-foreground" }}
                 >
                   Bestellung
                 </Link>
@@ -105,8 +118,8 @@ function AdminLayout() {
               {!isPayroll && (
                 <Link
                   to="/admin/locations"
-                  className="text-muted-foreground hover:text-foreground"
-                  activeProps={{ className: "text-foreground" }}
+                  className="-mb-px border-b-2 border-transparent pb-2 text-muted-foreground transition-colors hover:text-foreground"
+                  activeProps={{ className: "-mb-px border-b-2 border-foreground pb-2 text-foreground" }}
                 >
                   Standorte
                 </Link>
@@ -114,8 +127,8 @@ function AdminLayout() {
               {identity.role === "admin" && (
                 <Link
                   to="/admin/migration"
-                  className="text-muted-foreground hover:text-foreground"
-                  activeProps={{ className: "text-foreground" }}
+                  className="-mb-px border-b-2 border-transparent pb-2 text-muted-foreground transition-colors hover:text-foreground"
+                  activeProps={{ className: "-mb-px border-b-2 border-foreground pb-2 text-foreground" }}
                 >
                   Migration
                 </Link>
@@ -123,17 +136,13 @@ function AdminLayout() {
               {identity.role === "admin" && (
                 <Link
                   to="/admin/import-zuordnungen"
-                  className="text-muted-foreground hover:text-foreground"
-                  activeProps={{ className: "text-foreground" }}
+                  className="-mb-px border-b-2 border-transparent pb-2 text-muted-foreground transition-colors hover:text-foreground"
+                  activeProps={{ className: "-mb-px border-b-2 border-foreground pb-2 text-foreground" }}
                 >
                   Zuordnungen
                 </Link>
               )}
-            </nav>
-          </div>
-          <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
-            ← Zurück
-          </Link>
+          </nav>
         </div>
       </header>
       <main className="mx-auto max-w-6xl px-6 py-8">
