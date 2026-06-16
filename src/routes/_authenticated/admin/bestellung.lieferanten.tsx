@@ -675,6 +675,39 @@ function LieferantenPage() {
           )}
         </DialogContent>
       </Dialog>
+      <Dialog
+        open={!!supplierDialog}
+        onOpenChange={(open) => {
+          if (!open) setSupplierDialog(null);
+        }}
+      >
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>
+              {supplierDialog?.mode === "edit" ? "Lieferant bearbeiten" : "Neuer Lieferant"}
+            </DialogTitle>
+          </DialogHeader>
+          {supplierDialog && (
+            <SupplierForm
+              initial={
+                supplierDialog.mode === "edit" ? supplierDialog.initial : EMPTY_SUPPLIER_DRAFT
+              }
+              submitLabel={supplierDialog.mode === "edit" ? "Speichern" : "Anlegen"}
+              submitting={
+                supplierDialog.mode === "edit" ? updateSupMut.isPending : createSupMut.isPending
+              }
+              onSubmit={(d) => {
+                if (supplierDialog.mode === "edit") {
+                  updateSupMut.mutate({ id: supplierDialog.supplierId, draft: d });
+                } else {
+                  createSupMut.mutate(d);
+                }
+              }}
+              onCancel={() => setSupplierDialog(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
