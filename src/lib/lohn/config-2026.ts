@@ -1,0 +1,56 @@
+/**
+ * Sätze, Beitragsbemessungsgrenzen und sonstige Konstanten 2026.
+ *
+ * Einzige Quelle für die Stufe-1-Module (sv-2026.ts, lohn-core.ts).
+ * Wird in Stufe 2 ggf. in eine config-Tabelle gezogen — bis dahin reicht
+ * diese Datei.
+ */
+
+/** Arbeitnehmer-Beitragssätze (Prozent) 2026. */
+export const SV_SAETZE_2026 = {
+  /** Allgemeiner KV-Satz Arbeitnehmer (ohne Zusatzbeitrag). */
+  KV_AN_PROZENT: 7.3,
+  /** RV-Anteil Arbeitnehmer (allgemein). */
+  RV_AN_PROZENT: 9.3,
+  /** AV-Anteil Arbeitnehmer. */
+  AV_AN_PROZENT: 1.3,
+  /** PV-Basissatz Arbeitnehmer. */
+  PV_AN_BASIS_PROZENT: 1.8,
+  /** Zuschlag für kinderlose Arbeitnehmer ≥23 Jahre (Prozentpunkte). */
+  PV_KINDERLOS_ZUSCHLAG_PP: 0.6,
+  /**
+   * Beitragsabschlag in der PV je Kind ab dem 2. bis einschl. 5. Kind
+   * (Prozentpunkte je Kind).
+   */
+  PV_KIND_ABSCHLAG_PP: 0.25,
+  /**
+   * Minijob: Eigenanteil des Arbeitnehmers zur Rentenversicherung,
+   * berechnet ausschließlich auf den Aushilfe-Zeitlohn.
+   */
+  MINIJOB_RV_AN_PROZENT: 3.6,
+} as const;
+
+/**
+ * Monatliche Beitragsbemessungsgrenzen 2026 in Cent.
+ *
+ * HINWEIS: Diese Werte werden von den drei edlohn-Referenzfällen
+ * (Stand Stufe 1) NICHT berührt — alle Bruttowerte liegen darunter.
+ * Die Konstanten sind als Bestandteil der Konfiguration geführt, gelten
+ * aber als "noch nicht durch Test belegt", bis in Stufe 2/3 entsprechende
+ * Fälle hinzukommen.
+ */
+export const BBG_MONAT_2026_CENT = {
+  /** KV/PV: 5.812,50 € pro Monat. */
+  KV_PV: 581_250,
+  /** RV/AV: 8.450,00 € pro Monat. */
+  RV_AV: 845_000,
+} as const;
+
+/** Kirchensteuersatz Bayern. */
+export const KIRCHENSTEUER_BAYERN_PROZENT = 8;
+
+/**
+ * Standard-Lohnzahlungszeitraum (LZZ) des PAP: 2 = Monat.
+ * Stufe 1 rechnet ausschließlich monatsweise.
+ */
+export const LZZ_MONAT = 2 as const;
