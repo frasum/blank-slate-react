@@ -9,8 +9,8 @@
  */
 
 import Decimal from "decimal.js";
-import type { LohnsteuerInputs, LohnsteuerOutputs, PapInstance } from "./types";
-import { INPUT_DEFAULTS } from "./types";
+import type { LohnsteuerInputs, LohnsteuerOutputs, PapInstance } from "./pap-types";
+import { INPUT_DEFAULTS } from "./pap-types";
 
 export class Pap2026 implements PapInstance {
   // -------------------------------------------------------------------------
