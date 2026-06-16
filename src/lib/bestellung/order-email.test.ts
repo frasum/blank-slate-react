@@ -73,4 +73,22 @@ describe("order-email", () => {
     expect(t).toContain("- Sonderwunsch Kräuter: 2 Bund");
     expect(t).toContain("Gesamt: 12,50 €");
   });
+
+  it("Testmodus: Subject bekommt [TEST]-Präfix", () => {
+    const s = buildOrderEmailSubject(sample, { originalSupplierEmail: "lieferant@example.com" });
+    expect(s.startsWith("[TEST] ")).toBe(true);
+    expect(s).toContain("ORD-2026-06-0001");
+  });
+
+  it("Testmodus: HTML enthält Banner mit Original-Lieferanten-Adresse", () => {
+    const html = buildOrderEmailHtml(sample, { originalSupplierEmail: "lieferant@example.com" });
+    expect(html).toContain("Testbestellung");
+    expect(html).toContain("lieferant@example.com");
+  });
+
+  it("Testmodus: Text enthält Banner mit Original-Lieferanten-Adresse", () => {
+    const t = buildOrderEmailText(sample, { originalSupplierEmail: "lieferant@example.com" });
+    expect(t).toContain("[TEST]");
+    expect(t).toContain("lieferant@example.com");
+  });
 });

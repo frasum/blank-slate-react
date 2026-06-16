@@ -25,6 +25,16 @@ export type OrderEmailData = {
   totalAmountCents: number;
 };
 
+/**
+ * Testmodus-Kontext: wenn gesetzt, wird die Mail mit einem [TEST]-Präfix
+ * und einem Hinweisbanner versendet, der die eigentlich vorgesehene
+ * Lieferanten-Adresse nennt. Der Versand-Helper überschreibt zusätzlich
+ * den `to`-Empfänger.
+ */
+export type TestModeContext = {
+  originalSupplierEmail: string;
+};
+
 function fmtEur(cents: number): string {
   return (
     (cents / 100).toLocaleString("de-DE", {
@@ -47,12 +57,13 @@ function nl2br(s: string): string {
   return escapeHtml(s).replace(/\n/g, "<br />");
 }
 
-export function buildOrderEmailSubject(d: OrderEmailData): string {
+export function buildOrderEmailSubject(d: OrderEmailData, test?: TestModeContext): string {
   const suffix = d.customerNumber ? ` (Kd-Nr. ${d.customerNumber})` : "";
-  return `Neue Bestellung ${d.orderNumber} von ${d.restaurantName}${suffix}`;
+  const prefix = test ? "[TEST] " : "";
+  return `${prefix}Neue Bestellung ${d.orderNumber} von ${d.restaurantName}${suffix}`;
 }
 
-export function buildOrderEmailHtml(d: OrderEmailData): string {
+export function buildOrderEmailHtml(d: OrderEmailData, test?: TestModeContext): string {
   const rows = d.items
     .map((it) => {
       const name = escapeHtml(it.articleName);
@@ -87,6 +98,10 @@ export function buildOrderEmailHtml(d: OrderEmailData): string {
     ? `<div style="margin:16px 0;padding:12px;background:#fff8e1;border-left:3px solid #f59e0b;font-size:13px"><strong>Notiz:</strong><br />${nl2br(d.notes)}</div>`
     : "";
 
+  const testBanner = test
+    ? `<div style="margin:0 0 16px 0;padding:12px;background:#fee2e2;border-left:3px solid #dc2626;font-size:13px;color:#7f1d1d"><strong>Testbestellung</strong> — diese Mail würde regulär an <strong>${escapeHtml(test.originalSupplierEmail)}</strong> gehen. Der Lieferant erhält nichts.</div>`
+    : "";
+
   return `<!doctype html>
 <html lang="de"><head><meta charset="utf-8"></head>
 <body style="margin:0;padding:0;background:#f5f5f5;font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#222">
@@ -99,6 +114,7 @@ export function buildOrderEmailHtml(d: OrderEmailData): string {
           <div style="font-size:13px;opacity:0.8;margin-top:2px">Bestell-Nr. ${escapeHtml(d.orderNumber)}</div>
         </td></tr>
         <tr><td style="padding:16px 24px">
+          ${testBanner}
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0">${meta}</table>
           ${notesBlock}
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:12px;border-top:2px solid #111">
@@ -124,8 +140,14 @@ export function buildOrderEmailHtml(d: OrderEmailData): string {
 </body></html>`;
 }
 
-export function buildOrderEmailText(d: OrderEmailData): string {
+export function buildOrderEmailText(d: OrderEmailData, test?: TestModeContext): string {
   const lines: string[] = [];
+  if (test) {
+    lines.push(
+      `[TEST] Testbestellung — würde regulär an ${test.originalSupplierEmail} gehen. Der Lieferant erhält nichts.`,
+    );
+    lines.push("");
+  }
   lines.push(`Neue Bestellung ${d.orderNumber}`);
   lines.push(`Besteller: ${d.restaurantName || "—"}`);
   lines.push(`Lieferant: ${d.supplierName}`);

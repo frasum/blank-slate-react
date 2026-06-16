@@ -998,6 +998,8 @@ export type Database = {
           order_email_bcc: string | null
           order_email_reply_to: string | null
           organization_id: string
+          test_mode_email: string | null
+          test_mode_enabled: boolean
           time_locked_through_date: string | null
           tip_pool_min_hours: number
           updated_at: string
@@ -1008,6 +1010,8 @@ export type Database = {
           order_email_bcc?: string | null
           order_email_reply_to?: string | null
           organization_id: string
+          test_mode_email?: string | null
+          test_mode_enabled?: boolean
           time_locked_through_date?: string | null
           tip_pool_min_hours?: number
           updated_at?: string
@@ -1018,6 +1022,8 @@ export type Database = {
           order_email_bcc?: string | null
           order_email_reply_to?: string | null
           organization_id?: string
+          test_mode_email?: string | null
+          test_mode_enabled?: boolean
           time_locked_through_date?: string | null
           tip_pool_min_hours?: number
           updated_at?: string

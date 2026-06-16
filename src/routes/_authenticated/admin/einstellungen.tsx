@@ -33,6 +33,8 @@ function OrgSettingsPage() {
   // Tastatureingabe Number-parsiert wird (Komma → Punkt erst beim Speichern).
   const [tipRatePercent, setTipRatePercent] = useState("");
   const [minHours, setMinHours] = useState("");
+  const [testModeEnabled, setTestModeEnabled] = useState(false);
+  const [testModeEmail, setTestModeEmail] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -40,6 +42,8 @@ function OrgSettingsPage() {
     if (!settingsQ.data) return;
     setTipRatePercent((settingsQ.data.kitchenTipRate * 100).toFixed(2));
     setMinHours(settingsQ.data.tipPoolMinHours.toFixed(2));
+    setTestModeEnabled(settingsQ.data.testModeEnabled);
+    setTestModeEmail(settingsQ.data.testModeEmail ?? "");
   }, [settingsQ.data]);
 
   const mutation = useMutation({
@@ -52,8 +56,20 @@ function OrgSettingsPage() {
       if (!Number.isFinite(hours) || hours < 0 || hours > 24) {
         throw new Error("Mindeststunden: 0 bis 24 erlaubt.");
       }
+      const trimmedEmail = testModeEmail.trim();
+      if (testModeEnabled && !trimmedEmail) {
+        throw new Error("Bei aktivem Testmodus ist eine E-Mail-Adresse Pflicht.");
+      }
+      if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+        throw new Error("Test-E-Mail-Adresse ist ungültig.");
+      }
       return callUpdate({
-        data: { kitchenTipRate: rate, tipPoolMinHours: hours },
+        data: {
+          kitchenTipRate: rate,
+          tipPoolMinHours: hours,
+          testModeEnabled,
+          testModeEmail: trimmedEmail === "" ? null : trimmedEmail,
+        },
       });
     },
     onSuccess: async () => {
@@ -142,6 +158,55 @@ function OrgSettingsPage() {
             </button>
           )}
         </form>
+      </section>
+
+      <section className="space-y-4 rounded-lg border border-border bg-card p-5">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">Testmodus Bestellungen</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Solange der Testmodus aktiv ist, gehen <strong>alle</strong> Bestell-E-Mails (inkl.
+            EasyOrder-Auto-Versand) ausschließlich an die hier hinterlegte Adresse. Lieferanten
+            erhalten in diesem Modus nichts.
+          </p>
+        </div>
+
+        <label className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={testModeEnabled}
+            onChange={(e) => setTestModeEnabled(e.target.checked)}
+            disabled={!canEdit}
+            className="h-4 w-4 rounded border-input"
+          />
+          <span className="text-sm text-foreground">Testmodus aktiv</span>
+        </label>
+
+        <label className="block space-y-1">
+          <span className="text-xs font-medium text-muted-foreground">Test-E-Mail-Adresse</span>
+          <input
+            type="email"
+            value={testModeEmail}
+            onChange={(e) => setTestModeEmail(e.target.value)}
+            disabled={!canEdit}
+            placeholder="test@example.com"
+            className="w-full max-w-md rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-60"
+          />
+        </label>
+
+        {canEdit && (
+          <button
+            type="button"
+            disabled={mutation.isPending}
+            onClick={() => {
+              setMsg(null);
+              setErr(null);
+              mutation.mutate();
+            }}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
+            {mutation.isPending ? "Speichern…" : "Speichern"}
+          </button>
+        )}
       </section>
     </div>
   );
