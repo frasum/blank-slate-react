@@ -4,7 +4,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -27,6 +27,7 @@ import { getCashDailyBreakdown, type CashDailyRow } from "@/lib/cash/cash.functi
 import { buildBargeldXlsx } from "@/lib/cash/bargeld-export";
 import { downloadBlob } from "@/lib/time/weekly-export";
 import { formatShortDate } from "@/lib/format-date";
+import { listLocations } from "@/lib/admin/locations.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/kasse-saldo")({
   head: () => ({ meta: [{ title: "Tägliche Bargeldübersicht" }] }),
@@ -91,15 +92,37 @@ function KasseSaldoPage() {
   const now = useMemo(() => new Date(), []);
   const months = useMemo(() => buildMonthOptions(now), [now]);
   const [monthKey, setMonthKey] = useState<string>(months[0].key);
+  const [locationId, setLocationId] = useState<string>("");
 
   const selected = months.find((m) => m.key === monthKey) ?? months[0];
   const { fromDate, toDate } = monthRange(selected.year, selected.month);
   const monthLabel = selected.label;
 
+  const fetchLocations = useServerFn(listLocations);
+  const locationsQ = useQuery({
+    queryKey: ["admin-locations"],
+    queryFn: () => fetchLocations(),
+  });
+
+  // Default: erster Standort (nicht "Alle").
+  useEffect(() => {
+    if (!locationId && locationsQ.data && locationsQ.data.length > 0) {
+      setLocationId(locationsQ.data[0].id);
+    }
+  }, [locationId, locationsQ.data]);
+
+  const locationName = useMemo(() => {
+    if (!locationId) return "Alle Standorte";
+    return locationsQ.data?.find((l) => l.id === locationId)?.name ?? "Standort";
+  }, [locationId, locationsQ.data]);
+
   const fetchBreakdown = useServerFn(getCashDailyBreakdown);
   const q = useQuery({
-    queryKey: ["cash-daily-breakdown", fromDate, toDate],
-    queryFn: () => fetchBreakdown({ data: { fromDate, toDate } }),
+    queryKey: ["cash-daily-breakdown", fromDate, toDate, locationId],
+    queryFn: () =>
+      fetchBreakdown({
+        data: locationId ? { fromDate, toDate, locationId } : { fromDate, toDate },
+      }),
   });
 
   const rows: CashDailyRow[] = useMemo(() => q.data ?? [], [q.data]);
@@ -137,8 +160,10 @@ function KasseSaldoPage() {
   }, [rows]);
 
   async function handleExport() {
-    const blob = await buildBargeldXlsx(rows, monthLabel);
-    downloadBlob(blob, `bargeld_uebersicht_${fromDate}_bis_${toDate}.xlsx`);
+    const label = `${monthLabel} – ${locationName}`;
+    const blob = await buildBargeldXlsx(rows, label);
+    const safe = locationName.replace(/[\s/\\]+/g, "_");
+    downloadBlob(blob, `bargeld_uebersicht_${safe}_${fromDate}_bis_${toDate}.xlsx`);
   }
 
   const bargeldClass = (cents: number) =>
@@ -156,6 +181,22 @@ function KasseSaldoPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-end gap-3">
+          <Select
+            value={locationId || "__all__"}
+            onValueChange={(v) => setLocationId(v === "__all__" ? "" : v)}
+          >
+            <SelectTrigger className="w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Alle Standorte</SelectItem>
+              {(locationsQ.data ?? []).map((l) => (
+                <SelectItem key={l.id} value={l.id}>
+                  {l.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Select value={monthKey} onValueChange={setMonthKey}>
             <SelectTrigger className="w-44">
               <SelectValue />

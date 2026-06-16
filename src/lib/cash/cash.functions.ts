@@ -1823,19 +1823,24 @@ function makeEmptyAgg(): CashDayAgg {
 // getCashLedgerCore. Verhaltensgleich.
 export async function loadCashDayAggregates(
   caller: AdminCaller,
-  data: { fromDate: string; toDate: string },
+  data: { fromDate: string; toDate: string; locationId?: string },
 ): Promise<CashDayAggregates> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-  const { data: sessions, error: sErr } = await supabaseAdmin
+  let sessionQuery = supabaseAdmin
     .from("sessions")
     .select(
       "id, business_date, status, location_id, opening_balance_cents, vouchers_sold_cents, vouchers_redeemed_cents, finedine_vouchers_cents, vorschuss_cents, einladung_cents, sonstige_einnahme_cents, cash_actual_cents, vectron_daily_total_cents",
     )
     .eq("organization_id", caller.organizationId)
     .gte("business_date", data.fromDate)
-    .lte("business_date", data.toDate)
-    .order("business_date", { ascending: true });
+    .lte("business_date", data.toDate);
+  if (data.locationId) {
+    sessionQuery = sessionQuery.eq("location_id", data.locationId);
+  }
+  const { data: sessions, error: sErr } = await sessionQuery.order("business_date", {
+    ascending: true,
+  });
   if (sErr) throw sErr;
   if (!sessions || sessions.length === 0) {
     return { sortedDates: [], firstDate: "", byDate: new Map() };
@@ -2147,18 +2152,22 @@ export const getCashDailyBreakdown = createServerFn({ method: "GET" })
       .object({
         fromDate: z.string().regex(ISO_DATE),
         toDate: z.string().regex(ISO_DATE),
+        locationId: z.string().uuid().optional(),
       })
       .refine((v) => v.fromDate <= v.toDate, { message: "fromDate > toDate" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    if (data.locationId) {
+      await assertLocationInOrg(caller.organizationId, data.locationId);
+    }
     return getCashDailyBreakdownCore(caller, data);
   });
 
 export async function getCashDailyBreakdownCore(
   caller: AdminCaller,
-  data: { fromDate: string; toDate: string },
+  data: { fromDate: string; toDate: string; locationId?: string },
 ): Promise<CashDailyRow[]> {
   const { sortedDates, byDate } = await loadCashDayAggregates(caller, data);
   return sortedDates.map((date) => {
