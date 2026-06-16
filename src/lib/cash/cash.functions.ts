@@ -596,7 +596,7 @@ export const getTipRemainderByPeriod = createServerFn({ method: "GET" })
     const settings = await loadOrgSettings(caller.organizationId);
     const { data: sessions, error } = await supabaseAdmin
       .from("sessions")
-      .select("id, business_date, status, locked_at, location_id")
+      .select("id, business_date, status, locked_at, location_id, tip_pool_settlement_only")
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId)
       .gte("business_date", data.startDate)
