@@ -164,19 +164,6 @@ function LieferantenPage() {
     return m;
   }, [cartQ.data]);
 
-  // Pro Lieferant: aktuelle Warenkorb-Positionen (Anzahl Items + Stückzahl).
-  const cartBySupplier = useMemo(() => {
-    const m = new Map<string, { lines: number; quantity: number }>();
-    for (const it of cartQ.data?.items ?? []) {
-      if (!it.supplier_id) continue;
-      const cur = m.get(it.supplier_id) ?? { lines: 0, quantity: 0 };
-      cur.lines += 1;
-      cur.quantity += it.quantity;
-      m.set(it.supplier_id, cur);
-    }
-    return m;
-  }, [cartQ.data]);
-
   // Artikel pro Lieferant gruppieren + Suche.
   const articlesBySupplier = useMemo(() => {
     const all = articlesQ.data ?? [];
