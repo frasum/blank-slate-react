@@ -319,3 +319,30 @@ export const assignStaffLocations = createServerFn({ method: "POST" })
       };
     });
   });
+
+export const setStaffParticipatesInPool = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({ staffId: z.string().uuid(), participates: z.boolean() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { error } = await supabaseAdmin
+        .from("staff")
+        .update({ participates_in_pool: data.participates })
+        .eq("id", data.staffId)
+        .eq("organization_id", caller.organizationId);
+      if (error) throw error;
+      return {
+        result: { ok: true as const },
+        audit: {
+          action: "staff.set_participates_in_pool",
+          entity: "staff",
+          entityId: data.staffId,
+          meta: { participates: data.participates },
+        },
+      };
+    });
+  });
