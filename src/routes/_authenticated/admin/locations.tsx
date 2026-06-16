@@ -5,8 +5,10 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   createLocation,
   deleteLocation,
+  geocodeLocation,
   listLocations,
   updateLocation,
+  updateLocationGeo,
 } from "@/lib/admin/locations.functions";
 import {
   getDisplaySettings,
@@ -243,6 +245,11 @@ type LocationRowData = {
   phone: string | null;
   contact_name: string | null;
   contact_phone: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  geofence_radius_m?: number | null;
+  geocoded_at?: string | null;
+  geocoded_address?: string | null;
 };
 
 function LocationRow(props: {
