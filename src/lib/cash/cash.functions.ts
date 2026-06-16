@@ -153,6 +153,37 @@ export async function assertStaffBoundToLocation(
   if (!data) throw new StaffLocationNotBoundError(staffId, locationId);
 }
 
+// Stellt sicher, dass `partnerId` in derselben Session nicht bereits als
+// Haupt- oder Partner-Kellner einer anderen aktiven (nicht-superseded)
+// Settlement vorkommt. `excludeSettlementId` schützt den Korrektur-Pfad
+// vor Selbstkollision mit der eigenen, gerade superseded'eten Zeile.
+export async function assertPartnerFree(
+  orgId: string,
+  sessionId: string,
+  primaryStaffId: string,
+  partnerStaffId: string,
+  excludeSettlementId: string | null,
+): Promise<void> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  let q = supabaseAdmin
+    .from("waiter_settlements")
+    .select("id, staff_id, partner_staff_id, status")
+    .eq("organization_id", orgId)
+    .eq("session_id", sessionId)
+    .neq("status", "superseded")
+    .or(
+      `staff_id.eq.${partnerStaffId},partner_staff_id.eq.${partnerStaffId},partner_staff_id.eq.${primaryStaffId}`,
+    );
+  if (excludeSettlementId) q = q.neq("id", excludeSettlementId);
+  const { data, error } = await q.limit(1);
+  if (error) throw error;
+  if (data && data.length > 0) {
+    throw new Error(
+      "Partner-Kellner hat bereits eine aktive Abrechnung in dieser Session oder ist bereits Partner einer anderen Abrechnung.",
+    );
+  }
+}
+
 async function loadSessionWithLock(orgId: string, sessionId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
