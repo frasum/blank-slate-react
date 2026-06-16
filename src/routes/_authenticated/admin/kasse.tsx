@@ -244,6 +244,9 @@ function KassePage() {
         data: {
           sessionId,
           staffId: createSettlement.staffId,
+          partnerStaffId: createSettlement.partnerStaffId
+            ? createSettlement.partnerStaffId
+            : null,
           posSalesCents: pos,
           cardTotalCents: card,
           hilfMahlCents: hilf,
