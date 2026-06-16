@@ -6,6 +6,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { formatShortDateTime } from "@/lib/format-date";
 import {
   Sheet,
   SheetContent,
@@ -354,7 +355,7 @@ export function CartDrawer() {
                         <div>
                           <p className="font-medium text-foreground">{d.name}</p>
                           <p className="text-xs text-muted-foreground">
-                            {new Date(d.updated_at).toLocaleString("de-DE")}
+                            {formatShortDateTime(d.updated_at)}
                           </p>
                         </div>
                         <div className="flex items-center gap-1">
