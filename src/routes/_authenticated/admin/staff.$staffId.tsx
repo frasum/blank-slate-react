@@ -7,6 +7,7 @@ import {
   getStaff,
   setStaffActive,
   setStaffRole,
+  setStaffParticipatesInPool,
   updateStaffBasics,
 } from "@/lib/admin/staff.functions";
 import { listLocations } from "@/lib/admin/locations.functions";
