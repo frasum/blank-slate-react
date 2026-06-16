@@ -33,7 +33,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
 
 type Role = "admin" | "manager" | "payroll";
 
-type SubItem = { to: string; label: string };
+type SubItem = { to: string; label: string; roles?: Role[] };
 type Group = {
   key: string;
   label: string;
@@ -60,10 +60,11 @@ const GROUPS: Group[] = [
     key: "kasse",
     label: "Kasse",
     default: "/admin/kasse",
-    prefixes: ["/admin/kasse", "/admin/kasse-saldo"],
+    prefixes: ["/admin/kasse", "/admin/kasse-saldo", "/admin/trinkgeld-rest"],
     sub: [
       { to: "/admin/kasse", label: "Tagesabschlüsse" },
       { to: "/admin/kasse-saldo", label: "Saldo" },
+      { to: "/admin/trinkgeld-rest", label: "Trinkgeld-Rest", roles: ["admin"] },
     ],
   },
   {
@@ -172,7 +173,9 @@ function AdminLayout() {
               </nav>
               {showSub && (
                 <nav className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border/60 pt-2 text-xs">
-                  {activeGroup!.sub.map((s) => {
+                  {activeGroup!.sub
+                    .filter((s) => !s.roles || s.roles.includes(role))
+                    .map((s) => {
                     const active = pathname === s.to || pathname.startsWith(s.to + "/");
                     return (
                       <Link key={s.to} to={s.to} className={tabClass(active)}>
