@@ -440,6 +440,7 @@ export async function getTipPoolOverviewCore(
 ): Promise<TipPoolResult & { staffNames: Record<string, string>; manualStaffIds: string[] }> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
+  const settings = await loadOrgSettings(caller.organizationId);
 
   const [settlementsRes, timeRes, manualRes] = await Promise.all([
     supabaseAdmin
@@ -554,6 +555,7 @@ export async function getTipPoolOverviewCore(
     timeEntries,
     staffDepartments,
     staffParticipates,
+    minHoursPerDay: settings.tipPoolMinHours,
   });
 
   return { ...result, staffNames, manualStaffIds: Array.from(manualByStaff.keys()) };
