@@ -18,6 +18,7 @@ import {
   listSkills,
   type SkillCategory,
 } from "@/lib/admin/skills.functions";
+import { TabButton } from "@/components/ui/nav-tab";
 
 export const Route = createFileRoute("/_authenticated/admin/staff/$staffId")({
   head: () => ({ meta: [{ title: "Mitarbeiter · Verwaltung" }] }),
