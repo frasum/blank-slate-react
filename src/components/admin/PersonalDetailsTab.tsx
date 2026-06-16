@@ -378,8 +378,7 @@ function CompensationSection({ staffId }: { staffId: string }) {
     mutationFn: () => {
       const trimmed = rate.trim().replace(",", ".");
       const num = trimmed === "" ? null : Number(trimmed);
-      if (num !== null && !Number.isFinite(num))
-        throw new Error("Stundenlohn muss eine Zahl sein");
+      if (num !== null && !Number.isFinite(num)) throw new Error("Stundenlohn muss eine Zahl sein");
       return saveFn({
         data: {
           staffId,
@@ -395,8 +394,7 @@ function CompensationSection({ staffId }: { staffId: string }) {
         queryKey: ["admin", "staff", staffId, "compensation"],
       });
     },
-    onError: (e: unknown) =>
-      setMsg(e instanceof Error ? e.message : "Fehler beim Speichern."),
+    onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler beim Speichern."),
   });
 
   return (
