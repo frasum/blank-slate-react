@@ -181,7 +181,10 @@ function KasseSaldoPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-end gap-3">
-          <Select value={locationId || "__all__"} onValueChange={(v) => setLocationId(v === "__all__" ? "" : v)}>
+          <Select
+            value={locationId || "__all__"}
+            onValueChange={(v) => setLocationId(v === "__all__" ? "" : v)}
+          >
             <SelectTrigger className="w-48">
               <SelectValue />
             </SelectTrigger>
