@@ -748,11 +748,14 @@ export type Database = {
       locations: {
         Row: {
           city: string | null
+          contact_name: string | null
+          contact_phone: string | null
           created_at: string
           delivery_notes: string | null
           id: string
           name: string
           organization_id: string
+          phone: string | null
           postal_code: string | null
           street: string | null
           timezone: string
@@ -760,11 +763,14 @@ export type Database = {
         }
         Insert: {
           city?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
           created_at?: string
           delivery_notes?: string | null
           id?: string
           name: string
           organization_id: string
+          phone?: string | null
           postal_code?: string | null
           street?: string | null
           timezone?: string
@@ -772,11 +778,14 @@ export type Database = {
         }
         Update: {
           city?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
           created_at?: string
           delivery_notes?: string | null
           id?: string
           name?: string
           organization_id?: string
+          phone?: string | null
           postal_code?: string | null
           street?: string | null
           timezone?: string
