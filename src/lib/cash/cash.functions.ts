@@ -438,9 +438,22 @@ export async function getTipPoolOverviewCore(
   caller: AdminCaller,
   data: { sessionId: string },
 ): Promise<TipPoolResult & { staffNames: Record<string, string>; manualStaffIds: string[] }> {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
   const settings = await loadOrgSettings(caller.organizationId);
+  return computeSessionTipPoolCore(caller, session, settings);
+}
+
+type LoadedSession = Awaited<ReturnType<typeof loadSessionWithLock>>;
+type LoadedOrgSettings = Awaited<ReturnType<typeof loadOrgSettings>>;
+
+// Rechnet den Trinkgeld-Pool für eine bereits geladene Session + settings.
+// Reiner Refactor aus getTipPoolOverviewCore — keine Verhaltensänderung.
+async function computeSessionTipPoolCore(
+  caller: AdminCaller,
+  session: LoadedSession,
+  settings: LoadedOrgSettings,
+): Promise<TipPoolResult & { staffNames: Record<string, string>; manualStaffIds: string[] }> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
   const [settlementsRes, timeRes, manualRes] = await Promise.all([
     supabaseAdmin
@@ -560,6 +573,63 @@ export async function getTipPoolOverviewCore(
 
   return { ...result, staffNames, manualStaffIds: Array.from(manualByStaff.keys()) };
 }
+
+// ------------------------------------------------------------------------
+// Admin-Ansicht: aufgelaufener Trinkgeld-Restcent je Geschäftstag
+// ------------------------------------------------------------------------
+
+export const getTipRemainderByPeriod = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        locationId: z.string().uuid(),
+        startDate: z.string().regex(ISO_DATE),
+        endDate: z.string().regex(ISO_DATE),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    await assertLocationInOrg(caller.organizationId, data.locationId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const settings = await loadOrgSettings(caller.organizationId);
+    const { data: sessions, error } = await supabaseAdmin
+      .from("sessions")
+      .select("id, business_date, status, locked_at, location_id")
+      .eq("organization_id", caller.organizationId)
+      .eq("location_id", data.locationId)
+      .gte("business_date", data.startDate)
+      .lte("business_date", data.endDate)
+      .order("business_date", { ascending: true });
+    if (error) throw error;
+
+    const rows: Array<{
+      businessDate: string;
+      kitchenRemainderCents: number;
+      serviceRemainderCents: number;
+    }> = [];
+    let kitchenTotal = 0;
+    let serviceTotal = 0;
+    for (const s of sessions ?? []) {
+      const res = await computeSessionTipPoolCore(caller, s, settings);
+      rows.push({
+        businessDate: s.business_date as string,
+        kitchenRemainderCents: res.kitchenRemainder,
+        serviceRemainderCents: res.serviceRemainder,
+      });
+      kitchenTotal += res.kitchenRemainder;
+      serviceTotal += res.serviceRemainder;
+    }
+    return {
+      rows,
+      totals: {
+        kitchenCents: kitchenTotal,
+        serviceCents: serviceTotal,
+        totalCents: kitchenTotal + serviceTotal,
+      },
+    };
+  });
 
 // ------------------------------------------------------------------------
 // Stammdaten-Reader (Manager+): revenue_channels & payment_terminals
