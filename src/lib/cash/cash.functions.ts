@@ -1758,6 +1758,7 @@ import { computeSafeChain, type SafeDayInput } from "./safe-balance";
 export type CashDayAgg = {
   statuses: Set<string>;
   grossRevenue: number;
+  vectronDailyTotal: number;
   cardTotal: number;
   deliverySouse: number;
   deliveryWolt: number;
@@ -1792,6 +1793,7 @@ function makeEmptyAgg(): CashDayAgg {
   return {
     statuses: new Set(),
     grossRevenue: 0,
+    vectronDailyTotal: 0,
     cardTotal: 0,
     deliverySouse: 0,
     deliveryWolt: 0,
