@@ -1,33 +1,37 @@
 ## Ziel
 
-Im Admin-Bereich `/admin/locations` sollen pro Standort Adresse, Telefonnummer und Kontaktperson (Name + Telefon) gepflegt werden können. Die Adressspalten `street`, `postal_code`, `city`, `delivery_notes` existieren bereits in `public.locations` (bisher nur über `create_order_from_cart` als Lieferadresse genutzt), sind aber im UI nicht editierbar.
+Tote Manager-Korrektur-Server-Functions aus `src/lib/time/time-admin.functions.ts` entfernen (UI ist bereits weg). Reine Code-Bereinigung, keine Migration, keine Schema-Änderung.
 
-## Schritte
+## Datei-Änderungen (nur `src/lib/time/time-admin.functions.ts`)
 
-### 1. Migration: neue Spalten auf `public.locations`
-- `phone text` (Standort-Telefon)
-- `contact_name text` (Kontaktperson)
-- `contact_phone text` (Telefon Kontaktperson)
-- Alle nullable, kein Default. Bestehende Grants/RLS unverändert (Spalten erben Policies).
+### Entfernen — exportierte Functions
+- `listEntriesForCorrection`
+- `getTimeLockSettings`
+- `createManualEntry`
+- `updateTimeEntry`
+- `deleteTimeEntry`
+- `setTimeLock`
 
-### 2. Server-Funktionen `src/lib/admin/locations.functions.ts`
-- `listLocations`: Select um `street, postal_code, city, delivery_notes, phone, contact_name, contact_phone` erweitern.
-- `createLocation`: Optionale Felder im Zod-Schema (`.trim().max(...).optional().nullable()`), leere Strings → `null`. Insert mit den neuen Feldern. Audit-Meta nur mit `name` (keine PII im Audit-Log).
-- `updateLocation`: Gleiches Schema, Update mit allen Feldern. Audit-Meta `{ name }`.
-- Längenlimits: `street` 200, `postal_code` 20, `city` 120, `delivery_notes` 500, `phone`/`contact_phone` 40, `contact_name` 120.
+### Entfernen — private Helfer
+- `entryWriteSchema`
+- `assertOrder`
+- `computeArbzgMeta`
+- ggf. jetzt leerer Abschnitts-Kommentar „Schreiben — Manager (Korrektur) / Admin (Wasserlinie)"
 
-### 3. UI `src/routes/_authenticated/admin/locations.tsx`
-- Anlegen-Formular und Bearbeiten-Zeile um Eingabefelder erweitern: Name, Telefon, Kontaktperson (Name), Kontaktperson (Telefon), Straße, PLZ, Ort, Lieferhinweise.
-- Listenansicht zeigt Adresse + Telefon kompakt unter dem Namen.
-- Keine clientseitige Validierung über Pflichtlängen hinaus; Zod auf dem Server ist die Quelle der Wahrheit.
+### Imports
+- `import { arbzgMinimumBreak, isArbzgShort, grossMinutesBetween } from "./break-rules";` → komplett raus.
+- `import { assertBusinessDateUnlocked, loadTimeLock } from "./time-lock";` → reduzieren auf `import { assertBusinessDateUnlocked } from "./time-lock";` (wird von `setTimeEntryShift`/`createTimeEntryShift` weiterhin gebraucht).
 
-### 4. Tests / Verifikation
-- `bun run typecheck` und `bunx prettier --check .` müssen grün bleiben.
-- Bestehender Test `src/lib/bestellung/create-order-from-cart.db.test.ts` darf nicht brechen (nutzt `street/postal_code/city/delivery_notes`).
-- Manuell: Standort anlegen → bearbeiten → Felder bleiben gespeichert; in der Bestellung erscheint die Adresse weiterhin korrekt als Lieferadresse.
+### Bonus-Fix (mit der Bereinigung mitgenommen)
+- `src/lib/migration/migration.functions.ts:14`: Kommentar-Anspielung auf `setTimeLock` neutralisieren („separater audit_log-Eintrag — hier inline"), damit nach dem Schnitt keine Doku-Drift ins Leere zeigt. Reine Kommentar-Änderung, kein Verhaltens-Effekt.
 
-## Nicht im Scope
+## Nicht anfassen
+- Alle übrigen Functions in `time-admin.functions.ts` (`getTimeOverview`, `listPayrollNotes`, `upsertPayrollNote`, `getWeeklyTimeEntries`, `setTimeEntryShift`, `createTimeEntryShift`, `listPeriods`, `createPeriod`, `togglePeriodLock`, `deletePeriod`).
+- `src/lib/time/break-rules.ts`, `src/lib/time/time-lock.ts`, Tests, Routen, Migrationen, Schema, Audit-Log-Logik der bleibenden Functions.
 
-- Keine Nutzung der neuen `phone`/`contact_*`-Felder an anderen Stellen (Bestellung, Display etc.) — das folgt erst, wenn die konkrete Verwendungsstelle beauftragt wird.
-- Keine Änderungen an `staff_personal_details`, `suppliers` o. ä.
-- Kein Telefon-Format-Parsing; freier Text.
+## Verifikation
+- `bunx prettier --write` + `bun run lint` über die geänderte Datei.
+- `bun run typecheck` → 0 Fehler.
+- `bun run lint` → keine neuen Errors/Warnings.
+- `bunx vitest run` → unverändert grün.
+- `rg -n "listEntriesForCorrection|getTimeLockSettings|createManualEntry|updateTimeEntry|deleteTimeEntry|setTimeLock" src` → keine Treffer mehr.
