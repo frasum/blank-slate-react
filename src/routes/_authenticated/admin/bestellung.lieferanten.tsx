@@ -134,8 +134,11 @@ function LieferantenPage() {
 
   const [showInactive, setShowInactive] = useState(false);
   const [search, setSearch] = useState("");
-  const [createOpen, setCreateOpen] = useState(false);
-  const [editingSupplierId, setEditingSupplierId] = useState<string | null>(null);
+  const [supplierDialog, setSupplierDialog] = useState<
+    | { mode: "create" }
+    | { mode: "edit"; supplierId: string; initial: SupplierDraft }
+    | null
+  >(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [articleDialog, setArticleDialog] = useState<
     | { mode: "create"; supplierId: string }
@@ -232,7 +235,7 @@ function LieferantenPage() {
         },
       }),
     onSuccess: () => {
-      setCreateOpen(false);
+      setSupplierDialog(null);
       setMsg(null);
       return refreshSuppliers();
     },
@@ -258,7 +261,7 @@ function LieferantenPage() {
         },
       }),
     onSuccess: () => {
-      setEditingSupplierId(null);
+      setSupplierDialog(null);
       setMsg(null);
       return refreshSuppliers();
     },
@@ -376,27 +379,18 @@ function LieferantenPage() {
         <div className="ml-auto">
           <button
             onClick={() => {
-              setCreateOpen((v) => !v);
+              setSupplierDialog({ mode: "create" });
               setMsg(null);
             }}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            className="inline-flex items-center gap-1 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
           >
-            {createOpen ? "Abbrechen" : "Neuer Lieferant"}
+            <Plus className="h-4 w-4" />
+            Neuer Lieferant
           </button>
         </div>
       </div>
 
       {msg && <p className="text-sm text-destructive">{msg}</p>}
-
-      {createOpen && (
-        <SupplierForm
-          initial={EMPTY_SUPPLIER_DRAFT}
-          submitLabel="Anlegen"
-          submitting={createSupMut.isPending}
-          onSubmit={(d) => createSupMut.mutate(d)}
-          onCancel={() => setCreateOpen(false)}
-        />
-      )}
 
       {suppliersQ.isLoading && <p className="text-sm text-muted-foreground">Lädt …</p>}
       {!suppliersQ.isLoading && filteredSuppliers.length === 0 && (
@@ -409,7 +403,6 @@ function LieferantenPage() {
         {filteredSuppliers.map((s) => {
           const arts = articlesBySupplier.get(s.id) ?? [];
           const isOpen = effectivelyExpanded.has(s.id);
-          const isEditing = editingSupplierId === s.id;
           return (
             <div key={s.id} className="overflow-hidden rounded-md border border-border bg-card">
               {/* Header */}
@@ -442,8 +435,7 @@ function LieferantenPage() {
                     <Plus className="h-3.5 w-3.5" />
                     Artikel
                   </button>
-                  <button
-                    onClick={() => toggleSupMut.mutate({ id: s.id, isActive: !s.is_active })}
+                  <span
                     className={
                       s.is_active
                         ? "rounded bg-green-100 px-2 py-0.5 text-xs text-green-800 dark:bg-green-900/30 dark:text-green-300"
@@ -451,45 +443,49 @@ function LieferantenPage() {
                     }
                   >
                     {s.is_active ? "aktiv" : "inaktiv"}
-                  </button>
+                  </span>
                   <button
                     onClick={() => {
-                      setEditingSupplierId(isEditing ? null : s.id);
+                      setSupplierDialog({
+                        mode: "edit",
+                        supplierId: s.id,
+                        initial: {
+                          name: s.name,
+                          email: s.email ?? "",
+                          phone: s.phone ?? "",
+                          address: s.address ?? "",
+                          customerNumber: s.customer_number ?? "",
+                          contactPerson: s.contact_person ?? "",
+                          notes: s.notes ?? "",
+                          deliveryDays: s.delivery_days ?? [],
+                          orderDeadline: s.order_deadline ? s.order_deadline.slice(0, 5) : "",
+                          minOrderValueEuro:
+                            s.min_order_value_cents != null
+                              ? (s.min_order_value_cents / 100).toFixed(2).replace(".", ",")
+                              : "",
+                          sortOrder: s.sort_order ?? 0,
+                        },
+                      });
                       setMsg(null);
                     }}
-                    className="rounded border border-input bg-background px-2 py-1 text-xs hover:bg-accent"
+                    className="rounded border border-input bg-background p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                    title="Bearbeiten"
                   >
-                    {isEditing ? "Schließen" : "Bearbeiten"}
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => toggleSupMut.mutate({ id: s.id, isActive: !s.is_active })}
+                    className="rounded border border-input bg-background p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                    title={s.is_active ? "Deaktivieren" : "Aktivieren"}
+                  >
+                    {s.is_active ? (
+                      <Archive className="h-3.5 w-3.5" />
+                    ) : (
+                      <RotateCcw className="h-3.5 w-3.5" />
+                    )}
                   </button>
                 </div>
               </div>
-
-              {isEditing && (
-                <div className="border-t border-border bg-muted/20 px-3 py-4">
-                  <SupplierForm
-                    initial={{
-                      name: s.name,
-                      email: s.email ?? "",
-                      phone: s.phone ?? "",
-                      address: s.address ?? "",
-                      customerNumber: s.customer_number ?? "",
-                      contactPerson: s.contact_person ?? "",
-                      notes: s.notes ?? "",
-                      deliveryDays: s.delivery_days ?? [],
-                      orderDeadline: s.order_deadline ? s.order_deadline.slice(0, 5) : "",
-                      minOrderValueEuro:
-                        s.min_order_value_cents != null
-                          ? (s.min_order_value_cents / 100).toFixed(2).replace(".", ",")
-                          : "",
-                      sortOrder: s.sort_order ?? 0,
-                    }}
-                    submitLabel="Speichern"
-                    submitting={updateSupMut.isPending}
-                    onSubmit={(d) => updateSupMut.mutate({ id: s.id, draft: d })}
-                    onCancel={() => setEditingSupplierId(null)}
-                  />
-                </div>
-              )}
 
               {isOpen && (
                 <div className="border-t border-border">
