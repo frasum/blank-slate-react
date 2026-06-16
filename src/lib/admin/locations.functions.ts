@@ -60,7 +60,7 @@ export const listLocations = createServerFn({ method: "GET" })
     const { data, error } = await supabaseAdmin
       .from("locations")
       .select(
-        "id, name, timezone, street, postal_code, city, delivery_notes, phone, contact_name, contact_phone",
+        "id, name, timezone, street, postal_code, city, delivery_notes, phone, contact_name, contact_phone, latitude, longitude, geofence_radius_m, geocoded_at, geocoded_address",
       )
       .eq("organization_id", caller.organizationId)
       .order("name");
