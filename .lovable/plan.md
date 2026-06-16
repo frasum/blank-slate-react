@@ -1,24 +1,46 @@
+
 ## Ziel
-Die Geburtstags-Markierung im Dienstplan (`/admin/dienstplan`) soll auf einen Blick erkennbar sein: die komplette Tageszelle des Geburtstags-Kindes wird rosa eingefärbt, mit einem größeren, zentrierten Kuchen-Icon — analog zum Urlaub/Krank-Pattern (`HeartPulse`/`Umbrella`).
 
-## Verhalten
-- **Leere Zelle am Geburtstag**: rosa Hintergrund füllt die Zelle, Kuchen-Icon (h-5 w-5) zentriert. Klick öffnet weiterhin den normalen Quick-Popover (Schicht anlegen, Urlaub etc.).
-- **Zelle mit Schicht am Geburtstag**: Schicht-Pille bleibt voll lesbar; rosa Hintergrund liegt dezent dahinter; kleines Kuchen-Icon in der oberen rechten Ecke (wie aktuell).
-- **Wochenend-/Today-Färbung** wird vom rosa Hintergrund überlagert (Geburtstag gewinnt visuell).
-- **Tooltip**: „Geburtstag: {Name}" beim Hover über das Icon (unverändert).
+Fall 2 (Minijob) im `src/lib/lohn/`-Modul auf den Cent korrekt rechnen und die 115 Prettier-Fehler beseitigen. Sonst nichts anfassen.
 
-## Technische Details (nicht-technisch lesbar)
-**Datei**: `src/components/roster/RosterGrid.tsx` — nur `DropCell`.
+## Änderungen
 
-1. Neuen Render-Zweig `showBirthdayFull = birthday && !hasShift && !absent && !showUnavailableBox` hinzufügen — rendert einen `absolute inset-0`-Overlay mit rosa Hintergrund (`bg-pink-500/15` o. ä., konsistent mit bestehenden Tailwind-Tokens) und zentriertem `<Cake className="h-5 w-5 text-pink-600" />`.
-2. Bestehenden Eck-Marker (`birthday ? ... : null`) so anpassen, dass er nur bei `hasShift` angezeigt wird (sonst doppelt mit Vollbild-Variante).
-3. Reihenfolge der Overlays beachten: Unavailable < Birthday-Full < Absence-Full < Children (Pille) < Absence-Corner / Birthday-Corner / Unavailable-Corner. So bleibt Urlaub/Krank weiter dominant, falls beides am selben Tag zusammenträfe (sehr selten).
+### 1. `src/lib/lohn/config-2026.ts`
+In `SV_SAETZE_2026` zwei neue Konstanten ergänzen:
+- `RV_GESAMT_PROZENT: 18.6` — voller RV-Gesamtbeitragssatz (AG+AN), Basis der Minijob-Differenzrechnung.
+- `MINIJOB_AG_PAUSCHAL_RV_PROZENT: 15.0` — AG-Pauschale im Minijob.
 
-**Keine** Änderungen an:
-- `src/lib/roster/roster.functions.ts` (DOB wird bereits geladen)
-- `getStaffForRoster`-Signatur / Server-Logik
-- Empty-Cell-Click-Verhalten (Popover bleibt erreichbar — das rosa Overlay ist `pointer-events-none`)
+Bestehende `MINIJOB_RV_AN_PROZENT: 3.6` bleibt stehen (nur informativ, nicht mehr rechnungsrelevant — als Kommentar markieren).
+
+### 2. `src/lib/lohn/sv-2026.ts`
+In `svBeitraegeMinijob` die `rvCent`-Zeile ersetzen durch die Standard-SV-Differenz-Mechanik in Cent-Ganzzahlen:
+
+```ts
+// AN-RV im Minijob = Gesamt(18,6 %) − AG-Pauschale(15 %), jeweils
+// cent-gerundet (standard-SV-Mechanik), nicht direkt 3,6 % — sonst 1 Cent Abweichung.
+rvCent:
+  roundCent((e.aushilfeZeitlohnCent * SV_SAETZE_2026.RV_GESAMT_PROZENT) / 100) -
+  roundCent(
+    (e.aushilfeZeitlohnCent * SV_SAETZE_2026.MINIJOB_AG_PAUSCHAL_RV_PROZENT) / 100,
+  ),
+```
+
+Rechen-Check (Fall 2, 395,50 €):
+- Gesamt: `round(39550 × 0,186) = 7356` (73,56 €)
+- AG-Pauschale: `round(39550 × 0,15) = round(5932,5) = 5933` (59,33 €)
+- AN-RV = `7356 − 5933 = 1423` (14,23 €) ✓
+
+Keine weiteren Eingriffe — Normalfall-RV (9,3 %), KV/AV/PV, PAP, `lohn-core.ts`, Tests und `edlohn-faelle.json` bleiben unverändert.
+
+### 3. Formatierung
+- `npx prettier --write` über alle Dateien in `src/lib/lohn/` (inkl. `pap-2026/`) und sonst geänderte Dateien.
+- `npx eslint . --fix` danach.
 
 ## Gate
-- `npx tsc --noEmit` 0 Fehler
-- Preview-Check: An einem bekannten Geburtstag (z. B. heute, 17. Juni) ist die Zelle des/der Mitarbeiter:in im Dienstplan rosa mit Kuchen-Icon; Schicht-Pille bleibt sichtbar wenn vorhanden.
+
+- `npx tsc --noEmit` → 0 Fehler
+- `npx eslint . --max-warnings=5` → 0 Fehler (115 Prettier-Fehler weg)
+- `npx vitest run` → grün, alle 3 edlohn-Fälle bitgenau (Fall 2: RV 14,23 / Netto 491,75 / Auszahlung 418,90)
+- `bun.lock` unverändert (keine neuen Deps)
+
+Falls Fall 2 nach der Änderung nicht auf 14,23 kommt: STOPP und melden mit Eingabe/Soll/Ist — nicht weiter drehen.
