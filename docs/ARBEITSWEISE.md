@@ -124,7 +124,7 @@ Immer **26. eines Monats bis einschließlich 25. des Folgemonats**. Label = Mona
 
 **Offen aus B3/B4** (Echtbetrieb-Hebel): Trinkgeld-Pool-Verteilung als eigener Baustein (`useCommissionData`-Logik: Pool/Tag = Σ max(0,(Tagesumsatz − minRevenue × Kellnerzahl) × commissionPct%), Verteilung nach Stunden), B3c-1 manuelles E2E, B3c-2 (Saldo/Export). Hängt an D-M2-1 (Auto-Ausstempeln bei Abrechnungs-Abgabe) — erst damit stempelt das Team in COCO um.
 
-## 7. Modul M5 — Bestellwesen (bestellung.pro-Migration), Stand 15.06.2026
+## 7. Modul M5 — Bestellwesen (bestellung.pro-Migration), Stand 16.06.2026
 
 Quelle der Wahrheit: Legacy `bestellung` (Repo `bestellung-5fff1793`, hat `SYSTEM_BLUEPRINT.md`). In „Wellen" gebaut. Geld = BIGINT cents. Alle Server-Fns Cloudflare-kompatibel (kein Edge-Function, kein SMTP).
 
@@ -136,6 +136,8 @@ Quelle der Wahrheit: Legacy `bestellung` (Repo `bestellung-5fff1793`, hat `SYSTE
 | Welle 3-C | KI-Weinrecherche (Firecrawl + Perplexity) | ⏳ offen (optional) |
 | Welle 4 | EasyOrder (4-A Schema, 4-B Resolver, 4-C UI, 4-D Verwaltung) | ✅ Code fertig; Live-Deploy 4-B/C/D offen |
 | Stammdaten | 40 Lieferanten + ~1335 Artikel importiert | ✅ LIVE |
+
+**Historischer Bestell-Import (16.06.2026):** 45 abgeschlossene (`confirmed`) Bestellungen + 367 Positionen aus Legacy `bestellung` nach COCO `orders`/`order_items` importiert (alle Standort YUM, Zeitraum Dez 2025–Mai 2026). Einmaliges Direkt-SQL im Supabase-Editor, NICHT als Migration committet (setzt existierende Lieferanten voraus). Mapping: Lieferanten per Name → COCO-ID (12/12, Legacy-UUIDs nicht erhalten); Standort → YUM; Geld → cents; `order_number` original übernommen. Bewusst NICHT mitgenommen: `pending`-Bestellungen (34); `order_items.article_id` bleibt NULL (Legacy-Artikel-IDs existieren in COCO nicht — `article_name`/`sku`/Preise als Text erhalten); `email_sent`/`confirmed_at`/`delivery_date` (nicht im Export). Verifiziert: 45/367. Optionaler Nachzug offen: Artikel-Verlinkung per Name+Lieferant-Match (separates UPDATE-Skript).
 
 **EasyOrder-Architektur (wichtig):** Staff bestellt vereinfacht über COCOs bestehenden PIN-Login (`validatePin` → echte Supabase-Session via Shadow-User → RLS greift). KEIN Legacy-bcrypt-Edge-Function-Modell (das war die tagesabrechnung-Lücke: PIN ohne Session → keine RLS). An bestehende `staff` gekoppelt (keine `employees`-Tabelle). Tabellen `staff_easyorder_access` + `staff_easyorder_suppliers` (4-A, live, RLS manager+). 4-B `easyorder.functions.ts`: `staffId` IMMER aus `auth.uid` via `loadAdminCaller`, nie vom Client; alle Permission-Checks server-seitig; nutzt die atomare RPC. 4-D `easyorder-admin.functions.ts`: manager-gated, Cross-Org-Validierung (`assertStaffInOrg`/`assertLocationInOrg`/supplier-count).
 
