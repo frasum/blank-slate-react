@@ -77,6 +77,7 @@ export type RosterStaffRow = {
   displayName: string;
   department: "kitchen" | "service";
   skillIds: string[];
+  dateOfBirth: string | null;
 };
 
 export type RosterCrossBooking = {
