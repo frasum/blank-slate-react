@@ -461,6 +461,8 @@ function DropCell({
   hasShift,
   absent,
   absenceType,
+  birthday,
+  birthdayLabel,
   children,
 }: {
   staffId: string;
@@ -474,6 +476,8 @@ function DropCell({
   hasShift: boolean;
   absent: boolean;
   absenceType: "urlaub" | "krank" | null;
+  birthday: boolean;
+  birthdayLabel: string | null;
   children: React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({
@@ -531,6 +535,19 @@ function DropCell({
         </Tooltip>
       ) : null}
       {children}
+      {birthday ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute right-0.5 top-0.5 z-30"
+            >
+              <Cake className="h-3 w-3 text-pink-500" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{birthdayLabel ?? "Geburtstag"}</TooltipContent>
+        </Tooltip>
+      ) : null}
       {showAbsenceCorner ? (
         <Tooltip>
           <TooltipTrigger asChild>
