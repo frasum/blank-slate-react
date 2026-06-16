@@ -1,7 +1,5 @@
-// B3c-2 — Kassensaldo-Ansicht mit Carry-over und CSV-Export.
-//
-// Reines Lese-UI auf getCashLedger. Saldokette wird serverseitig in
-// cash-ledger.ts berechnet; hier nur Anzeige + Export.
+// Tägliche Bargeldübersicht — pro Tag eigenständig (kein Carry-over),
+// Bargeld serverseitig via computeDailyCash (cash-ledger.ts).
 
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -9,8 +7,13 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -20,138 +23,153 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getCashLedger, type CashLedgerRow } from "@/lib/cash/cash.functions";
+import { getCashDailyBreakdown, type CashDailyRow } from "@/lib/cash/cash.functions";
+import { buildBargeldXlsx } from "@/lib/cash/bargeld-export";
+import { downloadBlob } from "@/lib/time/weekly-export";
 import { formatShortDate } from "@/lib/format-date";
 
 export const Route = createFileRoute("/_authenticated/admin/kasse-saldo")({
-  head: () => ({ meta: [{ title: "Kassensaldo" }] }),
+  head: () => ({ meta: [{ title: "Tägliche Bargeldübersicht" }] }),
   component: KasseSaldoPage,
 });
 
 function fmtEuro(cents: number): string {
-  return (cents / 100).toLocaleString("de-DE", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
-function fmtEuroCsv(cents: number): string {
-  // Dezimalkomma, keine Tausendertrennung (CSV-freundlich).
-  return (cents / 100).toFixed(2).replace(".", ",");
-}
-
-function monthStartIso(d: Date): string {
-  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
-}
-function todayIso(d: Date): string {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).toISOString().slice(0, 10);
-}
-
-function buildCsv(rows: CashLedgerRow[]): string {
-  const header = [
-    "Datum",
-    "Status",
-    "Anfangssaldo",
-    "Einnahmen",
-    "Ausgaben",
-    "Tagessaldo",
-    "Differenz",
-    "Kassenist",
-    "Tresor ±",
-    "Tresorbestand",
-  ].join(";");
-  const body = rows.map((r) =>
-    [
-      r.businessDate,
-      r.status,
-      fmtEuroCsv(r.openingBalanceCents),
-      fmtEuroCsv(r.totalRevenueCents),
-      fmtEuroCsv(r.totalExpensesCents),
-      fmtEuroCsv(r.closingBalanceCents),
-      fmtEuroCsv(r.differenzCents),
-      r.cashActualCents === null ? "" : fmtEuroCsv(r.cashActualCents),
-      r.surplusCents !== null && r.surplusCents > 0
-        ? fmtEuroCsv(r.surplusCents)
-        : r.shortfallCents !== null && r.shortfallCents > 0
-          ? fmtEuroCsv(-r.shortfallCents)
-          : "",
-      fmtEuroCsv(r.safeBalanceCents),
-    ].join(";"),
+  return (
+    (cents / 100).toLocaleString("de-DE", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }) + " €"
   );
-  return "\uFEFF" + [header, ...body].join("\r\n") + "\r\n";
+}
+
+const MONTH_NAMES = [
+  "Januar",
+  "Februar",
+  "März",
+  "April",
+  "Mai",
+  "Juni",
+  "Juli",
+  "August",
+  "September",
+  "Oktober",
+  "November",
+  "Dezember",
+];
+
+type MonthOption = { key: string; label: string; year: number; month: number };
+
+function pad2(n: number): string {
+  return n < 10 ? `0${n}` : String(n);
+}
+
+function buildMonthOptions(now: Date): MonthOption[] {
+  const out: MonthOption[] = [];
+  for (let i = 0; i < 13; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const y = d.getFullYear();
+    const m = d.getMonth();
+    out.push({
+      key: `${y}-${pad2(m + 1)}`,
+      label: `${MONTH_NAMES[m]} ${y}`,
+      year: y,
+      month: m,
+    });
+  }
+  return out;
+}
+
+function monthRange(year: number, month: number): { fromDate: string; toDate: string } {
+  const last = new Date(year, month + 1, 0).getDate();
+  return {
+    fromDate: `${year}-${pad2(month + 1)}-01`,
+    toDate: `${year}-${pad2(month + 1)}-${pad2(last)}`,
+  };
 }
 
 function KasseSaldoPage() {
-  const now = new Date();
-  const [fromDate, setFromDate] = useState<string>(monthStartIso(now));
-  const [toDate, setToDate] = useState<string>(todayIso(now));
+  const now = useMemo(() => new Date(), []);
+  const months = useMemo(() => buildMonthOptions(now), [now]);
+  const [monthKey, setMonthKey] = useState<string>(months[0].key);
 
-  const fetchLedger = useServerFn(getCashLedger);
+  const selected = months.find((m) => m.key === monthKey) ?? months[0];
+  const { fromDate, toDate } = monthRange(selected.year, selected.month);
+  const monthLabel = selected.label;
+
+  const fetchBreakdown = useServerFn(getCashDailyBreakdown);
   const q = useQuery({
-    queryKey: ["cash-ledger", fromDate, toDate],
-    queryFn: () => fetchLedger({ data: { fromDate, toDate } }),
-    enabled: fromDate <= toDate,
+    queryKey: ["cash-daily-breakdown", fromDate, toDate],
+    queryFn: () => fetchBreakdown({ data: { fromDate, toDate } }),
   });
 
-  const rows: CashLedgerRow[] = useMemo(() => q.data ?? [], [q.data]);
+  const rows: CashDailyRow[] = useMemo(() => q.data ?? [], [q.data]);
 
   const totals = useMemo(() => {
-    let rev = 0;
-    let exp = 0;
-    let diff = 0;
+    const t = {
+      tagesumsatz: 0,
+      kreditkarten: 0,
+      souse: 0,
+      wolt: 0,
+      vouchersRedeemed: 0,
+      finedine: 0,
+      vouchersSold: 0,
+      einladung: 0,
+      openInvoices: 0,
+      vorschuss: 0,
+      expenses: 0,
+      bargeld: 0,
+    };
     for (const r of rows) {
-      rev += r.totalRevenueCents;
-      exp += r.totalExpensesCents;
-      diff += r.differenzCents;
+      t.tagesumsatz += r.tagesumsatzCents;
+      t.kreditkarten += r.kreditkartenCents;
+      t.souse += r.deliverySouseCents;
+      t.wolt += r.deliveryWoltCents;
+      t.vouchersRedeemed += r.vouchersRedeemedCents;
+      t.finedine += r.finedineCents;
+      t.vouchersSold += r.vouchersSoldCents;
+      t.einladung += r.einladungCents;
+      t.openInvoices += r.openInvoicesCents;
+      t.vorschuss += r.vorschussCents;
+      t.expenses += r.expensesCents;
+      t.bargeld += r.bargeldCents;
     }
-    return { rev, exp, diff };
+    return t;
   }, [rows]);
 
-  function handleExport() {
-    const csv = buildCsv(rows);
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `kassensaldo_${fromDate}_bis_${toDate}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+  async function handleExport() {
+    const blob = await buildBargeldXlsx(rows, monthLabel);
+    downloadBlob(blob, `bargeld_uebersicht_${fromDate}_bis_${toDate}.xlsx`);
   }
+
+  const bargeldClass = (cents: number) =>
+    "text-right tabular-nums " + (cents < 0 ? "text-destructive" : "text-emerald-600");
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Kassensaldo</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+            Tägliche Bargeldübersicht
+          </h1>
           <p className="text-sm text-muted-foreground">
-            Saldokette mit Carry-over über den gewählten Zeitraum.
+            Bargeld pro Tag eigenständig berechnet (kein Carry-over).
           </p>
         </div>
         <div className="flex flex-wrap items-end gap-3">
-          <div className="space-y-1">
-            <Label htmlFor="from">Von</Label>
-            <Input
-              id="from"
-              type="date"
-              value={fromDate}
-              max={toDate}
-              onChange={(e) => setFromDate(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="to">Bis</Label>
-            <Input
-              id="to"
-              type="date"
-              value={toDate}
-              min={fromDate}
-              onChange={(e) => setToDate(e.target.value)}
-            />
-          </div>
+          <Select value={monthKey} onValueChange={setMonthKey}>
+            <SelectTrigger className="w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {months.map((m) => (
+                <SelectItem key={m.key} value={m.key}>
+                  {m.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button variant="outline" disabled={rows.length === 0} onClick={handleExport}>
-            Export CSV
+            Export Excel
           </Button>
         </div>
       </div>
@@ -165,7 +183,7 @@ function KasseSaldoPage() {
         )}
         {!q.isLoading && !q.isError && rows.length === 0 && (
           <div className="p-6 text-sm text-muted-foreground">
-            Keine Sessions im gewählten Zeitraum.
+            Keine Sessions im gewählten Monat.
           </div>
         )}
         {!q.isLoading && !q.isError && rows.length > 0 && (
@@ -173,82 +191,97 @@ function KasseSaldoPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Datum</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Anfangssaldo</TableHead>
-                <TableHead className="text-right">Einnahmen</TableHead>
+                <TableHead className="text-right">Tagesumsatz</TableHead>
+                <TableHead className="text-right">Kreditkarten</TableHead>
+                <TableHead className="text-right">OrderSmart</TableHead>
+                <TableHead className="text-right">Wolt</TableHead>
+                <TableHead className="text-right">Gutsch. EL</TableHead>
+                <TableHead className="text-right">FineDine</TableHead>
+                <TableHead className="text-right">Gutsch. VK</TableHead>
+                <TableHead className="text-right">Einladung</TableHead>
+                <TableHead className="text-right">Offene RE</TableHead>
+                <TableHead className="text-right">Vorschuss</TableHead>
                 <TableHead className="text-right">Ausgaben</TableHead>
-                <TableHead className="text-right">Tagessaldo</TableHead>
-                <TableHead className="text-right">Kassenist</TableHead>
-                <TableHead className="text-right">Tresor ±</TableHead>
-                <TableHead className="text-right">Tresorbestand</TableHead>
-                <TableHead className="text-right">Differenz</TableHead>
+                <TableHead className="text-right">Bargeld</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((r) => {
-                const negDiff = r.differenzCents < 0;
-                const locked = r.status === "locked";
-                return (
-                  <TableRow
-                    key={r.businessDate}
-                    className={locked ? "italic text-muted-foreground" : undefined}
-                  >
-                     <TableCell>{formatShortDate(r.businessDate)}</TableCell>
-                    <TableCell>{r.status}</TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {fmtEuro(r.openingBalanceCents)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {fmtEuro(r.totalRevenueCents)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {fmtEuro(r.totalExpensesCents)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {fmtEuro(r.closingBalanceCents)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {r.cashActualCents === null ? "—" : fmtEuro(r.cashActualCents)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {r.surplusCents !== null && r.surplusCents > 0 ? (
-                        <span className="text-emerald-600">+{fmtEuro(r.surplusCents)}</span>
-                      ) : r.shortfallCents !== null && r.shortfallCents > 0 ? (
-                        <span className="text-destructive">−{fmtEuro(r.shortfallCents)}</span>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {fmtEuro(r.safeBalanceCents)}
-                    </TableCell>
-                    <TableCell
-                      className={
-                        "text-right tabular-nums" + (negDiff ? " font-medium text-destructive" : "")
-                      }
-                    >
-                      {fmtEuro(r.differenzCents)}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+              {rows.map((r) => (
+                <TableRow key={r.businessDate}>
+                  <TableCell>{formatShortDate(r.businessDate)}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {fmtEuro(r.tagesumsatzCents)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {fmtEuro(r.kreditkartenCents)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {fmtEuro(r.deliverySouseCents)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {fmtEuro(r.deliveryWoltCents)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {fmtEuro(r.vouchersRedeemedCents)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {fmtEuro(r.finedineCents)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {fmtEuro(r.vouchersSoldCents)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {fmtEuro(r.einladungCents)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {fmtEuro(r.openInvoicesCents)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {fmtEuro(r.vorschussCents)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {fmtEuro(r.expensesCents)}
+                  </TableCell>
+                  <TableCell className={bargeldClass(r.bargeldCents)}>
+                    {fmtEuro(r.bargeldCents)}
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
             <TableFooter>
               <TableRow>
-                <TableCell colSpan={3}>Summe</TableCell>
-                <TableCell className="text-right tabular-nums">{fmtEuro(totals.rev)}</TableCell>
-                <TableCell className="text-right tabular-nums">{fmtEuro(totals.exp)}</TableCell>
-                <TableCell />
-                <TableCell />
-                <TableCell />
-                <TableCell />
-                <TableCell
-                  className={
-                    "text-right tabular-nums" +
-                    (totals.diff < 0 ? " font-medium text-destructive" : "")
-                  }
-                >
-                  {fmtEuro(totals.diff)}
+                <TableCell>Summe</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {fmtEuro(totals.tagesumsatz)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {fmtEuro(totals.kreditkarten)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">{fmtEuro(totals.souse)}</TableCell>
+                <TableCell className="text-right tabular-nums">{fmtEuro(totals.wolt)}</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {fmtEuro(totals.vouchersRedeemed)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {fmtEuro(totals.finedine)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {fmtEuro(totals.vouchersSold)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {fmtEuro(totals.einladung)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {fmtEuro(totals.openInvoices)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {fmtEuro(totals.vorschuss)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {fmtEuro(totals.expenses)}
+                </TableCell>
+                <TableCell className={bargeldClass(totals.bargeld)}>
+                  {fmtEuro(totals.bargeld)}
                 </TableCell>
               </TableRow>
             </TableFooter>
