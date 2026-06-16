@@ -16,6 +16,7 @@ import {
   type EasyOrderCatalogArticle,
   type EasyOrderFreeTextInput,
 } from "@/lib/bestellung/easyorder.functions";
+import { getCurrentPosition } from "@/lib/geo/client";
 
 export const Route = createFileRoute("/_authenticated/admin/bestellung/easyorder")({
   head: () => ({ meta: [{ title: "EasyOrder · Bestellung" }] }),
@@ -145,7 +146,10 @@ function EasyOrderCart(props: {
   } | null>(null);
 
   const placeMut = useMutation({
-    mutationFn: (input: Parameters<typeof callPlace>[0]) => callPlace(input),
+    mutationFn: async (input: Parameters<typeof callPlace>[0]) => {
+      const fix = await getCurrentPosition();
+      return callPlace({ data: { ...input.data, geo: fix } });
+    },
     onSuccess: (res) => {
       setSuccessInfo({
         count: res.orderIds.length,
