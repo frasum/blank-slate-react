@@ -178,9 +178,7 @@ export const getLastOrderByArticle = createServerFn({ method: "GET" })
     // Schritt 1: order_items + orders (jüngste, nicht stornierte zuerst).
     const { data: rows, error } = await supabaseAdmin
       .from("order_items")
-      .select(
-        "article_id, quantity, unit, orders!inner(id, created_at, status, organization_id)",
-      )
+      .select("article_id, quantity, unit, orders!inner(id, created_at, status, organization_id)")
       .eq("organization_id", caller.organizationId)
       .eq("orders.organization_id", caller.organizationId)
       .neq("orders.status", "cancelled")
