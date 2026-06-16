@@ -78,27 +78,23 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
+      { title: "COCO – Central Operation Cockpit" },
       {
         name: "description",
-        content:
-          "Betriebsplattform is a React application for managing employee data and time tracking.",
+        content: "COCO · Central Operation Cockpit — Gastronomie-Betriebsplattform.",
       },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
+      { name: "author", content: "COCO" },
+      { property: "og:title", content: "COCO – Central Operation Cockpit" },
       {
         property: "og:description",
-        content:
-          "Betriebsplattform is a React application for managing employee data and time tracking.",
+        content: "COCO · Central Operation Cockpit — Gastronomie-Betriebsplattform.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
-      { name: "twitter:title", content: "Lovable App" },
+      { name: "twitter:title", content: "COCO – Central Operation Cockpit" },
       {
         name: "twitter:description",
-        content:
-          "Betriebsplattform is a React application for managing employee data and time tracking.",
+        content: "COCO · Central Operation Cockpit — Gastronomie-Betriebsplattform.",
       },
       {
         property: "og:image",

@@ -1,55 +1,37 @@
 ## Ziel
 
-Klick auf eine Anf./Ende-Zelle im Wochenplan öffnet **kein** Dialog mehr, sondern macht die Zelle direkt editierbar (HH:MM-Input). Speichern passiert per Enter / Tab / Blur. Dialog wird für den Standard-Fall (max. 1 Schicht pro Tag) komplett ersetzt.
+1. **Brand-Rename:** "Betriebsplattform" → großes **COCO** mit Untertitel *Central Operation Cockpit*. Konsistent auf Home (`/`), Auth-Seite, `<title>` und Admin-Header.
+2. **UI-Polish** für die zwei gezeigten Screens (Home-Hub + Admin/Verwaltung), ohne Funktionsänderung.
 
-## Verhalten
+## Scope (Frontend-only, keine Logik-Änderung)
 
-**Leerer Tag**
-- Klick auf Anf.-Zelle → Input mit Default `15:00`, automatisch fokussiert + markiert.
-- Klick auf Ende-Zelle → Input mit Default `23:00`.
-- Nach Eingabe Anf. + Tab → Cursor springt in die Ende-Zelle (noch kein Save).
-- Sobald **beide** Werte (Anf. und Ende) vorhanden + valide sind und Blur/Enter passiert → `createShiftMut` feuert.
-- Esc verwirft die Eingabe.
+### Brand-Lockup (neue Komponente `src/components/brand-lockup.tsx`)
+- `COCO` in großer, tighter Display-Schrift (`text-5xl md:text-6xl font-black tracking-tight`)
+- Subtitle `Central Operation Cockpit` darunter (`text-xs md:text-sm uppercase tracking-[0.3em] text-muted-foreground`)
+- Größenvariante `sm` für Admin-Header (kleiner, einzeilig: `COCO` + dezenter Subtitle daneben)
 
-**Tag mit genau einer Schicht**
-- Klick auf Anf./Ende → Wert wird zum Input, vorbelegt mit aktuellem Wert.
-- Enter/Blur → `setShiftMut` mit der zugehörigen `id`, dem unveränderten anderen Wert und dem neuen.
-- Esc verwirft.
+### Home (`src/routes/_authenticated/index.tsx`)
+- Headline durch `<BrandLockup size="lg" />` ersetzen
+- Identity-Zeile als dezenten Badge stylen (Pill mit Border, Punkt-Indikator)
+- Buttons: gleiche Breite, etwas mehr `py-3`, sanfte Hover-/Focus-States, subtile Trennung zwischen Haupt-Aktionen (Zeiterfassung/Abrechnung/Verwaltung) und „Abmelden" (kleiner, Ghost-Variante, mit Abstand)
+- Hintergrund: dezenter Radial-Gradient (`bg-background` + sehr leichter Akzent), zentrierte Karte mit `max-w-sm`
 
-**Tag mit mehreren Schichten / Cross-Location**
-- Bleibt **read-only** (kein Inline-Edit, kein Dialog), wie heute bereits durch `findEntries(...).length === 1`-Guard.
+### Admin-Header (`src/routes/_authenticated/admin/...` Layout)
+- Header-Bar: links `<BrandLockup size="sm" />` + Trennstrich + aktueller Bereich („Verwaltung"), rechts „← Zurück"
+- Sub-Nav (Mitarbeiter/Zeit/Zeitübersicht/…) in zweite Zeile mit Underline-Active-State (statt fett+normal)
+- Cards (Mitarbeiter/Standorte): Hover-State (subtle shadow + border-accent), Pfeil-Icon rechts
 
-## Validierung
+### Meta / Tab-Title
+- `<title>` überall auf `COCO – Central Operation Cockpit`
+- Auth-Route Headline ebenfalls Brand-Lockup
 
-- Pattern: `^([01]\d|2[0-3]):[0-5]\d$`. Bei ungültigem Wert: Input rot umranden, kein Save, Toast `Ungültige Uhrzeit`.
-- Datumsteil aus `day.iso` + Zeit → ISO-String wie bisher in `ShiftEditorDialog` zusammengebaut. Logik 1:1 aus dem Dialog (`combineDateTimeISO`) in eine kleine Helper-Fn ziehen, um Doppelung zu vermeiden.
-- Bei `setShift` für eine bestehende Schicht: den nicht-editierten Wert (z. B. `endedAt` beim Bearbeiten von Anf.) aus der Quelle nehmen.
+### Token-Hygiene
+- Keine Hex-Werte / `text-white` etc. – alles über bestehende semantische Tokens in `src/styles.css`. Falls eine sehr dezente Akzent-Variable fehlt, wird sie dort ergänzt (kein Theme-Umbau).
 
-## Tastatur
+## Out of scope
+- Keine Änderung an Routen, Daten, Auth, Logik.
+- Keine neue Farbpalette / Font-Wechsel (Fonts bleiben wie aktuell; falls gewünscht, separater Schritt).
+- Admin-Sub-Seiten (Mitarbeiter-Editor etc.) bleiben unverändert.
 
-- Enter = Save + Blur.
-- Tab = Save (falls Wert sich änderte) + nächste Zelle.
-- Esc = Abbruch ohne Save.
-
-## UI-Details
-
-- Inputs: `w-[58px] h-7 text-center font-mono text-sm`, Border `border-primary/40`, Hintergrund passend zur Zelle (Sonntag/Feiertag-Bg beibehalten).
-- Während laufender Mutation: Input disabled + Opacity 60 %.
-- Hover-Affordance (`+` Symbol) bleibt für leere Zellen erhalten.
-
-## Code-Änderungen (eine Datei)
-
-`src/routes/_authenticated/admin/zeit-uebersicht.tsx`:
-
-1. **`WeeklyPlan`** — neuen lokalen Zellen-State (`editingKey: \`${staffId}|${iso}|from|to\``, plus Draft-Werte `from`/`to` pro Zeile-Tag). Render-Logik in `renderShift` ersetzen: wenn `editingKey` matched → `<input>` statt Text.
-2. **Save-Hooks** — `WeeklyPlan` bekommt zusätzliche Props `onCreateInline(staffId, locationId, iso, from, to)` und `onUpdateInline(id, iso, from, to)`. Im Parent (`ZeitUebersichtPage`) mit den bestehenden `createShiftMut`/`setShiftMut` verdrahten.
-3. **Helper** — `combineDateTimeISO(iso, hhmm)` und `isValidHHMM` aus `ShiftEditorDialog` an das Modul-Top-Level ziehen, damit beide Stellen sie nutzen können.
-4. **`onCreate` / `onEdit` Props** — bleiben für eventuelle Spezialfälle bestehen, werden aus dem Klick-Handler aber entfernt (`handleClick` löst nur noch das Inline-Editing aus). Wenn `found.length > 1` → Klick macht nichts (read-only).
-5. **`ShiftEditorDialog`** — bleibt im File für zukünftige Wiederverwendung, wird aber nicht mehr gemountet (`<ShiftEditorDialog … />` wird entfernt, `editor`-State + Import-Block aufräumen). Falls du den Dialog behalten möchtest, sag Bescheid — ich kann ihn als "Erweitert"-Eintrag in einem Hover-Menü lassen.
-
-## Nicht im Scope
-
-- Multi-Schicht-Editor (mehrere Schichten pro Tag).
-- Verschieben von Schichten zwischen Standorten.
-- Pause/Notiz-Eingabe in der Grid-Zelle.
-- Backend / Server-Funktionen (unverändert).
+## Offene Frage (optional)
+Falls du **eigene Schrift/Farbpalette** für COCO willst (z. B. Display-Font für das Logo, Akzentfarbe), sag Bescheid – sonst bleibe ich beim aktuellen System.
