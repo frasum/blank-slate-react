@@ -199,6 +199,17 @@ export const getStaffForRoster = createServerFn({ method: "GET" })
       skillsByStaff.set(k, arr);
     }
 
+    const { data: dobRows, error: dErr } = await supabaseAdmin
+      .from("staff_personal_details")
+      .select("staff_id, date_of_birth")
+      .eq("organization_id", caller.organizationId)
+      .in("staff_id", staffIds.length > 0 ? staffIds : ["00000000-0000-0000-0000-000000000000"]);
+    if (dErr) throw dErr;
+    const dobByStaff = new Map<string, string | null>();
+    for (const r of dobRows ?? []) {
+      dobByStaff.set(r.staff_id as string, (r.date_of_birth as string | null) ?? null);
+    }
+
     return (rows ?? [])
       .filter((r) => {
         const s = r.staff as { is_active: boolean } | null;
@@ -212,6 +223,7 @@ export const getStaffForRoster = createServerFn({ method: "GET" })
             ? ("kitchen" as const)
             : ("service" as const),
         skillIds: skillsByStaff.get(r.staff_id as string) ?? [],
+        dateOfBirth: dobByStaff.get(r.staff_id as string) ?? null,
       }))
       .filter((row, idx, arr) => {
         // Dedupe auf (staffId, mappedArea): gl+service desselben Mitarbeiters → 1 Service-Zeile
