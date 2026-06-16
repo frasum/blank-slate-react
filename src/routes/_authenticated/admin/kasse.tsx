@@ -941,7 +941,14 @@ function SettlementsCard({
             const superseded = r.status === "superseded";
             return (
               <TableRow key={r.id} className={superseded ? "opacity-50" : ""}>
-                <TableCell>{r.staffName}</TableCell>
+                <TableCell>
+                  {r.staffName}
+                  {r.partner_staff_id && (
+                    <Badge variant="secondary" className="ml-2">
+                      Paar
+                    </Badge>
+                  )}
+                </TableCell>
                 <TableCell className="text-right font-mono">
                   {fmtCents(Number(r.pos_sales_cents))}
                 </TableCell>
