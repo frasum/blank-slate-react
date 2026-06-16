@@ -289,7 +289,7 @@ function LieferantenPage() {
         },
       }),
     onSuccess: () => {
-      setAddingArticleFor(null);
+      setArticleDialog(null);
       setMsg(null);
       return refreshArticles();
     },
@@ -314,7 +314,7 @@ function LieferantenPage() {
         },
       }),
     onSuccess: () => {
-      setEditingArticleId(null);
+      setArticleDialog(null);
       setMsg(null);
       return refreshArticles();
     },
@@ -432,6 +432,17 @@ function LieferantenPage() {
                 </span>
                 <div className="ml-auto flex items-center gap-2">
                   <button
+                    onClick={() => {
+                      setArticleDialog({ mode: "create", supplierId: s.id });
+                      setMsg(null);
+                    }}
+                    className="inline-flex items-center gap-1 rounded border border-input bg-background px-2 py-1 text-xs hover:bg-accent"
+                    title="Neuen Artikel anlegen"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Artikel
+                  </button>
+                  <button
                     onClick={() => toggleSupMut.mutate({ id: s.id, isActive: !s.is_active })}
                     className={
                       s.is_active
@@ -501,10 +512,8 @@ function LieferantenPage() {
                         {arts.map((a) => {
                           const cart = cartByArticle.get(a.id);
                           const last = lastOrderQ.data?.[a.id];
-                          const isArtEditing = editingArticleId === a.id;
                           return (
-                            <Fragment key={a.id}>
-                              <tr className="border-t border-border align-top">
+                            <tr key={a.id} className="border-t border-border align-top">
                                 <td className="px-3 py-2">
                                   <div className="flex items-center gap-1">
                                     <button
@@ -580,87 +589,96 @@ function LieferantenPage() {
                                   <div className="flex items-center justify-end gap-1">
                                     <button
                                       onClick={() =>
-                                        setEditingArticleId(isArtEditing ? null : a.id)
+                                        setArticleDialog({
+                                          mode: "edit",
+                                          supplierId: s.id,
+                                          articleId: a.id,
+                                          initial: {
+                                            name: a.name,
+                                            sku: a.sku ?? "",
+                                            description: a.description ?? "",
+                                            category: a.category ?? "",
+                                            unit: a.unit,
+                                            priceEuro:
+                                              a.price_cents != null
+                                                ? (a.price_cents / 100)
+                                                    .toFixed(2)
+                                                    .replace(".", ",")
+                                                : "",
+                                            packagingUnit:
+                                              a.packaging_unit?.toString() ?? "",
+                                          },
+                                        })
                                       }
-                                      className="rounded border border-input bg-background px-2 py-1 text-xs hover:bg-accent"
+                                      className="rounded border border-input bg-background p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                                      title="Bearbeiten"
                                     >
-                                      {isArtEditing ? "Schließen" : "Bearbeiten"}
+                                      <Pencil className="h-3.5 w-3.5" />
                                     </button>
                                     <button
                                       onClick={() =>
                                         toggleArtMut.mutate({ id: a.id, isActive: !a.is_active })
                                       }
-                                      className="rounded border border-input bg-background px-2 py-1 text-xs hover:bg-accent"
+                                      className="rounded border border-input bg-background p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
                                       title={a.is_active ? "Deaktivieren" : "Aktivieren"}
                                     >
-                                      {a.is_active ? "🗑" : "↺"}
+                                      {a.is_active ? (
+                                        <Archive className="h-3.5 w-3.5" />
+                                      ) : (
+                                        <RotateCcw className="h-3.5 w-3.5" />
+                                      )}
                                     </button>
                                   </div>
                                 </td>
                               </tr>
-                              {isArtEditing && (
-                                <tr className="border-t border-border bg-muted/20">
-                                  <td colSpan={7} className="px-3 py-4">
-                                    <ArticleForm
-                                      initial={{
-                                        name: a.name,
-                                        sku: a.sku ?? "",
-                                        description: a.description ?? "",
-                                        category: a.category ?? "",
-                                        unit: a.unit,
-                                        priceEuro:
-                                          a.price_cents != null
-                                            ? (a.price_cents / 100).toFixed(2).replace(".", ",")
-                                            : "",
-                                        packagingUnit: a.packaging_unit?.toString() ?? "",
-                                      }}
-                                      submitLabel="Speichern"
-                                      submitting={updateArtMut.isPending}
-                                      onSubmit={(d) =>
-                                        updateArtMut.mutate({
-                                          articleId: a.id,
-                                          supplierId: s.id,
-                                          draft: d,
-                                        })
-                                      }
-                                      onCancel={() => setEditingArticleId(null)}
-                                    />
-                                  </td>
-                                </tr>
-                              )}
-                            </Fragment>
                           );
                         })}
                       </tbody>
                     </table>
                   )}
-                  <div className="border-t border-border bg-muted/10 px-3 py-2">
-                    {addingArticleFor === s.id ? (
-                      <ArticleForm
-                        initial={EMPTY_ARTICLE_DRAFT}
-                        submitLabel="Anlegen"
-                        submitting={createArtMut.isPending}
-                        onSubmit={(d) => createArtMut.mutate({ supplierId: s.id, draft: d })}
-                        onCancel={() => setAddingArticleFor(null)}
-                      />
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setAddingArticleFor(s.id);
-                          setMsg(null);
-                        }}
-                        className="text-sm text-primary hover:underline"
-                      >
-                        + Neuer Artikel
-                      </button>
-                    )}
-                  </div>
                 </div>
               )}
             </div>
           );
         })}
       </div>
+      <Dialog
+        open={!!articleDialog}
+        onOpenChange={(open) => {
+          if (!open) setArticleDialog(null);
+        }}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {articleDialog?.mode === "edit" ? "Artikel bearbeiten" : "Neuer Artikel"}
+            </DialogTitle>
+          </DialogHeader>
+          {articleDialog && (
+            <ArticleForm
+              initial={
+                articleDialog.mode === "edit" ? articleDialog.initial : EMPTY_ARTICLE_DRAFT
+              }
+              submitLabel={articleDialog.mode === "edit" ? "Speichern" : "Anlegen"}
+              submitting={
+                articleDialog.mode === "edit" ? updateArtMut.isPending : createArtMut.isPending
+              }
+              onSubmit={(d) => {
+                if (articleDialog.mode === "edit") {
+                  updateArtMut.mutate({
+                    articleId: articleDialog.articleId,
+                    supplierId: articleDialog.supplierId,
+                    draft: d,
+                  });
+                } else {
+                  createArtMut.mutate({ supplierId: articleDialog.supplierId, draft: d });
+                }
+              }}
+              onCancel={() => setArticleDialog(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
