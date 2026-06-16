@@ -19,7 +19,7 @@ function BestellungLayout() {
       <nav className="flex flex-wrap items-center gap-4 border-b border-border text-sm">
         <SubLink to="/admin/bestellung/easyorder">EasyOrder</SubLink>
         <SubLink to="/admin/bestellung/easyorder-verwaltung">EasyOrder-Verwaltung</SubLink>
-        <SubLink to="/admin/bestellung/bestellungen">Bestellungen</SubLink>
+        <SubLink to="/admin/bestellung/bestellungen">Bestellhistorie</SubLink>
         <SubLink to="/admin/bestellung/lieferanten">Lieferanten</SubLink>
         <SubLink to="/admin/bestellung/inventur">Inventur</SubLink>
         <SubLink to="/admin/bestellung/wein">Wein</SubLink>

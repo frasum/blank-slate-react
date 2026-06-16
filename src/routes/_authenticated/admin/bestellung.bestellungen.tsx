@@ -14,7 +14,7 @@ import {
 import { listSuppliers } from "@/lib/bestellung/suppliers.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/bestellung/bestellungen")({
-  head: () => ({ meta: [{ title: "Bestellungen · Bestellung" }] }),
+  head: () => ({ meta: [{ title: "Bestellhistorie · Bestellung" }] }),
   component: BestellungenPage,
 });
 
