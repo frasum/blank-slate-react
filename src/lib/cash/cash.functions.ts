@@ -2163,10 +2163,13 @@ export async function getCashDailyBreakdownCore(
   const { sortedDates, byDate } = await loadCashDayAggregates(caller, data);
   return sortedDates.map((date) => {
     const a = byDate.get(date)!;
-    const day = aggToDayInput(date, a);
+    const day: DayInput = {
+      ...aggToDayInput(date, a),
+      grossRevenueCents: a.vectronDailyTotal,
+    };
     return {
       businessDate: date,
-      tagesumsatzCents: a.grossRevenue,
+      tagesumsatzCents: a.vectronDailyTotal,
       kreditkartenCents: a.cardTotal,
       deliverySouseCents: a.deliverySouse,
       deliveryWoltCents: a.deliveryWolt,
