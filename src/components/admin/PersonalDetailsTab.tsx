@@ -79,6 +79,27 @@ function fmt(val: string | boolean | null): string {
   return val;
 }
 
+/** Berechnet "X Jahre, Y Monate" zwischen zwei Daten (oder heute). */
+function formatDuration(startIso: string, endIso: string | null): string {
+  const start = new Date(startIso);
+  if (Number.isNaN(start.getTime())) return "";
+  const end = endIso ? new Date(endIso) : new Date();
+  if (Number.isNaN(end.getTime())) return "";
+  if (end < start) return "";
+  let years = end.getFullYear() - start.getFullYear();
+  let months = end.getMonth() - start.getMonth();
+  if (end.getDate() < start.getDate()) months -= 1;
+  if (months < 0) {
+    years -= 1;
+    months += 12;
+  }
+  const y = years === 1 ? "1 Jahr" : `${years} Jahre`;
+  const m = months === 1 ? "1 Monat" : `${months} Monate`;
+  if (years === 0) return m;
+  if (months === 0) return y;
+  return `${y}, ${m}`;
+}
+
 export function PersonalDetailsTab({ staffId, canEdit }: Props) {
   const queryClient = useQueryClient();
   const fetchFn = useServerFn(getStaffPersonalDetails);
@@ -238,11 +259,21 @@ export function PersonalDetailsTab({ staffId, canEdit }: Props) {
                 isSensitive && !revealed.has(row.key)
                   ? mask(typeof rawVal === "string" ? rawVal : null, k)
                   : fmt(rawVal);
+              const durationLine =
+                row.key === "employment_start_date" && typeof rawVal === "string" && rawVal
+                  ? formatDuration(
+                      rawVal,
+                      typeof form?.employment_end_date === "string"
+                        ? form.employment_end_date
+                        : null,
+                    )
+                  : "";
               return (
-                <div key={row.key} className="flex items-baseline justify-between gap-3 text-sm">
-                  <span className="text-muted-foreground">{row.label}</span>
-                  <span className="flex items-center gap-2 text-right text-foreground">
-                    <span>{display}</span>
+                <div key={row.key} className="space-y-0.5">
+                  <div className="flex items-baseline justify-between gap-3 text-sm">
+                    <span className="text-muted-foreground">{row.label}</span>
+                    <span className="flex items-center gap-2 text-right text-foreground">
+                      <span>{display}</span>
                     {isSensitive && rawVal && (
                       <button
                         type="button"
@@ -257,7 +288,14 @@ export function PersonalDetailsTab({ staffId, canEdit }: Props) {
                         {revealed.has(row.key) ? "Verbergen" : "Einblenden"}
                       </button>
                     )}
-                  </span>
+                    </span>
+                  </div>
+                  {durationLine && (
+                    <div className="flex items-baseline justify-between gap-3 text-xs text-muted-foreground">
+                      <span></span>
+                      <span>seit {durationLine}</span>
+                    </div>
+                  )}
                 </div>
               );
             })}
