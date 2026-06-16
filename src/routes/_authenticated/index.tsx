@@ -6,8 +6,8 @@ import { BrandLockup } from "@/components/brand-lockup";
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
     meta: [
-      { title: "COCO – Central Operation Cockpit" },
-      { name: "description", content: "COCO · Central Operation Cockpit" },
+      { title: "COCO – Central Operations Cockpit" },
+      { name: "description", content: "COCO · Central Operations Cockpit" },
     ],
   }),
   component: Index,
