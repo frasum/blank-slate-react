@@ -36,7 +36,12 @@ export function computeTipTotalCents(
     //   hilf_mahl wird zusätzlich abgezogen (Mitarbeiteressen mindert Trinkgeld).
     //   Verhindert künstlich negative Pools bei hohen offenen Rechnungen.
     (s, x) =>
-      s + x.cardTotalCents + x.cashHandedInCents + x.openInvoicesCents - x.posSalesCents - x.hilfMahlCents,
+      s +
+      x.cardTotalCents +
+      x.cashHandedInCents +
+      x.openInvoicesCents -
+      x.posSalesCents -
+      x.hilfMahlCents,
     0,
   );
 }
