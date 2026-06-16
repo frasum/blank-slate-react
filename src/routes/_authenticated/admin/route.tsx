@@ -176,13 +176,13 @@ function AdminLayout() {
                   {activeGroup!.sub
                     .filter((s) => !s.roles || s.roles.includes(role))
                     .map((s) => {
-                    const active = pathname === s.to || pathname.startsWith(s.to + "/");
-                    return (
-                      <Link key={s.to} to={s.to} className={tabClass(active)}>
-                        {s.label}
-                      </Link>
-                    );
-                  })}
+                      const active = pathname === s.to || pathname.startsWith(s.to + "/");
+                      return (
+                        <Link key={s.to} to={s.to} className={tabClass(active)}>
+                          {s.label}
+                        </Link>
+                      );
+                    })}
                 </nav>
               )}
             </>
