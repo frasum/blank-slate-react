@@ -244,6 +244,7 @@ export async function performClockOut(
   caller: Caller,
   breakMinutes: number,
   extraMeta: Record<string, unknown> = {},
+  geoFix?: { latitude: number; longitude: number; accuracyM: number },
 ): Promise<{ id: string; startedAt: string; endedAt: string } | null> {
   const open = await loadOpenEntry(caller.staffId);
   const now = new Date();
@@ -254,6 +255,26 @@ export async function performClockOut(
   }
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  // Geofence-Check NUR für UI-Stempelungen (geoFix mitgegeben). Interne
+  // Aufrufer (z. B. Abrechnungs-Auto-Out) übergeben keinen Fix und werden
+  // nicht geprüft, weil das System dort selbständig schliesst.
+  let distanceM: number | null = null;
+  if (geoFix) {
+    if (!open!.locationId) {
+      throw new Error(
+        "Offener Eintrag hat keinen Standort hinterlegt — Geofence kann nicht geprüft werden.",
+      );
+    }
+    const geo = await assertWithinFence({
+      admin: supabaseAdmin,
+      organizationId: caller.organizationId,
+      locationId: open!.locationId,
+      fix: geoFix,
+    });
+    distanceM = geo.decision.ok ? geo.decision.distanceM : null;
+  }
+
   const { data: updated, error } = await supabaseAdmin
     .from("time_entries")
     .update({ ended_at: now.toISOString(), break_minutes: breakMinutes })
@@ -280,6 +301,14 @@ export async function performClockOut(
       grossMinutes: gross,
       arbzgRecommended: arbzgMinimumBreak(gross),
       arbzgShort,
+      geo: geoFix
+        ? {
+            lat: geoFix.latitude,
+            lng: geoFix.longitude,
+            accuracyM: geoFix.accuracyM,
+            distanceM,
+          }
+        : null,
       ...extraMeta,
     },
   });
