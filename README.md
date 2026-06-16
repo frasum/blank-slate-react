@@ -35,19 +35,19 @@ bun run format:write  # Prettier-Drift beheben
 `.prettierignore` schließt bewusst diese Pfade aus — Änderungen bitte
 begründen:
 
-| Eintrag | Grund |
-| --- | --- |
-| `node_modules` | Abhängigkeiten, nicht unser Code. |
-| `dist`, `dist-ssr/`, `.output`, `.vinxi`, `.nitro/`, `.tanstack/`, `.wrangler/` | Build- / SSR- / Cloudflare-Output, vollständig generiert. |
-| `pnpm-lock.yaml`, `package-lock.json`, `bun.lock` | Lockfiles, vom Package-Manager verwaltet. |
-| `routeTree.gen.ts` | Wird vom TanStack-Router-Plugin geschrieben. |
-| `src/integrations/supabase/types.ts` | Wird von `supabase gen types` geschrieben. |
-| `.lovable/` | Plan- und Session-Dateien des Lovable-Agents, regelmäßig überschrieben. |
-| `.env`, `.env.*.local`, `.dev.vars` | Geheime/lokale Konfiguration — nie formatieren, nie committen. |
-| `*.csv` | Datendumps; Personaldaten/CSVs gehören nicht ins Repo (Lektion `thaitime`). |
-| `coverage/` | Vitest-Coverage-Output. |
-| `logs/`, `*.log` | Laufzeitlogs. |
-| `.DS_Store` | macOS-Finder-Müll. |
+| Eintrag                                                                         | Grund                                                                       |
+| ------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `node_modules`                                                                  | Abhängigkeiten, nicht unser Code.                                           |
+| `dist`, `dist-ssr/`, `.output`, `.vinxi`, `.nitro/`, `.tanstack/`, `.wrangler/` | Build- / SSR- / Cloudflare-Output, vollständig generiert.                   |
+| `pnpm-lock.yaml`, `package-lock.json`, `bun.lock`                               | Lockfiles, vom Package-Manager verwaltet.                                   |
+| `routeTree.gen.ts`                                                              | Wird vom TanStack-Router-Plugin geschrieben.                                |
+| `src/integrations/supabase/types.ts`                                            | Wird von `supabase gen types` geschrieben.                                  |
+| `.lovable/`                                                                     | Plan- und Session-Dateien des Lovable-Agents, regelmäßig überschrieben.     |
+| `.env`, `.env.*.local`, `.dev.vars`                                             | Geheime/lokale Konfiguration — nie formatieren, nie committen.              |
+| `*.csv`                                                                         | Datendumps; Personaldaten/CSVs gehören nicht ins Repo (Lektion `thaitime`). |
+| `coverage/`                                                                     | Vitest-Coverage-Output.                                                     |
+| `logs/`, `*.log`                                                                | Laufzeitlogs.                                                               |
+| `.DS_Store`                                                                     | macOS-Finder-Müll.                                                          |
 
 SQL-Dateien unter `supabase/migrations/` werden von Prettier ohnehin nicht
 formatiert und sind deshalb nicht gelistet.
