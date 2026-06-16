@@ -60,10 +60,11 @@ const GROUPS: Group[] = [
     key: "kasse",
     label: "Kasse",
     default: "/admin/kasse",
-    prefixes: ["/admin/kasse", "/admin/kasse-saldo"],
+    prefixes: ["/admin/kasse", "/admin/kasse-saldo", "/admin/trinkgeld-rest"],
     sub: [
       { to: "/admin/kasse", label: "Tagesabschlüsse" },
       { to: "/admin/kasse-saldo", label: "Saldo" },
+      { to: "/admin/trinkgeld-rest", label: "Trinkgeld-Rest" },
     ],
   },
   {
