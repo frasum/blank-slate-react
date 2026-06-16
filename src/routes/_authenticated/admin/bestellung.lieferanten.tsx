@@ -137,8 +137,16 @@ function LieferantenPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editingSupplierId, setEditingSupplierId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [addingArticleFor, setAddingArticleFor] = useState<string | null>(null);
-  const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
+  const [articleDialog, setArticleDialog] = useState<
+    | { mode: "create"; supplierId: string }
+    | {
+        mode: "edit";
+        supplierId: string;
+        articleId: string;
+        initial: ArticleDraft;
+      }
+    | null
+  >(null);
   const [msg, setMsg] = useState<string | null>(null);
   const suppliersQ = useQuery({
     queryKey: ["bestellung", "suppliers", { includeInactive: showInactive }],
