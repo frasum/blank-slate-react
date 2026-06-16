@@ -26,7 +26,6 @@ import {
   updateCartItem,
 } from "@/lib/bestellung/cart.functions";
 import { getLastOrderByArticle } from "@/lib/bestellung/orders.functions";
-import { SendOrderDialog } from "@/components/bestellung/SendOrderDialog";
 
 export const Route = createFileRoute("/_authenticated/admin/bestellung/lieferanten")({
   head: () => ({ meta: [{ title: "Lieferanten · Bestellung" }] }),
