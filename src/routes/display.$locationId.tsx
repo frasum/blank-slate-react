@@ -4,6 +4,7 @@
 import { createFileRoute, useParams, useSearch } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
+import { formatShortDate } from "@/lib/format-date";
 
 type ShiftDto = {
   id: string;
@@ -32,15 +33,6 @@ export const Route = createFileRoute("/display/$locationId")({
 
 function formatTime(d: Date): string {
   return d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
-}
-function formatDate(iso: string): string {
-  const d = new Date(`${iso}T12:00:00Z`);
-  return d.toLocaleDateString("de-DE", {
-    weekday: "long",
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
 }
 
 function DisplayPage() {
@@ -124,7 +116,7 @@ function DisplayPage() {
       <header className="flex items-center justify-between border-b border-slate-800 px-10 py-6">
         <div>
           <h1 className="text-4xl font-bold tracking-tight">{data.location.name}</h1>
-          <p className="mt-1 text-lg text-slate-400">{formatDate(data.date)}</p>
+          <p className="mt-1 text-lg text-slate-400">{formatShortDate(data.date)}</p>
         </div>
         <div className="text-right">
           <div className="text-5xl font-mono font-semibold tabular-nums">{formatTime(now)}</div>
