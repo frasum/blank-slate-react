@@ -304,11 +304,28 @@ function LocationRow(props: {
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="flex-1 text-left"
+          className="-m-1 flex flex-1 items-start gap-2 rounded-md p-1 text-left hover:bg-accent/40"
           aria-expanded={open}
+          aria-controls={`loc-panel-${props.loc.id}`}
         >
-          <p className="text-sm font-medium text-foreground">{props.loc.name}</p>
-          {summary && <p className="text-xs text-muted-foreground">{summary}</p>}
+          <span
+            aria-hidden="true"
+            className={`mt-0.5 inline-block text-muted-foreground transition-transform duration-150 ${
+              open ? "rotate-90" : ""
+            }`}
+          >
+            ▸
+          </span>
+          <span className="flex-1">
+            <span className="block text-sm font-medium text-foreground">{props.loc.name}</span>
+            {summary ? (
+              <span className="block text-xs text-muted-foreground">{summary}</span>
+            ) : (
+              <span className="block text-xs italic text-muted-foreground">
+                Noch keine Adresse hinterlegt
+              </span>
+            )}
+          </span>
         </button>
         <button
           onClick={() => setDisplayOpen((v) => !v)}
@@ -324,7 +341,12 @@ function LocationRow(props: {
         </button>
       </div>
       {open && (
-        <div className="space-y-3 border-t border-input pt-3">
+        <div
+          id={`loc-panel-${props.loc.id}`}
+          role="region"
+          aria-label={props.loc.name}
+          className="space-y-3 border-t border-input pt-3"
+        >
           <Field label="Name *">
             <input
               value={name}
@@ -333,13 +355,22 @@ function LocationRow(props: {
             />
           </Field>
           <DetailsFields value={details} onChange={setDetails} />
-          <button
-            onClick={() => props.onSave(name, details)}
-            disabled={!dirty || name.trim() === ""}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-          >
-            Speichern
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => props.onSave(name, details)}
+              disabled={!dirty || name.trim() === ""}
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            >
+              Speichern
+            </button>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground hover:bg-accent"
+            >
+              Zuklappen
+            </button>
+          </div>
         </div>
       )}
       {displayOpen && <DisplayPanel locationId={props.loc.id} />}
