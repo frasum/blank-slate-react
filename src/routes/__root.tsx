@@ -12,6 +12,8 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "@/contexts/auth-context";
+import cocoFavicon from "@/assets/coco-favicon.png.asset.json";
+import cocoOg from "@/assets/coco-og.jpg.asset.json";
 
 function NotFoundComponent() {
   return (
@@ -96,22 +98,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         name: "twitter:description",
         content: "COCO · Central Operations Cockpit — Gastronomie-Betriebsplattform.",
       },
-      {
-        property: "og:image",
-        content:
-          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/01d61107-56ac-4b36-b520-994ce5033057/id-preview-97acb4ec--a9a57e34-6bcd-4c59-9526-a8d67e2c7859.lovable.app-1781305375956.png",
-      },
-      {
-        name: "twitter:image",
-        content:
-          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/01d61107-56ac-4b36-b520-994ce5033057/id-preview-97acb4ec--a9a57e34-6bcd-4c59-9526-a8d67e2c7859.lovable.app-1781305375956.png",
-      },
+      { property: "og:image", content: cocoOg.url },
+      { name: "twitter:image", content: cocoOg.url },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
       },
+      { rel: "icon", type: "image/png", href: cocoFavicon.url },
+      { rel: "apple-touch-icon", href: cocoFavicon.url },
     ],
   }),
   shellComponent: RootShell,
