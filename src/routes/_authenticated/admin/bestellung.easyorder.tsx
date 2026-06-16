@@ -147,10 +147,13 @@ function EasyOrderCart(props: {
 
   const placeMut = useMutation({
     mutationFn: async (input: {
-      data: Omit<Parameters<typeof placeEasyOrder>[0]["data"], "geo">;
+      locationId: string;
+      items: { articleId: string; quantity: number }[];
+      freeTextItems?: EasyOrderFreeTextInput[];
+      notes?: string;
     }) => {
       const fix = await getCurrentPosition();
-      return callPlace({ data: { ...input.data, geo: fix } });
+      return callPlace({ data: { ...input, geo: fix } });
     },
     onSuccess: (res) => {
       setSuccessInfo({
