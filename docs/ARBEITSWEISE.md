@@ -2,7 +2,7 @@
 
 Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen Baublock konsultiert. Bewusst kurz gehalten — Architektur-Begründungen stehen im gruendungsdokument.md, nicht hier.
 
-Stand: 15.06.2026
+Stand: 16.06.2026
 
 ## 1. Rollenverteilung im Team
 
@@ -107,7 +107,7 @@ Immer **26. eines Monats bis einschließlich 25. des Folgemonats**. Label = Mona
 
 Über das Nickname in Klammern im thaitime-Vornamen, z.B. „Adisorn (SORN)" → COCO display_name „SORN". Sonderfall: „Sumitr (PAE)" → SUMITR. „Lasse" existiert nicht in COCO (ignoriert).
 
-## 6. Aktueller Modul-Status (15.06.2026)
+## 6. Aktueller Modul-Status (16.06.2026)
 
 | Modul                                                                 | Status   |
 | --------------------------------------------------------------------- | -------- |
@@ -121,6 +121,12 @@ Immer **26. eines Monats bis einschließlich 25. des Folgemonats**. Label = Mona
 | D3 Öffentliches Display (Token-URL, Auto-Refresh, Rotation, Legende)  | ⏳ offen |
 | Brutto/Netto (Lohnberechnung, SFN, Steuerklassen)                     | ⏳ offen |
 | Provision (wochenbasiert)                                             | ⏳ offen |
+
+**Stand 16.06.2026 (Session-Nachzug):**
+
+- **B2b-Korrektur-UI entfernt:** `/admin/zeit` (Manager-Zeitkorrektur) + die Server-Functions `listEntriesForCorrection`/`getTimeLockSettings`/`createManualEntry`/`updateTimeEntry`/`deleteTimeEntry`/`setTimeLock` bewusst gelöscht. Schema (`source='manual'`, Wasserlinie) bleibt; Korrektur derzeit nur per SQL. Zeit-Migration aus tagesabrechnung (B2c) **unberührt** (eigenes `migration/`-Subsystem). Details im gruendungsdokument-Nachtrag.
+- **Branding O1 entschieden:** App heißt „Central Ops" (BrandLockup über alle Seiten).
+- **Standorte:** Kontaktfelder ergänzt (`phone`/`contact_name`/`contact_phone` auf `locations`, Migration `20260616102537`; create/update admin-only, org-gescoped). Live-DB-ALTER ggf. noch ausführen.
 
 **Offen aus B3/B4** (Echtbetrieb-Hebel): Trinkgeld-Pool-Verteilung als eigener Baustein (`useCommissionData`-Logik: Pool/Tag = Σ max(0,(Tagesumsatz − minRevenue × Kellnerzahl) × commissionPct%), Verteilung nach Stunden), B3c-1 manuelles E2E, B3c-2 (Saldo/Export). Hängt an D-M2-1 (Auto-Ausstempeln bei Abrechnungs-Abgabe) — erst damit stempelt das Team in COCO um.
 
