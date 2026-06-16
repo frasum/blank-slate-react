@@ -46,7 +46,7 @@ type Group = {
 const GROUPS: Group[] = [
   {
     key: "personal",
-    label: "Personal",
+    label: "Mitarbeiter",
     default: "/admin/staff",
     prefixes: ["/admin/staff", "/admin/dienstplan", "/admin/zeit-uebersicht"],
     sub: [
