@@ -10,6 +10,10 @@ import {
   personalDetailsSchema,
   type PersonalDetailsFields,
 } from "@/lib/admin/personal-details.schema";
+import {
+  getStaffCompensation,
+  upsertStaffCompensation,
+} from "@/lib/admin/compensation.functions";
 
 type Props = { staffId: string; canEdit: boolean };
 
@@ -292,6 +296,8 @@ export function PersonalDetailsTab({ staffId, canEdit }: Props) {
           </button>
         </div>
       )}
+
+      {canEdit && <CompensationSection staffId={staffId} />}
     </div>
   );
 }
