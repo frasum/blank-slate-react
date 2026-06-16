@@ -1,0 +1,109 @@
+{
+  "quelle": "Lohnsoftware edlohn — drei Referenzabrechnungen 2026 (cent-genau).",
+  "faelle": [
+    {
+      "name": "Fall 1 — Normal (StKl 1, kinderlos)",
+      "eingabe": {
+        "person": {
+          "steuerklasse": 1,
+          "zkf": 0,
+          "kvzProzent": 2.69,
+          "kirchensteuerBayern": false,
+          "kinderzahl": 0,
+          "elterneigenschaft": false,
+          "pvKinderlosZuschlag": true,
+          "beschaeftigung": "normal"
+        },
+        "zeilen": [
+          { "kategorie": "zeitlohn", "bezeichnung": "Grundlohn", "betragCent": 365295 },
+          { "kategorie": "zuschlag_frei", "bezeichnung": "SFN-Zuschläge", "betragCent": 14550 },
+          { "kategorie": "sachbezug_frei", "bezeichnung": "Sachbezug", "betragCent": 5000 },
+          { "kategorie": "mahlzeiten_paust", "bezeichnung": "Mahlzeiten (pauschal)", "betragCent": 1828 },
+          { "kategorie": "abzug", "bezeichnung": "Sonstiger Abzug", "betragCent": 82000 },
+          { "kategorie": "abzug", "bezeichnung": "Rückzahlung", "betragCent": 5000 }
+        ]
+      },
+      "erwartet": {
+        "gesamtbruttoCent": 386673,
+        "stSvBruttoCent": 365295,
+        "lstCent": 44233,
+        "soliCent": 0,
+        "kistCent": 0,
+        "kvCent": 31580,
+        "rvCent": 33972,
+        "avCent": 4749,
+        "pvCent": 8767,
+        "gesamtnettoCent": 263372,
+        "auszahlungCent": 169544
+      }
+    },
+    {
+      "name": "Fall 2 — Minijob",
+      "eingabe": {
+        "person": {
+          "steuerklasse": 1,
+          "zkf": 0,
+          "kvzProzent": 2.69,
+          "kirchensteuerBayern": false,
+          "kinderzahl": 0,
+          "elterneigenschaft": false,
+          "pvKinderlosZuschlag": true,
+          "beschaeftigung": "minijob"
+        },
+        "zeilen": [
+          { "kategorie": "aushilfe_paust", "bezeichnung": "Aushilfe-Zeitlohn", "betragCent": 39550 },
+          { "kategorie": "sachbezug_frei", "bezeichnung": "Sachbezug", "betragCent": 5000 },
+          { "kategorie": "mahlzeiten_paust", "bezeichnung": "Mahlzeiten (pauschal)", "betragCent": 2285 },
+          { "kategorie": "zuschlag_frei", "bezeichnung": "SFN-Zuschläge", "betragCent": 3763 }
+        ]
+      },
+      "erwartet": {
+        "gesamtbruttoCent": 50598,
+        "stSvBruttoCent": 0,
+        "lstCent": 0,
+        "soliCent": 0,
+        "kistCent": 0,
+        "kvCent": 0,
+        "rvCent": 1423,
+        "avCent": 0,
+        "pvCent": 0,
+        "gesamtnettoCent": 49175,
+        "auszahlungCent": 41890
+      }
+    },
+    {
+      "name": "Fall 3 — StKl 4, 2 Kinder",
+      "eingabe": {
+        "person": {
+          "steuerklasse": 4,
+          "zkf": 2,
+          "kvzProzent": 2.69,
+          "kirchensteuerBayern": false,
+          "kinderzahl": 2,
+          "elterneigenschaft": true,
+          "pvKinderlosZuschlag": false,
+          "beschaeftigung": "normal"
+        },
+        "zeilen": [
+          { "kategorie": "zeitlohn", "bezeichnung": "Grundlohn", "betragCent": 333600 },
+          { "kategorie": "zuschlag_frei", "bezeichnung": "SFN-Zuschläge", "betragCent": 95560 },
+          { "kategorie": "sachbezug_frei", "bezeichnung": "Sachbezug", "betragCent": 5000 },
+          { "kategorie": "mahlzeiten_paust", "bezeichnung": "Mahlzeiten (pauschal)", "betragCent": 8226 }
+        ]
+      },
+      "erwartet": {
+        "gesamtbruttoCent": 442386,
+        "stSvBruttoCent": 333600,
+        "lstCent": 37691,
+        "soliCent": 0,
+        "kistCent": 0,
+        "kvCent": 28840,
+        "rvCent": 31025,
+        "avCent": 4337,
+        "pvCent": 5171,
+        "gesamtnettoCent": 335322,
+        "auszahlungCent": 322096
+      }
+    }
+  ]
+}
