@@ -21,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getCashLedger, type CashLedgerRow } from "@/lib/cash/cash.functions";
+import { formatShortDate } from "@/lib/format-date";
 
 export const Route = createFileRoute("/_authenticated/admin/kasse-saldo")({
   head: () => ({ meta: [{ title: "Kassensaldo" }] }),
@@ -192,7 +193,7 @@ function KasseSaldoPage() {
                     key={r.businessDate}
                     className={locked ? "italic text-muted-foreground" : undefined}
                   >
-                     <TableCell>{fmtDate(r.businessDate)}</TableCell>
+                     <TableCell>{formatShortDate(r.businessDate)}</TableCell>
                     <TableCell>{r.status}</TableCell>
                     <TableCell className="text-right tabular-nums">
                       {fmtEuro(r.openingBalanceCents)}
