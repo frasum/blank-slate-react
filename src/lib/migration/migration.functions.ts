@@ -11,7 +11,7 @@
 //     (organization_id, import_key) WHERE source='import' AND import_key IS NOT NULL
 //     ist die letzte Verteidigungslinie.
 //   * Nach erfolgreichem commit-Lauf: time_locked_through_date = max(business_date)
-//     wird gesetzt (separater audit_log-Eintrag via setTimeLock-Pfad — hier inline).
+//     wird gesetzt (separater audit_log-Eintrag — hier inline).
 
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
