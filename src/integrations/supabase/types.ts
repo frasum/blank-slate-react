@@ -2888,7 +2888,12 @@ export type Database = {
     }
     Functions: {
       create_order_from_cart: {
-        Args: { p_notes?: string; p_org_id: string; p_user_id: string }
+        Args: {
+          p_notes?: string
+          p_org_id: string
+          p_supplier_id?: string
+          p_user_id: string
+        }
         Returns: string[]
       }
       current_business_date: { Args: never; Returns: string }
