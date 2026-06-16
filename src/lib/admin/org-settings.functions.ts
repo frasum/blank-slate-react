@@ -19,12 +19,32 @@ import { writeAuditLog } from "./audit";
 export type OrgSettings = {
   kitchenTipRate: number; // 0..1, z. B. 0.02
   tipPoolMinHours: number; // Tagessumme, inklusive Grenze
+  testModeEnabled: boolean;
+  testModeEmail: string | null;
 };
 
-const updateSchema = z.object({
-  kitchenTipRate: z.number().min(0).max(1),
-  tipPoolMinHours: z.number().min(0).max(24),
-});
+const updateSchema = z
+  .object({
+    kitchenTipRate: z.number().min(0).max(1),
+    tipPoolMinHours: z.number().min(0).max(24),
+    testModeEnabled: z.boolean(),
+    testModeEmail: z
+      .string()
+      .trim()
+      .max(254)
+      .email("Ungültige E-Mail-Adresse.")
+      .nullable()
+      .or(z.literal("").transform(() => null)),
+  })
+  .superRefine((v, ctx) => {
+    if (v.testModeEnabled && !v.testModeEmail) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["testModeEmail"],
+        message: "Bei aktivem Testmodus ist eine gültige E-Mail-Adresse Pflicht.",
+      });
+    }
+  });
 
 export const getOrgSettings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -33,13 +53,15 @@ export const getOrgSettings = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await supabaseAdmin
       .from("organization_settings")
-      .select("kitchen_tip_rate, tip_pool_min_hours")
+      .select("kitchen_tip_rate, tip_pool_min_hours, test_mode_enabled, test_mode_email")
       .eq("organization_id", caller.organizationId)
       .maybeSingle();
     if (error) throw error;
     return {
       kitchenTipRate: Number(data?.kitchen_tip_rate ?? 0.02),
       tipPoolMinHours: Number(data?.tip_pool_min_hours ?? 2.5),
+      testModeEnabled: Boolean(data?.test_mode_enabled ?? false),
+      testModeEmail: data?.test_mode_email ?? null,
     };
   });
 
@@ -69,6 +91,8 @@ export const updateOrgSettings = createServerFn({ method: "POST" })
           .update({
             kitchen_tip_rate: data.kitchenTipRate,
             tip_pool_min_hours: data.tipPoolMinHours,
+            test_mode_enabled: data.testModeEnabled,
+            test_mode_email: data.testModeEmail,
           })
           .eq("organization_id", caller.organizationId);
         if (error) throw error;
@@ -81,6 +105,8 @@ export const updateOrgSettings = createServerFn({ method: "POST" })
             meta: {
               kitchenTipRate: data.kitchenTipRate,
               tipPoolMinHours: data.tipPoolMinHours,
+              testModeEnabled: data.testModeEnabled,
+              testModeEmail: data.testModeEmail,
             },
           },
         };
