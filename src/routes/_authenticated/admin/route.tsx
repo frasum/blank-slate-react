@@ -130,28 +130,21 @@ function AdminLayout() {
             </Link>
           </div>
           {isPayroll ? (
-            <nav className="flex flex-wrap items-center gap-x-5 gap-y-1 pb-1 text-sm">
-              <Link
-                to="/admin/zeit-uebersicht"
-                className="-mb-px border-b-2 border-foreground pb-2 text-foreground"
-              >
+            <nav className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border/60 pb-0 text-sm">
+              <Link to="/admin/zeit-uebersicht" className={tabClass(true)}>
                 Zeitübersicht
               </Link>
             </nav>
           ) : (
             <>
-              <nav className="flex flex-wrap items-center gap-x-5 gap-y-1 pb-1 text-sm">
+              <nav className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border/60 text-sm">
                 {primaryGroups.map((g) => {
                   const active = activeGroup?.key === g.key;
                   return (
                     <Link
                       key={g.key}
                       to={g.default}
-                      className={
-                        active
-                          ? "-mb-px border-b-2 border-foreground pb-2 text-foreground"
-                          : "-mb-px border-b-2 border-transparent pb-2 text-muted-foreground transition-colors hover:text-foreground"
-                      }
+                      className={tabClass(active)}
                     >
                       {g.label}
                     </Link>
@@ -168,11 +161,7 @@ function AdminLayout() {
                         <Link
                           key={g.key}
                           to={g.default}
-                          className={
-                            active
-                              ? "-mb-px border-b-2 border-foreground pb-2 text-foreground"
-                              : "-mb-px border-b-2 border-transparent pb-2 text-muted-foreground/70 transition-colors hover:text-foreground"
-                          }
+                          className={tabClass(active)}
                         >
                           {g.label}
                         </Link>
@@ -182,19 +171,11 @@ function AdminLayout() {
                 )}
               </nav>
               {showSub && (
-                <nav className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border/60 py-2 text-xs">
+                <nav className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border/60 pt-2 text-xs">
                   {activeGroup!.sub.map((s) => {
                     const active = pathname === s.to || pathname.startsWith(s.to + "/");
                     return (
-                      <Link
-                        key={s.to}
-                        to={s.to}
-                        className={
-                          active
-                            ? "font-medium text-foreground"
-                            : "text-muted-foreground transition-colors hover:text-foreground"
-                        }
-                      >
+                      <Link key={s.to} to={s.to} className={tabClass(active)}>
                         {s.label}
                       </Link>
                     );
