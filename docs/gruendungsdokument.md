@@ -247,15 +247,24 @@ Nachtrag (B1c, eingefügt nach B1b, vor B2): Stammdaten-/Personal-UI + PIN-/Badg
 B1c-Scope (freigegeben):
 
 - Datenmodell: nur eine neue Tabelle `audit_log` (append-only, organization_id/actor/action/entity/entity_id/meta). GRANT ausschließlich `service_role`; RLS aktiv, **keine** Policy für `anon`/`authenticated` (DENY-ALL für Clients). Schreiben ausschließlich serverseitig via `supabaseAdmin`. Kein UPDATE/DELETE-Pfad im Code.
+
 - Server-Functions: alle `createServerFn` + `requireSupabaseAuth` + **expliziter Rollencheck im Handler** (`assertMinRole`), bevor geschrieben wird. Org-Scope via `current_organization_id()` aus dem Aufruferkontext. Jede schreibende Function schreibt nach Erfolg einen `audit_log`-Eintrag.
+
 - Geschäftsregeln (hart, serverseitig): „≥1 aktiver Admin pro Organisation" (reine Funktion, geprüft VOR dem Schreiben). Inaktive Mitarbeiter dürfen sich nicht einloggen. PIN: 4–8 Ziffern. Badge-Token: 32 Byte CSPRNG, base64url, Klartext nur direkt nach Erstellung — danach nur Metadaten. Standort-Löschung nur, wenn keine `staff_locations`-Verknüpfung mehr existiert.
+
 - Kein Org-UI: Organisationen werden per dokumentiertem Seed-Snippet angelegt. Datei: `docs/seed-organization.sql` (Org + erster Standort + Admin-User-Link für eine bestehende `auth.users`-Zeile).
+
 - Erfolgs-Gate B1c:
-  - `tsc --noEmit`, `eslint . --max-warnings=0`, `vitest run` grün.
-  - RLS-Inventur (`scripts/check-rls-inventory.sql`): weiterhin 0 anon-Policies, 0 bedingungslose Schreib-Policies; `audit_log` hat 0 Client-Policies.
-  - Negativtest (a): „letzten aktiven Admin deaktivieren → serverseitig abgelehnt" (Unit-Test der reinen Regel `wouldRemoveLastActiveAdmin`).
-  - Negativtest (b): „Server-Function-Aufruf als Nicht-Admin → abgelehnt, kein `audit_log`-Eintrag" (Unit-Test der Wrapper-Funktion `runAsAdmin`: bei unzureichender Rolle wird der injizierte `writeAudit`-Mock nie aufgerufen).
-  - Manueller End-to-End-Klick: Mitarbeiter anlegen → PIN setzen → PIN-Login → Badge ausstellen → Badge-Login → Badge widerrufen → Badge-Login schlägt fehl → `audit_log` enthält die 4 Schreibaktionen.
+
+- `tsc --noEmit`, `eslint . --max-warnings=0`, `vitest run` grün.
+
+- RLS-Inventur (`scripts/check-rls-inventory.sql`): weiterhin 0 anon-Policies, 0 bedingungslose Schreib-Policies; `audit_log` hat 0 Client-Policies.
+
+- Negativtest (a): „letzten aktiven Admin deaktivieren → serverseitig abgelehnt" (Unit-Test der reinen Regel `wouldRemoveLastActiveAdmin`).
+
+- Negativtest (b): „Server-Function-Aufruf als Nicht-Admin → abgelehnt, kein `audit_log`-Eintrag" (Unit-Test der Wrapper-Funktion `runAsAdmin`: bei unzureichender Rolle wird der injizierte `writeAudit`-Mock nie aufgerufen).
+
+- Manueller End-to-End-Klick: Mitarbeiter anlegen → PIN setzen → PIN-Login → Badge ausstellen → Badge-Login → Badge widerrufen → Badge-Login schlägt fehl → `audit_log` enthält die 4 Schreibaktionen.
 
 ---
 
@@ -266,7 +275,9 @@ Geltungsbereich: R4 betrifft ausschließlich den UI-Lieferschritt **B2b** (Mobil
 Umschwenk-Schwellen (erst dann wird Capacitor / Offline-Queue neu bewertet, nicht früher):
 
 1. Stempeln per Handy-NFC wird zur Pflichtanforderung (nicht „nett zu haben").
+
 2. App-Store-Präsenz wird vom Betrieb gefordert (Marketing, Onboarding, Vertrauen).
+
 3. Hintergrund-Push auf iOS wird hartes Muss und Web-Push via installierter PWA reicht nicht.
 
 Eine belegte Offline-Stempelpflicht (mehrfach reproduzierter Netzausfall am Stempelort) öffnet einen **eigenen** Scope „Offline-Queue für M1", nicht eine stille Erweiterung von B2b.
@@ -282,6 +293,7 @@ Nachtrag B2-Schnitt (vor Bau B2a freigegeben):
 **B2-SFN — SFN-Berechnung + Golden-Master (neuer eigener Schritt, vor B2c):** Reines TS-Modul, das aus den `time_entries` eines Tages SFN-Zuschläge berechnet. Zwei Testquellen, beide blockierend:
 
 1.  **Primärreferenz (Golden Master):** `calculateShiftHours` aus `tagesabrechnung/src/lib/shiftCalculations.ts` — die produktiv bewährte §3b-EStG-Logik (identisch im Remix-Stand). Charakterisierungstest gegen jeden Referenzfall der Originalsuite; bitgenaue Reproduktion ist Abnahmekriterium.
+
 2.  **Zweite Testquelle:** `computeSfn`-Testfälle aus `bunker-shift-flow/.../sfn.test.ts` als unabhängige Gegenprobe.
 
 **Dies ist explizit nicht M4** — es ist die getestete Zuschlags-Logik auf Stempel-Basis, auf der M4 (Nettolohn) später aufsetzt.
@@ -289,20 +301,31 @@ Nachtrag B2-Schnitt (vor Bau B2a freigegeben):
 **Umsetzung (abgenommen, Stand 13.06.2026):**
 
 - Modul-Layout `src/lib/time/sfn/` mit Zwei-Adapter-Architektur:
-  - `sfn-core.ts` — reine Helfer (parseTime, overlap, round2).
-  - `tagesabrechnung.ts` — Adapter zur Primärreferenz. Bitgenaue Reproduktion der 20 Fixture-Fälle aus `golden-master/calculateShiftHours.json`. Rundet (wie das Original) am Ende auf 2 Nachkommastellen — daher `toEqual` mit Toleranz 0 statt `toBeCloseTo`.
-  - `bunker.ts` — Portierung von `computeSfn`. 13 Tests (nicht 14 wie im Briefing genannt — siehe Original-Datei).
-  - `golden-master.test.ts`, `bunker.test.ts` — beide Testquellen, beide blockierend.
+
+- `sfn-core.ts` — reine Helfer (parseTime, overlap, round2).
+
+- `tagesabrechnung.ts` — Adapter zur Primärreferenz. Bitgenaue Reproduktion der 20 Fixture-Fälle aus `golden-master/calculateShiftHours.json`. Rundet (wie das Original) am Ende auf 2 Nachkommastellen — daher `toEqual` mit Toleranz 0 statt `toBeCloseTo`.
+
+- `bunker.ts` — Portierung von `computeSfn`. 13 Tests (nicht 14 wie im Briefing genannt — siehe Original-Datei).
+
+- `golden-master.test.ts`, `bunker.test.ts` — beide Testquellen, beide blockierend.
+
 - **Pro EINZELNEM `time_entry`** wird gerechnet. Tages-/Wochensummen entstehen in B2c durch Summieren der Topf-Werte über die Einträge eines `business_date`. **Keine virtuelle Verschmelzung von Einträgen** auf SFN-Ebene.
+
 - **Welches Output-Schema die App produktiv persistiert** (GM-Felder, bunker-Felder oder ein normalisiertes Drittes), entscheidet B2c/M4. B2-SFN liefert beide Adapter parallel.
+
 - **Pause** ist Input des bunker-Adapters (proportionale Proration), keine ArbZG-Automatik in B2-SFN.
+
 - **Quirks** des Originals werden als Charakterisierung reproduziert, nicht korrigiert: (a) `01:00–05:00` ohne Mitternachts-Wrap liefert 0 Nachtstunden, (b) `00:00–08:00` ebenso. Briefing nannte 3 Quirks; Fixture enthält 2.
 
 **Bewusst NICHT in B2-SFN, vertagt nach M4** (Quelle: `tagesabrechnung-sfnRates.ts`, vom Nutzer zitiert — Datei steht in M4 zur Verifikation gegen das Original an):
 
 - `night40` (00–04) als Geld-Zuschlagssatz,
+
 - `holiday150` für 1. Mai, 25.12., 26.12.,
+
 - 50-€-Grundlohngrenze nach §3b EStG.
+
   Diese Werte gehören in den Geld-Pfad (M4), nicht in die Stunden-Töpfe.
 
 **Gestrichen (Spekulation, nicht im Originalcode):** „24.12. ab 14:00 als Special-Holiday".
@@ -312,33 +335,57 @@ Nachtrag B2-Schnitt (vor Bau B2a freigegeben):
 **B2b — Korrekturen & Mobile-UI (umgesetzt):**
 
 - **PWA-Manifest-only (R4):** `public/manifest.webmanifest` mit `name="COCO"`, `short_name="COCO"`, `start_url="/zeit"`, `display="standalone"`, COCO-Icons unter `public/icons/`. Head-Tags in `__root.tsx`. **Kein Service-Worker, keine Offline-Queue.** Caveat: `start_url` ist nach Installation eingefroren.
+
 - **Pause (Option B — manuelle Eingabe mit ArbZG-Default):** Neue Spalte `time_entries.break_minutes int not null default 0 check (>=0 and <480)`. Beim Ausstempeln Pflicht-Dialog mit Default = `arbzgMinimumBreak(grossMin)` (>6h → 30, >9h → 45). Mitarbeiter kann übersteuern; UI warnt bei Unterschreitung. `audit_log.meta` enthält `breakMinutes`, `grossMinutes`, `arbzgRecommended`, `arbzgShort: boolean` — Compliance-Belegbarkeit für BAG-Anfragen. Reines Modul: `src/lib/time/break-rules.ts` + Tests.
+
 - **Wasserlinie (G2-Sperrlogik):** Neue Tabelle `organization_settings(organization_id PK, time_locked_through_date date)`. Trigger legt für jede neue Org automatisch eine Zeile an. Semantik: `business_date ≤ time_locked_through_date` ist für **alle Rollen** gesperrt — auch Manager. Verschieben der Wasserlinie ist **admin-only** via `setTimeLock` mit Audit-Eintrag `settings.time_lock_moved`, `meta: { before, after }`.
+
 - **Manager-Korrektur-Server-Functions** (`src/lib/time/time-admin.functions.ts`, alle via `runGuarded` + audit nur bei Erfolg):
-  - `listEntriesForCorrection` (manager+, lesen)
-  - `createManualEntry` (manager+, `source='manual'`, audit `time_entry.manual_create`)
-  - `updateTimeEntry` (manager+, **`source` bleibt erhalten** — kein stilles Umflaggen von `clock` auf `manual`; audit `time_entry.manual_update` mit `before`/`after`-Diff)
-  - `deleteTimeEntry` (manager+, audit `time_entry.manual_delete` mit **vollständigem Zeilen-Snapshot in `meta.snapshot`** — Gate (e): gelöschte Arbeitszeiten bleiben aus dem append-only-Log rekonstruierbar)
-  - `setTimeLock` (admin-only, audit `settings.time_lock_moved`)
+
+- `listEntriesForCorrection` (manager+, lesen)
+
+- `createManualEntry` (manager+, `source='manual'`, audit `time_entry.manual_create`)
+
+- `updateTimeEntry` (manager+, **`source` bleibt erhalten** — kein stilles Umflaggen von `clock` auf `manual`; audit `time_entry.manual_update` mit `before`/`after`-Diff)
+
+- `deleteTimeEntry` (manager+, audit `time_entry.manual_delete` mit **vollständigem Zeilen-Snapshot in `meta.snapshot`** — Gate (e): gelöschte Arbeitszeiten bleiben aus dem append-only-Log rekonstruierbar)
+
+- `setTimeLock` (admin-only, audit `settings.time_lock_moved`)
+
 - **Manager-UI:** `/admin/zeit` (Route gegated über `/admin`-Layout: manager+). Zeitraum-Filter, Tabelle mit Sperrindikator pro Zeile, Neu/Bearbeiten/Löschen-Dialoge mit Pflicht-Begründung (≥3 Zeichen, in `audit_log.meta.reason`). Admin-Block zum Verschieben der Wasserlinie nur sichtbar für Admins (UX-Gate; Sicherheit serverseitig).
+
+> **Nachtrag 16.06.2026 — B2b-Korrektur-UI bewusst entfernt.** Die Manager-Korrektur-UI `/admin/zeit` und ihre Server-Functions (`listEntriesForCorrection`, `getTimeLockSettings`, `createManualEntry`, `updateTimeEntry`, `deleteTimeEntry`, `setTimeLock`) wurden entfernt (Frank-Entscheidung). Das Schema bleibt: `time_entries.source='manual'`, `organization_settings.time_locked_through_date` und `assertBusinessDateUnlocked` bestehen weiter (letzteres genutzt von `setTimeEntryShift`/`createTimeEntryShift`). Korrektur einzelner Einträge aktuell nur per SQL; eine Korrektur-UI ließe sich später wieder andocken. **Kein Einfluss** auf die Zeit-Migration aus tagesabrechnung — die läuft über das getrennte `migration/`-Subsystem (B2c, `source='import'`, setzt die Wasserlinie inline, unabhängig von den entfernten Functions).
+
 - **Erfolgs-Gate B2b:**
-  - `tsc --noEmit`, `eslint --max-warnings=0`, `vitest run` grün
-  - DB-Integrationstests (blockierend): (a) Migration legt eine `organization_settings`-Zeile pro Org an (Trigger), (d) `assertBusinessDateUnlocked` wirft `TimeLockedError`, wenn `business_date ≤ time_locked_through_date` — server-seitige Sperre vor dem ersten DB-Schreibvorgang, **kein `audit_log`-Eintrag bei Verweigerung**.
-  - Unit-Tests: `arbzgMinimumBreak` (Schwellen 6h/9h), `isArbzgShort`, `isLocked`.
-  - RLS-Inventur unverändert sauber. Neue Tabelle `organization_settings`: SELECT für eigene Org, INSERT/UPDATE nur Admin.
-  - Manueller E2E (durch Nutzer): Manager-Korrektur → Audit-Query zeigt `manual_update` mit `before/after`-Diff und Reason; Löschung → `manual_delete` enthält vollständigen Snapshot in `meta.snapshot`; Versuch auf gesperrtem Tag → Fehlermeldung, kein Audit-Eintrag.
+
+- `tsc --noEmit`, `eslint --max-warnings=0`, `vitest run` grün
+
+- DB-Integrationstests (blockierend): (a) Migration legt eine `organization_settings`-Zeile pro Org an (Trigger), (d) `assertBusinessDateUnlocked` wirft `TimeLockedError`, wenn `business_date ≤ time_locked_through_date` — server-seitige Sperre vor dem ersten DB-Schreibvorgang, **kein `audit_log`-Eintrag bei Verweigerung**.
+
+- Unit-Tests: `arbzgMinimumBreak` (Schwellen 6h/9h), `isArbzgShort`, `isLocked`.
+
+- RLS-Inventur unverändert sauber. Neue Tabelle `organization_settings`: SELECT für eigene Org, INSERT/UPDATE nur Admin.
+
+- Manueller E2E (durch Nutzer): Manager-Korrektur → Audit-Query zeigt `manual_update` mit `before/after`-Diff und Reason; Löschung → `manual_delete` enthält vollständigen Snapshot in `meta.snapshot`; Versuch auf gesperrtem Tag → Fehlermeldung, kein Audit-Eintrag.
 
 **B2c — Migration & Parallelbetrieb:** `zt_shifts`-Importer aus tagesabrechnung + bunker, 2-Wochen-Parallelbetrieb mit Abgleichsbericht, Alt-Sync stilllegen.
 
 Erfolgs-Gate B2a:
 
 - `tsc --noEmit`, `eslint . --max-warnings=0`, `vitest run` grün.
+
 - RLS-Inventur (`scripts/check-rls-inventory.sql`): weiterhin 0 anon-Policies, 0 bedingungslose Schreib-Policies; `time_entries` hat **0 Client-Schreib-Policies** (nur die SELECT-Policy für eigene Einträge).
+
 - Unit-Tests für `canClockIn`/`canClockOut` (aktiv/inaktiv, kein/ein offener Eintrag, end vor start).
+
 - **Automatisierte DB-Integrationstests** (blockierend, Teil von `vitest run`): (a) direkter INSERT in `time_entries` als `authenticated`-Rolle wird von RLS abgelehnt; (b) zweiter offener Eintrag pro Mitarbeiter wird vom partiellen Unique-Index abgelehnt; (c) Lesezugriff auf fremde Einträge liefert 0 Zeilen.
+
 - **`role-guard.db.test.ts`** (blockierend, Nachholung aus B1c-Merkposten): Integrationstest, der die Verdrahtung der Guard-Regeln gegen die echte DB prüft — Last-Admin-Schutz und Nicht-Admin-Ablehnung (kein `audit_log`-Eintrag bei abgelehntem Aufruf).
+
 - **DB-Integrationstests grün in CI** (blockierend): GitHub-Actions-Job `db-integration` hebt via Supabase CLI (`supabase start`) einen lokalen Stack mit allen Migrationen hoch und führt dort die `*.db.test.ts`-Suiten aus (anon-/authenticated-Client für RLS-Prüfungen, service-role-Client für Setup/Cleanup). **Keine Tests gegen die Produktiv-DB.** Lokal/in Lovable werden die DB-Tests via `SUPABASE_DB_TESTS`-Env-Flag sauber geskippt, statt rot zu sein.
+
 - E2E-Klickpfad mit zwei realen B1c-Personen: einstempeln → Liste enthält offenen Eintrag → ausstempeln → Eintrag geschlossen, Dauer korrekt. **`audit_log`-Prüfung:** danach existieren **genau zwei** Einträge — `action='time_entry.clock_in'` und `action='time_entry.clock_out'` — beide mit `entity='time_entry'` und korrekter `entity_id` (= ID des `time_entries`-Eintrags).
+
 - Negativ: inaktiver Mitarbeiter (per B1c-Admin deaktiviert) bekommt beim Einstempeln die deutsche Fehlermeldung; zweites Einstempeln ohne vorheriges Ausstempeln wird abgelehnt; in beiden Fällen wird **kein** `audit_log`-Eintrag geschrieben.
 
 ---
@@ -346,17 +393,29 @@ Erfolgs-Gate B2a:
 Nachtrag M3/B4 (Quellenwechsel, ersetzt M3-Zeile in §4/§5 und präzisiert B4 in §6):
 
 - **Quelle:** `bunker-shift-flow` — nicht `thaitime`. `thaitime` ist als M3-Quelle gestrichen.
+
 - **Datenmodell `shifts`:** Mitarbeiter + Datum + Arbeitsbereich + Skill + Status (`geplant`/`bestätigt`) + Notiz. **Keine Uhrzeiten im Plan.** Der Plan beantwortet „wer, wann, wo"; Ist-Zeiten kommen aus M1 (Stechuhr).
+
 - **UI-Vorlage:** bunker `RosterGrid` mit verbindlich zu erhaltenden Eigenschaften:
-  - (a) Paint-Tool mit Pinsel je Skill und Radierer, Klick-Malen in Zellen; Sperr-Zeiträume blockieren das Malen.
-  - (b) Drag & Drop der Schicht-Pills mit optimistischen Updates und Rollback bei Fehler.
-  - (c) Konflikt-Markierung auf der Pill (Abwesenheit, fehlender Skill).
-  - (d) Virtualisierte Zeilen, Gruppierung nach Arbeitsbereich, Dichte-Umschaltung, Summenspalte.
-  - (e) Status-Workflow `geplant → bestätigt` mit Bestätigungs-Popover.
-  - (f) **Planungseinheit ist der Abrechnungszyklus 26.–25. des Monats** (bunker `billing-cycle.ts`), mit Zyklus-Navigation und Zyklus-Sperren — **nicht die Kalenderwoche**.
+
+- (a) Paint-Tool mit Pinsel je Skill und Radierer, Klick-Malen in Zellen; Sperr-Zeiträume blockieren das Malen.
+
+- (b) Drag & Drop der Schicht-Pills mit optimistischen Updates und Rollback bei Fehler.
+
+- (c) Konflikt-Markierung auf der Pill (Abwesenheit, fehlender Skill).
+
+- (d) Virtualisierte Zeilen, Gruppierung nach Arbeitsbereich, Dichte-Umschaltung, Summenspalte.
+
+- (e) Status-Workflow `geplant → bestätigt` mit Bestätigungs-Popover.
+
+- (f) **Planungseinheit ist der Abrechnungszyklus 26.–25. des Monats** (bunker `billing-cycle.ts`), mit Zyklus-Navigation und Zyklus-Sperren — **nicht die Kalenderwoche**.
+
 - **Explizit ausgeschlossen** (thaitime-Features, allenfalls spätere Anbauten): KI-Foto-Import, Schichtvorlagen, Besetzungsanforderungen, Freigabe-Workflow, Schichtwünsche/Tausch.
+
 - **Konsequenz für M1:** `time_entries.source='plan'`-Einträge erhalten aus dem Plan nur Datum/Mitarbeiter/Bereich — **keine Sollzeiten**.
+
 - **Konsequenz für M4 (Lohn):** Abrechnungszyklus 26.–25. wird als **organisationsweite Einstellung** geführt; Plan, Zeiterfassungs-Auswertung und Lohn nutzen denselben Zyklus.
+
 - **B4-Erfolgskriterium (ersetzt „eine volle Planungswoche"):** ein voller Planungszyklus (26.–25.) produktiv.
 
 ---
@@ -399,7 +458,7 @@ Nachtrag M3/B4 (Quellenwechsel, ersetzt M3-Zeile in §4/§5 und präzisiert B4 i
 
 | R6 | tagesabrechnung-Produktiv-Rollout (P0–P4) | Unabhängig davon ABSCHLIESSEN — die echten Kassendaten sind bis dahin offen; die vereinte App ist Monate entfernt |
 
-| O1 | Name & Branding der vereinten App | offen |
+| O1 | Name & Branding der vereinten App | **Entschieden (16.06.2026): „Central Ops"** (BrandLockup über alle Seiten) |
 
 | O2 | Hosting-Strategie (ein Supabase-Projekt; Region; Backup-Plan) | vor B0 entscheiden |
 
