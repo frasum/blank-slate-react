@@ -78,15 +78,8 @@ function LocationsPage() {
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
   });
   const updateMut = useMutation({
-    mutationFn: ({
-      id,
-      name,
-      details,
-    }: {
-      id: string;
-      name: string;
-      details: LocationDetails;
-    }) => callUpdate({ data: { locationId: id, name, ...toPayload(details) } }),
+    mutationFn: ({ id, name, details }: { id: string; name: string; details: LocationDetails }) =>
+      callUpdate({ data: { locationId: id, name, ...toPayload(details) } }),
     onSuccess: refresh,
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
   });

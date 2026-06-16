@@ -71,9 +71,7 @@ export const listLocations = createServerFn({ method: "GET" })
 export const createLocation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
-    z
-      .object({ name: z.string().trim().min(1).max(120), ...detailsShape })
-      .parse(input),
+    z.object({ name: z.string().trim().min(1).max(120), ...detailsShape }).parse(input),
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
