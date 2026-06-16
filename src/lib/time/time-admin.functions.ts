@@ -37,7 +37,6 @@ function makeAuditWriter(caller: { organizationId: string; userId: string; staff
   };
 }
 
-
 // =========================================================================
 // B6 — Arbeitszeitübersicht (Zusammenfassung + Buchhaltung)
 // =========================================================================
