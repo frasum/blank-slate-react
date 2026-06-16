@@ -209,6 +209,7 @@ function KassePage() {
           hilfMahlCents: hilf,
           openInvoicesCents: open,
           cashHandedInCents: cash,
+          partnerStaffId: correct.partnerStaffId ? correct.partnerStaffId : null,
           reason: correct.reason,
         },
       });
