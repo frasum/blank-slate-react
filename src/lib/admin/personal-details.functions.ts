@@ -53,10 +53,7 @@ export const getStaffPersonalDetails = createServerFn({ method: "GET" })
   .inputValidator((input) => staffIdInput.parse(input))
   .handler(async ({ data, context }): Promise<PersonalDetailsDto> => {
     // admin oder payroll dürfen lesen (RLS-Policy + zusätzlicher Code-Check)
-    const caller = await loadAdminCaller(context.supabase, context.userId, [
-      "admin",
-      "payroll",
-    ]);
+    const caller = await loadAdminCaller(context.supabase, context.userId, ["admin", "payroll"]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row, error } = await supabaseAdmin
       .from("staff_personal_details")
@@ -90,32 +87,34 @@ export const upsertStaffPersonalDetails = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
-    return runGuarded(caller.role, "admin", async (entry) => {
-      await writeAuditLog({
-        organizationId: caller.organizationId,
-        actorUserId: caller.userId,
-        actorStaffId: caller.staffId,
-        action: entry.action,
-        entity: entry.entity,
-        entityId: entry.entityId ?? null,
-        meta: entry.meta,
-      });
-    }, async () => {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    return runGuarded(
+      caller.role,
+      "admin",
+      async (entry) => {
+        await writeAuditLog({
+          organizationId: caller.organizationId,
+          actorUserId: caller.userId,
+          actorStaffId: caller.staffId,
+          action: entry.action,
+          entity: entry.entity,
+          entityId: entry.entityId ?? null,
+          meta: entry.meta,
+        });
+      },
+      async () => {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-      // Staff muss zur eigenen Org gehören — sonst Forbidden (defense in depth).
-      const { data: staffRow, error: staffErr } = await supabaseAdmin
-        .from("staff")
-        .select("id")
-        .eq("id", data.staffId)
-        .eq("organization_id", caller.organizationId)
-        .maybeSingle();
-      if (staffErr) throw staffErr;
-      if (!staffRow) throw new Error("Mitarbeiter nicht gefunden");
+        // Staff muss zur eigenen Org gehören — sonst Forbidden (defense in depth).
+        const { data: staffRow, error: staffErr } = await supabaseAdmin
+          .from("staff")
+          .select("id")
+          .eq("id", data.staffId)
+          .eq("organization_id", caller.organizationId)
+          .maybeSingle();
+        if (staffErr) throw staffErr;
+        if (!staffRow) throw new Error("Mitarbeiter nicht gefunden");
 
-      const { error: upsertErr } = await supabaseAdmin
-        .from("staff_personal_details")
-        .upsert(
+        const { error: upsertErr } = await supabaseAdmin.from("staff_personal_details").upsert(
           {
             staff_id: data.staffId,
             organization_id: caller.organizationId,
@@ -123,16 +122,17 @@ export const upsertStaffPersonalDetails = createServerFn({ method: "POST" })
           },
           { onConflict: "staff_id" },
         );
-      if (upsertErr) throw upsertErr;
+        if (upsertErr) throw upsertErr;
 
-      return {
-        result: { ok: true as const },
-        audit: {
-          action: "staff_personal_details.upsert",
-          entity: "staff_personal_details",
-          entityId: data.staffId,
-          meta: { changed: redactForAudit(data.fields) },
-        },
-      };
-    });
+        return {
+          result: { ok: true as const },
+          audit: {
+            action: "staff_personal_details.upsert",
+            entity: "staff_personal_details",
+            entityId: data.staffId,
+            meta: { changed: redactForAudit(data.fields) },
+          },
+        };
+      },
+    );
   });

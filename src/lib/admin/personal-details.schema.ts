@@ -28,12 +28,7 @@ const nullableDate = z
     const t = v.trim();
     return t.length === 0 ? null : t;
   })
-  .pipe(
-    z
-      .string()
-      .regex(ISO_DATE, "Datum muss YYYY-MM-DD sein")
-      .nullable(),
-  );
+  .pipe(z.string().regex(ISO_DATE, "Datum muss YYYY-MM-DD sein").nullable());
 
 const nullableBool = z
   .union([z.boolean(), z.null()])

@@ -196,9 +196,7 @@ export function PersonalDetailsTab({ staffId, canEdit }: Props) {
   return (
     <div className="max-w-2xl space-y-6">
       {!data.exists && !editing && (
-        <p className="text-sm text-muted-foreground">
-          Noch keine Personaldaten hinterlegt.
-        </p>
+        <p className="text-sm text-muted-foreground">Noch keine Personaldaten hinterlegt.</p>
       )}
 
       {canEdit && !editing && (
@@ -315,9 +313,7 @@ function FieldEditor({
         <span className="text-muted-foreground">{label}</span>
         <select
           value={value === null ? "" : value ? "true" : "false"}
-          onChange={(e) =>
-            onChange(e.target.value === "" ? null : e.target.value === "true")
-          }
+          onChange={(e) => onChange(e.target.value === "" ? null : e.target.value === "true")}
           className="rounded-md border border-input bg-background px-2 py-1 text-sm"
         >
           <option value="">—</option>
