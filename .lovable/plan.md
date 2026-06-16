@@ -1,43 +1,24 @@
 ## Ziel
+Die Geburtstags-Markierung im Dienstplan (`/admin/dienstplan`) soll auf einen Blick erkennbar sein: die komplette Tageszelle des Geburtstags-Kindes wird rosa eingefärbt, mit einem größeren, zentrierten Kuchen-Icon — analog zum Urlaub/Krank-Pattern (`HeartPulse`/`Umbrella`).
 
-Die 5 verbleibenden `react-hooks/exhaustive-deps`-Warnungen sauber beheben — ohne Verhaltensänderung, nur Stabilisierung von Memo-/Effect-Dependencies.
+## Verhalten
+- **Leere Zelle am Geburtstag**: rosa Hintergrund füllt die Zelle, Kuchen-Icon (h-5 w-5) zentriert. Klick öffnet weiterhin den normalen Quick-Popover (Schicht anlegen, Urlaub etc.).
+- **Zelle mit Schicht am Geburtstag**: Schicht-Pille bleibt voll lesbar; rosa Hintergrund liegt dezent dahinter; kleines Kuchen-Icon in der oberen rechten Ecke (wie aktuell).
+- **Wochenend-/Today-Färbung** wird vom rosa Hintergrund überlagert (Geburtstag gewinnt visuell).
+- **Tooltip**: „Geburtstag: {Name}" beim Hover über das Icon (unverändert).
 
-## Änderungen
+## Technische Details (nicht-technisch lesbar)
+**Datei**: `src/components/roster/RosterGrid.tsx` — nur `DropCell`.
 
-### 1) `src/components/bestellung/CartDrawer.tsx` (Zeile 110)
-`const items = cartQ.data?.items ?? [];` → in `useMemo` wrappen:
-```ts
-const items = useMemo(() => cartQ.data?.items ?? [], [cartQ.data?.items]);
-```
-Damit bleibt die Referenz stabil, solange die Server-Daten gleich sind → `groups`-Memo (Zeile 125, Dep `items`) wird nicht mehr jedes Render invalidiert.
+1. Neuen Render-Zweig `showBirthdayFull = birthday && !hasShift && !absent && !showUnavailableBox` hinzufügen — rendert einen `absolute inset-0`-Overlay mit rosa Hintergrund (`bg-pink-500/15` o. ä., konsistent mit bestehenden Tailwind-Tokens) und zentriertem `<Cake className="h-5 w-5 text-pink-600" />`.
+2. Bestehenden Eck-Marker (`birthday ? ... : null`) so anpassen, dass er nur bei `hasShift` angezeigt wird (sonst doppelt mit Vollbild-Variante).
+3. Reihenfolge der Overlays beachten: Unavailable < Birthday-Full < Absence-Full < Children (Pille) < Absence-Corner / Birthday-Corner / Unavailable-Corner. So bleibt Urlaub/Krank weiter dominant, falls beides am selben Tag zusammenträfe (sehr selten).
 
-### 2) `src/routes/_authenticated/admin/bestellung.easyorder.tsx` (Zeile 165)
-`const articles = catalogQ.data?.articles ?? [];` → ebenfalls memoizen:
-```ts
-const articles = useMemo(() => catalogQ.data?.articles ?? [], [catalogQ.data?.articles]);
-```
-Stabilisiert beide Folge-Memos (`suppliers`, `filtered`).
+**Keine** Änderungen an:
+- `src/lib/roster/roster.functions.ts` (DOB wird bereits geladen)
+- `getStaffForRoster`-Signatur / Server-Logik
+- Empty-Cell-Click-Verhalten (Popover bleibt erreichbar — das rosa Overlay ist `pointer-events-none`)
 
-### 3) `src/routes/_authenticated/admin/zeit-uebersicht.tsx` (Zeile 214)
-`const locations = locationsQ.data ?? [];` → memoizen:
-```ts
-const locations = useMemo(() => locationsQ.data ?? [], [locationsQ.data]);
-```
-Stabilisiert das große `weeklyExportInput`-Memo (Zeile 559, Dep `locations`).
-
-### 4) `src/routes/_authenticated/admin/bestellung.inventur.tsx` (Zeile 321)
-`useEffect(..., [item?.storage_1, item?.storage_2])` → `item` in die Deps aufnehmen:
-```ts
-}, [item, item?.storage_1, item?.storage_2]);
-```
-Der Effekt liest `item` direkt — das ist die korrekte Dep-Liste. Verhalten ändert sich nicht, weil sich `item` nur dann ändert, wenn auch die Werte/Identität neu sind.
-
-## Verifikation
-
-- `bun run eslint .` → 0 Errors, 0 der oben genannten Warnings
-- `bun run tsc --noEmit` → grün
-- `bun run vitest run` → unverändert grün (rein UI-/Hook-Cleanup, keine Logik)
-
-## Nicht im Scope
-
-Keine Verhaltensänderungen, keine sonstigen Refactorings, keine Änderungen an Server-Funktionen oder Datenfluss.
+## Gate
+- `npx tsc --noEmit` 0 Fehler
+- Preview-Check: An einem bekannten Geburtstag (z. B. heute, 17. Juni) ist die Zelle des/der Mitarbeiter:in im Dienstplan rosa mit Kuchen-Icon; Schicht-Pille bleibt sichtbar wenn vorhanden.
