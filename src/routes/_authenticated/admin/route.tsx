@@ -5,6 +5,7 @@
 // dieses Gate ist nur UX, nicht die Sicherheitsbarriere.
 
 import { createFileRoute, Link, Outlet, redirect, useRouterState } from "@tanstack/react-router";
+import { tabClass } from "@/components/ui/nav-tab";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyIdentity } from "@/lib/auth/me.functions";
 import { BrandLockup } from "@/components/brand-lockup";
