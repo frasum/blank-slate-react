@@ -3,7 +3,7 @@
 // mit „letzte Bestellung" und Direkt-in-Warenkorb. CRUD für Lieferanten und
 // Artikel inline. Manager+ für Schreibrechte; Add-to-Cart auch für staff.
 
-import { Fragment, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
