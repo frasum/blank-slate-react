@@ -92,6 +92,7 @@ function fmtTime(iso: string | null): string {
 type CorrectState = {
   originalId: string;
   staffName: string;
+  partnerStaffId: string;
   posSales: string;
   cardTotal: string;
   hilfMahl: string;
@@ -102,6 +103,7 @@ type CorrectState = {
 
 type CreateState = {
   staffId: string;
+  partnerStaffId: string;
   posSales: string;
   cardTotal: string;
   hilfMahl: string;
