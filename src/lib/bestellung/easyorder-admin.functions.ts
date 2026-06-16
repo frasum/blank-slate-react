@@ -32,6 +32,7 @@ export type EasyOrderAccessEntry = {
 export type EasyOrderAccessRow = {
   staffId: string;
   staffName: string;
+  canEasyorderAutoSend: boolean;
   entries: EasyOrderAccessEntry[];
 };
 
@@ -45,7 +46,7 @@ export async function listEasyOrderAccessCore(
 ): Promise<EasyOrderAccessRow[]> {
   const { data: staff, error: sErr } = await admin
     .from("staff")
-    .select("id, display_name, is_active")
+    .select("id, display_name, is_active, can_easyorder_auto_send")
     .eq("organization_id", organizationId)
     .eq("is_active", true)
     .order("display_name");
@@ -90,6 +91,7 @@ export async function listEasyOrderAccessCore(
   return (staff ?? []).map((s) => ({
     staffId: s.id,
     staffName: s.display_name,
+    canEasyorderAutoSend: s.can_easyorder_auto_send ?? false,
     entries: (byStaff.get(s.id) ?? []).sort((x, y) => x.locationName.localeCompare(y.locationName)),
   }));
 }
@@ -235,6 +237,21 @@ export async function setEasyOrderSupplierWhitelistCore(
   return { ok: true, count: unique.length };
 }
 
+export async function setStaffEasyOrderAutoSendCore(
+  admin: Admin,
+  organizationId: string,
+  input: { staffId: string; allowed: boolean },
+): Promise<{ ok: true }> {
+  await assertStaffInOrg(admin, organizationId, input.staffId);
+  const { error } = await admin
+    .from("staff")
+    .update({ can_easyorder_auto_send: input.allowed })
+    .eq("id", input.staffId)
+    .eq("organization_id", organizationId);
+  if (error) throw new Error(error.message);
+  return { ok: true };
+}
+
 // ---------------------------------------------------------------------------
 // createServerFn wrappers
 // ---------------------------------------------------------------------------
@@ -352,6 +369,37 @@ export const setEasyOrderSupplierWhitelist = createServerFn({ method: "POST" })
             locationId: data.locationId,
             count: result.count,
           },
+        },
+      };
+    });
+  });
+
+const AutoSendInput = z.object({
+  staffId: z.string().uuid(),
+  allowed: z.boolean(),
+});
+
+export const setStaffEasyOrderAutoSend = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => AutoSendInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const result = await setStaffEasyOrderAutoSendCore(
+        supabaseAdmin,
+        caller.organizationId,
+        data,
+      );
+      return {
+        result,
+        audit: {
+          action: data.allowed
+            ? "easyorder.auto_send_granted"
+            : "easyorder.auto_send_revoked",
+          entity: "staff",
+          entityId: data.staffId,
+          meta: { staffId: data.staffId, allowed: data.allowed },
         },
       };
     });
