@@ -81,6 +81,14 @@ const GROUPS: Group[] = [
     sub: [{ to: "/admin/locations", label: "Standorte" }],
   },
   {
+    key: "einstellungen",
+    label: "Einstellungen",
+    default: "/admin/einstellungen",
+    prefixes: ["/admin/einstellungen"],
+    sub: [{ to: "/admin/einstellungen", label: "Organisation" }],
+    roles: ["admin"],
+  },
+  {
     key: "system",
     label: "System",
     default: "/admin/migration",

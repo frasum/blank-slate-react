@@ -51,6 +51,11 @@ export type TipPoolInput = {
   }>;
   staffDepartments: Map<string, StaffDepartment>;
   staffParticipates: Map<string, boolean>;
+  // Mindeststunden pro Geschäftstag (Tagessumme). Mitarbeiter mit
+  // weniger Stunden werden vor der Verteilung herausgefiltert. Grenze
+  // ist inklusive: hours >= minHoursPerDay nimmt teil. Optional;
+  // 0 oder undefined = keine Schwelle.
+  minHoursPerDay?: number;
 };
 
 export type TipPoolShare = {
@@ -66,6 +71,13 @@ export type TipPoolResult = {
   kitchenRemainder: number;
   serviceRemainder: number;
   shares: TipPoolShare[];
+  // Mitarbeiter, die wegen Unterschreitung der Mindeststunden vom Pool
+  // ausgenommen wurden. Reine Diagnose, fließt nicht in shares ein.
+  excludedByMinHours: Array<{
+    staffId: string;
+    department: "kitchen" | "service";
+    hoursWorked: number;
+  }>;
 };
 
 function round2(n: number): number {
@@ -119,12 +131,19 @@ export function computeTipPool(input: TipPoolInput): TipPoolResult {
 
   const kitchen: Array<{ staffId: string; hours: number; department: "kitchen" }> = [];
   const service: Array<{ staffId: string; hours: number; department: "service" }> = [];
+  const excludedByMinHours: TipPoolResult["excludedByMinHours"] = [];
+  const minHours = input.minHoursPerDay && input.minHoursPerDay > 0 ? input.minHoursPerDay : 0;
 
   for (const staffId of staffIds) {
     if (input.staffParticipates.get(staffId) === false) continue;
     const dept = input.staffDepartments.get(staffId);
     if (dept !== "kitchen" && dept !== "service") continue;
     const hours = hoursByStaff.get(staffId) ?? 0;
+    // Inklusive Grenze: 2,50 h zählt mit, 2,49 h nicht.
+    if (minHours > 0 && hours < minHours) {
+      excludedByMinHours.push({ staffId, department: dept, hoursWorked: round2(hours) });
+      continue;
+    }
     if (dept === "kitchen") kitchen.push({ staffId, hours, department: "kitchen" });
     else service.push({ staffId, hours, department: "service" });
   }
@@ -138,5 +157,6 @@ export function computeTipPool(input: TipPoolInput): TipPoolResult {
     kitchenRemainder: k.remainder,
     serviceRemainder: s.remainder,
     shares: [...k.shares, ...s.shares],
+    excludedByMinHours,
   };
 }
