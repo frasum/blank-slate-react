@@ -35,8 +35,11 @@ function SubLink({ to, children }: { to: string; children: React.ReactNode }) {
   return (
     <Link
       to={to}
-      className="-mb-px border-b-2 border-transparent px-1 pb-2 text-muted-foreground hover:text-foreground"
-      activeProps={{ className: "-mb-px border-b-2 border-primary px-1 pb-2 text-foreground" }}
+      className="-mb-px border-b-2 border-transparent px-3 pb-2 pt-1 font-medium text-muted-foreground transition-colors hover:text-foreground"
+      activeProps={{
+        className:
+          "border-primary bg-primary/5 text-foreground font-semibold rounded-t-md",
+      }}
     >
       {children}
     </Link>
