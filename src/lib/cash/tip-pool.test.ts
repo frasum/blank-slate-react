@@ -212,12 +212,58 @@ test("computeTipTotalCents: echtes Trinkgeld (26.04. YUM)", () => {
       cashHandedInCents: 34700,
       posSalesCents: 215400,
       openInvoicesCents: 0,
+      hilfMahlCents: 0,
     }, // KRISS
-    { cardTotalCents: 50666, cashHandedInCents: 23000, posSalesCents: 68330, openInvoicesCents: 0 }, // JASMIN
-    { cardTotalCents: 0, cashHandedInCents: 6000, posSalesCents: 5780, openInvoicesCents: 0 }, // TU
+    {
+      cardTotalCents: 50666,
+      cashHandedInCents: 23000,
+      posSalesCents: 68330,
+      openInvoicesCents: 0,
+      hilfMahlCents: 0,
+    }, // JASMIN
+    {
+      cardTotalCents: 0,
+      cashHandedInCents: 6000,
+      posSalesCents: 5780,
+      openInvoicesCents: 0,
+      hilfMahlCents: 0,
+    }, // TU
   ]);
   expect(total).toBe(23464);
   expect(total - 5791).toBe(17673);
+});
+
+describe("computeTipTotalCents: Tagesabrechnung-Angleichung (16.06.2026)", () => {
+  it("offene Rechnung wirkt wie Bargeld → Pool nicht negativ", () => {
+    // 12.05. PON spicery: hohe offene Rechnung hätte unter alter Formel
+    // den Pool stark ins Minus gedrückt; jetzt zählt open wie Bargeld.
+    const total = computeTipTotalCents([
+      {
+        cardTotalCents: 179829,
+        cashHandedInCents: 0,
+        posSalesCents: 241890,
+        openInvoicesCents: 85063,
+        hilfMahlCents: 0,
+      },
+    ]);
+    // 179829 + 0 + 85063 − 241890 − 0 = 23002
+    expect(total).toBe(23002);
+    expect(total).toBeGreaterThan(0);
+  });
+
+  it("hilf_mahl mindert den Trinkgeld-Pool", () => {
+    const total = computeTipTotalCents([
+      {
+        cardTotalCents: 100_00,
+        cashHandedInCents: 50_00,
+        posSalesCents: 130_00,
+        openInvoicesCents: 0,
+        hilfMahlCents: 5_00,
+      },
+    ]);
+    // 10000 + 5000 + 0 − 13000 − 500 = 1500
+    expect(total).toBe(1_500);
+  });
 });
 
 describe("computeTipPool: Mindeststunden", () => {
