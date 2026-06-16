@@ -2,13 +2,12 @@
 // Wird in CellQuickPopover und PillConfirmPopover eingebettet, wenn der
 // Nutzer einen Abwesenheitstyp gewählt hat.
 import * as React from "react";
-import { format } from "date-fns";
-import { de } from "date-fns/locale";
 import { CalendarIcon, Umbrella, HeartPulse } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { formatShortDate } from "@/lib/format-date";
 
 function isoFromDate(d: Date): string {
   // lokale Tagesgrenze beibehalten — der Picker liefert Tage in lokaler Zeitzone.
@@ -76,7 +75,7 @@ export function AbsenceRangeForm({
               className="h-7 justify-start text-left text-xs font-normal"
             >
               <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
-              {format(dateFromIso(fromIso), "dd.MM.yyyy", { locale: de })}
+              {formatShortDate(fromIso)}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
@@ -104,7 +103,7 @@ export function AbsenceRangeForm({
               className="h-7 justify-start text-left text-xs font-normal"
             >
               <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
-              {format(dateFromIso(toIso), "dd.MM.yyyy", { locale: de })}
+              {formatShortDate(toIso)}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
