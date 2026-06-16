@@ -299,7 +299,8 @@ export function RosterGrid({
                       const absenceType = absenceMap.get(`${row.staffId}|${iso}`) ?? null;
                       const isAbsent = absenceType !== null;
                       const isBirthday =
-                        row.dateOfBirth != null && row.dateOfBirth.slice(5, 10) === iso.slice(5, 10);
+                        row.dateOfBirth != null &&
+                        row.dateOfBirth.slice(5, 10) === iso.slice(5, 10);
                       return (
                         <DropCell
                           key={iso}
@@ -315,9 +316,7 @@ export function RosterGrid({
                           absent={isAbsent}
                           absenceType={absenceType}
                           birthday={isBirthday}
-                          birthdayLabel={
-                            isBirthday ? `Geburtstag: ${row.displayName}` : null
-                          }
+                          birthdayLabel={isBirthday ? `Geburtstag: ${row.displayName}` : null}
                         >
                           {shift ? (
                             <PillConfirmPopover
