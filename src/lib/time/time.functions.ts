@@ -137,9 +137,16 @@ export const listMyEntries = createServerFn({ method: "GET" })
 // Schreiben (Stempeln)
 // =========================================================================
 
+const GeoFixSchema = z.object({
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  accuracyM: z.number().min(0).max(100_000),
+});
+
 export const clockIn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((input) => GeoFixSchema.parse(input))
+  .handler(async ({ data, context }) => {
     const caller = await loadStaffCaller(context.supabase, context.userId);
     const open = await loadOpenEntry(caller.staffId);
     const decision = canClockIn({ staffIsActive: caller.isActive, openEntry: open });
@@ -147,8 +154,21 @@ export const clockIn = createServerFn({ method: "POST" })
 
     const now = new Date();
     const locationId = await resolveDefaultLocation(caller.staffId, caller.organizationId);
+    if (!locationId) {
+      throw new Error(
+        "Kein eindeutiger Standort zugeordnet — Geofence kann nicht geprüft werden. Bitte Manager kontaktieren.",
+      );
+    }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const geo = await assertWithinFence({
+      admin: supabaseAdmin,
+      organizationId: caller.organizationId,
+      locationId,
+      fix: data,
+    });
+
     const { data: created, error } = await supabaseAdmin
       .from("time_entries")
       .insert({
@@ -170,7 +190,16 @@ export const clockIn = createServerFn({ method: "POST" })
       action: "time_entry.clock_in",
       entity: "time_entry",
       entityId: created.id,
-      meta: { source: "clock", locationId },
+      meta: {
+        source: "clock",
+        locationId,
+        geo: {
+          lat: data.latitude,
+          lng: data.longitude,
+          accuracyM: data.accuracyM,
+          distanceM: geo.decision.ok ? geo.decision.distanceM : null,
+        },
+      },
     });
 
     return { id: created.id, startedAt: created.started_at };
@@ -179,11 +208,22 @@ export const clockIn = createServerFn({ method: "POST" })
 export const clockOut = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
-    z.object({ breakMinutes: z.number().int().min(0).max(479) }).parse(input),
+    z
+      .object({
+        breakMinutes: z.number().int().min(0).max(479),
+        latitude: z.number().min(-90).max(90),
+        longitude: z.number().min(-180).max(180),
+        accuracyM: z.number().min(0).max(100_000),
+      })
+      .parse(input),
   )
   .handler(async ({ data, context }) => {
     const caller = await loadStaffCaller(context.supabase, context.userId);
-    const result = await performClockOut(caller, data.breakMinutes);
+    const result = await performClockOut(caller, data.breakMinutes, {}, {
+      latitude: data.latitude,
+      longitude: data.longitude,
+      accuracyM: data.accuracyM,
+    });
     if (!result) throw new Error(denialMessage("no_open_entry"));
     return result;
   });
