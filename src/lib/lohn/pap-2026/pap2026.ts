@@ -257,14 +257,16 @@ export class Pap2026 implements PapInstance {
   // -------------------------------------------------------------------------
   private readonly ZAHL1 = new Decimal(1);
   private readonly ZAHL2 = new Decimal(2);
-  private readonly ZAHL5 = new Decimal(5);
+  // ZAHL5 is part of the original PAP constant block but unused in this port.
+  // Kept commented to mirror the source structure without tripping noUnusedLocals.
+  // private readonly ZAHL5 = new Decimal(5);
   private readonly ZAHL7 = new Decimal(7);
   private readonly ZAHL12 = new Decimal(12);
   private readonly ZAHL100 = new Decimal(100);
   private readonly ZAHL360 = new Decimal(360);
-  private readonly ZAHL500 = new Decimal(500);
+  // private readonly ZAHL500 = new Decimal(500);
   private readonly ZAHL700 = new Decimal(700);
-  private readonly ZAHL1000 = new Decimal(1000);
+  // private readonly ZAHL1000 = new Decimal(1000);
   private readonly ZAHL10000 = new Decimal(10000);
 
   // =========================================================================
