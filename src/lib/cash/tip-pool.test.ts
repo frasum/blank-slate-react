@@ -128,7 +128,12 @@ describe("computeTipPool", () => {
 
 test("computeTipTotalCents: echtes Trinkgeld (26.04. YUM)", () => {
   const total = computeTipTotalCents([
-    { cardTotalCents: 198608, cashHandedInCents: 34700, posSalesCents: 215400, openInvoicesCents: 0 }, // KRISS
+    {
+      cardTotalCents: 198608,
+      cashHandedInCents: 34700,
+      posSalesCents: 215400,
+      openInvoicesCents: 0,
+    }, // KRISS
     { cardTotalCents: 50666, cashHandedInCents: 23000, posSalesCents: 68330, openInvoicesCents: 0 }, // JASMIN
     { cardTotalCents: 0, cashHandedInCents: 6000, posSalesCents: 5780, openInvoicesCents: 0 }, // TU
   ]);

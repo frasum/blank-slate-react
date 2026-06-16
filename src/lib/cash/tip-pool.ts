@@ -29,8 +29,7 @@ export function computeTipTotalCents(
   }>,
 ): number {
   return settlements.reduce(
-    (s, x) =>
-      s + x.cardTotalCents + x.cashHandedInCents - x.posSalesCents - x.openInvoicesCents,
+    (s, x) => s + x.cardTotalCents + x.cashHandedInCents - x.posSalesCents - x.openInvoicesCents,
     0,
   );
 }
