@@ -6,10 +6,24 @@ import { supabase } from "./client";
 // the browser never attaches the bearer token to serverFn RPCs.
 export const attachSupabaseAuth = createMiddleware({ type: "function" }).client(
   async ({ next }) => {
-    const { data } = await supabase.auth.getSession();
+    let { data } = await supabase.auth.getSession();
+    if (!data.session?.access_token) {
+      // Access-Token fehlt/abgelaufen → mit Refresh-Token einmal erneuern.
+      await supabase.auth.refreshSession();
+      ({ data } = await supabase.auth.getSession());
+    }
     const token = data.session?.access_token;
+    if (!token) {
+      // Keine gültige Sitzung mehr → zurück zum Login, statt einen
+      // unauthentifizierten RPC zu senden (würde im Server-Middleware 401en
+      // und die Seite ohne Redirect blank lassen).
+      if (typeof window !== "undefined") {
+        window.location.assign("/auth");
+      }
+      throw new Error("Sitzung abgelaufen – bitte erneut anmelden.");
+    }
     return next({
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      headers: { Authorization: `Bearer ${token}` },
     });
   },
 );
