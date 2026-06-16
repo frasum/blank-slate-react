@@ -999,6 +999,7 @@ export type Database = {
           order_email_reply_to: string | null
           organization_id: string
           time_locked_through_date: string | null
+          tip_pool_min_hours: number
           updated_at: string
         }
         Insert: {
@@ -1008,6 +1009,7 @@ export type Database = {
           order_email_reply_to?: string | null
           organization_id: string
           time_locked_through_date?: string | null
+          tip_pool_min_hours?: number
           updated_at?: string
         }
         Update: {
@@ -1017,6 +1019,7 @@ export type Database = {
           order_email_reply_to?: string | null
           organization_id?: string
           time_locked_through_date?: string | null
+          tip_pool_min_hours?: number
           updated_at?: string
         }
         Relationships: [
