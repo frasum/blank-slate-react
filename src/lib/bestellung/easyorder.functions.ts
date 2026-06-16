@@ -136,11 +136,24 @@ export type PlaceEasyOrderInput = {
   notes?: string;
 };
 
+export type EasyOrderSendResult = {
+  orderId: string;
+  ok: boolean;
+  orderNumber?: string;
+  error?: string;
+};
+
+export type PlaceEasyOrderResult = {
+  orderIds: string[];
+  autoSendAttempted: boolean;
+  sendResults: EasyOrderSendResult[];
+};
+
 export async function placeEasyOrderCore(
   admin: Admin,
   caller: AdminCaller,
   input: PlaceEasyOrderInput,
-): Promise<{ orderIds: string[] }> {
+): Promise<PlaceEasyOrderResult> {
   // 1. Location-Berechtigung
   const { data: acc } = await admin
     .from("staff_easyorder_access")
@@ -247,7 +260,35 @@ export async function placeEasyOrderCore(
   });
   if (rpcErr) throw new Error(rpcErr.message);
 
-  return { orderIds: (orderIds ?? []) as string[] };
+  const createdIds = (orderIds ?? []) as string[];
+
+  // 6. Auto-Versand (nur wenn Mitarbeiter freigeschaltet ist).
+  const { data: staffRow } = await admin
+    .from("staff")
+    .select("can_easyorder_auto_send")
+    .eq("id", caller.staffId)
+    .eq("organization_id", caller.organizationId)
+    .maybeSingle();
+  const autoSendAttempted = staffRow?.can_easyorder_auto_send === true;
+
+  const sendResults: EasyOrderSendResult[] = [];
+  if (autoSendAttempted && createdIds.length > 0) {
+    const { sendOrderEmailWithAdmin } = await import("./send-order-email.server");
+    for (const orderId of createdIds) {
+      try {
+        const r = await sendOrderEmailWithAdmin(admin, caller.organizationId, orderId);
+        sendResults.push({ orderId, ok: true, orderNumber: r.orderNumber });
+      } catch (err) {
+        sendResults.push({
+          orderId,
+          ok: false,
+          error: err instanceof Error ? err.message : "Unbekannter Fehler",
+        });
+      }
+    }
+  }
+
+  return { orderIds: createdIds, autoSendAttempted, sendResults };
 }
 
 // ---------------------------------------------------------------------------
@@ -309,7 +350,13 @@ export const placeEasyOrder = createServerFn({ method: "POST" })
       actorStaffId: caller.staffId,
       action: "order.easyorder_created",
       entity: "order",
-      meta: { orderIds: result.orderIds, locationId: data.locationId },
+      meta: {
+        orderIds: result.orderIds,
+        locationId: data.locationId,
+        autoSendAttempted: result.autoSendAttempted,
+        sendOk: result.sendResults.filter((r) => r.ok).length,
+        sendFailed: result.sendResults.filter((r) => !r.ok).length,
+      },
     });
     return result;
   });

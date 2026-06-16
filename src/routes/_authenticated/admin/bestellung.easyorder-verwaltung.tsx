@@ -13,6 +13,7 @@ import {
   grantEasyOrderAccess,
   revokeEasyOrderAccess,
   setEasyOrderSupplierWhitelist,
+  setStaffEasyOrderAutoSend,
 } from "@/lib/bestellung/easyorder-admin.functions";
 import { listStaff } from "@/lib/admin/staff.functions";
 import { listLocations } from "@/lib/admin/locations.functions";
@@ -56,6 +57,7 @@ function EasyOrderAdminPage() {
   const callGrant = useServerFn(grantEasyOrderAccess);
   const callRevoke = useServerFn(revokeEasyOrderAccess);
   const callSetWhitelist = useServerFn(setEasyOrderSupplierWhitelist);
+  const callSetAutoSend = useServerFn(setStaffEasyOrderAutoSend);
 
   const accessQ = useQuery({
     queryKey: ["easyorder-admin", "access"],
@@ -82,9 +84,18 @@ function EasyOrderAdminPage() {
     mutationFn: (input: Parameters<typeof callSetWhitelist>[0]) => callSetWhitelist(input),
     onSuccess: invalidate,
   });
+  const autoSendMut = useMutation({
+    mutationFn: (input: Parameters<typeof callSetAutoSend>[0]) => callSetAutoSend(input),
+    onSuccess: invalidate,
+  });
 
   const lastError =
-    grantMut.error ?? revokeMut.error ?? whitelistMut.error ?? accessQ.error ?? null;
+    grantMut.error ??
+    revokeMut.error ??
+    whitelistMut.error ??
+    autoSendMut.error ??
+    accessQ.error ??
+    null;
 
   const [addOpen, setAddOpen] = useState(false);
   const [revokeTarget, setRevokeTarget] = useState<{
@@ -133,6 +144,35 @@ function EasyOrderAdminPage() {
       ) : access.filter((r) => r.entries.length > 0).length === 0 ? (
         <p className="text-sm text-muted-foreground">Noch keine EasyOrder-Zugriffe vergeben.</p>
       ) : (
+        <>
+        <div className="rounded-md border border-border bg-card p-4 space-y-3">
+          <div>
+            <h3 className="text-sm font-semibold">Auto-Versand pro Mitarbeiter</h3>
+            <p className="text-xs text-muted-foreground">
+              Mitarbeiter mit Auto-Versand schicken die Bestellung beim Absenden direkt per E-Mail
+              an den Lieferanten. Ohne Recht bleibt die Bestellung „offen" und muss in der
+              Lieferanten-Übersicht manuell versendet werden.
+            </p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {access
+              .filter((r) => r.entries.length > 0)
+              .map((r) => (
+                <label
+                  key={r.staffId}
+                  className="flex items-center justify-between rounded border border-border px-3 py-2"
+                >
+                  <span className="text-sm font-medium">{r.staffName}</span>
+                  <Switch
+                    checked={r.canEasyorderAutoSend}
+                    onCheckedChange={(v) =>
+                      autoSendMut.mutate({ data: { staffId: r.staffId, allowed: v } })
+                    }
+                  />
+                </label>
+              ))}
+          </div>
+        </div>
         <div className="rounded-md border border-border">
           <Table>
             <TableHeader>
@@ -226,6 +266,7 @@ function EasyOrderAdminPage() {
             </TableBody>
           </Table>
         </div>
+        </>
       )}
 
       {addOpen && (

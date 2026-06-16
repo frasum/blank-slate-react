@@ -136,12 +136,26 @@ function EasyOrderCart(props: {
   const [ftName, setFtName] = useState("");
   const [ftUnit, setFtUnit] = useState("Stk");
   const [ftQty, setFtQty] = useState(1);
-  const [successInfo, setSuccessInfo] = useState<{ count: number } | null>(null);
+  const [successInfo, setSuccessInfo] = useState<{
+    count: number;
+    autoSendAttempted: boolean;
+    sendOk: number;
+    sendFailed: number;
+    failures: { orderId: string; error?: string }[];
+  } | null>(null);
 
   const placeMut = useMutation({
     mutationFn: (input: Parameters<typeof callPlace>[0]) => callPlace(input),
     onSuccess: (res) => {
-      setSuccessInfo({ count: res.orderIds.length });
+      setSuccessInfo({
+        count: res.orderIds.length,
+        autoSendAttempted: res.autoSendAttempted,
+        sendOk: res.sendResults.filter((r) => r.ok).length,
+        sendFailed: res.sendResults.filter((r) => !r.ok).length,
+        failures: res.sendResults
+          .filter((r) => !r.ok)
+          .map((r) => ({ orderId: r.orderId, error: r.error })),
+      });
       setQty({});
       setFreeItems([]);
       setNotes("");
@@ -239,11 +253,32 @@ function EasyOrderCart(props: {
 
       {successInfo && (
         <div className="rounded-md border border-primary/40 bg-primary/10 p-4 text-foreground">
-          <p className="text-base font-semibold">Bestellung gesendet ✓</p>
+          <p className="text-base font-semibold">
+            {successInfo.autoSendAttempted && successInfo.sendFailed === 0
+              ? "Bestellung an Lieferant versendet ✓"
+              : "Bestellung angelegt ✓"}
+          </p>
           <p className="text-sm text-muted-foreground">
             {successInfo.count} {successInfo.count === 1 ? "Bestellung" : "Bestellungen"} angelegt
             (eine pro Lieferant).
           </p>
+          {successInfo.autoSendAttempted ? (
+            <p className="mt-1 text-sm text-muted-foreground">
+              Mailversand: {successInfo.sendOk} erfolgreich
+              {successInfo.sendFailed > 0 ? `, ${successInfo.sendFailed} fehlgeschlagen` : ""}.
+            </p>
+          ) : (
+            <p className="mt-1 text-sm text-muted-foreground">
+              Wird vom Admin in der Lieferanten-Übersicht versendet.
+            </p>
+          )}
+          {successInfo.failures.length > 0 && (
+            <ul className="mt-2 list-disc pl-5 text-sm text-destructive">
+              {successInfo.failures.map((f) => (
+                <li key={f.orderId}>{f.error ?? "Versand fehlgeschlagen."}</li>
+              ))}
+            </ul>
+          )}
           <button
             onClick={() => setSuccessInfo(null)}
             className="mt-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
