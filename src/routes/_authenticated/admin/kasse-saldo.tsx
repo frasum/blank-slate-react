@@ -4,7 +4,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -105,10 +105,11 @@ function KasseSaldoPage() {
   });
 
   // Default: erster Standort (nicht "Alle").
-  if (locationId === "" && locationsQ.data && locationsQ.data.length > 0) {
-    // synchroner Default beim ersten Render nach Laden
-    setLocationId(locationsQ.data[0].id);
-  }
+  useEffect(() => {
+    if (!locationId && locationsQ.data && locationsQ.data.length > 0) {
+      setLocationId(locationsQ.data[0].id);
+    }
+  }, [locationId, locationsQ.data]);
 
   const locationName = useMemo(() => {
     if (!locationId) return "Alle Standorte";
