@@ -16,6 +16,7 @@ import {
   buildOrderEmailSubject,
   buildOrderEmailText,
   type OrderEmailData,
+  type TestModeContext,
 } from "./order-email";
 
 type Admin = SupabaseClient<Database>;
@@ -37,6 +38,20 @@ export async function sendOrderEmailWithAdmin(
   const fromName = process.env.MAILERSEND_FROM_NAME ?? "Bestellung COCO";
   if (!apiKey) throw new Error("Mailversand ist nicht konfiguriert (MAILERSEND_API_KEY fehlt).");
   if (!fromEmail) throw new Error("Absenderadresse fehlt (MAILERSEND_FROM_EMAIL).");
+
+  // Testmodus: Org-Settings prüfen. Wenn aktiv, gehen alle Bestellmails
+  // ausschließlich an die hinterlegte Test-Adresse — Lieferant bekommt nichts.
+  const { data: settings, error: setErr } = await admin
+    .from("organization_settings")
+    .select("test_mode_enabled, test_mode_email")
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+  if (setErr) throw setErr;
+  const testEnabled = settings?.test_mode_enabled === true;
+  const testEmail = settings?.test_mode_email?.trim() ?? "";
+  if (testEnabled && !testEmail) {
+    throw new Error("Testmodus ist aktiv, aber keine Test-E-Mail hinterlegt.");
+  }
 
   const { data: order, error: oErr } = await admin
     .from("orders")
@@ -60,6 +75,10 @@ export async function sendOrderEmailWithAdmin(
   if (sErr) throw sErr;
   if (!supplier) throw new Error("Lieferant nicht gefunden.");
   if (!supplier.email) throw new Error("Lieferant hat keine E-Mail-Adresse hinterlegt.");
+
+  const testCtx: TestModeContext | undefined = testEnabled
+    ? { originalSupplierEmail: supplier.email }
+    : undefined;
 
   let restaurantName = "";
   if (order.location_id) {
@@ -110,10 +129,12 @@ export async function sendOrderEmailWithAdmin(
     },
     body: JSON.stringify({
       from: { email: fromEmail, name: fromName },
-      to: [{ email: supplier.email, name: supplier.name }],
-      subject: buildOrderEmailSubject(emailData),
-      html: buildOrderEmailHtml(emailData),
-      text: buildOrderEmailText(emailData),
+      to: testCtx
+        ? [{ email: testEmail, name: `TEST – ${supplier.name}` }]
+        : [{ email: supplier.email, name: supplier.name }],
+      subject: buildOrderEmailSubject(emailData, testCtx),
+      html: buildOrderEmailHtml(emailData, testCtx),
+      text: buildOrderEmailText(emailData, testCtx),
     }),
   });
   if (!res.ok) {
