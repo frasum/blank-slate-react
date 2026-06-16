@@ -18,7 +18,11 @@
           { "kategorie": "zeitlohn", "bezeichnung": "Grundlohn", "betragCent": 365295 },
           { "kategorie": "zuschlag_frei", "bezeichnung": "SFN-Zuschläge", "betragCent": 14550 },
           { "kategorie": "sachbezug_frei", "bezeichnung": "Sachbezug", "betragCent": 5000 },
-          { "kategorie": "mahlzeiten_paust", "bezeichnung": "Mahlzeiten (pauschal)", "betragCent": 1828 },
+          {
+            "kategorie": "mahlzeiten_paust",
+            "bezeichnung": "Mahlzeiten (pauschal)",
+            "betragCent": 1828
+          },
           { "kategorie": "abzug", "bezeichnung": "Sonstiger Abzug", "betragCent": 82000 },
           { "kategorie": "abzug", "bezeichnung": "Rückzahlung", "betragCent": 5000 }
         ]
@@ -51,9 +55,17 @@
           "beschaeftigung": "minijob"
         },
         "zeilen": [
-          { "kategorie": "aushilfe_paust", "bezeichnung": "Aushilfe-Zeitlohn", "betragCent": 39550 },
+          {
+            "kategorie": "aushilfe_paust",
+            "bezeichnung": "Aushilfe-Zeitlohn",
+            "betragCent": 39550
+          },
           { "kategorie": "sachbezug_frei", "bezeichnung": "Sachbezug", "betragCent": 5000 },
-          { "kategorie": "mahlzeiten_paust", "bezeichnung": "Mahlzeiten (pauschal)", "betragCent": 2285 },
+          {
+            "kategorie": "mahlzeiten_paust",
+            "bezeichnung": "Mahlzeiten (pauschal)",
+            "betragCent": 2285
+          },
           { "kategorie": "zuschlag_frei", "bezeichnung": "SFN-Zuschläge", "betragCent": 3763 }
         ]
       },
@@ -88,7 +100,11 @@
           { "kategorie": "zeitlohn", "bezeichnung": "Grundlohn", "betragCent": 333600 },
           { "kategorie": "zuschlag_frei", "bezeichnung": "SFN-Zuschläge", "betragCent": 95560 },
           { "kategorie": "sachbezug_frei", "bezeichnung": "Sachbezug", "betragCent": 5000 },
-          { "kategorie": "mahlzeiten_paust", "bezeichnung": "Mahlzeiten (pauschal)", "betragCent": 8226 }
+          {
+            "kategorie": "mahlzeiten_paust",
+            "bezeichnung": "Mahlzeiten (pauschal)",
+            "betragCent": 8226
+          }
         ]
       },
       "erwartet": {

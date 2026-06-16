@@ -164,92 +164,292 @@ export class Pap2026 implements PapInstance {
   // -------------------------------------------------------------------------
   private readonly TAB1: Decimal[] = [
     new Decimal(0),
-    new Decimal("0.4"), new Decimal("0.384"), new Decimal("0.368"), new Decimal("0.352"),
-    new Decimal("0.336"), new Decimal("0.32"), new Decimal("0.304"), new Decimal("0.288"),
-    new Decimal("0.272"), new Decimal("0.256"), new Decimal("0.24"), new Decimal("0.224"),
-    new Decimal("0.208"), new Decimal("0.192"), new Decimal("0.176"), new Decimal("0.16"),
-    new Decimal("0.152"), new Decimal("0.144"), new Decimal("0.14"), new Decimal("0.136"),
-    new Decimal("0.132"), new Decimal("0.128"), new Decimal("0.124"), new Decimal("0.12"),
-    new Decimal("0.116"), new Decimal("0.112"), new Decimal("0.108"), new Decimal("0.104"),
-    new Decimal("0.1"), new Decimal("0.096"), new Decimal("0.092"), new Decimal("0.088"),
-    new Decimal("0.084"), new Decimal("0.08"), new Decimal("0.076"), new Decimal("0.072"),
-    new Decimal("0.068"), new Decimal("0.064"), new Decimal("0.06"), new Decimal("0.056"),
-    new Decimal("0.052"), new Decimal("0.048"), new Decimal("0.044"), new Decimal("0.04"),
-    new Decimal("0.036"), new Decimal("0.032"), new Decimal("0.028"), new Decimal("0.024"),
-    new Decimal("0.02"), new Decimal("0.016"), new Decimal("0.012"), new Decimal("0.008"),
-    new Decimal("0.004"), new Decimal(0),
+    new Decimal("0.4"),
+    new Decimal("0.384"),
+    new Decimal("0.368"),
+    new Decimal("0.352"),
+    new Decimal("0.336"),
+    new Decimal("0.32"),
+    new Decimal("0.304"),
+    new Decimal("0.288"),
+    new Decimal("0.272"),
+    new Decimal("0.256"),
+    new Decimal("0.24"),
+    new Decimal("0.224"),
+    new Decimal("0.208"),
+    new Decimal("0.192"),
+    new Decimal("0.176"),
+    new Decimal("0.16"),
+    new Decimal("0.152"),
+    new Decimal("0.144"),
+    new Decimal("0.14"),
+    new Decimal("0.136"),
+    new Decimal("0.132"),
+    new Decimal("0.128"),
+    new Decimal("0.124"),
+    new Decimal("0.12"),
+    new Decimal("0.116"),
+    new Decimal("0.112"),
+    new Decimal("0.108"),
+    new Decimal("0.104"),
+    new Decimal("0.1"),
+    new Decimal("0.096"),
+    new Decimal("0.092"),
+    new Decimal("0.088"),
+    new Decimal("0.084"),
+    new Decimal("0.08"),
+    new Decimal("0.076"),
+    new Decimal("0.072"),
+    new Decimal("0.068"),
+    new Decimal("0.064"),
+    new Decimal("0.06"),
+    new Decimal("0.056"),
+    new Decimal("0.052"),
+    new Decimal("0.048"),
+    new Decimal("0.044"),
+    new Decimal("0.04"),
+    new Decimal("0.036"),
+    new Decimal("0.032"),
+    new Decimal("0.028"),
+    new Decimal("0.024"),
+    new Decimal("0.02"),
+    new Decimal("0.016"),
+    new Decimal("0.012"),
+    new Decimal("0.008"),
+    new Decimal("0.004"),
+    new Decimal(0),
   ];
 
   private readonly TAB2: Decimal[] = [
     new Decimal(0),
-    new Decimal(3000), new Decimal(2880), new Decimal(2760), new Decimal(2640),
-    new Decimal(2520), new Decimal(2400), new Decimal(2280), new Decimal(2160),
-    new Decimal(2040), new Decimal(1920), new Decimal(1800), new Decimal(1680),
-    new Decimal(1560), new Decimal(1440), new Decimal(1320), new Decimal(1200),
-    new Decimal(1140), new Decimal(1080), new Decimal(1050), new Decimal(1020),
-    new Decimal(990), new Decimal(960), new Decimal(930), new Decimal(900),
-    new Decimal(870), new Decimal(840), new Decimal(810), new Decimal(780),
-    new Decimal(750), new Decimal(720), new Decimal(690), new Decimal(660),
-    new Decimal(630), new Decimal(600), new Decimal(570), new Decimal(540),
-    new Decimal(510), new Decimal(480), new Decimal(450), new Decimal(420),
-    new Decimal(390), new Decimal(360), new Decimal(330), new Decimal(300),
-    new Decimal(270), new Decimal(240), new Decimal(210), new Decimal(180),
-    new Decimal(150), new Decimal(120), new Decimal(90), new Decimal(60),
-    new Decimal(30), new Decimal(0),
+    new Decimal(3000),
+    new Decimal(2880),
+    new Decimal(2760),
+    new Decimal(2640),
+    new Decimal(2520),
+    new Decimal(2400),
+    new Decimal(2280),
+    new Decimal(2160),
+    new Decimal(2040),
+    new Decimal(1920),
+    new Decimal(1800),
+    new Decimal(1680),
+    new Decimal(1560),
+    new Decimal(1440),
+    new Decimal(1320),
+    new Decimal(1200),
+    new Decimal(1140),
+    new Decimal(1080),
+    new Decimal(1050),
+    new Decimal(1020),
+    new Decimal(990),
+    new Decimal(960),
+    new Decimal(930),
+    new Decimal(900),
+    new Decimal(870),
+    new Decimal(840),
+    new Decimal(810),
+    new Decimal(780),
+    new Decimal(750),
+    new Decimal(720),
+    new Decimal(690),
+    new Decimal(660),
+    new Decimal(630),
+    new Decimal(600),
+    new Decimal(570),
+    new Decimal(540),
+    new Decimal(510),
+    new Decimal(480),
+    new Decimal(450),
+    new Decimal(420),
+    new Decimal(390),
+    new Decimal(360),
+    new Decimal(330),
+    new Decimal(300),
+    new Decimal(270),
+    new Decimal(240),
+    new Decimal(210),
+    new Decimal(180),
+    new Decimal(150),
+    new Decimal(120),
+    new Decimal(90),
+    new Decimal(60),
+    new Decimal(30),
+    new Decimal(0),
   ];
 
   private readonly TAB3: Decimal[] = [
     new Decimal(0),
-    new Decimal(900), new Decimal(864), new Decimal(828), new Decimal(792),
-    new Decimal(756), new Decimal(720), new Decimal(684), new Decimal(648),
-    new Decimal(612), new Decimal(576), new Decimal(540), new Decimal(504),
-    new Decimal(468), new Decimal(432), new Decimal(396), new Decimal(360),
-    new Decimal(342), new Decimal(324), new Decimal(315), new Decimal(306),
-    new Decimal(297), new Decimal(288), new Decimal(279), new Decimal(270),
-    new Decimal(261), new Decimal(252), new Decimal(243), new Decimal(234),
-    new Decimal(225), new Decimal(216), new Decimal(207), new Decimal(198),
-    new Decimal(189), new Decimal(180), new Decimal(171), new Decimal(162),
-    new Decimal(153), new Decimal(144), new Decimal(135), new Decimal(126),
-    new Decimal(117), new Decimal(108), new Decimal(99), new Decimal(90),
-    new Decimal(81), new Decimal(72), new Decimal(63), new Decimal(54),
-    new Decimal(45), new Decimal(36), new Decimal(27), new Decimal(18),
-    new Decimal(9), new Decimal(0),
+    new Decimal(900),
+    new Decimal(864),
+    new Decimal(828),
+    new Decimal(792),
+    new Decimal(756),
+    new Decimal(720),
+    new Decimal(684),
+    new Decimal(648),
+    new Decimal(612),
+    new Decimal(576),
+    new Decimal(540),
+    new Decimal(504),
+    new Decimal(468),
+    new Decimal(432),
+    new Decimal(396),
+    new Decimal(360),
+    new Decimal(342),
+    new Decimal(324),
+    new Decimal(315),
+    new Decimal(306),
+    new Decimal(297),
+    new Decimal(288),
+    new Decimal(279),
+    new Decimal(270),
+    new Decimal(261),
+    new Decimal(252),
+    new Decimal(243),
+    new Decimal(234),
+    new Decimal(225),
+    new Decimal(216),
+    new Decimal(207),
+    new Decimal(198),
+    new Decimal(189),
+    new Decimal(180),
+    new Decimal(171),
+    new Decimal(162),
+    new Decimal(153),
+    new Decimal(144),
+    new Decimal(135),
+    new Decimal(126),
+    new Decimal(117),
+    new Decimal(108),
+    new Decimal(99),
+    new Decimal(90),
+    new Decimal(81),
+    new Decimal(72),
+    new Decimal(63),
+    new Decimal(54),
+    new Decimal(45),
+    new Decimal(36),
+    new Decimal(27),
+    new Decimal(18),
+    new Decimal(9),
+    new Decimal(0),
   ];
 
   private readonly TAB4: Decimal[] = [
     new Decimal(0),
-    new Decimal("0.4"), new Decimal("0.384"), new Decimal("0.368"), new Decimal("0.352"),
-    new Decimal("0.336"), new Decimal("0.32"), new Decimal("0.304"), new Decimal("0.288"),
-    new Decimal("0.272"), new Decimal("0.256"), new Decimal("0.24"), new Decimal("0.224"),
-    new Decimal("0.208"), new Decimal("0.192"), new Decimal("0.176"), new Decimal("0.16"),
-    new Decimal("0.152"), new Decimal("0.144"), new Decimal("0.14"), new Decimal("0.136"),
-    new Decimal("0.132"), new Decimal("0.128"), new Decimal("0.124"), new Decimal("0.12"),
-    new Decimal("0.116"), new Decimal("0.112"), new Decimal("0.108"), new Decimal("0.104"),
-    new Decimal("0.1"), new Decimal("0.096"), new Decimal("0.092"), new Decimal("0.088"),
-    new Decimal("0.084"), new Decimal("0.08"), new Decimal("0.076"), new Decimal("0.072"),
-    new Decimal("0.068"), new Decimal("0.064"), new Decimal("0.06"), new Decimal("0.056"),
-    new Decimal("0.052"), new Decimal("0.048"), new Decimal("0.044"), new Decimal("0.04"),
-    new Decimal("0.036"), new Decimal("0.032"), new Decimal("0.028"), new Decimal("0.024"),
-    new Decimal("0.02"), new Decimal("0.016"), new Decimal("0.012"), new Decimal("0.008"),
-    new Decimal("0.004"), new Decimal(0),
+    new Decimal("0.4"),
+    new Decimal("0.384"),
+    new Decimal("0.368"),
+    new Decimal("0.352"),
+    new Decimal("0.336"),
+    new Decimal("0.32"),
+    new Decimal("0.304"),
+    new Decimal("0.288"),
+    new Decimal("0.272"),
+    new Decimal("0.256"),
+    new Decimal("0.24"),
+    new Decimal("0.224"),
+    new Decimal("0.208"),
+    new Decimal("0.192"),
+    new Decimal("0.176"),
+    new Decimal("0.16"),
+    new Decimal("0.152"),
+    new Decimal("0.144"),
+    new Decimal("0.14"),
+    new Decimal("0.136"),
+    new Decimal("0.132"),
+    new Decimal("0.128"),
+    new Decimal("0.124"),
+    new Decimal("0.12"),
+    new Decimal("0.116"),
+    new Decimal("0.112"),
+    new Decimal("0.108"),
+    new Decimal("0.104"),
+    new Decimal("0.1"),
+    new Decimal("0.096"),
+    new Decimal("0.092"),
+    new Decimal("0.088"),
+    new Decimal("0.084"),
+    new Decimal("0.08"),
+    new Decimal("0.076"),
+    new Decimal("0.072"),
+    new Decimal("0.068"),
+    new Decimal("0.064"),
+    new Decimal("0.06"),
+    new Decimal("0.056"),
+    new Decimal("0.052"),
+    new Decimal("0.048"),
+    new Decimal("0.044"),
+    new Decimal("0.04"),
+    new Decimal("0.036"),
+    new Decimal("0.032"),
+    new Decimal("0.028"),
+    new Decimal("0.024"),
+    new Decimal("0.02"),
+    new Decimal("0.016"),
+    new Decimal("0.012"),
+    new Decimal("0.008"),
+    new Decimal("0.004"),
+    new Decimal(0),
   ];
 
   private readonly TAB5: Decimal[] = [
     new Decimal(0),
-    new Decimal(1900), new Decimal(1824), new Decimal(1748), new Decimal(1672),
-    new Decimal(1596), new Decimal(1520), new Decimal(1444), new Decimal(1368),
-    new Decimal(1292), new Decimal(1216), new Decimal(1140), new Decimal(1064),
-    new Decimal(988), new Decimal(912), new Decimal(836), new Decimal(760),
-    new Decimal(722), new Decimal(684), new Decimal(665), new Decimal(646),
-    new Decimal(627), new Decimal(608), new Decimal(589), new Decimal(570),
-    new Decimal(551), new Decimal(532), new Decimal(513), new Decimal(494),
-    new Decimal(475), new Decimal(456), new Decimal(437), new Decimal(418),
-    new Decimal(399), new Decimal(380), new Decimal(361), new Decimal(342),
-    new Decimal(323), new Decimal(304), new Decimal(285), new Decimal(266),
-    new Decimal(247), new Decimal(228), new Decimal(209), new Decimal(190),
-    new Decimal(171), new Decimal(152), new Decimal(133), new Decimal(114),
-    new Decimal(95), new Decimal(76), new Decimal(57), new Decimal(38),
-    new Decimal(19), new Decimal(0),
+    new Decimal(1900),
+    new Decimal(1824),
+    new Decimal(1748),
+    new Decimal(1672),
+    new Decimal(1596),
+    new Decimal(1520),
+    new Decimal(1444),
+    new Decimal(1368),
+    new Decimal(1292),
+    new Decimal(1216),
+    new Decimal(1140),
+    new Decimal(1064),
+    new Decimal(988),
+    new Decimal(912),
+    new Decimal(836),
+    new Decimal(760),
+    new Decimal(722),
+    new Decimal(684),
+    new Decimal(665),
+    new Decimal(646),
+    new Decimal(627),
+    new Decimal(608),
+    new Decimal(589),
+    new Decimal(570),
+    new Decimal(551),
+    new Decimal(532),
+    new Decimal(513),
+    new Decimal(494),
+    new Decimal(475),
+    new Decimal(456),
+    new Decimal(437),
+    new Decimal(418),
+    new Decimal(399),
+    new Decimal(380),
+    new Decimal(361),
+    new Decimal(342),
+    new Decimal(323),
+    new Decimal(304),
+    new Decimal(285),
+    new Decimal(266),
+    new Decimal(247),
+    new Decimal(228),
+    new Decimal(209),
+    new Decimal(190),
+    new Decimal(171),
+    new Decimal(152),
+    new Decimal(133),
+    new Decimal(114),
+    new Decimal(95),
+    new Decimal(76),
+    new Decimal(57),
+    new Decimal(38),
+    new Decimal(19),
+    new Decimal(0),
   ];
 
   // -------------------------------------------------------------------------
@@ -482,13 +682,21 @@ export class Pap2026 implements PapInstance {
     } else if (this.LZZ === 3) {
       this.ZRE4J = this.RE4.times(this.ZAHL360).div(this.ZAHL700).toDP(2, Decimal.ROUND_DOWN);
       this.ZVBEZJ = this.VBEZ.times(this.ZAHL360).div(this.ZAHL700).toDP(2, Decimal.ROUND_DOWN);
-      this.JLFREIB = this.LZZFREIB.times(this.ZAHL360).div(this.ZAHL700).toDP(2, Decimal.ROUND_DOWN);
-      this.JLHINZU = this.LZZHINZU.times(this.ZAHL360).div(this.ZAHL700).toDP(2, Decimal.ROUND_DOWN);
+      this.JLFREIB = this.LZZFREIB.times(this.ZAHL360)
+        .div(this.ZAHL700)
+        .toDP(2, Decimal.ROUND_DOWN);
+      this.JLHINZU = this.LZZHINZU.times(this.ZAHL360)
+        .div(this.ZAHL700)
+        .toDP(2, Decimal.ROUND_DOWN);
     } else {
       this.ZRE4J = this.RE4.times(this.ZAHL360).div(this.ZAHL100).toDP(2, Decimal.ROUND_DOWN);
       this.ZVBEZJ = this.VBEZ.times(this.ZAHL360).div(this.ZAHL100).toDP(2, Decimal.ROUND_DOWN);
-      this.JLFREIB = this.LZZFREIB.times(this.ZAHL360).div(this.ZAHL100).toDP(2, Decimal.ROUND_DOWN);
-      this.JLHINZU = this.LZZHINZU.times(this.ZAHL360).div(this.ZAHL100).toDP(2, Decimal.ROUND_DOWN);
+      this.JLFREIB = this.LZZFREIB.times(this.ZAHL360)
+        .div(this.ZAHL100)
+        .toDP(2, Decimal.ROUND_DOWN);
+      this.JLHINZU = this.LZZHINZU.times(this.ZAHL360)
+        .div(this.ZAHL100)
+        .toDP(2, Decimal.ROUND_DOWN);
     }
     if (this.af === 0) {
       this.f = 1;
@@ -517,8 +725,14 @@ export class Pap2026 implements PapInstance {
 
       if (this.LZZ === 1) {
         this.VBEZB = this.VBEZM.times(new Decimal(this.ZMVB)).plus(this.VBEZS);
-        this.HFVB = this.TAB2[this.J].div(this.ZAHL12).times(new Decimal(this.ZMVB)).toDP(0, Decimal.ROUND_UP);
-        this.FVBZ = this.TAB3[this.J].div(this.ZAHL12).times(new Decimal(this.ZMVB)).toDP(0, Decimal.ROUND_UP);
+        this.HFVB = this.TAB2[this.J]
+          .div(this.ZAHL12)
+          .times(new Decimal(this.ZMVB))
+          .toDP(0, Decimal.ROUND_UP);
+        this.FVBZ = this.TAB3[this.J]
+          .div(this.ZAHL12)
+          .times(new Decimal(this.ZMVB))
+          .toDP(0, Decimal.ROUND_UP);
       } else {
         this.VBEZB = this.VBEZM.times(this.ZAHL12).plus(this.VBEZS).toDP(2, Decimal.ROUND_DOWN);
         this.HFVB = this.TAB2[this.J];
@@ -533,12 +747,18 @@ export class Pap2026 implements PapInstance {
         this.FVB = this.ZVBEZJ;
       }
 
-      this.FVBSO = this.FVB.plus(this.VBEZBSO.times(this.TAB1[this.J]).div(this.ZAHL100)).toDP(2, Decimal.ROUND_UP);
+      this.FVBSO = this.FVB.plus(this.VBEZBSO.times(this.TAB1[this.J]).div(this.ZAHL100)).toDP(
+        2,
+        Decimal.ROUND_UP,
+      );
       if (this.FVBSO.cmp(this.TAB2[this.J]) === 1) {
         this.FVBSO = this.TAB2[this.J];
       }
 
-      this.HFVBZSO = this.VBEZB.plus(this.VBEZBSO).div(this.ZAHL100).minus(this.FVBSO).toDP(2, Decimal.ROUND_DOWN);
+      this.HFVBZSO = this.VBEZB.plus(this.VBEZBSO)
+        .div(this.ZAHL100)
+        .minus(this.FVBSO)
+        .toDP(2, Decimal.ROUND_DOWN);
       this.FVBZSO = this.FVBZ.plus(this.VBEZBSO.div(this.ZAHL100)).toDP(0, Decimal.ROUND_UP);
       if (this.FVBZSO.cmp(this.HFVBZSO) === 1) {
         this.FVBZSO = this.HFVBZSO.toDP(0, Decimal.ROUND_UP);
@@ -586,7 +806,11 @@ export class Pap2026 implements PapInstance {
    * PAP Seite 20
    */
   private MRE4ABZ(): void {
-    this.ZRE4 = this.ZRE4J.minus(this.FVB).minus(this.ALTE).minus(this.JLFREIB).plus(this.JLHINZU).toDP(2, Decimal.ROUND_DOWN);
+    this.ZRE4 = this.ZRE4J.minus(this.FVB)
+      .minus(this.ALTE)
+      .minus(this.JLFREIB)
+      .plus(this.JLHINZU)
+      .toDP(2, Decimal.ROUND_DOWN);
     if (this.ZRE4.cmp(new Decimal(0)) === -1) {
       this.ZRE4 = new Decimal(0);
     }
@@ -605,7 +829,9 @@ export class Pap2026 implements PapInstance {
   private MBERECH(): void {
     this.MZTABFB();
 
-    this.VFRB = this.ANP.plus(this.FVB.plus(this.FVBZ)).times(this.ZAHL100).toDP(0, Decimal.ROUND_DOWN);
+    this.VFRB = this.ANP.plus(this.FVB.plus(this.FVBZ))
+      .times(this.ZAHL100)
+      .toDP(0, Decimal.ROUND_DOWN);
 
     this.MLSTJAHR();
 
@@ -686,7 +912,10 @@ export class Pap2026 implements PapInstance {
       this.KFB = new Decimal(0);
     }
 
-    this.ZTABFB = this.EFA.plus(this.ANP).plus(this.SAP).plus(this.FVBZ).toDP(2, Decimal.ROUND_DOWN);
+    this.ZTABFB = this.EFA.plus(this.ANP)
+      .plus(this.SAP)
+      .plus(this.FVBZ)
+      .toDP(2, Decimal.ROUND_DOWN);
   }
 
   /**
@@ -769,7 +998,9 @@ export class Pap2026 implements PapInstance {
       if (this.STKL === 6) {
         this.VSPKVPV = new Decimal(0);
       } else {
-        this.PKPVAGZJ = this.PKPVAGZ.times(this.ZAHL12).div(this.ZAHL100).toDP(2, Decimal.ROUND_DOWN);
+        this.PKPVAGZJ = this.PKPVAGZ.times(this.ZAHL12)
+          .div(this.ZAHL100)
+          .toDP(2, Decimal.ROUND_DOWN);
         this.VSPKVPV = this.PKPV.times(this.ZAHL12).div(this.ZAHL100).toDP(2, Decimal.ROUND_DOWN);
         this.VSPKVPV = this.VSPKVPV.minus(this.PKPVAGZJ);
         if (this.VSPKVPV.cmp(new Decimal(0)) === -1) {
@@ -777,7 +1008,10 @@ export class Pap2026 implements PapInstance {
         }
       }
     } else {
-      this.VSPKVPV = this.ZRE4VPR.times(this.KVSATZAN.plus(this.PVSATZAN)).toDP(2, Decimal.ROUND_DOWN);
+      this.VSPKVPV = this.ZRE4VPR.times(this.KVSATZAN.plus(this.PVSATZAN)).toDP(
+        2,
+        Decimal.ROUND_DOWN,
+      );
     }
 
     this.VSP = this.VSPKVPV.plus(this.VSPR).toDP(0, Decimal.ROUND_UP);
@@ -819,10 +1053,19 @@ export class Pap2026 implements PapInstance {
       this.ZX = this.W2STKL5;
       this.UP5_6();
       if (this.ZZX.cmp(this.W3STKL5) === 1) {
-        this.ST = this.ST.plus(this.W3STKL5.minus(this.W2STKL5).times(new Decimal("0.42"))).toDP(0, Decimal.ROUND_DOWN);
-        this.ST = this.ST.plus(this.ZZX.minus(this.W3STKL5).times(new Decimal("0.45"))).toDP(0, Decimal.ROUND_DOWN);
+        this.ST = this.ST.plus(this.W3STKL5.minus(this.W2STKL5).times(new Decimal("0.42"))).toDP(
+          0,
+          Decimal.ROUND_DOWN,
+        );
+        this.ST = this.ST.plus(this.ZZX.minus(this.W3STKL5).times(new Decimal("0.45"))).toDP(
+          0,
+          Decimal.ROUND_DOWN,
+        );
       } else {
-        this.ST = this.ST.plus(this.ZZX.minus(this.W2STKL5).times(new Decimal("0.42"))).toDP(0, Decimal.ROUND_DOWN);
+        this.ST = this.ST.plus(this.ZZX.minus(this.W2STKL5).times(new Decimal("0.42"))).toDP(
+          0,
+          Decimal.ROUND_DOWN,
+        );
       }
     } else {
       this.ZX = this.ZZX;
@@ -831,7 +1074,10 @@ export class Pap2026 implements PapInstance {
         this.VERGL = this.ST;
         this.ZX = this.W1STKL5;
         this.UP5_6();
-        this.HOCH = this.ST.plus(this.ZZX.minus(this.W1STKL5).times(new Decimal("0.42"))).toDP(0, Decimal.ROUND_DOWN);
+        this.HOCH = this.ST.plus(this.ZZX.minus(this.W1STKL5).times(new Decimal("0.42"))).toDP(
+          0,
+          Decimal.ROUND_DOWN,
+        );
         if (this.HOCH.cmp(this.VERGL) === -1) {
           this.ST = this.HOCH;
         } else {
@@ -869,8 +1115,13 @@ export class Pap2026 implements PapInstance {
   private MSOLZ(): void {
     this.SOLZFREI = this.SOLZFREI.times(new Decimal(this.KZTAB));
     if (this.JBMG.cmp(this.SOLZFREI) === 1) {
-      this.SOLZJ = this.JBMG.times(new Decimal("5.5")).div(this.ZAHL100).toDP(2, Decimal.ROUND_DOWN);
-      this.SOLZMIN = this.JBMG.minus(this.SOLZFREI).times(new Decimal("11.9")).div(this.ZAHL100).toDP(2, Decimal.ROUND_DOWN);
+      this.SOLZJ = this.JBMG.times(new Decimal("5.5"))
+        .div(this.ZAHL100)
+        .toDP(2, Decimal.ROUND_DOWN);
+      this.SOLZMIN = this.JBMG.minus(this.SOLZFREI)
+        .times(new Decimal("11.9"))
+        .div(this.ZAHL100)
+        .toDP(2, Decimal.ROUND_DOWN);
       if (this.SOLZMIN.cmp(this.SOLZJ) === -1) {
         this.SOLZJ = this.SOLZMIN;
       }
@@ -937,7 +1188,11 @@ export class Pap2026 implements PapInstance {
 
       this.LSTSO = this.ST.times(this.ZAHL100);
 
-      this.STS = this.LSTSO.minus(this.LSTOSO).times(new Decimal(this.f)).div(this.ZAHL100).toDP(0, Decimal.ROUND_DOWN).times(this.ZAHL100);
+      this.STS = this.LSTSO.minus(this.LSTOSO)
+        .times(new Decimal(this.f))
+        .div(this.ZAHL100)
+        .toDP(0, Decimal.ROUND_DOWN)
+        .times(this.ZAHL100);
 
       this.STSMIN();
     }
@@ -955,7 +1210,10 @@ export class Pap2026 implements PapInstance {
         if (this.LSTLZZ.cmp(new Decimal(0)) === -1) {
           this.LSTLZZ = new Decimal(0);
         }
-        this.SOLZLZZ = this.SOLZLZZ.plus(this.STS.times(new Decimal("5.5").div(this.ZAHL100))).toDP(0, Decimal.ROUND_DOWN);
+        this.SOLZLZZ = this.SOLZLZZ.plus(this.STS.times(new Decimal("5.5").div(this.ZAHL100))).toDP(
+          0,
+          Decimal.ROUND_DOWN,
+        );
         if (this.SOLZLZZ.cmp(new Decimal(0)) === -1) {
           this.SOLZLZZ = new Decimal(0);
         }
@@ -1022,7 +1280,9 @@ export class Pap2026 implements PapInstance {
     this.MRE4ABZ();
     this.ZRE4VP = this.ZRE4VP.minus(this.JRE4ENT.div(this.ZAHL100));
     this.MZTABFB();
-    this.VFRBS1 = this.ANP.plus(this.FVB.plus(this.FVBZ)).times(this.ZAHL100).toDP(2, Decimal.ROUND_DOWN);
+    this.VFRBS1 = this.ANP.plus(this.FVB.plus(this.FVBZ))
+      .times(this.ZAHL100)
+      .toDP(2, Decimal.ROUND_DOWN);
     this.MLSTJAHR();
 
     this.WVFRBO = this.ZVE.minus(this.GFB).times(this.ZAHL100).toDP(2, Decimal.ROUND_DOWN);
@@ -1041,7 +1301,9 @@ export class Pap2026 implements PapInstance {
     this.MRE4();
     this.FVB = this.FVBSO;
     this.MRE4ABZ();
-    this.ZRE4VP = this.ZRE4VP.plus(this.MBV.div(this.ZAHL100)).minus(this.JRE4ENT.div(this.ZAHL100)).minus(this.SONSTENT.div(this.ZAHL100));
+    this.ZRE4VP = this.ZRE4VP.plus(this.MBV.div(this.ZAHL100))
+      .minus(this.JRE4ENT.div(this.ZAHL100))
+      .minus(this.SONSTENT.div(this.ZAHL100));
     this.FVBZ = this.FVBZSO;
     this.MZTABFB();
     this.VFRBS2 = this.ANP.plus(this.FVB).plus(this.FVBZ).times(this.ZAHL100).minus(this.VFRBS1);
@@ -1066,9 +1328,13 @@ export class Pap2026 implements PapInstance {
       this.RW = this.RW.times(this.Y);
       this.ST = this.RW.plus(new Decimal("1034.87")).toDP(0, Decimal.ROUND_DOWN);
     } else if (this.X.cmp(new Decimal(277826)) === -1) {
-      this.ST = this.X.times(new Decimal("0.42")).minus(new Decimal("11135.63")).toDP(0, Decimal.ROUND_DOWN);
+      this.ST = this.X.times(new Decimal("0.42"))
+        .minus(new Decimal("11135.63"))
+        .toDP(0, Decimal.ROUND_DOWN);
     } else {
-      this.ST = this.X.times(new Decimal("0.45")).minus(new Decimal("19470.38")).toDP(0, Decimal.ROUND_DOWN);
+      this.ST = this.X.times(new Decimal("0.45"))
+        .minus(new Decimal("19470.38"))
+        .toDP(0, Decimal.ROUND_DOWN);
     }
     this.ST = this.ST.times(new Decimal(this.KZTAB));
   }

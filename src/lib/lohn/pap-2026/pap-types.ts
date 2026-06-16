@@ -732,31 +732,14 @@ export const INPUT_DEFAULTS: Required<LohnsteuerInputs> = {
 /**
  * Names of all STANDARD output fields in the order defined by the PAP XML.
  */
-export const STANDARD_OUTPUT_NAMES = [
-  "BK",
-  "BKS",
-  "LSTLZZ",
-  "SOLZLZZ",
-  "SOLZS",
-  "STS",
-] as const;
+export const STANDARD_OUTPUT_NAMES = ["BK", "BKS", "LSTLZZ", "SOLZLZZ", "SOLZS", "STS"] as const;
 
 /**
  * Names of all DBA output fields in the order defined by the PAP XML.
  */
-export const DBA_OUTPUT_NAMES = [
-  "VFRB",
-  "VFRBS1",
-  "VFRBS2",
-  "WVFRB",
-  "WVFRBO",
-  "WVFRBM",
-] as const;
+export const DBA_OUTPUT_NAMES = ["VFRB", "VFRBS1", "VFRBS2", "WVFRB", "WVFRBO", "WVFRBM"] as const;
 
 /**
  * All output field names combined.
  */
-export const ALL_OUTPUT_NAMES = [
-  ...STANDARD_OUTPUT_NAMES,
-  ...DBA_OUTPUT_NAMES,
-] as const;
+export const ALL_OUTPUT_NAMES = [...STANDARD_OUTPUT_NAMES, ...DBA_OUTPUT_NAMES] as const;
