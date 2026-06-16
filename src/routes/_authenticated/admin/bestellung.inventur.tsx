@@ -318,7 +318,7 @@ function ArticleRow({
       setS1(String(item.storage_1));
       setS2(String(item.storage_2));
     }
-  }, [item?.storage_1, item?.storage_2]);
+  }, [item, item?.storage_1, item?.storage_2]);
 
   const qty = parseQty(s1) + parseQty(s2);
   const liveValue = Math.round(qty * article.price_cents);

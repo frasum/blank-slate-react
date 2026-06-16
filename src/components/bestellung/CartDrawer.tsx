@@ -107,7 +107,7 @@ export function CartDrawer() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["bestellung", "drafts"] }),
   });
 
-  const items = cartQ.data?.items ?? [];
+  const items = useMemo(() => cartQ.data?.items ?? [], [cartQ.data?.items]);
   const suppliersById = useMemo(() => {
     const m = new Map<
       string,

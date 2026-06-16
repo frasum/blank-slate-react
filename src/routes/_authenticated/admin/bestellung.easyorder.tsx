@@ -162,7 +162,7 @@ function EasyOrderCart(props: {
     },
   });
 
-  const articles = catalogQ.data?.articles ?? [];
+  const articles = useMemo(() => catalogQ.data?.articles ?? [], [catalogQ.data?.articles]);
 
   const suppliers = useMemo(() => {
     const m = new Map<string, string>();

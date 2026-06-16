@@ -211,7 +211,7 @@ function ZeitUebersichtPage() {
     queryKey: ["admin-locations"],
     queryFn: () => fetchLocations(),
   });
-  const locations = locationsQ.data ?? [];
+  const locations = useMemo(() => locationsQ.data ?? [], [locationsQ.data]);
   // Wochenplan-Location-Filter: konkrete Location-ID oder "all".
   const [locationFilter, setLocationFilter] = useState<string>("");
   const effectiveLocationId =
