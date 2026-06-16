@@ -164,9 +164,9 @@ function OrgSettingsPage() {
         <div>
           <h2 className="text-base font-semibold text-foreground">Testmodus Bestellungen</h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Solange der Testmodus aktiv ist, gehen <strong>alle</strong> Bestell-E-Mails
-            (inkl. EasyOrder-Auto-Versand) ausschließlich an die hier hinterlegte Adresse.
-            Lieferanten erhalten in diesem Modus nichts.
+            Solange der Testmodus aktiv ist, gehen <strong>alle</strong> Bestell-E-Mails (inkl.
+            EasyOrder-Auto-Versand) ausschließlich an die hier hinterlegte Adresse. Lieferanten
+            erhalten in diesem Modus nichts.
           </p>
         </div>
 
@@ -182,9 +182,7 @@ function OrgSettingsPage() {
         </label>
 
         <label className="block space-y-1">
-          <span className="text-xs font-medium text-muted-foreground">
-            Test-E-Mail-Adresse
-          </span>
+          <span className="text-xs font-medium text-muted-foreground">Test-E-Mail-Adresse</span>
           <input
             type="email"
             value={testModeEmail}
