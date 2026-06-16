@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouteContext } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -19,17 +19,21 @@ import {
   type SkillCategory,
 } from "@/lib/admin/skills.functions";
 import { TabButton } from "@/components/ui/nav-tab";
+import { PersonalDetailsTab } from "@/components/admin/PersonalDetailsTab";
 
 export const Route = createFileRoute("/_authenticated/admin/staff/$staffId")({
   head: () => ({ meta: [{ title: "Mitarbeiter · Verwaltung" }] }),
   component: StaffDetailPage,
 });
 
-type Tab = "basics" | "locations" | "skills" | "role" | "pin" | "badges";
+type Tab = "basics" | "locations" | "skills" | "personal" | "role" | "pin" | "badges";
 
 function StaffDetailPage() {
   const { staffId } = Route.useParams();
   const [tab, setTab] = useState<Tab>("basics");
+  const { identity } = useRouteContext({ from: "/_authenticated/admin" });
+  const showPersonal = identity.role === "admin" || identity.role === "payroll";
+  const canEditPersonal = identity.role === "admin";
 
   const staffQ = useQuery({
     queryKey: ["admin", "staff", staffId],
@@ -60,6 +64,7 @@ function StaffDetailPage() {
             ["basics", "Stammdaten"],
             ["locations", "Standorte"],
             ["skills", "Skills"],
+            ...(showPersonal ? ([["personal", "Personaldaten"]] as [Tab, string][]) : []),
             ["role", "Rolle & Aktiv"],
             ["pin", "PIN"],
             ["badges", "Badges"],
@@ -74,6 +79,9 @@ function StaffDetailPage() {
       {tab === "basics" && <BasicsTab staff={s} />}
       {tab === "locations" && <LocationsTab staffId={s.id} current={s.locationIds} />}
       {tab === "skills" && <SkillsTab staffId={s.id} />}
+      {tab === "personal" && showPersonal && (
+        <PersonalDetailsTab staffId={s.id} canEdit={canEditPersonal} />
+      )}
       {tab === "role" && <RoleTab staff={s} />}
       {tab === "pin" && <PinTab staffId={s.id} hasPin={s.hasPin} />}
       {tab === "badges" && <BadgesTab staffId={s.id} />}
