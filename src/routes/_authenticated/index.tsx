@@ -73,7 +73,7 @@ function Index() {
                 to="/admin"
                 className="inline-flex w-full items-center justify-center rounded-lg border border-input bg-card px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
-                Zur Verwaltung
+                Admin
               </Link>
             </>
           )}
