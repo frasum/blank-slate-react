@@ -157,7 +157,7 @@ async function loadSessionWithLock(orgId: string, sessionId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("sessions")
-    .select("id, business_date, status, locked_at, location_id")
+    .select("id, business_date, status, locked_at, location_id, tip_pool_settlement_only")
     .eq("id", sessionId)
     .eq("organization_id", orgId)
     .maybeSingle();
@@ -497,11 +497,14 @@ async function computeSessionTipPoolCore(
     });
   }
 
-  const rawTimeEntries = (timeRes.data ?? [])
-    .filter(
-      (r): r is { staff_id: string; started_at: string; ended_at: string } => r.ended_at !== null,
-    )
-    .map((r) => ({ staffId: r.staff_id, startedAt: r.started_at, endedAt: r.ended_at }));
+  const rawTimeEntries = session.tip_pool_settlement_only
+    ? []
+    : (timeRes.data ?? [])
+        .filter(
+          (r): r is { staff_id: string; started_at: string; ended_at: string } =>
+            r.ended_at !== null,
+        )
+        .map((r) => ({ staffId: r.staff_id, startedAt: r.started_at, endedAt: r.ended_at }));
   // Manuelle Einträge überschreiben Stempelzeiten desselben Mitarbeiters
   // vollständig — keine Vermischung.
   const timeEntries = rawTimeEntries.filter((te) => !manualByStaff.has(te.staffId));
@@ -596,7 +599,7 @@ export const getTipRemainderByPeriod = createServerFn({ method: "GET" })
     const settings = await loadOrgSettings(caller.organizationId);
     const { data: sessions, error } = await supabaseAdmin
       .from("sessions")
-      .select("id, business_date, status, locked_at, location_id")
+      .select("id, business_date, status, locked_at, location_id, tip_pool_settlement_only")
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId)
       .gte("business_date", data.startDate)
