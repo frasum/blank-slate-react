@@ -133,8 +133,6 @@ function LieferantenPage() {
   const [addingArticleFor, setAddingArticleFor] = useState<string | null>(null);
   const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
-  const [sendForSupplier, setSendForSupplier] = useState<string | null>(null);
-
   const suppliersQ = useQuery({
     queryKey: ["bestellung", "suppliers", { includeInactive: showInactive }],
     queryFn: () => listSuppliers({ data: { includeInactive: showInactive } }),
@@ -431,27 +429,6 @@ function LieferantenPage() {
                   {fmtTime(s.order_deadline)} · MBW {fmtEuro(s.min_order_value_cents)}
                 </span>
                 <div className="ml-auto flex items-center gap-2">
-                  {(() => {
-                    const cb = cartBySupplier.get(s.id);
-                    if (!cb) return null;
-                    return (
-                      <button
-                        onClick={() => {
-                          setSendForSupplier(s.id);
-                          setMsg(null);
-                        }}
-                        disabled={!s.email}
-                        title={
-                          !s.email
-                            ? "Lieferant hat keine E-Mail-Adresse hinterlegt"
-                            : `${cb.lines} Position(en) · ${cb.quantity} Stk`
-                        }
-                        className="rounded-md bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                      >
-                        Bestellen ({cb.lines})
-                      </button>
-                    );
-                  })()}
                   <button
                     onClick={() => toggleSupMut.mutate({ id: s.id, isActive: !s.is_active })}
                     className={
@@ -682,16 +659,6 @@ function LieferantenPage() {
           );
         })}
       </div>
-      {sendForSupplier && (
-        <SendOrderDialog
-          open={!!sendForSupplier}
-          onOpenChange={(o) => {
-            if (!o) setSendForSupplier(null);
-          }}
-          supplierId={sendForSupplier}
-          onSent={() => setMsg("Bestellung versendet.")}
-        />
-      )}
     </div>
   );
 }
