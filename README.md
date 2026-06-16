@@ -15,6 +15,9 @@ erste Mandanten-Tabellen, Geschäftstag-Funktion, RLS-Inventur-Skript.
 Maßgeblich ist [`docs/gruendungsdokument.md`](docs/gruendungsdokument.md).
 Jede Abweichung von dort wird zuerst diskutiert, dann gebaut.
 
+Laufendes Betriebshandbuch (Rollen, Review-Loop, Stammdaten, Modul-Status):
+[`docs/arbeitsweise.md`](docs/arbeitsweise.md).
+
 ## Entwicklung
 
 ```bash
