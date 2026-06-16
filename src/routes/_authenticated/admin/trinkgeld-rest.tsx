@@ -112,13 +112,9 @@ function TipRemainderPage() {
         </label>
       </div>
 
-      {remainderQ.isLoading && (
-        <p className="text-sm text-muted-foreground">Lade…</p>
-      )}
+      {remainderQ.isLoading && <p className="text-sm text-muted-foreground">Lade…</p>}
       {remainderQ.error && (
-        <p className="text-sm text-destructive">
-          Restcent konnte nicht geladen werden.
-        </p>
+        <p className="text-sm text-destructive">Restcent konnte nicht geladen werden.</p>
       )}
       {remainderQ.data && (
         <div className="overflow-hidden rounded-lg border border-border">
@@ -134,10 +130,7 @@ function TipRemainderPage() {
             <tbody>
               {remainderQ.data.rows.length === 0 && (
                 <tr>
-                  <td
-                    colSpan={4}
-                    className="px-4 py-6 text-center text-sm text-muted-foreground"
-                  >
+                  <td colSpan={4} className="px-4 py-6 text-center text-sm text-muted-foreground">
                     Keine Sessions in dieser Periode.
                   </td>
                 </tr>
