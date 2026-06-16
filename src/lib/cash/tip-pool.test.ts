@@ -140,3 +140,64 @@ test("computeTipTotalCents: echtes Trinkgeld (26.04. YUM)", () => {
   expect(total).toBe(23464);
   expect(total - 5791).toBe(17673);
 });
+
+describe("computeTipPool: Mindeststunden", () => {
+  it("schließt Mitarbeiter unter Grenze aus und nimmt 2:30 inklusiv mit", () => {
+    const r = computeTipPool({
+      kitchenPoolCents: 0,
+      servicePoolCents: 10_000,
+      settlements: [],
+      timeEntries: [
+        // s1: exakt 2:30 → muss mitmachen
+        { staffId: "s1", startedAt: iso(17, 0), endedAt: iso(19, 30) },
+        // s2: 2:29 → ausgeschlossen
+        { staffId: "s2", startedAt: iso(17, 0), endedAt: iso(19, 29) },
+        // s3: 5h → mitmachen
+        { staffId: "s3", startedAt: iso(15), endedAt: iso(20) },
+      ],
+      staffDepartments: new Map<string, "kitchen" | "service" | "gl">([
+        ["s1", "service"],
+        ["s2", "service"],
+        ["s3", "service"],
+      ]),
+      staffParticipates: participatesAll(["s1", "s2", "s3"]),
+      minHoursPerDay: 2.5,
+    });
+    const ids = r.shares.map((s) => s.staffId).sort();
+    expect(ids).toEqual(["s1", "s3"]);
+    expect(r.excludedByMinHours).toHaveLength(1);
+    expect(r.excludedByMinHours[0]).toMatchObject({ staffId: "s2", department: "service" });
+  });
+
+  it("Tagessumme zählt: mehrere Stempelungen werden summiert", () => {
+    const r = computeTipPool({
+      kitchenPoolCents: 0,
+      servicePoolCents: 1_000,
+      settlements: [],
+      timeEntries: [
+        // 1,5 h + 1,5 h = 3 h → mitmachen (Tagessumme)
+        { staffId: "y", startedAt: iso(11, 0), endedAt: iso(12, 30) },
+        { staffId: "y", startedAt: iso(17, 30), endedAt: iso(19, 0) },
+      ],
+      staffDepartments: new Map<string, "kitchen" | "service" | "gl">([["y", "service"]]),
+      staffParticipates: participatesAll(["y"]),
+      minHoursPerDay: 2.5,
+    });
+    expect(r.shares).toHaveLength(1);
+    expect(r.shares[0].staffId).toBe("y");
+    expect(r.excludedByMinHours).toHaveLength(0);
+  });
+
+  it("minHoursPerDay=0 oder undefined: keine Filterung", () => {
+    const base = {
+      kitchenPoolCents: 0,
+      servicePoolCents: 100,
+      settlements: [],
+      timeEntries: [{ staffId: "s1", startedAt: iso(17, 0), endedAt: iso(17, 30) }],
+      staffDepartments: new Map<string, "kitchen" | "service" | "gl">([["s1", "service"]]),
+      staffParticipates: participatesAll(["s1"]),
+    };
+    expect(computeTipPool({ ...base }).shares).toHaveLength(1);
+    expect(computeTipPool({ ...base, minHoursPerDay: 0 }).shares).toHaveLength(1);
+  });
+});
