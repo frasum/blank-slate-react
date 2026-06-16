@@ -1467,7 +1467,7 @@ export async function correctWaiterSettlementCore(
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: original, error: loadErr } = await supabaseAdmin
       .from("waiter_settlements")
-      .select("id, organization_id, session_id, staff_id, status, kitchen_tip_rate")
+      .select("id, organization_id, session_id, staff_id, partner_staff_id, status, kitchen_tip_rate")
       .eq("id", data.originalId)
       .eq("organization_id", caller.organizationId)
       .maybeSingle();
@@ -1478,6 +1478,22 @@ export async function correctWaiterSettlementCore(
     }
 
     const session = await loadSessionWithLock(caller.organizationId, original.session_id);
+    // Partner-Validierung (optional). null = Partner entfernen.
+    const newPartnerId =
+      data.partnerStaffId === undefined ? original.partner_staff_id : data.partnerStaffId;
+    if (newPartnerId) {
+      if (newPartnerId === original.staff_id) {
+        throw new Error("Partner-Kellner darf nicht der Haupt-Kellner sein.");
+      }
+      await assertStaffBoundToLocation(caller.organizationId, newPartnerId, session.location_id);
+      await assertPartnerFree(
+        caller.organizationId,
+        session.id,
+        original.staff_id,
+        newPartnerId,
+        original.id,
+      );
+    }
     const waterline = await loadLocationCashLock(caller.organizationId, session.location_id);
     // Korrektur erlaubt bei open + finalized; gesperrt bei locked / Wasserlinie.
     assertCashWritable({
@@ -1512,6 +1528,7 @@ export async function correctWaiterSettlementCore(
         organization_id: caller.organizationId,
         session_id: original.session_id,
         staff_id: original.staff_id,
+        partner_staff_id: newPartnerId,
         pos_sales_cents: data.posSalesCents,
         card_total_cents: data.cardTotalCents,
         hilf_mahl_cents: data.hilfMahlCents,
