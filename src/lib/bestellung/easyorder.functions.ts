@@ -345,6 +345,11 @@ const PlaceInput = z.object({
     )
     .optional(),
   notes: z.string().trim().max(500).optional(),
+  geo: z.object({
+    latitude: z.number().min(-90).max(90),
+    longitude: z.number().min(-180).max(180),
+    accuracyM: z.number().min(0).max(100_000),
+  }),
 });
 
 export const placeEasyOrder = createServerFn({ method: "POST" })
