@@ -1445,6 +1445,7 @@ const correctSchema = z.object({
   hilfMahlCents: z.number().int().min(0),
   openInvoicesCents: z.number().int().min(0),
   cashHandedInCents: z.number().int().min(0),
+  partnerStaffId: z.string().uuid().nullable().optional(),
   reason: z.string().trim().min(3).max(500),
 });
 
