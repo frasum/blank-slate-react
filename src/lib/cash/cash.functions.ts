@@ -2152,18 +2152,22 @@ export const getCashDailyBreakdown = createServerFn({ method: "GET" })
       .object({
         fromDate: z.string().regex(ISO_DATE),
         toDate: z.string().regex(ISO_DATE),
+        locationId: z.string().uuid().optional(),
       })
       .refine((v) => v.fromDate <= v.toDate, { message: "fromDate > toDate" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    if (data.locationId) {
+      await assertLocationInOrg(caller.organizationId, data.locationId);
+    }
     return getCashDailyBreakdownCore(caller, data);
   });
 
 export async function getCashDailyBreakdownCore(
   caller: AdminCaller,
-  data: { fromDate: string; toDate: string },
+  data: { fromDate: string; toDate: string; locationId?: string },
 ): Promise<CashDailyRow[]> {
   const { sortedDates, byDate } = await loadCashDayAggregates(caller, data);
   return sortedDates.map((date) => {
