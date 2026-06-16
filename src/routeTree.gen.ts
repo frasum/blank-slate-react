@@ -39,7 +39,6 @@ import { Route as AuthenticatedAdminBestellungInventurRouteImport } from './rout
 import { Route as AuthenticatedAdminBestellungEasyorderVerwaltungRouteImport } from './routes/_authenticated/admin/bestellung.easyorder-verwaltung'
 import { Route as AuthenticatedAdminBestellungEasyorderRouteImport } from './routes/_authenticated/admin/bestellung.easyorder'
 import { Route as AuthenticatedAdminBestellungBestellungenRouteImport } from './routes/_authenticated/admin/bestellung.bestellungen'
-import { Route as AuthenticatedAdminBestellungArtikelRouteImport } from './routes/_authenticated/admin/bestellung.artikel'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -211,12 +210,6 @@ const AuthenticatedAdminBestellungBestellungenRoute =
     path: '/bestellungen',
     getParentRoute: () => AuthenticatedAdminBestellungRoute,
   } as any)
-const AuthenticatedAdminBestellungArtikelRoute =
-  AuthenticatedAdminBestellungArtikelRouteImport.update({
-    id: '/artikel',
-    path: '/artikel',
-    getParentRoute: () => AuthenticatedAdminBestellungRoute,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -235,7 +228,6 @@ export interface FileRoutesByFullPath {
   '/zeit/abrechnung': typeof AuthenticatedZeitAbrechnungRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/zeit/': typeof AuthenticatedZeitIndexRoute
-  '/admin/bestellung/artikel': typeof AuthenticatedAdminBestellungArtikelRoute
   '/admin/bestellung/bestellungen': typeof AuthenticatedAdminBestellungBestellungenRoute
   '/admin/bestellung/easyorder': typeof AuthenticatedAdminBestellungEasyorderRoute
   '/admin/bestellung/easyorder-verwaltung': typeof AuthenticatedAdminBestellungEasyorderVerwaltungRoute
@@ -264,7 +256,6 @@ export interface FileRoutesByTo {
   '/zeit/abrechnung': typeof AuthenticatedZeitAbrechnungRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/zeit': typeof AuthenticatedZeitIndexRoute
-  '/admin/bestellung/artikel': typeof AuthenticatedAdminBestellungArtikelRoute
   '/admin/bestellung/bestellungen': typeof AuthenticatedAdminBestellungBestellungenRoute
   '/admin/bestellung/easyorder': typeof AuthenticatedAdminBestellungEasyorderRoute
   '/admin/bestellung/easyorder-verwaltung': typeof AuthenticatedAdminBestellungEasyorderVerwaltungRoute
@@ -298,7 +289,6 @@ export interface FileRoutesById {
   '/_authenticated/zeit/abrechnung': typeof AuthenticatedZeitAbrechnungRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/zeit/': typeof AuthenticatedZeitIndexRoute
-  '/_authenticated/admin/bestellung/artikel': typeof AuthenticatedAdminBestellungArtikelRoute
   '/_authenticated/admin/bestellung/bestellungen': typeof AuthenticatedAdminBestellungBestellungenRoute
   '/_authenticated/admin/bestellung/easyorder': typeof AuthenticatedAdminBestellungEasyorderRoute
   '/_authenticated/admin/bestellung/easyorder-verwaltung': typeof AuthenticatedAdminBestellungEasyorderVerwaltungRoute
@@ -332,7 +322,6 @@ export interface FileRouteTypes {
     | '/zeit/abrechnung'
     | '/admin/'
     | '/zeit/'
-    | '/admin/bestellung/artikel'
     | '/admin/bestellung/bestellungen'
     | '/admin/bestellung/easyorder'
     | '/admin/bestellung/easyorder-verwaltung'
@@ -361,7 +350,6 @@ export interface FileRouteTypes {
     | '/zeit/abrechnung'
     | '/admin'
     | '/zeit'
-    | '/admin/bestellung/artikel'
     | '/admin/bestellung/bestellungen'
     | '/admin/bestellung/easyorder'
     | '/admin/bestellung/easyorder-verwaltung'
@@ -394,7 +382,6 @@ export interface FileRouteTypes {
     | '/_authenticated/zeit/abrechnung'
     | '/_authenticated/admin/'
     | '/_authenticated/zeit/'
-    | '/_authenticated/admin/bestellung/artikel'
     | '/_authenticated/admin/bestellung/bestellungen'
     | '/_authenticated/admin/bestellung/easyorder'
     | '/_authenticated/admin/bestellung/easyorder-verwaltung'
@@ -629,18 +616,10 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminBestellungBestellungenRouteImport
       parentRoute: typeof AuthenticatedAdminBestellungRoute
     }
-    '/_authenticated/admin/bestellung/artikel': {
-      id: '/_authenticated/admin/bestellung/artikel'
-      path: '/artikel'
-      fullPath: '/admin/bestellung/artikel'
-      preLoaderRoute: typeof AuthenticatedAdminBestellungArtikelRouteImport
-      parentRoute: typeof AuthenticatedAdminBestellungRoute
-    }
   }
 }
 
 interface AuthenticatedAdminBestellungRouteChildren {
-  AuthenticatedAdminBestellungArtikelRoute: typeof AuthenticatedAdminBestellungArtikelRoute
   AuthenticatedAdminBestellungBestellungenRoute: typeof AuthenticatedAdminBestellungBestellungenRoute
   AuthenticatedAdminBestellungEasyorderRoute: typeof AuthenticatedAdminBestellungEasyorderRoute
   AuthenticatedAdminBestellungEasyorderVerwaltungRoute: typeof AuthenticatedAdminBestellungEasyorderVerwaltungRoute
@@ -654,8 +633,6 @@ interface AuthenticatedAdminBestellungRouteChildren {
 
 const AuthenticatedAdminBestellungRouteChildren: AuthenticatedAdminBestellungRouteChildren =
   {
-    AuthenticatedAdminBestellungArtikelRoute:
-      AuthenticatedAdminBestellungArtikelRoute,
     AuthenticatedAdminBestellungBestellungenRoute:
       AuthenticatedAdminBestellungBestellungenRoute,
     AuthenticatedAdminBestellungEasyorderRoute:
