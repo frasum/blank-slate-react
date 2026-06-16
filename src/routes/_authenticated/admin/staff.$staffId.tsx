@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useRouteContext } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { formatShortDateTime } from "@/lib/format-date";
 import {
   assignStaffLocations,
   getStaff,
@@ -610,10 +611,10 @@ function BadgesTab({ staffId }: { staffId: string }) {
               {badgesQ.data.map((b) => (
                 <tr key={b.id} className="border-t border-border">
                   <td className="px-3 py-2 text-muted-foreground">
-                    {new Date(b.createdAt).toLocaleString("de-DE")}
+                    {formatShortDateTime(b.createdAt)}
                   </td>
                   <td className="px-3 py-2 text-muted-foreground">
-                    {b.expiresAt ? new Date(b.expiresAt).toLocaleString("de-DE") : "—"}
+                    {b.expiresAt ? formatShortDateTime(b.expiresAt) : "—"}
                   </td>
                   <td className="px-3 py-2">
                     {b.revokedAt ? (

@@ -21,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getCashLedger, type CashLedgerRow } from "@/lib/cash/cash.functions";
+import { formatShortDate } from "@/lib/format-date";
 
 export const Route = createFileRoute("/_authenticated/admin/kasse-saldo")({
   head: () => ({ meta: [{ title: "Kassensaldo" }] }),
@@ -37,17 +38,6 @@ function fmtEuro(cents: number): string {
 function fmtEuroCsv(cents: number): string {
   // Dezimalkomma, keine Tausendertrennung (CSV-freundlich).
   return (cents / 100).toFixed(2).replace(".", ",");
-}
-
-const WEEKDAYS_DE = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"] as const;
-function fmtDate(iso: string): string {
-  // iso: "YYYY-MM-DD" → "Mi 01.06"
-  const [y, m, d] = iso.split("-").map(Number);
-  if (!y || !m || !d) return iso;
-  const wd = WEEKDAYS_DE[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
-  const dd = String(d).padStart(2, "0");
-  const mm = String(m).padStart(2, "0");
-  return `${wd} ${dd}.${mm}`;
 }
 
 function monthStartIso(d: Date): string {
@@ -203,7 +193,7 @@ function KasseSaldoPage() {
                     key={r.businessDate}
                     className={locked ? "italic text-muted-foreground" : undefined}
                   >
-                     <TableCell>{fmtDate(r.businessDate)}</TableCell>
+                     <TableCell>{formatShortDate(r.businessDate)}</TableCell>
                     <TableCell>{r.status}</TableCell>
                     <TableCell className="text-right tabular-nums">
                       {fmtEuro(r.openingBalanceCents)}

@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { formatShortDateTime } from "@/lib/format-date";
 import {
   completeInventorySession,
   createInventorySession,
@@ -143,7 +144,7 @@ function InventurPage() {
                 <td className="px-3 py-2">
                   <p className="font-medium text-foreground">{s.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {new Date(s.created_at).toLocaleString("de-DE")}
+                    {formatShortDateTime(s.created_at)}
                   </p>
                 </td>
                 <td className="px-3 py-2 text-xs">
@@ -223,9 +224,9 @@ function OpenSession({
         <div>
           <p className="font-medium text-foreground">{data.session.name}</p>
           <p className="text-xs text-muted-foreground">
-            {new Date(data.session.created_at).toLocaleString("de-DE")}
+            {formatShortDateTime(data.session.created_at)}
             {readOnly && data.session.completed_at
-              ? ` · abgeschlossen ${new Date(data.session.completed_at).toLocaleString("de-DE")}`
+              ? ` · abgeschlossen ${formatShortDateTime(data.session.completed_at)}`
               : ""}
           </p>
         </div>

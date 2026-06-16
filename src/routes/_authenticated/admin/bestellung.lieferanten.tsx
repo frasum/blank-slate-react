@@ -9,6 +9,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Pencil, Plus, Archive, RotateCcw } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { formatShortDate } from "@/lib/format-date";
 import {
   createSupplier,
   listSuppliers,
@@ -103,12 +104,6 @@ function fmtEuro(cents: number | null | undefined): string {
 function fmtTime(t: string | null | undefined): string {
   if (!t) return "—";
   return t.slice(0, 5);
-}
-
-function fmtDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
 function fmtQty(q: number): string {
@@ -558,7 +553,7 @@ function LieferantenPage() {
                                 </div>
                                 {last ? (
                                   <div className="mt-0.5 text-xs text-muted-foreground">
-                                    Zuletzt {fmtDate(last.date)} · {fmtQty(last.quantity)}{" "}
+                                    Zuletzt {formatShortDate(last.date)} · {fmtQty(last.quantity)}{" "}
                                     {last.unit ?? a.unit}
                                     {last.orderedBy ? ` · ${last.orderedBy}` : ""}
                                   </div>

@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { formatShortDateTime } from "@/lib/format-date";
 import {
   cancelOrder,
   getOrder,
@@ -155,7 +156,7 @@ function BestellungenPage() {
                   <tr key={o.id} className="border-t border-border align-top">
                     <td className="px-3 py-2 font-mono">{o.order_number}</td>
                     <td className="px-3 py-2 text-muted-foreground">
-                      {new Date(o.created_at).toLocaleString("de-DE")}
+                      {formatShortDateTime(o.created_at)}
                     </td>
                     <td className="px-3 py-2">{suppliersById.get(o.supplier_id)?.name ?? "—"}</td>
                     <td className="px-3 py-2">
