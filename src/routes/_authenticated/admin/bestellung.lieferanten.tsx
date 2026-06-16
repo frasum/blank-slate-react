@@ -26,6 +26,7 @@ import {
   updateCartItem,
 } from "@/lib/bestellung/cart.functions";
 import { getLastOrderByArticle } from "@/lib/bestellung/orders.functions";
+import { SendOrderDialog } from "@/components/bestellung/SendOrderDialog";
 
 export const Route = createFileRoute("/_authenticated/admin/bestellung/lieferanten")({
   head: () => ({ meta: [{ title: "Lieferanten · Bestellung" }] }),
@@ -133,6 +134,7 @@ function LieferantenPage() {
   const [addingArticleFor, setAddingArticleFor] = useState<string | null>(null);
   const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  const [sendForSupplier, setSendForSupplier] = useState<string | null>(null);
 
   const suppliersQ = useQuery({
     queryKey: ["bestellung", "suppliers", { includeInactive: showInactive }],
@@ -161,6 +163,19 @@ function LieferantenPage() {
     const m = new Map<string, { itemId: string; quantity: number }>();
     for (const it of cartQ.data?.items ?? []) {
       if (it.article_id) m.set(it.article_id, { itemId: it.id, quantity: it.quantity });
+    }
+    return m;
+  }, [cartQ.data]);
+
+  // Pro Lieferant: aktuelle Warenkorb-Positionen (Anzahl Items + Stückzahl).
+  const cartBySupplier = useMemo(() => {
+    const m = new Map<string, { lines: number; quantity: number }>();
+    for (const it of cartQ.data?.items ?? []) {
+      if (!it.supplier_id) continue;
+      const cur = m.get(it.supplier_id) ?? { lines: 0, quantity: 0 };
+      cur.lines += 1;
+      cur.quantity += it.quantity;
+      m.set(it.supplier_id, cur);
     }
     return m;
   }, [cartQ.data]);
