@@ -45,6 +45,7 @@ export const createOrderFromCart = createServerFn({ method: "POST" })
     z
       .object({
         notes: z.string().trim().max(2000).optional(),
+        supplierId: z.string().uuid().optional(),
       })
       .parse(input ?? {}),
   )
@@ -56,6 +57,7 @@ export const createOrderFromCart = createServerFn({ method: "POST" })
         p_org_id: caller.organizationId,
         p_user_id: caller.userId,
         p_notes: data.notes,
+        p_supplier_id: data.supplierId,
       });
       if (error) throw new Error(error.message);
       const ids = (orderIds ?? []) as string[];
@@ -64,7 +66,7 @@ export const createOrderFromCart = createServerFn({ method: "POST" })
         audit: {
           action: "order.create",
           entity: "order",
-          meta: { orderIds: ids, supplierCount: ids.length },
+          meta: { orderIds: ids, supplierCount: ids.length, supplierId: data.supplierId ?? null },
         },
       };
     });
