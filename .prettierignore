@@ -8,3 +8,25 @@ bun.lock
 routeTree.gen.ts
 src/integrations/supabase/types.ts
 .lovable/
+
+# Build- & SSR-Output (zusätzlich zu dist)
+dist-ssr/
+.nitro/
+.tanstack/
+.wrangler/
+
+# Lokale Env- & Daten-Dumps (Lektion thaitime: keine Personaldaten/CSVs im Repo)
+.env
+.env.*.local
+.dev.vars
+*.csv
+
+# Coverage / Test-Artefakte
+coverage/
+
+# Logs
+logs/
+*.log
+
+# Editor-Artefakte
+.DS_Store
