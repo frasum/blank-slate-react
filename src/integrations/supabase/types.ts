@@ -2761,6 +2761,7 @@ export type Database = {
           kitchen_tip_rate: number
           open_invoices_cents: number
           organization_id: string
+          partner_staff_id: string | null
           pos_sales_cents: number
           session_id: string
           staff_id: string
@@ -2781,6 +2782,7 @@ export type Database = {
           kitchen_tip_rate: number
           open_invoices_cents?: number
           organization_id: string
+          partner_staff_id?: string | null
           pos_sales_cents?: number
           session_id: string
           staff_id: string
@@ -2801,6 +2803,7 @@ export type Database = {
           kitchen_tip_rate?: number
           open_invoices_cents?: number
           organization_id?: string
+          partner_staff_id?: string | null
           pos_sales_cents?: number
           session_id?: string
           staff_id?: string
@@ -2828,6 +2831,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waiter_settlements_partner_staff_id_fkey"
+            columns: ["partner_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
             referencedColumns: ["id"]
           },
           {

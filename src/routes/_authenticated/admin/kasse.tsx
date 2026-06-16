@@ -92,6 +92,7 @@ function fmtTime(iso: string | null): string {
 type CorrectState = {
   originalId: string;
   staffName: string;
+  partnerStaffId: string;
   posSales: string;
   cardTotal: string;
   hilfMahl: string;
@@ -102,6 +103,7 @@ type CorrectState = {
 
 type CreateState = {
   staffId: string;
+  partnerStaffId: string;
   posSales: string;
   cardTotal: string;
   hilfMahl: string;
@@ -207,6 +209,7 @@ function KassePage() {
           hilfMahlCents: hilf,
           openInvoicesCents: open,
           cashHandedInCents: cash,
+          partnerStaffId: correct.partnerStaffId ? correct.partnerStaffId : null,
           reason: correct.reason,
         },
       });
@@ -241,6 +244,7 @@ function KassePage() {
         data: {
           sessionId,
           staffId: createSettlement.staffId,
+          partnerStaffId: createSettlement.partnerStaffId ? createSettlement.partnerStaffId : null,
           posSalesCents: pos,
           cardTotalCents: card,
           hilfMahlCents: hilf,
@@ -431,6 +435,7 @@ function KassePage() {
                 staffId:
                   (staffQ.data ?? []).find((s) => s.isActive && s.locationIds.includes(locationId))
                     ?.id ?? "",
+                partnerStaffId: "",
                 posSales: "0.00",
                 cardTotal: "0.00",
                 hilfMahl: "0.00",
@@ -443,6 +448,7 @@ function KassePage() {
               setCorrect({
                 originalId: row.id,
                 staffName: row.staffName,
+                partnerStaffId: row.partner_staff_id ?? "",
                 posSales: (Number(row.pos_sales_cents) / 100).toFixed(2),
                 cardTotal: (Number(row.card_total_cents) / 100).toFixed(2),
                 hilfMahl: (Number(row.hilf_mahl_cents) / 100).toFixed(2),
@@ -648,6 +654,27 @@ function KassePage() {
           </DialogHeader>
           {correct && (
             <div className="space-y-3">
+              <div className="space-y-1">
+                <Label>Partner-Kellner (optional)</Label>
+                <Select
+                  value={correct.partnerStaffId || "none"}
+                  onValueChange={(v) =>
+                    setCorrect({ ...correct, partnerStaffId: v === "none" ? "" : v })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Kein Partner" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Kein Partner —</SelectItem>
+                    {eligibleStaff.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.displayName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               {(
                 [
                   ["posSales", "Kassenbon (POS)"],
@@ -725,6 +752,32 @@ function KassePage() {
                         {s.displayName}
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Partner-Kellner (optional)</Label>
+                <Select
+                  value={createSettlement.partnerStaffId || "none"}
+                  onValueChange={(v) =>
+                    setCreateSettlement({
+                      ...createSettlement,
+                      partnerStaffId: v === "none" ? "" : v,
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Kein Partner" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Kein Partner —</SelectItem>
+                    {eligibleStaff
+                      .filter((s) => s.id !== createSettlement.staffId)
+                      .map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.displayName}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -886,7 +939,14 @@ function SettlementsCard({
             const superseded = r.status === "superseded";
             return (
               <TableRow key={r.id} className={superseded ? "opacity-50" : ""}>
-                <TableCell>{r.staffName}</TableCell>
+                <TableCell>
+                  {r.staffName}
+                  {r.partner_staff_id && (
+                    <Badge variant="secondary" className="ml-2">
+                      Paar
+                    </Badge>
+                  )}
+                </TableCell>
                 <TableCell className="text-right font-mono">
                   {fmtCents(Number(r.pos_sales_cents))}
                 </TableCell>

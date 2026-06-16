@@ -153,6 +153,37 @@ export async function assertStaffBoundToLocation(
   if (!data) throw new StaffLocationNotBoundError(staffId, locationId);
 }
 
+// Stellt sicher, dass `partnerId` in derselben Session nicht bereits als
+// Haupt- oder Partner-Kellner einer anderen aktiven (nicht-superseded)
+// Settlement vorkommt. `excludeSettlementId` schützt den Korrektur-Pfad
+// vor Selbstkollision mit der eigenen, gerade superseded'eten Zeile.
+export async function assertPartnerFree(
+  orgId: string,
+  sessionId: string,
+  primaryStaffId: string,
+  partnerStaffId: string,
+  excludeSettlementId: string | null,
+): Promise<void> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  let q = supabaseAdmin
+    .from("waiter_settlements")
+    .select("id, staff_id, partner_staff_id, status")
+    .eq("organization_id", orgId)
+    .eq("session_id", sessionId)
+    .neq("status", "superseded")
+    .or(
+      `staff_id.eq.${partnerStaffId},partner_staff_id.eq.${partnerStaffId},partner_staff_id.eq.${primaryStaffId}`,
+    );
+  if (excludeSettlementId) q = q.neq("id", excludeSettlementId);
+  const { data, error } = await q.limit(1);
+  if (error) throw error;
+  if (data && data.length > 0) {
+    throw new Error(
+      "Partner-Kellner hat bereits eine aktive Abrechnung in dieser Session oder ist bereits Partner einer anderen Abrechnung.",
+    );
+  }
+}
+
 async function loadSessionWithLock(orgId: string, sessionId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
@@ -280,7 +311,7 @@ export async function getCashOverviewCore(
     supabaseAdmin
       .from("waiter_settlements")
       .select(
-        "id, staff_id, pos_sales_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents, differenz_cents, kitchen_tip_cents, kitchen_tip_rate, status, submitted_at, corrected_from_id, auto_clockout_time_entry_id, staff(display_name)",
+        "id, staff_id, partner_staff_id, pos_sales_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents, differenz_cents, kitchen_tip_cents, kitchen_tip_rate, status, submitted_at, corrected_from_id, auto_clockout_time_entry_id, primary_staff:staff!waiter_settlements_staff_id_fkey(display_name), partner_staff:staff!waiter_settlements_partner_staff_id_fkey(display_name)",
       )
       .eq("organization_id", caller.organizationId)
       .eq("session_id", session.id)
@@ -330,10 +361,16 @@ export async function getCashOverviewCore(
   return {
     businessDate,
     session,
-    settlements: (settlementsRes.data ?? []).map((s) => ({
-      ...s,
-      staffName: (s.staff as { display_name: string } | null)?.display_name ?? "—",
-    })),
+    settlements: (settlementsRes.data ?? []).map((s) => {
+      const primary = (s.primary_staff as { display_name: string } | null)?.display_name ?? "—";
+      const partner = (s.partner_staff as { display_name: string } | null)?.display_name ?? null;
+      return {
+        ...s,
+        staffName: partner ? `${primary} + ${partner}` : primary,
+        primaryStaffName: primary,
+        partnerStaffName: partner,
+      };
+    }),
     channelAmounts: (channelAmtRes.data ?? []).map((r) => ({
       channelId: r.channel_id,
       amountCents: Number(r.amount_cents),
@@ -1437,6 +1474,7 @@ const correctSchema = z.object({
   hilfMahlCents: z.number().int().min(0),
   openInvoicesCents: z.number().int().min(0),
   cashHandedInCents: z.number().int().min(0),
+  partnerStaffId: z.string().uuid().nullable().optional(),
   reason: z.string().trim().min(3).max(500),
 });
 
@@ -1458,7 +1496,9 @@ export async function correctWaiterSettlementCore(
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: original, error: loadErr } = await supabaseAdmin
       .from("waiter_settlements")
-      .select("id, organization_id, session_id, staff_id, status, kitchen_tip_rate")
+      .select(
+        "id, organization_id, session_id, staff_id, partner_staff_id, status, kitchen_tip_rate",
+      )
       .eq("id", data.originalId)
       .eq("organization_id", caller.organizationId)
       .maybeSingle();
@@ -1469,6 +1509,22 @@ export async function correctWaiterSettlementCore(
     }
 
     const session = await loadSessionWithLock(caller.organizationId, original.session_id);
+    // Partner-Validierung (optional). null = Partner entfernen.
+    const newPartnerId =
+      data.partnerStaffId === undefined ? original.partner_staff_id : data.partnerStaffId;
+    if (newPartnerId) {
+      if (newPartnerId === original.staff_id) {
+        throw new Error("Partner-Kellner darf nicht der Haupt-Kellner sein.");
+      }
+      await assertStaffBoundToLocation(caller.organizationId, newPartnerId, session.location_id);
+      await assertPartnerFree(
+        caller.organizationId,
+        session.id,
+        original.staff_id,
+        newPartnerId,
+        original.id,
+      );
+    }
     const waterline = await loadLocationCashLock(caller.organizationId, session.location_id);
     // Korrektur erlaubt bei open + finalized; gesperrt bei locked / Wasserlinie.
     assertCashWritable({
@@ -1503,6 +1559,7 @@ export async function correctWaiterSettlementCore(
         organization_id: caller.organizationId,
         session_id: original.session_id,
         staff_id: original.staff_id,
+        partner_staff_id: newPartnerId,
         pos_sales_cents: data.posSalesCents,
         card_total_cents: data.cardTotalCents,
         hilf_mahl_cents: data.hilfMahlCents,
@@ -1557,6 +1614,7 @@ const adminCreateSettlementSchema = z.object({
   hilfMahlCents: z.number().int().min(0),
   openInvoicesCents: z.number().int().min(0),
   cashHandedInCents: z.number().int().min(0),
+  partnerStaffId: z.string().uuid().nullable().optional(),
   reason: z.string().trim().min(3).max(500),
 });
 
@@ -1587,6 +1645,23 @@ export async function adminCreateWaiterSettlementCore(
     });
 
     await assertStaffBoundToLocation(caller.organizationId, data.staffId, session.location_id);
+    if (data.partnerStaffId) {
+      if (data.partnerStaffId === data.staffId) {
+        throw new Error("Partner-Kellner darf nicht der Haupt-Kellner sein.");
+      }
+      await assertStaffBoundToLocation(
+        caller.organizationId,
+        data.partnerStaffId,
+        session.location_id,
+      );
+      await assertPartnerFree(
+        caller.organizationId,
+        session.id,
+        data.staffId,
+        data.partnerStaffId,
+        null,
+      );
+    }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -1617,6 +1692,7 @@ export async function adminCreateWaiterSettlementCore(
         organization_id: caller.organizationId,
         session_id: session.id,
         staff_id: data.staffId,
+        partner_staff_id: data.partnerStaffId ?? null,
         pos_sales_cents: data.posSalesCents,
         card_total_cents: data.cardTotalCents,
         hilf_mahl_cents: data.hilfMahlCents,
