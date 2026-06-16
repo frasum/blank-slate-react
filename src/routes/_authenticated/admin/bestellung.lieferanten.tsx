@@ -852,7 +852,7 @@ function ArticleForm(props: {
     setD((prev) => ({ ...prev, [k]: v }));
   return (
     <form
-      className="space-y-3 rounded-md border border-border bg-card p-4"
+      className="space-y-3"
       onSubmit={(e) => {
         e.preventDefault();
         props.onSubmit(d);
