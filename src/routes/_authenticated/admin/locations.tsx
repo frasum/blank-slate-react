@@ -371,8 +371,6 @@ function LocationRow(props: {
               Zuklappen
             </button>
           </div>
-            Speichern
-          </button>
         </div>
       )}
       {displayOpen && <DisplayPanel locationId={props.loc.id} />}
