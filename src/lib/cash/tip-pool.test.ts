@@ -134,12 +134,16 @@ describe("computeTipPool: Euro-Abrundung der Auszahlung", () => {
       kitchenPoolCents: 0,
       servicePoolCents: 17_673,
       settlements: [],
-      timeEntries: [
-        // 7,12 / 7,13 / 7,13 h
-        { staffId: "a", startedAt: iso(10, 0), endedAt: iso(17, 7, 12) },
-        { staffId: "b", startedAt: iso(10, 0), endedAt: iso(17, 7, 48) },
-        { staffId: "c", startedAt: iso(10, 0), endedAt: iso(17, 7, 48) },
-      ],
+      timeEntries: (() => {
+        const start = "2025-06-01T10:00:00.000Z";
+        const end = (hours: number) =>
+          new Date(Date.parse(start) + hours * 3_600_000).toISOString();
+        return [
+          { staffId: "a", startedAt: start, endedAt: end(7.12) },
+          { staffId: "b", startedAt: start, endedAt: end(7.13) },
+          { staffId: "c", startedAt: start, endedAt: end(7.13) },
+        ];
+      })(),
       staffDepartments: new Map<string, "kitchen" | "service" | "gl">([
         ["a", "service"],
         ["b", "service"],
