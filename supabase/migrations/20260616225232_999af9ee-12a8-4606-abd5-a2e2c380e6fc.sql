@@ -1,0 +1,2 @@
+UPDATE public.staff_personal_details SET nationality = replace(nationality, '476 - thail' || E'\xEF\xBF\xBD' || 'ndisch', '476 - thailändisch') WHERE nationality LIKE '476 - thail%ndisch';
+UPDATE public.staff_personal_details SET nationality = replace(nationality, '225 - ' || E'\xEF\xBF\xBD' || 'thiopisch', '225 - äthiopisch') WHERE nationality LIKE '225 - %thiopisch';
