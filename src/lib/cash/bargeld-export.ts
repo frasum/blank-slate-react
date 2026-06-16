@@ -5,10 +5,7 @@ import ExcelJS from "exceljs";
 import { formatShortDate } from "@/lib/format-date";
 import type { CashDailyRow } from "@/lib/cash/cash.functions";
 
-export async function buildBargeldXlsx(
-  rows: CashDailyRow[],
-  monthLabel: string,
-): Promise<Blob> {
+export async function buildBargeldXlsx(rows: CashDailyRow[], monthLabel: string): Promise<Blob> {
   const wb = new ExcelJS.Workbook();
   wb.creator = "Coco";
   const ws = wb.addWorksheet(monthLabel);
@@ -49,8 +46,7 @@ export async function buildBargeldXlsx(
     ]);
   }
 
-  const sum = (sel: (r: CashDailyRow) => number) =>
-    money(rows.reduce((s, r) => s + sel(r), 0));
+  const sum = (sel: (r: CashDailyRow) => number) => money(rows.reduce((s, r) => s + sel(r), 0));
   ws.addRow([
     "Summe",
     sum((r) => r.tagesumsatzCents),
