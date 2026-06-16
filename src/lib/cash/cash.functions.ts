@@ -157,7 +157,7 @@ async function loadSessionWithLock(orgId: string, sessionId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("sessions")
-    .select("id, business_date, status, locked_at, location_id")
+    .select("id, business_date, status, locked_at, location_id, tip_pool_settlement_only")
     .eq("id", sessionId)
     .eq("organization_id", orgId)
     .maybeSingle();
