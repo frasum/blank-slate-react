@@ -1614,6 +1614,7 @@ const adminCreateSettlementSchema = z.object({
   hilfMahlCents: z.number().int().min(0),
   openInvoicesCents: z.number().int().min(0),
   cashHandedInCents: z.number().int().min(0),
+  partnerStaffId: z.string().uuid().nullable().optional(),
   reason: z.string().trim().min(3).max(500),
 });
 
@@ -1644,6 +1645,23 @@ export async function adminCreateWaiterSettlementCore(
     });
 
     await assertStaffBoundToLocation(caller.organizationId, data.staffId, session.location_id);
+    if (data.partnerStaffId) {
+      if (data.partnerStaffId === data.staffId) {
+        throw new Error("Partner-Kellner darf nicht der Haupt-Kellner sein.");
+      }
+      await assertStaffBoundToLocation(
+        caller.organizationId,
+        data.partnerStaffId,
+        session.location_id,
+      );
+      await assertPartnerFree(
+        caller.organizationId,
+        session.id,
+        data.staffId,
+        data.partnerStaffId,
+        null,
+      );
+    }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -1674,6 +1692,7 @@ export async function adminCreateWaiterSettlementCore(
         organization_id: caller.organizationId,
         session_id: session.id,
         staff_id: data.staffId,
+        partner_staff_id: data.partnerStaffId ?? null,
         pos_sales_cents: data.posSalesCents,
         card_total_cents: data.cardTotalCents,
         hilf_mahl_cents: data.hilfMahlCents,
