@@ -86,7 +86,7 @@
         },
         "zeilen": [
           { "kategorie": "zeitlohn", "bezeichnung": "Grundlohn", "betragCent": 333600 },
-          { "kategorie": "zuschlag_frei", "bezeichnung": "SFN-Zuschläge", "betragCent": 95760 },
+          { "kategorie": "zuschlag_frei", "bezeichnung": "SFN-Zuschläge", "betragCent": 95560 },
           { "kategorie": "sachbezug_frei", "bezeichnung": "Sachbezug", "betragCent": 5000 },
           { "kategorie": "mahlzeiten_paust", "bezeichnung": "Mahlzeiten (pauschal)", "betragCent": 8226 }
         ]
