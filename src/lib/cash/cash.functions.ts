@@ -497,11 +497,14 @@ async function computeSessionTipPoolCore(
     });
   }
 
-  const rawTimeEntries = (timeRes.data ?? [])
-    .filter(
-      (r): r is { staff_id: string; started_at: string; ended_at: string } => r.ended_at !== null,
-    )
-    .map((r) => ({ staffId: r.staff_id, startedAt: r.started_at, endedAt: r.ended_at }));
+  const rawTimeEntries = session.tip_pool_settlement_only
+    ? []
+    : (timeRes.data ?? [])
+        .filter(
+          (r): r is { staff_id: string; started_at: string; ended_at: string } =>
+            r.ended_at !== null,
+        )
+        .map((r) => ({ staffId: r.staff_id, startedAt: r.started_at, endedAt: r.ended_at }));
   // Manuelle Einträge überschreiben Stempelzeiten desselben Mitarbeiters
   // vollständig — keine Vermischung.
   const timeEntries = rawTimeEntries.filter((te) => !manualByStaff.has(te.staffId));
