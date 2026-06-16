@@ -362,10 +362,8 @@ export async function getCashOverviewCore(
     businessDate,
     session,
     settlements: (settlementsRes.data ?? []).map((s) => {
-      const primary =
-        (s.primary_staff as { display_name: string } | null)?.display_name ?? "—";
-      const partner =
-        (s.partner_staff as { display_name: string } | null)?.display_name ?? null;
+      const primary = (s.primary_staff as { display_name: string } | null)?.display_name ?? "—";
+      const partner = (s.partner_staff as { display_name: string } | null)?.display_name ?? null;
       return {
         ...s,
         staffName: partner ? `${primary} + ${partner}` : primary,
@@ -1498,7 +1496,9 @@ export async function correctWaiterSettlementCore(
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: original, error: loadErr } = await supabaseAdmin
       .from("waiter_settlements")
-      .select("id, organization_id, session_id, staff_id, partner_staff_id, status, kitchen_tip_rate")
+      .select(
+        "id, organization_id, session_id, staff_id, partner_staff_id, status, kitchen_tip_rate",
+      )
       .eq("id", data.originalId)
       .eq("organization_id", caller.organizationId)
       .maybeSingle();
