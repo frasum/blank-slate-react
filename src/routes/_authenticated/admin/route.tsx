@@ -63,15 +63,6 @@ function AdminLayout() {
                   Mitarbeiter
                 </Link>
               )}
-              {!isPayroll && (
-                <Link
-                  to="/admin/zeit"
-                  className="-mb-px border-b-2 border-transparent pb-2 text-muted-foreground transition-colors hover:text-foreground"
-                  activeProps={{ className: "-mb-px border-b-2 border-foreground pb-2 text-foreground" }}
-                >
-                  Zeit
-                </Link>
-              )}
               <Link
                 to="/admin/zeit-uebersicht"
                 className="-mb-px border-b-2 border-transparent pb-2 text-muted-foreground transition-colors hover:text-foreground"
