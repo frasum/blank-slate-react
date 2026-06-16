@@ -51,7 +51,10 @@ function StaffDetailPage() {
         </p>
       </div>
 
-      <div role="tablist" className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border">
+      <div
+        role="tablist"
+        className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border"
+      >
         {(
           [
             ["basics", "Stammdaten"],

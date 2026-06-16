@@ -35,8 +35,7 @@ export async function sendOrderEmailWithAdmin(
   const apiKey = process.env.MAILERSEND_API_KEY;
   const fromEmail = process.env.MAILERSEND_FROM_EMAIL;
   const fromName = process.env.MAILERSEND_FROM_NAME ?? "Bestellung COCO";
-  if (!apiKey)
-    throw new Error("Mailversand ist nicht konfiguriert (MAILERSEND_API_KEY fehlt).");
+  if (!apiKey) throw new Error("Mailversand ist nicht konfiguriert (MAILERSEND_API_KEY fehlt).");
   if (!fromEmail) throw new Error("Absenderadresse fehlt (MAILERSEND_FROM_EMAIL).");
 
   const { data: order, error: oErr } = await admin

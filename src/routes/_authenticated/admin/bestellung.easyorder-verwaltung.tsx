@@ -145,127 +145,127 @@ function EasyOrderAdminPage() {
         <p className="text-sm text-muted-foreground">Noch keine EasyOrder-Zugriffe vergeben.</p>
       ) : (
         <>
-        <div className="rounded-md border border-border bg-card p-4 space-y-3">
-          <div>
-            <h3 className="text-sm font-semibold">Auto-Versand pro Mitarbeiter</h3>
-            <p className="text-xs text-muted-foreground">
-              Mitarbeiter mit Auto-Versand schicken die Bestellung beim Absenden direkt per E-Mail
-              an den Lieferanten. Ohne Recht bleibt die Bestellung „offen" und muss in der
-              Lieferanten-Übersicht manuell versendet werden.
-            </p>
+          <div className="rounded-md border border-border bg-card p-4 space-y-3">
+            <div>
+              <h3 className="text-sm font-semibold">Auto-Versand pro Mitarbeiter</h3>
+              <p className="text-xs text-muted-foreground">
+                Mitarbeiter mit Auto-Versand schicken die Bestellung beim Absenden direkt per E-Mail
+                an den Lieferanten. Ohne Recht bleibt die Bestellung „offen" und muss in der
+                Lieferanten-Übersicht manuell versendet werden.
+              </p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {access
+                .filter((r) => r.entries.length > 0)
+                .map((r) => (
+                  <label
+                    key={r.staffId}
+                    className="flex items-center justify-between rounded border border-border px-3 py-2"
+                  >
+                    <span className="text-sm font-medium">{r.staffName}</span>
+                    <Switch
+                      checked={r.canEasyorderAutoSend}
+                      onCheckedChange={(v) =>
+                        autoSendMut.mutate({ data: { staffId: r.staffId, allowed: v } })
+                      }
+                    />
+                  </label>
+                ))}
+            </div>
           </div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {access
-              .filter((r) => r.entries.length > 0)
-              .map((r) => (
-                <label
-                  key={r.staffId}
-                  className="flex items-center justify-between rounded border border-border px-3 py-2"
-                >
-                  <span className="text-sm font-medium">{r.staffName}</span>
-                  <Switch
-                    checked={r.canEasyorderAutoSend}
-                    onCheckedChange={(v) =>
-                      autoSendMut.mutate({ data: { staffId: r.staffId, allowed: v } })
-                    }
-                  />
-                </label>
-              ))}
+          <div className="rounded-md border border-border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Mitarbeiter</TableHead>
+                  <TableHead>Standort</TableHead>
+                  <TableHead>Aktiv</TableHead>
+                  <TableHead>Freitext</TableHead>
+                  <TableHead>Lieferanten</TableHead>
+                  <TableHead className="text-right">Aktionen</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {access.flatMap((row) =>
+                  row.entries.map((e) => (
+                    <TableRow key={e.accessId}>
+                      <TableCell className="font-medium">{row.staffName}</TableCell>
+                      <TableCell>{e.locationName}</TableCell>
+                      <TableCell>
+                        <Switch
+                          checked={e.isActive}
+                          onCheckedChange={(v) =>
+                            grantMut.mutate({
+                              data: {
+                                staffId: row.staffId,
+                                locationId: e.locationId,
+                                canAddFreeItems: e.canAddFreeItems,
+                                isActive: v,
+                              },
+                            })
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Switch
+                          checked={e.canAddFreeItems}
+                          onCheckedChange={(v) =>
+                            grantMut.mutate({
+                              data: {
+                                staffId: row.staffId,
+                                locationId: e.locationId,
+                                canAddFreeItems: v,
+                                isActive: e.isActive,
+                              },
+                            })
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        {e.supplierIds.length === 0 ? (
+                          <Badge variant="secondary">Alle Lieferanten</Badge>
+                        ) : (
+                          <Badge>{e.supplierIds.length} Lieferanten</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mr-2"
+                          onClick={() =>
+                            setWhitelistTarget({
+                              staffId: row.staffId,
+                              staffName: row.staffName,
+                              locationId: e.locationId,
+                              locationName: e.locationName,
+                              current: e.supplierIds,
+                            })
+                          }
+                        >
+                          Whitelist
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() =>
+                            setRevokeTarget({
+                              staffId: row.staffId,
+                              staffName: row.staffName,
+                              locationId: e.locationId,
+                              locationName: e.locationName,
+                            })
+                          }
+                        >
+                          Widerrufen
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  )),
+                )}
+              </TableBody>
+            </Table>
           </div>
-        </div>
-        <div className="rounded-md border border-border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Mitarbeiter</TableHead>
-                <TableHead>Standort</TableHead>
-                <TableHead>Aktiv</TableHead>
-                <TableHead>Freitext</TableHead>
-                <TableHead>Lieferanten</TableHead>
-                <TableHead className="text-right">Aktionen</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {access.flatMap((row) =>
-                row.entries.map((e) => (
-                  <TableRow key={e.accessId}>
-                    <TableCell className="font-medium">{row.staffName}</TableCell>
-                    <TableCell>{e.locationName}</TableCell>
-                    <TableCell>
-                      <Switch
-                        checked={e.isActive}
-                        onCheckedChange={(v) =>
-                          grantMut.mutate({
-                            data: {
-                              staffId: row.staffId,
-                              locationId: e.locationId,
-                              canAddFreeItems: e.canAddFreeItems,
-                              isActive: v,
-                            },
-                          })
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Switch
-                        checked={e.canAddFreeItems}
-                        onCheckedChange={(v) =>
-                          grantMut.mutate({
-                            data: {
-                              staffId: row.staffId,
-                              locationId: e.locationId,
-                              canAddFreeItems: v,
-                              isActive: e.isActive,
-                            },
-                          })
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {e.supplierIds.length === 0 ? (
-                        <Badge variant="secondary">Alle Lieferanten</Badge>
-                      ) : (
-                        <Badge>{e.supplierIds.length} Lieferanten</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="mr-2"
-                        onClick={() =>
-                          setWhitelistTarget({
-                            staffId: row.staffId,
-                            staffName: row.staffName,
-                            locationId: e.locationId,
-                            locationName: e.locationName,
-                            current: e.supplierIds,
-                          })
-                        }
-                      >
-                        Whitelist
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() =>
-                          setRevokeTarget({
-                            staffId: row.staffId,
-                            staffName: row.staffName,
-                            locationId: e.locationId,
-                            locationName: e.locationName,
-                          })
-                        }
-                      >
-                        Widerrufen
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                )),
-              )}
-            </TableBody>
-          </Table>
-        </div>
         </>
       )}
 

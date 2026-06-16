@@ -394,9 +394,7 @@ export const setStaffEasyOrderAutoSend = createServerFn({ method: "POST" })
       return {
         result,
         audit: {
-          action: data.allowed
-            ? "easyorder.auto_send_granted"
-            : "easyorder.auto_send_revoked",
+          action: data.allowed ? "easyorder.auto_send_granted" : "easyorder.auto_send_revoked",
           entity: "staff",
           entityId: data.staffId,
           meta: { staffId: data.staffId, allowed: data.allowed },

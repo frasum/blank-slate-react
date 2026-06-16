@@ -8,12 +8,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Pencil, Plus, Archive, RotateCcw } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   createSupplier,
   listSuppliers,
@@ -135,9 +130,7 @@ function LieferantenPage() {
   const [showInactive, setShowInactive] = useState(false);
   const [search, setSearch] = useState("");
   const [supplierDialog, setSupplierDialog] = useState<
-    | { mode: "create" }
-    | { mode: "edit"; supplierId: string; initial: SupplierDraft }
-    | null
+    { mode: "create" } | { mode: "edit"; supplierId: string; initial: SupplierDraft } | null
   >(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [articleDialog, setArticleDialog] = useState<
@@ -510,123 +503,120 @@ function LieferantenPage() {
                           const last = lastOrderQ.data?.[a.id];
                           return (
                             <tr key={a.id} className="border-t border-border align-top">
-                                <td className="px-3 py-2">
-                                  <div className="flex items-center gap-1">
-                                    <button
-                                      onClick={() => {
-                                        if (cart) {
-                                          updateCartMut.mutate({
-                                            itemId: cart.itemId,
-                                            quantity: cart.quantity + 1,
-                                          });
-                                        } else {
-                                          addCartMut.mutate(a.id);
-                                        }
-                                      }}
-                                      disabled={addCartMut.isPending}
-                                      className="rounded-full bg-primary/10 px-2 py-1 text-primary hover:bg-primary/20"
-                                      title="In den Warenkorb"
-                                    >
-                                      🛒
-                                    </button>
-                                    {cart && (
-                                      <>
-                                        <span className="text-xs font-medium text-foreground">
-                                          {cart.quantity}
-                                        </span>
-                                        <button
-                                          onClick={() => {
-                                            if (cart.quantity <= 1) {
-                                              removeCartMut.mutate(cart.itemId);
-                                            } else {
-                                              updateCartMut.mutate({
-                                                itemId: cart.itemId,
-                                                quantity: cart.quantity - 1,
-                                              });
-                                            }
-                                          }}
-                                          className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground hover:bg-accent"
-                                          title="Menge verringern"
-                                        >
-                                          −
-                                        </button>
-                                      </>
-                                    )}
-                                  </div>
-                                </td>
-                                <td className="px-3 py-2">
-                                  <div className="font-medium text-foreground">
-                                    {a.name}
-                                    {a.sku ? (
-                                      <span className="ml-1 text-xs text-muted-foreground">
-                                        [{a.sku}]
+                              <td className="px-3 py-2">
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => {
+                                      if (cart) {
+                                        updateCartMut.mutate({
+                                          itemId: cart.itemId,
+                                          quantity: cart.quantity + 1,
+                                        });
+                                      } else {
+                                        addCartMut.mutate(a.id);
+                                      }
+                                    }}
+                                    disabled={addCartMut.isPending}
+                                    className="rounded-full bg-primary/10 px-2 py-1 text-primary hover:bg-primary/20"
+                                    title="In den Warenkorb"
+                                  >
+                                    🛒
+                                  </button>
+                                  {cart && (
+                                    <>
+                                      <span className="text-xs font-medium text-foreground">
+                                        {cart.quantity}
                                       </span>
-                                    ) : null}
-                                  </div>
-                                  {last ? (
-                                    <div className="mt-0.5 text-xs text-muted-foreground">
-                                      Zuletzt {fmtDate(last.date)} · {fmtQty(last.quantity)}{" "}
-                                      {last.unit ?? a.unit}
-                                      {last.orderedBy ? ` · ${last.orderedBy}` : ""}
-                                    </div>
+                                      <button
+                                        onClick={() => {
+                                          if (cart.quantity <= 1) {
+                                            removeCartMut.mutate(cart.itemId);
+                                          } else {
+                                            updateCartMut.mutate({
+                                              itemId: cart.itemId,
+                                              quantity: cart.quantity - 1,
+                                            });
+                                          }
+                                        }}
+                                        className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground hover:bg-accent"
+                                        title="Menge verringern"
+                                      >
+                                        −
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-3 py-2">
+                                <div className="font-medium text-foreground">
+                                  {a.name}
+                                  {a.sku ? (
+                                    <span className="ml-1 text-xs text-muted-foreground">
+                                      [{a.sku}]
+                                    </span>
                                   ) : null}
-                                </td>
-                                <td className="px-3 py-2 text-muted-foreground">
-                                  {a.description ?? "—"}
-                                </td>
-                                <td className="px-3 py-2 text-muted-foreground">{a.unit}</td>
-                                <td className="px-3 py-2 text-muted-foreground">
-                                  {a.packaging_unit ?? "—"}
-                                </td>
-                                <td className="px-3 py-2 text-right text-foreground">
-                                  {fmtEuro(a.price_cents)}
-                                </td>
-                                <td className="px-3 py-2 text-right">
-                                  <div className="flex items-center justify-end gap-1">
-                                    <button
-                                      onClick={() =>
-                                        setArticleDialog({
-                                          mode: "edit",
-                                          supplierId: s.id,
-                                          articleId: a.id,
-                                          initial: {
-                                            name: a.name,
-                                            sku: a.sku ?? "",
-                                            description: a.description ?? "",
-                                            category: a.category ?? "",
-                                            unit: a.unit,
-                                            priceEuro:
-                                              a.price_cents != null
-                                                ? (a.price_cents / 100)
-                                                    .toFixed(2)
-                                                    .replace(".", ",")
-                                                : "",
-                                            packagingUnit:
-                                              a.packaging_unit?.toString() ?? "",
-                                          },
-                                        })
-                                      }
-                                      className="rounded border border-input bg-background p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-                                      title="Bearbeiten"
-                                    >
-                                      <Pencil className="h-3.5 w-3.5" />
-                                    </button>
-                                    <button
-                                      onClick={() =>
-                                        toggleArtMut.mutate({ id: a.id, isActive: !a.is_active })
-                                      }
-                                      className="rounded border border-input bg-background p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-                                      title={a.is_active ? "Deaktivieren" : "Aktivieren"}
-                                    >
-                                      {a.is_active ? (
-                                        <Archive className="h-3.5 w-3.5" />
-                                      ) : (
-                                        <RotateCcw className="h-3.5 w-3.5" />
-                                      )}
-                                    </button>
+                                </div>
+                                {last ? (
+                                  <div className="mt-0.5 text-xs text-muted-foreground">
+                                    Zuletzt {fmtDate(last.date)} · {fmtQty(last.quantity)}{" "}
+                                    {last.unit ?? a.unit}
+                                    {last.orderedBy ? ` · ${last.orderedBy}` : ""}
                                   </div>
-                                </td>
-                              </tr>
+                                ) : null}
+                              </td>
+                              <td className="px-3 py-2 text-muted-foreground">
+                                {a.description ?? "—"}
+                              </td>
+                              <td className="px-3 py-2 text-muted-foreground">{a.unit}</td>
+                              <td className="px-3 py-2 text-muted-foreground">
+                                {a.packaging_unit ?? "—"}
+                              </td>
+                              <td className="px-3 py-2 text-right text-foreground">
+                                {fmtEuro(a.price_cents)}
+                              </td>
+                              <td className="px-3 py-2 text-right">
+                                <div className="flex items-center justify-end gap-1">
+                                  <button
+                                    onClick={() =>
+                                      setArticleDialog({
+                                        mode: "edit",
+                                        supplierId: s.id,
+                                        articleId: a.id,
+                                        initial: {
+                                          name: a.name,
+                                          sku: a.sku ?? "",
+                                          description: a.description ?? "",
+                                          category: a.category ?? "",
+                                          unit: a.unit,
+                                          priceEuro:
+                                            a.price_cents != null
+                                              ? (a.price_cents / 100).toFixed(2).replace(".", ",")
+                                              : "",
+                                          packagingUnit: a.packaging_unit?.toString() ?? "",
+                                        },
+                                      })
+                                    }
+                                    className="rounded border border-input bg-background p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                                    title="Bearbeiten"
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() =>
+                                      toggleArtMut.mutate({ id: a.id, isActive: !a.is_active })
+                                    }
+                                    className="rounded border border-input bg-background p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                                    title={a.is_active ? "Deaktivieren" : "Aktivieren"}
+                                  >
+                                    {a.is_active ? (
+                                      <Archive className="h-3.5 w-3.5" />
+                                    ) : (
+                                      <RotateCcw className="h-3.5 w-3.5" />
+                                    )}
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
                           );
                         })}
                       </tbody>
@@ -652,9 +642,7 @@ function LieferantenPage() {
           </DialogHeader>
           {articleDialog && (
             <ArticleForm
-              initial={
-                articleDialog.mode === "edit" ? articleDialog.initial : EMPTY_ARTICLE_DRAFT
-              }
+              initial={articleDialog.mode === "edit" ? articleDialog.initial : EMPTY_ARTICLE_DRAFT}
               submitLabel={articleDialog.mode === "edit" ? "Speichern" : "Anlegen"}
               submitting={
                 articleDialog.mode === "edit" ? updateArtMut.isPending : createArtMut.isPending

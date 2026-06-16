@@ -117,10 +117,7 @@ export function CartDrawer() {
     return m;
   }, [suppliersQ.data]);
   const articlesById = useMemo(() => {
-    const m = new Map<
-      string,
-      { id: string; name: string; unit: string; price_cents: number }
-    >();
+    const m = new Map<string, { id: string; name: string; unit: string; price_cents: number }>();
     for (const a of articlesQ.data ?? []) m.set(a.id, a);
     return m;
   }, [articlesQ.data]);
@@ -149,8 +146,7 @@ export function CartDrawer() {
       const name = it.is_free_text_item ? (it.free_text_name ?? "Freitext") : (a?.name ?? "—");
       const unit = it.is_free_text_item ? (it.free_text_unit ?? "Stk") : (a?.unit ?? "—");
       const unitPrice = it.is_free_text_item ? 0 : (a?.price_cents ?? 0);
-      const g =
-        map.get(sid) ?? { supplierId: sid, rows: [], subtotalCents: 0, count: 0 };
+      const g = map.get(sid) ?? { supplierId: sid, rows: [], subtotalCents: 0, count: 0 };
       g.rows.push({
         id: it.id,
         name,
@@ -185,13 +181,16 @@ export function CartDrawer() {
               <span>Warenkorb</span>
             ) : (
               <span>
-                {supplierCount} {supplierCount === 1 ? "Lieferant" : "Lieferanten"} ·{" "}
-                {totalItems} Pos. · {fmtEuro(totalCents)}
+                {supplierCount} {supplierCount === 1 ? "Lieferant" : "Lieferanten"} · {totalItems}{" "}
+                Pos. · {fmtEuro(totalCents)}
               </span>
             )}
           </button>
         </SheetTrigger>
-        <SheetContent side="right" className="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-xl">
+        <SheetContent
+          side="right"
+          className="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-xl"
+        >
           <SheetHeader>
             <SheetTitle>Warenkorb</SheetTitle>
             <SheetDescription>
@@ -219,9 +218,7 @@ export function CartDrawer() {
                       <p className="font-medium text-foreground">{sup?.name ?? "Unbekannt"}</p>
                       <p
                         className={
-                          sup?.email
-                            ? "text-xs text-muted-foreground"
-                            : "text-xs text-destructive"
+                          sup?.email ? "text-xs text-muted-foreground" : "text-xs text-destructive"
                         }
                       >
                         {sup?.email ?? "Keine E-Mail beim Lieferanten."}
