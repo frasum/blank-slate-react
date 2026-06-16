@@ -1830,7 +1830,7 @@ export async function loadCashDayAggregates(
   const { data: sessions, error: sErr } = await supabaseAdmin
     .from("sessions")
     .select(
-      "id, business_date, status, location_id, opening_balance_cents, vouchers_sold_cents, vouchers_redeemed_cents, finedine_vouchers_cents, vorschuss_cents, einladung_cents, sonstige_einnahme_cents, cash_actual_cents",
+      "id, business_date, status, location_id, opening_balance_cents, vouchers_sold_cents, vouchers_redeemed_cents, finedine_vouchers_cents, vorschuss_cents, einladung_cents, sonstige_einnahme_cents, cash_actual_cents, vectron_daily_total_cents",
     )
     .eq("organization_id", caller.organizationId)
     .gte("business_date", data.fromDate)
