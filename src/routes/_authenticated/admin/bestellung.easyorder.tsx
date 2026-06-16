@@ -222,12 +222,10 @@ function EasyOrderCart(props: {
       .map(([articleId, quantity]) => ({ articleId, quantity }));
     if (items.length === 0) return;
     placeMut.mutate({
-      data: {
-        locationId,
-        items,
-        freeTextItems: freeItems.length > 0 ? freeItems : undefined,
-        notes: notes.trim() ? notes.trim() : undefined,
-      },
+      locationId,
+      items,
+      freeTextItems: freeItems.length > 0 ? freeItems : undefined,
+      notes: notes.trim() ? notes.trim() : undefined,
     });
   };
 
