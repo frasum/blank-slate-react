@@ -433,6 +433,7 @@ function KassePage() {
                 staffId:
                   (staffQ.data ?? []).find((s) => s.isActive && s.locationIds.includes(locationId))
                     ?.id ?? "",
+                partnerStaffId: "",
                 posSales: "0.00",
                 cardTotal: "0.00",
                 hilfMahl: "0.00",
@@ -445,6 +446,7 @@ function KassePage() {
               setCorrect({
                 originalId: row.id,
                 staffName: row.staffName,
+                partnerStaffId: row.partner_staff_id ?? "",
                 posSales: (Number(row.pos_sales_cents) / 100).toFixed(2),
                 cardTotal: (Number(row.card_total_cents) / 100).toFixed(2),
                 hilfMahl: (Number(row.hilf_mahl_cents) / 100).toFixed(2),
