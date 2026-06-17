@@ -32,6 +32,8 @@ export function ShiftPill({ shift, area, draggable, onClick, density = "normal" 
   const serviceColorMap: Record<string, string> = {
     GL: "#f59e0b",
     B: "#3b82f6",
+    H: "#10b981",
+    "19h": "#8b5cf6",
   };
   const serviceBg = isService ? serviceColorMap[label] : undefined;
   const bg = isService
