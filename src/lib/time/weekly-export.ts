@@ -256,6 +256,8 @@ export function downloadBlob(blob: Blob, filename: string): void {
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
+  a.rel = "noopener";
+  a.target = "_self";
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
