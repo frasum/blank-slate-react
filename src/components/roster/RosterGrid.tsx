@@ -231,10 +231,7 @@ export function RosterGrid({
 
       <Card className={cn(layout.horizontalScroll ? "overflow-x-auto" : "overflow-x-visible")}>
         <table
-          className={cn(
-            "w-full border-collapse",
-            isFit ? "table-fixed text-[10px]" : "text-xs",
-          )}
+          className={cn("w-full border-collapse", isFit ? "table-fixed text-[10px]" : "text-xs")}
         >
           <colgroup>
             <col style={{ width: `${layout.staffColPx}px` }} />

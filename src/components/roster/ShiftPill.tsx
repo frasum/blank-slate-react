@@ -36,9 +36,7 @@ export function ShiftPill({ shift, area, draggable, onClick }: Props) {
     "19h": "#8b5cf6",
   };
   const serviceBg = isService ? serviceColorMap[label] : undefined;
-  const bg = isService
-    ? (serviceBg ?? "#ffffff")
-    : (shift.skillColor ?? "#9ca3af");
+  const bg = isService ? (serviceBg ?? "#ffffff") : (shift.skillColor ?? "#9ca3af");
   const textCls =
     isService && !serviceBg
       ? "text-foreground border-foreground/40"
