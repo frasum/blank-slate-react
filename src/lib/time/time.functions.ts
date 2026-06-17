@@ -18,6 +18,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { businessDateOf } from "@/lib/business-date";
 import { canClockIn, canClockOut, denialMessage } from "./time-rules";
+import { pickSingleLocation } from "./resolve-location";
 import { writeAuditLog } from "@/lib/admin/audit";
 import { arbzgMinimumBreak, isArbzgShort, grossMinutesBetween } from "./break-rules";
 import { assertWithinFence } from "@/lib/geo/server-check";
@@ -91,8 +92,7 @@ async function resolveDefaultLocation(
     .eq("staff_id", staffId)
     .eq("organization_id", organizationId);
   if (error) throw error;
-  if (!data || data.length !== 1) return null;
-  return data[0].location_id;
+  return pickSingleLocation(data ?? []);
 }
 
 // =========================================================================
