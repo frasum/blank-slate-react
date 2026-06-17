@@ -11,7 +11,8 @@ import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { timeEntryToSfnRow } from "./time-entry-sfn";
-import { berechneSfnGeld, type SfnGeldErgebnis } from "./sfn-geld/sfn-geld";
+import { berechneSfnGeld } from "./sfn-geld/sfn-geld";
+import type { SfnGeldErgebnis } from "./sfn-geld/types";
 import { bavarianHolidaySurchargeRate } from "./holiday-rate";
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
