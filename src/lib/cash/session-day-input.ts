@@ -27,10 +27,7 @@ export type SessionDayInputArgs = {
   openInvoicesCents: number[];
 };
 
-export function sessionToDayInput(
-  sess: SessionDayFields,
-  args: SessionDayInputArgs,
-): DayInput {
+export function sessionToDayInput(sess: SessionDayFields, args: SessionDayInputArgs): DayInput {
   return {
     businessDate: sess.business_date,
     grossRevenueCents: Number(sess.vectron_daily_total_cents ?? 0),
