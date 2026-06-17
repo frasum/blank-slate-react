@@ -56,6 +56,10 @@ type Props = {
   shifts: RosterShift[];
   allSkills: RosterSkill[];
   crossBookings: RosterCrossBooking[];
+  lockMap: Map<
+    string,
+    { locationId: string; locationName: string; area: "kitchen" | "service" | "gl" }
+  >;
   unavailableSet: Set<string>;
   absenceMap: Map<string, "urlaub" | "krank">;
   density: Density;
@@ -87,6 +91,7 @@ export function RosterGrid({
   shifts,
   allSkills,
   crossBookings,
+  lockMap,
   unavailableSet,
   absenceMap,
   density,
@@ -298,6 +303,10 @@ export function RosterGrid({
                       const isUnavailable = unavailableSet.has(`${row.staffId}|${iso}`);
                       const absenceType = absenceMap.get(`${row.staffId}|${iso}`) ?? null;
                       const isAbsent = absenceType !== null;
+                      const lockEntry = !shift
+                        ? (lockMap.get(`${row.staffId}|${iso}`) ?? null)
+                        : null;
+                      const isLocked = lockEntry !== null;
                       const isBirthday =
                         row.dateOfBirth != null &&
                         row.dateOfBirth.slice(5, 10) === iso.slice(5, 10);
@@ -317,6 +326,12 @@ export function RosterGrid({
                           absenceType={absenceType}
                           birthday={isBirthday}
                           birthdayLabel={isBirthday ? `Geburtstag: ${row.displayName}` : null}
+                          locked={isLocked}
+                          lockLabel={
+                            lockEntry
+                              ? `Bereits in ${lockEntry.locationName} · ${AREA_SHORT[lockEntry.area]} eingeteilt`
+                              : null
+                          }
                         >
                           {shift ? (
                             <PillConfirmPopover
@@ -374,7 +389,7 @@ export function RosterGrid({
                               iso={iso}
                               activeArea={activeArea}
                               allSkills={allSkills}
-                              editable={editable}
+                              editable={editable && !isLocked}
                               busy={busy}
                               paintActive={paint !== null}
                               open={openCell === `${row.staffId}|${iso}`}
@@ -462,6 +477,8 @@ function DropCell({
   absenceType,
   birthday,
   birthdayLabel,
+  locked,
+  lockLabel,
   children,
 }: {
   staffId: string;
@@ -477,12 +494,14 @@ function DropCell({
   absenceType: "urlaub" | "krank" | null;
   birthday: boolean;
   birthdayLabel: string | null;
+  locked: boolean;
+  lockLabel: string | null;
   children: React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: `cell:${staffId}:${iso}:${area}`,
     data: { staffId, iso, area },
-    disabled: !editable,
+    disabled: !editable || locked,
   });
   const cursor =
     paintKind === "skill" ? "cursor-crosshair" : paintKind === "eraser" ? "cursor-not-allowed" : "";
@@ -506,6 +525,7 @@ function DropCell({
         today && "bg-primary/5",
         isOver && editable && "bg-accent/20 ring-1 ring-accent ring-inset",
         editable && cursor,
+        locked && "cursor-not-allowed opacity-40",
       )}
     >
       {showUnavailableBox ? (
@@ -596,6 +616,14 @@ function DropCell({
       ) : null}
     </td>
   );
+  if (locked && lockLabel) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>{tdInner}</TooltipTrigger>
+        <TooltipContent>{lockLabel}</TooltipContent>
+      </Tooltip>
+    );
+  }
   if (!unavailable) return tdInner;
   return (
     <Tooltip>
