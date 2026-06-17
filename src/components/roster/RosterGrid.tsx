@@ -527,6 +527,8 @@ function DropCell({
   absenceType,
   birthday,
   birthdayLabel,
+  hasWish,
+  wishNote,
   locked,
   lockLabel,
   children,
@@ -544,6 +546,8 @@ function DropCell({
   absenceType: "urlaub" | "krank" | null;
   birthday: boolean;
   birthdayLabel: string | null;
+  hasWish: boolean;
+  wishNote: string | null;
   locked: boolean;
   lockLabel: string | null;
   children: React.ReactNode;
@@ -643,6 +647,22 @@ function DropCell({
             </span>
           </TooltipTrigger>
           <TooltipContent>{absenceType === "krank" ? "Krank" : "Urlaub"}</TooltipContent>
+        </Tooltip>
+      ) : null}
+      {hasWish ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute bottom-0.5 right-0.5 z-30"
+            >
+              <Heart className="h-3 w-3 fill-purple-600 text-purple-600" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            <div className="text-xs">Wunsch frei</div>
+            {wishNote ? <div className="text-xs text-muted-foreground">{wishNote}</div> : null}
+          </TooltipContent>
         </Tooltip>
       ) : null}
       {showUnavailableOnShift ? (
