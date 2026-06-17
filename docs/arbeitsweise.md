@@ -131,7 +131,7 @@ Immer **26. eines Monats bis einschließlich 25. des Folgemonats**. Label = Mona
 | Self-Service Welle B — Freier-Tag-Wunsch (`/zeit/wuensche`)                           | ✅        |
 | Self-Service Welle C — Urlaubsanträge + Genehmigung (`/zeit/urlaub`, `/admin/urlaub`) | ✅        |
 | Kasse — Vier-Zeilen-Bargeldblock + Soll-Wechselgeld je Standort                       | ✅        |
-| Kasse — Abgleichs-Warnungen (POS-/Terminal-Differenz, `payment_terminals.is_gl`)       | ✅        |
+| Kasse — Abgleichs-Warnungen (POS-/Terminal-Differenz, `payment_terminals.is_gl`)      | ✅        |
 
 **Stand 17.06.2026 (Abend, Session-Nachzug):**
 
