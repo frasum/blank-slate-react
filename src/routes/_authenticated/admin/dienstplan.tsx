@@ -93,7 +93,11 @@ function DienstplanPage() {
   const [paintEnabled, setPaintEnabled] = useState(false);
   const [paint, setPaint] = useState<PaintSelection>(null);
 
-  const periods = useMemo(() => periodsQ.data ?? [], [periodsQ.data]);
+  const periods = useMemo(
+    () =>
+      [...(periodsQ.data ?? [])].sort((a, b) => a.startDate.localeCompare(b.startDate)),
+    [periodsQ.data],
+  );
   const locations = useMemo(() => locationsQ.data ?? [], [locationsQ.data]);
   const allSkills: RosterSkill[] = useMemo(() => skillsQ.data ?? [], [skillsQ.data]);
 
