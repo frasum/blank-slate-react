@@ -15,7 +15,7 @@ export async function buildBargeldXlsx(rows: CashDailyRow[], monthLabel: string)
     "Tagesumsatz",
     "Kreditkarten",
     "Take-Away",
-    "OrderSmart",
+    "SoUse",
     "Wolt",
     "Gutsch. EL",
     "FineDine",
