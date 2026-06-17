@@ -324,6 +324,10 @@ function KassePage() {
       toast.error("Keine Session für diesen Tag.");
       return;
     }
+    if ((ov.session.guest_count ?? 0) <= 0) {
+      toast.error("Bitte zuerst die Gästeanzahl eintragen.");
+      return;
+    }
     const channels = (channelsQ.data ?? []).map((c) => ({
       id: c.id,
       label: c.label,
