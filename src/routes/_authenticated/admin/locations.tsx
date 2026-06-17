@@ -29,6 +29,8 @@ type LocationDetails = {
   phone: string;
   contact_name: string;
   contact_phone: string;
+  /** Soll-Wechselgeldbestand in Euro als Eingabe-String. Leer = Org-Default. */
+  cash_balance_target_euro: string;
 };
 
 const emptyDetails: LocationDetails = {
@@ -39,9 +41,18 @@ const emptyDetails: LocationDetails = {
   phone: "",
   contact_name: "",
   contact_phone: "",
+  cash_balance_target_euro: "",
 };
 
 function toPayload(d: LocationDetails) {
+  const eu = d.cash_balance_target_euro.trim().replace(",", ".");
+  let cashBalanceTargetCents: number | null = null;
+  if (eu !== "") {
+    const n = Number.parseFloat(eu);
+    if (Number.isFinite(n) && n >= 0) {
+      cashBalanceTargetCents = Math.round(n * 100);
+    }
+  }
   return {
     street: d.street || null,
     postal_code: d.postal_code || null,
@@ -50,6 +61,7 @@ function toPayload(d: LocationDetails) {
     phone: d.phone || null,
     contact_name: d.contact_name || null,
     contact_phone: d.contact_phone || null,
+    cashBalanceTargetCents,
   };
 }
 
