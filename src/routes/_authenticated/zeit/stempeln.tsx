@@ -20,7 +20,7 @@ import { clockIn, clockOut, getMyOpenEntry, listMyEntries } from "@/lib/time/tim
 import { getCurrentPosition, GpsError } from "@/lib/geo/client";
 import { formatShortDate } from "@/lib/format-date";
 
-export const Route = createFileRoute("/_authenticated/zeit/")({
+export const Route = createFileRoute("/_authenticated/zeit/stempeln")({
   head: () => ({
     meta: [{ title: "Zeiterfassung" }, { name: "description", content: "Ein- und Ausstempeln" }],
   }),
