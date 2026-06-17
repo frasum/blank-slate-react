@@ -175,7 +175,6 @@ function KassePage() {
   const lockedThrough = ovQ.data?.cashLockedThroughDate ?? null;
   const underWaterline = lockedThrough !== null && businessDate <= lockedThrough;
   const isLocked = sessionStatus === "locked" || underWaterline;
-  const isFinalized = sessionStatus === "finalized";
   const writable = sessionStatus === "open" && !underWaterline;
   const correctable =
     (sessionStatus === "open" || sessionStatus === "finalized") && !underWaterline;
@@ -421,11 +420,6 @@ function KassePage() {
             <Label htmlFor="bd" className="block text-center">Geschäftstag</Label>
             <DateSelector date={businessDate} onDateChange={setBusinessDate} />
           </div>
-          {sessionStatus && (
-            <Badge variant={isLocked ? "secondary" : isFinalized ? "outline" : "default"}>
-              {sessionStatus}
-            </Badge>
-          )}
           {underWaterline && <Badge variant="destructive">≤ {lockedThrough} gesperrt</Badge>}
           {ovQ.data?.session && (
             <Button
