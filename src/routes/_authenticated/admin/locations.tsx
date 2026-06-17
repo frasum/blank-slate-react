@@ -295,6 +295,8 @@ type LocationRowData = {
   geofence_radius_m?: number | null;
   geocoded_at?: string | null;
   geocoded_address?: string | null;
+  cashBalanceTargetCents?: number | null;
+  cashBalanceTargetResolvedCents?: number | null;
 };
 
 function LocationRow(props: {
@@ -304,30 +306,14 @@ function LocationRow(props: {
   onGeoChanged: () => void;
 }) {
   const [name, setName] = useState(props.loc.name);
-  const [details, setDetails] = useState<LocationDetails>(() => ({
-    street: props.loc.street ?? "",
-    postal_code: props.loc.postal_code ?? "",
-    city: props.loc.city ?? "",
-    delivery_notes: props.loc.delivery_notes ?? "",
-    phone: props.loc.phone ?? "",
-    contact_name: props.loc.contact_name ?? "",
-    contact_phone: props.loc.contact_phone ?? "",
-  }));
+  const [details, setDetails] = useState<LocationDetails>(() => detailsFromLoc(props.loc));
   const [open, setOpen] = useState(false);
   const [displayOpen, setDisplayOpen] = useState(false);
 
   // Wenn der Server-State sich ändert (z. B. nach Refresh), lokalen State synchronisieren.
   useEffect(() => {
     setName(props.loc.name);
-    setDetails({
-      street: props.loc.street ?? "",
-      postal_code: props.loc.postal_code ?? "",
-      city: props.loc.city ?? "",
-      delivery_notes: props.loc.delivery_notes ?? "",
-      phone: props.loc.phone ?? "",
-      contact_name: props.loc.contact_name ?? "",
-      contact_phone: props.loc.contact_phone ?? "",
-    });
+    setDetails(detailsFromLoc(props.loc));
   }, [props.loc]);
 
   const dirty =
@@ -338,6 +324,7 @@ function LocationRow(props: {
     details.delivery_notes !== (props.loc.delivery_notes ?? "") ||
     details.phone !== (props.loc.phone ?? "") ||
     details.contact_name !== (props.loc.contact_name ?? "") ||
+    details.cash_balance_target_euro !== centsToEuroInput(props.loc.cashBalanceTargetCents) ||
     details.contact_phone !== (props.loc.contact_phone ?? "");
 
   const summary = [
