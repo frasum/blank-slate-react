@@ -462,7 +462,7 @@ function DienstplanPage() {
               </p>
             )}
           </div>
-          <div className="ml-auto flex flex-wrap items-end gap-3">
+          <div className="flex flex-wrap items-end gap-3">
             <label className="flex flex-col gap-1 text-xs">
               <span className="text-muted-foreground">Standort</span>
               <select
