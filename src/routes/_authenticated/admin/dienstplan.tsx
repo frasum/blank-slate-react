@@ -210,6 +210,22 @@ function DienstplanPage() {
     return m;
   }, [staff]);
 
+  // Lock-Map: max. 1 Einteilung pro MA/Tag (standort-/bereichsübergreifend).
+  // Speist sich aus crossBookings (Realtime-invalidated).
+  const lockMap = useMemo(() => {
+    const m = new Map<
+      string,
+      { locationId: string; locationName: string; area: "kitchen" | "service" | "gl" }
+    >();
+    for (const b of crossBookings) {
+      const k = `${b.staffId}|${b.shiftDate}`;
+      if (!m.has(k)) {
+        m.set(k, { locationId: b.locationId, locationName: b.locationName, area: b.area });
+      }
+    }
+    return m;
+  }, [crossBookings]);
+
   function warnIfUnavailable(staffId: string, iso: string) {
     if (!unavailableSet.has(`${staffId}|${iso}`)) return;
     const name = staffNameById.get(staffId) ?? "Mitarbeiter";
@@ -237,6 +253,12 @@ function DienstplanPage() {
 
   async function handleCreate(staffId: string, iso: string, area: GridArea, skillId: string) {
     if (!canEdit || periodLocked || !effectiveLocationId) return;
+    const lock = lockMap.get(`${staffId}|${iso}`);
+    if (lock) {
+      const name = staffNameById.get(staffId) ?? "Mitarbeiter";
+      toast.error(`${name} ist bereits in ${lock.locationName} · ${lock.area} eingeteilt.`);
+      return;
+    }
     setBusy(true);
     try {
       await createRosterShift({
@@ -314,6 +336,16 @@ function DienstplanPage() {
       shift.shiftDate === target.iso &&
       shift.area === target.area
     ) {
+      return;
+    }
+    const lock = lockMap.get(`${target.staffId}|${target.iso}`);
+    // Eigene Schicht ausschließen (Bereichswechsel desselben Tages bleibt erlaubt).
+    if (
+      lock &&
+      !(lock.locationId === shift.locationId && lock.area === shift.area && shift.staffId === target.staffId && shift.shiftDate === target.iso)
+    ) {
+      const name = staffNameById.get(target.staffId) ?? "Mitarbeiter";
+      toast.error(`${name} ist bereits in ${lock.locationName} · ${lock.area} eingeteilt.`);
       return;
     }
     setBusy(true);
