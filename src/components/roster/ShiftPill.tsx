@@ -46,9 +46,7 @@ export function ShiftPill({ shift, area, draggable, onClick }: Props) {
   const serviceBg = isService ? serviceColorMap[label] : undefined;
   const kitchenBg = !isService ? kitchenColorMap[label] : undefined;
   const isDefaultService = isService && label === "X";
-  const bg = isService
-    ? (serviceBg ?? "#ffffff")
-    : (kitchenBg ?? shift.skillColor ?? "#9ca3af");
+  const bg = isService ? (serviceBg ?? "#ffffff") : (kitchenBg ?? shift.skillColor ?? "#9ca3af");
   const textCls = isDefaultService
     ? "text-black border-transparent"
     : "text-white border-transparent";
