@@ -1289,7 +1289,7 @@ export const submitWaiterSettlement = createServerFn({ method: "POST" })
     return submitWaiterSettlementCore(caller, data);
   });
 
-export type SubmitSettlementInput = z.infer<typeof settlementInputSchema>;
+export type SubmitSettlementInput = z.input<typeof settlementInputSchema>;
 
 export async function submitWaiterSettlementCore(caller: StaffCaller, data: SubmitSettlementInput) {
   if (!caller.isActive) throw new Error("Mitarbeiter ist inaktiv.");
