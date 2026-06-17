@@ -1,103 +1,68 @@
 ## Ziel
 
-Mitarbeiter können sich nur einstempeln/ausstempeln bzw. EasyOrder nur dann auslösen, wenn ihre aktuelle GPS-Position innerhalb des Geofence-Radius des Standorts liegt.
+Der „Tagesabrechnung exportieren"-Button auf `/admin/kasse` soll dasselbe einseitige, zweispaltige Layout drucken wie das Tagesabrechnung-Projekt im hochgeladenen YUM-Screenshot — statt der heutigen vertikalen Tabellenliste.
 
-- Stempeluhr: gegen den (per `staff_locations` aufgelösten) Default-Standort des Mitarbeiters.
-- EasyOrder: gegen den im UI ausgewählten Standort.
-- Radius pro Standort, Default 100 m.
-- Koordinaten werden aus der Adresse (`street`/`postal_code`/`city`) per Google-Maps-Geocoding ermittelt; manuelles Override möglich.
-- Bei fehlendem GPS-Fix oder `accuracy > radius`: harte Blockade mit klarer Fehlermeldung. Kein Override, keine Umgehung.
+## Scope
 
-## Voraussetzung
+- **Ausschließlich Präsentation.** Keine neue Server-Function, kein neuer Endpoint, keine DB-Änderung, keine Migration, keine Änderung der bestehenden SFN-/Lohn-Module.
+- Datenquelle bleibt unverändert: `getCashOverview` + `listRevenueChannels` + `listPaymentTerminals` + `listStaff`. Daten liegen bereits in `kasse.tsx` vor und werden schon heute in `generateDailySummaryPdf({...})` geschoben.
+- Eine Seite, A4 hoch. Kein Mehrseiten-Anhang (Vorschuss-Quittungen werden nicht gebaut — das ist eigene Stufe).
 
-Google-Maps-Platform-Connector muss verlinkt sein (Geocoding über Gateway). Falls noch nicht vorhanden, wird er beim ersten Schritt verlinkt.
+## Layout (Reihenfolge wie im Screenshot)
 
-## Schritte
+Header (zentriert): `«Standortname» · «Wochentag, T. Monat»`, darunter klein „Erstellt von … · Export TT.MM.JJJJ HH:MM von …".
 
-### 1. Migration: Geo-Spalten an `locations`
+Zwei Spalten unter dem Header:
 
-Neue Spalten:
-- `latitude double precision NULL`
-- `longitude double precision NULL`
-- `geofence_radius_m integer NOT NULL DEFAULT 100` (CHECK 10–5000)
-- `geocoded_at timestamptz NULL`
-- `geocoded_address text NULL` (zum Erkennen veralteter Geocodes)
+**Linke Spalte — Sektionen (alle Beträge €):**
+- **Umsatz** — POS-Umsatz (= Summe channelAmounts mit `kind = "pos"`). Falls `session.guest_count > 0`: kleine Zeile „Gäste: N · ⌀ X,XX € / Gast" (POS / Gäste).
+- **Kartenzahlung** — KK (Terminal) = Summe `terminalAmounts`.
+- **Take Away** — je eine Zeile pro vorhandenem Lieferkanal (`delivery_souse`, `delivery_wolt`, `delivery_vectron`) mit Channel-Label aus `listRevenueChannels`.
+- **Gutscheine & Abzüge** — Gutscheine EL (`voucher_redeemed`), Gutschein Verkauf (`voucher_sold`), FineDine (`finedine`, nur wenn ≠ 0), Offen (= Σ `open_invoices_cents` aktiver Settlements), Personal (= Σ `advances.amountCents`), Einladung (`einladung`), Sonstige Einnahmen (`sonstige`), Bar Ausgaben (= Σ `expenses.amountCents`).
+- **Ergebnis** — Tages-Bargeld (grün/rot je Vorzeichen), Hilf Mahl (= Σ `hilf_mahl_cents`), darunter umrahmt fett „Differenz zum Wechselgeldbestand".
 
-Keine RLS-Änderung — `locations` hat schon Policies. Datentyp `double precision` (kein PostGIS).
+Formel Tages-Bargeld (rein clientseitig, identisch zur Logik der Vorlage):
+```
+bargeld = Σ kassiert_brutto  (POS + Σ Settlements.cash_handed_in_cents wenn vorhanden)
+        − Σ open_invoices − Σ hilf_mahl
+        − advances − einladung − ausgaben
+        + sonstige_einnahme − voucher_sold + voucher_redeemed
+```
+(Exakte Reproduktion der Vorlagen-Formel aus dem Quellprojekt; die hier verwendeten Felder sind alle bereits im `getCashOverview`-DTO vorhanden.)
 
-### 2. Reines Modul `src/lib/geo/`
+**Rechte Spalte:**
+- Tabelle **Mitarbeiter · Umsatz · Abgabe · Geänd. · TG** — eine Zeile je Settlement (Partner wird als zusätzlicher Eintrag mit halbiertem Umsatz dargestellt, wie in der Vorlage). „Abgabe" = `submitted_at` HH:MM, „Geänd." = `corrected_from_id ? updated_at : "---"`, „TG" = anteiliges Trinkgeld aus Tip-Pool (falls keine Tip-Pool-Daten vorhanden, leer lassen — siehe Offene Punkte).
+- Darunter zweizeilig: „Mitarbeiter-Pool: X € · Küchen-Pool: Y €" und fett „Ø Trinkgeld: Z € von U € Umsatz = P,P %". Beide Pool-Zahlen kommen aus den existierenden Settlements (`kitchen_tip_cents`-Summe, Mitarbeiter-Pool-Summe aus `session_tip_pool_entries`, falls in `ov` enthalten — sonst aus den Settlements).
+- Optional: Ausgaben-Liste und Vorschuss-Liste, identisches Schema wie in der Vorlage, aber **nur wenn vorhanden**.
 
-- `haversine.ts` — `distanceMeters(lat1, lng1, lat2, lng2)`. Reine Funktion + Unit-Tests (bekannte Fixpunkte, < 0,5 % Abweichung).
-- `geofence.ts` — `isWithinGeofence({ point, accuracyM, fence }) → { ok, reason }`. Reasons: `ok | no_fix | accuracy_too_low | outside`.
-- Tests decken: exakter Mittelpunkt, Rand innen/außen, accuracy genau = radius, NaN-Inputs.
+Unter beiden Spalten:
+- Gestrichelte Schnittlinie über die volle Breite.
+- Zentriert groß fett: **`Wechselgeldbestand: X,XX €`** (= `session.cash_actual_cents`, sonst weglassen).
+- Darunter klein grau: `TT.MM.JJJJ um HH:MM Uhr – Abrechnung von «Name»`.
 
-### 3. Server-Func `src/lib/admin/locations.functions.ts` erweitern
+## Umsetzung
 
-- `geocodeLocation({ locationId })` — admin-only:
-  - Lädt Adresse, ruft Google-Maps Geocoding via Gateway (`maps/api/geocode/json`).
-  - Schreibt `latitude`, `longitude`, `geocoded_at`, `geocoded_address`.
-  - Audit-Log-Eintrag.
-- `updateLocationGeo({ locationId, latitude, longitude, geofenceRadiusM })` — manuelles Override + Radius pflegen.
+**Eine Datei rewriten:** `src/lib/cash/pdfExport.ts`
+- Funktionssignatur `generateDailySummaryPdf(data: PdfExportData)` bleibt — Aufrufer in `kasse.tsx` bleibt damit unverändert. Rückgabewert `{ blobUrl, blob, fileName }` bleibt.
+- `PdfExportData` wird minimal erweitert um die Felder, die der neue Layout braucht und die bereits im Aufrufer verfügbar sind:
+  - `channels: { id; label; kind: ChannelKind }[]` (kind ergänzen — kommt aus `listRevenueChannels`)
+  - `tipPool?: { waiterPoolCents: number; kitchenPoolCents: number; perShareCents: number }` (optional; wird im Aufrufer aus `getTipPoolOverview` befüllt — siehe nächster Punkt)
+- In `src/routes/_authenticated/admin/kasse.tsx` nur **eine Stelle** anpassen: `handleExportPdf` reicht zusätzlich `channels` mit `kind` durch und übergibt das bereits geladene `tipPoolQ.data` (falls vorhanden). Keine neue Query, kein neuer State.
+- Komplette Wiederverwendung von `jspdf` + `jspdf-autotable` (bereits installiert, siehe heutiger `pdfExport.ts`). Keine neuen Deps, `bun.lock` unverändert.
 
-### 4. Admin-UI `src/routes/_authenticated/admin/locations.tsx`
+**Test/Verify:**
+- `npx tsc --noEmit` → 0 Fehler
+- `npx eslint . --max-warnings=5` → 0 Fehler
+- Manuelle Sichtprüfung: PDF aus `/admin/kasse` exportieren, gegen YUM-Vorlage vergleichen (Header, beide Spalten vollständig, eine Seite, Schnittlinie + Wechselgeldbestand-Footer sichtbar).
+- Keine neuen Unit-Tests notwendig (reine Layout-Änderung, keine Geld-Formel-Änderung). Bestehende `cash-read.db.test.ts` läuft unverändert.
 
-Pro Standort:
-- Anzeige aktueller lat/lng + `geocoded_at`.
-- Button „Aus Adresse geocodieren".
-- Inputs für lat/lng (manuelles Override) und Radius (m).
-- Hinweis, wenn `geocoded_address` von aktueller Adresse abweicht.
+## Bewusst NICHT enthalten (eigene Schritte)
 
-### 5. Geofence-Helper für Server-Funcs
+- Vorschuss-Quittungsseiten als Folgeseiten (Vorlage hat das — wird Stufe später, falls gewünscht).
+- HTML-Druckansicht / Preview-Komponente im UI.
+- Änderungen an der Geld-Logik, an `cash-ledger`, an Settlements, an SFN.
 
-`src/lib/geo/server-check.ts` — `assertWithinFence({ admin, locationId, point, accuracyM })`. Lädt lat/lng/radius, ruft `isWithinGeofence`. Wirft sprechende Fehler:
-- „Standort hat keine GPS-Koordinaten hinterlegt. Bitte Manager kontaktieren."
-- „Kein GPS-Signal. Bitte Standortfreigabe im Browser/Gerät prüfen."
-- „GPS zu ungenau (±X m, erlaubt ±Y m). Bitte im Freien erneut versuchen."
-- „Du bist Z m vom Standort entfernt (erlaubt: Y m)."
+## Offene Punkte (vor Build kurz bestätigen)
 
-### 6. `clockIn` / `clockOut` erweitern
-
-`src/lib/time/time.functions.ts`:
-- Beide Funktionen bekommen `inputValidator` mit `{ latitude, longitude, accuracyM }` (clockOut zusätzlich `breakMinutes`).
-- Vor dem Insert/Update: `resolveDefaultLocation` zwingend → wenn `null`, Fehler „Kein eindeutiger Standort zugeordnet, Geofence nicht prüfbar."
-- `assertWithinFence(...)` aufrufen.
-- Audit-Meta um `geo: { lat, lng, accuracyM, distanceM }` ergänzen.
-
-### 7. `placeEasyOrder` erweitern
-
-`src/lib/bestellung/easyorder.functions.ts` → `placeEasyOrderCore`-Input um `geo: { latitude, longitude, accuracyM }`:
-- Nach Schritt 1 (Location-Berechtigung) `assertWithinFence` gegen `input.locationId`.
-- Audit-Meta ergänzen.
-- `getMyEasyOrderContext`/`getEasyOrderCatalog` bleiben unverändert (reines Lesen).
-
-### 8. Client-Helper `src/lib/geo/client.ts`
-
-- `getCurrentPosition({ timeoutMs = 10000, maximumAge = 0 }) → Promise<{ latitude, longitude, accuracyM }>` (Wrapper um `navigator.geolocation.getCurrentPosition`, `enableHighAccuracy: true`).
-- Klare Error-Typen für „permission_denied", „position_unavailable", „timeout".
-- Kein Caching älterer Positionen (`maximumAge: 0`), damit niemand alte Fixes recyclen kann.
-
-### 9. UI-Wiring
-
-- `src/routes/_authenticated/zeit/index.tsx`:
-  - Vor `doClockIn()`/`doClockOut(...)`: `await getCurrentPosition()`, Loading-State „GPS wird ermittelt…".
-  - Bei Fehler: `toast.error` mit der jeweiligen Server-/Client-Meldung. Kein Stempel.
-- `src/routes/_authenticated/admin/bestellung.easyorder.tsx`:
-  - Analog vor dem Bestell-Submit: GPS holen, mitsenden.
-
-### 10. Tests
-
-- `geo/haversine.test.ts`, `geo/geofence.test.ts` — reine Logik.
-- `time/time-entries.db.test.ts` erweitern: clockIn ohne Geo → Fehler; mit Geo innerhalb → ok; außerhalb → Fehler; ohne Standort-Geo-Daten → Fehler.
-- `bestellung/easyorder.db.test.ts` erweitern: placeEasyOrder analog.
-
-## Technische Details
-
-- Geocoding-Aufruf ausschließlich serverseitig über Gateway (`https://connector-gateway.lovable.dev/google_maps/maps/api/geocode/json`); kein Browser-Key nötig.
-- Kein PostGIS — Haversine in JS reicht für 100-m-Radius mit > 1 m Genauigkeit.
-- `latitude`/`longitude` nicht `NOT NULL`, damit Bestandsdaten nicht kaputtgehen; Geofence-Check blockiert dann ehrlich.
-- Reihenfolge der Schritte: Migration → Geo-Modul + Tests → Admin-Funcs/UI → Stempel-/EasyOrder-Funcs → Client-Helper → UI-Wiring. Admin pflegt Koordinaten bevor Stempelpflicht greift, sonst sperrt sich alles selbst aus.
-
-## Offen / nicht enthalten
-
-- Keine pauschalen Ausnahmen (z. B. „bestimmte Mitarbeiter umgehen Geofence"). Falls gewünscht, separater Bauplan-Schritt.
-- Keine Hintergrund-Wiederholung des Geocodings bei Adressänderung — Admin klickt bewusst „neu geocodieren".
+1. **Trinkgeld-pro-Kopf-Spalte „TG":** Die Vorlage zeigt pro Kellner den Pool-Anteil. coco hat `session_tip_pool_entries` + `getTipPoolOverview`. Soll ich diesen Reader im Export-Aufruf mit verwenden (gibt die im Screenshot sichtbaren 94,41 €), oder reicht zunächst die Spalte leer / „---" und wir liefern den Tip-Pool-Wert in einer Folgestufe nach?
+2. **Standortname im Header:** Nehme ich den `locations.name` (so wie heute). Falls du wie im Screenshot („YUM") einen separaten Kurzcode willst, sag bitte welches Feld.
