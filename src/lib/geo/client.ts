@@ -23,9 +23,7 @@ export class GpsError extends Error {
   }
 }
 
-export async function getCurrentPosition(
-  options: { timeoutMs?: number } = {},
-): Promise<GpsFix> {
+export async function getCurrentPosition(options: { timeoutMs?: number } = {}): Promise<GpsFix> {
   if (typeof navigator === "undefined" || !navigator.geolocation) {
     throw new GpsError("unsupported", "Dieses Gerät unterstützt keine Standortabfrage.");
   }

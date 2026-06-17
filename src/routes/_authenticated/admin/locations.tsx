@@ -433,9 +433,7 @@ function GeofencePanel({ loc, onChanged }: { loc: LocationRowData; onChanged: ()
   const inputCls = "w-full rounded-md border border-input bg-background px-3 py-2 text-sm";
   return (
     <div className="mt-3 space-y-3 rounded-md border border-input bg-muted/30 p-3 text-sm">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        Geofence
-      </p>
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Geofence</p>
       <div className="grid grid-cols-3 gap-3">
         <Field label="Breitengrad">
           <input value={lat} onChange={(e) => setLat(e.target.value)} className={inputCls} />

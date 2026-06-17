@@ -7,12 +7,7 @@ function toRad(deg: number): number {
   return (deg * Math.PI) / 180;
 }
 
-export function distanceMeters(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number,
-): number {
+export function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
   if (
     !Number.isFinite(lat1) ||
     !Number.isFinite(lng1) ||
