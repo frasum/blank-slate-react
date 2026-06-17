@@ -58,7 +58,7 @@ export function SecondWaiterSelect({
 
   return (
     <Select
-      value={value ?? NONE}
+      value={value && value.length > 0 ? value : NONE}
       onValueChange={(v) => onValueChange(v === NONE ? null : v)}
       disabled={disabled || q.isLoading}
     >
