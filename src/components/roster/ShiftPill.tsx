@@ -28,11 +28,17 @@ export function ShiftPill({ shift, area, draggable, onClick, density = "normal" 
   });
 
   const isService = area === "service";
-  const bg = isService ? "#ffffff" : (shift.skillColor ?? "#9ca3af");
   const label = isService ? serviceMarker(shift.skillName) : abbr(shift.skillName);
-  const textCls = isService
-    ? "text-foreground border-foreground/40"
-    : "text-white border-transparent";
+  const isGL = isService && label === "GL";
+  const bg = isService
+    ? isGL
+      ? "#f59e0b"
+      : "#ffffff"
+    : (shift.skillColor ?? "#9ca3af");
+  const textCls =
+    isService && !isGL
+      ? "text-foreground border-foreground/40"
+      : "text-white border-transparent";
   const opacity = shift.status === "confirmed" ? 1 : 0.7;
 
   const style: React.CSSProperties = {
