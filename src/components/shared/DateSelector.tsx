@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { format, parseISO } from "date-fns";
 import { de } from "date-fns/locale";
 import { CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
@@ -25,6 +26,7 @@ function todayIso(): string {
 
 export function DateSelector({ date, onDateChange }: DateSelectorProps) {
   const current = parseISO(date);
+  const [open, setOpen] = useState(false);
 
   const goToPreviousDay = () => {
     const d = new Date(current);
@@ -50,7 +52,7 @@ export function DateSelector({ date, onDateChange }: DateSelectorProps) {
         <ChevronLeft className="h-4 w-4" />
       </Button>
 
-      <Popover>
+      <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
@@ -67,7 +69,12 @@ export function DateSelector({ date, onDateChange }: DateSelectorProps) {
           <Calendar
             mode="single"
             selected={current}
-            onSelect={(d) => d && onDateChange(toIso(d))}
+            onSelect={(d) => {
+              if (d) {
+                onDateChange(toIso(d));
+                setOpen(false);
+              }
+            }}
             initialFocus
             locale={de}
             className="pointer-events-auto"
