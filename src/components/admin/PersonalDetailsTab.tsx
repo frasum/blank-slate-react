@@ -274,20 +274,20 @@ export function PersonalDetailsTab({ staffId, canEdit }: Props) {
                     <span className="text-muted-foreground">{row.label}</span>
                     <span className="flex items-center gap-2 text-right text-foreground">
                       <span>{display}</span>
-                    {isSensitive && rawVal && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const next = new Set(revealed);
-                          if (next.has(row.key)) next.delete(row.key);
-                          else next.add(row.key);
-                          setRevealed(next);
-                        }}
-                        className="text-xs text-muted-foreground hover:text-foreground"
-                      >
-                        {revealed.has(row.key) ? "Verbergen" : "Einblenden"}
-                      </button>
-                    )}
+                      {isSensitive && rawVal && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = new Set(revealed);
+                            if (next.has(row.key)) next.delete(row.key);
+                            else next.add(row.key);
+                            setRevealed(next);
+                          }}
+                          className="text-xs text-muted-foreground hover:text-foreground"
+                        >
+                          {revealed.has(row.key) ? "Verbergen" : "Einblenden"}
+                        </button>
+                      )}
                     </span>
                   </div>
                   {durationLine && (

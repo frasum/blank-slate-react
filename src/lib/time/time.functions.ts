@@ -219,11 +219,16 @@ export const clockOut = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadStaffCaller(context.supabase, context.userId);
-    const result = await performClockOut(caller, data.breakMinutes, {}, {
-      latitude: data.latitude,
-      longitude: data.longitude,
-      accuracyM: data.accuracyM,
-    });
+    const result = await performClockOut(
+      caller,
+      data.breakMinutes,
+      {},
+      {
+        latitude: data.latitude,
+        longitude: data.longitude,
+        accuracyM: data.accuracyM,
+      },
+    );
     if (!result) throw new Error(denialMessage("no_open_entry"));
     return result;
   });

@@ -48,12 +48,7 @@ export function isWithinGeofence(input: { fix: GeoFix; fence: GeoFence }): Geofe
     return { ok: false, reason: "accuracy_too_low", distanceM: null };
   }
 
-  const distanceM = distanceMeters(
-    fix.latitude,
-    fix.longitude,
-    fence.latitude,
-    fence.longitude,
-  );
+  const distanceM = distanceMeters(fix.latitude, fix.longitude, fence.latitude, fence.longitude);
   if (!Number.isFinite(distanceM)) {
     return { ok: false, reason: "no_fix", distanceM: null };
   }
