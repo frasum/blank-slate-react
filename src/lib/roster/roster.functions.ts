@@ -923,3 +923,119 @@ export const setAbsenceRange = createServerFn({ method: "POST" })
       };
     });
   });
+
+// =========================================================================
+// Welle B — Freier-Tag-Wünsche (lila Herz)
+// Tabelle day_off_wishes existiert bereits (Migration separat).
+// =========================================================================
+
+export type DayOffWishRow = {
+  staffId: string;
+  wishDate: string;
+  note: string | null;
+};
+
+export type MyDayOffWishRow = {
+  wishDate: string;
+  note: string | null;
+};
+
+export const getDayOffWishes = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }): Promise<DayOffWishRow[]> => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, READ_ROLES);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin
+      .from("day_off_wishes")
+      .select("staff_id, wish_date, note")
+      .eq("organization_id", caller.organizationId)
+      .gte("wish_date", data.fromDate)
+      .lte("wish_date", data.toDate);
+    if (error) throw error;
+    return (rows ?? []).map((r) => ({
+      staffId: r.staff_id as string,
+      wishDate: r.wish_date as string,
+      note: (r.note as string | null) ?? null,
+    }));
+  });
+
+export const getMyDayOffWishes = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<MyDayOffWishRow[]> => {
+    const caller = await loadStaffCaller(context.supabase, context.userId);
+    const today = new Date().toISOString().slice(0, 10);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin
+      .from("day_off_wishes")
+      .select("wish_date, note")
+      .eq("organization_id", caller.organizationId)
+      .eq("staff_id", caller.staffId)
+      .gte("wish_date", today)
+      .order("wish_date", { ascending: true });
+    if (error) throw error;
+    return (rows ?? []).map((r) => ({
+      wishDate: r.wish_date as string,
+      note: (r.note as string | null) ?? null,
+    }));
+  });
+
+export const createDayOffWish = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        wishDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        note: z
+          .string()
+          .max(200)
+          .nullable()
+          .optional()
+          .transform((v) => {
+            if (v == null) return null;
+            const trimmed = v.trim();
+            return trimmed.length === 0 ? null : trimmed;
+          }),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadStaffCaller(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("day_off_wishes").upsert(
+      {
+        organization_id: caller.organizationId,
+        staff_id: caller.staffId,
+        wish_date: data.wishDate,
+        note: data.note,
+      },
+      { onConflict: "staff_id,wish_date" },
+    );
+    if (error) throw error;
+    return { ok: true as const };
+  });
+
+export const deleteDayOffWish = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({ wishDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadStaffCaller(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("day_off_wishes")
+      .delete()
+      .eq("organization_id", caller.organizationId)
+      .eq("staff_id", caller.staffId)
+      .eq("wish_date", data.wishDate);
+    if (error) throw error;
+    return { ok: true as const };
+  });
