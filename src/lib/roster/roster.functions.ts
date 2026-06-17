@@ -293,6 +293,23 @@ export const createRosterShift = createServerFn({ method: "POST" })
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, data.shiftDate);
 
+      // Regel: max. EINE Einteilung pro Mitarbeiter und Tag (standort-/bereichsübergreifend).
+      const { data: existing, error: existErr } = await supabaseAdmin
+        .from("roster_shifts")
+        .select("location_id, area, locations(name)")
+        .eq("organization_id", caller.organizationId)
+        .eq("staff_id", data.staffId)
+        .eq("shift_date", data.shiftDate)
+        .limit(1)
+        .maybeSingle();
+      if (existErr) throw existErr;
+      if (existing) {
+        const locName = (existing.locations as { name: string } | null)?.name ?? "—";
+        throw new Error(
+          `Mitarbeiter ist an diesem Tag bereits eingeteilt (${locName} · ${existing.area}).`,
+        );
+      }
+
       const { data: row, error } = await supabaseAdmin
         .from("roster_shifts")
         .upsert(
