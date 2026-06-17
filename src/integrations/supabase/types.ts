@@ -2389,18 +2389,21 @@ export type Database = {
           address: string | null
           bank_name: string | null
           child_tax_allowances: number | null
+          children_count: number | null
           church_tax_liable: boolean | null
           created_at: string
           date_of_birth: string | null
           email: string | null
           employment_end_date: string | null
           employment_start_date: string | null
+          has_parent_status: boolean | null
           health_insurance: string | null
           iban: string | null
           id: string
           is_minijob: boolean | null
           is_sv_exempt: boolean | null
           job_title: string | null
+          kk_zusatzbeitrag: number | null
           nationality: string | null
           organization_id: string
           personnel_group: string | null
@@ -2422,18 +2425,21 @@ export type Database = {
           address?: string | null
           bank_name?: string | null
           child_tax_allowances?: number | null
+          children_count?: number | null
           church_tax_liable?: boolean | null
           created_at?: string
           date_of_birth?: string | null
           email?: string | null
           employment_end_date?: string | null
           employment_start_date?: string | null
+          has_parent_status?: boolean | null
           health_insurance?: string | null
           iban?: string | null
           id?: string
           is_minijob?: boolean | null
           is_sv_exempt?: boolean | null
           job_title?: string | null
+          kk_zusatzbeitrag?: number | null
           nationality?: string | null
           organization_id: string
           personnel_group?: string | null
@@ -2455,18 +2461,21 @@ export type Database = {
           address?: string | null
           bank_name?: string | null
           child_tax_allowances?: number | null
+          children_count?: number | null
           church_tax_liable?: boolean | null
           created_at?: string
           date_of_birth?: string | null
           email?: string | null
           employment_end_date?: string | null
           employment_start_date?: string | null
+          has_parent_status?: boolean | null
           health_insurance?: string | null
           iban?: string | null
           id?: string
           is_minijob?: boolean | null
           is_sv_exempt?: boolean | null
           job_title?: string | null
+          kk_zusatzbeitrag?: number | null
           nationality?: string | null
           organization_id?: string
           personnel_group?: string | null
