@@ -17,6 +17,7 @@ import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authentic
 import { Route as AuthenticatedZeitIndexRouteImport } from './routes/_authenticated/zeit/index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedZeitStempelnRouteImport } from './routes/_authenticated/zeit/stempeln'
+import { Route as AuthenticatedZeitSchichtenRouteImport } from './routes/_authenticated/zeit/schichten'
 import { Route as AuthenticatedZeitAbrechnungRouteImport } from './routes/_authenticated/zeit/abrechnung'
 import { Route as AuthenticatedAdminZeitUebersichtRouteImport } from './routes/_authenticated/admin/zeit-uebersicht'
 import { Route as AuthenticatedAdminTrinkgeldRestRouteImport } from './routes/_authenticated/admin/trinkgeld-rest'
@@ -81,6 +82,12 @@ const AuthenticatedZeitStempelnRoute =
   AuthenticatedZeitStempelnRouteImport.update({
     id: '/zeit/stempeln',
     path: '/zeit/stempeln',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedZeitSchichtenRoute =
+  AuthenticatedZeitSchichtenRouteImport.update({
+    id: '/zeit/schichten',
+    path: '/zeit/schichten',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedZeitAbrechnungRoute =
@@ -250,6 +257,7 @@ export interface FileRoutesByFullPath {
   '/admin/trinkgeld-rest': typeof AuthenticatedAdminTrinkgeldRestRoute
   '/admin/zeit-uebersicht': typeof AuthenticatedAdminZeitUebersichtRoute
   '/zeit/abrechnung': typeof AuthenticatedZeitAbrechnungRoute
+  '/zeit/schichten': typeof AuthenticatedZeitSchichtenRoute
   '/zeit/stempeln': typeof AuthenticatedZeitStempelnRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/zeit/': typeof AuthenticatedZeitIndexRoute
@@ -281,6 +289,7 @@ export interface FileRoutesByTo {
   '/admin/trinkgeld-rest': typeof AuthenticatedAdminTrinkgeldRestRoute
   '/admin/zeit-uebersicht': typeof AuthenticatedAdminZeitUebersichtRoute
   '/zeit/abrechnung': typeof AuthenticatedZeitAbrechnungRoute
+  '/zeit/schichten': typeof AuthenticatedZeitSchichtenRoute
   '/zeit/stempeln': typeof AuthenticatedZeitStempelnRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/zeit': typeof AuthenticatedZeitIndexRoute
@@ -317,6 +326,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/trinkgeld-rest': typeof AuthenticatedAdminTrinkgeldRestRoute
   '/_authenticated/admin/zeit-uebersicht': typeof AuthenticatedAdminZeitUebersichtRoute
   '/_authenticated/zeit/abrechnung': typeof AuthenticatedZeitAbrechnungRoute
+  '/_authenticated/zeit/schichten': typeof AuthenticatedZeitSchichtenRoute
   '/_authenticated/zeit/stempeln': typeof AuthenticatedZeitStempelnRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/zeit/': typeof AuthenticatedZeitIndexRoute
@@ -353,6 +363,7 @@ export interface FileRouteTypes {
     | '/admin/trinkgeld-rest'
     | '/admin/zeit-uebersicht'
     | '/zeit/abrechnung'
+    | '/zeit/schichten'
     | '/zeit/stempeln'
     | '/admin/'
     | '/zeit/'
@@ -384,6 +395,7 @@ export interface FileRouteTypes {
     | '/admin/trinkgeld-rest'
     | '/admin/zeit-uebersicht'
     | '/zeit/abrechnung'
+    | '/zeit/schichten'
     | '/zeit/stempeln'
     | '/admin'
     | '/zeit'
@@ -419,6 +431,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/trinkgeld-rest'
     | '/_authenticated/admin/zeit-uebersicht'
     | '/_authenticated/zeit/abrechnung'
+    | '/_authenticated/zeit/schichten'
     | '/_authenticated/zeit/stempeln'
     | '/_authenticated/admin/'
     | '/_authenticated/zeit/'
@@ -499,6 +512,13 @@ declare module '@tanstack/react-router' {
       path: '/zeit/stempeln'
       fullPath: '/zeit/stempeln'
       preLoaderRoute: typeof AuthenticatedZeitStempelnRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/zeit/schichten': {
+      id: '/_authenticated/zeit/schichten'
+      path: '/zeit/schichten'
+      fullPath: '/zeit/schichten'
+      preLoaderRoute: typeof AuthenticatedZeitSchichtenRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/zeit/abrechnung': {
@@ -778,6 +798,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRouteRoute: typeof AuthenticatedAdminRouteRouteWithChildren
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedZeitAbrechnungRoute: typeof AuthenticatedZeitAbrechnungRoute
+  AuthenticatedZeitSchichtenRoute: typeof AuthenticatedZeitSchichtenRoute
   AuthenticatedZeitStempelnRoute: typeof AuthenticatedZeitStempelnRoute
   AuthenticatedZeitIndexRoute: typeof AuthenticatedZeitIndexRoute
 }
@@ -786,6 +807,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRouteRoute: AuthenticatedAdminRouteRouteWithChildren,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedZeitAbrechnungRoute: AuthenticatedZeitAbrechnungRoute,
+  AuthenticatedZeitSchichtenRoute: AuthenticatedZeitSchichtenRoute,
   AuthenticatedZeitStempelnRoute: AuthenticatedZeitStempelnRoute,
   AuthenticatedZeitIndexRoute: AuthenticatedZeitIndexRoute,
 }
