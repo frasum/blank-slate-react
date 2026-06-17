@@ -44,7 +44,10 @@ function InventurPage() {
   const callComplete = useServerFn(completeInventorySession);
 
   const [locationId, setLocationId] = useState<string>("");
-  const [openSessionId, setOpenSessionId] = useState<string | null>(null);
+  // Manuell geschlossene Session-IDs: damit der „Schließen"-Button die laufende
+  // Inventur ausblendet, ohne dass sie beim nächsten Render wieder auto-geöffnet wird.
+  const [hiddenSessionIds, setHiddenSessionIds] = useState<string[]>([]);
+  const [manualOpenId, setManualOpenId] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
   const locationsQ = useQuery({
@@ -64,10 +67,17 @@ function InventurPage() {
     enabled: !!locationId,
   });
 
+  // Auto-pick laufende Inventur, damit sie auch nach Seitenwechsel sichtbar bleibt.
+  const runningSession = (sessionsQ.data ?? []).find(
+    (s) => s.status === "in_progress" && !hiddenSessionIds.includes(s.id),
+  );
+  const openSessionId = manualOpenId ?? runningSession?.id ?? null;
+
   const createMut = useMutation({
     mutationFn: () => callCreate({ data: { locationId } }),
     onSuccess: (r) => {
-      setOpenSessionId(r.id);
+      setHiddenSessionIds((ids) => ids.filter((id) => id !== r.id));
+      setManualOpenId(r.id);
       qc.invalidateQueries({ queryKey: ["inventur", "sessions"] });
       setMsg("Neue Inventur gestartet.");
     },
@@ -96,7 +106,7 @@ function InventurPage() {
               value={locationId}
               onChange={(e) => {
                 setLocationId(e.target.value);
-                setOpenSessionId(null);
+                setManualOpenId(null);
               }}
               className={selectCls}
             >
@@ -123,7 +133,12 @@ function InventurPage() {
       {openSessionId && (
         <OpenSession
           sessionId={openSessionId}
-          onClose={() => setOpenSessionId(null)}
+          onClose={() => {
+            setHiddenSessionIds((ids) =>
+              ids.includes(openSessionId) ? ids : [...ids, openSessionId],
+            );
+            setManualOpenId(null);
+          }}
           onComplete={() => completeMut.mutate(openSessionId)}
           completing={completeMut.isPending}
         />
@@ -163,7 +178,10 @@ function InventurPage() {
                 </td>
                 <td className="px-3 py-2 text-right">
                   <button
-                    onClick={() => setOpenSessionId(s.id)}
+                    onClick={() => {
+                      setHiddenSessionIds((ids) => ids.filter((id) => id !== s.id));
+                      setManualOpenId(s.id);
+                    }}
                     className="text-xs text-primary hover:underline"
                   >
                     Öffnen
