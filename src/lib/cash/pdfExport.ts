@@ -6,6 +6,7 @@ import { de } from "date-fns/locale";
 import jsPDF from "jspdf";
 import autoTable, { type RowInput } from "jspdf-autotable";
 import { computeDailyCash, type DayInput } from "./cash-ledger";
+import { sessionToDayInput } from "./session-day-input";
 
 type Cents = number;
 
@@ -59,6 +60,8 @@ export interface PdfExportData {
   settlements: PdfSettlement[];
   expenses: { description: string | null; amountCents: Cents }[];
   advances: { staffName: string; amountCents: Cents; note: string | null }[];
+  /** Soll-Wechselgeldbestand (resolved: Location ?? Org) in Cents. */
+  cashBalanceTargetCents?: Cents;
 }
 
 function fmtEur(cents: Cents | null | undefined): string {
@@ -191,31 +194,17 @@ export function generateDailySummaryPdf(data: PdfExportData): {
   const finedine = Number(sess.finedine_vouchers_cents ?? 0);
   const einladung = Number(sess.einladung_cents ?? 0);
   const sonstige = Number(sess.sonstige_einnahme_cents ?? 0);
-  const vorschussField = Number(sess.vorschuss_cents ?? 0);
 
-  // Tages-Bargeld: 1:1 über computeDailyCash (cash-ledger), DayInput analog zu
-  // aggToDayInput — aus dem Einzel-Session-DTO statt aus dem Tages-Aggregat.
-  const dayInput: DayInput = {
-    businessDate: sess.business_date,
-    grossRevenueCents: posTotal,
+  // Tages-Bargeld: 1:1 über computeDailyCash (cash-ledger), Einzel-Session-DayInput
+  // über den geteilten Helper (verhalten-identisch zur vorigen Inline-Variante).
+  const dayInput: DayInput = sessionToDayInput(sess, {
     cardTotalCents: cardTerminalTotal,
     deliverySouseCents: totals.delivery_souse,
     deliveryWoltCents: totals.delivery_wolt,
-    vouchersSoldCents: vouchersSold,
-    vouchersRedeemedCents: vouchersRedeemed,
-    finedineVouchersCents: finedine,
-    einladungCents: einladung,
     openInvoicesCents: active.map((s) => s.open_invoices_cents),
-    sonstigeEinnahmeCents: sonstige,
-    vorschussCents: vorschussField,
-    satellites: {
-      expensesCents: data.expenses.map((e) => e.amountCents),
-      advancesCents: data.advances.map((a) => a.amountCents),
-      cardTransactionsCents: [],
-      bankDepositsCents: [],
-      registerTransfers: [],
-    },
-  };
+    expensesCents: data.expenses.map((e) => e.amountCents),
+    advancesCents: data.advances.map((a) => a.amountCents),
+  });
   const bargeldCents = computeDailyCash(dayInput);
 
   const summaryRows: RowInput[] = [];
