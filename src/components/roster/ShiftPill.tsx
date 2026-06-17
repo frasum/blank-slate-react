@@ -39,19 +39,13 @@ export function ShiftPill({ shift, area, draggable, onClick }: Props) {
   const bg = isService ? (serviceBg ?? "#ffffff") : (shift.skillColor ?? "#9ca3af");
   const textCls = "text-white border-transparent";
   const isPlanned = shift.status !== "confirmed";
-  // Küchen-Skillfarben aus der DB sind eher pastellig; deutlich kräftiger
-  // ziehen, damit sie optisch zum Service (feste, kräftige Farben) passen.
-  const kitchenFilter = isPlanned
-    ? "saturate(2.2) brightness(0.92)"
-    : "saturate(2.6) brightness(0.82)";
-  const serviceFilter = isPlanned
-    ? "saturate(1.1) brightness(1)"
-    : "saturate(1.2) brightness(0.95)";
+  // BG direkt abdunkeln (statt filter), damit der weiße Text in allen Pillen
+  // identisch rein bleibt — filter würde auch das Label grau ziehen.
+  const mixPct = isPlanned ? 70 : 60;
   const style: React.CSSProperties = {
     transform: CSS.Translate.toString(transform),
-    backgroundColor: bg,
+    backgroundColor: `color-mix(in oklab, ${bg} ${mixPct}%, black)`,
     opacity: isDragging ? 0.4 : 1,
-    filter: isService ? serviceFilter : kitchenFilter,
   };
 
   return (
