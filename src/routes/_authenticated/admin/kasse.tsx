@@ -459,6 +459,11 @@ function KassePage() {
 
       {ovQ.data?.session && (
         <>
+          <SettlementWarningsBanner
+            overview={ovQ.data}
+            channels={channelsQ.data ?? []}
+          />
+
           <SettlementsCard
             data={ovQ.data}
             correctable={correctable}
