@@ -39,12 +39,17 @@ async function ensureShadowUser(staffId: string, organizationId: string): Promis
     .select("user_id")
     .eq("staff_id", staffId)
     .maybeSingle();
+  // eslint-disable-next-line no-console
+  if (linkSelectErr) console.error("[pin-login] linkSelect error:", linkSelectErr);
   if (linkSelectErr) failed();
 
   if (link) {
     const { data: existing, error: getErr } = await supabaseAdmin.auth.admin.getUserById(
       link.user_id,
     );
+    // eslint-disable-next-line no-console
+    if (getErr || !existing.user?.email)
+      console.error("[pin-login] getUserById error / keine email:", getErr);
     if (getErr || !existing.user?.email) failed();
     return existing.user.email;
   }
@@ -55,6 +60,8 @@ async function ensureShadowUser(staffId: string, organizationId: string): Promis
     email_confirm: true,
     app_metadata: { staff_id: staffId },
   });
+  // eslint-disable-next-line no-console
+  if (createErr || !created.user) console.error("[pin-login] createUser error:", createErr);
   if (createErr || !created.user) failed();
 
   const { error: insertErr } = await supabaseAdmin.from("user_links").insert({
@@ -62,6 +69,8 @@ async function ensureShadowUser(staffId: string, organizationId: string): Promis
     staff_id: staffId,
     organization_id: organizationId,
   });
+  // eslint-disable-next-line no-console
+  if (insertErr) console.error("[pin-login] user_links insert error:", insertErr);
   if (insertErr) failed();
 
   return email;
@@ -77,6 +86,9 @@ async function generateSessionTokenHash(email: string): Promise<string> {
     type: "magiclink",
     email,
   });
+  // eslint-disable-next-line no-console
+  if (error || !data.properties?.hashed_token)
+    console.error("[pin-login] generateLink error:", error);
   if (error || !data.properties?.hashed_token) failed();
   return data.properties.hashed_token;
 }
@@ -109,7 +121,12 @@ export const validatePin = createServerFn({ method: "POST" })
       .select("id, organization_id, is_active, first_name")
       .or(`first_name.ilike."${term}",display_name.ilike."${term}"`)
       .eq("is_active", true);
+    // eslint-disable-next-line no-console
+    if (staffErr) console.error("[pin-login] candidate query error:", staffErr);
     if (staffErr) failed();
+    // eslint-disable-next-line no-console
+    if (!candidates || candidates.length === 0)
+      console.error("[pin-login] keine Kandidaten für Name:", data.firstName.trim());
     if (!candidates || candidates.length === 0) failed();
 
     const sinceIso = new Date(Date.now() - PIN_RATE_LIMIT_WINDOW_MS).toISOString();
@@ -148,6 +165,8 @@ export const validatePin = createServerFn({ method: "POST" })
 
     // Eindeutig genau einer? Sonst generische Ablehnung (keine Auskunft,
     // ob 0 oder >1 Treffer — verhindert Enumeration).
+    // eslint-disable-next-line no-console
+    if (matches.length !== 1) console.error("[pin-login] matches.length:", matches.length);
     if (matches.length !== 1) failed();
     const winner = matches[0];
 
