@@ -1,21 +1,18 @@
 ## Ziel
-Im Dienstplan-Grid sollen Service-Schichten mit Skill „GL" optisch hervorgehoben werden: amber/gold (#f59e0b) Hintergrund mit weißem Text statt weißem Hintergrund mit dunklem Rahmen. Alle anderen Service-Marker (X, B, 19h, H) bleiben unverändert weiß.
+Bar-Schichten (Service-Marker „B") im Dienstplan-Grid blau (#3b82f6) mit weißem Text einfärben — analog zu GL (amber).
 
 ## Änderung
 **Eine Datei:** `src/components/roster/ShiftPill.tsx`
 
-Aktuell bekommen alle Service-Pillen `bg = "#ffffff"` und `textCls = "text-foreground border-foreground/40"`.
+Service-Marker-Farb-Map einführen:
+- `GL` → `#f59e0b`
+- `B` → `#3b82f6`
+- alle anderen (X, 19h, H) → weiß mit dunklem Text wie bisher
 
-Neu: Wenn `area === "service"` UND `serviceMarker(shift.skillName) === "GL"`, dann:
-- `bg = "#f59e0b"` (amber-500)
-- `textCls = "text-white border-transparent"`
-
-Sonst (übrige Service-Marker): wie bisher weiß. Küche: unverändert (skillColor).
+Eingefärbte Marker bekommen `text-white border-transparent`, weiße bleiben `text-foreground border-foreground/40`.
 
 ## Nicht angefasst
-- `service-marker.ts` (Mapping bleibt)
-- DB / skills.color
-- Küchen-Pillen, Statuslogik, Drag&Drop, Dichte-Klassen
+service-marker.ts, Küche, Drag&Drop, Status-Opacity, Dichte.
 
 ## Erfolgskriterium
-GL-Pillen im Service-Tab sind amber mit weißem „GL"-Text; alle anderen Service-Pillen bleiben weiß. `tsc --noEmit` und `eslint --max-warnings=5` grün.
+B-Pillen blau, GL-Pillen amber, restliche Service-Pillen weiß. `tsc --noEmit` grün.

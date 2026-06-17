@@ -29,14 +29,16 @@ export function ShiftPill({ shift, area, draggable, onClick, density = "normal" 
 
   const isService = area === "service";
   const label = isService ? serviceMarker(shift.skillName) : abbr(shift.skillName);
-  const isGL = isService && label === "GL";
+  const serviceColorMap: Record<string, string> = {
+    GL: "#f59e0b",
+    B: "#3b82f6",
+  };
+  const serviceBg = isService ? serviceColorMap[label] : undefined;
   const bg = isService
-    ? isGL
-      ? "#f59e0b"
-      : "#ffffff"
+    ? (serviceBg ?? "#ffffff")
     : (shift.skillColor ?? "#9ca3af");
   const textCls =
-    isService && !isGL
+    isService && !serviceBg
       ? "text-foreground border-foreground/40"
       : "text-white border-transparent";
   const opacity = shift.status === "confirmed" ? 1 : 0.7;
