@@ -1775,6 +1775,20 @@ function ExcelInputRow({
   );
 }
 
+function focusNextInput(current: HTMLInputElement) {
+  const inputs = Array.from(
+    document.querySelectorAll<HTMLInputElement>(
+      'input:not([disabled]):not([type="hidden"])',
+    ),
+  ).filter((el) => el.offsetParent !== null);
+  const idx = inputs.indexOf(current);
+  if (idx >= 0 && idx < inputs.length - 1) {
+    const next = inputs[idx + 1];
+    next.focus();
+    next.select();
+  }
+}
+
 function ExcelReadonlyRow({ label, value }: { label: string; value: string }) {
   return (
     <tr className="border-b last:border-b-0 hover:bg-muted/20 transition-colors">
