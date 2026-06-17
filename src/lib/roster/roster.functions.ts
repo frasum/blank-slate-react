@@ -546,6 +546,24 @@ export const moveRosterShift = createServerFn({ method: "POST" })
         throw new Error("Mitarbeiter ist an diesem Tag in diesem Bereich bereits eingeteilt.");
       }
 
+      // Regel: max. EINE Einteilung pro Mitarbeiter und Tag — auch an anderem Standort/Bereich.
+      const { data: elsewhere, error: elseErr } = await supabaseAdmin
+        .from("roster_shifts")
+        .select("location_id, area, locations(name)")
+        .eq("organization_id", caller.organizationId)
+        .eq("staff_id", data.staffId)
+        .eq("shift_date", data.shiftDate)
+        .neq("id", data.id)
+        .limit(1)
+        .maybeSingle();
+      if (elseErr) throw elseErr;
+      if (elsewhere) {
+        const locName = (elsewhere.locations as { name: string } | null)?.name ?? "—";
+        throw new Error(
+          `Mitarbeiter ist an diesem Tag bereits eingeteilt (${locName} · ${elsewhere.area}).`,
+        );
+      }
+
       const { error } = await supabaseAdmin
         .from("roster_shifts")
         .update({
