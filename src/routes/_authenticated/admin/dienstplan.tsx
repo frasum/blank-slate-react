@@ -36,6 +36,7 @@ import {
 import { RosterGrid } from "@/components/roster/RosterGrid";
 import { PaintToolbar, type PaintSelection } from "@/components/roster/PaintToolbar";
 import { SkillFilterChips } from "@/components/roster/SkillFilterChips";
+import { PeriodNav } from "@/components/roster/PeriodNav";
 
 export const Route = createFileRoute("/_authenticated/admin/dienstplan")({
   head: () => ({ meta: [{ title: "Dienstplan" }] }),
@@ -477,20 +478,12 @@ function DienstplanPage() {
                 ))}
               </select>
             </label>
-            <label className="flex flex-col gap-1 text-xs">
-              <span className="text-muted-foreground">Periode</span>
-              <select
-                className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-                value={effectivePeriod?.id ?? ""}
-                onChange={(e) => setPeriodId(e.target.value || null)}
-              >
-                {periods.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <PeriodNav
+              periods={periods}
+              currentPeriodId={effectivePeriod?.id ?? null}
+              today={today}
+              onSelect={(id) => setPeriodId(id)}
+            />
           </div>
         </header>
 
