@@ -6,12 +6,7 @@
  * tagesabrechnung ZtBruttoNetto.tsx (aggregateSimple/aggregateExtended) + sfnRates.ts.
  */
 import { SFN_RATES } from "./sfn-rates";
-import type {
-  SfnBuckets,
-  SfnGeldErgebnis,
-  SfnMode,
-  SfnShiftRow,
-} from "./types";
+import type { SfnBuckets, SfnGeldErgebnis, SfnMode, SfnShiftRow } from "./types";
 
 const round2 = (x: number): number => Math.round(x * 100) / 100;
 
@@ -36,8 +31,7 @@ export function aggregateSimple(rows: SfnShiftRow[]): SfnBuckets {
     }
     agg.sunday += s.sundayHolidayHours || 0;
   }
-  const rawN25 =
-    agg.evening - agg.sundayEvening + Math.max(0, agg.night - agg.nightDeep);
+  const rawN25 = agg.evening - agg.sundayEvening + Math.max(0, agg.night - agg.nightDeep);
   const rawN40 = agg.nightDeep - agg.sundayNightDeep;
   return {
     night25Hours: round2(Math.max(0, rawN25)),
@@ -100,9 +94,7 @@ export function berechneSfnGeld(
   holidayRates: Map<string, number>,
 ): SfnGeldErgebnis {
   const b: SfnBuckets =
-    mode === "extended"
-      ? aggregateExtended(rows, holidayRates)
-      : aggregateSimple(rows);
+    mode === "extended" ? aggregateExtended(rows, holidayRates) : aggregateSimple(rows);
   const zuschlagCents = Math.round(
     b.night25Hours * hourlyRateCents * SFN_RATES.night25 +
       b.night40Hours * hourlyRateCents * SFN_RATES.night40 +

@@ -25,9 +25,7 @@ type Fixture = {
 };
 
 const fx = fixtures as Fixture;
-const holidayRates = new Map<string, number>(
-  Object.entries(fx._holidayRates),
-);
+const holidayRates = new Map<string, number>(Object.entries(fx._holidayRates));
 
 describe("Golden Master: SFN-Geld (M4 Stufe 2a)", () => {
   it("Fixture enthält 5 Fälle", () => {
@@ -37,12 +35,7 @@ describe("Golden Master: SFN-Geld (M4 Stufe 2a)", () => {
   for (const fall of fx.faelle) {
     for (const mode of ["simple", "extended"] as SfnMode[]) {
       it(`reproduziert bitgenau [${mode}]: ${fall.name}`, () => {
-        const got = berechneSfnGeld(
-          fall.shifts,
-          mode,
-          fall.hourlyRateCents,
-          holidayRates,
-        );
+        const got = berechneSfnGeld(fall.shifts, mode, fall.hourlyRateCents, holidayRates);
         const exp = fall[mode];
         expect(got.night25Hours).toBe(exp.night25Hours);
         expect(got.night40Hours).toBe(exp.night40Hours);
