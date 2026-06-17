@@ -119,7 +119,7 @@ Immer **26. eines Monats bis einschließlich 25. des Folgemonats**. Label = Mona
 | D2a–e Dienstplan editierbar, Realtime, Service-Symbole, Cross-Booking                 | ✅       |
 | D-8 Eine Einteilung/MA/Tag (Pre-Check + UI-Lock, kein DB-Constraint)                  | ✅       |
 | Dienstplan-Migration (re-migriert 17.06.: 3764 echte Schichten)                       | ✅       |
-| D3 Öffentliches Display (Token-URL, Auto-Refresh, Rotation, Legende)                  | ⏳ offen |
+| D3 Display — Token + Auto-Refresh + Daten ✅; Rotation/Legende/Geburtstag offen | 🔄 teilw. |
 | M4 Lohn — Rechen-Kern (Stufe 1/3): PAP 2026 + SV, edlohn-cent-getestet                | ✅       |
 | M4 Lohn — SFN-Geld + Perioden-Aggregation + Verdrahtung (Stufe 2a–c)                  | ✅       |
 | M4 Lohn — Lohnrechner-UI + Excel-Export (`/admin/lohnrechner`)                        | ✅       |
@@ -181,7 +181,15 @@ Immer **26. eines Monats bis einschließlich 25. des Folgemonats**. Label = Mona
   - **UI** `/admin/lohnrechner` (admin-gated über Route-`beforeLoad` **und** Serverfn): ruft nur die **read-only**-Funktion, zeigt Zeilen/Person/Ergebnis, **Excel-Export** (`lohn-excel-export.ts`, `exceljs`, reine Präsentation). `hourly_rate_2`-Bereichs-Split bewusst ausgelassen (ein Satz pro Person).
   - **Offen (echter M4-Abnahmetest):** Cent-Abgleich gegen einen bekannten **edlohn-Monat** (setzt gepflegte `staff_personal_details` voraus: Steuerklasse, `kk_zusatzbeitrag`, `children_count`). Zusatz: 4. Gutverdiener-Fall (belegt die BBG-Deckel), `hourly_rate_2`-Split.
 
-**Offen aus B3/B4** (Echtbetrieb-Hebel): Trinkgeld-Pool-Verteilung als eigener Baustein (`useCommissionData`-Logik: Pool/Tag = Σ max(0,(Tagesumsatz − minRevenue × Kellnerzahl) × commissionPct%), Verteilung nach Stunden), B3c-1 manuelles E2E, B3c-2 (Saldo/Export). Hängt an D-M2-1 (Auto-Ausstempeln bei Abrechnungs-Abgabe) — erst damit stempelt das Team in COCO um.
+**Stand B3/B4 (reconciled 17.06.2026):**
+
+- **Trinkgeld-Pool-Verteilung — erledigt:** `src/lib/cash/tip-pool.ts` (reine Verteilung nach Stunden, getestet), `session_tip_pool_entries`, Küchen-/Mitarbeiter-Pool, `tip_pool_settlement_only`.
+- **Kassen-Saldo + Excel-Export — vorhanden:** `/admin/kasse-saldo` (`bargeld-export.ts`, „Export Excel").
+- **Wirklich offen:**
+  - **Provision (wochenbasiert)** — umsatzbasierte Commission-Formel (`commissionPct`/`minRevenue`: Pool/Tag = Σ max(0,(Umsatz − minRevenue × Kellnerzahl) × %)). Kein Modul/Tabelle im Code. (= der separate „Provision"-⏳-Eintrag.)
+  - **D-M2-1 Auto-Ausstempeln bei Abrechnungs-Abgabe** — im Code nicht vorhanden; erst damit stempelt das Team in COCO um.
+  - **B3c-1 manuelles E2E** des Trinkgeld-/Abrechnungs-Pfads.
+  - **D3-Display-Rest:** Bereichs-Rotation, Legende (X/–/U/K/B/♡), Geburtstags-Banner.
 
 ## 7. Modul M5 — Bestellwesen (bestellung.pro-Migration), Stand 16.06.2026
 
