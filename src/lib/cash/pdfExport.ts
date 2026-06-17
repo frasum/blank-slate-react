@@ -489,6 +489,5 @@ export function generateDailySummaryPdf(data: PdfExportData): {
 
   const fileName = `Tagesabrechnung_${sess.business_date}.pdf`;
   const blob = doc.output("blob");
-  const blobUrl = URL.createObjectURL(blob);
-  return { blobUrl, blob, fileName };
+  return { doc, blob, fileName };
 }
