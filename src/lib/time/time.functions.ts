@@ -92,7 +92,6 @@ async function resolveDefaultLocation(
     .eq("staff_id", staffId)
     .eq("organization_id", organizationId);
   if (error) throw error;
-  const { pickSingleLocation } = await import("./resolve-location");
   return pickSingleLocation(data ?? []);
 }
 
