@@ -303,6 +303,8 @@ export function RosterGrid({
                       const isUnavailable = unavailableSet.has(`${row.staffId}|${iso}`);
                       const absenceType = absenceMap.get(`${row.staffId}|${iso}`) ?? null;
                       const isAbsent = absenceType !== null;
+                      const lockEntry = !shift ? (lockMap.get(`${row.staffId}|${iso}`) ?? null) : null;
+                      const isLocked = lockEntry !== null;
                       const isBirthday =
                         row.dateOfBirth != null &&
                         row.dateOfBirth.slice(5, 10) === iso.slice(5, 10);
@@ -322,6 +324,12 @@ export function RosterGrid({
                           absenceType={absenceType}
                           birthday={isBirthday}
                           birthdayLabel={isBirthday ? `Geburtstag: ${row.displayName}` : null}
+                          locked={isLocked}
+                          lockLabel={
+                            lockEntry
+                              ? `Bereits in ${lockEntry.locationName} · ${AREA_SHORT[lockEntry.area]} eingeteilt`
+                              : null
+                          }
                         >
                           {shift ? (
                             <PillConfirmPopover
@@ -379,7 +387,7 @@ export function RosterGrid({
                               iso={iso}
                               activeArea={activeArea}
                               allSkills={allSkills}
-                              editable={editable}
+                              editable={editable && !isLocked}
                               busy={busy}
                               paintActive={paint !== null}
                               open={openCell === `${row.staffId}|${iso}`}
