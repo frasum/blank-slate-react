@@ -439,12 +439,13 @@ export async function getMySettlementCore(caller: StaffCaller) {
       session: null,
       settlement: null,
       kitchenTipRate: settings.kitchenTipRate,
+      staffId: caller.staffId,
     };
   }
   const { data: row } = await supabaseAdmin
     .from("waiter_settlements")
     .select(
-      "id, status, pos_sales_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents, differenz_cents, kitchen_tip_cents, kitchen_tip_rate, submitted_at, auto_clockout_time_entry_id",
+      "id, status, pos_sales_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents, differenz_cents, kitchen_tip_cents, kitchen_tip_rate, submitted_at, auto_clockout_time_entry_id, second_waiter_name, additional_waiters",
     )
     .eq("organization_id", caller.organizationId)
     .eq("session_id", session.id)
@@ -456,8 +457,28 @@ export async function getMySettlementCore(caller: StaffCaller) {
     session,
     settlement: row,
     kitchenTipRate: settings.kitchenTipRate,
+    staffId: caller.staffId,
   };
 }
+
+// ------------------------------------------------------------------------
+// Kellner: aktive Kollegen der eigenen Org (für Zweit-Kellner-Auswahl)
+// ------------------------------------------------------------------------
+
+export const listOrgWaiters = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const caller = await loadStaffCaller(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin
+      .from("staff")
+      .select("id, display_name")
+      .eq("organization_id", caller.organizationId)
+      .eq("is_active", true)
+      .order("display_name");
+    if (error) throw error;
+    return (data ?? []).map((s) => ({ id: s.id, displayName: s.display_name }));
+  });
 
 // ------------------------------------------------------------------------
 // B4 — Trinkgeld-Pool Overview
@@ -1256,6 +1277,8 @@ const settlementInputSchema = z.object({
   hilfMahlCents: z.number().int().min(0),
   openInvoicesCents: z.number().int().min(0),
   cashHandedInCents: z.number().int().min(0),
+  secondWaiterName: z.string().trim().min(1).nullable().default(null),
+  additionalWaiters: z.array(z.string().trim().min(1)).max(3).default([]),
 });
 
 export const submitWaiterSettlement = createServerFn({ method: "POST" })
@@ -1266,7 +1289,7 @@ export const submitWaiterSettlement = createServerFn({ method: "POST" })
     return submitWaiterSettlementCore(caller, data);
   });
 
-export type SubmitSettlementInput = z.infer<typeof settlementInputSchema>;
+export type SubmitSettlementInput = z.input<typeof settlementInputSchema>;
 
 export async function submitWaiterSettlementCore(caller: StaffCaller, data: SubmitSettlementInput) {
   if (!caller.isActive) throw new Error("Mitarbeiter ist inaktiv.");
@@ -1378,6 +1401,8 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
         kitchen_tip_rate: kitchenTipRate,
         status: "submitted",
         submitted_at: new Date().toISOString(),
+        second_waiter_name: data.secondWaiterName ?? null,
+        additional_waiters: (data.additionalWaiters ?? []) as unknown as Json,
       })
       .eq("id", existing.id)
       .eq("organization_id", caller.organizationId);
@@ -1400,6 +1425,8 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
         kitchen_tip_rate: kitchenTipRate,
         status: "submitted",
         submitted_at: new Date().toISOString(),
+        second_waiter_name: data.secondWaiterName ?? null,
+        additional_waiters: (data.additionalWaiters ?? []) as unknown as Json,
       })
       .select("id")
       .single();
