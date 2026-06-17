@@ -1352,6 +1352,8 @@ function SessionFieldsCard({
                       })
                     }
                     onFocus={(e) => e.currentTarget.select()}
+                    onMouseUp={(e) => e.preventDefault()}
+                    onClick={(e) => e.currentTarget.select()}
                     className="h-7 text-sm text-right font-mono border-primary/20 bg-primary/5"
                     disabled={!writable}
                   />
