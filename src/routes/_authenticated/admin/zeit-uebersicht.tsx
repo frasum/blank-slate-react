@@ -1005,11 +1005,12 @@ function ZeitUebersichtPage() {
                           key={s.staffId}
                           staff={s}
                           initial={notesByStaff.get(s.staffId)}
+                          vorschussCents={advanceCentsByStaff.get(s.staffId) ?? 0}
                           readOnly={isPayroll}
-                          onSave={(vorschuss, besonderheiten) =>
+                          onSave={(besonderheiten) =>
                             upsertMut.mutate({
                               staffId: s.staffId,
-                              vorschuss,
+                              vorschuss: 0,
                               besonderheiten: besonderheiten.trim() === "" ? null : besonderheiten,
                             })
                           }
@@ -1044,6 +1045,7 @@ function ZeitUebersichtPage() {
 function PayrollRow({
   staff,
   initial,
+  vorschussCents,
   readOnly = false,
   onSave,
 }: {
@@ -1054,13 +1056,18 @@ function PayrollRow({
     shiftDates: Set<string>;
   };
   initial: { vorschuss: number; besonderheiten: string } | undefined;
+  vorschussCents: number;
   readOnly?: boolean;
-  onSave: (vorschuss: number, besonderheiten: string) => void;
+  onSave: (besonderheiten: string) => void;
 }) {
-  const [vorschuss, setVorschuss] = useState<string>(
-    initial ? initial.vorschuss.toFixed(2) : "0.00",
-  );
   const [besonderheiten, setBesonderheiten] = useState<string>(initial?.besonderheiten ?? "");
+  const vorschussLabel =
+    vorschussCents > 0
+      ? (vorschussCents / 100).toLocaleString("de-DE", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })
+      : null;
 
   return (
     <TableRow className="group">
@@ -1073,34 +1080,12 @@ function PayrollRow({
       </TableCell>
       <TableCell className="py-1.5 text-right text-muted-foreground/50">–</TableCell>
       <TableCell className="py-1.5 text-right text-muted-foreground/50">–</TableCell>
-      <TableCell className="py-1.5 text-right">
-        <Input
-          type="text"
-          inputMode="decimal"
-          placeholder="0,00"
-          className={`h-7 w-20 ml-auto text-right tabular-nums text-sm border-transparent bg-transparent hover:border-input focus:border-input focus:bg-background transition-colors ${
-            Number.parseFloat(vorschuss.replace(",", ".")) > 0
-              ? "font-medium"
-              : "text-muted-foreground/60"
-          }`}
-          readOnly={readOnly}
-          disabled={readOnly}
-          value={Number.parseFloat(vorschuss.replace(",", ".")) > 0 ? vorschuss : ""}
-          onChange={(e) => setVorschuss(e.target.value)}
-          onBlur={() => {
-            if (readOnly) return;
-            const n = Number.parseFloat(vorschuss.replace(",", "."));
-            const safe = Number.isFinite(n) && n >= 0 ? n : 0;
-            setVorschuss(safe.toFixed(2));
-            const prev = initial?.vorschuss ?? 0;
-            if (
-              Math.abs(safe - prev) > 0.005 ||
-              besonderheiten !== (initial?.besonderheiten ?? "")
-            ) {
-              onSave(safe, besonderheiten);
-            }
-          }}
-        />
+      <TableCell
+        className={`py-1.5 text-right tabular-nums text-sm ${
+          vorschussLabel ? "font-medium" : "text-muted-foreground/50"
+        }`}
+      >
+        {vorschussLabel ?? "–"}
       </TableCell>
       <TableCell className="py-1.5">
         <Textarea
@@ -1114,10 +1099,8 @@ function PayrollRow({
           onBlur={() => {
             if (readOnly) return;
             const prev = initial?.besonderheiten ?? "";
-            const n = Number.parseFloat(vorschuss.replace(",", "."));
-            const safeV = Number.isFinite(n) && n >= 0 ? n : 0;
             if (besonderheiten !== prev) {
-              onSave(safeV, besonderheiten);
+              onSave(besonderheiten);
             }
           }}
         />
