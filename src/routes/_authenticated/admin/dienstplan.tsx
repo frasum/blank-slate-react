@@ -560,16 +560,16 @@ function DienstplanPage() {
                   onPrevPeriod={() => {
                     if (!effectivePeriod) return;
                     const i = periods.findIndex((p) => p.id === effectivePeriod.id);
-                    if (i > 0) {
-                      setPeriodId(periods[i - 1].id);
+                    if (i >= 0 && i < periods.length - 1) {
+                      setPeriodId(periods[i + 1].id);
                       setHalfOffset(false);
                     }
                   }}
                   onNextPeriod={() => {
                     if (!effectivePeriod) return;
                     const i = periods.findIndex((p) => p.id === effectivePeriod.id);
-                    if (i >= 0 && i < periods.length - 1) {
-                      setPeriodId(periods[i + 1].id);
+                    if (i > 0) {
+                      setPeriodId(periods[i - 1].id);
                       setHalfOffset(false);
                     }
                   }}
