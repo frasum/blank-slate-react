@@ -64,6 +64,7 @@ import { computeSummaryRows } from "@/lib/cash/cash-summary";
 import { sessionToDayInput } from "@/lib/cash/session-day-input";
 import { aggregateChannelAmounts, type ChannelKind } from "@/lib/cash/session-channels";
 import { computeSettlementWarnings } from "@/lib/cash/settlement-warnings";
+import { DateSelector } from "@/components/shared/DateSelector";
 
 export const Route = createFileRoute("/_authenticated/admin/kasse")({
   head: () => ({ meta: [{ title: "Kasse" }] }),
@@ -423,12 +424,7 @@ function KassePage() {
           </div>
           <div className="space-y-1">
             <Label htmlFor="bd">Geschäftstag</Label>
-            <Input
-              id="bd"
-              type="date"
-              value={businessDate}
-              onChange={(e) => setBusinessDate(e.target.value)}
-            />
+            <DateSelector date={businessDate} onDateChange={setBusinessDate} />
           </div>
           {sessionStatus && (
             <Badge variant={isLocked ? "secondary" : isFinalized ? "outline" : "default"}>
