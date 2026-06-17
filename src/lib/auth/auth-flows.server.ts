@@ -36,7 +36,6 @@ export async function ensureShadowUser(staffId: string, organizationId: string):
     .select("user_id")
     .eq("staff_id", staffId)
     .maybeSingle();
-  // eslint-disable-next-line no-console
   if (linkSelectErr) console.error("[pin-login] linkSelect error:", linkSelectErr);
   if (linkSelectErr) failed();
 
@@ -44,7 +43,6 @@ export async function ensureShadowUser(staffId: string, organizationId: string):
     const { data: existing, error: getErr } = await supabaseAdmin.auth.admin.getUserById(
       link.user_id,
     );
-    // eslint-disable-next-line no-console
     if (getErr || !existing.user?.email)
       console.error("[pin-login] getUserById error / keine email:", getErr);
     if (getErr || !existing.user?.email) failed();
@@ -57,7 +55,6 @@ export async function ensureShadowUser(staffId: string, organizationId: string):
     email_confirm: true,
     app_metadata: { staff_id: staffId },
   });
-  // eslint-disable-next-line no-console
   if (createErr || !created.user) console.error("[pin-login] createUser error:", createErr);
   if (createErr || !created.user) failed();
 
@@ -66,7 +63,6 @@ export async function ensureShadowUser(staffId: string, organizationId: string):
     staff_id: staffId,
     organization_id: organizationId,
   });
-  // eslint-disable-next-line no-console
   if (insertErr) console.error("[pin-login] user_links insert error:", insertErr);
   if (insertErr) failed();
 
@@ -83,7 +79,6 @@ export async function generateSessionTokenHash(email: string): Promise<string> {
     type: "magiclink",
     email,
   });
-  // eslint-disable-next-line no-console
   if (error || !data.properties?.hashed_token)
     console.error("[pin-login] generateLink error:", error);
   if (error || !data.properties?.hashed_token) failed();
