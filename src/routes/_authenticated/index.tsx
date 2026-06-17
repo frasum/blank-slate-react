@@ -24,7 +24,7 @@ function Index() {
   const items: Array<{ to: string; label: string; admin?: boolean; primary?: boolean }> = [
     { to: "/admin", label: "Admin", admin: true },
     { to: "/admin/zeit-uebersicht", label: "Arbeitszeiten", admin: true },
-    { to: "/admin/bestellung", label: "Bestellungen", admin: true },
+    { to: "/admin/bestellung", label: "Bestellungen/Inventur", admin: true },
     { to: "/admin/dienstplan", label: "Dienstplan", admin: true },
     { to: "/zeit/abrechnung", label: "Kellner-Abrechnung" },
     { to: "/zeit", label: "Stempeluhr" },
