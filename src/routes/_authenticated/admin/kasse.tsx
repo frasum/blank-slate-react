@@ -326,7 +326,19 @@ function KassePage() {
       (locationsQ.data ?? []).find((l) => l.id === locationId)?.name ?? undefined;
     try {
       const out = generateDailySummaryPdf({
-        session: ov.session as unknown as Parameters<typeof generateDailySummaryPdf>[0]["session"],
+        session: {
+          business_date: ov.session.business_date,
+          guest_count: ov.session.guest_count,
+          cash_actual_cents: ov.session.cash_actual_cents,
+          notes: ov.session.notes,
+          vectron_daily_total_cents: ov.session.vectron_daily_total_cents,
+          vouchers_sold_cents: ov.session.vouchers_sold_cents,
+          vouchers_redeemed_cents: ov.session.vouchers_redeemed_cents,
+          finedine_vouchers_cents: ov.session.finedine_vouchers_cents,
+          einladung_cents: ov.session.einladung_cents,
+          sonstige_einnahme_cents: ov.session.sonstige_einnahme_cents,
+          vorschuss_cents: ov.session.vorschuss_cents,
+        },
         locationName,
         channels,
         channelAmounts: ov.channelAmounts,
