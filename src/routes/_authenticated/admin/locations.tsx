@@ -29,6 +29,8 @@ type LocationDetails = {
   phone: string;
   contact_name: string;
   contact_phone: string;
+  /** Soll-Wechselgeldbestand in Euro als Eingabe-String. Leer = Org-Default. */
+  cash_balance_target_euro: string;
 };
 
 const emptyDetails: LocationDetails = {
@@ -39,9 +41,18 @@ const emptyDetails: LocationDetails = {
   phone: "",
   contact_name: "",
   contact_phone: "",
+  cash_balance_target_euro: "",
 };
 
 function toPayload(d: LocationDetails) {
+  const eu = d.cash_balance_target_euro.trim().replace(",", ".");
+  let cashBalanceTargetCents: number | null = null;
+  if (eu !== "") {
+    const n = Number.parseFloat(eu);
+    if (Number.isFinite(n) && n >= 0) {
+      cashBalanceTargetCents = Math.round(n * 100);
+    }
+  }
   return {
     street: d.street || null,
     postal_code: d.postal_code || null,
@@ -50,6 +61,25 @@ function toPayload(d: LocationDetails) {
     phone: d.phone || null,
     contact_name: d.contact_name || null,
     contact_phone: d.contact_phone || null,
+    cashBalanceTargetCents,
+  };
+}
+
+function centsToEuroInput(cents: number | null | undefined): string {
+  if (cents == null) return "";
+  return (Number(cents) / 100).toFixed(2);
+}
+
+function detailsFromLoc(loc: LocationRowData): LocationDetails {
+  return {
+    street: loc.street ?? "",
+    postal_code: loc.postal_code ?? "",
+    city: loc.city ?? "",
+    delivery_notes: loc.delivery_notes ?? "",
+    phone: loc.phone ?? "",
+    contact_name: loc.contact_name ?? "",
+    contact_phone: loc.contact_phone ?? "",
+    cash_balance_target_euro: centsToEuroInput(loc.cashBalanceTargetCents),
   };
 }
 
@@ -264,6 +294,15 @@ function DetailsFields({
           className={inputCls}
         />
       </Field>
+      <Field label="Soll-Wechselgeldbestand (€) — leer = Org-Default">
+        <input
+          value={value.cash_balance_target_euro}
+          onChange={(e) => set("cash_balance_target_euro", e.target.value)}
+          inputMode="decimal"
+          placeholder="2000.00"
+          className={inputCls}
+        />
+      </Field>
     </div>
   );
 }
@@ -283,6 +322,8 @@ type LocationRowData = {
   geofence_radius_m?: number | null;
   geocoded_at?: string | null;
   geocoded_address?: string | null;
+  cashBalanceTargetCents?: number | null;
+  cashBalanceTargetResolvedCents?: number | null;
 };
 
 function LocationRow(props: {
@@ -292,30 +333,14 @@ function LocationRow(props: {
   onGeoChanged: () => void;
 }) {
   const [name, setName] = useState(props.loc.name);
-  const [details, setDetails] = useState<LocationDetails>(() => ({
-    street: props.loc.street ?? "",
-    postal_code: props.loc.postal_code ?? "",
-    city: props.loc.city ?? "",
-    delivery_notes: props.loc.delivery_notes ?? "",
-    phone: props.loc.phone ?? "",
-    contact_name: props.loc.contact_name ?? "",
-    contact_phone: props.loc.contact_phone ?? "",
-  }));
+  const [details, setDetails] = useState<LocationDetails>(() => detailsFromLoc(props.loc));
   const [open, setOpen] = useState(false);
   const [displayOpen, setDisplayOpen] = useState(false);
 
   // Wenn der Server-State sich ändert (z. B. nach Refresh), lokalen State synchronisieren.
   useEffect(() => {
     setName(props.loc.name);
-    setDetails({
-      street: props.loc.street ?? "",
-      postal_code: props.loc.postal_code ?? "",
-      city: props.loc.city ?? "",
-      delivery_notes: props.loc.delivery_notes ?? "",
-      phone: props.loc.phone ?? "",
-      contact_name: props.loc.contact_name ?? "",
-      contact_phone: props.loc.contact_phone ?? "",
-    });
+    setDetails(detailsFromLoc(props.loc));
   }, [props.loc]);
 
   const dirty =
@@ -326,6 +351,7 @@ function LocationRow(props: {
     details.delivery_notes !== (props.loc.delivery_notes ?? "") ||
     details.phone !== (props.loc.phone ?? "") ||
     details.contact_name !== (props.loc.contact_name ?? "") ||
+    details.cash_balance_target_euro !== centsToEuroInput(props.loc.cashBalanceTargetCents) ||
     details.contact_phone !== (props.loc.contact_phone ?? "");
 
   const summary = [

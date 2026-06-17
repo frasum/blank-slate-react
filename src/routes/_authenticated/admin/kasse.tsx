@@ -60,6 +60,8 @@ import {
   upsertSessionTipPoolEntry,
 } from "@/lib/cash/cash.functions";
 import { generateDailySummaryPdf } from "@/lib/cash/pdfExport";
+import { computeSummaryRows } from "@/lib/cash/cash-summary";
+import { sessionToDayInput } from "@/lib/cash/session-day-input";
 
 export const Route = createFileRoute("/_authenticated/admin/kasse")({
   head: () => ({ meta: [{ title: "Kasse" }] }),
@@ -174,6 +176,11 @@ function KassePage() {
   const writable = sessionStatus === "open" && !underWaterline;
   const correctable =
     (sessionStatus === "open" || sessionStatus === "finalized") && !underWaterline;
+
+  const currentLocation = (locationsQ.data ?? []).find((l) => l.id === locationId);
+  const cashBalanceTargetResolvedCents = Number(
+    currentLocation?.cashBalanceTargetResolvedCents ?? 200_000,
+  );
 
   // -------------------- Session anlegen --------------------
   const createSessionMut = useMutation({
@@ -367,6 +374,7 @@ function KassePage() {
           amountCents: a.amountCents,
           note: a.note,
         })),
+        cashBalanceTargetCents: cashBalanceTargetResolvedCents,
       });
       setPdfPreview(out);
     } catch (e) {
@@ -484,6 +492,7 @@ function KassePage() {
             channels={channelsQ.data ?? []}
             terminals={terminalsQ.data ?? []}
             writable={writable}
+            cashBalanceTargetCents={cashBalanceTargetResolvedCents}
             onSave={(data) =>
               callUpdate({ data: { sessionId: sessionId!, ...data } }).then(() => {
                 toast.success("Session gespeichert.");
@@ -1044,6 +1053,7 @@ function SessionFieldsCard({
   onRemoveExpense,
   onAddAdvance,
   onRemoveAdvance,
+  cashBalanceTargetCents,
 }: {
   sessionId: string;
   overview: Overview;
@@ -1063,6 +1073,7 @@ function SessionFieldsCard({
   onRemoveExpense: (id: string) => Promise<unknown>;
   onAddAdvance: (staffId: string, amountCents: number, note: string | null) => Promise<unknown>;
   onRemoveAdvance: (id: string) => Promise<unknown>;
+  cashBalanceTargetCents: number;
 }) {
   type Row = { id: string; euro: string };
   const initialChannels: Row[] = channels.map((c) => {
@@ -1358,19 +1369,18 @@ function SessionFieldsCard({
           </table>
 
           <ExcelSectionHeader label="Kontrolle" colorClass="border-l-muted-foreground" />
-          <table className="w-full text-sm">
-            <tbody>
-              <ExcelInputRow
-                label="Kassenbestand nach Abschluss"
-                value={misc.cashActual}
-                disabled={!writable}
-                onChange={(v) => setMisc({ ...misc, cashActual: v })}
-              />
-            </tbody>
-          </table>
-          <div className="px-3 py-2 border-t">
-            <CashActualHint value={misc.cashActual} />
-          </div>
+          <CashSummaryBlock
+            misc={misc}
+            setMisc={setMisc}
+            writable={writable}
+            chRows={chRows}
+            channelById={channelById}
+            tmRows={tmRows}
+            expenses={expenses}
+            advances={advances}
+            overview={overview}
+            cashBalanceTargetCents={cashBalanceTargetCents}
+          />
         </div>
 
         {/* ── RIGHT COLUMN ── */}
@@ -1485,40 +1495,117 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-const CASH_TARGET_CENTS = 200_000; // 2.000 € — UI-Hinweis (Quelle ist organizations.cash_balance_target_cents)
+type CashSummaryMisc = {
+  vouchersSold: string;
+  vouchersRedeemed: string;
+  finedineVouchers: string;
+  opentabs: string;
+  vorschuss: string;
+  einladung: string;
+  sonstige: string;
+  vectron: string;
+  cashActual: string;
+  guestCount: string;
+  notes: string;
+};
 
-function CashActualHint({ value }: { value: string }) {
-  const trimmed = value.trim();
-  if (trimmed === "") {
-    return (
-      <p className="pl-1 text-xs text-muted-foreground">
-        Soll: {fmtCents(CASH_TARGET_CENTS)} € — Kassenbestand noch nicht erfasst.
-      </p>
-    );
-  }
-  const cents = parseEuroToCents(trimmed);
-  if (cents === null) {
-    return <p className="pl-1 text-xs text-destructive">Bitte gültigen Eurobetrag eintragen.</p>;
-  }
-  const diff = cents - CASH_TARGET_CENTS;
-  if (diff === 0) {
-    return (
-      <p className="pl-1 text-xs text-emerald-600">
-        Soll: {fmtCents(CASH_TARGET_CENTS)} € — Kassenbestand stimmt ✓
-      </p>
-    );
-  }
-  if (diff > 0) {
-    return (
-      <p className="pl-1 text-xs text-emerald-600">
-        Soll: {fmtCents(CASH_TARGET_CENTS)} € — Entnahme in Tresor: {fmtCents(diff)} €
-      </p>
-    );
-  }
+function CashSummaryBlock({
+  misc,
+  setMisc,
+  writable,
+  chRows,
+  channelById,
+  tmRows,
+  expenses,
+  advances,
+  overview,
+  cashBalanceTargetCents,
+}: {
+  misc: CashSummaryMisc;
+  setMisc: React.Dispatch<React.SetStateAction<CashSummaryMisc>>;
+  writable: boolean;
+  chRows: { id: string; euro: string }[];
+  channelById: Record<string, { kind: string } | undefined>;
+  tmRows: { id: string; euro: string }[];
+  expenses: Array<{ amountCents: number }>;
+  advances: Array<{ amountCents: number }>;
+  overview: Overview;
+  cashBalanceTargetCents: number;
+}) {
+  const sess = overview.session!;
+  const channelSum = (kind: string) =>
+    chRows
+      .filter((r) => channelById[r.id]?.kind === kind)
+      .reduce((s, r) => s + (parseEuroToCents(r.euro) ?? 0), 0);
+  const cardTotalCents = tmRows.reduce((s, r) => s + (parseEuroToCents(r.euro) ?? 0), 0);
+
+  const openInvoicesCents = overview.settlements
+    .filter((s) => (s.status as string) !== "superseded")
+    .map((s) => Number(s.open_invoices_cents));
+
+  const dayInput = sessionToDayInput(
+    {
+      business_date: sess.business_date,
+      vectron_daily_total_cents: parseEuroToCents(misc.vectron) ?? 0,
+      vouchers_sold_cents: parseEuroToCents(misc.vouchersSold) ?? 0,
+      vouchers_redeemed_cents: parseEuroToCents(misc.vouchersRedeemed) ?? 0,
+      finedine_vouchers_cents: parseEuroToCents(misc.finedineVouchers) ?? 0,
+      einladung_cents: parseEuroToCents(misc.einladung) ?? 0,
+      sonstige_einnahme_cents: parseEuroToCents(misc.sonstige) ?? 0,
+      vorschuss_cents: parseEuroToCents(misc.vorschuss) ?? 0,
+    },
+    {
+      cardTotalCents,
+      deliverySouseCents: channelSum("delivery_souse"),
+      deliveryWoltCents: channelSum("delivery_wolt"),
+      openInvoicesCents,
+      expensesCents: expenses.map((e) => e.amountCents),
+      advancesCents: advances.map((a) => a.amountCents),
+    },
+  );
+
+  const caRaw = misc.cashActual.trim();
+  const cashActualCents = caRaw === "" ? null : parseEuroToCents(caRaw);
+  const rows = computeSummaryRows({
+    dayInput,
+    cashActualCents,
+    cashTargetCents: cashBalanceTargetCents,
+  });
+
+  const fmtEur = (c: number) => `${fmtCents(c)} €`;
+
   return (
-    <p className="pl-1 text-xs text-destructive">
-      Soll: {fmtCents(CASH_TARGET_CENTS)} € — Fehlbetrag: {fmtCents(-diff)} €
-    </p>
+    <div>
+      <div className="border-b bg-emerald-50 px-3 py-2 flex items-center justify-between text-sm">
+        <span className="font-semibold text-foreground">Tages-Bargeld</span>
+        <span className="font-mono tabular-nums font-semibold text-emerald-700">
+          {fmtEur(rows.tagesBargeldCents)}
+        </span>
+      </div>
+      <div className="border-b bg-slate-100 px-3 py-2 flex items-center justify-between text-sm">
+        <span className="font-semibold text-foreground">Differenz zum Wechselgeldbestand</span>
+        <span className="font-mono tabular-nums font-semibold text-foreground">
+          {rows.differenzCents == null ? "—" : fmtEur(rows.differenzCents)}
+        </span>
+      </div>
+      <div className="border-b bg-orange-50 px-3 py-2 flex items-center justify-between text-sm">
+        <span className="text-orange-700">Bargeld mit der Abrechnung in den Tresor legen</span>
+        <span className="font-mono tabular-nums text-orange-700">{fmtEur(rows.tresorCents)}</span>
+      </div>
+      <div className="bg-emerald-50 px-3 py-2 flex items-center justify-between gap-3 text-sm">
+        <label htmlFor="wechselgeld-input" className="font-semibold text-foreground">
+          Wechselgeldbestand (soll ist {fmtEur(cashBalanceTargetCents)})
+        </label>
+        <Input
+          id="wechselgeld-input"
+          className="h-7 w-36 text-sm text-right font-mono border-emerald-200 bg-white"
+          inputMode="decimal"
+          value={misc.cashActual}
+          onChange={(e) => setMisc((prev) => ({ ...prev, cashActual: e.target.value }))}
+          disabled={!writable}
+        />
+      </div>
+    </div>
   );
 }
 

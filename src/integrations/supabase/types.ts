@@ -853,6 +853,7 @@ export type Database = {
       }
       locations: {
         Row: {
+          cash_balance_target_cents: number | null
           city: string | null
           contact_name: string | null
           contact_phone: string | null
@@ -873,6 +874,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          cash_balance_target_cents?: number | null
           city?: string | null
           contact_name?: string | null
           contact_phone?: string | null
@@ -893,6 +895,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          cash_balance_target_cents?: number | null
           city?: string | null
           contact_name?: string | null
           contact_phone?: string | null
