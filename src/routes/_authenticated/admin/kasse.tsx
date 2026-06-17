@@ -1354,6 +1354,12 @@ function SessionFieldsCard({
                     onFocus={(e) => e.currentTarget.select()}
                     onMouseUp={(e) => e.preventDefault()}
                     onClick={(e) => e.currentTarget.select()}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        focusNextInput(e.currentTarget);
+                      }
+                    }}
                     className="h-7 text-sm text-right font-mono border-primary/20 bg-primary/5"
                     disabled={!writable}
                   />
@@ -1762,11 +1768,31 @@ function ExcelInputRow({
           onFocus={(e) => e.currentTarget.select()}
           onMouseUp={(e) => e.preventDefault()}
           onClick={(e) => e.currentTarget.select()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              focusNextInput(e.currentTarget);
+            }
+          }}
           disabled={disabled}
         />
       </td>
     </tr>
   );
+}
+
+function focusNextInput(current: HTMLInputElement) {
+  const inputs = Array.from(
+    document.querySelectorAll<HTMLInputElement>(
+      'input:not([disabled]):not([type="hidden"])',
+    ),
+  ).filter((el) => el.offsetParent !== null);
+  const idx = inputs.indexOf(current);
+  if (idx >= 0 && idx < inputs.length - 1) {
+    const next = inputs[idx + 1];
+    next.focus();
+    next.select();
+  }
 }
 
 function ExcelReadonlyRow({ label, value }: { label: string; value: string }) {
