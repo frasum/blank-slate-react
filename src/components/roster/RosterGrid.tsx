@@ -419,7 +419,6 @@ export function RosterGrid({
                                   shift={shift}
                                   area={activeArea}
                                   draggable={editable}
-                                  density={density}
                                   onClick={() => void handlePillClick(shift)}
                                 />
                               </span>
