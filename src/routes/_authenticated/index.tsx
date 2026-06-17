@@ -16,6 +16,23 @@ export const Route = createFileRoute("/_authenticated/")({
 function Index() {
   const { identity, identityLoading, signOut } = useAuth();
   const canAdmin = identity?.role === "admin" || identity?.role === "manager";
+  const baseBtn =
+    "inline-flex w-full items-center justify-center rounded-lg px-4 py-3 text-sm font-medium shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
+  const primaryBtn = `${baseBtn} bg-primary text-primary-foreground hover:bg-primary/90`;
+  const secondaryBtn = `${baseBtn} border border-input bg-card text-foreground hover:bg-accent`;
+
+  const items: Array<{ to: string; label: string; admin?: boolean; primary?: boolean }> = [
+    { to: "/admin", label: "Admin", admin: true },
+    { to: "/admin/zeit-uebersicht", label: "Arbeitszeiten", admin: true },
+    { to: "/admin/bestellung", label: "Bestellungen", admin: true },
+    { to: "/admin/dienstplan", label: "Dienstplan", admin: true },
+    { to: "/zeit/abrechnung", label: "Kellner-Abrechnung" },
+    { to: "/zeit", label: "Stempeluhr", primary: true },
+    { to: "/admin/kasse", label: "Tagesabrechnung", admin: true },
+  ];
+  const visible = items
+    .filter((i) => !i.admin || canAdmin)
+    .sort((a, b) => a.label.localeCompare(b.label, "de"));
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
       <div className="w-full max-w-sm space-y-8">
@@ -31,52 +48,11 @@ function Index() {
           </div>
         </div>
         <div className="flex flex-col gap-2">
-          <Link
-            to="/zeit"
-            className="inline-flex w-full items-center justify-center rounded-lg bg-primary px-4 py-3 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          >
-            Stempeluhr
-          </Link>
-          <Link
-            to="/zeit/abrechnung"
-            className="inline-flex w-full items-center justify-center rounded-lg border border-input bg-card px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          >
-            Kellner-Abrechnung
-          </Link>
-          {canAdmin && (
-            <>
-              <Link
-                to="/admin/dienstplan"
-                className="inline-flex w-full items-center justify-center rounded-lg border border-input bg-card px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                Dienstplan
-              </Link>
-              <Link
-                to="/admin/zeit-uebersicht"
-                className="inline-flex w-full items-center justify-center rounded-lg border border-input bg-card px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                Arbeitszeiten
-              </Link>
-              <Link
-                to="/admin/kasse"
-                className="inline-flex w-full items-center justify-center rounded-lg border border-input bg-card px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                Tagesabrechnung
-              </Link>
-              <Link
-                to="/admin/bestellung"
-                className="inline-flex w-full items-center justify-center rounded-lg border border-input bg-card px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                Bestellungen
-              </Link>
-              <Link
-                to="/admin"
-                className="inline-flex w-full items-center justify-center rounded-lg border border-input bg-card px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                Admin
-              </Link>
-            </>
-          )}
+          {visible.map((item) => (
+            <Link key={item.to} to={item.to} className={item.primary ? primaryBtn : secondaryBtn}>
+              {item.label}
+            </Link>
+          ))}
         </div>
         <div className="flex justify-center pt-2">
           <button
