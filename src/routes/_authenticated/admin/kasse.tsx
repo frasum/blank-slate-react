@@ -1609,9 +1609,7 @@ function CashSummaryBlock({
       {rows.tresorCents > 0 && (
         <div className="border-b bg-orange-50 px-3 py-2 flex items-center justify-between text-sm">
           <span className="text-orange-700">Bargeld mit der Abrechnung in den Tresor legen</span>
-          <span className="font-mono tabular-nums text-orange-700">
-            {fmtEur(rows.tresorCents)}
-          </span>
+          <span className="font-mono tabular-nums text-orange-700">{fmtEur(rows.tresorCents)}</span>
         </div>
       )}
       <div className="bg-emerald-50 px-3 py-2 flex items-center justify-between gap-3 text-sm">
@@ -1622,9 +1620,7 @@ function CashSummaryBlock({
           const parsed = parseEuroToCents(misc.cashActual);
           const effective =
             parsed ??
-            (rows.tagesBargeldCents < 0
-              ? cashBalanceTargetCents + rows.tagesBargeldCents
-              : null);
+            (rows.tagesBargeldCents < 0 ? cashBalanceTargetCents + rows.tagesBargeldCents : null);
           const below = effective !== null && effective < cashBalanceTargetCents;
           return (
             <Input
