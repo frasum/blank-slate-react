@@ -1359,12 +1359,28 @@ function SessionFieldsCard({
                 disabled={!writable}
                 onChange={(v) => setMisc({ ...misc, sonstige: v })}
               />
-              <ExcelInputRow
-                label="Vorschuss (Abzug)"
-                value={misc.vorschuss}
-                disabled={!writable}
-                onChange={(v) => setMisc({ ...misc, vorschuss: v })}
-              />
+              {(() => {
+                const advSum = advances.reduce((s, a) => s + a.amountCents, 0);
+                const effVorschussCents =
+                  advances.length > 0 ? advSum : (parseEuroToCents(misc.vorschuss) ?? 0);
+                const totalExpensesCents = expenses.reduce((s, e) => s + e.amountCents, 0);
+                return (
+                  <>
+                    {effVorschussCents !== 0 && (
+                      <ExcelReadonlyRow
+                        label="Vorschuss (Abzug)"
+                        value={fmtCents(effVorschussCents)}
+                      />
+                    )}
+                    {totalExpensesCents !== 0 && (
+                      <ExcelReadonlyRow
+                        label="Ausgaben (Abzug)"
+                        value={fmtCents(totalExpensesCents)}
+                      />
+                    )}
+                  </>
+                );
+              })()}
             </tbody>
           </table>
 
@@ -1668,6 +1684,15 @@ function ExcelInputRow({
           disabled={disabled}
         />
       </td>
+    </tr>
+  );
+}
+
+function ExcelReadonlyRow({ label, value }: { label: string; value: string }) {
+  return (
+    <tr className="border-b last:border-b-0 hover:bg-muted/20 transition-colors">
+      <td className="px-3 py-1.5 font-medium text-foreground">{label}</td>
+      <td className="px-3 py-1.5 w-36 text-right font-mono tabular-nums text-sm">{value}</td>
     </tr>
   );
 }
