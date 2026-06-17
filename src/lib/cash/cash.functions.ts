@@ -1401,6 +1401,8 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
         kitchen_tip_rate: kitchenTipRate,
         status: "submitted",
         submitted_at: new Date().toISOString(),
+        second_waiter_name: data.secondWaiterName ?? null,
+        additional_waiters: (data.additionalWaiters ?? []) as unknown as Json,
       })
       .eq("id", existing.id)
       .eq("organization_id", caller.organizationId);
