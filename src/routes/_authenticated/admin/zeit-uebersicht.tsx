@@ -347,12 +347,8 @@ function ZeitUebersichtPage() {
   });
 
   const advancesQ = useQuery({
-    queryKey: ["payroll-advances", effectiveLocationId, fromDate, toDate],
-    queryFn: () =>
-      fetchAdvances({
-        data: { locationId: effectiveLocationId, periodStart: fromDate, periodEnd: toDate },
-      }),
-    enabled: Boolean(effectiveLocationId),
+    queryKey: ["payroll-advances", fromDate, toDate],
+    queryFn: () => fetchAdvances({ data: { periodStart: fromDate, periodEnd: toDate } }),
   });
 
   const absencesQ = useQuery({

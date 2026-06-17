@@ -1,30 +1,26 @@
-## Ziel
-Spalten **K** (Krank) und – analog dazu – **U** (Urlaub) im Tab „Lohn" (`/admin/zeit-uebersicht`) zeigen die **Anzahl Tage** aus dem Dienstplan (`roster_absence`) pro Mitarbeiter im aktuellen Zeitraum. Readonly, kein Eingabefeld.
+## Problem
 
-## Datenquelle
-Tabelle `roster_absence(staff_id, date, type)`. `type ∈ { 'urlaub', 'krank' }`. Kein `location_id` — Abwesenheit gilt mitarbeiterweit. Gefiltert nach `organization_id` + `date ∈ [periodStart, periodEnd]`.
+In `listAdvancesByStaff` (`src/lib/time/time-admin.functions.ts`) wird auf `sessions.location_id = data.locationId` gefiltert. Abwesenheiten (`listAbsencesByStaff`) sind dagegen org-weit. Ein Mitarbeiter, der an mehreren Standorten arbeitet, bekommt in der Standort-Ansicht nur einen Teil seiner Vorschüsse abgezogen → Netto-Lohn zu hoch.
 
-## Änderungen
+## Fix (minimal, geld-relevant)
 
-### Backend — `src/lib/time/time-admin.functions.ts`
-Neue Server-Fn `listAbsencesByStaff` (GET, `requireSupabaseAuth`, Manager/Admin/Payroll):
-- Input: `periodStart`, `periodEnd`.
-- Query `roster_absence` (staff_id, date, type) im Bereich, gefiltert auf `organization_id`.
-- Aggregiert pro `staff_id`: `krankDays = count(type='krank')`, `urlaubDays = count(type='urlaub')` (jeweils distinct Tage — eine Zeile pro Tag laut Schema).
-- Rückgabe: `[{ staffId, krankDays, urlaubDays }]`.
+`listAdvancesByStaff` org-weit machen — analog zu `listAbsencesByStaff`:
 
-### Frontend — `src/routes/_authenticated/admin/zeit-uebersicht.tsx`
-1. Neue Query `absencesQ` (`["payroll-absences", organizationId, fromDate, toDate]`) — keine Location, da `roster_absence` mitarbeiterweit ist.
-2. Map `staffId → { krankDays, urlaubDays }`.
-3. `PayrollRow`: zusätzliche Props `urlaubDays`, `krankDays`. Spalten **U** und **K**: bei 0 dezentes „–", sonst Zahl (`tabular-nums`).
+1. `locationId` aus dem Zod-Input **entfernen**.
+2. Den Filter `.eq("sessions.location_id", data.locationId)` **entfernen**; `organization_id` + `business_date ∈ [periodStart, periodEnd]` bleiben.
+3. Aufrufseite in `src/routes/_authenticated/admin/zeit-uebersicht.tsx` (`fetchAdvances`-Query): `locationId` aus den Args entfernen, Query-Key entsprechend auf `[periodStart, periodEnd]` reduzieren.
 
-### Verhalten
-- Mehrere `krank`-Tage im Zeitraum → Summe; ein Eintrag pro Tag (bestehende Schema-Logik), daher korrekt.
-- Keine Schreibfunktion neu.
+Damit zeigt die Vorschuss-Spalte pro Mitarbeiter die **Gesamtsumme über alle Standorte im Zeitraum**, identisch in jeder Standort-Ansicht — konsistent mit U/K. Der Netto-Lohn (Vorschuss-Abzug) ist dann korrekt, egal welchen Standort man öffnet.
 
-## Nicht anfassen
-Dienstplan-Logik, `roster_absence`-Schema, Vorschuss/Besonderheiten.
+Keine Schema-Änderung, keine Migration, keine Änderung an `payroll_notes`, Tagesabrechnung, Settlements oder UI-Layout.
 
 ## Erfolgs-Gate
-- U/K zeigen korrekt Tage pro Mitarbeiter im gewählten Zeitraum.
-- `tsc --noEmit` 0, ESLint sauber.
+
+- `tsc --noEmit` 0
+- `eslint src/ --max-warnings=5` 0
+- `vitest run` grün
+- Manuell: Mitarbeiter mit Vorschüssen an zwei Standorten → in beiden Standort-Ansichten erscheint dieselbe Gesamtsumme; Netto-Lohn = Brutto − Gesamt-Vorschuss.
+
+## Vor dem Commit
+
+`npx prettier --write` über die beiden geänderten Dateien.
