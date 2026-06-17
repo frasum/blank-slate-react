@@ -1369,19 +1369,18 @@ function SessionFieldsCard({
           </table>
 
           <ExcelSectionHeader label="Kontrolle" colorClass="border-l-muted-foreground" />
-          <table className="w-full text-sm">
-            <tbody>
-              <ExcelInputRow
-                label="Kassenbestand nach Abschluss"
-                value={misc.cashActual}
-                disabled={!writable}
-                onChange={(v) => setMisc({ ...misc, cashActual: v })}
-              />
-            </tbody>
-          </table>
-          <div className="px-3 py-2 border-t">
-            <CashActualHint value={misc.cashActual} />
-          </div>
+          <CashSummaryBlock
+            misc={misc}
+            setMisc={setMisc}
+            writable={writable}
+            chRows={chRows}
+            channelById={channelById}
+            tmRows={tmRows}
+            expenses={expenses}
+            advances={advances}
+            overview={overview}
+            cashBalanceTargetCents={cashBalanceTargetCents}
+          />
         </div>
 
         {/* ── RIGHT COLUMN ── */}
