@@ -316,7 +316,9 @@ export function generateDailySummaryPdf(data: PdfExportData): {
   if (sess.cash_actual_cents != null) {
     leftEndY += 1;
     const rc = sess.cash_actual_cents;
-    const fillColor: [number, number, number] = rc >= 200000 ? [220, 252, 231] : [254, 226, 226];
+    const cashTarget = data.cashBalanceTargetCents ?? 200_000;
+    const fillColor: [number, number, number] =
+      rc >= cashTarget ? [220, 252, 231] : [254, 226, 226];
     doc.setFillColor(...fillColor);
     doc.rect(leftX, leftEndY - 4, leftColWidth, 8, "F");
     doc.setFontSize(10);
