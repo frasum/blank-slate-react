@@ -239,7 +239,7 @@ function KasseSaldoPage() {
                 <TableHead className="text-right px-2 py-2 text-xs">Tagesumsatz</TableHead>
                 <TableHead className="text-right px-2 py-2 text-xs">KK</TableHead>
                 <TableHead className="text-right px-2 py-2 text-xs">Take-Away</TableHead>
-                <TableHead className="text-right px-2 py-2 text-xs">OS</TableHead>
+                <TableHead className="text-right px-2 py-2 text-xs">SoUse</TableHead>
                 <TableHead className="text-right px-2 py-2 text-xs">Wolt</TableHead>
                 <TableHead className="text-right px-2 py-2 text-xs">Gut. EL</TableHead>
                 <TableHead className="text-right px-2 py-2 text-xs">FineDine</TableHead>
