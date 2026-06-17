@@ -1,17 +1,18 @@
-// Login-Seite (B1b). Drei Flüsse:
-//   * E-Mail/Passwort — supabase.auth.signInWithPassword
-//   * PIN-Terminal   — Server-Function validatePin → verifyOtp(magiclink)
-//   * Badge          — Server-Function resolveBadgeToken → verifyOtp(magiclink)
+// Login-Seite. Zwei Flüsse:
+//   * E-Mail/Passwort — supabase.auth.signInWithPassword (primär)
+//   * PIN-Terminal    — Server-Function validatePin → verifyOtp(magiclink)
 //
-// Vor jedem PIN/Badge-Login wird die bestehende Session per signOut beendet
+// Vor jedem PIN-Login wird die bestehende Session per signOut beendet
 // (Remix-Muster: kein "Anmelden über eine andere Session hinweg").
-// Selbstregistrierung und Passwort-Reset sind in dieser Phase verboten.
+// Passwort-Reset läuft als Self-Service über Supabase-Mail
+// (resetPasswordForEmail → /reset-password). Konten werden ausschließlich
+// vom Admin angelegt — keine Selbstregistrierung.
 
 import { useState } from "react";
 import { createFileRoute, redirect, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
-import { validatePin, resolveBadgeToken } from "@/lib/auth/auth-flows.functions";
+import { validatePin } from "@/lib/auth/auth-flows.functions";
 import { BrandLockup } from "@/components/brand-lockup";
 
 export const Route = createFileRoute("/auth")({
@@ -26,7 +27,7 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
-type Tab = "password" | "pin" | "badge";
+type Tab = "password" | "pin";
 
 function AuthPage() {
   const [tab, setTab] = useState<Tab>("password");
@@ -46,7 +47,7 @@ function AuthPage() {
         <p className="text-center text-sm font-medium text-foreground">Anmelden</p>
 
         <div role="tablist" className="flex rounded-md border border-input p-1">
-          {(["password", "pin", "badge"] as Tab[]).map((t) => (
+          {(["password", "pin"] as Tab[]).map((t) => (
             <button
               key={t}
               role="tab"
@@ -58,14 +59,13 @@ function AuthPage() {
                   : "text-muted-foreground hover:bg-accent"
               }`}
             >
-              {t === "password" ? "Passwort" : t === "pin" ? "PIN" : "Badge"}
+              {t === "password" ? "Passwort" : "PIN"}
             </button>
           ))}
         </div>
 
         {tab === "password" && <PasswordForm onLoggedIn={onLoggedIn} />}
         {tab === "pin" && <PinForm onLoggedIn={onLoggedIn} />}
-        {tab === "badge" && <BadgeForm onLoggedIn={onLoggedIn} />}
       </div>
     </main>
   );
@@ -81,8 +81,11 @@ function PasswordForm({ onLoggedIn }: { onLoggedIn: () => Promise<void> }) {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [resetMsg, setResetMsg] = useState<string | null>(null);
+  const [resetBusy, setResetBusy] = useState(false);
 
   return (
+    <div className="space-y-3">
     <form
       className="space-y-3"
       onSubmit={async (e) => {
@@ -125,6 +128,32 @@ function PasswordForm({ onLoggedIn }: { onLoggedIn: () => Promise<void> }) {
         {busy ? "Anmelden…" : "Anmelden"}
       </button>
     </form>
+      <div className="flex items-center justify-between text-xs">
+        <button
+          type="button"
+          disabled={resetBusy || !email}
+          onClick={async () => {
+            setResetMsg(null);
+            setResetBusy(true);
+            const { error } = await supabase.auth.resetPasswordForEmail(email, {
+              redirectTo: `${window.location.origin}/reset-password`,
+            });
+            setResetBusy(false);
+            if (error) {
+              setResetMsg("Konnte E-Mail nicht senden.");
+              return;
+            }
+            setResetMsg(
+              "Falls die Adresse existiert, ist eine E-Mail mit Reset-Link unterwegs.",
+            );
+          }}
+          className="text-muted-foreground underline-offset-2 hover:underline disabled:opacity-50"
+        >
+          Passwort vergessen?
+        </button>
+        {resetMsg && <span className="text-muted-foreground">{resetMsg}</span>}
+      </div>
+    </div>
   );
 }
 
