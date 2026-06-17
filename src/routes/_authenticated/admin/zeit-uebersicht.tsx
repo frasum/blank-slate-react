@@ -410,6 +410,12 @@ function ZeitUebersichtPage() {
     return m;
   }, [notesQ.data]);
 
+  const advanceCentsByStaff = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const a of advancesQ.data ?? []) m.set(a.staffId, a.totalCents);
+    return m;
+  }, [advancesQ.data]);
+
   const upsertMut = useMutation({
     mutationFn: (vars: { staffId: string; vorschuss: number; besonderheiten: string | null }) =>
       callUpsert({
