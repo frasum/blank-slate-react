@@ -117,12 +117,16 @@ Immer **26. eines Monats bis einschließlich 25. des Folgemonats**. Label = Mona
 | B8 Lohnbüro-Rolle (payroll)                                            | ✅       |
 | D1 Dienstplan-Datenmodell + Grid                                       | ✅       |
 | D2a–e Dienstplan editierbar, Realtime, Service-Symbole, Cross-Booking  | ✅       |
-| Dienstplan-Migration (re-migriert 17.06.: 4362 echte Schichten)        | ✅       |
+| Dienstplan-Migration (re-migriert 17.06.: 3762 echte Schichten)        | ✅       |
 | D3 Öffentliches Display (Token-URL, Auto-Refresh, Rotation, Legende)   | ⏳ offen |
 | M4 Lohn — Rechen-Kern (Stufe 1/3): PAP 2026 + SV, edlohn-cent-getestet | ✅       |
 | M4 Lohn — SFN-Geld + Perioden-Aggregation + Verdrahtung (Stufe 2a–c)   | ✅       |
 | M4 Lohn — Lohnrechner-UI + Excel-Export (`/admin/lohnrechner`)         | ✅       |
 | Provision (wochenbasiert)                                              | ⏳ offen |
+
+**Stand 17.06.2026 (Session-Nachzug):**
+
+- **Dienstplan-Re-Import korrigiert (4362 → 3762):** `roster_shifts` aus korrigiertem thaitime-`schedule_entries`-Export neu aufgebaut. Aufteilung: Spicery 1846, YUM 1905, TSB 11. Lektion: `locations.name` für Spicery ist klein geschrieben („spicery") — Standort-Auflösung daher über feste `location_id`-UUIDs (§4), nicht über den Namen (ein Name-Join scheiterte zunächst an allen 1846 Spicery-Zeilen). Mapping-Sonderfälle bestätigt: „Sumitr (PAE)" → `SUMITR`, „Elson" (ohne Nickname) → display_name `Elson`; Kosal/BIG inaktiv mit 3 Schichten.
 
 **Stand 16.06.2026 (Session-Nachzug):**
 
