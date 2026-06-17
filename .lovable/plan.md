@@ -1,38 +1,30 @@
 ## Ziel
-Spalte „Vorschuss" im Tab **Lohn** (`/admin/zeit-uebersicht`) ist eine **readonly Summe der Vorschüsse aus den Tagesabrechnungen** für den ausgewählten Zeitraum/Standort. Kein manuelles Eingabefeld mehr.
+Spalten **K** (Krank) und – analog dazu – **U** (Urlaub) im Tab „Lohn" (`/admin/zeit-uebersicht`) zeigen die **Anzahl Tage** aus dem Dienstplan (`roster_absence`) pro Mitarbeiter im aktuellen Zeitraum. Readonly, kein Eingabefeld.
 
 ## Datenquelle
-`session_advances` (Tabelle existiert): `staff_id`, `amount_cents`, `session_id` → `sessions.business_date` + `sessions.location_id`. Summen pro `staff_id` im Bereich `periodStart..periodEnd` und gefiltert auf `effectiveLocationId`.
+Tabelle `roster_absence(staff_id, date, type)`. `type ∈ { 'urlaub', 'krank' }`. Kein `location_id` — Abwesenheit gilt mitarbeiterweit. Gefiltert nach `organization_id` + `date ∈ [periodStart, periodEnd]`.
 
 ## Änderungen
 
 ### Backend — `src/lib/time/time-admin.functions.ts`
-Neue Server-Fn `listAdvancesByStaff` (GET, `requireSupabaseAuth`, Manager/Admin/Payroll wie `listPayrollNotes`):
-- Input: `locationId`, `periodStart`, `periodEnd`.
-- Join `session_advances` × `sessions` (über `session_id`), filter `organization_id`, `sessions.location_id = locationId`, `business_date` im Bereich.
-- Aggregiert in JS: `Map<staffId, totalCents>` → Rückgabe `[{ staffId, totalCents }]`.
-
-`upsertPayrollNote` bleibt für `besonderheiten`. Das `vorschuss`-Feld in `payroll_notes` wird nicht mehr beschrieben (Default 0). Validator: `vorschuss` optional machen oder fest 0 senden; bestehende Migration unberührt.
+Neue Server-Fn `listAbsencesByStaff` (GET, `requireSupabaseAuth`, Manager/Admin/Payroll):
+- Input: `periodStart`, `periodEnd`.
+- Query `roster_absence` (staff_id, date, type) im Bereich, gefiltert auf `organization_id`.
+- Aggregiert pro `staff_id`: `krankDays = count(type='krank')`, `urlaubDays = count(type='urlaub')` (jeweils distinct Tage — eine Zeile pro Tag laut Schema).
+- Rückgabe: `[{ staffId, krankDays, urlaubDays }]`.
 
 ### Frontend — `src/routes/_authenticated/admin/zeit-uebersicht.tsx`
-1. Neue Query `advancesQ` (`["payroll-advances", effectiveLocationId, fromDate, toDate]`) → Map `staffId → totalCents`.
-2. `PayrollRow` Vorschuss-Spalte: Input entfernen, stattdessen readonly Zelle `text-right tabular-nums` mit `fmtEuro(totalCents)`. Bei 0 dezent („–" / muted).
-3. `onSave` aus `PayrollRow` schickt nur noch `besonderheiten`; `upsertMut` übergibt `vorschuss: 0` (oder Backend lässt Feld weg).
-4. Nach Save Tagesabrechnung-Vorschuss ändert sich nichts hier — Invalidierung von `payroll-advances` läuft über bestehende Kasse-Mutationen unabhängig; optional: bei `staleTime: 0` im query ausreichend.
+1. Neue Query `absencesQ` (`["payroll-absences", organizationId, fromDate, toDate]`) — keine Location, da `roster_absence` mitarbeiterweit ist.
+2. Map `staffId → { krankDays, urlaubDays }`.
+3. `PayrollRow`: zusätzliche Props `urlaubDays`, `krankDays`. Spalten **U** und **K**: bei 0 dezentes „–", sonst Zahl (`tabular-nums`).
 
 ### Verhalten
-- Session ohne Vorschüsse → „–"
-- Mehrere Vorschüsse für Mitarbeiter im Zeitraum → Summe in EUR.
-- Keine Schreibfunktion mehr → kein Lock-/Period-Konflikt für diese Spalte.
+- Mehrere `krank`-Tage im Zeitraum → Summe; ein Eintrag pro Tag (bestehende Schema-Logik), daher korrekt.
+- Keine Schreibfunktion neu.
 
 ## Nicht anfassen
-Tagesabrechnung-Logik, `session_advances`-Schema, `payroll_notes`-Schema, Besonderheiten-Workflow.
-
-## Technische Details
-- Aggregation server-seitig in JS (kein RPC nötig); Query: `select amount_cents, staff_id, sessions!inner(business_date,location_id)` mit Range-Filtern.
-- `fmtEuro(cents)` analog zu Kasse (`(cents/100).toLocaleString("de-DE", { minimumFractionDigits: 2 })`).
+Dienstplan-Logik, `roster_absence`-Schema, Vorschuss/Besonderheiten.
 
 ## Erfolgs-Gate
-- Vorschuss-Spalte zeigt korrekt Summe der Tagesabrechnungs-Vorschüsse.
-- Kein Input mehr in der Spalte, keine Save-Calls für Vorschuss.
+- U/K zeigen korrekt Tage pro Mitarbeiter im gewählten Zeitraum.
 - `tsc --noEmit` 0, ESLint sauber.

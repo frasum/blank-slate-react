@@ -166,6 +166,46 @@ export const listAdvancesByStaff = createServerFn({ method: "GET" })
     return Array.from(sums.entries()).map(([staffId, totalCents]) => ({ staffId, totalCents }));
   });
 
+// Urlaubs- und Kranktage pro Mitarbeiter aus Dienstplan (roster_absence)
+// für einen Zeitraum (inkl.).
+export const listAbsencesByStaff = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        periodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        periodEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "manager",
+      "admin",
+      "payroll",
+    ]);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin
+      .from("roster_absence")
+      .select("staff_id, date, type")
+      .eq("organization_id", caller.organizationId)
+      .gte("date", data.periodStart)
+      .lte("date", data.periodEnd);
+    if (error) throw error;
+    const map = new Map<string, { krankDays: number; urlaubDays: number }>();
+    for (const r of rows ?? []) {
+      const entry = map.get(r.staff_id) ?? { krankDays: 0, urlaubDays: 0 };
+      if (r.type === "krank") entry.krankDays += 1;
+      else if (r.type === "urlaub") entry.urlaubDays += 1;
+      map.set(r.staff_id, entry);
+    }
+    return Array.from(map.entries()).map(([staffId, v]) => ({
+      staffId,
+      krankDays: v.krankDays,
+      urlaubDays: v.urlaubDays,
+    }));
+  });
+
 export const upsertPayrollNote = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
