@@ -2,7 +2,7 @@
 
 Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen Baublock konsultiert. Bewusst kurz gehalten — Architektur-Begründungen stehen im gruendungsdokument.md, nicht hier.
 
-Stand: 16.06.2026
+Stand: 17.06.2026
 
 ## 1. Rollenverteilung im Team
 
@@ -124,6 +124,10 @@ Immer **26. eines Monats bis einschließlich 25. des Folgemonats**. Label = Mona
 | M4 Lohn — SFN-Geld + Perioden-Aggregation + Verdrahtung (Stufe 2a–c)   | ✅       |
 | M4 Lohn — Lohnrechner-UI + Excel-Export (`/admin/lohnrechner`)         | ✅       |
 | Provision (wochenbasiert)                                              | ⏳ offen |
+| Geofencing-Stempeln (UI clockIn nur am Standort, distinct-Location)    | ✅       |
+| PIN-Login via Vorname/Nickname                                         | ✅       |
+| Hub & Meine Schichten (`/zeit/schichten`, `/zeit/stempeln`)            | ✅       |
+| Inventur-Session an DB gebunden                                        | ✅       |
 
 **Stand 17.06.2026 (Session-Nachzug):**
 
