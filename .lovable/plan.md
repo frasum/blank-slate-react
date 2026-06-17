@@ -1,17 +1,25 @@
-## Ursache
-
-`filter: saturate() brightness()` auf der gesamten Pille wirkt auch auf den Text — deshalb erscheint das weiße Label bei den Küchen-Pillen gräulich, bei den Service-Pillen aber sauber weiß.
-
 ## Änderung
 
-**`src/components/roster/ShiftPill.tsx`**
+**`src/components/roster/ShiftPill.tsx`** — feste Farb-Map für Küchen-Pillen analog zur Service-Map:
 
-1. `filter` komplett entfernen.
-2. Hintergrundfarbe direkt deepen via `color-mix(in oklab, ${bg} X%, black)` — nur die Fläche wird kräftiger, Text bleibt reines Weiß.
-   - confirmed: ~60 % Skillfarbe + 40 % Schwarz
-   - planned:  ~70 % Skillfarbe + 30 % Schwarz
-3. Opacity bleibt 1 (außer beim Draggen 0.4).
+```ts
+const kitchenColorMap: Record<string, string> = {
+  VS: "#3b82f6",      // Blau
+  PA: "#ef4444",      // Rot   (Abkürzung von PASS)
+  SP: "#10b981",      // Grün  (Abkürzung von SPÜLEN)
+  CO: "#f59e0b",      // Orange
+};
+```
+
+Logik:
+- Für Küchen-Pillen statt `shift.skillColor` zuerst `kitchenColorMap[label]` verwenden; Fallback auf `shift.skillColor`, dann grau.
+- `color-mix`-Abdunkeln bleibt (confirmed 60 %, planned 70 %).
+- Text bleibt weiß.
+
+## Nicht angefasst
+
+DB-Skillfarben, Service-Map, Layout, Logik.
 
 ## Erfolgskriterium
 
-Küchen- und Service-Pillen zeigen denselben Weißton im Label; Hintergrund bleibt kräftig.
+VS=blau, PASS=rot, SPÜLEN=grün, CO=orange — kräftig, mit gleichem Weiß im Label wie Service.

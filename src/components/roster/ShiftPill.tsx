@@ -35,8 +35,19 @@ export function ShiftPill({ shift, area, draggable, onClick }: Props) {
     H: "#10b981",
     "19h": "#8b5cf6",
   };
+  // Feste Farben für Küchen-Skills (Abkürzungen aus abbr()):
+  // VS=Blau, PA=Rot (PASS), SP=Grün (SPÜLEN), CO=Orange.
+  const kitchenColorMap: Record<string, string> = {
+    VS: "#3b82f6",
+    PA: "#ef4444",
+    SP: "#10b981",
+    CO: "#f59e0b",
+  };
   const serviceBg = isService ? serviceColorMap[label] : undefined;
-  const bg = isService ? (serviceBg ?? "#ffffff") : (shift.skillColor ?? "#9ca3af");
+  const kitchenBg = !isService ? kitchenColorMap[label] : undefined;
+  const bg = isService
+    ? (serviceBg ?? "#ffffff")
+    : (kitchenBg ?? shift.skillColor ?? "#9ca3af");
   const textCls = "text-white border-transparent";
   const isPlanned = shift.status !== "confirmed";
   // BG direkt abdunkeln (statt filter), damit der weiße Text in allen Pillen
