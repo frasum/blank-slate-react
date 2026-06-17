@@ -26,8 +26,7 @@ export function PeriodNav({ periods, currentPeriodId, today, onSelect }: Props) 
   const last = periods[periods.length - 1];
   const prev = safeIdx > 0 ? periods[safeIdx - 1] : null;
   const next = safeIdx < periods.length - 1 ? periods[safeIdx + 1] : null;
-  const todayPeriod =
-    periods.find((p) => p.startDate <= today && today <= p.endDate) ?? null;
+  const todayPeriod = periods.find((p) => p.startDate <= today && today <= p.endDate) ?? null;
 
   return (
     <div className="flex items-center gap-1">
