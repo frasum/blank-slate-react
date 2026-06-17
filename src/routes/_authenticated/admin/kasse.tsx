@@ -491,6 +491,7 @@ function KassePage() {
             channels={channelsQ.data ?? []}
             terminals={terminalsQ.data ?? []}
             writable={writable}
+            cashBalanceTargetCents={cashBalanceTargetResolvedCents}
             onSave={(data) =>
               callUpdate({ data: { sessionId: sessionId!, ...data } }).then(() => {
                 toast.success("Session gespeichert.");
