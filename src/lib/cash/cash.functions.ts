@@ -1856,11 +1856,7 @@ function makeEmptyAgg(): CashDayAgg {
  * `delivery_souse` zusammengelegt werden — sonst zieht `computeDailyCash` ihn
  * zusätzlich ab und das Bargeld wird um den Take-away-Betrag zu niedrig.
  */
-export function applyRevenueChannel(
-  a: CashDayAgg,
-  kind: string | null,
-  amt: number,
-): void {
+export function applyRevenueChannel(a: CashDayAgg, kind: string | null, amt: number): void {
   switch (kind) {
     case "pos":
       a.grossRevenue += amt;

@@ -112,47 +112,47 @@ function LocationsPage() {
       </div>
 
       {createOpen && (
-      <form
-        className="max-w-2xl space-y-3 rounded-md border border-input bg-muted/30 p-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setMsg(null);
-          createMut.mutate();
-        }}
-      >
-        <p className="text-sm font-medium text-foreground">Neuen Standort anlegen</p>
-        <Field label="Name *">
-          <input
-            required
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            placeholder="Standortname"
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-          />
-        </Field>
-        <DetailsFields value={newDetails} onChange={setNewDetails} />
-        <div className="flex items-center gap-2">
-          <button
-            type="submit"
-            disabled={createMut.isPending}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-          >
-            Anlegen
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setCreateOpen(false);
-              setNewName("");
-              setNewDetails(emptyDetails);
-              setMsg(null);
-            }}
-            className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground hover:bg-accent"
-          >
-            Abbrechen
-          </button>
-        </div>
-      </form>
+        <form
+          className="max-w-2xl space-y-3 rounded-md border border-input bg-muted/30 p-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            setMsg(null);
+            createMut.mutate();
+          }}
+        >
+          <p className="text-sm font-medium text-foreground">Neuen Standort anlegen</p>
+          <Field label="Name *">
+            <input
+              required
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="Standortname"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+          </Field>
+          <DetailsFields value={newDetails} onChange={setNewDetails} />
+          <div className="flex items-center gap-2">
+            <button
+              type="submit"
+              disabled={createMut.isPending}
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            >
+              Anlegen
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setCreateOpen(false);
+                setNewName("");
+                setNewDetails(emptyDetails);
+                setMsg(null);
+              }}
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground hover:bg-accent"
+            >
+              Abbrechen
+            </button>
+          </div>
+        </form>
       )}
 
       {msg && <p className="text-sm text-destructive">{msg}</p>}
