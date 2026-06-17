@@ -437,7 +437,17 @@ function KassePage() {
           )}
           {underWaterline && <Badge variant="destructive">≤ {lockedThrough} gesperrt</Badge>}
           {ovQ.data?.session && (
-            <Button variant="outline" onClick={handleExportPdf} className="gap-2">
+            <Button
+              variant="outline"
+              onClick={handleExportPdf}
+              className="gap-2"
+              disabled={(ovQ.data.session.guest_count ?? 0) <= 0}
+              title={
+                (ovQ.data.session.guest_count ?? 0) <= 0
+                  ? "Gästeanzahl fehlt"
+                  : undefined
+              }
+            >
               <Download className="h-4 w-4" />
               PDF Export
             </Button>
