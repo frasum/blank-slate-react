@@ -13,7 +13,11 @@ import {
 } from "@/lib/admin/staff.functions";
 import { listLocations } from "@/lib/admin/locations.functions";
 import { clearPin, setPin } from "@/lib/admin/pin.functions";
-import { issueBadge, listBadges, revokeBadge } from "@/lib/admin/badges.functions";
+import {
+  createStaffAccount,
+  getStaffAccountStatus,
+  resetStaffPassword,
+} from "@/lib/admin/account.functions";
 import {
   assignStaffSkills,
   getStaffSkills,
@@ -28,7 +32,7 @@ export const Route = createFileRoute("/_authenticated/admin/staff/$staffId")({
   component: StaffDetailPage,
 });
 
-type Tab = "basics" | "locations" | "skills" | "personal" | "role" | "pin" | "badges";
+type Tab = "basics" | "locations" | "skills" | "personal" | "role" | "pin" | "account";
 
 function StaffDetailPage() {
   const { staffId } = Route.useParams();
@@ -36,6 +40,7 @@ function StaffDetailPage() {
   const { identity } = useRouteContext({ from: "/_authenticated/admin" });
   const showPersonal = identity.role === "admin" || identity.role === "payroll";
   const canEditPersonal = identity.role === "admin";
+  const isAdmin = identity.role === "admin";
 
   const staffQ = useQuery({
     queryKey: ["admin", "staff", staffId],
@@ -69,7 +74,7 @@ function StaffDetailPage() {
             ...(showPersonal ? ([["personal", "Personaldaten"]] as [Tab, string][]) : []),
             ["role", "Rolle & Aktiv"],
             ["pin", "PIN"],
-            ["badges", "Badges"],
+            ...(isAdmin ? ([["account", "Login"]] as [Tab, string][]) : []),
           ] as [Tab, string][]
         ).map(([k, label]) => (
           <TabButton key={k} active={tab === k} onClick={() => setTab(k)}>
@@ -86,7 +91,7 @@ function StaffDetailPage() {
       )}
       {tab === "role" && <RoleTab staff={s} />}
       {tab === "pin" && <PinTab staffId={s.id} hasPin={s.hasPin} />}
-      {tab === "badges" && <BadgesTab staffId={s.id} />}
+      {tab === "account" && isAdmin && <AccountTab staffId={s.id} staffEmail={s.email} />}
     </div>
   );
 }
