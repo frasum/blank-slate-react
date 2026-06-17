@@ -280,7 +280,13 @@ export function RosterGrid({
                         className={cn(
                           "font-semibold tabular-nums",
                           isFit ? "text-[9px]" : "mt-0.5 text-[10px]",
-                          cnt > 0 ? "text-foreground" : "text-muted-foreground/40",
+                          cnt === 0
+                            ? "text-muted-foreground/40"
+                            : cnt < 5
+                              ? "text-red-600"
+                              : cnt > 5
+                                ? "text-green-600"
+                                : "text-foreground",
                         )}
                       >
                         {cnt > 0 ? cnt : "·"}
