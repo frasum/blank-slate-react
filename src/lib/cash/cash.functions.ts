@@ -439,12 +439,13 @@ export async function getMySettlementCore(caller: StaffCaller) {
       session: null,
       settlement: null,
       kitchenTipRate: settings.kitchenTipRate,
+      staffId: caller.staffId,
     };
   }
   const { data: row } = await supabaseAdmin
     .from("waiter_settlements")
     .select(
-      "id, status, pos_sales_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents, differenz_cents, kitchen_tip_cents, kitchen_tip_rate, submitted_at, auto_clockout_time_entry_id",
+      "id, status, pos_sales_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents, differenz_cents, kitchen_tip_cents, kitchen_tip_rate, submitted_at, auto_clockout_time_entry_id, second_waiter_name, additional_waiters",
     )
     .eq("organization_id", caller.organizationId)
     .eq("session_id", session.id)
@@ -456,8 +457,28 @@ export async function getMySettlementCore(caller: StaffCaller) {
     session,
     settlement: row,
     kitchenTipRate: settings.kitchenTipRate,
+    staffId: caller.staffId,
   };
 }
+
+// ------------------------------------------------------------------------
+// Kellner: aktive Kollegen der eigenen Org (für Zweit-Kellner-Auswahl)
+// ------------------------------------------------------------------------
+
+export const listOrgWaiters = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const caller = await loadStaffCaller(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin
+      .from("staff")
+      .select("id, display_name")
+      .eq("organization_id", caller.organizationId)
+      .eq("is_active", true)
+      .order("display_name");
+    if (error) throw error;
+    return (data ?? []).map((s) => ({ id: s.id, displayName: s.display_name }));
+  });
 
 // ------------------------------------------------------------------------
 // B4 — Trinkgeld-Pool Overview
