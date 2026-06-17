@@ -1194,6 +1194,7 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          is_gl: boolean
           label: string
           location_id: string
           organization_id: string
@@ -1204,6 +1205,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          is_gl?: boolean
           label: string
           location_id: string
           organization_id: string
@@ -1214,6 +1216,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          is_gl?: boolean
           label?: string
           location_id?: string
           organization_id?: string
