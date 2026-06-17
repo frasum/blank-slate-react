@@ -27,7 +27,7 @@ function Index() {
     { to: "/admin/bestellung", label: "Bestellungen", admin: true },
     { to: "/admin/dienstplan", label: "Dienstplan", admin: true },
     { to: "/zeit/abrechnung", label: "Kellner-Abrechnung" },
-    { to: "/zeit", label: "Stempeluhr", primary: true },
+    { to: "/zeit", label: "Stempeluhr" },
     { to: "/admin/kasse", label: "Tagesabrechnung", admin: true },
   ];
   const visible = items
