@@ -79,6 +79,14 @@ function fmt(val: string | boolean | null): string {
   return val;
 }
 
+/** Formatiert ein ISO-Datum (YYYY-MM-DD) als DE-Format (DD.MM.YYYY). */
+function fmtDate(val: string | boolean | null): string {
+  if (typeof val !== "string" || val === "") return "—";
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(val);
+  if (!m) return val;
+  return `${m[3]}.${m[2]}.${m[1]}`;
+}
+
 /** Berechnet "X Jahre, Y Monate" zwischen zwei Daten (oder heute). */
 function formatDuration(startIso: string, endIso: string | null): string {
   const start = new Date(startIso);
@@ -258,7 +266,9 @@ export function PersonalDetailsTab({ staffId, canEdit }: Props) {
               const display =
                 isSensitive && !revealed.has(row.key)
                   ? mask(typeof rawVal === "string" ? rawVal : null, k)
-                  : fmt(rawVal);
+                  : row.type === "date"
+                    ? fmtDate(rawVal)
+                    : fmt(rawVal);
               const durationLine =
                 row.key === "employment_start_date" && typeof rawVal === "string" && rawVal
                   ? formatDuration(
