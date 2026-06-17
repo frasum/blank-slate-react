@@ -69,7 +69,7 @@ const GROUPS: Group[] = [
   },
   {
     key: "bestellung",
-    label: "Bestellung",
+    label: "Bestellung/Inventur",
     default: "/admin/bestellung",
     prefixes: ["/admin/bestellung"],
     sub: [], // eigene Sub-Nav lebt in bestellung.tsx

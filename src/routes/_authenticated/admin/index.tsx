@@ -18,7 +18,7 @@ const CARDS: Card[] = [
   { to: "/admin/kasse", title: "Kasse", items: "Tagesabschlüsse, Saldo" },
   {
     to: "/admin/bestellung",
-    title: "Bestellung",
+    title: "Bestellung/Inventur",
     items: "Warenkorb, EasyOrder, Bestellungen, Lieferanten, Artikel, Inventur, Wein",
   },
   { to: "/admin/locations", title: "Stammdaten", items: "Standorte" },
