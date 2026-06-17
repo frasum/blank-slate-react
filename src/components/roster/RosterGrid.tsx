@@ -475,6 +475,8 @@ function DropCell({
   absenceType,
   birthday,
   birthdayLabel,
+  locked,
+  lockLabel,
   children,
 }: {
   staffId: string;
@@ -490,12 +492,14 @@ function DropCell({
   absenceType: "urlaub" | "krank" | null;
   birthday: boolean;
   birthdayLabel: string | null;
+  locked: boolean;
+  lockLabel: string | null;
   children: React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: `cell:${staffId}:${iso}:${area}`,
     data: { staffId, iso, area },
-    disabled: !editable,
+    disabled: !editable || locked,
   });
   const cursor =
     paintKind === "skill" ? "cursor-crosshair" : paintKind === "eraser" ? "cursor-not-allowed" : "";
@@ -519,6 +523,7 @@ function DropCell({
         today && "bg-primary/5",
         isOver && editable && "bg-accent/20 ring-1 ring-accent ring-inset",
         editable && cursor,
+        locked && "cursor-not-allowed opacity-40",
       )}
     >
       {showUnavailableBox ? (
@@ -609,6 +614,14 @@ function DropCell({
       ) : null}
     </td>
   );
+  if (locked && lockLabel) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>{tdInner}</TooltipTrigger>
+        <TooltipContent>{lockLabel}</TooltipContent>
+      </Tooltip>
+    );
+  }
   if (!unavailable) return tdInner;
   return (
     <Tooltip>
