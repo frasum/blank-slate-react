@@ -66,14 +66,14 @@ export function PeriodNav({
         <TooltipTrigger asChild>
           <button
             type="button"
-            onClick={onPrevPeriod}
-            disabled={!prev}
+            onClick={onNextPeriod}
+            disabled={!next}
             className={cn(btnBase, "w-10")}
           >
             <ChevronsLeft className="h-5 w-5" strokeWidth={2} />
           </button>
         </TooltipTrigger>
-        <TooltipContent>Vorherige Periode</TooltipContent>
+        <TooltipContent>Nächste Periode</TooltipContent>
       </Tooltip>
 
       <Tooltip>
@@ -110,14 +110,14 @@ export function PeriodNav({
         <TooltipTrigger asChild>
           <button
             type="button"
-            onClick={onNextPeriod}
-            disabled={!next}
+            onClick={onPrevPeriod}
+            disabled={!prev}
             className={cn(btnBase, "w-10")}
           >
             <ChevronsRight className="h-5 w-5" strokeWidth={2} />
           </button>
         </TooltipTrigger>
-        <TooltipContent>Nächste Periode</TooltipContent>
+        <TooltipContent>Vorherige Periode</TooltipContent>
       </Tooltip>
     </div>
   );
