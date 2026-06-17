@@ -325,7 +325,7 @@ function KassePage() {
       return;
     }
     if ((ov.session.guest_count ?? 0) <= 0) {
-      toast.error("Bitte zuerst die Gästeanzahl eintragen.");
+      toast.error("Bitte zuerst die Gästeanzahl eintragen und speichern.");
       return;
     }
     const channels = (channelsQ.data ?? []).map((c) => ({
@@ -441,10 +441,9 @@ function KassePage() {
               variant="outline"
               onClick={handleExportPdf}
               className="gap-2"
-              disabled={(ovQ.data.session.guest_count ?? 0) <= 0}
               title={
                 (ovQ.data.session.guest_count ?? 0) <= 0
-                  ? "Gästeanzahl fehlt"
+                  ? "Gästeanzahl fehlt – bitte zuerst eintragen und speichern"
                   : undefined
               }
             >
