@@ -107,11 +107,15 @@ function DienstplanPage() {
   // Anzeigefenster = Periode ± 14 Tage je nach Halb-Offset.
   const windowStart = useMemo(() => {
     if (!effectivePeriod) return null;
-    return halfOffset ? fmtIso(addDays(parseIso(effectivePeriod.startDate), 14)) : effectivePeriod.startDate;
+    return halfOffset
+      ? fmtIso(addDays(parseIso(effectivePeriod.startDate), 14))
+      : effectivePeriod.startDate;
   }, [effectivePeriod, halfOffset]);
   const windowEnd = useMemo(() => {
     if (!effectivePeriod) return null;
-    return halfOffset ? fmtIso(addDays(parseIso(effectivePeriod.endDate), 14)) : effectivePeriod.endDate;
+    return halfOffset
+      ? fmtIso(addDays(parseIso(effectivePeriod.endDate), 14))
+      : effectivePeriod.endDate;
   }, [effectivePeriod, halfOffset]);
 
   const days = useMemo(
@@ -125,12 +129,7 @@ function DienstplanPage() {
     enabled: !!effectiveLocationId,
   });
   const shiftsQ = useQuery({
-    queryKey: [
-      "roster-shifts",
-      effectiveLocationId,
-      windowStart,
-      windowEnd,
-    ],
+    queryKey: ["roster-shifts", effectiveLocationId, windowStart, windowEnd],
     queryFn: () =>
       getRosterShifts({
         data: {

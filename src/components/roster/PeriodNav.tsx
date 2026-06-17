@@ -44,8 +44,7 @@ export function PeriodNav({
   // an der ersten Hälfte der ersten Periode stehen; › entsprechend am Ende.
   const canPrevHalf = halfOffset || !!prev;
   const canNextHalf = !halfOffset || !!next;
-  const label =
-    halfOffset && next ? `${current.label} / ${next.label}` : current.label;
+  const label = halfOffset && next ? `${current.label} / ${next.label}` : current.label;
 
   return (
     <div className="flex items-center gap-1">
@@ -91,9 +90,7 @@ export function PeriodNav({
         <TooltipContent>2 Wochen zurück</TooltipContent>
       </Tooltip>
 
-      <span className="min-w-32 whitespace-nowrap text-center text-sm font-semibold">
-        {label}
-      </span>
+      <span className="min-w-32 whitespace-nowrap text-center text-sm font-semibold">{label}</span>
 
       <Tooltip>
         <TooltipTrigger asChild>
