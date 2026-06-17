@@ -2182,6 +2182,7 @@ export type Database = {
           id: string
           is_active: boolean
           last_name: string
+          must_change_password: boolean
           organization_id: string
           participates_in_pool: boolean
           perso_nr: number | null
@@ -2198,6 +2199,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_name: string
+          must_change_password?: boolean
           organization_id: string
           participates_in_pool?: boolean
           perso_nr?: number | null
@@ -2214,6 +2216,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_name?: string
+          must_change_password?: boolean
           organization_id?: string
           participates_in_pool?: boolean
           perso_nr?: number | null
