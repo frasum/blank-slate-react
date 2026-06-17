@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { getMySettlement, submitWaiterSettlement } from "@/lib/cash/cash.functions";
 import { calcWaiterSettlement } from "@/lib/cash/waiter-settlement";
+import { SecondWaiterSelect } from "@/components/cash/SecondWaiterSelect";
 
 export const Route = createFileRoute("/_authenticated/zeit/abrechnung")({
   head: () => ({
@@ -60,6 +61,8 @@ type FormState = {
   hilfMahl: string;
   openInvoices: string;
   cashHandedIn: string;
+  secondWaiterName: string | null;
+  additionalWaiters: string[];
 };
 
 const EMPTY_FORM: FormState = {
@@ -68,6 +71,8 @@ const EMPTY_FORM: FormState = {
   hilfMahl: "",
   openInvoices: "",
   cashHandedIn: "",
+  secondWaiterName: null,
+  additionalWaiters: [],
 };
 
 function AbrechnungPage() {
@@ -121,6 +126,8 @@ function AbrechnungPage() {
           hilfMahlCents: parsed.hilfMahlCents!,
           openInvoicesCents: parsed.openInvoicesCents!,
           cashHandedInCents: parsed.cashHandedInCents!,
+          secondWaiterName: form.secondWaiterName,
+          additionalWaiters: form.additionalWaiters,
         },
       });
     },
