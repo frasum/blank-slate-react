@@ -1,0 +1,179 @@
+{
+  "_quelle": "tagesabrechnung ZtBruttoNetto.tsx (aggregateSimple/aggregateExtended) + sfnRates.ts. Charakterisierung durch Ausfuehrung des Originals.",
+  "_holidayRates": { "2026-04-06": 1.25, "2026-05-01": 1.5, "2026-12-25": 1.5, "2026-12-26": 1.5 },
+  "faelle": [
+    {
+      "name": "Wochentag Abend+Nacht (18-02)",
+      "hourlyRateCents": 1500,
+      "shifts": [
+        {
+          "totalHours": 8,
+          "eveningHours": 4,
+          "nightHours": 2,
+          "nightDeepHours": 2,
+          "sundayHolidayHours": 0,
+          "isHoliday": false,
+          "shiftDate": "2026-06-02"
+        }
+      ],
+      "simple": {
+        "night25Hours": 4,
+        "night40Hours": 2,
+        "sundayHours": 0,
+        "holidayHours": 0,
+        "holiday150Hours": 0,
+        "zuschlagCents": 2700
+      },
+      "extended": {
+        "night25Hours": 4,
+        "night40Hours": 2,
+        "sundayHours": 0,
+        "holidayHours": 0,
+        "holiday150Hours": 0,
+        "zuschlagCents": 2700
+      }
+    },
+    {
+      "name": "Sonntag Abend+Nacht",
+      "hourlyRateCents": 1500,
+      "shifts": [
+        {
+          "totalHours": 8,
+          "eveningHours": 4,
+          "nightHours": 2,
+          "nightDeepHours": 2,
+          "sundayHolidayHours": 8,
+          "isHoliday": false,
+          "shiftDate": "2026-06-07"
+        }
+      ],
+      "simple": {
+        "night25Hours": 0,
+        "night40Hours": 0,
+        "sundayHours": 8,
+        "holidayHours": 0,
+        "holiday150Hours": 0,
+        "zuschlagCents": 6000
+      },
+      "extended": {
+        "night25Hours": 4,
+        "night40Hours": 2,
+        "sundayHours": 8,
+        "holidayHours": 0,
+        "holiday150Hours": 0,
+        "zuschlagCents": 8700
+      }
+    },
+    {
+      "name": "Feiertag 125% (Ostermontag, mit Abend)",
+      "hourlyRateCents": 1500,
+      "shifts": [
+        {
+          "totalHours": 6,
+          "eveningHours": 2,
+          "nightHours": 0,
+          "nightDeepHours": 0,
+          "sundayHolidayHours": 6,
+          "isHoliday": true,
+          "shiftDate": "2026-04-06"
+        }
+      ],
+      "simple": {
+        "night25Hours": 0,
+        "night40Hours": 0,
+        "sundayHours": 6,
+        "holidayHours": 0,
+        "holiday150Hours": 0,
+        "zuschlagCents": 4500
+      },
+      "extended": {
+        "night25Hours": 2,
+        "night40Hours": 0,
+        "sundayHours": 0,
+        "holidayHours": 6,
+        "holiday150Hours": 0,
+        "zuschlagCents": 12000
+      }
+    },
+    {
+      "name": "Feiertag 150% (1. Mai)",
+      "hourlyRateCents": 1500,
+      "shifts": [
+        {
+          "totalHours": 5,
+          "eveningHours": 0,
+          "nightHours": 0,
+          "nightDeepHours": 0,
+          "sundayHolidayHours": 5,
+          "isHoliday": true,
+          "shiftDate": "2026-05-01"
+        }
+      ],
+      "simple": {
+        "night25Hours": 0,
+        "night40Hours": 0,
+        "sundayHours": 5,
+        "holidayHours": 0,
+        "holiday150Hours": 0,
+        "zuschlagCents": 3750
+      },
+      "extended": {
+        "night25Hours": 0,
+        "night40Hours": 0,
+        "sundayHours": 0,
+        "holidayHours": 0,
+        "holiday150Hours": 5,
+        "zuschlagCents": 11250
+      }
+    },
+    {
+      "name": "Gemischte Periode (Wochentag+Sonntag+Mai)",
+      "hourlyRateCents": 1500,
+      "shifts": [
+        {
+          "totalHours": 8,
+          "eveningHours": 4,
+          "nightHours": 2,
+          "nightDeepHours": 2,
+          "sundayHolidayHours": 0,
+          "isHoliday": false,
+          "shiftDate": "2026-06-02"
+        },
+        {
+          "totalHours": 8,
+          "eveningHours": 4,
+          "nightHours": 2,
+          "nightDeepHours": 2,
+          "sundayHolidayHours": 8,
+          "isHoliday": false,
+          "shiftDate": "2026-06-07"
+        },
+        {
+          "totalHours": 5,
+          "eveningHours": 0,
+          "nightHours": 0,
+          "nightDeepHours": 0,
+          "sundayHolidayHours": 5,
+          "isHoliday": true,
+          "shiftDate": "2026-05-01"
+        }
+      ],
+      "simple": {
+        "night25Hours": 4,
+        "night40Hours": 2,
+        "sundayHours": 13,
+        "holidayHours": 0,
+        "holiday150Hours": 0,
+        "zuschlagCents": 12450
+      },
+      "extended": {
+        "night25Hours": 8,
+        "night40Hours": 4,
+        "sundayHours": 8,
+        "holidayHours": 0,
+        "holiday150Hours": 5,
+        "zuschlagCents": 22650
+      }
+    }
+  ]
+}
