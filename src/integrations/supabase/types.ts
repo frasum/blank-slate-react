@@ -484,6 +484,48 @@ export type Database = {
           },
         ]
       }
+      day_off_wishes: {
+        Row: {
+          created_at: string
+          id: string
+          note: string | null
+          organization_id: string
+          staff_id: string
+          wish_date: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          organization_id: string
+          staff_id: string
+          wish_date: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          organization_id?: string
+          staff_id?: string
+          wish_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "day_off_wishes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "day_off_wishes_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       display_settings: {
         Row: {
           created_at: string
