@@ -1,43 +1,30 @@
 ## Ziel
-Monats-/Periodennavigation im Dienstplan visuell und funktional wie in `thaitime.pro` (siehe `src/components/schedule/ScheduleGridToolbar.tsx`):
 
-```
-[ Heute ]  [‹‹]  [‹]   Juni 2026   [›]  [››]
-```
+Sowohl das **Standort-Select** als auch die **6-Button-Periodennavigation** (Heute · ‹‹ · ‹ · Monatslabel · › · ››) aus dem Header entfernen und gemeinsam **horizontal zentriert** über dem Dienstplan-Grid platzieren — in dem aktuell leeren Bereich oberhalb der Tagesleiste (DI MI DO …).
 
-- runde weiße Buttons mit grauem Rand, `h-10`
-- „Heute" als Pille mit Text, Pfeile als `w-10 h-10` Kreise
-- Label zentriert mit `text-sm font-semibold min-w-32`
-- Tooltips wie im Original
+## Änderungen (nur Layout, keine Logik)
 
-Da unsere Perioden monatsweise in der DB liegen (keine Halbmonats-Logik), mappen wir die Pfeile auf die `periods`-Liste:
+**`src/routes/_authenticated/admin/dienstplan.tsx`**
 
-| Button | Aktion |
-|---|---|
-| Heute | Periode, die `today` enthält (Fallback: erste Periode) |
-| ‹‹ | erste Periode in der Liste |
-| ‹ | vorherige Periode (Index −1) |
-| › | nächste Periode (Index +1) |
-| ›› | letzte Periode in der Liste |
-
-Buttons werden disabled, wenn am Rand. Periode-Select entfällt komplett; Label zeigt `period.label` (z. B. „Juni 2026").
-
-## Änderungen
-
-### 1. `src/components/roster/PeriodNav.tsx` — **neu**
-Reine Präsentations-Komponente nach dem Vorbild von thaitime:
-- Props: `periods`, `currentPeriodId`, `today`, `onSelect(periodId)`
-- Berechnet `prev`/`next`/`first`/`last`/`todayPeriod` aus Props
-- Rendert die 6-Button-Leiste mit `lucide-react` (`ChevronLeft`, `ChevronRight`, `ChevronsLeft`, `ChevronsRight`)
-- `TooltipProvider` ist schon im Page-Scope vorhanden — Komponente nutzt nur `Tooltip`/`TooltipTrigger`/`TooltipContent`
-
-### 2. `src/routes/_authenticated/admin/dienstplan.tsx`
-- Periode-`<label>`/`<select>` entfernen
-- Statt dessen `<PeriodNav periods={periods} currentPeriodId={effectivePeriod?.id ?? null} today={today} onSelect={setPeriodId} />` im Header rendern
-- Standort-Select bleibt, Header-Layout bleibt (neben „Dienstplan")
+1. Aus dem `<header>` werden Standort-`<label><select>` und `<PeriodNav>` entfernt. Im Header bleibt nur Titel „Dienstplan" + optionaler Read-only/Locked-Hinweis.
+2. Neue zentrierte Zeile direkt über `<RosterGrid>` (nach `PaintToolbar`/`SkillFilterChips`, vor dem Grid):
+   ```tsx
+   <div className="flex items-end justify-center gap-3">
+     <label className="flex flex-col gap-1 text-xs">
+       <span className="text-muted-foreground">Standort</span>
+       <select … >…</select>
+     </label>
+     <PeriodNav … />
+   </div>
+   ```
+3. Props, State, Datenfluss, Realtime, Grid unverändert.
 
 ## Nicht angefasst
-Standort-Select, Datenfluss, Saldo/Kasse, Pillen-Logik, Server-Funktionen.
+
+- `PeriodNav.tsx`
+- Filter-Chips, Küche/Service-Tabs, Grid, Server-Functions
+- Keine neuen Abhängigkeiten
 
 ## Erfolgskriterium
-6-Button-Leiste statt Dropdown, optisch wie thaitime; „Heute" springt zur aktuellen Periode; Pfeile blättern in der Perioden-Reihenfolge; Buttons am Rand sind disabled; `tsc --noEmit` und ESLint grün.
+
+Standort-Select und PeriodNav stehen gemeinsam mittig über der Tagesleiste; Header zeigt nur noch den Titel; `tsc --noEmit` grün.
