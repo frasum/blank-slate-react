@@ -17,10 +17,12 @@ import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authentic
 import { Route as AuthenticatedZeitIndexRouteImport } from './routes/_authenticated/zeit/index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedZeitWuenscheRouteImport } from './routes/_authenticated/zeit/wuensche'
+import { Route as AuthenticatedZeitUrlaubRouteImport } from './routes/_authenticated/zeit/urlaub'
 import { Route as AuthenticatedZeitStempelnRouteImport } from './routes/_authenticated/zeit/stempeln'
 import { Route as AuthenticatedZeitSchichtenRouteImport } from './routes/_authenticated/zeit/schichten'
 import { Route as AuthenticatedZeitAbrechnungRouteImport } from './routes/_authenticated/zeit/abrechnung'
 import { Route as AuthenticatedAdminZeitUebersichtRouteImport } from './routes/_authenticated/admin/zeit-uebersicht'
+import { Route as AuthenticatedAdminUrlaubRouteImport } from './routes/_authenticated/admin/urlaub'
 import { Route as AuthenticatedAdminTrinkgeldRestRouteImport } from './routes/_authenticated/admin/trinkgeld-rest'
 import { Route as AuthenticatedAdminStaffRouteImport } from './routes/_authenticated/admin/staff'
 import { Route as AuthenticatedAdminMigrationRouteImport } from './routes/_authenticated/admin/migration'
@@ -85,6 +87,11 @@ const AuthenticatedZeitWuenscheRoute =
     path: '/zeit/wuensche',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedZeitUrlaubRoute = AuthenticatedZeitUrlaubRouteImport.update({
+  id: '/zeit/urlaub',
+  path: '/zeit/urlaub',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedZeitStempelnRoute =
   AuthenticatedZeitStempelnRouteImport.update({
     id: '/zeit/stempeln',
@@ -107,6 +114,12 @@ const AuthenticatedAdminZeitUebersichtRoute =
   AuthenticatedAdminZeitUebersichtRouteImport.update({
     id: '/zeit-uebersicht',
     path: '/zeit-uebersicht',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAdminUrlaubRoute =
+  AuthenticatedAdminUrlaubRouteImport.update({
+    id: '/urlaub',
+    path: '/urlaub',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
 const AuthenticatedAdminTrinkgeldRestRoute =
@@ -262,10 +275,12 @@ export interface FileRoutesByFullPath {
   '/admin/migration': typeof AuthenticatedAdminMigrationRoute
   '/admin/staff': typeof AuthenticatedAdminStaffRouteWithChildren
   '/admin/trinkgeld-rest': typeof AuthenticatedAdminTrinkgeldRestRoute
+  '/admin/urlaub': typeof AuthenticatedAdminUrlaubRoute
   '/admin/zeit-uebersicht': typeof AuthenticatedAdminZeitUebersichtRoute
   '/zeit/abrechnung': typeof AuthenticatedZeitAbrechnungRoute
   '/zeit/schichten': typeof AuthenticatedZeitSchichtenRoute
   '/zeit/stempeln': typeof AuthenticatedZeitStempelnRoute
+  '/zeit/urlaub': typeof AuthenticatedZeitUrlaubRoute
   '/zeit/wuensche': typeof AuthenticatedZeitWuenscheRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/zeit/': typeof AuthenticatedZeitIndexRoute
@@ -295,10 +310,12 @@ export interface FileRoutesByTo {
   '/admin/lohnrechner': typeof AuthenticatedAdminLohnrechnerRoute
   '/admin/migration': typeof AuthenticatedAdminMigrationRoute
   '/admin/trinkgeld-rest': typeof AuthenticatedAdminTrinkgeldRestRoute
+  '/admin/urlaub': typeof AuthenticatedAdminUrlaubRoute
   '/admin/zeit-uebersicht': typeof AuthenticatedAdminZeitUebersichtRoute
   '/zeit/abrechnung': typeof AuthenticatedZeitAbrechnungRoute
   '/zeit/schichten': typeof AuthenticatedZeitSchichtenRoute
   '/zeit/stempeln': typeof AuthenticatedZeitStempelnRoute
+  '/zeit/urlaub': typeof AuthenticatedZeitUrlaubRoute
   '/zeit/wuensche': typeof AuthenticatedZeitWuenscheRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/zeit': typeof AuthenticatedZeitIndexRoute
@@ -333,10 +350,12 @@ export interface FileRoutesById {
   '/_authenticated/admin/migration': typeof AuthenticatedAdminMigrationRoute
   '/_authenticated/admin/staff': typeof AuthenticatedAdminStaffRouteWithChildren
   '/_authenticated/admin/trinkgeld-rest': typeof AuthenticatedAdminTrinkgeldRestRoute
+  '/_authenticated/admin/urlaub': typeof AuthenticatedAdminUrlaubRoute
   '/_authenticated/admin/zeit-uebersicht': typeof AuthenticatedAdminZeitUebersichtRoute
   '/_authenticated/zeit/abrechnung': typeof AuthenticatedZeitAbrechnungRoute
   '/_authenticated/zeit/schichten': typeof AuthenticatedZeitSchichtenRoute
   '/_authenticated/zeit/stempeln': typeof AuthenticatedZeitStempelnRoute
+  '/_authenticated/zeit/urlaub': typeof AuthenticatedZeitUrlaubRoute
   '/_authenticated/zeit/wuensche': typeof AuthenticatedZeitWuenscheRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/zeit/': typeof AuthenticatedZeitIndexRoute
@@ -371,10 +390,12 @@ export interface FileRouteTypes {
     | '/admin/migration'
     | '/admin/staff'
     | '/admin/trinkgeld-rest'
+    | '/admin/urlaub'
     | '/admin/zeit-uebersicht'
     | '/zeit/abrechnung'
     | '/zeit/schichten'
     | '/zeit/stempeln'
+    | '/zeit/urlaub'
     | '/zeit/wuensche'
     | '/admin/'
     | '/zeit/'
@@ -404,10 +425,12 @@ export interface FileRouteTypes {
     | '/admin/lohnrechner'
     | '/admin/migration'
     | '/admin/trinkgeld-rest'
+    | '/admin/urlaub'
     | '/admin/zeit-uebersicht'
     | '/zeit/abrechnung'
     | '/zeit/schichten'
     | '/zeit/stempeln'
+    | '/zeit/urlaub'
     | '/zeit/wuensche'
     | '/admin'
     | '/zeit'
@@ -441,10 +464,12 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/migration'
     | '/_authenticated/admin/staff'
     | '/_authenticated/admin/trinkgeld-rest'
+    | '/_authenticated/admin/urlaub'
     | '/_authenticated/admin/zeit-uebersicht'
     | '/_authenticated/zeit/abrechnung'
     | '/_authenticated/zeit/schichten'
     | '/_authenticated/zeit/stempeln'
+    | '/_authenticated/zeit/urlaub'
     | '/_authenticated/zeit/wuensche'
     | '/_authenticated/admin/'
     | '/_authenticated/zeit/'
@@ -527,6 +552,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedZeitWuenscheRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/zeit/urlaub': {
+      id: '/_authenticated/zeit/urlaub'
+      path: '/zeit/urlaub'
+      fullPath: '/zeit/urlaub'
+      preLoaderRoute: typeof AuthenticatedZeitUrlaubRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/zeit/stempeln': {
       id: '/_authenticated/zeit/stempeln'
       path: '/zeit/stempeln'
@@ -553,6 +585,13 @@ declare module '@tanstack/react-router' {
       path: '/zeit-uebersicht'
       fullPath: '/admin/zeit-uebersicht'
       preLoaderRoute: typeof AuthenticatedAdminZeitUebersichtRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/urlaub': {
+      id: '/_authenticated/admin/urlaub'
+      path: '/urlaub'
+      fullPath: '/admin/urlaub'
+      preLoaderRoute: typeof AuthenticatedAdminUrlaubRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
     '/_authenticated/admin/trinkgeld-rest': {
@@ -785,6 +824,7 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminMigrationRoute: typeof AuthenticatedAdminMigrationRoute
   AuthenticatedAdminStaffRoute: typeof AuthenticatedAdminStaffRouteWithChildren
   AuthenticatedAdminTrinkgeldRestRoute: typeof AuthenticatedAdminTrinkgeldRestRoute
+  AuthenticatedAdminUrlaubRoute: typeof AuthenticatedAdminUrlaubRoute
   AuthenticatedAdminZeitUebersichtRoute: typeof AuthenticatedAdminZeitUebersichtRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
 }
@@ -804,6 +844,7 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
     AuthenticatedAdminMigrationRoute: AuthenticatedAdminMigrationRoute,
     AuthenticatedAdminStaffRoute: AuthenticatedAdminStaffRouteWithChildren,
     AuthenticatedAdminTrinkgeldRestRoute: AuthenticatedAdminTrinkgeldRestRoute,
+    AuthenticatedAdminUrlaubRoute: AuthenticatedAdminUrlaubRoute,
     AuthenticatedAdminZeitUebersichtRoute:
       AuthenticatedAdminZeitUebersichtRoute,
     AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
@@ -820,6 +861,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedZeitAbrechnungRoute: typeof AuthenticatedZeitAbrechnungRoute
   AuthenticatedZeitSchichtenRoute: typeof AuthenticatedZeitSchichtenRoute
   AuthenticatedZeitStempelnRoute: typeof AuthenticatedZeitStempelnRoute
+  AuthenticatedZeitUrlaubRoute: typeof AuthenticatedZeitUrlaubRoute
   AuthenticatedZeitWuenscheRoute: typeof AuthenticatedZeitWuenscheRoute
   AuthenticatedZeitIndexRoute: typeof AuthenticatedZeitIndexRoute
 }
@@ -830,6 +872,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedZeitAbrechnungRoute: AuthenticatedZeitAbrechnungRoute,
   AuthenticatedZeitSchichtenRoute: AuthenticatedZeitSchichtenRoute,
   AuthenticatedZeitStempelnRoute: AuthenticatedZeitStempelnRoute,
+  AuthenticatedZeitUrlaubRoute: AuthenticatedZeitUrlaubRoute,
   AuthenticatedZeitWuenscheRoute: AuthenticatedZeitWuenscheRoute,
   AuthenticatedZeitIndexRoute: AuthenticatedZeitIndexRoute,
 }

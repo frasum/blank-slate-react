@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card } from "@/components/ui/card";
-import { Clock, CalendarDays, Receipt, Heart } from "lucide-react";
+import { Clock, CalendarDays, Receipt, Heart, Plane } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/zeit/")({
   head: () => ({
@@ -13,7 +13,12 @@ export const Route = createFileRoute("/_authenticated/zeit/")({
 });
 
 type Tile = {
-  to: "/zeit/stempeln" | "/zeit/schichten" | "/zeit/abrechnung" | "/zeit/wuensche";
+  to:
+    | "/zeit/stempeln"
+    | "/zeit/schichten"
+    | "/zeit/abrechnung"
+    | "/zeit/wuensche"
+    | "/zeit/urlaub";
   title: string;
   description: string;
   Icon: typeof Clock;
@@ -45,6 +50,12 @@ const TILES: Tile[] = [
     description: "Wunsch-freie Tage eintragen (unverbindlich).",
     Icon: Heart,
     iconClassName: "fill-purple-600 text-purple-600",
+  },
+  {
+    to: "/zeit/urlaub",
+    title: "Urlaub beantragen",
+    description: "Antrag stellen, Status verfolgen.",
+    Icon: Plane,
   },
 ];
 
