@@ -18,7 +18,7 @@ import type {
   RosterStaffRow,
   RosterCrossBooking,
 } from "@/lib/roster/roster.functions";
-import { DENSITY_ROW_HEIGHT, type Density } from "@/hooks/use-density";
+import { DENSITY_LAYOUT, DENSITY_ROW_HEIGHT, type Density } from "@/hooks/use-density";
 
 type GridArea = "kitchen" | "service";
 
@@ -184,6 +184,8 @@ export function RosterGrid({
   }, [dayCount]);
 
   const rowH = DENSITY_ROW_HEIGHT[density];
+  const layout = DENSITY_LAYOUT[density];
+  const isFit = density === "fit";
 
   async function handleEmptyCellClick(row: RosterStaffRow, iso: string) {
     if (!editable) return;
@@ -222,11 +224,31 @@ export function RosterGrid({
         </TabsList>
       </Tabs>
 
-      <Card className="overflow-x-auto">
-        <table className="w-full border-collapse text-xs">
+      <Card className={cn(layout.horizontalScroll ? "overflow-x-auto" : "overflow-x-visible")}>
+        <table
+          className={cn(
+            "w-full border-collapse",
+            isFit ? "table-fixed text-[10px]" : "text-xs",
+          )}
+        >
+          <colgroup>
+            <col style={{ width: `${layout.staffColPx}px` }} />
+            {days.map((iso) => (
+              <col
+                key={iso}
+                style={layout.dayMinPx > 0 ? { width: `${layout.dayMinPx}px` } : undefined}
+              />
+            ))}
+            <col style={{ width: isFit ? "32px" : "48px" }} />
+          </colgroup>
           <thead>
             <tr className="border-b bg-muted/50">
-              <th className="sticky left-0 z-10 min-w-[180px] bg-muted/50 px-3 py-2 text-left font-medium">
+              <th
+                className={cn(
+                  "sticky left-0 z-10 bg-muted/50 text-left font-medium",
+                  isFit ? "px-2 py-1" : "px-3 py-2",
+                )}
+              >
                 Mitarbeiter
               </th>
               {days.map((iso) => {
@@ -238,17 +260,21 @@ export function RosterGrid({
                   <th
                     key={iso}
                     className={cn(
-                      "min-w-[56px] px-1 py-1.5 text-center font-medium",
+                      "text-center font-medium",
+                      isFit ? "px-0.5 py-1" : "px-1 py-1.5",
                       we && "bg-muted text-muted-foreground",
                       isToday && "ring-2 ring-primary ring-inset",
                     )}
                   >
                     <div className="flex flex-col items-center leading-tight">
-                      <span className="text-[10px] uppercase">{dow}</span>
-                      <span>{dm}</span>
+                      <span className={cn("uppercase", isFit ? "text-[9px]" : "text-[10px]")}>
+                        {dow}
+                      </span>
+                      <span className={cn(isFit && "text-[10px]")}>{dm}</span>
                       <span
                         className={cn(
-                          "mt-0.5 text-[10px] font-semibold tabular-nums",
+                          "font-semibold tabular-nums",
+                          isFit ? "text-[9px]" : "mt-0.5 text-[10px]",
                           cnt > 0 ? "text-foreground" : "text-muted-foreground/40",
                         )}
                       >
@@ -258,7 +284,12 @@ export function RosterGrid({
                   </th>
                 );
               })}
-              <th className="min-w-[48px] border-l bg-muted px-1 py-1.5 text-center font-mono text-[10px] uppercase text-muted-foreground">
+              <th
+                className={cn(
+                  "border-l bg-muted text-center font-mono uppercase text-muted-foreground",
+                  isFit ? "px-0.5 py-1 text-[9px]" : "px-1 py-1.5 text-[10px]",
+                )}
+              >
                 <div className="flex flex-col items-center">
                   <span>Σ</span>
                   <span className="text-sm font-semibold tabular-nums text-foreground">
@@ -288,7 +319,12 @@ export function RosterGrid({
                     className="border-b last:border-b-0 hover:bg-muted/30"
                     style={{ height: rowH }}
                   >
-                    <td className="sticky left-0 z-10 min-w-[180px] bg-background px-3 py-1 font-medium">
+                    <td
+                      className={cn(
+                        "sticky left-0 z-10 bg-background font-medium",
+                        isFit ? "truncate px-2 py-0.5 text-[11px]" : "px-3 py-1",
+                      )}
+                    >
                       {row.displayName}
                     </td>
                     {days.map((iso) => {
