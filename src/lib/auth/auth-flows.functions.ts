@@ -44,10 +44,8 @@ export const validatePin = createServerFn({ method: "POST" })
       .select("id, organization_id, is_active, first_name")
       .or(`first_name.ilike.${term},display_name.ilike.${term}`)
       .eq("is_active", true);
-    // eslint-disable-next-line no-console
     if (staffErr) console.error("[pin-login] candidate query error:", staffErr);
     if (staffErr) failed();
-    // eslint-disable-next-line no-console
     if (!candidates || candidates.length === 0)
       console.error("[pin-login] keine Kandidaten für Name:", data.firstName.trim());
     if (!candidates || candidates.length === 0) failed();
@@ -88,7 +86,6 @@ export const validatePin = createServerFn({ method: "POST" })
 
     // Eindeutig genau einer? Sonst generische Ablehnung (keine Auskunft,
     // ob 0 oder >1 Treffer — verhindert Enumeration).
-    // eslint-disable-next-line no-console
     if (matches.length !== 1) console.error("[pin-login] matches.length:", matches.length);
     if (matches.length !== 1) failed();
     const winner = matches[0];
