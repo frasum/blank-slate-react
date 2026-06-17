@@ -82,6 +82,9 @@ function DienstplanPage() {
   const skillsQ = useQuery({ queryKey: ["skills"], queryFn: () => listSkills() });
 
   const [periodId, setPeriodId] = useState<string | null>(null);
+  // Halb-Offset: false = Periode 1:1, true = Fenster +14 Tage (überlappt
+  // in die Folgeperiode). Wird über die einzelnen Pfeile ‹/› gesteuert.
+  const [halfOffset, setHalfOffset] = useState(false);
   const [locationId, setLocationId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [activeArea, setActiveArea] = useState<GridArea>("kitchen");
@@ -101,9 +104,23 @@ function DienstplanPage() {
 
   const periodLocked = effectivePeriod?.status === "locked";
 
+  // Anzeigefenster = Periode ± 14 Tage je nach Halb-Offset.
+  const windowStart = useMemo(() => {
+    if (!effectivePeriod) return null;
+    return halfOffset
+      ? fmtIso(addDays(parseIso(effectivePeriod.startDate), 14))
+      : effectivePeriod.startDate;
+  }, [effectivePeriod, halfOffset]);
+  const windowEnd = useMemo(() => {
+    if (!effectivePeriod) return null;
+    return halfOffset
+      ? fmtIso(addDays(parseIso(effectivePeriod.endDate), 14))
+      : effectivePeriod.endDate;
+  }, [effectivePeriod, halfOffset]);
+
   const days = useMemo(
-    () => (effectivePeriod ? daysBetween(effectivePeriod.startDate, effectivePeriod.endDate) : []),
-    [effectivePeriod],
+    () => (windowStart && windowEnd ? daysBetween(windowStart, windowEnd) : []),
+    [windowStart, windowEnd],
   );
 
   const staffQ = useQuery({
@@ -112,54 +129,49 @@ function DienstplanPage() {
     enabled: !!effectiveLocationId,
   });
   const shiftsQ = useQuery({
-    queryKey: [
-      "roster-shifts",
-      effectiveLocationId,
-      effectivePeriod?.startDate,
-      effectivePeriod?.endDate,
-    ],
+    queryKey: ["roster-shifts", effectiveLocationId, windowStart, windowEnd],
     queryFn: () =>
       getRosterShifts({
         data: {
           locationId: effectiveLocationId!,
-          fromDate: effectivePeriod!.startDate,
-          toDate: effectivePeriod!.endDate,
+          fromDate: windowStart!,
+          toDate: windowEnd!,
         },
       }),
-    enabled: !!effectiveLocationId && !!effectivePeriod,
+    enabled: !!effectiveLocationId && !!windowStart && !!windowEnd,
   });
   const crossQ = useQuery({
-    queryKey: ["roster-cross-bookings", effectivePeriod?.startDate, effectivePeriod?.endDate],
+    queryKey: ["roster-cross-bookings", windowStart, windowEnd],
     queryFn: () =>
       getStaffCrossBookings({
         data: {
-          fromDate: effectivePeriod!.startDate,
-          toDate: effectivePeriod!.endDate,
+          fromDate: windowStart!,
+          toDate: windowEnd!,
         },
       }),
-    enabled: !!effectivePeriod,
+    enabled: !!windowStart && !!windowEnd,
   });
   const availabilityQ = useQuery({
-    queryKey: ["roster-availability", effectivePeriod?.startDate, effectivePeriod?.endDate],
+    queryKey: ["roster-availability", windowStart, windowEnd],
     queryFn: () =>
       getAvailability({
         data: {
-          fromDate: effectivePeriod!.startDate,
-          toDate: effectivePeriod!.endDate,
+          fromDate: windowStart!,
+          toDate: windowEnd!,
         },
       }),
-    enabled: !!effectivePeriod,
+    enabled: !!windowStart && !!windowEnd,
   });
   const absenceQ = useQuery({
-    queryKey: ["roster-absence", effectivePeriod?.startDate, effectivePeriod?.endDate],
+    queryKey: ["roster-absence", windowStart, windowEnd],
     queryFn: () =>
       getAbsences({
         data: {
-          fromDate: effectivePeriod!.startDate,
-          toDate: effectivePeriod!.endDate,
+          fromDate: windowStart!,
+          toDate: windowEnd!,
         },
       }),
-    enabled: !!effectivePeriod,
+    enabled: !!windowStart && !!windowEnd,
   });
 
   // Realtime: jede Änderung an roster_shifts → invalidate (live update).
@@ -510,8 +522,65 @@ function DienstplanPage() {
                 <PeriodNav
                   periods={periods}
                   currentPeriodId={effectivePeriod?.id ?? null}
-                  today={today}
-                  onSelect={(id) => setPeriodId(id)}
+                  halfOffset={halfOffset}
+                  hasTodayJump={(() => {
+                    const todayPeriod = periods.find(
+                      (p) => p.startDate <= today && today <= p.endDate,
+                    );
+                    if (!todayPeriod) return false;
+                    return halfOffset || todayPeriod.id !== effectivePeriod?.id;
+                  })()}
+                  onToday={() => {
+                    const todayPeriod = periods.find(
+                      (p) => p.startDate <= today && today <= p.endDate,
+                    );
+                    if (todayPeriod) setPeriodId(todayPeriod.id);
+                    setHalfOffset(false);
+                  }}
+                  onPrevPeriod={() => {
+                    if (!effectivePeriod) return;
+                    const i = periods.findIndex((p) => p.id === effectivePeriod.id);
+                    if (i > 0) {
+                      setPeriodId(periods[i - 1].id);
+                      setHalfOffset(false);
+                    }
+                  }}
+                  onNextPeriod={() => {
+                    if (!effectivePeriod) return;
+                    const i = periods.findIndex((p) => p.id === effectivePeriod.id);
+                    if (i >= 0 && i < periods.length - 1) {
+                      setPeriodId(periods[i + 1].id);
+                      setHalfOffset(false);
+                    }
+                  }}
+                  onPrevHalf={() => {
+                    if (!effectivePeriod) return;
+                    if (halfOffset) {
+                      // Aus 2. Hälfte zurück auf volle Periode.
+                      setHalfOffset(false);
+                    } else {
+                      // Aus voller Periode in 2. Hälfte der Vorperiode.
+                      const i = periods.findIndex((p) => p.id === effectivePeriod.id);
+                      if (i > 0) {
+                        setPeriodId(periods[i - 1].id);
+                        setHalfOffset(true);
+                      }
+                    }
+                  }}
+                  onNextHalf={() => {
+                    if (!effectivePeriod) return;
+                    if (halfOffset) {
+                      // Aus 2. Hälfte in volle Folgeperiode.
+                      const i = periods.findIndex((p) => p.id === effectivePeriod.id);
+                      if (i >= 0 && i < periods.length - 1) {
+                        setPeriodId(periods[i + 1].id);
+                        setHalfOffset(false);
+                      }
+                    } else {
+                      // Aus voller Periode in 2. Hälfte derselben.
+                      setHalfOffset(true);
+                    }
+                  }}
                 />
               </div>
               <div />
