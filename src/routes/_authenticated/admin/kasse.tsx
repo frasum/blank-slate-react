@@ -174,6 +174,7 @@ function KassePage() {
   const sessionStatus = ovQ.data?.session?.status ?? null;
   const lockedThrough = ovQ.data?.cashLockedThroughDate ?? null;
   const underWaterline = lockedThrough !== null && businessDate <= lockedThrough;
+  const isLocked = sessionStatus === "locked" || underWaterline;
   const writable = sessionStatus === "open" && !underWaterline;
   const correctable =
     (sessionStatus === "open" || sessionStatus === "finalized") && !underWaterline;
