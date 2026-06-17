@@ -1758,6 +1758,8 @@ function ExcelInputRow({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onFocus={(e) => e.currentTarget.select()}
+          onMouseUp={(e) => e.preventDefault()}
+          onClick={(e) => e.currentTarget.select()}
           disabled={disabled}
         />
       </td>
