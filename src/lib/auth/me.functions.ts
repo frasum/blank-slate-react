@@ -11,11 +11,26 @@ export type Identity = {
   role: "admin" | "manager" | "staff" | "payroll" | null;
   displayName: string | null;
   mustChangePassword: boolean;
+  impersonation: {
+    active: boolean;
+    asStaffId: string | null;
+    asDisplayName: string | null;
+    since: string | null;
+  };
 };
 
 export const getMyIdentity = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<Identity> => {
+    // Aktive Impersonation des AUFRUFENDEN Admins (geht über auth.uid()
+    // direkt, nicht über die effektiven Helfer).
+    const { data: imp } = await context.supabase
+      .from("admin_impersonations")
+      .select("target_staff_id, started_at")
+      .eq("admin_user_id", context.userId)
+      .is("ended_at", null)
+      .maybeSingle();
+
     const { data: link, error: linkErr } = await context.supabase
       .from("user_links")
       .select("staff_id, organization_id")
@@ -28,20 +43,26 @@ export const getMyIdentity = createServerFn({ method: "GET" })
         role: null,
         displayName: null,
         mustChangePassword: false,
+        impersonation: { active: false, asStaffId: null, asDisplayName: null, since: null },
       };
     }
+
+    // Effektive Identität: bei Impersonation zeigt sie auf den Ziel-Mitarbeiter
+    // (Helfer current_staff_id/current_role lösen das automatisch auf), sonst
+    // auf den eingeloggten Mitarbeiter. So spiegelt das UI die effektive Rolle.
+    const effectiveStaffId = imp?.target_staff_id ?? link.staff_id;
 
     const { data: role } = await context.supabase
       .from("role_assignments")
       .select("role")
-      .eq("staff_id", link.staff_id)
+      .eq("staff_id", effectiveStaffId)
       .eq("organization_id", link.organization_id)
       .maybeSingle();
 
     const { data: staff } = await context.supabase
       .from("staff")
       .select("display_name, first_name, last_name, must_change_password")
-      .eq("id", link.staff_id)
+      .eq("id", effectiveStaffId)
       .maybeSingle();
 
     const displayName =
@@ -50,10 +71,20 @@ export const getMyIdentity = createServerFn({ method: "GET" })
       null;
 
     return {
-      staffId: link.staff_id,
+      staffId: effectiveStaffId,
       organizationId: link.organization_id,
       role: (role?.role as Identity["role"]) ?? null,
       displayName,
-      mustChangePassword: staff?.must_change_password ?? false,
+      // Während einer Impersonation darf der Zwangswechsel-Flag des
+      // Ziel-Mitarbeiters den Admin nicht in /passwort-aendern festhalten.
+      mustChangePassword: imp ? false : (staff?.must_change_password ?? false),
+      impersonation: imp
+        ? {
+            active: true,
+            asStaffId: imp.target_staff_id,
+            asDisplayName: displayName,
+            since: imp.started_at,
+          }
+        : { active: false, asStaffId: null, asDisplayName: null, since: null },
     };
   });

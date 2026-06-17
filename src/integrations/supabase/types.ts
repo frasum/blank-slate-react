@@ -62,6 +62,54 @@ export type Database = {
           },
         ]
       }
+      admin_impersonations: {
+        Row: {
+          admin_user_id: string
+          ended_at: string | null
+          id: string
+          organization_id: string
+          reason: string | null
+          started_at: string
+          target_staff_id: string
+          target_user_id: string | null
+        }
+        Insert: {
+          admin_user_id: string
+          ended_at?: string | null
+          id?: string
+          organization_id: string
+          reason?: string | null
+          started_at?: string
+          target_staff_id: string
+          target_user_id?: string | null
+        }
+        Update: {
+          admin_user_id?: string
+          ended_at?: string | null
+          id?: string
+          organization_id?: string
+          reason?: string | null
+          started_at?: string
+          target_staff_id?: string
+          target_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_impersonations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_impersonations_target_staff_id_fkey"
+            columns: ["target_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       articles: {
         Row: {
           category: string | null
@@ -3060,6 +3108,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _effective_user_id: { Args: never; Returns: string }
       approve_leave_request: {
         Args: { p_decided_by: string; p_note: string; p_request_id: string }
         Returns: undefined
@@ -3090,6 +3139,7 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: never; Returns: boolean }
+      is_real_admin: { Args: never; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "manager" | "staff" | "payroll"

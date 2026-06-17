@@ -1,86 +1,107 @@
 ## Ziel
+Auf `/admin` ein Bereich „Mitarbeiterportal testen": Link zum Portal + Mitarbeiter-Auswahl. Beim Start einer Impersonation handelt der Admin **serverseitig** als der gewählte Mitarbeiter – alle Abfragen, RLS-Policies und Sichtbarkeiten verhalten sich wie bei diesem Mitarbeiter.
 
-1. **Login-Umbau:** E-Mail + Passwort als primäre Anmeldung (Standardpasswort, Zwangswechsel beim Erstlogin). **Badge wird entfernt.** **PIN bleibt** (Terminal/Kasse).
-2. **Rechteverwaltung:** Du als `admin` kannst pro Rolle (`manager`, `payroll`, `staff`) festlegen, welche Seiten und welche schreibenden Funktionen sie nutzen dürfen. `admin` hat immer alles.
+## Wichtige Vorab-Warnung (Ehrlichkeitsregel)
+Echtes Impersonate ist invasiv, weil die DB-Identität an `auth.uid()` hängt und sämtliche RLS-Policies darauf aufbauen. Es gibt nur zwei saubere Wege:
 
----
+1. **Admin-API "sign in as user"** → tauscht die komplette Browser-Session. Admin ist danach ausgeloggt; „Zurück zu Admin" geht nur über erneutes Admin-Login. Einfach im Code, unangenehm im Alltag.
+2. **Indirektion in den SECURITY-DEFINER-Helfern** (`current_staff_id`, `current_organization_id`, `current_role`, `has_role`, `is_admin`, `has_min_permission`). Diese prüfen zusätzlich eine Tabelle `admin_impersonations` und lösen die Identität ggf. über die Ziel-`user_id` auf. Alle bestehenden RLS-Policies funktionieren ohne Änderung weiter, weil sie über die Helfer gehen.
 
-## Teil A — Login
+**Empfehlung: Weg 2.** Weg 1 wäre für reines Testen nicht brauchbar.
 
-### A1. Mitarbeiter-Konten anlegen
+**Risiko Weg 2:** Wer impersoniert, verliert während der Sitzung seine Admin-Rechte (sonst wäre der Test wertlos). Das beendigen-der-Impersonation darf deshalb **nicht** über `is_admin()` gehen, sondern muss direkt auf `auth.uid()` der Original-Session prüfen. Außerdem muss jede Police, die ich nicht über die Helfer geprüft habe, einmal manuell angeschaut werden (Policy-Inventur).
 
-- Neue Spalte `staff.must_change_password boolean default true`.
-- Beim Anlegen (`/admin/staff/new`): Admin gibt E-Mail ein, ein **Standardpasswort wird generiert** (z. B. `coco-7F3K-2P9Q`) und einmalig im UI angezeigt + kopierbar. Server-Function legt per Auth-Admin-API den Supabase-User an, verknüpft ihn in `user_links`, setzt `must_change_password = true`, schreibt Audit-Log.
-- Bestehende Mitarbeiter ohne Auth-User: Button „Login einrichten" im Mitarbeiter-Editor löst denselben Flow aus.
-- Bestehende Mitarbeiter mit Auth-User: `must_change_password = false` (keine erzwungene Änderung).
-- „Passwort zurücksetzen"-Button im Mitarbeiter-Editor erzeugt ein neues Standardpasswort und setzt das Flag wieder auf `true`.
+## Migration
 
-### A2. Erst-Login + Passwortwechsel
+```sql
+-- nur admins, die gerade NICHT selbst impersoniert werden, dürfen anlegen.
+create table public.admin_impersonations (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  admin_user_id  uuid not null,              -- echte auth.uid() des Admins
+  target_staff_id uuid not null references public.staff(id) on delete cascade,
+  target_user_id  uuid,                       -- falls verknüpft (für FK in user_links)
+  started_at timestamptz not null default now(),
+  ended_at   timestamptz,
+  reason text
+);
+create unique index on public.admin_impersonations (admin_user_id) where ended_at is null;
 
-- Nach `signInWithPassword` prüft die App `must_change_password`.
-- Ist es `true`, wird vor jeder anderen Navigation auf `/passwort-aendern` umgeleitet — einzige erreichbare Seite (außer Logout), bis ein neues Passwort gesetzt ist.
-- Nach `supabase.auth.updateUser({ password })` setzt eine Server-Function (über `requireSupabaseAuth` + `supabaseAdmin`) `must_change_password = false` und schreibt Audit.
+grant select on public.admin_impersonations to authenticated;
+grant all    on public.admin_impersonations to service_role;
+alter table public.admin_impersonations enable row level security;
 
-### A3. Badge entfernen
+-- Policy: ein Admin sieht nur seine eigenen Einträge; Insert/Update läuft serverseitig (service role).
+create policy "own impersonations readable"
+  on public.admin_impersonations for select
+  to authenticated using (admin_user_id = auth.uid());
+```
 
-- Tab „Badge" auf `/auth` entfällt.
-- `resolveBadgeToken` + Aufrufer werden entfernt.
-- Tabelle `access_tokens` bleibt **vorerst stehen** (Audit). Aufräumen ist ein separater Schritt.
+Helfer-Funktionen werden um ein gemeinsames Prinzip erweitert:
 
-### A4. PIN
+```sql
+create or replace function public._effective_user_id() returns uuid
+language sql stable security definer set search_path = pg_catalog, public as $$
+  select coalesce(
+    (select ul.user_id
+       from public.admin_impersonations ai
+       join public.user_links ul on ul.staff_id = ai.target_staff_id
+                                 and ul.organization_id = ai.organization_id
+      where ai.admin_user_id = auth.uid()
+        and ai.ended_at is null
+      limit 1),
+    auth.uid()
+  )
+$$;
+```
 
-- Unverändert.
+`current_role`, `current_staff_id`, `current_organization_id`, `has_role` werden so umgebaut, dass sie `_effective_user_id()` statt `auth.uid()` verwenden (drop-then-create, gleiche Signatur).
 
----
+`is_admin()` bekommt zwei Modi:
+- `is_admin()` (Standard, wird in Policies benutzt) → über `_effective_user_id` → spiegelt die impersonierte Rolle.
+- `is_real_admin()` (neu) → direkt über `auth.uid()`, ohne Indirektion. Wird **nur** von der Impersonation-Server-Funktion benutzt.
 
-## Teil B — Rechteverwaltung (Admin-konfigurierbar)
+## Server-Funktionen
 
-### B1. Datenmodell
+Neue Datei `src/lib/admin/impersonation.functions.ts`:
 
-Eine neue Tabelle definiert pro Rolle erlaubte Aktionen:
+- `listStaffForImpersonation()` – gibt aktive Mitarbeiter mit verknüpftem User zurück; verlangt `is_real_admin`.
+- `startImpersonation({ staffId, reason })` – prüft `is_real_admin`, beendet evtl. offene Sitzung des Admins, fügt neuen Eintrag ein, schreibt `audit_log` (`admin.impersonation_started`).
+- `stopImpersonation()` – setzt `ended_at = now()` für die offene Sitzung **dieses Admins** (Lookup über `admin_user_id = ?` mit der JWT-`auth.uid()`, nicht über `is_admin`), schreibt Audit-Log.
+- `getImpersonationStatus()` – liefert `{ active: boolean, asStaff?: {...}, since?: ts }`.
 
-- `role_permissions(organization_id, role app_role, permission text, allowed boolean, primary key (organization_id, role, permission))`
-- `permission` ist ein **fixer Schlüssel aus einer Code-Konstante** (z. B. `kasse.view`, `kasse.export`, `dienstplan.edit`, `lohnrechner.view`, `urlaub.approve`, `staff.edit`, `einstellungen.view`, …). Der Katalog steht in einer TypeScript-Datei `src/lib/auth/permissions.ts`, damit es keine Tippfehler-Permissions geben kann.
-- `admin` wird in der Tabelle **nicht** geführt — der Helper liefert für `admin` immer `true`.
+`getMyIdentity` wird so erweitert, dass es zusätzlich `impersonatedBy?: { adminUserId, since }` mitliefert (für das Banner). Die eigentliche Rolle/staffId stammt automatisch aus den umgebauten Helfern → kein extra Mapping nötig.
 
-Helper-Funktion in Postgres (`security definer`):
-- `public.has_permission(_permission text) returns boolean` — gibt `true` zurück, wenn aktuelle Rolle `admin` ist oder ein Eintrag mit `allowed=true` existiert.
+## UI
 
-### B2. Wo wird geprüft
+`/admin`: neue Karte „Mitarbeiterportal testen" (nur Rolle `admin`, ausgeblendet wenn der aktuelle User real kein Admin ist – also auch ausgeblendet, sobald eine Impersonation läuft).
 
-- **Server-Functions:** Jede schreibende oder sensible Funktion ruft am Anfang `await assertPermission("kasse.export")` o. ä. (TS-Wrapper um `has_permission`-RPC). Ohne Permission → Fehler `403 Forbidden`. Das ist die **eigentliche Sicherheitsbarriere**.
-- **Route-Guards:** `/_authenticated/admin/route.tsx` und Kind-Routen prüfen Permissions statt fester Rollenlisten, damit gesperrte Tabs nicht erscheinen und direkter URL-Aufruf umleitet. Das ist UX, nicht Sicherheit.
-- **UI-Buttons:** „Exportieren", „Löschen", „Genehmigen" usw. werden ausgeblendet/deaktiviert, wenn die Permission fehlt.
+Neue Route `src/routes/_authenticated/admin/impersonate.tsx`:
+- Liste der Mitarbeiter (Suche), Pflicht-Feld „Grund".
+- Button „Als … testen" → ruft `startImpersonation`, dann `navigate({ to: "/" })` und Query-Cache leeren.
 
-### B3. Admin-UI
+Globales Impersonation-Banner in `src/routes/_authenticated/route.tsx`:
+- Wenn `identity.impersonatedBy` gesetzt: rote Leiste oben „Vorschau als {Name} – [Beenden]".
+- Button „Beenden" ruft `stopImpersonation`, leert Query-Cache, `navigate({ to: "/admin" })`.
 
-Neue Seite **`/admin/einstellungen/berechtigungen`** (nur `admin` sichtbar):
+## Datenfluss/Cache
 
-- Tabelle: Zeilen = Permissions (gruppiert nach Bereich: Personal, Kasse, Bestellung, Lohn, System), Spalten = `manager` / `payroll` / `staff`. Checkbox je Zelle.
-- Speichern schreibt nach `role_permissions` und legt einen Audit-Eintrag an („admin hat permission X für rolle Y aktiviert/deaktiviert").
-- Voreinstellung beim ersten Öffnen entspricht dem **heutigen Verhalten** (z. B. `manager`: alles außer `lohnrechner.*` und System; `payroll`: nur `zeit.view`; `staff`: nichts im Admin-Bereich) — damit nichts kaputtgeht.
+Nach `start`/`stop` immer: `queryClient.clear()` + `router.invalidate()`, damit alle Loader mit der neuen effektiven Identität neu laden.
 
-### B4. Migration der existierenden Guards
+## Audit & Sicherheit
 
-Bestehende harte Rollen-Checks (`identity.role === "admin" || "manager"` usw.) werden Stück für Stück auf `has_permission(...)` umgestellt. Beim Bau wird genau aufgelistet, welche Routen/Functions umgestellt wurden, damit nichts unbemerkt aufgemacht oder zugemacht wird.
+- Jede Start/Stop-Aktion → `audit_log` mit `admin_user_id`, `target_staff_id`, `reason`.
+- Impersonate-API nutzt `is_real_admin()` als Gate – nie `is_admin()`, sonst könnte ein impersonierter Admin verschachteln/festhängen.
+- Auto-Stop nach z.B. 60 min: noch nicht jetzt; Hinweis im Banner („läuft seit …"), Beenden manuell.
 
----
+## Schritte
+1. Migration: Tabelle + Grants + RLS + Policy + neue/umgebaute Helfer (`drop` vor `create`).
+2. Server-Funktionen + `getMyIdentity`-Erweiterung.
+3. UI: Karte auf `/admin`, neue Route, Banner im `_authenticated`-Layout.
+4. Manuelle Policy-Inventur: alle Policies durchgehen, die direkt `auth.uid()` (statt der Helfer) verwenden, und entscheiden, ob sie auf die Helfer umgestellt werden müssen.
+5. Smoke-Test: Admin → Impersonate staff → `/zeit`, `/admin` (sollte verschwinden), Beenden → wieder Admin.
 
-## Reihenfolge der Umsetzung
-
-1. Migration: `staff.must_change_password`, `role_permissions`, `has_permission()`-Funktion, Default-Seed der Permissions.
-2. Login: Badge-Tab entfernen, Auth-Admin-Server-Functions (User anlegen, Passwort zurücksetzen), `/passwort-aendern`-Route + Guard.
-3. Berechtigungs-UI (`/admin/einstellungen/berechtigungen`) + Permission-Katalog.
-4. Bestehende Guards (Routen + Server-Functions) auf `has_permission` umstellen.
-5. Audit-Log-Einträge für: Konto-Anlage, Passwort-Reset, Passwort-Wechsel, Permission-Änderung.
-
----
-
-## Offene Fragen vor dem Bau
-
-1. **Wer darf neue Konten anlegen / Passwort zurücksetzen** — nur `admin`, oder auch `manager`?
-2. **Mitarbeiter ohne E-Mail** (Aushilfen): nur PIN-Login am Terminal — ok, oder soll der Admin eine Pseudo-Mail vergeben dürfen?
-3. **Passwort-vergessen für Mitarbeiter:** reicht „Admin setzt neues Standardpasswort", oder zusätzlich Supabase-Self-Service „Passwort vergessen" per E-Mail?
-4. **Permission-Granularität:** reicht pro Seite + grobe Aktion (z. B. `kasse.view`, `kasse.edit`, `kasse.export`), oder brauchst du es feiner (z. B. einzelne Felder, einzelne Standorte)?
-
-Sobald diese vier Punkte geklärt sind, baue ich Teil A und Teil B in der oben genannten Reihenfolge.
+## Offene Fragen / Annahmen
+- Annahme: Mitarbeiter ohne verknüpften `auth.users`-Eintrag (Pseudo-Mail noch nicht eingeladen) können **nicht** impersoniert werden – sie tauchen mit „kein Account" im Picker auf und sind disabled. Bestätigen?
+- Annahme: Während einer aktiven Impersonation darf der Admin keine neue Impersonation starten (muss erst beenden). Bestätigen?
+- Soll `audit_log` zusätzlich jede Schreibaktion markieren, die WÄHREND einer Impersonation passiert (z.B. neues Feld `via_impersonation_id`)? Empfehlung: ja, aber als eigener kleiner Folge-Schritt nach dem Grundgerüst.

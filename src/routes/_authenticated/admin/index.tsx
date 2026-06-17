@@ -11,6 +11,7 @@ type Card = {
   items: string;
   adminOnly?: boolean;
   muted?: boolean;
+  external?: boolean;
 };
 
 const CARDS: Card[] = [
@@ -23,6 +24,18 @@ const CARDS: Card[] = [
   },
   { to: "/admin/locations", title: "Stammdaten", items: "Standorte" },
   {
+    to: "/admin/impersonate",
+    title: "Mitarbeiterportal testen",
+    items: "Als Mitarbeiter anmelden, Portal aus deren Sicht prüfen",
+    adminOnly: true,
+  },
+  {
+    to: "/",
+    title: "Mitarbeiterportal öffnen",
+    items: "Startseite, wie Mitarbeiter sie sehen",
+    external: true,
+  },
+  {
     to: "/admin/migration",
     title: "System",
     items: "Migration, Zuordnungen",
@@ -33,6 +46,8 @@ const CARDS: Card[] = [
 
 function AdminIndex() {
   const { identity } = Route.useRouteContext();
+  // Während einer Impersonation soll die Impersonate-Karte nicht erscheinen
+  // (effektive Rolle ist dann i.d.R. nicht admin → fällt ohnehin weg).
   const cards = CARDS.filter((c) => !c.adminOnly || identity.role === "admin");
   return (
     <div className="space-y-6">
