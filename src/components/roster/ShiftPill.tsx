@@ -47,6 +47,7 @@ export function ShiftPill({ shift, area, draggable, onClick }: Props) {
     transform: CSS.Translate.toString(transform),
     backgroundColor: bg,
     opacity: isDragging ? 0.4 : opacity,
+    filter: "saturate(1.6) brightness(0.92)",
   };
 
   return (
