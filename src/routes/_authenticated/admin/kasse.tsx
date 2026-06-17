@@ -1608,19 +1608,34 @@ function CashSummaryBlock({
         <label htmlFor="wechselgeld-input" className="font-semibold text-foreground">
           Wechselgeldbestand (soll ist {fmtEur(cashBalanceTargetCents)})
         </label>
-        <Input
-          id="wechselgeld-input"
-          className="h-7 w-36 text-sm text-right font-mono border-emerald-200 bg-white"
-          inputMode="decimal"
-          value={misc.cashActual}
-          placeholder={
-            rows.tagesBargeldCents < 0
-              ? fmtCents(cashBalanceTargetCents + rows.tagesBargeldCents)
-              : undefined
-          }
-          onChange={(e) => setMisc((prev) => ({ ...prev, cashActual: e.target.value }))}
-          disabled={!writable}
-        />
+        {(() => {
+          const parsed = parseEuroToCents(misc.cashActual);
+          const effective =
+            parsed ??
+            (rows.tagesBargeldCents < 0
+              ? cashBalanceTargetCents + rows.tagesBargeldCents
+              : null);
+          const below = effective !== null && effective < cashBalanceTargetCents;
+          return (
+            <Input
+              id="wechselgeld-input"
+              className={`h-7 w-36 text-sm text-right font-mono bg-white ${
+                below
+                  ? "border-red-300 text-red-700 placeholder:text-red-700"
+                  : "border-emerald-200"
+              }`}
+              inputMode="decimal"
+              value={misc.cashActual}
+              placeholder={
+                rows.tagesBargeldCents < 0
+                  ? fmtCents(cashBalanceTargetCents + rows.tagesBargeldCents)
+                  : undefined
+              }
+              onChange={(e) => setMisc((prev) => ({ ...prev, cashActual: e.target.value }))}
+              disabled={!writable}
+            />
+          );
+        })()}
       </div>
     </div>
   );
