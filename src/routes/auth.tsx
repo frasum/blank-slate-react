@@ -219,5 +219,3 @@ function PinForm({ onLoggedIn }: { onLoggedIn: () => Promise<void> }) {
     </form>
   );
 }
-
-function BadgeForm({ onLoggedIn }: { onLoggedIn: () => Promise<void> }) {
