@@ -1,29 +1,23 @@
 ## Ziel
-Den `Darstellung`-Umschalter (Kompakt/Normal/Komfort/Fit) komplett entfernen. „Fit" wird fix verdrahtet — kein Hook, kein LocalStorage, kein Toggle, keine anderen Modi.
+Tageszahl im Spaltenkopf einfärben:
+- `< 5` → rot
+- `= 5` → wie bisher (foreground bzw. muted)
+- `> 5` → grün
 
-## Änderungen
+Gilt sowohl im Küchen- als auch im Service-Tab und für beide Standorte (eine einzige Render-Stelle deckt beides ab).
 
-### 1. `src/components/roster/DensityToggle.tsx` — **löschen**
-
-### 2. `src/hooks/use-density.ts` — **löschen**
-
-### 3. `src/routes/_authenticated/admin/dienstplan.tsx`
-- Imports `useDensity`, `DensityToggle` raus
-- `const [density, setDensity] = useDensity()` raus
-- `<DensityToggle …/>` aus dem Header entfernen (samt umgebendem Label „Darstellung", falls vorhanden)
-- `density={density}` an `<RosterGrid>` entfernen
-
-### 4. `src/components/roster/RosterGrid.tsx`
-- `density`-Prop entfernen
-- Imports auf konstante Werte umstellen: `rowH = 28` (Fit-Höhe), `layout = { staffColPx: 96, dayMinPx: 0, tableFixed: true, horizontalScroll: false }`, `isFit = true`
-- An `<ShiftPill>`: `density="fit"` fest
-
-### 5. `src/components/roster/ShiftPill.tsx`
-- Statt Import aus `use-density` eine lokale Konstante: `const FIT_PILL_CLASS = "h-5 w-8 text-[9px]"`
-- `density`-Prop entfernen, Klasse fest verwenden
+## Änderung
+**Eine Datei:** `src/components/roster/RosterGrid.tsx` — Klasse für `<span>` mit `cnt` so erweitern:
+- `cnt === 0` → bleibt `text-muted-foreground/40` (kein „rot" für leere Tage, sonst flattern alle Wochenenden)
+- `cnt > 0 && cnt < 5` → `text-red-600`
+- `cnt === 5` → `text-foreground` (Status quo)
+- `cnt > 5` → `text-green-600`
 
 ## Nicht angefasst
-Farben/Pillen-Logik, Drag&Drop, Datenfluss, Cash/Saldo.
+Datenfluss, Gesamtsumme, Farben der Pillen, Layout.
 
 ## Erfolgskriterium
-Header zeigt kein „Darstellung" mehr; Grid rendert identisch zum bisherigen Fit-Modus. `tsc --noEmit` und `eslint --max-warnings=5` grün.
+Counts unter den Datumsangaben sind rot/grün/normal nach Regel; `tsc --noEmit` grün.
+
+## Frage offen
+„Cnt 0 = rot oder neutral?" — ich gehe per Default von neutral aus (sonst sind alle freien Tage permanent rot). Bitte korrigieren, falls 0 doch rot sein soll.
