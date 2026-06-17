@@ -60,7 +60,10 @@ function ZeitHub() {
           <Link key={to} to={to} className="block">
             <Card className="flex items-center gap-4 p-5 transition hover:bg-accent/40">
               <div className="rounded-md bg-primary/10 p-3 text-primary">
-                <Icon className={iconClassName ?? "h-6 w-6"} aria-hidden />
+                <Icon
+                  className={`h-6 w-6${iconClassName ? ` ${iconClassName}` : ""}`}
+                  aria-hidden
+                />
               </div>
               <div className="space-y-0.5">
                 <div className="font-medium">{title}</div>
