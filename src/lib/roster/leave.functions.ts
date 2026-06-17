@@ -93,7 +93,9 @@ export const requestLeave = createServerFn({ method: "POST" })
       .gte("end_date", data.start_date);
     if (overlapErr) throw overlapErr;
     if ((overlaps ?? []).length > 0) {
-      throw new Error("Es existiert bereits ein offener oder genehmigter Antrag in diesem Zeitraum.");
+      throw new Error(
+        "Es existiert bereits ein offener oder genehmigter Antrag in diesem Zeitraum.",
+      );
     }
 
     const { data: row, error } = await supabaseAdmin
@@ -291,9 +293,10 @@ export const decideLeaveRequest = createServerFn({ method: "POST" })
       }
 
       // genehmigt → RPC expandiert roster_absence
-      const note = data.decision_note && data.decision_note.trim().length > 0
-        ? data.decision_note.trim()
-        : null;
+      const note =
+        data.decision_note && data.decision_note.trim().length > 0
+          ? data.decision_note.trim()
+          : null;
       const { error: rpcErr } = await supabaseAdmin.rpc("approve_leave_request", {
         p_request_id: data.id,
         p_decided_by: caller.staffId,

@@ -13,12 +13,7 @@ export const Route = createFileRoute("/_authenticated/zeit/")({
 });
 
 type Tile = {
-  to:
-    | "/zeit/stempeln"
-    | "/zeit/schichten"
-    | "/zeit/abrechnung"
-    | "/zeit/wuensche"
-    | "/zeit/urlaub";
+  to: "/zeit/stempeln" | "/zeit/schichten" | "/zeit/abrechnung" | "/zeit/wuensche" | "/zeit/urlaub";
   title: string;
   description: string;
   Icon: typeof Clock;
