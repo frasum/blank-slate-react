@@ -11,9 +11,12 @@ import { supabase } from "@/integrations/supabase/client";
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async () => {
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) throw redirect({ to: "/auth" });
-    return { user: data.user };
+    // getSession() liest die Session lokal aus localStorage – kein Netz-Roundtrip
+    // an /auth/v1/user. Server-Functions revalidieren das Bearer-Token via
+    // requireSupabaseAuth ohnehin pro Aufruf.
+    const { data, error } = await supabase.auth.getSession();
+    if (error || !data.session?.user) throw redirect({ to: "/auth" });
+    return { user: data.session.user };
   },
   component: () => <Outlet />,
 });
