@@ -7,6 +7,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { runGuarded } from "@/lib/admin/admin-call";
 import { writeAuditLog } from "@/lib/admin/audit";
+import { loadStaffCaller } from "@/lib/time/time.functions";
+import type { MyShiftRow } from "@/lib/roster/my-shifts";
 
 const READ_ROLES = ["manager", "admin", "payroll", "staff"] as const;
 const WRITE_ROLES = ["manager", "admin"] as const;
@@ -137,6 +139,65 @@ export const getRosterShifts = createServerFn({ method: "GET" })
       status: r.status as "planned" | "confirmed",
       notes: (r.notes as string | null) ?? null,
     }));
+  });
+
+// Welle A — Self-Service: eigene kommende Schichten.
+// Caller-staffId kommt ausschließlich aus der Session (loadStaffCaller);
+// niemals aus dem Client-Payload.
+export const getMyShifts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        from: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
+        to: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
+      })
+      .parse(input ?? {}),
+  )
+  .handler(async ({ data, context }): Promise<MyShiftRow[]> => {
+    const caller = await loadStaffCaller(context.supabase, context.userId);
+    const today = new Date();
+    const isoDate = (d: Date) => d.toISOString().slice(0, 10);
+    const from = data.from ?? isoDate(today);
+    let to = data.to;
+    if (!to) {
+      const end = new Date(today);
+      end.setUTCDate(end.getUTCDate() + 27);
+      to = isoDate(end);
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin
+      .from("roster_shifts")
+      .select(
+        "shift_date, area, status, notes, locations(name), skills(name, category)",
+      )
+      .eq("organization_id", caller.organizationId)
+      .eq("staff_id", caller.staffId)
+      .gte("shift_date", from)
+      .lte("shift_date", to)
+      .order("shift_date", { ascending: true })
+      .order("area", { ascending: true });
+    if (error) throw error;
+
+    return (rows ?? []).map((r) => {
+      const skill = r.skills as { name: string; category: string } | null;
+      return {
+        shift_date: r.shift_date as string,
+        locationName: (r.locations as { name: string } | null)?.name ?? "—",
+        area: r.area as "kitchen" | "service" | "gl",
+        skillCode: skill?.category ?? null,
+        skillLabel: skill?.name ?? null,
+        status: r.status as "planned" | "confirmed",
+        notes: (r.notes as string | null) ?? null,
+      };
+    });
   });
 
 export const listSkills = createServerFn({ method: "GET" })
