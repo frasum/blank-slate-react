@@ -39,7 +39,7 @@ function fmtEuro(cents: number): string {
     (cents / 100).toLocaleString("de-DE", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    }) + " €"
+    }) + "\u00A0€"
   );
 }
 
@@ -167,7 +167,8 @@ function KasseSaldoPage() {
   }
 
   const bargeldClass = (cents: number) =>
-    "text-right tabular-nums " + (cents < 0 ? "text-destructive" : "text-emerald-600");
+    "text-right tabular-nums whitespace-nowrap " +
+    (cents < 0 ? "text-destructive" : "text-emerald-600");
 
   return (
     <div className="space-y-6">
