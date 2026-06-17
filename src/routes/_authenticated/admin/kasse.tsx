@@ -62,10 +62,7 @@ import {
 import { generateDailySummaryPdf } from "@/lib/cash/pdfExport";
 import { computeSummaryRows } from "@/lib/cash/cash-summary";
 import { sessionToDayInput } from "@/lib/cash/session-day-input";
-import {
-  aggregateChannelAmounts,
-  type ChannelKind,
-} from "@/lib/cash/session-channels";
+import { aggregateChannelAmounts, type ChannelKind } from "@/lib/cash/session-channels";
 import { computeSettlementWarnings } from "@/lib/cash/settlement-warnings";
 
 export const Route = createFileRoute("/_authenticated/admin/kasse")({
@@ -459,10 +456,7 @@ function KassePage() {
 
       {ovQ.data?.session && (
         <>
-          <SettlementWarningsBanner
-            overview={ovQ.data}
-            channels={channelsQ.data ?? []}
-          />
+          <SettlementWarningsBanner overview={ovQ.data} channels={channelsQ.data ?? []} />
 
           <SettlementsCard
             data={ovQ.data}
