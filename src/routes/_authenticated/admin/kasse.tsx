@@ -177,6 +177,11 @@ function KassePage() {
   const correctable =
     (sessionStatus === "open" || sessionStatus === "finalized") && !underWaterline;
 
+  const currentLocation = (locationsQ.data ?? []).find((l) => l.id === locationId);
+  const cashBalanceTargetResolvedCents = Number(
+    currentLocation?.cashBalanceTargetResolvedCents ?? 200_000,
+  );
+
   // -------------------- Session anlegen --------------------
   const createSessionMut = useMutation({
     mutationFn: () => {
