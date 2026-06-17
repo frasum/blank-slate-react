@@ -1601,7 +1601,7 @@ function CashSummaryBlock({
           className="h-7 w-36 text-sm text-right font-mono border-emerald-200 bg-white"
           inputMode="decimal"
           value={misc.cashActual}
-          onChange={(e) => setMisc({ ...misc, cashActual: e.target.value })}
+          onChange={(e) => setMisc((prev) => ({ ...prev, cashActual: e.target.value }))}
           disabled={!writable}
         />
       </div>
