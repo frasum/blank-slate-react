@@ -38,7 +38,7 @@ export function ShiftPill({ shift, area, draggable, onClick }: Props) {
   // Feste Farben für Küchen-Skills (Abkürzungen aus abbr()):
   // VS=Blau, PA=Rot (PASS), SP=Grün (SPÜLEN), CO=Orange.
   const kitchenColorMap: Record<string, string> = {
-    VS: "#3b82f6",
+    VS: "#00bfff",
     PA: "#ef4444",
     SP: "#10b981",
     CO: "#f59e0b",
