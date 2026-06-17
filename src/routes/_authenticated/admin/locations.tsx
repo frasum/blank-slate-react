@@ -381,6 +381,7 @@ function LocationRow(props: {
         </div>
       )}
       {displayOpen && <DisplayPanel locationId={props.loc.id} />}
+      {open && <GeofencePanel loc={props.loc} onChanged={() => {}} />}
     </div>
   );
 }
