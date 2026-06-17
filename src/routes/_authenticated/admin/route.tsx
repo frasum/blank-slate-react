@@ -12,11 +12,10 @@ import { BrandLockup } from "@/components/brand-lockup";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: async ({ location }) => {
+    // Session-Check rein lokal (kein /auth/v1/user-Roundtrip); getMyIdentity()
+    // revalidiert das Token serverseitig via requireSupabaseAuth.
     const { data: sessionData } = await supabase.auth.getSession();
     if (!sessionData.session?.access_token) throw redirect({ to: "/auth" });
-
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    if (userError || !userData.user) throw redirect({ to: "/auth" });
 
     const identity = await getMyIdentity();
     if (identity.role !== "admin" && identity.role !== "manager" && identity.role !== "payroll") {
