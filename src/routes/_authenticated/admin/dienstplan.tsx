@@ -342,7 +342,12 @@ function DienstplanPage() {
     // Eigene Schicht ausschließen (Bereichswechsel desselben Tages bleibt erlaubt).
     if (
       lock &&
-      !(lock.locationId === shift.locationId && lock.area === shift.area && shift.staffId === target.staffId && shift.shiftDate === target.iso)
+      !(
+        lock.locationId === shift.locationId &&
+        lock.area === shift.area &&
+        shift.staffId === target.staffId &&
+        shift.shiftDate === target.iso
+      )
     ) {
       const name = staffNameById.get(target.staffId) ?? "Mitarbeiter";
       toast.error(`${name} ist bereits in ${lock.locationName} · ${lock.area} eingeteilt.`);

@@ -303,7 +303,9 @@ export function RosterGrid({
                       const isUnavailable = unavailableSet.has(`${row.staffId}|${iso}`);
                       const absenceType = absenceMap.get(`${row.staffId}|${iso}`) ?? null;
                       const isAbsent = absenceType !== null;
-                      const lockEntry = !shift ? (lockMap.get(`${row.staffId}|${iso}`) ?? null) : null;
+                      const lockEntry = !shift
+                        ? (lockMap.get(`${row.staffId}|${iso}`) ?? null)
+                        : null;
                       const isLocked = lockEntry !== null;
                       const isBirthday =
                         row.dateOfBirth != null &&
