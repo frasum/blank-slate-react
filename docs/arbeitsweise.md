@@ -120,7 +120,8 @@ Immer **26. eines Monats bis einschließlich 25. des Folgemonats**. Label = Mona
 | Dienstplan-Migration (4498 Schichten aus thaitime)                     | ✅       |
 | D3 Öffentliches Display (Token-URL, Auto-Refresh, Rotation, Legende)   | ⏳ offen |
 | M4 Lohn — Rechen-Kern (Stufe 1/3): PAP 2026 + SV, edlohn-cent-getestet | ✅       |
-| M4 Lohn — Datenmodell+Serverfn (Stufe 2/3) · UI (Stufe 3/3)            | ⏳ offen |
+| M4 Lohn — SFN-Geld + Perioden-Aggregation + Verdrahtung (Stufe 2a–c)   | ✅       |
+| M4 Lohn — Lohnrechner-UI + Excel-Export (`/admin/lohnrechner`)         | ✅       |
 | Provision (wochenbasiert)                                              | ⏳ offen |
 
 **Stand 16.06.2026 (Session-Nachzug):**
