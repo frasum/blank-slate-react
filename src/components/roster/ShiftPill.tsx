@@ -38,13 +38,14 @@ export function ShiftPill({ shift, area, draggable, onClick }: Props) {
   const serviceBg = isService ? serviceColorMap[label] : undefined;
   const bg = isService ? (serviceBg ?? "#ffffff") : (shift.skillColor ?? "#9ca3af");
   const textCls = "text-white border-transparent";
-  const opacity = shift.status === "confirmed" ? 1 : 0.7;
-
+  const isPlanned = shift.status !== "confirmed";
   const style: React.CSSProperties = {
     transform: CSS.Translate.toString(transform),
     backgroundColor: bg,
-    opacity: isDragging ? 0.4 : opacity,
-    filter: "saturate(1.6) brightness(0.92)",
+    opacity: isDragging ? 0.4 : 1,
+    filter: isPlanned
+      ? "saturate(1.3) brightness(1.02)"
+      : "saturate(1.6) brightness(0.92)",
   };
 
   return (
