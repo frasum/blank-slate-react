@@ -1848,6 +1848,52 @@ function makeEmptyAgg(): CashDayAgg {
   };
 }
 
+/**
+ * Routet einen Kanal-Betrag in den richtigen Akkumulator.
+ *
+ * Wichtige Invariante: `delivery_vectron` (In-House Take-away) ist Vectron-Bar
+ * und bereits in `vectron_daily_total_cents` enthalten. Er darf NICHT mit
+ * `delivery_souse` zusammengelegt werden — sonst zieht `computeDailyCash` ihn
+ * zusätzlich ab und das Bargeld wird um den Take-away-Betrag zu niedrig.
+ */
+export function applyRevenueChannel(
+  a: CashDayAgg,
+  kind: string | null,
+  amt: number,
+): void {
+  switch (kind) {
+    case "pos":
+      a.grossRevenue += amt;
+      break;
+    case "delivery_souse":
+      a.deliverySouse += amt;
+      break;
+    case "delivery_vectron":
+      a.deliveryVectron += amt;
+      break;
+    case "delivery_wolt":
+      a.deliveryWolt += amt;
+      break;
+    case "voucher_sold":
+      a.vouchersSold += amt;
+      break;
+    case "voucher_redeemed":
+      a.vouchersRedeemed += amt;
+      break;
+    case "finedine":
+      a.finedine += amt;
+      break;
+    case "einladung":
+      a.einladung += amt;
+      break;
+    case "sonstige":
+      a.sonstige += amt;
+      break;
+    default:
+      break;
+  }
+}
+
 // 1:1-Extraktion der bisherigen Inline-Reads + Aggregation aus
 // getCashLedgerCore. Verhaltensgleich.
 export async function loadCashDayAggregates(
