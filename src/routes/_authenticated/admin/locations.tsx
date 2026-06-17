@@ -61,6 +61,7 @@ function LocationsPage() {
   const [newName, setNewName] = useState("");
   const [newDetails, setNewDetails] = useState<LocationDetails>(emptyDetails);
   const [msg, setMsg] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const locationsQ = useQuery({
     queryKey: ["admin", "locations"],
@@ -75,6 +76,7 @@ function LocationsPage() {
       setNewName("");
       setNewDetails(emptyDetails);
       setMsg(null);
+      setCreateOpen(false);
       return refresh();
     },
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
@@ -93,8 +95,23 @@ function LocationsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight text-foreground">Standorte</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Standorte</h1>
+        {!createOpen && (
+          <button
+            type="button"
+            onClick={() => {
+              setMsg(null);
+              setCreateOpen(true);
+            }}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            Neu
+          </button>
+        )}
+      </div>
 
+      {createOpen && (
       <form
         className="max-w-2xl space-y-3 rounded-md border border-input bg-muted/30 p-4"
         onSubmit={(e) => {
@@ -114,14 +131,29 @@ function LocationsPage() {
           />
         </Field>
         <DetailsFields value={newDetails} onChange={setNewDetails} />
-        <button
-          type="submit"
-          disabled={createMut.isPending}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-        >
-          Anlegen
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="submit"
+            disabled={createMut.isPending}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
+            Anlegen
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setCreateOpen(false);
+              setNewName("");
+              setNewDetails(emptyDetails);
+              setMsg(null);
+            }}
+            className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground hover:bg-accent"
+          >
+            Abbrechen
+          </button>
+        </div>
       </form>
+      )}
 
       {msg && <p className="text-sm text-destructive">{msg}</p>}
 
