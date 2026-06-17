@@ -121,7 +121,7 @@ function AdminLayout() {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
-        <div className="mx-auto max-w-6xl px-6 pt-3">
+        <div className="mx-auto max-w-7xl px-6 pt-3">
           <div className="flex items-center justify-between pb-2">
             <div className="flex items-center gap-3">
               <Link to="/" aria-label="COCO Startseite">
@@ -189,7 +189,7 @@ function AdminLayout() {
           )}
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-6 py-8">
+      <main className="mx-auto max-w-7xl px-6 py-8">
         <Outlet />
       </main>
     </div>
