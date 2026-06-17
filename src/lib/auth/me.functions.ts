@@ -75,7 +75,9 @@ export const getMyIdentity = createServerFn({ method: "GET" })
       organizationId: link.organization_id,
       role: (role?.role as Identity["role"]) ?? null,
       displayName,
-      mustChangePassword: staff?.must_change_password ?? false,
+      // Während einer Impersonation darf der Zwangswechsel-Flag des
+      // Ziel-Mitarbeiters den Admin nicht in /passwort-aendern festhalten.
+      mustChangePassword: imp ? false : (staff?.must_change_password ?? false),
       impersonation: imp
         ? {
             active: true,
