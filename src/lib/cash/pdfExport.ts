@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import jsPDF from "jspdf";
 import autoTable, { type RowInput } from "jspdf-autotable";
+import { computeDailyCash, type DayInput } from "./cash-ledger";
 
 type Cents = number;
 
@@ -23,6 +24,13 @@ export interface PdfSession {
   guest_count?: number | null;
   cash_actual_cents?: number | null;
   notes?: string | null;
+  vectron_daily_total_cents?: Cents | null;
+  vouchers_sold_cents?: Cents | null;
+  vouchers_redeemed_cents?: Cents | null;
+  finedine_vouchers_cents?: Cents | null;
+  einladung_cents?: Cents | null;
+  sonstige_einnahme_cents?: Cents | null;
+  vorschuss_cents?: Cents | null;
 }
 
 export interface PdfSettlement {
