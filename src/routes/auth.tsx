@@ -17,8 +17,8 @@ import { BrandLockup } from "@/components/brand-lockup";
 export const Route = createFileRoute("/auth")({
   ssr: false,
   beforeLoad: async () => {
-    const { data } = await supabase.auth.getUser();
-    if (data.user) throw redirect({ to: "/" });
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.user) throw redirect({ to: "/" });
   },
   head: () => ({
     meta: [{ title: "Anmelden · COCO" }, { name: "robots", content: "noindex" }],

@@ -218,9 +218,7 @@ function AbrechnungPage() {
                 settlement.additional_waiters.length > 0 && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Weitere Kellner</span>
-                    <span>
-                      {(settlement.additional_waiters as string[]).join(", ")}
-                    </span>
+                    <span>{(settlement.additional_waiters as string[]).join(", ")}</span>
                   </div>
                 )}
             </div>
@@ -329,9 +327,7 @@ function AbrechnungPage() {
             type="button"
             variant="outline"
             size="sm"
-            onClick={() =>
-              setForm({ ...form, additionalWaiters: [...form.additionalWaiters, ""] })
-            }
+            onClick={() => setForm({ ...form, additionalWaiters: [...form.additionalWaiters, ""] })}
           >
             + weiteren Kellner hinzufügen
           </Button>

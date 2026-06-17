@@ -50,9 +50,7 @@ export function SecondWaiterSelect({
     const excludeN = new Set(excludeNames.filter((n): n is string => Boolean(n)));
     // Aktuell gewählten Namen NIE herausfiltern, sonst zeigt das Trigger den Wert leer an.
     return all.filter(
-      (s) =>
-        !excludeIds.has(s.id) &&
-        (s.displayName === value || !excludeN.has(s.displayName)),
+      (s) => !excludeIds.has(s.id) && (s.displayName === value || !excludeN.has(s.displayName)),
     );
   }, [q.data, excludeStaffIds, excludeNames, value]);
 
