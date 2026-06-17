@@ -452,18 +452,15 @@ function DienstplanPage() {
         <header className="flex flex-wrap items-end gap-4">
           <div>
             <h1 className="text-2xl font-semibold">Dienstplan</h1>
-            <p className="text-sm text-muted-foreground">
-              Vorausplanung — wer arbeitet wann wo.{" "}
-              {canEdit ? (
-                periodLocked ? (
-                  <span className="text-destructive">Periode gesperrt.</span>
+            {(periodLocked || !canEdit) && (
+              <p className="text-sm text-muted-foreground">
+                {!canEdit ? (
+                  <span>(Read-only)</span>
                 ) : (
-                  <span>Klick / Paint / Drag &amp; Drop zum Bearbeiten.</span>
-                )
-              ) : (
-                <span>(Read-only)</span>
-              )}
-            </p>
+                  <span className="text-destructive">Periode gesperrt.</span>
+                )}
+              </p>
+            )}
           </div>
           <div className="ml-auto flex flex-wrap items-end gap-3">
             <label className="flex flex-col gap-1 text-xs">
