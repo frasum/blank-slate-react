@@ -135,7 +135,7 @@ function sectionHeader(title: string): RowInput {
 }
 
 export function generateDailySummaryPdf(data: PdfExportData): {
-  blobUrl: string;
+  doc: jsPDF;
   blob: Blob;
   fileName: string;
 } {
@@ -489,6 +489,5 @@ export function generateDailySummaryPdf(data: PdfExportData): {
 
   const fileName = `Tagesabrechnung_${sess.business_date}.pdf`;
   const blob = doc.output("blob");
-  const blobUrl = URL.createObjectURL(blob);
-  return { blobUrl, blob, fileName };
+  return { doc, blob, fileName };
 }
