@@ -51,7 +51,7 @@ export const listStaffForImpersonation = createServerFn({ method: "GET" })
 
     const { data: staff, error: staffErr } = await supabaseAdmin
       .from("staff")
-      .select("id, display_name, first_name, last_name, status")
+      .select("id, display_name, first_name, last_name")
       .eq("organization_id", orgId)
       .order("display_name", { ascending: true });
     if (staffErr) throw new Error(`staff list failed: ${staffErr.message}`);
