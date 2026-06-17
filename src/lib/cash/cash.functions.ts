@@ -1277,6 +1277,8 @@ const settlementInputSchema = z.object({
   hilfMahlCents: z.number().int().min(0),
   openInvoicesCents: z.number().int().min(0),
   cashHandedInCents: z.number().int().min(0),
+  secondWaiterName: z.string().trim().min(1).nullable().default(null),
+  additionalWaiters: z.array(z.string().trim().min(1)).max(3).default([]),
 });
 
 export const submitWaiterSettlement = createServerFn({ method: "POST" })
