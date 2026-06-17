@@ -294,6 +294,15 @@ function DetailsFields({
           className={inputCls}
         />
       </Field>
+      <Field label="Soll-Wechselgeldbestand (€) — leer = Org-Default">
+        <input
+          value={value.cash_balance_target_euro}
+          onChange={(e) => set("cash_balance_target_euro", e.target.value)}
+          inputMode="decimal"
+          placeholder="2000.00"
+          className={inputCls}
+        />
+      </Field>
     </div>
   );
 }
