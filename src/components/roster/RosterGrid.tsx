@@ -3,7 +3,7 @@
 // Paint-Mode-Klicklogik. Service-Schichten nutzen service-marker.ts.
 import * as React from "react";
 import { useDroppable } from "@dnd-kit/core";
-import { ChefHat, UtensilsCrossed, Umbrella, HeartPulse, Cake } from "lucide-react";
+import { ChefHat, UtensilsCrossed, Umbrella, HeartPulse, Cake, Heart } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -69,6 +69,7 @@ type Props = {
   >;
   unavailableSet: Set<string>;
   absenceMap: Map<string, "urlaub" | "krank">;
+  wishMap: Map<string, string | null>;
   canEdit: boolean;
   locked: boolean;
   paint: PaintSelection;
@@ -100,6 +101,7 @@ export function RosterGrid({
   lockMap,
   unavailableSet,
   absenceMap,
+  wishMap,
   canEdit,
   locked,
   paint,
@@ -347,6 +349,9 @@ export function RosterGrid({
                       const isUnavailable = unavailableSet.has(`${row.staffId}|${iso}`);
                       const absenceType = absenceMap.get(`${row.staffId}|${iso}`) ?? null;
                       const isAbsent = absenceType !== null;
+                      const wishKey = `${row.staffId}|${iso}`;
+                      const hasWish = wishMap.has(wishKey);
+                      const wishNote = hasWish ? (wishMap.get(wishKey) ?? null) : null;
                       const lockEntry = !shift
                         ? (lockMap.get(`${row.staffId}|${iso}`) ?? null)
                         : null;
@@ -370,6 +375,8 @@ export function RosterGrid({
                           absenceType={absenceType}
                           birthday={isBirthday}
                           birthdayLabel={isBirthday ? `Geburtstag: ${row.displayName}` : null}
+                          hasWish={hasWish}
+                          wishNote={wishNote}
                           locked={isLocked}
                           lockLabel={
                             lockEntry
@@ -520,6 +527,8 @@ function DropCell({
   absenceType,
   birthday,
   birthdayLabel,
+  hasWish,
+  wishNote,
   locked,
   lockLabel,
   children,
@@ -537,6 +546,8 @@ function DropCell({
   absenceType: "urlaub" | "krank" | null;
   birthday: boolean;
   birthdayLabel: string | null;
+  hasWish: boolean;
+  wishNote: string | null;
   locked: boolean;
   lockLabel: string | null;
   children: React.ReactNode;
@@ -636,6 +647,22 @@ function DropCell({
             </span>
           </TooltipTrigger>
           <TooltipContent>{absenceType === "krank" ? "Krank" : "Urlaub"}</TooltipContent>
+        </Tooltip>
+      ) : null}
+      {hasWish ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute bottom-0.5 right-0.5 z-30"
+            >
+              <Heart className="h-3 w-3 fill-purple-600 text-purple-600" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            <div className="text-xs">Wunsch frei</div>
+            {wishNote ? <div className="text-xs text-muted-foreground">{wishNote}</div> : null}
+          </TooltipContent>
         </Tooltip>
       ) : null}
       {showUnavailableOnShift ? (

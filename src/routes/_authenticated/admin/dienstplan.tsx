@@ -26,6 +26,7 @@ import {
   getAbsences,
   setAbsenceRange,
   clearAbsence,
+  getDayOffWishes,
   listSkills,
   moveRosterShift,
   updateRosterShiftSkill,
@@ -173,6 +174,17 @@ function DienstplanPage() {
       }),
     enabled: !!windowStart && !!windowEnd,
   });
+  const wishesQ = useQuery({
+    queryKey: ["day-off-wishes", windowStart, windowEnd],
+    queryFn: () =>
+      getDayOffWishes({
+        data: {
+          fromDate: windowStart!,
+          toDate: windowEnd!,
+        },
+      }),
+    enabled: !!windowStart && !!windowEnd,
+  });
 
   // Realtime: jede Änderung an roster_shifts → invalidate (live update).
   useEffect(() => {
@@ -192,6 +204,9 @@ function DienstplanPage() {
       )
       .on("postgres_changes", { event: "*", schema: "public", table: "roster_absence" }, () => {
         qc.invalidateQueries({ queryKey: ["roster-absence"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "day_off_wishes" }, () => {
+        qc.invalidateQueries({ queryKey: ["day-off-wishes"] });
       })
       .subscribe();
     return () => {
@@ -214,6 +229,11 @@ function DienstplanPage() {
     for (const a of absences) m.set(`${a.staffId}|${a.date}`, a.type);
     return m;
   }, [absences]);
+  const wishMap = useMemo(() => {
+    const m = new Map<string, string | null>();
+    for (const w of wishesQ.data ?? []) m.set(`${w.staffId}|${w.wishDate}`, w.note);
+    return m;
+  }, [wishesQ.data]);
   const staffNameById = useMemo(() => {
     const m = new Map<string, string>();
     for (const r of staff) m.set(r.staffId, r.displayName);
@@ -601,6 +621,7 @@ function DienstplanPage() {
               lockMap={lockMap}
               unavailableSet={unavailableSet}
               absenceMap={absenceMap}
+              wishMap={wishMap}
               canEdit={canEdit}
               locked={!!periodLocked}
               paint={paintEnabled ? paint : null}
