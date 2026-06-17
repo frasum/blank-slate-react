@@ -1788,6 +1788,7 @@ export type CashDayAgg = {
   vectronDailyTotal: number;
   cardTotal: number;
   deliverySouse: number;
+  deliveryVectron: number;
   deliveryWolt: number;
   vouchersSold: number;
   vouchersRedeemed: number;
@@ -1823,6 +1824,7 @@ function makeEmptyAgg(): CashDayAgg {
     vectronDailyTotal: 0,
     cardTotal: 0,
     deliverySouse: 0,
+    deliveryVectron: 0,
     deliveryWolt: 0,
     vouchersSold: 0,
     vouchersRedeemed: 0,
