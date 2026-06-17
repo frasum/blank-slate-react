@@ -1331,31 +1331,31 @@ function SessionFieldsCard({
                 disabled={!writable}
                 onChange={(v) => setMisc({ ...misc, vectron: v })}
               />
-              <tr className="border-b hover:bg-muted/20 transition-colors">
-                <td className="px-3 py-1.5 font-medium text-foreground">Gästeanzahl</td>
-                <td className="px-3 py-1.5 w-44">
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={misc.guestCount}
-                      placeholder="0"
-                      onChange={(e) =>
-                        setMisc({
-                          ...misc,
-                          guestCount: e.target.value.replace(/\D/g, ""),
-                        })
-                      }
-                      className="h-7 text-sm w-20 text-right font-mono"
-                      disabled={!writable}
-                    />
-                    {avgPerGuest && (
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        ⌀ {avgPerGuest}
-                      </span>
-                    )}
-                  </div>
+              <tr className="border-b last:border-b-0 hover:bg-muted/20 transition-colors">
+                <td className="px-3 py-1.5 font-medium text-foreground">
+                  Gästeanzahl
+                  {avgPerGuest && (
+                    <span className="ml-2 text-xs text-muted-foreground whitespace-nowrap">
+                      ⌀ {avgPerGuest}
+                    </span>
+                  )}
+                </td>
+                <td className="px-3 py-1.5 w-36">
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={misc.guestCount}
+                    placeholder="0"
+                    onChange={(e) =>
+                      setMisc({
+                        ...misc,
+                        guestCount: e.target.value.replace(/\D/g, ""),
+                      })
+                    }
+                    className="h-7 text-sm text-right font-mono border-primary/20 bg-primary/5"
+                    disabled={!writable}
+                  />
                 </td>
               </tr>
             </tbody>
