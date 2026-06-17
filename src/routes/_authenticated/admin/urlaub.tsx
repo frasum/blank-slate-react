@@ -39,9 +39,7 @@ function formatDate(iso: string): string {
 function statusBadge(status: LeaveRequestRow["status"]) {
   if (status === "offen") return <Badge variant="secondary">offen</Badge>;
   if (status === "genehmigt")
-    return (
-      <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">genehmigt</Badge>
-    );
+    return <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">genehmigt</Badge>;
   return <Badge variant="destructive">abgelehnt</Badge>;
 }
 
@@ -125,16 +123,11 @@ function AdminUrlaubPage() {
       {query.isLoading ? (
         <Card className="p-6 text-sm text-muted-foreground">Lade…</Card>
       ) : rows.length === 0 ? (
-        <Card className="p-6 text-sm text-muted-foreground">
-          Keine Anträge mit diesem Status.
-        </Card>
+        <Card className="p-6 text-sm text-muted-foreground">Keine Anträge mit diesem Status.</Card>
       ) : (
         <Card className="divide-y">
           {rows.map((r) => (
-            <div
-              key={r.id}
-              className="flex flex-wrap items-start justify-between gap-3 px-4 py-3"
-            >
+            <div key={r.id} className="flex flex-wrap items-start justify-between gap-3 px-4 py-3">
               <div className="space-y-1">
                 <div className="text-sm font-medium">
                   {r.staffName ?? "—"}{" "}
@@ -153,9 +146,7 @@ function AdminUrlaubPage() {
                   <div className="text-xs text-muted-foreground">Grund: {r.reason}</div>
                 ) : null}
                 {r.decisionNote ? (
-                  <div className="text-xs text-muted-foreground">
-                    Notiz: {r.decisionNote}
-                  </div>
+                  <div className="text-xs text-muted-foreground">Notiz: {r.decisionNote}</div>
                 ) : null}
               </div>
               {r.status === "offen" ? (

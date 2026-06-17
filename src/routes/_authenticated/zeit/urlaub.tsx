@@ -46,9 +46,7 @@ function formatDate(iso: string): string {
 function statusBadge(status: LeaveRequestRow["status"]) {
   if (status === "offen") return <Badge variant="secondary">offen</Badge>;
   if (status === "genehmigt")
-    return (
-      <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">genehmigt</Badge>
-    );
+    return <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">genehmigt</Badge>;
   return <Badge variant="destructive">abgelehnt</Badge>;
 }
 
@@ -156,11 +154,7 @@ function UrlaubPage() {
               onChange={(e) => setReason(e.target.value)}
             />
           </div>
-          <Button
-            type="submit"
-            disabled={busy || !startDate || !endDate}
-            className="w-full"
-          >
+          <Button type="submit" disabled={busy || !startDate || !endDate} className="w-full">
             Antrag stellen
           </Button>
         </form>
@@ -169,9 +163,7 @@ function UrlaubPage() {
       {query.isLoading ? (
         <Card className="p-6 text-sm text-muted-foreground">Lade…</Card>
       ) : rows.length === 0 ? (
-        <Card className="p-6 text-sm text-muted-foreground">
-          Noch keine Anträge gestellt.
-        </Card>
+        <Card className="p-6 text-sm text-muted-foreground">Noch keine Anträge gestellt.</Card>
       ) : (
         <Card className="divide-y">
           {rows.map((r) => (
@@ -188,9 +180,7 @@ function UrlaubPage() {
                   <div className="text-xs text-muted-foreground">Grund: {r.reason}</div>
                 ) : null}
                 {r.decisionNote ? (
-                  <div className="text-xs text-muted-foreground">
-                    Notiz: {r.decisionNote}
-                  </div>
+                  <div className="text-xs text-muted-foreground">Notiz: {r.decisionNote}</div>
                 ) : null}
               </div>
               {canCancelLeave(r.status) ? (
