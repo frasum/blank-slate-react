@@ -28,6 +28,7 @@ import { buildBargeldXlsx } from "@/lib/cash/bargeld-export";
 import { downloadBlob } from "@/lib/time/weekly-export";
 import { formatShortDate } from "@/lib/format-date";
 import { listLocations } from "@/lib/admin/locations.functions";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/kasse-saldo")({
   head: () => ({ meta: [{ title: "Tägliche Bargeldübersicht" }] }),
@@ -162,10 +163,15 @@ function KasseSaldoPage() {
   }, [rows]);
 
   async function handleExport() {
-    const label = `${monthLabel} – ${locationName}`;
-    const blob = await buildBargeldXlsx(rows, label);
-    const safe = locationName.replace(/[\s/\\]+/g, "_");
-    downloadBlob(blob, `bargeld_uebersicht_${safe}_${fromDate}_bis_${toDate}.xlsx`);
+    try {
+      const label = `${monthLabel} – ${locationName}`;
+      const blob = await buildBargeldXlsx(rows, label);
+      const safe = locationName.replace(/[\s/\\]+/g, "_");
+      downloadBlob(blob, `bargeld_uebersicht_${safe}_${fromDate}_bis_${toDate}.xlsx`);
+    } catch (e) {
+      console.error("Excel-Export fehlgeschlagen", e);
+      toast.error("Excel-Export fehlgeschlagen: " + (e as Error).message);
+    }
   }
 
   const bargeldClass = (cents: number) =>
