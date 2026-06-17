@@ -37,10 +37,7 @@ export function ShiftPill({ shift, area, draggable, onClick }: Props) {
   };
   const serviceBg = isService ? serviceColorMap[label] : undefined;
   const bg = isService ? (serviceBg ?? "#ffffff") : (shift.skillColor ?? "#9ca3af");
-  const textCls =
-    isService && !serviceBg
-      ? "text-foreground border-foreground/40"
-      : "text-white border-transparent";
+  const textCls = "text-white border-transparent";
   const opacity = shift.status === "confirmed" ? 1 : 0.7;
 
   const style: React.CSSProperties = {
