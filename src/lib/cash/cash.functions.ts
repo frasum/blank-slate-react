@@ -741,7 +741,7 @@ export async function listPaymentTerminalsCore(caller: AdminCaller, locationId?:
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   let query = supabaseAdmin
     .from("payment_terminals")
-    .select("id, label, sort_order, is_active")
+    .select("id, label, sort_order, is_active, is_gl")
     .eq("organization_id", caller.organizationId);
   if (locationId) query = query.eq("location_id", locationId);
   const { data, error } = await query
@@ -753,6 +753,7 @@ export async function listPaymentTerminalsCore(caller: AdminCaller, locationId?:
     label: r.label,
     sortOrder: r.sort_order,
     isActive: r.is_active,
+    isGl: r.is_gl,
   }));
 }
 

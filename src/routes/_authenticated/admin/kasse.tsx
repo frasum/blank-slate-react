@@ -456,7 +456,11 @@ function KassePage() {
 
       {ovQ.data?.session && (
         <>
-          <SettlementWarningsBanner overview={ovQ.data} channels={channelsQ.data ?? []} />
+          <SettlementWarningsBanner
+            overview={ovQ.data}
+            channels={channelsQ.data ?? []}
+            terminals={terminalsQ.data ?? []}
+          />
 
           <SettlementsCard
             data={ovQ.data}
@@ -932,9 +936,11 @@ function fmtSignedCents(c: number): string {
 function SettlementWarningsBanner({
   overview,
   channels,
+  terminals,
 }: {
   overview: Overview;
   channels: { id: string; kind: string }[];
+  terminals: { id: string; isGl: boolean }[];
 }) {
   const channelById = Object.fromEntries(channels.map((c) => [c.id, c]));
   const kindRows = (overview.channelAmounts ?? [])
@@ -948,13 +954,23 @@ function SettlementWarningsBanner({
     (overview.terminalAmounts ?? []).map((t) => ({ amountCents: Number(t.amountCents) })),
   );
 
+  // Terminal-Beträge in physisch vs. GL (Kredit Karten GL) aufsplitten.
+  // GL-Karten gehören buchhalterisch auf die Kellner-Karten-Seite.
+  const terminalById = Object.fromEntries(terminals.map((t) => [t.id, t]));
+  let physicalTerminalCents = 0;
+  let glCardCents = 0;
+  for (const t of overview.terminalAmounts ?? []) {
+    if (terminalById[t.terminalId]?.isGl) glCardCents += Number(t.amountCents);
+    else physicalTerminalCents += Number(t.amountCents);
+  }
+
   const warnings = computeSettlementWarnings({
     hasSettlements: overview.settlements.length > 0,
     posTotalCents: Number(overview.session?.vectron_daily_total_cents ?? 0),
     deliveryVectronCents: agg.byKind.delivery_vectron,
     deliverySouseCents: agg.byKind.delivery_souse,
-    deliveryWoltCents: agg.byKind.delivery_wolt,
-    terminalsTotalCents: agg.cardTotalCents,
+    terminalsTotalCents: physicalTerminalCents,
+    glCardCents,
     waiterPosSalesCents: overview.settlements.map((s) => Number(s.pos_sales_cents)),
     waiterCardTotalCents: overview.settlements.map((s) => Number(s.card_total_cents)),
   });
@@ -975,8 +991,8 @@ function SettlementWarningsBanner({
           ) : (
             <li key="term">
               <strong>Terminal-Differenz</strong> — Σ Terminals ({fmtCents(w.terminalsCents)} €) ≠
-              Kellner-Kartenzahlungen ({fmtCents(w.waiterCardCents)} €). Differenz:{" "}
-              {fmtSignedCents(w.diffCents)}.
+              Kellner-Karten ({fmtCents(w.waiterCardCents)} €) + GL ({fmtCents(w.glCardCents)} €).
+              Differenz: {fmtSignedCents(w.diffCents)}.
             </li>
           ),
         )}

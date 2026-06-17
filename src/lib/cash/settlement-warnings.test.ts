@@ -7,8 +7,8 @@ function base() {
     posTotalCents: 0,
     deliveryVectronCents: 0,
     deliverySouseCents: 0,
-    deliveryWoltCents: 0,
     terminalsTotalCents: 0,
+    glCardCents: 0,
     waiterPosSalesCents: [] as number[],
     waiterCardTotalCents: [] as number[],
   };
@@ -30,7 +30,6 @@ describe("computeSettlementWarnings", () => {
       ...base(),
       posTotalCents: 15_000,
       deliverySouseCents: 2_000,
-      deliveryWoltCents: 1_000,
       deliveryVectronCents: 500,
       terminalsTotalCents: 8_000,
       waiterPosSalesCents: [6_000, 5_500],
@@ -114,5 +113,38 @@ describe("computeSettlementWarnings", () => {
         terminalsTotalCents: 1,
       }),
     ).toThrow();
+  });
+
+  // Spicery 10.06.2026 — Live-Regressions-Guards.
+  it("Spicery 10.06.2026: POS — Wolt (77200) ist gar kein Input mehr, keine POS-Warnung", () => {
+    const r = computeSettlementWarnings({
+      ...base(),
+      posTotalCents: 607_740,
+      waiterPosSalesCents: [152_140, 177_120, 185_150],
+      deliveryVectronCents: 79_790,
+      deliverySouseCents: 13_540,
+    });
+    expect(r.find((w) => w.kind === "pos_diff")).toBeUndefined();
+  });
+
+  it("Spicery 10.06.2026: Terminal — GL (1590) auf Kellner-Seite, keine Terminal-Warnung", () => {
+    const r = computeSettlementWarnings({
+      ...base(),
+      terminalsTotalCents: 425_062,
+      waiterCardTotalCents: [160_254, 177_142, 86_076],
+      glCardCents: 1_590,
+    });
+    expect(r.find((w) => w.kind === "terminal_diff")).toBeUndefined();
+  });
+
+  it("Spicery 10.06.2026 Gegenprobe: ohne glCardCents → Terminal-Warnung diff=1590", () => {
+    const r = computeSettlementWarnings({
+      ...base(),
+      terminalsTotalCents: 425_062,
+      waiterCardTotalCents: [160_254, 177_142, 86_076],
+      glCardCents: 0,
+    });
+    expect(r).toHaveLength(1);
+    expect(r[0]).toMatchObject({ kind: "terminal_diff", diffCents: 1_590, glCardCents: 0 });
   });
 });
