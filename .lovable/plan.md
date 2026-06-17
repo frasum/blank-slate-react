@@ -1,48 +1,38 @@
 ## Ziel
+Spalte „Vorschuss" im Tab **Lohn** (`/admin/zeit-uebersicht`) ist eine **readonly Summe der Vorschüsse aus den Tagesabrechnungen** für den ausgewählten Zeitraum/Standort. Kein manuelles Eingabefeld mehr.
 
-Nur Doku-Fix in `docs/arbeitsweise.md`. Kein Code, kein Schema, keine weiteren Dateien.
+## Datenquelle
+`session_advances` (Tabelle existiert): `staff_id`, `amount_cents`, `session_id` → `sessions.business_date` + `sessions.location_id`. Summen pro `staff_id` im Bereich `periodStart..periodEnd` und gefiltert auf `effectiveLocationId`.
 
 ## Änderungen
 
-**Datei:** `docs/arbeitsweise.md`
+### Backend — `src/lib/time/time-admin.functions.ts`
+Neue Server-Fn `listAdvancesByStaff` (GET, `requireSupabaseAuth`, Manager/Admin/Payroll wie `listPayrollNotes`):
+- Input: `locationId`, `periodStart`, `periodEnd`.
+- Join `session_advances` × `sessions` (über `session_id`), filter `organization_id`, `sessions.location_id = locationId`, `business_date` im Bereich.
+- Aggregiert in JS: `Map<staffId, totalCents>` → Rückgabe `[{ staffId, totalCents }]`.
 
-1. **Zeile 122 ersetzen:**
+`upsertPayrollNote` bleibt für `besonderheiten`. Das `vorschuss`-Feld in `payroll_notes` wird nicht mehr beschrieben (Default 0). Validator: `vorschuss` optional machen oder fest 0 senden; bestehende Migration unberührt.
 
-   Vorher:
-   ```
-   | D3 Öffentliches Display (Token-URL, Auto-Refresh, Rotation, Legende)                  | ⏳ offen |
-   ```
-   Nachher:
-   ```
-   | D3 Display — Token + Auto-Refresh + Daten ✅; Rotation/Legende/Geburtstag offen | 🔄 teilw. |
-   ```
+### Frontend — `src/routes/_authenticated/admin/zeit-uebersicht.tsx`
+1. Neue Query `advancesQ` (`["payroll-advances", effectiveLocationId, fromDate, toDate]`) → Map `staffId → totalCents`.
+2. `PayrollRow` Vorschuss-Spalte: Input entfernen, stattdessen readonly Zelle `text-right tabular-nums` mit `fmtEuro(totalCents)`. Bei 0 dezent („–" / muted).
+3. `onSave` aus `PayrollRow` schickt nur noch `besonderheiten`; `upsertMut` übergibt `vorschuss: 0` (oder Backend lässt Feld weg).
+4. Nach Save Tagesabrechnung-Vorschuss ändert sich nichts hier — Invalidierung von `payroll-advances` läuft über bestehende Kasse-Mutationen unabhängig; optional: bei `staleTime: 0` im query ausreichend.
 
-2. **Absatz Zeile 184 (`**Offen aus B3/B4** …`) komplett ersetzen** durch den reconciled-Block:
+### Verhalten
+- Session ohne Vorschüsse → „–"
+- Mehrere Vorschüsse für Mitarbeiter im Zeitraum → Summe in EUR.
+- Keine Schreibfunktion mehr → kein Lock-/Period-Konflikt für diese Spalte.
 
-   ```markdown
-   **Stand B3/B4 (reconciled 17.06.2026):**
+## Nicht anfassen
+Tagesabrechnung-Logik, `session_advances`-Schema, `payroll_notes`-Schema, Besonderheiten-Workflow.
 
-   - **Trinkgeld-Pool-Verteilung — erledigt:** `src/lib/cash/tip-pool.ts` (reine Verteilung nach Stunden, getestet), `session_tip_pool_entries`, Küchen-/Mitarbeiter-Pool, `tip_pool_settlement_only`.
-
-   - **Kassen-Saldo + Excel-Export — vorhanden:** `/admin/kasse-saldo` (`bargeld-export.ts`, „Export Excel").
-
-   - **Wirklich offen:**
-     - **Provision (wochenbasiert)** — umsatzbasierte Commission-Formel (`commissionPct`/`minRevenue`: Pool/Tag = Σ max(0,(Umsatz − minRevenue × Kellnerzahl) × %)). Kein Modul/Tabelle im Code. (= der separate „Provision"-⏳-Eintrag.)
-     - **D-M2-1 Auto-Ausstempeln bei Abrechnungs-Abgabe** — im Code nicht vorhanden; erst damit stempelt das Team in COCO um.
-     - **B3c-1 manuelles E2E** des Trinkgeld-/Abrechnungs-Pfads.
-     - **D3-Display-Rest:** Bereichs-Rotation, Legende (X/–/U/K/B/♡), Geburtstags-Banner.
-   ```
-
-## Nach dem Edit
-
-- `npx prettier --write docs/` ausführen.
-
-## Nicht-Ziele
-
-Alle anderen Tabellenzeilen, jeglicher Code, alle anderen Dateien — unangetastet. Insbesondere keine Änderungen an `gruendungsdokument.md` oder der Kasse-UI.
+## Technische Details
+- Aggregation server-seitig in JS (kein RPC nötig); Query: `select amount_cents, staff_id, sessions!inner(business_date,location_id)` mit Range-Filtern.
+- `fmtEuro(cents)` analog zu Kasse (`(cents/100).toLocaleString("de-DE", { minimumFractionDigits: 2 })`).
 
 ## Erfolgs-Gate
-
-- `rg -n "Trinkgeld-Pool-Verteilung.*offen" docs/arbeitsweise.md` → keine Treffer.
-- Zeile zu D3 enthält „teilw.".
-- `tsc`/Build unverändert grün (reine Doku-Änderung).
+- Vorschuss-Spalte zeigt korrekt Summe der Tagesabrechnungs-Vorschüsse.
+- Kein Input mehr in der Spalte, keine Save-Calls für Vorschuss.
+- `tsc --noEmit` 0, ESLint sauber.

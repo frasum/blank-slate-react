@@ -131,6 +131,41 @@ export const listPayrollNotes = createServerFn({ method: "GET" })
     }));
   });
 
+// Vorschuss-Summen pro Mitarbeiter aus Tagesabrechnung (session_advances)
+// für einen Standort × Zeitraum (business_date inkl.).
+export const listAdvancesByStaff = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        locationId: z.string().uuid(),
+        periodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        periodEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "manager",
+      "admin",
+      "payroll",
+    ]);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin
+      .from("session_advances")
+      .select("staff_id, amount_cents, sessions!inner(business_date, location_id)")
+      .eq("organization_id", caller.organizationId)
+      .eq("sessions.location_id", data.locationId)
+      .gte("sessions.business_date", data.periodStart)
+      .lte("sessions.business_date", data.periodEnd);
+    if (error) throw error;
+    const sums = new Map<string, number>();
+    for (const r of rows ?? []) {
+      sums.set(r.staff_id, (sums.get(r.staff_id) ?? 0) + Number(r.amount_cents ?? 0));
+    }
+    return Array.from(sums.entries()).map(([staffId, totalCents]) => ({ staffId, totalCents }));
+  });
+
 export const upsertPayrollNote = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
