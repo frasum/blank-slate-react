@@ -1053,6 +1053,7 @@ function SessionFieldsCard({
   onRemoveExpense,
   onAddAdvance,
   onRemoveAdvance,
+  cashBalanceTargetCents,
 }: {
   sessionId: string;
   overview: Overview;
@@ -1072,6 +1073,7 @@ function SessionFieldsCard({
   onRemoveExpense: (id: string) => Promise<unknown>;
   onAddAdvance: (staffId: string, amountCents: number, note: string | null) => Promise<unknown>;
   onRemoveAdvance: (id: string) => Promise<unknown>;
+  cashBalanceTargetCents: number;
 }) {
   type Row = { id: string; euro: string };
   const initialChannels: Row[] = channels.map((c) => {
