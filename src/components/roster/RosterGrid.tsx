@@ -3,7 +3,7 @@
 // Paint-Mode-Klicklogik. Service-Schichten nutzen service-marker.ts.
 import * as React from "react";
 import { useDroppable } from "@dnd-kit/core";
-import { ChefHat, UtensilsCrossed, Umbrella, HeartPulse, Cake } from "lucide-react";
+import { ChefHat, UtensilsCrossed, Umbrella, HeartPulse, Cake, Heart } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -69,6 +69,7 @@ type Props = {
   >;
   unavailableSet: Set<string>;
   absenceMap: Map<string, "urlaub" | "krank">;
+  wishMap: Map<string, string | null>;
   canEdit: boolean;
   locked: boolean;
   paint: PaintSelection;
@@ -100,6 +101,7 @@ export function RosterGrid({
   lockMap,
   unavailableSet,
   absenceMap,
+  wishMap,
   canEdit,
   locked,
   paint,
@@ -347,6 +349,9 @@ export function RosterGrid({
                       const isUnavailable = unavailableSet.has(`${row.staffId}|${iso}`);
                       const absenceType = absenceMap.get(`${row.staffId}|${iso}`) ?? null;
                       const isAbsent = absenceType !== null;
+                      const wishKey = `${row.staffId}|${iso}`;
+                      const hasWish = wishMap.has(wishKey);
+                      const wishNote = hasWish ? (wishMap.get(wishKey) ?? null) : null;
                       const lockEntry = !shift
                         ? (lockMap.get(`${row.staffId}|${iso}`) ?? null)
                         : null;
@@ -370,6 +375,8 @@ export function RosterGrid({
                           absenceType={absenceType}
                           birthday={isBirthday}
                           birthdayLabel={isBirthday ? `Geburtstag: ${row.displayName}` : null}
+                          hasWish={hasWish}
+                          wishNote={wishNote}
                           locked={isLocked}
                           lockLabel={
                             lockEntry
