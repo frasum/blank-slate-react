@@ -315,7 +315,11 @@ function KassePage() {
       toast.error("Keine Session für diesen Tag.");
       return;
     }
-    const channels = (channelsQ.data ?? []).map((c) => ({ id: c.id, label: c.label }));
+    const channels = (channelsQ.data ?? []).map((c) => ({
+      id: c.id,
+      label: c.label,
+      kind: c.kind,
+    }));
     const terminals = (terminalsQ.data ?? []).map((t) => ({ id: t.id, label: t.label }));
     const staffById = new Map((staffQ.data ?? []).map((s) => [s.id, s.displayName]));
     const locationName =
@@ -338,6 +342,9 @@ function KassePage() {
           cash_handed_in_cents: Number(s.cash_handed_in_cents),
           differenz_cents: Number(s.differenz_cents),
           kitchen_tip_cents: Number(s.kitchen_tip_cents),
+          submitted_at: s.submitted_at,
+          updated_at: (s as { updated_at?: string | null }).updated_at ?? null,
+          corrected_from_id: s.corrected_from_id,
         })),
         expenses: ov.expenses.map((e) => ({
           description: e.description,
