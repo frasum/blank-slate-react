@@ -49,11 +49,12 @@ const GROUPS: Group[] = [
     key: "personal",
     label: "Mitarbeiter",
     default: "/admin/staff",
-    prefixes: ["/admin/staff", "/admin/dienstplan", "/admin/zeit-uebersicht"],
+    prefixes: ["/admin/staff", "/admin/dienstplan", "/admin/zeit-uebersicht", "/admin/lohnrechner"],
     sub: [
       { to: "/admin/staff", label: "Mitarbeiter" },
       { to: "/admin/dienstplan", label: "Dienstplan" },
       { to: "/admin/zeit-uebersicht", label: "Arbeitszeiten" },
+      { to: "/admin/lohnrechner", label: "Lohnrechner", roles: ["admin"] },
     ],
   },
   {
