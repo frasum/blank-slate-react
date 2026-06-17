@@ -214,7 +214,7 @@ export const listLeaveRequests = createServerFn({ method: "GET" })
     let q = supabaseAdmin
       .from("leave_requests")
       .select(
-        "id, staff_id, start_date, end_date, reason, status, decision_note, decided_at, created_at, staff(display_name)",
+        "id, staff_id, start_date, end_date, reason, status, decision_note, decided_at, created_at, staff:staff_id(display_name)",
       )
       .eq("organization_id", caller.organizationId)
       .order("created_at", { ascending: false });
@@ -297,7 +297,7 @@ export const decideLeaveRequest = createServerFn({ method: "POST" })
       const { error: rpcErr } = await supabaseAdmin.rpc("approve_leave_request", {
         p_request_id: data.id,
         p_decided_by: caller.staffId,
-        p_note: note,
+        p_note: note ?? "",
       });
       if (rpcErr) throw rpcErr;
 
