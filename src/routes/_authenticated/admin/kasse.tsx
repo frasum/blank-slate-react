@@ -1359,12 +1359,28 @@ function SessionFieldsCard({
                 disabled={!writable}
                 onChange={(v) => setMisc({ ...misc, sonstige: v })}
               />
-              <ExcelInputRow
-                label="Vorschuss (Abzug)"
-                value={misc.vorschuss}
-                disabled={!writable}
-                onChange={(v) => setMisc({ ...misc, vorschuss: v })}
-              />
+              {(() => {
+                const advSum = advances.reduce((s, a) => s + a.amountCents, 0);
+                const effVorschussCents =
+                  advances.length > 0 ? advSum : (parseEuroToCents(misc.vorschuss) ?? 0);
+                const totalExpensesCents = expenses.reduce((s, e) => s + e.amountCents, 0);
+                return (
+                  <>
+                    {effVorschussCents !== 0 && (
+                      <ExcelReadonlyRow
+                        label="Vorschuss (Abzug)"
+                        value={fmtCents(effVorschussCents)}
+                      />
+                    )}
+                    {totalExpensesCents !== 0 && (
+                      <ExcelReadonlyRow
+                        label="Ausgaben (Abzug)"
+                        value={fmtCents(totalExpensesCents)}
+                      />
+                    )}
+                  </>
+                );
+              })()}
             </tbody>
           </table>
 
@@ -1593,9 +1609,7 @@ function CashSummaryBlock({
       {rows.tresorCents > 0 && (
         <div className="border-b bg-orange-50 px-3 py-2 flex items-center justify-between text-sm">
           <span className="text-orange-700">Bargeld mit der Abrechnung in den Tresor legen</span>
-          <span className="font-mono tabular-nums text-orange-700">
-            {fmtEur(rows.tresorCents)}
-          </span>
+          <span className="font-mono tabular-nums text-orange-700">{fmtEur(rows.tresorCents)}</span>
         </div>
       )}
       <div className="bg-emerald-50 px-3 py-2 flex items-center justify-between gap-3 text-sm">
@@ -1606,9 +1620,7 @@ function CashSummaryBlock({
           const parsed = parseEuroToCents(misc.cashActual);
           const effective =
             parsed ??
-            (rows.tagesBargeldCents < 0
-              ? cashBalanceTargetCents + rows.tagesBargeldCents
-              : null);
+            (rows.tagesBargeldCents < 0 ? cashBalanceTargetCents + rows.tagesBargeldCents : null);
           const below = effective !== null && effective < cashBalanceTargetCents;
           return (
             <Input
@@ -1668,6 +1680,15 @@ function ExcelInputRow({
           disabled={disabled}
         />
       </td>
+    </tr>
+  );
+}
+
+function ExcelReadonlyRow({ label, value }: { label: string; value: string }) {
+  return (
+    <tr className="border-b last:border-b-0 hover:bg-muted/20 transition-colors">
+      <td className="px-3 py-1.5 font-medium text-foreground">{label}</td>
+      <td className="px-3 py-1.5 w-36 text-right font-mono tabular-nums text-sm">{value}</td>
     </tr>
   );
 }
