@@ -1,30 +1,48 @@
-## Fix: PeriodNav-Doppelpfeile vertauschen
+## Ziel
 
-Nur die Doppelpfeile sollen ihre Funktion tauschen — Einfachpfeile (2 Wochen) bleiben unverändert.
+Nur Doku-Fix in `docs/arbeitsweise.md`. Kein Code, kein Schema, keine weiteren Dateien.
 
-**Datei:** `src/components/roster/PeriodNav.tsx`
+## Änderungen
 
-Am linken Doppelpfeil-Button (aktuell `ChevronsLeft` → `onPrevPeriod`):
-- `onClick` → `onNextPeriod`
-- Icon → `ChevronsRight`
-- `disabled` → `!next`
-- Tooltip → „Nächste Periode"
+**Datei:** `docs/arbeitsweise.md`
 
-Am rechten Doppelpfeil-Button (aktuell `ChevronsRight` → `onNextPeriod`):
-- `onClick` → `onPrevPeriod`
-- Icon → `ChevronsLeft`
-- `disabled` → `!prev`
-- Tooltip → „Vorherige Periode"
+1. **Zeile 122 ersetzen:**
 
-Wait — das würde die Pfeile spiegelverkehrt zeigen. Sinnvoller: **Handler tauschen, Icons/Tooltips bleiben am Platz.** Also:
+   Vorher:
+   ```
+   | D3 Öffentliches Display (Token-URL, Auto-Refresh, Rotation, Legende)                  | ⏳ offen |
+   ```
+   Nachher:
+   ```
+   | D3 Display — Token + Auto-Refresh + Daten ✅; Rotation/Legende/Geburtstag offen | 🔄 teilw. |
+   ```
 
-- Linker Button (`ChevronsLeft`, Tooltip „Vorherige Periode") ruft jetzt `onNextPeriod` auf → springt 1 Periode **vor**.
-- Rechter Button (`ChevronsRight`, Tooltip „Nächste Periode") ruft jetzt `onPrevPeriod` auf → springt 1 Periode **zurück**.
+2. **Absatz Zeile 184 (`**Offen aus B3/B4** …`) komplett ersetzen** durch den reconciled-Block:
 
-Bitte bestätige welche Variante du meinst:
+   ```markdown
+   **Stand B3/B4 (reconciled 17.06.2026):**
 
-**A) Handler vertauschen, Icons bleiben** — dann zeigt der linke Doppelpfeil-Button optisch nach links, springt aber vorwärts. (Inkonsistent zur Optik.)
+   - **Trinkgeld-Pool-Verteilung — erledigt:** `src/lib/cash/tip-pool.ts` (reine Verteilung nach Stunden, getestet), `session_tip_pool_entries`, Küchen-/Mitarbeiter-Pool, `tip_pool_settlement_only`.
 
-**B) Icons + Tooltips + Disabled-Logik vertauschen, Handler bleiben** — dann hat der linke Button `ChevronsRight` und der rechte `ChevronsLeft`. Optisch verwirrend in der Reihenfolge `Heute « ‹ Label › »`.
+   - **Kassen-Saldo + Excel-Export — vorhanden:** `/admin/kasse-saldo` (`bargeld-export.ts`, „Export Excel").
 
-Bevor ich baue, brauche ich kurz die Bestätigung welche Lösung du willst — oder ob du in Wahrheit meinst, dass im aktuellen UI ein Klick auf `»` zurück und auf `«` vor springt (Bug in der Handler-Verdrahtung), und das einfach zur normalen Logik korrigiert werden soll.
+   - **Wirklich offen:**
+     - **Provision (wochenbasiert)** — umsatzbasierte Commission-Formel (`commissionPct`/`minRevenue`: Pool/Tag = Σ max(0,(Umsatz − minRevenue × Kellnerzahl) × %)). Kein Modul/Tabelle im Code. (= der separate „Provision"-⏳-Eintrag.)
+     - **D-M2-1 Auto-Ausstempeln bei Abrechnungs-Abgabe** — im Code nicht vorhanden; erst damit stempelt das Team in COCO um.
+     - **B3c-1 manuelles E2E** des Trinkgeld-/Abrechnungs-Pfads.
+     - **D3-Display-Rest:** Bereichs-Rotation, Legende (X/–/U/K/B/♡), Geburtstags-Banner.
+   ```
+
+## Nach dem Edit
+
+- `npx prettier --write docs/` ausführen.
+
+## Nicht-Ziele
+
+Alle anderen Tabellenzeilen, jeglicher Code, alle anderen Dateien — unangetastet. Insbesondere keine Änderungen an `gruendungsdokument.md` oder der Kasse-UI.
+
+## Erfolgs-Gate
+
+- `rg -n "Trinkgeld-Pool-Verteilung.*offen" docs/arbeitsweise.md` → keine Treffer.
+- Zeile zu D3 enthält „teilw.".
+- `tsc`/Build unverändert grün (reine Doku-Änderung).
