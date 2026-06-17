@@ -419,8 +419,8 @@ function KassePage() {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="bd">Geschäftstag</Label>
+          <div className="space-y-1 text-center">
+            <Label htmlFor="bd" className="block text-center">Geschäftstag</Label>
             <DateSelector date={businessDate} onDateChange={setBusinessDate} />
           </div>
           {sessionStatus && (
