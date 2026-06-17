@@ -7,6 +7,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { runGuarded } from "@/lib/admin/admin-call";
 import { writeAuditLog } from "@/lib/admin/audit";
+import { loadStaffCaller } from "@/lib/time/time.functions";
+import type { MyShiftRow } from "@/lib/roster/my-shifts";
 
 const READ_ROLES = ["manager", "admin", "payroll", "staff"] as const;
 const WRITE_ROLES = ["manager", "admin"] as const;
