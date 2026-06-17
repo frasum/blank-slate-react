@@ -14,8 +14,8 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as DisplayLocationIdRouteImport } from './routes/display.$locationId'
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
-import { Route as AuthenticatedZeitIndexRouteImport } from './routes/_authenticated/zeit/index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
+import { Route as AuthenticatedZeitStempelnRouteImport } from './routes/_authenticated/zeit/stempeln'
 import { Route as AuthenticatedZeitAbrechnungRouteImport } from './routes/_authenticated/zeit/abrechnung'
 import { Route as AuthenticatedAdminZeitUebersichtRouteImport } from './routes/_authenticated/admin/zeit-uebersicht'
 import { Route as AuthenticatedAdminTrinkgeldRestRouteImport } from './routes/_authenticated/admin/trinkgeld-rest'
@@ -66,16 +66,17 @@ const AuthenticatedAdminRouteRoute = AuthenticatedAdminRouteRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedZeitIndexRoute = AuthenticatedZeitIndexRouteImport.update({
-  id: '/zeit/',
-  path: '/zeit/',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthenticatedAdminRouteRoute,
 } as any)
+const AuthenticatedZeitStempelnRoute =
+  AuthenticatedZeitStempelnRouteImport.update({
+    id: '/zeit/stempeln',
+    path: '/zeit/stempeln',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedZeitAbrechnungRoute =
   AuthenticatedZeitAbrechnungRouteImport.update({
     id: '/zeit/abrechnung',
@@ -243,8 +244,8 @@ export interface FileRoutesByFullPath {
   '/admin/trinkgeld-rest': typeof AuthenticatedAdminTrinkgeldRestRoute
   '/admin/zeit-uebersicht': typeof AuthenticatedAdminZeitUebersichtRoute
   '/zeit/abrechnung': typeof AuthenticatedZeitAbrechnungRoute
+  '/zeit/stempeln': typeof AuthenticatedZeitStempelnRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
-  '/zeit/': typeof AuthenticatedZeitIndexRoute
   '/admin/bestellung/bestellungen': typeof AuthenticatedAdminBestellungBestellungenRoute
   '/admin/bestellung/easyorder': typeof AuthenticatedAdminBestellungEasyorderRoute
   '/admin/bestellung/easyorder-verwaltung': typeof AuthenticatedAdminBestellungEasyorderVerwaltungRoute
@@ -273,8 +274,8 @@ export interface FileRoutesByTo {
   '/admin/trinkgeld-rest': typeof AuthenticatedAdminTrinkgeldRestRoute
   '/admin/zeit-uebersicht': typeof AuthenticatedAdminZeitUebersichtRoute
   '/zeit/abrechnung': typeof AuthenticatedZeitAbrechnungRoute
+  '/zeit/stempeln': typeof AuthenticatedZeitStempelnRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
-  '/zeit': typeof AuthenticatedZeitIndexRoute
   '/admin/bestellung/bestellungen': typeof AuthenticatedAdminBestellungBestellungenRoute
   '/admin/bestellung/easyorder': typeof AuthenticatedAdminBestellungEasyorderRoute
   '/admin/bestellung/easyorder-verwaltung': typeof AuthenticatedAdminBestellungEasyorderVerwaltungRoute
@@ -308,8 +309,8 @@ export interface FileRoutesById {
   '/_authenticated/admin/trinkgeld-rest': typeof AuthenticatedAdminTrinkgeldRestRoute
   '/_authenticated/admin/zeit-uebersicht': typeof AuthenticatedAdminZeitUebersichtRoute
   '/_authenticated/zeit/abrechnung': typeof AuthenticatedZeitAbrechnungRoute
+  '/_authenticated/zeit/stempeln': typeof AuthenticatedZeitStempelnRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
-  '/_authenticated/zeit/': typeof AuthenticatedZeitIndexRoute
   '/_authenticated/admin/bestellung/bestellungen': typeof AuthenticatedAdminBestellungBestellungenRoute
   '/_authenticated/admin/bestellung/easyorder': typeof AuthenticatedAdminBestellungEasyorderRoute
   '/_authenticated/admin/bestellung/easyorder-verwaltung': typeof AuthenticatedAdminBestellungEasyorderVerwaltungRoute
@@ -343,8 +344,8 @@ export interface FileRouteTypes {
     | '/admin/trinkgeld-rest'
     | '/admin/zeit-uebersicht'
     | '/zeit/abrechnung'
+    | '/zeit/stempeln'
     | '/admin/'
-    | '/zeit/'
     | '/admin/bestellung/bestellungen'
     | '/admin/bestellung/easyorder'
     | '/admin/bestellung/easyorder-verwaltung'
@@ -373,8 +374,8 @@ export interface FileRouteTypes {
     | '/admin/trinkgeld-rest'
     | '/admin/zeit-uebersicht'
     | '/zeit/abrechnung'
+    | '/zeit/stempeln'
     | '/admin'
-    | '/zeit'
     | '/admin/bestellung/bestellungen'
     | '/admin/bestellung/easyorder'
     | '/admin/bestellung/easyorder-verwaltung'
@@ -407,8 +408,8 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/trinkgeld-rest'
     | '/_authenticated/admin/zeit-uebersicht'
     | '/_authenticated/zeit/abrechnung'
+    | '/_authenticated/zeit/stempeln'
     | '/_authenticated/admin/'
-    | '/_authenticated/zeit/'
     | '/_authenticated/admin/bestellung/bestellungen'
     | '/_authenticated/admin/bestellung/easyorder'
     | '/_authenticated/admin/bestellung/easyorder-verwaltung'
@@ -467,19 +468,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/zeit/': {
-      id: '/_authenticated/zeit/'
-      path: '/zeit'
-      fullPath: '/zeit/'
-      preLoaderRoute: typeof AuthenticatedZeitIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/admin/': {
       id: '/_authenticated/admin/'
       path: '/'
       fullPath: '/admin/'
       preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/zeit/stempeln': {
+      id: '/_authenticated/zeit/stempeln'
+      path: '/zeit/stempeln'
+      fullPath: '/zeit/stempeln'
+      preLoaderRoute: typeof AuthenticatedZeitStempelnRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/zeit/abrechnung': {
       id: '/_authenticated/zeit/abrechnung'
@@ -758,14 +759,14 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRouteRoute: typeof AuthenticatedAdminRouteRouteWithChildren
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedZeitAbrechnungRoute: typeof AuthenticatedZeitAbrechnungRoute
-  AuthenticatedZeitIndexRoute: typeof AuthenticatedZeitIndexRoute
+  AuthenticatedZeitStempelnRoute: typeof AuthenticatedZeitStempelnRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRouteRoute: AuthenticatedAdminRouteRouteWithChildren,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedZeitAbrechnungRoute: AuthenticatedZeitAbrechnungRoute,
-  AuthenticatedZeitIndexRoute: AuthenticatedZeitIndexRoute,
+  AuthenticatedZeitStempelnRoute: AuthenticatedZeitStempelnRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
