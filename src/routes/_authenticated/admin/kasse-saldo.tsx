@@ -250,38 +250,38 @@ function KasseSaldoPage() {
             <TableBody>
               {rows.map((r) => (
                 <TableRow key={r.businessDate}>
-                  <TableCell>{formatShortDate(r.businessDate)}</TableCell>
-                  <TableCell className="text-right tabular-nums">
+                  <TableCell className="whitespace-nowrap">{formatShortDate(r.businessDate)}</TableCell>
+                  <TableCell className="text-right tabular-nums whitespace-nowrap">
                     {fmtEuro(r.tagesumsatzCents)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
+                  <TableCell className="text-right tabular-nums whitespace-nowrap">
                     {fmtEuro(r.kreditkartenCents)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
+                  <TableCell className="text-right tabular-nums whitespace-nowrap">
                     {fmtEuro(r.deliverySouseCents)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
+                  <TableCell className="text-right tabular-nums whitespace-nowrap">
                     {fmtEuro(r.deliveryWoltCents)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
+                  <TableCell className="text-right tabular-nums whitespace-nowrap">
                     {fmtEuro(r.vouchersRedeemedCents)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
+                  <TableCell className="text-right tabular-nums whitespace-nowrap">
                     {fmtEuro(r.finedineCents)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
+                  <TableCell className="text-right tabular-nums whitespace-nowrap">
                     {fmtEuro(r.vouchersSoldCents)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
+                  <TableCell className="text-right tabular-nums whitespace-nowrap">
                     {fmtEuro(r.einladungCents)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
+                  <TableCell className="text-right tabular-nums whitespace-nowrap">
                     {fmtEuro(r.openInvoicesCents)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
+                  <TableCell className="text-right tabular-nums whitespace-nowrap">
                     {fmtEuro(r.vorschussCents)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
+                  <TableCell className="text-right tabular-nums whitespace-nowrap">
                     {fmtEuro(r.expensesCents)}
                   </TableCell>
                   <TableCell className={bargeldClass(r.bargeldCents)}>
@@ -293,33 +293,33 @@ function KasseSaldoPage() {
             <TableFooter>
               <TableRow>
                 <TableCell>Summe</TableCell>
-                <TableCell className="text-right tabular-nums">
+                <TableCell className="text-right tabular-nums whitespace-nowrap">
                   {fmtEuro(totals.tagesumsatz)}
                 </TableCell>
-                <TableCell className="text-right tabular-nums">
+                <TableCell className="text-right tabular-nums whitespace-nowrap">
                   {fmtEuro(totals.kreditkarten)}
                 </TableCell>
-                <TableCell className="text-right tabular-nums">{fmtEuro(totals.souse)}</TableCell>
-                <TableCell className="text-right tabular-nums">{fmtEuro(totals.wolt)}</TableCell>
-                <TableCell className="text-right tabular-nums">
+                <TableCell className="text-right tabular-nums whitespace-nowrap">{fmtEuro(totals.souse)}</TableCell>
+                <TableCell className="text-right tabular-nums whitespace-nowrap">{fmtEuro(totals.wolt)}</TableCell>
+                <TableCell className="text-right tabular-nums whitespace-nowrap">
                   {fmtEuro(totals.vouchersRedeemed)}
                 </TableCell>
-                <TableCell className="text-right tabular-nums">
+                <TableCell className="text-right tabular-nums whitespace-nowrap">
                   {fmtEuro(totals.finedine)}
                 </TableCell>
-                <TableCell className="text-right tabular-nums">
+                <TableCell className="text-right tabular-nums whitespace-nowrap">
                   {fmtEuro(totals.vouchersSold)}
                 </TableCell>
-                <TableCell className="text-right tabular-nums">
+                <TableCell className="text-right tabular-nums whitespace-nowrap">
                   {fmtEuro(totals.einladung)}
                 </TableCell>
-                <TableCell className="text-right tabular-nums">
+                <TableCell className="text-right tabular-nums whitespace-nowrap">
                   {fmtEuro(totals.openInvoices)}
                 </TableCell>
-                <TableCell className="text-right tabular-nums">
+                <TableCell className="text-right tabular-nums whitespace-nowrap">
                   {fmtEuro(totals.vorschuss)}
                 </TableCell>
-                <TableCell className="text-right tabular-nums">
+                <TableCell className="text-right tabular-nums whitespace-nowrap">
                   {fmtEuro(totals.expenses)}
                 </TableCell>
                 <TableCell className={bargeldClass(totals.bargeld)}>
