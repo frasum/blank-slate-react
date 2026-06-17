@@ -69,7 +69,13 @@ export async function buildLohnXlsx(d: LohnExportInput): Promise<Blob> {
   sectionHeader(s, r++, "Periode");
   setKv(s, r++, "Stunden gesamt", d.totalHours, HRS);
   setKv(s, r++, "Stundensatz", d.hourlyRateCents / 100, EUR);
-  setKv(s, r++, "Zeitlohn (Stunden × Satz)", Math.round(d.totalHours * d.hourlyRateCents) / 100, EUR);
+  setKv(
+    s,
+    r++,
+    "Zeitlohn (Stunden × Satz)",
+    Math.round(d.totalHours * d.hourlyRateCents) / 100,
+    EUR,
+  );
   setKv(s, r++, "SFN-Zuschläge", d.zuschlagCents / 100, EUR);
   r++;
 

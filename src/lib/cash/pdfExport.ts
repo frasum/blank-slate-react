@@ -474,12 +474,9 @@ export function generateDailySummaryPdf(data: PdfExportData): {
     doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(0);
-    doc.text(
-      `Wechselgeldbestand: ${fmtEur(sess.cash_actual_cents)}`,
-      pageWidth / 2,
-      textY,
-      { align: "center" },
-    );
+    doc.text(`Wechselgeldbestand: ${fmtEur(sess.cash_actual_cents)}`, pageWidth / 2, textY, {
+      align: "center",
+    });
 
     const now = new Date();
     const ts = `${format(now, "dd.MM.yyyy", { locale: de })} um ${format(now, "HH:mm", {
