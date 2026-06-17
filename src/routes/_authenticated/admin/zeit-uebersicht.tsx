@@ -29,6 +29,7 @@ import {
   getWeeklyTimeEntries,
   listPeriods,
   listPayrollNotes,
+  listAdvancesByStaff,
   setTimeEntryShift,
   togglePeriodLock,
   upsertPayrollNote,
@@ -199,6 +200,7 @@ function ZeitUebersichtPage() {
   const fetchOverview = useServerFn(getTimeOverview);
   const fetchWeekly = useServerFn(getWeeklyTimeEntries);
   const fetchNotes = useServerFn(listPayrollNotes);
+  const fetchAdvances = useServerFn(listAdvancesByStaff);
   const callUpsert = useServerFn(upsertPayrollNote);
   const callSetShift = useServerFn(setTimeEntryShift);
   const callCreateShift = useServerFn(createTimeEntryShift);
@@ -337,6 +339,15 @@ function ZeitUebersichtPage() {
     queryKey: ["payroll-notes", effectiveLocationId, fromDate, toDate],
     queryFn: () =>
       fetchNotes({
+        data: { locationId: effectiveLocationId, periodStart: fromDate, periodEnd: toDate },
+      }),
+    enabled: Boolean(effectiveLocationId),
+  });
+
+  const advancesQ = useQuery({
+    queryKey: ["payroll-advances", effectiveLocationId, fromDate, toDate],
+    queryFn: () =>
+      fetchAdvances({
         data: { locationId: effectiveLocationId, periodStart: fromDate, periodEnd: toDate },
       }),
     enabled: Boolean(effectiveLocationId),
