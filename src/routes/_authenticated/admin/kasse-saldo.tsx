@@ -131,6 +131,7 @@ function KasseSaldoPage() {
     const t = {
       tagesumsatz: 0,
       kreditkarten: 0,
+      takeaway: 0,
       souse: 0,
       wolt: 0,
       vouchersRedeemed: 0,
@@ -145,6 +146,7 @@ function KasseSaldoPage() {
     for (const r of rows) {
       t.tagesumsatz += r.tagesumsatzCents;
       t.kreditkarten += r.kreditkartenCents;
+      t.takeaway += r.deliveryVectronCents;
       t.souse += r.deliverySouseCents;
       t.wolt += r.deliveryWoltCents;
       t.vouchersRedeemed += r.vouchersRedeemedCents;
