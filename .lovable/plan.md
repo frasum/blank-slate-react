@@ -1,32 +1,30 @@
-## Befund
+## Fix: PeriodNav-Doppelpfeile vertauschen
 
-- Die veröffentlichte `/auth`-Seite lädt inzwischen mit HTTP 200.
-- Beim PIN-Login wird aber keine erfolgreiche `validatePin`-Ausführung erreicht.
-- Alte direkte Aufrufe auf den sprechenden ServerFn-Pfad schlagen mit `Server function info not found` fehl; die aktuell veröffentlichte Client-Datei nutzt stattdessen Hash-IDs.
-- Ein direkter Test gegen die aktuelle Hash-ID der PIN-Server-Function liefert HTTP 500 mit `Seroval Error (step: 3)`.
-- Die temporären `[pin-login] ...` Logs erscheinen nicht. Das heißt: Der Fehler passiert sehr wahrscheinlich vor oder beim ServerFn-Transport/Serialisieren, bevor die Kandidatensuche sauber loggt.
+Nur die Doppelpfeile sollen ihre Funktion tauschen — Einfachpfeile (2 Wochen) bleiben unverändert.
 
-## Plan
+**Datei:** `src/components/roster/PeriodNav.tsx`
 
-1. **ServerFn-Transport sauber reproduzieren**
-   - Den aktuellen veröffentlichten ServerFn-Aufruf exakt mit den Browser-Headern/Payloads prüfen.
-   - Zusätzlich Preview/dev-Logs gegen `Seroval Error`, `validatePin` und `pin-login` vergleichen.
+Am linken Doppelpfeil-Button (aktuell `ChevronsLeft` → `onPrevPeriod`):
+- `onClick` → `onNextPeriod`
+- Icon → `ChevronsRight`
+- `disabled` → `!next`
+- Tooltip → „Nächste Periode"
 
-2. **Wahrscheinlichste Codeursache isolieren**
-   - `src/lib/auth/auth-flows.functions.ts` auf server-function-splitting-Probleme prüfen: lokale Helper (`failed`, `ensureShadowUser`, `generateSessionTokenHash`) werden im selben `.functions.ts`-Modul von Handlern genutzt; genau dieses Muster kann bei TanStack Start zur Runtime-Fehlauflösung/Serialisierung führen.
-   - Die `.or(...ilike...)`-Filter-Syntax prüfen, weil sie nach Transport-Fix sonst die Kandidatensuche brechen kann.
+Am rechten Doppelpfeil-Button (aktuell `ChevronsRight` → `onNextPeriod`):
+- `onClick` → `onPrevPeriod`
+- Icon → `ChevronsLeft`
+- `disabled` → `!prev`
+- Tooltip → „Vorherige Periode"
 
-3. **Minimaler Fix ohne Logikänderung am Login-Verhalten**
-   - Helper aus `auth-flows.functions.ts` in ein getrenntes Server-Helper-Modul verschieben/importieren, damit `validatePin`/`resolveBadgeToken` als dünne ServerFn-Wrapper bleiben.
-   - Kandidatensuche weiterhin exakt case-insensitive auf `first_name` oder `display_name`, aber mit robuster PostgREST-Filter-Syntax.
-   - Temporäre Diagnose-Logs zunächst drinlassen, bis der echte Login einmal bestätigt wurde.
+Wait — das würde die Pfeile spiegelverkehrt zeigen. Sinnvoller: **Handler tauschen, Icons/Tooltips bleiben am Platz.** Also:
 
-4. **Validierung**
-   - `validatePin` gegen den veröffentlichten/Preview-ServerFn-Pfad erneut auslösen und prüfen, dass `[pin-login]`-Logs oder ein erfolgreicher Token zurückkommen.
-   - Danach Browser-E2E auf `/auth`: PIN-Tab, `Andre` + `1111`; anschließend `Gerard` + `1111`.
-   - Wenn der ServerFn dann läuft, aber Login noch fehlschlägt, anhand der dann sichtbaren `[pin-login]`-Logs gezielt die Datenursache beheben.
+- Linker Button (`ChevronsLeft`, Tooltip „Vorherige Periode") ruft jetzt `onNextPeriod` auf → springt 1 Periode **vor**.
+- Rechter Button (`ChevronsRight`, Tooltip „Nächste Periode") ruft jetzt `onPrevPeriod` auf → springt 1 Periode **zurück**.
 
-## Nicht enthalten
+Bitte bestätige welche Variante du meinst:
 
-- Keine Änderung an Rollen, RLS, PIN-Hash-Logik oder UI-Texten.
-- Keine neue Feature-Arbeit außerhalb des PIN-Login-Debuggings.
+**A) Handler vertauschen, Icons bleiben** — dann zeigt der linke Doppelpfeil-Button optisch nach links, springt aber vorwärts. (Inkonsistent zur Optik.)
+
+**B) Icons + Tooltips + Disabled-Logik vertauschen, Handler bleiben** — dann hat der linke Button `ChevronsRight` und der rechte `ChevronsLeft`. Optisch verwirrend in der Reihenfolge `Heute « ‹ Label › »`.
+
+Bevor ich baue, brauche ich kurz die Bestätigung welche Lösung du willst — oder ob du in Wahrheit meinst, dass im aktuellen UI ein Klick auf `»` zurück und auf `«` vor springt (Bug in der Handler-Verdrahtung), und das einfach zur normalen Logik korrigiert werden soll.
