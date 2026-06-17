@@ -15,6 +15,7 @@ export type SettlementWarning =
       kind: "terminal_diff";
       terminalsCents: number;
       waiterCardCents: number;
+      glCardCents: number;
       diffCents: number;
     };
 
@@ -23,8 +24,13 @@ export type SettlementWarningInput = {
   posTotalCents: number;
   deliveryVectronCents: number;
   deliverySouseCents: number;
-  deliveryWoltCents: number;
+  // Wolt = Drittplattform, NICHT im Vectron-Tagesumsatz enthalten —
+  // Legacy `adjustedPosDiff` (tagesabrechnung DailySummary) zieht
+  // `wolt_revenue` nie vom POS-Total ab. Daher kein deliveryWoltCents hier.
   terminalsTotalCents: number;
+  // Nur physische Terminals (OHNE GL). GL-Karten gehören auf die
+  // Kellner-Seite und werden via glCardCents addiert.
+  glCardCents: number;
   waiterPosSalesCents: number[];
   waiterCardTotalCents: number[];
 };
@@ -46,14 +52,14 @@ export function computeSettlementWarnings(input: SettlementWarningInput): Settle
   const posTotal = asInt(input.posTotalCents, "posTotalCents");
   const deliveryVectron = asInt(input.deliveryVectronCents, "deliveryVectronCents");
   const deliverySouse = asInt(input.deliverySouseCents, "deliverySouseCents");
-  const deliveryWolt = asInt(input.deliveryWoltCents, "deliveryWoltCents");
   const terminalsTotal = asInt(input.terminalsTotalCents, "terminalsTotalCents");
+  const glCard = asInt(input.glCardCents, "glCardCents");
   const waiterPos = sumInts(input.waiterPosSalesCents, "waiterPosSalesCents");
   const waiterCard = sumInts(input.waiterCardTotalCents, "waiterCardTotalCents");
 
-  const delivery = deliveryVectron + deliverySouse + deliveryWolt;
+  const delivery = deliveryVectron + deliverySouse;
   const posDiff = posTotal - waiterPos - delivery;
-  const terminalDiff = terminalsTotal - waiterCard;
+  const terminalDiff = terminalsTotal - (waiterCard + glCard);
 
   const warnings: SettlementWarning[] = [];
   if (Math.abs(posDiff) >= 1) {
@@ -70,6 +76,7 @@ export function computeSettlementWarnings(input: SettlementWarningInput): Settle
       kind: "terminal_diff",
       terminalsCents: terminalsTotal,
       waiterCardCents: waiterCard,
+      glCardCents: glCard,
       diffCents: terminalDiff,
     });
   }
