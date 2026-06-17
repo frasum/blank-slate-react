@@ -1,23 +1,43 @@
 ## Ziel
-Tageszahl im Spaltenkopf einfärben:
-- `< 5` → rot
-- `= 5` → wie bisher (foreground bzw. muted)
-- `> 5` → grün
+Monats-/Periodennavigation im Dienstplan visuell und funktional wie in `thaitime.pro` (siehe `src/components/schedule/ScheduleGridToolbar.tsx`):
 
-Gilt sowohl im Küchen- als auch im Service-Tab und für beide Standorte (eine einzige Render-Stelle deckt beides ab).
+```
+[ Heute ]  [‹‹]  [‹]   Juni 2026   [›]  [››]
+```
 
-## Änderung
-**Eine Datei:** `src/components/roster/RosterGrid.tsx` — Klasse für `<span>` mit `cnt` so erweitern:
-- `cnt === 0` → bleibt `text-muted-foreground/40` (kein „rot" für leere Tage, sonst flattern alle Wochenenden)
-- `cnt > 0 && cnt < 5` → `text-red-600`
-- `cnt === 5` → `text-foreground` (Status quo)
-- `cnt > 5` → `text-green-600`
+- runde weiße Buttons mit grauem Rand, `h-10`
+- „Heute" als Pille mit Text, Pfeile als `w-10 h-10` Kreise
+- Label zentriert mit `text-sm font-semibold min-w-32`
+- Tooltips wie im Original
+
+Da unsere Perioden monatsweise in der DB liegen (keine Halbmonats-Logik), mappen wir die Pfeile auf die `periods`-Liste:
+
+| Button | Aktion |
+|---|---|
+| Heute | Periode, die `today` enthält (Fallback: erste Periode) |
+| ‹‹ | erste Periode in der Liste |
+| ‹ | vorherige Periode (Index −1) |
+| › | nächste Periode (Index +1) |
+| ›› | letzte Periode in der Liste |
+
+Buttons werden disabled, wenn am Rand. Periode-Select entfällt komplett; Label zeigt `period.label` (z. B. „Juni 2026").
+
+## Änderungen
+
+### 1. `src/components/roster/PeriodNav.tsx` — **neu**
+Reine Präsentations-Komponente nach dem Vorbild von thaitime:
+- Props: `periods`, `currentPeriodId`, `today`, `onSelect(periodId)`
+- Berechnet `prev`/`next`/`first`/`last`/`todayPeriod` aus Props
+- Rendert die 6-Button-Leiste mit `lucide-react` (`ChevronLeft`, `ChevronRight`, `ChevronsLeft`, `ChevronsRight`)
+- `TooltipProvider` ist schon im Page-Scope vorhanden — Komponente nutzt nur `Tooltip`/`TooltipTrigger`/`TooltipContent`
+
+### 2. `src/routes/_authenticated/admin/dienstplan.tsx`
+- Periode-`<label>`/`<select>` entfernen
+- Statt dessen `<PeriodNav periods={periods} currentPeriodId={effectivePeriod?.id ?? null} today={today} onSelect={setPeriodId} />` im Header rendern
+- Standort-Select bleibt, Header-Layout bleibt (neben „Dienstplan")
 
 ## Nicht angefasst
-Datenfluss, Gesamtsumme, Farben der Pillen, Layout.
+Standort-Select, Datenfluss, Saldo/Kasse, Pillen-Logik, Server-Funktionen.
 
 ## Erfolgskriterium
-Counts unter den Datumsangaben sind rot/grün/normal nach Regel; `tsc --noEmit` grün.
-
-## Frage offen
-„Cnt 0 = rot oder neutral?" — ich gehe per Default von neutral aus (sonst sind alle freien Tage permanent rot). Bitte korrigieren, falls 0 doch rot sein soll.
+6-Button-Leiste statt Dropdown, optisch wie thaitime; „Heute" springt zur aktuellen Periode; Pfeile blättern in der Perioden-Reihenfolge; Buttons am Rand sind disabled; `tsc --noEmit` und ESLint grün.
