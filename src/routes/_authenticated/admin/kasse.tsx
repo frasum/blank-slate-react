@@ -374,6 +374,7 @@ function KassePage() {
           amountCents: a.amountCents,
           note: a.note,
         })),
+        cashBalanceTargetCents: cashBalanceTargetResolvedCents,
       });
       setPdfPreview(out);
     } catch (e) {
