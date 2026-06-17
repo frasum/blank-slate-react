@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import jsPDF from "jspdf";
 import autoTable, { type RowInput } from "jspdf-autotable";
+import { computeDailyCash, type DayInput } from "./cash-ledger";
 
 type Cents = number;
 
@@ -23,6 +24,13 @@ export interface PdfSession {
   guest_count?: number | null;
   cash_actual_cents?: number | null;
   notes?: string | null;
+  vectron_daily_total_cents?: Cents | null;
+  vouchers_sold_cents?: Cents | null;
+  vouchers_redeemed_cents?: Cents | null;
+  finedine_vouchers_cents?: Cents | null;
+  einladung_cents?: Cents | null;
+  sonstige_einnahme_cents?: Cents | null;
+  vorschuss_cents?: Cents | null;
 }
 
 export interface PdfSettlement {
@@ -167,24 +175,48 @@ export function generateDailySummaryPdf(data: PdfExportData): {
   const columnsStartY = y;
 
   // ---- LEFT COLUMN -------------------------------------------------------
-  const posTotal = totals.pos;
+  // POS-Umsatz kommt aus dem Session-Feld vectron_daily_total_cents
+  // (NICHT aus den Channels — YUM/Spicery hat keinen pos-Channel).
+  const posTotal = Number(sess.vectron_daily_total_cents ?? 0);
   const cardTerminalTotal = data.terminalAmounts.reduce((a, b) => a + b.amountCents, 0);
   const sumOpen = active.reduce((a, s) => a + s.open_invoices_cents, 0);
   const sumHilf = active.reduce((a, s) => a + s.hilf_mahl_cents, 0);
-  const sumCashIn = active.reduce((a, s) => a + s.cash_handed_in_cents, 0);
   const sumAdvances = data.advances.reduce((a, b) => a + b.amountCents, 0);
   const sumExpenses = data.expenses.reduce((a, b) => a + b.amountCents, 0);
 
-  // Tages-Bargeld (vereinfachte coco-Form: Bargeld = abgegebenes Bargeld − Abzüge)
-  const bargeldRaw =
-    sumCashIn -
-    sumAdvances -
-    totals.einladung -
-    sumExpenses +
-    totals.sonstige -
-    totals.voucher_sold +
-    totals.voucher_redeemed;
-  const bargeldMitHilf = bargeldRaw; // hilf_mahl ist bereits Teil von cash_handed_in nicht; eigene Zeile darunter
+  // Anzeigewerte aus den Session-Feldern (gleiche Quelle wie aggToDayInput),
+  // damit die im PDF gedruckten Zahlen identisch mit der Bargeld-Berechnung sind.
+  const vouchersSold = Number(sess.vouchers_sold_cents ?? 0);
+  const vouchersRedeemed = Number(sess.vouchers_redeemed_cents ?? 0);
+  const finedine = Number(sess.finedine_vouchers_cents ?? 0);
+  const einladung = Number(sess.einladung_cents ?? 0);
+  const sonstige = Number(sess.sonstige_einnahme_cents ?? 0);
+  const vorschussField = Number(sess.vorschuss_cents ?? 0);
+
+  // Tages-Bargeld: 1:1 über computeDailyCash (cash-ledger), DayInput analog zu
+  // aggToDayInput — aus dem Einzel-Session-DTO statt aus dem Tages-Aggregat.
+  const dayInput: DayInput = {
+    businessDate: sess.business_date,
+    grossRevenueCents: posTotal,
+    cardTotalCents: cardTerminalTotal,
+    deliverySouseCents: totals.delivery_souse,
+    deliveryWoltCents: totals.delivery_wolt,
+    vouchersSoldCents: vouchersSold,
+    vouchersRedeemedCents: vouchersRedeemed,
+    finedineVouchersCents: finedine,
+    einladungCents: einladung,
+    openInvoicesCents: active.map((s) => s.open_invoices_cents),
+    sonstigeEinnahmeCents: sonstige,
+    vorschussCents: vorschussField,
+    satellites: {
+      expensesCents: data.expenses.map((e) => e.amountCents),
+      advancesCents: data.advances.map((a) => a.amountCents),
+      cardTransactionsCents: [],
+      bankDepositsCents: [],
+      registerTransfers: [],
+    },
+  };
+  const bargeldCents = computeDailyCash(dayInput);
 
   const summaryRows: RowInput[] = [];
   summaryRows.push(sectionHeader("Umsatz"));
@@ -228,24 +260,24 @@ export function generateDailySummaryPdf(data: PdfExportData): {
   }
 
   summaryRows.push(sectionHeader("Gutscheine & Abzüge"));
-  summaryRows.push(["Gutscheine EL", fmtEur(totals.voucher_redeemed)]);
-  summaryRows.push(["Gutschein Verkauf", fmtEur(totals.voucher_sold)]);
-  if (totals.finedine !== 0) summaryRows.push(["FineDine", fmtEur(totals.finedine)]);
+  summaryRows.push(["Gutscheine EL", fmtEur(vouchersRedeemed)]);
+  summaryRows.push(["Gutschein Verkauf", fmtEur(vouchersSold)]);
+  if (finedine !== 0) summaryRows.push(["FineDine", fmtEur(finedine)]);
   summaryRows.push(["Offen", fmtEur(sumOpen)]);
   summaryRows.push(["Personal", fmtEur(sumAdvances)]);
-  summaryRows.push(["Einladung", fmtEur(totals.einladung)]);
-  summaryRows.push(["Sonstige Einnahmen", fmtEur(totals.sonstige)]);
+  summaryRows.push(["Einladung", fmtEur(einladung)]);
+  summaryRows.push(["Sonstige Einnahmen", fmtEur(sonstige)]);
   summaryRows.push(["Bar Ausgaben", fmtEur(sumExpenses)]);
 
   summaryRows.push(sectionHeader("Ergebnis"));
-  const bargeldColor = bargeldRaw >= 0 ? GREEN : RED;
+  const bargeldColor = bargeldCents >= 0 ? GREEN : RED;
   summaryRows.push([
     {
       content: "Tages-Bargeld",
       styles: { fontStyle: "bold", textColor: bargeldColor },
     },
     {
-      content: fmtEur(bargeldRaw),
+      content: fmtEur(bargeldCents),
       styles: { fontStyle: "bold", halign: "right", textColor: bargeldColor },
     },
   ]);
@@ -263,7 +295,7 @@ export function generateDailySummaryPdf(data: PdfExportData): {
       },
     },
     {
-      content: fmtEur(bargeldMitHilf),
+      content: fmtEur(bargeldCents),
       styles: {
         fontStyle: "bold",
         fontSize: 10,
@@ -442,12 +474,9 @@ export function generateDailySummaryPdf(data: PdfExportData): {
     doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(0);
-    doc.text(
-      `Wechselgeldbestand: ${fmtEur(sess.cash_actual_cents)}`,
-      pageWidth / 2,
-      textY,
-      { align: "center" },
-    );
+    doc.text(`Wechselgeldbestand: ${fmtEur(sess.cash_actual_cents)}`, pageWidth / 2, textY, {
+      align: "center",
+    });
 
     const now = new Date();
     const ts = `${format(now, "dd.MM.yyyy", { locale: de })} um ${format(now, "HH:mm", {

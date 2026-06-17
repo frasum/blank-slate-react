@@ -28,10 +28,7 @@ describe("staffDetailsToPerson", () => {
   });
 
   it("setzt pvKinderlosZuschlag = false und kinderzahl korrekt bei children_count=2", () => {
-    const p = staffDetailsToPerson(
-      { ...base, children_count: 2 },
-      "2026-01-31",
-    );
+    const p = staffDetailsToPerson({ ...base, children_count: 2 }, "2026-01-31");
     expect(p.pvKinderlosZuschlag).toBe(false);
     expect(p.kinderzahl).toBe(2);
   });

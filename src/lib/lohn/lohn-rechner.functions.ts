@@ -56,12 +56,7 @@ export const berechneLohnFuerMitarbeiter = createServerFn({ method: "GET" })
     if (staffErr) throw staffErr;
     if (!staff) throw new Error("Mitarbeiter nicht in dieser Organisation.");
 
-    const sfn = await aggregateSfnPeriod(
-      supabaseAdmin,
-      data.staffId,
-      data.fromDate,
-      data.toDate,
-    );
+    const sfn = await aggregateSfnPeriod(supabaseAdmin, data.staffId, data.fromDate, data.toDate);
     const chosen = data.mode === "extended" ? sfn.extended : sfn.simple;
 
     const { data: details, error: detErr } = await supabaseAdmin

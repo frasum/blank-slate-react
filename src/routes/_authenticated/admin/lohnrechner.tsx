@@ -28,11 +28,7 @@ import {
 } from "@/components/ui/table";
 import { listStaff } from "@/lib/admin/staff.functions";
 import { berechneLohnFuerMitarbeiter } from "@/lib/lohn/lohn-rechner.functions";
-import {
-  buildLohnFileName,
-  buildLohnXlsx,
-  downloadBlob,
-} from "@/lib/lohn/lohn-excel-export";
+import { buildLohnFileName, buildLohnXlsx, downloadBlob } from "@/lib/lohn/lohn-excel-export";
 import { FileSpreadsheet } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/lohnrechner")({
@@ -56,7 +52,7 @@ function eur(cents: number | undefined | null): string {
 }
 
 function hrs(h: number | undefined | null): string {
-  return (Number(h ?? 0)).toLocaleString("de-DE", {
+  return Number(h ?? 0).toLocaleString("de-DE", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
@@ -83,9 +79,9 @@ function LohnRechnerPage() {
 
   const callFn = useServerFn(berechneLohnFuerMitarbeiter);
   const mut = useMutation({
-    mutationFn: () =>
-      callFn({ data: { staffId, fromDate, toDate, mode, zusatzZeilen: [] } }),
-    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Berechnung fehlgeschlagen."),
+    mutationFn: () => callFn({ data: { staffId, fromDate, toDate, mode, zusatzZeilen: [] } }),
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Berechnung fehlgeschlagen."),
   });
 
   const canRun =
@@ -165,12 +161,7 @@ function LohnRechnerPage() {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="to">Bis</Label>
-            <Input
-              id="to"
-              type="date"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-            />
+            <Input id="to" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="mode">SFN-Modus</Label>
@@ -213,7 +204,10 @@ function LohnRechnerPage() {
               <KV k="Stundensatz" v={eur(result.hourlyRateCents)} />
               <KV k="Einträge" v={String(result.entryCount)} />
               <KV k="SFN-Modus" v={result.mode} />
-              <KV k="Zeitlohn (Stunden × Satz)" v={eur(Math.round(result.totalHours * result.hourlyRateCents))} />
+              <KV
+                k="Zeitlohn (Stunden × Satz)"
+                v={eur(Math.round(result.totalHours * result.hourlyRateCents))}
+              />
               <KV k="SFN-Zuschläge" v={eur(result.zuschlagCents)} />
             </div>
           </Card>
@@ -238,7 +232,10 @@ function LohnRechnerPage() {
               <KV k="Kirchensteuer (BY)" v={result.person.kirchensteuerBayern ? "ja" : "nein"} />
               <KV k="Anzahl Kinder" v={String(result.person.kinderzahl)} />
               <KV k="Elterneigenschaft" v={result.person.elterneigenschaft ? "ja" : "nein"} />
-              <KV k="PV-Kinderlosen-Zuschlag" v={result.person.pvKinderlosZuschlag ? "ja" : "nein"} />
+              <KV
+                k="PV-Kinderlosen-Zuschlag"
+                v={result.person.pvKinderlosZuschlag ? "ja" : "nein"}
+              />
               <KV k="Beschäftigung" v={result.person.beschaeftigung} />
             </div>
           </Card>
@@ -260,8 +257,12 @@ function LohnRechnerPage() {
                   <TableRow key={i}>
                     <TableCell className="font-mono text-xs">{z.kategorie}</TableCell>
                     <TableCell>{z.bezeichnung ?? "—"}</TableCell>
-                    <TableCell className="text-right">{z.stunden != null ? hrs(z.stunden) : "—"}</TableCell>
-                    <TableCell className="text-right">{z.satzCent != null ? eur(z.satzCent) : "—"}</TableCell>
+                    <TableCell className="text-right">
+                      {z.stunden != null ? hrs(z.stunden) : "—"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {z.satzCent != null ? eur(z.satzCent) : "—"}
+                    </TableCell>
                     <TableCell className="text-right">{eur(z.betragCent)}</TableCell>
                   </TableRow>
                 ))}

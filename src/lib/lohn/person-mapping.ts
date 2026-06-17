@@ -5,11 +5,7 @@
  * und dient ausschließlich der Altersberechnung für den PV-Zuschlag.
  */
 
-import type {
-  Beschaeftigungsart,
-  PersonenParameter,
-  Steuerklasse,
-} from "./types";
+import type { Beschaeftigungsart, PersonenParameter, Steuerklasse } from "./types";
 
 const ROMAN_TO_STKL: Record<string, Steuerklasse> = {
   I: 1,
@@ -46,10 +42,7 @@ function alterAm(dob: string | null, asOf: string): number | null {
  * `asOf` = Periodenende (z. B. `"2026-01-31"`).
  * Wirft, wenn die Steuerklasse fehlt — ohne sie ist keine Lohnsteuerberechnung möglich.
  */
-export function staffDetailsToPerson(
-  d: StaffDetailsForLohn,
-  asOf: string,
-): PersonenParameter {
+export function staffDetailsToPerson(d: StaffDetailsForLohn, asOf: string): PersonenParameter {
   const stkl = d.tax_class ? ROMAN_TO_STKL[d.tax_class] : undefined;
   if (!stkl) throw new Error("Steuerklasse fehlt in den Stammdaten.");
 
@@ -65,8 +58,7 @@ export function staffDetailsToPerson(
     elterneigenschaft: !!d.has_parent_status,
     // PV-Kinderlosen-Zuschlag: keine Kinder UND >=23. Alter unbekannt -> vorsichtshalber
     // Zuschlag setzen, damit nicht versehentlich zu wenig PV abgezogen wird.
-    pvKinderlosZuschlag:
-      kinderzahl === 0 && (age === null ? true : age >= 23),
+    pvKinderlosZuschlag: kinderzahl === 0 && (age === null ? true : age >= 23),
     beschaeftigung: (d.is_minijob ? "minijob" : "normal") as Beschaeftigungsart,
   };
 }
