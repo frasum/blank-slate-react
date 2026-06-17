@@ -57,15 +57,32 @@ export const listLocations = createServerFn({ method: "GET" })
       "payroll",
     ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await supabaseAdmin
-      .from("locations")
-      .select(
-        "id, name, timezone, street, postal_code, city, delivery_notes, phone, contact_name, contact_phone, latitude, longitude, geofence_radius_m, geocoded_at, geocoded_address",
-      )
-      .eq("organization_id", caller.organizationId)
-      .order("name");
+    const [{ data, error }, { data: org, error: orgErr }] = await Promise.all([
+      supabaseAdmin
+        .from("locations")
+        .select(
+          "id, name, timezone, street, postal_code, city, delivery_notes, phone, contact_name, contact_phone, latitude, longitude, geofence_radius_m, geocoded_at, geocoded_address, cash_balance_target_cents",
+        )
+        .eq("organization_id", caller.organizationId)
+        .order("name"),
+      supabaseAdmin
+        .from("organizations")
+        .select("cash_balance_target_cents")
+        .eq("id", caller.organizationId)
+        .maybeSingle(),
+    ]);
     if (error) throw error;
-    return data ?? [];
+    if (orgErr) throw orgErr;
+    const orgTarget = Number(org?.cash_balance_target_cents ?? 200_000);
+    return (data ?? []).map((row) => {
+      const raw =
+        row.cash_balance_target_cents == null ? null : Number(row.cash_balance_target_cents);
+      return {
+        ...row,
+        cashBalanceTargetCents: raw,
+        cashBalanceTargetResolvedCents: raw ?? orgTarget,
+      };
+    });
   });
 
 export const createLocation = createServerFn({ method: "POST" })
@@ -112,6 +129,7 @@ export const updateLocation = createServerFn({ method: "POST" })
       .object({
         locationId: z.string().uuid(),
         name: z.string().trim().min(1).max(120),
+        cashBalanceTargetCents: z.number().int().min(0).nullable().optional(),
         ...detailsShape,
       })
       .parse(input),
@@ -131,6 +149,8 @@ export const updateLocation = createServerFn({ method: "POST" })
           phone: data.phone,
           contact_name: data.contact_name,
           contact_phone: data.contact_phone,
+          cash_balance_target_cents:
+            data.cashBalanceTargetCents === undefined ? undefined : data.cashBalanceTargetCents,
         })
         .eq("id", data.locationId)
         .eq("organization_id", caller.organizationId);
