@@ -742,6 +742,70 @@ export type Database = {
           },
         ]
       }
+      leave_requests: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by_staff_id: string | null
+          decision_note: string | null
+          end_date: string
+          id: string
+          organization_id: string
+          reason: string | null
+          staff_id: string
+          start_date: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by_staff_id?: string | null
+          decision_note?: string | null
+          end_date: string
+          id?: string
+          organization_id: string
+          reason?: string | null
+          staff_id: string
+          start_date: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by_staff_id?: string | null
+          decision_note?: string | null
+          end_date?: string
+          id?: string
+          organization_id?: string
+          reason?: string | null
+          staff_id?: string
+          start_date?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_requests_decided_by_staff_id_fkey"
+            columns: ["decided_by_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       location_department_defaults: {
         Row: {
           created_at: string
@@ -2987,6 +3051,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      approve_leave_request: {
+        Args: { p_decided_by: string; p_note: string; p_request_id: string }
+        Returns: undefined
+      }
       create_order_from_cart: {
         Args: {
           p_notes?: string
