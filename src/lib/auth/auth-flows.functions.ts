@@ -13,99 +13,22 @@
 //   * Reine Validierungslogik ist in pin-validation.ts isoliert getestet.
 
 import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
 import { evaluatePin, PIN_RATE_LIMIT_WINDOW_MS } from "./pin-validation";
-
-const FAILED_MESSAGE = "Anmeldung fehlgeschlagen";
-
-function failed(): never {
-  throw new Error(FAILED_MESSAGE);
-}
-
-/**
- * Stellt sicher, dass es zu einem staff_id einen auth.users-Eintrag
- * und einen user_links-Eintrag gibt. Liefert die zugehörige E-Mail
- * (für admin.generateLink).
- *
- * Achtung: Nur innerhalb von Server-Functions aufrufen — supabaseAdmin
- * wird per dynamic import geladen, damit das Modul nicht ins Client-
- * Bundle leakt.
- */
-async function ensureShadowUser(staffId: string, organizationId: string): Promise<string> {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-  const { data: link, error: linkSelectErr } = await supabaseAdmin
-    .from("user_links")
-    .select("user_id")
-    .eq("staff_id", staffId)
-    .maybeSingle();
-  // eslint-disable-next-line no-console
-  if (linkSelectErr) console.error("[pin-login] linkSelect error:", linkSelectErr);
-  if (linkSelectErr) failed();
-
-  if (link) {
-    const { data: existing, error: getErr } = await supabaseAdmin.auth.admin.getUserById(
-      link.user_id,
-    );
-    // eslint-disable-next-line no-console
-    if (getErr || !existing.user?.email)
-      console.error("[pin-login] getUserById error / keine email:", getErr);
-    if (getErr || !existing.user?.email) failed();
-    return existing.user.email;
-  }
-
-  const email = `staff-${staffId}@internal.invalid`;
-  const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
-    email,
-    email_confirm: true,
-    app_metadata: { staff_id: staffId },
-  });
-  // eslint-disable-next-line no-console
-  if (createErr || !created.user) console.error("[pin-login] createUser error:", createErr);
-  if (createErr || !created.user) failed();
-
-  const { error: insertErr } = await supabaseAdmin.from("user_links").insert({
-    user_id: created.user.id,
-    staff_id: staffId,
-    organization_id: organizationId,
-  });
-  // eslint-disable-next-line no-console
-  if (insertErr) console.error("[pin-login] user_links insert error:", insertErr);
-  if (insertErr) failed();
-
-  return email;
-}
-
-/**
- * Erzeugt einen Magic-Link für die Shadow-E-Mail und gibt den hashed_token
- * zurück. Der Client verifiziert ihn mit supabase.auth.verifyOtp.
- */
-async function generateSessionTokenHash(email: string): Promise<string> {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin.auth.admin.generateLink({
-    type: "magiclink",
-    email,
-  });
-  // eslint-disable-next-line no-console
-  if (error || !data.properties?.hashed_token)
-    console.error("[pin-login] generateLink error:", error);
-  if (error || !data.properties?.hashed_token) failed();
-  return data.properties.hashed_token;
-}
+import {
+  ensureShadowUser,
+  failed,
+  generateSessionTokenHash,
+  parseBadgeLoginInput,
+  parsePinLoginInput,
+  toPostgrestIlikeLiteral,
+} from "./auth-flows.server";
 
 // =========================================================================
 // PIN-Login
 // =========================================================================
 
 export const validatePin = createServerFn({ method: "POST" })
-  .inputValidator((input) =>
-    z
-      .object({
-        firstName: z.string().trim().min(1).max(64),
-        pin: z.string().min(1).max(32),
-      })
-      .parse(input),
-  )
+  .inputValidator(parsePinLoginInput)
   .handler(async ({ data }) => {
     const bcrypt = (await import("bcryptjs")).default;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -115,16 +38,14 @@ export const validatePin = createServerFn({ method: "POST" })
     // Nickname anmelden. Konflikte/Mehrfachtreffer werden über den PIN
     // aufgelöst (Loop unten prüft je Kandidat den PIN). Generische
     // Fehlermeldung bleibt bei 0 Treffern.
-    const term = data.firstName.trim().replace(/"/g, ""); // " kann den .or-Filter brechen
+    const term = toPostgrestIlikeLiteral(data.firstName.trim());
     const { data: candidates, error: staffErr } = await supabaseAdmin
       .from("staff")
       .select("id, organization_id, is_active, first_name")
-      .or(`first_name.ilike."${term}",display_name.ilike."${term}"`)
+      .or(`first_name.ilike.${term},display_name.ilike.${term}`)
       .eq("is_active", true);
-    // eslint-disable-next-line no-console
     if (staffErr) console.error("[pin-login] candidate query error:", staffErr);
     if (staffErr) failed();
-    // eslint-disable-next-line no-console
     if (!candidates || candidates.length === 0)
       console.error("[pin-login] keine Kandidaten für Name:", data.firstName.trim());
     if (!candidates || candidates.length === 0) failed();
@@ -165,7 +86,6 @@ export const validatePin = createServerFn({ method: "POST" })
 
     // Eindeutig genau einer? Sonst generische Ablehnung (keine Auskunft,
     // ob 0 oder >1 Treffer — verhindert Enumeration).
-    // eslint-disable-next-line no-console
     if (matches.length !== 1) console.error("[pin-login] matches.length:", matches.length);
     if (matches.length !== 1) failed();
     const winner = matches[0];
@@ -180,7 +100,7 @@ export const validatePin = createServerFn({ method: "POST" })
 // =========================================================================
 
 export const resolveBadgeToken = createServerFn({ method: "POST" })
-  .inputValidator((input) => z.object({ token: z.string().min(1).max(256) }).parse(input))
+  .inputValidator(parseBadgeLoginInput)
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
