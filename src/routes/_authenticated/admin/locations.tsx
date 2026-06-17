@@ -257,6 +257,7 @@ function LocationRow(props: {
   loc: LocationRowData;
   onSave: (name: string, details: LocationDetails) => void;
   onDelete: () => void;
+  onGeoChanged: () => void;
 }) {
   const [name, setName] = useState(props.loc.name);
   const [details, setDetails] = useState<LocationDetails>(() => ({
@@ -382,7 +383,7 @@ function LocationRow(props: {
         </div>
       )}
       {displayOpen && <DisplayPanel locationId={props.loc.id} />}
-      {open && <GeofencePanel loc={props.loc} onChanged={() => {}} />}
+      {open && <GeofencePanel loc={props.loc} onChanged={props.onGeoChanged} />}
     </div>
   );
 }
