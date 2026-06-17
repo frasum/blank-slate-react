@@ -316,7 +316,7 @@ function KassePage() {
 
   // -------------------- PDF Export --------------------
   const [pdfPreview, setPdfPreview] = useState<{
-    blobUrl: string;
+    doc: jsPDF;
     blob: Blob;
     fileName: string;
   } | null>(null);
@@ -390,7 +390,6 @@ function KassePage() {
     }
   }
   function closePdfPreview() {
-    if (pdfPreview) URL.revokeObjectURL(pdfPreview.blobUrl);
     setPdfPreview(null);
   }
 
@@ -647,11 +646,7 @@ function KassePage() {
           </DialogHeader>
           <div className="min-h-0 flex-1 p-2">
             {pdfPreview && (
-              <iframe
-                title="Tagesabrechnung PDF Vorschau"
-                src={pdfPreview.blobUrl}
-                className="h-full w-full rounded border"
-              />
+              <PdfCanvasPreview blob={pdfPreview.blob} />
             )}
           </div>
           <DialogFooter className="gap-2 border-t px-6 py-4">
@@ -662,12 +657,7 @@ function KassePage() {
             <Button
               onClick={() => {
                 if (!pdfPreview) return;
-                const a = document.createElement("a");
-                a.href = pdfPreview.blobUrl;
-                a.download = pdfPreview.fileName;
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
+                pdfPreview.doc.save(pdfPreview.fileName);
               }}
             >
               <Download className="mr-2 h-4 w-4" />
