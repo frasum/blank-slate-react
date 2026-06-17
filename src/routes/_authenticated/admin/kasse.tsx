@@ -930,6 +930,67 @@ type Overview = Awaited<ReturnType<typeof getCashOverview>>;
 
 type SettlementRow = Overview["settlements"][number];
 
+function fmtSignedCents(c: number): string {
+  const sign = c > 0 ? "+" : c < 0 ? "−" : "";
+  return `${sign}${fmtCents(Math.abs(c))} €`;
+}
+
+function SettlementWarningsBanner({
+  overview,
+  channels,
+}: {
+  overview: Overview;
+  channels: { id: string; kind: string }[];
+}) {
+  const channelById = Object.fromEntries(channels.map((c) => [c.id, c]));
+  const kindRows = (overview.channelAmounts ?? [])
+    .map((a) => {
+      const k = channelById[a.channelId]?.kind as ChannelKind | undefined;
+      return k ? { kind: k, amountCents: Number(a.amountCents) } : null;
+    })
+    .filter((r): r is { kind: ChannelKind; amountCents: number } => r !== null);
+  const agg = aggregateChannelAmounts(
+    kindRows,
+    (overview.terminalAmounts ?? []).map((t) => ({ amountCents: Number(t.amountCents) })),
+  );
+
+  const warnings = computeSettlementWarnings({
+    hasSettlements: overview.settlements.length > 0,
+    posTotalCents: Number(overview.session?.vectron_daily_total_cents ?? 0),
+    deliveryVectronCents: agg.byKind.delivery_vectron,
+    deliverySouseCents: agg.byKind.delivery_souse,
+    deliveryWoltCents: agg.byKind.delivery_wolt,
+    terminalsTotalCents: agg.cardTotalCents,
+    waiterPosSalesCents: overview.settlements.map((s) => Number(s.pos_sales_cents)),
+    waiterCardTotalCents: overview.settlements.map((s) => Number(s.card_total_cents)),
+  });
+
+  if (warnings.length === 0) return null;
+
+  return (
+    <Card className="border-destructive/40 bg-destructive/10 p-4 text-destructive">
+      <div className="mb-2 text-sm font-semibold">Abgleichs-Warnungen</div>
+      <ul className="space-y-1 text-sm">
+        {warnings.map((w) =>
+          w.kind === "pos_diff" ? (
+            <li key="pos">
+              <strong>POS-Differenz</strong> — Vectron-Total ({fmtCents(w.posTotalCents)} €) ≠
+              Kellner-Umsätze ({fmtCents(w.waiterPosCents)} €) + Take-away/Lieferungen (
+              {fmtCents(w.deliveryCents)} €). Differenz: {fmtSignedCents(w.diffCents)}.
+            </li>
+          ) : (
+            <li key="term">
+              <strong>Terminal-Differenz</strong> — Σ Terminals ({fmtCents(w.terminalsCents)} €) ≠
+              Kellner-Kartenzahlungen ({fmtCents(w.waiterCardCents)} €). Differenz:{" "}
+              {fmtSignedCents(w.diffCents)}.
+            </li>
+          ),
+        )}
+      </ul>
+    </Card>
+  );
+}
+
 function SettlementsCard({
   data,
   correctable,
