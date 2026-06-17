@@ -56,6 +56,10 @@ type Props = {
   shifts: RosterShift[];
   allSkills: RosterSkill[];
   crossBookings: RosterCrossBooking[];
+  lockMap: Map<
+    string,
+    { locationId: string; locationName: string; area: "kitchen" | "service" | "gl" }
+  >;
   unavailableSet: Set<string>;
   absenceMap: Map<string, "urlaub" | "krank">;
   density: Density;
@@ -87,6 +91,7 @@ export function RosterGrid({
   shifts,
   allSkills,
   crossBookings,
+  lockMap,
   unavailableSet,
   absenceMap,
   density,
