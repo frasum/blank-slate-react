@@ -534,6 +534,7 @@ function DienstplanPage() {
               shifts={shifts}
               allSkills={allSkills}
               crossBookings={crossBookings}
+              lockMap={lockMap}
               unavailableSet={unavailableSet}
               absenceMap={absenceMap}
               density={density}
