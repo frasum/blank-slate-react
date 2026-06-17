@@ -155,7 +155,8 @@ function AbrechnungPage() {
     );
   }
 
-  const { session, settlement, kitchenTipRate, businessDate } = myQ.data;
+  const { session, settlement, kitchenTipRate, businessDate, staffId: myStaffId } = myQ.data;
+  const myExcludeStaffIds = [myStaffId];
 
   // Falls noch keine Session offen: read-only Hinweis.
   if (!session) {
@@ -201,6 +202,27 @@ function AbrechnungPage() {
               {settlement.auto_clockout_time_entry_id
                 ? " — automatisch ausgestempelt."
                 : " — kein offener Zeiteintrag, nichts ausgestempelt."}
+            </div>
+          )}
+          {(settlement.second_waiter_name ||
+            (Array.isArray(settlement.additional_waiters) &&
+              settlement.additional_waiters.length > 0)) && (
+            <div className="space-y-1 pt-2 text-sm">
+              {settlement.second_waiter_name && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Zweiter Kellner</span>
+                  <span>{settlement.second_waiter_name}</span>
+                </div>
+              )}
+              {Array.isArray(settlement.additional_waiters) &&
+                settlement.additional_waiters.length > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Weitere Kellner</span>
+                    <span>
+                      {(settlement.additional_waiters as string[]).join(", ")}
+                    </span>
+                  </div>
+                )}
             </div>
           )}
         </Card>
