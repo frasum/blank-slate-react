@@ -169,7 +169,7 @@ function KasseSaldoPage() {
   }
 
   const bargeldClass = (cents: number) =>
-    "text-right tabular-nums whitespace-nowrap " +
+    "text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs font-medium " +
     (cents < 0 ? "text-destructive" : "text-emerald-600");
 
   return (
@@ -231,63 +231,64 @@ function KasseSaldoPage() {
           </div>
         )}
         {!q.isLoading && !q.isError && rows.length > 0 && (
-          <Table>
+          <div className="w-full overflow-x-auto xl:overflow-x-visible">
+          <Table className="w-full">
             <TableHeader>
               <TableRow>
-                <TableHead>Datum</TableHead>
-                <TableHead className="text-right">Tagesumsatz</TableHead>
-                <TableHead className="text-right">Kreditkarten</TableHead>
-                <TableHead className="text-right">Take-Away</TableHead>
-                <TableHead className="text-right">OrderSmart</TableHead>
-                <TableHead className="text-right">Wolt</TableHead>
-                <TableHead className="text-right">Gutsch. EL</TableHead>
-                <TableHead className="text-right">FineDine</TableHead>
-                <TableHead className="text-right">Gutsch. VK</TableHead>
-                <TableHead className="text-right">Einladung</TableHead>
-                <TableHead className="text-right">Offene RE</TableHead>
-                <TableHead className="text-right">Vorschuss</TableHead>
-                <TableHead className="text-right">Ausgaben</TableHead>
-                <TableHead className="text-right">Bargeld</TableHead>
+                <TableHead className="px-2 py-2 text-xs">Datum</TableHead>
+                <TableHead className="text-right px-2 py-2 text-xs">Tagesumsatz</TableHead>
+                <TableHead className="text-right px-2 py-2 text-xs">KK</TableHead>
+                <TableHead className="text-right px-2 py-2 text-xs">Take-Away</TableHead>
+                <TableHead className="text-right px-2 py-2 text-xs">OS</TableHead>
+                <TableHead className="text-right px-2 py-2 text-xs">Wolt</TableHead>
+                <TableHead className="text-right px-2 py-2 text-xs">Gut. EL</TableHead>
+                <TableHead className="text-right px-2 py-2 text-xs">FineDine</TableHead>
+                <TableHead className="text-right px-2 py-2 text-xs">Gut. VK</TableHead>
+                <TableHead className="text-right px-2 py-2 text-xs">Einladung</TableHead>
+                <TableHead className="text-right px-2 py-2 text-xs">Off. RE</TableHead>
+                <TableHead className="text-right px-2 py-2 text-xs">Vorsch.</TableHead>
+                <TableHead className="text-right px-2 py-2 text-xs">Ausg.</TableHead>
+                <TableHead className="text-right px-2 py-2 text-xs">Bargeld</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.map((r) => (
                 <TableRow key={r.businessDate}>
-                  <TableCell className="whitespace-nowrap">{formatShortDate(r.businessDate)}</TableCell>
-                  <TableCell className="text-right tabular-nums whitespace-nowrap">
+                  <TableCell className="whitespace-nowrap px-2 py-1.5 text-xs">{formatShortDate(r.businessDate)}</TableCell>
+                  <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
                     {fmtEuro(r.tagesumsatzCents)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums whitespace-nowrap">
+                  <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
                     {fmtEuro(r.kreditkartenCents)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums whitespace-nowrap">
+                  <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
                     {fmtEuro(r.deliveryVectronCents)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums whitespace-nowrap">
+                  <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
                     {fmtEuro(r.deliverySouseCents)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums whitespace-nowrap">
+                  <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
                     {fmtEuro(r.deliveryWoltCents)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums whitespace-nowrap">
+                  <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
                     {fmtEuro(r.vouchersRedeemedCents)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums whitespace-nowrap">
+                  <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
                     {fmtEuro(r.finedineCents)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums whitespace-nowrap">
+                  <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
                     {fmtEuro(r.vouchersSoldCents)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums whitespace-nowrap">
+                  <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
                     {fmtEuro(r.einladungCents)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums whitespace-nowrap">
+                  <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
                     {fmtEuro(r.openInvoicesCents)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums whitespace-nowrap">
+                  <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
                     {fmtEuro(r.vorschussCents)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums whitespace-nowrap">
+                  <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
                     {fmtEuro(r.expensesCents)}
                   </TableCell>
                   <TableCell className={bargeldClass(r.bargeldCents)}>
@@ -298,37 +299,37 @@ function KasseSaldoPage() {
             </TableBody>
             <TableFooter>
               <TableRow>
-                <TableCell>Summe</TableCell>
-                <TableCell className="text-right tabular-nums whitespace-nowrap">
+                <TableCell className="px-2 py-1.5 text-xs font-medium">Summe</TableCell>
+                <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
                   {fmtEuro(totals.tagesumsatz)}
                 </TableCell>
-                <TableCell className="text-right tabular-nums whitespace-nowrap">
+                <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
                   {fmtEuro(totals.kreditkarten)}
                 </TableCell>
-                <TableCell className="text-right tabular-nums whitespace-nowrap">
+                <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
                   {fmtEuro(totals.takeaway)}
                 </TableCell>
-                <TableCell className="text-right tabular-nums whitespace-nowrap">{fmtEuro(totals.souse)}</TableCell>
-                <TableCell className="text-right tabular-nums whitespace-nowrap">{fmtEuro(totals.wolt)}</TableCell>
-                <TableCell className="text-right tabular-nums whitespace-nowrap">
+                <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">{fmtEuro(totals.souse)}</TableCell>
+                <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">{fmtEuro(totals.wolt)}</TableCell>
+                <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
                   {fmtEuro(totals.vouchersRedeemed)}
                 </TableCell>
-                <TableCell className="text-right tabular-nums whitespace-nowrap">
+                <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
                   {fmtEuro(totals.finedine)}
                 </TableCell>
-                <TableCell className="text-right tabular-nums whitespace-nowrap">
+                <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
                   {fmtEuro(totals.vouchersSold)}
                 </TableCell>
-                <TableCell className="text-right tabular-nums whitespace-nowrap">
+                <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
                   {fmtEuro(totals.einladung)}
                 </TableCell>
-                <TableCell className="text-right tabular-nums whitespace-nowrap">
+                <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
                   {fmtEuro(totals.openInvoices)}
                 </TableCell>
-                <TableCell className="text-right tabular-nums whitespace-nowrap">
+                <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
                   {fmtEuro(totals.vorschuss)}
                 </TableCell>
-                <TableCell className="text-right tabular-nums whitespace-nowrap">
+                <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
                   {fmtEuro(totals.expenses)}
                 </TableCell>
                 <TableCell className={bargeldClass(totals.bargeld)}>
@@ -337,6 +338,7 @@ function KasseSaldoPage() {
               </TableRow>
             </TableFooter>
           </Table>
+          </div>
         )}
       </Card>
     </div>
