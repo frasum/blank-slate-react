@@ -7,6 +7,7 @@ const row: CashDailyRow = {
   tagesumsatzCents: 595250,
   kreditkartenCents: 560647,
   deliverySouseCents: 0,
+  deliveryVectronCents: 0,
   deliveryWoltCents: 28360,
   finedineCents: 0,
   vouchersRedeemedCents: 10000,
