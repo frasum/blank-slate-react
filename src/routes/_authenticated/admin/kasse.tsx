@@ -1576,9 +1576,17 @@ function CashSummaryBlock({
 
   return (
     <div>
-      <div className="border-b bg-emerald-50 px-3 py-2 flex items-center justify-between text-sm">
+      <div
+        className={`border-b px-3 py-2 flex items-center justify-between text-sm ${
+          rows.tagesBargeldCents < 0 ? "bg-red-50" : "bg-emerald-50"
+        }`}
+      >
         <span className="font-semibold text-foreground">Tages-Bargeld</span>
-        <span className="font-mono tabular-nums font-semibold text-emerald-700">
+        <span
+          className={`font-mono tabular-nums font-semibold ${
+            rows.tagesBargeldCents < 0 ? "text-red-700" : "text-emerald-700"
+          }`}
+        >
           {fmtEur(rows.tagesBargeldCents)}
         </span>
       </div>
