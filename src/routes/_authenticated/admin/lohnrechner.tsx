@@ -28,6 +28,12 @@ import {
 } from "@/components/ui/table";
 import { listStaff } from "@/lib/admin/staff.functions";
 import { berechneLohnFuerMitarbeiter } from "@/lib/lohn/lohn-rechner.functions";
+import {
+  buildLohnFileName,
+  buildLohnXlsx,
+  downloadBlob,
+} from "@/lib/lohn/lohn-excel-export";
+import { FileSpreadsheet } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/lohnrechner")({
   beforeLoad: ({ context }) => {
@@ -86,6 +92,35 @@ function LohnRechnerPage() {
     !!staffId && /^\d{4}-\d{2}-\d{2}$/.test(fromDate) && /^\d{4}-\d{2}-\d{2}$/.test(toDate);
 
   const result = mut.data;
+
+  const selectedStaffLabel = useMemo(() => {
+    const s = (staffQ.data ?? []).find((x) => x.id === staffId);
+    if (!s) return staffId;
+    return s.displayName || `${s.firstName ?? ""} ${s.lastName ?? ""}`.trim() || s.id;
+  }, [staffQ.data, staffId]);
+
+  async function handleExport() {
+    if (!result) return;
+    try {
+      const blob = await buildLohnXlsx({
+        staffLabel: selectedStaffLabel,
+        fromDate,
+        toDate,
+        mode: result.mode,
+        totalHours: result.totalHours,
+        hourlyRateCents: result.hourlyRateCents,
+        entryCount: result.entryCount,
+        zuschlagCents: result.zuschlagCents,
+        buckets: result.buckets,
+        person: result.person,
+        zeilen: result.zeilen,
+        ergebnis: result.ergebnis,
+      });
+      downloadBlob(blob, buildLohnFileName(selectedStaffLabel, fromDate, toDate));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Excel-Export fehlgeschlagen.");
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -165,6 +200,12 @@ function LohnRechnerPage() {
 
       {result && (
         <div className="space-y-6">
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={handleExport}>
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              Excel exportieren
+            </Button>
+          </div>
           <Card className="p-4">
             <h2 className="mb-3 text-base font-semibold">Periode</h2>
             <div className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2 lg:grid-cols-4">
