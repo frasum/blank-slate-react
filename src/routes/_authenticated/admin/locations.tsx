@@ -65,6 +65,24 @@ function toPayload(d: LocationDetails) {
   };
 }
 
+function centsToEuroInput(cents: number | null | undefined): string {
+  if (cents == null) return "";
+  return (Number(cents) / 100).toFixed(2);
+}
+
+function detailsFromLoc(loc: LocationRowData): LocationDetails {
+  return {
+    street: loc.street ?? "",
+    postal_code: loc.postal_code ?? "",
+    city: loc.city ?? "",
+    delivery_notes: loc.delivery_notes ?? "",
+    phone: loc.phone ?? "",
+    contact_name: loc.contact_name ?? "",
+    contact_phone: loc.contact_phone ?? "",
+    cash_balance_target_euro: centsToEuroInput(loc.cashBalanceTargetCents),
+  };
+}
+
 function LocationsPage() {
   const queryClient = useQueryClient();
   const callCreate = useServerFn(createLocation);
