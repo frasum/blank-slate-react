@@ -133,6 +133,7 @@ function LocationsPage() {
               loc={loc}
               onSave={(name, details) => updateMut.mutate({ id: loc.id, name, details })}
               onDelete={() => deleteMut.mutate(loc.id)}
+              onGeoChanged={refresh}
             />
           ))}
           {locationsQ.data.length === 0 && (
