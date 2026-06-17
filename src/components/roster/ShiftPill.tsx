@@ -86,7 +86,7 @@ export function ShiftPill({ shift, area, draggable, onClick }: Props) {
         draggable && "cursor-grab active:cursor-grabbing",
       )}
     >
-      {label}
+      <span className={cn(isDefaultService && "text-[13px] leading-none")}>{label}</span>
     </button>
   );
 }
