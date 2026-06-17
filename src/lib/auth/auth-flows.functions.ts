@@ -98,14 +98,16 @@ export const validatePin = createServerFn({ method: "POST" })
     const bcrypt = (await import("bcryptjs")).default;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    // Vorname-basiertes PIN-Login (Konflikte werden über den PIN aufgelöst).
-    // Wir suchen alle aktiven Staff mit passendem Vornamen (case-insensitive)
-    // und prüfen für jeden Kandidaten den PIN. Bei genau einem Treffer gilt
-    // der Login als eindeutig; sonst gleiche generische Fehlermeldung.
+    // Namens-basiertes PIN-Login: Treffer auf first_name ODER display_name
+    // (exakt, case-insensitive) — MA können sich mit legalem Vornamen oder
+    // Nickname anmelden. Konflikte/Mehrfachtreffer werden über den PIN
+    // aufgelöst (Loop unten prüft je Kandidat den PIN). Generische
+    // Fehlermeldung bleibt bei 0 Treffern.
+    const term = data.firstName.trim().replace(/"/g, ""); // " kann den .or-Filter brechen
     const { data: candidates, error: staffErr } = await supabaseAdmin
       .from("staff")
       .select("id, organization_id, is_active, first_name")
-      .ilike("first_name", data.firstName.trim())
+      .or(`first_name.ilike."${term}",display_name.ilike."${term}"`)
       .eq("is_active", true);
     if (staffErr) failed();
     if (!candidates || candidates.length === 0) failed();
