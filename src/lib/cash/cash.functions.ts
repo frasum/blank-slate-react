@@ -2180,6 +2180,7 @@ export type CashDailyRow = {
   tagesumsatzCents: number;
   kreditkartenCents: number;
   deliverySouseCents: number;
+  deliveryVectronCents: number;
   deliveryWoltCents: number;
   finedineCents: number;
   vouchersRedeemedCents: number;
@@ -2228,6 +2229,7 @@ export async function getCashDailyBreakdownCore(
       tagesumsatzCents: a.vectronDailyTotal,
       kreditkartenCents: a.cardTotal,
       deliverySouseCents: a.deliverySouse,
+      deliveryVectronCents: a.deliveryVectron,
       deliveryWoltCents: a.deliveryWolt,
       finedineCents: a.finedine,
       vouchersRedeemedCents: a.vouchersRedeemed,
