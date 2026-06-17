@@ -1,0 +1,1 @@
+UPDATE public.revenue_channels SET label = 'Vectron-Takeaway', updated_at = now() WHERE label = 'In-House Take-away';
