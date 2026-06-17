@@ -264,8 +264,8 @@ export function RosterGrid({
                     className={cn(
                       "text-center font-medium",
                       isFit ? "px-0.5 py-1" : "px-1 py-1.5",
-                      we && "bg-muted text-muted-foreground",
-                      isToday && "ring-2 ring-primary ring-inset",
+                      we && "bg-muted-foreground/25 text-foreground",
+                      isToday && "bg-yellow-200/70 ring-2 ring-yellow-400 ring-inset",
                     )}
                   >
                     <div className="flex flex-col items-center leading-tight">
@@ -564,8 +564,8 @@ function DropCell({
       ref={setNodeRef}
       className={cn(
         "relative px-0.5 py-1 text-center align-middle",
-        weekend && "bg-muted/40",
-        today && "bg-primary/5",
+        weekend && "bg-muted-foreground/15",
+        today && "bg-yellow-200/40",
         isOver && editable && "bg-accent/20 ring-1 ring-accent ring-inset",
         editable && cursor,
         locked && "cursor-not-allowed opacity-40",
