@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useRouteContext } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { formatShortDateTime } from "@/lib/format-date";
 import {
   assignStaffLocations,
   getStaff,
@@ -13,7 +12,11 @@ import {
 } from "@/lib/admin/staff.functions";
 import { listLocations } from "@/lib/admin/locations.functions";
 import { clearPin, setPin } from "@/lib/admin/pin.functions";
-import { issueBadge, listBadges, revokeBadge } from "@/lib/admin/badges.functions";
+import {
+  createStaffAccount,
+  getStaffAccountStatus,
+  resetStaffPassword,
+} from "@/lib/admin/account.functions";
 import {
   assignStaffSkills,
   getStaffSkills,
@@ -28,7 +31,7 @@ export const Route = createFileRoute("/_authenticated/admin/staff/$staffId")({
   component: StaffDetailPage,
 });
 
-type Tab = "basics" | "locations" | "skills" | "personal" | "role" | "pin" | "badges";
+type Tab = "basics" | "locations" | "skills" | "personal" | "role" | "pin" | "account";
 
 function StaffDetailPage() {
   const { staffId } = Route.useParams();
@@ -36,6 +39,7 @@ function StaffDetailPage() {
   const { identity } = useRouteContext({ from: "/_authenticated/admin" });
   const showPersonal = identity.role === "admin" || identity.role === "payroll";
   const canEditPersonal = identity.role === "admin";
+  const isAdmin = identity.role === "admin";
 
   const staffQ = useQuery({
     queryKey: ["admin", "staff", staffId],
@@ -69,7 +73,7 @@ function StaffDetailPage() {
             ...(showPersonal ? ([["personal", "Personaldaten"]] as [Tab, string][]) : []),
             ["role", "Rolle & Aktiv"],
             ["pin", "PIN"],
-            ["badges", "Badges"],
+            ...(isAdmin ? ([["account", "Login"]] as [Tab, string][]) : []),
           ] as [Tab, string][]
         ).map(([k, label]) => (
           <TabButton key={k} active={tab === k} onClick={() => setTab(k)}>
@@ -86,7 +90,7 @@ function StaffDetailPage() {
       )}
       {tab === "role" && <RoleTab staff={s} />}
       {tab === "pin" && <PinTab staffId={s.id} hasPin={s.hasPin} />}
-      {tab === "badges" && <BadgesTab staffId={s.id} />}
+      {tab === "account" && isAdmin && <AccountTab staffId={s.id} staffEmail={s.email} />}
     </div>
   );
 }
@@ -538,55 +542,76 @@ function PinTab({ staffId, hasPin }: { staffId: string; hasPin: boolean }) {
   );
 }
 
-function BadgesTab({ staffId }: { staffId: string }) {
+function AccountTab({ staffId, staffEmail }: { staffId: string; staffEmail: string | null }) {
   const queryClient = useQueryClient();
-  const badgesQ = useQuery({
-    queryKey: ["admin", "badges", staffId],
-    queryFn: () => listBadges({ data: { staffId } }),
+  const statusQ = useQuery({
+    queryKey: ["admin", "account", staffId],
+    queryFn: () => getStaffAccountStatus({ data: { staffId } }),
   });
-  const callIssue = useServerFn(issueBadge);
-  const callRevoke = useServerFn(revokeBadge);
-  const [newToken, setNewToken] = useState<string | null>(null);
-  const [msg, setMsg] = useState<string | null>(null);
+  const callCreate = useServerFn(createStaffAccount);
+  const callReset = useServerFn(resetStaffPassword);
 
-  const issueMut = useMutation({
-    mutationFn: () => callIssue({ data: { staffId } }),
-    onSuccess: async ({ token }) => {
-      setNewToken(token);
+  const [email, setEmail] = useState("");
+  const [generated, setGenerated] = useState<string | null>(null);
+  const [generatedEmail, setGeneratedEmail] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  // Vorbelegung des E-Mail-Feldes mit der Stammdaten-E-Mail.
+  useEffect(() => {
+    if (staffEmail && !email) setEmail(staffEmail);
+  }, [staffEmail, email]);
+
+  const createMut = useMutation({
+    mutationFn: () => callCreate({ data: { staffId, email: email.trim() } }),
+    onSuccess: async (res) => {
+      setGenerated(res.password);
+      setGeneratedEmail(res.email);
+      setErr(null);
       setMsg(null);
-      await queryClient.invalidateQueries({ queryKey: ["admin", "badges", staffId] });
+      await queryClient.invalidateQueries({ queryKey: ["admin", "account", staffId] });
       await queryClient.invalidateQueries({ queryKey: ["admin", "staff"] });
     },
-    onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
+    onError: (e: unknown) => setErr(e instanceof Error ? e.message : "Fehler."),
   });
-  const revokeMut = useMutation({
-    mutationFn: (tokenId: string) => callRevoke({ data: { tokenId } }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["admin", "badges", staffId] });
-      await queryClient.invalidateQueries({ queryKey: ["admin", "staff"] });
+
+  const resetMut = useMutation({
+    mutationFn: () => callReset({ data: { staffId } }),
+    onSuccess: async (res) => {
+      setGenerated(res.password);
+      setGeneratedEmail(statusQ.data?.email ?? null);
+      setErr(null);
+      setMsg(null);
+      await queryClient.invalidateQueries({ queryKey: ["admin", "account", staffId] });
     },
-    onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
+    onError: (e: unknown) => setErr(e instanceof Error ? e.message : "Fehler."),
   });
+
+  if (statusQ.isLoading) return <p className="text-sm text-muted-foreground">Lade…</p>;
+  const status = statusQ.data;
 
   return (
-    <div className="max-w-2xl space-y-4">
-      <button
-        onClick={() => issueMut.mutate()}
-        disabled={issueMut.isPending}
-        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-      >
-        {issueMut.isPending ? "Erstellen…" : "Neues Badge ausstellen"}
-      </button>
-
-      {newToken && (
+    <div className="max-w-lg space-y-4">
+      {generated && (
         <div className="rounded-md border border-primary bg-primary/5 p-3">
           <div className="text-xs font-medium text-muted-foreground">
-            Neuer Badge-Token (wird nur EINMAL angezeigt)
+            Standardpasswort (wird nur EINMAL angezeigt — bitte sofort weitergeben)
           </div>
-          <code className="mt-1 block break-all text-sm text-foreground">{newToken}</code>
+          {generatedEmail && (
+            <div className="mt-1 text-xs text-muted-foreground">
+              E-Mail: <span className="text-foreground">{generatedEmail}</span>
+            </div>
+          )}
+          <code className="mt-1 block break-all text-base text-foreground">{generated}</code>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Der Mitarbeiter muss beim nächsten Login ein eigenes Passwort vergeben.
+          </p>
           <button
             type="button"
-            onClick={() => setNewToken(null)}
+            onClick={() => {
+              setGenerated(null);
+              setGeneratedEmail(null);
+            }}
             className="mt-2 text-xs text-muted-foreground hover:text-foreground"
           >
             Schließen
@@ -594,58 +619,70 @@ function BadgesTab({ staffId }: { staffId: string }) {
         </div>
       )}
 
-      {msg && <p className="text-sm text-destructive">{msg}</p>}
+      {err && <p className="text-sm text-destructive">{err}</p>}
+      {msg && <p className="text-sm text-muted-foreground">{msg}</p>}
 
-      {badgesQ.data && (
-        <div className="overflow-hidden rounded-md border border-border">
-          <table className="w-full text-sm">
-            <thead className="bg-muted text-left text-muted-foreground">
-              <tr>
-                <th className="px-3 py-2 font-medium">Erstellt</th>
-                <th className="px-3 py-2 font-medium">Läuft ab</th>
-                <th className="px-3 py-2 font-medium">Status</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {badgesQ.data.map((b) => (
-                <tr key={b.id} className="border-t border-border">
-                  <td className="px-3 py-2 text-muted-foreground">
-                    {formatShortDateTime(b.createdAt)}
-                  </td>
-                  <td className="px-3 py-2 text-muted-foreground">
-                    {b.expiresAt ? formatShortDateTime(b.expiresAt) : "—"}
-                  </td>
-                  <td className="px-3 py-2">
-                    {b.revokedAt ? (
-                      <span className="text-muted-foreground">widerrufen</span>
-                    ) : (
-                      <span className="text-foreground">aktiv</span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 text-right">
-                    {!b.revokedAt && (
-                      <button
-                        onClick={() => revokeMut.mutate(b.id)}
-                        disabled={revokeMut.isPending}
-                        className="text-sm text-destructive hover:underline"
-                      >
-                        Widerrufen
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {badgesQ.data.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="px-3 py-6 text-center text-muted-foreground">
-                    Noch keine Badges.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+      {status?.hasAccount ? (
+        <div className="space-y-3 rounded-md border border-border p-4">
+          <div>
+            <div className="text-xs font-medium text-muted-foreground">Login-E-Mail</div>
+            <div className="text-sm text-foreground">{status.email ?? "—"}</div>
+          </div>
+          <div>
+            <div className="text-xs font-medium text-muted-foreground">Status</div>
+            <div className="text-sm text-foreground">
+              {status.mustChangePassword
+                ? "Standardpasswort gesetzt — Mitarbeiter muss beim nächsten Login wechseln."
+                : "Eigenes Passwort gesetzt."}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setErr(null);
+              resetMut.mutate();
+            }}
+            disabled={resetMut.isPending}
+            className="rounded-md border border-border px-3 py-2 text-sm hover:bg-accent disabled:opacity-50"
+          >
+            {resetMut.isPending ? "Setze zurück…" : "Passwort zurücksetzen"}
+          </button>
         </div>
+      ) : (
+        <form
+          className="space-y-3 rounded-md border border-border p-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            setErr(null);
+            if (!email.trim()) {
+              setErr("Bitte E-Mail eingeben.");
+              return;
+            }
+            createMut.mutate();
+          }}
+        >
+          <p className="text-sm text-muted-foreground">
+            Dieser Mitarbeiter hat noch kein Konto. Bei Mitarbeitern ohne eigene E-Mail
+            kann eine Pseudo-Adresse vergeben werden (z. B. <code>vorname@coco.local</code>).
+          </p>
+          <label className="block space-y-1">
+            <span className="text-xs font-medium text-muted-foreground">Login-E-Mail</span>
+            <input
+              type="text"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={createMut.isPending}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
+            {createMut.isPending ? "Erstelle…" : "Konto anlegen & Standardpasswort erzeugen"}
+          </button>
+        </form>
       )}
     </div>
   );
