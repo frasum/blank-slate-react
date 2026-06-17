@@ -65,6 +65,8 @@ import { sessionToDayInput } from "@/lib/cash/session-day-input";
 import { aggregateChannelAmounts, type ChannelKind } from "@/lib/cash/session-channels";
 import { computeSettlementWarnings } from "@/lib/cash/settlement-warnings";
 import { DateSelector } from "@/components/shared/DateSelector";
+import { PdfCanvasPreview } from "@/components/cash/PdfCanvasPreview";
+import type jsPDF from "jspdf";
 
 export const Route = createFileRoute("/_authenticated/admin/kasse")({
   head: () => ({ meta: [{ title: "Kasse" }] }),
