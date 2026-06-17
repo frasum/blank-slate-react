@@ -18,7 +18,14 @@ import type {
   RosterStaffRow,
   RosterCrossBooking,
 } from "@/lib/roster/roster.functions";
-import { DENSITY_LAYOUT, DENSITY_ROW_HEIGHT, type Density } from "@/hooks/use-density";
+
+const FIT_ROW_HEIGHT = 32;
+const FIT_LAYOUT = {
+  staffColPx: 96,
+  dayMinPx: 0,
+  tableFixed: true,
+  horizontalScroll: false,
+};
 
 type GridArea = "kitchen" | "service";
 
@@ -62,7 +69,6 @@ type Props = {
   >;
   unavailableSet: Set<string>;
   absenceMap: Map<string, "urlaub" | "krank">;
-  density: Density;
   canEdit: boolean;
   locked: boolean;
   paint: PaintSelection;
@@ -94,7 +100,6 @@ export function RosterGrid({
   lockMap,
   unavailableSet,
   absenceMap,
-  density,
   canEdit,
   locked,
   paint,
@@ -183,9 +188,9 @@ export function RosterGrid({
     return n;
   }, [dayCount]);
 
-  const rowH = DENSITY_ROW_HEIGHT[density];
-  const layout = DENSITY_LAYOUT[density];
-  const isFit = density === "fit";
+  const rowH = FIT_ROW_HEIGHT;
+  const layout = FIT_LAYOUT;
+  const isFit = true;
 
   async function handleEmptyCellClick(row: RosterStaffRow, iso: string) {
     if (!editable) return;
