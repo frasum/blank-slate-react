@@ -127,7 +127,7 @@ function AbrechnungPage() {
           openInvoicesCents: parsed.openInvoicesCents!,
           cashHandedInCents: parsed.cashHandedInCents!,
           secondWaiterName: form.secondWaiterName,
-          additionalWaiters: form.additionalWaiters,
+          additionalWaiters: form.additionalWaiters.filter((n) => n.length > 0),
         },
       });
     },
