@@ -5,7 +5,8 @@ import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
 import type { RosterShift } from "@/lib/roster/roster.functions";
 import { serviceMarker } from "@/lib/roster/service-marker";
-import { DENSITY_PILL_CLASS, type Density } from "@/hooks/use-density";
+
+const FIT_PILL_CLASS = "h-5 w-8 text-[9px]";
 
 function abbr(s: string | null | undefined): string {
   if (!s) return "";
@@ -17,10 +18,9 @@ type Props = {
   area: "kitchen" | "service";
   draggable: boolean;
   onClick: () => void;
-  density?: Density;
 };
 
-export function ShiftPill({ shift, area, draggable, onClick, density = "normal" }: Props) {
+export function ShiftPill({ shift, area, draggable, onClick }: Props) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `shift:${shift.id}`,
     data: { shift },
@@ -66,7 +66,7 @@ export function ShiftPill({ shift, area, draggable, onClick, density = "normal" 
       title={`${shift.skillName ?? "—"} (${shift.status})`}
       className={cn(
         "mx-auto flex items-center justify-center rounded border font-bold leading-none transition-shadow hover:shadow-md",
-        DENSITY_PILL_CLASS[density],
+        FIT_PILL_CLASS,
         textCls,
         draggable && "cursor-grab active:cursor-grabbing",
       )}
