@@ -450,17 +450,33 @@ function DienstplanPage() {
   return (
     <div className="space-y-4">
       <TooltipProvider delayDuration={150}>
-        <header>
-          <h1 className="text-2xl font-semibold">Dienstplan</h1>
-          {(periodLocked || !canEdit) && (
-            <p className="text-sm text-muted-foreground">
-              {!canEdit ? (
-                <span>(Read-only)</span>
-              ) : (
-                <span className="text-destructive">Periode gesperrt.</span>
-              )}
-            </p>
-          )}
+        <header className="flex flex-wrap items-end gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold">Dienstplan</h1>
+            {(periodLocked || !canEdit) && (
+              <p className="text-sm text-muted-foreground">
+                {!canEdit ? (
+                  <span>(Read-only)</span>
+                ) : (
+                  <span className="text-destructive">Periode gesperrt.</span>
+                )}
+              </p>
+            )}
+          </div>
+          <label className="flex flex-col gap-1 text-xs">
+            <span className="text-muted-foreground">Standort</span>
+            <select
+              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+              value={effectiveLocationId ?? ""}
+              onChange={(e) => setLocationId(e.target.value || null)}
+            >
+              {locations.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          </label>
         </header>
 
         {!effectivePeriod ? (
@@ -485,21 +501,7 @@ function DienstplanPage() {
               selected={skillFilter}
               onChange={setSkillFilter}
             />
-            <div className="flex flex-wrap items-end justify-center gap-3">
-              <label className="flex flex-col gap-1 text-xs">
-                <span className="text-muted-foreground">Standort</span>
-                <select
-                  className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-                  value={effectiveLocationId ?? ""}
-                  onChange={(e) => setLocationId(e.target.value || null)}
-                >
-                  {locations.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+            <div className="flex justify-center">
               <PeriodNav
                 periods={periods}
                 currentPeriodId={effectivePeriod?.id ?? null}
