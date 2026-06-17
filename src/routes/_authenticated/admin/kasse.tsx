@@ -1762,6 +1762,12 @@ function ExcelInputRow({
           onFocus={(e) => e.currentTarget.select()}
           onMouseUp={(e) => e.preventDefault()}
           onClick={(e) => e.currentTarget.select()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              focusNextInput(e.currentTarget);
+            }
+          }}
           disabled={disabled}
         />
       </td>
