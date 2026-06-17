@@ -1590,12 +1590,6 @@ function CashSummaryBlock({
           {fmtEur(rows.tagesBargeldCents)}
         </span>
       </div>
-      <div className="border-b bg-slate-100 px-3 py-2 flex items-center justify-between text-sm">
-        <span className="font-semibold text-foreground">Differenz zum Wechselgeldbestand</span>
-        <span className="font-mono tabular-nums font-semibold text-foreground">
-          {rows.differenzCents == null ? "—" : fmtEur(rows.differenzCents)}
-        </span>
-      </div>
       {rows.tresorCents > 0 && (
         <div className="border-b bg-orange-50 px-3 py-2 flex items-center justify-between text-sm">
           <span className="text-orange-700">Bargeld mit der Abrechnung in den Tresor legen</span>
