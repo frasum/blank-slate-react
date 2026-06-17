@@ -131,6 +131,7 @@ function KasseSaldoPage() {
     const t = {
       tagesumsatz: 0,
       kreditkarten: 0,
+      takeaway: 0,
       souse: 0,
       wolt: 0,
       vouchersRedeemed: 0,
@@ -145,6 +146,7 @@ function KasseSaldoPage() {
     for (const r of rows) {
       t.tagesumsatz += r.tagesumsatzCents;
       t.kreditkarten += r.kreditkartenCents;
+      t.takeaway += r.deliveryVectronCents;
       t.souse += r.deliverySouseCents;
       t.wolt += r.deliveryWoltCents;
       t.vouchersRedeemed += r.vouchersRedeemedCents;
@@ -235,6 +237,7 @@ function KasseSaldoPage() {
                 <TableHead>Datum</TableHead>
                 <TableHead className="text-right">Tagesumsatz</TableHead>
                 <TableHead className="text-right">Kreditkarten</TableHead>
+                <TableHead className="text-right">Take-Away</TableHead>
                 <TableHead className="text-right">OrderSmart</TableHead>
                 <TableHead className="text-right">Wolt</TableHead>
                 <TableHead className="text-right">Gutsch. EL</TableHead>
@@ -256,6 +259,9 @@ function KasseSaldoPage() {
                   </TableCell>
                   <TableCell className="text-right tabular-nums whitespace-nowrap">
                     {fmtEuro(r.kreditkartenCents)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums whitespace-nowrap">
+                    {fmtEuro(r.deliveryVectronCents)}
                   </TableCell>
                   <TableCell className="text-right tabular-nums whitespace-nowrap">
                     {fmtEuro(r.deliverySouseCents)}
@@ -298,6 +304,9 @@ function KasseSaldoPage() {
                 </TableCell>
                 <TableCell className="text-right tabular-nums whitespace-nowrap">
                   {fmtEuro(totals.kreditkarten)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums whitespace-nowrap">
+                  {fmtEuro(totals.takeaway)}
                 </TableCell>
                 <TableCell className="text-right tabular-nums whitespace-nowrap">{fmtEuro(totals.souse)}</TableCell>
                 <TableCell className="text-right tabular-nums whitespace-nowrap">{fmtEuro(totals.wolt)}</TableCell>

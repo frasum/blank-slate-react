@@ -1,80 +1,66 @@
-## Ziel
+## Fix: `delivery_vectron` (Take-Away) wird doppelt vom Bargeld abgezogen
 
-Pro Mitarbeiter und Tag maximal **eine** `roster_shifts`-Zeile — standort- UND bereichsübergreifend. Durchsetzung auf App-Ebene (Server-Pre-Check + UI-Lock), kein DB-Constraint, keine Migration. Altdaten bleiben unangetastet.
+### Diagnose (bestätigt durch DB-Query Mo 01.06 YUM)
 
-## Änderungen
+- `vectron_daily_total_cents` = 5.196,40 € (enthält Take-away).
+- Kanal `delivery_vectron` ("In-House Take-away") = 535,70 € (= Teilmenge des Tagesumsatzes).
+- Switch in `loadCashDayAggregates` (`src/lib/cash/cash.functions.ts` Z. 1970–1972) wirft `delivery_vectron` und `delivery_souse` in **denselben Topf** `a.deliverySouse`.
+- `getCashDailyBreakdownCore` überschreibt `grossRevenueCents` mit `a.vectronDailyTotal`, sodass `computeDailyCash` den Take-away-Anteil ein zweites Mal abzieht.
+- Live-Soll: `5196,40 − 4034,44 − 245 − 480,50 − 50 − 50 = 336,46 €`.
+- COCO-Ist: `5196,40 − 4034,44 − 780,70 − 480,50 − 50 − 50 = −199,24 €` (Diff = 535,70 €).
 
-### 1. `src/lib/roster/roster.functions.ts`
+Regel: Take-away ist Vectron-Bar (bereits im Tagesumsatz). Darf in der Cash-Formel **nie** subtrahiert werden — analog zu `pos`.
 
-**`createRosterShift.handler`** — nach `assertShiftDateUnlocked(...)` und vor dem `upsert`:
+### 1. `src/lib/cash/cash.functions.ts`
+
+(a) Switch (Z. 1967–1976): `delivery_vectron` aus dem `deliverySouse`-Block herauslösen. Routing zusätzlich in eine reine, exportierte Funktion `applyRevenueChannel(a, kind, amt)` extrahieren — der Loop ruft sie auf. So fängt der Test ein erneutes Zusammenlegen.
 
 ```ts
-const { data: existing, error: existErr } = await supabaseAdmin
-  .from("roster_shifts")
-  .select("location_id, area, locations(name)")
-  .eq("organization_id", caller.organizationId)
-  .eq("staff_id", data.staffId)
-  .eq("shift_date", data.shiftDate)
-  .limit(1)
-  .maybeSingle();
-if (existErr) throw existErr;
-if (existing) {
-  const locName = (existing.locations as { name: string } | null)?.name ?? "—";
-  throw new Error(
-    `Mitarbeiter ist an diesem Tag bereits eingeteilt (${locName} · ${existing.area}).`,
-  );
+export function applyRevenueChannel(a: CashDayAgg, kind: string | null, amt: number): void {
+  switch (kind) {
+    case "pos": a.grossRevenue += amt; break;
+    case "delivery_souse": a.deliverySouse += amt; break;
+    case "delivery_vectron": a.deliveryVectron += amt; break;
+    case "delivery_wolt": a.deliveryWolt += amt; break;
+    case "voucher_sold": a.vouchersSold += amt; break;
+    case "voucher_redeemed": a.vouchersRedeemed += amt; break;
+    case "finedine": a.finedine += amt; break;
+    case "einladung": a.einladung += amt; break;
+    case "sonstige": a.sonstige += amt; break;
+    default: break;
+  }
 }
 ```
 
-Upsert-`onConflict` `(staff_id, location_id, shift_date, area)` bleibt unverändert. Create wird damit bewusst nicht mehr idempotent — durch den UI-Lock praktisch unkritisch.
+(b) `CashDayAgg`: Feld `deliveryVectron: number;` ergänzen.
+(c) `makeEmptyAgg()`: `deliveryVectron: 0,` ergänzen.
+(d) `CashDailyRow`: `deliveryVectronCents: number;` ergänzen.
+(e) Rückgabe in `getCashDailyBreakdownCore`: zusätzlich `deliveryVectronCents: a.deliveryVectron`.
 
-**`moveRosterShift.handler`** — nach dem bestehenden Same-Area-Clash-Block zusätzlich:
+**Nicht ändern:** `aggToDayInput`, `computeDailyCash`, `cash-ledger.ts`, der `grossRevenue`-Override. `delivery_vectron` fließt bewusst nicht in `DayInput`.
 
-```ts
-const { data: elsewhere, error: elseErr } = await supabaseAdmin
-  .from("roster_shifts")
-  .select("location_id, area, locations(name)")
-  .eq("organization_id", caller.organizationId)
-  .eq("staff_id", data.staffId)
-  .eq("shift_date", data.shiftDate)
-  .neq("id", data.id)
-  .limit(1)
-  .maybeSingle();
-if (elseErr) throw elseErr;
-if (elsewhere) {
-  const locName = (elsewhere.locations as { name: string } | null)?.name ?? "—";
-  throw new Error(
-    `Mitarbeiter ist an diesem Tag bereits eingeteilt (${locName} · ${elsewhere.area}).`,
-  );
-}
-```
+Hinweis: `loadCashDayAggregates` speist auch `getCashLedgerCore`. Dort verliert `deliverySouseCents` ebenfalls den Take-away — korrekt und gewollt; verschiebt aber die Saldokette an `delivery_vectron`-Tagen (kein Sonderpfad).
 
-`locations(name)` ist to-one → Cast als `{ name: string } | null` (Hausstil, vgl. `getStaffCrossBookings`).
+### 2. Regressions-Test (`src/lib/cash/cash-channels.test.ts`)
 
-### 2. `src/routes/_authenticated/admin/dienstplan.tsx`
+- **Routing**: `applyRevenueChannel` mit den Mo-01.06-Kanälen → `a.deliverySouse === 24500`, `a.deliveryVectron === 53570`. Stellt sicher, dass `delivery_vectron` **nicht** in `deliverySouse` landet.
+- **Formel**: `computeDailyCash` mit `grossRevenueCents=519640, cardTotalCents=403444, deliverySouseCents=24500, deliveryWoltCents=48050, vouchersRedeemedCents=5000, finedineVouchersCents=5000` → `33646` (= 336,46 €).
 
-- Aus `crossBookings` eine Lock-Map `staffId|date → { locationName, area }` bauen (alle Einträge, nicht nur fremde Standorte/Areas).
-- In `handleCreate(staffId, iso, …)` und `handleDragEnd` **vor** dem Server-Call prüfen: existiert ein Map-Eintrag für `(staffId, iso)`, der nicht die gerade verschobene Schicht ist → `toast.error("… ist bereits in {locationName} · {area} eingeteilt.")` + Abbruch (kein Server-Call).
-- Map an `<RosterGrid>` durchreichen; gelockte Zellen optisch deaktiviert (`cursor-not-allowed`, gedimmt). Paint/Klick triggern dort keinen Create.
-- Bestehender roter Cross-Booking-Marker bleibt; nur zusätzlich der Lock-Zustand.
+### 3. UI: `src/routes/_authenticated/admin/kasse-saldo.tsx`
 
-### 3. Realtime
+Neue Info-Spalte **„Take-Away"** (`deliveryVectronCents`) links neben „OrderSmart". Nur informativ — kein Vorzeichen, keine Farbcodierung. `totals` + Footer ergänzen.
 
-Keine Änderung. Bestehender Channel invalidiert bei jeder `roster_shifts`-Mutation auch `["roster-cross-bookings"]` → Lock-Map aktualisiert sich live. Nur verifizieren, dass die Map aus genau dieser Query gespeist wird.
+### 4. Excel-Export: `src/lib/cash/bargeld-export.ts`
 
-## Nicht anfassen
+Neue Spalte „Take-Away" (`deliveryVectronCents`) analog zur UI; Footer summieren; Spaltenformat 13 Spalten → 14.
 
-- Kein DB-Unique-Constraint, keine Migration auf `(organization_id, staff_id, shift_date)`.
-- Upsert-`onConflict`-Key unverändert.
-- `setAbsenceRange`, Verfügbarkeit/Abwesenheit, Paint-Toolbar darüber hinaus, roter Marker.
-- Keine Bereinigung bestehender Doppelbelegungen.
+### Nicht anfassen
 
-## Erfolgs-Gate
+`computeDailyCash` / `cash-ledger.ts`, `accumulateChain`, Bank-Deposits, Carry-Logik, `revenue_channels`-Schema/Daten (keine Migration), `pdfExport` / `cashBalance` über den Aggregator hinaus.
 
-- `npx prettier --write` + `npx eslint --fix` über alle geänderten Dateien.
-- `tsc --noEmit`, `eslint . --max-warnings=5`, `vitest run` grün; CI grün.
-- Manueller E2E:
-  (a) MA an Tag X Standort A einteilen → Einteilen an Standort B (gleicher Tag) schlägt mit deutscher Meldung fehl.
-  (b) Drag derselben Schicht in anderen Bereich gleicher Tag funktioniert (kein Falsch-Clash, dank `.neq("id", data.id)`).
-  (c) Zelle eines an Tag X bereits eingeteilten MA ist gedimmt/`cursor-not-allowed`; Paint/Klick löst nichts aus.
-  (d) Nach Anlegen/Verschieben aktualisiert sich der Lock live ohne Refresh.
+### Erfolgs-Gate
+
+- `vitest run src/lib/cash` grün, neuer Routing- + Formel-Test inkl.
+- `tsc --noEmit`, `eslint . --max-warnings=5`, CI grün.
+- Vor Commit: `npx prettier --write` + `npx eslint --fix` über die geänderten Dateien.
+- Manuell: Mo 01.06 zeigt Bargeld **336,46 €** (grün), OrderSmart 245,00 €, Take-Away 535,70 €; Monatssumme deckt sich mit Live-Tagesabrechnungen.

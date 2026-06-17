@@ -1788,6 +1788,7 @@ export type CashDayAgg = {
   vectronDailyTotal: number;
   cardTotal: number;
   deliverySouse: number;
+  deliveryVectron: number;
   deliveryWolt: number;
   vouchersSold: number;
   vouchersRedeemed: number;
@@ -1823,6 +1824,7 @@ function makeEmptyAgg(): CashDayAgg {
     vectronDailyTotal: 0,
     cardTotal: 0,
     deliverySouse: 0,
+    deliveryVectron: 0,
     deliveryWolt: 0,
     vouchersSold: 0,
     vouchersRedeemed: 0,
@@ -1844,6 +1846,52 @@ function makeEmptyAgg(): CashDayAgg {
     cashActualCount: 0,
     sessionCount: 0,
   };
+}
+
+/**
+ * Routet einen Kanal-Betrag in den richtigen Akkumulator.
+ *
+ * Wichtige Invariante: `delivery_vectron` (In-House Take-away) ist Vectron-Bar
+ * und bereits in `vectron_daily_total_cents` enthalten. Er darf NICHT mit
+ * `delivery_souse` zusammengelegt werden — sonst zieht `computeDailyCash` ihn
+ * zusätzlich ab und das Bargeld wird um den Take-away-Betrag zu niedrig.
+ */
+export function applyRevenueChannel(
+  a: CashDayAgg,
+  kind: string | null,
+  amt: number,
+): void {
+  switch (kind) {
+    case "pos":
+      a.grossRevenue += amt;
+      break;
+    case "delivery_souse":
+      a.deliverySouse += amt;
+      break;
+    case "delivery_vectron":
+      a.deliveryVectron += amt;
+      break;
+    case "delivery_wolt":
+      a.deliveryWolt += amt;
+      break;
+    case "voucher_sold":
+      a.vouchersSold += amt;
+      break;
+    case "voucher_redeemed":
+      a.vouchersRedeemed += amt;
+      break;
+    case "finedine":
+      a.finedine += amt;
+      break;
+    case "einladung":
+      a.einladung += amt;
+      break;
+    case "sonstige":
+      a.sonstige += amt;
+      break;
+    default:
+      break;
+  }
 }
 
 // 1:1-Extraktion der bisherigen Inline-Reads + Aggregation aus
@@ -1963,35 +2011,7 @@ export async function loadCashDayAggregates(
     const amt = Number(r.amount_cents);
     a.totalRevenueGross += amt;
     const kind = (r.revenue_channels as { kind: string } | null)?.kind ?? null;
-    switch (kind) {
-      case "pos":
-        a.grossRevenue += amt;
-        break;
-      case "delivery_souse":
-      case "delivery_vectron":
-        a.deliverySouse += amt;
-        break;
-      case "delivery_wolt":
-        a.deliveryWolt += amt;
-        break;
-      case "voucher_sold":
-        a.vouchersSold += amt;
-        break;
-      case "voucher_redeemed":
-        a.vouchersRedeemed += amt;
-        break;
-      case "finedine":
-        a.finedine += amt;
-        break;
-      case "einladung":
-        a.einladung += amt;
-        break;
-      case "sonstige":
-        a.sonstige += amt;
-        break;
-      default:
-        break;
-    }
+    applyRevenueChannel(a, kind, amt);
   }
   for (const r of tRes.data ?? []) {
     const d = sessionDate.get(r.session_id);
@@ -2160,6 +2180,7 @@ export type CashDailyRow = {
   tagesumsatzCents: number;
   kreditkartenCents: number;
   deliverySouseCents: number;
+  deliveryVectronCents: number;
   deliveryWoltCents: number;
   finedineCents: number;
   vouchersRedeemedCents: number;
@@ -2208,6 +2229,7 @@ export async function getCashDailyBreakdownCore(
       tagesumsatzCents: a.vectronDailyTotal,
       kreditkartenCents: a.cardTotal,
       deliverySouseCents: a.deliverySouse,
+      deliveryVectronCents: a.deliveryVectron,
       deliveryWoltCents: a.deliveryWolt,
       finedineCents: a.finedine,
       vouchersRedeemedCents: a.vouchersRedeemed,
