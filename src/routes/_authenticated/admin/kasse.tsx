@@ -421,11 +421,6 @@ function KassePage() {
             <Label htmlFor="bd" className="block text-center">Geschäftstag</Label>
             <DateSelector date={businessDate} onDateChange={setBusinessDate} />
           </div>
-          {sessionStatus && (
-            <Badge variant={isLocked ? "secondary" : isFinalized ? "outline" : "default"}>
-              {sessionStatus}
-            </Badge>
-          )}
           {underWaterline && <Badge variant="destructive">≤ {lockedThrough} gesperrt</Badge>}
           {ovQ.data?.session && (
             <Button
