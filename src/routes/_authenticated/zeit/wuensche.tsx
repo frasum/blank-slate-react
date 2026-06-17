@@ -142,15 +142,10 @@ function WunschePage() {
           {wishes.map((w) => (
             <div key={w.wishDate} className="flex items-start justify-between gap-3 px-4 py-3">
               <div className="flex items-start gap-2">
-                <Heart
-                  className="mt-0.5 h-4 w-4 fill-purple-600 text-purple-600"
-                  aria-hidden
-                />
+                <Heart className="mt-0.5 h-4 w-4 fill-purple-600 text-purple-600" aria-hidden />
                 <div className="space-y-0.5">
                   <div className="text-sm font-medium">{formatDate(w.wishDate)}</div>
-                  {w.note ? (
-                    <div className="text-xs text-muted-foreground">{w.note}</div>
-                  ) : null}
+                  {w.note ? <div className="text-xs text-muted-foreground">{w.note}</div> : null}
                 </div>
               </div>
               <Button
