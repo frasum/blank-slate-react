@@ -1233,6 +1233,12 @@ function SessionFieldsCard({
                   }}
                 />
               ))}
+              <ExcelInputRow
+                label="Vectron Tagesumsatz (Kontrolle)"
+                value={misc.vectron}
+                disabled={!writable}
+                onChange={(v) => setMisc({ ...misc, vectron: v })}
+              />
               <tr className="border-b hover:bg-muted/20 transition-colors">
                 <td className="px-3 py-1.5 font-medium text-foreground">Gästeanzahl</td>
                 <td className="px-3 py-1.5 w-44">
@@ -1354,12 +1360,6 @@ function SessionFieldsCard({
           <ExcelSectionHeader label="Kontrolle" colorClass="border-l-muted-foreground" />
           <table className="w-full text-sm">
             <tbody>
-              <ExcelInputRow
-                label="Vectron Tagesumsatz (Kontrolle)"
-                value={misc.vectron}
-                disabled={!writable}
-                onChange={(v) => setMisc({ ...misc, vectron: v })}
-              />
               <ExcelInputRow
                 label="Kassenbestand nach Abschluss"
                 value={misc.cashActual}
