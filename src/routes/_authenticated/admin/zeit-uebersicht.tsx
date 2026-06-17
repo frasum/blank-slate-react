@@ -938,14 +938,28 @@ function ZeitUebersichtPage() {
           <Card className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Mitarbeiter</TableHead>
-                  <TableHead className="text-right">Gesamt</TableHead>
-                  <TableHead className="text-right">Schichten</TableHead>
-                  <TableHead className="text-right">U</TableHead>
-                  <TableHead className="text-right">K</TableHead>
-                  <TableHead className="text-right">Vorschuss</TableHead>
-                  <TableHead>Besonderheiten</TableHead>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="h-9 text-xs uppercase tracking-wider text-muted-foreground">
+                    Mitarbeiter
+                  </TableHead>
+                  <TableHead className="h-9 text-xs uppercase tracking-wider text-muted-foreground text-right w-24">
+                    Gesamt
+                  </TableHead>
+                  <TableHead className="h-9 text-xs uppercase tracking-wider text-muted-foreground text-right w-20">
+                    Schichten
+                  </TableHead>
+                  <TableHead className="h-9 text-xs uppercase tracking-wider text-muted-foreground text-right w-12">
+                    U
+                  </TableHead>
+                  <TableHead className="h-9 text-xs uppercase tracking-wider text-muted-foreground text-right w-12">
+                    K
+                  </TableHead>
+                  <TableHead className="h-9 text-xs uppercase tracking-wider text-muted-foreground text-right w-28">
+                    Vorschuss
+                  </TableHead>
+                  <TableHead className="h-9 text-xs uppercase tracking-wider text-muted-foreground">
+                    Besonderheiten
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -961,8 +975,11 @@ function ZeitUebersichtPage() {
                   if (list.length === 0) return null;
                   return (
                     <Fragment key={`p-grp-${dept}`}>
-                      <TableRow className={DEPT_BG[dept]}>
-                        <TableCell colSpan={7} className="font-semibold">
+                      <TableRow className={`${DEPT_BG[dept]} hover:${DEPT_BG[dept]}`}>
+                        <TableCell
+                          colSpan={7}
+                          className="py-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                        >
                           {DEPT_LABEL[dept]}
                         </TableCell>
                       </TableRow>
@@ -1029,24 +1046,29 @@ function PayrollRow({
   const [besonderheiten, setBesonderheiten] = useState<string>(initial?.besonderheiten ?? "");
 
   return (
-    <TableRow>
-      <TableCell>{staff.displayName}</TableCell>
-      <TableCell className="text-right tabular-nums font-medium">
+    <TableRow className="group">
+      <TableCell className="py-1.5 font-medium">{staff.displayName}</TableCell>
+      <TableCell className="py-1.5 text-right tabular-nums font-medium">
         {fmtHm(staff.totalHours)}
       </TableCell>
-      <TableCell className="text-right tabular-nums">{staff.shiftDates.size}</TableCell>
-      <TableCell className="text-right text-muted-foreground">–</TableCell>
-      <TableCell className="text-right text-muted-foreground">–</TableCell>
-      <TableCell className="text-right">
+      <TableCell className="py-1.5 text-right tabular-nums text-muted-foreground">
+        {staff.shiftDates.size}
+      </TableCell>
+      <TableCell className="py-1.5 text-right text-muted-foreground/50">–</TableCell>
+      <TableCell className="py-1.5 text-right text-muted-foreground/50">–</TableCell>
+      <TableCell className="py-1.5 text-right">
         <Input
-          type="number"
-          step="0.01"
-          min={0}
+          type="text"
           inputMode="decimal"
-          className="h-8 w-24 text-right tabular-nums"
+          placeholder="0,00"
+          className={`h-7 w-20 ml-auto text-right tabular-nums text-sm border-transparent bg-transparent hover:border-input focus:border-input focus:bg-background transition-colors ${
+            Number.parseFloat(vorschuss.replace(",", ".")) > 0
+              ? "font-medium"
+              : "text-muted-foreground/60"
+          }`}
           readOnly={readOnly}
           disabled={readOnly}
-          value={vorschuss}
+          value={Number.parseFloat(vorschuss.replace(",", ".")) > 0 ? vorschuss : ""}
           onChange={(e) => setVorschuss(e.target.value)}
           onBlur={() => {
             if (readOnly) return;
@@ -1063,10 +1085,11 @@ function PayrollRow({
           }}
         />
       </TableCell>
-      <TableCell>
+      <TableCell className="py-1.5">
         <Textarea
           rows={1}
-          className="min-h-8 resize-y"
+          placeholder="–"
+          className="min-h-7 h-7 py-1 resize-none text-sm border-transparent bg-transparent hover:border-input focus:border-input focus:bg-background focus:min-h-16 transition-all placeholder:text-muted-foreground/40"
           readOnly={readOnly}
           disabled={readOnly}
           value={besonderheiten}
