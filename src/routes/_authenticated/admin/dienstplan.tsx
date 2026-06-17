@@ -486,20 +486,26 @@ function DienstplanPage() {
               onChange={setSkillFilter}
             />
             <div className="grid grid-cols-3 items-end gap-3">
-              <label className="flex flex-col gap-1 text-xs">
-                <span className="text-muted-foreground">Standort</span>
-                <select
-                  className="h-9 w-fit rounded-md border border-input bg-background px-2 text-sm"
-                  value={effectiveLocationId ?? ""}
-                  onChange={(e) => setLocationId(e.target.value || null)}
-                >
-                  {locations.map((l) => (
-                    <option key={l.id} value={l.id}>
+              <div className="flex flex-wrap items-center gap-2">
+                {locations.map((l) => {
+                  const active = effectiveLocationId === l.id;
+                  return (
+                    <button
+                      key={l.id}
+                      type="button"
+                      onClick={() => setLocationId(l.id)}
+                      className={
+                        "h-9 rounded-md border px-3 text-sm transition-colors " +
+                        (active
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-input bg-background hover:bg-accent hover:text-accent-foreground")
+                      }
+                    >
                       {l.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                    </button>
+                  );
+                })}
+              </div>
               <div className="flex justify-center">
                 <PeriodNav
                   periods={periods}
