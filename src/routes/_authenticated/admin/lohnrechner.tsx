@@ -180,11 +180,11 @@ function LohnRechnerPage() {
           <Card className="p-4">
             <h2 className="mb-3 text-base font-semibold">SFN-Töpfe (Stunden)</h2>
             <div className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2 lg:grid-cols-3">
-              <KV k="Gesamt" v={hrs(result.buckets.totalHours)} />
-              <KV k="Abend (20–24)" v={hrs(result.buckets.eveningHours)} />
-              <KV k="Nacht (00–06)" v={hrs(result.buckets.nightHours)} />
-              <KV k="Nacht ab 0–04 (Beginn ≤ 24)" v={hrs(result.buckets.nightDeepHours)} />
-              <KV k="So/Feiertag" v={hrs(result.buckets.sundayHolidayHours)} />
+              <KV k="Nacht 25 %" v={hrs(result.buckets.night25Hours)} />
+              <KV k="Nacht 40 %" v={hrs(result.buckets.night40Hours)} />
+              <KV k="Sonntag" v={hrs(result.buckets.sundayHours)} />
+              <KV k="Feiertag" v={hrs(result.buckets.holidayHours)} />
+              <KV k="Feiertag 150 % (1.5., 25./26.12.)" v={hrs(result.buckets.holiday150Hours)} />
             </div>
           </Card>
 
