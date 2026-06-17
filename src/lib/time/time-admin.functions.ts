@@ -138,7 +138,6 @@ export const listAdvancesByStaff = createServerFn({ method: "GET" })
   .inputValidator((input) =>
     z
       .object({
-        locationId: z.string().uuid(),
         periodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
         periodEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
       })
@@ -153,9 +152,8 @@ export const listAdvancesByStaff = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: rows, error } = await supabaseAdmin
       .from("session_advances")
-      .select("staff_id, amount_cents, sessions!inner(business_date, location_id)")
+      .select("staff_id, amount_cents, sessions!inner(business_date)")
       .eq("organization_id", caller.organizationId)
-      .eq("sessions.location_id", data.locationId)
       .gte("sessions.business_date", data.periodStart)
       .lte("sessions.business_date", data.periodEnd);
     if (error) throw error;
