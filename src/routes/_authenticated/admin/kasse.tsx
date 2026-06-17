@@ -395,10 +395,8 @@ function KassePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Kasse</h1>
-        </div>
+      <div className="flex flex-wrap items-end gap-4">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Kasse</h1>
         <div className="flex items-end gap-3">
           <div className="space-y-1">
             <Label htmlFor="loc">Standort</Label>
