@@ -1601,6 +1601,11 @@ function CashSummaryBlock({
           className="h-7 w-36 text-sm text-right font-mono border-emerald-200 bg-white"
           inputMode="decimal"
           value={misc.cashActual}
+          placeholder={
+            rows.tagesBargeldCents < 0
+              ? fmtCents(cashBalanceTargetCents + rows.tagesBargeldCents)
+              : undefined
+          }
           onChange={(e) => setMisc((prev) => ({ ...prev, cashActual: e.target.value }))}
           disabled={!writable}
         />
