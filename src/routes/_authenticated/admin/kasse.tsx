@@ -1495,6 +1495,20 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+type CashSummaryMisc = {
+  vouchersSold: string;
+  vouchersRedeemed: string;
+  finedineVouchers: string;
+  opentabs: string;
+  vorschuss: string;
+  einladung: string;
+  sonstige: string;
+  vectron: string;
+  cashActual: string;
+  guestCount: string;
+  notes: string;
+};
+
 function CashSummaryBlock({
   misc,
   setMisc,
@@ -1507,8 +1521,8 @@ function CashSummaryBlock({
   overview,
   cashBalanceTargetCents,
 }: {
-  misc: { cashActual: string } & Record<string, unknown>;
-  setMisc: (next: { cashActual: string } & Record<string, unknown>) => void;
+  misc: CashSummaryMisc;
+  setMisc: React.Dispatch<React.SetStateAction<CashSummaryMisc>>;
   writable: boolean;
   chRows: { id: string; euro: string }[];
   channelById: Record<string, { kind: string } | undefined>;
@@ -1532,13 +1546,13 @@ function CashSummaryBlock({
   const dayInput = sessionToDayInput(
     {
       business_date: sess.business_date,
-      vectron_daily_total_cents: parseEuroToCents(misc.vectron as string) ?? 0,
-      vouchers_sold_cents: parseEuroToCents(misc.vouchersSold as string) ?? 0,
-      vouchers_redeemed_cents: parseEuroToCents(misc.vouchersRedeemed as string) ?? 0,
-      finedine_vouchers_cents: parseEuroToCents(misc.finedineVouchers as string) ?? 0,
-      einladung_cents: parseEuroToCents(misc.einladung as string) ?? 0,
-      sonstige_einnahme_cents: parseEuroToCents(misc.sonstige as string) ?? 0,
-      vorschuss_cents: parseEuroToCents(misc.vorschuss as string) ?? 0,
+      vectron_daily_total_cents: parseEuroToCents(misc.vectron) ?? 0,
+      vouchers_sold_cents: parseEuroToCents(misc.vouchersSold) ?? 0,
+      vouchers_redeemed_cents: parseEuroToCents(misc.vouchersRedeemed) ?? 0,
+      finedine_vouchers_cents: parseEuroToCents(misc.finedineVouchers) ?? 0,
+      einladung_cents: parseEuroToCents(misc.einladung) ?? 0,
+      sonstige_einnahme_cents: parseEuroToCents(misc.sonstige) ?? 0,
+      vorschuss_cents: parseEuroToCents(misc.vorschuss) ?? 0,
     },
     {
       cardTotalCents,
