@@ -45,17 +45,24 @@ export function ShiftPill({ shift, area, draggable, onClick }: Props) {
   };
   const serviceBg = isService ? serviceColorMap[label] : undefined;
   const kitchenBg = !isService ? kitchenColorMap[label] : undefined;
+  const isDefaultService = isService && label === "X";
   const bg = isService
     ? (serviceBg ?? "#ffffff")
     : (kitchenBg ?? shift.skillColor ?? "#9ca3af");
-  const textCls = "text-white border-transparent";
+  const textCls = isDefaultService
+    ? "text-black border-transparent"
+    : "text-white border-transparent";
   const isPlanned = shift.status !== "confirmed";
   // BG nur leicht abdunkeln, damit der weiße Text gut kontrastiert, die
-  // gewählte Farbe aber sichtbar bleibt.
+  // gewählte Farbe aber sichtbar bleibt. Für die Default-Service-Pille (X)
+  // bleibt der Hintergrund weiß und der Text schwarz.
   const mixPct = isPlanned ? 92 : 85;
+  const backgroundColor = isDefaultService
+    ? "#ffffff"
+    : `color-mix(in oklab, ${bg} ${mixPct}%, black)`;
   const style: React.CSSProperties = {
     transform: CSS.Translate.toString(transform),
-    backgroundColor: `color-mix(in oklab, ${bg} ${mixPct}%, black)`,
+    backgroundColor,
     opacity: isDragging ? 0.4 : 1,
   };
 
