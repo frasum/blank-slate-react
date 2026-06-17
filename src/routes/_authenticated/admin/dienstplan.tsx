@@ -523,8 +523,65 @@ function DienstplanPage() {
                 <PeriodNav
                   periods={periods}
                   currentPeriodId={effectivePeriod?.id ?? null}
-                  today={today}
-                  onSelect={(id) => setPeriodId(id)}
+                  halfOffset={halfOffset}
+                  hasTodayJump={(() => {
+                    const todayPeriod = periods.find(
+                      (p) => p.startDate <= today && today <= p.endDate,
+                    );
+                    if (!todayPeriod) return false;
+                    return halfOffset || todayPeriod.id !== effectivePeriod?.id;
+                  })()}
+                  onToday={() => {
+                    const todayPeriod = periods.find(
+                      (p) => p.startDate <= today && today <= p.endDate,
+                    );
+                    if (todayPeriod) setPeriodId(todayPeriod.id);
+                    setHalfOffset(false);
+                  }}
+                  onPrevPeriod={() => {
+                    if (!effectivePeriod) return;
+                    const i = periods.findIndex((p) => p.id === effectivePeriod.id);
+                    if (i > 0) {
+                      setPeriodId(periods[i - 1].id);
+                      setHalfOffset(false);
+                    }
+                  }}
+                  onNextPeriod={() => {
+                    if (!effectivePeriod) return;
+                    const i = periods.findIndex((p) => p.id === effectivePeriod.id);
+                    if (i >= 0 && i < periods.length - 1) {
+                      setPeriodId(periods[i + 1].id);
+                      setHalfOffset(false);
+                    }
+                  }}
+                  onPrevHalf={() => {
+                    if (!effectivePeriod) return;
+                    if (halfOffset) {
+                      // Aus 2. Hälfte zurück auf volle Periode.
+                      setHalfOffset(false);
+                    } else {
+                      // Aus voller Periode in 2. Hälfte der Vorperiode.
+                      const i = periods.findIndex((p) => p.id === effectivePeriod.id);
+                      if (i > 0) {
+                        setPeriodId(periods[i - 1].id);
+                        setHalfOffset(true);
+                      }
+                    }
+                  }}
+                  onNextHalf={() => {
+                    if (!effectivePeriod) return;
+                    if (halfOffset) {
+                      // Aus 2. Hälfte in volle Folgeperiode.
+                      const i = periods.findIndex((p) => p.id === effectivePeriod.id);
+                      if (i >= 0 && i < periods.length - 1) {
+                        setPeriodId(periods[i + 1].id);
+                        setHalfOffset(false);
+                      }
+                    } else {
+                      // Aus voller Periode in 2. Hälfte derselben.
+                      setHalfOffset(true);
+                    }
+                  }}
                 />
               </div>
               <div />
