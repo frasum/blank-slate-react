@@ -13,6 +13,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as DisplayLocationIdRouteImport } from './routes/display.$locationId'
+import { Route as AuthenticatedPasswortAendernRouteImport } from './routes/_authenticated/passwort-aendern'
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
 import { Route as AuthenticatedZeitIndexRouteImport } from './routes/_authenticated/zeit/index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
@@ -66,6 +67,12 @@ const DisplayLocationIdRoute = DisplayLocationIdRouteImport.update({
   path: '/display/$locationId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedPasswortAendernRoute =
+  AuthenticatedPasswortAendernRouteImport.update({
+    id: '/passwort-aendern',
+    path: '/passwort-aendern',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdminRouteRoute = AuthenticatedAdminRouteRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -263,6 +270,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/auth': typeof AuthRoute
   '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
+  '/passwort-aendern': typeof AuthenticatedPasswortAendernRoute
   '/display/$locationId': typeof DisplayLocationIdRoute
   '/admin/bestellung': typeof AuthenticatedAdminBestellungRouteWithChildren
   '/admin/dienstplan': typeof AuthenticatedAdminDienstplanRoute
@@ -299,6 +307,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
+  '/passwort-aendern': typeof AuthenticatedPasswortAendernRoute
   '/display/$locationId': typeof DisplayLocationIdRoute
   '/': typeof AuthenticatedIndexRoute
   '/admin/dienstplan': typeof AuthenticatedAdminDienstplanRoute
@@ -337,6 +346,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteRouteWithChildren
+  '/_authenticated/passwort-aendern': typeof AuthenticatedPasswortAendernRoute
   '/display/$locationId': typeof DisplayLocationIdRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/admin/bestellung': typeof AuthenticatedAdminBestellungRouteWithChildren
@@ -378,6 +388,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/admin'
+    | '/passwort-aendern'
     | '/display/$locationId'
     | '/admin/bestellung'
     | '/admin/dienstplan'
@@ -414,6 +425,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
+    | '/passwort-aendern'
     | '/display/$locationId'
     | '/'
     | '/admin/dienstplan'
@@ -451,6 +463,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/admin'
+    | '/_authenticated/passwort-aendern'
     | '/display/$locationId'
     | '/_authenticated/'
     | '/_authenticated/admin/bestellung'
@@ -523,6 +536,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/display/$locationId'
       preLoaderRoute: typeof DisplayLocationIdRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/passwort-aendern': {
+      id: '/_authenticated/passwort-aendern'
+      path: '/passwort-aendern'
+      fullPath: '/passwort-aendern'
+      preLoaderRoute: typeof AuthenticatedPasswortAendernRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/admin': {
       id: '/_authenticated/admin'
@@ -857,6 +877,7 @@ const AuthenticatedAdminRouteRouteWithChildren =
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRouteRoute: typeof AuthenticatedAdminRouteRouteWithChildren
+  AuthenticatedPasswortAendernRoute: typeof AuthenticatedPasswortAendernRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedZeitAbrechnungRoute: typeof AuthenticatedZeitAbrechnungRoute
   AuthenticatedZeitSchichtenRoute: typeof AuthenticatedZeitSchichtenRoute
@@ -868,6 +889,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRouteRoute: AuthenticatedAdminRouteRouteWithChildren,
+  AuthenticatedPasswortAendernRoute: AuthenticatedPasswortAendernRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedZeitAbrechnungRoute: AuthenticatedZeitAbrechnungRoute,
   AuthenticatedZeitSchichtenRoute: AuthenticatedZeitSchichtenRoute,
