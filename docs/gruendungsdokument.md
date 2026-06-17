@@ -508,7 +508,7 @@ D-7 (Periodensperre): Schreiboperationen prüfen assertShiftDateUnlocked gegen d
 
 Datenmigration (erledigt)
 
-4498 Schichten aus thaitime schedule_entries nach roster_shifts migriert (41 Mitarbeiter über Nickname gemappt; Standort- und Skill-Mapping siehe ARBEITSWEISE.md). Alle als confirmed. „19 Uhr", Service 3/4 hatten keine realen Einträge.
+Re-Migration (17.06.2026): Die erste Migration (4498 Zeilen) hatte fälschlich Verfügbarkeits-/Abwesenheits-Marker („nicht verfügbar"/Urlaub/krank aus thaitime availability_entries/absence_entries) als Schichten importiert. Korrektur: roster_shifts geleert und ausschließlich aus thaitime schedule_entries (echte Schichten) neu importiert = 4362 Zeilen. 40 Mitarbeiter über Nickname gemappt (Lasse existiert nicht in COCO → ignoriert; Andre/Milk per Schreibweise korrigiert; Kosal/BIG inaktiv, dessen 4 Schichten bewusst enthalten). Standorte über feste location_id aufgelöst (locations.name „spicery" wird klein geschrieben). Skill-Mapping siehe arbeitsweise.md. Alle als confirmed. „19 Uhr", Service 3/4 hatten keine realen Einträge.
 
 Bauschritte
 

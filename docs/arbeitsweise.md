@@ -117,7 +117,7 @@ Immer **26. eines Monats bis einschließlich 25. des Folgemonats**. Label = Mona
 | B8 Lohnbüro-Rolle (payroll)                                            | ✅       |
 | D1 Dienstplan-Datenmodell + Grid                                       | ✅       |
 | D2a–e Dienstplan editierbar, Realtime, Service-Symbole, Cross-Booking  | ✅       |
-| Dienstplan-Migration (4498 Schichten aus thaitime)                     | ✅       |
+| Dienstplan-Migration (re-migriert 17.06.: 4362 echte Schichten)        | ✅       |
 | D3 Öffentliches Display (Token-URL, Auto-Refresh, Rotation, Legende)   | ⏳ offen |
 | M4 Lohn — Rechen-Kern (Stufe 1/3): PAP 2026 + SV, edlohn-cent-getestet | ✅       |
 | M4 Lohn — SFN-Geld + Perioden-Aggregation + Verdrahtung (Stufe 2a–c)   | ✅       |
