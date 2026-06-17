@@ -28,7 +28,7 @@ describe("computeSettlementWarnings", () => {
   it("returns [] when everything matches exactly", () => {
     const r = computeSettlementWarnings({
       ...base(),
-      posTotalCents: 15_000,
+      posTotalCents: 14_000,
       deliverySouseCents: 2_000,
       deliveryVectronCents: 500,
       terminalsTotalCents: 8_000,
