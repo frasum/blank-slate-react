@@ -82,6 +82,9 @@ function DienstplanPage() {
   const skillsQ = useQuery({ queryKey: ["skills"], queryFn: () => listSkills() });
 
   const [periodId, setPeriodId] = useState<string | null>(null);
+  // Halb-Offset: false = Periode 1:1, true = Fenster +14 Tage (überlappt
+  // in die Folgeperiode). Wird über die einzelnen Pfeile ‹/› gesteuert.
+  const [halfOffset, setHalfOffset] = useState(false);
   const [locationId, setLocationId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [activeArea, setActiveArea] = useState<GridArea>("kitchen");
@@ -101,9 +104,19 @@ function DienstplanPage() {
 
   const periodLocked = effectivePeriod?.status === "locked";
 
+  // Anzeigefenster = Periode ± 14 Tage je nach Halb-Offset.
+  const windowStart = useMemo(() => {
+    if (!effectivePeriod) return null;
+    return halfOffset ? fmtIso(addDays(parseIso(effectivePeriod.startDate), 14)) : effectivePeriod.startDate;
+  }, [effectivePeriod, halfOffset]);
+  const windowEnd = useMemo(() => {
+    if (!effectivePeriod) return null;
+    return halfOffset ? fmtIso(addDays(parseIso(effectivePeriod.endDate), 14)) : effectivePeriod.endDate;
+  }, [effectivePeriod, halfOffset]);
+
   const days = useMemo(
-    () => (effectivePeriod ? daysBetween(effectivePeriod.startDate, effectivePeriod.endDate) : []),
-    [effectivePeriod],
+    () => (windowStart && windowEnd ? daysBetween(windowStart, windowEnd) : []),
+    [windowStart, windowEnd],
   );
 
   const staffQ = useQuery({
@@ -115,51 +128,51 @@ function DienstplanPage() {
     queryKey: [
       "roster-shifts",
       effectiveLocationId,
-      effectivePeriod?.startDate,
-      effectivePeriod?.endDate,
+      windowStart,
+      windowEnd,
     ],
     queryFn: () =>
       getRosterShifts({
         data: {
           locationId: effectiveLocationId!,
-          fromDate: effectivePeriod!.startDate,
-          toDate: effectivePeriod!.endDate,
+          fromDate: windowStart!,
+          toDate: windowEnd!,
         },
       }),
-    enabled: !!effectiveLocationId && !!effectivePeriod,
+    enabled: !!effectiveLocationId && !!windowStart && !!windowEnd,
   });
   const crossQ = useQuery({
-    queryKey: ["roster-cross-bookings", effectivePeriod?.startDate, effectivePeriod?.endDate],
+    queryKey: ["roster-cross-bookings", windowStart, windowEnd],
     queryFn: () =>
       getStaffCrossBookings({
         data: {
-          fromDate: effectivePeriod!.startDate,
-          toDate: effectivePeriod!.endDate,
+          fromDate: windowStart!,
+          toDate: windowEnd!,
         },
       }),
-    enabled: !!effectivePeriod,
+    enabled: !!windowStart && !!windowEnd,
   });
   const availabilityQ = useQuery({
-    queryKey: ["roster-availability", effectivePeriod?.startDate, effectivePeriod?.endDate],
+    queryKey: ["roster-availability", windowStart, windowEnd],
     queryFn: () =>
       getAvailability({
         data: {
-          fromDate: effectivePeriod!.startDate,
-          toDate: effectivePeriod!.endDate,
+          fromDate: windowStart!,
+          toDate: windowEnd!,
         },
       }),
-    enabled: !!effectivePeriod,
+    enabled: !!windowStart && !!windowEnd,
   });
   const absenceQ = useQuery({
-    queryKey: ["roster-absence", effectivePeriod?.startDate, effectivePeriod?.endDate],
+    queryKey: ["roster-absence", windowStart, windowEnd],
     queryFn: () =>
       getAbsences({
         data: {
-          fromDate: effectivePeriod!.startDate,
-          toDate: effectivePeriod!.endDate,
+          fromDate: windowStart!,
+          toDate: windowEnd!,
         },
       }),
-    enabled: !!effectivePeriod,
+    enabled: !!windowStart && !!windowEnd,
   });
 
   // Realtime: jede Änderung an roster_shifts → invalidate (live update).
