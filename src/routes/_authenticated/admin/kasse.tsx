@@ -398,9 +398,6 @@ function KassePage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Kasse</h1>
-          <p className="text-sm text-muted-foreground">
-            Tagesübersicht, Kellnerabrechnungen, Session-Felder und Satelliten.
-          </p>
         </div>
         <div className="flex items-end gap-3">
           <div className="space-y-1">
