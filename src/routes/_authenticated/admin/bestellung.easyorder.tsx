@@ -16,6 +16,7 @@ import {
   type EasyOrderCatalogArticle,
   type EasyOrderFreeTextInput,
 } from "@/lib/bestellung/easyorder.functions";
+import { getCurrentPosition } from "@/lib/geo/client";
 
 export const Route = createFileRoute("/_authenticated/admin/bestellung/easyorder")({
   head: () => ({ meta: [{ title: "EasyOrder · Bestellung" }] }),
@@ -145,7 +146,15 @@ function EasyOrderCart(props: {
   } | null>(null);
 
   const placeMut = useMutation({
-    mutationFn: (input: Parameters<typeof callPlace>[0]) => callPlace(input),
+    mutationFn: async (input: {
+      locationId: string;
+      items: { articleId: string; quantity: number }[];
+      freeTextItems?: EasyOrderFreeTextInput[];
+      notes?: string;
+    }) => {
+      const fix = await getCurrentPosition();
+      return callPlace({ data: { ...input, geo: fix } });
+    },
     onSuccess: (res) => {
       setSuccessInfo({
         count: res.orderIds.length,
@@ -213,12 +222,10 @@ function EasyOrderCart(props: {
       .map(([articleId, quantity]) => ({ articleId, quantity }));
     if (items.length === 0) return;
     placeMut.mutate({
-      data: {
-        locationId,
-        items,
-        freeTextItems: freeItems.length > 0 ? freeItems : undefined,
-        notes: notes.trim() ? notes.trim() : undefined,
-      },
+      locationId,
+      items,
+      freeTextItems: freeItems.length > 0 ? freeItems : undefined,
+      notes: notes.trim() ? notes.trim() : undefined,
     });
   };
 

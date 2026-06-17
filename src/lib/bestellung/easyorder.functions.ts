@@ -18,6 +18,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller, type AdminCaller } from "@/lib/admin/admin-context";
 import { writeAuditLog } from "@/lib/admin/audit";
+import { assertWithinFence } from "@/lib/geo/server-check";
 import type { Database } from "@/integrations/supabase/types";
 
 type Admin = SupabaseClient<Database>;
@@ -134,6 +135,7 @@ export type PlaceEasyOrderInput = {
   items: EasyOrderItemInput[];
   freeTextItems?: EasyOrderFreeTextInput[];
   notes?: string;
+  geo: { latitude: number; longitude: number; accuracyM: number };
 };
 
 export type EasyOrderSendResult = {
@@ -164,6 +166,14 @@ export async function placeEasyOrderCore(
     .eq("is_active", true)
     .maybeSingle();
   if (!acc) throw new Error("Keine EasyOrder-Berechtigung für diesen Standort.");
+
+  // 1b. Geofence-Check gegen den gewählten Standort
+  await assertWithinFence({
+    admin,
+    organizationId: caller.organizationId,
+    locationId: input.locationId,
+    fix: input.geo,
+  });
 
   // 2. Freitext-Gate
   const freeItems = input.freeTextItems ?? [];
@@ -335,6 +345,11 @@ const PlaceInput = z.object({
     )
     .optional(),
   notes: z.string().trim().max(500).optional(),
+  geo: z.object({
+    latitude: z.number().min(-90).max(90),
+    longitude: z.number().min(-180).max(180),
+    accuracyM: z.number().min(0).max(100_000),
+  }),
 });
 
 export const placeEasyOrder = createServerFn({ method: "POST" })

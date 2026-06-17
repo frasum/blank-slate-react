@@ -5,8 +5,10 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   createLocation,
   deleteLocation,
+  geocodeLocation,
   listLocations,
   updateLocation,
+  updateLocationGeo,
 } from "@/lib/admin/locations.functions";
 import {
   getDisplaySettings,
@@ -243,6 +245,11 @@ type LocationRowData = {
   phone: string | null;
   contact_name: string | null;
   contact_phone: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  geofence_radius_m?: number | null;
+  geocoded_at?: string | null;
+  geocoded_address?: string | null;
 };
 
 function LocationRow(props: {
@@ -374,6 +381,102 @@ function LocationRow(props: {
         </div>
       )}
       {displayOpen && <DisplayPanel locationId={props.loc.id} />}
+      {open && <GeofencePanel loc={props.loc} onChanged={() => {}} />}
+    </div>
+  );
+}
+
+function GeofencePanel({ loc, onChanged }: { loc: LocationRowData; onChanged: () => void }) {
+  const callGeocode = useServerFn(geocodeLocation);
+  const callUpdate = useServerFn(updateLocationGeo);
+  const [lat, setLat] = useState<string>(loc.latitude != null ? String(loc.latitude) : "");
+  const [lng, setLng] = useState<string>(loc.longitude != null ? String(loc.longitude) : "");
+  const [radius, setRadius] = useState<string>(String(loc.geofence_radius_m ?? 100));
+  const [msg, setMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLat(loc.latitude != null ? String(loc.latitude) : "");
+    setLng(loc.longitude != null ? String(loc.longitude) : "");
+    setRadius(String(loc.geofence_radius_m ?? 100));
+  }, [loc.latitude, loc.longitude, loc.geofence_radius_m]);
+
+  const geocodeMut = useMutation({
+    mutationFn: () => callGeocode({ data: { locationId: loc.id } }),
+    onSuccess: (r) => {
+      setMsg(`Geocodiert: ${r.formattedAddress}`);
+      onChanged();
+    },
+    onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
+  });
+
+  const saveMut = useMutation({
+    mutationFn: () => {
+      const latN = lat.trim() === "" ? null : Number(lat);
+      const lngN = lng.trim() === "" ? null : Number(lng);
+      const radN = Number(radius);
+      return callUpdate({
+        data: {
+          locationId: loc.id,
+          latitude: latN,
+          longitude: lngN,
+          geofenceRadiusM: radN,
+        },
+      });
+    },
+    onSuccess: () => {
+      setMsg("Gespeichert.");
+      onChanged();
+    },
+    onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
+  });
+
+  const inputCls = "w-full rounded-md border border-input bg-background px-3 py-2 text-sm";
+  return (
+    <div className="mt-3 space-y-3 rounded-md border border-input bg-muted/30 p-3 text-sm">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        Geofence
+      </p>
+      <div className="grid grid-cols-3 gap-3">
+        <Field label="Breitengrad">
+          <input value={lat} onChange={(e) => setLat(e.target.value)} className={inputCls} />
+        </Field>
+        <Field label="Längengrad">
+          <input value={lng} onChange={(e) => setLng(e.target.value)} className={inputCls} />
+        </Field>
+        <Field label="Radius (m)">
+          <input
+            type="number"
+            min={10}
+            max={5000}
+            value={radius}
+            onChange={(e) => setRadius(e.target.value)}
+            className={inputCls}
+          />
+        </Field>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => geocodeMut.mutate()}
+          disabled={geocodeMut.isPending}
+          className="rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-accent disabled:opacity-50"
+        >
+          {geocodeMut.isPending ? "Geocodiere …" : "Aus Adresse geocodieren"}
+        </button>
+        <button
+          onClick={() => saveMut.mutate()}
+          disabled={saveMut.isPending}
+          className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+        >
+          Speichern
+        </button>
+        {loc.geocoded_at && (
+          <span className="text-xs text-muted-foreground">
+            Geocodiert: {new Date(loc.geocoded_at).toLocaleString("de-DE")}
+            {loc.geocoded_address ? ` — ${loc.geocoded_address}` : ""}
+          </span>
+        )}
+      </div>
+      {msg && <p className="text-xs text-muted-foreground">{msg}</p>}
     </div>
   );
 }

@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { arbzgMinimumBreak } from "@/lib/time/break-rules";
 import { clockIn, clockOut, getMyOpenEntry, listMyEntries } from "@/lib/time/time.functions";
+import { getCurrentPosition, GpsError } from "@/lib/geo/client";
 import { formatShortDate } from "@/lib/format-date";
 
 export const Route = createFileRoute("/_authenticated/zeit/")({
@@ -25,6 +26,12 @@ export const Route = createFileRoute("/_authenticated/zeit/")({
   }),
   component: ZeitPage,
 });
+
+function formatGpsErr(err: unknown): string {
+  if (err instanceof GpsError) return err.message;
+  if (err instanceof Error) return err.message;
+  return "Unbekannter Fehler.";
+}
 
 function formatDuration(ms: number): string {
   const totalSec = Math.max(0, Math.floor(ms / 1000));
@@ -61,21 +68,27 @@ function ZeitPage() {
   }, []);
 
   const inMut = useMutation({
-    mutationFn: () => doClockIn(),
+    mutationFn: async () => {
+      const fix = await getCurrentPosition();
+      return doClockIn({ data: fix });
+    },
     onSuccess: () => {
       toast.success("Eingestempelt.");
       void qc.invalidateQueries({ queryKey: ["time"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(formatGpsErr(e)),
   });
   const outMut = useMutation({
-    mutationFn: (breakMinutes: number) => doClockOut({ data: { breakMinutes } }),
+    mutationFn: async (breakMinutes: number) => {
+      const fix = await getCurrentPosition();
+      return doClockOut({ data: { breakMinutes, ...fix } });
+    },
     onSuccess: () => {
       toast.success("Ausgestempelt.");
       void qc.invalidateQueries({ queryKey: ["time"] });
       setBreakDialogOpen(false);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(formatGpsErr(e)),
   });
 
   const open = openQuery.data;

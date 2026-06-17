@@ -20,6 +20,7 @@ import { businessDateOf } from "@/lib/business-date";
 import { canClockIn, canClockOut, denialMessage } from "./time-rules";
 import { writeAuditLog } from "@/lib/admin/audit";
 import { arbzgMinimumBreak, isArbzgShort, grossMinutesBetween } from "./break-rules";
+import { assertWithinFence } from "@/lib/geo/server-check";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -62,17 +63,21 @@ export async function loadStaffCaller(
 
 export async function loadOpenEntry(
   staffId: string,
-): Promise<{ id: string; startedAt: Date } | null> {
+): Promise<{ id: string; startedAt: Date; locationId: string | null } | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("time_entries")
-    .select("id, started_at")
+    .select("id, started_at, location_id")
     .eq("staff_id", staffId)
     .is("ended_at", null)
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
-  return { id: data.id, startedAt: new Date(data.started_at) };
+  return {
+    id: data.id,
+    startedAt: new Date(data.started_at),
+    locationId: data.location_id ?? null,
+  };
 }
 
 async function resolveDefaultLocation(
@@ -132,9 +137,16 @@ export const listMyEntries = createServerFn({ method: "GET" })
 // Schreiben (Stempeln)
 // =========================================================================
 
+const GeoFixSchema = z.object({
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  accuracyM: z.number().min(0).max(100_000),
+});
+
 export const clockIn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((input) => GeoFixSchema.parse(input))
+  .handler(async ({ data, context }) => {
     const caller = await loadStaffCaller(context.supabase, context.userId);
     const open = await loadOpenEntry(caller.staffId);
     const decision = canClockIn({ staffIsActive: caller.isActive, openEntry: open });
@@ -142,8 +154,21 @@ export const clockIn = createServerFn({ method: "POST" })
 
     const now = new Date();
     const locationId = await resolveDefaultLocation(caller.staffId, caller.organizationId);
+    if (!locationId) {
+      throw new Error(
+        "Kein eindeutiger Standort zugeordnet — Geofence kann nicht geprüft werden. Bitte Manager kontaktieren.",
+      );
+    }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const geo = await assertWithinFence({
+      admin: supabaseAdmin,
+      organizationId: caller.organizationId,
+      locationId,
+      fix: data,
+    });
+
     const { data: created, error } = await supabaseAdmin
       .from("time_entries")
       .insert({
@@ -165,7 +190,16 @@ export const clockIn = createServerFn({ method: "POST" })
       action: "time_entry.clock_in",
       entity: "time_entry",
       entityId: created.id,
-      meta: { source: "clock", locationId },
+      meta: {
+        source: "clock",
+        locationId,
+        geo: {
+          lat: data.latitude,
+          lng: data.longitude,
+          accuracyM: data.accuracyM,
+          distanceM: geo.decision.ok ? geo.decision.distanceM : null,
+        },
+      },
     });
 
     return { id: created.id, startedAt: created.started_at };
@@ -174,11 +208,22 @@ export const clockIn = createServerFn({ method: "POST" })
 export const clockOut = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
-    z.object({ breakMinutes: z.number().int().min(0).max(479) }).parse(input),
+    z
+      .object({
+        breakMinutes: z.number().int().min(0).max(479),
+        latitude: z.number().min(-90).max(90),
+        longitude: z.number().min(-180).max(180),
+        accuracyM: z.number().min(0).max(100_000),
+      })
+      .parse(input),
   )
   .handler(async ({ data, context }) => {
     const caller = await loadStaffCaller(context.supabase, context.userId);
-    const result = await performClockOut(caller, data.breakMinutes);
+    const result = await performClockOut(caller, data.breakMinutes, {}, {
+      latitude: data.latitude,
+      longitude: data.longitude,
+      accuracyM: data.accuracyM,
+    });
     if (!result) throw new Error(denialMessage("no_open_entry"));
     return result;
   });
@@ -199,6 +244,7 @@ export async function performClockOut(
   caller: Caller,
   breakMinutes: number,
   extraMeta: Record<string, unknown> = {},
+  geoFix?: { latitude: number; longitude: number; accuracyM: number },
 ): Promise<{ id: string; startedAt: string; endedAt: string } | null> {
   const open = await loadOpenEntry(caller.staffId);
   const now = new Date();
@@ -209,6 +255,26 @@ export async function performClockOut(
   }
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  // Geofence-Check NUR für UI-Stempelungen (geoFix mitgegeben). Interne
+  // Aufrufer (z. B. Abrechnungs-Auto-Out) übergeben keinen Fix und werden
+  // nicht geprüft, weil das System dort selbständig schliesst.
+  let distanceM: number | null = null;
+  if (geoFix) {
+    if (!open!.locationId) {
+      throw new Error(
+        "Offener Eintrag hat keinen Standort hinterlegt — Geofence kann nicht geprüft werden.",
+      );
+    }
+    const geo = await assertWithinFence({
+      admin: supabaseAdmin,
+      organizationId: caller.organizationId,
+      locationId: open!.locationId,
+      fix: geoFix,
+    });
+    distanceM = geo.decision.ok ? geo.decision.distanceM : null;
+  }
+
   const { data: updated, error } = await supabaseAdmin
     .from("time_entries")
     .update({ ended_at: now.toISOString(), break_minutes: breakMinutes })
@@ -235,6 +301,14 @@ export async function performClockOut(
       grossMinutes: gross,
       arbzgRecommended: arbzgMinimumBreak(gross),
       arbzgShort,
+      geo: geoFix
+        ? {
+            lat: geoFix.latitude,
+            lng: geoFix.longitude,
+            accuracyM: geoFix.accuracyM,
+            distanceM,
+          }
+        : null,
       ...extraMeta,
     },
   });

@@ -96,7 +96,16 @@ export async function seedOrg(label: string): Promise<SeededOrg> {
   const { data: defLoc, error: locErr } = await withDbInsertRetry("location seed", () =>
     service
       .from("locations")
-      .insert({ organization_id: orgId, name: "Hauptstandort" })
+      .insert({
+        organization_id: orgId,
+        name: "Hauptstandort",
+        // Default-Geofence: München-Marienplatz. Tests, die placeEasyOrder
+        // oder clockIn aufrufen, übergeben denselben Punkt als GPS-Fix
+        // (siehe `TEST_GEO_FIX` weiter unten in den Test-Suites).
+        latitude: 48.137154,
+        longitude: 11.575382,
+        geofence_radius_m: 100,
+      })
       .select("id")
       .single(),
   );

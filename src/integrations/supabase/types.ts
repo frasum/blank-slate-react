@@ -752,7 +752,12 @@ export type Database = {
           contact_phone: string | null
           created_at: string
           delivery_notes: string | null
+          geocoded_address: string | null
+          geocoded_at: string | null
+          geofence_radius_m: number
           id: string
+          latitude: number | null
+          longitude: number | null
           name: string
           organization_id: string
           phone: string | null
@@ -767,7 +772,12 @@ export type Database = {
           contact_phone?: string | null
           created_at?: string
           delivery_notes?: string | null
+          geocoded_address?: string | null
+          geocoded_at?: string | null
+          geofence_radius_m?: number
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           name: string
           organization_id: string
           phone?: string | null
@@ -782,7 +792,12 @@ export type Database = {
           contact_phone?: string | null
           created_at?: string
           delivery_notes?: string | null
+          geocoded_address?: string | null
+          geocoded_at?: string | null
+          geofence_radius_m?: number
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           name?: string
           organization_id?: string
           phone?: string | null

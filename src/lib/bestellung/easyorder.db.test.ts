@@ -17,6 +17,10 @@ import { dbTestsEnabled, seedOrg, type SeededOrg, type SeededUser } from "@/test
 import { getEasyOrderCatalogCore, placeEasyOrderCore } from "./easyorder.functions";
 import type { AdminCaller } from "@/lib/admin/admin-context";
 
+// Default-Standort liegt am Marienplatz München (siehe db-setup.ts).
+// Tests übergeben hier denselben Punkt mit ausreichend Genauigkeit.
+const TEST_GEO_FIX = { latitude: 48.137154, longitude: 11.575382, accuracyM: 10 };
+
 describe.skipIf(!dbTestsEnabled)("easyorder (DB)", () => {
   let org: SeededOrg;
   let staffUserA: SeededUser; // mit access an default-location
@@ -144,6 +148,7 @@ describe.skipIf(!dbTestsEnabled)("easyorder (DB)", () => {
       placeEasyOrderCore(org.service, callerOf(staffUserC), {
         locationId: org.defaultLocationId,
         items: [{ articleId: artB1, quantity: 1 }],
+        geo: TEST_GEO_FIX,
       }),
     ).rejects.toThrow(/nicht freigeschaltetem Lieferanten/);
     expect(await countOrders()).toBe(before);
@@ -158,6 +163,7 @@ describe.skipIf(!dbTestsEnabled)("easyorder (DB)", () => {
         { articleId: artB1, quantity: 1 },
       ],
       notes: "EasyOrder-Test",
+      geo: TEST_GEO_FIX,
     });
     expect(result.orderIds.length).toBe(2);
 
@@ -192,6 +198,7 @@ describe.skipIf(!dbTestsEnabled)("easyorder (DB)", () => {
         locationId: org.defaultLocationId,
         items: [{ articleId: artA1, quantity: 1 }],
         freeTextItems: [{ supplierId: supplierA, name: "Sondergewürz", quantity: 2 }],
+        geo: TEST_GEO_FIX,
       }),
     ).rejects.toThrow(/Freitext/);
   });
