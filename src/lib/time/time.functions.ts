@@ -91,8 +91,8 @@ async function resolveDefaultLocation(
     .eq("staff_id", staffId)
     .eq("organization_id", organizationId);
   if (error) throw error;
-  if (!data || data.length !== 1) return null;
-  return data[0].location_id;
+  const { pickSingleLocation } = await import("./resolve-location");
+  return pickSingleLocation(data ?? []);
 }
 
 // =========================================================================
