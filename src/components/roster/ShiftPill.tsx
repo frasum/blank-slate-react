@@ -50,9 +50,9 @@ export function ShiftPill({ shift, area, draggable, onClick }: Props) {
     : (kitchenBg ?? shift.skillColor ?? "#9ca3af");
   const textCls = "text-white border-transparent";
   const isPlanned = shift.status !== "confirmed";
-  // BG direkt abdunkeln (statt filter), damit der weiße Text in allen Pillen
-  // identisch rein bleibt — filter würde auch das Label grau ziehen.
-  const mixPct = isPlanned ? 70 : 60;
+  // BG nur leicht abdunkeln, damit der weiße Text gut kontrastiert, die
+  // gewählte Farbe aber sichtbar bleibt.
+  const mixPct = isPlanned ? 92 : 85;
   const style: React.CSSProperties = {
     transform: CSS.Translate.toString(transform),
     backgroundColor: `color-mix(in oklab, ${bg} ${mixPct}%, black)`,
