@@ -30,6 +30,7 @@ import {
   listPeriods,
   listPayrollNotes,
   listAdvancesByStaff,
+  listAbsencesByStaff,
   setTimeEntryShift,
   togglePeriodLock,
   upsertPayrollNote,
@@ -201,6 +202,7 @@ function ZeitUebersichtPage() {
   const fetchWeekly = useServerFn(getWeeklyTimeEntries);
   const fetchNotes = useServerFn(listPayrollNotes);
   const fetchAdvances = useServerFn(listAdvancesByStaff);
+  const fetchAbsences = useServerFn(listAbsencesByStaff);
   const callUpsert = useServerFn(upsertPayrollNote);
   const callSetShift = useServerFn(setTimeEntryShift);
   const callCreateShift = useServerFn(createTimeEntryShift);
@@ -353,6 +355,11 @@ function ZeitUebersichtPage() {
     enabled: Boolean(effectiveLocationId),
   });
 
+  const absencesQ = useQuery({
+    queryKey: ["payroll-absences", fromDate, toDate],
+    queryFn: () => fetchAbsences({ data: { periodStart: fromDate, periodEnd: toDate } }),
+  });
+
   const weekCols = useMemo(() => buildWeekColumns(fromDate, toDate), [fromDate, toDate]);
 
   // Aggregations
@@ -415,6 +422,14 @@ function ZeitUebersichtPage() {
     for (const a of advancesQ.data ?? []) m.set(a.staffId, a.totalCents);
     return m;
   }, [advancesQ.data]);
+
+  const absencesByStaff = useMemo(() => {
+    const m = new Map<string, { krankDays: number; urlaubDays: number }>();
+    for (const a of absencesQ.data ?? []) {
+      m.set(a.staffId, { krankDays: a.krankDays, urlaubDays: a.urlaubDays });
+    }
+    return m;
+  }, [absencesQ.data]);
 
   const upsertMut = useMutation({
     mutationFn: (vars: { staffId: string; vorschuss: number; besonderheiten: string | null }) =>
@@ -1006,6 +1021,8 @@ function ZeitUebersichtPage() {
                           staff={s}
                           initial={notesByStaff.get(s.staffId)}
                           vorschussCents={advanceCentsByStaff.get(s.staffId) ?? 0}
+                          urlaubDays={absencesByStaff.get(s.staffId)?.urlaubDays ?? 0}
+                          krankDays={absencesByStaff.get(s.staffId)?.krankDays ?? 0}
                           readOnly={isPayroll}
                           onSave={(besonderheiten) =>
                             upsertMut.mutate({
@@ -1046,6 +1063,8 @@ function PayrollRow({
   staff,
   initial,
   vorschussCents,
+  urlaubDays,
+  krankDays,
   readOnly = false,
   onSave,
 }: {
@@ -1057,6 +1076,8 @@ function PayrollRow({
   };
   initial: { vorschuss: number; besonderheiten: string } | undefined;
   vorschussCents: number;
+  urlaubDays: number;
+  krankDays: number;
   readOnly?: boolean;
   onSave: (besonderheiten: string) => void;
 }) {
@@ -1078,8 +1099,20 @@ function PayrollRow({
       <TableCell className="py-1.5 text-right tabular-nums text-muted-foreground">
         {staff.shiftDates.size}
       </TableCell>
-      <TableCell className="py-1.5 text-right text-muted-foreground/50">–</TableCell>
-      <TableCell className="py-1.5 text-right text-muted-foreground/50">–</TableCell>
+      <TableCell
+        className={`py-1.5 text-right tabular-nums ${
+          urlaubDays > 0 ? "font-medium" : "text-muted-foreground/50"
+        }`}
+      >
+        {urlaubDays > 0 ? urlaubDays : "–"}
+      </TableCell>
+      <TableCell
+        className={`py-1.5 text-right tabular-nums ${
+          krankDays > 0 ? "font-medium" : "text-muted-foreground/50"
+        }`}
+      >
+        {krankDays > 0 ? krankDays : "–"}
+      </TableCell>
       <TableCell
         className={`py-1.5 text-right tabular-nums text-sm ${
           vorschussLabel ? "font-medium" : "text-muted-foreground/50"
