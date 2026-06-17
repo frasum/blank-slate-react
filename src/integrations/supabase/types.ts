@@ -2776,6 +2776,7 @@ export type Database = {
       }
       waiter_settlements: {
         Row: {
+          additional_waiters: Json
           auto_clockout_time_entry_id: string | null
           card_total_cents: number
           cash_handed_in_cents: number
@@ -2790,6 +2791,7 @@ export type Database = {
           organization_id: string
           partner_staff_id: string | null
           pos_sales_cents: number
+          second_waiter_name: string | null
           session_id: string
           staff_id: string
           status: Database["public"]["Enums"]["waiter_settlement_status"]
@@ -2797,6 +2799,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          additional_waiters?: Json
           auto_clockout_time_entry_id?: string | null
           card_total_cents?: number
           cash_handed_in_cents?: number
@@ -2811,6 +2814,7 @@ export type Database = {
           organization_id: string
           partner_staff_id?: string | null
           pos_sales_cents?: number
+          second_waiter_name?: string | null
           session_id: string
           staff_id: string
           status?: Database["public"]["Enums"]["waiter_settlement_status"]
@@ -2818,6 +2822,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          additional_waiters?: Json
           auto_clockout_time_entry_id?: string | null
           card_total_cents?: number
           cash_handed_in_cents?: number
@@ -2832,6 +2837,7 @@ export type Database = {
           organization_id?: string
           partner_staff_id?: string | null
           pos_sales_cents?: number
+          second_waiter_name?: string | null
           session_id?: string
           staff_id?: string
           status?: Database["public"]["Enums"]["waiter_settlement_status"]
