@@ -175,9 +175,7 @@ export const getMyShifts = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: rows, error } = await supabaseAdmin
       .from("roster_shifts")
-      .select(
-        "shift_date, area, status, notes, locations(name), skills(name, category)",
-      )
+      .select("shift_date, area, status, notes, locations(name), skills(name, category)")
       .eq("organization_id", caller.organizationId)
       .eq("staff_id", caller.staffId)
       .gte("shift_date", from)
