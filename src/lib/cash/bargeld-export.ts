@@ -14,6 +14,7 @@ export async function buildBargeldXlsx(rows: CashDailyRow[], monthLabel: string)
     "Datum",
     "Tagesumsatz",
     "Kreditkarten",
+    "Take-Away",
     "OrderSmart",
     "Wolt",
     "Gutsch. EL",
@@ -33,6 +34,7 @@ export async function buildBargeldXlsx(rows: CashDailyRow[], monthLabel: string)
       formatShortDate(r.businessDate),
       money(r.tagesumsatzCents),
       money(r.kreditkartenCents),
+      money(r.deliveryVectronCents),
       money(r.deliverySouseCents),
       money(r.deliveryWoltCents),
       money(r.vouchersRedeemedCents),
@@ -51,6 +53,7 @@ export async function buildBargeldXlsx(rows: CashDailyRow[], monthLabel: string)
     "Summe",
     sum((r) => r.tagesumsatzCents),
     sum((r) => r.kreditkartenCents),
+    sum((r) => r.deliveryVectronCents),
     sum((r) => r.deliverySouseCents),
     sum((r) => r.deliveryWoltCents),
     sum((r) => r.vouchersRedeemedCents),
@@ -64,7 +67,7 @@ export async function buildBargeldXlsx(rows: CashDailyRow[], monthLabel: string)
   ]);
   ws.lastRow!.font = { bold: true };
 
-  for (let col = 2; col <= 13; col++) {
+  for (let col = 2; col <= 14; col++) {
     ws.getColumn(col).numFmt = '#,##0.00 "€"';
     ws.getColumn(col).width = 13;
   }
