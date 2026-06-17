@@ -1965,35 +1965,7 @@ export async function loadCashDayAggregates(
     const amt = Number(r.amount_cents);
     a.totalRevenueGross += amt;
     const kind = (r.revenue_channels as { kind: string } | null)?.kind ?? null;
-    switch (kind) {
-      case "pos":
-        a.grossRevenue += amt;
-        break;
-      case "delivery_souse":
-      case "delivery_vectron":
-        a.deliverySouse += amt;
-        break;
-      case "delivery_wolt":
-        a.deliveryWolt += amt;
-        break;
-      case "voucher_sold":
-        a.vouchersSold += amt;
-        break;
-      case "voucher_redeemed":
-        a.vouchersRedeemed += amt;
-        break;
-      case "finedine":
-        a.finedine += amt;
-        break;
-      case "einladung":
-        a.einladung += amt;
-        break;
-      case "sonstige":
-        a.sonstige += amt;
-        break;
-      default:
-        break;
-    }
+    applyRevenueChannel(a, kind, amt);
   }
   for (const r of tRes.data ?? []) {
     const d = sessionDate.get(r.session_id);
