@@ -12,7 +12,6 @@ import { Card } from "@/components/ui/card";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { useDensity } from "@/hooks/use-density";
 import { listLocations } from "@/lib/admin/locations.functions";
 import { listPeriods } from "@/lib/time/time-admin.functions";
 import {
@@ -37,7 +36,6 @@ import {
 import { RosterGrid } from "@/components/roster/RosterGrid";
 import { PaintToolbar, type PaintSelection } from "@/components/roster/PaintToolbar";
 import { SkillFilterChips } from "@/components/roster/SkillFilterChips";
-import { DensityToggle } from "@/components/roster/DensityToggle";
 
 export const Route = createFileRoute("/_authenticated/admin/dienstplan")({
   head: () => ({ meta: [{ title: "Dienstplan" }] }),
@@ -89,7 +87,6 @@ function DienstplanPage() {
   const [skillFilter, setSkillFilter] = useState<string[]>([]);
   const [paintEnabled, setPaintEnabled] = useState(false);
   const [paint, setPaint] = useState<PaintSelection>(null);
-  const [density, setDensity] = useDensity();
 
   const periods = useMemo(() => periodsQ.data ?? [], [periodsQ.data]);
   const locations = useMemo(() => locationsQ.data ?? [], [locationsQ.data]);
@@ -497,10 +494,6 @@ function DienstplanPage() {
                 ))}
               </select>
             </label>
-            <label className="flex flex-col gap-1 text-xs">
-              <span className="text-muted-foreground">Darstellung</span>
-              <DensityToggle value={density} onChange={setDensity} />
-            </label>
           </div>
         </header>
 
@@ -542,7 +535,6 @@ function DienstplanPage() {
               lockMap={lockMap}
               unavailableSet={unavailableSet}
               absenceMap={absenceMap}
-              density={density}
               canEdit={canEdit}
               locked={!!periodLocked}
               paint={paintEnabled ? paint : null}
