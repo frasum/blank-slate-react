@@ -214,7 +214,7 @@ export const listLeaveRequests = createServerFn({ method: "GET" })
     let q = supabaseAdmin
       .from("leave_requests")
       .select(
-        "id, staff_id, start_date, end_date, reason, status, decision_note, decided_at, created_at, staff:leave_requests_staff_id_fkey(display_name)",
+        "id, staff_id, start_date, end_date, reason, status, decision_note, decided_at, created_at, staff:staff!leave_requests_staff_id_fkey(display_name)",
       )
       .eq("organization_id", caller.organizationId)
       .order("created_at", { ascending: false });
