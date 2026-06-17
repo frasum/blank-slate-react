@@ -1351,6 +1351,7 @@ function SessionFieldsCard({
                         guestCount: e.target.value.replace(/\D/g, ""),
                       })
                     }
+                    onFocus={(e) => e.currentTarget.select()}
                     className="h-7 text-sm text-right font-mono border-primary/20 bg-primary/5"
                     disabled={!writable}
                   />
