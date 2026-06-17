@@ -135,7 +135,7 @@ function sectionHeader(title: string): RowInput {
 }
 
 export function generateDailySummaryPdf(data: PdfExportData): {
-  blobUrl: string;
+  doc: jsPDF;
   blob: Blob;
   fileName: string;
 } {
