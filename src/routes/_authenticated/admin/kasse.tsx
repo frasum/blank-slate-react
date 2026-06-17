@@ -1596,10 +1596,14 @@ function CashSummaryBlock({
           {rows.differenzCents == null ? "—" : fmtEur(rows.differenzCents)}
         </span>
       </div>
-      <div className="border-b bg-orange-50 px-3 py-2 flex items-center justify-between text-sm">
-        <span className="text-orange-700">Bargeld mit der Abrechnung in den Tresor legen</span>
-        <span className="font-mono tabular-nums text-orange-700">{fmtEur(rows.tresorCents)}</span>
-      </div>
+      {rows.tresorCents > 0 && (
+        <div className="border-b bg-orange-50 px-3 py-2 flex items-center justify-between text-sm">
+          <span className="text-orange-700">Bargeld mit der Abrechnung in den Tresor legen</span>
+          <span className="font-mono tabular-nums text-orange-700">
+            {fmtEur(rows.tresorCents)}
+          </span>
+        </div>
+      )}
       <div className="bg-emerald-50 px-3 py-2 flex items-center justify-between gap-3 text-sm">
         <label htmlFor="wechselgeld-input" className="font-semibold text-foreground">
           Wechselgeldbestand (soll ist {fmtEur(cashBalanceTargetCents)})
