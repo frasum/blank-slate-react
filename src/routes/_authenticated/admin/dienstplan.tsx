@@ -94,8 +94,7 @@ function DienstplanPage() {
   const [paint, setPaint] = useState<PaintSelection>(null);
 
   const periods = useMemo(
-    () =>
-      [...(periodsQ.data ?? [])].sort((a, b) => a.startDate.localeCompare(b.startDate)),
+    () => [...(periodsQ.data ?? [])].sort((a, b) => a.startDate.localeCompare(b.startDate)),
     [periodsQ.data],
   );
   const locations = useMemo(() => locationsQ.data ?? [], [locationsQ.data]);
