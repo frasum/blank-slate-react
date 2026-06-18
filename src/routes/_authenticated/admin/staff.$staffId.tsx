@@ -96,7 +96,7 @@ function StaffDetailPage() {
 
       {tab === "basics" && <BasicsTab staff={s} />}
       {tab === "locations" && <LocationsTab staffId={s.id} current={s.locationIds} />}
-      {tab === "skills" && <SkillsTab staffId={s.id} />}
+      {tab === "skills" && <SkillsTab staffId={s.id} isAdmin={isAdmin} />}
       {tab === "personal" && showPersonal && (
         <PersonalDetailsTab staffId={s.id} canEdit={canEditPersonal} />
       )}
