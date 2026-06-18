@@ -7,7 +7,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "./admin-context";
-import { runGuarded } from "./admin-call";
+import { assertPermission, runWithPermission } from "./admin-call";
 import { writeAuditLog } from "./audit";
 import {
   personalDetailsSchema,
@@ -52,7 +52,8 @@ export const getStaffPersonalDetails = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => staffIdInput.parse(input))
   .handler(async ({ data, context }): Promise<PersonalDetailsDto> => {
-    // admin oder payroll dürfen lesen (RLS-Policy + zusätzlicher Code-Check)
+    // Lesen erfordert payroll.personal.view (admin/payroll per Default).
+    await assertPermission(context.supabase, "payroll.personal.view");
     const caller = await loadAdminCaller(context.supabase, context.userId, ["admin", "payroll"]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row, error } = await supabaseAdmin
@@ -86,10 +87,11 @@ export const upsertStaffPersonalDetails = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
-    return runGuarded(
-      caller.role,
-      "admin",
+    const caller = await loadAdminCaller(context.supabase, context.userId, ["admin", "payroll"]);
+    return runWithPermission(
+      context.supabase,
+      "payroll.personal.edit",
+      null,
       async (entry) => {
         await writeAuditLog({
           organizationId: caller.organizationId,
