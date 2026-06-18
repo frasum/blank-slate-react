@@ -1,105 +1,72 @@
 ## Ziel
-Granulare Rechte für **M3 Dienstplan**: Schichten, Verfügbarkeit, Abwesenheit, Wunschfrei und Urlaubsanträge. Gleiche Mechanik wie M1/M2: Enum-Keys + Defaults + `has_permission(key, location?)` in RLS und Server-Funktionen, `runWithPermission` ersetzt `runGuarded(caller.role, …)`.
 
-Betroffene Tabellen: `roster_shifts`, `roster_availability`, `roster_absence`, `day_off_wishes`, `leave_requests`.
+- Farbpunkte aus den Skill-Chips entfernen.
+- Chip-Hintergrund nutzt die Skill-Farbe (gleiche Quelle wie Dienstplan).
+- Skill-Farbe ist pro Skill individuell editierbar (Admin).
+- Dienstplan-Pille liest künftig ausschließlich `skills.color` — die hartkodierten Farb-Maps in `ShiftPill` werden entfernt, damit eine Änderung überall greift.
 
-## Permission-Keys (neu im Enum `app_permission`)
-Modul **Dienstplan (`roster`)**:
-- `roster.shift.view_self` — eigene Schichten sehen
-- `roster.shift.view_all` — Schichten aller MA sehen (scopable Standort)
-- `roster.shift.manage` — anlegen, verschieben, löschen, Skill ändern (scopable)
-- `roster.shift.status` — Status setzen (anwesend/krank/abgesagt) (scopable)
-- `roster.availability.manage_self` — eigene Verfügbarkeit/„Kann nicht" pflegen
-- `roster.availability.manage_all` — Verfügbarkeit fremder MA pflegen (scopable)
-- `roster.absence.view` — Abwesenheiten sehen
-- `roster.absence.manage` — Abwesenheiten setzen/löschen (scopable)
-- `roster.wish.create_self` — eigene Wunschfrei-Tage
-- `roster.wish.view_all` — Wünsche aller MA sehen
-- `roster.wish.manage_all` — Wünsche fremder MA löschen
-- `roster.leave.request_self` — eigenen Urlaubsantrag stellen / zurückziehen
-- `roster.leave.view_all` — alle Anträge sehen
-- `roster.leave.decide` — Anträge genehmigen / ablehnen
+## 1. Migration: bestehende Farben in `skills.color` zurückschreiben
 
-### Default-Matrix (Vorschlag)
-| Recht | admin | manager | staff | payroll |
-|---|:-:|:-:|:-:|:-:|
-| roster.shift.view_self | ✓ | ✓ | ✓ | – |
-| roster.shift.view_all | ✓ | ✓ | – | – |
-| roster.shift.manage | ✓ | ✓ | – | – |
-| roster.shift.status | ✓ | ✓ | – | – |
-| roster.availability.manage_self | ✓ | ✓ | ✓ | – |
-| roster.availability.manage_all | ✓ | ✓ | – | – |
-| roster.absence.view | ✓ | ✓ | – | ✓ |
-| roster.absence.manage | ✓ | ✓ | – | – |
-| roster.wish.create_self | ✓ | ✓ | ✓ | – |
-| roster.wish.view_all | ✓ | ✓ | – | – |
-| roster.wish.manage_all | ✓ | ✓ | – | – |
-| roster.leave.request_self | ✓ | ✓ | ✓ | – |
-| roster.leave.view_all | ✓ | ✓ | – | ✓ |
-| roster.leave.decide | ✓ | ✓ | – | – |
+Einmaliges UPDATE pro Organisation, das die heute hartkodierten Werte als Default in die DB schreibt (nur wenn `color IS NULL` oder leer — vorhandene custom Werte werden respektiert):
 
-Admins ignorieren Overrides (wie M1/M2).
+```text
+VS          → #00bfff
+PASS        → #ef4444
+SPÜLEN      → #10b981
+CO          → #f59e0b
+SERVICE     → #ffffff   (Default-Service-Pille bleibt weiß/schwarz)
+BAR         → #3b82f6
+GL          → #f59e0b
+Hausmeister → #10b981
+19 Uhr      → #8b5cf6
+```
 
-## Migrationen (zwei Stück, drop-then-create)
+Match per `lower(name)`, organisationsweit. Keine Schema-Änderung nötig (Spalte `color text` existiert bereits).
 
-### Migration 1 — Enum + Defaults
-- 14 Werte zu `app_permission` ergänzen (`ALTER TYPE … ADD VALUE`).
-- Seeds in `permission_role_defaults` gemäß Matrix.
+## 2. Neue Server-Function `updateSkillColor`
 
-### Migration 2 — Policy-Umbau
-- **roster_shifts**
-  - SELECT: `current_organization_id() AND (staff_id = current_staff_id() OR has_permission('roster.shift.view_all', location_id))`.
-  - INSERT/UPDATE/DELETE: `roster.shift.manage` (Status-only-Updates via separate UPDATE-Policy mit `roster.shift.status`).
-- **roster_availability**
-  - SELECT: eigene oder `roster.availability.manage_all` (Manager sieht Team).
-  - INSERT/UPDATE/DELETE: eigene → `roster.availability.manage_self`; fremde → `roster.availability.manage_all`.
-- **roster_absence**
-  - SELECT: `roster.absence.view`.
-  - Write: `roster.absence.manage`.
-- **day_off_wishes**
-  - SELECT: eigene oder `roster.wish.view_all`.
-  - INSERT eigener: `roster.wish.create_self`; DELETE eigener: `roster.wish.create_self`; DELETE fremder: `roster.wish.manage_all`.
-- **leave_requests**
-  - SELECT: eigene oder `roster.leave.view_all`.
-  - INSERT: `roster.leave.request_self` (eigene staff_id) — wird im Server zusätzlich geprüft.
-  - DELETE (zurückziehen): eigene + Status='offen'.
-  - UPDATE (Entscheidung): `roster.leave.decide`.
+Datei: `src/lib/admin/skills.functions.ts`
 
-Bestehende Policies werden vorher gedroppt (Drops vor Creates).
+- `createServerFn({ method: "POST" })` + `requireSupabaseAuth`
+- Input: `{ skillId: uuid, color: string | null }` (Validierung: `null` oder `^#[0-9a-fA-F]{6}$`)
+- `loadAdminCaller(..., "admin")` → nur Admin
+- `runGuarded` mit `writeAuditLog` (`action: "skill.update_color"`, entity `skill`, entityId, meta `{ color }`)
+- Update via `supabaseAdmin` auf `skills`, gefiltert auf `organization_id = caller.organizationId` und `id = skillId`.
 
-## Server-Funktionen
-- `src/lib/roster/roster.functions.ts` (22 SFNs) — `runGuarded(role, 'manager', …)` → `runWithPermission(supabase, key, locationId, audit, op)`:
-  - Reads (`getRosterShifts`, `getStaffForRoster`, `listSkills`, `getStaffCrossBookings`, `getAvailability`, `getAbsences`, `getDayOffWishes`) → kein Code-Gate, RLS reicht.
-  - `getMyShifts`, `getMyDayOffWishes` → eigenes Staff-ID-Gate bleibt.
-  - `createRosterShift`, `deleteRosterShift`, `updateRosterShiftSkill`, `moveRosterShift` → `roster.shift.manage` mit `location_id`.
-  - `updateRosterShiftStatus` → `roster.shift.status`.
-  - `setUnavailable`/`clearUnavailable` für eigene Staff → `roster.availability.manage_self`; für fremde → `roster.availability.manage_all`.
-  - `setAbsence`, `clearAbsence`, `setAbsenceRange` → `roster.absence.manage`.
-  - `createDayOffWish` (eigene) → `roster.wish.create_self`; `deleteDayOffWish` (eigene → create_self, fremde → manage_all).
-- `src/lib/roster/leave.functions.ts`:
-  - `requestLeave`, `cancelMyLeaveRequest` → `roster.leave.request_self`.
-  - `listLeaveRequests` → `roster.leave.view_all`.
-  - `decideLeaveRequest` → `roster.leave.decide`.
+## 3. UI: Inline-Farb-Editor pro Chip (admin-only)
 
-## UI
-- `permissions-catalog.ts`: 14 neue Einträge im neuen Modul `dienstplan` (Label „Dienstplan & Urlaub"). Bestehender Tab in der Mitarbeiter-Detailseite zeigt die Gruppe automatisch.
+Datei: `src/routes/_authenticated/admin/staff.$staffId.tsx` (SkillsTab)
 
-## Tests
-- DB-Tests `src/lib/roster/roster-permissions.db.test.ts`:
-  - staff sieht nur eigene Schichten; mit `view_all`-Allow → alle (ggf. location-scoped).
-  - manager ohne `roster.leave.decide` → `decideLeaveRequest` wirft Forbidden.
-  - deny überstimmt allow (Regression).
+- Farbpunkt (`<span class="h-2.5 w-2.5 rounded-full">`) im Chip entfernen.
+- Chip-Hintergrund = `sk.color` (mit gleicher `color-mix(... 85%, black)`-Logik wie `ShiftPill`, damit der Text lesbar bleibt). Aktiver Zustand: voller Hintergrund + weißer Text; inaktiv: nur dünner farbiger Rand + Text in Skill-Farbe, transparenter Hintergrund.
+- Sonderfall „SERVICE" (weiß): wie in `ShiftPill` → schwarzer Text, kein color-mix.
+- Neuer Hover-/Stift-Button am Chip, **nur wenn aktueller Nutzer Admin ist** (Rolle via vorhandenem `useAuthRole`/`adminQ`-Pattern im Tab abfragen; ansonsten `caller`-basiert über bestehenden Mechanismus). Klick öffnet kleinen Popover mit:
+  - native `<input type="color">` (kein neues Dep)
+  - „Zurücksetzen"-Button (setzt `color = null` → Chip wird neutral grau dargestellt)
+  - „Speichern" ruft `updateSkillColor` via `useServerFn` auf
+- Bei Erfolg: `queryClient.invalidateQueries({ queryKey: ["admin", "skills"] })` und `["skills"]` (Dienstplan-Cache), damit Dienstplan sofort die neue Farbe nutzt.
 
-## Schritte
-1. Migration 1 (Enum + Defaults).
-2. Migration 2 (Policy-Umbau).
-3. `roster.functions.ts` + `leave.functions.ts` auf `runWithPermission` umstellen.
-4. Katalog erweitern (Modul `dienstplan`).
-5. DB-Test schreiben + manuell verifizieren.
-6. Memory aktualisieren.
+Klick auf Stift darf **nicht** das Chip-Toggle (an/aus-Auswahl) auslösen → `stopPropagation`.
 
-## Offene Punkte (bitte bestätigen)
-1. **Schicht-Status separat** (`roster.shift.status`) von `roster.shift.manage`? Vorschlag: ja — Schichtleiter darf Status setzen, aber nicht Schichten anlegen.
-2. **payroll-Rolle**: bekommt sie `roster.absence.view` + `roster.leave.view_all` (für Lohnabrechnung)? Vorschlag: ja, sonst keine Roster-Rechte.
-3. **Scope `view_all` / `manage`**: standortspezifisch einschränkbar (wie M1)? Vorschlag: ja.
-4. **Wunschfrei + Urlaub** in eigenem Modul „Urlaub" oder im Modul „Dienstplan"? Vorschlag: alles in **Dienstplan** (eine UI-Gruppe).
+## 4. ShiftPill aufräumen
+
+Datei: `src/components/roster/ShiftPill.tsx`
+
+- `serviceColorMap` und `kitchenColorMap` entfernen.
+- `bg` = `shift.skillColor ?? "#9ca3af"` (Service-Default „X" bleibt weiß/schwarz wie bisher, basierend auf `label === "X"`).
+- Restliche Logik (color-mix, isDefaultService, isPlanned) unverändert.
+
+Damit ist die einzige Quelle für Skill-Farben künftig `skills.color`. Die Migration in Schritt 1 stellt sicher, dass das Dienstplan-Erscheinungsbild unverändert bleibt.
+
+## 5. Verifikation
+
+- `bunx tsc --noEmit`
+- Dienstplan visuell: Pillen sehen identisch aus.
+- Skills-Tab: keine Punkte mehr, Chips farbig hinterlegt, Stift-Icon nur für Admin, Farbänderung wirkt sofort in Dienstplan + Chips.
+
+## Technisches
+
+- Kein Schemawechsel, nur DATA-UPDATE → über die `insert`-Tool-Variante (Daten-Update), nicht über `migration` (Doku-Regel: Migrations nur für Schema). Migration wird also **nicht** benötigt.
+- Audit-Log-Action `skill.update_color` ist neu — folgt dem bestehenden Muster (kein Enum-Constraint auf `audit_log.action`).
+- `useServerFn`, `useQuery`, `useMutation` analog zum bestehenden SkillsTab.
+- Popover: bestehendes shadcn `Popover` aus `@/components/ui/popover` (falls verfügbar) oder einfaches `<details>`-Element — entscheiden beim Bauen anhand vorhandener Komponenten.
