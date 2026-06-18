@@ -264,6 +264,9 @@ function ZeitUebersichtPage() {
   const { week: currentWeekNo } = isoWeek(weekStartDate);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [activeTab, setActiveTab] = useState<string>("weekly");
+  // Buchhaltung-Tab: §3b-Toggle + eigene Suche.
+  const [payrollMode, setPayrollMode] = useState<BuchhaltungMode>("simple");
+  const [payrollSearch, setPayrollSearch] = useState<string>("");
 
   // Wochen-Chips für den gewählten Monat (alle KW, die mind. einen Tag des Monats enthalten).
   const monthWeeks = useMemo(() => {
