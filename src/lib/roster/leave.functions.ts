@@ -9,7 +9,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
-import { runGuarded } from "@/lib/admin/admin-call";
+import { runWithPermission, assertPermission } from "@/lib/admin/admin-call";
 import { writeAuditLog } from "@/lib/admin/audit";
 import { loadStaffCaller } from "@/lib/time/time.functions";
 import {
@@ -76,6 +76,7 @@ export const requestLeave = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadStaffCaller(context.supabase, context.userId);
+    await assertPermission(context.supabase, "roster.leave.request_self", null);
     if (!isValidLeaveRange(data.start_date, data.end_date)) {
       throw new Error("Bis-Datum muss am Von-Datum oder danach liegen.");
     }
@@ -159,6 +160,7 @@ export const cancelMyLeaveRequest = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const caller = await loadStaffCaller(context.supabase, context.userId);
+    await assertPermission(context.supabase, "roster.leave.request_self", null);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: snap, error: snapErr } = await supabaseAdmin
@@ -211,6 +213,7 @@ export const listLeaveRequests = createServerFn({ method: "GET" })
   )
   .handler(async ({ data, context }): Promise<LeaveRequestRow[]> => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
+    await assertPermission(context.supabase, "roster.leave.view_all", null);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const status = data.status ?? "offen";
     let q = supabaseAdmin
@@ -251,7 +254,7 @@ export const decideLeaveRequest = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
-    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+    return runWithPermission(context.supabase, "roster.leave.decide", null, makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: snap, error: snapErr } = await supabaseAdmin
         .from("leave_requests")
