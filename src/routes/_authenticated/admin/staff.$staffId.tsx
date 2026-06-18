@@ -300,7 +300,7 @@ type SkillRow = {
   sortOrder: number;
 };
 
-function SkillsTab({ staffId }: { staffId: string }) {
+function SkillsTab({ staffId, isAdmin }: { staffId: string; isAdmin: boolean }) {
   const queryClient = useQueryClient();
   const skillsQ = useQuery({
     queryKey: ["admin", "skills"],
@@ -311,6 +311,7 @@ function SkillsTab({ staffId }: { staffId: string }) {
     queryFn: () => getStaffSkills({ data: { staffId } }),
   });
   const callAssign = useServerFn(assignStaffSkills);
+  const callUpdateColor = useServerFn(updateSkillColor);
   const [selected, setSelected] = useState<Set<string> | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -327,6 +328,16 @@ function SkillsTab({ staffId }: { staffId: string }) {
       setMsg("Gespeichert.");
       await queryClient.invalidateQueries({ queryKey: ["admin", "staff-skills", staffId] });
       await queryClient.invalidateQueries({ queryKey: ["admin", "staff"] });
+    },
+    onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
+  });
+
+  const colorMutation = useMutation({
+    mutationFn: (vars: { skillId: string; color: string | null }) =>
+      callUpdateColor({ data: vars }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["admin", "skills"] });
+      await queryClient.invalidateQueries({ queryKey: ["skills"] });
     },
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
   });
@@ -382,29 +393,21 @@ function SkillsTab({ staffId }: { staffId: string }) {
               {items.map((sk) => {
                 const active = selected.has(sk.id);
                 return (
-                  <button
-                    type="button"
+                  <SkillChip
                     key={sk.id}
-                    onClick={() => {
+                    skill={sk}
+                    active={active}
+                    isAdmin={isAdmin}
+                    onToggle={() => {
                       const next = new Set(selected);
                       if (active) next.delete(sk.id);
                       else next.add(sk.id);
                       setSelected(next);
                     }}
-                    aria-pressed={active}
-                    className={`group inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors ${
-                      active
-                        ? "border-primary/40 bg-primary/10 text-foreground"
-                        : "border-border bg-background text-muted-foreground hover:border-foreground/30 hover:text-foreground"
-                    }`}
-                  >
-                    <span
-                      aria-hidden
-                      className={`inline-block h-2.5 w-2.5 rounded-full border ${active ? "border-foreground/20" : "border-border"}`}
-                      style={{ backgroundColor: sk.color ?? "transparent" }}
-                    />
-                    <span className="font-medium">{sk.name}</span>
-                  </button>
+                    onColorChange={(color) =>
+                      colorMutation.mutate({ skillId: sk.id, color })
+                    }
+                  />
                 );
               })}
             </div>
