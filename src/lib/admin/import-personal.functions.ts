@@ -83,34 +83,40 @@ export const importStaffPersonalData = createServerFn({ method: "POST" })
       return { mode: "commit" as const, plan };
     }
 
-    return runWithPermission(context.supabase, "payroll.personal.import", null, writeAudit, async () => {
-      const committed = await runImportPersonalCore({
-        admin: supabaseAdmin,
-        organizationId: caller.organizationId,
-        sourceSystem: data.sourceSystem,
-        rows: data.rows as PersonalRowInput[],
-        mode: "commit",
-      });
+    return runWithPermission(
+      context.supabase,
+      "payroll.personal.import",
+      null,
+      writeAudit,
+      async () => {
+        const committed = await runImportPersonalCore({
+          admin: supabaseAdmin,
+          organizationId: caller.organizationId,
+          sourceSystem: data.sourceSystem,
+          rows: data.rows as PersonalRowInput[],
+          mode: "commit",
+        });
 
-      const inputHash = await hashPersonalInput(data.rows as PersonalRowInput[]);
+        const inputHash = await hashPersonalInput(data.rows as PersonalRowInput[]);
 
-      return {
-        result: { mode: "commit" as const, plan: committed.plan },
-        audit: {
-          action: "staff.import_personal_data",
-          entity: "staff",
-          meta: {
-            sourceSystem: data.sourceSystem,
-            rows: committed.plan.totals.rows,
-            staff: committed.plan.totals.staff,
-            nameUpdates: committed.plan.totals.nameUpdates,
-            compInserts: committed.plan.totals.compInserts,
-            compUpdates: committed.plan.totals.compUpdates,
-            compFallbacks: committed.plan.totals.compFallbacks,
-            skippedCount: committed.plan.totals.skippedCount,
-            inputHash,
+        return {
+          result: { mode: "commit" as const, plan: committed.plan },
+          audit: {
+            action: "staff.import_personal_data",
+            entity: "staff",
+            meta: {
+              sourceSystem: data.sourceSystem,
+              rows: committed.plan.totals.rows,
+              staff: committed.plan.totals.staff,
+              nameUpdates: committed.plan.totals.nameUpdates,
+              compInserts: committed.plan.totals.compInserts,
+              compUpdates: committed.plan.totals.compUpdates,
+              compFallbacks: committed.plan.totals.compFallbacks,
+              skippedCount: committed.plan.totals.skippedCount,
+              inputHash,
+            },
           },
-        },
-      };
-    });
+        };
+      },
+    );
   });

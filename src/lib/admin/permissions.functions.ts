@@ -70,10 +70,7 @@ export const getStaffPermissions = createServerFn({ method: "GET" })
 
     const [defaultsRes, overridesRes] = await Promise.all([
       roleKey
-        ? supabaseAdmin
-            .from("permission_role_defaults")
-            .select("permission")
-            .eq("role", roleKey)
+        ? supabaseAdmin.from("permission_role_defaults").select("permission").eq("role", roleKey)
         : Promise.resolve({ data: [], error: null } as const),
       supabaseAdmin
         .from("permission_overrides")
@@ -111,8 +108,7 @@ export const setPermissionOverride = createServerFn({ method: "POST" })
     }) => {
       if (!input?.staffId) throw new Error("staffId fehlt");
       if (!input?.permission) throw new Error("permission fehlt");
-      if (input.effect !== "allow" && input.effect !== "deny")
-        throw new Error("effect ungültig");
+      if (input.effect !== "allow" && input.effect !== "deny") throw new Error("effect ungültig");
       return input;
     },
   )
@@ -169,11 +165,7 @@ export const setPermissionOverride = createServerFn({ method: "POST" })
 export const clearPermissionOverride = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
-    (input: {
-      staffId: string;
-      permission: AppPermission;
-      locationId: string | null;
-    }) => {
+    (input: { staffId: string; permission: AppPermission; locationId: string | null }) => {
       if (!input?.staffId) throw new Error("staffId fehlt");
       if (!input?.permission) throw new Error("permission fehlt");
       return input;

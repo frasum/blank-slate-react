@@ -81,10 +81,7 @@ const EXPECTED: Record<RoleKey, Record<PayrollKey, boolean>> = {
   },
 };
 
-async function probe(
-  client: SupabaseClient<Database>,
-  perm: AppPermission,
-): Promise<boolean> {
+async function probe(client: SupabaseClient<Database>, perm: AppPermission): Promise<boolean> {
   const { data, error } = await client.rpc("has_permission", { _perm: perm });
   if (error) throw new Error(`has_permission(${perm}) failed: ${error.message}`);
   return data === true;
@@ -134,10 +131,7 @@ describe.skipIf(!dbTestsEnabled)("M4 Lohn/HR — Permissions & RLS pro Rolle", (
     // Vor cleanup(): unsere zusätzlichen M4-Tabellen leeren, sonst
     // schlägt der Org-Delete in db-setup wegen FK-Resten fehl.
     await org.service.from("staff_compensation").delete().eq("organization_id", org.orgId);
-    await org.service
-      .from("staff_personal_details")
-      .delete()
-      .eq("organization_id", org.orgId);
+    await org.service.from("staff_personal_details").delete().eq("organization_id", org.orgId);
     await org.cleanup();
   });
 

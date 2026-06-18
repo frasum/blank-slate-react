@@ -40,14 +40,12 @@ export function PermissionsTab({ staffId }: { staffId: string }) {
       effect: PermissionEffect;
       locationId: string | null;
     }) => setFn({ data: { staffId, ...input } }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["admin", "permissions", staffId] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "permissions", staffId] }),
   });
   const clearMut = useMutation({
     mutationFn: (input: { permission: AppPermission; locationId: string | null }) =>
       clearFn({ data: { staffId, ...input } }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["admin", "permissions", staffId] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "permissions", staffId] }),
   });
 
   const scopedLocation: string | null = scope === "global" ? null : scope;
@@ -62,16 +60,7 @@ export function PermissionsTab({ staffId }: { staffId: string }) {
     return m;
   }, [permsQ.data]);
 
-  const defaultSet = useMemo(
-    () => new Set(permsQ.data?.defaults ?? []),
-    [permsQ.data?.defaults],
-  );
-
-  if (permsQ.isLoading) return <p className="text-sm text-muted-foreground">Lade…</p>;
-  if (permsQ.error || !permsQ.data)
-    return <p className="text-sm text-destructive">Rechte konnten nicht geladen werden.</p>;
-
-  const isAdminRole = permsQ.data.role === "admin";
+  const defaultSet = useMemo(() => new Set(permsQ.data?.defaults ?? []), [permsQ.data?.defaults]);
 
   // Nach Modul gruppieren (Reihenfolge: kasse → zeit).
   const grouped = useMemo(() => {
@@ -87,6 +76,12 @@ export function PermissionsTab({ staffId }: { staffId: string }) {
       .map((m) => ({ module: m, items: map.get(m) ?? [] }))
       .filter((g) => g.items.length > 0);
   }, []);
+
+  if (permsQ.isLoading) return <p className="text-sm text-muted-foreground">Lade…</p>;
+  if (permsQ.error || !permsQ.data)
+    return <p className="text-sm text-destructive">Rechte konnten nicht geladen werden.</p>;
+
+  const isAdminRole = permsQ.data.role === "admin";
 
   function cellState(perm: AppPermission): Cell {
     const key = `${perm}::${scopedLocation ?? "null"}`;
@@ -108,8 +103,7 @@ export function PermissionsTab({ staffId }: { staffId: string }) {
     const allowScope = scopedLocation
       ? overrideMap.get(`${perm}::${scopedLocation}`) === "allow"
       : false;
-    if (allowGlobal || allowScope)
-      return { text: "ja", cls: "bg-emerald-500/15 text-emerald-700" };
+    if (allowGlobal || allowScope) return { text: "ja", cls: "bg-emerald-500/15 text-emerald-700" };
     const def = defaultSet.has(perm);
     return def
       ? { text: "ja (Default)", cls: "bg-emerald-500/10 text-emerald-700" }
@@ -147,9 +141,7 @@ export function PermissionsTab({ staffId }: { staffId: string }) {
 
       {grouped.map((g) => (
         <div key={g.module} className="space-y-2">
-          <h3 className="text-sm font-semibold text-foreground">
-            {MODULE_LABEL[g.module]}
-          </h3>
+          <h3 className="text-sm font-semibold text-foreground">{MODULE_LABEL[g.module]}</h3>
           <div className="overflow-x-auto rounded-md border border-border">
             <table className="w-full text-sm">
               <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
@@ -163,77 +155,77 @@ export function PermissionsTab({ staffId }: { staffId: string }) {
               </thead>
               <tbody>
                 {g.items.map((p) => {
-              const eff = effectiveBadge(p.key);
-              const state = cellState(p.key);
-              const disabled = isAdminRole || setMut.isPending || clearMut.isPending;
-              const scopeDisabled = scope !== "global" && !p.scopable;
-              return (
-                <tr key={p.key} className="border-t border-border align-top">
-                  <td className="px-3 py-2">
-                    <div className="font-medium text-foreground">{p.label}</div>
-                    <div className="text-xs text-muted-foreground">{p.description}</div>
-                    <div className="mt-0.5 text-[10px] font-mono text-muted-foreground/70">
-                      {p.key}
-                    </div>
-                  </td>
-                  <td className="px-3 py-2">
-                    <span className={`inline-block rounded px-2 py-0.5 text-xs ${eff.cls}`}>
-                      {eff.text}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2">
-                    {scopeDisabled ? (
-                      <span className="text-xs text-muted-foreground">
-                        nicht standortspezifisch
-                      </span>
-                    ) : (
-                      <div className="inline-flex overflow-hidden rounded-md border border-input">
-                        {(
-                          [
-                            ["default", "Default"],
-                            ["allow", "Erlauben"],
-                            ["deny", "Verbieten"],
-                          ] as [Cell, string][]
-                        ).map(([val, label]) => {
-                          const active = state === val;
-                          return (
-                            <button
-                              key={val}
-                              type="button"
-                              disabled={disabled}
-                              onClick={() => {
-                                if (val === "default") {
-                                  clearMut.mutate({
-                                    permission: p.key,
-                                    locationId: scopedLocation,
-                                  });
-                                } else {
-                                  setMut.mutate({
-                                    permission: p.key,
-                                    effect: val,
-                                    locationId: scopedLocation,
-                                  });
-                                }
-                              }}
-                              className={`px-2.5 py-1 text-xs ${
-                                active
-                                  ? val === "allow"
-                                    ? "bg-emerald-500/20 text-emerald-700"
-                                    : val === "deny"
-                                      ? "bg-rose-500/20 text-rose-700"
-                                      : "bg-muted text-foreground"
-                                  : "bg-background hover:bg-muted/60"
-                              } disabled:opacity-50`}
-                            >
-                              {label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              );
+                  const eff = effectiveBadge(p.key);
+                  const state = cellState(p.key);
+                  const disabled = isAdminRole || setMut.isPending || clearMut.isPending;
+                  const scopeDisabled = scope !== "global" && !p.scopable;
+                  return (
+                    <tr key={p.key} className="border-t border-border align-top">
+                      <td className="px-3 py-2">
+                        <div className="font-medium text-foreground">{p.label}</div>
+                        <div className="text-xs text-muted-foreground">{p.description}</div>
+                        <div className="mt-0.5 text-[10px] font-mono text-muted-foreground/70">
+                          {p.key}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2">
+                        <span className={`inline-block rounded px-2 py-0.5 text-xs ${eff.cls}`}>
+                          {eff.text}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2">
+                        {scopeDisabled ? (
+                          <span className="text-xs text-muted-foreground">
+                            nicht standortspezifisch
+                          </span>
+                        ) : (
+                          <div className="inline-flex overflow-hidden rounded-md border border-input">
+                            {(
+                              [
+                                ["default", "Default"],
+                                ["allow", "Erlauben"],
+                                ["deny", "Verbieten"],
+                              ] as [Cell, string][]
+                            ).map(([val, label]) => {
+                              const active = state === val;
+                              return (
+                                <button
+                                  key={val}
+                                  type="button"
+                                  disabled={disabled}
+                                  onClick={() => {
+                                    if (val === "default") {
+                                      clearMut.mutate({
+                                        permission: p.key,
+                                        locationId: scopedLocation,
+                                      });
+                                    } else {
+                                      setMut.mutate({
+                                        permission: p.key,
+                                        effect: val,
+                                        locationId: scopedLocation,
+                                      });
+                                    }
+                                  }}
+                                  className={`px-2.5 py-1 text-xs ${
+                                    active
+                                      ? val === "allow"
+                                        ? "bg-emerald-500/20 text-emerald-700"
+                                        : val === "deny"
+                                          ? "bg-rose-500/20 text-rose-700"
+                                          : "bg-muted text-foreground"
+                                      : "bg-background hover:bg-muted/60"
+                                  } disabled:opacity-50`}
+                                >
+                                  {label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
                 })}
               </tbody>
             </table>

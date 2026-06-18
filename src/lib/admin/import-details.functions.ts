@@ -97,39 +97,45 @@ export const importStaffPersonalDetails = createServerFn({ method: "POST" })
       });
     };
 
-    return runWithPermission(context.supabase, "payroll.personal.import", null, writeAudit, async () => {
-      const committed = await runImportDetailsCore({
-        admin: supabaseAdmin,
-        organizationId: caller.organizationId,
-        rows: data.rows as DetailsRowInput[],
-        mode: "commit",
-      });
+    return runWithPermission(
+      context.supabase,
+      "payroll.personal.import",
+      null,
+      writeAudit,
+      async () => {
+        const committed = await runImportDetailsCore({
+          admin: supabaseAdmin,
+          organizationId: caller.organizationId,
+          rows: data.rows as DetailsRowInput[],
+          mode: "commit",
+        });
 
-      // Audit-Meta: KEINE Klartext-Werte, nur Feldnamen + Zähler.
-      const fieldsTouchedByName = new Map<string, number>();
-      for (const ops of committed.plan.ops) {
-        for (const f of Object.keys(ops.fields)) {
-          fieldsTouchedByName.set(f, (fieldsTouchedByName.get(f) ?? 0) + 1);
+        // Audit-Meta: KEINE Klartext-Werte, nur Feldnamen + Zähler.
+        const fieldsTouchedByName = new Map<string, number>();
+        for (const ops of committed.plan.ops) {
+          for (const f of Object.keys(ops.fields)) {
+            fieldsTouchedByName.set(f, (fieldsTouchedByName.get(f) ?? 0) + 1);
+          }
         }
-      }
-      const inputHash = await hashDetailsInput(data.rows as DetailsRowInput[]);
+        const inputHash = await hashDetailsInput(data.rows as DetailsRowInput[]);
 
-      return {
-        result: { mode: "commit" as const, plan: committed.plan },
-        audit: {
-          action: "staff.import_personal_details",
-          entity: "staff_personal_details",
-          meta: {
-            rows: committed.plan.totals.rows,
-            staff: committed.plan.totals.staff,
-            inserts: committed.plan.totals.inserts,
-            updates: committed.plan.totals.updates,
-            fieldsTouched: committed.plan.totals.fieldsTouched,
-            fieldsTouchedByName: Object.fromEntries(fieldsTouchedByName),
-            skippedCount: committed.plan.totals.skippedCount,
-            inputHash,
+        return {
+          result: { mode: "commit" as const, plan: committed.plan },
+          audit: {
+            action: "staff.import_personal_details",
+            entity: "staff_personal_details",
+            meta: {
+              rows: committed.plan.totals.rows,
+              staff: committed.plan.totals.staff,
+              inserts: committed.plan.totals.inserts,
+              updates: committed.plan.totals.updates,
+              fieldsTouched: committed.plan.totals.fieldsTouched,
+              fieldsTouchedByName: Object.fromEntries(fieldsTouchedByName),
+              skippedCount: committed.plan.totals.skippedCount,
+              inputHash,
+            },
           },
-        },
-      };
-    });
+        };
+      },
+    );
   });

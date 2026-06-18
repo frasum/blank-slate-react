@@ -137,7 +137,9 @@ function ImpersonatePage() {
                 disabled={!s.hasAccount || pendingId !== null}
                 onClick={() => void handleStart(s.staffId)}
                 className="shrink-0 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-                title={s.hasAccount ? "Als diesen Mitarbeiter testen" : "Mitarbeiter hat keinen Account"}
+                title={
+                  s.hasAccount ? "Als diesen Mitarbeiter testen" : "Mitarbeiter hat keinen Account"
+                }
               >
                 {pendingId === s.staffId ? "Starte…" : "Als testen"}
               </button>
