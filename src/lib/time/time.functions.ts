@@ -223,6 +223,9 @@ export const clockOut = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadStaffCaller(context.supabase, context.userId);
+    // Rechte-Check pro Standort, falls offener Eintrag mit Location existiert.
+    const open = await loadOpenEntry(caller.staffId);
+    await assertPermission(context.supabase, "time.entry.clock", open?.locationId ?? null);
     const result = await performClockOut(
       caller,
       data.breakMinutes,
