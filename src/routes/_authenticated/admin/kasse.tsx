@@ -550,24 +550,6 @@ function KassePage() {
             }
           />
 
-          <SatellitesCard
-            sessionId={sessionId!}
-            overview={ovQ.data}
-            writable={writable}
-            onAdd={(payload) =>
-              callAddSat({ data: payload }).then(() => {
-                toast.success("Eintrag hinzugefügt.");
-                void invalidate();
-              })
-            }
-            onRemove={(args) =>
-              callRemoveSat({ data: args }).then(() => {
-                toast.success("Eintrag entfernt.");
-                void invalidate();
-              })
-            }
-          />
-
           <TipPoolCard
             sessionId={sessionId!}
             locationId={locationId}
