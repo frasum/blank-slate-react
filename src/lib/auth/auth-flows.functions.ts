@@ -61,8 +61,9 @@ export const validatePin = createServerFn({ method: "POST" })
       }
       if (sessions.length !== 1)
         console.error("[password-login] matches.length:", sessions.length);
-      if (sessions.length !== 1) failed();
-      return { kind: "password" as const, ...sessions[0] };
+      const session = sessions[0];
+      if (sessions.length !== 1 || !session) failed();
+      return { kind: "password" as const, ...session };
     }
 
     const sinceIso = new Date(Date.now() - PIN_RATE_LIMIT_WINDOW_MS).toISOString();
