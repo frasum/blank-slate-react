@@ -350,44 +350,63 @@ function SkillsTab({ staffId }: { staffId: string }) {
     return <p className="text-sm text-muted-foreground">Lade…</p>;
   }
 
+  const totalSelected = selected.size;
+
   return (
-    <div className="max-w-lg space-y-5">
+    <div className="max-w-2xl space-y-6">
       {skillsQ.data && skillsQ.data.length === 0 && (
         <p className="text-sm text-muted-foreground">Noch keine Skills angelegt.</p>
       )}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          {totalSelected} {totalSelected === 1 ? "Skill" : "Skills"} ausgewählt
+        </p>
+      </div>
       {categoryOrder.map((cat) => {
         const items = grouped.get(cat);
         if (!items || items.length === 0) return null;
+        const catSelected = items.filter((i) => selected.has(i.id)).length;
         return (
-          <div key={cat} className="space-y-2">
-            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {categoryLabel[cat]}
-            </div>
-            <div className="space-y-1.5">
-              {items.map((sk) => (
-                <label key={sk.id} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={selected.has(sk.id)}
-                    onChange={(e) => {
+          <section key={cat} className="rounded-lg border border-border bg-card/40 p-4">
+            <header className="mb-3 flex items-center justify-between">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {categoryLabel[cat]}
+              </h3>
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {catSelected}/{items.length}
+              </span>
+            </header>
+            <div className="flex flex-wrap gap-2">
+              {items.map((sk) => {
+                const active = selected.has(sk.id);
+                return (
+                  <button
+                    type="button"
+                    key={sk.id}
+                    onClick={() => {
                       const next = new Set(selected);
-                      if (e.target.checked) next.add(sk.id);
-                      else next.delete(sk.id);
+                      if (active) next.delete(sk.id);
+                      else next.add(sk.id);
                       setSelected(next);
                     }}
-                  />
-                  {sk.color && (
+                    aria-pressed={active}
+                    className={`group inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                      active
+                        ? "border-primary/40 bg-primary/10 text-foreground"
+                        : "border-border bg-background text-muted-foreground hover:border-foreground/30 hover:text-foreground"
+                    }`}
+                  >
                     <span
                       aria-hidden
-                      className="inline-block h-2.5 w-2.5 rounded-full border border-border"
-                      style={{ backgroundColor: sk.color }}
+                      className={`inline-block h-2.5 w-2.5 rounded-full border ${active ? "border-foreground/20" : "border-border"}`}
+                      style={{ backgroundColor: sk.color ?? "transparent" }}
                     />
-                  )}
-                  <span className="text-foreground">{sk.name}</span>
-                </label>
-              ))}
+                    <span className="font-medium">{sk.name}</span>
+                  </button>
+                );
+              })}
             </div>
-          </div>
+          </section>
         );
       })}
       {msg && <p className="text-sm text-muted-foreground">{msg}</p>}
