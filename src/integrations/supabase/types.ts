@@ -3270,6 +3270,13 @@ export type Database = {
         | "roster.leave.request_self"
         | "roster.leave.view_all"
         | "roster.leave.decide"
+        | "payroll.compensation.view"
+        | "payroll.compensation.edit"
+        | "payroll.personal.view"
+        | "payroll.personal.edit"
+        | "payroll.personal.import"
+        | "payroll.calc.run"
+        | "payroll.period.view"
       app_role: "admin" | "manager" | "staff" | "payroll"
       permission_effect: "allow" | "deny"
       register_transfer_direction:
@@ -3451,6 +3458,13 @@ export const Constants = {
         "roster.leave.request_self",
         "roster.leave.view_all",
         "roster.leave.decide",
+        "payroll.compensation.view",
+        "payroll.compensation.edit",
+        "payroll.personal.view",
+        "payroll.personal.edit",
+        "payroll.personal.import",
+        "payroll.calc.run",
+        "payroll.period.view",
       ],
       app_role: ["admin", "manager", "staff", "payroll"],
       permission_effect: ["allow", "deny"],
