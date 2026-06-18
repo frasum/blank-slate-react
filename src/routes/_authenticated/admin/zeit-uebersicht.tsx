@@ -358,6 +358,12 @@ function ZeitUebersichtPage() {
     queryFn: () => fetchAbsences({ data: { periodStart: fromDate, periodEnd: toDate } }),
   });
 
+  const sfnQ = useQuery({
+    queryKey: ["payroll-sfn", effectiveLocationId, fromDate, toDate],
+    queryFn: () => fetchSfn({ data: { locationId: effectiveLocationId, fromDate, toDate } }),
+    enabled: Boolean(effectiveLocationId),
+  });
+
   const weekCols = useMemo(() => buildWeekColumns(fromDate, toDate), [fromDate, toDate]);
 
   // Aggregations
