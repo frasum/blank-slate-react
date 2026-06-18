@@ -655,6 +655,116 @@ function ZeitUebersichtPage() {
     }
   };
 
+  // ============ Buchhaltung-Aggregation (Render + Export) ============
+  const payrollRowsByStaff = useMemo(() => {
+    const m = new Map<string, BuchhaltungExportRow & { staffId: string; department: Department }>();
+    for (const s of staffAggs) {
+      const sfn = sfnByStaff.get(s.staffId);
+      const note = notesByStaff.get(s.staffId);
+      const advCents = advanceCentsByStaff.get(s.staffId) ?? 0;
+      const abs = absencesByStaff.get(s.staffId);
+      m.set(s.staffId, {
+        staffId: s.staffId,
+        department: s.department,
+        displayName: s.displayName,
+        totalHours: s.totalHours,
+        shifts: s.shiftDates.size,
+        evening: sfn?.night25Hours ?? 0,
+        night: sfn?.night40Hours ?? 0,
+        sunHol: (sfn?.sundayHours ?? 0) + (sfn?.holidayHours ?? 0) + (sfn?.holiday150Hours ?? 0),
+        sonntag: sfn?.sundayHours ?? 0,
+        feiertag: sfn?.holidayHours ?? 0,
+        feiertag150: sfn?.holiday150Hours ?? 0,
+        urlaubDays: abs?.urlaubDays ?? 0,
+        krankDays: abs?.krankDays ?? 0,
+        vorschussEUR: advCents / 100,
+        besonderheiten: note?.besonderheiten ?? "",
+      });
+    }
+    return m;
+  }, [staffAggs, sfnByStaff, notesByStaff, advanceCentsByStaff, absencesByStaff]);
+
+  const payrollSearchActive = payrollSearch.trim().length > 0;
+  const payrollFilteredByDept = useMemo(() => {
+    const q = payrollSearch.trim().toLowerCase();
+    const m = new Map<Department, BuchhaltungExportRow[]>();
+    for (const dept of DEPT_ORDER) m.set(dept, []);
+    for (const row of payrollRowsByStaff.values()) {
+      if (q !== "" && !row.displayName.toLowerCase().includes(q)) continue;
+      const arr = m.get(row.department) ?? [];
+      arr.push(row);
+      m.set(row.department, arr);
+    }
+    return m;
+  }, [payrollRowsByStaff, payrollSearch]);
+
+  const payrollAllVisible = useMemo(() => {
+    const out: BuchhaltungExportRow[] = [];
+    for (const dept of DEPT_ORDER) {
+      for (const r of payrollFilteredByDept.get(dept) ?? []) out.push(r);
+    }
+    return out;
+  }, [payrollFilteredByDept]);
+
+  const payrollTotals = useMemo(() => {
+    const sum = (sel: (r: BuchhaltungExportRow) => number) =>
+      payrollAllVisible.reduce((a, r) => a + sel(r), 0);
+    return {
+      totalHours: sum((r) => r.totalHours),
+      shifts: sum((r) => r.shifts),
+      evening: sum((r) => r.evening),
+      night: sum((r) => r.night),
+      sunHol: sum((r) => r.sunHol),
+      sonntag: sum((r) => r.sonntag),
+      feiertag: sum((r) => r.feiertag),
+      feiertag150: sum((r) => r.feiertag150),
+      urlaubDays: sum((r) => r.urlaubDays),
+      krankDays: sum((r) => r.krankDays),
+      vorschussEUR: sum((r) => r.vorschussEUR),
+    };
+  }, [payrollAllVisible]);
+
+  const buchhaltungExportInput = useMemo<BuchhaltungExportInput>(() => {
+    const locLabel = locations.find((l) => l.id === effectiveLocationId)?.name ?? "";
+    const perLabel = selectedPeriod?.label ?? `${fromDate}_${toDate}`;
+    return {
+      locationLabel: locLabel,
+      periodLabel: perLabel,
+      rangeLabel: `${fmtDDMM(fromDate)}–${fmtDDMM(toDate)}`,
+      mode: payrollMode,
+      rowsByDept: DEPT_ORDER.map((dept) => ({
+        dept,
+        deptLabel: DEPT_HEADER_LABEL[dept],
+        rows: payrollFilteredByDept.get(dept) ?? [],
+      })),
+    };
+  }, [
+    locations,
+    effectiveLocationId,
+    selectedPeriod,
+    fromDate,
+    toDate,
+    payrollMode,
+    payrollFilteredByDept,
+  ]);
+
+  const handlePayrollExportPdf = () => {
+    try {
+      const blob = buildBuchhaltungPdf(buchhaltungExportInput);
+      downloadBlob(blob, `${buildBuchhaltungFileBase(buchhaltungExportInput)}.pdf`);
+    } catch (e) {
+      toast.error((e as Error).message || "PDF-Export fehlgeschlagen");
+    }
+  };
+  const handlePayrollExportXlsx = async () => {
+    try {
+      const blob = await buildBuchhaltungXlsx(buchhaltungExportInput);
+      downloadBlob(blob, `${buildBuchhaltungFileBase(buchhaltungExportInput)}.xlsx`);
+    } catch (e) {
+      toast.error((e as Error).message || "Excel-Export fehlgeschlagen");
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
