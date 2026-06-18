@@ -25,15 +25,30 @@ export type AppPermission =
   | "time.period.lock"
   | "time.payroll_note.view"
   | "time.payroll_note.edit"
-  | "time.export";
+  | "time.export"
+  // Modul Dienstplan
+  | "roster.shift.view_self"
+  | "roster.shift.view_all"
+  | "roster.shift.manage"
+  | "roster.availability.manage_self"
+  | "roster.availability.manage_all"
+  | "roster.absence.view"
+  | "roster.absence.manage"
+  | "roster.wish.create_self"
+  | "roster.wish.view_all"
+  | "roster.wish.manage_all"
+  | "roster.leave.request_self"
+  | "roster.leave.view_all"
+  | "roster.leave.decide";
 
 export type PermissionEffect = "allow" | "deny";
 
-export type PermissionModule = "kasse" | "zeit";
+export type PermissionModule = "kasse" | "zeit" | "dienstplan";
 
 export const MODULE_LABEL: Record<PermissionModule, string> = {
   kasse: "Kasse / Tagesabrechnung",
   zeit: "Zeiterfassung",
+  dienstplan: "Dienstplan & Urlaub",
 };
 
 export type PermissionMeta = {
@@ -199,6 +214,98 @@ export const PERMISSION_CATALOG: readonly PermissionMeta[] = [
     module: "zeit",
     label: "Lohn-/Wochen-Export",
     description: "Wochen- und Lohn-Exporte erzeugen.",
+    scopable: false,
+  },
+  // ----- Modul Dienstplan -----
+  {
+    key: "roster.shift.view_self",
+    module: "dienstplan",
+    label: "Eigene Schichten sehen",
+    description: "Eigene Einteilungen im Dienstplan ansehen.",
+    scopable: false,
+  },
+  {
+    key: "roster.shift.view_all",
+    module: "dienstplan",
+    label: "Alle Schichten sehen",
+    description: "Dienstplan aller Mitarbeiter ansehen.",
+    scopable: false,
+  },
+  {
+    key: "roster.shift.manage",
+    module: "dienstplan",
+    label: "Schichten verwalten",
+    description: "Schichten anlegen, verschieben, Status ändern, löschen.",
+    scopable: false,
+  },
+  {
+    key: "roster.availability.manage_self",
+    module: "dienstplan",
+    label: "Eigene Verfügbarkeit pflegen",
+    description: "Eigene „Kann-nicht"-Tage setzen und entfernen.",
+    scopable: false,
+  },
+  {
+    key: "roster.availability.manage_all",
+    module: "dienstplan",
+    label: "Verfügbarkeit aller pflegen",
+    description: "Verfügbarkeit fremder Mitarbeiter ansehen und ändern.",
+    scopable: false,
+  },
+  {
+    key: "roster.absence.view",
+    module: "dienstplan",
+    label: "Abwesenheiten sehen",
+    description: "Urlaub/Krank aller Mitarbeiter im Dienstplan ansehen.",
+    scopable: false,
+  },
+  {
+    key: "roster.absence.manage",
+    module: "dienstplan",
+    label: "Abwesenheiten pflegen",
+    description: "Urlaub/Krank-Tage und -Zeiträume anlegen oder entfernen.",
+    scopable: false,
+  },
+  {
+    key: "roster.wish.create_self",
+    module: "dienstplan",
+    label: "Eigene Wunschfrei-Tage",
+    description: "Wunschfrei-Tage für sich selbst eintragen und entfernen.",
+    scopable: false,
+  },
+  {
+    key: "roster.wish.view_all",
+    module: "dienstplan",
+    label: "Alle Wunschfrei-Tage sehen",
+    description: "Wunschfrei-Tage aller Mitarbeiter ansehen.",
+    scopable: false,
+  },
+  {
+    key: "roster.wish.manage_all",
+    module: "dienstplan",
+    label: "Wunschfrei-Tage fremder MA pflegen",
+    description: "Wunschfrei-Einträge anderer Mitarbeiter ändern oder löschen.",
+    scopable: false,
+  },
+  {
+    key: "roster.leave.request_self",
+    module: "dienstplan",
+    label: "Eigenen Urlaubsantrag stellen",
+    description: "Urlaubsantrag einreichen oder offenen Antrag zurückziehen.",
+    scopable: false,
+  },
+  {
+    key: "roster.leave.view_all",
+    module: "dienstplan",
+    label: "Alle Urlaubsanträge sehen",
+    description: "Antragsliste aller Mitarbeiter ansehen.",
+    scopable: false,
+  },
+  {
+    key: "roster.leave.decide",
+    module: "dienstplan",
+    label: "Urlaubsanträge entscheiden",
+    description: "Anträge genehmigen oder ablehnen.",
     scopable: false,
   },
 ] as const;
