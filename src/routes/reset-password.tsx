@@ -8,7 +8,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { BrandLockup } from "@/components/brand-lockup";
 
 export const Route = createFileRoute("/reset-password")({
   ssr: false,
