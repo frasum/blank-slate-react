@@ -1016,6 +1016,9 @@ function ZeitUebersichtPage() {
                   <TableHead className="h-9 text-xs uppercase tracking-wider text-muted-foreground text-right w-28">
                     Vorschuss
                   </TableHead>
+                  <TableHead className="h-9 text-xs uppercase tracking-wider text-muted-foreground text-right w-36">
+                    Zuschlag (SFN)
+                  </TableHead>
                   <TableHead className="h-9 text-xs uppercase tracking-wider text-muted-foreground">
                     Besonderheiten
                   </TableHead>
@@ -1024,7 +1027,7 @@ function ZeitUebersichtPage() {
               <TableBody>
                 {staffAggs.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center text-muted-foreground">
                       Keine Einträge im Zeitraum.
                     </TableCell>
                   </TableRow>
@@ -1036,7 +1039,7 @@ function ZeitUebersichtPage() {
                     <Fragment key={`p-grp-${dept}`}>
                       <TableRow className={`${DEPT_BG[dept]} hover:${DEPT_BG[dept]}`}>
                         <TableCell
-                          colSpan={7}
+                          colSpan={8}
                           className="py-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
                         >
                           {DEPT_LABEL[dept]}
@@ -1050,6 +1053,7 @@ function ZeitUebersichtPage() {
                           vorschussCents={advanceCentsByStaff.get(s.staffId) ?? 0}
                           urlaubDays={absencesByStaff.get(s.staffId)?.urlaubDays ?? 0}
                           krankDays={absencesByStaff.get(s.staffId)?.krankDays ?? 0}
+                          sfn={sfnByStaff.get(s.staffId)}
                           readOnly={isPayroll}
                           onSave={(besonderheiten) =>
                             upsertMut.mutate({
