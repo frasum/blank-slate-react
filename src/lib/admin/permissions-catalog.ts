@@ -242,7 +242,7 @@ export const PERMISSION_CATALOG: readonly PermissionMeta[] = [
     key: "roster.availability.manage_self",
     module: "dienstplan",
     label: "Eigene Verfügbarkeit pflegen",
-    description: "Eigene „Kann-nicht"-Tage setzen und entfernen.",
+    description: "Eigene Kann-nicht-Tage setzen und entfernen.",
     scopable: false,
   },
   {
