@@ -59,8 +59,7 @@ export const validatePin = createServerFn({ method: "POST" })
         const session = await tryStaffPasswordLogin(cand.id, data.pin);
         if (session) sessions.push(session);
       }
-      if (sessions.length !== 1)
-        console.error("[password-login] matches.length:", sessions.length);
+      if (sessions.length !== 1) console.error("[password-login] matches.length:", sessions.length);
       const session = sessions[0];
       if (sessions.length !== 1 || !session) failed();
       return { kind: "password" as const, ...session };

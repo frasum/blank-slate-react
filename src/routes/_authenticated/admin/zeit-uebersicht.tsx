@@ -447,22 +447,22 @@ function ZeitUebersichtPage() {
   }, [absencesQ.data]);
 
   type SfnAgg = {
-    night25Hours: number;
-    night40Hours: number;
-    sundayHours: number;
-    holidayHours: number;
-    holiday150Hours: number;
+    simple: { night25Hours: number; night40Hours: number; sundayHours: number };
+    extended: {
+      night25Hours: number;
+      night40Hours: number;
+      sundayHours: number;
+      holidayHours: number;
+      holiday150Hours: number;
+    };
     zuschlagCents: number;
   };
   const sfnByStaff = useMemo(() => {
     const m = new Map<string, SfnAgg>();
     for (const s of sfnQ.data?.sfn ?? []) {
       m.set(s.staffId, {
-        night25Hours: s.night25Hours,
-        night40Hours: s.night40Hours,
-        sundayHours: s.sundayHours,
-        holidayHours: s.holidayHours,
-        holiday150Hours: s.holiday150Hours,
+        simple: s.simple,
+        extended: s.extended,
         zuschlagCents: s.zuschlagCents,
       });
     }
@@ -657,9 +657,11 @@ function ZeitUebersichtPage() {
 
   // ============ Buchhaltung-Aggregation (Render + Export) ============
   const payrollRowsByStaff = useMemo(() => {
+    const is3b = payrollMode === "section3b";
     const m = new Map<string, BuchhaltungExportRow & { staffId: string; department: Department }>();
     for (const s of staffAggs) {
       const sfn = sfnByStaff.get(s.staffId);
+      const b = is3b ? sfn?.extended : sfn?.simple;
       const note = notesByStaff.get(s.staffId);
       const advCents = advanceCentsByStaff.get(s.staffId) ?? 0;
       const abs = absencesByStaff.get(s.staffId);
@@ -669,12 +671,12 @@ function ZeitUebersichtPage() {
         displayName: s.displayName,
         totalHours: s.totalHours,
         shifts: s.shiftDates.size,
-        evening: sfn?.night25Hours ?? 0,
-        night: sfn?.night40Hours ?? 0,
-        sunHol: (sfn?.sundayHours ?? 0) + (sfn?.holidayHours ?? 0) + (sfn?.holiday150Hours ?? 0),
-        sonntag: sfn?.sundayHours ?? 0,
-        feiertag: sfn?.holidayHours ?? 0,
-        feiertag150: sfn?.holiday150Hours ?? 0,
+        evening: b?.night25Hours ?? 0,
+        night: b?.night40Hours ?? 0,
+        sunHol: sfn?.simple.sundayHours ?? 0,
+        sonntag: sfn?.extended.sundayHours ?? 0,
+        feiertag: sfn?.extended.holidayHours ?? 0,
+        feiertag150: sfn?.extended.holiday150Hours ?? 0,
         urlaubDays: abs?.urlaubDays ?? 0,
         krankDays: abs?.krankDays ?? 0,
         vorschussEUR: advCents / 100,
@@ -682,7 +684,7 @@ function ZeitUebersichtPage() {
       });
     }
     return m;
-  }, [staffAggs, sfnByStaff, notesByStaff, advanceCentsByStaff, absencesByStaff]);
+  }, [staffAggs, sfnByStaff, notesByStaff, advanceCentsByStaff, absencesByStaff, payrollMode]);
 
   const payrollSearchActive = payrollSearch.trim().length > 0;
   const payrollFilteredByDept = useMemo(() => {
