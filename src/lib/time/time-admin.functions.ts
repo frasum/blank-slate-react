@@ -17,6 +17,9 @@ import { runWithPermission } from "@/lib/admin/admin-call";
 import { writeAuditLog } from "@/lib/admin/audit";
 import { businessDateOf } from "@/lib/business-date";
 import { assertBusinessDateUnlocked } from "./time-lock";
+import { timeEntryToSfnRow } from "@/lib/lohn/time-entry-sfn";
+import { berechneSfnGeld } from "@/lib/lohn/sfn-geld/sfn-geld";
+import type { SfnShiftRow } from "@/lib/lohn/sfn-geld/types";
 
 function makeAuditWriter(caller: { organizationId: string; userId: string; staffId: string }) {
   return async (entry: {
@@ -96,6 +99,83 @@ export const getTimeOverview = createServerFn({ method: "GET" })
       };
     });
     return { entries };
+  });
+
+// SFN-Zuschlagsberechnung pro Mitarbeiter für Standort × Zeitraum.
+// Reines Read-Only — verwendet `timeEntryToSfnRow` + `berechneSfnGeld` (simple-Modus,
+// wie tagesabrechnung-Original). hourlyRateCents = jüngste staff_compensation
+// mit valid_from ≤ toDate.
+export const getSfnOverview = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        locationId: z.string().uuid(),
+        fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "manager",
+      "admin",
+      "payroll",
+    ]);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: rows, error } = await supabaseAdmin
+      .from("time_entries")
+      .select("staff_id, business_date, started_at, ended_at, break_minutes")
+      .eq("organization_id", caller.organizationId)
+      .eq("location_id", data.locationId)
+      .gte("business_date", data.fromDate)
+      .lte("business_date", data.toDate)
+      .not("ended_at", "is", null);
+    if (error) throw error;
+
+    const { data: comps, error: compErr } = await supabaseAdmin
+      .from("staff_compensation")
+      .select("staff_id, hourly_rate, valid_from")
+      .eq("organization_id", caller.organizationId)
+      .lte("valid_from", data.toDate)
+      .order("valid_from", { ascending: false });
+    if (compErr) throw compErr;
+    const rateByStaff = new Map<string, number>();
+    for (const c of comps ?? []) {
+      if (!rateByStaff.has(c.staff_id)) {
+        rateByStaff.set(c.staff_id, Math.round(Number(c.hourly_rate ?? 0) * 100));
+      }
+    }
+
+    const rowsByStaff = new Map<string, SfnShiftRow[]>();
+    for (const r of rows ?? []) {
+      const sfnRow = timeEntryToSfnRow({
+        startedAt: r.started_at as string,
+        endedAt: r.ended_at as string,
+        businessDate: r.business_date as string,
+        breakMinutes: Number(r.break_minutes ?? 0),
+      });
+      const arr = rowsByStaff.get(r.staff_id) ?? [];
+      arr.push(sfnRow);
+      rowsByStaff.set(r.staff_id, arr);
+    }
+
+    const sfn = Array.from(rowsByStaff.entries()).map(([staffId, sfnRows]) => {
+      const rate = rateByStaff.get(staffId) ?? 0;
+      const r = berechneSfnGeld(sfnRows, "simple", rate, new Map());
+      return {
+        staffId,
+        night25Hours: r.night25Hours,
+        night40Hours: r.night40Hours,
+        sundayHours: r.sundayHours,
+        holidayHours: r.holidayHours,
+        holiday150Hours: r.holiday150Hours,
+        zuschlagCents: r.zuschlagCents,
+        hourlyRateCents: rate,
+      };
+    });
+    return { sfn };
   });
 
 export const listPayrollNotes = createServerFn({ method: "GET" })
