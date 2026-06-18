@@ -54,7 +54,7 @@ function Index() {
         </div>
         <div className="flex flex-col gap-2">
           {visible.map((item) => (
-            <Link key={item.to} to={item.to} className={item.primary ? primaryBtn : secondaryBtn}>
+            <Link key={item.to} to={item.to} className={secondaryBtn}>
               {item.label}
             </Link>
           ))}
