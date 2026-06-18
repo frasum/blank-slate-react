@@ -1096,6 +1096,7 @@ function PayrollRow({
   vorschussCents,
   urlaubDays,
   krankDays,
+  sfn,
   readOnly = false,
   onSave,
 }: {
@@ -1109,6 +1110,14 @@ function PayrollRow({
   vorschussCents: number;
   urlaubDays: number;
   krankDays: number;
+  sfn?: {
+    night25Hours: number;
+    night40Hours: number;
+    sundayHours: number;
+    holidayHours: number;
+    holiday150Hours: number;
+    zuschlagCents: number;
+  };
   readOnly?: boolean;
   onSave: (besonderheiten: string) => void;
 }) {
@@ -1150,6 +1159,29 @@ function PayrollRow({
         }`}
       >
         {vorschussLabel ?? "–"}
+      </TableCell>
+      <TableCell className="py-1.5 text-right tabular-nums text-sm">
+        {sfn && sfn.zuschlagCents > 0 ? (
+          <div className="flex flex-col items-end leading-tight">
+            <span className="font-medium">
+              {(sfn.zuschlagCents / 100).toLocaleString("de-DE", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}{" "}
+              €
+            </span>
+            <span className="text-[10px] text-muted-foreground">
+              N25 {sfn.night25Hours.toLocaleString("de-DE", { maximumFractionDigits: 1 })} · N40{" "}
+              {sfn.night40Hours.toLocaleString("de-DE", { maximumFractionDigits: 1 })} · So{" "}
+              {sfn.sundayHours.toLocaleString("de-DE", { maximumFractionDigits: 1 })}
+              {sfn.holidayHours + sfn.holiday150Hours > 0
+                ? ` · F ${(sfn.holidayHours + sfn.holiday150Hours).toLocaleString("de-DE", { maximumFractionDigits: 1 })}`
+                : ""}
+            </span>
+          </div>
+        ) : (
+          <span className="text-muted-foreground/50">–</span>
+        )}
       </TableCell>
       <TableCell className="py-1.5">
         <Textarea
