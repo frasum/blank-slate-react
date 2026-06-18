@@ -176,13 +176,19 @@ function PinForm({ onLoggedIn }: { onLoggedIn: () => Promise<void> }) {
         e.preventDefault();
         setBusy(true);
         setErr(null);
+        let sessionTokenHash: string;
         try {
           const { session_token_hash } = await callValidatePin({ data: { firstName, pin } });
-          const ok = await verifyMagicHash(session_token_hash);
+          sessionTokenHash = session_token_hash;
+          const ok = await verifyMagicHash(sessionTokenHash);
           if (!ok) throw new Error("verify failed");
-          await onLoggedIn();
         } catch {
           setErr("Anmeldung fehlgeschlagen");
+          setBusy(false);
+          return;
+        }
+        try {
+          await onLoggedIn();
         } finally {
           setBusy(false);
         }
