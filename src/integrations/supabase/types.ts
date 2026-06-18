@@ -3247,6 +3247,16 @@ export type Database = {
         | "cash.tippool.manage"
         | "cash.channel.manage"
         | "cash.export.pdf"
+        | "time.entry.view_self"
+        | "time.entry.view_all"
+        | "time.entry.clock"
+        | "time.entry.edit"
+        | "time.period.view"
+        | "time.period.manage"
+        | "time.period.lock"
+        | "time.payroll_note.view"
+        | "time.payroll_note.edit"
+        | "time.export"
       app_role: "admin" | "manager" | "staff" | "payroll"
       permission_effect: "allow" | "deny"
       register_transfer_direction:
@@ -3405,6 +3415,16 @@ export const Constants = {
         "cash.tippool.manage",
         "cash.channel.manage",
         "cash.export.pdf",
+        "time.entry.view_self",
+        "time.entry.view_all",
+        "time.entry.clock",
+        "time.entry.edit",
+        "time.period.view",
+        "time.period.manage",
+        "time.period.lock",
+        "time.payroll_note.view",
+        "time.payroll_note.edit",
+        "time.export",
       ],
       app_role: ["admin", "manager", "staff", "payroll"],
       permission_effect: ["allow", "deny"],
