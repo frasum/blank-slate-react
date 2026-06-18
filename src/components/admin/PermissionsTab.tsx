@@ -67,12 +67,6 @@ export function PermissionsTab({ staffId }: { staffId: string }) {
     [permsQ.data?.defaults],
   );
 
-  if (permsQ.isLoading) return <p className="text-sm text-muted-foreground">Lade…</p>;
-  if (permsQ.error || !permsQ.data)
-    return <p className="text-sm text-destructive">Rechte konnten nicht geladen werden.</p>;
-
-  const isAdminRole = permsQ.data.role === "admin";
-
   // Nach Modul gruppieren (Reihenfolge: kasse → zeit).
   const grouped = useMemo(() => {
     const order: PermissionModule[] = ["kasse", "zeit"];
@@ -87,6 +81,12 @@ export function PermissionsTab({ staffId }: { staffId: string }) {
       .map((m) => ({ module: m, items: map.get(m) ?? [] }))
       .filter((g) => g.items.length > 0);
   }, []);
+
+  if (permsQ.isLoading) return <p className="text-sm text-muted-foreground">Lade…</p>;
+  if (permsQ.error || !permsQ.data)
+    return <p className="text-sm text-destructive">Rechte konnten nicht geladen werden.</p>;
+
+  const isAdminRole = permsQ.data.role === "admin";
 
   function cellState(perm: AppPermission): Cell {
     const key = `${perm}::${scopedLocation ?? "null"}`;
