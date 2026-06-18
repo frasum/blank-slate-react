@@ -363,20 +363,25 @@ export const setTimeEntryShift = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
-    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // Standort des Eintrags für den Scope-Check vorladen.
+    const { data: before, error: loadErr } = await supabaseAdmin
+      .from("time_entries")
+      .select("*")
+      .eq("id", data.id)
+      .eq("organization_id", caller.organizationId)
+      .maybeSingle();
+    if (loadErr) throw loadErr;
+    if (!before) throw new Error("Eintrag nicht gefunden.");
+    return runWithPermission(
+      context.supabase,
+      "time.entry.edit",
+      before.location_id,
+      makeAuditWriter(caller),
+      async () => {
       if (new Date(data.endedAt).getTime() <= new Date(data.startedAt).getTime()) {
         throw new Error("Ende muss nach dem Beginn liegen.");
       }
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: before, error: loadErr } = await supabaseAdmin
-        .from("time_entries")
-        .select("*")
-        .eq("id", data.id)
-        .eq("organization_id", caller.organizationId)
-        .maybeSingle();
-      if (loadErr) throw loadErr;
-      if (!before) throw new Error("Eintrag nicht gefunden.");
-
       const newBusinessDate = businessDateOf(new Date(data.startedAt));
       await assertBusinessDateUnlocked(supabaseAdmin, caller.organizationId, before.business_date);
       if (newBusinessDate !== before.business_date) {
@@ -415,7 +420,8 @@ export const setTimeEntryShift = createServerFn({ method: "POST" })
           },
         },
       };
-    });
+      },
+    );
   });
 
 export const createTimeEntryShift = createServerFn({ method: "POST" })
@@ -432,7 +438,12 @@ export const createTimeEntryShift = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
-    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+    return runWithPermission(
+      context.supabase,
+      "time.entry.edit",
+      data.locationId,
+      makeAuditWriter(caller),
+      async () => {
       if (new Date(data.endedAt).getTime() <= new Date(data.startedAt).getTime()) {
         throw new Error("Ende muss nach dem Beginn liegen.");
       }
@@ -481,7 +492,8 @@ export const createTimeEntryShift = createServerFn({ method: "POST" })
           },
         },
       };
-    });
+      },
+    );
   });
 
 // =========================================================================
@@ -525,7 +537,12 @@ export const createPeriod = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
-    return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
+    return runWithPermission(
+      context.supabase,
+      "time.period.manage",
+      null,
+      makeAuditWriter(caller),
+      async () => {
       if (data.endDate < data.startDate) {
         throw new Error("Enddatum muss ≥ Startdatum sein.");
       }
@@ -564,7 +581,8 @@ export const createPeriod = createServerFn({ method: "POST" })
           meta: { label: data.label, startDate: data.startDate, endDate: data.endDate },
         },
       };
-    });
+      },
+    );
   });
 
 export const togglePeriodLock = createServerFn({ method: "POST" })
@@ -572,7 +590,12 @@ export const togglePeriodLock = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
-    return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
+    return runWithPermission(
+      context.supabase,
+      "time.period.lock",
+      null,
+      makeAuditWriter(caller),
+      async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: row, error: loadErr } = await supabaseAdmin
         .from("periods")
@@ -598,7 +621,8 @@ export const togglePeriodLock = createServerFn({ method: "POST" })
           meta: { label: row.label, before: row.status, after: next },
         },
       };
-    });
+      },
+    );
   });
 
 export const deletePeriod = createServerFn({ method: "POST" })
@@ -606,7 +630,12 @@ export const deletePeriod = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
-    return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
+    return runWithPermission(
+      context.supabase,
+      "time.period.manage",
+      null,
+      makeAuditWriter(caller),
+      async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: row, error: loadErr } = await supabaseAdmin
         .from("periods")
@@ -638,5 +667,6 @@ export const deletePeriod = createServerFn({ method: "POST" })
           },
         },
       };
-    });
+      },
+    );
   });
