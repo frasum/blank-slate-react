@@ -5,7 +5,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
-import { runGuarded } from "@/lib/admin/admin-call";
+import { runWithPermission, assertPermission } from "@/lib/admin/admin-call";
 import { writeAuditLog } from "@/lib/admin/audit";
 import { loadStaffCaller } from "@/lib/time/time.functions";
 import type { MyShiftRow } from "@/lib/roster/my-shifts";
@@ -348,7 +348,7 @@ export const createRosterShift = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
-    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+    return runWithPermission(context.supabase, "roster.shift.manage", null, makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, data.shiftDate);
 
@@ -410,7 +410,7 @@ export const deleteRosterShift = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
-    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+    return runWithPermission(context.supabase, "roster.shift.manage", null, makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: snap, error: loadErr } = await supabaseAdmin
         .from("roster_shifts")
@@ -464,7 +464,7 @@ export const updateRosterShiftStatus = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
-    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+    return runWithPermission(context.supabase, "roster.shift.manage", null, makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: snap, error: loadErr } = await supabaseAdmin
         .from("roster_shifts")
@@ -507,7 +507,7 @@ export const updateRosterShiftSkill = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
-    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+    return runWithPermission(context.supabase, "roster.shift.manage", null, makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: snap, error: loadErr } = await supabaseAdmin
         .from("roster_shifts")
@@ -555,7 +555,7 @@ export const moveRosterShift = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
-    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+    return runWithPermission(context.supabase, "roster.shift.manage", null, makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: snap, error: loadErr } = await supabaseAdmin
         .from("roster_shifts")
@@ -699,7 +699,7 @@ export const setUnavailable = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
-    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+    return runWithPermission(context.supabase, "roster.availability.manage_all", null, makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { error } = await supabaseAdmin.from("roster_availability").upsert(
         {
@@ -734,7 +734,7 @@ export const clearUnavailable = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
-    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+    return runWithPermission(context.supabase, "roster.availability.manage_all", null, makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { error } = await supabaseAdmin
         .from("roster_availability")
@@ -798,7 +798,7 @@ export const setAbsence = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
-    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+    return runWithPermission(context.supabase, "roster.absence.manage", null, makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { error } = await supabaseAdmin.from("roster_absence").upsert(
         {
@@ -833,7 +833,7 @@ export const clearAbsence = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
-    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+    return runWithPermission(context.supabase, "roster.absence.manage", null, makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { error } = await supabaseAdmin
         .from("roster_absence")
@@ -878,7 +878,7 @@ export const setAbsenceRange = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
-    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+    return runWithPermission(context.supabase, "roster.absence.manage", null, makeAuditWriter(caller), async () => {
       const days = expandDateRange(data.fromDate, data.toDate);
       if (days.length > 92) {
         throw new Error("Zeitraum darf maximal 92 Tage umfassen.");
