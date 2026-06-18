@@ -13,7 +13,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
-import { runGuarded } from "@/lib/admin/admin-call";
+import { runGuarded, runWithPermission } from "@/lib/admin/admin-call";
 import { writeAuditLog } from "@/lib/admin/audit";
 import { businessDateOf } from "@/lib/business-date";
 import { assertBusinessDateUnlocked } from "./time-lock";
@@ -220,7 +220,12 @@ export const upsertPayrollNote = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
-    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+    return runWithPermission(
+      context.supabase,
+      "time.payroll_note.edit",
+      data.locationId,
+      makeAuditWriter(caller),
+      async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { error } = await supabaseAdmin.from("payroll_notes").upsert(
         {
@@ -250,7 +255,8 @@ export const upsertPayrollNote = createServerFn({ method: "POST" })
           },
         },
       };
-    });
+      },
+    );
   });
 
 // =========================================================================
