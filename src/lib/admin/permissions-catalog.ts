@@ -14,13 +14,31 @@ export type AppPermission =
   | "cash.settlement.admin_create"
   | "cash.tippool.manage"
   | "cash.channel.manage"
-  | "cash.export.pdf";
+  | "cash.export.pdf"
+  // Modul Zeit
+  | "time.entry.view_self"
+  | "time.entry.view_all"
+  | "time.entry.clock"
+  | "time.entry.edit"
+  | "time.period.view"
+  | "time.period.manage"
+  | "time.period.lock"
+  | "time.payroll_note.view"
+  | "time.payroll_note.edit"
+  | "time.export";
 
 export type PermissionEffect = "allow" | "deny";
 
+export type PermissionModule = "kasse" | "zeit";
+
+export const MODULE_LABEL: Record<PermissionModule, string> = {
+  kasse: "Kasse / Tagesabrechnung",
+  zeit: "Zeiterfassung",
+};
+
 export type PermissionMeta = {
   key: AppPermission;
-  module: "kasse";
+  module: PermissionModule;
   label: string;
   description: string;
   /** Wenn true, kann das Recht standortspezifisch vergeben werden. */
@@ -110,6 +128,77 @@ export const PERMISSION_CATALOG: readonly PermissionMeta[] = [
     module: "kasse",
     label: "Bargeld-/PDF-Export",
     description: "PDF- und Bargeld-Exporte erzeugen.",
+    scopable: false,
+  },
+  // ----- Modul Zeit -----
+  {
+    key: "time.entry.view_self",
+    module: "zeit",
+    label: "Eigene Zeiten sehen",
+    description: "Eigene Stempel- und Schicht-Einträge ansehen.",
+    scopable: false,
+  },
+  {
+    key: "time.entry.view_all",
+    module: "zeit",
+    label: "Alle Zeiten sehen",
+    description: "Zeiten aller Mitarbeiter ansehen (standortspezifisch einschränkbar).",
+    scopable: true,
+  },
+  {
+    key: "time.entry.clock",
+    module: "zeit",
+    label: "Stempeln (Ein/Aus)",
+    description: "Sich selbst ein- und ausstempeln (standortspezifisch einschränkbar).",
+    scopable: true,
+  },
+  {
+    key: "time.entry.edit",
+    module: "zeit",
+    label: "Fremde Zeiten ändern",
+    description: "Zeiten anderer Mitarbeiter anlegen oder korrigieren (standortspezifisch).",
+    scopable: true,
+  },
+  {
+    key: "time.period.view",
+    module: "zeit",
+    label: "Lohn-Perioden sehen",
+    description: "Periodenliste (26.–25.) ansehen.",
+    scopable: false,
+  },
+  {
+    key: "time.period.manage",
+    module: "zeit",
+    label: "Perioden verwalten",
+    description: "Perioden anlegen, ändern, löschen.",
+    scopable: false,
+  },
+  {
+    key: "time.period.lock",
+    module: "zeit",
+    label: "Periode sperren/entsperren",
+    description: "Status einer Periode auf sperren/öffnen schalten.",
+    scopable: false,
+  },
+  {
+    key: "time.payroll_note.view",
+    module: "zeit",
+    label: "Lohnbüro-Notizen sehen",
+    description: "Vorschuss-/Besonderheiten-Notizen pro Mitarbeiter ansehen.",
+    scopable: false,
+  },
+  {
+    key: "time.payroll_note.edit",
+    module: "zeit",
+    label: "Lohnbüro-Notizen pflegen",
+    description: "Notizen anlegen und ändern.",
+    scopable: false,
+  },
+  {
+    key: "time.export",
+    module: "zeit",
+    label: "Lohn-/Wochen-Export",
+    description: "Wochen- und Lohn-Exporte erzeugen.",
     scopable: false,
   },
 ] as const;
