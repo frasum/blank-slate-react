@@ -447,22 +447,22 @@ function ZeitUebersichtPage() {
   }, [absencesQ.data]);
 
   type SfnAgg = {
-    night25Hours: number;
-    night40Hours: number;
-    sundayHours: number;
-    holidayHours: number;
-    holiday150Hours: number;
+    simple: { night25Hours: number; night40Hours: number; sundayHours: number };
+    extended: {
+      night25Hours: number;
+      night40Hours: number;
+      sundayHours: number;
+      holidayHours: number;
+      holiday150Hours: number;
+    };
     zuschlagCents: number;
   };
   const sfnByStaff = useMemo(() => {
     const m = new Map<string, SfnAgg>();
     for (const s of sfnQ.data?.sfn ?? []) {
       m.set(s.staffId, {
-        night25Hours: s.night25Hours,
-        night40Hours: s.night40Hours,
-        sundayHours: s.sundayHours,
-        holidayHours: s.holidayHours,
-        holiday150Hours: s.holiday150Hours,
+        simple: s.simple,
+        extended: s.extended,
         zuschlagCents: s.zuschlagCents,
       });
     }
