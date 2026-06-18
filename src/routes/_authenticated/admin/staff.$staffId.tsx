@@ -21,11 +21,13 @@ import {
   assignStaffSkills,
   getStaffSkills,
   listSkills,
+  updateSkillColor,
   type SkillCategory,
 } from "@/lib/admin/skills.functions";
 import { TabButton } from "@/components/ui/nav-tab";
 import { PersonalDetailsTab } from "@/components/admin/PersonalDetailsTab";
 import { PermissionsTab } from "@/components/admin/PermissionsTab";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export const Route = createFileRoute("/_authenticated/admin/staff/$staffId")({
   head: () => ({ meta: [{ title: "Mitarbeiter · Verwaltung" }] }),
