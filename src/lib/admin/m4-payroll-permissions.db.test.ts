@@ -90,9 +90,9 @@ async function probe(
 }
 
 describe.skipIf(!dbTestsEnabled)("M4 Lohn/HR — Permissions & RLS pro Rolle", () => {
-  let org: SeededOrg;
-  let users: Record<RoleKey, SeededUser>;
-  let targetStaffId: string; // ein dritter Staff, dessen comp/details befüllt werden
+  let org!: SeededOrg;
+  let users!: Record<RoleKey, SeededUser>;
+  let targetStaffId!: string; // ein dritter Staff, dessen comp/details befüllt werden
 
   beforeAll(async () => {
     org = await seedOrg("m4-payroll");
