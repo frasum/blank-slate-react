@@ -40,8 +40,9 @@ const PAYROLL_KEYS: readonly AppPermission[] = [
   "payroll.period.view",
 ] as const;
 
-// Erwartete Wahrheit pro (Rolle, Key).
-const EXPECTED: Record<RoleKey, Record<AppPermission, boolean>> = {
+// Erwartete Wahrheit pro (Rolle, Key) — nur die M4-Keys.
+type PayrollKey = (typeof PAYROLL_KEYS)[number];
+const EXPECTED: Record<RoleKey, Record<PayrollKey, boolean>> = {
   admin: {
     "payroll.compensation.view": true,
     "payroll.compensation.edit": true,
