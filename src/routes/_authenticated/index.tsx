@@ -15,24 +15,28 @@ export const Route = createFileRoute("/_authenticated/")({
 
 function Index() {
   const { identity, identityLoading, signOut } = useAuth();
-  const canAdmin = identity?.role === "admin" || identity?.role === "manager";
+  const role = identity?.role;
+  const canAdmin = role === "admin" || role === "manager";
+  const isPayroll = role === "payroll";
+  const isStaff = role === "staff";
   const baseBtn =
     "inline-flex w-full items-center justify-center rounded-lg px-4 py-3 text-sm font-medium shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
-  const primaryBtn = `${baseBtn} bg-primary text-primary-foreground hover:bg-primary/90`;
   const secondaryBtn = `${baseBtn} border border-input bg-card text-foreground hover:bg-accent`;
 
-  const items: Array<{ to: string; label: string; admin?: boolean; primary?: boolean }> = [
-    { to: "/admin", label: "Admin", admin: true },
-    { to: "/admin/zeit-uebersicht", label: "Arbeitszeiten", admin: true },
-    { to: "/admin/bestellung", label: "Bestellungen/Inventur", admin: true },
-    { to: "/admin/dienstplan", label: "Dienstplan", admin: true },
-    { to: "/zeit/abrechnung", label: "Kellner-Abrechnung" },
-    { to: "/zeit", label: "Stempeluhr" },
-    { to: "/admin/kasse", label: "Tagesabrechnung", admin: true },
+  type Item = { to: string; label: string; roles: Array<"admin" | "manager" | "payroll" | "staff"> };
+  const items: Array<Item> = [
+    { to: "/admin", label: "Admin", roles: ["admin", "manager"] },
+    { to: "/admin/zeit-uebersicht", label: "Arbeitszeiten", roles: ["admin", "manager", "payroll"] },
+    { to: "/admin/bestellung", label: "Bestellungen/Inventur", roles: ["admin", "manager"] },
+    { to: "/admin/dienstplan", label: "Dienstplan", roles: ["admin", "manager"] },
+    { to: "/zeit/abrechnung", label: "Kellner-Abrechnung", roles: ["admin", "manager", "staff"] },
+    { to: "/zeit", label: "Stempeluhr", roles: ["admin", "manager", "staff"] },
+    { to: "/admin/kasse", label: "Tagesabrechnung", roles: ["admin", "manager"] },
   ];
   const visible = items
-    .filter((i) => !i.admin || canAdmin)
+    .filter((i) => (role ? i.roles.includes(role as "admin" | "manager" | "payroll" | "staff") : false))
     .sort((a, b) => a.label.localeCompare(b.label, "de"));
+  void canAdmin; void isPayroll; void isStaff; void baseBtn;
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
       <div className="w-full max-w-sm space-y-8">
@@ -49,7 +53,7 @@ function Index() {
         </div>
         <div className="flex flex-col gap-2">
           {visible.map((item) => (
-            <Link key={item.to} to={item.to} className={item.primary ? primaryBtn : secondaryBtn}>
+            <Link key={item.to} to={item.to} className={secondaryBtn}>
               {item.label}
             </Link>
           ))}
