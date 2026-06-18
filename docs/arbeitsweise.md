@@ -77,9 +77,25 @@ Immer **26. eines Monats bis einschließlich 25. des Folgemonats**. Label = Mona
 ### Quell-Repos (Lovable/GitHub, frasum)
 
 - **COCO (Ziel):** blank-slate-react
-- **tagesabrechnung** (Kasse/Zeit-Quelle)
-- **bunker-shift-flow** (Dienstplan-UI-Vorlage: RosterGrid, Paint-Tool)
+- **tagesabrechnung** (Kasse/Zeit-Quelle) — `gh repo clone frasum/tagesabrechnung`
+- **bunker-shift-flow** (Dienstplan-UI-Vorlage: RosterGrid, Paint-Tool) — `gh repo clone frasum/bunker-shift-flow`
 - **thaitime-12f46b18** (Dienstplan-Daten + Display-Vorlage)
+- **bestellung-5fff1793** (M5-Quelle, hat `SYSTEM_BLUEPRINT.md`) — `gh repo clone frasum/bestellung-5fff1793`
+
+**Klon-Befehle für die Prüf-/Referenz-Repos** (Claude zieht diese für Golden-Master & Portierung; geklont werden, nicht raten):
+
+```bash
+gh repo clone frasum/tagesabrechnung
+# Referenz: src/lib/shiftCalculations.ts (SFN-Golden-Master), src/lib/sfnRates.ts (M4-Geldsätze),
+#           src/pages/DailySummary.tsx (Kassen-Abgleich), src/pages/zeiterfassung/ZtBruttoNetto.tsx (SFN-Geld simple/extended)
+
+gh repo clone frasum/bunker-shift-flow
+# Referenz: src/components/roster/RosterGrid.tsx + PaintToolbar.tsx (M3-UI),
+#           src/lib/sfn.ts + sfn.test.ts (zweite SFN-Testquelle), src/lib/billing-cycle.ts (26.–25.-Zyklus)
+
+gh repo clone frasum/bestellung-5fff1793
+# Referenz: SYSTEM_BLUEPRINT.md + Welle-4/EasyOrder-Quelllogik (M5)
+```
 
 ### thaitime → COCO Standort-Mapping
 
