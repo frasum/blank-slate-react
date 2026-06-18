@@ -1390,6 +1390,82 @@ export type Database = {
           },
         ]
       }
+      permission_overrides: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          effect: Database["public"]["Enums"]["permission_effect"]
+          id: string
+          location_id: string | null
+          organization_id: string
+          permission: Database["public"]["Enums"]["app_permission"]
+          staff_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          effect: Database["public"]["Enums"]["permission_effect"]
+          id?: string
+          location_id?: string | null
+          organization_id: string
+          permission: Database["public"]["Enums"]["app_permission"]
+          staff_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          effect?: Database["public"]["Enums"]["permission_effect"]
+          id?: string
+          location_id?: string | null
+          organization_id?: string
+          permission?: Database["public"]["Enums"]["app_permission"]
+          staff_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "permission_overrides_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "permission_overrides_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "permission_overrides_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      permission_role_defaults: {
+        Row: {
+          created_at: string
+          permission: Database["public"]["Enums"]["app_permission"]
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Insert: {
+          created_at?: string
+          permission: Database["public"]["Enums"]["app_permission"]
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Update: {
+          created_at?: string
+          permission?: Database["public"]["Enums"]["app_permission"]
+          role?: Database["public"]["Enums"]["app_role"]
+        }
+        Relationships: []
+      }
       pin_attempts: {
         Row: {
           attempted_at: string
@@ -3129,9 +3205,25 @@ export type Database = {
         Returns: Database["public"]["Enums"]["app_role"]
       }
       current_staff_id: { Args: never; Returns: string }
+      effective_permissions: {
+        Args: { _staff: string }
+        Returns: {
+          effect: Database["public"]["Enums"]["permission_effect"]
+          location_id: string
+          permission: Database["public"]["Enums"]["app_permission"]
+          source: string
+        }[]
+      }
       generate_order_number: { Args: never; Returns: string }
       has_min_permission: {
         Args: { _min: Database["public"]["Enums"]["app_role"] }
+        Returns: boolean
+      }
+      has_permission: {
+        Args: {
+          _location?: string
+          _perm: Database["public"]["Enums"]["app_permission"]
+        }
         Returns: boolean
       }
       has_role: {
@@ -3142,7 +3234,21 @@ export type Database = {
       is_real_admin: { Args: never; Returns: boolean }
     }
     Enums: {
+      app_permission:
+        | "cash.session.view"
+        | "cash.session.open"
+        | "cash.session.edit"
+        | "cash.session.finalize"
+        | "cash.session.lock"
+        | "cash.settlement.submit_self"
+        | "cash.settlement.view_all"
+        | "cash.settlement.correct"
+        | "cash.settlement.admin_create"
+        | "cash.tippool.manage"
+        | "cash.channel.manage"
+        | "cash.export.pdf"
       app_role: "admin" | "manager" | "staff" | "payroll"
+      permission_effect: "allow" | "deny"
       register_transfer_direction:
         | "to_restaurant"
         | "from_restaurant"
@@ -3286,7 +3392,22 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_permission: [
+        "cash.session.view",
+        "cash.session.open",
+        "cash.session.edit",
+        "cash.session.finalize",
+        "cash.session.lock",
+        "cash.settlement.submit_self",
+        "cash.settlement.view_all",
+        "cash.settlement.correct",
+        "cash.settlement.admin_create",
+        "cash.tippool.manage",
+        "cash.channel.manage",
+        "cash.export.pdf",
+      ],
       app_role: ["admin", "manager", "staff", "payroll"],
+      permission_effect: ["allow", "deny"],
       register_transfer_direction: [
         "to_restaurant",
         "from_restaurant",

@@ -25,13 +25,22 @@ import {
 } from "@/lib/admin/skills.functions";
 import { TabButton } from "@/components/ui/nav-tab";
 import { PersonalDetailsTab } from "@/components/admin/PersonalDetailsTab";
+import { PermissionsTab } from "@/components/admin/PermissionsTab";
 
 export const Route = createFileRoute("/_authenticated/admin/staff/$staffId")({
   head: () => ({ meta: [{ title: "Mitarbeiter · Verwaltung" }] }),
   component: StaffDetailPage,
 });
 
-type Tab = "basics" | "locations" | "skills" | "personal" | "role" | "pin" | "account";
+type Tab =
+  | "basics"
+  | "locations"
+  | "skills"
+  | "personal"
+  | "role"
+  | "pin"
+  | "account"
+  | "permissions";
 
 function StaffDetailPage() {
   const { staffId } = Route.useParams();
@@ -74,6 +83,7 @@ function StaffDetailPage() {
             ["role", "Rolle & Aktiv"],
             ["pin", "PIN"],
             ...(isAdmin ? ([["account", "Login"]] as [Tab, string][]) : []),
+            ...(isAdmin ? ([["permissions", "Rechte"]] as [Tab, string][]) : []),
           ] as [Tab, string][]
         ).map(([k, label]) => (
           <TabButton key={k} active={tab === k} onClick={() => setTab(k)}>
@@ -91,6 +101,7 @@ function StaffDetailPage() {
       {tab === "role" && <RoleTab staff={s} />}
       {tab === "pin" && <PinTab staffId={s.id} hasPin={s.hasPin} />}
       {tab === "account" && isAdmin && <AccountTab staffId={s.id} staffEmail={s.email} />}
+      {tab === "permissions" && isAdmin && <PermissionsTab staffId={s.id} />}
     </div>
   );
 }
