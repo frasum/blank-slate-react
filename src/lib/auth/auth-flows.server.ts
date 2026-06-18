@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Database } from "@/integrations/supabase/types";
 
 const FAILED_MESSAGE = "Anmeldung fehlgeschlagen";
 
@@ -10,7 +11,16 @@ export function parsePinLoginInput(input: unknown) {
   return z
     .object({
       firstName: z.string().trim().min(1).max(64),
-      pin: z.string().min(1).max(32),
+      pin: z.string().min(1).max(256),
+    })
+    .parse(input);
+}
+
+export function parseNamePasswordLoginInput(input: unknown) {
+  return z
+    .object({
+      firstName: z.string().trim().min(1).max(64),
+      password: z.string().min(1).max(256),
     })
     .parse(input);
 }
@@ -67,6 +77,55 @@ export async function ensureShadowUser(staffId: string, organizationId: string):
   if (insertErr) failed();
 
   return email;
+}
+
+export type PasswordLoginSession = {
+  access_token: string;
+  refresh_token: string;
+};
+
+export async function tryStaffPasswordLogin(
+  staffId: string,
+  password: string,
+): Promise<PasswordLoginSession | null> {
+  const { createClient } = await import("@supabase/supabase-js");
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  const { data: link, error: linkSelectErr } = await supabaseAdmin
+    .from("user_links")
+    .select("user_id")
+    .eq("staff_id", staffId)
+    .maybeSingle();
+  if (linkSelectErr) console.error("[password-login] linkSelect error:", linkSelectErr);
+  if (linkSelectErr || !link) return null;
+
+  const { data: existing, error: getErr } = await supabaseAdmin.auth.admin.getUserById(
+    link.user_id,
+  );
+  if (getErr || !existing.user?.email) {
+    console.error("[password-login] getUserById error / keine email:", getErr);
+    return null;
+  }
+
+  const SUPABASE_URL = process.env.SUPABASE_URL;
+  const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY;
+  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+    console.error("[password-login] Supabase public env fehlt.");
+    failed();
+  }
+
+  const supabasePublic = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+  });
+  const { data, error } = await supabasePublic.auth.signInWithPassword({
+    email: existing.user.email,
+    password,
+  });
+  if (error || !data.session) return null;
+  return {
+    access_token: data.session.access_token,
+    refresh_token: data.session.refresh_token,
+  };
 }
 
 /**

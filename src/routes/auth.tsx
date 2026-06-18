@@ -176,12 +176,19 @@ function PinForm({ onLoggedIn }: { onLoggedIn: () => Promise<void> }) {
         e.preventDefault();
         setBusy(true);
         setErr(null);
-        let sessionTokenHash: string;
         try {
-          const { session_token_hash } = await callValidatePin({ data: { firstName, pin } });
-          sessionTokenHash = session_token_hash;
-          const ok = await verifyMagicHash(sessionTokenHash);
-          if (!ok) throw new Error("verify failed");
+          const result = await callValidatePin({ data: { firstName, pin } });
+          if (result.kind === "password") {
+            await supabase.auth.signOut();
+            const { error } = await supabase.auth.setSession({
+              access_token: result.access_token,
+              refresh_token: result.refresh_token,
+            });
+            if (error) throw error;
+          } else {
+            const ok = await verifyMagicHash(result.session_token_hash);
+            if (!ok) throw new Error("verify failed");
+          }
         } catch {
           setErr("Anmeldung fehlgeschlagen");
           setBusy(false);
@@ -205,9 +212,8 @@ function PinForm({ onLoggedIn }: { onLoggedIn: () => Promise<void> }) {
       />
       <input
         type="password"
-        inputMode="numeric"
         required
-        placeholder="PIN"
+        placeholder="PIN oder Passwort"
         value={pin}
         onChange={(e) => setPin(e.target.value)}
         className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -218,7 +224,7 @@ function PinForm({ onLoggedIn }: { onLoggedIn: () => Promise<void> }) {
         disabled={busy}
         className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
       >
-        {busy ? "Anmelden…" : "Mit PIN anmelden"}
+        {busy ? "Anmelden…" : "Anmelden"}
       </button>
     </form>
   );
