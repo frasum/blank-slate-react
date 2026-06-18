@@ -438,6 +438,8 @@ function SkillsTab({ staffId, isAdmin }: { staffId: string; isAdmin: boolean }) 
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["admin", "skills"] });
       await queryClient.invalidateQueries({ queryKey: ["skills"] });
+      await queryClient.invalidateQueries({ queryKey: ["roster-shifts"] });
+      await queryClient.invalidateQueries({ queryKey: ["roster-cross-bookings"] });
     },
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
   });
