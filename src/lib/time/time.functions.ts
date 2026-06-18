@@ -20,6 +20,7 @@ import { businessDateOf } from "@/lib/business-date";
 import { canClockIn, canClockOut, denialMessage } from "./time-rules";
 import { pickSingleLocation } from "./resolve-location";
 import { writeAuditLog } from "@/lib/admin/audit";
+import { assertPermission } from "@/lib/admin/admin-call";
 import { arbzgMinimumBreak, isArbzgShort, grossMinutesBetween } from "./break-rules";
 import { assertWithinFence } from "@/lib/geo/server-check";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -159,6 +160,9 @@ export const clockIn = createServerFn({ method: "POST" })
         "Kein eindeutiger Standort zugeordnet — Geofence kann nicht geprüft werden. Bitte Manager kontaktieren.",
       );
     }
+
+    // Rechte-Check: darf dieser Mitarbeiter an diesem Standort stempeln?
+    await assertPermission(context.supabase, "time.entry.clock", locationId);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
