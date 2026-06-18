@@ -21,7 +21,6 @@ function Index() {
   const isStaff = role === "staff";
   const baseBtn =
     "inline-flex w-full items-center justify-center rounded-lg px-4 py-3 text-sm font-medium shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
-  const primaryBtn = `${baseBtn} bg-primary text-primary-foreground hover:bg-primary/90`;
   const secondaryBtn = `${baseBtn} border border-input bg-card text-foreground hover:bg-accent`;
 
   type Item = { to: string; label: string; roles: Array<"admin" | "manager" | "payroll" | "staff"> };
@@ -37,7 +36,7 @@ function Index() {
   const visible = items
     .filter((i) => (role ? i.roles.includes(role as "admin" | "manager" | "payroll" | "staff") : false))
     .sort((a, b) => a.label.localeCompare(b.label, "de"));
-  void canAdmin; void isPayroll; void isStaff;
+  void canAdmin; void isPayroll; void isStaff; void baseBtn;
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
       <div className="w-full max-w-sm space-y-8">
