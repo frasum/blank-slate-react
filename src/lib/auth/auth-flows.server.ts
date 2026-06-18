@@ -11,7 +11,7 @@ export function parsePinLoginInput(input: unknown) {
   return z
     .object({
       firstName: z.string().trim().min(1).max(64),
-      pin: z.string().min(1).max(32),
+      pin: z.string().min(1).max(256),
     })
     .parse(input);
 }
