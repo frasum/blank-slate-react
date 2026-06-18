@@ -27,6 +27,7 @@ import {
   deletePeriod,
   getTimeOverview,
   getWeeklyTimeEntries,
+  getSfnOverview,
   listPeriods,
   listPayrollNotes,
   listAdvancesByStaff,
@@ -203,6 +204,7 @@ function ZeitUebersichtPage() {
   const fetchNotes = useServerFn(listPayrollNotes);
   const fetchAdvances = useServerFn(listAdvancesByStaff);
   const fetchAbsences = useServerFn(listAbsencesByStaff);
+  const fetchSfn = useServerFn(getSfnOverview);
   const callUpsert = useServerFn(upsertPayrollNote);
   const callSetShift = useServerFn(setTimeEntryShift);
   const callCreateShift = useServerFn(createTimeEntryShift);
@@ -356,6 +358,12 @@ function ZeitUebersichtPage() {
     queryFn: () => fetchAbsences({ data: { periodStart: fromDate, periodEnd: toDate } }),
   });
 
+  const sfnQ = useQuery({
+    queryKey: ["payroll-sfn", effectiveLocationId, fromDate, toDate],
+    queryFn: () => fetchSfn({ data: { locationId: effectiveLocationId, fromDate, toDate } }),
+    enabled: Boolean(effectiveLocationId),
+  });
+
   const weekCols = useMemo(() => buildWeekColumns(fromDate, toDate), [fromDate, toDate]);
 
   // Aggregations
@@ -426,6 +434,29 @@ function ZeitUebersichtPage() {
     }
     return m;
   }, [absencesQ.data]);
+
+  type SfnAgg = {
+    night25Hours: number;
+    night40Hours: number;
+    sundayHours: number;
+    holidayHours: number;
+    holiday150Hours: number;
+    zuschlagCents: number;
+  };
+  const sfnByStaff = useMemo(() => {
+    const m = new Map<string, SfnAgg>();
+    for (const s of sfnQ.data?.sfn ?? []) {
+      m.set(s.staffId, {
+        night25Hours: s.night25Hours,
+        night40Hours: s.night40Hours,
+        sundayHours: s.sundayHours,
+        holidayHours: s.holidayHours,
+        holiday150Hours: s.holiday150Hours,
+        zuschlagCents: s.zuschlagCents,
+      });
+    }
+    return m;
+  }, [sfnQ.data]);
 
   const upsertMut = useMutation({
     mutationFn: (vars: { staffId: string; vorschuss: number; besonderheiten: string | null }) =>
@@ -985,6 +1016,9 @@ function ZeitUebersichtPage() {
                   <TableHead className="h-9 text-xs uppercase tracking-wider text-muted-foreground text-right w-28">
                     Vorschuss
                   </TableHead>
+                  <TableHead className="h-9 text-xs uppercase tracking-wider text-muted-foreground text-right w-36">
+                    Zuschlag (SFN)
+                  </TableHead>
                   <TableHead className="h-9 text-xs uppercase tracking-wider text-muted-foreground">
                     Besonderheiten
                   </TableHead>
@@ -993,7 +1027,7 @@ function ZeitUebersichtPage() {
               <TableBody>
                 {staffAggs.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center text-muted-foreground">
                       Keine Einträge im Zeitraum.
                     </TableCell>
                   </TableRow>
@@ -1005,7 +1039,7 @@ function ZeitUebersichtPage() {
                     <Fragment key={`p-grp-${dept}`}>
                       <TableRow className={`${DEPT_BG[dept]} hover:${DEPT_BG[dept]}`}>
                         <TableCell
-                          colSpan={7}
+                          colSpan={8}
                           className="py-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
                         >
                           {DEPT_LABEL[dept]}
@@ -1019,6 +1053,7 @@ function ZeitUebersichtPage() {
                           vorschussCents={advanceCentsByStaff.get(s.staffId) ?? 0}
                           urlaubDays={absencesByStaff.get(s.staffId)?.urlaubDays ?? 0}
                           krankDays={absencesByStaff.get(s.staffId)?.krankDays ?? 0}
+                          sfn={sfnByStaff.get(s.staffId)}
                           readOnly={isPayroll}
                           onSave={(besonderheiten) =>
                             upsertMut.mutate({
@@ -1061,6 +1096,7 @@ function PayrollRow({
   vorschussCents,
   urlaubDays,
   krankDays,
+  sfn,
   readOnly = false,
   onSave,
 }: {
@@ -1074,6 +1110,14 @@ function PayrollRow({
   vorschussCents: number;
   urlaubDays: number;
   krankDays: number;
+  sfn?: {
+    night25Hours: number;
+    night40Hours: number;
+    sundayHours: number;
+    holidayHours: number;
+    holiday150Hours: number;
+    zuschlagCents: number;
+  };
   readOnly?: boolean;
   onSave: (besonderheiten: string) => void;
 }) {
@@ -1115,6 +1159,29 @@ function PayrollRow({
         }`}
       >
         {vorschussLabel ?? "–"}
+      </TableCell>
+      <TableCell className="py-1.5 text-right tabular-nums text-sm">
+        {sfn && sfn.zuschlagCents > 0 ? (
+          <div className="flex flex-col items-end leading-tight">
+            <span className="font-medium">
+              {(sfn.zuschlagCents / 100).toLocaleString("de-DE", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}{" "}
+              €
+            </span>
+            <span className="text-[10px] text-muted-foreground">
+              N25 {sfn.night25Hours.toLocaleString("de-DE", { maximumFractionDigits: 1 })} · N40{" "}
+              {sfn.night40Hours.toLocaleString("de-DE", { maximumFractionDigits: 1 })} · So{" "}
+              {sfn.sundayHours.toLocaleString("de-DE", { maximumFractionDigits: 1 })}
+              {sfn.holidayHours + sfn.holiday150Hours > 0
+                ? ` · F ${(sfn.holidayHours + sfn.holiday150Hours).toLocaleString("de-DE", { maximumFractionDigits: 1 })}`
+                : ""}
+            </span>
+          </div>
+        ) : (
+          <span className="text-muted-foreground/50">–</span>
+        )}
       </TableCell>
       <TableCell className="py-1.5">
         <Textarea
