@@ -22,10 +22,7 @@ export const Route = createFileRoute("/_authenticated")({
     // Erst-Login-Flow: wenn must_change_password=true gesetzt ist, darf
     // der Mitarbeiter ausschließlich die Passwort-Wechsel-Seite erreichen.
     const identity = await getMyIdentity();
-    if (
-      identity.mustChangePassword &&
-      location.pathname !== "/passwort-aendern"
-    ) {
+    if (identity.mustChangePassword && location.pathname !== "/passwort-aendern") {
       throw redirect({ to: "/passwort-aendern" });
     }
     return { user: data.session.user };

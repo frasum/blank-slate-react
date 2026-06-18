@@ -86,48 +86,48 @@ function PasswordForm({ onLoggedIn }: { onLoggedIn: () => Promise<void> }) {
 
   return (
     <div className="space-y-3">
-    <form
-      className="space-y-3"
-      onSubmit={async (e) => {
-        e.preventDefault();
-        setBusy(true);
-        setErr(null);
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        setBusy(false);
-        if (error) {
-          setErr("Anmeldung fehlgeschlagen");
-          return;
-        }
-        await onLoggedIn();
-      }}
-    >
-      <input
-        type="email"
-        required
-        autoComplete="email"
-        placeholder="E-Mail"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-      />
-      <input
-        type="password"
-        required
-        autoComplete="current-password"
-        placeholder="Passwort"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-      />
-      <ErrorText message={err} />
-      <button
-        type="submit"
-        disabled={busy}
-        className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+      <form
+        className="space-y-3"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          setBusy(true);
+          setErr(null);
+          const { error } = await supabase.auth.signInWithPassword({ email, password });
+          setBusy(false);
+          if (error) {
+            setErr("Anmeldung fehlgeschlagen");
+            return;
+          }
+          await onLoggedIn();
+        }}
       >
-        {busy ? "Anmelden…" : "Anmelden"}
-      </button>
-    </form>
+        <input
+          type="email"
+          required
+          autoComplete="email"
+          placeholder="E-Mail"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+        />
+        <input
+          type="password"
+          required
+          autoComplete="current-password"
+          placeholder="Passwort"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+        />
+        <ErrorText message={err} />
+        <button
+          type="submit"
+          disabled={busy}
+          className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+        >
+          {busy ? "Anmelden…" : "Anmelden"}
+        </button>
+      </form>
       <div className="flex items-center justify-between text-xs">
         <button
           type="button"
@@ -143,9 +143,7 @@ function PasswordForm({ onLoggedIn }: { onLoggedIn: () => Promise<void> }) {
               setResetMsg("Konnte E-Mail nicht senden.");
               return;
             }
-            setResetMsg(
-              "Falls die Adresse existiert, ist eine E-Mail mit Reset-Link unterwegs.",
-            );
+            setResetMsg("Falls die Adresse existiert, ist eine E-Mail mit Reset-Link unterwegs.");
           }}
           className="text-muted-foreground underline-offset-2 hover:underline disabled:opacity-50"
         >

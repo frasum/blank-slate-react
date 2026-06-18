@@ -254,73 +254,79 @@ export const decideLeaveRequest = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
-    return runWithPermission(context.supabase, "roster.leave.decide", null, makeAuditWriter(caller), async () => {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: snap, error: snapErr } = await supabaseAdmin
-        .from("leave_requests")
-        .select("id, organization_id, staff_id, start_date, end_date, status")
-        .eq("id", data.id)
-        .maybeSingle();
-      if (snapErr) throw snapErr;
-      if (!snap || snap.organization_id !== caller.organizationId) {
-        throw new Error("Antrag nicht gefunden.");
-      }
-      if (!canDecideLeave(snap.status as LeaveStatus)) {
-        throw new Error("Antrag wurde bereits entschieden.");
-      }
-      if (data.decision === "abgelehnt") {
-        const note = (data.decision_note ?? "").trim();
-        if (note.length < 3) {
-          throw new Error("Ablehnung erfordert eine Begründung (mindestens 3 Zeichen).");
-        }
-        const { error: updErr } = await supabaseAdmin
+    return runWithPermission(
+      context.supabase,
+      "roster.leave.decide",
+      null,
+      makeAuditWriter(caller),
+      async () => {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: snap, error: snapErr } = await supabaseAdmin
           .from("leave_requests")
-          .update({
-            status: "abgelehnt",
-            decided_by_staff_id: caller.staffId,
-            decided_at: new Date().toISOString(),
-            decision_note: note,
-          })
+          .select("id, organization_id, staff_id, start_date, end_date, status")
           .eq("id", data.id)
-          .eq("organization_id", caller.organizationId);
-        if (updErr) throw updErr;
+          .maybeSingle();
+        if (snapErr) throw snapErr;
+        if (!snap || snap.organization_id !== caller.organizationId) {
+          throw new Error("Antrag nicht gefunden.");
+        }
+        if (!canDecideLeave(snap.status as LeaveStatus)) {
+          throw new Error("Antrag wurde bereits entschieden.");
+        }
+        if (data.decision === "abgelehnt") {
+          const note = (data.decision_note ?? "").trim();
+          if (note.length < 3) {
+            throw new Error("Ablehnung erfordert eine Begründung (mindestens 3 Zeichen).");
+          }
+          const { error: updErr } = await supabaseAdmin
+            .from("leave_requests")
+            .update({
+              status: "abgelehnt",
+              decided_by_staff_id: caller.staffId,
+              decided_at: new Date().toISOString(),
+              decision_note: note,
+            })
+            .eq("id", data.id)
+            .eq("organization_id", caller.organizationId);
+          if (updErr) throw updErr;
+          return {
+            result: { ok: true as const },
+            audit: {
+              action: "leave.rejected",
+              entity: "leave_request",
+              entityId: data.id,
+              meta: { reason: note, staffId: snap.staff_id },
+            },
+          };
+        }
+
+        // genehmigt → RPC expandiert roster_absence
+        const note =
+          data.decision_note && data.decision_note.trim().length > 0
+            ? data.decision_note.trim()
+            : null;
+        const { error: rpcErr } = await supabaseAdmin.rpc("approve_leave_request", {
+          p_request_id: data.id,
+          p_decided_by: caller.staffId,
+          p_note: note ?? "",
+        });
+        if (rpcErr) throw rpcErr;
+
+        const tage = countLeaveDays(snap.start_date as string, snap.end_date as string);
         return {
           result: { ok: true as const },
           audit: {
-            action: "leave.rejected",
+            action: "leave.approved",
             entity: "leave_request",
             entityId: data.id,
-            meta: { reason: note, staffId: snap.staff_id },
+            meta: {
+              staffId: snap.staff_id,
+              start: snap.start_date,
+              end: snap.end_date,
+              tage,
+            },
           },
         };
-      }
-
-      // genehmigt → RPC expandiert roster_absence
-      const note =
-        data.decision_note && data.decision_note.trim().length > 0
-          ? data.decision_note.trim()
-          : null;
-      const { error: rpcErr } = await supabaseAdmin.rpc("approve_leave_request", {
-        p_request_id: data.id,
-        p_decided_by: caller.staffId,
-        p_note: note ?? "",
-      });
-      if (rpcErr) throw rpcErr;
-
-      const tage = countLeaveDays(snap.start_date as string, snap.end_date as string);
-      return {
-        result: { ok: true as const },
-        audit: {
-          action: "leave.approved",
-          entity: "leave_request",
-          entityId: data.id,
-          meta: {
-            staffId: snap.staff_id,
-            start: snap.start_date,
-            end: snap.end_date,
-            tage,
-          },
-        },
-      };
-    });
+      },
+    );
   });

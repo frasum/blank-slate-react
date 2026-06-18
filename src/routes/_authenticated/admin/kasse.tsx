@@ -418,7 +418,9 @@ function KassePage() {
             </Select>
           </div>
           <div className="space-y-1 text-center">
-            <Label htmlFor="bd" className="block text-center">Geschäftstag</Label>
+            <Label htmlFor="bd" className="block text-center">
+              Geschäftstag
+            </Label>
             <DateSelector date={businessDate} onDateChange={setBusinessDate} />
           </div>
           {underWaterline && <Badge variant="destructive">≤ {lockedThrough} gesperrt</Badge>}
@@ -627,9 +629,7 @@ function KassePage() {
             </DialogTitle>
           </DialogHeader>
           <div className="min-h-0 flex-1 p-2">
-            {pdfPreview && (
-              <PdfCanvasPreview blob={pdfPreview.blob} />
-            )}
+            {pdfPreview && <PdfCanvasPreview blob={pdfPreview.blob} />}
           </div>
           <DialogFooter className="gap-2 border-t px-6 py-4">
             <Button variant="outline" onClick={closePdfPreview}>
@@ -1746,9 +1746,7 @@ function ExcelInputRow({
 
 function focusNextInput(current: HTMLInputElement) {
   const inputs = Array.from(
-    document.querySelectorAll<HTMLInputElement>(
-      'input:not([disabled]):not([type="hidden"])',
-    ),
+    document.querySelectorAll<HTMLInputElement>('input:not([disabled]):not([type="hidden"])'),
   ).filter((el) => el.offsetParent !== null);
   const idx = inputs.indexOf(current);
   if (idx >= 0 && idx < inputs.length - 1) {

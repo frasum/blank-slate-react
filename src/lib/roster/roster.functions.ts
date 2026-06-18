@@ -349,61 +349,67 @@ export const createRosterShift = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
-    return runWithPermission(context.supabase, "roster.shift.manage", null, makeAuditWriter(caller), async () => {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, data.shiftDate);
+    return runWithPermission(
+      context.supabase,
+      "roster.shift.manage",
+      null,
+      makeAuditWriter(caller),
+      async () => {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, data.shiftDate);
 
-      // Regel: max. EINE Einteilung pro Mitarbeiter und Tag (standort-/bereichsübergreifend).
-      const { data: existing, error: existErr } = await supabaseAdmin
-        .from("roster_shifts")
-        .select("location_id, area, locations(name)")
-        .eq("organization_id", caller.organizationId)
-        .eq("staff_id", data.staffId)
-        .eq("shift_date", data.shiftDate)
-        .limit(1)
-        .maybeSingle();
-      if (existErr) throw existErr;
-      if (existing) {
-        const locName = (existing.locations as { name: string } | null)?.name ?? "—";
-        throw new Error(
-          `Mitarbeiter ist an diesem Tag bereits eingeteilt (${locName} · ${existing.area}).`,
-        );
-      }
+        // Regel: max. EINE Einteilung pro Mitarbeiter und Tag (standort-/bereichsübergreifend).
+        const { data: existing, error: existErr } = await supabaseAdmin
+          .from("roster_shifts")
+          .select("location_id, area, locations(name)")
+          .eq("organization_id", caller.organizationId)
+          .eq("staff_id", data.staffId)
+          .eq("shift_date", data.shiftDate)
+          .limit(1)
+          .maybeSingle();
+        if (existErr) throw existErr;
+        if (existing) {
+          const locName = (existing.locations as { name: string } | null)?.name ?? "—";
+          throw new Error(
+            `Mitarbeiter ist an diesem Tag bereits eingeteilt (${locName} · ${existing.area}).`,
+          );
+        }
 
-      const { data: row, error } = await supabaseAdmin
-        .from("roster_shifts")
-        .upsert(
-          {
-            organization_id: caller.organizationId,
-            location_id: data.locationId,
-            staff_id: data.staffId,
-            shift_date: data.shiftDate,
-            area: data.area,
-            skill_id: data.skillId,
-            status: "planned",
+        const { data: row, error } = await supabaseAdmin
+          .from("roster_shifts")
+          .upsert(
+            {
+              organization_id: caller.organizationId,
+              location_id: data.locationId,
+              staff_id: data.staffId,
+              shift_date: data.shiftDate,
+              area: data.area,
+              skill_id: data.skillId,
+              status: "planned",
+            },
+            { onConflict: "staff_id,location_id,shift_date,area" },
+          )
+          .select("id")
+          .single();
+        if (error) throw error;
+
+        return {
+          result: { id: row.id as string },
+          audit: {
+            action: "roster_shift.create",
+            entity: "roster_shift",
+            entityId: row.id as string,
+            meta: {
+              locationId: data.locationId,
+              staffId: data.staffId,
+              shiftDate: data.shiftDate,
+              area: data.area,
+              skillId: data.skillId,
+            },
           },
-          { onConflict: "staff_id,location_id,shift_date,area" },
-        )
-        .select("id")
-        .single();
-      if (error) throw error;
-
-      return {
-        result: { id: row.id as string },
-        audit: {
-          action: "roster_shift.create",
-          entity: "roster_shift",
-          entityId: row.id as string,
-          meta: {
-            locationId: data.locationId,
-            staffId: data.staffId,
-            shiftDate: data.shiftDate,
-            area: data.area,
-            skillId: data.skillId,
-          },
-        },
-      };
-    });
+        };
+      },
+    );
   });
 
 export const deleteRosterShift = createServerFn({ method: "POST" })
@@ -411,46 +417,52 @@ export const deleteRosterShift = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
-    return runWithPermission(context.supabase, "roster.shift.manage", null, makeAuditWriter(caller), async () => {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: snap, error: loadErr } = await supabaseAdmin
-        .from("roster_shifts")
-        .select("*")
-        .eq("id", data.id)
-        .eq("organization_id", caller.organizationId)
-        .maybeSingle();
-      if (loadErr) throw loadErr;
-      if (!snap) throw new Error("Schicht nicht gefunden.");
+    return runWithPermission(
+      context.supabase,
+      "roster.shift.manage",
+      null,
+      makeAuditWriter(caller),
+      async () => {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: snap, error: loadErr } = await supabaseAdmin
+          .from("roster_shifts")
+          .select("*")
+          .eq("id", data.id)
+          .eq("organization_id", caller.organizationId)
+          .maybeSingle();
+        if (loadErr) throw loadErr;
+        if (!snap) throw new Error("Schicht nicht gefunden.");
 
-      await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, snap.shift_date);
+        await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, snap.shift_date);
 
-      const { error } = await supabaseAdmin
-        .from("roster_shifts")
-        .delete()
-        .eq("id", data.id)
-        .eq("organization_id", caller.organizationId);
-      if (error) throw error;
+        const { error } = await supabaseAdmin
+          .from("roster_shifts")
+          .delete()
+          .eq("id", data.id)
+          .eq("organization_id", caller.organizationId);
+        if (error) throw error;
 
-      return {
-        result: { ok: true as const },
-        audit: {
-          action: "roster_shift.delete",
-          entity: "roster_shift",
-          entityId: data.id,
-          meta: {
-            snapshot: {
-              locationId: snap.location_id,
-              staffId: snap.staff_id,
-              shiftDate: snap.shift_date,
-              area: snap.area,
-              skillId: snap.skill_id,
-              status: snap.status,
-              notes: snap.notes,
+        return {
+          result: { ok: true as const },
+          audit: {
+            action: "roster_shift.delete",
+            entity: "roster_shift",
+            entityId: data.id,
+            meta: {
+              snapshot: {
+                locationId: snap.location_id,
+                staffId: snap.staff_id,
+                shiftDate: snap.shift_date,
+                area: snap.area,
+                skillId: snap.skill_id,
+                status: snap.status,
+                notes: snap.notes,
+              },
             },
           },
-        },
-      };
-    });
+        };
+      },
+    );
   });
 
 export const updateRosterShiftStatus = createServerFn({ method: "POST" })
@@ -465,35 +477,41 @@ export const updateRosterShiftStatus = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
-    return runWithPermission(context.supabase, "roster.shift.manage", null, makeAuditWriter(caller), async () => {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: snap, error: loadErr } = await supabaseAdmin
-        .from("roster_shifts")
-        .select("shift_date, status")
-        .eq("id", data.id)
-        .eq("organization_id", caller.organizationId)
-        .maybeSingle();
-      if (loadErr) throw loadErr;
-      if (!snap) throw new Error("Schicht nicht gefunden.");
-      await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, snap.shift_date);
+    return runWithPermission(
+      context.supabase,
+      "roster.shift.manage",
+      null,
+      makeAuditWriter(caller),
+      async () => {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: snap, error: loadErr } = await supabaseAdmin
+          .from("roster_shifts")
+          .select("shift_date, status")
+          .eq("id", data.id)
+          .eq("organization_id", caller.organizationId)
+          .maybeSingle();
+        if (loadErr) throw loadErr;
+        if (!snap) throw new Error("Schicht nicht gefunden.");
+        await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, snap.shift_date);
 
-      const { error } = await supabaseAdmin
-        .from("roster_shifts")
-        .update({ status: data.status })
-        .eq("id", data.id)
-        .eq("organization_id", caller.organizationId);
-      if (error) throw error;
+        const { error } = await supabaseAdmin
+          .from("roster_shifts")
+          .update({ status: data.status })
+          .eq("id", data.id)
+          .eq("organization_id", caller.organizationId);
+        if (error) throw error;
 
-      return {
-        result: { ok: true as const },
-        audit: {
-          action: "roster_shift.status",
-          entity: "roster_shift",
-          entityId: data.id,
-          meta: { before: snap.status, after: data.status },
-        },
-      };
-    });
+        return {
+          result: { ok: true as const },
+          audit: {
+            action: "roster_shift.status",
+            entity: "roster_shift",
+            entityId: data.id,
+            meta: { before: snap.status, after: data.status },
+          },
+        };
+      },
+    );
   });
 
 export const updateRosterShiftSkill = createServerFn({ method: "POST" })
@@ -508,35 +526,41 @@ export const updateRosterShiftSkill = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
-    return runWithPermission(context.supabase, "roster.shift.manage", null, makeAuditWriter(caller), async () => {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: snap, error: loadErr } = await supabaseAdmin
-        .from("roster_shifts")
-        .select("shift_date, skill_id")
-        .eq("id", data.id)
-        .eq("organization_id", caller.organizationId)
-        .maybeSingle();
-      if (loadErr) throw loadErr;
-      if (!snap) throw new Error("Schicht nicht gefunden.");
-      await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, snap.shift_date);
+    return runWithPermission(
+      context.supabase,
+      "roster.shift.manage",
+      null,
+      makeAuditWriter(caller),
+      async () => {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: snap, error: loadErr } = await supabaseAdmin
+          .from("roster_shifts")
+          .select("shift_date, skill_id")
+          .eq("id", data.id)
+          .eq("organization_id", caller.organizationId)
+          .maybeSingle();
+        if (loadErr) throw loadErr;
+        if (!snap) throw new Error("Schicht nicht gefunden.");
+        await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, snap.shift_date);
 
-      const { error } = await supabaseAdmin
-        .from("roster_shifts")
-        .update({ skill_id: data.skillId })
-        .eq("id", data.id)
-        .eq("organization_id", caller.organizationId);
-      if (error) throw error;
+        const { error } = await supabaseAdmin
+          .from("roster_shifts")
+          .update({ skill_id: data.skillId })
+          .eq("id", data.id)
+          .eq("organization_id", caller.organizationId);
+        if (error) throw error;
 
-      return {
-        result: { ok: true as const },
-        audit: {
-          action: "roster_shift.skill",
-          entity: "roster_shift",
-          entityId: data.id,
-          meta: { before: snap.skill_id, after: data.skillId },
-        },
-      };
-    });
+        return {
+          result: { ok: true as const },
+          audit: {
+            action: "roster_shift.skill",
+            entity: "roster_shift",
+            entityId: data.id,
+            meta: { before: snap.skill_id, after: data.skillId },
+          },
+        };
+      },
+    );
   });
 
 // D2f — Schicht verschieben (Drag & Drop). Lock-Check auf BEIDEN Daten.
@@ -556,106 +580,112 @@ export const moveRosterShift = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
-    return runWithPermission(context.supabase, "roster.shift.manage", null, makeAuditWriter(caller), async () => {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: snap, error: loadErr } = await supabaseAdmin
-        .from("roster_shifts")
-        .select("location_id, staff_id, shift_date, area, skill_id, status")
-        .eq("id", data.id)
-        .eq("organization_id", caller.organizationId)
-        .maybeSingle();
-      if (loadErr) throw loadErr;
-      if (!snap) throw new Error("Schicht nicht gefunden.");
+    return runWithPermission(
+      context.supabase,
+      "roster.shift.manage",
+      null,
+      makeAuditWriter(caller),
+      async () => {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: snap, error: loadErr } = await supabaseAdmin
+          .from("roster_shifts")
+          .select("location_id, staff_id, shift_date, area, skill_id, status")
+          .eq("id", data.id)
+          .eq("organization_id", caller.organizationId)
+          .maybeSingle();
+        if (loadErr) throw loadErr;
+        if (!snap) throw new Error("Schicht nicht gefunden.");
 
-      // No-op guard: nichts ändert sich.
-      if (
-        snap.staff_id === data.staffId &&
-        snap.shift_date === data.shiftDate &&
-        snap.area === data.area
-      ) {
+        // No-op guard: nichts ändert sich.
+        if (
+          snap.staff_id === data.staffId &&
+          snap.shift_date === data.shiftDate &&
+          snap.area === data.area
+        ) {
+          return {
+            result: { ok: true as const },
+            audit: {
+              action: "roster_shift.move",
+              entity: "roster_shift",
+              entityId: data.id,
+              meta: { noop: true },
+            },
+          };
+        }
+
+        // Lock-Check auf alte UND neue shift_date.
+        await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, snap.shift_date);
+        if (snap.shift_date !== data.shiftDate) {
+          await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, data.shiftDate);
+        }
+
+        // Konflikt-Pre-Check auf Zielzelle.
+        const { data: clash, error: clashErr } = await supabaseAdmin
+          .from("roster_shifts")
+          .select("id")
+          .eq("organization_id", caller.organizationId)
+          .eq("location_id", snap.location_id)
+          .eq("staff_id", data.staffId)
+          .eq("shift_date", data.shiftDate)
+          .eq("area", data.area)
+          .neq("id", data.id)
+          .maybeSingle();
+        if (clashErr) throw clashErr;
+        if (clash) {
+          throw new Error("Mitarbeiter ist an diesem Tag in diesem Bereich bereits eingeteilt.");
+        }
+
+        // Regel: max. EINE Einteilung pro Mitarbeiter und Tag — auch an anderem Standort/Bereich.
+        const { data: elsewhere, error: elseErr } = await supabaseAdmin
+          .from("roster_shifts")
+          .select("location_id, area, locations(name)")
+          .eq("organization_id", caller.organizationId)
+          .eq("staff_id", data.staffId)
+          .eq("shift_date", data.shiftDate)
+          .neq("id", data.id)
+          .limit(1)
+          .maybeSingle();
+        if (elseErr) throw elseErr;
+        if (elsewhere) {
+          const locName = (elsewhere.locations as { name: string } | null)?.name ?? "—";
+          throw new Error(
+            `Mitarbeiter ist an diesem Tag bereits eingeteilt (${locName} · ${elsewhere.area}).`,
+          );
+        }
+
+        const { error } = await supabaseAdmin
+          .from("roster_shifts")
+          .update({
+            staff_id: data.staffId,
+            shift_date: data.shiftDate,
+            area: data.area,
+          })
+          .eq("id", data.id)
+          .eq("organization_id", caller.organizationId);
+        if (error) throw error;
+
         return {
           result: { ok: true as const },
           audit: {
             action: "roster_shift.move",
             entity: "roster_shift",
             entityId: data.id,
-            meta: { noop: true },
+            meta: {
+              before: {
+                staffId: snap.staff_id,
+                shiftDate: snap.shift_date,
+                area: snap.area,
+              },
+              after: {
+                staffId: data.staffId,
+                shiftDate: data.shiftDate,
+                area: data.area,
+              },
+            },
           },
         };
-      }
-
-      // Lock-Check auf alte UND neue shift_date.
-      await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, snap.shift_date);
-      if (snap.shift_date !== data.shiftDate) {
-        await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, data.shiftDate);
-      }
-
-      // Konflikt-Pre-Check auf Zielzelle.
-      const { data: clash, error: clashErr } = await supabaseAdmin
-        .from("roster_shifts")
-        .select("id")
-        .eq("organization_id", caller.organizationId)
-        .eq("location_id", snap.location_id)
-        .eq("staff_id", data.staffId)
-        .eq("shift_date", data.shiftDate)
-        .eq("area", data.area)
-        .neq("id", data.id)
-        .maybeSingle();
-      if (clashErr) throw clashErr;
-      if (clash) {
-        throw new Error("Mitarbeiter ist an diesem Tag in diesem Bereich bereits eingeteilt.");
-      }
-
-      // Regel: max. EINE Einteilung pro Mitarbeiter und Tag — auch an anderem Standort/Bereich.
-      const { data: elsewhere, error: elseErr } = await supabaseAdmin
-        .from("roster_shifts")
-        .select("location_id, area, locations(name)")
-        .eq("organization_id", caller.organizationId)
-        .eq("staff_id", data.staffId)
-        .eq("shift_date", data.shiftDate)
-        .neq("id", data.id)
-        .limit(1)
-        .maybeSingle();
-      if (elseErr) throw elseErr;
-      if (elsewhere) {
-        const locName = (elsewhere.locations as { name: string } | null)?.name ?? "—";
-        throw new Error(
-          `Mitarbeiter ist an diesem Tag bereits eingeteilt (${locName} · ${elsewhere.area}).`,
-        );
-      }
-
-      const { error } = await supabaseAdmin
-        .from("roster_shifts")
-        .update({
-          staff_id: data.staffId,
-          shift_date: data.shiftDate,
-          area: data.area,
-        })
-        .eq("id", data.id)
-        .eq("organization_id", caller.organizationId);
-      if (error) throw error;
-
-      return {
-        result: { ok: true as const },
-        audit: {
-          action: "roster_shift.move",
-          entity: "roster_shift",
-          entityId: data.id,
-          meta: {
-            before: {
-              staffId: snap.staff_id,
-              shiftDate: snap.shift_date,
-              area: snap.area,
-            },
-            after: {
-              staffId: data.staffId,
-              shiftDate: data.shiftDate,
-              area: data.area,
-            },
-          },
-        },
-      };
-    });
+      },
+    );
   });
 
 // =========================================================================
@@ -700,27 +730,33 @@ export const setUnavailable = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
-    return runWithPermission(context.supabase, "roster.availability.manage_all", null, makeAuditWriter(caller), async () => {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { error } = await supabaseAdmin.from("roster_availability").upsert(
-        {
-          organization_id: caller.organizationId,
-          staff_id: data.staffId,
-          date: data.date,
-          type: "unavailable",
-        },
-        { onConflict: "staff_id,date", ignoreDuplicates: true },
-      );
-      if (error) throw error;
-      return {
-        result: { ok: true as const },
-        audit: {
-          action: "roster_availability.set",
-          entity: "roster_availability",
-          meta: { staffId: data.staffId, date: data.date, type: "unavailable" },
-        },
-      };
-    });
+    return runWithPermission(
+      context.supabase,
+      "roster.availability.manage_all",
+      null,
+      makeAuditWriter(caller),
+      async () => {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { error } = await supabaseAdmin.from("roster_availability").upsert(
+          {
+            organization_id: caller.organizationId,
+            staff_id: data.staffId,
+            date: data.date,
+            type: "unavailable",
+          },
+          { onConflict: "staff_id,date", ignoreDuplicates: true },
+        );
+        if (error) throw error;
+        return {
+          result: { ok: true as const },
+          audit: {
+            action: "roster_availability.set",
+            entity: "roster_availability",
+            meta: { staffId: data.staffId, date: data.date, type: "unavailable" },
+          },
+        };
+      },
+    );
   });
 
 export const clearUnavailable = createServerFn({ method: "POST" })
@@ -735,24 +771,30 @@ export const clearUnavailable = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
-    return runWithPermission(context.supabase, "roster.availability.manage_all", null, makeAuditWriter(caller), async () => {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { error } = await supabaseAdmin
-        .from("roster_availability")
-        .delete()
-        .eq("organization_id", caller.organizationId)
-        .eq("staff_id", data.staffId)
-        .eq("date", data.date);
-      if (error) throw error;
-      return {
-        result: { ok: true as const },
-        audit: {
-          action: "roster_availability.clear",
-          entity: "roster_availability",
-          meta: { staffId: data.staffId, date: data.date },
-        },
-      };
-    });
+    return runWithPermission(
+      context.supabase,
+      "roster.availability.manage_all",
+      null,
+      makeAuditWriter(caller),
+      async () => {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { error } = await supabaseAdmin
+          .from("roster_availability")
+          .delete()
+          .eq("organization_id", caller.organizationId)
+          .eq("staff_id", data.staffId)
+          .eq("date", data.date);
+        if (error) throw error;
+        return {
+          result: { ok: true as const },
+          audit: {
+            action: "roster_availability.clear",
+            entity: "roster_availability",
+            meta: { staffId: data.staffId, date: data.date },
+          },
+        };
+      },
+    );
   });
 
 // =========================================================================
@@ -799,27 +841,33 @@ export const setAbsence = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
-    return runWithPermission(context.supabase, "roster.absence.manage", null, makeAuditWriter(caller), async () => {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { error } = await supabaseAdmin.from("roster_absence").upsert(
-        {
-          organization_id: caller.organizationId,
-          staff_id: data.staffId,
-          date: data.date,
-          type: data.type,
-        },
-        { onConflict: "staff_id,date" },
-      );
-      if (error) throw error;
-      return {
-        result: { ok: true as const },
-        audit: {
-          action: "roster_absence.set",
-          entity: "roster_absence",
-          meta: { staffId: data.staffId, date: data.date, type: data.type },
-        },
-      };
-    });
+    return runWithPermission(
+      context.supabase,
+      "roster.absence.manage",
+      null,
+      makeAuditWriter(caller),
+      async () => {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { error } = await supabaseAdmin.from("roster_absence").upsert(
+          {
+            organization_id: caller.organizationId,
+            staff_id: data.staffId,
+            date: data.date,
+            type: data.type,
+          },
+          { onConflict: "staff_id,date" },
+        );
+        if (error) throw error;
+        return {
+          result: { ok: true as const },
+          audit: {
+            action: "roster_absence.set",
+            entity: "roster_absence",
+            meta: { staffId: data.staffId, date: data.date, type: data.type },
+          },
+        };
+      },
+    );
   });
 
 export const clearAbsence = createServerFn({ method: "POST" })
@@ -834,24 +882,30 @@ export const clearAbsence = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
-    return runWithPermission(context.supabase, "roster.absence.manage", null, makeAuditWriter(caller), async () => {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { error } = await supabaseAdmin
-        .from("roster_absence")
-        .delete()
-        .eq("organization_id", caller.organizationId)
-        .eq("staff_id", data.staffId)
-        .eq("date", data.date);
-      if (error) throw error;
-      return {
-        result: { ok: true as const },
-        audit: {
-          action: "roster_absence.clear",
-          entity: "roster_absence",
-          meta: { staffId: data.staffId, date: data.date },
-        },
-      };
-    });
+    return runWithPermission(
+      context.supabase,
+      "roster.absence.manage",
+      null,
+      makeAuditWriter(caller),
+      async () => {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { error } = await supabaseAdmin
+          .from("roster_absence")
+          .delete()
+          .eq("organization_id", caller.organizationId)
+          .eq("staff_id", data.staffId)
+          .eq("date", data.date);
+        if (error) throw error;
+        return {
+          result: { ok: true as const },
+          audit: {
+            action: "roster_absence.clear",
+            entity: "roster_absence",
+            meta: { staffId: data.staffId, date: data.date },
+          },
+        };
+      },
+    );
   });
 
 function expandDateRange(fromIso: string, toIso: string): string[] {
@@ -879,50 +933,56 @@ export const setAbsenceRange = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
-    return runWithPermission(context.supabase, "roster.absence.manage", null, makeAuditWriter(caller), async () => {
-      const days = expandDateRange(data.fromDate, data.toDate);
-      if (days.length > 92) {
-        throw new Error("Zeitraum darf maximal 92 Tage umfassen.");
-      }
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const rows = days.map((d) => ({
-        organization_id: caller.organizationId,
-        staff_id: data.staffId,
-        date: d,
-        type: data.type,
-      }));
-      const { error: upErr } = await supabaseAdmin
-        .from("roster_absence")
-        .upsert(rows, { onConflict: "staff_id,date" });
-      if (upErr) throw upErr;
+    return runWithPermission(
+      context.supabase,
+      "roster.absence.manage",
+      null,
+      makeAuditWriter(caller),
+      async () => {
+        const days = expandDateRange(data.fromDate, data.toDate);
+        if (days.length > 92) {
+          throw new Error("Zeitraum darf maximal 92 Tage umfassen.");
+        }
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const rows = days.map((d) => ({
+          organization_id: caller.organizationId,
+          staff_id: data.staffId,
+          date: d,
+          type: data.type,
+        }));
+        const { error: upErr } = await supabaseAdmin
+          .from("roster_absence")
+          .upsert(rows, { onConflict: "staff_id,date" });
+        if (upErr) throw upErr;
 
-      const { data: deleted, error: delErr } = await supabaseAdmin
-        .from("roster_shifts")
-        .delete()
-        .eq("organization_id", caller.organizationId)
-        .eq("staff_id", data.staffId)
-        .gte("shift_date", data.fromDate)
-        .lte("shift_date", data.toDate)
-        .select("id");
-      if (delErr) throw delErr;
-      const deletedShiftCount = deleted?.length ?? 0;
+        const { data: deleted, error: delErr } = await supabaseAdmin
+          .from("roster_shifts")
+          .delete()
+          .eq("organization_id", caller.organizationId)
+          .eq("staff_id", data.staffId)
+          .gte("shift_date", data.fromDate)
+          .lte("shift_date", data.toDate)
+          .select("id");
+        if (delErr) throw delErr;
+        const deletedShiftCount = deleted?.length ?? 0;
 
-      return {
-        result: { ok: true as const, daysCount: days.length, deletedShiftCount },
-        audit: {
-          action: "roster_absence.set_range",
-          entity: "roster_absence",
-          meta: {
-            staffId: data.staffId,
-            fromDate: data.fromDate,
-            toDate: data.toDate,
-            type: data.type,
-            daysCount: days.length,
-            deletedShiftCount,
+        return {
+          result: { ok: true as const, daysCount: days.length, deletedShiftCount },
+          audit: {
+            action: "roster_absence.set_range",
+            entity: "roster_absence",
+            meta: {
+              staffId: data.staffId,
+              fromDate: data.fromDate,
+              toDate: data.toDate,
+              type: data.type,
+              daysCount: days.length,
+              deletedShiftCount,
+            },
           },
-        },
-      };
-    });
+        };
+      },
+    );
   });
 
 // =========================================================================

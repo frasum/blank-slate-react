@@ -226,35 +226,35 @@ export const upsertPayrollNote = createServerFn({ method: "POST" })
       data.locationId,
       makeAuditWriter(caller),
       async () => {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { error } = await supabaseAdmin.from("payroll_notes").upsert(
-        {
-          organization_id: caller.organizationId,
-          staff_id: data.staffId,
-          location_id: data.locationId,
-          period_start: data.periodStart,
-          period_end: data.periodEnd,
-          vorschuss: data.vorschuss,
-          besonderheiten: data.besonderheiten,
-        },
-        { onConflict: "staff_id,location_id,period_start,period_end" },
-      );
-      if (error) throw error;
-      return {
-        result: { ok: true as const },
-        audit: {
-          action: "payroll_note.upsert",
-          entity: "payroll_note",
-          meta: {
-            staffId: data.staffId,
-            locationId: data.locationId,
-            periodStart: data.periodStart,
-            periodEnd: data.periodEnd,
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { error } = await supabaseAdmin.from("payroll_notes").upsert(
+          {
+            organization_id: caller.organizationId,
+            staff_id: data.staffId,
+            location_id: data.locationId,
+            period_start: data.periodStart,
+            period_end: data.periodEnd,
             vorschuss: data.vorschuss,
             besonderheiten: data.besonderheiten,
           },
-        },
-      };
+          { onConflict: "staff_id,location_id,period_start,period_end" },
+        );
+        if (error) throw error;
+        return {
+          result: { ok: true as const },
+          audit: {
+            action: "payroll_note.upsert",
+            entity: "payroll_note",
+            meta: {
+              staffId: data.staffId,
+              locationId: data.locationId,
+              periodStart: data.periodStart,
+              periodEnd: data.periodEnd,
+              vorschuss: data.vorschuss,
+              besonderheiten: data.besonderheiten,
+            },
+          },
+        };
       },
     );
   });
@@ -379,47 +379,51 @@ export const setTimeEntryShift = createServerFn({ method: "POST" })
       before.location_id,
       makeAuditWriter(caller),
       async () => {
-      if (new Date(data.endedAt).getTime() <= new Date(data.startedAt).getTime()) {
-        throw new Error("Ende muss nach dem Beginn liegen.");
-      }
-      const newBusinessDate = businessDateOf(new Date(data.startedAt));
-      await assertBusinessDateUnlocked(supabaseAdmin, caller.organizationId, before.business_date);
-      if (newBusinessDate !== before.business_date) {
-        await assertBusinessDateUnlocked(supabaseAdmin, caller.organizationId, newBusinessDate);
-      }
+        if (new Date(data.endedAt).getTime() <= new Date(data.startedAt).getTime()) {
+          throw new Error("Ende muss nach dem Beginn liegen.");
+        }
+        const newBusinessDate = businessDateOf(new Date(data.startedAt));
+        await assertBusinessDateUnlocked(
+          supabaseAdmin,
+          caller.organizationId,
+          before.business_date,
+        );
+        if (newBusinessDate !== before.business_date) {
+          await assertBusinessDateUnlocked(supabaseAdmin, caller.organizationId, newBusinessDate);
+        }
 
-      const { error } = await supabaseAdmin
-        .from("time_entries")
-        .update({
-          started_at: data.startedAt,
-          ended_at: data.endedAt,
-          business_date: newBusinessDate,
-        })
-        .eq("id", data.id)
-        .eq("organization_id", caller.organizationId);
-      if (error) throw error;
+        const { error } = await supabaseAdmin
+          .from("time_entries")
+          .update({
+            started_at: data.startedAt,
+            ended_at: data.endedAt,
+            business_date: newBusinessDate,
+          })
+          .eq("id", data.id)
+          .eq("organization_id", caller.organizationId);
+        if (error) throw error;
 
-      return {
-        result: { ok: true as const },
-        audit: {
-          action: "time_entry.shift_update",
-          entity: "time_entry",
-          entityId: data.id,
-          meta: {
-            reason: "Wochenplan inline edit",
-            before: {
-              startedAt: before.started_at,
-              endedAt: before.ended_at,
-              businessDate: before.business_date,
-            },
-            after: {
-              startedAt: data.startedAt,
-              endedAt: data.endedAt,
-              businessDate: newBusinessDate,
+        return {
+          result: { ok: true as const },
+          audit: {
+            action: "time_entry.shift_update",
+            entity: "time_entry",
+            entityId: data.id,
+            meta: {
+              reason: "Wochenplan inline edit",
+              before: {
+                startedAt: before.started_at,
+                endedAt: before.ended_at,
+                businessDate: before.business_date,
+              },
+              after: {
+                startedAt: data.startedAt,
+                endedAt: data.endedAt,
+                businessDate: newBusinessDate,
+              },
             },
           },
-        },
-      };
+        };
       },
     );
   });
@@ -444,54 +448,54 @@ export const createTimeEntryShift = createServerFn({ method: "POST" })
       data.locationId,
       makeAuditWriter(caller),
       async () => {
-      if (new Date(data.endedAt).getTime() <= new Date(data.startedAt).getTime()) {
-        throw new Error("Ende muss nach dem Beginn liegen.");
-      }
-      const businessDate = businessDateOf(new Date(data.startedAt));
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      await assertBusinessDateUnlocked(supabaseAdmin, caller.organizationId, businessDate);
+        if (new Date(data.endedAt).getTime() <= new Date(data.startedAt).getTime()) {
+          throw new Error("Ende muss nach dem Beginn liegen.");
+        }
+        const businessDate = businessDateOf(new Date(data.startedAt));
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        await assertBusinessDateUnlocked(supabaseAdmin, caller.organizationId, businessDate);
 
-      const { data: staff, error: sErr } = await supabaseAdmin
-        .from("staff")
-        .select("id")
-        .eq("id", data.staffId)
-        .eq("organization_id", caller.organizationId)
-        .maybeSingle();
-      if (sErr) throw sErr;
-      if (!staff) throw new Error("Mitarbeiter nicht in dieser Organisation.");
+        const { data: staff, error: sErr } = await supabaseAdmin
+          .from("staff")
+          .select("id")
+          .eq("id", data.staffId)
+          .eq("organization_id", caller.organizationId)
+          .maybeSingle();
+        if (sErr) throw sErr;
+        if (!staff) throw new Error("Mitarbeiter nicht in dieser Organisation.");
 
-      const { data: created, error } = await supabaseAdmin
-        .from("time_entries")
-        .insert({
-          organization_id: caller.organizationId,
-          staff_id: data.staffId,
-          location_id: data.locationId,
-          started_at: data.startedAt,
-          ended_at: data.endedAt,
-          business_date: businessDate,
-          break_minutes: 0,
-          source: "manual",
-        })
-        .select("id")
-        .single();
-      if (error) throw error;
+        const { data: created, error } = await supabaseAdmin
+          .from("time_entries")
+          .insert({
+            organization_id: caller.organizationId,
+            staff_id: data.staffId,
+            location_id: data.locationId,
+            started_at: data.startedAt,
+            ended_at: data.endedAt,
+            business_date: businessDate,
+            break_minutes: 0,
+            source: "manual",
+          })
+          .select("id")
+          .single();
+        if (error) throw error;
 
-      return {
-        result: { id: created.id },
-        audit: {
-          action: "time_entry.shift_create",
-          entity: "time_entry",
-          entityId: created.id,
-          meta: {
-            reason: "Wochenplan inline create",
-            staffId: data.staffId,
-            locationId: data.locationId,
-            businessDate,
-            startedAt: data.startedAt,
-            endedAt: data.endedAt,
+        return {
+          result: { id: created.id },
+          audit: {
+            action: "time_entry.shift_create",
+            entity: "time_entry",
+            entityId: created.id,
+            meta: {
+              reason: "Wochenplan inline create",
+              staffId: data.staffId,
+              locationId: data.locationId,
+              businessDate,
+              startedAt: data.startedAt,
+              endedAt: data.endedAt,
+            },
           },
-        },
-      };
+        };
       },
     );
   });
@@ -543,44 +547,44 @@ export const createPeriod = createServerFn({ method: "POST" })
       null,
       makeAuditWriter(caller),
       async () => {
-      if (data.endDate < data.startDate) {
-        throw new Error("Enddatum muss ≥ Startdatum sein.");
-      }
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      // Overlap-Check
-      const { data: overlap, error: oErr } = await supabaseAdmin
-        .from("periods")
-        .select("id, label, start_date, end_date")
-        .eq("organization_id", caller.organizationId)
-        .lte("start_date", data.endDate)
-        .gte("end_date", data.startDate)
-        .limit(1);
-      if (oErr) throw oErr;
-      if (overlap && overlap.length > 0) {
-        throw new Error(
-          `Überschneidet sich mit „${overlap[0].label}" (${overlap[0].start_date}–${overlap[0].end_date}).`,
-        );
-      }
-      const { data: created, error } = await supabaseAdmin
-        .from("periods")
-        .insert({
-          organization_id: caller.organizationId,
-          label: data.label,
-          start_date: data.startDate,
-          end_date: data.endDate,
-        })
-        .select("id")
-        .single();
-      if (error) throw error;
-      return {
-        result: { id: created.id as string },
-        audit: {
-          action: "period.create",
-          entity: "period",
-          entityId: created.id as string,
-          meta: { label: data.label, startDate: data.startDate, endDate: data.endDate },
-        },
-      };
+        if (data.endDate < data.startDate) {
+          throw new Error("Enddatum muss ≥ Startdatum sein.");
+        }
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        // Overlap-Check
+        const { data: overlap, error: oErr } = await supabaseAdmin
+          .from("periods")
+          .select("id, label, start_date, end_date")
+          .eq("organization_id", caller.organizationId)
+          .lte("start_date", data.endDate)
+          .gte("end_date", data.startDate)
+          .limit(1);
+        if (oErr) throw oErr;
+        if (overlap && overlap.length > 0) {
+          throw new Error(
+            `Überschneidet sich mit „${overlap[0].label}" (${overlap[0].start_date}–${overlap[0].end_date}).`,
+          );
+        }
+        const { data: created, error } = await supabaseAdmin
+          .from("periods")
+          .insert({
+            organization_id: caller.organizationId,
+            label: data.label,
+            start_date: data.startDate,
+            end_date: data.endDate,
+          })
+          .select("id")
+          .single();
+        if (error) throw error;
+        return {
+          result: { id: created.id as string },
+          audit: {
+            action: "period.create",
+            entity: "period",
+            entityId: created.id as string,
+            meta: { label: data.label, startDate: data.startDate, endDate: data.endDate },
+          },
+        };
       },
     );
   });
@@ -596,31 +600,31 @@ export const togglePeriodLock = createServerFn({ method: "POST" })
       null,
       makeAuditWriter(caller),
       async () => {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: row, error: loadErr } = await supabaseAdmin
-        .from("periods")
-        .select("id, status, label")
-        .eq("id", data.id)
-        .eq("organization_id", caller.organizationId)
-        .maybeSingle();
-      if (loadErr) throw loadErr;
-      if (!row) throw new Error("Periode nicht gefunden.");
-      const next = row.status === "locked" ? "open" : "locked";
-      const { error } = await supabaseAdmin
-        .from("periods")
-        .update({ status: next })
-        .eq("id", data.id)
-        .eq("organization_id", caller.organizationId);
-      if (error) throw error;
-      return {
-        result: { id: data.id, status: next as "open" | "locked" },
-        audit: {
-          action: next === "locked" ? "period.lock" : "period.unlock",
-          entity: "period",
-          entityId: data.id,
-          meta: { label: row.label, before: row.status, after: next },
-        },
-      };
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: row, error: loadErr } = await supabaseAdmin
+          .from("periods")
+          .select("id, status, label")
+          .eq("id", data.id)
+          .eq("organization_id", caller.organizationId)
+          .maybeSingle();
+        if (loadErr) throw loadErr;
+        if (!row) throw new Error("Periode nicht gefunden.");
+        const next = row.status === "locked" ? "open" : "locked";
+        const { error } = await supabaseAdmin
+          .from("periods")
+          .update({ status: next })
+          .eq("id", data.id)
+          .eq("organization_id", caller.organizationId);
+        if (error) throw error;
+        return {
+          result: { id: data.id, status: next as "open" | "locked" },
+          audit: {
+            action: next === "locked" ? "period.lock" : "period.unlock",
+            entity: "period",
+            entityId: data.id,
+            meta: { label: row.label, before: row.status, after: next },
+          },
+        };
       },
     );
   });
@@ -636,37 +640,37 @@ export const deletePeriod = createServerFn({ method: "POST" })
       null,
       makeAuditWriter(caller),
       async () => {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: row, error: loadErr } = await supabaseAdmin
-        .from("periods")
-        .select("id, status, label, start_date, end_date")
-        .eq("id", data.id)
-        .eq("organization_id", caller.organizationId)
-        .maybeSingle();
-      if (loadErr) throw loadErr;
-      if (!row) throw new Error("Periode nicht gefunden.");
-      if (row.status !== "open") {
-        throw new Error("Nur offene Perioden können gelöscht werden.");
-      }
-      const { error } = await supabaseAdmin
-        .from("periods")
-        .delete()
-        .eq("id", data.id)
-        .eq("organization_id", caller.organizationId);
-      if (error) throw error;
-      return {
-        result: { ok: true as const },
-        audit: {
-          action: "period.delete",
-          entity: "period",
-          entityId: data.id,
-          meta: {
-            label: row.label,
-            startDate: row.start_date,
-            endDate: row.end_date,
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: row, error: loadErr } = await supabaseAdmin
+          .from("periods")
+          .select("id, status, label, start_date, end_date")
+          .eq("id", data.id)
+          .eq("organization_id", caller.organizationId)
+          .maybeSingle();
+        if (loadErr) throw loadErr;
+        if (!row) throw new Error("Periode nicht gefunden.");
+        if (row.status !== "open") {
+          throw new Error("Nur offene Perioden können gelöscht werden.");
+        }
+        const { error } = await supabaseAdmin
+          .from("periods")
+          .delete()
+          .eq("id", data.id)
+          .eq("organization_id", caller.organizationId);
+        if (error) throw error;
+        return {
+          result: { ok: true as const },
+          audit: {
+            action: "period.delete",
+            entity: "period",
+            entityId: data.id,
+            meta: {
+              label: row.label,
+              startDate: row.start_date,
+              endDate: row.end_date,
+            },
           },
-        },
-      };
+        };
       },
     );
   });

@@ -42,9 +42,7 @@ export const listStaffForImpersonation = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // Aktive Mitarbeiter der Org des Admins.
-    const { data: orgRow, error: orgErr } = await context.supabase.rpc(
-      "current_organization_id",
-    );
+    const { data: orgRow, error: orgErr } = await context.supabase.rpc("current_organization_id");
     if (orgErr) throw new Error(`org lookup failed: ${orgErr.message}`);
     const orgId = orgRow as string | null;
     if (!orgId) return [];
@@ -82,8 +80,8 @@ export const listStaffForImpersonation = createServerFn({ method: "GET" })
       .map((s) => {
         const userId = linkByStaff.get(s.id) ?? null;
         const displayName =
-          (s.display_name?.trim() ||
-            [s.first_name, s.last_name].filter(Boolean).join(" ").trim()) ||
+          s.display_name?.trim() ||
+          [s.first_name, s.last_name].filter(Boolean).join(" ").trim() ||
           s.id.slice(0, 8);
         return {
           staffId: s.id,
@@ -115,8 +113,8 @@ export const getImpersonationStatus = createServerFn({ method: "GET" })
       .eq("id", data.target_staff_id)
       .maybeSingle();
     const displayName =
-      (staff?.display_name?.trim() ||
-        [staff?.first_name, staff?.last_name].filter(Boolean).join(" ").trim()) ||
+      staff?.display_name?.trim() ||
+      [staff?.first_name, staff?.last_name].filter(Boolean).join(" ").trim() ||
       data.target_staff_id.slice(0, 8);
 
     return {
@@ -139,9 +137,7 @@ export const startImpersonation = createServerFn({ method: "POST" })
     await assertRealAdmin(context.supabase as never);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: orgRow, error: orgErr } = await context.supabase.rpc(
-      "current_organization_id",
-    );
+    const { data: orgRow, error: orgErr } = await context.supabase.rpc("current_organization_id");
     if (orgErr) throw new Error(`org lookup failed: ${orgErr.message}`);
     const orgId = orgRow as string | null;
     if (!orgId) throw new Error("Keine Organisation gefunden.");
@@ -153,7 +149,8 @@ export const startImpersonation = createServerFn({ method: "POST" })
       .eq("id", data.staffId)
       .maybeSingle();
     if (staffErr || !staff) throw new Error("Mitarbeiter nicht gefunden.");
-    if (staff.organization_id !== orgId) throw new Error("Mitarbeiter gehört nicht zur Organisation.");
+    if (staff.organization_id !== orgId)
+      throw new Error("Mitarbeiter gehört nicht zur Organisation.");
 
     const { data: link } = await supabaseAdmin
       .from("user_links")
@@ -183,7 +180,8 @@ export const startImpersonation = createServerFn({ method: "POST" })
       })
       .select("id")
       .single();
-    if (insErr || !inserted) throw new Error(`impersonation insert failed: ${insErr?.message ?? "unknown"}`);
+    if (insErr || !inserted)
+      throw new Error(`impersonation insert failed: ${insErr?.message ?? "unknown"}`);
 
     await writeAuditLog({
       organizationId: orgId,

@@ -506,9 +506,7 @@ function SkillsTab({ staffId, isAdmin }: { staffId: string; isAdmin: boolean }) 
                       else next.add(sk.id);
                       setSelected(next);
                     }}
-                    onColorChange={(color) =>
-                      colorMutation.mutate({ skillId: sk.id, color })
-                    }
+                    onColorChange={(color) => colorMutation.mutate({ skillId: sk.id, color })}
                   />
                 );
               })}
@@ -799,8 +797,8 @@ function AccountTab({ staffId, staffEmail }: { staffId: string; staffEmail: stri
           }}
         >
           <p className="text-sm text-muted-foreground">
-            Dieser Mitarbeiter hat noch kein Konto. Bei Mitarbeitern ohne eigene E-Mail
-            kann eine Pseudo-Adresse vergeben werden (z. B. <code>vorname@coco.local</code>).
+            Dieser Mitarbeiter hat noch kein Konto. Bei Mitarbeitern ohne eigene E-Mail kann eine
+            Pseudo-Adresse vergeben werden (z. B. <code>vorname@coco.local</code>).
           </p>
           <label className="block space-y-1">
             <span className="text-xs font-medium text-muted-foreground">Login-E-Mail</span>
