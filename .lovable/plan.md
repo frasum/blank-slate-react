@@ -1,33 +1,48 @@
-## Ziel
+# Buchhaltung-Tab: §3b-Detailspalten + PDF/Excel-Export
 
-Mitarbeiterin **Viktoria Schaffer** (Rolle `payroll`) in Organisation `77838674-26c1-40dd-9b74-eb1041e79b95` anlegen — mit Login `viktoria.schaffer@etl.de`, PIN `4711`, **ohne** Location-Zuweisung (somit unsichtbar in Dienstplan und Arbeitszeit). Reine Datenoperation, kein Code-Commit.
+Verstanden — Perioden-Tab (B7) und Daten-Aggregation existieren bereits. **Kein Neubau**, nur additive Erweiterung des bestehenden `payroll`-Tabs in `src/routes/_authenticated/admin/zeit-uebersicht.tsx`.
 
-## Code-Realität (geprüft)
+## Nicht angefasst
 
-- `getStaffForRoster` joint `staff_locations` → ohne Eintrag keine Roster-Zeile.
-- `getTimeOverview` listet nur Mitarbeiter mit `time_entries` an der Location.
-- Rollen-Resolving liest **ein** `role_assignments`-Row → ein `payroll`-Assignment reicht.
-- `staff.participates_in_pool` hat DB-Default `true` → muss für Lohnbüro explizit auf `false`.
+- `periods`-Tab und `togglePeriodLock`
+- `getTimeOverview`, `upsertPayrollNote`, `computeShiftHours`, `shift-hours.ts`, `holiday-rate.ts`, `sfn-geld.ts`, `sfn-rates.ts`
+- Tabs `brutto-netto` und `provision`
+- Keine neue Server-Function, keine Migration, kein `bun add xlsx`, keine zweite Feiertagsliste
 
-Kein Code-Filter auf Rolle `payroll` wird hinzugefügt.
+## Aufgaben
 
-## Schritte
+### 1) §3b-Toggle in der Buchhaltung-Toolbar
+Toggle „Einfach / §3b" mit Kurzerklärtext (Layout-Vorlage Legacy `ZtBuchhaltung.tsx`). Steuert Sichtbarkeit der §3b-Spalten. Monatsauswahl/Standort-Pills bleiben.
 
-1. **`public.staff` Insert** mit `first_name='Viktoria'`, `last_name='Schaffer'`, `display_name='Viktoria Schaffer'`, `email='viktoria.schaffer@etl.de'`, `is_active=true`, `participates_in_pool=false`. Rückgabe: `<STAFF_ID>`.
-2. **`public.role_assignments` Insert**: `(<STAFF_ID>, <ORG>, 'payroll')`.
-3. **Auth-Konto** via `code--exec` mit `SUPABASE_SERVICE_ROLE_KEY`:
-   - `auth.admin.createUser` (E-Mail bestätigt, generiertes Passwort via projekt-eigenem `generateStandardPassword`, `app_metadata.staff_id`).
-   - Insert in `public.user_links`.
-   - `staff.must_change_password = true` setzen.
-   - Klartext-Passwort + `AUTH_USER_ID` in Chat-Ausgabe (nicht geloggt).
-4. **PIN `4711`**: bcryptjs Cost 10 Hash via `code--exec` erzeugen, dann `staff_pins` Insert.
-5. **Bewusst leer**: `staff_locations`, `staff_skills`, `staff_personal_details`, `permission_overrides`.
-6. **Audit-Log**: `staff.account_created` Insert (kompensiert für den am Server-Flow vorbei laufenden Auth-Schritt).
+### 2) So/Fei-Split in `staffAggs`
+Pro Eintrag mit `businessDate` zusätzlich zu `evening/night/sunHol` aufschlüsseln:
+- `bavarianHolidaySurchargeRate(date) >= 1.5` → `feiertag150 += sundayHolidayHours`
+- sonst wenn `isBavarianHoliday(date)` → `feiertag += …`
+- sonst wenn Sonntag (`isSundayOrHoliday`, kein Feiertag) → `sonntag += …`
+
+`sunHol` bleibt als Summe für die „SO/FEI"-Spalte im Einfach-Modus erhalten. Keine eigene Feiertagsableitung.
+
+### 3) Spalten + Footer im payroll-Tab
+Header und `PayrollRow` erweitern (Layout an Legacy `BuchhaltungTableHead`/`BuchhaltungRow` angelehnt); U/K/Vorschuss/Besonderheiten bleiben.
+- **Immer (SFN):** 20–24 (`evening`), 24–X (`night`), SO/FEI (`sunHol`)
+- **Nur §3b:** Sonntag, Feiertag, Feiertag 150 %
+- Neue **Footer-Zeile** mit Spaltensummen (Vorlage `BuchhaltungFooter`)
+- Spalten-Tooltips via neuem `SfnTooltipHeader` (additive Datei)
+
+### 4) Suchfeld „Mitarbeiter suchen…"
+Falls noch nicht vorhanden: unter der Toolbar; bei aktiver Suche Abteilungs-Header ausblenden.
+
+### 5) PDF + Excel-Export (Toolbar rechts)
+Additive Exporter unter `src/lib/time/` (z. B. `buchhaltung-export.ts`), gebaut mit **ExcelJS** + **jsPDF/jspdf-autotable** analog `weekly-export.ts`. Inhalt = sichtbare Tabelle inkl. §3b-Spalten je nach Modus. Kein `xlsx`, kein Provisions-Parameter.
+
+## Vor dem Commit
+`npx prettier --write` + `npx eslint --fix` über geänderte Dateien.
 
 ## Erfolgs-Gate
-
-SELECT über `staff`/`role_assignments`/`user_links`/`staff_pins`/`staff_locations` erwartet genau eine Zeile: `role=payroll`, `has_login=true`, `has_pin=true`, `location_count=0`, `is_active=true`. Klartext-Passwort und „PIN 4711 gesetzt" im Chat.
-
-## Ausführung
-
-`supabase--insert` für Schritte 1, 2, 4, 6. `code--exec` einmalig für Auth-Konto (Schritt 3) und für bcrypt-Hash (Schritt 4 Vorbereitung). Kein File-Commit.
+- `tsc --noEmit`, `eslint .`, `prettier --check .`, `vitest run` grün
+- §3b-Toggle blendet Sonntag/Feiertag/Feiertag-150 %-Spalten ein/aus; Einfach-Modus zeigt nur 20–24/24–X/SO-FEI
+- Footer-Summen = Spaltensummen der sichtbaren Zeilen
+- PDF + Excel erzeugen je eine Datei mit den sichtbaren Spalten
+- Keine neuen Pakete, keine Migration
+- `periods`-Tab, `togglePeriodLock`, `upsertPayrollNote` unverändert
+- Stichprobe: Eintrag am 25.12. → Feiertag 150 %, normaler Sonntag → Sonntag
