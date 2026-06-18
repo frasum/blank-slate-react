@@ -8,6 +8,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
+import { assertPermission } from "@/lib/admin/admin-call";
 import { aggregateSfnPeriod } from "./lohn-period.functions";
 import { staffDetailsToPerson } from "./person-mapping";
 import { berechneLohn } from "./lohn-core";
@@ -44,7 +45,8 @@ export const berechneLohnFuerMitarbeiter = createServerFn({ method: "GET" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    await assertPermission(context.supabase, "payroll.calc.run");
+    const caller = await loadAdminCaller(context.supabase, context.userId, ["admin", "payroll"]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: staff, error: staffErr } = await supabaseAdmin
