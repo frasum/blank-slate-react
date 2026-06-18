@@ -21,11 +21,13 @@ import {
   assignStaffSkills,
   getStaffSkills,
   listSkills,
+  updateSkillColor,
   type SkillCategory,
 } from "@/lib/admin/skills.functions";
 import { TabButton } from "@/components/ui/nav-tab";
 import { PersonalDetailsTab } from "@/components/admin/PersonalDetailsTab";
 import { PermissionsTab } from "@/components/admin/PermissionsTab";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export const Route = createFileRoute("/_authenticated/admin/staff/$staffId")({
   head: () => ({ meta: [{ title: "Mitarbeiter · Verwaltung" }] }),
@@ -94,7 +96,7 @@ function StaffDetailPage() {
 
       {tab === "basics" && <BasicsTab staff={s} />}
       {tab === "locations" && <LocationsTab staffId={s.id} current={s.locationIds} />}
-      {tab === "skills" && <SkillsTab staffId={s.id} />}
+      {tab === "skills" && <SkillsTab staffId={s.id} isAdmin={isAdmin} />}
       {tab === "personal" && showPersonal && (
         <PersonalDetailsTab staffId={s.id} canEdit={canEditPersonal} />
       )}
@@ -298,7 +300,107 @@ type SkillRow = {
   sortOrder: number;
 };
 
-function SkillsTab({ staffId }: { staffId: string }) {
+function chipBackground(color: string | null, active: boolean): string {
+  if (!color) return "transparent";
+  if (!active) return "transparent";
+  // Weiße Skill-Farbe (z. B. SERVICE): nicht mit Schwarz mischen.
+  if (color.toLowerCase() === "#ffffff") return "#ffffff";
+  return `color-mix(in oklab, ${color} 85%, black)`;
+}
+
+function SkillChip({
+  skill,
+  active,
+  isAdmin,
+  onToggle,
+  onColorChange,
+}: {
+  skill: SkillRow;
+  active: boolean;
+  isAdmin: boolean;
+  onToggle: () => void;
+  onColorChange: (color: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(skill.color ?? "#9ca3af");
+  useEffect(() => {
+    setDraft(skill.color ?? "#9ca3af");
+  }, [skill.color]);
+
+  const bg = chipBackground(skill.color, active);
+  const isWhite = (skill.color ?? "").toLowerCase() === "#ffffff";
+  const textStyle: React.CSSProperties = active
+    ? { color: isWhite ? "#0a0a0a" : "#ffffff" }
+    : { color: skill.color ?? undefined };
+  const borderColor = skill.color ?? undefined;
+
+  return (
+    <span
+      className="inline-flex items-center rounded-full border"
+      style={{ borderColor, backgroundColor: bg }}
+    >
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-pressed={active}
+        className="px-3 py-1.5 text-sm font-medium transition-colors"
+        style={textStyle}
+      >
+        {skill.name}
+      </button>
+      {isAdmin && (
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              aria-label={`Farbe für ${skill.name} ändern`}
+              onClick={(e) => e.stopPropagation()}
+              className="mr-1 grid h-6 w-6 place-items-center rounded-full text-xs opacity-60 hover:opacity-100"
+              style={textStyle}
+            >
+              ✎
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-56 space-y-3">
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Farbe · {skill.name}
+            </div>
+            <input
+              type="color"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              className="h-10 w-full cursor-pointer rounded border border-border bg-transparent"
+            />
+            <div className="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  onColorChange(null);
+                  setOpen(false);
+                }}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Zurücksetzen
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onColorChange(draft);
+                  setOpen(false);
+                }}
+                className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+              >
+                Speichern
+              </button>
+            </div>
+          </PopoverContent>
+        </Popover>
+      )}
+    </span>
+  );
+}
+
+function SkillsTab({ staffId, isAdmin }: { staffId: string; isAdmin: boolean }) {
   const queryClient = useQueryClient();
   const skillsQ = useQuery({
     queryKey: ["admin", "skills"],
@@ -309,6 +411,7 @@ function SkillsTab({ staffId }: { staffId: string }) {
     queryFn: () => getStaffSkills({ data: { staffId } }),
   });
   const callAssign = useServerFn(assignStaffSkills);
+  const callUpdateColor = useServerFn(updateSkillColor);
   const [selected, setSelected] = useState<Set<string> | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -325,6 +428,16 @@ function SkillsTab({ staffId }: { staffId: string }) {
       setMsg("Gespeichert.");
       await queryClient.invalidateQueries({ queryKey: ["admin", "staff-skills", staffId] });
       await queryClient.invalidateQueries({ queryKey: ["admin", "staff"] });
+    },
+    onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
+  });
+
+  const colorMutation = useMutation({
+    mutationFn: (vars: { skillId: string; color: string | null }) =>
+      callUpdateColor({ data: vars }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["admin", "skills"] });
+      await queryClient.invalidateQueries({ queryKey: ["skills"] });
     },
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
   });
@@ -380,29 +493,21 @@ function SkillsTab({ staffId }: { staffId: string }) {
               {items.map((sk) => {
                 const active = selected.has(sk.id);
                 return (
-                  <button
-                    type="button"
+                  <SkillChip
                     key={sk.id}
-                    onClick={() => {
+                    skill={sk}
+                    active={active}
+                    isAdmin={isAdmin}
+                    onToggle={() => {
                       const next = new Set(selected);
                       if (active) next.delete(sk.id);
                       else next.add(sk.id);
                       setSelected(next);
                     }}
-                    aria-pressed={active}
-                    className={`group inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors ${
-                      active
-                        ? "border-primary/40 bg-primary/10 text-foreground"
-                        : "border-border bg-background text-muted-foreground hover:border-foreground/30 hover:text-foreground"
-                    }`}
-                  >
-                    <span
-                      aria-hidden
-                      className={`inline-block h-2.5 w-2.5 rounded-full border ${active ? "border-foreground/20" : "border-border"}`}
-                      style={{ backgroundColor: sk.color ?? "transparent" }}
-                    />
-                    <span className="font-medium">{sk.name}</span>
-                  </button>
+                    onColorChange={(color) =>
+                      colorMutation.mutate({ skillId: sk.id, color })
+                    }
+                  />
                 );
               })}
             </div>
