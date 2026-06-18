@@ -49,7 +49,7 @@ export async function assertPermission(
 ): Promise<void> {
   const { data, error } = await supabase.rpc("has_permission", {
     _perm: permission,
-    _location: locationId,
+    ...(locationId !== null ? { _location: locationId } : {}),
   });
   if (error) {
     throw new ForbiddenError(`Rechte-Check fehlgeschlagen: ${error.message}`);
