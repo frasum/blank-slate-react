@@ -8,7 +8,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
-import { runGuarded } from "@/lib/admin/admin-call";
+import { assertPermission, runWithPermission } from "@/lib/admin/admin-call";
 import { writeAuditLog } from "@/lib/admin/audit";
 import { hashDetailsInput, type DetailsRowInput } from "./import-details";
 import { runImportDetailsCore } from "./import-details-core";
@@ -59,7 +59,8 @@ export const importStaffPersonalDetails = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => inputSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    await assertPermission(context.supabase, "payroll.personal.import");
+    const caller = await loadAdminCaller(context.supabase, context.userId, ["admin", "payroll"]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const dry = await runImportDetailsCore({
@@ -96,7 +97,7 @@ export const importStaffPersonalDetails = createServerFn({ method: "POST" })
       });
     };
 
-    return runGuarded(caller.role, "admin", writeAudit, async () => {
+    return runWithPermission(context.supabase, "payroll.personal.import", null, writeAudit, async () => {
       const committed = await runImportDetailsCore({
         admin: supabaseAdmin,
         organizationId: caller.organizationId,

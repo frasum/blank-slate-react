@@ -39,16 +39,25 @@ export type AppPermission =
   | "roster.wish.manage_all"
   | "roster.leave.request_self"
   | "roster.leave.view_all"
-  | "roster.leave.decide";
+  | "roster.leave.decide"
+  // Modul Lohn/HR
+  | "payroll.compensation.view"
+  | "payroll.compensation.edit"
+  | "payroll.personal.view"
+  | "payroll.personal.edit"
+  | "payroll.personal.import"
+  | "payroll.calc.run"
+  | "payroll.period.view";
 
 export type PermissionEffect = "allow" | "deny";
 
-export type PermissionModule = "kasse" | "zeit" | "dienstplan";
+export type PermissionModule = "kasse" | "zeit" | "dienstplan" | "lohn";
 
 export const MODULE_LABEL: Record<PermissionModule, string> = {
   kasse: "Kasse / Tagesabrechnung",
   zeit: "Zeiterfassung",
   dienstplan: "Dienstplan & Urlaub",
+  lohn: "Lohn & HR",
 };
 
 export type PermissionMeta = {
@@ -306,6 +315,56 @@ export const PERMISSION_CATALOG: readonly PermissionMeta[] = [
     module: "dienstplan",
     label: "Urlaubsanträge entscheiden",
     description: "Anträge genehmigen oder ablehnen.",
+    scopable: false,
+  },
+  // ----- Modul Lohn/HR -----
+  {
+    key: "payroll.compensation.view",
+    module: "lohn",
+    label: "Vergütung sehen",
+    description: "Stundenlohn aller Mitarbeiter ansehen.",
+    scopable: false,
+  },
+  {
+    key: "payroll.compensation.edit",
+    module: "lohn",
+    label: "Vergütung pflegen",
+    description: "Stundenlohn anlegen, ändern, löschen.",
+    scopable: false,
+  },
+  {
+    key: "payroll.personal.view",
+    module: "lohn",
+    label: "Personaldaten sehen",
+    description: "Personalakte (Adresse, SV-Nr, Steuer-ID, Bank etc.) öffnen.",
+    scopable: false,
+  },
+  {
+    key: "payroll.personal.edit",
+    module: "lohn",
+    label: "Personaldaten pflegen",
+    description: "Personalakte anlegen oder ändern.",
+    scopable: false,
+  },
+  {
+    key: "payroll.personal.import",
+    module: "lohn",
+    label: "Personaldaten importieren",
+    description: "CSV-Import von Personaldaten ausführen.",
+    scopable: false,
+  },
+  {
+    key: "payroll.calc.run",
+    module: "lohn",
+    label: "Lohnrechner ausführen",
+    description: "Brutto-/Netto-Berechnung pro Mitarbeiter ausführen.",
+    scopable: false,
+  },
+  {
+    key: "payroll.period.view",
+    module: "lohn",
+    label: "Lohn-Periode sehen",
+    description: "SFN-Periode (26.–25.) pro Mitarbeiter ansehen.",
     scopable: false,
   },
 ] as const;

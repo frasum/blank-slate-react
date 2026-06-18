@@ -6,7 +6,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "./admin-context";
-import { runGuarded } from "./admin-call";
+import { assertPermission, runWithPermission } from "./admin-call";
 import { writeAuditLog } from "./audit";
 
 const staffIdInput = z.object({ staffId: z.string().uuid() });
@@ -37,7 +37,8 @@ export const getStaffCompensation = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => staffIdInput.parse(input))
   .handler(async ({ data, context }): Promise<CompensationDto> => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    await assertPermission(context.supabase, "payroll.compensation.view");
+    const caller = await loadAdminCaller(context.supabase, context.userId, ["admin", "payroll"]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row, error } = await supabaseAdmin
       .from("staff_compensation")
@@ -58,10 +59,11 @@ export const upsertStaffCompensation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => upsertInput.parse(input))
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
-    return runGuarded(
-      caller.role,
-      "admin",
+    const caller = await loadAdminCaller(context.supabase, context.userId, ["admin", "payroll"]);
+    return runWithPermission(
+      context.supabase,
+      "payroll.compensation.edit",
+      null,
       async (entry) => {
         await writeAuditLog({
           organizationId: caller.organizationId,

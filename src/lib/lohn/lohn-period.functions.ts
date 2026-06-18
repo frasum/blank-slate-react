@@ -10,6 +10,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
+import { assertPermission } from "@/lib/admin/admin-call";
 import { timeEntryToSfnRow } from "./time-entry-sfn";
 import { berechneSfnGeld } from "./sfn-geld/sfn-geld";
 import type { SfnGeldErgebnis } from "./sfn-geld/types";
@@ -88,7 +89,8 @@ export const getSfnPeriodForStaff = createServerFn({ method: "GET" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    await assertPermission(context.supabase, "payroll.period.view");
+    const caller = await loadAdminCaller(context.supabase, context.userId, ["admin", "payroll"]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: staff, error: staffErr } = await supabaseAdmin
