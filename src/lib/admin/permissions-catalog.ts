@@ -317,6 +317,56 @@ export const PERMISSION_CATALOG: readonly PermissionMeta[] = [
     description: "Anträge genehmigen oder ablehnen.",
     scopable: false,
   },
+  // ----- Modul Lohn/HR -----
+  {
+    key: "payroll.compensation.view",
+    module: "lohn",
+    label: "Vergütung sehen",
+    description: "Stundenlohn aller Mitarbeiter ansehen.",
+    scopable: false,
+  },
+  {
+    key: "payroll.compensation.edit",
+    module: "lohn",
+    label: "Vergütung pflegen",
+    description: "Stundenlohn anlegen, ändern, löschen.",
+    scopable: false,
+  },
+  {
+    key: "payroll.personal.view",
+    module: "lohn",
+    label: "Personaldaten sehen",
+    description: "Personalakte (Adresse, SV-Nr, Steuer-ID, Bank etc.) öffnen.",
+    scopable: false,
+  },
+  {
+    key: "payroll.personal.edit",
+    module: "lohn",
+    label: "Personaldaten pflegen",
+    description: "Personalakte anlegen oder ändern.",
+    scopable: false,
+  },
+  {
+    key: "payroll.personal.import",
+    module: "lohn",
+    label: "Personaldaten importieren",
+    description: "CSV-Import von Personaldaten ausführen.",
+    scopable: false,
+  },
+  {
+    key: "payroll.calc.run",
+    module: "lohn",
+    label: "Lohnrechner ausführen",
+    description: "Brutto-/Netto-Berechnung pro Mitarbeiter ausführen.",
+    scopable: false,
+  },
+  {
+    key: "payroll.period.view",
+    module: "lohn",
+    label: "Lohn-Periode sehen",
+    description: "SFN-Periode (26.–25.) pro Mitarbeiter ansehen.",
+    scopable: false,
+  },
 ] as const;
 
 export function getPermissionMeta(key: AppPermission): PermissionMeta {
