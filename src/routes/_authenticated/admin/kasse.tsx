@@ -1562,17 +1562,6 @@ function SessionFieldsCard({
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-2 rounded-md border border-border/60 p-3">
-      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {title}
-      </div>
-      <div className="space-y-2">{children}</div>
-    </div>
-  );
-}
-
 type CashSummaryMisc = {
   vouchersSold: string;
   vouchersRedeemed: string;
