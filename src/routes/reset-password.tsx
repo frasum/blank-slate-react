@@ -8,7 +8,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { BrandLockup } from "@/components/brand-lockup";
 
 export const Route = createFileRoute("/reset-password")({
   ssr: false,
@@ -49,7 +48,6 @@ function ResetPasswordPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
       <div className="w-full max-w-sm space-y-6">
-        <BrandLockup size="lg" />
         <div className="text-center">
           <h1 className="text-lg font-semibold text-foreground">Passwort zurücksetzen</h1>
         </div>

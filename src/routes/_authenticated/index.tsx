@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Link } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/use-auth";
-import { BrandLockup } from "@/components/brand-lockup";
 
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
@@ -40,7 +39,6 @@ function Index() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
       <div className="w-full max-w-sm space-y-8">
-        <BrandLockup size="lg" />
         <div className="flex justify-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
             <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />

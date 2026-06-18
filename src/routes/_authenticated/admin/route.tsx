@@ -8,7 +8,6 @@ import { createFileRoute, Link, Outlet, redirect, useRouterState } from "@tansta
 import { tabClass } from "@/components/ui/nav-tab";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyIdentity } from "@/lib/auth/me.functions";
-import { BrandLockup } from "@/components/brand-lockup";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: async ({ location }) => {
@@ -132,7 +131,7 @@ function AdminLayout() {
           <div className="flex items-center justify-between pb-2">
             <div className="flex items-center gap-3">
               <Link to="/" aria-label="COCO Startseite">
-                <BrandLockup size="sm" />
+                <span className="text-sm font-semibold text-foreground">COCO</span>
               </Link>
               <span className="text-border" aria-hidden>
                 /

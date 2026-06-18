@@ -10,7 +10,6 @@ import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { markPasswordChanged } from "@/lib/auth/password-change.functions";
-import { BrandLockup } from "@/components/brand-lockup";
 
 export const Route = createFileRoute("/_authenticated/passwort-aendern")({
   head: () => ({
@@ -31,7 +30,6 @@ function PasswordChangePage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
       <div className="w-full max-w-sm space-y-6">
-        <BrandLockup size="lg" />
         <div className="text-center">
           <h1 className="text-lg font-semibold text-foreground">Neues Passwort setzen</h1>
           <p className="mt-1 text-sm text-muted-foreground">
