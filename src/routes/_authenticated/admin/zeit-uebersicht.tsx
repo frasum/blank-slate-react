@@ -1115,82 +1115,26 @@ function ZeitUebersichtPage() {
         </TabsContent>
 
         <TabsContent value="payroll">
-          <Card className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="h-9 text-xs uppercase tracking-wider text-muted-foreground">
-                    Mitarbeiter
-                  </TableHead>
-                  <TableHead className="h-9 text-xs uppercase tracking-wider text-muted-foreground text-right w-24">
-                    Gesamt
-                  </TableHead>
-                  <TableHead className="h-9 text-xs uppercase tracking-wider text-muted-foreground text-right w-20">
-                    Schichten
-                  </TableHead>
-                  <TableHead className="h-9 text-xs uppercase tracking-wider text-muted-foreground text-right w-12">
-                    U
-                  </TableHead>
-                  <TableHead className="h-9 text-xs uppercase tracking-wider text-muted-foreground text-right w-12">
-                    K
-                  </TableHead>
-                  <TableHead className="h-9 text-xs uppercase tracking-wider text-muted-foreground text-right w-28">
-                    Vorschuss
-                  </TableHead>
-                  <TableHead className="h-9 text-xs uppercase tracking-wider text-muted-foreground text-right w-36">
-                    Zuschlag (SFN)
-                  </TableHead>
-                  <TableHead className="h-9 text-xs uppercase tracking-wider text-muted-foreground">
-                    Besonderheiten
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {staffAggs.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground">
-                      Keine Einträge im Zeitraum.
-                    </TableCell>
-                  </TableRow>
-                )}
-                {DEPT_ORDER.map((dept) => {
-                  const list = byDept.get(dept) ?? [];
-                  if (list.length === 0) return null;
-                  return (
-                    <Fragment key={`p-grp-${dept}`}>
-                      <TableRow className={`${DEPT_BG[dept]} hover:${DEPT_BG[dept]}`}>
-                        <TableCell
-                          colSpan={8}
-                          className="py-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
-                        >
-                          {DEPT_LABEL[dept]}
-                        </TableCell>
-                      </TableRow>
-                      {list.map((s) => (
-                        <PayrollRow
-                          key={s.staffId}
-                          staff={s}
-                          initial={notesByStaff.get(s.staffId)}
-                          vorschussCents={advanceCentsByStaff.get(s.staffId) ?? 0}
-                          urlaubDays={absencesByStaff.get(s.staffId)?.urlaubDays ?? 0}
-                          krankDays={absencesByStaff.get(s.staffId)?.krankDays ?? 0}
-                          sfn={sfnByStaff.get(s.staffId)}
-                          readOnly={isPayroll}
-                          onSave={(besonderheiten) =>
-                            upsertMut.mutate({
-                              staffId: s.staffId,
-                              vorschuss: 0,
-                              besonderheiten: besonderheiten.trim() === "" ? null : besonderheiten,
-                            })
-                          }
-                        />
-                      ))}
-                    </Fragment>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </Card>
+          <PayrollTab
+            mode={payrollMode}
+            onModeChange={setPayrollMode}
+            search={payrollSearch}
+            onSearchChange={setPayrollSearch}
+            searchActive={payrollSearchActive}
+            rowsByDept={payrollFilteredByDept}
+            staffRows={payrollRowsByStaff}
+            totals={payrollTotals}
+            readOnly={isPayroll}
+            onSaveNote={(staffId, besonderheiten) =>
+              upsertMut.mutate({
+                staffId,
+                vorschuss: 0,
+                besonderheiten: besonderheiten.trim() === "" ? null : besonderheiten,
+              })
+            }
+            onExportPdf={handlePayrollExportPdf}
+            onExportXlsx={handlePayrollExportXlsx}
+          />
         </TabsContent>
 
         <TabsContent value="periods">
