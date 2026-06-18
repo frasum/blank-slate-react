@@ -18,8 +18,8 @@ import { writeAuditLog } from "@/lib/admin/audit";
 import { businessDateOf } from "@/lib/business-date";
 import { assertBusinessDateUnlocked } from "./time-lock";
 import { timeEntryToSfnRow } from "@/lib/lohn/time-entry-sfn";
-import { berechneSfnGeld } from "@/lib/lohn/sfn-geld/sfn-geld";
 import type { SfnShiftRow } from "@/lib/lohn/sfn-geld/types";
+import { computeStaffSfn } from "@/lib/lohn/compute-staff-sfn";
 
 function makeAuditWriter(caller: { organizationId: string; userId: string; staffId: string }) {
   return async (entry: {
@@ -163,16 +163,23 @@ export const getSfnOverview = createServerFn({ method: "GET" })
 
     const sfn = Array.from(rowsByStaff.entries()).map(([staffId, sfnRows]) => {
       const rate = rateByStaff.get(staffId) ?? 0;
-      const r = berechneSfnGeld(sfnRows, "simple", rate, new Map());
+      const { simple, extended, zuschlagCents } = computeStaffSfn(sfnRows, rate);
       return {
         staffId,
-        night25Hours: r.night25Hours,
-        night40Hours: r.night40Hours,
-        sundayHours: r.sundayHours,
-        holidayHours: r.holidayHours,
-        holiday150Hours: r.holiday150Hours,
-        zuschlagCents: r.zuschlagCents,
         hourlyRateCents: rate,
+        zuschlagCents,
+        simple: {
+          night25Hours: simple.night25Hours,
+          night40Hours: simple.night40Hours,
+          sundayHours: simple.sundayHours,
+        },
+        extended: {
+          night25Hours: extended.night25Hours,
+          night40Hours: extended.night40Hours,
+          sundayHours: extended.sundayHours,
+          holidayHours: extended.holidayHours,
+          holiday150Hours: extended.holiday150Hours,
+        },
       };
     });
     return { sfn };
