@@ -21,7 +21,10 @@ import {
   parseBadgeLoginInput,
   parsePinLoginInput,
   toPostgrestIlikeLiteral,
+  tryStaffPasswordLogin,
 } from "./auth-flows.server";
+
+const PIN_CREDENTIAL_PATTERN = /^\d{4,8}$/;
 
 // =========================================================================
 // PIN-Login
@@ -49,6 +52,18 @@ export const validatePin = createServerFn({ method: "POST" })
     if (!candidates || candidates.length === 0)
       console.error("[pin-login] keine Kandidaten für Name:", data.firstName.trim());
     if (!candidates || candidates.length === 0) failed();
+
+    if (!PIN_CREDENTIAL_PATTERN.test(data.pin)) {
+      const sessions = [];
+      for (const cand of candidates) {
+        const session = await tryStaffPasswordLogin(cand.id, data.pin);
+        if (session) sessions.push(session);
+      }
+      if (sessions.length !== 1)
+        console.error("[password-login] matches.length:", sessions.length);
+      if (sessions.length !== 1) failed();
+      return { kind: "password" as const, ...sessions[0] };
+    }
 
     const sinceIso = new Date(Date.now() - PIN_RATE_LIMIT_WINDOW_MS).toISOString();
     const matches: { id: string; organization_id: string }[] = [];
@@ -92,7 +107,7 @@ export const validatePin = createServerFn({ method: "POST" })
 
     const email = await ensureShadowUser(winner.id, winner.organization_id);
     const session_token_hash = await generateSessionTokenHash(email);
-    return { session_token_hash };
+    return { kind: "pin" as const, session_token_hash };
   });
 
 // =========================================================================
