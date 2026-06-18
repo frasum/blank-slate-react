@@ -14,13 +14,9 @@ export const attachSupabaseAuth = createMiddleware({ type: "function" }).client(
     }
     const token = data.session?.access_token;
     if (!token) {
-      // Keine gültige Sitzung mehr → zurück zum Login, statt einen
-      // unauthentifizierten RPC zu senden (würde im Server-Middleware 401en
-      // und die Seite ohne Redirect blank lassen).
-      if (typeof window !== "undefined") {
-        window.location.assign("/auth");
-      }
-      throw new Error("Sitzung abgelaufen – bitte erneut anmelden.");
+      // Öffentliche Server-Functions wie PIN-Login laufen VOR einer Session.
+      // Geschützte Functions lehnt requireSupabaseAuth weiterhin serverseitig ab.
+      return next();
     }
     return next({
       headers: { Authorization: `Bearer ${token}` },
