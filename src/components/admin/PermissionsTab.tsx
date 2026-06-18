@@ -9,8 +9,11 @@ import {
 import { listLocations } from "@/lib/admin/locations.functions";
 import {
   PERMISSION_CATALOG,
+  MODULE_LABEL,
   type AppPermission,
   type PermissionEffect,
+  type PermissionMeta,
+  type PermissionModule,
 } from "@/lib/admin/permissions-catalog";
 
 type Cell = "default" | "allow" | "deny";
@@ -70,6 +73,21 @@ export function PermissionsTab({ staffId }: { staffId: string }) {
 
   const isAdminRole = permsQ.data.role === "admin";
 
+  // Nach Modul gruppieren (Reihenfolge: kasse → zeit).
+  const grouped = useMemo(() => {
+    const order: PermissionModule[] = ["kasse", "zeit"];
+    const map = new Map<PermissionModule, PermissionMeta[]>();
+    for (const m of order) map.set(m, []);
+    for (const p of PERMISSION_CATALOG) {
+      const arr = map.get(p.module) ?? [];
+      arr.push(p);
+      map.set(p.module, arr);
+    }
+    return order
+      .map((m) => ({ module: m, items: map.get(m) ?? [] }))
+      .filter((g) => g.items.length > 0);
+  }, []);
+
   function cellState(perm: AppPermission): Cell {
     const key = `${perm}::${scopedLocation ?? "null"}`;
     const ov = overrideMap.get(key);
@@ -127,17 +145,24 @@ export function PermissionsTab({ staffId }: { staffId: string }) {
         </select>
       </div>
 
-      <div className="overflow-x-auto rounded-md border border-border">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
-            <tr>
-              <th className="px-3 py-2 text-left">Recht</th>
-              <th className="px-3 py-2 text-left">Effektiv</th>
-              <th className="px-3 py-2 text-left">Override für {scope === "global" ? "global" : "diesen Standort"}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {PERMISSION_CATALOG.map((p) => {
+      {grouped.map((g) => (
+        <div key={g.module} className="space-y-2">
+          <h3 className="text-sm font-semibold text-foreground">
+            {MODULE_LABEL[g.module]}
+          </h3>
+          <div className="overflow-x-auto rounded-md border border-border">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-2 text-left">Recht</th>
+                  <th className="px-3 py-2 text-left">Effektiv</th>
+                  <th className="px-3 py-2 text-left">
+                    Override für {scope === "global" ? "global" : "diesen Standort"}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {g.items.map((p) => {
               const eff = effectiveBadge(p.key);
               const state = cellState(p.key);
               const disabled = isAdminRole || setMut.isPending || clearMut.isPending;
@@ -209,10 +234,12 @@ export function PermissionsTab({ staffId }: { staffId: string }) {
                   </td>
                 </tr>
               );
-            })}
-          </tbody>
-        </table>
-      </div>
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
 
       {(setMut.error || clearMut.error) && (
         <p className="text-sm text-destructive">
