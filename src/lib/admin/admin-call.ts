@@ -5,7 +5,10 @@
 // Wenn die Rolle nicht ausreicht: ForbiddenError fliegt — writeAudit wird
 // nicht aufgerufen (Negativtest b in docs/gruendungsdokument.md).
 
-import { assertMinRole, type AppRole } from "./role-guard";
+import { assertMinRole, ForbiddenError, type AppRole } from "./role-guard";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
+import type { AppPermission } from "./permissions-catalog";
 
 export type AuditEntry = {
   action: string;
@@ -28,6 +31,46 @@ export async function runGuarded<T>(
   op: () => Promise<{ result: T; audit: AuditEntry }>,
 ): Promise<T> {
   assertMinRole(callerRole, minRole);
+  const { result, audit } = await op();
+  await writeAudit(audit);
+  return result;
+}
+
+/**
+ * Prüft `has_permission(key, location)` über den nutzergebundenen Supabase-
+ * Client (RLS-Kontext = Aufrufer; greift damit auch durch Impersonation).
+ * Wirft ForbiddenError, wenn das Recht fehlt — und zwar VOR der Operation,
+ * sodass kein audit_log-Eintrag entsteht.
+ */
+export async function assertPermission(
+  supabase: SupabaseClient<Database>,
+  permission: AppPermission,
+  locationId: string | null = null,
+): Promise<void> {
+  const { data, error } = await supabase.rpc("has_permission", {
+    _perm: permission,
+    _location: locationId,
+  });
+  if (error) {
+    throw new ForbiddenError(`Rechte-Check fehlgeschlagen: ${error.message}`);
+  }
+  if (!data) {
+    throw new ForbiddenError(`Fehlende Berechtigung: ${permission}`);
+  }
+}
+
+/**
+ * Analog zu `runGuarded`, aber mit Permission-Key statt Mindestrolle.
+ * Bei ForbiddenError wird `writeAudit` nicht aufgerufen.
+ */
+export async function runWithPermission<T>(
+  supabase: SupabaseClient<Database>,
+  permission: AppPermission,
+  locationId: string | null,
+  writeAudit: AuditWriter,
+  op: () => Promise<{ result: T; audit: AuditEntry }>,
+): Promise<T> {
+  await assertPermission(supabase, permission, locationId);
   const { result, audit } = await op();
   await writeAudit(audit);
   return result;
