@@ -29,24 +29,10 @@ export function ShiftPill({ shift, area, draggable, onClick }: Props) {
 
   const isService = area === "service";
   const label = isService ? serviceMarker(shift.skillName) : abbr(shift.skillName);
-  const serviceColorMap: Record<string, string> = {
-    GL: "#f59e0b",
-    B: "#3b82f6",
-    H: "#10b981",
-    "19h": "#8b5cf6",
-  };
-  // Feste Farben für Küchen-Skills (Abkürzungen aus abbr()):
-  // VS=Blau, PA=Rot (PASS), SP=Grün (SPÜLEN), CO=Orange.
-  const kitchenColorMap: Record<string, string> = {
-    VS: "#00bfff",
-    PA: "#ef4444",
-    SP: "#10b981",
-    CO: "#f59e0b",
-  };
-  const serviceBg = isService ? serviceColorMap[label] : undefined;
-  const kitchenBg = !isService ? kitchenColorMap[label] : undefined;
+  // Skill-Farbe kommt jetzt ausschließlich aus skills.color (DB). Die
+  // Default-Service-Pille ("X" = ohne Skill) bleibt weiß/schwarz.
   const isDefaultService = isService && label === "X";
-  const bg = isService ? (serviceBg ?? "#ffffff") : (kitchenBg ?? shift.skillColor ?? "#9ca3af");
+  const bg = shift.skillColor ?? (isService ? "#ffffff" : "#9ca3af");
   const textCls = isDefaultService
     ? "text-black border-transparent"
     : "text-white border-transparent";
