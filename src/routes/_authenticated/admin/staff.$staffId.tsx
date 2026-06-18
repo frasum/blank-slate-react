@@ -300,6 +300,106 @@ type SkillRow = {
   sortOrder: number;
 };
 
+function chipBackground(color: string | null, active: boolean): string {
+  if (!color) return "transparent";
+  if (!active) return "transparent";
+  // Weiße Skill-Farbe (z. B. SERVICE): nicht mit Schwarz mischen.
+  if (color.toLowerCase() === "#ffffff") return "#ffffff";
+  return `color-mix(in oklab, ${color} 85%, black)`;
+}
+
+function SkillChip({
+  skill,
+  active,
+  isAdmin,
+  onToggle,
+  onColorChange,
+}: {
+  skill: SkillRow;
+  active: boolean;
+  isAdmin: boolean;
+  onToggle: () => void;
+  onColorChange: (color: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(skill.color ?? "#9ca3af");
+  useEffect(() => {
+    setDraft(skill.color ?? "#9ca3af");
+  }, [skill.color]);
+
+  const bg = chipBackground(skill.color, active);
+  const isWhite = (skill.color ?? "").toLowerCase() === "#ffffff";
+  const textStyle: React.CSSProperties = active
+    ? { color: isWhite ? "#0a0a0a" : "#ffffff" }
+    : { color: skill.color ?? undefined };
+  const borderColor = skill.color ?? undefined;
+
+  return (
+    <span
+      className="inline-flex items-center rounded-full border"
+      style={{ borderColor, backgroundColor: bg }}
+    >
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-pressed={active}
+        className="px-3 py-1.5 text-sm font-medium transition-colors"
+        style={textStyle}
+      >
+        {skill.name}
+      </button>
+      {isAdmin && (
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              aria-label={`Farbe für ${skill.name} ändern`}
+              onClick={(e) => e.stopPropagation()}
+              className="mr-1 grid h-6 w-6 place-items-center rounded-full text-xs opacity-60 hover:opacity-100"
+              style={textStyle}
+            >
+              ✎
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-56 space-y-3">
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Farbe · {skill.name}
+            </div>
+            <input
+              type="color"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              className="h-10 w-full cursor-pointer rounded border border-border bg-transparent"
+            />
+            <div className="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  onColorChange(null);
+                  setOpen(false);
+                }}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Zurücksetzen
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onColorChange(draft);
+                  setOpen(false);
+                }}
+                className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+              >
+                Speichern
+              </button>
+            </div>
+          </PopoverContent>
+        </Popover>
+      )}
+    </span>
+  );
+}
+
 function SkillsTab({ staffId, isAdmin }: { staffId: string; isAdmin: boolean }) {
   const queryClient = useQueryClient();
   const skillsQ = useQuery({
