@@ -30,7 +30,7 @@ import type { AppPermission } from "./permissions-catalog";
 
 type RoleKey = "admin" | "manager" | "staff" | "payroll";
 
-const PAYROLL_KEYS: readonly AppPermission[] = [
+const PAYROLL_KEYS = [
   "payroll.compensation.view",
   "payroll.compensation.edit",
   "payroll.personal.view",
@@ -38,7 +38,7 @@ const PAYROLL_KEYS: readonly AppPermission[] = [
   "payroll.personal.import",
   "payroll.calc.run",
   "payroll.period.view",
-] as const;
+] as const satisfies readonly AppPermission[];
 
 // Erwartete Wahrheit pro (Rolle, Key) — nur die M4-Keys.
 type PayrollKey = (typeof PAYROLL_KEYS)[number];
