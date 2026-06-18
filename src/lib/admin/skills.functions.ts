@@ -105,3 +105,53 @@ export const assignStaffSkills = createServerFn({ method: "POST" })
       },
     );
   });
+
+export const updateSkillColor = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        skillId: z.string().uuid(),
+        color: z
+          .string()
+          .regex(/^#[0-9a-fA-F]{6}$/, "Farbe muss als #RRGGBB angegeben werden.")
+          .nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    return runGuarded(
+      caller.role,
+      "admin",
+      async (entry) => {
+        await writeAuditLog({
+          organizationId: caller.organizationId,
+          actorUserId: caller.userId,
+          actorStaffId: caller.staffId,
+          action: entry.action,
+          entity: entry.entity,
+          entityId: entry.entityId ?? null,
+          meta: entry.meta,
+        });
+      },
+      async () => {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { error } = await supabaseAdmin
+          .from("skills")
+          .update({ color: data.color })
+          .eq("id", data.skillId)
+          .eq("organization_id", caller.organizationId);
+        if (error) throw error;
+        return {
+          result: { ok: true as const },
+          audit: {
+            action: "skill.update_color",
+            entity: "skill",
+            entityId: data.skillId,
+            meta: { color: data.color },
+          },
+        };
+      },
+    );
+  });
