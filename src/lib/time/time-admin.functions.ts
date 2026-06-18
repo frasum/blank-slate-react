@@ -13,7 +13,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
-import { runGuarded, runWithPermission } from "@/lib/admin/admin-call";
+import { runWithPermission } from "@/lib/admin/admin-call";
 import { writeAuditLog } from "@/lib/admin/audit";
 import { businessDateOf } from "@/lib/business-date";
 import { assertBusinessDateUnlocked } from "./time-lock";
