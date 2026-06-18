@@ -48,7 +48,6 @@ function ResetPasswordPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
       <div className="w-full max-w-sm space-y-6">
-        <BrandLockup size="lg" />
         <div className="text-center">
           <h1 className="text-lg font-semibold text-foreground">Passwort zurücksetzen</h1>
         </div>
