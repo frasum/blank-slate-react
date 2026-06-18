@@ -3257,6 +3257,19 @@ export type Database = {
         | "time.payroll_note.view"
         | "time.payroll_note.edit"
         | "time.export"
+        | "roster.shift.view_self"
+        | "roster.shift.view_all"
+        | "roster.shift.manage"
+        | "roster.availability.manage_self"
+        | "roster.availability.manage_all"
+        | "roster.absence.view"
+        | "roster.absence.manage"
+        | "roster.wish.create_self"
+        | "roster.wish.view_all"
+        | "roster.wish.manage_all"
+        | "roster.leave.request_self"
+        | "roster.leave.view_all"
+        | "roster.leave.decide"
       app_role: "admin" | "manager" | "staff" | "payroll"
       permission_effect: "allow" | "deny"
       register_transfer_direction:
@@ -3425,6 +3438,19 @@ export const Constants = {
         "time.payroll_note.view",
         "time.payroll_note.edit",
         "time.export",
+        "roster.shift.view_self",
+        "roster.shift.view_all",
+        "roster.shift.manage",
+        "roster.availability.manage_self",
+        "roster.availability.manage_all",
+        "roster.absence.view",
+        "roster.absence.manage",
+        "roster.wish.create_self",
+        "roster.wish.view_all",
+        "roster.wish.manage_all",
+        "roster.leave.request_self",
+        "roster.leave.view_all",
+        "roster.leave.decide",
       ],
       app_role: ["admin", "manager", "staff", "payroll"],
       permission_effect: ["allow", "deny"],
