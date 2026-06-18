@@ -435,6 +435,29 @@ function ZeitUebersichtPage() {
     return m;
   }, [absencesQ.data]);
 
+  type SfnAgg = {
+    night25Hours: number;
+    night40Hours: number;
+    sundayHours: number;
+    holidayHours: number;
+    holiday150Hours: number;
+    zuschlagCents: number;
+  };
+  const sfnByStaff = useMemo(() => {
+    const m = new Map<string, SfnAgg>();
+    for (const s of sfnQ.data?.sfn ?? []) {
+      m.set(s.staffId, {
+        night25Hours: s.night25Hours,
+        night40Hours: s.night40Hours,
+        sundayHours: s.sundayHours,
+        holidayHours: s.holidayHours,
+        holiday150Hours: s.holiday150Hours,
+        zuschlagCents: s.zuschlagCents,
+      });
+    }
+    return m;
+  }, [sfnQ.data]);
+
   const upsertMut = useMutation({
     mutationFn: (vars: { staffId: string; vorschuss: number; besonderheiten: string | null }) =>
       callUpsert({
