@@ -39,16 +39,25 @@ export type AppPermission =
   | "roster.wish.manage_all"
   | "roster.leave.request_self"
   | "roster.leave.view_all"
-  | "roster.leave.decide";
+  | "roster.leave.decide"
+  // Modul Lohn/HR
+  | "payroll.compensation.view"
+  | "payroll.compensation.edit"
+  | "payroll.personal.view"
+  | "payroll.personal.edit"
+  | "payroll.personal.import"
+  | "payroll.calc.run"
+  | "payroll.period.view";
 
 export type PermissionEffect = "allow" | "deny";
 
-export type PermissionModule = "kasse" | "zeit" | "dienstplan";
+export type PermissionModule = "kasse" | "zeit" | "dienstplan" | "lohn";
 
 export const MODULE_LABEL: Record<PermissionModule, string> = {
   kasse: "Kasse / Tagesabrechnung",
   zeit: "Zeiterfassung",
   dienstplan: "Dienstplan & Urlaub",
+  lohn: "Lohn & HR",
 };
 
 export type PermissionMeta = {
