@@ -673,8 +673,7 @@ function ZeitUebersichtPage() {
         shifts: s.shiftDates.size,
         evening: b?.night25Hours ?? 0,
         night: b?.night40Hours ?? 0,
-        sunHol:
-          (sfn?.simple.sundayHours ?? 0),
+        sunHol: sfn?.simple.sundayHours ?? 0,
         sonntag: sfn?.extended.sundayHours ?? 0,
         feiertag: sfn?.extended.holidayHours ?? 0,
         feiertag150: sfn?.extended.holiday150Hours ?? 0,

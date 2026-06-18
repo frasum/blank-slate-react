@@ -38,7 +38,9 @@ function fmtEUR(n: number): string {
   return n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function columns(mode: BuchhaltungMode): { key: keyof BuchhaltungExportRow | "name"; label: string }[] {
+function columns(
+  mode: BuchhaltungMode,
+): { key: keyof BuchhaltungExportRow | "name"; label: string }[] {
   const base: { key: keyof BuchhaltungExportRow | "name"; label: string }[] = [
     { key: "name", label: "Mitarbeiter" },
     { key: "totalHours", label: "Gesamt" },
