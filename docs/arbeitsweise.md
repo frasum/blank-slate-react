@@ -2,7 +2,7 @@
 
 Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen Baublock konsultiert. Bewusst kurz gehalten — Architektur-Begründungen stehen im gruendungsdokument.md, nicht hier.
 
-Stand: 17.06.2026
+Stand: 19.06.2026
 
 ## 1. Rollenverteilung im Team
 
@@ -32,6 +32,8 @@ Erst wenn ESLint 0 Fehler und alle Tests grün sind → ABGENOMMEN.
 - **Migrationen immer als Vorab-SQL-Skizze im Prompt mitgeben** — nicht Lovable raten lassen. Reduziert Schema-Fehler erheblich.
 - **Massen-SQL in Batches** (max. ~2000–2500 Zeilen pro Datei), sonst bricht der Supabase-Editor mit Connection-Fehler ab. Bei Fehler einfach nochmal „Run".
 - **Dokument nach JEDER Session nachziehen** — egal ob mit Claude oder direkt mit dem Lovable-Agenten gearbeitet wurde. Mindestens den Modul-Status (Abschnitt 6/7) aktualisieren. Diese Datei ist die gemeinsame Wahrheit für beide Arbeitswege; nur wenn sie aktuell bleibt, driften die Wege nicht auseinander. Beim Wiedereinstieg gilt der hier dokumentierte Stand als Ausgangspunkt (nicht der „letzte gesehene" Stand einer einzelnen Person), daher: `git pull` + `git log` gegen diesen Stand, um auch Direkt-Commits zu erfassen.
+- **Format-/Geld-Helfer nur byte-identisch zentralisieren.** Gleichnamige Helfer im Projekt divergieren oft (z. B. `parseEuroToCents`: leer→`0` vs →`null`, negative erlaubt vs verboten, Punkt als Tausender- vs Dezimaltrenner). Vor jedem Zusammenführen byte-diffen; nur wirklich identische nach `@/lib/format` (aktuell `fmtCents`/`parseIso`/`todayIso`). Sonst lautloser Geld-Logik-Regress.
+- **Identity-Cache: `await invalidateQueries(["identity"])` VOR `router.invalidate()`/`navigate`.** `ensureQueryData` (react-query v5, `revalidateIfStale` default `false`) liefert sonst stale Cache ohne Refetch abzuwarten → nach Passwortwechsel/Impersonation-Start/-Stop Redirect-Loop. `removeQueries` vermeiden (Flicker beim aktiven AuthContext-`identityQuery`). Guards in `passwort-aendern.tsx`, `impersonate.tsx` (`handleStart`), `impersonation-banner.tsx` (`handleStop`).
 - **CI-Jobs:** `check` (tsc+eslint+vitest) muss grün sein. `db-integration` ist gelegentlich flaky („role_assignments insert failed: upstream") — das ist ein Timing-Problem des lokalen Supabase-Stacks, kein Code-Bug.
 
 ## 4. Stammdaten-Referenz (COCO Produktion)
@@ -123,31 +125,53 @@ gh repo clone frasum/bestellung-5fff1793
 
 Über das Nickname in Klammern im thaitime-Vornamen, z.B. „REDACTED" → COCO display_name „REDACTED". Sonderfall: „REDACTED" → REDACTED. „REDACTED" existiert nicht in COCO (ignoriert).
 
-## 6. Aktueller Modul-Status (17.06.2026)
+## 6. Aktueller Modul-Status (19.06.2026)
 
-| Modul                                                                                 | Status    |
-| ------------------------------------------------------------------------------------- | --------- |
-| B3 Kasse + B4 Trinkgeld + B5 Tresor                                                   | ✅        |
-| B6 Zeitübersicht (Wochenplan/Zusammenfassung/Buchhaltung/Perioden)                    | ✅        |
-| B7 Perioden (26.–25.) + Import Jan–Sep 2026                                           | ✅        |
-| B8 Lohnbüro-Rolle (payroll)                                                           | ✅        |
-| D1 Dienstplan-Datenmodell + Grid                                                      | ✅        |
-| D2a–e Dienstplan editierbar, Realtime, Service-Symbole, Cross-Booking                 | ✅        |
-| D-8 Eine Einteilung/MA/Tag (Pre-Check + UI-Lock, kein DB-Constraint)                  | ✅        |
-| Dienstplan-Migration (re-migriert 17.06.: 3764 echte Schichten)                       | ✅        |
-| D3 Display — Token + Auto-Refresh + Daten ✅; Rotation/Legende/Geburtstag offen       | 🔄 teilw. |
-| M4 Lohn — Rechen-Kern (Stufe 1/3): PAP 2026 + SV, edlohn-cent-getestet                | ✅        |
-| M4 Lohn — SFN-Geld + Perioden-Aggregation + Verdrahtung (Stufe 2a–c)                  | ✅        |
-| M4 Lohn — Lohnrechner-UI + Excel-Export (`/admin/lohnrechner`)                        | ✅        |
-| Provision (wochenbasiert)                                                             | ⏳ offen  |
-| Geofencing-Stempeln (UI clockIn nur am Standort, distinct-Location)                   | ✅        |
-| PIN-Login via Vorname/Nickname                                                        | ✅        |
-| Hub & Meine Schichten (`/zeit/schichten`, `/zeit/stempeln`)                           | ✅        |
-| Inventur-Session an DB gebunden                                                       | ✅        |
-| Self-Service Welle B — Freier-Tag-Wunsch (`/zeit/wuensche`)                           | ✅        |
-| Self-Service Welle C — Urlaubsanträge + Genehmigung (`/zeit/urlaub`, `/admin/urlaub`) | ✅        |
-| Kasse — Vier-Zeilen-Bargeldblock + Soll-Wechselgeld je Standort                       | ✅        |
-| Kasse — Abgleichs-Warnungen (POS-/Terminal-Differenz, `payment_terminals.is_gl`)      | ✅        |
+| Modul                                                                                         | Status    |
+| --------------------------------------------------------------------------------------------- | --------- |
+| B3 Kasse + B4 Trinkgeld + B5 Tresor                                                           | ✅        |
+| B6 Zeitübersicht (Wochenplan/Zusammenfassung/Buchhaltung/Perioden)                            | ✅        |
+| B7 Perioden (26.–25.) + Import Jan–Sep 2026                                                   | ✅        |
+| B8 Lohnbüro-Rolle (payroll)                                                                   | ✅        |
+| D1 Dienstplan-Datenmodell + Grid                                                              | ✅        |
+| D2a–e Dienstplan editierbar, Realtime, Service-Symbole, Cross-Booking                         | ✅        |
+| D-8 Eine Einteilung/MA/Tag (Pre-Check + UI-Lock, kein DB-Constraint)                          | ✅        |
+| Dienstplan-Migration (re-migriert 17.06.: 3764 echte Schichten)                               | ✅        |
+| D3 Display — Token + Auto-Refresh + Daten ✅; Rotation/Legende/Geburtstag offen               | 🔄 teilw. |
+| M4 Lohn — Rechen-Kern (Stufe 1/3): PAP 2026 + SV, edlohn-cent-getestet                        | ✅        |
+| M4 Lohn — SFN-Geld + Perioden-Aggregation + Verdrahtung (Stufe 2a–c)                          | ✅        |
+| M4 Lohn — Lohnrechner-UI + Excel-Export (`/admin/lohnrechner`)                                | ✅        |
+| Provision (wochenbasiert)                                                                     | ⏳ offen  |
+| Geofencing-Stempeln (UI clockIn nur am Standort, distinct-Location)                           | ✅        |
+| PIN-Login via Vorname/Nickname                                                                | ✅        |
+| Hub & Meine Schichten (`/zeit/schichten`, `/zeit/stempeln`)                                   | ✅        |
+| Inventur-Session an DB gebunden                                                               | ✅        |
+| Self-Service Welle B — Freier-Tag-Wunsch (`/zeit/wuensche`)                                   | ✅        |
+| Self-Service Welle C — Urlaubsanträge + Genehmigung (`/zeit/urlaub`, `/admin/urlaub`)         | ✅        |
+| Kasse — Vier-Zeilen-Bargeldblock + Soll-Wechselgeld je Standort                               | ✅        |
+| Kasse — Abgleichs-Warnungen (POS-/Terminal-Differenz, `payment_terminals.is_gl`)              | ✅        |
+| Impersonation („Anmelden als") + granularer Rechte-Tab + Passwort-Flows (ändern/zurücksetzen) | ✅        |
+| M4 — Payroll-Policies erweitert (`m4-payroll-permissions.db.test`)                            | ✅        |
+| Buchhaltung §3b-Block (`/admin/zeit-uebersicht`, payroll-Tab) inkl. Feiertags-Fix             | ✅        |
+| Interne Verbesserungen: `@/lib/format`, DE-Lokalisierung, Skeletons, Identity-Roundtrip       | ✅        |
+| Refactor: `kasse.tsx` aufgeteilt (2189 → 860 Z., `src/components/cash/*`)                     | ✅        |
+
+**Stand 18.–19.06.2026 (Session-Nachzug):**
+
+- **Auth-/Admin-Ausbau:**
+  - **Impersonation („Anmelden als"):** `src/lib/admin/impersonation.functions.ts` (`startImpersonation`/`stopImpersonation`), `src/components/impersonation-banner.tsx`, Route `/admin/impersonate`. **Start** sitzt in `impersonate.tsx` (`handleStart`), **Stop** im Banner (`handleStop`) — nicht in `impersonate.tsx`.
+  - **Granularer Rechte-Tab** im Staff-Detail: `permissions-catalog.ts`, `permissions.functions.ts`, `PermissionsTab.tsx`.
+  - **Passwort-Flows:** `passwort-aendern.tsx`, `reset-password.tsx`, `password-change.functions.ts`, `password-generator.ts`, `account.functions.ts`. `createStaffAccount` spiegelt den bewährten Flow: `auth.admin.createUser` mit `app_metadata.staff_id`, `user_links`-Insert, `must_change_password=true`, gibt das einmalige Standardpasswort als **Klartext** zurück (nicht geloggt). Admin-gated, schreibt `audit_log staff.account_created`.
+  - **M4-Payroll-Policies erweitert** (+ `m4-payroll-permissions.db.test.ts`).
+- **Payroll-Kraft „Viktoria Schaffer" angelegt** (Rolle `payroll`, Login `…@etl.de`, PIN). **Bewusst ohne `staff_locations`** → unsichtbar in Dienstplan + Zeitübersicht. **Merker:** Diese Sichtbarkeit hängt an `staff_locations` (`getStaffForRoster` joint es, `getTimeOverview` zieht aus `time_entries` an der Location), **nicht an der Rolle** — kein Rollen-Filter im Code. `participates_in_pool` für externe Kräfte explizit `false` (DB-Default ist `true`).
+- **Buchhaltung §3b-Block** im `payroll`-Tab von `/admin/zeit-uebersicht`: §3b-Toggle (Einfach/§3b), Spalten 20–24/24–X/SO-FEI, im §3b-Modus zusätzlich Sonntag/Feiertag 125 %/Feiertag 150 %, Footer-Summen, Suche, PDF/Excel-Export (`buchhaltung-export.ts`, **ExcelJS** — kein `xlsx`). Perioden- und Buchhaltung-Tab existierten bereits (B6/B7) — **kein Neubau**, nur Anreicherung.
+  - **Feiertags-Bug gefixt (`e105780`):** `getSfnOverview` rechnete `"simple"` mit leerer `holidayRates`-Map → „Feiertag"/„Feiertag 150 %" strukturell **immer 0**, alles unter „Sonntag". Fix: reine, getestete `src/lib/lohn/compute-staff-sfn.ts` (baut die Map via `bavarianHolidaySurchargeRate`, rechnet simple **und** extended), `getSfnOverview` nutzt sie modusabhängig. 20–24/24–X bleiben die §3b-25 %/40 %-Töpfe (`night25`/`night40`, Entscheidung Frank).
+- **Interne Verbesserungen (ohne Verhaltensänderung):**
+  - **`src/lib/format.ts`** — nur die byte-identischen Helfer `fmtCents`/`parseIso`/`todayIso` zentralisiert. `parseEuroToCents`/`fmtTime`/`formatDuration`/`daysBetween` **bewusst lokal gelassen** (divergente Varianten, s. §3).
+  - **DE-Lokalisierung** `__root.tsx` (404/Error-Seite, `lang="de"`).
+  - **Skeleton-Loader** `src/components/ui/page-skeletons.tsx` (kasse/zeit-uebersicht; Dienstplan hatte keinen „Lade…"-Text → Skeleton exportiert, ungenutzt).
+  - **Identity-Roundtrip** via `ensureQueryData` in beiden `_authenticated`-`beforeLoad` (ein `getMyIdentity` pro Session statt zwei) + 3 Invalidate-Guards (s. §3).
+- **Refactor `kasse.tsx` aufgeteilt (2189 → 860 Z.):** Sub-Komponenten nach `src/components/cash/*` (SettlementWarningsBanner, SettlementsCard, SessionFieldsCard, CashSummaryBlock, ExcelRows, ExpenseForm, AdvanceForm, TipPoolCard), Helper nach `src/lib/cash/kasse-helpers.ts`, geteilte Typen nach `kasse-types.ts`. Byte-identische Extraktion, Tests unverändert (685). `parseEuroToCents` blieb byte-identisch (nicht gemergt).
 
 **Stand 17.06.2026 (Abend, Session-Nachzug):**
 
@@ -250,4 +274,4 @@ Quelle der Wahrheit: Legacy `bestellung` (Repo `bestellung-5fff1793`, hat `SYSTE
 
 Bekanntes Supabase/PostgREST-Problem (Issues #42183, #39446): nach Migrationen kennt der PostgREST-Schema-Cache neue Tabellen/Spalten nicht (PGRST204 `guest_count` / PGRST205 `wine_quiz_scores`). 4 DB-Tests scheitern dauerhaft daran (im Test-SETUP beim `suppliers`-Insert, NICHT in der Logik). 75/79 DB-Tests grün. 4 CI-Fix-Versuche (Container-Restart, Probe-Logik, `db reset`, `pgrst_watch`-Event-Trigger) lösten es im CI nicht. Entscheidung: `db-integration` via `continue-on-error` NON-BLOCKING — läuft + reportet, blockiert aber nicht den grünen Gesamtstatus. `check`-Job (tsc+eslint+vitest) bleibt blockierend. Revisiten wenn Supabase-CLI den Cache-Reload nach `db reset` fixt → `continue-on-error` entfernen. Konsequenz: EasyOrder 4-B/4-D Sicherheits-DB-Tests statisch wasserdicht, aber nicht real in CI bewiesen (scheitern im Setup, nicht an der Logik). Der `pgrst_watch`-Trigger bleibt drin (hilft in Produktion).
 
-**Hinweis CI:** `max-warnings` inzwischen auf 5 (5 tolerierte `react-hooks/exhaustive-deps`-Warnings: inventur/warenkorb/zeit-uebersicht + 2 in `easyorder.tsx`). Bei Gelegenheit bewusst aufräumen, nicht nebenbei (Logik-nahe `useMemo`-Änderung).
+**Hinweis CI:** Die 5 tolerierten `react-hooks/exhaustive-deps`-Warnings sind aufgeräumt — `eslint .` ist wieder bei **0 Warnings**. Am 18.06. wurde ein **Format-Job** in der CI ergänzt (prüft Prettier). **Wiederkehrendes Muster:** Lovable überspringt gern `npx prettier --write` → CI wird **nur** an Prettier rot (tsc/vitest grün). Standing Fix: `prettier --write` vor jedem Commit (steht in §3). Optionaler Folgeschritt: husky Pre-Commit-Hook, der `prettier --write` lokal automatisch laufen lässt.
