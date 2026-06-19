@@ -858,4 +858,3 @@ function KassePage() {
     </div>
   );
 }
-
