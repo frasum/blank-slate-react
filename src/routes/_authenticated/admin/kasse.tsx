@@ -13,7 +13,7 @@ import { Download, FileText, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { fmtCents, todayIso } from "@/lib/format";
+import { todayIso } from "@/lib/format";
 import { KassePageSkeleton } from "@/components/ui/page-skeletons";
 import {
   Dialog,
@@ -32,62 +32,36 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { listStaff } from "@/lib/admin/staff.functions";
 import { listLocations } from "@/lib/admin/locations.functions";
 import {
   addSessionSatellite,
   adminCreateWaiterSettlement,
   correctWaiterSettlement,
-  deleteSessionTipPoolEntry,
   finalizeSession,
   getCashOverview,
   getOrCreateOpenSession,
-  getTipPoolOverview,
-  listSessionTipPoolEntries,
   listPaymentTerminals,
   listRevenueChannels,
   lockSession,
   removeSessionSatellite,
   setCashLock,
   updateSession,
-  upsertSessionTipPoolEntry,
 } from "@/lib/cash/cash.functions";
 import { generateDailySummaryPdf } from "@/lib/cash/pdfExport";
-import { computeSummaryRows } from "@/lib/cash/cash-summary";
-import { sessionToDayInput } from "@/lib/cash/session-day-input";
-import { aggregateChannelAmounts, type ChannelKind } from "@/lib/cash/session-channels";
-import { computeSettlementWarnings } from "@/lib/cash/settlement-warnings";
 import { DateSelector } from "@/components/shared/DateSelector";
 import { PdfCanvasPreview } from "@/components/cash/PdfCanvasPreview";
+import { parseEuroToCents } from "@/lib/cash/kasse-helpers";
+import { SettlementWarningsBanner } from "@/components/cash/SettlementWarningsBanner";
+import { SettlementsCard } from "@/components/cash/SettlementsCard";
+import { SessionFieldsCard } from "@/components/cash/SessionFieldsCard";
+import { TipPoolCard } from "@/components/cash/TipPoolCard";
 import type jsPDF from "jspdf";
 
 export const Route = createFileRoute("/_authenticated/admin/kasse")({
   head: () => ({ meta: [{ title: "Kasse" }] }),
   component: KassePage,
 });
-
-function parseEuroToCents(value: string): number | null {
-  const t = value.trim().replace(",", ".");
-  if (t === "") return 0;
-  if (!/^-?\d+(\.\d{0,2})?$/.test(t)) return null;
-  const n = Number.parseFloat(t);
-  if (!Number.isFinite(n)) return null;
-  return Math.round(n * 100);
-}
-
-function fmtTime(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
-}
 
 type CorrectState = {
   originalId: string;
