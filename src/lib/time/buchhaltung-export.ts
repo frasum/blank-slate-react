@@ -1,7 +1,6 @@
 // Buchhaltung-Export (PDF + Excel). Reine Funktionen, ohne React-Abhängigkeit.
 // Spalten je nach §3b-Modus dynamisch. Provisions-Parameter bewusst weggelassen.
 
-import ExcelJS from "exceljs";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -128,6 +127,7 @@ export function buildBuchhaltungFileBase(input: BuchhaltungExportInput): string 
 // ---------- Excel ----------
 
 export async function buildBuchhaltungXlsx(input: BuchhaltungExportInput): Promise<Blob> {
+  const ExcelJS = (await import("exceljs")).default;
   const wb = new ExcelJS.Workbook();
   wb.creator = "Coco";
   const ws = wb.addWorksheet("Buchhaltung");
