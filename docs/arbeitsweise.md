@@ -127,34 +127,34 @@ gh repo clone frasum/bestellung-5fff1793
 
 ## 6. Aktueller Modul-Status (19.06.2026)
 
-| Modul                                                                                 | Status    |
-| ------------------------------------------------------------------------------------- | --------- |
-| B3 Kasse + B4 Trinkgeld + B5 Tresor                                                   | ✅        |
-| B6 Zeitübersicht (Wochenplan/Zusammenfassung/Buchhaltung/Perioden)                    | ✅        |
-| B7 Perioden (26.–25.) + Import Jan–Sep 2026                                           | ✅        |
-| B8 Lohnbüro-Rolle (payroll)                                                           | ✅        |
-| D1 Dienstplan-Datenmodell + Grid                                                      | ✅        |
-| D2a–e Dienstplan editierbar, Realtime, Service-Symbole, Cross-Booking                 | ✅        |
-| D-8 Eine Einteilung/MA/Tag (Pre-Check + UI-Lock, kein DB-Constraint)                  | ✅        |
-| Dienstplan-Migration (re-migriert 17.06.: 3764 echte Schichten)                       | ✅        |
-| D3 Display — Token + Auto-Refresh + Daten ✅; Rotation/Legende/Geburtstag offen       | 🔄 teilw. |
-| M4 Lohn — Rechen-Kern (Stufe 1/3): PAP 2026 + SV, edlohn-cent-getestet                | ✅        |
-| M4 Lohn — SFN-Geld + Perioden-Aggregation + Verdrahtung (Stufe 2a–c)                  | ✅        |
-| M4 Lohn — Lohnrechner-UI + Excel-Export (`/admin/lohnrechner`)                        | ✅        |
-| Provision (wochenbasiert)                                                             | ⏳ offen  |
-| Geofencing-Stempeln (UI clockIn nur am Standort, distinct-Location)                   | ✅        |
-| PIN-Login via Vorname/Nickname                                                        | ✅        |
-| Hub & Meine Schichten (`/zeit/schichten`, `/zeit/stempeln`)                           | ✅        |
-| Inventur-Session an DB gebunden                                                       | ✅        |
-| Self-Service Welle B — Freier-Tag-Wunsch (`/zeit/wuensche`)                           | ✅        |
-| Self-Service Welle C — Urlaubsanträge + Genehmigung (`/zeit/urlaub`, `/admin/urlaub`) | ✅        |
-| Kasse — Vier-Zeilen-Bargeldblock + Soll-Wechselgeld je Standort                       | ✅        |
-| Kasse — Abgleichs-Warnungen (POS-/Terminal-Differenz, `payment_terminals.is_gl`)      | ✅        |
-| Impersonation („Anmelden als") + granularer Rechte-Tab + Passwort-Flows (ändern/zurücksetzen) | ✅ |
-| M4 — Payroll-Policies erweitert (`m4-payroll-permissions.db.test`)                    | ✅        |
-| Buchhaltung §3b-Block (`/admin/zeit-uebersicht`, payroll-Tab) inkl. Feiertags-Fix      | ✅        |
-| Interne Verbesserungen: `@/lib/format`, DE-Lokalisierung, Skeletons, Identity-Roundtrip | ✅       |
-| Refactor: `kasse.tsx` aufgeteilt (2189 → 860 Z., `src/components/cash/*`)              | ✅        |
+| Modul                                                                                         | Status    |
+| --------------------------------------------------------------------------------------------- | --------- |
+| B3 Kasse + B4 Trinkgeld + B5 Tresor                                                           | ✅        |
+| B6 Zeitübersicht (Wochenplan/Zusammenfassung/Buchhaltung/Perioden)                            | ✅        |
+| B7 Perioden (26.–25.) + Import Jan–Sep 2026                                                   | ✅        |
+| B8 Lohnbüro-Rolle (payroll)                                                                   | ✅        |
+| D1 Dienstplan-Datenmodell + Grid                                                              | ✅        |
+| D2a–e Dienstplan editierbar, Realtime, Service-Symbole, Cross-Booking                         | ✅        |
+| D-8 Eine Einteilung/MA/Tag (Pre-Check + UI-Lock, kein DB-Constraint)                          | ✅        |
+| Dienstplan-Migration (re-migriert 17.06.: 3764 echte Schichten)                               | ✅        |
+| D3 Display — Token + Auto-Refresh + Daten ✅; Rotation/Legende/Geburtstag offen               | 🔄 teilw. |
+| M4 Lohn — Rechen-Kern (Stufe 1/3): PAP 2026 + SV, edlohn-cent-getestet                        | ✅        |
+| M4 Lohn — SFN-Geld + Perioden-Aggregation + Verdrahtung (Stufe 2a–c)                          | ✅        |
+| M4 Lohn — Lohnrechner-UI + Excel-Export (`/admin/lohnrechner`)                                | ✅        |
+| Provision (wochenbasiert)                                                                     | ⏳ offen  |
+| Geofencing-Stempeln (UI clockIn nur am Standort, distinct-Location)                           | ✅        |
+| PIN-Login via Vorname/Nickname                                                                | ✅        |
+| Hub & Meine Schichten (`/zeit/schichten`, `/zeit/stempeln`)                                   | ✅        |
+| Inventur-Session an DB gebunden                                                               | ✅        |
+| Self-Service Welle B — Freier-Tag-Wunsch (`/zeit/wuensche`)                                   | ✅        |
+| Self-Service Welle C — Urlaubsanträge + Genehmigung (`/zeit/urlaub`, `/admin/urlaub`)         | ✅        |
+| Kasse — Vier-Zeilen-Bargeldblock + Soll-Wechselgeld je Standort                               | ✅        |
+| Kasse — Abgleichs-Warnungen (POS-/Terminal-Differenz, `payment_terminals.is_gl`)              | ✅        |
+| Impersonation („Anmelden als") + granularer Rechte-Tab + Passwort-Flows (ändern/zurücksetzen) | ✅        |
+| M4 — Payroll-Policies erweitert (`m4-payroll-permissions.db.test`)                            | ✅        |
+| Buchhaltung §3b-Block (`/admin/zeit-uebersicht`, payroll-Tab) inkl. Feiertags-Fix             | ✅        |
+| Interne Verbesserungen: `@/lib/format`, DE-Lokalisierung, Skeletons, Identity-Roundtrip       | ✅        |
+| Refactor: `kasse.tsx` aufgeteilt (2189 → 860 Z., `src/components/cash/*`)                     | ✅        |
 
 **Stand 18.–19.06.2026 (Session-Nachzug):**
 
