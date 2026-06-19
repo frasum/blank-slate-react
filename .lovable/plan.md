@@ -1,82 +1,67 @@
-Vier interne Verbesserungen ohne sichtbare Verhaltensänderung.
+## Ziel
+`src/routes/_authenticated/admin/kasse.tsx` (2.189 Z.) in mehrere Dateien aufteilen. **Reine Datei-Extraktion**, byte-identische Funktionskörper, keine Verhaltensänderung.
 
-## 1) `src/lib/format.ts` — nur `fmtCents`, `parseIso`, `todayIso` (+ Tests)
+## Vorgehen
 
-Neue Datei mit genau diesen drei Exports, wörtlich aus der bestehenden identischen Variante:
+### 1. Helper-Modul `src/lib/cash/kasse-helpers.ts` (neu)
+Wörtlich aus `kasse.tsx` extrahieren (named exports):
+- `parseEuroToCents` (Z. 78) — diese Variante (erlaubt negative Werte, leer → 0), **nicht** mit anderen Projekt-Varianten mergen
+- `fmtTime` (Z. 87)
+- `fmtSignedCents` (Z. 896)
+- `focusNextInput` (Z. 1740)
 
-```ts
-export function fmtCents(c: number | null | undefined): string {
-  const v = (c ?? 0) / 100;
-  return v.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-export function parseIso(iso: string): Date {
-  return new Date(`${iso}T12:00:00Z`);
-}
-export function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-```
+`fmtCents`/`todayIso` bleiben unverändert importiert aus `@/lib/format`.
 
-Lokale Definitionen nur nach Byte-Diff ersetzen:
-- `src/routes/_authenticated/admin/kasse.tsx` → `fmtCents`, `todayIso`
-- `src/routes/_authenticated/admin/zeit-uebersicht.tsx` → `todayIso`
-- `src/routes/_authenticated/admin/dienstplan.tsx` → `parseIso`, `todayIso`
-- `src/components/roster/RosterGrid.tsx` → `parseIso`
+### 2. Typen-Modul `src/lib/cash/kasse-types.ts` (neu)
+- `import { getCashOverview } from "@/lib/cash/cash.functions"`
+- `export type Overview = Awaited<ReturnType<typeof getCashOverview>>`
+- `export type SettlementRow = Overview["settlements"][number]`
 
-**Nicht zentralisiert** (divergente Logik/Signatur — stille Verhaltensänderung wäre die Folge): `parseEuroToCents` (4 Varianten), `fmtTime` (ISO vs `HH:mm:ss`), `formatDuration` (`(startIso,endIso)` vs `(ms)`), `daysBetween` (nur 1 Definition).
+Einfach-genutzte Typen wandern mit ihrer Komponente:
+- `UpdatePayload` → `SessionFieldsCard.tsx`
+- `CashSummaryMisc` → `CashSummaryBlock.tsx`
+- `StaffListItem`, `ManualDraft` → `TipPoolCard.tsx`
 
-Tests `src/lib/format.test.ts`:
-- `fmtCents`: `0→"0,00"`, `12345→"123,45"`, `123456→"1.234,56"`, `null→"0,00"`.
-- `parseIso("2026-03-15")`: `getUTCHours()===12`, Y/M/D korrekt.
-- `todayIso`: Länge 10, Regex `^\d{4}-\d{2}-\d{2}$`.
+`CorrectState`/`CreateState` bleiben in `kasse.tsx`. `ChannelKind` weiterhin aus `@/lib/cash/session-channels` importieren.
 
-## 2) `src/routes/__root.tsx` — DE-Lokalisierung
-- `<html lang="en">` → `<html lang="de">`.
-- „Page not found" → „Seite nicht gefunden".
-- „Go home" → „Zur Startseite" (beide Vorkommen).
-- „This page didn't load" → „Diese Seite konnte nicht geladen werden".
-- „Try again" → „Erneut versuchen".
-- Begleittexte unverändert.
+### 3. Sub-Komponenten nach `src/components/cash/` (named exports, byte-identisch)
 
-## 3) Skeleton-Loader
-Neue Datei `src/components/ui/page-skeletons.tsx` (nutzt bestehendes `Skeleton`) mit `KassePageSkeleton` (~5-Zeilen-Tabelle), `ZeitSkeleton` (Tabellen-Skelett), `DienstplanSkeleton` (Grid). Einsatz ausschließlich in `kasse.tsx`, `zeit-uebersicht.tsx`, `dienstplan.tsx` an den „Lade…"-Stellen. Andere „Lade…"-Vorkommen unverändert.
+| Neue Datei | Komponente(n) |
+|---|---|
+| `SettlementWarningsBanner.tsx` | `SettlementWarningsBanner` |
+| `SettlementsCard.tsx` | `SettlementsCard` |
+| `SessionFieldsCard.tsx` | `SessionFieldsCard` (Kompositions-Knoten) |
+| `CashSummaryBlock.tsx` | `CashSummaryBlock` |
+| `ExcelRows.tsx` | `ExcelSectionHeader`, `ExcelInputRow`, `ExcelReadonlyRow` |
+| `ExpenseForm.tsx` | `ExpenseForm` |
+| `AdvanceForm.tsx` | `AdvanceForm` |
+| `TipPoolCard.tsx` | `TipPoolCard` |
 
-## 4) Identity-Roundtrip via `ensureQueryData` (+ 3 Invalidate-Guards)
+Import-Verdrahtung:
+- `SessionFieldsCard` → `./AdvanceForm`, `./ExpenseForm`, `./CashSummaryBlock`, `./ExcelRows`
+- `CashSummaryBlock` → `./ExcelRows`
+- `ExcelInputRow` → `focusNextInput` aus `@/lib/cash/kasse-helpers`
+- `fmtSignedCents`/`fmtTime`/`parseEuroToCents` → `@/lib/cash/kasse-helpers`
+- `fmtCents` → `@/lib/format`
+- `Overview`/`SettlementRow` → `@/lib/cash/kasse-types`
 
-In `src/routes/_authenticated/route.tsx` und `src/routes/_authenticated/admin/route.tsx` `beforeLoad` umstellen:
+### 4. `kasse.tsx` bereinigen
+- Verschobene Definitionen löschen
+- Imports der neuen Module ergänzen
+- `KassePage` (Z. 115–895) + Route-Definition + `CorrectState`/`CreateState` **unverändert**
 
-```ts
-const identity = await context.queryClient.ensureQueryData({
-  queryKey: ["identity", data.session.user.id ?? null],
-  queryFn: () => getMyIdentity(),
-});
-```
+### 5. Vor Commit
+`npx prettier --write` und `npx eslint --fix` auf allen neuen/geänderten Dateien.
 
-Key exakt wie AuthContext (`["identity", session?.user.id ?? null]`). Redirect-Checks (`mustChangePassword`, role-Gate, payroll-Redirect) Zeichen-für-Zeichen unverändert.
+## Nicht angefasst
+- `KassePage`-Logik (States/Queries/Mutations/Effects)
+- Server Functions, DB, Sicherheitsmodell
+- Andere `parseEuroToCents`-Varianten
+- Keine Memoization/Optimierung
 
-**Cache-Guards gegen Redirect-Loop / Race** — Reihenfolge zwingend `await invalidateQueries` VOR `router.invalidate()`/`navigate`. Begründung: `ensureQueryData` (react-query v5, `revalidateIfStale` default `false`) liefert sonst stale Daten ohne auf Refetch zu warten. Der aktive AuthContext-`identityQuery` (`enabled: !!session`) sorgt dafür, dass `invalidateQueries` (default `refetchType: 'active'`) den Refetch in-place abwartet — kein Flicker. **Kein `removeQueries`** (würde aktiven Eintrag löschen → `identity: null`-Flicker).
-
-Jeweils `const queryClient = useQueryClient();`:
-- `passwort-aendern.tsx` Success-Handler:
-  ```ts
-  await queryClient.invalidateQueries({ queryKey: ["identity"] });
-  await router.invalidate();
-  ```
-- `impersonate.tsx` `handleStart` nach Erfolg, **vor** `router.navigate`: `await queryClient.invalidateQueries({ queryKey: ["identity"] });`
-- `src/components/impersonation-banner.tsx` `handleStop` (dort wird `stopImpersonation` aufgerufen — nicht in `impersonate.tsx`), **vor** `router.navigate`: dito.
-
-## Nicht anfassen
-DB, Server-Function-Signaturen, Sicherheitsmodell. `parseEuroToCents`/`fmtTime`/`formatDuration`/`daysBetween`. `kasse-saldo.tsx`, `stempeln.tsx`. „Lade…" außerhalb von kasse/zeit-uebersicht/dienstplan.
-
-## Vor Commit & Erfolgs-Gate
-`prettier --write` + `eslint --fix` über geänderte Dateien. `tsc --noEmit`, `eslint .`, `vitest run` grün, `format.test.ts` grün. Network-Tab: nur ein `getMyIdentity`-Call pro Session bei Admin-Navigation. Nach Passwortwechsel kein Redirect-Loop.
+## Erfolgs-Gate
+`tsc --noEmit` 0, `eslint .` 0, `prettier --check .` sauber, `vitest run` = 685 Tests unverändert, `kasse.tsx` < ~950 Z., Bodies byte-identisch.
 
 ## Geänderte / neue Dateien
-- **neu** `src/lib/format.ts`, `src/lib/format.test.ts`, `src/components/ui/page-skeletons.tsx`
-- `src/routes/__root.tsx`
-- `src/routes/_authenticated/route.tsx`, `src/routes/_authenticated/admin/route.tsx`
-- `src/routes/_authenticated/admin/kasse.tsx`, `zeit-uebersicht.tsx`, `dienstplan.tsx`
-- `src/components/roster/RosterGrid.tsx`
-- `src/routes/_authenticated/passwort-aendern.tsx`
-- `src/routes/_authenticated/admin/impersonate.tsx`
-- `src/components/impersonation-banner.tsx`
+**Neu (10):** `src/lib/cash/kasse-helpers.ts`, `src/lib/cash/kasse-types.ts`, `src/components/cash/{SettlementWarningsBanner,SettlementsCard,SessionFieldsCard,CashSummaryBlock,ExcelRows,ExpenseForm,AdvanceForm,TipPoolCard}.tsx`
+**Geändert:** `src/routes/_authenticated/admin/kasse.tsx`

@@ -1,0 +1,497 @@
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { fmtCents } from "@/lib/format";
+import { parseEuroToCents, focusNextInput } from "@/lib/cash/kasse-helpers";
+import type { Overview } from "@/lib/cash/kasse-types";
+import { AdvanceForm } from "./AdvanceForm";
+import { ExpenseForm } from "./ExpenseForm";
+import { CashSummaryBlock } from "./CashSummaryBlock";
+import { ExcelSectionHeader, ExcelInputRow, ExcelReadonlyRow } from "./ExcelRows";
+
+type UpdatePayload = {
+  channelAmounts: { channelId: string; amountCents: number }[];
+  terminalAmounts: { terminalId: string; amountCents: number }[];
+  vouchersSoldCents: number;
+  vouchersRedeemedCents: number;
+  finedineVouchersCents: number;
+  opentabsDeductionCents: number;
+  vorschussCents: number;
+  einladungCents: number;
+  sonstigeEinnahmeCents: number;
+  vectronDailyTotalCents: number;
+  cashActualCents: number | null;
+  guestCount: number;
+  notes: string | null;
+};
+
+export function SessionFieldsCard({
+  overview,
+  channels,
+  terminals,
+  writable,
+  onSave,
+  expenses,
+  advances,
+  staff,
+  onAddExpense,
+  onRemoveExpense,
+  onAddAdvance,
+  onRemoveAdvance,
+  cashBalanceTargetCents,
+}: {
+  sessionId: string;
+  overview: Overview;
+  channels: { id: string; label: string; kind: string; isActive: boolean }[];
+  terminals: { id: string; label: string; isActive: boolean }[];
+  writable: boolean;
+  onSave: (data: UpdatePayload) => Promise<unknown>;
+  expenses: Array<{ id: string; description: string | null; amountCents: number }>;
+  advances: Array<{
+    id: string;
+    staffId: string;
+    amountCents: number;
+    note: string | null;
+  }>;
+  staff: { id: string; displayName: string }[];
+  onAddExpense: (description: string, amountCents: number) => Promise<unknown>;
+  onRemoveExpense: (id: string) => Promise<unknown>;
+  onAddAdvance: (staffId: string, amountCents: number, note: string | null) => Promise<unknown>;
+  onRemoveAdvance: (id: string) => Promise<unknown>;
+  cashBalanceTargetCents: number;
+}) {
+  type Row = { id: string; euro: string };
+  const initialChannels: Row[] = channels.map((c) => {
+    const found = overview.channelAmounts.find((a) => a.channelId === c.id);
+    return { id: c.id, euro: ((found?.amountCents ?? 0) / 100).toFixed(2) };
+  });
+  const initialTerminals: Row[] = terminals.map((t) => {
+    const found = overview.terminalAmounts.find((a) => a.terminalId === t.id);
+    return { id: t.id, euro: ((found?.amountCents ?? 0) / 100).toFixed(2) };
+  });
+
+  const sess = overview.session!;
+  type Misc = {
+    vouchersSold: string;
+    vouchersRedeemed: string;
+    finedineVouchers: string;
+    opentabs: string;
+    vorschuss: string;
+    einladung: string;
+    sonstige: string;
+    vectron: string;
+    cashActual: string;
+    guestCount: string;
+    notes: string;
+  };
+  const initialMisc: Misc = {
+    vouchersSold: (Number(sess.vouchers_sold_cents ?? 0) / 100).toFixed(2),
+    vouchersRedeemed: (Number(sess.vouchers_redeemed_cents ?? 0) / 100).toFixed(2),
+    finedineVouchers: (Number(sess.finedine_vouchers_cents ?? 0) / 100).toFixed(2),
+    opentabs: (Number(sess.opentabs_deduction_cents ?? 0) / 100).toFixed(2),
+    vorschuss: (Number(sess.vorschuss_cents ?? 0) / 100).toFixed(2),
+    einladung: (Number(sess.einladung_cents ?? 0) / 100).toFixed(2),
+    sonstige: (Number(sess.sonstige_einnahme_cents ?? 0) / 100).toFixed(2),
+    vectron: (Number(sess.vectron_daily_total_cents ?? 0) / 100).toFixed(2),
+    cashActual:
+      sess.cash_actual_cents === null || sess.cash_actual_cents === undefined
+        ? ""
+        : (Number(sess.cash_actual_cents) / 100).toFixed(2),
+    guestCount: String((sess as { guest_count?: number | null }).guest_count ?? 0),
+    notes: sess.notes ?? "",
+  };
+
+  const [chRows, setChRows] = useState<Row[]>(initialChannels);
+  const [tmRows, setTmRows] = useState<Row[]>(initialTerminals);
+  const [misc, setMisc] = useState<Misc>(initialMisc);
+  const [saving, setSaving] = useState(false);
+
+  // Wenn neue Reads kommen, lokale State zurücksetzen.
+  useEffect(() => {
+    setChRows(initialChannels);
+    setTmRows(initialTerminals);
+    setMisc(initialMisc);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [overview]);
+
+  function build(): UpdatePayload | null {
+    const chAmts: { channelId: string; amountCents: number }[] = [];
+    for (const r of chRows) {
+      const c = parseEuroToCents(r.euro);
+      if (c === null) return null;
+      if (c !== 0) chAmts.push({ channelId: r.id, amountCents: c });
+    }
+    const tmAmts: { terminalId: string; amountCents: number }[] = [];
+    for (const r of tmRows) {
+      const c = parseEuroToCents(r.euro);
+      if (c === null) return null;
+      if (c !== 0) tmAmts.push({ terminalId: r.id, amountCents: c });
+    }
+    const vs = parseEuroToCents(misc.vouchersSold);
+    const vr = parseEuroToCents(misc.vouchersRedeemed);
+    const fv = parseEuroToCents(misc.finedineVouchers);
+    const ot = parseEuroToCents(misc.opentabs);
+    const vo = parseEuroToCents(misc.vorschuss);
+    const ei = parseEuroToCents(misc.einladung);
+    const so = parseEuroToCents(misc.sonstige);
+    const ve = parseEuroToCents(misc.vectron);
+    const caRaw = misc.cashActual.trim();
+    const caParsed = caRaw === "" ? null : parseEuroToCents(caRaw);
+    const gcRaw = misc.guestCount.trim();
+    const gcParsed = gcRaw === "" ? 0 : Number.parseInt(gcRaw, 10);
+    if (
+      vs === null ||
+      vr === null ||
+      fv === null ||
+      ot === null ||
+      vo === null ||
+      ei === null ||
+      so === null ||
+      ve === null ||
+      (caRaw !== "" && caParsed === null) ||
+      !Number.isFinite(gcParsed) ||
+      gcParsed < 0
+    )
+      return null;
+    return {
+      channelAmounts: chAmts,
+      terminalAmounts: tmAmts,
+      vouchersSoldCents: vs,
+      vouchersRedeemedCents: vr,
+      finedineVouchersCents: fv,
+      opentabsDeductionCents: ot,
+      vorschussCents: vo,
+      einladungCents: ei,
+      sonstigeEinnahmeCents: so,
+      vectronDailyTotalCents: ve,
+      cashActualCents: caParsed,
+      guestCount: gcParsed,
+      notes: misc.notes.trim() === "" ? null : misc.notes,
+    };
+  }
+
+  async function handleSave() {
+    const payload = build();
+    if (!payload) {
+      toast.error("Bitte alle Beträge als Euro eingeben.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await onSave(payload);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const channelById = Object.fromEntries(channels.map((c) => [c.id, c]));
+  const terminalById = Object.fromEntries(terminals.map((t) => [t.id, t]));
+  const posRows = chRows.filter((r) => channelById[r.id]?.kind === "pos");
+  const delivRows = chRows.filter((r) => channelById[r.id]?.kind?.startsWith("delivery_"));
+
+  const posEuroTotal = posRows.reduce((s, r) => s + (parseEuroToCents(r.euro) ?? 0), 0);
+  const delivEuroTotal = delivRows.reduce((s, r) => s + (parseEuroToCents(r.euro) ?? 0), 0);
+  const takeawayPct =
+    posEuroTotal > 0
+      ? new Intl.NumberFormat("de-DE", {
+          minimumFractionDigits: 1,
+          maximumFractionDigits: 1,
+        }).format((delivEuroTotal / posEuroTotal) * 100) + " %"
+      : null;
+
+  const guestNum = parseInt(misc.guestCount || "0", 10);
+  const avgPerGuest =
+    guestNum > 0 && posEuroTotal > 0 ? fmtCents(Math.round(posEuroTotal / guestNum)) + " €" : null;
+
+  const staffName = (id: string) => staff.find((s) => s.id === id)?.displayName ?? id.slice(0, 8);
+
+  return (
+    <div className="space-y-4">
+      <div className="grid lg:grid-cols-[minmax(320px,2fr)_minmax(400px,3fr)] gap-4">
+        {/* ── LEFT COLUMN ── */}
+        <div className="border rounded-lg overflow-hidden shadow-sm">
+          <ExcelSectionHeader label="Umsatz" colorClass="border-l-primary" />
+          <table className="w-full text-sm">
+            <tbody>
+              {posRows.map((r) => (
+                <ExcelInputRow
+                  key={r.id}
+                  label={channelById[r.id]?.label ?? r.id}
+                  value={r.euro}
+                  disabled={!writable}
+                  onChange={(v) => {
+                    const next = [...chRows];
+                    const i = chRows.findIndex((x) => x.id === r.id);
+                    next[i] = { ...r, euro: v };
+                    setChRows(next);
+                  }}
+                />
+              ))}
+              <ExcelInputRow
+                label="Vectron Tagesumsatz (Kontrolle)"
+                value={misc.vectron}
+                disabled={!writable}
+                onChange={(v) => setMisc({ ...misc, vectron: v })}
+              />
+              <tr className="border-b last:border-b-0 hover:bg-muted/20 transition-colors">
+                <td className="px-3 py-1.5 font-medium text-foreground">
+                  Gästeanzahl
+                  {avgPerGuest && (
+                    <span className="ml-2 text-xs text-muted-foreground whitespace-nowrap">
+                      ⌀ {avgPerGuest}
+                    </span>
+                  )}
+                </td>
+                <td className="px-3 py-1.5 w-36">
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={misc.guestCount}
+                    placeholder="0"
+                    onChange={(e) =>
+                      setMisc({
+                        ...misc,
+                        guestCount: e.target.value.replace(/\D/g, ""),
+                      })
+                    }
+                    onFocus={(e) => e.currentTarget.select()}
+                    onMouseUp={(e) => e.preventDefault()}
+                    onClick={(e) => e.currentTarget.select()}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        focusNextInput(e.currentTarget);
+                      }
+                    }}
+                    className="h-7 text-sm text-right font-mono border-primary/20 bg-primary/5"
+                    disabled={!writable}
+                  />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <ExcelSectionHeader label="Kreditkarten" colorClass="border-l-amber-500" />
+          <table className="w-full text-sm">
+            <tbody>
+              {tmRows.map((r, idx) => (
+                <ExcelInputRow
+                  key={r.id}
+                  label={terminalById[r.id]?.label ?? r.id}
+                  value={r.euro}
+                  disabled={!writable}
+                  onChange={(v) => {
+                    const next = [...tmRows];
+                    next[idx] = { ...r, euro: v };
+                    setTmRows(next);
+                  }}
+                />
+              ))}
+            </tbody>
+          </table>
+
+          <div className="bg-muted/50 px-3 py-2 border-y border-l-4 border-l-emerald-500 flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Take Away
+            </span>
+            {takeawayPct && (
+              <span className="text-xs text-muted-foreground tabular-nums">{takeawayPct}</span>
+            )}
+          </div>
+          <table className="w-full text-sm">
+            <tbody>
+              {delivRows.map((r) => (
+                <ExcelInputRow
+                  key={r.id}
+                  label={channelById[r.id]?.label ?? r.id}
+                  value={r.euro}
+                  disabled={!writable}
+                  onChange={(v) => {
+                    const next = [...chRows];
+                    const i = chRows.findIndex((x) => x.id === r.id);
+                    next[i] = { ...r, euro: v };
+                    setChRows(next);
+                  }}
+                />
+              ))}
+            </tbody>
+          </table>
+
+          <ExcelSectionHeader label="Gutscheine & Sonstiges" colorClass="border-l-violet-500" />
+          <table className="w-full text-sm">
+            <tbody>
+              <ExcelInputRow
+                label="Gutscheine verkauft"
+                value={misc.vouchersSold}
+                disabled={!writable}
+                onChange={(v) => setMisc({ ...misc, vouchersSold: v })}
+              />
+              <ExcelInputRow
+                label="Gutscheine eingelöst"
+                value={misc.vouchersRedeemed}
+                disabled={!writable}
+                onChange={(v) => setMisc({ ...misc, vouchersRedeemed: v })}
+              />
+              <ExcelInputRow
+                label="Finedine-Gutscheine"
+                value={misc.finedineVouchers}
+                disabled={!writable}
+                onChange={(v) => setMisc({ ...misc, finedineVouchers: v })}
+              />
+              <ExcelInputRow
+                label="Einladung (Abzug)"
+                value={misc.einladung}
+                disabled={!writable}
+                onChange={(v) => setMisc({ ...misc, einladung: v })}
+              />
+              <ExcelInputRow
+                label="Sonstige Einnahme"
+                value={misc.sonstige}
+                disabled={!writable}
+                onChange={(v) => setMisc({ ...misc, sonstige: v })}
+              />
+              {(() => {
+                const advSum = advances.reduce((s, a) => s + a.amountCents, 0);
+                const effVorschussCents =
+                  advances.length > 0 ? advSum : (parseEuroToCents(misc.vorschuss) ?? 0);
+                const totalExpensesCents = expenses.reduce((s, e) => s + e.amountCents, 0);
+                return (
+                  <>
+                    {effVorschussCents !== 0 && (
+                      <ExcelReadonlyRow
+                        label="Vorschuss (Abzug)"
+                        value={fmtCents(effVorschussCents)}
+                      />
+                    )}
+                    {totalExpensesCents !== 0 && (
+                      <ExcelReadonlyRow
+                        label="Ausgaben (Abzug)"
+                        value={fmtCents(totalExpensesCents)}
+                      />
+                    )}
+                  </>
+                );
+              })()}
+            </tbody>
+          </table>
+
+          <ExcelSectionHeader label="Kontrolle" colorClass="border-l-muted-foreground" />
+          <CashSummaryBlock
+            misc={misc}
+            setMisc={setMisc}
+            writable={writable}
+            chRows={chRows}
+            channelById={channelById}
+            tmRows={tmRows}
+            expenses={expenses}
+            advances={advances}
+            overview={overview}
+            cashBalanceTargetCents={cashBalanceTargetCents}
+          />
+        </div>
+
+        {/* ── RIGHT COLUMN ── */}
+        <div className="space-y-4">
+          <div className="border rounded-lg overflow-hidden">
+            <div className="bg-muted/50 px-3 py-2 border-b">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Nachricht / Besonderheiten / Probleme
+              </span>
+            </div>
+            <div className="p-3">
+              <Textarea
+                placeholder="Hinweise für die Chefin…"
+                value={misc.notes}
+                onChange={(e) => setMisc({ ...misc, notes: e.target.value })}
+                rows={4}
+                className="border-0 bg-transparent p-0 focus-visible:ring-0 resize-none"
+                disabled={!writable}
+              />
+            </div>
+          </div>
+
+          <div className="border rounded-lg overflow-hidden">
+            <div className="bg-muted/50 px-3 py-2 border-b">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Ausgaben
+              </span>
+            </div>
+            <div className="p-3 space-y-2">
+              {expenses.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Keine Ausgaben.</p>
+              ) : (
+                <ul className="space-y-1 text-sm">
+                  {expenses.map((e) => (
+                    <li key={e.id} className="flex items-center justify-between gap-2">
+                      <span className="flex-1 truncate">{e.description ?? "—"}</span>
+                      <span className="font-mono tabular-nums">{fmtCents(e.amountCents)} €</span>
+                      {writable && (
+                        <button
+                          className="text-destructive hover:opacity-70 text-xs"
+                          onClick={() => void onRemoveExpense(e.id)}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {writable && <ExpenseForm writable={writable} onAdd={onAddExpense} />}
+            </div>
+          </div>
+
+          <div className="border rounded-lg overflow-hidden">
+            <div className="bg-muted/50 px-3 py-2 border-b">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Vorschüsse
+              </span>
+            </div>
+            <div className="p-3 space-y-2">
+              {advances.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Keine Vorschüsse.</p>
+              ) : (
+                <ul className="space-y-1 text-sm">
+                  {advances.map((a) => (
+                    <li key={a.id} className="flex items-center justify-between gap-2">
+                      <span className="flex-1 truncate">
+                        {staffName(a.staffId)}
+                        {a.note ? ` · ${a.note}` : ""}
+                      </span>
+                      <span className="font-mono tabular-nums">{fmtCents(a.amountCents)} €</span>
+                      {writable && (
+                        <button
+                          className="text-destructive hover:opacity-70 text-xs"
+                          onClick={() => void onRemoveAdvance(a.id)}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {writable && <AdvanceForm writable={writable} staff={staff} onAdd={onAddAdvance} />}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-3">
+        {!writable && (
+          <p className="text-xs text-muted-foreground self-center">
+            Schreibgeschützt (Session ist {sess.status}).
+          </p>
+        )}
+        <Button disabled={!writable || saving} onClick={handleSave}>
+          {saving ? "Speichert…" : "Session speichern"}
+        </Button>
+      </div>
+    </div>
+  );
+}
