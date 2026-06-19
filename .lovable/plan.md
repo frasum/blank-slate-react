@@ -1,48 +1,82 @@
-# Buchhaltung-Tab: §3b-Detailspalten + PDF/Excel-Export
+Vier interne Verbesserungen ohne sichtbare Verhaltensänderung.
 
-Verstanden — Perioden-Tab (B7) und Daten-Aggregation existieren bereits. **Kein Neubau**, nur additive Erweiterung des bestehenden `payroll`-Tabs in `src/routes/_authenticated/admin/zeit-uebersicht.tsx`.
+## 1) `src/lib/format.ts` — nur `fmtCents`, `parseIso`, `todayIso` (+ Tests)
 
-## Nicht angefasst
+Neue Datei mit genau diesen drei Exports, wörtlich aus der bestehenden identischen Variante:
 
-- `periods`-Tab und `togglePeriodLock`
-- `getTimeOverview`, `upsertPayrollNote`, `computeShiftHours`, `shift-hours.ts`, `holiday-rate.ts`, `sfn-geld.ts`, `sfn-rates.ts`
-- Tabs `brutto-netto` und `provision`
-- Keine neue Server-Function, keine Migration, kein `bun add xlsx`, keine zweite Feiertagsliste
+```ts
+export function fmtCents(c: number | null | undefined): string {
+  const v = (c ?? 0) / 100;
+  return v.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+export function parseIso(iso: string): Date {
+  return new Date(`${iso}T12:00:00Z`);
+}
+export function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+```
 
-## Aufgaben
+Lokale Definitionen nur nach Byte-Diff ersetzen:
+- `src/routes/_authenticated/admin/kasse.tsx` → `fmtCents`, `todayIso`
+- `src/routes/_authenticated/admin/zeit-uebersicht.tsx` → `todayIso`
+- `src/routes/_authenticated/admin/dienstplan.tsx` → `parseIso`, `todayIso`
+- `src/components/roster/RosterGrid.tsx` → `parseIso`
 
-### 1) §3b-Toggle in der Buchhaltung-Toolbar
-Toggle „Einfach / §3b" mit Kurzerklärtext (Layout-Vorlage Legacy `ZtBuchhaltung.tsx`). Steuert Sichtbarkeit der §3b-Spalten. Monatsauswahl/Standort-Pills bleiben.
+**Nicht zentralisiert** (divergente Logik/Signatur — stille Verhaltensänderung wäre die Folge): `parseEuroToCents` (4 Varianten), `fmtTime` (ISO vs `HH:mm:ss`), `formatDuration` (`(startIso,endIso)` vs `(ms)`), `daysBetween` (nur 1 Definition).
 
-### 2) So/Fei-Split in `staffAggs`
-Pro Eintrag mit `businessDate` zusätzlich zu `evening/night/sunHol` aufschlüsseln:
-- `bavarianHolidaySurchargeRate(date) >= 1.5` → `feiertag150 += sundayHolidayHours`
-- sonst wenn `isBavarianHoliday(date)` → `feiertag += …`
-- sonst wenn Sonntag (`isSundayOrHoliday`, kein Feiertag) → `sonntag += …`
+Tests `src/lib/format.test.ts`:
+- `fmtCents`: `0→"0,00"`, `12345→"123,45"`, `123456→"1.234,56"`, `null→"0,00"`.
+- `parseIso("2026-03-15")`: `getUTCHours()===12`, Y/M/D korrekt.
+- `todayIso`: Länge 10, Regex `^\d{4}-\d{2}-\d{2}$`.
 
-`sunHol` bleibt als Summe für die „SO/FEI"-Spalte im Einfach-Modus erhalten. Keine eigene Feiertagsableitung.
+## 2) `src/routes/__root.tsx` — DE-Lokalisierung
+- `<html lang="en">` → `<html lang="de">`.
+- „Page not found" → „Seite nicht gefunden".
+- „Go home" → „Zur Startseite" (beide Vorkommen).
+- „This page didn't load" → „Diese Seite konnte nicht geladen werden".
+- „Try again" → „Erneut versuchen".
+- Begleittexte unverändert.
 
-### 3) Spalten + Footer im payroll-Tab
-Header und `PayrollRow` erweitern (Layout an Legacy `BuchhaltungTableHead`/`BuchhaltungRow` angelehnt); U/K/Vorschuss/Besonderheiten bleiben.
-- **Immer (SFN):** 20–24 (`evening`), 24–X (`night`), SO/FEI (`sunHol`)
-- **Nur §3b:** Sonntag, Feiertag, Feiertag 150 %
-- Neue **Footer-Zeile** mit Spaltensummen (Vorlage `BuchhaltungFooter`)
-- Spalten-Tooltips via neuem `SfnTooltipHeader` (additive Datei)
+## 3) Skeleton-Loader
+Neue Datei `src/components/ui/page-skeletons.tsx` (nutzt bestehendes `Skeleton`) mit `KassePageSkeleton` (~5-Zeilen-Tabelle), `ZeitSkeleton` (Tabellen-Skelett), `DienstplanSkeleton` (Grid). Einsatz ausschließlich in `kasse.tsx`, `zeit-uebersicht.tsx`, `dienstplan.tsx` an den „Lade…"-Stellen. Andere „Lade…"-Vorkommen unverändert.
 
-### 4) Suchfeld „Mitarbeiter suchen…"
-Falls noch nicht vorhanden: unter der Toolbar; bei aktiver Suche Abteilungs-Header ausblenden.
+## 4) Identity-Roundtrip via `ensureQueryData` (+ 3 Invalidate-Guards)
 
-### 5) PDF + Excel-Export (Toolbar rechts)
-Additive Exporter unter `src/lib/time/` (z. B. `buchhaltung-export.ts`), gebaut mit **ExcelJS** + **jsPDF/jspdf-autotable** analog `weekly-export.ts`. Inhalt = sichtbare Tabelle inkl. §3b-Spalten je nach Modus. Kein `xlsx`, kein Provisions-Parameter.
+In `src/routes/_authenticated/route.tsx` und `src/routes/_authenticated/admin/route.tsx` `beforeLoad` umstellen:
 
-## Vor dem Commit
-`npx prettier --write` + `npx eslint --fix` über geänderte Dateien.
+```ts
+const identity = await context.queryClient.ensureQueryData({
+  queryKey: ["identity", data.session.user.id ?? null],
+  queryFn: () => getMyIdentity(),
+});
+```
 
-## Erfolgs-Gate
-- `tsc --noEmit`, `eslint .`, `prettier --check .`, `vitest run` grün
-- §3b-Toggle blendet Sonntag/Feiertag/Feiertag-150 %-Spalten ein/aus; Einfach-Modus zeigt nur 20–24/24–X/SO-FEI
-- Footer-Summen = Spaltensummen der sichtbaren Zeilen
-- PDF + Excel erzeugen je eine Datei mit den sichtbaren Spalten
-- Keine neuen Pakete, keine Migration
-- `periods`-Tab, `togglePeriodLock`, `upsertPayrollNote` unverändert
-- Stichprobe: Eintrag am 25.12. → Feiertag 150 %, normaler Sonntag → Sonntag
+Key exakt wie AuthContext (`["identity", session?.user.id ?? null]`). Redirect-Checks (`mustChangePassword`, role-Gate, payroll-Redirect) Zeichen-für-Zeichen unverändert.
+
+**Cache-Guards gegen Redirect-Loop / Race** — Reihenfolge zwingend `await invalidateQueries` VOR `router.invalidate()`/`navigate`. Begründung: `ensureQueryData` (react-query v5, `revalidateIfStale` default `false`) liefert sonst stale Daten ohne auf Refetch zu warten. Der aktive AuthContext-`identityQuery` (`enabled: !!session`) sorgt dafür, dass `invalidateQueries` (default `refetchType: 'active'`) den Refetch in-place abwartet — kein Flicker. **Kein `removeQueries`** (würde aktiven Eintrag löschen → `identity: null`-Flicker).
+
+Jeweils `const queryClient = useQueryClient();`:
+- `passwort-aendern.tsx` Success-Handler:
+  ```ts
+  await queryClient.invalidateQueries({ queryKey: ["identity"] });
+  await router.invalidate();
+  ```
+- `impersonate.tsx` `handleStart` nach Erfolg, **vor** `router.navigate`: `await queryClient.invalidateQueries({ queryKey: ["identity"] });`
+- `src/components/impersonation-banner.tsx` `handleStop` (dort wird `stopImpersonation` aufgerufen — nicht in `impersonate.tsx`), **vor** `router.navigate`: dito.
+
+## Nicht anfassen
+DB, Server-Function-Signaturen, Sicherheitsmodell. `parseEuroToCents`/`fmtTime`/`formatDuration`/`daysBetween`. `kasse-saldo.tsx`, `stempeln.tsx`. „Lade…" außerhalb von kasse/zeit-uebersicht/dienstplan.
+
+## Vor Commit & Erfolgs-Gate
+`prettier --write` + `eslint --fix` über geänderte Dateien. `tsc --noEmit`, `eslint .`, `vitest run` grün, `format.test.ts` grün. Network-Tab: nur ein `getMyIdentity`-Call pro Session bei Admin-Navigation. Nach Passwortwechsel kein Redirect-Loop.
+
+## Geänderte / neue Dateien
+- **neu** `src/lib/format.ts`, `src/lib/format.test.ts`, `src/components/ui/page-skeletons.tsx`
+- `src/routes/__root.tsx`
+- `src/routes/_authenticated/route.tsx`, `src/routes/_authenticated/admin/route.tsx`
+- `src/routes/_authenticated/admin/kasse.tsx`, `zeit-uebersicht.tsx`, `dienstplan.tsx`
+- `src/components/roster/RosterGrid.tsx`
+- `src/routes/_authenticated/passwort-aendern.tsx`
+- `src/routes/_authenticated/admin/impersonate.tsx`
+- `src/components/impersonation-banner.tsx`
