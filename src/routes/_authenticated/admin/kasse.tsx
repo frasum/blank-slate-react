@@ -435,7 +435,7 @@ function KassePage() {
         </div>
       </div>
 
-      {ovQ.isLoading && <Card className="p-6 text-sm text-muted-foreground">Lade…</Card>}
+      {ovQ.isLoading && <KassePageSkeleton />}
 
       {!ovQ.isLoading && !ovQ.data?.session && (
         <Card className="space-y-3 p-6">

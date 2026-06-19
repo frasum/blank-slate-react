@@ -1011,7 +1011,7 @@ function ZeitUebersichtPage() {
                       colSpan={5 + weekCols.length}
                       className="text-center text-muted-foreground"
                     >
-                      Lade…
+                      <ZeitSkeleton />
                     </TableCell>
                   </TableRow>
                 )}
@@ -1728,7 +1728,7 @@ function WeeklyPlan({
           {isLoading && (
             <TableRow>
               <TableCell colSpan={totalCols} className="text-center text-muted-foreground">
-                Lade…
+                <ZeitSkeleton />
               </TableCell>
             </TableRow>
           )}
@@ -1955,7 +1955,7 @@ function PeriodsPanel({
       )}
 
       {isLoading ? (
-        <Card className="p-4 text-sm text-muted-foreground">Lade…</Card>
+        <ZeitSkeleton />
       ) : periods.length === 0 ? (
         <Card className="p-6 text-center text-sm text-muted-foreground">
           Noch keine Perioden. Legen Sie die erste Periode an.
