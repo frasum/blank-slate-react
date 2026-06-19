@@ -1,7 +1,7 @@
 // Excel-Export der Brutto/Netto-Vorschau (2c).
 // Nutzt die im Projekt bereits vorhandene `exceljs`-Lib, läuft im Browser.
 
-import ExcelJS from "exceljs";
+import type ExcelJS from "exceljs";
 import type { Entgeltzeile, LohnErgebnis, PersonenParameter } from "./types";
 import type { SfnGeldErgebnis } from "./sfn-geld/types";
 
@@ -50,7 +50,8 @@ function sectionHeader(sheet: ExcelJS.Worksheet, row: number, title: string) {
 }
 
 export async function buildLohnXlsx(d: LohnExportInput): Promise<Blob> {
-  const wb = new ExcelJS.Workbook();
+  const ExcelJSRuntime = (await import("exceljs")).default;
+  const wb = new ExcelJSRuntime.Workbook();
   wb.creator = "COCO";
   wb.created = new Date();
 

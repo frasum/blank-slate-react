@@ -1,11 +1,11 @@
 // Excel-Export für die tägliche Bargeldübersicht.
 // Spiegelt das Muster aus src/lib/time/weekly-export.ts (exceljs, bereits Dep).
 
-import ExcelJS from "exceljs";
 import { formatShortDate } from "@/lib/format-date";
 import type { CashDailyRow } from "@/lib/cash/cash.functions";
 
 export async function buildBargeldXlsx(rows: CashDailyRow[], monthLabel: string): Promise<Blob> {
+  const ExcelJS = (await import("exceljs")).default;
   const wb = new ExcelJS.Workbook();
   wb.creator = "Coco";
   const ws = wb.addWorksheet(monthLabel);

@@ -2,7 +2,6 @@
 // Eingaben sind bereits aufbereitet (Mitarbeiter-Reihen mit Schichten pro Tag
 // + Tagessummen). Hier wird nur formatiert und gerendert.
 
-import ExcelJS from "exceljs";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -47,6 +46,7 @@ export function buildFileBaseName(input: WeeklyExportInput): string {
 // ---------- Excel ----------
 
 export async function buildWeeklyXlsx(input: WeeklyExportInput): Promise<Blob> {
+  const ExcelJS = (await import("exceljs")).default;
   const wb = new ExcelJS.Workbook();
   wb.creator = "Coco";
   const ws = wb.addWorksheet(`KW ${input.weekNo}`);

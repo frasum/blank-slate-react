@@ -1,67 +1,48 @@
 ## Ziel
-`src/routes/_authenticated/admin/kasse.tsx` (2.189 Z.) in mehrere Dateien aufteilen. **Reine Datei-Extraktion**, byte-identische Funktionskörper, keine Verhaltensänderung.
+`exceljs` (~900 KB) aus den Route-Chunks ziehen und nur beim ersten Excel-Export nachladen. Alle Build-Funktionen sind bereits `async … Promise<Blob>` → reiner dynamic import, keine Aufrufstellen- oder Logikänderung.
 
-## Vorgehen
+## Verifikation gegen HEAD
+- 4 statische `import ExcelJS from "exceljs"`-Treffer: `bargeld-export.ts`, `weekly-export.ts`, `buchhaltung-export.ts`, `lohn-excel-export.ts`.
+- `lohn-excel-export.ts` nutzt zusätzlich `ExcelJS.Worksheet` als Typ in zwei Helfer-Signaturen (Z. 27, 45) und `new ExcelJS.Workbook()` als Wert (Z. 53).
 
-### 1. Helper-Modul `src/lib/cash/kasse-helpers.ts` (neu)
-Wörtlich aus `kasse.tsx` extrahieren (named exports):
-- `parseEuroToCents` (Z. 78) — diese Variante (erlaubt negative Werte, leer → 0), **nicht** mit anderen Projekt-Varianten mergen
-- `fmtTime` (Z. 87)
-- `fmtSignedCents` (Z. 896)
-- `focusNextInput` (Z. 1740)
+## Nicht anfassen
+- jsPDF / jspdf-autotable (sync, separater späterer Schritt).
+- recharts (braucht React.lazy, separater Schritt).
+- Funktionssignaturen, Aufrufstellen, Sheet-Aufbau.
 
-`fmtCents`/`todayIso` bleiben unverändert importiert aus `@/lib/format`.
+## Änderungen
 
-### 2. Typen-Modul `src/lib/cash/kasse-types.ts` (neu)
-- `import { getCashOverview } from "@/lib/cash/cash.functions"`
-- `export type Overview = Awaited<ReturnType<typeof getCashOverview>>`
-- `export type SettlementRow = Overview["settlements"][number]`
+### Fall A — reine Wert-Nutzung
+`src/lib/cash/bargeld-export.ts`, `src/lib/time/weekly-export.ts`, `src/lib/time/buchhaltung-export.ts`:
+- Top-Level `import ExcelJS from "exceljs";` entfernen.
+- In der jeweiligen async XLSX-Funktion (`buildBargeldXlsx`, `buildWeeklyXlsx`, `buildBuchhaltungXlsx`) als **erste Zeile**:
+  ```ts
+  const ExcelJS = (await import("exceljs")).default;
+  ```
+- jsPDF/autoTable-Importe in `weekly-export.ts` / `buchhaltung-export.ts` bleiben unverändert.
 
-Einfach-genutzte Typen wandern mit ihrer Komponente:
-- `UpdatePayload` → `SessionFieldsCard.tsx`
-- `CashSummaryMisc` → `CashSummaryBlock.tsx`
-- `StaffListItem`, `ManualDraft` → `TipPoolCard.tsx`
+### Fall B — Wert + Typ
+`src/lib/lohn/lohn-excel-export.ts`:
+- `import ExcelJS from "exceljs";` → `import type ExcelJS from "exceljs";` (Typ-Import wird zur Laufzeit entfernt; `sheet: ExcelJS.Worksheet`-Annotationen bleiben gültig).
+- In `buildLohnXlsx` als erste Zeile:
+  ```ts
+  const ExcelJSRuntime = (await import("exceljs")).default;
+  ```
+- `new ExcelJS.Workbook()` → `new ExcelJSRuntime.Workbook()`. Typ-Annotationen unverändert.
+- Fallback falls `import type ExcelJS` nicht typt: `import type { Worksheet } from "exceljs";` und `ExcelJS.Worksheet` → `Worksheet` in den beiden Signaturen (tsc entscheidet).
 
-`CorrectState`/`CreateState` bleiben in `kasse.tsx`. `ChannelKind` weiterhin aus `@/lib/cash/session-channels` importieren.
-
-### 3. Sub-Komponenten nach `src/components/cash/` (named exports, byte-identisch)
-
-| Neue Datei | Komponente(n) |
-|---|---|
-| `SettlementWarningsBanner.tsx` | `SettlementWarningsBanner` |
-| `SettlementsCard.tsx` | `SettlementsCard` |
-| `SessionFieldsCard.tsx` | `SessionFieldsCard` (Kompositions-Knoten) |
-| `CashSummaryBlock.tsx` | `CashSummaryBlock` |
-| `ExcelRows.tsx` | `ExcelSectionHeader`, `ExcelInputRow`, `ExcelReadonlyRow` |
-| `ExpenseForm.tsx` | `ExpenseForm` |
-| `AdvanceForm.tsx` | `AdvanceForm` |
-| `TipPoolCard.tsx` | `TipPoolCard` |
-
-Import-Verdrahtung:
-- `SessionFieldsCard` → `./AdvanceForm`, `./ExpenseForm`, `./CashSummaryBlock`, `./ExcelRows`
-- `CashSummaryBlock` → `./ExcelRows`
-- `ExcelInputRow` → `focusNextInput` aus `@/lib/cash/kasse-helpers`
-- `fmtSignedCents`/`fmtTime`/`parseEuroToCents` → `@/lib/cash/kasse-helpers`
-- `fmtCents` → `@/lib/format`
-- `Overview`/`SettlementRow` → `@/lib/cash/kasse-types`
-
-### 4. `kasse.tsx` bereinigen
-- Verschobene Definitionen löschen
-- Imports der neuen Module ergänzen
-- `KassePage` (Z. 115–895) + Route-Definition + `CorrectState`/`CreateState` **unverändert**
-
-### 5. Vor Commit
-`npx prettier --write` und `npx eslint --fix` auf allen neuen/geänderten Dateien.
-
-## Nicht angefasst
-- `KassePage`-Logik (States/Queries/Mutations/Effects)
-- Server Functions, DB, Sicherheitsmodell
-- Andere `parseEuroToCents`-Varianten
-- Keine Memoization/Optimierung
+## Vor dem Commit
+`npx prettier --write` + `npx eslint --fix` über die 4 geänderten Dateien.
 
 ## Erfolgs-Gate
-`tsc --noEmit` 0, `eslint .` 0, `prettier --check .` sauber, `vitest run` = 685 Tests unverändert, `kasse.tsx` < ~950 Z., Bodies byte-identisch.
+- `tsc --noEmit` 0, `eslint .` 0, `prettier --check .` sauber.
+- `vitest run` = 685 Tests unverändert (reiner Lade-Mechanismus).
+- `grep -rn 'import ExcelJS from "exceljs"' src/` → 0 Treffer (nur `import type` + `await import` erlaubt).
+- Build erzeugt separaten `exceljs`-Chunk (nicht mehr in `kasse-saldo`/`zeit-uebersicht`/`lohnrechner`/`weekly`-Route-Chunks).
+- Manuell: ein Excel-Export (z. B. `/admin/zeit-uebersicht` Buchhaltung oder `/admin/lohnrechner`) erzeugt die Datei wie bisher.
 
-## Geänderte / neue Dateien
-**Neu (10):** `src/lib/cash/kasse-helpers.ts`, `src/lib/cash/kasse-types.ts`, `src/components/cash/{SettlementWarningsBanner,SettlementsCard,SessionFieldsCard,CashSummaryBlock,ExcelRows,ExpenseForm,AdvanceForm,TipPoolCard}.tsx`
-**Geändert:** `src/routes/_authenticated/admin/kasse.tsx`
+## Geänderte Dateien
+- `src/lib/cash/bargeld-export.ts`
+- `src/lib/time/weekly-export.ts`
+- `src/lib/time/buchhaltung-export.ts`
+- `src/lib/lohn/lohn-excel-export.ts`
