@@ -242,8 +242,8 @@ function ZeitUebersichtPage() {
   const selectedPeriod = periods.find((p) => p.id === effectivePeriodId);
 
   // Fallback: freie Daten, wenn keine Periode existiert.
-  const [manualFrom, setManualFrom] = useState<string>(firstOfMonthIso());
-  const [manualTo, setManualTo] = useState<string>(todayIso());
+  const [manualFrom] = useState<string>(firstOfMonthIso());
+  const [manualTo] = useState<string>(todayIso());
   const fromDate = selectedPeriod ? selectedPeriod.startDate : manualFrom;
   const toDate = selectedPeriod ? selectedPeriod.endDate : manualTo;
 
