@@ -790,18 +790,40 @@ function ZeitUebersichtPage() {
             <div className="flex flex-wrap items-end gap-3">
               <div className="space-y-1">
                 <Label htmlFor="loc-zr">Standort</Label>
-                <select
+                <div
                   id="loc-zr"
-                  className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-                  value={effectiveLocationId}
-                  onChange={(e) => setLocationFilter(e.target.value)}
+                  className="inline-flex rounded-md border border-input bg-background p-1"
                 >
-                  {locations.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.name}
-                    </option>
-                  ))}
-                </select>
+                  {locations.map((l) => {
+                    const active =
+                      (locationFilter || locations[0]?.id) === l.id && !isAllLocations;
+                    return (
+                      <button
+                        key={l.id}
+                        type="button"
+                        onClick={() => setLocationFilter(l.id)}
+                        className={`h-7 rounded px-3 text-sm transition ${
+                          active
+                            ? "bg-primary text-primary-foreground"
+                            : "text-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {l.name}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => setLocationFilter("all")}
+                    className={`h-7 rounded px-3 text-sm transition ${
+                      isAllLocations
+                        ? "bg-primary text-primary-foreground"
+                        : "text-foreground hover:bg-muted"
+                    }`}
+                  >
+                    Alle
+                  </button>
+                </div>
               </div>
               <div className="space-y-1">
                 <Label htmlFor="from">Von</Label>
