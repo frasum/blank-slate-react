@@ -795,8 +795,7 @@ function ZeitUebersichtPage() {
                   className="inline-flex rounded-md border border-input bg-background p-1"
                 >
                   {locations.map((l) => {
-                    const active =
-                      (locationFilter || locations[0]?.id) === l.id && !isAllLocations;
+                    const active = (locationFilter || locations[0]?.id) === l.id && !isAllLocations;
                     return (
                       <button
                         key={l.id}
