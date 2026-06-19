@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { todayIso } from "@/lib/format";
+import { ZeitSkeleton } from "@/components/ui/page-skeletons";
 import { useAuth } from "@/hooks/use-auth";
 import {
   Table,

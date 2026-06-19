@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { fmtCents, todayIso } from "@/lib/format";
+import { KassePageSkeleton } from "@/components/ui/page-skeletons";
 import {
   Dialog,
   DialogContent,
