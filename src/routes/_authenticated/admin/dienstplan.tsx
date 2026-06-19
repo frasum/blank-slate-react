@@ -46,9 +46,6 @@ export const Route = createFileRoute("/_authenticated/admin/dienstplan")({
 
 type GridArea = "kitchen" | "service";
 
-function parseIso(iso: string): Date {
-  return new Date(`${iso}T12:00:00Z`);
-}
 function fmtIso(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
@@ -67,10 +64,6 @@ function daysBetween(fromIso: string, toIso: string): string[] {
   }
   return out;
 }
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
 function DienstplanPage() {
   const today = todayIso();
   const auth = useAuth();

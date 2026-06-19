@@ -91,9 +91,6 @@ const DEPT_HEADER_LABEL: Record<Department, string> = {
 };
 const DEPT_ORDER: Department[] = ["kitchen", "service", "gl"];
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 function firstOfMonthIso(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;

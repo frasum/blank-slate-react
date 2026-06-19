@@ -36,9 +36,6 @@ const AREA_SHORT: Record<"kitchen" | "service" | "gl", string> = {
   gl: "Service",
 };
 
-function parseIso(iso: string): Date {
-  return new Date(`${iso}T12:00:00Z`);
-}
 function isWeekendIso(iso: string): boolean {
   const dow = parseIso(iso).getUTCDay();
   return dow === 0 || dow === 6;
