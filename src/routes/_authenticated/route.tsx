@@ -12,7 +12,7 @@ import { ImpersonationBanner } from "@/components/impersonation-banner";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
-  beforeLoad: async ({ location }) => {
+  beforeLoad: async ({ context, location }) => {
     // getSession() liest die Session lokal aus localStorage – kein Netz-Roundtrip
     // an /auth/v1/user. Server-Functions revalidieren das Bearer-Token via
     // requireSupabaseAuth ohnehin pro Aufruf.
@@ -21,7 +21,12 @@ export const Route = createFileRoute("/_authenticated")({
 
     // Erst-Login-Flow: wenn must_change_password=true gesetzt ist, darf
     // der Mitarbeiter ausschließlich die Passwort-Wechsel-Seite erreichen.
-    const identity = await getMyIdentity();
+    // Identity über den gemeinsamen Query-Cache (gleicher Key wie AuthContext)
+    // → ein Roundtrip pro Session statt pro Navigation.
+    const identity = await context.queryClient.ensureQueryData({
+      queryKey: ["identity", data.session.user.id ?? null],
+      queryFn: () => getMyIdentity(),
+    });
     if (identity.mustChangePassword && location.pathname !== "/passwort-aendern") {
       throw redirect({ to: "/passwort-aendern" });
     }

@@ -51,8 +51,11 @@ function ImpersonatePage() {
     setPendingId(staffId);
     try {
       await startFn({ data: { staffId, reason: r } });
+      // Identity-Cache muss vor der Navigation aktualisiert sein, damit
+      // beforeLoad die neue Rolle/Impersonation sieht.
       await queryClient.cancelQueries();
       queryClient.clear();
+      await queryClient.invalidateQueries({ queryKey: ["identity"] });
       await router.navigate({ to: "/" });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Impersonation fehlgeschlagen.");
