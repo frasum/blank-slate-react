@@ -13,6 +13,8 @@ import { Download, FileText, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { fmtCents, todayIso } from "@/lib/format";
+import { KassePageSkeleton } from "@/components/ui/page-skeletons";
 import {
   Dialog,
   DialogContent,
@@ -73,10 +75,6 @@ export const Route = createFileRoute("/_authenticated/admin/kasse")({
   component: KassePage,
 });
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
 function parseEuroToCents(value: string): number | null {
   const t = value.trim().replace(",", ".");
   if (t === "") return 0;
@@ -84,11 +82,6 @@ function parseEuroToCents(value: string): number | null {
   const n = Number.parseFloat(t);
   if (!Number.isFinite(n)) return null;
   return Math.round(n * 100);
-}
-
-function fmtCents(c: number | null | undefined): string {
-  const v = (c ?? 0) / 100;
-  return v.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function fmtTime(iso: string | null): string {
@@ -442,7 +435,7 @@ function KassePage() {
         </div>
       </div>
 
-      {ovQ.isLoading && <Card className="p-6 text-sm text-muted-foreground">Lade…</Card>}
+      {ovQ.isLoading && <KassePageSkeleton />}
 
       {!ovQ.isLoading && !ovQ.data?.session && (
         <Card className="space-y-3 p-6">

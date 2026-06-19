@@ -10,13 +10,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { getMyIdentity } from "@/lib/auth/me.functions";
 
 export const Route = createFileRoute("/_authenticated/admin")({
-  beforeLoad: async ({ location }) => {
+  beforeLoad: async ({ context, location }) => {
     // Session-Check rein lokal (kein /auth/v1/user-Roundtrip); getMyIdentity()
     // revalidiert das Token serverseitig via requireSupabaseAuth.
     const { data: sessionData } = await supabase.auth.getSession();
     if (!sessionData.session?.access_token) throw redirect({ to: "/auth" });
 
-    const identity = await getMyIdentity();
+    // Identity über den gemeinsamen Query-Cache (gleicher Key wie AuthContext)
+    // → ein Roundtrip pro Session statt pro Admin-Navigation.
+    const identity = await context.queryClient.ensureQueryData({
+      queryKey: ["identity", sessionData.session.user.id ?? null],
+      queryFn: () => getMyIdentity(),
+    });
     if (identity.role !== "admin" && identity.role !== "manager" && identity.role !== "payroll") {
       throw redirect({ to: "/" });
     }

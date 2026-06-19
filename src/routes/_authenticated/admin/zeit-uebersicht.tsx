@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { todayIso } from "@/lib/format";
+import { ZeitSkeleton } from "@/components/ui/page-skeletons";
 import { useAuth } from "@/hooks/use-auth";
 import {
   Table,
@@ -91,9 +93,6 @@ const DEPT_HEADER_LABEL: Record<Department, string> = {
 };
 const DEPT_ORDER: Department[] = ["kitchen", "service", "gl"];
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 function firstOfMonthIso(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
@@ -1012,7 +1011,7 @@ function ZeitUebersichtPage() {
                       colSpan={5 + weekCols.length}
                       className="text-center text-muted-foreground"
                     >
-                      Lade…
+                      <ZeitSkeleton />
                     </TableCell>
                   </TableRow>
                 )}
@@ -1729,7 +1728,7 @@ function WeeklyPlan({
           {isLoading && (
             <TableRow>
               <TableCell colSpan={totalCols} className="text-center text-muted-foreground">
-                Lade…
+                <ZeitSkeleton />
               </TableCell>
             </TableRow>
           )}
@@ -1956,7 +1955,7 @@ function PeriodsPanel({
       )}
 
       {isLoading ? (
-        <Card className="p-4 text-sm text-muted-foreground">Lade…</Card>
+        <ZeitSkeleton />
       ) : periods.length === 0 ? (
         <Card className="p-6 text-center text-sm text-muted-foreground">
           Noch keine Perioden. Legen Sie die erste Periode an.

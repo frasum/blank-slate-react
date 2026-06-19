@@ -8,6 +8,7 @@
 import { useState } from "react";
 import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { markPasswordChanged } from "@/lib/auth/password-change.functions";
 
@@ -21,6 +22,7 @@ export const Route = createFileRoute("/_authenticated/passwort-aendern")({
 function PasswordChangePage() {
   const router = useRouter();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const callMark = useServerFn(markPasswordChanged);
   const [pw1, setPw1] = useState("");
   const [pw2, setPw2] = useState("");
@@ -64,6 +66,10 @@ function PasswordChangePage() {
               setErr(e instanceof Error ? e.message : "Fehler beim Bestätigen.");
               return;
             }
+            // Cache vor Router-Invalidate aktualisieren: beforeLoad liest
+            // mustChangePassword aus ensureQueryData — ohne diesen Schritt
+            // bliebe der alte Wert und würde sofort wieder hierher redirecten.
+            await queryClient.invalidateQueries({ queryKey: ["identity"] });
             await router.invalidate();
             await navigate({ to: "/" });
           }}

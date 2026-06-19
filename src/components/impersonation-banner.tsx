@@ -20,6 +20,7 @@ export function ImpersonationBanner() {
       await stopFn();
       await queryClient.cancelQueries();
       queryClient.clear();
+      await queryClient.invalidateQueries({ queryKey: ["identity"] });
       await router.navigate({ to: "/admin" });
     } finally {
       setPending(false);
