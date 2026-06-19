@@ -826,26 +826,6 @@ function ZeitUebersichtPage() {
                 </div>
               </div>
               <div className="space-y-1">
-                <Label htmlFor="from">Von</Label>
-                <Input
-                  id="from"
-                  type="date"
-                  value={fromDate}
-                  onChange={(e) => setManualFrom(e.target.value)}
-                  disabled={Boolean(selectedPeriod)}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="to">Bis</Label>
-                <Input
-                  id="to"
-                  type="date"
-                  value={toDate}
-                  onChange={(e) => setManualTo(e.target.value)}
-                  disabled={Boolean(selectedPeriod)}
-                />
-              </div>
-              <div className="space-y-1">
                 <Label htmlFor="period">Periode</Label>
                 <select
                   id="period"
