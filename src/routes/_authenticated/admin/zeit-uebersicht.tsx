@@ -242,8 +242,8 @@ function ZeitUebersichtPage() {
   const selectedPeriod = periods.find((p) => p.id === effectivePeriodId);
 
   // Fallback: freie Daten, wenn keine Periode existiert.
-  const [manualFrom, setManualFrom] = useState<string>(firstOfMonthIso());
-  const [manualTo, setManualTo] = useState<string>(todayIso());
+  const [manualFrom] = useState<string>(firstOfMonthIso());
+  const [manualTo] = useState<string>(todayIso());
   const fromDate = selectedPeriod ? selectedPeriod.startDate : manualFrom;
   const toDate = selectedPeriod ? selectedPeriod.endDate : manualTo;
 
@@ -824,26 +824,6 @@ function ZeitUebersichtPage() {
                     Alle
                   </button>
                 </div>
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="from">Von</Label>
-                <Input
-                  id="from"
-                  type="date"
-                  value={fromDate}
-                  onChange={(e) => setManualFrom(e.target.value)}
-                  disabled={Boolean(selectedPeriod)}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="to">Bis</Label>
-                <Input
-                  id="to"
-                  type="date"
-                  value={toDate}
-                  onChange={(e) => setManualTo(e.target.value)}
-                  disabled={Boolean(selectedPeriod)}
-                />
               </div>
               <div className="space-y-1">
                 <Label htmlFor="period">Periode</Label>
