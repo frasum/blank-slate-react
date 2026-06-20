@@ -50,4 +50,12 @@ describe("withSecurityHeaders", () => {
     const out = withSecurityHeaders(htmlResponse({ "Referrer-Policy": "no-referrer" }));
     expect(out.headers.get("Referrer-Policy")).toBe("no-referrer");
   });
+
+  it("setzt X-Frame-Options nicht auf Lovable-Preview-Hosts", () => {
+    const request = new Request(
+      "https://id-preview--a9a57e34-6bcd-4c59-9526-a8d67e2c7859.lovable.app/",
+    );
+    const out = withSecurityHeaders(htmlResponse(), request);
+    expect(out.headers.get("X-Frame-Options")).toBeNull();
+  });
 });
