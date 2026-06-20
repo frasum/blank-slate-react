@@ -150,7 +150,9 @@ export async function buildWeeklyXlsx(input: WeeklyExportInput): Promise<Blob> {
 
 // ---------- PDF ----------
 
-export function buildWeeklyPdf(input: WeeklyExportInput): Blob {
+export async function buildWeeklyPdf(input: WeeklyExportInput): Promise<Blob> {
+  const { default: jsPDF } = await import("jspdf");
+  const { default: autoTable } = await import("jspdf-autotable");
   const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
   doc.setFontSize(14);
   doc.text(
