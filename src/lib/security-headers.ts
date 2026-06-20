@@ -2,7 +2,7 @@
 // CSP bewusst NUR Report-Only: eine scharfe CSP kann Inline-Styles/Scripts des
 // SSR-React-Apps brechen. Scharfschalten ist ein separater, späterer Schritt
 // nach Auswertung der Violation-Reports.
-const CSP_BASE = [
+const CSP = [
   "default-src 'self'",
   "img-src 'self' data: https:",
   "style-src 'self' 'unsafe-inline'",
@@ -11,22 +11,14 @@ const CSP_BASE = [
   // ohne wss würde die scharfe CSP später die Live-Updates blockieren.
   "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
   "base-uri 'self'",
-];
+  // Framing wird hierüber gescoped — NICHT über X-Frame-Options (all-or-nothing,
+  // könnte das legitime Lovable-Editor-iframe nicht erlauben). Editor (lovable.dev)
+  // darf framen, Dritte nicht. Aktuell Report-Only → blockiert noch nicht;
+  // Scharfschalten von frame-ancestors ist ein separater Schritt.
+  "frame-ancestors 'self' https://lovable.dev https://*.lovable.dev",
+].join("; ");
 
-// Lovable-Editor bettet die App in ein iframe ein. Aktuell laufen zwei
-// Preview-Hostnamen parallel: `id-preview--<id>.lovable.app` (neu) und
-// `<id>.lovableproject.com` (legacy, vom Editor-Iframe weiterhin genutzt).
-// Beide müssen ohne X-Frame-Options/frame-ancestors-Block erreichbar sein,
-// sonst lädt die Preview im Editor nicht.
-function isLovablePreviewHost(request: Request | undefined): boolean {
-  if (!request) return false;
-  const host = new URL(request.url).hostname;
-  if (host.endsWith(".lovableproject.com")) return true;
-  if (host.endsWith(".lovable.app") && host.startsWith("id-preview--")) return true;
-  return false;
-}
-
-export function withSecurityHeaders(response: Response, request?: Request): Response {
+export function withSecurityHeaders(response: Response): Response {
   const contentType = response.headers.get("content-type") ?? "";
   if (!contentType.includes("text/html")) return response; // nur HTML
 
@@ -35,21 +27,15 @@ export function withSecurityHeaders(response: Response, request?: Request): Resp
     if (!headers.has(key)) headers.set(key, value); // nie überschreiben
   };
 
-  const isPreview = isLovablePreviewHost(request);
-  const csp = [...CSP_BASE, isPreview ? "frame-ancestors *" : "frame-ancestors 'none'"].join("; ");
+  // KEIN X-Frame-Options: DENY — würde das Lovable-Editor-iframe blockieren.
+  // Ein evtl. vorgelagert gesetztes aktiv entfernen.
+  headers.delete("X-Frame-Options");
 
   set("Strict-Transport-Security", "max-age=63072000; includeSubDomains");
-  if (isPreview) {
-    // Falls eine vorgelagerte Ebene X-Frame-Options bereits gesetzt hat,
-    // muss der Header für die Lovable-Editor-Preview aktiv entfernt werden.
-    headers.delete("X-Frame-Options");
-  } else {
-    set("X-Frame-Options", "DENY");
-  }
   set("X-Content-Type-Options", "nosniff");
   set("Referrer-Policy", "strict-origin-when-cross-origin");
   set("Permissions-Policy", "geolocation=(self), camera=(), microphone=()");
-  set("Content-Security-Policy-Report-Only", csp);
+  set("Content-Security-Policy-Report-Only", CSP);
 
   // Neues Response-Objekt: Worker-Response-Header können immutable sein.
   // Body-Stream wird durchgereicht.
