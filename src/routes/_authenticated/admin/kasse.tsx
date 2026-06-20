@@ -287,7 +287,7 @@ function KassePage() {
     blob: Blob;
     fileName: string;
   } | null>(null);
-  function handleExportPdf() {
+  async function handleExportPdf() {
     const ov = ovQ.data;
     if (!ov?.session) {
       toast.error("Keine Session für diesen Tag.");
@@ -307,7 +307,7 @@ function KassePage() {
     const locationName =
       (locationsQ.data ?? []).find((l) => l.id === locationId)?.name ?? undefined;
     try {
-      const out = generateDailySummaryPdf({
+      const out = await generateDailySummaryPdf({
         session: {
           business_date: ov.session.business_date,
           guest_count: ov.session.guest_count,
