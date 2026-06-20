@@ -161,7 +161,7 @@ gh repo clone frasum/bestellung-5fff1793
 | PIN-/Passwort-Login gegen PostgREST-Filter-Injection gehärtet (Allowlist `validatePinLoginName`)        | ✅        |
 | `parseEuroToCents` zentralisiert (eine Impl. in `@/lib/format`; Bestellung-Magnitude-Korrektur)         | ✅        |
 | Artikel-Suche (`listArticles`) gegen PostgREST-`.or()`-Injection gehärtet (`sanitizeArticleSearchTerm`) | ✅        |
-| jspdf/pdfjs lazy-geladen (#3-Rest: keine statischen PDF-Imports mehr)                                    | ✅        |
+| jspdf/pdfjs lazy-geladen (#3-Rest: keine statischen PDF-Imports mehr)                                   | ✅        |
 | Security-Header / CSP (Report-Only) auf HTML-Responses (`withSecurityHeaders` in `server.ts`)           | ✅        |
 
 **Stand 20.06.2026 (Session-Nachzug, Teil 2 — Härtung & Security-Header):**
