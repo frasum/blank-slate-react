@@ -36,9 +36,7 @@ export function withSecurityHeaders(response: Response, request?: Request): Resp
   };
 
   const isPreview = isLovablePreviewHost(request);
-  const csp = [...CSP_BASE, isPreview ? "frame-ancestors *" : "frame-ancestors 'none'"].join(
-    "; ",
-  );
+  const csp = [...CSP_BASE, isPreview ? "frame-ancestors *" : "frame-ancestors 'none'"].join("; ");
 
   set("Strict-Transport-Security", "max-age=63072000; includeSubDomains");
   if (!isPreview) set("X-Frame-Options", "DENY");
