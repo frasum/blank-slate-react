@@ -2,9 +2,6 @@
 // Eingaben sind bereits aufbereitet (Mitarbeiter-Reihen mit Schichten pro Tag
 // + Tagessummen). Hier wird nur formatiert und gerendert.
 
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-
 export type WeeklyExportShift = { from: string; to: string }; // HH:MM
 export type WeeklyExportDay = {
   iso: string; // YYYY-MM-DD
