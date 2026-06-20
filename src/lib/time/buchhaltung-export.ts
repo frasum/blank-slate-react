@@ -1,9 +1,6 @@
 // Buchhaltung-Export (PDF + Excel). Reine Funktionen, ohne React-Abhängigkeit.
 // Spalten je nach §3b-Modus dynamisch. Provisions-Parameter bewusst weggelassen.
 
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-
 export type BuchhaltungMode = "simple" | "section3b";
 
 export type BuchhaltungExportRow = {
@@ -168,7 +165,9 @@ export async function buildBuchhaltungXlsx(input: BuchhaltungExportInput): Promi
 
 // ---------- PDF ----------
 
-export function buildBuchhaltungPdf(input: BuchhaltungExportInput): Blob {
+export async function buildBuchhaltungPdf(input: BuchhaltungExportInput): Promise<Blob> {
+  const { default: jsPDF } = await import("jspdf");
+  const { default: autoTable } = await import("jspdf-autotable");
   const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
   doc.setFontSize(14);
   doc.text(

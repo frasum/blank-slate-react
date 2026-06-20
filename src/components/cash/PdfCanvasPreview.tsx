@@ -1,8 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import * as pdfjsLib from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 
 interface PdfCanvasPreviewProps {
   blob: Blob;
@@ -24,6 +21,9 @@ export function PdfCanvasPreview({ blob }: PdfCanvasPreviewProps) {
     (async () => {
       try {
         const data = await blob.arrayBuffer();
+        if (cancelled) return;
+        const pdfjsLib = await import("pdfjs-dist");
+        pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
         if (cancelled) return;
         const pdf = await pdfjsLib.getDocument({ data }).promise;
         if (cancelled) return;
