@@ -39,7 +39,13 @@ export function withSecurityHeaders(response: Response, request?: Request): Resp
   const csp = [...CSP_BASE, isPreview ? "frame-ancestors *" : "frame-ancestors 'none'"].join("; ");
 
   set("Strict-Transport-Security", "max-age=63072000; includeSubDomains");
-  if (!isPreview) set("X-Frame-Options", "DENY");
+  if (isPreview) {
+    // Falls eine vorgelagerte Ebene X-Frame-Options bereits gesetzt hat,
+    // muss der Header für die Lovable-Editor-Preview aktiv entfernt werden.
+    headers.delete("X-Frame-Options");
+  } else {
+    set("X-Frame-Options", "DENY");
+  }
   set("X-Content-Type-Options", "nosniff");
   set("Referrer-Policy", "strict-origin-when-cross-origin");
   set("Permissions-Policy", "geolocation=(self), camera=(), microphone=()");
