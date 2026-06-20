@@ -10,6 +10,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Pencil, Plus, Archive, RotateCcw } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatShortDate } from "@/lib/format-date";
+import { parseEuroToCents } from "@/lib/format";
 import {
   createSupplier,
   listSuppliers,
@@ -84,14 +85,6 @@ const EMPTY_ARTICLE_DRAFT: ArticleDraft = {
   priceEuro: "",
   packagingUnit: "",
 };
-
-function parseEuroToCents(value: string): number | null {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  const n = Number(trimmed.replace(/\./g, "").replace(",", "."));
-  if (!Number.isFinite(n) || n < 0) return null;
-  return Math.round(n * 100);
-}
 
 function fmtEuro(cents: number | null | undefined): string {
   if (cents == null) return "—";
