@@ -14,7 +14,13 @@ const CSP_REPORT_ONLY = [
   "base-uri 'self'",
 ].join("; ");
 
-export function withSecurityHeaders(response: Response): Response {
+function isLovablePreviewHost(request: Request | undefined): boolean {
+  if (!request) return false;
+  const host = new URL(request.url).hostname;
+  return host.endsWith(".lovable.app") && host.startsWith("id-preview--");
+}
+
+export function withSecurityHeaders(response: Response, request?: Request): Response {
   const contentType = response.headers.get("content-type") ?? "";
   if (!contentType.includes("text/html")) return response; // nur HTML
 
@@ -24,7 +30,7 @@ export function withSecurityHeaders(response: Response): Response {
   };
 
   set("Strict-Transport-Security", "max-age=63072000; includeSubDomains");
-  set("X-Frame-Options", "DENY");
+  if (!isLovablePreviewHost(request)) set("X-Frame-Options", "DENY");
   set("X-Content-Type-Options", "nosniff");
   set("Referrer-Policy", "strict-origin-when-cross-origin");
   set("Permissions-Policy", "geolocation=(self), camera=(), microphone=()");
