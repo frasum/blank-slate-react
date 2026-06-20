@@ -25,6 +25,7 @@ import {
 import { getMySettlement, submitWaiterSettlement } from "@/lib/cash/cash.functions";
 import { calcWaiterSettlement } from "@/lib/cash/waiter-settlement";
 import { SecondWaiterSelect } from "@/components/cash/SecondWaiterSelect";
+import { parseEuroToCents as parseEuroToCentsBase } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/zeit/abrechnung")({
   head: () => ({
@@ -36,14 +37,9 @@ export const Route = createFileRoute("/_authenticated/zeit/abrechnung")({
   component: AbrechnungPage,
 });
 
-// Euro-Eingabe → ganze Cents (akzeptiert "12", "12,50", "12.50").
+// Euro-Eingabe → ganze Cents (akzeptiert "12", "12,50", "12.50", "1.234,56").
 function parseEuroToCents(value: string): number | null {
-  const trimmed = value.trim().replace(",", ".");
-  if (trimmed === "") return 0;
-  if (!/^\d+(\.\d{0,2})?$/.test(trimmed)) return null;
-  const n = Number.parseFloat(trimmed);
-  if (!Number.isFinite(n) || n < 0) return null;
-  return Math.round(n * 100);
+  return parseEuroToCentsBase(value, { emptyAs: 0 });
 }
 
 function formatCents(cents: number | null | undefined): string {

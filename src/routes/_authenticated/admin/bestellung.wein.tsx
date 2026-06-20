@@ -13,6 +13,7 @@ import {
   updateArticle,
 } from "@/lib/bestellung/articles.functions";
 import { listSuppliers } from "@/lib/bestellung/suppliers.functions";
+import { parseEuroToCents } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/admin/bestellung/wein")({
   head: () => ({ meta: [{ title: "Wein · Bestellung" }] }),
@@ -48,15 +49,6 @@ function emptyDraft(supplierId = ""): WineDraft {
     specialAttributes: [],
     imageUrl: "",
   };
-}
-
-function parseEuroToCents(value: string): number | null {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  const normalized = trimmed.replace(/\./g, "").replace(",", ".");
-  const n = Number(normalized);
-  if (!Number.isFinite(n) || n < 0) return null;
-  return Math.round(n * 100);
 }
 
 function fmtEuro(cents: number | null | undefined): string {
