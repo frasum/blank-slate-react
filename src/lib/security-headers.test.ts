@@ -14,7 +14,7 @@ describe("withSecurityHeaders", () => {
     expect(out.headers.get("Strict-Transport-Security")).toBe(
       "max-age=63072000; includeSubDomains",
     );
-    expect(out.headers.get("X-Frame-Options")).toBe("DENY");
+    expect(out.headers.get("X-Frame-Options")).toBeNull();
     expect(out.headers.get("X-Content-Type-Options")).toBe("nosniff");
     expect(out.headers.get("Referrer-Policy")).toBe("strict-origin-when-cross-origin");
     expect(out.headers.get("Permissions-Policy")).toBe(
@@ -28,11 +28,12 @@ describe("withSecurityHeaders", () => {
     expect(out.headers.get("Content-Security-Policy")).toBeNull();
   });
 
-  it("CSP-Report-Only enthält wss-Supabase und frame-ancestors 'none'", () => {
+  it("CSP-Report-Only enthält wss://*.supabase.co und frame-ancestors 'self' https://lovable.dev, und nicht frame-ancestors 'none'", () => {
     const out = withSecurityHeaders(htmlResponse());
     const csp = out.headers.get("Content-Security-Policy-Report-Only") ?? "";
     expect(csp).toContain("wss://*.supabase.co");
-    expect(csp).toContain("frame-ancestors 'none'");
+    expect(csp).toContain("frame-ancestors 'self' https://lovable.dev");
+    expect(csp).not.toContain("frame-ancestors 'none'");
   });
 
   it("lässt Nicht-HTML-Responses unverändert", () => {
@@ -51,26 +52,8 @@ describe("withSecurityHeaders", () => {
     expect(out.headers.get("Referrer-Policy")).toBe("no-referrer");
   });
 
-  it("setzt X-Frame-Options nicht auf Lovable-Preview-Hosts", () => {
-    const request = new Request(
-      "https://id-preview--a9a57e34-6bcd-4c59-9526-a8d67e2c7859.lovable.app/",
-    );
-    const out = withSecurityHeaders(htmlResponse(), request);
-    expect(out.headers.get("X-Frame-Options")).toBeNull();
-  });
-
-  it("setzt X-Frame-Options nicht auf legacy lovableproject.com Preview-Hosts", () => {
-    const request = new Request("https://a9a57e34-6bcd-4c59-9526-a8d67e2c7859.lovableproject.com/");
-    const out = withSecurityHeaders(htmlResponse(), request);
-    expect(out.headers.get("X-Frame-Options")).toBeNull();
-    const csp = out.headers.get("Content-Security-Policy-Report-Only") ?? "";
-    expect(csp).toContain("frame-ancestors *");
-    expect(csp).not.toContain("frame-ancestors 'none'");
-  });
-
-  it("entfernt bestehendes X-Frame-Options auf Lovable-Preview-Hosts", () => {
-    const request = new Request("https://a9a57e34-6bcd-4c59-9526-a8d67e2c7859.lovableproject.com/");
-    const out = withSecurityHeaders(htmlResponse({ "X-Frame-Options": "DENY" }), request);
+  it("entfernt vorgelagert gesetztes X-Frame-Options auf HTML-Responses", () => {
+    const out = withSecurityHeaders(htmlResponse({ "X-Frame-Options": "DENY" }));
     expect(out.headers.get("X-Frame-Options")).toBeNull();
   });
 });
