@@ -3,8 +3,8 @@
 
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
-import jsPDF from "jspdf";
-import autoTable, { type RowInput } from "jspdf-autotable";
+import type jsPDF from "jspdf";
+import type { RowInput } from "jspdf-autotable";
 import { computeDailyCash, type DayInput } from "./cash-ledger";
 import { sessionToDayInput } from "./session-day-input";
 
@@ -134,12 +134,14 @@ function sectionHeader(title: string): RowInput {
   ];
 }
 
-export function generateDailySummaryPdf(data: PdfExportData): {
+export async function generateDailySummaryPdf(data: PdfExportData): Promise<{
   doc: jsPDF;
   blob: Blob;
   fileName: string;
-} {
-  const doc = new jsPDF("portrait");
+}> {
+  const { default: JsPDF } = await import("jspdf");
+  const { default: autoTable } = await import("jspdf-autotable");
+  const doc = new JsPDF("portrait");
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 12;
