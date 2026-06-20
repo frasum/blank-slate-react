@@ -58,4 +58,15 @@ describe("withSecurityHeaders", () => {
     const out = withSecurityHeaders(htmlResponse(), request);
     expect(out.headers.get("X-Frame-Options")).toBeNull();
   });
+
+  it("setzt X-Frame-Options nicht auf legacy lovableproject.com Preview-Hosts", () => {
+    const request = new Request(
+      "https://a9a57e34-6bcd-4c59-9526-a8d67e2c7859.lovableproject.com/",
+    );
+    const out = withSecurityHeaders(htmlResponse(), request);
+    expect(out.headers.get("X-Frame-Options")).toBeNull();
+    const csp = out.headers.get("Content-Security-Policy-Report-Only") ?? "";
+    expect(csp).toContain("frame-ancestors *");
+    expect(csp).not.toContain("frame-ancestors 'none'");
+  });
 });
