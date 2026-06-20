@@ -20,8 +20,8 @@ import {
   generateSessionTokenHash,
   parseBadgeLoginInput,
   parsePinLoginInput,
-  toPostgrestIlikeLiteral,
   tryStaffPasswordLogin,
+  validatePinLoginName,
 } from "./auth-flows.server";
 
 const PIN_CREDENTIAL_PATTERN = /^\d{4,8}$/;
@@ -41,7 +41,11 @@ export const validatePin = createServerFn({ method: "POST" })
     // Nickname anmelden. Konflikte/Mehrfachtreffer werden über den PIN
     // aufgelöst (Loop unten prüft je Kandidat den PIN). Generische
     // Fehlermeldung bleibt bei 0 Treffern.
-    const term = toPostgrestIlikeLiteral(data.firstName.trim());
+    const term = validatePinLoginName(data.firstName);
+    if (!term) {
+      console.error("[pin-login] invalid name input");
+      failed();
+    }
     const { data: candidates, error: staffErr } = await supabaseAdmin
       .from("staff")
       .select("id, organization_id, is_active, first_name")

@@ -29,8 +29,17 @@ export function parseBadgeLoginInput(input: unknown) {
   return z.object({ token: z.string().min(1).max(256) }).parse(input);
 }
 
-export function toPostgrestIlikeLiteral(value: string): string {
-  return value.replace(/[(),.\\]/g, "");
+/**
+ * Allowlist-Validierung für den Namens-Eingabewert im Login.
+ * Erlaubt nur Unicode-Buchstaben (inkl. Umlaute/Akzente), Leerzeichen
+ * und Bindestriche; muss mit einem Buchstaben beginnen. Damit enthält
+ * der Rückgabewert garantiert keine PostgREST-DSL-/Wildcard-Zeichen,
+ * sodass die Interpolation in den .or()-Filter sicher ist.
+ * Gibt den getrimmten Namen zurück oder null bei Verstoß.
+ */
+export function validatePinLoginName(value: string): string | null {
+  const trimmed = value.trim();
+  return /^[\p{L}][\p{L} \-]*$/u.test(trimmed) ? trimmed : null;
 }
 
 /**

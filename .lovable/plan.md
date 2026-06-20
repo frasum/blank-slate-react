@@ -1,27 +1,41 @@
 ## Ziel
-Verschluckten DB-Fehler im Auto-Ausstempel-Pfad von `submitWaiterSettlementCore` beheben, um doppelte Ausstempelung bei transienten Update-Fehlern zu verhindern.
+PostgREST-Filter-Injection im namensbasierten PIN-/Passwort-Login schließen: `firstName` wird strikt per Unicode-Allowlist validiert; ungültige Eingaben führen zur generischen Ablehnung. Die `.or()`-Query bleibt strukturell unverändert — die Interpolation ist sicher, weil der Wert garantiert keine PostgREST-DSL- oder Wildcard-Zeichen (`, . ( ) : * % _ \`) mehr enthält.
 
-## Änderung
-Genau ein Block in `src/lib/cash/cash.functions.ts` (ca. Zeile 1457–1463):
+Verhalten bleibt: Treffer auf `first_name` ODER `display_name`, case-insensitive, exakt (ilike ohne Wildcards = exakter Vergleich). Fehlermeldung „Anmeldung fehlgeschlagen" bleibt einheitlich.
 
-```ts
-if (autoClockoutId) {
-  const { error: linkErr } = await supabaseAdmin
-    .from("waiter_settlements")
-    .update({ auto_clockout_time_entry_id: autoClockoutId })
-    .eq("id", settlementId)
-    .eq("organization_id", caller.organizationId);
-  if (linkErr) throw linkErr;
-}
-```
+## Änderungen
 
-Analog zum bestehenden Muster in derselben Datei (`if (error) throw error;`).
+### 1) `src/lib/auth/auth-flows.server.ts`
+- `toPostgrestIlikeLiteral` entfernen.
+- Neu exportieren:
+  ```ts
+  export function validatePinLoginName(value: string): string | null {
+    const trimmed = value.trim();
+    return /^[\p{L}][\p{L} \-]*$/u.test(trimmed) ? trimmed : null;
+  }
+  ```
+
+### 2) `src/lib/auth/auth-flows.functions.ts`
+- Import `toPostgrestIlikeLiteral` → `validatePinLoginName`.
+- Im `validatePin`-Handler vor der Kandidaten-Query:
+  ```ts
+  const term = validatePinLoginName(data.firstName);
+  if (!term) {
+    console.error("[pin-login] invalid name input");
+    failed();
+  }
+  ```
+- `.or(`first_name.ilike.${term},display_name.ilike.${term}`)` bleibt unverändert (sicher durch Allowlist).
+
+### 3) Neuer Test `src/lib/auth/auth-flows.server.test.ts`
+- Gültige Namen unverändert (`"Anna"`, `"Anna-Maria"`, `"Lara Müller"`, `"Renée"`).
+- Trimmt umschließende Leerzeichen.
+- Lehnt mit `null` ab: `"a%"`, `"x.eq.1"`, `"a,b"`, `"a*"`, `"a(b)"`, `"a:b"`, `""`, `"   "`, `"a\\b"`.
 
 ## Nicht angefasst
-- Alles andere in `cash.functions.ts`
-- Keine weiteren Refactorings, keine Tests-/Typänderungen
+- `resolveBadgeToken`, `tryStaffPasswordLogin`, PIN-Loop, `pin-validation.test.ts`.
 
 ## Verifikation
-- `tsc` grün
-- `eslint .` grün
-- `vitest` grün (insb. `cash-submit.db.test.ts` Happy-Path + Idempotenz unverändert)
+- `npx prettier --write` + `npx eslint --fix` auf geänderten/neuen Dateien.
+- `tsc --noEmit`, `eslint .`, `prettier --check .`, `vitest run` alle grün.
+- `grep -rn "toPostgrestIlikeLiteral" src/` → 0 Treffer.
