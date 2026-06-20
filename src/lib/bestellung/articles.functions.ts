@@ -9,6 +9,17 @@ import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { runGuarded } from "@/lib/admin/admin-call";
 import { writeAuditLog } from "@/lib/admin/audit";
 
+/**
+ * Reduziert einen Suchbegriff auf eine sichere Allowlist (Unicode-Buchstaben,
+ * Ziffern, Leerzeichen, Bindestrich). Entfernt PostgREST-DSL- und
+ * ilike-Wildcard-Zeichen (`, . ( ) : * % _ \` u. a.), damit der Wert gefahrlos
+ * in einen `.or()`-Filter interpoliert werden kann. Leerer Rest → Caller
+ * sollte den Suchfilter weglassen.
+ */
+export function sanitizeArticleSearchTerm(value: string): string {
+  return value.replace(/[^\p{L}\p{N} -]/gu, "").trim();
+}
+
 function makeAuditWriter(caller: { organizationId: string; userId: string; staffId: string }) {
   return async (entry: {
     action: string;
@@ -118,7 +129,10 @@ export const listArticles = createServerFn({ method: "GET" })
     if (data.supplierId) q = q.eq("supplier_id", data.supplierId);
     if (data.category) q = q.eq("category", data.category);
     if (data.onlyWine) q = q.eq("category", "Wein");
-    if (data.search) q = q.or(`name.ilike.%${data.search}%,sku.ilike.%${data.search}%`);
+    if (data.search) {
+      const term = sanitizeArticleSearchTerm(data.search);
+      if (term) q = q.or(`name.ilike.%${term}%,sku.ilike.%${term}%`);
+    }
     const { data: rows, error } = await q;
     if (error) throw error;
     return rows ?? [];

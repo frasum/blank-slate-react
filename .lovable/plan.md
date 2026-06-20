@@ -1,41 +1,47 @@
 ## Ziel
-PostgREST-Filter-Injection im namensbasierten PIN-/Passwort-Login schließen: `firstName` wird strikt per Unicode-Allowlist validiert; ungültige Eingaben führen zur generischen Ablehnung. Die `.or()`-Query bleibt strukturell unverändert — die Interpolation ist sicher, weil der Wert garantiert keine PostgREST-DSL- oder Wildcard-Zeichen (`, . ( ) : * % _ \`) mehr enthält.
-
-Verhalten bleibt: Treffer auf `first_name` ODER `display_name`, case-insensitive, exakt (ilike ohne Wildcards = exakter Vergleich). Fehlermeldung „Anmeldung fehlgeschlagen" bleibt einheitlich.
+PostgREST-Filter-Injection in der Artikel-Suche (`listArticles` in `src/lib/bestellung/articles.functions.ts`, Z. ~121) schließen. Anders als beim PIN-Login wird hier **nicht** allowlistet auf Buchstaben (SKU-Suche braucht Ziffern/Bindestrich), sondern der Suchbegriff wird per Zeichen-Allowlist auf harmlose Zeichen reduziert. Leerer Rest → Filter weglassen.
 
 ## Änderungen
 
-### 1) `src/lib/auth/auth-flows.server.ts`
-- `toPostgrestIlikeLiteral` entfernen.
-- Neu exportieren:
+### 1) `src/lib/bestellung/articles.functions.ts`
+- Neue, exportierte Hilfsfunktion direkt in der Datei (klein, lokal zum Verbraucher):
   ```ts
-  export function validatePinLoginName(value: string): string | null {
-    const trimmed = value.trim();
-    return /^[\p{L}][\p{L} \-]*$/u.test(trimmed) ? trimmed : null;
+  export function sanitizeArticleSearchTerm(value: string): string {
+    // Allowlist: Unicode-Buchstaben, Ziffern, Leerzeichen, Bindestrich.
+    // Entfernt alle PostgREST-DSL- und ilike-Wildcard-Zeichen (, . ( ) : * % _ \ etc.)
+    return value.replace(/[^\p{L}\p{N} -]/gu, "").trim();
   }
   ```
-
-### 2) `src/lib/auth/auth-flows.functions.ts`
-- Import `toPostgrestIlikeLiteral` → `validatePinLoginName`.
-- Im `validatePin`-Handler vor der Kandidaten-Query:
+- Im `listArticles`-Handler:
   ```ts
-  const term = validatePinLoginName(data.firstName);
-  if (!term) {
-    console.error("[pin-login] invalid name input");
-    failed();
+  if (data.search) {
+    const term = sanitizeArticleSearchTerm(data.search);
+    if (term) q = q.or(`name.ilike.%${term}%,sku.ilike.%${term}%`);
   }
   ```
-- `.or(`first_name.ilike.${term},display_name.ilike.${term}`)` bleibt unverändert (sicher durch Allowlist).
+- Zod-Validator (`search: z.string().trim().min(1).max(200).optional()`) bleibt unverändert — die Bereinigung erfolgt bewusst nach der Validierung, damit ungültige Zeichen schlicht ignoriert werden statt die Anfrage zu rejecten.
 
-### 3) Neuer Test `src/lib/auth/auth-flows.server.test.ts`
-- Gültige Namen unverändert (`"Anna"`, `"Anna-Maria"`, `"Lara Müller"`, `"Renée"`).
-- Trimmt umschließende Leerzeichen.
-- Lehnt mit `null` ab: `"a%"`, `"x.eq.1"`, `"a,b"`, `"a*"`, `"a(b)"`, `"a:b"`, `""`, `"   "`, `"a\\b"`.
+### 2) Neuer Test `src/lib/bestellung/articles-search.test.ts`
+Testet ausschließlich die reine Hilfsfunktion (kein DB-Touch):
+- `"Pad Thai"` → `"Pad Thai"`
+- `"ART-12"` → `"ART-12"`
+- `"Lara Müller"` → `"Lara Müller"` (Unicode-Buchstaben bleiben)
+- `"a,b(c)*"` → `"abc"` (DSL-Zeichen entfernt, kein Rest mit Sonderbedeutung)
+- `"%_"` → `""` (Caller lässt Filter weg)
+- `"name.ilike.%x%"` → ohne `.`, `%`, kein DSL-Rest
+- `"   "` → `""`
+- `"\\\\"` → `""`
 
 ## Nicht angefasst
-- `resolveBadgeToken`, `tryStaffPasswordLogin`, PIN-Loop, `pin-validation.test.ts`.
+- `order-units.functions.ts` (UUID-Interpolation, separat — Wartungsnotiz im Prompt).
+- Alle anderen `.or()`-Aufrufe / Routen / Tests.
+- `validatePinLoginName` und PIN-Login-Pfad.
 
 ## Verifikation
-- `npx prettier --write` + `npx eslint --fix` auf geänderten/neuen Dateien.
+- `bunx prettier --write` + `bunx eslint --fix` auf den geänderten/neuen Dateien.
 - `tsc --noEmit`, `eslint .`, `prettier --check .`, `vitest run` alle grün.
-- `grep -rn "toPostgrestIlikeLiteral" src/` → 0 Treffer.
+- Manuell: `grep -n "data.search" src/lib/bestellung/articles.functions.ts` zeigt nur den bereinigten Pfad.
+
+## Geänderte / neue Dateien
+- `src/lib/bestellung/articles.functions.ts` (geändert)
+- `src/lib/bestellung/articles-search.test.ts` (neu)
