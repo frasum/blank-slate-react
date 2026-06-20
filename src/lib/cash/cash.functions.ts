@@ -1455,11 +1455,12 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
       });
       autoClockoutId = closed?.id ?? null;
       if (autoClockoutId) {
-        await supabaseAdmin
+        const { error: linkErr } = await supabaseAdmin
           .from("waiter_settlements")
           .update({ auto_clockout_time_entry_id: autoClockoutId })
           .eq("id", settlementId)
           .eq("organization_id", caller.organizationId);
+        if (linkErr) throw linkErr;
       }
     } else {
       noOpenTimeEntry = true;
