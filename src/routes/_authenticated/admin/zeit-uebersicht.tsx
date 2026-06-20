@@ -644,10 +644,10 @@ function ZeitUebersichtPage() {
       toast.error((e as Error).message || "Excel-Export fehlgeschlagen");
     }
   };
-  const handleExportPdf = () => {
+  const handleExportPdf = async () => {
     if (!weeklyExportInput) return;
     try {
-      const blob = buildWeeklyPdf(weeklyExportInput);
+      const blob = await buildWeeklyPdf(weeklyExportInput);
       downloadBlob(blob, `${buildFileBaseName(weeklyExportInput)}.pdf`);
     } catch (e) {
       toast.error((e as Error).message || "PDF-Export fehlgeschlagen");
@@ -749,9 +749,9 @@ function ZeitUebersichtPage() {
     payrollFilteredByDept,
   ]);
 
-  const handlePayrollExportPdf = () => {
+  const handlePayrollExportPdf = async () => {
     try {
-      const blob = buildBuchhaltungPdf(buchhaltungExportInput);
+      const blob = await buildBuchhaltungPdf(buchhaltungExportInput);
       downloadBlob(blob, `${buildBuchhaltungFileBase(buchhaltungExportInput)}.pdf`);
     } catch (e) {
       toast.error((e as Error).message || "PDF-Export fehlgeschlagen");
