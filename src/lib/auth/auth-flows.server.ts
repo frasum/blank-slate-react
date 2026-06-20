@@ -39,7 +39,7 @@ export function parseBadgeLoginInput(input: unknown) {
  */
 export function validatePinLoginName(value: string): string | null {
   const trimmed = value.trim();
-  return /^[\p{L}][\p{L} \-]*$/u.test(trimmed) ? trimmed : null;
+  return /^[\p{L}][\p{L} -]*$/u.test(trimmed) ? trimmed : null;
 }
 
 /**
