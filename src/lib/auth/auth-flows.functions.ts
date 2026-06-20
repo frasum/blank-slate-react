@@ -20,8 +20,8 @@ import {
   generateSessionTokenHash,
   parseBadgeLoginInput,
   parsePinLoginInput,
-  validatePinLoginName,
   tryStaffPasswordLogin,
+  validatePinLoginName,
 } from "./auth-flows.server";
 
 const PIN_CREDENTIAL_PATTERN = /^\d{4,8}$/;
