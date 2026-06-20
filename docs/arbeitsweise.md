@@ -2,7 +2,7 @@
 
 Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen Baublock konsultiert. Bewusst kurz gehalten — Architektur-Begründungen stehen im gruendungsdokument.md, nicht hier.
 
-Stand: 19.06.2026
+Stand: 20.06.2026
 
 ## 1. Rollenverteilung im Team
 
@@ -32,8 +32,10 @@ Erst wenn ESLint 0 Fehler und alle Tests grün sind → ABGENOMMEN.
 - **Migrationen immer als Vorab-SQL-Skizze im Prompt mitgeben** — nicht Lovable raten lassen. Reduziert Schema-Fehler erheblich.
 - **Massen-SQL in Batches** (max. ~2000–2500 Zeilen pro Datei), sonst bricht der Supabase-Editor mit Connection-Fehler ab. Bei Fehler einfach nochmal „Run".
 - **Dokument nach JEDER Session nachziehen** — egal ob mit Claude oder direkt mit dem Lovable-Agenten gearbeitet wurde. Mindestens den Modul-Status (Abschnitt 6/7) aktualisieren. Diese Datei ist die gemeinsame Wahrheit für beide Arbeitswege; nur wenn sie aktuell bleibt, driften die Wege nicht auseinander. Beim Wiedereinstieg gilt der hier dokumentierte Stand als Ausgangspunkt (nicht der „letzte gesehene" Stand einer einzelnen Person), daher: `git pull` + `git log` gegen diesen Stand, um auch Direkt-Commits zu erfassen.
-- **Format-/Geld-Helfer nur byte-identisch zentralisieren.** Gleichnamige Helfer im Projekt divergieren oft (z. B. `parseEuroToCents`: leer→`0` vs →`null`, negative erlaubt vs verboten, Punkt als Tausender- vs Dezimaltrenner). Vor jedem Zusammenführen byte-diffen; nur wirklich identische nach `@/lib/format` (aktuell `fmtCents`/`parseIso`/`todayIso`). Sonst lautloser Geld-Logik-Regress.
+- **Geld-Helfer zentralisieren — aber Verhaltens-Deltas ehrlich machen.** Gleichnamige Helfer divergieren oft subtil (`parseEuroToCents` hatte vier Varianten: leer→`0` vs `null`, negativ erlaubt vs nicht, Punkt als Tausender- vs Dezimaltrenner). Konsolidieren ist erlaubt, aber **nie stillschweigend**: vorher byte-diffen, jede Verhaltensänderung im Prompt/Commit explizit benennen und mit Charakterisierungstests festnageln. Seit 20.06. ist `parseEuroToCents` eine Implementierung in `@/lib/format` (Optionen `emptyAs`/`allowNegative`), die zwei bewussten Deltas sind getestet. **Gleiche Form ≠ gleicher Vertrag:** `parseLocaleNumber` (Prozent/Stunden → Float/NaN) bleibt von `parseEuroToCents` (Geld → Cent/null) getrennt — nicht über Domänengrenzen verschmelzen.
 - **Identity-Cache: `await invalidateQueries(["identity"])` VOR `router.invalidate()`/`navigate`.** `ensureQueryData` (react-query v5, `revalidateIfStale` default `false`) liefert sonst stale Cache ohne Refetch abzuwarten → nach Passwortwechsel/Impersonation-Start/-Stop Redirect-Loop. `removeQueries` vermeiden (Flicker beim aktiven AuthContext-`identityQuery`). Guards in `passwort-aendern.tsx`, `impersonate.tsx` (`handleStart`), `impersonation-banner.tsx` (`handleStop`).
+- **Jedes DB-Schreibergebnis prüfen (`if (error) throw`).** Verschluckte `.update()`/`.insert()`-Fehler auf Geld-/Zeit-Pfaden brechen unbemerkt Invarianten — z. B. blieb im Auto-Ausstempeln ein fehlgeschlagener Link-Write still, sodass der Idempotenz-Marker `auto_clockout_time_entry_id` NULL blieb und ein Resubmit doppelt ausstempeln konnte. Kein `supabaseAdmin`-Schreibaufruf ohne Fehlerprüfung.
+- **PostgREST-`.or()`-String-Interpolation nur mit Allowlist-validierten Werten.** Einzelne DSL-Zeichen zu strippen reicht nicht — Wildcards `*`/`%` bleiben stehen (`firstName="*"` matcht alle). Namens-Eingaben im Login laufen über `validatePinLoginName`; ungültige → generische Ablehnung.
 - **CI-Jobs:** `check` (tsc+eslint+vitest) muss grün sein. `db-integration` ist gelegentlich flaky („role_assignments insert failed: upstream") — das ist ein Timing-Problem des lokalen Supabase-Stacks, kein Code-Bug.
 
 ## 4. Stammdaten-Referenz (COCO Produktion)
@@ -125,7 +127,7 @@ gh repo clone frasum/bestellung-5fff1793
 
 Über das Nickname in Klammern im thaitime-Vornamen, z.B. „REDACTED" → COCO display_name „REDACTED". Sonderfall: „REDACTED" → REDACTED. „REDACTED" existiert nicht in COCO (ignoriert).
 
-## 6. Aktueller Modul-Status (19.06.2026)
+## 6. Aktueller Modul-Status (20.06.2026)
 
 | Modul                                                                                         | Status    |
 | --------------------------------------------------------------------------------------------- | --------- |
@@ -155,6 +157,15 @@ gh repo clone frasum/bestellung-5fff1793
 | Buchhaltung §3b-Block (`/admin/zeit-uebersicht`, payroll-Tab) inkl. Feiertags-Fix             | ✅        |
 | Interne Verbesserungen: `@/lib/format`, DE-Lokalisierung, Skeletons, Identity-Roundtrip       | ✅        |
 | Refactor: `kasse.tsx` aufgeteilt (2189 → 860 Z., `src/components/cash/*`)                     | ✅        |
+| Auto-Ausstempeln: verschluckter DB-Fehler in `submitWaiterSettlementCore` gefixt (`if (linkErr) throw`) | ✅ |
+| PIN-/Passwort-Login gegen PostgREST-Filter-Injection gehärtet (Allowlist `validatePinLoginName`)         | ✅ |
+| `parseEuroToCents` zentralisiert (eine Impl. in `@/lib/format`; Bestellung-Magnitude-Korrektur)          | ✅ |
+
+**Stand 20.06.2026 (Session-Nachzug):**
+
+- **Auto-Ausstempel-Fix (`cash.functions.ts`):** Im Auto-Ausstempel-Pfad von `submitWaiterSettlementCore` wurde der Fehler des Link-Writes (`waiter_settlements.auto_clockout_time_entry_id`) still verschluckt → jetzt `const { error: linkErr } = … ; if (linkErr) throw linkErr;`. **Bekanntes Restfenster (nicht in diesem Fix):** `performClockOut` läuft vor dem Link-Write und ist nicht atomar mit ihm; bleibt der Link bei einem transienten Fehler NULL (Idempotenz-Marker), kann ein **späterer** Resubmit nach erneutem Einstempeln doppelt ausstempeln. Durable Lösung wäre, den „bereits ausgestempelt"-Check auf die Existenz eines Clockouts mit `triggered_by='settlement'` + `settlement_id` zu stützen — vertagt.
+- **PIN-Login gegen PostgREST-Filter-Injection gehärtet (`auth-flows.server.ts` / `.functions.ts`):** `toPostgrestIlikeLiteral` (strippte nur `( ) , . \`, ließ aber `*`/`%` als Wildcards durch → `firstName="*"` matchte alle) **entfernt**, ersetzt durch Allowlist `validatePinLoginName` (`/^[\p{L}][\p{L} -]*$/u`, getrimmt). Ungültige Namen → generische Ablehnung **vor** der Query; der `.or()`-Filter interpoliert weiter, aber sicher (Wert ist DSL-/Wildcard-frei). Die Kandidaten-Query ist von PIN- **und** Passwort-Login geteilt → Allowlist gilt für beide. Neue Test-Suite `auth-flows.server.test.ts`. **DB-Check (Produktion) bestätigt:** kein aktiver Mitarbeiter hat Apostroph/Punkt/Ziffer im `first_name`/`display_name` → kein Lockout.
+- **`parseEuroToCents` zentralisiert:** eine Implementierung in `src/lib/format.ts` (`opts: { emptyAs?: 0 | null; allowNegative?: boolean }`); die vier lokalen Varianten ersetzt (kasse-helpers + abrechnung = dünne Options-Wrapper, Aufrufstellen unverändert; beide Bestellung-Dateien importieren direkt mit Defaults). **Bewusste Verhaltensänderungen, getestet:** Bestellung — `"12.50"` ergibt jetzt `1250 ct` statt `125000 ct` (fachliche Korrektur); kasse/abrechnung — Tausendertrenner `"1.234,56"` wird akzeptiert (vorher null→`?? 0`→0 € verbucht), Trailing-Dot `"12."` abgelehnt. **Kein stilles Umskalieren** (alle Deltas nur null↔Zahl). `parseLocaleNumber` (Prozent/Stunden → Float/NaN) bleibt bewusst getrennt — kein Geld-Parser.
 
 **Stand 18.–19.06.2026 (Session-Nachzug):**
 
