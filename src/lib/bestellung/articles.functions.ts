@@ -9,6 +9,17 @@ import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { runGuarded } from "@/lib/admin/admin-call";
 import { writeAuditLog } from "@/lib/admin/audit";
 
+/**
+ * Reduziert einen Suchbegriff auf eine sichere Allowlist (Unicode-Buchstaben,
+ * Ziffern, Leerzeichen, Bindestrich). Entfernt PostgREST-DSL- und
+ * ilike-Wildcard-Zeichen (`, . ( ) : * % _ \` u. a.), damit der Wert gefahrlos
+ * in einen `.or()`-Filter interpoliert werden kann. Leerer Rest → Caller
+ * sollte den Suchfilter weglassen.
+ */
+export function sanitizeArticleSearchTerm(value: string): string {
+  return value.replace(/[^\p{L}\p{N} -]/gu, "").trim();
+}
+
 function makeAuditWriter(caller: { organizationId: string; userId: string; staffId: string }) {
   return async (entry: {
     action: string;
