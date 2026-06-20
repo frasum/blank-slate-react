@@ -1,10 +1,27 @@
-## Plan
+## Ziel
+Verschluckten DB-Fehler im Auto-Ausstempel-Pfad von `submitWaiterSettlementCore` beheben, um doppelte Ausstempelung bei transienten Update-Fehlern zu verhindern.
 
-Bild `coco-architektur.png` ausschließlich zur Entwickler-Info im Repo ablegen — keine Code-Änderungen, keine Einbindung in die App.
+## Änderung
+Genau ein Block in `src/lib/cash/cash.functions.ts` (ca. Zeile 1457–1463):
 
-### Schritte
-1. `docs/architektur/coco-architektur.png` anlegen (Kopie aus `/mnt/user-uploads/coco-architektur.png`).
-2. Kurze `docs/architektur/README.md` mit einem Satz Kontext + Verweis auf das Bild (damit klar ist: nur Referenz, nicht Runtime).
+```ts
+if (autoClockoutId) {
+  const { error: linkErr } = await supabaseAdmin
+    .from("waiter_settlements")
+    .update({ auto_clockout_time_entry_id: autoClockoutId })
+    .eq("id", settlementId)
+    .eq("organization_id", caller.organizationId);
+  if (linkErr) throw linkErr;
+}
+```
 
-### Nicht angefasst
-Kein App-Code, keine Assets-Pipeline (`lovable-assets`), keine Imports, keine Routen.
+Analog zum bestehenden Muster in derselben Datei (`if (error) throw error;`).
+
+## Nicht angefasst
+- Alles andere in `cash.functions.ts`
+- Keine weiteren Refactorings, keine Tests-/Typänderungen
+
+## Verifikation
+- `tsc` grün
+- `eslint .` grün
+- `vitest` grün (insb. `cash-submit.db.test.ts` Happy-Path + Idempotenz unverändert)
