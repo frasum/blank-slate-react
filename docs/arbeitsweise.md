@@ -2,7 +2,7 @@
 
 Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen Baublock konsultiert. Bewusst kurz gehalten — Architektur-Begründungen stehen im gruendungsdokument.md, nicht hier.
 
-Stand: 20.06.2026
+Stand: 21.06.2026
 
 ## 1. Rollenverteilung im Team
 
@@ -37,6 +37,11 @@ Erst wenn ESLint 0 Fehler und alle Tests grün sind → ABGENOMMEN.
 - **Jedes DB-Schreibergebnis prüfen (`if (error) throw`).** Verschluckte `.update()`/`.insert()`-Fehler auf Geld-/Zeit-Pfaden brechen unbemerkt Invarianten — z. B. blieb im Auto-Ausstempeln ein fehlgeschlagener Link-Write still, sodass der Idempotenz-Marker `auto_clockout_time_entry_id` NULL blieb und ein Resubmit doppelt ausstempeln konnte. Kein `supabaseAdmin`-Schreibaufruf ohne Fehlerprüfung.
 - **PostgREST-`.or()`-String-Interpolation nur mit Allowlist-validierten Werten.** Einzelne DSL-Zeichen zu strippen reicht nicht — Wildcards `*`/`%` bleiben stehen (`firstName="*"` matcht alle). Namens-Eingaben im Login laufen über `validatePinLoginName`; ungültige → generische Ablehnung.
 - **CI-Jobs:** `check` (tsc+eslint+vitest) muss grün sein. `db-integration` ist gelegentlich flaky („role_assignments insert failed: upstream") — das ist ein Timing-Problem des lokalen Supabase-Stacks, kein Code-Bug.
+- **Migrationen sind beim Commit bereits live.** Lovable wendet committete Migrationen automatisch auf die (einzige) Produktiv-Supabase-Instanz an. Daraus folgt:
+  - Frank führt **committete Migrationen NICHT** selbst aus. Nach dem Commit nur noch eine **Read-only-Verify-Query** (Signatur-/Policy-/`to_regprocedure(...)`-Check) zur Bestätigung des DB-Stands.
+  - Manuelles SQL durch Frank gilt nur noch für **Ad-hoc-/Daten-SQL** (Imports, einmalige Korrekturen) — nicht für Migrationsdateien.
+  - **„prüfe" ist Nachkontrolle, kein Tor vor dem Livegang.** Das Tor *vor* Live ist der **Prompt** (Migration als fertige SQL-Skizze + „Nicht-anfassen"-Liste + Stop-Bedingung). Fehler werden **vorwärts** mit einer Korrektur-Migration behoben (kein Rückbau — die DB kann nicht zuverlässig zurück). Migrationen daher **additiv/idempotent** (`IF NOT EXISTS`, `ON CONFLICT`, `DROP … IF EXISTS`).
+  - Nach jedem Migrations-Commit **zügig prüfen + funktional smoke-testen** — statisches Review fängt Laufzeitfehler nicht (s. Caller-Param-Bug bei den Task-RPCs).
 
 ## 4. Stammdaten-Referenz (COCO Produktion)
 
@@ -127,7 +132,7 @@ gh repo clone frasum/bestellung-5fff1793
 
 Über das Nickname in Klammern im thaitime-Vornamen, z.B. „REDACTED" → COCO display_name „REDACTED". Sonderfall: „REDACTED" → REDACTED. „REDACTED" existiert nicht in COCO (ignoriert).
 
-## 6. Aktueller Modul-Status (20.06.2026)
+## 6. Aktueller Modul-Status (21.06.2026)
 
 | Modul                                                                                                   | Status    |
 | ------------------------------------------------------------------------------------------------------- | --------- |
@@ -263,6 +268,15 @@ gh repo clone frasum/bestellung-5fff1793
   - **D-M2-1 Auto-Ausstempeln bei Abrechnungs-Abgabe** — im Code nicht vorhanden; erst damit stempelt das Team in COCO um.
   - **B3c-1 manuelles E2E** des Trinkgeld-/Abrechnungs-Pfads.
   - **D3-Display-Rest:** Bereichs-Rotation, Legende (X/–/U/K/B/♡), Geburtstags-Banner.
+
+**Stand 21.06.2026 (Aufgaben/Kanban-Modul + Migrations-Workflow-Klarstellung):**
+
+- **Migrations-Workflow geklärt** (s. §3): Lovable wendet committete Migrationen direkt auf die Produktiv-DB an; Frank verifiziert nur noch read-only und führt committete Migrationen nicht mehr selbst aus.
+- **Aufgaben/Kanban (neuer Modulstrang):** Restaurant-Aufgabenboard. Kategorien `service`/`kitchen`/`maintenance`/`manager_admin`, Status `open/in_progress/done/cancelled`, `priority` 0–3, `sort_order` numeric (Drag&Drop), Archivieren statt Löschen. Manager-Board `/admin/aufgaben`, Staff-Board `/zeit/aufgaben`, Realtime live.
+  - **Sicherheitsmuster (Hausmuster):** Schreib-RPCs `create_task/set_task_status/reassign_task/update_task/archive_task/claim_task` sind **service_role-only**; Identität kommt als Parameter (`p_caller_staff_id`/`p_organization_id`) aus dem Server-Fn (`loadAdminCaller`), die Rolle wird in der RPC autoritativ aus `role_assignments` ermittelt. **Kein `auth.uid()`/`current_*()`/`has_permission()` in diesen RPCs** (war unter service_role NULL → „kein aktiver Aufrufer"; live gefixt mit Migration `…123007`). RLS auf `tasks`: nur SELECT (admin/manager + staff), **keine** Client-Schreib-Policy.
+  - **Bewusste Entscheidung „volle Transparenz":** Staff sehen alle nicht-archivierten Tasks ihrer Standorte **inkl. `manager_admin`** (anlegen dürfen sie `manager_admin` weiterhin nicht). Archivieren ist admin-only (kein `manager`/`tasks.delete`).
+  - **Migrationen (alle live):** `…074514`(Enums) · `…074544`(tasks+RLS) · `…074628`(RPCs) · `…075820`(Staff-Policy+claim) · `…080455`(Realtime) · `…081844`(Permission-Defaults) · `…090845`(claim_task-Grant normalisiert) · `…123007`(RPCs auf Caller-Parameter).
+  - **OFFEN:** End-to-End-Smoke-Test (Anlegen → Staff sieht/claimt → Realtime) durch Frank noch zu bestätigen; **Assignee-Filter nach Kategorie** noch nicht gebaut — dabei beachten, dass der Filter auch den **Standort** einschließen muss (`create_task` verlangt Assignee ∈ `staff_locations` des Task-Standorts; `listStaff` liefert org-weit).
 
 ## 7. Modul M5 — Bestellwesen (bestellung.pro-Migration), Stand 16.06.2026
 
