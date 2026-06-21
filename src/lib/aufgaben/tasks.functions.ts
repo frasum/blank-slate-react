@@ -343,43 +343,43 @@ export const listStaffForLocation = createServerFn({ method: "GET" })
     }): Promise<
       { id: string; name: string; role: AppRole | null; skillCategories: string[] }[]
     > => {
-    const { data: rows, error } = await context.supabase
-      .from("staff_locations")
-      .select(
-        "staff:staff!inner(id, display_name, first_name, last_name, role_assignments(role), staff_skills(skills(category)))",
-      )
-      .eq("location_id", data.locationId);
-    if (error) throw error;
-    type Row = {
-      staff: {
-        id: string;
-        display_name: string | null;
-        first_name: string | null;
-        last_name: string | null;
-        role_assignments: { role: AppRole }[] | { role: AppRole } | null;
-        staff_skills: { skills: { category: string | null } | null }[] | null;
+      const { data: rows, error } = await context.supabase
+        .from("staff_locations")
+        .select(
+          "staff:staff!inner(id, display_name, first_name, last_name, role_assignments(role), staff_skills(skills(category)))",
+        )
+        .eq("location_id", data.locationId);
+      if (error) throw error;
+      type Row = {
+        staff: {
+          id: string;
+          display_name: string | null;
+          first_name: string | null;
+          last_name: string | null;
+          role_assignments: { role: AppRole }[] | { role: AppRole } | null;
+          staff_skills: { skills: { category: string | null } | null }[] | null;
+        };
       };
-    };
-    const list = (rows ?? []) as unknown as Row[];
-    return list
-      .map((r) => {
-        const name =
-          r.staff.display_name?.trim() ||
-          [r.staff.first_name, r.staff.last_name].filter(Boolean).join(" ").trim() ||
-          "—";
-        const ra = r.staff.role_assignments;
-        const role: AppRole | null = Array.isArray(ra)
-          ? (ra[0]?.role ?? null)
-          : (ra?.role ?? null);
-        const skillCategories = Array.from(
-          new Set(
-            (r.staff.staff_skills ?? [])
-              .map((sk) => sk.skills?.category ?? null)
-              .filter((c): c is string => typeof c === "string" && c.length > 0),
-          ),
-        );
-        return { id: r.staff.id, name, role, skillCategories };
-      })
-      .sort((a, b) => a.name.localeCompare(b.name, "de"));
+      const list = (rows ?? []) as unknown as Row[];
+      return list
+        .map((r) => {
+          const name =
+            r.staff.display_name?.trim() ||
+            [r.staff.first_name, r.staff.last_name].filter(Boolean).join(" ").trim() ||
+            "—";
+          const ra = r.staff.role_assignments;
+          const role: AppRole | null = Array.isArray(ra)
+            ? (ra[0]?.role ?? null)
+            : (ra?.role ?? null);
+          const skillCategories = Array.from(
+            new Set(
+              (r.staff.staff_skills ?? [])
+                .map((sk) => sk.skills?.category ?? null)
+                .filter((c): c is string => typeof c === "string" && c.length > 0),
+            ),
+          );
+          return { id: r.staff.id, name, role, skillCategories };
+        })
+        .sort((a, b) => a.name.localeCompare(b.name, "de"));
     },
   );

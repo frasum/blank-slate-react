@@ -20,10 +20,7 @@ export type StaffOption = {
   skillCategories: string[];
 };
 
-export function filterStaffByCategory(
-  staff: StaffOption[],
-  category: TaskCategory,
-): StaffOption[] {
+export function filterStaffByCategory(staff: StaffOption[], category: TaskCategory): StaffOption[] {
   return staff.filter((s) => {
     switch (category) {
       case "service":
@@ -33,11 +30,7 @@ export function filterStaffByCategory(
       case "manager_admin":
         return s.role === "admin" || s.role === "manager";
       case "maintenance":
-        return (
-          s.role === "admin" ||
-          s.role === "manager" ||
-          s.skillCategories.includes("other")
-        );
+        return s.role === "admin" || s.role === "manager" || s.skillCategories.includes("other");
       default:
         return true;
     }

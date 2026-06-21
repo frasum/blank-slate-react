@@ -25,10 +25,7 @@ import {
   type TaskCategory,
 } from "@/lib/aufgaben/types";
 import { useCreateTask } from "@/lib/aufgaben/tasks.queries";
-import {
-  filterStaffByCategory,
-  type StaffOption,
-} from "@/lib/aufgaben/filter-staff-by-category";
+import { filterStaffByCategory, type StaffOption } from "@/lib/aufgaben/filter-staff-by-category";
 
 type Props = {
   open: boolean;
@@ -47,10 +44,7 @@ export function TaskCreateDialog({ open, onOpenChange, locationId, staff }: Prop
   const [dueAt, setDueAt] = useState<string>("");
   const [err, setErr] = useState<string | null>(null);
 
-  const filteredStaff = useMemo(
-    () => filterStaffByCategory(staff, category),
-    [staff, category],
-  );
+  const filteredStaff = useMemo(() => filterStaffByCategory(staff, category), [staff, category]);
 
   useEffect(() => {
     if (assignee && !filteredStaff.some((s) => s.id === assignee)) {

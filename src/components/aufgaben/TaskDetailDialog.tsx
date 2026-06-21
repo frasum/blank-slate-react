@@ -31,10 +31,7 @@ import {
   useSetTaskStatus,
   useUpdateTask,
 } from "@/lib/aufgaben/tasks.queries";
-import {
-  filterStaffByCategory,
-  type StaffOption,
-} from "@/lib/aufgaben/filter-staff-by-category";
+import { filterStaffByCategory, type StaffOption } from "@/lib/aufgaben/filter-staff-by-category";
 
 type Props = {
   task: Task | null;
