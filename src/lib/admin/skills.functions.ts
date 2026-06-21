@@ -11,9 +11,8 @@ import { loadAdminCaller } from "./admin-context";
 import { runGuarded } from "./admin-call";
 import { writeAuditLog } from "./audit";
 import { distinctDepartments, ineligibleSkills, type StaffDepartment } from "./skill-eligibility";
-import type { SkillCategory } from "@/lib/staff-domain";
 
-export type { SkillCategory };
+export type SkillCategory = "kitchen" | "service" | "gl" | "other";
 
 export const listSkills = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

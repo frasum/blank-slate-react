@@ -828,13 +828,7 @@ function ZeitUebersichtPage() {
               <select
                 className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                 value={selectedMonth}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setSelectedMonth(value);
-                  const [y, m] = value.split("-").map((s) => Number.parseInt(s, 10));
-                  const firstWeekMonday = fmtIso(mondayOf(new Date(Date.UTC(y, m - 1, 1))));
-                  setWeekStart(firstWeekMonday);
-                }}
+                onChange={(e) => setSelectedMonth(e.target.value)}
               >
                 {monthOptions.map((o) => (
                   <option key={o.value} value={o.value}>

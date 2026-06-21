@@ -3,10 +3,8 @@
 // kommen als Plan-Objekt raus. Damit ist die komplette Logik (Mapping,
 // Diff, Platzhalter-Schutz, skippedRows) ohne DB testbar.
 
-import type { StaffDepartment } from "@/lib/staff-domain";
-
 export type ZtDepartment = "Küche" | "Service" | "GL";
-export type { StaffDepartment };
+export type StaffDepartment = "kitchen" | "service" | "gl";
 export type SkillsMode = "merge" | "replace";
 
 export type AssignmentInput = {

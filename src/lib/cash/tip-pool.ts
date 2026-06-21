@@ -19,8 +19,7 @@
 // GL ist aus beiden Pools ausgeschlossen. Nicht-teilnehmende
 // Mitarbeiter ebenfalls. Leere Stunden → alle Anteile 0, Rest = Pool.
 
-import type { StaffDepartment } from "@/lib/staff-domain";
-export type { StaffDepartment };
+export type StaffDepartment = "kitchen" | "service" | "gl";
 
 export function computeTipTotalCents(
   settlements: Array<{
