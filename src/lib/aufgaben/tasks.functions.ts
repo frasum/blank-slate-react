@@ -323,30 +323,28 @@ export const listMyTaskLocations = createServerFn({ method: "GET" })
 export const listStaffForLocation = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({ locationId: z.string().uuid() }).parse(input))
-  .handler(
-    async ({ data, context }): Promise<{ id: string; name: string }[]> => {
-      const { data: rows, error } = await context.supabase
-        .from("staff_locations")
-        .select("staff:staff!inner(id, display_name, first_name, last_name)")
-        .eq("location_id", data.locationId);
-      if (error) throw error;
-      type Row = {
-        staff: {
-          id: string;
-          display_name: string | null;
-          first_name: string | null;
-          last_name: string | null;
-        };
+  .handler(async ({ data, context }): Promise<{ id: string; name: string }[]> => {
+    const { data: rows, error } = await context.supabase
+      .from("staff_locations")
+      .select("staff:staff!inner(id, display_name, first_name, last_name)")
+      .eq("location_id", data.locationId);
+    if (error) throw error;
+    type Row = {
+      staff: {
+        id: string;
+        display_name: string | null;
+        first_name: string | null;
+        last_name: string | null;
       };
-      const list = (rows ?? []) as unknown as Row[];
-      return list
-        .map((r) => {
-          const name =
-            r.staff.display_name?.trim() ||
-            [r.staff.first_name, r.staff.last_name].filter(Boolean).join(" ").trim() ||
-            "—";
-          return { id: r.staff.id, name };
-        })
-        .sort((a, b) => a.name.localeCompare(b.name, "de"));
-    },
-  );
+    };
+    const list = (rows ?? []) as unknown as Row[];
+    return list
+      .map((r) => {
+        const name =
+          r.staff.display_name?.trim() ||
+          [r.staff.first_name, r.staff.last_name].filter(Boolean).join(" ").trim() ||
+          "—";
+        return { id: r.staff.id, name };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name, "de"));
+  });

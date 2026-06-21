@@ -53,11 +53,7 @@ export function KanbanCard({
         draggable ? "cursor-grab active:cursor-grabbing" : ""
       }`}
     >
-      <button
-        type="button"
-        onClick={() => onOpen(task)}
-        className="w-full text-left"
-      >
+      <button type="button" onClick={() => onOpen(task)} className="w-full text-left">
         <div className="mb-2 flex items-center justify-between gap-2">
           <CategoryBadge category={task.category} />
           <PriorityChip priority={task.priority} />
