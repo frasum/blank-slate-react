@@ -1,13 +1,25 @@
-## Änderung in `src/components/cash/TipPoolCard.tsx`
+## Neue KPI-Kacheln im Tagesabschluss (kasse.tsx)
 
-In der Pool-Summenzeile beider Pools (Küche/Service):
+Zwei kleine Kacheln zwischen `TipPoolCard` und dem "Tag finalisieren"-Block einfügen.
 
-- **"Rest: X,XX €" entfernen** (rechte Zelle der Footer-Zeile).
-- **Stattdessen "Tip/h: X,XX €" anzeigen** = `poolCents / Summe(hoursWorked aller Zeilen)`, formatiert via `fmtCents`, Euro-genau.
-- Bei 0 Stunden → `Tip/h: –` (keine Division durch 0).
-- Spalten-Layout unverändert: Wert bleibt in der "Anteil"-Spalte rechtsbündig, monospace, `text-muted-foreground`.
+### Kachel 1 — Trinkgeld-Quote
+- **Wert**: `Trinkgeld-Pool gesamt / In-House-Umsatz × 100`, eine Nachkommastelle, z. B. `4,3 %`
+- **Trinkgeld-Pool gesamt**: `computeTipTotalCents(activeSettlements)` (= Küche + Service, wie im Pool)
+- **Sublabel**: `Pool €X,XX / Umsatz €Y,YY` (klein, muted)
 
-Kein anderer Code, keine Logik-/Backend-Änderung. Der Rest (Cent-Verlust durch Euro-Abrundung) bleibt korrekt im Tagesbargeld — nur die UI-Anzeige verschwindet.
+### Kachel 2 — Ø Umsatz pro Gast
+- **Wert**: `In-House-Umsatz / guest_count`, formatiert als €
+- **Sublabel**: `N Gäste` (klein, muted)
+- Fehlt `guest_count` → `–` und Hinweis "Gästeanzahl fehlt"
 
-### Frage
-Soll der Rest komplett verschwinden, oder zusätzlich klein als Tooltip am Pool-Total bleiben (für Audits)?
+### In-House-Umsatz (einheitliche Basis)
+`vectron_daily_total_cents − delivery_vectron` (Take-away-Anteil im Vectron-Tagesumsatz herausgerechnet; Sojus/Wolt sind nicht Teil von `vectron_daily_total_cents` und müssen daher nicht abgezogen werden).
+
+Bei Wert ≤ 0 → Kacheln zeigen `–`.
+
+### Umsetzung
+Reine Frontend-Änderung in `src/routes/_authenticated/admin/kasse.tsx`:
+- Werte aus `ovQ.data` (Settlements + Session + ChannelAmounts) lokal berechnen.
+- Neue kleine Komponente `DayKpiTiles` inline oder unter `src/components/cash/DayKpiTiles.tsx`, zwei `Card`-Kacheln nebeneinander (`grid md:grid-cols-2 gap-3`), groß, monospace für Zahlen, konsistent mit bestehender Card-Optik.
+
+Kein Backend, keine Migration, keine Logikänderung an Pool/Settlement.
