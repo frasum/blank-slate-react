@@ -3,7 +3,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { listStaff, setStaffRole, setStaffLocationDepartment } from "@/lib/admin/staff.functions";
+import {
+  listStaff,
+  setStaffActive,
+  setStaffRole,
+  setStaffLocationDepartment,
+} from "@/lib/admin/staff.functions";
 import { assignStaffSkills, listSkills, type SkillCategory } from "@/lib/admin/skills.functions";
 import { listLocations } from "@/lib/admin/locations.functions";
 import {
@@ -12,7 +17,26 @@ import {
   isSkillCategoryEligible,
   type StaffDepartment,
 } from "@/lib/admin/skill-eligibility";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Search, UserCheck, UserMinus, Users } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { AppRole } from "@/lib/admin/role-guard";
 
 export const Route = createFileRoute("/_authenticated/admin/staff/")({
