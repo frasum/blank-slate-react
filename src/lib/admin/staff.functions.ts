@@ -13,6 +13,42 @@ import { runGuarded } from "./admin-call";
 import { writeAuditLog } from "./audit";
 import { wouldRemoveLastActiveAdmin, type AdminSnapshotEntry } from "./last-admin-rule";
 import type { AppRole } from "./role-guard";
+import {
+  distinctDepartments,
+  ineligibleSkills,
+  type StaffDepartment,
+  type SkillCategory,
+} from "./skill-eligibility";
+
+async function assertStaffInOrg(staffId: string, organizationId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("staff")
+    .select("id")
+    .eq("id", staffId)
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error("Mitarbeiter nicht in dieser Organisation.");
+}
+
+async function assertLocationInOrg(locationId: string, organizationId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("locations")
+    .select("id")
+    .eq("id", locationId)
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error("Standort nicht in dieser Organisation.");
+}
+
+const DEPARTMENT_LABEL: Record<StaffDepartment, string> = {
+  kitchen: "Küche",
+  service: "Service",
+  gl: "Geschäftsleitung",
+};
 
 async function loadAdminSnapshot(organizationId: string): Promise<AdminSnapshotEntry[]> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -49,6 +85,15 @@ export const listStaff = createServerFn({ method: "GET" })
       const ra = s.role_assignments as { role: AppRole }[] | null;
       const role = ra && ra.length > 0 ? ra[0].role : null;
       const locations = (s.staff_locations ?? []).map((l) => l.location_id);
+      const locDeptRows = (s.staff_locations ?? []) as unknown as {
+        location_id: string;
+        department: StaffDepartment;
+      }[];
+      const locationDepartments = locDeptRows.map((r) => ({
+        locationId: r.location_id,
+        department: r.department,
+      }));
+      const departments = distinctDepartments(locDeptRows);
       const activeBadges = (s.access_tokens ?? []).filter(
         (t) => t.token_type === "badge_login" && t.used_at === null,
       ).length;
@@ -75,7 +120,9 @@ export const listStaff = createServerFn({ method: "GET" })
         phone: s.phone,
         isActive: s.is_active,
         role,
-        locationIds: locations,
+        locationIds: Array.from(new Set(locations)),
+        locationDepartments,
+        departments,
         skillCategories,
         skillIds,
         hasPin: s.staff_pins !== null,
