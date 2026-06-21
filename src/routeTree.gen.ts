@@ -37,6 +37,7 @@ import { Route as AuthenticatedAdminImpersonateRouteImport } from './routes/_aut
 import { Route as AuthenticatedAdminEinstellungenRouteImport } from './routes/_authenticated/admin/einstellungen'
 import { Route as AuthenticatedAdminDienstplanRouteImport } from './routes/_authenticated/admin/dienstplan'
 import { Route as AuthenticatedAdminBestellungRouteImport } from './routes/_authenticated/admin/bestellung'
+import { Route as AuthenticatedAdminAufgabenRouteImport } from './routes/_authenticated/admin/aufgaben'
 import { Route as AuthenticatedAdminStaffIndexRouteImport } from './routes/_authenticated/admin/staff.index'
 import { Route as AuthenticatedAdminBestellungIndexRouteImport } from './routes/_authenticated/admin/bestellung.index'
 import { Route as ApiPublicDisplayLocationIdRouteImport } from './routes/api/public/display.$locationId'
@@ -206,6 +207,12 @@ const AuthenticatedAdminBestellungRoute =
     path: '/bestellung',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminAufgabenRoute =
+  AuthenticatedAdminAufgabenRouteImport.update({
+    id: '/aufgaben',
+    path: '/aufgaben',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminStaffIndexRoute =
   AuthenticatedAdminStaffIndexRouteImport.update({
     id: '/',
@@ -286,6 +293,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/passwort-aendern': typeof AuthenticatedPasswortAendernRoute
   '/display/$locationId': typeof DisplayLocationIdRoute
+  '/admin/aufgaben': typeof AuthenticatedAdminAufgabenRoute
   '/admin/bestellung': typeof AuthenticatedAdminBestellungRouteWithChildren
   '/admin/dienstplan': typeof AuthenticatedAdminDienstplanRoute
   '/admin/einstellungen': typeof AuthenticatedAdminEinstellungenRoute
@@ -326,6 +334,7 @@ export interface FileRoutesByTo {
   '/passwort-aendern': typeof AuthenticatedPasswortAendernRoute
   '/display/$locationId': typeof DisplayLocationIdRoute
   '/': typeof AuthenticatedIndexRoute
+  '/admin/aufgaben': typeof AuthenticatedAdminAufgabenRoute
   '/admin/dienstplan': typeof AuthenticatedAdminDienstplanRoute
   '/admin/einstellungen': typeof AuthenticatedAdminEinstellungenRoute
   '/admin/impersonate': typeof AuthenticatedAdminImpersonateRoute
@@ -367,6 +376,7 @@ export interface FileRoutesById {
   '/_authenticated/passwort-aendern': typeof AuthenticatedPasswortAendernRoute
   '/display/$locationId': typeof DisplayLocationIdRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/admin/aufgaben': typeof AuthenticatedAdminAufgabenRoute
   '/_authenticated/admin/bestellung': typeof AuthenticatedAdminBestellungRouteWithChildren
   '/_authenticated/admin/dienstplan': typeof AuthenticatedAdminDienstplanRoute
   '/_authenticated/admin/einstellungen': typeof AuthenticatedAdminEinstellungenRoute
@@ -410,6 +420,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/passwort-aendern'
     | '/display/$locationId'
+    | '/admin/aufgaben'
     | '/admin/bestellung'
     | '/admin/dienstplan'
     | '/admin/einstellungen'
@@ -450,6 +461,7 @@ export interface FileRouteTypes {
     | '/passwort-aendern'
     | '/display/$locationId'
     | '/'
+    | '/admin/aufgaben'
     | '/admin/dienstplan'
     | '/admin/einstellungen'
     | '/admin/impersonate'
@@ -490,6 +502,7 @@ export interface FileRouteTypes {
     | '/_authenticated/passwort-aendern'
     | '/display/$locationId'
     | '/_authenticated/'
+    | '/_authenticated/admin/aufgaben'
     | '/_authenticated/admin/bestellung'
     | '/_authenticated/admin/dienstplan'
     | '/_authenticated/admin/einstellungen'
@@ -731,6 +744,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminBestellungRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/aufgaben': {
+      id: '/_authenticated/admin/aufgaben'
+      path: '/aufgaben'
+      fullPath: '/admin/aufgaben'
+      preLoaderRoute: typeof AuthenticatedAdminAufgabenRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/staff/': {
       id: '/_authenticated/admin/staff/'
       path: '/'
@@ -873,6 +893,7 @@ const AuthenticatedAdminStaffRouteWithChildren =
   )
 
 interface AuthenticatedAdminRouteRouteChildren {
+  AuthenticatedAdminAufgabenRoute: typeof AuthenticatedAdminAufgabenRoute
   AuthenticatedAdminBestellungRoute: typeof AuthenticatedAdminBestellungRouteWithChildren
   AuthenticatedAdminDienstplanRoute: typeof AuthenticatedAdminDienstplanRoute
   AuthenticatedAdminEinstellungenRoute: typeof AuthenticatedAdminEinstellungenRoute
@@ -892,6 +913,7 @@ interface AuthenticatedAdminRouteRouteChildren {
 
 const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren =
   {
+    AuthenticatedAdminAufgabenRoute: AuthenticatedAdminAufgabenRoute,
     AuthenticatedAdminBestellungRoute:
       AuthenticatedAdminBestellungRouteWithChildren,
     AuthenticatedAdminDienstplanRoute: AuthenticatedAdminDienstplanRoute,
@@ -954,13 +976,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

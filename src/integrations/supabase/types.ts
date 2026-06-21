@@ -2904,6 +2904,101 @@ export type Database = {
           },
         ]
       }
+      tasks: {
+        Row: {
+          archived_at: string | null
+          assignee_staff_id: string | null
+          category: Database["public"]["Enums"]["task_category"]
+          completed_at: string | null
+          created_at: string
+          created_by_staff_id: string
+          description: string | null
+          due_at: string | null
+          escalate_at: string | null
+          escalated_at: string | null
+          id: string
+          location_id: string
+          organization_id: string
+          priority: number
+          sort_order: number
+          started_at: string | null
+          status: Database["public"]["Enums"]["task_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          assignee_staff_id?: string | null
+          category: Database["public"]["Enums"]["task_category"]
+          completed_at?: string | null
+          created_at?: string
+          created_by_staff_id: string
+          description?: string | null
+          due_at?: string | null
+          escalate_at?: string | null
+          escalated_at?: string | null
+          id?: string
+          location_id: string
+          organization_id: string
+          priority?: number
+          sort_order?: number
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["task_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          assignee_staff_id?: string | null
+          category?: Database["public"]["Enums"]["task_category"]
+          completed_at?: string | null
+          created_at?: string
+          created_by_staff_id?: string
+          description?: string | null
+          due_at?: string | null
+          escalate_at?: string | null
+          escalated_at?: string | null
+          id?: string
+          location_id?: string
+          organization_id?: string
+          priority?: number
+          sort_order?: number
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["task_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_assignee_staff_id_fkey"
+            columns: ["assignee_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_created_by_staff_id_fkey"
+            columns: ["created_by_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       time_entries: {
         Row: {
           break_minutes: number
@@ -3189,6 +3284,36 @@ export type Database = {
         Args: { p_decided_by: string; p_note: string; p_request_id: string }
         Returns: undefined
       }
+      archive_task: {
+        Args: { p_task_id: string }
+        Returns: {
+          archived_at: string | null
+          assignee_staff_id: string | null
+          category: Database["public"]["Enums"]["task_category"]
+          completed_at: string | null
+          created_at: string
+          created_by_staff_id: string
+          description: string | null
+          due_at: string | null
+          escalate_at: string | null
+          escalated_at: string | null
+          id: string
+          location_id: string
+          organization_id: string
+          priority: number
+          sort_order: number
+          started_at: string | null
+          status: Database["public"]["Enums"]["task_status"]
+          title: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "tasks"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       create_order_from_cart: {
         Args: {
           p_notes?: string
@@ -3197,6 +3322,44 @@ export type Database = {
           p_user_id: string
         }
         Returns: string[]
+      }
+      create_task: {
+        Args: {
+          p_assignee_staff_id?: string
+          p_category: Database["public"]["Enums"]["task_category"]
+          p_description: string
+          p_due_at?: string
+          p_location_id: string
+          p_priority?: number
+          p_title: string
+        }
+        Returns: {
+          archived_at: string | null
+          assignee_staff_id: string | null
+          category: Database["public"]["Enums"]["task_category"]
+          completed_at: string | null
+          created_at: string
+          created_by_staff_id: string
+          description: string | null
+          due_at: string | null
+          escalate_at: string | null
+          escalated_at: string | null
+          id: string
+          location_id: string
+          organization_id: string
+          priority: number
+          sort_order: number
+          started_at: string | null
+          status: Database["public"]["Enums"]["task_status"]
+          title: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "tasks"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       current_business_date: { Args: never; Returns: string }
       current_organization_id: { Args: never; Returns: string }
@@ -3232,6 +3395,106 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_real_admin: { Args: never; Returns: boolean }
+      reassign_task: {
+        Args: { p_new_assignee_staff_id: string; p_task_id: string }
+        Returns: {
+          archived_at: string | null
+          assignee_staff_id: string | null
+          category: Database["public"]["Enums"]["task_category"]
+          completed_at: string | null
+          created_at: string
+          created_by_staff_id: string
+          description: string | null
+          due_at: string | null
+          escalate_at: string | null
+          escalated_at: string | null
+          id: string
+          location_id: string
+          organization_id: string
+          priority: number
+          sort_order: number
+          started_at: string | null
+          status: Database["public"]["Enums"]["task_status"]
+          title: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "tasks"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      set_task_status: {
+        Args: {
+          p_new_status: Database["public"]["Enums"]["task_status"]
+          p_sort_order?: number
+          p_task_id: string
+        }
+        Returns: {
+          archived_at: string | null
+          assignee_staff_id: string | null
+          category: Database["public"]["Enums"]["task_category"]
+          completed_at: string | null
+          created_at: string
+          created_by_staff_id: string
+          description: string | null
+          due_at: string | null
+          escalate_at: string | null
+          escalated_at: string | null
+          id: string
+          location_id: string
+          organization_id: string
+          priority: number
+          sort_order: number
+          started_at: string | null
+          status: Database["public"]["Enums"]["task_status"]
+          title: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "tasks"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      update_task: {
+        Args: {
+          p_description: string
+          p_due_at: string
+          p_priority: number
+          p_task_id: string
+          p_title: string
+        }
+        Returns: {
+          archived_at: string | null
+          assignee_staff_id: string | null
+          category: Database["public"]["Enums"]["task_category"]
+          completed_at: string | null
+          created_at: string
+          created_by_staff_id: string
+          description: string | null
+          due_at: string | null
+          escalate_at: string | null
+          escalated_at: string | null
+          id: string
+          location_id: string
+          organization_id: string
+          priority: number
+          sort_order: number
+          started_at: string | null
+          status: Database["public"]["Enums"]["task_status"]
+          title: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "tasks"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       app_permission:
@@ -3277,6 +3540,11 @@ export type Database = {
         | "payroll.personal.import"
         | "payroll.calc.run"
         | "payroll.period.view"
+        | "tasks.view"
+        | "tasks.create"
+        | "tasks.assign"
+        | "tasks.change_status"
+        | "tasks.delete"
       app_role: "admin" | "manager" | "staff" | "payroll"
       permission_effect: "allow" | "deny"
       register_transfer_direction:
@@ -3287,6 +3555,8 @@ export type Database = {
       session_status: "open" | "finalized" | "locked"
       skill_category: "kitchen" | "service" | "gl" | "other"
       staff_department: "kitchen" | "service" | "gl"
+      task_category: "service" | "kitchen" | "maintenance" | "manager_admin"
+      task_status: "open" | "in_progress" | "done" | "cancelled"
       time_entry_source: "clock" | "manual" | "import"
       token_type: "badge_login"
       waiter_settlement_status:
@@ -3465,6 +3735,11 @@ export const Constants = {
         "payroll.personal.import",
         "payroll.calc.run",
         "payroll.period.view",
+        "tasks.view",
+        "tasks.create",
+        "tasks.assign",
+        "tasks.change_status",
+        "tasks.delete",
       ],
       app_role: ["admin", "manager", "staff", "payroll"],
       permission_effect: ["allow", "deny"],
@@ -3477,6 +3752,8 @@ export const Constants = {
       session_status: ["open", "finalized", "locked"],
       skill_category: ["kitchen", "service", "gl", "other"],
       staff_department: ["kitchen", "service", "gl"],
+      task_category: ["service", "kitchen", "maintenance", "manager_admin"],
+      task_status: ["open", "in_progress", "done", "cancelled"],
       time_entry_source: ["clock", "manual", "import"],
       token_type: ["badge_login"],
       waiter_settlement_status: [

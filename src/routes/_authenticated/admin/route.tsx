@@ -86,6 +86,13 @@ const GROUPS: Group[] = [
     sub: [], // eigene Sub-Nav lebt in bestellung.tsx
   },
   {
+    key: "aufgaben",
+    label: "Aufgaben",
+    default: "/admin/aufgaben",
+    prefixes: ["/admin/aufgaben"],
+    sub: [{ to: "/admin/aufgaben", label: "Kanban-Board" }],
+  },
+  {
     key: "stammdaten",
     label: "Stammdaten",
     default: "/admin/locations",
