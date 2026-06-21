@@ -289,6 +289,28 @@ gh repo clone frasum/bestellung-5fff1793
 - **Standort-Pillen-Refactor:** `LocationPills` + `pill-select` ersetzen die Standort-Dropdowns quer durch die Admin-Routen; Sentinels (`all`, `""`/`__all__`) bleiben erhalten.
 - **Mitarbeiter-Index (Teilstand):** Berechtigung als Dropdown via neuer Server-Fn `setStaffRole` — **admin-only, Last-Admin-Schutz** (`wouldRemoveLastActiveAdmin`), org-gescoped, auditiert (`staff.set_role`) — plus Skill-Chips. **Offen:** Abteilungs-Pills (`setStaffLocationDepartment` mit `organization_id` + In-Org-Validierung), Skill-Sperre nach Abteilung als geteiltes `skill-eligibility.ts` (UI + `assignStaffSkills`), Regel „Abteilungs-Entzug blockieren, solange ein abhängiger Skill aktiv ist", sowie `assertStaffInOrg` in `setStaffRole` als Defense-in-Depth.
 
+**Stand 21.06.2026 (Abend, Session-Nachzug — Mitarbeiter-Matrix, payroll=Büro, Wochenplan-Perioden, Aufräumen):**
+
+- **Mitarbeiter-Matrix abgeschlossen** (schließt den „Mitarbeiter-Index (Teilstand)"-Block oben ab — die dort als *offen* genannten Punkte sind jetzt erledigt):
+  - **Abteilungs-Pills je Standort:** Server-Fn `setStaffLocationDepartment` (toggelt eine `(staff_id, location_id, department)`-Zeile, `organization_id`, In-Org-Validierung via `assertStaffInOrg`/`assertLocationInOrg`, auditiert).
+  - **Skill-Eligibility als geteiltes reines Modul** `src/lib/admin/skill-eligibility.ts` (`isSkillCategoryEligible`/`ineligibleSkills`/`distinctDepartments`, getestet) — genutzt von UI **und** `assignStaffSkills`.
+  - **Regel (a) „Abteilungs-Entzug blockieren, solange ein abhängiger Skill aktiv ist":** `setStaffLocationDepartment` wirft **vor** dem DELETE, wenn dadurch ein gehaltener Skill verwaisen würde — kein stilles Skill-Entfernen, kein Cascade.
+  - **`setStaffRole` gehärtet** mit `assertStaffInOrg` (Defense-in-Depth).
+  - **Index-Redesign** (`staff.index.tsx`, UI-only, Vorlage bunker `StaffMatrixView`): Hero-Kopf mit Zählern, Suche, Filter-Tabs (Alle/Service/Küche), **Spalte je Standort** (alle 3 Org-Standorte — behebt „letzte Abteilung verschwindet"), inline farbige Skill-Chips (`skill.color`-Hex, **nicht** `hsl(var(--…))`), optimistische Updates + Fehler-Toasts.
+- **payroll = Büro (Entscheidung):** Eine „Büro"-Kraft braucht **keine** Bereiche/Skills und gehört **nicht** in Dienstplan/Zeiterfassung — das ist exakt die bestehende **`payroll`-Rolle**, **kein** 4. Department. Der „Büro-als-Abteilung"-Ansatz wurde verworfen.
+  - **Im Index:** `payroll`-MA → Dept-Pills deaktiviert (—), Skills-Zelle „Lohnbüro – keine Bereiche/Skills" (nicht-destruktiv, Daten bleiben).
+  - **OR-gehaltene-Skills-Filter:** im Index nur Skill-Chips, deren Kategorie zu einer Abteilung des MA passt **oder** die der MA bereits hält (Hausmeister/`other` nur sichtbar/entfernbar, wenn gehalten).
+  - **Roster-Ausschluss (b2):** `getStaffForRoster` (`roster.functions.ts`) filtert payroll-Staff jetzt **per Rolle** aus dem Dienstplan-Grid. **Abgrenzung zur Notiz vom 18.–19.06.** („Sichtbarkeit hängt an `staff_locations`, nicht an der Rolle"): Der **Dienstplan** hat damit jetzt zusätzlich einen **Rollen-Filter**; die **Zeitübersicht/Zeiterfassung bleibt bewusst rollen-ungefiltert** — sonst verschwänden echte historische Stunden einer Person, die später payroll wurde.
+- **Wochenplan → Abrechnungsperioden (26.–25.):** Der Wochenplan-Tab in `zeit-uebersicht.tsx` war der **einzige** Tab noch am Kalendermonat. Jetzt hängt er am bereits vorhandenen `selectedPeriodId`/`effectivePeriodId`/`selectedPeriod` (gemeinsam mit Zusammenfassung/Buchhaltung/Perioden) → **ein** Periodenbegriff für den ganzen Zeit-Screen, wie der Dienstplan. Wochen-Chips spannen den 26.–25.-Zyklus (`periodWeeks`); ein Sync-Effekt (`useEffect`, Deps nur `[effectivePeriodId]`) hält `weekStart` immer in der gewählten Periode; „Heute" zieht die Periode mit. `selectedMonth`/`monthOptions`/`monthWeeks` entfernt. **Reine UI, keine Migration.**
+- **Aufräum-Refactors (abgenommen, grün):**
+  - Toter Code entfernt (`example.functions.ts`, `config.server.ts`).
+  - `makeAuditWriter` aus den Einzeldateien nach `src/lib/admin/audit.ts` zentralisiert.
+  - `fmtCents`-Duplikat in `trinkgeld-rest.tsx` durch Import aus `@/lib/format` ersetzt (`pdfExport.ts` `fmtEur` bewusst belassen — anderes Format).
+  - **Typ-Single-Source `src/lib/staff-domain.ts`** für `StaffDepartment`/`SkillCategory`; die Hubs (`skill-eligibility`, `skills.functions`, `tip-pool`, `import-assignments`) importieren/re-exportieren daraus.
+- **Lektion „Reverted to commit X":** Ein Lovable-Revert auf einen älteren Commit nimmt **alle** dazwischenliegenden Commits mit — hier kollateral die Typ-Konsolidierung (`staff-domain.ts`), die danach sauber wiederhergestellt wurde. Bei „Reverted to commit X" im Log künftig immer `git diff X..HEAD --stat` prüfen, was wegfällt.
+- **Lektion „Januar-Zeitdaten nicht sichtbar" (kein Bug):** Die Daten sind vollständig in der DB (660 Januar-`time_entries`: YUM 359 + spicery 301, alle mit `ended_at` + korrekter `location_id`; Woche 26.01. hat 70 spicery-Einträge). Die leere Wochenplan-Woche im Screenshot war ein **veralteter Preview-Build**, kein Code-Fehler. Vorgehen bei „Daten fehlen": erst per SQL gegen die DB prüfen, bevor man im Code jagt.
+- **Verifizierter Stand:** HEAD `b5b6a40` — `tsc`/`eslint --max-warnings=5`/`prettier`/`vitest` (738) grün.
+
 ## 7. Modul M5 — Bestellwesen (bestellung.pro-Migration), Stand 16.06.2026
 
 Quelle der Wahrheit: Legacy `bestellung` (Repo `bestellung-5fff1793`, hat `SYSTEM_BLUEPRINT.md`). In „Wellen" gebaut. Geld = BIGINT cents. Alle Server-Fns Cloudflare-kompatibel (kein Edge-Function, kein SMTP).
