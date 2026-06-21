@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -25,12 +25,16 @@ import {
   type TaskCategory,
 } from "@/lib/aufgaben/types";
 import { useCreateTask } from "@/lib/aufgaben/tasks.queries";
+import {
+  filterStaffByCategory,
+  type StaffOption,
+} from "@/lib/aufgaben/filter-staff-by-category";
 
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   locationId: string;
-  staff: { id: string; name: string }[];
+  staff: StaffOption[];
 };
 
 export function TaskCreateDialog({ open, onOpenChange, locationId, staff }: Props) {
@@ -42,6 +46,17 @@ export function TaskCreateDialog({ open, onOpenChange, locationId, staff }: Prop
   const [assignee, setAssignee] = useState<string>("");
   const [dueAt, setDueAt] = useState<string>("");
   const [err, setErr] = useState<string | null>(null);
+
+  const filteredStaff = useMemo(
+    () => filterStaffByCategory(staff, category),
+    [staff, category],
+  );
+
+  useEffect(() => {
+    if (assignee && !filteredStaff.some((s) => s.id === assignee)) {
+      setAssignee("");
+    }
+  }, [filteredStaff, assignee]);
 
   function reset() {
     setTitle("");
@@ -149,13 +164,18 @@ export function TaskCreateDialog({ open, onOpenChange, locationId, staff }: Prop
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none">Unzugewiesen</SelectItem>
-                  {staff.map((s) => (
+                  {filteredStaff.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {filteredStaff.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Keine passenden Mitarbeiter für diese Kategorie.
+                </p>
+              ) : null}
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="task-due">Fälligkeit</Label>
