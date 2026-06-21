@@ -270,13 +270,9 @@ export const claimTask = createServerFn({ method: "POST" })
       (entry) => audit(caller, entry.action, entry.entityId ?? "", entry.meta ?? {}),
       async () => {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        // Typen für claim_task werden mit dem nächsten types.ts-Refresh erzeugt.
-        const { data: row, error } = await (
-          supabaseAdmin.rpc as (name: string, params: Record<string, unknown>) => Promise<{
-            data: unknown;
-            error: { message: string } | null;
-          }>
-        )("claim_task", { p_task_id: data.taskId });
+        const { data: row, error } = await supabaseAdmin.rpc("claim_task", {
+          p_task_id: data.taskId,
+        });
         if (error) throw error;
         const task = row as unknown as Task;
         return {
