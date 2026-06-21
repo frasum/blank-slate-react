@@ -93,9 +93,9 @@ function StaffListPage() {
   const [search, setSearch] = useState("");
   const [deptTab, setDeptTab] = useState<DeptFilter>("all");
 
-  const data = staffQ.data ?? [];
-  const skills = skillsQ.data ?? [];
-  const locations = locationsQ.data ?? [];
+  const data = useMemo(() => staffQ.data ?? [], [staffQ.data]);
+  const skills = useMemo(() => skillsQ.data ?? [], [skillsQ.data]);
+  const locations = useMemo(() => locationsQ.data ?? [], [locationsQ.data]);
 
   const activeCount = useMemo(() => data.filter((s) => s.isActive).length, [data]);
   const inactiveCount = useMemo(() => data.filter((s) => !s.isActive).length, [data]);
