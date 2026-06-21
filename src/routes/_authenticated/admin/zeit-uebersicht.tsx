@@ -23,6 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { listLocations } from "@/lib/admin/locations.functions";
+import { LocationPills } from "@/components/shared/LocationPills";
 import {
   createPeriod,
   createTimeEntryShift,
@@ -790,38 +791,14 @@ function ZeitUebersichtPage() {
             <div className="flex flex-wrap items-end gap-3">
               <div className="space-y-1">
                 <Label htmlFor="loc-zr">Standort</Label>
-                <div
-                  id="loc-zr"
-                  className="inline-flex rounded-md border border-input bg-background p-1"
-                >
-                  {locations.map((l) => {
-                    const active = (locationFilter || locations[0]?.id) === l.id && !isAllLocations;
-                    return (
-                      <button
-                        key={l.id}
-                        type="button"
-                        onClick={() => setLocationFilter(l.id)}
-                        className={`h-7 rounded px-3 text-sm transition ${
-                          active
-                            ? "bg-primary text-primary-foreground"
-                            : "text-foreground hover:bg-muted"
-                        }`}
-                      >
-                        {l.name}
-                      </button>
-                    );
-                  })}
-                  <button
-                    type="button"
-                    onClick={() => setLocationFilter("all")}
-                    className={`h-7 rounded px-3 text-sm transition ${
-                      isAllLocations
-                        ? "bg-primary text-primary-foreground"
-                        : "text-foreground hover:bg-muted"
-                    }`}
-                  >
-                    Alle
-                  </button>
+                <div id="loc-zr">
+                  <LocationPills
+                    locations={locations}
+                    value={isAllLocations ? "all" : locationFilter || locations[0]?.id || ""}
+                    onChange={setLocationFilter}
+                    includeAll
+                    allValue="all"
+                  />
                 </div>
               </div>
               <div className="space-y-1">
