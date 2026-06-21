@@ -429,7 +429,7 @@ export async function getMySettlementCore(caller: StaffCaller) {
   const settings = await loadOrgSettings(caller.organizationId);
   const { data: session } = await supabaseAdmin
     .from("sessions")
-    .select("id, status")
+    .select("id, business_date, status, locked_at, location_id, tip_pool_settlement_only")
     .eq("organization_id", caller.organizationId)
     .eq("business_date", businessDate)
     .maybeSingle();
@@ -440,6 +440,7 @@ export async function getMySettlementCore(caller: StaffCaller) {
       settlement: null,
       kitchenTipRate: settings.kitchenTipRate,
       staffId: caller.staffId,
+      myPoolShareCents: null as number | null,
     };
   }
   const { data: row } = await supabaseAdmin
@@ -452,12 +453,30 @@ export async function getMySettlementCore(caller: StaffCaller) {
     .eq("staff_id", caller.staffId)
     .neq("status", "superseded")
     .maybeSingle();
+
+  // Pool-Anteil nur zeigen, wenn Tag finalisiert (locked).
+  let myPoolShareCents: number | null = null;
+  if (session.status === "locked") {
+    try {
+      const pool = await computeSessionTipPoolCore(
+        { organizationId: caller.organizationId } as AdminCaller,
+        session,
+        settings,
+      );
+      myPoolShareCents =
+        pool.shares.find((s) => s.staffId === caller.staffId)?.shareCents ?? 0;
+    } catch {
+      myPoolShareCents = null;
+    }
+  }
+
   return {
     businessDate,
-    session,
+    session: { id: session.id, status: session.status },
     settlement: row,
     kitchenTipRate: settings.kitchenTipRate,
     staffId: caller.staffId,
+    myPoolShareCents,
   };
 }
 

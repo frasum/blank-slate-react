@@ -151,7 +151,14 @@ function AbrechnungPage() {
     );
   }
 
-  const { session, settlement, kitchenTipRate, businessDate, staffId: myStaffId } = myQ.data;
+  const {
+    session,
+    settlement,
+    kitchenTipRate,
+    businessDate,
+    staffId: myStaffId,
+    myPoolShareCents,
+  } = myQ.data;
   const myExcludeStaffIds = [myStaffId];
 
   // Falls noch keine Session offen: read-only Hinweis.
@@ -170,6 +177,11 @@ function AbrechnungPage() {
   // Bereits abgegeben → read-only Ansicht.
   if (settlement) {
     const locked = settlement.status === "locked" || session.status === "locked";
+    const diff = Number(settlement.differenz_cents);
+    const pos = Number(settlement.pos_sales_cents);
+    const tipNetCents = Math.max(0, diff);
+    const tipPct = pos > 0 ? (tipNetCents / pos) * 100 : null;
+    const sessionLocked = session.status === "locked";
     return (
       <main className="mx-auto max-w-xl space-y-6 px-4 py-8">
         <Header />
@@ -192,6 +204,26 @@ function AbrechnungPage() {
             label={`Trinkgeld Küche (${(Number(settlement.kitchen_tip_rate) * 100).toFixed(2)}%)`}
             cents={Number(settlement.kitchen_tip_cents)}
           />
+          <hr className="border-border" />
+          <ReadOnlyRow label="Mein Trinkgeld (netto, Küche ab)" cents={tipNetCents} />
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Trinkgeld-Quote</span>
+            <span className="font-mono tabular-nums">
+              {tipPct === null ? "–" : `${tipPct.toFixed(1).replace(".", ",")} %`}
+            </span>
+          </div>
+          <div className="mt-2 rounded-md border bg-muted/40 p-3">
+            <div className="text-xs text-muted-foreground">Mein Pool-Anteil</div>
+            {sessionLocked && myPoolShareCents != null ? (
+              <div className="mt-1 text-2xl font-semibold tabular-nums">
+                {formatCents(myPoolShareCents)} €
+              </div>
+            ) : (
+              <div className="mt-1 text-sm text-muted-foreground">
+                Dein Anteil steht nach Tagesabschluss fest.
+              </div>
+            )}
+          </div>
           {settlement.submitted_at && (
             <div className="pt-2 text-sm text-muted-foreground">
               Abgegeben um {formatTime(settlement.submitted_at)}
