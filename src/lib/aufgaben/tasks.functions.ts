@@ -255,3 +255,64 @@ export const archiveTask = createServerFn({ method: "POST" })
       },
     );
   });
+
+// Phase 2: Self-Claim. Aufrufer (admin/manager/staff) übernimmt eine offene,
+// nicht zugewiesene Aufgabe seines Standorts. Berechtigungen werden in der
+// RPC streng geprüft; hier nur Rollen-Vorfilter + Audit.
+export const claimTask = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ taskId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, ALLOWED_ALL);
+    return runGuarded(
+      caller.role,
+      "staff",
+      (entry) => audit(caller, entry.action, entry.entityId ?? "", entry.meta ?? {}),
+      async () => {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: row, error } = await supabaseAdmin.rpc("claim_task", {
+          p_task_id: data.taskId,
+        });
+        if (error) throw error;
+        const task = row as unknown as Task;
+        return {
+          result: task,
+          audit: {
+            action: "task.claimed",
+            entity: "task",
+            entityId: task.id,
+            meta: {
+              locationId: task.location_id,
+              assigneeStaffId: task.assignee_staff_id,
+            },
+          },
+        };
+      },
+    );
+  });
+
+// Standorte des aktuellen Aufrufers für den Staff-Aufgaben-Selector.
+// Liest mit dem User-Client (RLS); kein Rollencheck — auch Manager/Admin
+// dürfen das (eigene Standorte). Liefert {id,name}[] sortiert.
+export const listMyTaskLocations = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ id: string; name: string }[]> => {
+    const { data: link } = await context.supabase
+      .from("user_links")
+      .select("staff_id, organization_id")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (!link) return [];
+    const { data, error } = await context.supabase
+      .from("staff_locations")
+      .select("location_id, locations!inner(id, name)")
+      .eq("staff_id", link.staff_id)
+      .eq("organization_id", link.organization_id);
+    if (error) throw error;
+    const rows = (data ?? []) as unknown as {
+      locations: { id: string; name: string };
+    }[];
+    return rows
+      .map((r) => ({ id: r.locations.id, name: r.locations.name }))
+      .sort((a, b) => a.name.localeCompare(b.name, "de"));
+  });
