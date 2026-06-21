@@ -151,7 +151,10 @@ function StaffListPage() {
                         locationDepartments={s.locationDepartments}
                         heldSkills={s.skillIds
                           .map((id) => (skillsQ.data ?? []).find((sk) => sk.id === id))
-                          .filter((sk): sk is { id: string; name: string; category: SkillCategory } => !!sk)}
+                          .filter(
+                            (sk): sk is NonNullable<typeof sk> => sk !== undefined,
+                          )
+                          .map((sk) => ({ id: sk.id, name: sk.name, category: sk.category }))}
                         locationNameById={locationNameById}
                       />
                     ) : (
