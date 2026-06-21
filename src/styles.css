@@ -142,6 +142,12 @@
   --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.551 0.027 264.364);
+  --dept-service: oklch(0.6 0.2 256);
+  --dept-service-foreground: oklch(0.985 0 0);
+  --dept-kitchen: oklch(0.82 0.17 90);
+  --dept-kitchen-foreground: oklch(0.2 0.03 90);
+  --dept-gl: oklch(0.62 0.22 27);
+  --dept-gl-foreground: oklch(0.985 0 0);
 }
 
 @layer base {
