@@ -10,6 +10,7 @@ import {
   claimTask,
   createTask,
   listMyTaskLocations,
+  listStaffForLocation,
   reassignTask,
   setTaskStatus,
   updateTask,
@@ -136,5 +137,14 @@ export function useMyTaskLocations() {
   return useQuery({
     queryKey: ["tasks", "my-locations"],
     queryFn: () => fn(),
+  });
+}
+
+export function useStaffForLocation(locationId: string | null) {
+  const fn = useServerFn(listStaffForLocation);
+  return useQuery({
+    queryKey: ["tasks", "staff-for-location", locationId],
+    enabled: !!locationId,
+    queryFn: () => fn({ data: { locationId: locationId! } }),
   });
 }
