@@ -4,7 +4,8 @@
 // Diff, Platzhalter-Schutz, skippedRows) ohne DB testbar.
 
 export type ZtDepartment = "Küche" | "Service" | "GL";
-export type StaffDepartment = "kitchen" | "service" | "gl";
+import type { StaffDepartment } from "@/lib/staff-domain";
+export type { StaffDepartment };
 export type SkillsMode = "merge" | "replace";
 
 export type AssignmentInput = {
