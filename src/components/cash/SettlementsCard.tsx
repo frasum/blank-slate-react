@@ -59,8 +59,9 @@ export function SettlementsCard({
           {rows.map((r) => {
             const superseded = r.status === "superseded";
             const pos = Number(r.pos_sales_cents);
-            const tip = Number(r.kitchen_tip_cents);
-            const tipPct = pos > 0 ? (tip / pos) * 100 : null;
+            const diff = Number(r.differenz_cents);
+            const tipTotal = Number(r.kitchen_tip_cents) + Math.max(0, diff);
+            const tipPct = pos > 0 ? (tipTotal / pos) * 100 : null;
             return (
               <TableRow key={r.id} className={superseded ? "opacity-50" : ""}>
                 <TableCell>
@@ -92,7 +93,7 @@ export function SettlementsCard({
                   {fmtCents(Number(r.differenz_cents))}
                 </TableCell>
                 <TableCell className="text-right font-mono">
-                  {fmtCents(Number(r.kitchen_tip_cents))}
+                  {fmtCents(tipTotal)}
                 </TableCell>
                 <TableCell className="text-right font-mono">
                   {tipPct === null ? "–" : `${tipPct.toFixed(1).replace(".", ",")} %`}
