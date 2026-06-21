@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react";
+import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import {
-  DndContext,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from "@dnd-kit/core";
-import { BOARD_COLUMNS, TASK_CATEGORIES, TASK_CATEGORY_LABEL, type Task, type TaskCategory, type TaskStatus } from "@/lib/aufgaben/types";
+  BOARD_COLUMNS,
+  TASK_CATEGORIES,
+  TASK_CATEGORY_LABEL,
+  type Task,
+  type TaskCategory,
+  type TaskStatus,
+} from "@/lib/aufgaben/types";
 import { useBoardTasks, useSetTaskStatus } from "@/lib/aufgaben/tasks.queries";
 import { sortOrderForInsert } from "@/lib/aufgaben/sort-order";
 import { KanbanColumn } from "./KanbanColumn";

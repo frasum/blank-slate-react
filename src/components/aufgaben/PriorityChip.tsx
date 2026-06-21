@@ -8,10 +8,12 @@ const COLOR: Record<0 | 1 | 2 | 3, string> = {
 };
 
 export function PriorityChip({ priority }: { priority: number }) {
-  const p = (Math.max(0, Math.min(3, priority)) as 0 | 1 | 2 | 3);
+  const p = Math.max(0, Math.min(3, priority)) as 0 | 1 | 2 | 3;
   if (p === 0) return null;
   return (
-    <span className={`inline-flex rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${COLOR[p]}`}>
+    <span
+      className={`inline-flex rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${COLOR[p]}`}
+    >
       {TASK_PRIORITY_LABEL[p]}
     </span>
   );

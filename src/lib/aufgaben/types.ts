@@ -43,8 +43,4 @@ export const TASK_PRIORITY_LABEL: Record<0 | 1 | 2 | 3, string> = {
 };
 
 /** Board-Spalten in der Anzeige-Reihenfolge (cancelled wird separat eingeklappt). */
-export const BOARD_COLUMNS: readonly TaskStatus[] = [
-  "open",
-  "in_progress",
-  "done",
-] as const;
+export const BOARD_COLUMNS: readonly TaskStatus[] = ["open", "in_progress", "done"] as const;

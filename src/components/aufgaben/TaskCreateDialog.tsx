@@ -140,7 +140,10 @@ export function TaskCreateDialog({ open, onOpenChange, locationId, staff }: Prop
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
               <Label>Zugewiesen</Label>
-              <Select value={assignee || "__none"} onValueChange={(v) => setAssignee(v === "__none" ? "" : v)}>
+              <Select
+                value={assignee || "__none"}
+                onValueChange={(v) => setAssignee(v === "__none" ? "" : v)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Unzugewiesen" />
                 </SelectTrigger>
@@ -170,11 +173,7 @@ export function TaskCreateDialog({ open, onOpenChange, locationId, staff }: Prop
           <Button variant="outline" onClick={() => onOpenChange(false)} type="button">
             Abbrechen
           </Button>
-          <Button
-            onClick={submit}
-            disabled={!title.trim() || create.isPending}
-            type="button"
-          >
+          <Button onClick={submit} disabled={!title.trim() || create.isPending} type="button">
             {create.isPending ? "Speichert…" : "Anlegen"}
           </Button>
         </DialogFooter>

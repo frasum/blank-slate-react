@@ -122,7 +122,11 @@ export function TaskDetailDialog({ task, onOpenChange, locationId, staff }: Prop
           </div>
           <div className="grid gap-1.5">
             <Label>Beschreibung</Label>
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} />
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={4}
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
@@ -151,7 +155,10 @@ export function TaskDetailDialog({ task, onOpenChange, locationId, staff }: Prop
           </div>
           <div className="grid gap-1.5">
             <Label>Zugewiesen</Label>
-            <Select value={assignee || "__none"} onValueChange={(v) => setAssignee(v === "__none" ? "" : v)}>
+            <Select
+              value={assignee || "__none"}
+              onValueChange={(v) => setAssignee(v === "__none" ? "" : v)}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Unzugewiesen" />
               </SelectTrigger>
@@ -185,7 +192,12 @@ export function TaskDetailDialog({ task, onOpenChange, locationId, staff }: Prop
           {err ? <p className="text-sm text-destructive">{err}</p> : null}
         </div>
         <DialogFooter className="flex sm:justify-between">
-          <Button variant="destructive" type="button" onClick={doArchive} disabled={archive.isPending}>
+          <Button
+            variant="destructive"
+            type="button"
+            onClick={doArchive}
+            disabled={archive.isPending}
+          >
             Archivieren
           </Button>
           <div className="flex gap-2">
