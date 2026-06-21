@@ -23,7 +23,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { getMySettlement, submitWaiterSettlement } from "@/lib/cash/cash.functions";
-import { calcWaiterSettlement } from "@/lib/cash/waiter-settlement";
+import { calcWaiterSettlement, waiterNetTipCents } from "@/lib/cash/waiter-settlement";
 import { SecondWaiterSelect } from "@/components/cash/SecondWaiterSelect";
 import { parseEuroToCents as parseEuroToCentsBase } from "@/lib/format";
 
