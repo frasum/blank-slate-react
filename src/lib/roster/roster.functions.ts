@@ -7,7 +7,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { runWithPermission, assertPermission } from "@/lib/admin/admin-call";
 // assertPermission wird unten in createDayOffWish/deleteDayOffWish verwendet.
-import { writeAuditLog, makeAuditWriter } from "@/lib/admin/audit";
+import { makeAuditWriter } from "@/lib/admin/audit";
 import { loadStaffCaller } from "@/lib/time/time.functions";
 import type { MyShiftRow } from "@/lib/roster/my-shifts";
 

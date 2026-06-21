@@ -7,7 +7,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "./admin-context";
 import { runGuarded } from "./admin-call";
-import { writeAuditLog, makeAuditWriter } from "./audit";
+import { makeAuditWriter } from "./audit";
 
 // Optionales Freitext-Feld: leere Strings → null, sonst getrimmt.
 const optText = (max: number) =>

@@ -8,7 +8,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { runGuarded } from "@/lib/admin/admin-call";
-import { writeAuditLog, makeAuditWriter } from "@/lib/admin/audit";
+import { makeAuditWriter } from "@/lib/admin/audit";
 
 function computeLineValueCents(storage1: number, storage2: number, unitPriceCents: number): number {
   const qty = storage1 + storage2;

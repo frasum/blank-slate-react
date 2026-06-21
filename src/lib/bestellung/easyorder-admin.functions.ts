@@ -15,7 +15,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { runGuarded } from "@/lib/admin/admin-call";
-import { writeAuditLog, makeAuditWriter } from "@/lib/admin/audit";
+import { makeAuditWriter } from "@/lib/admin/audit";
 import type { Database } from "@/integrations/supabase/types";
 
 type Admin = SupabaseClient<Database>;

@@ -14,7 +14,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { runWithPermission } from "@/lib/admin/admin-call";
-import { writeAuditLog, makeAuditWriter } from "@/lib/admin/audit";
+import { makeAuditWriter } from "@/lib/admin/audit";
 import { businessDateOf } from "@/lib/business-date";
 import { assertBusinessDateUnlocked } from "./time-lock";
 import { timeEntryToSfnRow } from "@/lib/lohn/time-entry-sfn";
