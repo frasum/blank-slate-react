@@ -3285,7 +3285,11 @@ export type Database = {
         Returns: undefined
       }
       archive_task: {
-        Args: { p_task_id: string }
+        Args: {
+          p_caller_staff_id: string
+          p_organization_id: string
+          p_task_id: string
+        }
         Returns: {
           archived_at: string | null
           assignee_staff_id: string | null
@@ -3315,7 +3319,11 @@ export type Database = {
         }
       }
       claim_task: {
-        Args: { p_task_id: string }
+        Args: {
+          p_caller_staff_id: string
+          p_organization_id: string
+          p_task_id: string
+        }
         Returns: {
           archived_at: string | null
           assignee_staff_id: string | null
@@ -3356,10 +3364,12 @@ export type Database = {
       create_task: {
         Args: {
           p_assignee_staff_id?: string
+          p_caller_staff_id: string
           p_category: Database["public"]["Enums"]["task_category"]
           p_description: string
           p_due_at?: string
           p_location_id: string
+          p_organization_id: string
           p_priority?: number
           p_title: string
         }
@@ -3426,7 +3436,12 @@ export type Database = {
       is_admin: { Args: never; Returns: boolean }
       is_real_admin: { Args: never; Returns: boolean }
       reassign_task: {
-        Args: { p_new_assignee_staff_id: string; p_task_id: string }
+        Args: {
+          p_caller_staff_id: string
+          p_new_assignee_staff_id: string
+          p_organization_id: string
+          p_task_id: string
+        }
         Returns: {
           archived_at: string | null
           assignee_staff_id: string | null
@@ -3457,7 +3472,9 @@ export type Database = {
       }
       set_task_status: {
         Args: {
+          p_caller_staff_id: string
           p_new_status: Database["public"]["Enums"]["task_status"]
+          p_organization_id: string
           p_sort_order?: number
           p_task_id: string
         }
@@ -3491,8 +3508,10 @@ export type Database = {
       }
       update_task: {
         Args: {
+          p_caller_staff_id: string
           p_description: string
           p_due_at: string
+          p_organization_id: string
           p_priority: number
           p_task_id: string
           p_title: string

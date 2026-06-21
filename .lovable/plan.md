@@ -1,33 +1,29 @@
-## Plan: Repo-Reset verlässlich abschließen
+## Ziel
+Fix für `kein aktiver Aufrufer/Organisation` bei Task-Schreibvorgängen. RPCs bleiben service_role-only; Identität wird als Parameter durchgereicht und Rolle autoritativ aus `role_assignments` ermittelt.
 
-1. **Nicht weiter implementieren**
-   - Keine neuen Migrationen, keine Codeänderungen, keine „Korrektur obendrauf“.
-   - Grund: Der aktuelle GitHub-HEAD ist laut Prüfung noch `a4f8cce "Migration D"` und enthält weiterhin Phase-2/Realtime/D-Dateien. Weiterbauen würde den falschen Stand verfestigen.
+## Änderungen
 
-2. **Reset auf `fedb2e0` über Lovable auslösen**
-   - Entweder über Lovable History/Versionsverlauf auf den Stand `fedb2e0` zurücksetzen.
-   - Oder den Reset-Prompt explizit an Lovable geben, mit Erfolgskriterium: GitHub muss danach denselben Tree wie `fedb2e0` haben.
+### 1. Neue Migration `…_task_rpcs_caller_params.sql`
+DROP + CREATE der 6 Task-RPCs mit neuer Signatur `(p_caller_staff_id uuid, p_organization_id uuid, ...)`:
+- `create_task` — Rolle aus role_assignments; Staff darf keine `manager_admin`-Kategorie.
+- `set_task_status` — admin/manager oder Assignee.
+- `reassign_task` — admin/manager oder Assignee (auf gemeinsamen Standort).
+- `update_task` — admin oder manager am Standort.
+- `archive_task` — admin-only (konsistent zu Migration D, kein `tasks.delete` für Manager).
+- `claim_task` — Self-Service, prüft Standortzugehörigkeit.
 
-3. **GitHub als Wahrheit prüfen**
-   - Nach dem Restore nicht nur den Editor anschauen, sondern im verbundenen GitHub-Repo prüfen, ob ein neuer Sync/Commit angekommen ist.
-   - Erfolgskriterium:
-     ```text
-     git diff fedb2e0..HEAD
-     ```
-     muss leer sein.
+Alle: `REVOKE ALL ... FROM PUBLIC, anon, authenticated; GRANT EXECUTE ... TO service_role;`
 
-4. **Dateien prüfen, die verschwinden müssen**
-   - Die folgenden nachgezogenen Dateien dürfen nach dem Reset nicht mehr im GitHub-HEAD sein:
-     ```text
-     supabase/migrations/*075820*   # Staff/Claim
-     supabase/migrations/*080455*   # Realtime
-     supabase/migrations/*081844*   # gestapelte Migration D
-     src/routes/_authenticated/zeit/aufgaben.tsx
-     ```
+Entfernt vollständig aus diesen 6 RPCs: `auth.uid()`, `current_staff_id()`, `current_organization_id()`, `current_role()`, `is_admin()`, `has_permission()`, `has_min_permission()`.
 
-5. **Erst danach neu starten**
-   - Wenn GitHub wirklich auf `fedb2e0` steht, kann Migration D sauber neu umgesetzt werden — als einzelner, überprüfbarer Schritt ohne die gestapelten Phase-2/Realtime-Änderungen.
+### 2. `src/lib/aufgaben/tasks.functions.ts`
+In jedem der 6 `supabaseAdmin.rpc(...)`-Aufrufe `p_caller_staff_id: caller.staffId` und `p_organization_id: caller.organizationId` ergänzen. Sonst keine Änderung.
 
-## Was du jetzt konkret tun solltest
+### 3. Gate
+`prettier --write` / `eslint --fix` über die geänderten Dateien; `tsc --noEmit`, `eslint .`, `prettier --check .`, `vitest run` müssen grün sein. Falls ein Test die alte RPC-Signatur mockt, anpassen.
 
-Nutze den Lovable-Versionsverlauf und restore auf `fedb2e0`. Danach warte auf den GitHub-Sync und lass erneut gegen GitHub prüfen. Wenn der Diff weiterhin nicht leer ist, ist der Restore nicht im Repo angekommen — dann den Reset-Prompt als expliziten Lovable-Auftrag ausführen lassen.
+## Nicht angefasst
+RLS-Policies auf `tasks`, Realtime-Publication, Permission-Defaults (Migration D), `tasks.queries.ts`, andere Module. Keine neuen Features, keine `authenticated`-Grants auf Task-RPCs.
+
+## Stop-Bedingung
+Wenn nach den Edits mehr im Diff steht als die neue Migration + `tasks.functions.ts` (+ ggf. ein Test-Mock), stoppen und melden statt weiterbauen.
