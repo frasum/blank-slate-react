@@ -10,6 +10,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { getTipRemainderByPeriod } from "@/lib/cash/cash.functions";
 import { listLocations } from "@/lib/admin/locations.functions";
 import { listPeriods } from "@/lib/time/time-admin.functions";
+import { LocationPills } from "@/components/shared/LocationPills";
 
 export const Route = createFileRoute("/_authenticated/admin/trinkgeld-rest")({
   head: () => ({ meta: [{ title: "Trinkgeld-Rest · Verwaltung" }] }),
@@ -82,20 +83,14 @@ function TipRemainderPage() {
       </div>
 
       <div className="flex flex-wrap gap-4">
-        <label className="block space-y-1">
-          <span className="text-xs font-medium text-muted-foreground">Standort</span>
-          <select
+        <div className="space-y-1">
+          <span className="block text-xs font-medium text-muted-foreground">Standort</span>
+          <LocationPills
+            locations={locationsQ.data ?? []}
             value={locationId}
-            onChange={(e) => setLocationId(e.target.value)}
-            className="rounded-md border border-input bg-background px-3 py-2 text-sm"
-          >
-            {(locationsQ.data ?? []).map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}
-              </option>
-            ))}
-          </select>
-        </label>
+            onChange={setLocationId}
+          />
+        </div>
         <label className="block space-y-1">
           <span className="text-xs font-medium text-muted-foreground">Periode</span>
           <select
