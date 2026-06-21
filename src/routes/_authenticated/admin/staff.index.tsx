@@ -65,6 +65,11 @@ const DEPARTMENT_LABEL: Record<StaffDepartment, string> = {
   kitchen: "Küche",
   gl: "Geschäftsleitung",
 };
+const DEPARTMENT_ACTIVE_CLASS: Record<StaffDepartment, string> = {
+  service: "border-dept-service bg-dept-service text-dept-service-foreground",
+  kitchen: "border-dept-kitchen bg-dept-kitchen text-dept-kitchen-foreground",
+  gl: "border-dept-gl bg-dept-gl text-dept-gl-foreground",
+};
 
 type StaffRow = NonNullable<Awaited<ReturnType<typeof listStaff>>>[number];
 type SkillRow = Awaited<ReturnType<typeof listSkills>>[number];
@@ -478,7 +483,7 @@ function StaffMatrixRow({
                         className={cn(
                           "inline-flex h-7 min-w-[28px] items-center justify-center rounded-md border px-1.5 text-[11px] font-bold transition-all",
                           active
-                            ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                            ? `${DEPARTMENT_ACTIVE_CLASS[dept]} shadow-sm`
                             : "border-border bg-transparent text-muted-foreground hover:border-primary/50 hover:text-foreground",
                           disabled && "cursor-not-allowed opacity-40",
                         )}
