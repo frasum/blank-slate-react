@@ -566,4 +566,4 @@ Self-Service: `claim_task` weist eine offene, unassignete Task am eigenen Stando
 
 Lektion (live gelernt): Die RPCs hatten anfangs `current_staff_id()`/`has_permission()` intern, wurden aber via `supabaseAdmin` (service_role) aufgerufen → `auth.uid()` NULL → „kein aktiver Aufrufer", jeder Schreibvorgang scheiterte. Statisches Review fing das nicht (DB-Integrationstests sind `continue-on-error`); erst der manuelle Smoke-Test. Fix: Migration `…123007` (Caller-Parameter, service_role-only). Konsequenz für künftige service_role-RPCs: Identität immer als Parameter, nie `auth.uid()` in der RPC.
 
-Offen: End-to-End-Smoke-Test-Bestätigung; Assignee-Filter nach Kategorie (muss auch den Standort berücksichtigen, da `create_task` Assignee ∈ `staff_locations` verlangt).
+Stand 21.06.2026: End-to-End-Smoke-Test bestätigt (Anlegen → Staff sieht/claimt → Realtime live). Assignee-Filter nach Kategorie umgesetzt — reines, getestetes `filter-staff-by-category.ts`. Standort ist über die Quelle bereits erzwungen; der Filter narrowt zusätzlich nach Skill/Rolle (`service`/`kitchen` → Skill-Kategorie, `manager_admin`/`maintenance` → Rolle bzw. `other`-Skill).
