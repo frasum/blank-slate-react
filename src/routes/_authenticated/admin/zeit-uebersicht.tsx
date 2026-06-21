@@ -814,12 +814,18 @@ function ZeitUebersichtPage() {
             <div className="flex flex-wrap items-center gap-3">
               <select
                 className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
+                value={effectivePeriodId}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setSelectedPeriodId(id);
+                  const p = periods.find((x) => x.id === id);
+                  if (p) setWeekStart(fmtIso(mondayOf(parseIsoDate(p.startDate))));
+                }}
               >
-                {monthOptions.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
+                {periods.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label} ({ddmm(parseIsoDate(p.startDate))}–
+                    {ddmm(parseIsoDate(p.endDate))}){p.status === "locked" ? " 🔒" : ""}
                   </option>
                 ))}
               </select>
@@ -864,7 +870,7 @@ function ZeitUebersichtPage() {
             </div>
             {/* Zeile 2: Wochen-Chips */}
             <div className="flex flex-wrap items-center gap-2">
-              {monthWeeks.map((c) => {
+              {periodWeeks.map((c) => {
                 const active = c.start === weekStart;
                 return (
                   <button
@@ -886,7 +892,14 @@ function ZeitUebersichtPage() {
               })}
               <button
                 type="button"
-                onClick={() => setWeekStart(fmtIso(mondayOf(parseIsoDate(todayIso()))))}
+                onClick={() => {
+                  const today = todayIso();
+                  const containing = periods.find(
+                    (p) => p.startDate <= today && today <= p.endDate,
+                  );
+                  if (containing) setSelectedPeriodId(containing.id);
+                  setWeekStart(fmtIso(mondayOf(parseIsoDate(today))));
+                }}
                 className="ml-auto h-8 rounded-md border border-input bg-background px-3 text-xs hover:bg-muted"
               >
                 Heute
