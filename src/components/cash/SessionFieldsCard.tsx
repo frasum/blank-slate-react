@@ -481,6 +481,8 @@ export function SessionFieldsCard({
               {writable && <AdvanceForm writable={writable} staff={staff} onAdd={onAddAdvance} />}
             </div>
           </div>
+
+          {kpiSlot ? <div className="mt-4">{kpiSlot}</div> : null}
         </div>
       </div>
 
