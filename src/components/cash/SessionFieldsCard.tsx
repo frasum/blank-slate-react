@@ -41,6 +41,7 @@ export function SessionFieldsCard({
   onAddAdvance,
   onRemoveAdvance,
   cashBalanceTargetCents,
+  kpiSlot,
 }: {
   sessionId: string;
   overview: Overview;
@@ -61,6 +62,7 @@ export function SessionFieldsCard({
   onAddAdvance: (staffId: string, amountCents: number, note: string | null) => Promise<unknown>;
   onRemoveAdvance: (id: string) => Promise<unknown>;
   cashBalanceTargetCents: number;
+  kpiSlot?: React.ReactNode;
 }) {
   type Row = { id: string; euro: string };
   const initialChannels: Row[] = channels.map((c) => {
@@ -479,6 +481,8 @@ export function SessionFieldsCard({
               {writable && <AdvanceForm writable={writable} staff={staff} onAdd={onAddAdvance} />}
             </div>
           </div>
+
+          {kpiSlot ? <div className="mt-4">{kpiSlot}</div> : null}
         </div>
       </div>
 

@@ -463,6 +463,64 @@ function KassePage() {
             terminals={terminalsQ.data ?? []}
             writable={writable}
             cashBalanceTargetCents={cashBalanceTargetResolvedCents}
+            kpiSlot={(() => {
+              const sess = ovQ.data.session;
+              if (!sess) return null;
+              const vectronTotal = Number(sess.vectron_daily_total_cents ?? 0);
+              const channelKindById = new Map(
+                (channelsQ.data ?? []).map((c) => [c.id, c.kind] as const),
+              );
+              const deliveryVectron = (ovQ.data.channelAmounts ?? []).reduce(
+                (s, c) =>
+                  channelKindById.get(c.channelId) === "delivery_vectron"
+                    ? s + c.amountCents
+                    : s,
+                0,
+              );
+              const inHouseCents = Math.max(0, vectronTotal - deliveryVectron);
+              const tipCents = computeTipTotalCents(
+                ovQ.data.settlements.map((s) => ({
+                  cardTotalCents: Number(s.card_total_cents),
+                  cashHandedInCents: Number(s.cash_handed_in_cents),
+                  posSalesCents: Number(s.pos_sales_cents),
+                  openInvoicesCents: Number(s.open_invoices_cents),
+                  hilfMahlCents: Number(s.hilf_mahl_cents),
+                })),
+              );
+              const tipPct =
+                inHouseCents > 0
+                  ? ((tipCents / inHouseCents) * 100).toFixed(1).replace(".", ",")
+                  : null;
+              const guests = sess.guest_count ?? 0;
+              const perGuestCents =
+                guests > 0 && inHouseCents > 0 ? Math.round(inHouseCents / guests) : null;
+              return (
+                <div className="space-y-3">
+                  <Card className="p-4">
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Trinkgeld-Quote
+                    </div>
+                    <div className="mt-1 font-mono text-2xl font-semibold">
+                      {tipPct == null ? "–" : `${tipPct} %`}
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Pool {fmtCents(tipCents)} / In-House-Umsatz {fmtCents(inHouseCents)}
+                    </div>
+                  </Card>
+                  <Card className="p-4">
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Ø Umsatz / Gast
+                    </div>
+                    <div className="mt-1 font-mono text-2xl font-semibold">
+                      {perGuestCents == null ? "–" : fmtCents(perGuestCents)}
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {guests > 0 ? `${guests} Gäste` : "Gästeanzahl fehlt"}
+                    </div>
+                  </Card>
+                </div>
+              );
+            })()}
             onSave={(data) =>
               callUpdate({ data: { sessionId: sessionId!, ...data } }).then(() => {
                 toast.success("Session gespeichert.");
@@ -520,60 +578,6 @@ function KassePage() {
             editable={correctable}
             staffList={staffQ.data ?? []}
           />
-
-          {(() => {
-            const sess = ovQ.data.session;
-            if (!sess) return null;
-            const vectronTotal = Number(sess.vectron_daily_total_cents ?? 0);
-            const channelKindById = new Map(
-              (channelsQ.data ?? []).map((c) => [c.id, c.kind] as const),
-            );
-            const deliveryVectron = (ovQ.data.channelAmounts ?? []).reduce(
-              (s, c) =>
-                channelKindById.get(c.channelId) === "delivery_vectron" ? s + c.amountCents : s,
-              0,
-            );
-            const inHouseCents = Math.max(0, vectronTotal - deliveryVectron);
-            const tipCents = computeTipTotalCents(
-              ovQ.data.settlements.map((s) => ({
-                cardTotalCents: Number(s.card_total_cents),
-                cashHandedInCents: Number(s.cash_handed_in_cents),
-                posSalesCents: Number(s.pos_sales_cents),
-                openInvoicesCents: Number(s.open_invoices_cents),
-                hilfMahlCents: Number(s.hilf_mahl_cents),
-              })),
-            );
-            const tipPct =
-              inHouseCents > 0 ? ((tipCents / inHouseCents) * 100).toFixed(1).replace(".", ",") : null;
-            const guests = sess.guest_count ?? 0;
-            const perGuestCents = guests > 0 && inHouseCents > 0 ? Math.round(inHouseCents / guests) : null;
-            return (
-              <div className="grid gap-3 md:grid-cols-2">
-                <Card className="p-4">
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Trinkgeld-Quote
-                  </div>
-                  <div className="mt-1 font-mono text-2xl font-semibold">
-                    {tipPct == null ? "–" : `${tipPct} %`}
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    Pool {fmtCents(tipCents)} / In-House-Umsatz {fmtCents(inHouseCents)}
-                  </div>
-                </Card>
-                <Card className="p-4">
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Ø Umsatz / Gast
-                  </div>
-                  <div className="mt-1 font-mono text-2xl font-semibold">
-                    {perGuestCents == null ? "–" : fmtCents(perGuestCents)}
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    {guests > 0 ? `${guests} Gäste` : "Gästeanzahl fehlt"}
-                  </div>
-                </Card>
-              </div>
-            );
-          })()}
 
           <Card className="flex flex-wrap gap-3 p-4">
             <Button
