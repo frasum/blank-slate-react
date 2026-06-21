@@ -15,7 +15,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller, type AdminCaller } from "@/lib/admin/admin-context";
 import { runGuarded } from "@/lib/admin/admin-call";
-import { writeAuditLog } from "@/lib/admin/audit";
+import { writeAuditLog, makeAuditWriter } from "@/lib/admin/audit";
 import type { Database } from "@/integrations/supabase/types";
 
 type Admin = SupabaseClient<Database>;
@@ -255,25 +255,6 @@ export async function setStaffEasyOrderAutoSendCore(
 // ---------------------------------------------------------------------------
 // createServerFn wrappers
 // ---------------------------------------------------------------------------
-
-function makeAuditWriter(caller: AdminCaller) {
-  return async (entry: {
-    action: string;
-    entity: string;
-    entityId?: string;
-    meta?: Record<string, unknown>;
-  }) => {
-    await writeAuditLog({
-      organizationId: caller.organizationId,
-      actorUserId: caller.userId,
-      actorStaffId: caller.staffId,
-      action: entry.action,
-      entity: entry.entity,
-      entityId: entry.entityId ?? null,
-      meta: entry.meta,
-    });
-  };
-}
 
 export const listEasyOrderAccess = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
