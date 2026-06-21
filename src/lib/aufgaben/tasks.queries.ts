@@ -4,6 +4,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   archiveTask,
@@ -147,4 +148,35 @@ export function useStaffForLocation(locationId: string | null) {
     enabled: !!locationId,
     queryFn: () => fn({ data: { locationId: locationId! } }),
   });
+}
+
+/**
+ * Realtime-Subscription für das Kanban-Board: invalidiert die Tasks-Query,
+ * sobald irgendeine Task am gewählten Standort sich ändert. RLS gilt auch
+ * für Realtime-Payloads — Clients erhalten nur Events zu Zeilen, die sie
+ * lesen dürfen.
+ */
+export function useTasksRealtime(locationId: string | null) {
+  const qc = useQueryClient();
+  useEffect(() => {
+    if (!locationId) return;
+    const channel = supabase
+      .channel(`tasks:${locationId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "tasks",
+          filter: `location_id=eq.${locationId}`,
+        },
+        () => {
+          qc.invalidateQueries({ queryKey: TASKS_QUERY_KEY(locationId) });
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [locationId, qc]);
 }
