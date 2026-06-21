@@ -49,11 +49,7 @@ function AufgabenPage() {
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-medium text-muted-foreground">Standort:</span>
-        <LocationPills
-          locations={locsQ.data ?? []}
-          value={locationId}
-          onChange={setLocationId}
-        />
+        <LocationPills locations={locsQ.data ?? []} value={locationId} onChange={setLocationId} />
       </div>
 
       {locationId ? (

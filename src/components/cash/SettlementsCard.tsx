@@ -92,9 +92,7 @@ export function SettlementsCard({
                 >
                   {fmtCents(Number(r.differenz_cents))}
                 </TableCell>
-                <TableCell className="text-right font-mono">
-                  {fmtCents(tipTotal)}
-                </TableCell>
+                <TableCell className="text-right font-mono">{fmtCents(tipTotal)}</TableCell>
                 <TableCell className="text-right font-mono">
                   {tipPct === null ? "–" : `${tipPct.toFixed(1).replace(".", ",")} %`}
                 </TableCell>

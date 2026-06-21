@@ -463,8 +463,7 @@ export async function getMySettlementCore(caller: StaffCaller) {
         session,
         settings,
       );
-      myPoolShareCents =
-        pool.shares.find((s) => s.staffId === caller.staffId)?.shareCents ?? 0;
+      myPoolShareCents = pool.shares.find((s) => s.staffId === caller.staffId)?.shareCents ?? 0;
     } catch {
       myPoolShareCents = null;
     }

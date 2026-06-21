@@ -472,9 +472,7 @@ function KassePage() {
               );
               const deliveryVectron = (ovQ.data.channelAmounts ?? []).reduce(
                 (s, c) =>
-                  channelKindById.get(c.channelId) === "delivery_vectron"
-                    ? s + c.amountCents
-                    : s,
+                  channelKindById.get(c.channelId) === "delivery_vectron" ? s + c.amountCents : s,
                 0,
               );
               const inHouseCents = Math.max(0, vectronTotal - deliveryVectron);

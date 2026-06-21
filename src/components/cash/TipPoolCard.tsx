@@ -153,45 +153,45 @@ export function TipPoolCard({
 
   const renderTable = (title: string, rows: typeof data.shares, _poolCents: number) => {
     return (
-    <Card className="flex-1">
-      <div className="border-b px-4 py-3 text-sm font-medium">{title}</div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Mitarbeiter</TableHead>
-            <TableHead>Abt.</TableHead>
-            <TableHead className="text-right">Stunden</TableHead>
-            <TableHead className="text-right">Anteil</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.length === 0 && (
+      <Card className="flex-1">
+        <div className="border-b px-4 py-3 text-sm font-medium">{title}</div>
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={4} className="text-center text-muted-foreground">
-                Keine teilnehmenden Mitarbeiter.
-              </TableCell>
+              <TableHead>Mitarbeiter</TableHead>
+              <TableHead>Abt.</TableHead>
+              <TableHead className="text-right">Stunden</TableHead>
+              <TableHead className="text-right">Anteil</TableHead>
             </TableRow>
-          )}
-          {rows.map((r) => (
-            <TableRow key={r.staffId}>
-              <TableCell>
-                {data.staffNames[r.staffId] ?? r.staffId}
-                {manualSet.has(r.staffId) && (
-                  <Badge variant="secondary" className="ml-2">
-                    manuell
-                  </Badge>
-                )}
-              </TableCell>
-              <TableCell>{r.department}</TableCell>
-              <TableCell className="text-right font-mono">
-                {r.hoursWorked.toFixed(2).replace(".", ",")}
-              </TableCell>
-              <TableCell className="text-right font-mono">{fmtCents(r.shareCents)}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </Card>
+          </TableHeader>
+          <TableBody>
+            {rows.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center text-muted-foreground">
+                  Keine teilnehmenden Mitarbeiter.
+                </TableCell>
+              </TableRow>
+            )}
+            {rows.map((r) => (
+              <TableRow key={r.staffId}>
+                <TableCell>
+                  {data.staffNames[r.staffId] ?? r.staffId}
+                  {manualSet.has(r.staffId) && (
+                    <Badge variant="secondary" className="ml-2">
+                      manuell
+                    </Badge>
+                  )}
+                </TableCell>
+                <TableCell>{r.department}</TableCell>
+                <TableCell className="text-right font-mono">
+                  {r.hoursWorked.toFixed(2).replace(".", ",")}
+                </TableCell>
+                <TableCell className="text-right font-mono">{fmtCents(r.shareCents)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
     );
   };
 
