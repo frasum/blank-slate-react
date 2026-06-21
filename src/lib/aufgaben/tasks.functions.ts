@@ -198,7 +198,9 @@ export const updateTask = createServerFn({ method: "POST" })
           p_title: data.title,
           p_description: data.description ?? "",
           p_priority: data.priority,
-          p_due_at: data.dueAt ?? undefined,
+          // p_due_at ist im PG-Funktionssignatur kein DEFAULT-Parameter,
+          // akzeptiert aber NULL → generierter Typ ist `string`, Runtime nullable.
+          p_due_at: (data.dueAt ?? null) as unknown as string,
         });
         if (error) throw error;
         const task = row as unknown as Task;
