@@ -405,8 +405,7 @@ function StaffMatrixRow({
     () =>
       skills.filter(
         (sk) =>
-          (sk.category !== "other" &&
-            staff.departments.includes(sk.category as StaffDepartment)) ||
+          (sk.category !== "other" && staff.departments.includes(sk.category as StaffDepartment)) ||
           staff.skillIds.includes(sk.id),
       ),
     [skills, staff.departments, staff.skillIds],
@@ -448,52 +447,52 @@ function StaffMatrixRow({
           {isPayroll ? (
             <span className="text-muted-foreground">—</span>
           ) : (
-          <div className="flex items-center justify-center gap-1">
-            {DEPARTMENT_ORDER.map((dept) => {
-              const active = staff.locationDepartments.some(
-                (ld) => ld.locationId === loc.id && ld.department === dept,
-              );
-              const rowsAfter = staff.locationDepartments.filter(
-                (ld) => !(ld.locationId === loc.id && ld.department === dept),
-              );
-              const blocking = active
-                ? ineligibleSkills(heldSkills, distinctDepartments(rowsAfter))
-                : [];
-              const disabled = !isAdmin || deptPending || (active && blocking.length > 0);
-              const tooltip =
-                active && blocking.length > 0
-                  ? `Benötigt von Skill: ${blocking.map((b) => b.name).join(", ")}`
-                  : active
-                    ? `${DEPARTMENT_LABEL[dept]} entfernen`
-                    : `${DEPARTMENT_LABEL[dept]} zuweisen`;
-              return (
-                <Tooltip key={dept}>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={active}
-                      aria-label={`${loc.name} · ${DEPARTMENT_LABEL[dept]}`}
-                      disabled={disabled}
-                      onClick={() => onToggleDept(staff.id, loc.id, dept, active)}
-                      className={cn(
-                        "inline-flex h-7 min-w-[28px] items-center justify-center rounded-md border px-1.5 text-[11px] font-bold transition-all",
-                        active
-                          ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                          : "border-border bg-transparent text-muted-foreground hover:border-primary/50 hover:text-foreground",
-                        disabled && "cursor-not-allowed opacity-40",
-                      )}
-                    >
-                      {DEPARTMENT_SHORT[dept]}
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="text-xs">{tooltip}</p>
-                  </TooltipContent>
-                </Tooltip>
-              );
-            })}
-          </div>
+            <div className="flex items-center justify-center gap-1">
+              {DEPARTMENT_ORDER.map((dept) => {
+                const active = staff.locationDepartments.some(
+                  (ld) => ld.locationId === loc.id && ld.department === dept,
+                );
+                const rowsAfter = staff.locationDepartments.filter(
+                  (ld) => !(ld.locationId === loc.id && ld.department === dept),
+                );
+                const blocking = active
+                  ? ineligibleSkills(heldSkills, distinctDepartments(rowsAfter))
+                  : [];
+                const disabled = !isAdmin || deptPending || (active && blocking.length > 0);
+                const tooltip =
+                  active && blocking.length > 0
+                    ? `Benötigt von Skill: ${blocking.map((b) => b.name).join(", ")}`
+                    : active
+                      ? `${DEPARTMENT_LABEL[dept]} entfernen`
+                      : `${DEPARTMENT_LABEL[dept]} zuweisen`;
+                return (
+                  <Tooltip key={dept}>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={active}
+                        aria-label={`${loc.name} · ${DEPARTMENT_LABEL[dept]}`}
+                        disabled={disabled}
+                        onClick={() => onToggleDept(staff.id, loc.id, dept, active)}
+                        className={cn(
+                          "inline-flex h-7 min-w-[28px] items-center justify-center rounded-md border px-1.5 text-[11px] font-bold transition-all",
+                          active
+                            ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                            : "border-border bg-transparent text-muted-foreground hover:border-primary/50 hover:text-foreground",
+                          disabled && "cursor-not-allowed opacity-40",
+                        )}
+                      >
+                        {DEPARTMENT_SHORT[dept]}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">{tooltip}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
+            </div>
           )}
         </TableCell>
       ))}
