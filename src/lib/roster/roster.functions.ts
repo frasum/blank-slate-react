@@ -225,6 +225,13 @@ export const getStaffForRoster = createServerFn({ method: "GET" })
   .handler(async ({ data, context }): Promise<RosterStaffRow[]> => {
     const caller = await loadAdminCaller(context.supabase, context.userId, READ_ROLES);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: payrollRows, error: payrollErr } = await supabaseAdmin
+      .from("role_assignments")
+      .select("staff_id")
+      .eq("organization_id", caller.organizationId)
+      .eq("role", "payroll");
+    if (payrollErr) throw payrollErr;
+    const payrollIds = new Set((payrollRows ?? []).map((r) => r.staff_id as string));
     const { data: rows, error } = await supabaseAdmin
       .from("staff_locations")
       .select("staff_id, department, staff(id, display_name, is_active)")
@@ -232,12 +239,14 @@ export const getStaffForRoster = createServerFn({ method: "GET" })
       .eq("location_id", data.locationId);
     if (error) throw error;
 
+    const visibleRows = (rows ?? []).filter((r) => !payrollIds.has(r.staff_id as string));
+
     const staffIds = Array.from(
       new Set(
-        (rows ?? [])
+        visibleRows
           .map((r) => r.staff_id as string)
           .filter((id) => {
-            const s = (rows ?? []).find((x) => x.staff_id === id)?.staff as {
+            const s = visibleRows.find((x) => x.staff_id === id)?.staff as {
               is_active: boolean;
             } | null;
             return s?.is_active !== false;
@@ -270,7 +279,7 @@ export const getStaffForRoster = createServerFn({ method: "GET" })
       dobByStaff.set(r.staff_id as string, (r.date_of_birth as string | null) ?? null);
     }
 
-    return (rows ?? [])
+    return visibleRows
       .filter((r) => {
         const s = r.staff as { is_active: boolean } | null;
         return s?.is_active !== false;
