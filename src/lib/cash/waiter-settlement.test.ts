@@ -85,3 +85,15 @@ describe("calcWaiterSettlement", () => {
     ).toThrow(/kitchenTipRate/);
   });
 });
+
+describe("waiterNetTipCents", () => {
+  it("zieht Küchenanteil ab", () => {
+    // differenz = 3500, kitchen_tip = 200 → netto = 3300
+    expect(waiterNetTipCents(3500, 200)).toBe(3300);
+  });
+
+  it("klippt negatives Ergebnis auf 0", () => {
+    expect(waiterNetTipCents(100, 500)).toBe(0);
+    expect(waiterNetTipCents(-200, 50)).toBe(0);
+  });
+});
