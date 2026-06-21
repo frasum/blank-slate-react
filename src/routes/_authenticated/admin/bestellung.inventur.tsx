@@ -16,6 +16,7 @@ import {
   upsertInventoryItem,
 } from "@/lib/bestellung/inventory.functions";
 import { listLocations } from "@/lib/admin/locations.functions";
+import { LocationPills } from "@/components/shared/LocationPills";
 
 export const Route = createFileRoute("/_authenticated/admin/bestellung/inventur")({
   head: () => ({ meta: [{ title: "Inventur · Bestellung" }] }),
@@ -105,7 +106,7 @@ function InventurPage() {
             <LocationPills
               locations={locationsQ.data ?? []}
               value={locationId}
-              onChange={(v) => {
+              onChange={(v: string) => {
                 setLocationId(v);
                 setManualOpenId(null);
               }}
@@ -385,5 +386,3 @@ function ArticleRow({
   );
 }
 
-const selectCls =
-  "w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
