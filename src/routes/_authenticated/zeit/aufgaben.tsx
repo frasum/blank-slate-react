@@ -10,6 +10,8 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { KanbanBoard } from "@/components/aufgaben/KanbanBoard";
 import { useMyTaskLocations } from "@/lib/aufgaben/tasks.queries";
+import { supabase } from "@/integrations/supabase/client";
+import { getMyIdentity } from "@/lib/auth/me.functions";
 
 export const Route = createFileRoute("/_authenticated/zeit/aufgaben")({
   head: () => ({
@@ -19,10 +21,17 @@ export const Route = createFileRoute("/_authenticated/zeit/aufgaben")({
     ],
   }),
   beforeLoad: ({ context }) => {
-    // Payroll hat hier nichts zu suchen.
-    if (context.identity?.role === "payroll") {
-      throw redirect({ to: "/admin/zeit-uebersicht" });
-    }
+    return (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session?.user) return;
+      const identity = await context.queryClient.ensureQueryData({
+        queryKey: ["identity", data.session.user.id ?? null],
+        queryFn: () => getMyIdentity(),
+      });
+      if (identity.role === "payroll") {
+        throw redirect({ to: "/admin/zeit-uebersicht" });
+      }
+    })();
   },
   component: ZeitAufgabenPage,
 });
