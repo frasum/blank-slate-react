@@ -151,12 +151,10 @@ export function TipPoolCard({
     (s) => s.isActive && (locationId === "" || s.locationIds.includes(locationId)),
   );
 
-  const renderTable = (
-    title: string,
-    rows: typeof data.shares,
-    poolCents: number,
-    remainder: number,
-  ) => (
+  const renderTable = (title: string, rows: typeof data.shares, poolCents: number) => {
+    const totalHours = rows.reduce((s, r) => s + r.hoursWorked, 0);
+    const tipPerHourCents = totalHours > 0 ? Math.round(poolCents / totalHours) : null;
+    return (
     <Card className="flex-1">
       <div className="border-b px-4 py-3 text-sm font-medium">{title}</div>
       <Table>
@@ -197,13 +195,14 @@ export function TipPoolCard({
             <TableCell colSpan={2}>Pool gesamt</TableCell>
             <TableCell className="text-right font-mono">{fmtCents(poolCents)}</TableCell>
             <TableCell className="text-right font-mono text-muted-foreground">
-              Rest: {fmtCents(remainder)}
+              Tip/h: {tipPerHourCents == null ? "–" : fmtCents(tipPerHourCents)}
             </TableCell>
           </TableRow>
         </TableBody>
       </Table>
     </Card>
-  );
+    );
+  };
 
   return (
     <div className="space-y-2">
@@ -214,8 +213,8 @@ export function TipPoolCard({
         </Button>
       </div>
       <div className="flex flex-col gap-4 md:flex-row">
-        {renderTable("Küchen-Pool", kitchen, data.kitchenPoolCents, data.kitchenRemainder)}
-        {renderTable("Service-Pool", service, data.servicePoolCents, data.serviceRemainder)}
+        {renderTable("Küchen-Pool", kitchen, data.kitchenPoolCents)}
+        {renderTable("Service-Pool", service, data.servicePoolCents)}
       </div>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
