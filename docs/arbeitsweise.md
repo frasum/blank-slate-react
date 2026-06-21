@@ -168,10 +168,10 @@ gh repo clone frasum/bestellung-5fff1793
 | Artikel-Suche (`listArticles`) gegen PostgREST-`.or()`-Injection gehärtet (`sanitizeArticleSearchTerm`) | ✅        |
 | jspdf/pdfjs lazy-geladen (#3-Rest: keine statischen PDF-Imports mehr)                                   | ✅        |
 | Security-Header / CSP (Report-Only) auf HTML-Responses (`withSecurityHeaders` in `server.ts`)           | ✅        |
-| Mitarbeiter-Matrix (Stammblatt-Umbau: Standort-Dept-Pills, Skill-Eligibility, Index-Redesign)          | ✅        |
-| payroll = Büro (Index-Sperre + Dienstplan-Ausschluss, keine 4. Abteilung)                              | ✅        |
-| Wochenplan → Abrechnungsperioden (26.–25., gemeinsamer Periodenbegriff im Zeit-Screen)                 | ✅        |
-| Aufräumen: Dead-Code, `makeAuditWriter` zentral, Typ-Single-Source `staff-domain.ts`                   | ✅        |
+| Mitarbeiter-Matrix (Stammblatt-Umbau: Standort-Dept-Pills, Skill-Eligibility, Index-Redesign)           | ✅        |
+| payroll = Büro (Index-Sperre + Dienstplan-Ausschluss, keine 4. Abteilung)                               | ✅        |
+| Wochenplan → Abrechnungsperioden (26.–25., gemeinsamer Periodenbegriff im Zeit-Screen)                  | ✅        |
+| Aufräumen: Dead-Code, `makeAuditWriter` zentral, Typ-Single-Source `staff-domain.ts`                    | ✅        |
 
 **Stand 20.06.2026 (Session-Nachzug, Teil 2 — Härtung & Security-Header):**
 
@@ -291,7 +291,7 @@ gh repo clone frasum/bestellung-5fff1793
 
 **Stand 21.06.2026 (Abend, Session-Nachzug — Mitarbeiter-Matrix, payroll=Büro, Wochenplan-Perioden, Aufräumen):**
 
-- **Mitarbeiter-Matrix abgeschlossen** (schließt den „Mitarbeiter-Index (Teilstand)"-Block oben ab — die dort als *offen* genannten Punkte sind jetzt erledigt):
+- **Mitarbeiter-Matrix abgeschlossen** (schließt den „Mitarbeiter-Index (Teilstand)"-Block oben ab — die dort als _offen_ genannten Punkte sind jetzt erledigt):
   - **Abteilungs-Pills je Standort:** Server-Fn `setStaffLocationDepartment` (toggelt eine `(staff_id, location_id, department)`-Zeile, `organization_id`, In-Org-Validierung via `assertStaffInOrg`/`assertLocationInOrg`, auditiert).
   - **Skill-Eligibility als geteiltes reines Modul** `src/lib/admin/skill-eligibility.ts` (`isSkillCategoryEligible`/`ineligibleSkills`/`distinctDepartments`, getestet) — genutzt von UI **und** `assignStaffSkills`.
   - **Regel (a) „Abteilungs-Entzug blockieren, solange ein abhängiger Skill aktiv ist":** `setStaffLocationDepartment` wirft **vor** dem DELETE, wenn dadurch ein gehaltener Skill verwaisen würde — kein stilles Skill-Entfernen, kein Cascade.
