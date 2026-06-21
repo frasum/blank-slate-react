@@ -40,7 +40,7 @@ export const listStaff = createServerFn({ method: "GET" })
     const { data, error } = await supabaseAdmin
       .from("staff")
       .select(
-        "id, first_name, last_name, display_name, email, phone, is_active, role_assignments(role), staff_locations(location_id), staff_skills(skills(category)), staff_pins(id), access_tokens(id, token_type, used_at, expires_at)",
+        "id, first_name, last_name, display_name, email, phone, is_active, role_assignments(role), staff_locations(location_id), staff_skills(skill_id, skills(category)), staff_pins(id), access_tokens(id, token_type, used_at, expires_at)",
       )
       .eq("organization_id", caller.organizationId)
       .order("display_name");
@@ -53,8 +53,12 @@ export const listStaff = createServerFn({ method: "GET" })
         (t) => t.token_type === "badge_login" && t.used_at === null,
       ).length;
       const skillRows = (s.staff_skills ?? []) as unknown as {
+        skill_id: string;
         skills: { category: string | null } | null;
       }[];
+      const skillIds = Array.from(
+        new Set(skillRows.map((r) => r.skill_id).filter((id): id is string => !!id)),
+      );
       const skillCategories = Array.from(
         new Set(
           skillRows
@@ -73,6 +77,7 @@ export const listStaff = createServerFn({ method: "GET" })
         role,
         locationIds: locations,
         skillCategories,
+        skillIds,
         hasPin: s.staff_pins !== null,
         activeBadgeCount: activeBadges,
       };
