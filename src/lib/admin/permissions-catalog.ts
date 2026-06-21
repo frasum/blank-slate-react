@@ -47,17 +47,24 @@ export type AppPermission =
   | "payroll.personal.edit"
   | "payroll.personal.import"
   | "payroll.calc.run"
-  | "payroll.period.view";
+  | "payroll.period.view"
+  // Modul Aufgaben
+  | "tasks.view"
+  | "tasks.create"
+  | "tasks.assign"
+  | "tasks.change_status"
+  | "tasks.delete";
 
 export type PermissionEffect = "allow" | "deny";
 
-export type PermissionModule = "kasse" | "zeit" | "dienstplan" | "lohn";
+export type PermissionModule = "kasse" | "zeit" | "dienstplan" | "lohn" | "aufgaben";
 
 export const MODULE_LABEL: Record<PermissionModule, string> = {
   kasse: "Kasse / Tagesabrechnung",
   zeit: "Zeiterfassung",
   dienstplan: "Dienstplan & Urlaub",
   lohn: "Lohn & HR",
+  aufgaben: "Aufgaben / Tagesbetrieb",
 };
 
 export type PermissionMeta = {
@@ -366,6 +373,42 @@ export const PERMISSION_CATALOG: readonly PermissionMeta[] = [
     label: "Lohn-Periode sehen",
     description: "SFN-Periode (26.–25.) pro Mitarbeiter ansehen.",
     scopable: false,
+  },
+  // ----- Modul Aufgaben -----
+  {
+    key: "tasks.view",
+    module: "aufgaben",
+    label: "Aufgaben sehen",
+    description: "Kanban-Board pro Standort öffnen.",
+    scopable: true,
+  },
+  {
+    key: "tasks.create",
+    module: "aufgaben",
+    label: "Aufgaben anlegen",
+    description: "Neue Aufgabe erstellen.",
+    scopable: true,
+  },
+  {
+    key: "tasks.assign",
+    module: "aufgaben",
+    label: "Aufgaben zuweisen",
+    description: "Aufgabe an Mitarbeiter zuweisen.",
+    scopable: true,
+  },
+  {
+    key: "tasks.change_status",
+    module: "aufgaben",
+    label: "Status ändern",
+    description: "Status offen/läuft/erledigt wechseln.",
+    scopable: true,
+  },
+  {
+    key: "tasks.delete",
+    module: "aufgaben",
+    label: "Aufgaben archivieren",
+    description: "Aufgabe aus dem Board entfernen (bleibt im Audit, wiederherstellbar; Admin).",
+    scopable: true,
   },
 ] as const;
 
