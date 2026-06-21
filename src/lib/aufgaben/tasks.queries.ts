@@ -7,7 +7,10 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import {
   archiveTask,
+  claimTask,
   createTask,
+  listMyTaskLocations,
+  listStaffForLocation,
   reassignTask,
   setTaskStatus,
   updateTask,
@@ -33,6 +36,7 @@ type UpdateInput = {
   dueAt?: string | null;
 };
 type ArchiveInput = { taskId: string };
+type ClaimInput = { taskId: string };
 
 export const TASKS_QUERY_KEY = (locationId: string | null) =>
   ["tasks", "board", locationId] as const;
@@ -116,5 +120,31 @@ export function useArchiveTask(locationId: string | null) {
   return useMutation({
     mutationFn: (input: ArchiveInput) => fn({ data: input }),
     onSuccess: () => qc.invalidateQueries({ queryKey: TASKS_QUERY_KEY(locationId) }),
+  });
+}
+
+export function useClaimTask(locationId: string | null) {
+  const qc = useQueryClient();
+  const fn = useServerFn(claimTask);
+  return useMutation({
+    mutationFn: (input: ClaimInput) => fn({ data: input }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: TASKS_QUERY_KEY(locationId) }),
+  });
+}
+
+export function useMyTaskLocations() {
+  const fn = useServerFn(listMyTaskLocations);
+  return useQuery({
+    queryKey: ["tasks", "my-locations"],
+    queryFn: () => fn(),
+  });
+}
+
+export function useStaffForLocation(locationId: string | null) {
+  const fn = useServerFn(listStaffForLocation);
+  return useQuery({
+    queryKey: ["tasks", "staff-for-location", locationId],
+    enabled: !!locationId,
+    queryFn: () => fn({ data: { locationId: locationId! } }),
   });
 }

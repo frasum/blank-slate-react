@@ -1,83 +1,72 @@
-## Tasks / Kanban — Phase 1 (Manager-Web)
+## Phase 2 — Staff-Sichtbarkeit + `claim_task`
 
-Korrigierter 020-Plan: Architektur (RPC-State-Machine, Tenant-Modell) übernommen; korrigiert sind Migrations-Blocker (Enum-Erweiterung, `permission_role_defaults`-Shape, `has_permission`-Signatur), Grant-Schwäche (SELECT-only) und Scope (manager-facing only).
+Ziel: Mitarbeiter (Rolle `staff`) sehen Aufgaben der Standorte, an denen sie arbeiten, und können sich offene Aufgaben per "Übernehmen" selbst zuweisen. Manager/Admin-Verhalten bleibt unverändert.
 
-### Korrekturen ggü. eingereichtem 020
-1. `app_permission` ist Enum → `ALTER TYPE … ADD VALUE` in **vorgelagerter** eigener Migration.
-2. `permission_role_defaults` hat keine `effect`-Spalte (nur `role, permission`, PK beides).
-3. `has_permission` nimmt Enum, nicht `text` → Casts `…::public.app_permission`.
-4. **Nur `GRANT SELECT`** an `authenticated`. Alle Schreibvorgänge ausschließlich via RPCs (`service_role`). **Lesen** mit User-Client (RLS-SELECT greift) — niemals `supabaseAdmin` für Reads.
-5. **Scope = manager-facing only.** Keine Staff-Defaults/-SELECT-Branch, kein `claim_task`, keine `tasks.maintenance.*`. Hausmeister-Selfservice = Phase 2.
-6. **4 Kategorien:** `service, kitchen, maintenance, manager_admin` (kein `housekeeping`).
-7. `create_task` weist **nicht** automatisch dem Ersteller zu; `NULL = unassigned`.
-8. `sort_order numeric` (LexoRank-leicht): Client setzt Nachbar-Mittelwert beim Drop, RPC speichert nur. Sortierung `ORDER BY sort_order ASC`; Priorität/Due nur visuell.
-9. **Archivieren statt Hard-Delete:** `archived_at` setzen; Board filtert `archived_at IS NULL`. Permission-Enum bleibt `tasks.delete` (kein Enum-Churn), governt jetzt Archivieren. `unarchive` + Archiv-Ansicht später.
+### 1. DB-Migration (eine Migration)
 
-### Migrationen (4 separate Dateien, in Reihenfolge)
+**RLS auf `tasks` erweitern** (zusätzlich zur bestehenden Admin/Manager-Policy):
+- Neue SELECT-Policy `tasks_select_staff_for_location`: staff darf Zeilen lesen, wenn `archived_at IS NULL`, `organization_id = current_organization_id()` **und** `location_id` in den Standorten der aufrufenden Person liegt (`staff_locations` join `current_staff_id()`).
+- Keine direkten DML-Policies — Schreiben bleibt RPC-only.
 
-**A — `app_permission` erweitern** (eigene TX, sonst scheitert Folge-INSERT):
-`tasks.view`, `tasks.create`, `tasks.assign`, `tasks.change_status`, `tasks.delete` via `ALTER TYPE … ADD VALUE IF NOT EXISTS`.
+**Neue RPC `public.claim_task(p_task_id uuid)`** (`SECURITY DEFINER`, search_path public):
+- Lädt Task `FOR UPDATE`, prüft Organisation = `current_organization_id()`.
+- Prüft Standort-Zugehörigkeit: Aufrufer-`staff_id` muss in `staff_locations` für `task.location_id` stehen.
+- Bedingungen: `assignee_staff_id IS NULL` **und** `status = 'open'` **und** `archived_at IS NULL`. Sonst klare Fehler („Aufgabe bereits zugewiesen / nicht offen / archiviert").
+- Setzt `assignee_staff_id = current_staff_id()`. Status bleibt `open` (Phase 2 — kein Auto-Übergang nach `in_progress`).
+- Return: `public.tasks` (gesamte Zeile, konsistent zu den anderen RPCs).
+- `REVOKE ALL FROM public; GRANT EXECUTE TO authenticated;`
 
-**B — Schema + Grants + RLS:**
-- Enums `task_category` (4 Werte), `task_status` (`open, in_progress, done, cancelled`).
-- Tabelle `public.tasks` mit `organization_id`, `location_id`, `title (1..200)`, `description`, `category`, `status default open`, `priority 0..3`, `sort_order numeric`, `created_by_staff_id`, `assignee_staff_id` (NULL=unassigned), `due_at`, `started_at`, `completed_at`, `archived_at`, `escalate_at`/`escalated_at` (forward-compat), Timestamps + Consistency-CHECKs (done↔completed_at, in_progress↔started_at).
-- Indizes: aktives Board (partial `archived_at IS NULL`), org/loc/category, org/assignee, org/due (partial).
-- Trigger `tg_set_updated_at`.
-- `GRANT SELECT ON public.tasks TO authenticated; GRANT ALL TO service_role;` — **kein** DML-Grant.
-- RLS SELECT-Policy: Org-Scope + (Admin ODER Manager+ an eigenem Standort via `staff_locations`). Keine Staff-Branch.
+**Hinweis zu `set_task_status` / `reassign_task`**: bereits Phase-2-tauglich — `set_task_status` erlaubt der Person, der die Aufgabe zugewiesen ist, Status zu ändern; `reassign_task` erlaubt Self-Reassign innerhalb des eigenen Standorts. Kein Eingriff nötig.
 
-**C — RPCs** (alle `SECURITY DEFINER`, `SET search_path TO 'public'`, `REVOKE … FROM PUBLIC,anon,authenticated; GRANT EXECUTE TO service_role`):
-- `create_task(location, title, desc, category, priority, due_at, assignee)` — Tenant-/Location-Check, Staff darf kein `manager_admin`, Assignee (falls gesetzt) muss `staff_locations` am Ziel-Standort haben; neue Karte ans Spaltenende (`max(sort_order)+1` der Spalte `open`).
-- `set_task_status(id, status, sort_order numeric default null)` — Permission: Admin > `tasks.change_status` > Assignee=self. State-Machine: `open↔in_progress`, `in_progress→done|cancelled`, alle Endzustände nur → `open`. Noop nur wenn Status **und** `sort_order` unverändert; reines Umsortieren erlaubt. Setzt `started_at`/`completed_at`.
-- `reassign_task(id, new_assignee)` — Admin > `tasks.assign` > (Assignee=self UND neuer Assignee an gleicher Location). Neuer Assignee muss in `staff_locations` der Task-Location stehen.
-- `update_task(id, title, desc, priority, due_at)` — Manager+ am Standort oder Admin. Nur diese Felder.
-- `archive_task(id)` — Permission `tasks.delete` (Admin-Default), Location-Scope für Nicht-Admins. Setzt `archived_at = now()`; kein Hard-Delete.
+### 2. Server-Function `claimTask`
 
-**D — Defaults** (Shape ohne `effect`):
-`admin`: view, create, assign, change_status, delete. `manager`: view, create, assign, change_status. Keine `staff`-Zeilen.
+Neue Funktion in `src/lib/aufgaben/tasks.functions.ts`:
+- `createServerFn({ method: "POST" }).middleware([requireSupabaseAuth])`.
+- ALLOWED-Rollen für Phase 2 erweitern: `["admin", "manager", "staff"]` für `claimTask` und für `setTaskStatus` (Status durch Assignee). `createTask` / `updateTask` / `archiveTask` / `reassignTask` bleiben Admin/Manager-only (`loadAdminCaller` mit eigener Whitelist je Funktion, nicht das modulweite ALLOWED).
+- Aktuell ist `ALLOWED` eine Modul-Konstante — **wird aufgeteilt**: `ALLOWED_MANAGE` (admin/manager) für create/update/archive/reassign, `ALLOWED_ALL` (admin/manager/staff) für claim und setStatus.
+- RPC-Aufruf via `supabaseAdmin.rpc("claim_task", { p_task_id })`.
+- Audit-Eintrag `task.claimed` mit `{ taskId, locationId }`.
 
-### Permission-Catalog
-`src/lib/admin/permissions-catalog.ts` erweitern:
-- `AppPermission`-Union um die 5 Keys.
-- `PermissionModule` um `"aufgaben"`; `MODULE_LABEL.aufgaben = "Aufgaben / Tagesbetrieb"`.
-- 5 Einträge in `PERMISSION_CATALOG` (alle `scopable: true`); `tasks.delete`-Beschreibung als „archivieren (Audit bleibt, Admin)".
+### 3. Lese-Layer für Staff
 
-### Frontend
-Neue Dateien:
-```
-src/lib/aufgaben/types.ts
-src/lib/aufgaben/tasks.functions.ts   # SCHREIBEN via RPC, mirror skills.functions.ts (loadAdminCaller + audit_log)
-src/lib/aufgaben/tasks.queries.ts     # TanStack-Query Hooks, Keys ['tasks', filters]
-src/components/aufgaben/KanbanBoard.tsx | KanbanColumn.tsx | KanbanCard.tsx
-src/components/aufgaben/TaskCreateDialog.tsx | TaskDetailDialog.tsx | CategoryBadge.tsx | PriorityChip.tsx
-src/routes/_authenticated/admin/aufgaben.tsx
-```
+`useBoardTasks` in `src/lib/aufgaben/tasks.queries.ts` funktioniert dank RLS für Staff ohne Änderung — die neue SELECT-Policy filtert automatisch.
 
-**Lese-/Schreib-Trennung:**
-- **Lesen**: User-Client (`supabase`), RLS-SELECT greift. Board filtert `archived_at IS NULL`, `ORDER BY sort_order ASC` je Status. **Nicht** `supabaseAdmin`.
-- **Schreiben**: Server-Fns rufen nach `loadAdminCaller([manager,admin])` die RPCs via `supabaseAdmin.rpc(...)` und schreiben danach `audit_log` (actions: `task.created/status_changed/reassigned/updated/archived`, entity `task`).
+Neue Query `useStaffLocations()` (oder Wiederverwendung vorhandener) — wir brauchen für Staff die Liste der eigenen Standorte, um den Standort-Selector zu füllen, ohne `listLocations()` aufzurufen (das ist Admin-only).
 
-Route `/admin/aufgaben` unter bestehendem `_authenticated/admin` (manager+) plus `tasks.view`-Check.
-Spalten: offen / läuft / erledigt; `cancelled` eingeklappte Sektion unter „offen". Filter: Kategorie (Multi), Standort (Single), Priorität.
-DnD via `@dnd-kit/core` (vorhanden): Client berechnet `sortOrder` als Nachbar-Mittelwert (Rand: erster−1, letzter+1), ruft `setTaskStatus(id, ziel, sortOrder)`. Gleicher Status = reines Umsortieren. Optimistic UI mit Rollback (Pattern aus Roster).
+→ Neue Server-Function `listMyTaskLocations` (in `tasks.functions.ts`, ohne `loadAdminCaller`-Rollencheck, nur `requireSupabaseAuth`): liest mit `context.supabase` (RLS) aus `staff_locations` join `locations` die Standorte des aufrufenden Users. Liefert `{ id, name }[]`.
 
-### Nav
-Eintrag „Aufgaben" in `src/routes/_authenticated/admin/route.tsx` (eigene Top-Level-Gruppe oder unter Personal — Vorschlag: eigene Gruppe `aufgaben` mit Default `/admin/aufgaben`, roles default = admin+manager). Lohnbüro bleibt ausgesperrt (bestehende Payroll-Branch).
+### 4. Frontend: Staff-Route + UI-Anpassungen
 
-### Tests (Gate)
-- `bunx tsc --noEmit` 0, `eslint .` 0, `prettier --check .` sauber, `vitest run` grün.
-- `src/lib/aufgaben/tasks.test.ts`: Transition-Matrix, Noop nur bei `status=alt && sortOrder=null`, Umsortieren ist kein Noop, `midpoint(a,b)`-Helper inkl. Rand-Fälle.
-- `src/components/aufgaben/KanbanBoard.test.tsx`: 3 Spalten bei 0 Tasks; Drag open→in_progress ruft `setTaskStatus(id,'in_progress', sortOrder)`; Kategorie-Filter blendet aus.
-- Vor Commit: `prettier --write` + `eslint --fix` über geänderte Dateien.
+**Neue Route `src/routes/_authenticated/zeit/aufgaben.tsx`** (Staff-Einstieg unter `/zeit/aufgaben`):
+- Lädt `listMyTaskLocations` + nutzt bestehendes `KanbanBoard`.
+- Standort-Selector wie in der Admin-Variante.
+- `canCreate={false}` (Staff erstellt in Phase 2 keine eigenen Tasks — out of scope laut Phase-1-Plan).
 
-### Manuelle Verifikation
-- Manager A (nur Standort 1) sieht keine Standort-2-Tasks.
-- Direkter `INSERT/UPDATE` auf `tasks` als `authenticated` schlägt fehl.
-- `set_task_status(open→done)` wirft.
-- `create_task(category='manager_admin')` als Staff wirft.
+**Kachel auf `/zeit` (`src/routes/_authenticated/zeit/index.tsx`)**: neue Tile „Aufgaben" → `/zeit/aufgaben`, Icon `ListChecks`.
 
-### Out of Scope (Phase 2/3)
-Staff-Sichtbarkeit + `claim_task` + `tasks.maintenance.*` + Staff-PWA (P2); `unarchive`/Archiv-Ansicht, Realtime, Foto-Upload, Telegram-Eskalation, Recurrence/Templates, `housekeeping`, Bulk, Kommentare/Activity, Cross-Entity-Links zu Schicht/Order (P3+).
+**`KanbanCard` / `KanbanBoard`**:
+- Neuer Prop `currentStaffId: string | null`, `canManage: boolean` (admin/manager).
+- Wenn `assignee_staff_id === null` und `status === 'open'`: Button „Übernehmen" auf der Karte → ruft `useClaimTask`.
+- Drag & Drop für Spalten-Wechsel:
+  - Manager: wie bisher (alle Karten).
+  - Staff: nur eigene Karten (`assignee_staff_id === currentStaffId`) sind ziehbar; fremde Karten sind read-only + zeigen Assignee-Namen.
+- Karten-Detail-Dialog (`TaskDetailDialog`): für Staff ohne Edit/Archive-Aktionen, nur Anzeige + (falls eigene Karte) Status-Buttons.
 
-### Abweichungen
-Wenn beim Bau eine Konvention/Alternative besser passt → vor Umsetzung melden, nicht still anders machen.
+**Neue Hook `useClaimTask(locationId)`** in `tasks.queries.ts` analog zu den anderen Mutationen, invalidiert Board-Query.
+
+**Routing-Schutz** in `_authenticated/zeit/aufgaben.tsx`: `beforeLoad` → Payroll umleiten (analog zur Admin-Route).
+
+### 5. Identity / Staff-ID im Frontend
+
+Das `KanbanBoard` braucht die aktuelle `staff_id` des eingeloggten Users für die „Eigene Karte?"-Logik. `useAuth()` / `identity` enthält die Rolle; ich prüfe ob `staff_id` dort verfügbar ist — falls nicht, lese ich sie einmal per kleiner Server-Fn `getMyStaffId` (RLS-basiert auf `user_links`).
+
+### 6. Tests
+
+- `src/lib/aufgaben/claim-task.test.ts` (Logik-Vorbedingungen, falls reine Funktionen herausziehbar — sonst Integration via RPC-Doku im Migrations-Header).
+- Manuelle Verifikation: als Staff einloggen → /zeit/aufgaben → Standort wählen → fremde Karte: kein Übernehmen-Button; nicht zugewiesene Karte: „Übernehmen" → Karte trägt jetzt eigenen Namen → Drag in `in_progress` möglich.
+
+### Bewusst NICHT in Phase 2 (kommt in Phase 3+)
+Staff legt eigene Tasks an, `unarchive_task` / Archiv-Ansicht, Realtime, Telegram-Eskalation, Recurrence/Templates, Kommentare, Foto-Upload, Cross-Entity-Links.
+
+### Konflikt-Hinweis (Ehrlichkeitsregel)
+Im Phase-1-Plan stand „Staff darf eigene Karten ziehen" als Phase-2-Item, aber „Staff darf eigene Tasks anlegen" wurde als Phase 3 markiert. Ich folge dieser Phasen-Trennung — wenn du Anlegen schon jetzt willst, sag Bescheid, dann nehme ich es mit auf.

@@ -8,9 +8,22 @@ type Props = {
   tasks: Task[];
   assigneeNames: Record<string, string>;
   onOpen: (task: Task) => void;
+  isDraggable?: (task: Task) => boolean;
+  canClaim?: (task: Task) => boolean;
+  onClaim?: (task: Task) => void;
+  claimPendingId?: string | null;
 };
 
-export function KanbanColumn({ status, tasks, assigneeNames, onOpen }: Props) {
+export function KanbanColumn({
+  status,
+  tasks,
+  assigneeNames,
+  onOpen,
+  isDraggable,
+  canClaim,
+  onClaim,
+  claimPendingId,
+}: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: `col:${status}`, data: { status } });
   return (
     <div
@@ -38,6 +51,10 @@ export function KanbanColumn({ status, tasks, assigneeNames, onOpen }: Props) {
               task={t}
               assigneeName={t.assignee_staff_id ? assigneeNames[t.assignee_staff_id] : null}
               onOpen={onOpen}
+              draggable={isDraggable ? isDraggable(t) : true}
+              canClaim={canClaim ? canClaim(t) : false}
+              onClaim={onClaim}
+              claimPending={claimPendingId === t.id}
             />
           ))
         )}

@@ -8,7 +8,7 @@ import {
   type TaskCategory,
   type TaskStatus,
 } from "@/lib/aufgaben/types";
-import { useBoardTasks, useSetTaskStatus } from "@/lib/aufgaben/tasks.queries";
+import { useBoardTasks, useClaimTask, useSetTaskStatus } from "@/lib/aufgaben/tasks.queries";
 import { sortOrderForInsert } from "@/lib/aufgaben/sort-order";
 import { KanbanColumn } from "./KanbanColumn";
 import { TaskCreateDialog } from "./TaskCreateDialog";
@@ -20,11 +20,26 @@ type Props = {
   locationId: string;
   staff: { id: string; name: string }[];
   canCreate: boolean;
+  /**
+   * Volle Manager-Rechte: jede Karte ziehen, Detaildialog mit Bearbeiten/Archivieren.
+   * Wenn false (Staff): nur eigene Karten ziehbar, Detaildialog read-only +
+   * Status-Buttons nur für eigene Karten, fremde unzugewiesene Karten zeigen "Übernehmen".
+   */
+  canManage?: boolean;
+  /** Effektive Staff-Id des Aufrufers — für "eigene Karte?"-Checks. */
+  currentStaffId?: string | null;
 };
 
-export function KanbanBoard({ locationId, staff, canCreate }: Props) {
+export function KanbanBoard({
+  locationId,
+  staff,
+  canCreate,
+  canManage = true,
+  currentStaffId = null,
+}: Props) {
   const tasksQ = useBoardTasks(locationId);
   const setStatus = useSetTaskStatus(locationId);
+  const claim = useClaimTask(locationId);
   const [createOpen, setCreateOpen] = useState(false);
   const [openTask, setOpenTask] = useState<Task | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<Set<TaskCategory>>(new Set());
@@ -75,6 +90,8 @@ export function KanbanBoard({ locationId, staff, canCreate }: Props) {
     const taskId = String(active.id);
     const task = (tasksQ.data ?? []).find((t) => t.id === taskId);
     if (!task) return;
+    // Staff darf nur eigene Karten ziehen — DnD-Schutz greift, aber doppelt hält besser.
+    if (!canManage && task.assignee_staff_id !== currentStaffId) return;
     // Karte ans Ende der Zielspalte (ohne sich selbst) einfügen.
     const colTasks = byStatus[targetStatus].filter((t) => t.id !== taskId);
     const sortOrder = sortOrderForInsert(
@@ -84,6 +101,11 @@ export function KanbanBoard({ locationId, staff, canCreate }: Props) {
     if (task.status === targetStatus && sortOrder === Number(task.sort_order)) return;
     setStatus.mutate({ taskId, status: targetStatus, sortOrder });
   }
+
+  const isDraggable = (t: Task) =>
+    canManage || (currentStaffId !== null && t.assignee_staff_id === currentStaffId);
+  const canClaimCard = (t: Task) =>
+    !canManage && t.status === "open" && t.assignee_staff_id === null && currentStaffId !== null;
 
   return (
     <div className="space-y-4">
@@ -141,6 +163,10 @@ export function KanbanBoard({ locationId, staff, canCreate }: Props) {
                 tasks={byStatus[status]}
                 assigneeNames={assigneeNames}
                 onOpen={setOpenTask}
+                isDraggable={isDraggable}
+                canClaim={canClaimCard}
+                onClaim={(t) => claim.mutate({ taskId: t.id })}
+                claimPendingId={claim.isPending ? (claim.variables?.taskId ?? null) : null}
               />
             ))}
           </div>
@@ -182,6 +208,8 @@ export function KanbanBoard({ locationId, staff, canCreate }: Props) {
         onOpenChange={(o) => !o && setOpenTask(null)}
         locationId={locationId}
         staff={staff}
+        canManage={canManage}
+        currentStaffId={currentStaffId}
       />
     </div>
   );

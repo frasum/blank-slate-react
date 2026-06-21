@@ -37,9 +37,20 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   locationId: string;
   staff: { id: string; name: string }[];
+  /** Volle Rechte (admin/manager) — Bearbeiten/Archivieren/Reassign sichtbar. */
+  canManage?: boolean;
+  /** Effektive Staff-Id (für Status-Aktionen bei Staff: nur eigene Karte). */
+  currentStaffId?: string | null;
 };
 
-export function TaskDetailDialog({ task, onOpenChange, locationId, staff }: Props) {
+export function TaskDetailDialog({
+  task,
+  onOpenChange,
+  locationId,
+  staff,
+  canManage = true,
+  currentStaffId = null,
+}: Props) {
   const update = useUpdateTask(locationId);
   const reassign = useReassignTask(locationId);
   const setStatus = useSetTaskStatus(locationId);
@@ -63,6 +74,8 @@ export function TaskDetailDialog({ task, onOpenChange, locationId, staff }: Prop
   }, [task]);
 
   if (!task) return null;
+  const isOwner = currentStaffId !== null && task.assignee_staff_id === currentStaffId;
+  const canChangeStatus = canManage || isOwner;
 
   async function save() {
     if (!task) return;
@@ -110,11 +123,12 @@ export function TaskDetailDialog({ task, onOpenChange, locationId, staff }: Prop
     <Dialog open={!!task} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Aufgabe bearbeiten</DialogTitle>
+          <DialogTitle>{canManage ? "Aufgabe bearbeiten" : "Aufgabe"}</DialogTitle>
           <DialogDescription>
             Status: {TASK_STATUS_LABEL[task.status]} · Sortier-Pos: {task.sort_order}
           </DialogDescription>
         </DialogHeader>
+        {canManage ? (
         <div className="grid gap-3">
           <div className="grid gap-1.5">
             <Label>Titel</Label>
@@ -191,7 +205,71 @@ export function TaskDetailDialog({ task, onOpenChange, locationId, staff }: Prop
           </div>
           {err ? <p className="text-sm text-destructive">{err}</p> : null}
         </div>
+        ) : (
+          <div className="grid gap-3">
+            <div className="grid gap-1.5">
+              <Label>Titel</Label>
+              <div className="text-sm font-medium text-foreground">{task.title}</div>
+            </div>
+            {task.description ? (
+              <div className="grid gap-1.5">
+                <Label>Beschreibung</Label>
+                <div className="whitespace-pre-wrap text-sm text-muted-foreground">
+                  {task.description}
+                </div>
+              </div>
+            ) : null}
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <Label>Priorität</Label>
+                <div className="text-foreground">{TASK_PRIORITY_LABEL[task.priority as 0 | 1 | 2 | 3]}</div>
+              </div>
+              <div>
+                <Label>Fälligkeit</Label>
+                <div className="text-foreground">
+                  {task.due_at ? new Date(task.due_at).toLocaleString("de-DE") : "—"}
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-1.5 text-sm">
+              <Label>Zugewiesen</Label>
+              <div className="text-foreground">
+                {task.assignee_staff_id
+                  ? (staff.find((s) => s.id === task.assignee_staff_id)?.name ?? "—")
+                  : "unzugewiesen"}
+              </div>
+            </div>
+            {canChangeStatus ? (
+              <div className="rounded-md border border-border bg-muted/30 p-3">
+                <div className="mb-2 text-xs font-medium text-muted-foreground">
+                  Status-Aktionen
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {TASK_STATUSES.map((s) => (
+                    <Button
+                      key={s}
+                      type="button"
+                      size="sm"
+                      variant={task.status === s ? "default" : "outline"}
+                      onClick={() => changeStatus(s)}
+                      disabled={setStatus.isPending}
+                    >
+                      {TASK_STATUS_LABEL[s]}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Nur die zugewiesene Person oder Manager können den Status ändern.
+              </p>
+            )}
+            {err ? <p className="text-sm text-destructive">{err}</p> : null}
+          </div>
+        )}
         <DialogFooter className="flex sm:justify-between">
+        {canManage ? (
+        <>
           <Button
             variant="destructive"
             type="button"
@@ -208,6 +286,12 @@ export function TaskDetailDialog({ task, onOpenChange, locationId, staff }: Prop
               Speichern
             </Button>
           </div>
+        </>
+        ) : (
+          <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>
+            Schließen
+          </Button>
+        )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
