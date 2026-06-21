@@ -14,6 +14,8 @@ jobs:
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
+      - name: Doku-Format prüfen (arbeitsweise.md)
+        run: npx --yes prettier@3.7.3 --check docs/arbeitsweise.md
       - run: bun run format:check
 
   check:
