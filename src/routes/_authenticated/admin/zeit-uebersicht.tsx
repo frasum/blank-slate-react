@@ -824,8 +824,8 @@ function ZeitUebersichtPage() {
               >
                 {periods.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.label} ({ddmm(parseIsoDate(p.startDate))}–
-                    {ddmm(parseIsoDate(p.endDate))}){p.status === "locked" ? " 🔒" : ""}
+                    {p.label} ({ddmm(parseIsoDate(p.startDate))}–{ddmm(parseIsoDate(p.endDate))})
+                    {p.status === "locked" ? " 🔒" : ""}
                   </option>
                 ))}
               </select>
