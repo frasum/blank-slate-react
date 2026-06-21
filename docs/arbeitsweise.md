@@ -40,7 +40,7 @@ Erst wenn ESLint 0 Fehler und alle Tests grün sind → ABGENOMMEN.
 - **Migrationen sind beim Commit bereits live.** Lovable wendet committete Migrationen automatisch auf die (einzige) Produktiv-Supabase-Instanz an. Daraus folgt:
   - Frank führt **committete Migrationen NICHT** selbst aus. Nach dem Commit nur noch eine **Read-only-Verify-Query** (Signatur-/Policy-/`to_regprocedure(...)`-Check) zur Bestätigung des DB-Stands.
   - Manuelles SQL durch Frank gilt nur noch für **Ad-hoc-/Daten-SQL** (Imports, einmalige Korrekturen) — nicht für Migrationsdateien.
-  - **„prüfe" ist Nachkontrolle, kein Tor vor dem Livegang.** Das Tor *vor* Live ist der **Prompt** (Migration als fertige SQL-Skizze + „Nicht-anfassen"-Liste + Stop-Bedingung). Fehler werden **vorwärts** mit einer Korrektur-Migration behoben (kein Rückbau — die DB kann nicht zuverlässig zurück). Migrationen daher **additiv/idempotent** (`IF NOT EXISTS`, `ON CONFLICT`, `DROP … IF EXISTS`).
+  - **„prüfe" ist Nachkontrolle, kein Tor vor dem Livegang.** Das Tor _vor_ Live ist der **Prompt** (Migration als fertige SQL-Skizze + „Nicht-anfassen"-Liste + Stop-Bedingung). Fehler werden **vorwärts** mit einer Korrektur-Migration behoben (kein Rückbau — die DB kann nicht zuverlässig zurück). Migrationen daher **additiv/idempotent** (`IF NOT EXISTS`, `ON CONFLICT`, `DROP … IF EXISTS`).
   - Nach jedem Migrations-Commit **zügig prüfen + funktional smoke-testen** — statisches Review fängt Laufzeitfehler nicht (s. Caller-Param-Bug bei den Task-RPCs).
 
 ## 4. Stammdaten-Referenz (COCO Produktion)
