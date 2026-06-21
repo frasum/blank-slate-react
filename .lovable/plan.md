@@ -1,30 +1,37 @@
-## Wochenplan-Tab auf Abrechnungsperioden (26.–25.) umstellen
+## Ziel
+In der Mitarbeiter-Matrix (`src/routes/_authenticated/admin/staff.index.tsx`) bekommen die drei Abteilungs-Pills im **aktiven** Zustand departments-spezifische Farben:
+- **S** (service) → blau
+- **K** (kitchen) → gelb
+- **GL** (gl) → rot
 
-Eine Datei: `src/routes/_authenticated/admin/zeit-uebersicht.tsx`. Keine Migration, keine Server-Function-, keine Schema-Änderung. Hängt sich an das bereits vorhandene `selectedPeriodId` / `effectivePeriodId` / `selectedPeriod` (gemeinsam mit den anderen Tabs).
+Inaktive Pills bleiben unverändert (neutraler Rahmen, kein Fill).
 
-### Änderungen
+## Umsetzung
 
-1. **`periodWeeks` statt `monthWeeks`** (neues `useMemo`, abhängig von `selectedPeriod`): Wochen-Chips vom Montag des `startDate` bis zur Woche, deren Montag noch `<= endDate` liegt. Chip-Render `monthWeeks.map(...)` → `periodWeeks.map(...)`; Darstellung (W{idx} + `(ddmm–ddmm)`, aktiv wenn `c.start === weekStart`) unverändert.
+### 1. Semantische Tokens in `src/styles.css`
+Drei neue OKLCH-Token-Paare im `:root`-Block (und `.dark`-Variante, falls vorhanden), passend zum bestehenden System:
+- `--dept-service` / `--dept-service-foreground` (blau, weißer Text)
+- `--dept-kitchen` / `--dept-kitchen-foreground` (gelb, dunkler Text für Kontrast)
+- `--dept-gl` / `--dept-gl-foreground` (rot, weißer Text)
 
-2. **Wochenplan-Header-Dropdown: Monat → Periode.** `<select value={selectedMonth}>` mit `monthOptions` ersetzen durch ein Perioden-Dropdown an `effectivePeriodId`. `onChange` setzt `setSelectedPeriodId(id)` und schnappt `weekStart` auf `mondayOf(parseIsoDate(p.startDate))`. Optionslabel: `{p.label} ({ddmm(start)}–{ddmm(end)}){locked ? " 🔒" : ""}`.
+Im `@theme inline`-Block die passenden `--color-dept-*`-Aliase ergänzen, damit Tailwind-Klassen `bg-dept-service` etc. generiert werden.
 
-3. **Sync-Effekt** (neuer `useEffect`, Deps **nur** `[effectivePeriodId]` mit `// eslint-disable-next-line react-hooks/exhaustive-deps` direkt über dem Dep-Array): liegt `weekStart` außerhalb `[firstMonday(period), endDate]`, snap auf die Woche mit „heute", sonst auf `firstMonday`. Guard macht ihn idempotent. Falls `useEffect` noch nicht aus `react` importiert: ergänzen.
+### 2. `staff.index.tsx`
+Neue Map neben `DEPARTMENT_SHORT`:
+```ts
+const DEPARTMENT_ACTIVE_CLASS: Record<StaffDepartment, string> = {
+  service: "border-dept-service bg-dept-service text-dept-service-foreground",
+  kitchen: "border-dept-kitchen bg-dept-kitchen text-dept-kitchen-foreground",
+  gl: "border-dept-gl bg-dept-gl text-dept-gl-foreground",
+};
+```
+Im `className`-Block des Pill-Buttons (Zeile ~478–484) den aktiven Zweig durch `DEPARTMENT_ACTIVE_CLASS[dept]` ersetzen statt `border-primary bg-primary text-primary-foreground`. Inaktiver Zweig + Disabled-Opacity unverändert.
 
-4. **„Heute"-Button** zusätzlich: Periode, die heute enthält, suchen und `setSelectedPeriodId(containing.id)` aufrufen; danach wie bisher `weekStart` auf Montag von heute setzen.
+### 3. Scope-Grenzen
+- Reine UI-/Farb-Änderung; keine Logik-, Daten- oder Verhaltensänderung.
+- `PillSelect`, `LocationPills` und andere Pill-Stellen werden **nicht** angefasst (Abteilungs-Pills sind speziell zur Mitarbeiter-Matrix).
+- Tests müssen unverändert grün bleiben.
 
-5. **Toten Code entfernen:** `selectedMonth`/`setSelectedMonth`, `monthOptions`, `monthWeeks`. **`MONTH_DE` bleibt** (von `periodLabelForEnd` genutzt).
-
-### Bewusst nicht anfassen
-
-Bestehendes Perioden-Select der anderen Tabs, `fromDate`/`toDate`, alle Queries, `weekStart`-Mechanik, Grid (`WeeklyPlan`), Location-Pills, Exports, alle Server-Functions.
-
-### Gate
-
-`prettier --write` + `eslint --fix` auf der Datei. `tsc --noEmit`, `eslint . --max-warnings=5`, `prettier --check .`, `vitest run` (738) grün. Keine neue `react-hooks/exhaustive-deps`-Warning (Gate bereits voll).
-
-### E2E
-
-- Dropdown im Wochenplan zeigt Perioden („Juni 2026 (26.05.–25.06.)").
-- Periodenwechsel → Chips spannen 26.–25., angezeigte Woche bleibt in der Periode, Grid lädt.
-- „Heute" springt auf Periode + Woche von heute.
-- Periodenwechsel in z. B. Buchhaltung zieht Wochenplan mit (gemeinsamer State).
+### 4. Verifikation
+- `npx tsc --noEmit`, `npx eslint . --max-warnings=5`, `npx prettier --check .`, `npx vitest run` (738) grün.
+- Visuelle Kontrolle via Playwright-Screenshot auf `/admin/staff`: aktive S blau, K gelb, GL rot; inaktive Pills neutral.
