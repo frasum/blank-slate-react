@@ -400,6 +400,15 @@ function StaffMatrixRow({
     [staff.skillIds, skills],
   );
 
+  const isPayroll = staff.role === "payroll";
+  const visibleSkills = useMemo(
+    () =>
+      skills.filter(
+        (sk) => staff.departments.includes(sk.category) || staff.skillIds.includes(sk.id),
+      ),
+    [skills, staff.departments, staff.skillIds],
+  );
+
   return (
     <TableRow className={cn("group", !staff.isActive && "opacity-50")}>
       {/* Name (sticky) */}
@@ -433,6 +442,9 @@ function StaffMatrixRow({
       {/* Eine Spalte pro Standort */}
       {locations.map((loc) => (
         <TableCell key={loc.id} className="py-2 text-center">
+          {isPayroll ? (
+            <span className="text-muted-foreground">—</span>
+          ) : (
           <div className="flex items-center justify-center gap-1">
             {DEPARTMENT_ORDER.map((dept) => {
               const active = staff.locationDepartments.some(
@@ -479,17 +491,23 @@ function StaffMatrixRow({
               );
             })}
           </div>
+          )}
         </TableCell>
       ))}
 
       {/* Skill-Chips */}
       <TableCell>
-        {isAdmin ? (
+        {isPayroll ? (
+          <span className="text-xs text-muted-foreground">Lohnbüro – keine Bereiche/Skills</span>
+        ) : isAdmin ? (
           <div className="flex flex-wrap gap-1">
             {skills.length === 0 && (
               <span className="text-xs text-muted-foreground">Keine Skills angelegt.</span>
             )}
-            {skills.map((skill) => {
+            {skills.length > 0 && visibleSkills.length === 0 && (
+              <span className="text-xs text-muted-foreground">Keine passende Abteilung.</span>
+            )}
+            {visibleSkills.map((skill) => {
               const has = staff.skillIds.includes(skill.id);
               const eligible = isSkillCategoryEligible(skill.category, staff.departments);
               const disabled = !isAdmin || skillPending || (!eligible && !has);
