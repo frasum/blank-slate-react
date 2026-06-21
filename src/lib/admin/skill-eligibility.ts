@@ -6,8 +6,8 @@
 // - der MA an irgendeinem Standort die Abteilung C hat (kitchen/service/gl).
 // Abteilungen werden org-weit aggregiert (Skills haben keinen Standortbezug).
 
-export type StaffDepartment = "kitchen" | "service" | "gl";
-export type SkillCategory = "kitchen" | "service" | "gl" | "other";
+import type { StaffDepartment, SkillCategory } from "@/lib/staff-domain";
+export type { StaffDepartment, SkillCategory };
 
 /** Eligible, wenn Kategorie 'other' ODER die passende Abteilung vorhanden ist. */
 export function isSkillCategoryEligible(
