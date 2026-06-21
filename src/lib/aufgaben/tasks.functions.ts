@@ -75,6 +75,8 @@ export const createTask = createServerFn({ method: "POST" })
       async () => {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { data: row, error } = await supabaseAdmin.rpc("create_task", {
+          p_caller_staff_id: caller.staffId,
+          p_organization_id: caller.organizationId,
           p_location_id: data.locationId,
           p_title: data.title,
           p_description: data.description ?? "",
@@ -124,6 +126,8 @@ export const setTaskStatus = createServerFn({ method: "POST" })
       async () => {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { data: row, error } = await supabaseAdmin.rpc("set_task_status", {
+          p_caller_staff_id: caller.staffId,
+          p_organization_id: caller.organizationId,
           p_task_id: data.taskId,
           p_new_status: data.status,
           p_sort_order: data.sortOrder ?? undefined,
@@ -162,6 +166,8 @@ export const reassignTask = createServerFn({ method: "POST" })
       async () => {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { data: row, error } = await supabaseAdmin.rpc("reassign_task", {
+          p_caller_staff_id: caller.staffId,
+          p_organization_id: caller.organizationId,
           p_task_id: data.taskId,
           p_new_assignee_staff_id: data.newAssigneeStaffId,
         });
@@ -202,6 +208,8 @@ export const updateTask = createServerFn({ method: "POST" })
       async () => {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { data: row, error } = await supabaseAdmin.rpc("update_task", {
+          p_caller_staff_id: caller.staffId,
+          p_organization_id: caller.organizationId,
           p_task_id: data.taskId,
           p_title: data.title,
           p_description: data.description ?? "",
@@ -239,6 +247,8 @@ export const archiveTask = createServerFn({ method: "POST" })
       async () => {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { data: row, error } = await supabaseAdmin.rpc("archive_task", {
+          p_caller_staff_id: caller.staffId,
+          p_organization_id: caller.organizationId,
           p_task_id: data.taskId,
         });
         if (error) throw error;
@@ -271,6 +281,8 @@ export const claimTask = createServerFn({ method: "POST" })
       async () => {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { data: row, error } = await supabaseAdmin.rpc("claim_task", {
+          p_caller_staff_id: caller.staffId,
+          p_organization_id: caller.organizationId,
           p_task_id: data.taskId,
         });
         if (error) throw error;
