@@ -305,6 +305,7 @@ export const setStaffRole = createServerFn({ method: "POST" })
       if (wouldRemoveLastActiveAdmin(snapshot, { staffId: data.staffId, nextRole: data.role })) {
         throw new Error("Mindestens ein aktiver Admin muss erhalten bleiben.");
       }
+      await assertStaffInOrg(data.staffId, caller.organizationId);
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       if (data.role === null) {
         const { error } = await supabaseAdmin
