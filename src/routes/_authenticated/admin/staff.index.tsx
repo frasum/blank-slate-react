@@ -396,7 +396,7 @@ function DepartmentsCell({
     onMutate: async (v) => {
       await queryClient.cancelQueries({ queryKey: ["admin", "staff"] });
       const previous = queryClient.getQueryData(["admin", "staff"]);
-      queryClient.setQueryData<unknown>(["admin", "staff"], (old) => {
+      queryClient.setQueryData<unknown>(["admin", "staff"], (old: unknown) => {
         if (!Array.isArray(old)) return old;
         return old.map((row: { id: string; locationDepartments: { locationId: string; department: StaffDepartment }[]; departments: StaffDepartment[] }) => {
           if (row.id !== staffId) return row;
