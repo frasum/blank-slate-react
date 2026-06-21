@@ -151,9 +151,7 @@ export function TipPoolCard({
     (s) => s.isActive && (locationId === "" || s.locationIds.includes(locationId)),
   );
 
-  const renderTable = (title: string, rows: typeof data.shares, poolCents: number) => {
-    const totalHours = rows.reduce((s, r) => s + r.hoursWorked, 0);
-    const tipPerHourCents = totalHours > 0 ? Math.round(poolCents / totalHours) : null;
+  const renderTable = (title: string, rows: typeof data.shares, _poolCents: number) => {
     return (
     <Card className="flex-1">
       <div className="border-b px-4 py-3 text-sm font-medium">{title}</div>
@@ -191,13 +189,6 @@ export function TipPoolCard({
               <TableCell className="text-right font-mono">{fmtCents(r.shareCents)}</TableCell>
             </TableRow>
           ))}
-          <TableRow className="border-t font-medium">
-            <TableCell colSpan={2}>Pool gesamt</TableCell>
-            <TableCell className="text-right font-mono">{fmtCents(poolCents)}</TableCell>
-            <TableCell className="text-right font-mono text-muted-foreground">
-              Tip/h: {tipPerHourCents == null ? "–" : fmtCents(tipPerHourCents)}
-            </TableCell>
-          </TableRow>
         </TableBody>
       </Table>
     </Card>
