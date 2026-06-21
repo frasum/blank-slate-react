@@ -1,17 +1,11 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useAuth } from "@/hooks/use-auth";
 import { KanbanBoard } from "@/components/aufgaben/KanbanBoard";
 import { useMyTaskLocations, useStaffForLocation } from "@/lib/aufgaben/tasks.queries";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyIdentity } from "@/lib/auth/me.functions";
+import { LocationPills } from "@/components/shared/LocationPills";
 
 export const Route = createFileRoute("/_authenticated/zeit/aufgaben")({
   head: () => ({
@@ -74,27 +68,15 @@ function ZeitAufgabenPage() {
 
   return (
     <main className="mx-auto max-w-6xl space-y-6 px-4 py-8">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Aufgaben</h1>
-          <p className="text-sm text-muted-foreground">
-            Offene Aufgaben deiner Standorte – Übernehmen und Status ziehen.
-          </p>
-        </div>
-        <div className="min-w-[220px]">
-          <Select value={locationId} onValueChange={setLocationId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Standort wählen" />
-            </SelectTrigger>
-            <SelectContent>
-              {locsQ.data.map((l) => (
-                <SelectItem key={l.id} value={l.id}>
-                  {l.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Aufgaben</h1>
+        <p className="text-sm text-muted-foreground">
+          Offene Aufgaben deiner Standorte – Übernehmen und Status ziehen.
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium text-muted-foreground">Standort:</span>
+        <LocationPills locations={locsQ.data} value={locationId} onChange={setLocationId} />
       </div>
 
       {locationId ? (
