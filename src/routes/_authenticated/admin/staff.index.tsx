@@ -151,9 +151,7 @@ function StaffListPage() {
                         locationDepartments={s.locationDepartments}
                         heldSkills={s.skillIds
                           .map((id) => (skillsQ.data ?? []).find((sk) => sk.id === id))
-                          .filter(
-                            (sk): sk is NonNullable<typeof sk> => sk !== undefined,
-                          )
+                          .filter((sk): sk is NonNullable<typeof sk> => sk !== undefined)
                           .map((sk) => ({ id: sk.id, name: sk.name, category: sk.category }))}
                         locationNameById={locationNameById}
                       />
@@ -337,9 +335,7 @@ function SkillsCell({
                         }}
                       />
                       {sk.name}
-                      {stale && (
-                        <span className="ml-1 text-xs">(blockiert)</span>
-                      )}
+                      {stale && <span className="ml-1 text-xs">(blockiert)</span>}
                     </label>
                   );
                 })}
@@ -398,24 +394,33 @@ function DepartmentsCell({
       const previous = queryClient.getQueryData(["admin", "staff"]);
       queryClient.setQueryData<unknown>(["admin", "staff"], (old: unknown) => {
         if (!Array.isArray(old)) return old;
-        return old.map((row: { id: string; locationDepartments: { locationId: string; department: StaffDepartment }[]; departments: StaffDepartment[] }) => {
-          if (row.id !== staffId) return row;
-          const has = row.locationDepartments.some(
-            (r) => r.locationId === v.locationId && r.department === v.department,
-          );
-          const nextLD = v.enabled
-            ? has
-              ? row.locationDepartments
-              : [...row.locationDepartments, { locationId: v.locationId, department: v.department }]
-            : row.locationDepartments.filter(
-                (r) => !(r.locationId === v.locationId && r.department === v.department),
-              );
-          return {
-            ...row,
-            locationDepartments: nextLD,
-            departments: distinctDepartments(nextLD),
-          };
-        });
+        return old.map(
+          (row: {
+            id: string;
+            locationDepartments: { locationId: string; department: StaffDepartment }[];
+            departments: StaffDepartment[];
+          }) => {
+            if (row.id !== staffId) return row;
+            const has = row.locationDepartments.some(
+              (r) => r.locationId === v.locationId && r.department === v.department,
+            );
+            const nextLD = v.enabled
+              ? has
+                ? row.locationDepartments
+                : [
+                    ...row.locationDepartments,
+                    { locationId: v.locationId, department: v.department },
+                  ]
+              : row.locationDepartments.filter(
+                  (r) => !(r.locationId === v.locationId && r.department === v.department),
+                );
+            return {
+              ...row,
+              locationDepartments: nextLD,
+              departments: distinctDepartments(nextLD),
+            };
+          },
+        );
       });
       return { previous };
     },
