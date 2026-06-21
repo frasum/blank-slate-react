@@ -129,82 +129,82 @@ export function TaskDetailDialog({
           </DialogDescription>
         </DialogHeader>
         {canManage ? (
-        <div className="grid gap-3">
-          <div className="grid gap-1.5">
-            <Label>Titel</Label>
-            <Input value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} />
-          </div>
-          <div className="grid gap-1.5">
-            <Label>Beschreibung</Label>
-            <Textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={4}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid gap-3">
             <div className="grid gap-1.5">
-              <Label>Priorität</Label>
-              <Select value={String(priority)} onValueChange={(v) => setPriority(Number(v))}>
+              <Label>Titel</Label>
+              <Input value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} />
+            </div>
+            <div className="grid gap-1.5">
+              <Label>Beschreibung</Label>
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={4}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1.5">
+                <Label>Priorität</Label>
+                <Select value={String(priority)} onValueChange={(v) => setPriority(Number(v))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {([0, 1, 2, 3] as const).map((p) => (
+                      <SelectItem key={p} value={String(p)}>
+                        {TASK_PRIORITY_LABEL[p]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-1.5">
+                <Label>Fälligkeit</Label>
+                <Input
+                  type="datetime-local"
+                  value={dueAt}
+                  onChange={(e) => setDueAt(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="grid gap-1.5">
+              <Label>Zugewiesen</Label>
+              <Select
+                value={assignee || "__none"}
+                onValueChange={(v) => setAssignee(v === "__none" ? "" : v)}
+              >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Unzugewiesen" />
                 </SelectTrigger>
                 <SelectContent>
-                  {([0, 1, 2, 3] as const).map((p) => (
-                    <SelectItem key={p} value={String(p)}>
-                      {TASK_PRIORITY_LABEL[p]}
+                  <SelectItem value="__none">Unzugewiesen</SelectItem>
+                  {staff.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid gap-1.5">
-              <Label>Fälligkeit</Label>
-              <Input
-                type="datetime-local"
-                value={dueAt}
-                onChange={(e) => setDueAt(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="grid gap-1.5">
-            <Label>Zugewiesen</Label>
-            <Select
-              value={assignee || "__none"}
-              onValueChange={(v) => setAssignee(v === "__none" ? "" : v)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Unzugewiesen" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none">Unzugewiesen</SelectItem>
-                {staff.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.name}
-                  </SelectItem>
+            <div className="rounded-md border border-border bg-muted/30 p-3">
+              <div className="mb-2 text-xs font-medium text-muted-foreground">Status-Aktionen</div>
+              <div className="flex flex-wrap gap-2">
+                {TASK_STATUSES.map((s) => (
+                  <Button
+                    key={s}
+                    type="button"
+                    size="sm"
+                    variant={task.status === s ? "default" : "outline"}
+                    onClick={() => changeStatus(s)}
+                    disabled={setStatus.isPending}
+                  >
+                    {TASK_STATUS_LABEL[s]}
+                  </Button>
                 ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="rounded-md border border-border bg-muted/30 p-3">
-            <div className="mb-2 text-xs font-medium text-muted-foreground">Status-Aktionen</div>
-            <div className="flex flex-wrap gap-2">
-              {TASK_STATUSES.map((s) => (
-                <Button
-                  key={s}
-                  type="button"
-                  size="sm"
-                  variant={task.status === s ? "default" : "outline"}
-                  onClick={() => changeStatus(s)}
-                  disabled={setStatus.isPending}
-                >
-                  {TASK_STATUS_LABEL[s]}
-                </Button>
-              ))}
+              </div>
             </div>
+            {err ? <p className="text-sm text-destructive">{err}</p> : null}
           </div>
-          {err ? <p className="text-sm text-destructive">{err}</p> : null}
-        </div>
         ) : (
           <div className="grid gap-3">
             <div className="grid gap-1.5">
@@ -222,7 +222,9 @@ export function TaskDetailDialog({
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
                 <Label>Priorität</Label>
-                <div className="text-foreground">{TASK_PRIORITY_LABEL[task.priority as 0 | 1 | 2 | 3]}</div>
+                <div className="text-foreground">
+                  {TASK_PRIORITY_LABEL[task.priority as 0 | 1 | 2 | 3]}
+                </div>
               </div>
               <div>
                 <Label>Fälligkeit</Label>
@@ -268,30 +270,30 @@ export function TaskDetailDialog({
           </div>
         )}
         <DialogFooter className="flex sm:justify-between">
-        {canManage ? (
-        <>
-          <Button
-            variant="destructive"
-            type="button"
-            onClick={doArchive}
-            disabled={archive.isPending}
-          >
-            Archivieren
-          </Button>
-          <div className="flex gap-2">
+          {canManage ? (
+            <>
+              <Button
+                variant="destructive"
+                type="button"
+                onClick={doArchive}
+                disabled={archive.isPending}
+              >
+                Archivieren
+              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>
+                  Abbrechen
+                </Button>
+                <Button type="button" onClick={save} disabled={!title.trim() || update.isPending}>
+                  Speichern
+                </Button>
+              </div>
+            </>
+          ) : (
             <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>
-              Abbrechen
+              Schließen
             </Button>
-            <Button type="button" onClick={save} disabled={!title.trim() || update.isPending}>
-              Speichern
-            </Button>
-          </div>
-        </>
-        ) : (
-          <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>
-            Schließen
-          </Button>
-        )}
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

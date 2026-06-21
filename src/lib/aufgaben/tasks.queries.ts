@@ -117,9 +117,7 @@ export function useReassignTask(locationId: string | null) {
         qc.setQueryData<Task[]>(
           TASKS_QUERY_KEY(locationId),
           prev.map((t) =>
-            t.id === input.taskId
-              ? { ...t, assignee_staff_id: input.newAssigneeStaffId }
-              : t,
+            t.id === input.taskId ? { ...t, assignee_staff_id: input.newAssigneeStaffId } : t,
           ),
         );
       }
