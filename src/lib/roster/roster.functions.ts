@@ -7,31 +7,12 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { runWithPermission, assertPermission } from "@/lib/admin/admin-call";
 // assertPermission wird unten in createDayOffWish/deleteDayOffWish verwendet.
-import { writeAuditLog } from "@/lib/admin/audit";
+import { makeAuditWriter } from "@/lib/admin/audit";
 import { loadStaffCaller } from "@/lib/time/time.functions";
 import type { MyShiftRow } from "@/lib/roster/my-shifts";
 
 const READ_ROLES = ["manager", "admin", "payroll", "staff"] as const;
 const WRITE_ROLES = ["manager", "admin"] as const;
-
-function makeAuditWriter(caller: { organizationId: string; userId: string; staffId: string }) {
-  return async (entry: {
-    action: string;
-    entity: string;
-    entityId?: string;
-    meta?: Record<string, unknown>;
-  }) => {
-    await writeAuditLog({
-      organizationId: caller.organizationId,
-      actorUserId: caller.userId,
-      actorStaffId: caller.staffId,
-      action: entry.action,
-      entity: entry.entity,
-      entityId: entry.entityId ?? null,
-      meta: entry.meta,
-    });
-  };
-}
 
 async function assertShiftDateUnlocked(
   admin: import("@supabase/supabase-js").SupabaseClient<

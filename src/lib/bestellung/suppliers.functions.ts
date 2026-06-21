@@ -6,26 +6,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { runGuarded } from "@/lib/admin/admin-call";
-import { writeAuditLog } from "@/lib/admin/audit";
-
-function makeAuditWriter(caller: { organizationId: string; userId: string; staffId: string }) {
-  return async (entry: {
-    action: string;
-    entity: string;
-    entityId?: string;
-    meta?: Record<string, unknown>;
-  }) => {
-    await writeAuditLog({
-      organizationId: caller.organizationId,
-      actorUserId: caller.userId,
-      actorStaffId: caller.staffId,
-      action: entry.action,
-      entity: entry.entity,
-      entityId: entry.entityId ?? null,
-      meta: entry.meta,
-    });
-  };
-}
+import { makeAuditWriter } from "@/lib/admin/audit";
 
 const SupplierInput = z.object({
   name: z.string().trim().min(1).max(200),

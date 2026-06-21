@@ -34,3 +34,29 @@ export async function writeAuditLog(entry: AuditLogInput): Promise<void> {
     throw new Error(`audit_log insert failed: ${error.message}`);
   }
 }
+
+// Kanonischer Audit-Writer-Factory. Wird von runGuarded/runWithPermission als
+// `writeAudit`-Callback erwartet. Akzeptiert sowohl `staffId: string` als auch
+// `staffId: string | null` (writeAuditLog speichert beides unverändert).
+export function makeAuditWriter(caller: {
+  organizationId: string;
+  userId: string;
+  staffId: string | null;
+}) {
+  return async (entry: {
+    action: string;
+    entity: string;
+    entityId?: string;
+    meta?: Record<string, unknown>;
+  }) => {
+    await writeAuditLog({
+      organizationId: caller.organizationId,
+      actorUserId: caller.userId,
+      actorStaffId: caller.staffId,
+      action: entry.action,
+      entity: entry.entity,
+      entityId: entry.entityId ?? null,
+      meta: entry.meta,
+    });
+  };
+}

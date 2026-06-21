@@ -7,7 +7,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { runGuarded } from "@/lib/admin/admin-call";
-import { writeAuditLog } from "@/lib/admin/audit";
+import { makeAuditWriter } from "@/lib/admin/audit";
 
 /**
  * Reduziert einen Suchbegriff auf eine sichere Allowlist (Unicode-Buchstaben,
@@ -18,25 +18,6 @@ import { writeAuditLog } from "@/lib/admin/audit";
  */
 export function sanitizeArticleSearchTerm(value: string): string {
   return value.replace(/[^\p{L}\p{N} -]/gu, "").trim();
-}
-
-function makeAuditWriter(caller: { organizationId: string; userId: string; staffId: string }) {
-  return async (entry: {
-    action: string;
-    entity: string;
-    entityId?: string;
-    meta?: Record<string, unknown>;
-  }) => {
-    await writeAuditLog({
-      organizationId: caller.organizationId,
-      actorUserId: caller.userId,
-      actorStaffId: caller.staffId,
-      action: entry.action,
-      entity: entry.entity,
-      entityId: entry.entityId ?? null,
-      meta: entry.meta,
-    });
-  };
 }
 
 const ArticleInput = z.object({

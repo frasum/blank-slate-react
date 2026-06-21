@@ -15,7 +15,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller, type AdminCaller } from "@/lib/admin/admin-context";
 import { loadStaffCaller, performClockOut, type StaffCaller } from "@/lib/time/time.functions";
 import { runGuarded } from "@/lib/admin/admin-call";
-import { writeAuditLog } from "@/lib/admin/audit";
+import { writeAuditLog, makeAuditWriter } from "@/lib/admin/audit";
 import { arbzgMinimumBreak, grossMinutesBetween } from "@/lib/time/break-rules";
 import { calcWaiterSettlement } from "./waiter-settlement";
 import {
@@ -195,25 +195,6 @@ async function loadSessionWithLock(orgId: string, sessionId: string) {
   if (error) throw error;
   if (!data) throw new Error("Session nicht gefunden.");
   return data;
-}
-
-function makeAuditWriter(caller: { organizationId: string; userId: string; staffId: string }) {
-  return async (entry: {
-    action: string;
-    entity: string;
-    entityId?: string;
-    meta?: Record<string, unknown>;
-  }) => {
-    await writeAuditLog({
-      organizationId: caller.organizationId,
-      actorUserId: caller.userId,
-      actorStaffId: caller.staffId,
-      action: entry.action,
-      entity: entry.entity,
-      entityId: entry.entityId ?? null,
-      meta: entry.meta,
-    });
-  };
 }
 
 // ------------------------------------------------------------------------

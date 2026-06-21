@@ -10,7 +10,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "./admin-context";
 import { runGuarded } from "./admin-call";
-import { writeAuditLog } from "./audit";
+import { makeAuditWriter } from "./audit";
 import { wouldRemoveLastActiveAdmin, type AdminSnapshotEntry } from "./last-admin-rule";
 import type { AppRole } from "./role-guard";
 import {
@@ -298,25 +298,6 @@ export const createStaff = createServerFn({ method: "POST" })
       };
     });
   });
-
-function makeAuditWriter(caller: { organizationId: string; userId: string; staffId: string }) {
-  return async (entry: {
-    action: string;
-    entity: string;
-    entityId?: string;
-    meta?: Record<string, unknown>;
-  }) => {
-    await writeAuditLog({
-      organizationId: caller.organizationId,
-      actorUserId: caller.userId,
-      actorStaffId: caller.staffId,
-      action: entry.action,
-      entity: entry.entity,
-      entityId: entry.entityId ?? null,
-      meta: entry.meta,
-    });
-  };
-}
 
 export const updateStaffBasics = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

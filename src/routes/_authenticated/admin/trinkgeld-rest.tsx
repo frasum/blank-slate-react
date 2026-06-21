@@ -11,16 +11,12 @@ import { getTipRemainderByPeriod } from "@/lib/cash/cash.functions";
 import { listLocations } from "@/lib/admin/locations.functions";
 import { listPeriods } from "@/lib/time/time-admin.functions";
 import { LocationPills } from "@/components/shared/LocationPills";
+import { fmtCents } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/admin/trinkgeld-rest")({
   head: () => ({ meta: [{ title: "Trinkgeld-Rest · Verwaltung" }] }),
   component: TipRemainderPage,
 });
-
-function fmtCents(c: number | null | undefined): string {
-  const v = (c ?? 0) / 100;
-  return v.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
 
 function TipRemainderPage() {
   const { identity } = useRouteContext({ from: "/_authenticated/admin" });
