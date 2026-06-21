@@ -50,6 +50,7 @@ import {
 } from "@/lib/cash/cash.functions";
 import { generateDailySummaryPdf } from "@/lib/cash/pdfExport";
 import { DateSelector } from "@/components/shared/DateSelector";
+import { LocationPills } from "@/components/shared/LocationPills";
 import { PdfCanvasPreview } from "@/components/cash/PdfCanvasPreview";
 import { parseEuroToCents } from "@/lib/cash/kasse-helpers";
 import { SettlementWarningsBanner } from "@/components/cash/SettlementWarningsBanner";
@@ -367,22 +368,13 @@ function KassePage() {
         <div className="flex items-end gap-3">
           <div className="space-y-1">
             <Label htmlFor="loc">Standort</Label>
-            <Select
-              value={locationId}
-              onValueChange={setLocationId}
-              disabled={!locationsQ.data || locationsQ.data.length === 0}
-            >
-              <SelectTrigger id="loc" className="min-w-[10rem]">
-                <SelectValue placeholder="Standort wählen" />
-              </SelectTrigger>
-              <SelectContent>
-                {(locationsQ.data ?? []).map((l) => (
-                  <SelectItem key={l.id} value={l.id}>
-                    {l.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div id="loc" className="flex h-9 items-center">
+              <LocationPills
+                locations={locationsQ.data ?? []}
+                value={locationId}
+                onChange={setLocationId}
+              />
+            </div>
           </div>
           <div className="space-y-1 text-center">
             <Label htmlFor="bd" className="block text-center">
