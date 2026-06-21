@@ -404,7 +404,10 @@ function StaffMatrixRow({
   const visibleSkills = useMemo(
     () =>
       skills.filter(
-        (sk) => staff.departments.includes(sk.category) || staff.skillIds.includes(sk.id),
+        (sk) =>
+          (sk.category !== "other" &&
+            staff.departments.includes(sk.category as StaffDepartment)) ||
+          staff.skillIds.includes(sk.id),
       ),
     [skills, staff.departments, staff.skillIds],
   );
