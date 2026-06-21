@@ -93,7 +93,15 @@ export function useSetTaskStatus(locationId: string | null) {
     onError: (_e, _v, ctx) => {
       if (ctx?.prev) qc.setQueryData(TASKS_QUERY_KEY(locationId), ctx.prev);
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: TASKS_QUERY_KEY(locationId) }),
+    onSuccess: (row) => {
+      // Server-Wahrheit direkt in den Cache schreiben — kein Refetch nötig.
+      // Realtime liefert dasselbe Ergebnis bei allen anderen Clients nach.
+      const updated = row as Task | null | undefined;
+      if (!updated) return;
+      qc.setQueryData<Task[]>(TASKS_QUERY_KEY(locationId), (prev) =>
+        prev ? prev.map((t) => (t.id === updated.id ? updated : t)) : prev,
+      );
+    },
   });
 }
 
@@ -102,7 +110,31 @@ export function useReassignTask(locationId: string | null) {
   const fn = useServerFn(reassignTask);
   return useMutation({
     mutationFn: (input: ReassignInput) => fn({ data: input }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: TASKS_QUERY_KEY(locationId) }),
+    onMutate: async (input) => {
+      await qc.cancelQueries({ queryKey: TASKS_QUERY_KEY(locationId) });
+      const prev = qc.getQueryData<Task[]>(TASKS_QUERY_KEY(locationId));
+      if (prev) {
+        qc.setQueryData<Task[]>(
+          TASKS_QUERY_KEY(locationId),
+          prev.map((t) =>
+            t.id === input.taskId
+              ? { ...t, assignee_staff_id: input.newAssigneeStaffId }
+              : t,
+          ),
+        );
+      }
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(TASKS_QUERY_KEY(locationId), ctx.prev);
+    },
+    onSuccess: (row) => {
+      const updated = row as Task | null | undefined;
+      if (!updated) return;
+      qc.setQueryData<Task[]>(TASKS_QUERY_KEY(locationId), (prev) =>
+        prev ? prev.map((t) => (t.id === updated.id ? updated : t)) : prev,
+      );
+    },
   });
 }
 
@@ -129,7 +161,13 @@ export function useClaimTask(locationId: string | null) {
   const fn = useServerFn(claimTask);
   return useMutation({
     mutationFn: (input: ClaimInput) => fn({ data: input }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: TASKS_QUERY_KEY(locationId) }),
+    onSuccess: (row) => {
+      const updated = row as Task | null | undefined;
+      if (!updated) return;
+      qc.setQueryData<Task[]>(TASKS_QUERY_KEY(locationId), (prev) =>
+        prev ? prev.map((t) => (t.id === updated.id ? updated : t)) : prev,
+      );
+    },
   });
 }
 
@@ -170,8 +208,27 @@ export function useTasksRealtime(locationId: string | null) {
           table: "tasks",
           filter: `location_id=eq.${locationId}`,
         },
-        () => {
-          qc.invalidateQueries({ queryKey: TASKS_QUERY_KEY(locationId) });
+        (payload) => {
+          // Wendet Realtime-Events direkt auf den Cache an — kein Refetch,
+          // damit laufende optimistische Updates nicht überschrieben werden.
+          qc.setQueryData<Task[]>(TASKS_QUERY_KEY(locationId), (prev) => {
+            if (!prev) return prev;
+            if (payload.eventType === "DELETE") {
+              const oldId = (payload.old as Partial<Task> | null)?.id;
+              return oldId ? prev.filter((t) => t.id !== oldId) : prev;
+            }
+            const next = payload.new as Task | null;
+            if (!next) return prev;
+            // Archivierte Tasks aus der Liste entfernen.
+            if (next.archived_at !== null) {
+              return prev.filter((t) => t.id !== next.id);
+            }
+            const idx = prev.findIndex((t) => t.id === next.id);
+            if (idx === -1) return [...prev, next];
+            const copy = prev.slice();
+            copy[idx] = next;
+            return copy;
+          });
         },
       )
       .subscribe();
