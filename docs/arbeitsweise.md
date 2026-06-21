@@ -168,6 +168,10 @@ gh repo clone frasum/bestellung-5fff1793
 | Artikel-Suche (`listArticles`) gegen PostgREST-`.or()`-Injection gehärtet (`sanitizeArticleSearchTerm`) | ✅        |
 | jspdf/pdfjs lazy-geladen (#3-Rest: keine statischen PDF-Imports mehr)                                   | ✅        |
 | Security-Header / CSP (Report-Only) auf HTML-Responses (`withSecurityHeaders` in `server.ts`)           | ✅        |
+| Mitarbeiter-Matrix (Stammblatt-Umbau: Standort-Dept-Pills, Skill-Eligibility, Index-Redesign)          | ✅        |
+| payroll = Büro (Index-Sperre + Dienstplan-Ausschluss, keine 4. Abteilung)                              | ✅        |
+| Wochenplan → Abrechnungsperioden (26.–25., gemeinsamer Periodenbegriff im Zeit-Screen)                 | ✅        |
+| Aufräumen: Dead-Code, `makeAuditWriter` zentral, Typ-Single-Source `staff-domain.ts`                   | ✅        |
 
 **Stand 20.06.2026 (Session-Nachzug, Teil 2 — Härtung & Security-Header):**
 
