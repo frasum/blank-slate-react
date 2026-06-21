@@ -3,7 +3,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -248,11 +248,7 @@ function ZeitUebersichtPage() {
   const fromDate = selectedPeriod ? selectedPeriod.startDate : manualFrom;
   const toDate = selectedPeriod ? selectedPeriod.endDate : manualTo;
 
-  // Wochenplan: aktueller Monat + Woche.
-  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-  });
+  // Wochenplan: aktuelle Woche (Periode kommt aus selectedPeriodId).
   const [weekStart, setWeekStart] = useState<string>(() =>
     fmtIso(mondayOf(parseIsoDate(todayIso()))),
   );
@@ -268,42 +264,33 @@ function ZeitUebersichtPage() {
   const [payrollMode, setPayrollMode] = useState<BuchhaltungMode>("simple");
   const [payrollSearch, setPayrollSearch] = useState<string>("");
 
-  // Wochen-Chips für den gewählten Monat (alle KW, die mind. einen Tag des Monats enthalten).
-  const monthWeeks = useMemo(() => {
-    const [y, m] = selectedMonth.split("-").map((s) => Number.parseInt(s, 10));
-    const firstDay = new Date(Date.UTC(y, m - 1, 1));
-    const lastDay = new Date(Date.UTC(y, m, 0));
-    const chips: { idx: number; start: string; end: string; label: string; weekNo: number }[] = [];
-    let cursor = mondayOf(firstDay);
+  // Wochen-Chips für die gewählte Abrechnungsperiode (Montage vom Periodenstart bis ≤ Periodenende).
+  const periodWeeks = useMemo(() => {
+    if (!selectedPeriod) return [] as { idx: number; start: string; end: string }[];
+    const start = parseIsoDate(selectedPeriod.startDate);
+    const end = parseIsoDate(selectedPeriod.endDate);
+    const chips: { idx: number; start: string; end: string }[] = [];
+    let cursor = mondayOf(start);
     let i = 1;
-    while (cursor.getTime() <= lastDay.getTime()) {
-      const end = addDays(cursor, 6);
-      const wk = isoWeek(cursor);
-      chips.push({
-        idx: i,
-        start: fmtIso(cursor),
-        end: fmtIso(end),
-        label: `W${i} (${ddmm(cursor)}–${ddmm(end)})`,
-        weekNo: wk.week,
-      });
+    while (cursor.getTime() <= end.getTime()) {
+      chips.push({ idx: i, start: fmtIso(cursor), end: fmtIso(addDays(cursor, 6)) });
       cursor = addDays(cursor, 7);
       i++;
     }
     return chips;
-  }, [selectedMonth]);
+  }, [selectedPeriod]);
 
-  // Monats-Optionen: 6 Monate zurück bis 6 Monate vor.
-  const monthOptions = useMemo(() => {
-    const opts: { value: string; label: string }[] = [];
-    const now = new Date();
-    for (let off = -6; off <= 6; off++) {
-      const d = new Date(now.getFullYear(), now.getMonth() + off, 1);
-      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const label = `${MONTH_DE[d.getMonth()]} ${d.getFullYear()}`;
-      opts.push({ value, label });
+  // Beim Periodenwechsel: weekStart in die Periode snappen (bevorzugt Woche mit "heute").
+  useEffect(() => {
+    if (!selectedPeriod) return;
+    const firstMonday = fmtIso(mondayOf(parseIsoDate(selectedPeriod.startDate)));
+    const todayMon = fmtIso(mondayOf(parseIsoDate(todayIso())));
+    const todayInPeriod = todayMon >= firstMonday && todayMon <= selectedPeriod.endDate;
+    if (weekStart < firstMonday || weekStart > selectedPeriod.endDate) {
+      setWeekStart(todayInPeriod ? todayMon : firstMonday);
     }
-    return opts;
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectivePeriodId]);
 
   // Wenn "Alle Standorte" gewählt: pro Location parallel laden + clientseitig mergen.
   const allLocationQueries = useQueries({
@@ -827,12 +814,18 @@ function ZeitUebersichtPage() {
             <div className="flex flex-wrap items-center gap-3">
               <select
                 className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
+                value={effectivePeriodId}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setSelectedPeriodId(id);
+                  const p = periods.find((x) => x.id === id);
+                  if (p) setWeekStart(fmtIso(mondayOf(parseIsoDate(p.startDate))));
+                }}
               >
-                {monthOptions.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
+                {periods.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label} ({ddmm(parseIsoDate(p.startDate))}–{ddmm(parseIsoDate(p.endDate))})
+                    {p.status === "locked" ? " 🔒" : ""}
                   </option>
                 ))}
               </select>
@@ -877,7 +870,7 @@ function ZeitUebersichtPage() {
             </div>
             {/* Zeile 2: Wochen-Chips */}
             <div className="flex flex-wrap items-center gap-2">
-              {monthWeeks.map((c) => {
+              {periodWeeks.map((c) => {
                 const active = c.start === weekStart;
                 return (
                   <button
@@ -899,7 +892,14 @@ function ZeitUebersichtPage() {
               })}
               <button
                 type="button"
-                onClick={() => setWeekStart(fmtIso(mondayOf(parseIsoDate(todayIso()))))}
+                onClick={() => {
+                  const today = todayIso();
+                  const containing = periods.find(
+                    (p) => p.startDate <= today && today <= p.endDate,
+                  );
+                  if (containing) setSelectedPeriodId(containing.id);
+                  setWeekStart(fmtIso(mondayOf(parseIsoDate(today))));
+                }}
                 className="ml-auto h-8 rounded-md border border-input bg-background px-3 text-xs hover:bg-muted"
               >
                 Heute
