@@ -8,7 +8,12 @@ import {
   type TaskCategory,
   type TaskStatus,
 } from "@/lib/aufgaben/types";
-import { useBoardTasks, useClaimTask, useSetTaskStatus } from "@/lib/aufgaben/tasks.queries";
+import {
+  useBoardTasks,
+  useClaimTask,
+  useSetTaskStatus,
+  useTasksRealtime,
+} from "@/lib/aufgaben/tasks.queries";
 import { sortOrderForInsert } from "@/lib/aufgaben/sort-order";
 import { KanbanColumn } from "./KanbanColumn";
 import { TaskCreateDialog } from "./TaskCreateDialog";
@@ -40,6 +45,7 @@ export function KanbanBoard({
   const tasksQ = useBoardTasks(locationId);
   const setStatus = useSetTaskStatus(locationId);
   const claim = useClaimTask(locationId);
+  useTasksRealtime(locationId);
   const [createOpen, setCreateOpen] = useState(false);
   const [openTask, setOpenTask] = useState<Task | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<Set<TaskCategory>>(new Set());
