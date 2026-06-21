@@ -10,6 +10,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "./admin-context";
 import { runGuarded } from "./admin-call";
 import { writeAuditLog } from "./audit";
+import { distinctDepartments, ineligibleSkills, type StaffDepartment } from "./skill-eligibility";
 
 export type SkillCategory = "kitchen" | "service" | "gl" | "other";
 
@@ -77,6 +78,40 @@ export const assignStaffSkills = createServerFn({ method: "POST" })
       },
       async () => {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+        if (data.skillIds.length > 0) {
+          // Eligibility-Check vor dem Schreiben: keine Skills ohne passende Abteilung.
+          const [{ data: locRows, error: locErr }, { data: skillRows, error: skillErr }] =
+            await Promise.all([
+              supabaseAdmin
+                .from("staff_locations")
+                .select("department")
+                .eq("staff_id", data.staffId)
+                .eq("organization_id", caller.organizationId),
+              supabaseAdmin
+                .from("skills")
+                .select("id, name, category")
+                .eq("organization_id", caller.organizationId)
+                .in("id", data.skillIds),
+            ]);
+          if (locErr) throw locErr;
+          if (skillErr) throw skillErr;
+          const departments = distinctDepartments(
+            (locRows ?? []) as { department: StaffDepartment }[],
+          );
+          const wanted = (skillRows ?? []).map((s) => ({
+            id: s.id,
+            name: s.name,
+            category: s.category as SkillCategory,
+          }));
+          const bad = ineligibleSkills(wanted, departments);
+          if (bad.length > 0) {
+            throw new Error(
+              `Skill(s) ohne passende Abteilung: ${bad.map((s) => s.name).join(", ")}`,
+            );
+          }
+        }
+
         const { error: delErr } = await supabaseAdmin
           .from("staff_skills")
           .delete()
