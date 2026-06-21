@@ -28,6 +28,7 @@ import { buildBargeldXlsx } from "@/lib/cash/bargeld-export";
 import { downloadBlob } from "@/lib/time/weekly-export";
 import { formatShortDate } from "@/lib/format-date";
 import { listLocations } from "@/lib/admin/locations.functions";
+import { LocationPills } from "@/components/shared/LocationPills";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/kasse-saldo")({
@@ -190,22 +191,13 @@ function KasseSaldoPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-end gap-3">
-          <Select
+          <LocationPills
+            locations={locationsQ.data ?? []}
             value={locationId || "__all__"}
-            onValueChange={(v) => setLocationId(v === "__all__" ? "" : v)}
-          >
-            <SelectTrigger className="w-48">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">Alle Standorte</SelectItem>
-              {(locationsQ.data ?? []).map((l) => (
-                <SelectItem key={l.id} value={l.id}>
-                  {l.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            onChange={(v) => setLocationId(v === "__all__" ? "" : v)}
+            includeAll
+            allLabel="Alle Standorte"
+          />
           <Select value={monthKey} onValueChange={setMonthKey}>
             <SelectTrigger className="w-44">
               <SelectValue />
