@@ -76,7 +76,7 @@ export const listStaff = createServerFn({ method: "GET" })
     const { data, error } = await supabaseAdmin
       .from("staff")
       .select(
-        "id, first_name, last_name, display_name, email, phone, is_active, role_assignments(role), staff_locations(location_id), staff_skills(skill_id, skills(category)), staff_pins(id), access_tokens(id, token_type, used_at, expires_at)",
+        "id, first_name, last_name, display_name, email, phone, is_active, role_assignments(role), staff_locations(location_id, department), staff_skills(skill_id, skills(category)), staff_pins(id), access_tokens(id, token_type, used_at, expires_at)",
       )
       .eq("organization_id", caller.organizationId)
       .order("display_name");
