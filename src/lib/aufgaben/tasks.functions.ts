@@ -15,6 +15,7 @@ import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { runGuarded } from "@/lib/admin/admin-call";
 import { writeAuditLog } from "@/lib/admin/audit";
 import { TASK_CATEGORIES, TASK_STATUSES, type Task } from "./types";
+import type { AppRole } from "@/lib/admin/role-guard";
 
 // Manage = anlegen/bearbeiten/archivieren/zuweisen (Admin/Manager).
 const ALLOWED_MANAGE: readonly ("admin" | "manager")[] = ["admin", "manager"] as const;
@@ -335,10 +336,18 @@ export const listMyTaskLocations = createServerFn({ method: "GET" })
 export const listStaffForLocation = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({ locationId: z.string().uuid() }).parse(input))
-  .handler(async ({ data, context }): Promise<{ id: string; name: string }[]> => {
+  .handler(
+    async ({
+      data,
+      context,
+    }): Promise<
+      { id: string; name: string; role: AppRole | null; skillCategories: string[] }[]
+    > => {
     const { data: rows, error } = await context.supabase
       .from("staff_locations")
-      .select("staff:staff!inner(id, display_name, first_name, last_name)")
+      .select(
+        "staff:staff!inner(id, display_name, first_name, last_name, role_assignments(role), staff_skills(skills(category)))",
+      )
       .eq("location_id", data.locationId);
     if (error) throw error;
     type Row = {
@@ -347,6 +356,8 @@ export const listStaffForLocation = createServerFn({ method: "GET" })
         display_name: string | null;
         first_name: string | null;
         last_name: string | null;
+        role_assignments: { role: AppRole }[] | { role: AppRole } | null;
+        staff_skills: { skills: { category: string | null } | null }[] | null;
       };
     };
     const list = (rows ?? []) as unknown as Row[];
@@ -356,7 +367,19 @@ export const listStaffForLocation = createServerFn({ method: "GET" })
           r.staff.display_name?.trim() ||
           [r.staff.first_name, r.staff.last_name].filter(Boolean).join(" ").trim() ||
           "—";
-        return { id: r.staff.id, name };
+        const ra = r.staff.role_assignments;
+        const role: AppRole | null = Array.isArray(ra)
+          ? (ra[0]?.role ?? null)
+          : (ra?.role ?? null);
+        const skillCategories = Array.from(
+          new Set(
+            (r.staff.staff_skills ?? [])
+              .map((sk) => sk.skills?.category ?? null)
+              .filter((c): c is string => typeof c === "string" && c.length > 0),
+          ),
+        );
+        return { id: r.staff.id, name, role, skillCategories };
       })
       .sort((a, b) => a.name.localeCompare(b.name, "de"));
-  });
+    },
+  );
