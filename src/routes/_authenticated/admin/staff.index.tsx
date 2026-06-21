@@ -1,17 +1,45 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { createFileRoute, Link, useRouteContext } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
-import { listStaff } from "@/lib/admin/staff.functions";
+import { toast } from "sonner";
+import { listStaff, setStaffRole } from "@/lib/admin/staff.functions";
+import { assignStaffSkills, listSkills, type SkillCategory } from "@/lib/admin/skills.functions";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import type { AppRole } from "@/lib/admin/role-guard";
 
 export const Route = createFileRoute("/_authenticated/admin/staff/")({
   head: () => ({ meta: [{ title: "Mitarbeiter · Verwaltung" }] }),
   component: StaffListPage,
 });
 
+const ROLE_OPTIONS: { value: AppRole | ""; label: string }[] = [
+  { value: "", label: "—" },
+  { value: "admin", label: "Admin" },
+  { value: "manager", label: "Manager" },
+  { value: "payroll", label: "Payroll" },
+  { value: "staff", label: "Staff" },
+];
+
+const CATEGORY_LABEL: Record<SkillCategory, string> = {
+  kitchen: "Küche",
+  service: "Service",
+  gl: "Geschäftsleitung",
+  other: "Sonstiges",
+};
+const CATEGORY_ORDER: SkillCategory[] = ["kitchen", "service", "gl", "other"];
+
 function StaffListPage() {
+  const { identity } = useRouteContext({ from: "/_authenticated/admin" });
+  const isAdmin = identity.role === "admin";
   const { data, isLoading, error } = useQuery({
     queryKey: ["admin", "staff"],
     queryFn: () => listStaff(),
+  });
+  const skillsQ = useQuery({
+    queryKey: ["admin", "skills"],
+    queryFn: () => listSkills(),
+    enabled: isAdmin,
   });
   const [showInactive, setShowInactive] = useState(false);
 
@@ -57,10 +85,9 @@ function StaffListPage() {
               <tr>
                 <th className="px-3 py-2 font-medium">Name</th>
                 <th className="px-3 py-2 font-medium">Rolle</th>
-                <th className="px-3 py-2 font-medium">Aktiv</th>
+                <th className="px-3 py-2 font-medium">Skills</th>
                 <th className="px-3 py-2 font-medium">PIN</th>
-                <th className="px-3 py-2 font-medium">Badges</th>
-                <th />
+                <th className="px-3 py-2 font-medium">Aktiv</th>
               </tr>
             </thead>
             <tbody>
@@ -70,10 +97,36 @@ function StaffListPage() {
                   className={`border-t border-border ${!s.isActive ? "opacity-60" : ""}`}
                 >
                   <td className="px-3 py-2">
-                    <div className="font-medium text-foreground">{s.displayName}</div>
+                    <Link
+                      to="/admin/staff/$staffId"
+                      params={{ staffId: s.id }}
+                      className="font-medium text-foreground hover:underline"
+                    >
+                      {s.displayName}
+                    </Link>
                     <div className="text-xs text-muted-foreground">{s.email ?? "—"}</div>
                   </td>
-                  <td className="px-3 py-2 text-muted-foreground">{s.role ?? "—"}</td>
+                  <td className="px-3 py-2">
+                    {isAdmin ? (
+                      <RoleCell staffId={s.id} role={s.role} />
+                    ) : (
+                      <span className="text-muted-foreground">{s.role ?? "—"}</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2">
+                    {isAdmin ? (
+                      <SkillsCell
+                        staffId={s.id}
+                        currentSkillIds={s.skillIds}
+                        allSkills={skillsQ.data ?? []}
+                      />
+                    ) : (
+                      <span className="text-muted-foreground">
+                        {s.skillIds.length > 0 ? `${s.skillIds.length} Skills` : "—"}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 text-muted-foreground">{s.hasPin ? "gesetzt" : "—"}</td>
                   <td className="px-3 py-2">
                     {s.isActive ? (
                       <span className="text-foreground">aktiv</span>
@@ -81,22 +134,11 @@ function StaffListPage() {
                       <span className="text-muted-foreground">inaktiv</span>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-muted-foreground">{s.hasPin ? "gesetzt" : "—"}</td>
-                  <td className="px-3 py-2 text-muted-foreground">{s.activeBadgeCount}</td>
-                  <td className="px-3 py-2 text-right">
-                    <Link
-                      to="/admin/staff/$staffId"
-                      params={{ staffId: s.id }}
-                      className="text-sm text-primary hover:underline"
-                    >
-                      Bearbeiten
-                    </Link>
-                  </td>
                 </tr>
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td className="px-3 py-6 text-center text-muted-foreground" colSpan={6}>
+                  <td className="px-3 py-6 text-center text-muted-foreground" colSpan={5}>
                     {data && data.length > 0
                       ? 'Keine aktiven Mitarbeiter. Aktiviere „Inaktive anzeigen".'
                       : "Noch keine Mitarbeiter."}
@@ -108,5 +150,147 @@ function StaffListPage() {
         </div>
       )}
     </div>
+  );
+}
+
+function RoleCell({ staffId, role }: { staffId: string; role: AppRole | null }) {
+  const queryClient = useQueryClient();
+  const callSetRole = useServerFn(setStaffRole);
+  const mutation = useMutation({
+    mutationFn: (next: AppRole | null) => callSetRole({ data: { staffId, role: next } }),
+    onSuccess: async () => {
+      toast.success("Rolle gespeichert.");
+      await queryClient.invalidateQueries({ queryKey: ["admin", "staff"] });
+    },
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Fehler."),
+  });
+  return (
+    <select
+      className="rounded-md border border-input bg-background px-2 py-1 text-sm disabled:opacity-50"
+      value={role ?? ""}
+      disabled={mutation.isPending}
+      onChange={(e) => {
+        const v = e.target.value;
+        mutation.mutate(v === "" ? null : (v as AppRole));
+      }}
+      aria-label="Rolle"
+    >
+      {ROLE_OPTIONS.map((o) => (
+        <option key={o.value || "none"} value={o.value}>
+          {o.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+type SkillRow = { id: string; name: string; category: SkillCategory };
+
+function SkillsCell({
+  staffId,
+  currentSkillIds,
+  allSkills,
+}: {
+  staffId: string;
+  currentSkillIds: string[];
+  allSkills: SkillRow[];
+}) {
+  const queryClient = useQueryClient();
+  const callAssign = useServerFn(assignStaffSkills);
+  const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(currentSkillIds));
+
+  // Re-sync when popover opens (in case data changed)
+  function onOpenChange(next: boolean) {
+    if (next) setSelected(new Set(currentSkillIds));
+    setOpen(next);
+  }
+
+  const mutation = useMutation({
+    mutationFn: (ids: string[]) => callAssign({ data: { staffId, skillIds: ids } }),
+    onSuccess: async () => {
+      toast.success("Skills gespeichert.");
+      setOpen(false);
+      await queryClient.invalidateQueries({ queryKey: ["admin", "staff"] });
+    },
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Fehler."),
+  });
+
+  const grouped = useMemo(() => {
+    const m = new Map<SkillCategory, SkillRow[]>();
+    for (const s of allSkills) {
+      const list = m.get(s.category) ?? [];
+      list.push(s);
+      m.set(s.category, list);
+    }
+    return m;
+  }, [allSkills]);
+
+  const count = currentSkillIds.length;
+
+  return (
+    <Popover open={open} onOpenChange={onOpenChange}>
+      <PopoverTrigger className="rounded-md border border-input bg-background px-2 py-1 text-sm hover:bg-muted">
+        {count === 0 ? "Skills zuweisen" : `${count} ${count === 1 ? "Skill" : "Skills"}`}
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-72 space-y-3">
+        {allSkills.length === 0 && (
+          <p className="text-sm text-muted-foreground">Keine Skills angelegt.</p>
+        )}
+        {CATEGORY_ORDER.map((cat) => {
+          const items = grouped.get(cat);
+          if (!items || items.length === 0) return null;
+          return (
+            <div key={cat}>
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {CATEGORY_LABEL[cat]}
+              </p>
+              <div className="space-y-1">
+                {items.map((sk) => {
+                  const checked = selected.has(sk.id);
+                  return (
+                    <label
+                      key={sk.id}
+                      className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 text-sm hover:bg-muted"
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-input"
+                        checked={checked}
+                        onChange={() => {
+                          const next = new Set(selected);
+                          if (checked) next.delete(sk.id);
+                          else next.add(sk.id);
+                          setSelected(next);
+                        }}
+                      />
+                      {sk.name}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+        <div className="flex justify-end gap-2 pt-2">
+          <button
+            type="button"
+            className="rounded-md border border-input px-3 py-1 text-sm hover:bg-muted"
+            onClick={() => setOpen(false)}
+            disabled={mutation.isPending}
+          >
+            Abbrechen
+          </button>
+          <button
+            type="button"
+            className="rounded-md bg-primary px-3 py-1 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            disabled={mutation.isPending || allSkills.length === 0}
+            onClick={() => mutation.mutate(Array.from(selected))}
+          >
+            Speichern
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
