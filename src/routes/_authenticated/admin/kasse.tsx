@@ -57,6 +57,8 @@ import { SettlementWarningsBanner } from "@/components/cash/SettlementWarningsBa
 import { SettlementsCard } from "@/components/cash/SettlementsCard";
 import { SessionFieldsCard } from "@/components/cash/SessionFieldsCard";
 import { TipPoolCard } from "@/components/cash/TipPoolCard";
+import { computeTipTotalCents } from "@/lib/cash/tip-pool";
+import { fmtCents } from "@/lib/format";
 import type jsPDF from "jspdf";
 
 export const Route = createFileRoute("/_authenticated/admin/kasse")({
