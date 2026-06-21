@@ -23,7 +23,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { getMySettlement, submitWaiterSettlement } from "@/lib/cash/cash.functions";
-import { calcWaiterSettlement } from "@/lib/cash/waiter-settlement";
+import { calcWaiterSettlement, waiterNetTipCents } from "@/lib/cash/waiter-settlement";
 import { SecondWaiterSelect } from "@/components/cash/SecondWaiterSelect";
 import { parseEuroToCents as parseEuroToCentsBase } from "@/lib/format";
 
@@ -179,7 +179,7 @@ function AbrechnungPage() {
     const locked = settlement.status === "locked" || session.status === "locked";
     const diff = Number(settlement.differenz_cents);
     const pos = Number(settlement.pos_sales_cents);
-    const tipNetCents = Math.max(0, diff);
+    const tipNetCents = waiterNetTipCents(diff, Number(settlement.kitchen_tip_cents));
     const tipPct = pos > 0 ? (tipNetCents / pos) * 100 : null;
     const sessionLocked = session.status === "locked";
     return (

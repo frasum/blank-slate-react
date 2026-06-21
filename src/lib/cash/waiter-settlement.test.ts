@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calcWaiterSettlement } from "./waiter-settlement";
+import { calcWaiterSettlement, waiterNetTipCents } from "./waiter-settlement";
 
 describe("calcWaiterSettlement", () => {
   it("Standardfall: differenz = pos+hilf−open−card, kitchen_tip = round(pos*rate)", () => {
@@ -83,5 +83,17 @@ describe("calcWaiterSettlement", () => {
         kitchenTipRate: 1.5,
       }),
     ).toThrow(/kitchenTipRate/);
+  });
+});
+
+describe("waiterNetTipCents", () => {
+  it("zieht Küchenanteil ab", () => {
+    // differenz = 3500, kitchen_tip = 200 → netto = 3300
+    expect(waiterNetTipCents(3500, 200)).toBe(3300);
+  });
+
+  it("klippt negatives Ergebnis auf 0", () => {
+    expect(waiterNetTipCents(100, 500)).toBe(0);
+    expect(waiterNetTipCents(-200, 50)).toBe(0);
   });
 });
