@@ -3,8 +3,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { listStaff, setStaffRole } from "@/lib/admin/staff.functions";
+import { listStaff, setStaffRole, setStaffLocationDepartment } from "@/lib/admin/staff.functions";
 import { assignStaffSkills, listSkills, type SkillCategory } from "@/lib/admin/skills.functions";
+import { listLocations } from "@/lib/admin/locations.functions";
+import {
+  distinctDepartments,
+  ineligibleSkills,
+  isSkillCategoryEligible,
+  type StaffDepartment,
+} from "@/lib/admin/skill-eligibility";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { AppRole } from "@/lib/admin/role-guard";
 
@@ -29,6 +36,18 @@ const CATEGORY_LABEL: Record<SkillCategory, string> = {
 };
 const CATEGORY_ORDER: SkillCategory[] = ["kitchen", "service", "gl", "other"];
 
+const DEPARTMENT_ORDER: StaffDepartment[] = ["service", "kitchen", "gl"];
+const DEPARTMENT_SHORT: Record<StaffDepartment, string> = {
+  service: "S",
+  kitchen: "K",
+  gl: "GL",
+};
+const DEPARTMENT_LABEL: Record<StaffDepartment, string> = {
+  service: "Service",
+  kitchen: "Küche",
+  gl: "Geschäftsleitung",
+};
+
 function StaffListPage() {
   const { identity } = useRouteContext({ from: "/_authenticated/admin" });
   const isAdmin = identity.role === "admin";
@@ -41,6 +60,16 @@ function StaffListPage() {
     queryFn: () => listSkills(),
     enabled: isAdmin,
   });
+  const locationsQ = useQuery({
+    queryKey: ["admin", "locations"],
+    queryFn: () => listLocations(),
+    enabled: isAdmin,
+  });
+  const locationNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const l of locationsQ.data ?? []) m.set(l.id, l.name);
+    return m;
+  }, [locationsQ.data]);
   const [showInactive, setShowInactive] = useState(false);
 
   const filtered = useMemo(() => {
@@ -85,6 +114,7 @@ function StaffListPage() {
               <tr>
                 <th className="px-3 py-2 font-medium">Name</th>
                 <th className="px-3 py-2 font-medium">Rolle</th>
+                <th className="px-3 py-2 font-medium">Abteilungen</th>
                 <th className="px-3 py-2 font-medium">Skills</th>
                 <th className="px-3 py-2 font-medium">PIN</th>
                 <th className="px-3 py-2 font-medium">Aktiv</th>
@@ -115,10 +145,30 @@ function StaffListPage() {
                   </td>
                   <td className="px-3 py-2">
                     {isAdmin ? (
+                      <DepartmentsCell
+                        staffId={s.id}
+                        locationIds={s.locationIds}
+                        locationDepartments={s.locationDepartments}
+                        heldSkills={s.skillIds
+                          .map((id) => (skillsQ.data ?? []).find((sk) => sk.id === id))
+                          .filter((sk): sk is { id: string; name: string; category: SkillCategory } => !!sk)}
+                        locationNameById={locationNameById}
+                      />
+                    ) : (
+                      <span className="text-muted-foreground">
+                        {s.departments.length > 0
+                          ? s.departments.map((d) => DEPARTMENT_SHORT[d]).join(" · ")
+                          : "—"}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2">
+                    {isAdmin ? (
                       <SkillsCell
                         staffId={s.id}
                         currentSkillIds={s.skillIds}
                         allSkills={skillsQ.data ?? []}
+                        departments={s.departments}
                       />
                     ) : (
                       <span className="text-muted-foreground">
@@ -138,7 +188,7 @@ function StaffListPage() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td className="px-3 py-6 text-center text-muted-foreground" colSpan={5}>
+                  <td className="px-3 py-6 text-center text-muted-foreground" colSpan={6}>
                     {data && data.length > 0
                       ? 'Keine aktiven Mitarbeiter. Aktiviere „Inaktive anzeigen".'
                       : "Noch keine Mitarbeiter."}
