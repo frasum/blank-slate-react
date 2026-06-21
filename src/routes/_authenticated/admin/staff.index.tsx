@@ -243,10 +243,12 @@ function SkillsCell({
   staffId,
   currentSkillIds,
   allSkills,
+  departments,
 }: {
   staffId: string;
   currentSkillIds: string[];
   allSkills: SkillRow[];
+  departments: StaffDepartment[];
 }) {
   const queryClient = useQueryClient();
   const callAssign = useServerFn(assignStaffSkills);
@@ -301,15 +303,32 @@ function SkillsCell({
               <div className="space-y-1">
                 {items.map((sk) => {
                   const checked = selected.has(sk.id);
+                  const eligible = isSkillCategoryEligible(sk.category, departments);
+                  const held = currentSkillIds.includes(sk.id);
+                  const blocked = !eligible && !held;
+                  const stale = !eligible && held;
+                  const tooltip = blocked
+                    ? `Erst Abteilung „${CATEGORY_LABEL[sk.category]}“ zuweisen`
+                    : stale
+                      ? `Blockiert — Abteilung „${CATEGORY_LABEL[sk.category]}“ fehlt`
+                      : undefined;
                   return (
                     <label
                       key={sk.id}
-                      className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 text-sm hover:bg-muted"
+                      className={`flex items-center gap-2 rounded px-1 py-0.5 text-sm ${
+                        blocked
+                          ? "cursor-not-allowed text-muted-foreground/60"
+                          : stale
+                            ? "cursor-pointer text-amber-700 hover:bg-muted dark:text-amber-400"
+                            : "cursor-pointer hover:bg-muted"
+                      }`}
+                      title={tooltip}
                     >
                       <input
                         type="checkbox"
                         className="h-4 w-4 rounded border-input"
                         checked={checked}
+                        disabled={blocked}
                         onChange={() => {
                           const next = new Set(selected);
                           if (checked) next.delete(sk.id);
@@ -318,6 +337,9 @@ function SkillsCell({
                         }}
                       />
                       {sk.name}
+                      {stale && (
+                        <span className="ml-1 text-xs">(blockiert)</span>
+                      )}
                     </label>
                   );
                 })}
@@ -345,5 +367,135 @@ function SkillsCell({
         </div>
       </PopoverContent>
     </Popover>
+  );
+}
+
+function DepartmentsCell({
+  staffId,
+  locationIds,
+  locationDepartments,
+  heldSkills,
+  locationNameById,
+}: {
+  staffId: string;
+  locationIds: string[];
+  locationDepartments: { locationId: string; department: StaffDepartment }[];
+  heldSkills: { id: string; name: string; category: SkillCategory }[];
+  locationNameById: Map<string, string>;
+}) {
+  const queryClient = useQueryClient();
+  const callSet = useServerFn(setStaffLocationDepartment);
+
+  type Vars = { locationId: string; department: StaffDepartment; enabled: boolean };
+
+  const mutation = useMutation({
+    mutationFn: (v: Vars) =>
+      callSet({
+        data: { staffId, locationId: v.locationId, department: v.department, enabled: v.enabled },
+      }),
+    onMutate: async (v) => {
+      await queryClient.cancelQueries({ queryKey: ["admin", "staff"] });
+      const previous = queryClient.getQueryData(["admin", "staff"]);
+      queryClient.setQueryData<unknown>(["admin", "staff"], (old) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((row: { id: string; locationDepartments: { locationId: string; department: StaffDepartment }[]; departments: StaffDepartment[] }) => {
+          if (row.id !== staffId) return row;
+          const has = row.locationDepartments.some(
+            (r) => r.locationId === v.locationId && r.department === v.department,
+          );
+          const nextLD = v.enabled
+            ? has
+              ? row.locationDepartments
+              : [...row.locationDepartments, { locationId: v.locationId, department: v.department }]
+            : row.locationDepartments.filter(
+                (r) => !(r.locationId === v.locationId && r.department === v.department),
+              );
+          return {
+            ...row,
+            locationDepartments: nextLD,
+            departments: distinctDepartments(nextLD),
+          };
+        });
+      });
+      return { previous };
+    },
+    onError: (err: unknown, _v, ctx) => {
+      if (ctx?.previous !== undefined) {
+        queryClient.setQueryData(["admin", "staff"], ctx.previous);
+      }
+      toast.error(err instanceof Error ? err.message : "Fehler.");
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "staff"] });
+    },
+  });
+
+  if (locationIds.length === 0) {
+    return <span className="text-xs text-muted-foreground">Kein Standort</span>;
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      {locationIds.map((lid) => {
+        const label = locationNameById.get(lid) ?? "Standort";
+        return (
+          <div key={lid} className="flex items-center gap-2">
+            <span className="min-w-20 text-xs text-muted-foreground">{label}</span>
+            <div className="flex gap-1">
+              {DEPARTMENT_ORDER.map((dept) => {
+                const active = locationDepartments.some(
+                  (r) => r.locationId === lid && r.department === dept,
+                );
+                // Vorschau: Abteilungen nach Deaktivierung (Regel a Pre-Check).
+                let blockedByCategory: SkillCategory | null = null;
+                if (active) {
+                  const rowsAfter = locationDepartments.filter(
+                    (r) => !(r.locationId === lid && r.department === dept),
+                  );
+                  const deptsAfter = distinctDepartments(rowsAfter);
+                  const blocking = ineligibleSkills(heldSkills, deptsAfter);
+                  if (blocking.length > 0) blockedByCategory = dept;
+                }
+                const disabled = mutation.isPending || blockedByCategory !== null;
+                const tooltip = blockedByCategory
+                  ? `Benötigt von Skill: ${ineligibleSkills(
+                      heldSkills,
+                      distinctDepartments(
+                        locationDepartments.filter(
+                          (r) => !(r.locationId === lid && r.department === dept),
+                        ),
+                      ),
+                    )
+                      .map((s) => s.name)
+                      .join(", ")}`
+                  : DEPARTMENT_LABEL[dept];
+                return (
+                  <button
+                    key={dept}
+                    type="button"
+                    role="switch"
+                    aria-checked={active}
+                    aria-label={`${label} · ${DEPARTMENT_LABEL[dept]}`}
+                    title={tooltip}
+                    disabled={disabled}
+                    onClick={() =>
+                      mutation.mutate({ locationId: lid, department: dept, enabled: !active })
+                    }
+                    className={[
+                      "rounded-full border px-2 py-0.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+                      active
+                        ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                        : "border-border bg-card text-foreground hover:bg-muted",
+                    ].join(" ")}
+                  >
+                    {DEPARTMENT_SHORT[dept]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
