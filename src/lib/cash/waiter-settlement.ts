@@ -51,3 +51,13 @@ export function calcWaiterSettlement(input: WaiterSettlementInput): WaiterSettle
 
   return { differenzCents, kitchenTipCents };
 }
+
+/**
+ * Netto-Trinkgeld des Kellners nach Abzug des Küchenanteils.
+ * `differenzCents` ist brutto (pos + hilf − open − card); `kitchenTipCents`
+ * ist ein separater Posten und MUSS vom Netto abgezogen werden.
+ * Negative Werte werden auf 0 geklippt (kein „negatives Trinkgeld").
+ */
+export function waiterNetTipCents(differenzCents: number, kitchenTipCents: number): number {
+  return Math.max(0, differenzCents - kitchenTipCents);
+}
