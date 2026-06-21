@@ -14,6 +14,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { listLocations } from "@/lib/admin/locations.functions";
+import { LocationPills } from "@/components/shared/LocationPills";
 import { listPeriods } from "@/lib/time/time-admin.functions";
 import {
   createRosterShift,
@@ -515,26 +516,11 @@ function DienstplanPage() {
               onChange={setSkillFilter}
             />
             <div className="grid grid-cols-3 items-end gap-3">
-              <div className="flex flex-wrap items-center gap-2">
-                {locations.map((l) => {
-                  const active = effectiveLocationId === l.id;
-                  return (
-                    <button
-                      key={l.id}
-                      type="button"
-                      onClick={() => setLocationId(l.id)}
-                      className={
-                        "h-9 rounded-md border px-3 text-sm transition-colors " +
-                        (active
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-input bg-background hover:bg-accent hover:text-accent-foreground")
-                      }
-                    >
-                      {l.name}
-                    </button>
-                  );
-                })}
-              </div>
+              <LocationPills
+                locations={locations}
+                value={effectiveLocationId ?? ""}
+                onChange={setLocationId}
+              />
               <div className="flex justify-center">
                 <PeriodNav
                   periods={periods}
