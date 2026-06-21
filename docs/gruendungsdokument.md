@@ -549,3 +549,21 @@ Nachtrag Mitarbeiter-Self-Service + Kasse Soll-Wechselgeld (umgesetzt 17.06.2026
 Mitarbeiter-Self-Service (neuer Modulstrang, aus M1 `/zeit` gewachsen): Hub + „Meine Schichten" (A), Freier-Tag-Wunsch (B), Urlaubsanträge mit Genehmigung (C) umgesetzt; Payslips einsehen (D) offen. Welle C nutzt `leave_requests` + atomare SECURITY-DEFINER-RPC `approve_leave_request` (EXECUTE nur `service_role`); ein genehmigter Antrag expandiert nach `roster_absence`. thaitime-Features Schichttausch/-wünsche bleiben ausgeschlossen (Freier-Tag-Wunsch ist unverbindlich, kein Tausch).
 
 Kasse Soll-Wechselgeld: `locations.cash_balance_target_cents` (`bigint NULL`) mit COALESCE-Fallback auf `organizations.cash_balance_target_cents`; Vier-Zeilen-Bargeldblock in `/admin/kasse`, Berechnung über reines `cash-summary.ts` und geteilten `sessionToDayInput`-Helper.
+
+Nachtrag Aufgaben/Kanban (neuer Modulstrang, umgesetzt 21.06.2026; nicht Teil von M0–M8)
+
+Zweck: betriebliches Aufgaben-/Ticket-Board (Schicht-/Prep-/Putz-Aufgaben und Wartung), bewusst getrennt von Dienstplan (Soll) und Zeiterfassung (Ist). Quelle der Wahrheit: Neubau (kein Alt-App-Klon).
+
+Datenmodell: Tabelle `tasks` mit `organization_id`/`location_id`, `title`, `description`, `category` (`task_category` ∈ service/kitchen/maintenance/manager_admin), `status` (`task_status` ∈ open/in_progress/done/cancelled), `priority` (smallint 0–3), `sort_order` (numeric, LexoRank-light fürs Drag&Drop), `assignee_staff_id`, `created_by_staff_id`, `due_at`, `started_at`, `completed_at`, `archived_at`. Archivieren statt Löschen.
+
+Berechtigungen: `app_permission` um `tasks.view/create/assign/change_status/delete` erweitert; `permission_role_defaults`: admin alle fünf, manager view/create/assign/change_status (kein `tasks.delete` → Archivieren admin-only).
+
+RLS & Schreibpfad (Hausmuster, verbindlich für künftige service_role-Module): `tasks` hat **nur SELECT-Policies** (admin/manager + staff), **keine** Client-Schreib-Policy. Alle Schreibvorgänge laufen über **service_role-only** SECURITY-DEFINER-RPCs (`create_task`, `set_task_status`, `reassign_task`, `update_task`, `archive_task`, `claim_task`). Die Aufrufer-Identität wird **nicht** über `auth.uid()` in der RPC abgeleitet (unter service_role NULL!), sondern im Server-Fn via `loadAdminCaller` aus der Session aufgelöst und als Parameter (`p_caller_staff_id`, `p_organization_id`) übergeben; die Rolle ermittelt die RPC autoritativ aus `role_assignments`. Gleiches Muster wie skills/easyorder — Referenz für alle service_role-RPCs.
+
+Volle Transparenz (bewusst entschieden): Staff sehen alle nicht-archivierten Tasks ihrer Standorte inkl. `manager_admin`; `manager_admin` bleibt aber manager-only beim Anlegen.
+
+Self-Service: `claim_task` weist eine offene, unassignete Task am eigenen Standort dem Aufrufer zu. Realtime: `tasks` in `supabase_realtime` (REPLICA IDENTITY FULL). UI: Manager-Board `/admin/aufgaben`, Staff-Board `/zeit/aufgaben`, Drag&Drop via @dnd-kit.
+
+Lektion (live gelernt): Die RPCs hatten anfangs `current_staff_id()`/`has_permission()` intern, wurden aber via `supabaseAdmin` (service_role) aufgerufen → `auth.uid()` NULL → „kein aktiver Aufrufer", jeder Schreibvorgang scheiterte. Statisches Review fing das nicht (DB-Integrationstests sind `continue-on-error`); erst der manuelle Smoke-Test. Fix: Migration `…123007` (Caller-Parameter, service_role-only). Konsequenz für künftige service_role-RPCs: Identität immer als Parameter, nie `auth.uid()` in der RPC.
+
+Offen: End-to-End-Smoke-Test-Bestätigung; Assignee-Filter nach Kategorie (muss auch den Standort berücksichtigen, da `create_task` Assignee ∈ `staff_locations` verlangt).
