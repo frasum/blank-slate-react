@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calcWaiterSettlement } from "./waiter-settlement";
+import { calcWaiterSettlement, waiterNetTipCents } from "./waiter-settlement";
 
 describe("calcWaiterSettlement", () => {
   it("Standardfall: differenz = pos+hilf−open−card, kitchen_tip = round(pos*rate)", () => {
