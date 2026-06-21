@@ -3,7 +3,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { listStaff, setStaffRole, setStaffLocationDepartment } from "@/lib/admin/staff.functions";
+import {
+  listStaff,
+  setStaffActive,
+  setStaffRole,
+  setStaffLocationDepartment,
+} from "@/lib/admin/staff.functions";
 import { assignStaffSkills, listSkills, type SkillCategory } from "@/lib/admin/skills.functions";
 import { listLocations } from "@/lib/admin/locations.functions";
 import {
@@ -12,7 +17,21 @@ import {
   isSkillCategoryEligible,
   type StaffDepartment,
 } from "@/lib/admin/skill-eligibility";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Search, UserCheck, UserMinus, Users } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { AppRole } from "@/lib/admin/role-guard";
 
 export const Route = createFileRoute("/_authenticated/admin/staff/")({
@@ -34,7 +53,6 @@ const CATEGORY_LABEL: Record<SkillCategory, string> = {
   gl: "Geschäftsleitung",
   other: "Sonstiges",
 };
-const CATEGORY_ORDER: SkillCategory[] = ["kitchen", "service", "gl", "other"];
 
 const DEPARTMENT_ORDER: StaffDepartment[] = ["service", "kitchen", "gl"];
 const DEPARTMENT_SHORT: Record<StaffDepartment, string> = {
@@ -48,13 +66,18 @@ const DEPARTMENT_LABEL: Record<StaffDepartment, string> = {
   gl: "Geschäftsleitung",
 };
 
+type StaffRow = NonNullable<Awaited<ReturnType<typeof listStaff>>>[number];
+type SkillRow = Awaited<ReturnType<typeof listSkills>>[number];
+type LocationRow = Awaited<ReturnType<typeof listLocations>>[number];
+
+type DeptFilter = "all" | "service" | "kitchen";
+
 function StaffListPage() {
   const { identity } = useRouteContext({ from: "/_authenticated/admin" });
   const isAdmin = identity.role === "admin";
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["admin", "staff"],
-    queryFn: () => listStaff(),
-  });
+  const queryClient = useQueryClient();
+
+  const staffQ = useQuery({ queryKey: ["admin", "staff"], queryFn: () => listStaff() });
   const skillsQ = useQuery({
     queryKey: ["admin", "skills"],
     queryFn: () => listSkills(),
@@ -65,142 +88,492 @@ function StaffListPage() {
     queryFn: () => listLocations(),
     enabled: isAdmin,
   });
-  const locationNameById = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const l of locationsQ.data ?? []) m.set(l.id, l.name);
-    return m;
-  }, [locationsQ.data]);
+
   const [showInactive, setShowInactive] = useState(false);
+  const [search, setSearch] = useState("");
+  const [deptTab, setDeptTab] = useState<DeptFilter>("all");
+
+  const data = useMemo(() => staffQ.data ?? [], [staffQ.data]);
+  const skills = useMemo(() => skillsQ.data ?? [], [skillsQ.data]);
+  const locations = useMemo(() => locationsQ.data ?? [], [locationsQ.data]);
+
+  const activeCount = useMemo(() => data.filter((s) => s.isActive).length, [data]);
+  const inactiveCount = useMemo(() => data.filter((s) => !s.isActive).length, [data]);
+  const serviceCount = useMemo(
+    () => data.filter((s) => s.isActive && s.departments.includes("service")).length,
+    [data],
+  );
+  const kitchenCount = useMemo(
+    () => data.filter((s) => s.isActive && s.departments.includes("kitchen")).length,
+    [data],
+  );
 
   const filtered = useMemo(() => {
-    if (!data) return data;
-    return showInactive ? data : data.filter((s) => s.isActive);
-  }, [data, showInactive]);
-  const inactiveCount = useMemo(() => (data ? data.filter((s) => !s.isActive).length : 0), [data]);
+    const q = search.trim().toLowerCase();
+    return data
+      .filter((s) => showInactive || s.isActive)
+      .filter((s) => {
+        if (deptTab === "all") return true;
+        return s.departments.includes(deptTab);
+      })
+      .filter((s) => {
+        if (!q) return true;
+        const name = s.displayName?.toLowerCase() ?? "";
+        const email = s.email?.toLowerCase() ?? "";
+        return name.includes(q) || email.includes(q);
+      })
+      .slice()
+      .sort((a, b) => a.displayName.localeCompare(b.displayName));
+  }, [data, showInactive, deptTab, search]);
+
+  // --- Server-Function calls (Logik unverändert) ---
+  const callSetDept = useServerFn(setStaffLocationDepartment);
+  const callAssignSkills = useServerFn(assignStaffSkills);
+  const callSetActive = useServerFn(setStaffActive);
+
+  const deptMutation = useMutation({
+    mutationFn: (v: {
+      staffId: string;
+      locationId: string;
+      department: StaffDepartment;
+      enabled: boolean;
+    }) =>
+      callSetDept({
+        data: {
+          staffId: v.staffId,
+          locationId: v.locationId,
+          department: v.department,
+          enabled: v.enabled,
+        },
+      }),
+    onMutate: async (v) => {
+      await queryClient.cancelQueries({ queryKey: ["admin", "staff"] });
+      const previous = queryClient.getQueryData(["admin", "staff"]);
+      queryClient.setQueryData<unknown>(["admin", "staff"], (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return (old as StaffRow[]).map((row) => {
+          if (row.id !== v.staffId) return row;
+          const has = row.locationDepartments.some(
+            (r) => r.locationId === v.locationId && r.department === v.department,
+          );
+          const nextLD = v.enabled
+            ? has
+              ? row.locationDepartments
+              : [...row.locationDepartments, { locationId: v.locationId, department: v.department }]
+            : row.locationDepartments.filter(
+                (r) => !(r.locationId === v.locationId && r.department === v.department),
+              );
+          return {
+            ...row,
+            locationDepartments: nextLD,
+            departments: distinctDepartments(nextLD),
+          };
+        });
+      });
+      return { previous };
+    },
+    onError: (err: unknown, _v, ctx) => {
+      if (ctx?.previous !== undefined) {
+        queryClient.setQueryData(["admin", "staff"], ctx.previous);
+      }
+      toast.error(err instanceof Error ? err.message : "Fehler.");
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "staff"] });
+    },
+  });
+
+  const skillMutation = useMutation({
+    mutationFn: (v: { staffId: string; skillIds: string[] }) =>
+      callAssignSkills({ data: { staffId: v.staffId, skillIds: v.skillIds } }),
+    onMutate: async (v) => {
+      await queryClient.cancelQueries({ queryKey: ["admin", "staff"] });
+      const previous = queryClient.getQueryData(["admin", "staff"]);
+      queryClient.setQueryData<unknown>(["admin", "staff"], (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return (old as StaffRow[]).map((row) =>
+          row.id === v.staffId ? { ...row, skillIds: v.skillIds } : row,
+        );
+      });
+      return { previous };
+    },
+    onError: (err: unknown, _v, ctx) => {
+      if (ctx?.previous !== undefined) {
+        queryClient.setQueryData(["admin", "staff"], ctx.previous);
+      }
+      toast.error(err instanceof Error ? err.message : "Fehler.");
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "staff"] });
+    },
+  });
+
+  const activeMutation = useMutation({
+    mutationFn: (v: { staffId: string; isActive: boolean }) =>
+      callSetActive({ data: { staffId: v.staffId, isActive: v.isActive } }),
+    onSuccess: async (_r, v) => {
+      toast.success(v.isActive ? "Mitarbeiter aktiviert." : "Mitarbeiter deaktiviert.");
+      await queryClient.invalidateQueries({ queryKey: ["admin", "staff"] });
+    },
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Fehler."),
+  });
+
+  function toggleDept(
+    staffId: string,
+    locationId: string,
+    department: StaffDepartment,
+    active: boolean,
+  ) {
+    deptMutation.mutate({ staffId, locationId, department, enabled: !active });
+  }
+
+  function toggleSkill(staffId: string, skillId: string, has: boolean, currentIds: string[]) {
+    const next = has ? currentIds.filter((id) => id !== skillId) : [...currentIds, skillId];
+    skillMutation.mutate({ staffId, skillIds: next });
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Mitarbeiter</h1>
-        <div className="flex items-center gap-3">
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
-            <input
-              type="checkbox"
-              className="h-4 w-4 rounded border-input"
-              checked={showInactive}
-              onChange={(e) => setShowInactive(e.target.checked)}
+    <TooltipProvider delayDuration={150}>
+      <div className="space-y-6">
+        {/* Hero */}
+        <div className="relative overflow-hidden rounded-2xl border border-primary/10 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-6 sm:p-8">
+          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 className="flex items-center gap-3 text-2xl font-bold lg:text-3xl">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15">
+                  <Users className="h-5 w-5 text-primary" />
+                </div>
+                Mitarbeiterverwaltung
+              </h1>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {activeCount} Mitarbeiter · {serviceCount} Service · {kitchenCount} Küche
+                {inactiveCount > 0 && (
+                  <span className="text-muted-foreground/60"> · {inactiveCount} inaktiv</span>
+                )}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Link
+                to="/admin/staff/new"
+                className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              >
+                Neuer Mitarbeiter
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Filter row */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative w-full sm:max-w-xs">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Suchen…"
+              className="pl-8"
+              aria-label="Mitarbeiter suchen"
             />
-            Inaktive anzeigen
-            {inactiveCount > 0 && (
-              <span className="text-xs text-muted-foreground">({inactiveCount})</span>
-            )}
-          </label>
-          <Link
-            to="/admin/staff/new"
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            Neuer Mitarbeiter
-          </Link>
-        </div>
-      </div>
-
-      {isLoading && <p className="text-sm text-muted-foreground">Lade…</p>}
-      {error && <p className="text-sm text-destructive">Fehler beim Laden.</p>}
-
-      {filtered && (
-        <div className="overflow-hidden rounded-md border border-border">
-          <table className="w-full text-sm">
-            <thead className="bg-muted text-left text-muted-foreground">
-              <tr>
-                <th className="px-3 py-2 font-medium">Name</th>
-                <th className="px-3 py-2 font-medium">Rolle</th>
-                <th className="px-3 py-2 font-medium">Abteilungen</th>
-                <th className="px-3 py-2 font-medium">Skills</th>
-                <th className="px-3 py-2 font-medium">PIN</th>
-                <th className="px-3 py-2 font-medium">Aktiv</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((s) => (
-                <tr
-                  key={s.id}
-                  className={`border-t border-border ${!s.isActive ? "opacity-60" : ""}`}
-                >
-                  <td className="px-3 py-2">
-                    <Link
-                      to="/admin/staff/$staffId"
-                      params={{ staffId: s.id }}
-                      className="font-medium text-foreground hover:underline"
-                    >
-                      {s.displayName}
-                    </Link>
-                    <div className="text-xs text-muted-foreground">{s.email ?? "—"}</div>
-                  </td>
-                  <td className="px-3 py-2">
-                    {isAdmin ? (
-                      <RoleCell staffId={s.id} role={s.role} />
-                    ) : (
-                      <span className="text-muted-foreground">{s.role ?? "—"}</span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2">
-                    {isAdmin ? (
-                      <DepartmentsCell
-                        staffId={s.id}
-                        locationIds={s.locationIds}
-                        locationDepartments={s.locationDepartments}
-                        heldSkills={s.skillIds
-                          .map((id) => (skillsQ.data ?? []).find((sk) => sk.id === id))
-                          .filter((sk): sk is NonNullable<typeof sk> => sk !== undefined)
-                          .map((sk) => ({ id: sk.id, name: sk.name, category: sk.category }))}
-                        locationNameById={locationNameById}
-                      />
-                    ) : (
-                      <span className="text-muted-foreground">
-                        {s.departments.length > 0
-                          ? s.departments.map((d) => DEPARTMENT_SHORT[d]).join(" · ")
-                          : "—"}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2">
-                    {isAdmin ? (
-                      <SkillsCell
-                        staffId={s.id}
-                        currentSkillIds={s.skillIds}
-                        allSkills={skillsQ.data ?? []}
-                        departments={s.departments}
-                      />
-                    ) : (
-                      <span className="text-muted-foreground">
-                        {s.skillIds.length > 0 ? `${s.skillIds.length} Skills` : "—"}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 text-muted-foreground">{s.hasPin ? "gesetzt" : "—"}</td>
-                  <td className="px-3 py-2">
-                    {s.isActive ? (
-                      <span className="text-foreground">aktiv</span>
-                    ) : (
-                      <span className="text-muted-foreground">inaktiv</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr>
-                  <td className="px-3 py-6 text-center text-muted-foreground" colSpan={6}>
-                    {data && data.length > 0
-                      ? 'Keine aktiven Mitarbeiter. Aktiviere „Inaktive anzeigen".'
-                      : "Noch keine Mitarbeiter."}
-                  </td>
-                </tr>
+          </div>
+          <div className="flex items-center gap-3">
+            <Tabs value={deptTab} onValueChange={(v) => setDeptTab(v as DeptFilter)}>
+              <TabsList>
+                <TabsTrigger value="all">Alle ({activeCount})</TabsTrigger>
+                <TabsTrigger value="service">Service ({serviceCount})</TabsTrigger>
+                <TabsTrigger value="kitchen">Küche ({kitchenCount})</TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-input"
+                checked={showInactive}
+                onChange={(e) => setShowInactive(e.target.checked)}
+              />
+              Inaktive
+              {inactiveCount > 0 && (
+                <span className="text-xs text-muted-foreground">({inactiveCount})</span>
               )}
-            </tbody>
-          </table>
+            </label>
+          </div>
         </div>
-      )}
-    </div>
+
+        {staffQ.isLoading && <p className="text-sm text-muted-foreground">Lade…</p>}
+        {staffQ.error && <p className="text-sm text-destructive">Fehler beim Laden.</p>}
+
+        {/* Matrix */}
+        {!staffQ.isLoading && !staffQ.error && (
+          <Card className="overflow-hidden">
+            <div className="relative overflow-x-auto">
+              <Table>
+                <TableHeader className="sticky top-0 z-10 bg-muted">
+                  <TableRow>
+                    <TableHead className="sticky left-0 z-20 min-w-[180px] bg-muted">
+                      Name
+                    </TableHead>
+                    <TableHead className="min-w-[120px]">Berechtigung</TableHead>
+                    {locations.map((loc) => (
+                      <TableHead key={loc.id} className="min-w-[120px] text-center">
+                        <div className="font-medium text-foreground">{loc.name}</div>
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                          Abteilung
+                        </div>
+                      </TableHead>
+                    ))}
+                    <TableHead className="min-w-[260px]">Skills</TableHead>
+                    <TableHead className="min-w-[70px] text-center">PIN</TableHead>
+                    <TableHead className="min-w-[80px] text-right">Aktionen</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((s) => (
+                    <StaffMatrixRow
+                      key={s.id}
+                      staff={s}
+                      locations={locations}
+                      skills={skills}
+                      isAdmin={isAdmin}
+                      deptPending={deptMutation.isPending}
+                      skillPending={skillMutation.isPending}
+                      activePending={activeMutation.isPending}
+                      onToggleDept={toggleDept}
+                      onToggleSkill={toggleSkill}
+                      onToggleActive={(staffId, isActive) =>
+                        activeMutation.mutate({ staffId, isActive })
+                      }
+                    />
+                  ))}
+                  {filtered.length === 0 && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={4 + locations.length}
+                        className="py-8 text-center text-muted-foreground"
+                      >
+                        {data.length > 0 ? "Keine Treffer." : "Noch keine Mitarbeiter."}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </Card>
+        )}
+      </div>
+    </TooltipProvider>
+  );
+}
+
+function StaffMatrixRow({
+  staff,
+  locations,
+  skills,
+  isAdmin,
+  deptPending,
+  skillPending,
+  activePending,
+  onToggleDept,
+  onToggleSkill,
+  onToggleActive,
+}: {
+  staff: StaffRow;
+  locations: LocationRow[];
+  skills: SkillRow[];
+  isAdmin: boolean;
+  deptPending: boolean;
+  skillPending: boolean;
+  activePending: boolean;
+  onToggleDept: (
+    staffId: string,
+    locationId: string,
+    department: StaffDepartment,
+    active: boolean,
+  ) => void;
+  onToggleSkill: (staffId: string, skillId: string, has: boolean, currentIds: string[]) => void;
+  onToggleActive: (staffId: string, isActive: boolean) => void;
+}) {
+  const heldSkills = useMemo(
+    () =>
+      staff.skillIds
+        .map((id) => skills.find((sk) => sk.id === id))
+        .filter((sk): sk is SkillRow => sk !== undefined)
+        .map((sk) => ({ id: sk.id, name: sk.name, category: sk.category })),
+    [staff.skillIds, skills],
+  );
+
+  return (
+    <TableRow className={cn("group", !staff.isActive && "opacity-50")}>
+      {/* Name (sticky) */}
+      <TableCell className="sticky left-0 z-10 bg-background group-hover:bg-muted/50">
+        <Link
+          to="/admin/staff/$staffId"
+          params={{ staffId: staff.id }}
+          className="font-medium text-foreground hover:underline"
+        >
+          {staff.displayName}
+        </Link>
+        <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+          <span className="truncate">{staff.email ?? "—"}</span>
+          {!staff.isActive && (
+            <Badge variant="outline" className="text-[10px]">
+              Inaktiv
+            </Badge>
+          )}
+        </div>
+      </TableCell>
+
+      {/* Berechtigung */}
+      <TableCell>
+        {isAdmin ? (
+          <RoleCell staffId={staff.id} role={staff.role} />
+        ) : (
+          <span className="text-muted-foreground">{staff.role ?? "—"}</span>
+        )}
+      </TableCell>
+
+      {/* Eine Spalte pro Standort */}
+      {locations.map((loc) => (
+        <TableCell key={loc.id} className="py-2 text-center">
+          <div className="flex items-center justify-center gap-1">
+            {DEPARTMENT_ORDER.map((dept) => {
+              const active = staff.locationDepartments.some(
+                (ld) => ld.locationId === loc.id && ld.department === dept,
+              );
+              const rowsAfter = staff.locationDepartments.filter(
+                (ld) => !(ld.locationId === loc.id && ld.department === dept),
+              );
+              const blocking = active
+                ? ineligibleSkills(heldSkills, distinctDepartments(rowsAfter))
+                : [];
+              const disabled = !isAdmin || deptPending || (active && blocking.length > 0);
+              const tooltip =
+                active && blocking.length > 0
+                  ? `Benötigt von Skill: ${blocking.map((b) => b.name).join(", ")}`
+                  : active
+                    ? `${DEPARTMENT_LABEL[dept]} entfernen`
+                    : `${DEPARTMENT_LABEL[dept]} zuweisen`;
+              return (
+                <Tooltip key={dept}>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={active}
+                      aria-label={`${loc.name} · ${DEPARTMENT_LABEL[dept]}`}
+                      disabled={disabled}
+                      onClick={() => onToggleDept(staff.id, loc.id, dept, active)}
+                      className={cn(
+                        "inline-flex h-7 min-w-[28px] items-center justify-center rounded-md border px-1.5 text-[11px] font-bold transition-all",
+                        active
+                          ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                          : "border-border bg-transparent text-muted-foreground hover:border-primary/50 hover:text-foreground",
+                        disabled && "cursor-not-allowed opacity-40",
+                      )}
+                    >
+                      {DEPARTMENT_SHORT[dept]}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="text-xs">{tooltip}</p>
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })}
+          </div>
+        </TableCell>
+      ))}
+
+      {/* Skill-Chips */}
+      <TableCell>
+        {isAdmin ? (
+          <div className="flex flex-wrap gap-1">
+            {skills.length === 0 && (
+              <span className="text-xs text-muted-foreground">Keine Skills angelegt.</span>
+            )}
+            {skills.map((skill) => {
+              const has = staff.skillIds.includes(skill.id);
+              const eligible = isSkillCategoryEligible(skill.category, staff.departments);
+              const disabled = !isAdmin || skillPending || (!eligible && !has);
+              const tooltip =
+                !eligible && !has
+                  ? `Erst Abteilung „${CATEGORY_LABEL[skill.category]}“ zuweisen`
+                  : has
+                    ? `${skill.name} entfernen`
+                    : `${skill.name} zuweisen`;
+              const color = skill.color ?? undefined;
+              return (
+                <Tooltip key={skill.id}>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => onToggleSkill(staff.id, skill.id, has, staff.skillIds)}
+                      className={cn(
+                        "inline-flex min-w-[36px] items-center justify-center rounded-md border-2 px-2.5 py-1 text-xs font-bold transition-all",
+                        !eligible && !has && "cursor-not-allowed opacity-25",
+                        eligible && !disabled && "cursor-pointer hover:scale-105",
+                        !eligible && has && "opacity-70",
+                      )}
+                      style={
+                        color
+                          ? has
+                            ? { backgroundColor: color, borderColor: color, color: "#fff" }
+                            : { borderColor: color, color }
+                          : undefined
+                      }
+                    >
+                      {skill.name}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="text-xs">{tooltip}</p>
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })}
+          </div>
+        ) : (
+          <span className="text-muted-foreground">
+            {staff.skillIds.length > 0 ? `${staff.skillIds.length} Skills` : "—"}
+          </span>
+        )}
+      </TableCell>
+
+      {/* PIN */}
+      <TableCell className="text-center text-muted-foreground">
+        {staff.hasPin ? "gesetzt" : "—"}
+      </TableCell>
+
+      {/* Aktionen */}
+      <TableCell className="text-right">
+        {isAdmin ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                disabled={activePending}
+                onClick={() => onToggleActive(staff.id, !staff.isActive)}
+                className={cn(
+                  "inline-flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50",
+                  "opacity-0 group-hover:opacity-100",
+                )}
+                aria-label={staff.isActive ? "Deaktivieren" : "Reaktivieren"}
+              >
+                {staff.isActive ? (
+                  <UserMinus className="h-4 w-4" />
+                ) : (
+                  <UserCheck className="h-4 w-4" />
+                )}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="text-xs">
+                {staff.isActive ? "Mitarbeiter deaktivieren" : "Mitarbeiter reaktivieren"}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        ) : null}
+      </TableCell>
+    </TableRow>
   );
 }
 
@@ -232,275 +605,5 @@ function RoleCell({ staffId, role }: { staffId: string; role: AppRole | null }) 
         </option>
       ))}
     </select>
-  );
-}
-
-type SkillRow = { id: string; name: string; category: SkillCategory };
-
-function SkillsCell({
-  staffId,
-  currentSkillIds,
-  allSkills,
-  departments,
-}: {
-  staffId: string;
-  currentSkillIds: string[];
-  allSkills: SkillRow[];
-  departments: StaffDepartment[];
-}) {
-  const queryClient = useQueryClient();
-  const callAssign = useServerFn(assignStaffSkills);
-  const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState<Set<string>>(() => new Set(currentSkillIds));
-
-  // Re-sync when popover opens (in case data changed)
-  function onOpenChange(next: boolean) {
-    if (next) setSelected(new Set(currentSkillIds));
-    setOpen(next);
-  }
-
-  const mutation = useMutation({
-    mutationFn: (ids: string[]) => callAssign({ data: { staffId, skillIds: ids } }),
-    onSuccess: async () => {
-      toast.success("Skills gespeichert.");
-      setOpen(false);
-      await queryClient.invalidateQueries({ queryKey: ["admin", "staff"] });
-    },
-    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Fehler."),
-  });
-
-  const grouped = useMemo(() => {
-    const m = new Map<SkillCategory, SkillRow[]>();
-    for (const s of allSkills) {
-      const list = m.get(s.category) ?? [];
-      list.push(s);
-      m.set(s.category, list);
-    }
-    return m;
-  }, [allSkills]);
-
-  const count = currentSkillIds.length;
-
-  return (
-    <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverTrigger className="rounded-md border border-input bg-background px-2 py-1 text-sm hover:bg-muted">
-        {count === 0 ? "Skills zuweisen" : `${count} ${count === 1 ? "Skill" : "Skills"}`}
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-72 space-y-3">
-        {allSkills.length === 0 && (
-          <p className="text-sm text-muted-foreground">Keine Skills angelegt.</p>
-        )}
-        {CATEGORY_ORDER.map((cat) => {
-          const items = grouped.get(cat);
-          if (!items || items.length === 0) return null;
-          return (
-            <div key={cat}>
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {CATEGORY_LABEL[cat]}
-              </p>
-              <div className="space-y-1">
-                {items.map((sk) => {
-                  const checked = selected.has(sk.id);
-                  const eligible = isSkillCategoryEligible(sk.category, departments);
-                  const held = currentSkillIds.includes(sk.id);
-                  const blocked = !eligible && !held;
-                  const stale = !eligible && held;
-                  const tooltip = blocked
-                    ? `Erst Abteilung „${CATEGORY_LABEL[sk.category]}“ zuweisen`
-                    : stale
-                      ? `Blockiert — Abteilung „${CATEGORY_LABEL[sk.category]}“ fehlt`
-                      : undefined;
-                  return (
-                    <label
-                      key={sk.id}
-                      className={`flex items-center gap-2 rounded px-1 py-0.5 text-sm ${
-                        blocked
-                          ? "cursor-not-allowed text-muted-foreground/60"
-                          : stale
-                            ? "cursor-pointer text-amber-700 hover:bg-muted dark:text-amber-400"
-                            : "cursor-pointer hover:bg-muted"
-                      }`}
-                      title={tooltip}
-                    >
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-input"
-                        checked={checked}
-                        disabled={blocked}
-                        onChange={() => {
-                          const next = new Set(selected);
-                          if (checked) next.delete(sk.id);
-                          else next.add(sk.id);
-                          setSelected(next);
-                        }}
-                      />
-                      {sk.name}
-                      {stale && <span className="ml-1 text-xs">(blockiert)</span>}
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-        <div className="flex justify-end gap-2 pt-2">
-          <button
-            type="button"
-            className="rounded-md border border-input px-3 py-1 text-sm hover:bg-muted"
-            onClick={() => setOpen(false)}
-            disabled={mutation.isPending}
-          >
-            Abbrechen
-          </button>
-          <button
-            type="button"
-            className="rounded-md bg-primary px-3 py-1 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-            disabled={mutation.isPending || allSkills.length === 0}
-            onClick={() => mutation.mutate(Array.from(selected))}
-          >
-            Speichern
-          </button>
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-function DepartmentsCell({
-  staffId,
-  locationIds,
-  locationDepartments,
-  heldSkills,
-  locationNameById,
-}: {
-  staffId: string;
-  locationIds: string[];
-  locationDepartments: { locationId: string; department: StaffDepartment }[];
-  heldSkills: { id: string; name: string; category: SkillCategory }[];
-  locationNameById: Map<string, string>;
-}) {
-  const queryClient = useQueryClient();
-  const callSet = useServerFn(setStaffLocationDepartment);
-
-  type Vars = { locationId: string; department: StaffDepartment; enabled: boolean };
-
-  const mutation = useMutation({
-    mutationFn: (v: Vars) =>
-      callSet({
-        data: { staffId, locationId: v.locationId, department: v.department, enabled: v.enabled },
-      }),
-    onMutate: async (v) => {
-      await queryClient.cancelQueries({ queryKey: ["admin", "staff"] });
-      const previous = queryClient.getQueryData(["admin", "staff"]);
-      queryClient.setQueryData<unknown>(["admin", "staff"], (old: unknown) => {
-        if (!Array.isArray(old)) return old;
-        return old.map(
-          (row: {
-            id: string;
-            locationDepartments: { locationId: string; department: StaffDepartment }[];
-            departments: StaffDepartment[];
-          }) => {
-            if (row.id !== staffId) return row;
-            const has = row.locationDepartments.some(
-              (r) => r.locationId === v.locationId && r.department === v.department,
-            );
-            const nextLD = v.enabled
-              ? has
-                ? row.locationDepartments
-                : [
-                    ...row.locationDepartments,
-                    { locationId: v.locationId, department: v.department },
-                  ]
-              : row.locationDepartments.filter(
-                  (r) => !(r.locationId === v.locationId && r.department === v.department),
-                );
-            return {
-              ...row,
-              locationDepartments: nextLD,
-              departments: distinctDepartments(nextLD),
-            };
-          },
-        );
-      });
-      return { previous };
-    },
-    onError: (err: unknown, _v, ctx) => {
-      if (ctx?.previous !== undefined) {
-        queryClient.setQueryData(["admin", "staff"], ctx.previous);
-      }
-      toast.error(err instanceof Error ? err.message : "Fehler.");
-    },
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ["admin", "staff"] });
-    },
-  });
-
-  if (locationIds.length === 0) {
-    return <span className="text-xs text-muted-foreground">Kein Standort</span>;
-  }
-
-  return (
-    <div className="flex flex-col gap-1.5">
-      {locationIds.map((lid) => {
-        const label = locationNameById.get(lid) ?? "Standort";
-        return (
-          <div key={lid} className="flex items-center gap-2">
-            <span className="min-w-20 text-xs text-muted-foreground">{label}</span>
-            <div className="flex gap-1">
-              {DEPARTMENT_ORDER.map((dept) => {
-                const active = locationDepartments.some(
-                  (r) => r.locationId === lid && r.department === dept,
-                );
-                // Vorschau: Abteilungen nach Deaktivierung (Regel a Pre-Check).
-                let blockedByCategory: SkillCategory | null = null;
-                if (active) {
-                  const rowsAfter = locationDepartments.filter(
-                    (r) => !(r.locationId === lid && r.department === dept),
-                  );
-                  const deptsAfter = distinctDepartments(rowsAfter);
-                  const blocking = ineligibleSkills(heldSkills, deptsAfter);
-                  if (blocking.length > 0) blockedByCategory = dept;
-                }
-                const disabled = mutation.isPending || blockedByCategory !== null;
-                const tooltip = blockedByCategory
-                  ? `Benötigt von Skill: ${ineligibleSkills(
-                      heldSkills,
-                      distinctDepartments(
-                        locationDepartments.filter(
-                          (r) => !(r.locationId === lid && r.department === dept),
-                        ),
-                      ),
-                    )
-                      .map((s) => s.name)
-                      .join(", ")}`
-                  : DEPARTMENT_LABEL[dept];
-                return (
-                  <button
-                    key={dept}
-                    type="button"
-                    role="switch"
-                    aria-checked={active}
-                    aria-label={`${label} · ${DEPARTMENT_LABEL[dept]}`}
-                    title={tooltip}
-                    disabled={disabled}
-                    onClick={() =>
-                      mutation.mutate({ locationId: lid, department: dept, enabled: !active })
-                    }
-                    className={[
-                      "rounded-full border px-2 py-0.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
-                      active
-                        ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                        : "border-border bg-card text-foreground hover:bg-muted",
-                    ].join(" ")}
-                  >
-                    {DEPARTMENT_SHORT[dept]}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
-    </div>
   );
 }
