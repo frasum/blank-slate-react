@@ -116,10 +116,10 @@ export const setTaskStatus = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, ALLOWED);
+    const caller = await loadAdminCaller(context.supabase, context.userId, ALLOWED_ALL);
     return runGuarded(
       caller.role,
-      "manager",
+      "staff",
       (entry) => audit(caller, entry.action, entry.entityId ?? "", entry.meta ?? {}),
       async () => {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -154,7 +154,7 @@ export const reassignTask = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, ALLOWED);
+    const caller = await loadAdminCaller(context.supabase, context.userId, ALLOWED_MANAGE);
     return runGuarded(
       caller.role,
       "manager",
@@ -194,7 +194,7 @@ export const updateTask = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, ALLOWED);
+    const caller = await loadAdminCaller(context.supabase, context.userId, ALLOWED_MANAGE);
     return runGuarded(
       caller.role,
       "manager",
@@ -231,7 +231,7 @@ export const archiveTask = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     // Archivieren ist Admin-Default; loadAdminCaller akzeptiert manager+ — die
     // eigentliche Permission-Prüfung (`tasks.delete`) übernimmt die RPC.
-    const caller = await loadAdminCaller(context.supabase, context.userId, ALLOWED);
+    const caller = await loadAdminCaller(context.supabase, context.userId, ALLOWED_MANAGE);
     return runGuarded(
       caller.role,
       "manager",
