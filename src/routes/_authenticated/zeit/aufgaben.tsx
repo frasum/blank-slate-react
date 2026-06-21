@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/hooks/use-auth";
 import { KanbanBoard } from "@/components/aufgaben/KanbanBoard";
-import { useMyTaskLocations } from "@/lib/aufgaben/tasks.queries";
+import { useMyTaskLocations, useStaffForLocation } from "@/lib/aufgaben/tasks.queries";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyIdentity } from "@/lib/auth/me.functions";
 
@@ -40,6 +40,7 @@ function ZeitAufgabenPage() {
   const { identity } = useAuth();
   const locsQ = useMyTaskLocations();
   const [locationId, setLocationId] = useState<string>("");
+  const staffQ = useStaffForLocation(locationId || null);
 
   useEffect(() => {
     if (!locationId && locsQ.data && locsQ.data.length > 0) {
@@ -99,7 +100,7 @@ function ZeitAufgabenPage() {
       {locationId ? (
         <KanbanBoard
           locationId={locationId}
-          staff={[]}
+          staff={staffQ.data ?? []}
           canCreate={false}
           canManage={canManage}
           currentStaffId={identity?.staffId ?? null}
