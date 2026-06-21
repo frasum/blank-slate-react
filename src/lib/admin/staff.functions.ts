@@ -131,6 +131,97 @@ export const listStaff = createServerFn({ method: "GET" })
     });
   });
 
+export const setStaffLocationDepartment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        staffId: z.string().uuid(),
+        locationId: z.string().uuid(),
+        department: z.enum(["kitchen", "service", "gl"]),
+        enabled: z.boolean(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
+      await assertStaffInOrg(data.staffId, caller.organizationId);
+      await assertLocationInOrg(data.locationId, caller.organizationId);
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+      if (data.enabled) {
+        const { error } = await supabaseAdmin.from("staff_locations").upsert(
+          {
+            staff_id: data.staffId,
+            organization_id: caller.organizationId,
+            location_id: data.locationId,
+            department: data.department,
+          },
+          { onConflict: "staff_id,location_id,department", ignoreDuplicates: true },
+        );
+        if (error) throw error;
+      } else {
+        // Regel a: Entzug nur, wenn dadurch kein gehaltener Skill seine Grundlage verliert.
+        const { data: locRows, error: locErr } = await supabaseAdmin
+          .from("staff_locations")
+          .select("location_id, department")
+          .eq("staff_id", data.staffId)
+          .eq("organization_id", caller.organizationId);
+        if (locErr) throw locErr;
+        const rowsAfter = (locRows ?? []).filter(
+          (r) => !(r.location_id === data.locationId && r.department === data.department),
+        ) as { location_id: string; department: StaffDepartment }[];
+        const departmentsAfter = distinctDepartments(rowsAfter);
+
+        const { data: skillRows, error: skillErr } = await supabaseAdmin
+          .from("staff_skills")
+          .select("skill_id, skills(name, category)")
+          .eq("staff_id", data.staffId)
+          .eq("organization_id", caller.organizationId);
+        if (skillErr) throw skillErr;
+        const held = (skillRows ?? [])
+          .map((r) => {
+            const sk = r.skills as { name: string | null; category: string | null } | null;
+            if (!sk || !sk.category) return null;
+            return { name: sk.name ?? "", category: sk.category as SkillCategory };
+          })
+          .filter((s): s is { name: string; category: SkillCategory } => s !== null);
+        const blocking = ineligibleSkills(held, departmentsAfter);
+        if (blocking.length > 0) {
+          throw new Error(
+            `Abteilung „${DEPARTMENT_LABEL[data.department]}“ kann nicht entfernt werden — benötigt von: ${blocking
+              .map((s) => s.name)
+              .join(", ")}. Erst diese Skills entfernen.`,
+          );
+        }
+
+        const { error: delErr } = await supabaseAdmin
+          .from("staff_locations")
+          .delete()
+          .eq("staff_id", data.staffId)
+          .eq("organization_id", caller.organizationId)
+          .eq("location_id", data.locationId)
+          .eq("department", data.department);
+        if (delErr) throw delErr;
+      }
+
+      return {
+        result: { ok: true as const },
+        audit: {
+          action: "staff.set_location_department",
+          entity: "staff",
+          entityId: data.staffId,
+          meta: {
+            locationId: data.locationId,
+            department: data.department,
+            enabled: data.enabled,
+          },
+        },
+      };
+    });
+  });
+
 export const getStaff = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({ staffId: z.string().uuid() }).parse(input))
