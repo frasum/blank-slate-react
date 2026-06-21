@@ -485,7 +485,8 @@ function StaffMatrixRow({
                           active
                             ? `${DEPARTMENT_ACTIVE_CLASS[dept]} shadow-sm`
                             : "border-border bg-transparent text-muted-foreground hover:border-primary/50 hover:text-foreground",
-                          disabled && "cursor-not-allowed opacity-40",
+                          disabled && "cursor-not-allowed",
+                          disabled && !active && "opacity-40",
                         )}
                       >
                         {DEPARTMENT_SHORT[dept]}
