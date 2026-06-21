@@ -16,7 +16,15 @@ import { runGuarded } from "@/lib/admin/admin-call";
 import { writeAuditLog } from "@/lib/admin/audit";
 import { TASK_CATEGORIES, TASK_STATUSES, type Task } from "./types";
 
-const ALLOWED: readonly ("admin" | "manager")[] = ["admin", "manager"] as const;
+// Manage = anlegen/bearbeiten/archivieren/zuweisen (Admin/Manager).
+const ALLOWED_MANAGE: readonly ("admin" | "manager")[] = ["admin", "manager"] as const;
+// All = Aktionen, die in Phase 2 auch Staff darf (Status ändern wenn Assignee,
+// Übernehmen einer offenen Aufgabe). Die feingranulare Prüfung liegt in der RPC.
+const ALLOWED_ALL: readonly ("admin" | "manager" | "staff")[] = [
+  "admin",
+  "manager",
+  "staff",
+] as const;
 
 const taskCategoryEnum = z.enum(
   TASK_CATEGORIES as unknown as [string, ...string[]],
@@ -59,7 +67,7 @@ export const createTask = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, ALLOWED);
+    const caller = await loadAdminCaller(context.supabase, context.userId, ALLOWED_MANAGE);
     return runGuarded(
       caller.role,
       "manager",
