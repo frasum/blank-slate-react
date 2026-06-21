@@ -20,10 +20,11 @@ import { TaskCreateDialog } from "./TaskCreateDialog";
 import { TaskDetailDialog } from "./TaskDetailDialog";
 import { Button } from "@/components/ui/button";
 import { CategoryBadge } from "./CategoryBadge";
+import type { StaffOption } from "@/lib/aufgaben/filter-staff-by-category";
 
 type Props = {
   locationId: string;
-  staff: { id: string; name: string }[];
+  staff: StaffOption[];
   canCreate: boolean;
   /**
    * Volle Manager-Rechte: jede Karte ziehen, Detaildialog mit Bearbeiten/Archivieren.
