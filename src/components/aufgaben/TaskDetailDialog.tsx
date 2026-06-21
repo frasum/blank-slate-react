@@ -31,12 +31,13 @@ import {
   useSetTaskStatus,
   useUpdateTask,
 } from "@/lib/aufgaben/tasks.queries";
+import { filterStaffByCategory, type StaffOption } from "@/lib/aufgaben/filter-staff-by-category";
 
 type Props = {
   task: Task | null;
   onOpenChange: (open: boolean) => void;
   locationId: string;
-  staff: { id: string; name: string }[];
+  staff: StaffOption[];
   /** Volle Rechte (admin/manager) — Bearbeiten/Archivieren/Reassign sichtbar. */
   canManage?: boolean;
   /** Effektive Staff-Id (für Status-Aktionen bei Staff: nur eigene Karte). */
@@ -76,6 +77,7 @@ export function TaskDetailDialog({
   if (!task) return null;
   const isOwner = currentStaffId !== null && task.assignee_staff_id === currentStaffId;
   const canChangeStatus = canManage || isOwner;
+  const filteredStaff = filterStaffByCategory(staff, task.category);
 
   async function save() {
     if (!task) return;
@@ -178,13 +180,18 @@ export function TaskDetailDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none">Unzugewiesen</SelectItem>
-                  {staff.map((s) => (
+                  {filteredStaff.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {filteredStaff.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Keine passenden Mitarbeiter für diese Kategorie.
+                </p>
+              ) : null}
             </div>
             <div className="rounded-md border border-border bg-muted/30 p-3">
               <div className="mb-2 text-xs font-medium text-muted-foreground">Status-Aktionen</div>

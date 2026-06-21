@@ -5,6 +5,7 @@ import { listLocations } from "@/lib/admin/locations.functions";
 import { listStaff } from "@/lib/admin/staff.functions";
 import { KanbanBoard } from "@/components/aufgaben/KanbanBoard";
 import { LocationPills } from "@/components/shared/LocationPills";
+import type { StaffOption } from "@/lib/aufgaben/filter-staff-by-category";
 
 export const Route = createFileRoute("/_authenticated/admin/aufgaben")({
   head: () => ({ meta: [{ title: "Aufgaben · Verwaltung" }] }),
@@ -34,7 +35,12 @@ function AufgabenPage() {
     if (!locationId) return [];
     return (staffQ.data ?? [])
       .filter((s) => s.isActive && s.locationIds.includes(locationId))
-      .map((s) => ({ id: s.id, name: s.displayName }));
+      .map<StaffOption>((s) => ({
+        id: s.id,
+        name: s.displayName,
+        role: s.role,
+        skillCategories: s.skillCategories,
+      }));
   }, [staffQ.data, locationId]);
 
   const canCreate = identity.role === "admin" || identity.role === "manager";
