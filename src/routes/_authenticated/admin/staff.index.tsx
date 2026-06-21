@@ -29,12 +29,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Search, UserCheck, UserMinus, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AppRole } from "@/lib/admin/role-guard";
@@ -164,10 +159,7 @@ function StaffListPage() {
           const nextLD = v.enabled
             ? has
               ? row.locationDepartments
-              : [
-                  ...row.locationDepartments,
-                  { locationId: v.locationId, department: v.department },
-                ]
+              : [...row.locationDepartments, { locationId: v.locationId, department: v.department }]
             : row.locationDepartments.filter(
                 (r) => !(r.locationId === v.locationId && r.department === v.department),
               );
@@ -357,9 +349,7 @@ function StaffListPage() {
                         colSpan={4 + locations.length}
                         className="py-8 text-center text-muted-foreground"
                       >
-                        {data.length > 0
-                          ? "Keine Treffer."
-                          : "Noch keine Mitarbeiter."}
+                        {data.length > 0 ? "Keine Treffer." : "Noch keine Mitarbeiter."}
                       </TableCell>
                     </TableRow>
                   )}
