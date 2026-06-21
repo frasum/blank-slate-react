@@ -4,13 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { listLocations } from "@/lib/admin/locations.functions";
 import { listStaff } from "@/lib/admin/staff.functions";
 import { KanbanBoard } from "@/components/aufgaben/KanbanBoard";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { LocationPills } from "@/components/shared/LocationPills";
 
 export const Route = createFileRoute("/_authenticated/admin/aufgaben")({
   head: () => ({ meta: [{ title: "Aufgaben · Verwaltung" }] }),
@@ -47,27 +41,19 @@ function AufgabenPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Aufgaben</h1>
-          <p className="text-sm text-muted-foreground">
-            Kanban-Board pro Standort. Manager-Ansicht (Phase 1).
-          </p>
-        </div>
-        <div className="min-w-[220px]">
-          <Select value={locationId} onValueChange={setLocationId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Standort wählen" />
-            </SelectTrigger>
-            <SelectContent>
-              {(locsQ.data ?? []).map((l) => (
-                <SelectItem key={l.id} value={l.id}>
-                  {l.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Aufgaben</h1>
+        <p className="text-sm text-muted-foreground">
+          Kanban-Board pro Standort. Manager-Ansicht (Phase 1).
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium text-muted-foreground">Standort:</span>
+        <LocationPills
+          locations={locsQ.data ?? []}
+          value={locationId}
+          onChange={setLocationId}
+        />
       </div>
 
       {locationId ? (
