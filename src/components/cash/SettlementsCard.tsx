@@ -43,6 +43,7 @@ export function SettlementsCard({
             <TableHead className="text-right">Bargeld</TableHead>
             <TableHead className="text-right">Differenz</TableHead>
             <TableHead className="text-right">Tip</TableHead>
+            <TableHead className="text-right">Tip %</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="text-right">Aktion</TableHead>
           </TableRow>
@@ -50,13 +51,16 @@ export function SettlementsCard({
         <TableBody>
           {rows.length === 0 && (
             <TableRow>
-              <TableCell colSpan={10} className="text-center text-muted-foreground">
+              <TableCell colSpan={11} className="text-center text-muted-foreground">
                 Noch keine Abrechnungen.
               </TableCell>
             </TableRow>
           )}
           {rows.map((r) => {
             const superseded = r.status === "superseded";
+            const pos = Number(r.pos_sales_cents);
+            const tip = Number(r.kitchen_tip_cents);
+            const tipPct = pos > 0 ? (tip / pos) * 100 : null;
             return (
               <TableRow key={r.id} className={superseded ? "opacity-50" : ""}>
                 <TableCell>
@@ -89,6 +93,9 @@ export function SettlementsCard({
                 </TableCell>
                 <TableCell className="text-right font-mono">
                   {fmtCents(Number(r.kitchen_tip_cents))}
+                </TableCell>
+                <TableCell className="text-right font-mono">
+                  {tipPct === null ? "–" : `${tipPct.toFixed(1).replace(".", ",")} %`}
                 </TableCell>
                 <TableCell>
                   <Badge variant={superseded ? "outline" : "default"}>{r.status}</Badge>
