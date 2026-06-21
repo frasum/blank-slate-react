@@ -100,24 +100,17 @@ function InventurPage() {
 
       <section className="rounded-md border border-border bg-card p-4">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto]">
-          <label className="block space-y-1 text-xs">
-            <span className="uppercase tracking-wide text-muted-foreground">Standort</span>
-            <select
+          <div className="space-y-1 text-xs">
+            <span className="block uppercase tracking-wide text-muted-foreground">Standort</span>
+            <LocationPills
+              locations={locationsQ.data ?? []}
               value={locationId}
-              onChange={(e) => {
-                setLocationId(e.target.value);
+              onChange={(v) => {
+                setLocationId(v);
                 setManualOpenId(null);
               }}
-              className={selectCls}
-            >
-              <option value="">— wählen —</option>
-              {(locationsQ.data ?? []).map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
-              ))}
-            </select>
-          </label>
+            />
+          </div>
           <div className="flex items-end">
             <button
               disabled={!locationId || createMut.isPending}
