@@ -3277,6 +3277,11 @@ export type Database = {
         | "payroll.personal.import"
         | "payroll.calc.run"
         | "payroll.period.view"
+        | "tasks.view"
+        | "tasks.create"
+        | "tasks.assign"
+        | "tasks.change_status"
+        | "tasks.delete"
       app_role: "admin" | "manager" | "staff" | "payroll"
       permission_effect: "allow" | "deny"
       register_transfer_direction:
@@ -3465,6 +3470,11 @@ export const Constants = {
         "payroll.personal.import",
         "payroll.calc.run",
         "payroll.period.view",
+        "tasks.view",
+        "tasks.create",
+        "tasks.assign",
+        "tasks.change_status",
+        "tasks.delete",
       ],
       app_role: ["admin", "manager", "staff", "payroll"],
       permission_effect: ["allow", "deny"],
