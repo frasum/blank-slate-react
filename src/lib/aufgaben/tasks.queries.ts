@@ -12,7 +12,27 @@ import {
   setTaskStatus,
   updateTask,
 } from "./tasks.functions";
-import type { Task } from "./types";
+import type { Task, TaskStatus, TaskCategory } from "./types";
+
+type CreateInput = {
+  locationId: string;
+  title: string;
+  description?: string | null;
+  category: TaskCategory;
+  priority?: number;
+  dueAt?: string | null;
+  assigneeStaffId?: string | null;
+};
+type StatusInput = { taskId: string; status: TaskStatus; sortOrder?: number | null };
+type ReassignInput = { taskId: string; newAssigneeStaffId: string };
+type UpdateInput = {
+  taskId: string;
+  title: string;
+  description?: string | null;
+  priority: number;
+  dueAt?: string | null;
+};
+type ArchiveInput = { taskId: string };
 
 export const TASKS_QUERY_KEY = (locationId: string | null) =>
   ["tasks", "board", locationId] as const;
@@ -40,7 +60,7 @@ export function useCreateTask(locationId: string | null) {
   const qc = useQueryClient();
   const fn = useServerFn(createTask);
   return useMutation({
-    mutationFn: (input: Parameters<typeof createTask>[0]["data"]) => fn({ data: input }),
+    mutationFn: (input: CreateInput) => fn({ data: input }),
     onSuccess: () => qc.invalidateQueries({ queryKey: TASKS_QUERY_KEY(locationId) }),
   });
 }
@@ -49,7 +69,7 @@ export function useSetTaskStatus(locationId: string | null) {
   const qc = useQueryClient();
   const fn = useServerFn(setTaskStatus);
   return useMutation({
-    mutationFn: (input: Parameters<typeof setTaskStatus>[0]["data"]) => fn({ data: input }),
+    mutationFn: (input: StatusInput) => fn({ data: input }),
     onMutate: async (input) => {
       await qc.cancelQueries({ queryKey: TASKS_QUERY_KEY(locationId) });
       const prev = qc.getQueryData<Task[]>(TASKS_QUERY_KEY(locationId));
@@ -76,7 +96,7 @@ export function useReassignTask(locationId: string | null) {
   const qc = useQueryClient();
   const fn = useServerFn(reassignTask);
   return useMutation({
-    mutationFn: (input: Parameters<typeof reassignTask>[0]["data"]) => fn({ data: input }),
+    mutationFn: (input: ReassignInput) => fn({ data: input }),
     onSuccess: () => qc.invalidateQueries({ queryKey: TASKS_QUERY_KEY(locationId) }),
   });
 }
@@ -85,7 +105,7 @@ export function useUpdateTask(locationId: string | null) {
   const qc = useQueryClient();
   const fn = useServerFn(updateTask);
   return useMutation({
-    mutationFn: (input: Parameters<typeof updateTask>[0]["data"]) => fn({ data: input }),
+    mutationFn: (input: UpdateInput) => fn({ data: input }),
     onSuccess: () => qc.invalidateQueries({ queryKey: TASKS_QUERY_KEY(locationId) }),
   });
 }
@@ -94,7 +114,7 @@ export function useArchiveTask(locationId: string | null) {
   const qc = useQueryClient();
   const fn = useServerFn(archiveTask);
   return useMutation({
-    mutationFn: (input: Parameters<typeof archiveTask>[0]["data"]) => fn({ data: input }),
+    mutationFn: (input: ArchiveInput) => fn({ data: input }),
     onSuccess: () => qc.invalidateQueries({ queryKey: TASKS_QUERY_KEY(locationId) }),
   });
 }
