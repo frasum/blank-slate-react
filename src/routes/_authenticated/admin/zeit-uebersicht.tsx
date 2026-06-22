@@ -548,6 +548,10 @@ function ZeitUebersichtPage() {
     };
     const rowMap = new Map<string, AccRow>();
     for (const e of data.entries) {
+      // Out-of-Period-Skip: Einträge außerhalb der gewählten Abrechnungs-
+      // periode (Mo–So-Woche kann an Periodengrenzen überlappen) werden
+      // weder in byDate noch in die Wochensummen aufgenommen.
+      if (e.businessDate < fromDate || e.businessDate > toDate) continue;
       let r = rowMap.get(e.staffId);
       if (!r) {
         r = {
@@ -621,6 +625,8 @@ function ZeitUebersichtPage() {
     isAllLocations,
     locations,
     effectiveLocationId,
+    fromDate,
+    toDate,
   ]);
 
   const handleExportXlsx = async () => {
