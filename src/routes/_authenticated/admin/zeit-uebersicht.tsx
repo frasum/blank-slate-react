@@ -1546,6 +1546,8 @@ function WeeklyPlan({
   pending,
   onUpdateInline,
   onCreateInline,
+  periodStart,
+  periodEnd,
 }: {
   input: WeeklyExportInput | null;
   isLoading: boolean;
@@ -1555,15 +1557,22 @@ function WeeklyPlan({
   pending: boolean;
   onUpdateInline: (id: string, iso: string, from: string, to: string) => void;
   onCreateInline: (staffId: string, iso: string, from: string, to: string) => void;
+  periodStart?: string;
+  periodEnd?: string;
 }) {
   // Header-Tagesmeta (Wochentag-Label + Feiertags-Hint)
-  const dayMeta = weekDays.map((d) => ({
-    date: d,
-    iso: fmtIso(d),
-    isSun: d.getUTCDay() === 0,
-    isHol: isBavarianHoliday(d),
-    isSunOrHol: isSundayOrHoliday(d),
-  }));
+  const dayMeta = weekDays.map((d) => {
+    const iso = fmtIso(d);
+    return {
+      date: d,
+      iso,
+      isSun: d.getUTCDay() === 0,
+      isHol: isBavarianHoliday(d),
+      isSunOrHol: isSundayOrHoliday(d),
+      outOfPeriod:
+        periodStart && periodEnd ? iso < periodStart || iso > periodEnd : false,
+    };
+  });
 
   // Spalten: Mitarbeiter + 7×2 (Anfang/Ende) + 6 Summen
   const totalCols = 1 + 14 + 6;
