@@ -1569,8 +1569,7 @@ function WeeklyPlan({
       isSun: d.getUTCDay() === 0,
       isHol: isBavarianHoliday(d),
       isSunOrHol: isSundayOrHoliday(d),
-      outOfPeriod:
-        periodStart && periodEnd ? iso < periodStart || iso > periodEnd : false,
+      outOfPeriod: periodStart && periodEnd ? iso < periodStart || iso > periodEnd : false,
     };
   });
 
