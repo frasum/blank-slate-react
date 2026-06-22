@@ -548,6 +548,10 @@ function ZeitUebersichtPage() {
     };
     const rowMap = new Map<string, AccRow>();
     for (const e of data.entries) {
+      // Out-of-Period-Skip: Einträge außerhalb der gewählten Abrechnungs-
+      // periode (Mo–So-Woche kann an Periodengrenzen überlappen) werden
+      // weder in byDate noch in die Wochensummen aufgenommen.
+      if (e.businessDate < fromDate || e.businessDate > toDate) continue;
       let r = rowMap.get(e.staffId);
       if (!r) {
         r = {
@@ -621,6 +625,8 @@ function ZeitUebersichtPage() {
     isAllLocations,
     locations,
     effectiveLocationId,
+    fromDate,
+    toDate,
   ]);
 
   const handleExportXlsx = async () => {
@@ -924,6 +930,8 @@ function ZeitUebersichtPage() {
             input={weeklyExportInput}
             isLoading={weeklyLoading}
             weekDays={weekDays}
+            periodStart={fromDate}
+            periodEnd={toDate}
             isAdmin={isAdmin}
             pending={setShiftMut.isPending || createShiftMut.isPending}
             onUpdateInline={(id, iso, from, to) => {
@@ -1538,6 +1546,8 @@ function WeeklyPlan({
   pending,
   onUpdateInline,
   onCreateInline,
+  periodStart,
+  periodEnd,
 }: {
   input: WeeklyExportInput | null;
   isLoading: boolean;
@@ -1547,15 +1557,21 @@ function WeeklyPlan({
   pending: boolean;
   onUpdateInline: (id: string, iso: string, from: string, to: string) => void;
   onCreateInline: (staffId: string, iso: string, from: string, to: string) => void;
+  periodStart?: string;
+  periodEnd?: string;
 }) {
   // Header-Tagesmeta (Wochentag-Label + Feiertags-Hint)
-  const dayMeta = weekDays.map((d) => ({
-    date: d,
-    iso: fmtIso(d),
-    isSun: d.getUTCDay() === 0,
-    isHol: isBavarianHoliday(d),
-    isSunOrHol: isSundayOrHoliday(d),
-  }));
+  const dayMeta = weekDays.map((d) => {
+    const iso = fmtIso(d);
+    return {
+      date: d,
+      iso,
+      isSun: d.getUTCDay() === 0,
+      isHol: isBavarianHoliday(d),
+      isSunOrHol: isSundayOrHoliday(d),
+      outOfPeriod: periodStart && periodEnd ? iso < periodStart || iso > periodEnd : false,
+    };
+  });
 
   // Spalten: Mitarbeiter + 7×2 (Anfang/Ende) + 6 Summen
   const totalCols = 1 + 14 + 6;
@@ -1653,7 +1669,13 @@ function WeeklyPlan({
                 key={dm.iso}
                 colSpan={2}
                 className={`text-center whitespace-nowrap border-l ${
-                  dm.isHol ? "bg-yellow-50" : dm.isSun ? "bg-gray-100" : ""
+                  dm.outOfPeriod
+                    ? "bg-muted/40 text-muted-foreground/60"
+                    : dm.isHol
+                      ? "bg-yellow-50"
+                      : dm.isSun
+                        ? "bg-gray-100"
+                        : ""
                 }`}
               >
                 {dayHeader(dm.date)}
@@ -1686,14 +1708,26 @@ function WeeklyPlan({
               <Fragment key={`sub-${dm.iso}`}>
                 <TableHead
                   className={`text-center text-[10px] font-normal text-muted-foreground border-l ${
-                    dm.isHol ? "bg-yellow-50" : dm.isSun ? "bg-gray-100" : ""
+                    dm.outOfPeriod
+                      ? "bg-muted/40 text-muted-foreground/60"
+                      : dm.isHol
+                        ? "bg-yellow-50"
+                        : dm.isSun
+                          ? "bg-gray-100"
+                          : ""
                   }`}
                 >
                   Anf.
                 </TableHead>
                 <TableHead
                   className={`text-center text-[10px] font-normal text-muted-foreground ${
-                    dm.isHol ? "bg-yellow-50" : dm.isSun ? "bg-gray-100" : ""
+                    dm.outOfPeriod
+                      ? "bg-muted/40 text-muted-foreground/60"
+                      : dm.isHol
+                        ? "bg-yellow-50"
+                        : dm.isSun
+                          ? "bg-gray-100"
+                          : ""
                   }`}
                 >
                   Ende
@@ -1736,9 +1770,15 @@ function WeeklyPlan({
                     </TableCell>
                     {row.days.map((day, idx) => {
                       const dm = dayMeta[idx];
-                      const cellBg = dm.isHol ? "bg-yellow-50" : dm.isSun ? "bg-gray-50" : "";
+                      const cellBg = dm.outOfPeriod
+                        ? "bg-muted/40"
+                        : dm.isHol
+                          ? "bg-yellow-50"
+                          : dm.isSun
+                            ? "bg-gray-50"
+                            : "";
                       const empty = day.shifts.length === 0;
-                      const clickable = isAdmin;
+                      const clickable = isAdmin && !dm.outOfPeriod;
                       const multi = day.shifts.length > 1;
                       const isEditingCell =
                         edit !== null && edit.staffId === row.staffId && edit.iso === day.iso;
