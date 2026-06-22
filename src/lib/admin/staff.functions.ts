@@ -13,24 +13,13 @@ import { runGuarded } from "./admin-call";
 import { makeAuditWriter } from "./audit";
 import { wouldRemoveLastActiveAdmin, type AdminSnapshotEntry } from "./last-admin-rule";
 import type { AppRole } from "./role-guard";
+import { assertStaffInOrg } from "./org-guards";
 import {
   distinctDepartments,
   ineligibleSkills,
   type StaffDepartment,
   type SkillCategory,
 } from "./skill-eligibility";
-
-async function assertStaffInOrg(staffId: string, organizationId: string) {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin
-    .from("staff")
-    .select("id")
-    .eq("id", staffId)
-    .eq("organization_id", organizationId)
-    .maybeSingle();
-  if (error) throw error;
-  if (!data) throw new Error("Mitarbeiter nicht in dieser Organisation.");
-}
 
 async function assertLocationInOrg(locationId: string, organizationId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

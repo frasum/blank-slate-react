@@ -1,22 +1,36 @@
 ## Ziel
-Im Wochenheader der „Zeit-Übersicht" statt nur „(Fei)" den konkreten Feiertagsnamen anzeigen (z. B. „Ostermontag" am Mo 06.04.).
+PIN-Setzen atomar und org-scharf machen. Reine TypeScript-Änderung in 3 Dateien, keine Migration.
 
 ## Änderungen
 
-### 1. `src/lib/time/shift-hours.ts`
-- Bestehende `bavarianHolidayMmDd(year)` umbauen zu `bavarianHolidayMap(year): Map<string, string>` (MM-DD → Name). Namen aus den vorhandenen Kommentaren übernehmen: Neujahr, Heilige Drei Könige, Karfreitag, Ostermontag, Tag der Arbeit, Christi Himmelfahrt, Pfingstmontag, Fronleichnam, Mariä Himmelfahrt, Tag der deutschen Einheit, Allerheiligen, Heiligabend, 1. Weihnachtstag, 2. Weihnachtstag.
-- `isBavarianHoliday(date)` weiter `boolean` (basiert auf `map.has(...)`), kein API-Bruch.
-- Neue Export-Funktion `bavarianHolidayName(date: Date): string | null`.
+### 1. Neue Datei `src/lib/admin/org-guards.ts`
+Enthält `assertStaffInOrg(staffId, organizationId)` — 1:1 aus `staff.functions.ts` übernommen, lädt `supabaseAdmin` lazy, wirft „Mitarbeiter nicht in dieser Organisation." wenn kein Treffer.
 
-### 2. `src/routes/_authenticated/admin/zeit-uebersicht.tsx`
-- Import um `bavarianHolidayName` erweitern.
-- In `dayMeta` (innerhalb `WeeklyPlan`) neues Feld `holidayName: bavarianHolidayName(d)`.
-- Im Tages-`TableHead` den Block `{dm.isHol && <span …>(Fei)</span>}` ersetzen durch `{dm.holidayName && <span className="block text-[10px] font-normal text-muted-foreground">{dm.holidayName}</span>}`. Styling/Hintergrund unverändert.
+### 2. `src/lib/admin/staff.functions.ts`
+- Lokale `assertStaffInOrg`-Definition entfernen.
+- `import { assertStaffInOrg } from "./org-guards";` ergänzen.
+- Bestehende Aufrufe bleiben unverändert.
+- `assertLocationInOrg` bleibt unangetastet.
 
-### 3. Scope-Grenzen
-- Reine Anzeige-Erweiterung. Keine Logik-/Aggregations-/Berechnungs-Änderung. `isBavarianHoliday` und `isSundayOrHoliday` verhalten sich unverändert.
-- Andere Verwendungen (`shift-hours`, SFN, Export) werden nicht angefasst.
+### 3. `src/lib/admin/pin.functions.ts`
+- `import { assertStaffInOrg } from "./org-guards";` ergänzen.
+- **`setPin`**: innerhalb `runGuarded` zuerst `await assertStaffInOrg(data.staffId, caller.organizationId);`. Danach Delete+Insert durch **ein** atomares Upsert ersetzen:
+  ```ts
+  supabaseAdmin.from("staff_pins").upsert(
+    { staff_id, organization_id, pin_hash, updated_at: new Date().toISOString() },
+    { onConflict: "staff_id" },
+  );
+  ```
+  Audit-Block unverändert (kein Hash, kein PIN ins Log).
+- **`clearPin`**: zusätzlich `await assertStaffInOrg(...)` vor dem (bereits org-gescopten) Delete, damit Cross-Org klar abgewiesen wird statt stillem No-op.
 
-## Erfolgs-Gate
-- Mo 06.04. zeigt im Wochenheader „Ostermontag" statt „(Fei)".
-- `tsc --noEmit`, `eslint --max-warnings=5`, `prettier --check`, `vitest run` (738) grün — keine neuen/wegfallenden Tests.
+## Nicht angefasst
+`assertLocationInOrg`, `assertValidPinFormat`, `runGuarded`, `makeAuditWriter`, Funktions-Signaturen/Rückgaben, andere Atomaritäts-Pfade (Rollen/Skills/Standorte/Account).
+
+## Vorab-Check
+Vor dem Patchen prüfe ich, dass `staff_pins` tatsächlich `UNIQUE(staff_id)` hat (Voraussetzung fürs `onConflict: "staff_id"`-Upsert). Falls nicht, melde ich den Konflikt zwischen Spec und DB-Realität statt still ein anderes Conflict-Target zu wählen.
+
+## Verifikation
+- `tsc --noEmit`, `eslint`, `prettier --check`, `vitest run` grün.
+- Empfehlung: zwei DB-Integrationstests (`pin.db.test.ts`, non-blocking): doppeltes `setPin` → genau eine Zeile mit neuem Hash; `setPin` mit fremder Org → wirft, schreibt nichts. Sage Bescheid, wenn ich die mitschreiben soll.
+- Manueller E2E durch dich: setzen → ändern → Login mit neuem PIN; löschen → Login schlägt fehl; `audit_log` enthält `staff.set_pin` ohne Hash.
