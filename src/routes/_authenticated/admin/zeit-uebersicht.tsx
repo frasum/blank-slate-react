@@ -39,7 +39,12 @@ import {
   togglePeriodLock,
   upsertPayrollNote,
 } from "@/lib/time/time-admin.functions";
-import { computeShiftHours, isBavarianHoliday, isSundayOrHoliday } from "@/lib/time/shift-hours";
+import {
+  bavarianHolidayName,
+  computeShiftHours,
+  isBavarianHoliday,
+  isSundayOrHoliday,
+} from "@/lib/time/shift-hours";
 import {
   buildFileBaseName,
   buildWeeklyPdf,
@@ -1569,6 +1574,7 @@ function WeeklyPlan({
       isSun: d.getUTCDay() === 0,
       isHol: isBavarianHoliday(d),
       isSunOrHol: isSundayOrHoliday(d),
+      holidayName: bavarianHolidayName(d),
       outOfPeriod: periodStart && periodEnd ? iso < periodStart || iso > periodEnd : false,
     };
   });
@@ -1679,8 +1685,10 @@ function WeeklyPlan({
                 }`}
               >
                 {dayHeader(dm.date)}
-                {dm.isHol && (
-                  <span className="block text-[10px] font-normal text-muted-foreground">(Fei)</span>
+                {dm.holidayName && (
+                  <span className="block text-[10px] font-normal text-muted-foreground">
+                    {dm.holidayName}
+                  </span>
                 )}
               </TableHead>
             ))}
