@@ -1670,7 +1670,13 @@ function WeeklyPlan({
                 key={dm.iso}
                 colSpan={2}
                 className={`text-center whitespace-nowrap border-l ${
-                  dm.isHol ? "bg-yellow-50" : dm.isSun ? "bg-gray-100" : ""
+                  dm.outOfPeriod
+                    ? "bg-muted/40 text-muted-foreground/60"
+                    : dm.isHol
+                      ? "bg-yellow-50"
+                      : dm.isSun
+                        ? "bg-gray-100"
+                        : ""
                 }`}
               >
                 {dayHeader(dm.date)}
@@ -1703,14 +1709,26 @@ function WeeklyPlan({
               <Fragment key={`sub-${dm.iso}`}>
                 <TableHead
                   className={`text-center text-[10px] font-normal text-muted-foreground border-l ${
-                    dm.isHol ? "bg-yellow-50" : dm.isSun ? "bg-gray-100" : ""
+                    dm.outOfPeriod
+                      ? "bg-muted/40 text-muted-foreground/60"
+                      : dm.isHol
+                        ? "bg-yellow-50"
+                        : dm.isSun
+                          ? "bg-gray-100"
+                          : ""
                   }`}
                 >
                   Anf.
                 </TableHead>
                 <TableHead
                   className={`text-center text-[10px] font-normal text-muted-foreground ${
-                    dm.isHol ? "bg-yellow-50" : dm.isSun ? "bg-gray-100" : ""
+                    dm.outOfPeriod
+                      ? "bg-muted/40 text-muted-foreground/60"
+                      : dm.isHol
+                        ? "bg-yellow-50"
+                        : dm.isSun
+                          ? "bg-gray-100"
+                          : ""
                   }`}
                 >
                   Ende
