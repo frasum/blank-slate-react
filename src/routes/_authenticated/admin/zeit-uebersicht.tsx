@@ -1771,9 +1771,15 @@ function WeeklyPlan({
                     </TableCell>
                     {row.days.map((day, idx) => {
                       const dm = dayMeta[idx];
-                      const cellBg = dm.isHol ? "bg-yellow-50" : dm.isSun ? "bg-gray-50" : "";
+                      const cellBg = dm.outOfPeriod
+                        ? "bg-muted/40"
+                        : dm.isHol
+                          ? "bg-yellow-50"
+                          : dm.isSun
+                            ? "bg-gray-50"
+                            : "";
                       const empty = day.shifts.length === 0;
-                      const clickable = isAdmin;
+                      const clickable = isAdmin && !dm.outOfPeriod;
                       const multi = day.shifts.length > 1;
                       const isEditingCell =
                         edit !== null && edit.staffId === row.staffId && edit.iso === day.iso;
