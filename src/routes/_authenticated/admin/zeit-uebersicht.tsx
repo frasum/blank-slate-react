@@ -930,6 +930,8 @@ function ZeitUebersichtPage() {
             input={weeklyExportInput}
             isLoading={weeklyLoading}
             weekDays={weekDays}
+            periodStart={fromDate}
+            periodEnd={toDate}
             isAdmin={isAdmin}
             pending={setShiftMut.isPending || createShiftMut.isPending}
             onUpdateInline={(id, iso, from, to) => {
