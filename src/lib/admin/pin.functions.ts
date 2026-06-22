@@ -8,6 +8,7 @@ import { loadAdminCaller } from "./admin-context";
 import { runGuarded } from "./admin-call";
 import { makeAuditWriter } from "./audit";
 import { assertValidPinFormat } from "./pin-format";
+import { assertStaffInOrg } from "./org-guards";
 
 export const setPin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -16,22 +17,21 @@ export const setPin = createServerFn({ method: "POST" })
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
     assertValidPinFormat(data.pin);
     return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
+      await assertStaffInOrg(data.staffId, caller.organizationId);
       const bcrypt = (await import("bcryptjs")).default;
       const hash = await bcrypt.hash(data.pin, 10);
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      // Vorhandenen Eintrag entfernen, dann neuen einfügen (eindeutig pro staff).
-      const { error: delErr } = await supabaseAdmin
-        .from("staff_pins")
-        .delete()
-        .eq("staff_id", data.staffId)
-        .eq("organization_id", caller.organizationId);
-      if (delErr) throw delErr;
-      const { error: insErr } = await supabaseAdmin.from("staff_pins").insert({
-        staff_id: data.staffId,
-        organization_id: caller.organizationId,
-        pin_hash: hash,
-      });
-      if (insErr) throw insErr;
+      // Atomares Upsert auf UNIQUE(staff_id) — kein Zeitfenster ohne PIN.
+      const { error: upsertErr } = await supabaseAdmin.from("staff_pins").upsert(
+        {
+          staff_id: data.staffId,
+          organization_id: caller.organizationId,
+          pin_hash: hash,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "staff_id" },
+      );
+      if (upsertErr) throw upsertErr;
       return {
         result: { ok: true as const },
         audit: {
@@ -50,6 +50,7 @@ export const clearPin = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
     return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
+      await assertStaffInOrg(data.staffId, caller.organizationId);
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { error } = await supabaseAdmin
         .from("staff_pins")
