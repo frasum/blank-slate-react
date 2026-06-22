@@ -1,37 +1,22 @@
 ## Ziel
-In der Mitarbeiter-Matrix (`src/routes/_authenticated/admin/staff.index.tsx`) bekommen die drei Abteilungs-Pills im **aktiven** Zustand departments-spezifische Farben:
-- **S** (service) → blau
-- **K** (kitchen) → gelb
-- **GL** (gl) → rot
+Im Wochenheader der „Zeit-Übersicht" statt nur „(Fei)" den konkreten Feiertagsnamen anzeigen (z. B. „Ostermontag" am Mo 06.04.).
 
-Inaktive Pills bleiben unverändert (neutraler Rahmen, kein Fill).
+## Änderungen
 
-## Umsetzung
+### 1. `src/lib/time/shift-hours.ts`
+- Bestehende `bavarianHolidayMmDd(year)` umbauen zu `bavarianHolidayMap(year): Map<string, string>` (MM-DD → Name). Namen aus den vorhandenen Kommentaren übernehmen: Neujahr, Heilige Drei Könige, Karfreitag, Ostermontag, Tag der Arbeit, Christi Himmelfahrt, Pfingstmontag, Fronleichnam, Mariä Himmelfahrt, Tag der deutschen Einheit, Allerheiligen, Heiligabend, 1. Weihnachtstag, 2. Weihnachtstag.
+- `isBavarianHoliday(date)` weiter `boolean` (basiert auf `map.has(...)`), kein API-Bruch.
+- Neue Export-Funktion `bavarianHolidayName(date: Date): string | null`.
 
-### 1. Semantische Tokens in `src/styles.css`
-Drei neue OKLCH-Token-Paare im `:root`-Block (und `.dark`-Variante, falls vorhanden), passend zum bestehenden System:
-- `--dept-service` / `--dept-service-foreground` (blau, weißer Text)
-- `--dept-kitchen` / `--dept-kitchen-foreground` (gelb, dunkler Text für Kontrast)
-- `--dept-gl` / `--dept-gl-foreground` (rot, weißer Text)
-
-Im `@theme inline`-Block die passenden `--color-dept-*`-Aliase ergänzen, damit Tailwind-Klassen `bg-dept-service` etc. generiert werden.
-
-### 2. `staff.index.tsx`
-Neue Map neben `DEPARTMENT_SHORT`:
-```ts
-const DEPARTMENT_ACTIVE_CLASS: Record<StaffDepartment, string> = {
-  service: "border-dept-service bg-dept-service text-dept-service-foreground",
-  kitchen: "border-dept-kitchen bg-dept-kitchen text-dept-kitchen-foreground",
-  gl: "border-dept-gl bg-dept-gl text-dept-gl-foreground",
-};
-```
-Im `className`-Block des Pill-Buttons (Zeile ~478–484) den aktiven Zweig durch `DEPARTMENT_ACTIVE_CLASS[dept]` ersetzen statt `border-primary bg-primary text-primary-foreground`. Inaktiver Zweig + Disabled-Opacity unverändert.
+### 2. `src/routes/_authenticated/admin/zeit-uebersicht.tsx`
+- Import um `bavarianHolidayName` erweitern.
+- In `dayMeta` (innerhalb `WeeklyPlan`) neues Feld `holidayName: bavarianHolidayName(d)`.
+- Im Tages-`TableHead` den Block `{dm.isHol && <span …>(Fei)</span>}` ersetzen durch `{dm.holidayName && <span className="block text-[10px] font-normal text-muted-foreground">{dm.holidayName}</span>}`. Styling/Hintergrund unverändert.
 
 ### 3. Scope-Grenzen
-- Reine UI-/Farb-Änderung; keine Logik-, Daten- oder Verhaltensänderung.
-- `PillSelect`, `LocationPills` und andere Pill-Stellen werden **nicht** angefasst (Abteilungs-Pills sind speziell zur Mitarbeiter-Matrix).
-- Tests müssen unverändert grün bleiben.
+- Reine Anzeige-Erweiterung. Keine Logik-/Aggregations-/Berechnungs-Änderung. `isBavarianHoliday` und `isSundayOrHoliday` verhalten sich unverändert.
+- Andere Verwendungen (`shift-hours`, SFN, Export) werden nicht angefasst.
 
-### 4. Verifikation
-- `npx tsc --noEmit`, `npx eslint . --max-warnings=5`, `npx prettier --check .`, `npx vitest run` (738) grün.
-- Visuelle Kontrolle via Playwright-Screenshot auf `/admin/staff`: aktive S blau, K gelb, GL rot; inaktive Pills neutral.
+## Erfolgs-Gate
+- Mo 06.04. zeigt im Wochenheader „Ostermontag" statt „(Fei)".
+- `tsc --noEmit`, `eslint --max-warnings=5`, `prettier --check`, `vitest run` (738) grün — keine neuen/wegfallenden Tests.

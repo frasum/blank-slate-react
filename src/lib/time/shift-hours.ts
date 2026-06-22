@@ -49,29 +49,34 @@ function fmtMmDd(d: Date): string {
   return `${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
 }
 
-function bavarianHolidayMmDd(year: number): Set<string> {
+function bavarianHolidayMap(year: number): Map<string, string> {
   const easter = easterSunday(year);
-  const set = new Set<string>();
-  set.add("01-01"); // Neujahr
-  set.add("01-06"); // Heilige Drei Könige
-  set.add(fmtMmDd(addUTCDays(easter, -2))); // Karfreitag
-  set.add(fmtMmDd(addUTCDays(easter, 1))); // Ostermontag
-  set.add("05-01"); // Tag der Arbeit
-  set.add(fmtMmDd(addUTCDays(easter, 39))); // Christi Himmelfahrt
-  set.add(fmtMmDd(addUTCDays(easter, 50))); // Pfingstmontag
-  set.add(fmtMmDd(addUTCDays(easter, 60))); // Fronleichnam
-  set.add("08-15"); // Mariä Himmelfahrt
-  set.add("10-03"); // Tag der deutschen Einheit
-  set.add("11-01"); // Allerheiligen
-  set.add("12-24"); // Heiligabend (vorerst ganzer Tag)
-  set.add("12-25"); // 1. Weihnachtstag
-  set.add("12-26"); // 2. Weihnachtstag
-  return set;
+  const map = new Map<string, string>();
+  map.set("01-01", "Neujahr");
+  map.set("01-06", "Heilige Drei Könige");
+  map.set(fmtMmDd(addUTCDays(easter, -2)), "Karfreitag");
+  map.set(fmtMmDd(addUTCDays(easter, 1)), "Ostermontag");
+  map.set("05-01", "Tag der Arbeit");
+  map.set(fmtMmDd(addUTCDays(easter, 39)), "Christi Himmelfahrt");
+  map.set(fmtMmDd(addUTCDays(easter, 50)), "Pfingstmontag");
+  map.set(fmtMmDd(addUTCDays(easter, 60)), "Fronleichnam");
+  map.set("08-15", "Mariä Himmelfahrt");
+  map.set("10-03", "Tag der deutschen Einheit");
+  map.set("11-01", "Allerheiligen");
+  map.set("12-24", "Heiligabend");
+  map.set("12-25", "1. Weihnachtstag");
+  map.set("12-26", "2. Weihnachtstag");
+  return map;
 }
 
 export function isBavarianHoliday(date: Date): boolean {
   const year = date.getUTCFullYear();
-  return bavarianHolidayMmDd(year).has(fmtMmDd(date));
+  return bavarianHolidayMap(year).has(fmtMmDd(date));
+}
+
+export function bavarianHolidayName(date: Date): string | null {
+  const year = date.getUTCFullYear();
+  return bavarianHolidayMap(year).get(fmtMmDd(date)) ?? null;
 }
 
 export function isSundayOrHoliday(date: Date): boolean {
