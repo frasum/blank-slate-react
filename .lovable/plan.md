@@ -1,53 +1,39 @@
-# COCO Fix #2b — Atomare Mengen-Ersetzung via SECURITY DEFINER-RPC
+# COCO Fix #2c — Cart-Drafts atomar via SECURITY DEFINER-RPC
 
 ## Ziel
-Drei nicht-transaktionale Delete+Insert-Blöcke ersetzen durch transaktionale RPCs mit Org-Scoping. Bei Insert-Fehler erfolgt automatischer Rollback (kein stiller Datenverlust). Org-Lücke in `assignStaffSkills` / `assignStaffLocations` wird durch das hart auf `p_organization_id` gescopte SQL gleich mitgeschlossen.
+Zwei mehrstufige, nicht-transaktionale Draft-Flows (`saveCartAsDraft`, `loadDraftIntoCart`) durch je eine `SECURITY DEFINER`-plpgsql-RPC ersetzen. Bei Fehler automatischer Rollback (kein leerer Draft, kein leerer Warenkorb). Org/User-Scoping hart in SQL — RLS-Bypass dadurch unkritisch.
 
-## Schritt 1 — Migration (über `supabase--migration`)
+## Schritt 1 — Migration (`supabase--migration`)
 
-Drei neue `SECURITY DEFINER` plpgsql-Funktionen anlegen:
-- `public.replace_staff_skills(p_staff_id uuid, p_organization_id uuid, p_skill_ids uuid[])`
-- `public.replace_staff_role(p_staff_id uuid, p_organization_id uuid, p_role public.app_role)`
-- `public.replace_staff_locations(p_staff_id uuid, p_organization_id uuid, p_location_ids uuid[])`
+Zwei neue plpgsql-Funktionen 1:1 wie in der Anweisung:
+- `public.save_cart_as_draft(p_cart_id, p_organization_id, p_user_id, p_name, p_notes)` → `uuid` (Draft-ID)
+  - Guards: Cart gehört `(org, user)`; Cart nicht leer.
+  - `INSERT cart_drafts` aus `carts`-Meta + `INSERT cart_draft_items` aus `cart_items` in einer Transaktion.
+- `public.load_draft_into_cart(p_draft_id, p_cart_id, p_organization_id, p_user_id, p_replace)` → `void`
+  - Guards: Draft + Cart gehören `(org, user)`.
+  - Optional `DELETE cart_items` (replace), `INSERT cart_items` aus `cart_draft_items`, `UPDATE carts`-Meta aus Draft — alles transaktional.
 
-Jede Funktion:
-1. Guard: `staff` gehört zu `p_organization_id`, sonst `RAISE EXCEPTION`.
-2. `DELETE` aller alten Zeilen unter `(staff_id, organization_id)`.
-3. `INSERT` der neuen Menge per `SELECT … FROM <ref> WHERE organization_id = p_organization_id AND id = ANY(p_*_ids)` — Fremd-Org-IDs werden so verworfen, nicht eingefügt.
+Berechtigungen: `REVOKE ALL … FROM PUBLIC, anon, authenticated`, `GRANT EXECUTE … TO service_role` für beide.
 
-Berechtigungen:
-- `REVOKE ALL … FROM PUBLIC, anon, authenticated` für alle drei Funktionen.
-- `GRANT EXECUTE … TO service_role` für alle drei Funktionen.
+Migration kommt zuerst und blockiert auf Approval. Erst nach Approval+Types-Regenerierung wird die TS-Datei angefasst (sonst `rpc("save_cart_as_draft" / "load_draft_into_cart")` nicht typsicher).
 
-SQL wie in der Anweisung (1:1).
+## Schritt 2 — Server-Functions umstellen (`src/lib/bestellung/cart.functions.ts`)
 
-## Schritt 2 — Server-Functions umstellen
+**`saveCartAsDraft`** — `ensureCart` davor unverändert. Den Block ab `cart_items`-Load bis `cart_draft_items`-Insert ersetzen durch einen einzigen `supabaseAdmin.rpc("save_cart_as_draft", { p_cart_id, p_organization_id, p_user_id, p_name, p_notes })`-Aufruf; Rückgabe weiterhin `{ draftId }`.
 
-Nach erfolgreicher Migration und Types-Regenerierung:
+**`loadDraftIntoCart`** — `ensureCart` davor unverändert. Den Block ab `cart_drafts`-Lookup über Delete/Insert/Cart-Meta-Update ersetzen durch einen `supabaseAdmin.rpc("load_draft_into_cart", { p_draft_id, p_cart_id, p_organization_id, p_user_id, p_replace })`-Aufruf; Rückgabe weiterhin `{ ok: true as const }`.
 
-**`src/lib/admin/skills.functions.ts` → `assignStaffSkills`**
-Eligibility-Check unverändert lassen. Den Block (`delete` aus `staff_skills` + bedingter `insert`) ersetzen durch einen einzigen `supabaseAdmin.rpc("replace_staff_skills", { p_staff_id, p_organization_id, p_skill_ids })`-Aufruf mit Fehler-Throw.
-
-**`src/lib/admin/staff.functions.ts` → `setStaffRole`**
-`wouldRemoveLastActiveAdmin` und `assertStaffInOrg` davor unverändert. Den gesamten `if (data.role === null) { delete } else { delete; insert }`-Block (Z. 371–392) ersetzen durch einen `rpc("replace_staff_role", { p_staff_id, p_organization_id, p_role: data.role })`-Aufruf (null = Rolle entfernen).
-
-**`src/lib/admin/staff.functions.ts` → `assignStaffLocations`**
-Den `delete`/`insert`-Block (Z. 419–435) ersetzen durch einen `rpc("replace_staff_locations", { p_staff_id, p_organization_id, p_location_ids })`-Aufruf.
-
-**Nicht angefasst:** `setStaffLocationDepartment` (bereits atomar), alle Guards/Validierungen/Audit-Inhalte/Signaturen/Rückgaben, andere Server-Functions, UI, RLS-Policies.
+**Nicht angefasst:** `ensureCart`, `getActiveCart`, `setCartMeta`, `addCartItem`, `updateCartItem`, `removeCartItem`, `clearCart`, `listCartDrafts`, `deleteCartDraft`. Signaturen, Input-Validatoren, Middleware, `loadAdminCaller`/`ALLOWED_ROLES` bleiben.
 
 ## Schritt 3 — Pre-Commit
-`bunx prettier --write` + `bunx eslint --fix` über die geänderten Dateien (inkl. Leerzeile am Dateiende).
+`bunx prettier --write` + `bunx eslint --fix` über die geänderte Datei (inkl. Leerzeile am Dateiende).
 
 ## Erfolgs-Gate
-- `bunx tsgo --noEmit` grün (Supabase-Types regeneriert)
+- `bunx tsgo --noEmit` grün (Types regeneriert)
 - `bunx eslint . --max-warnings=5` grün
 - `bunx prettier --check .` grün
-- `bunx vitest run` — 738 Tests, keine wegfallenden Tests
-- Drei neuen RPCs: 0 Rechte für `anon`/`authenticated`, nur `service_role`
-
-## Hinweise zur Reihenfolge
-Migration kommt zuerst und blockiert auf Approval. Erst nach Approval+Regeneration der `types.ts` werden die TS-Files angefasst (sonst sind die `rpc("replace_staff_*")`-Aufrufe nicht typsicher und `tsc` rot).
+- `bunx vitest run` — 738 Tests, keine wegfallenden
+- Beide neuen RPCs: 0 Rechte für `anon`/`authenticated`, nur `service_role`
 
 ## Nicht im Scope
-Cart-Drafts (#2c), Account-Flows (#2d), andere Tabellen/Policies, Tests in `*.db.test.ts` (empfohlen, aber non-blocking — kein neuer Test in diesem PR, sofern nicht ausdrücklich angefordert).
+Account-Flows (#2d), andere Tabellen/Policies/UI, neue DB-Integrationstests (empfohlen, aber non-blocking).
