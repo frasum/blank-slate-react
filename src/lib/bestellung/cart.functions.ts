@@ -264,43 +264,15 @@ export const saveCartAsDraft = createServerFn({ method: "POST" })
     const cart = await ensureCart(caller.organizationId, caller.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: items, error: itemsErr } = await supabaseAdmin
-      .from("cart_items")
-      .select(
-        "article_id, supplier_id, quantity, is_free_text_item, free_text_name, free_text_unit",
-      )
-      .eq("cart_id", cart.id);
-    if (itemsErr) throw itemsErr;
-    if (!items || items.length === 0) throw new Error("Warenkorb ist leer.");
-
-    const { data: draft, error: draftErr } = await supabaseAdmin
-      .from("cart_drafts")
-      .insert({
-        organization_id: caller.organizationId,
-        user_id: caller.userId,
-        name: data.name,
-        location_id: cart.location_id,
-        desired_delivery_date: cart.delivery_date,
-        desired_time_window: cart.time_window,
-        notes: data.notes ?? null,
-      })
-      .select("id")
-      .single();
-    if (draftErr) throw draftErr;
-
-    const insertRows = items.map((it) => ({
-      organization_id: caller.organizationId,
-      draft_id: draft.id,
-      article_id: it.article_id,
-      supplier_id: it.supplier_id,
-      quantity: it.quantity,
-      is_free_text_item: it.is_free_text_item,
-      free_text_name: it.free_text_name,
-      free_text_unit: it.free_text_unit,
-    }));
-    const { error: itemsInsErr } = await supabaseAdmin.from("cart_draft_items").insert(insertRows);
-    if (itemsInsErr) throw itemsInsErr;
-    return { draftId: draft.id };
+    const { data: draftId, error: rpcErr } = await supabaseAdmin.rpc("save_cart_as_draft", {
+      p_cart_id: cart.id,
+      p_organization_id: caller.organizationId,
+      p_user_id: caller.userId,
+      p_name: data.name,
+      p_notes: data.notes ?? null,
+    });
+    if (rpcErr) throw rpcErr;
+    return { draftId: draftId as string };
   });
 
 export const loadDraftIntoCart = createServerFn({ method: "POST" })
@@ -313,54 +285,14 @@ export const loadDraftIntoCart = createServerFn({ method: "POST" })
     const cart = await ensureCart(caller.organizationId, caller.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: draft, error: dErr } = await supabaseAdmin
-      .from("cart_drafts")
-      .select("id, location_id, desired_delivery_date, desired_time_window")
-      .eq("id", data.draftId)
-      .eq("organization_id", caller.organizationId)
-      .eq("user_id", caller.userId)
-      .maybeSingle();
-    if (dErr) throw dErr;
-    if (!draft) throw new Error("Entwurf nicht gefunden.");
-
-    if (data.replace) {
-      const { error } = await supabaseAdmin.from("cart_items").delete().eq("cart_id", cart.id);
-      if (error) throw error;
-    }
-
-    const { data: items, error: iErr } = await supabaseAdmin
-      .from("cart_draft_items")
-      .select(
-        "article_id, supplier_id, quantity, is_free_text_item, free_text_name, free_text_unit",
-      )
-      .eq("draft_id", draft.id);
-    if (iErr) throw iErr;
-
-    if (items && items.length > 0) {
-      const rows = items.map((it) => ({
-        organization_id: caller.organizationId,
-        cart_id: cart.id,
-        article_id: it.article_id,
-        supplier_id: it.supplier_id,
-        quantity: it.quantity,
-        is_free_text_item: it.is_free_text_item,
-        free_text_name: it.free_text_name,
-        free_text_unit: it.free_text_unit,
-      }));
-      const { error } = await supabaseAdmin.from("cart_items").insert(rows);
-      if (error) throw error;
-    }
-
-    // Meta des Carts auf Draft setzen (location/delivery/time).
-    await supabaseAdmin
-      .from("carts")
-      .update({
-        location_id: draft.location_id,
-        delivery_date: draft.desired_delivery_date,
-        time_window: draft.desired_time_window,
-      })
-      .eq("id", cart.id);
-
+    const { error: rpcErr } = await supabaseAdmin.rpc("load_draft_into_cart", {
+      p_draft_id: data.draftId,
+      p_cart_id: cart.id,
+      p_organization_id: caller.organizationId,
+      p_user_id: caller.userId,
+      p_replace: data.replace,
+    });
+    if (rpcErr) throw rpcErr;
     return { ok: true as const };
   });
 
