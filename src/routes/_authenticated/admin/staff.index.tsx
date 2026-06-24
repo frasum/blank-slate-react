@@ -428,7 +428,9 @@ function StaffMatrixRow({
           {staff.displayName}
         </Link>
         <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
-          <span className="truncate">{staff.email ?? "—"}</span>
+          <span className="truncate">
+            {[staff.firstName, staff.lastName].filter(Boolean).join(" ") || "—"}
+          </span>
           {!staff.isActive && (
             <Badge variant="outline" className="text-[10px]">
               Inaktiv
