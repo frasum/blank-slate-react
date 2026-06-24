@@ -371,7 +371,8 @@ export const setStaffRole = createServerFn({ method: "POST" })
       const { error: rpcErr } = await supabaseAdmin.rpc("replace_staff_role", {
         p_staff_id: data.staffId,
         p_organization_id: caller.organizationId,
-        p_role: data.role,
+        // RPC akzeptiert NULL = Rolle entfernen; generierter Typ ist nicht-nullbar.
+        p_role: data.role as AppRole,
       });
       if (rpcErr) throw rpcErr;
       return {
