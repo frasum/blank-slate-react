@@ -3435,6 +3435,16 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_real_admin: { Args: never; Returns: boolean }
+      load_draft_into_cart: {
+        Args: {
+          p_cart_id: string
+          p_draft_id: string
+          p_organization_id: string
+          p_replace: boolean
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       reassign_task: {
         Args: {
           p_caller_staff_id: string
@@ -3493,6 +3503,16 @@ export type Database = {
           p_staff_id: string
         }
         Returns: undefined
+      }
+      save_cart_as_draft: {
+        Args: {
+          p_cart_id: string
+          p_name: string
+          p_notes: string
+          p_organization_id: string
+          p_user_id: string
+        }
+        Returns: string
       }
       set_task_status: {
         Args: {
