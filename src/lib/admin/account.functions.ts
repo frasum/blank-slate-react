@@ -106,18 +106,19 @@ export const createStaffAccount = createServerFn({ method: "POST" })
         throw new Error(createErr?.message ?? "Konto konnte nicht erstellt werden.");
       }
 
-      const { error: linkErr } = await supabaseAdmin.from("user_links").insert({
-        user_id: created.user.id,
-        staff_id: data.staffId,
-        organization_id: staff.organization_id,
+      const { error: linkErr } = await supabaseAdmin.rpc("link_account_to_staff", {
+        p_staff_id: data.staffId,
+        p_organization_id: staff.organization_id,
+        p_user_id: created.user.id,
+        p_email: data.email,
       });
-      if (linkErr) throw linkErr;
-
-      const { error: flagErr } = await supabaseAdmin
-        .from("staff")
-        .update({ must_change_password: true, email: data.email })
-        .eq("id", data.staffId);
-      if (flagErr) throw flagErr;
+      if (linkErr) {
+        // Saga-Kompensation: Auth-User wieder entfernen, damit keine verwaiste
+        // E-Mail in Supabase Auth zurückbleibt. Best-effort — ein Fehler beim
+        // Löschen darf den ursprünglichen Fehler nicht überschreiben.
+        await supabaseAdmin.auth.admin.deleteUser(created.user.id).catch(() => {});
+        throw linkErr;
+      }
 
       return {
         // Passwort wird NUR hier (Antwort an die UI) zurückgegeben.
