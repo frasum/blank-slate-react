@@ -345,3 +345,30 @@ Quelle der Wahrheit: Legacy `bestellung` (Repo `bestellung-5fff1793`, hat `SYSTE
 Bekanntes Supabase/PostgREST-Problem (Issues #42183, #39446): nach Migrationen kennt der PostgREST-Schema-Cache neue Tabellen/Spalten nicht (PGRST204 `guest_count` / PGRST205 `wine_quiz_scores`). 4 DB-Tests scheitern dauerhaft daran (im Test-SETUP beim `suppliers`-Insert, NICHT in der Logik). 75/79 DB-Tests grün. 4 CI-Fix-Versuche (Container-Restart, Probe-Logik, `db reset`, `pgrst_watch`-Event-Trigger) lösten es im CI nicht. Entscheidung: `db-integration` via `continue-on-error` NON-BLOCKING — läuft + reportet, blockiert aber nicht den grünen Gesamtstatus. `check`-Job (tsc+eslint+vitest) bleibt blockierend. Revisiten wenn Supabase-CLI den Cache-Reload nach `db reset` fixt → `continue-on-error` entfernen. Konsequenz: EasyOrder 4-B/4-D Sicherheits-DB-Tests statisch wasserdicht, aber nicht real in CI bewiesen (scheitern im Setup, nicht an der Logik). Der `pgrst_watch`-Trigger bleibt drin (hilft in Produktion).
 
 **Hinweis CI:** Die 5 tolerierten `react-hooks/exhaustive-deps`-Warnings sind aufgeräumt — `eslint .` ist wieder bei **0 Warnings**. Am 18.06. wurde ein **Format-Job** in der CI ergänzt (prüft Prettier). **Wiederkehrendes Muster:** Lovable überspringt gern `npx prettier --write` → CI wird **nur** an Prettier rot (tsc/vitest grün). Standing Fix: `prettier --write` vor jedem Commit (steht in §3). Optionaler Folgeschritt: husky Pre-Commit-Hook, der `prettier --write` lokal automatisch laufen lässt.
+
+## 9. Sicherheits-Härtung #1–#3 (24.06.2026)
+
+Sicherheits-Durchgang nach einem externen Review (ChatGPT, gegen einen Repo-Snapshot), von Claude gegen den echten Code kalibriert. Drei echte Lücken geschlossen, alle Atomaritäts-/Cross-System-Pfade abgesichert. Gates durchgehend grün (tsc, eslint 0/5, prettier, 738 Tests).
+
+**Geteilter Guard:** neue Datei `src/lib/admin/org-guards.ts` mit `assertStaffInOrg(staffId, organizationId)` (lazy `supabaseAdmin`, wirft „Mitarbeiter nicht in dieser Organisation."). Aus `staff.functions.ts` extrahiert, wird von mehreren Pfaden genutzt.
+
+| Fix | Inhalt | Migration |
+| --- | --- | --- |
+| #1 | `create_order_from_cart` (4-arg-Overload) war `SECURITY DEFINER` + `GRANT … authenticated` → direkt aufrufbar (IDOR + Audit-Bypass). `REVOKE` von PUBLIC/anon/authenticated, `GRANT` nur `service_role` (wie 3-arg-Variante). App ruft über `supabaseAdmin` → keine Breakage. | `20260622063557` |
+| #2a | PIN: `setPin` von Delete+Insert auf **atomares Upsert** (`onConflict: "staff_id"`, `staff_pins.staff_id` ist `NOT NULL UNIQUE`) + `assertStaffInOrg` davor; `clearPin` Guard ergänzt. | — (nur TS) |
+| #2b | `replace_staff_skills` / `replace_staff_role` / `replace_staff_locations` — Delete+Insert je in **einer** Transaktion, org-gefilterte Inserts. Schließt latente Cross-Org-Lücke in Skills/Standorten (hatten keinen Guard). | `20260624194327` |
+| #2c | `save_cart_as_draft` / `load_draft_into_cart` — Draft↔Cart-Kopieren komplett in DB-Transaktion, hart auf `(organization_id, user_id)` gescoped (schließt #5 Cart-Besitz für diese Pfade). | `20260624195337` |
+| #2d | `link_account_to_staff` — DB-Teil der Konto-Erstellung (user_links-Insert + staff-Update) atomar. `createStaffAccount` kompensiert bei RPC-Fehler den zuvor erstellten Auth-User (`auth.admin.deleteUser`, best-effort) → **kein verwaister Auth-User**. `resetStaffPassword` bewusst unverändert (harmloser Failure-Mode; Kompensation wäre schlechter als Ist). | `20260624200904` |
+| #3 | `setPermissionOverride` / `clearPermissionOverride` org-scharf: Aufrufer-Org via `current_organization_id()` → `assertStaffInOrg` vor dem Schreiben. `getStaffPermissions` war bereits org-scharf (Fehlalarm). | — (nur TS) |
+
+**RPC-Muster (verbindlich für solche Fixes):** `SECURITY DEFINER` + `SET search_path = public` + staff-in-org-Guard + org-gescopter Delete + org-gefilterter Insert + `REVOKE ALL FROM PUBLIC, anon, authenticated` + `GRANT EXECUTE TO service_role`. Danach **Supabase-Types regenerieren**, sonst ist der `rpc("…")`-Aufruf nicht typsicher (tsc rot).
+
+**Prinzip (teuer gelernt, gilt weiter):** Unter `service_role` ist `auth.uid()` **NULL** — keine `auth.uid()`-Checks in service_role-aufgerufenen SECURITY-DEFINER-Funktionen. `staffId`/Org kommen immer aus dem Aufruferkontext (`loadAdminCaller`), nie vom Client.
+
+**Kalibrierung (als Fehlalarm verworfen, dokumentiert):**
+
+- `hasPin` über `staff_pins`-Embed ist korrekt (To-One → Objekt/null, kein Array-Bug).
+- Ein `UNIQUE(staff_id, shift_date)` auf `roster_shifts` wäre eine **Design-Regression** — Cross-Booking über Bereiche/Standorte ist **absichtlich** nur ein advisory roter Punkt, kein harter Block.
+- `.env` ist zwar eingecheckt, enthält aber nur den publishable/anon-Key + domain-beschränkten Maps-Key (kein `service_role`/Secret) → niedrige Priorität.
+
+**Offen — Härtungs-Backlog (Defense-in-Depth, keine offene Lücke):** Display-Token `Referrer-Policy: no-referrer` + Rotation; `search_path`-Härtung breiter ausrollen; Composite-FKs `(organization_id, location_id)`; Check-Constraints (qty>0, cents≥0 — nuanciert, manche Beträge legitim negativ); db-security-Tests blockierend machen (aus dem flaky `db-integration`-Job herauslösen); Bun-Version pinnen.
