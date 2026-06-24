@@ -6,6 +6,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { writeAuditLog } from "./audit";
+import { assertStaffInOrg } from "./org-guards";
 import type { AppPermission, PermissionEffect } from "./permissions-catalog";
 
 type RoleKey = "admin" | "manager" | "staff" | "payroll";
@@ -114,6 +115,11 @@ export const setPermissionOverride = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
     await assertRealAdmin(context.supabase as never);
+    const { data: orgRow, error: orgErr } = await context.supabase.rpc("current_organization_id");
+    if (orgErr) throw new Error(`org lookup failed: ${orgErr.message}`);
+    const callerOrgId = orgRow as string | null;
+    if (!callerOrgId) throw new Error("Keine Organisation für den Aufrufer.");
+    await assertStaffInOrg(data.staffId, callerOrgId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: staffRow, error: staffErr } = await supabaseAdmin
@@ -173,6 +179,11 @@ export const clearPermissionOverride = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
     await assertRealAdmin(context.supabase as never);
+    const { data: orgRow, error: orgErr } = await context.supabase.rpc("current_organization_id");
+    if (orgErr) throw new Error(`org lookup failed: ${orgErr.message}`);
+    const callerOrgId = orgRow as string | null;
+    if (!callerOrgId) throw new Error("Keine Organisation für den Aufrufer.");
+    await assertStaffInOrg(data.staffId, callerOrgId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: staffRow, error: staffErr } = await supabaseAdmin
