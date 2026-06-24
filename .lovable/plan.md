@@ -1,36 +1,27 @@
-## Ziel
-PIN-Setzen atomar und org-scharf machen. Reine TypeScript-Änderung in 3 Dateien, keine Migration.
+## Sicherheits-Fix #3: Permission-Overrides org-scharf
 
-## Änderungen
+Eine Datei, reine TypeScript-Änderung. Keine Migration.
 
-### 1. Neue Datei `src/lib/admin/org-guards.ts`
-Enthält `assertStaffInOrg(staffId, organizationId)` — 1:1 aus `staff.functions.ts` übernommen, lädt `supabaseAdmin` lazy, wirft „Mitarbeiter nicht in dieser Organisation." wenn kein Treffer.
+### `src/lib/admin/permissions.functions.ts`
 
-### 2. `src/lib/admin/staff.functions.ts`
-- Lokale `assertStaffInOrg`-Definition entfernen.
-- `import { assertStaffInOrg } from "./org-guards";` ergänzen.
-- Bestehende Aufrufe bleiben unverändert.
-- `assertLocationInOrg` bleibt unangetastet.
+1. Import ergänzen: `import { assertStaffInOrg } from "./org-guards";`
+2. In **`setPermissionOverride`** direkt nach `assertRealAdmin(...)` und vor dem `staffRow`-Load:
+   ```ts
+   const { data: orgRow, error: orgErr } = await context.supabase.rpc("current_organization_id");
+   if (orgErr) throw new Error(`org lookup failed: ${orgErr.message}`);
+   const callerOrgId = orgRow as string | null;
+   if (!callerOrgId) throw new Error("Keine Organisation für den Aufrufer.");
+   await assertStaffInOrg(data.staffId, callerOrgId);
+   ```
+3. In **`clearPermissionOverride`** denselben Block an gleicher Stelle einfügen.
 
-### 3. `src/lib/admin/pin.functions.ts`
-- `import { assertStaffInOrg } from "./org-guards";` ergänzen.
-- **`setPin`**: innerhalb `runGuarded` zuerst `await assertStaffInOrg(data.staffId, caller.organizationId);`. Danach Delete+Insert durch **ein** atomares Upsert ersetzen:
-  ```ts
-  supabaseAdmin.from("staff_pins").upsert(
-    { staff_id, organization_id, pin_hash, updated_at: new Date().toISOString() },
-    { onConflict: "staff_id" },
-  );
-  ```
-  Audit-Block unverändert (kein Hash, kein PIN ins Log).
-- **`clearPin`**: zusätzlich `await assertStaffInOrg(...)` vor dem (bereits org-gescopten) Delete, damit Cross-Org klar abgewiesen wird statt stillem No-op.
+Bestehender `staffRow`-Load, Delete/Insert, Audit-Aufrufe bleiben unverändert — nach dem Guard gilt `staffRow.organization_id === callerOrgId`.
 
-## Nicht angefasst
-`assertLocationInOrg`, `assertValidPinFormat`, `runGuarded`, `makeAuditWriter`, Funktions-Signaturen/Rückgaben, andere Atomaritäts-Pfade (Rollen/Skills/Standorte/Account).
+### Nicht anfassen
+`getStaffPermissions`, `assertRealAdmin`, `org-guards.ts`, Signaturen, Audit-Inhalte, andere Dateien.
 
-## Vorab-Check
-Vor dem Patchen prüfe ich, dass `staff_pins` tatsächlich `UNIQUE(staff_id)` hat (Voraussetzung fürs `onConflict: "staff_id"`-Upsert). Falls nicht, melde ich den Konflikt zwischen Spec und DB-Realität statt still ein anderes Conflict-Target zu wählen.
+### Vor dem Commit
+`bunx prettier --write` + `bunx eslint --fix` auf die Datei.
 
-## Verifikation
-- `tsc --noEmit`, `eslint`, `prettier --check`, `vitest run` grün.
-- Empfehlung: zwei DB-Integrationstests (`pin.db.test.ts`, non-blocking): doppeltes `setPin` → genau eine Zeile mit neuem Hash; `setPin` mit fremder Org → wirft, schreibt nichts. Sage Bescheid, wenn ich die mitschreiben soll.
-- Manueller E2E durch dich: setzen → ändern → Login mit neuem PIN; löschen → Login schlägt fehl; `audit_log` enthält `staff.set_pin` ohne Hash.
+### Erfolgs-Gate
+`tsgo --noEmit`, `bunx eslint . --max-warnings=5`, `bunx prettier --check .`, `bunx vitest run` (738) grün — keine Test-Drift.
