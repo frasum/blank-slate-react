@@ -269,7 +269,7 @@ export const saveCartAsDraft = createServerFn({ method: "POST" })
       p_organization_id: caller.organizationId,
       p_user_id: caller.userId,
       p_name: data.name,
-      p_notes: data.notes ?? null,
+      p_notes: (data.notes ?? null) as string,
     });
     if (rpcErr) throw rpcErr;
     return { draftId: draftId as string };
