@@ -3435,6 +3435,15 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_real_admin: { Args: never; Returns: boolean }
+      link_account_to_staff: {
+        Args: {
+          p_email: string
+          p_organization_id: string
+          p_staff_id: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       load_draft_into_cart: {
         Args: {
           p_cart_id: string
