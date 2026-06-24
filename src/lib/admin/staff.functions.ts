@@ -368,28 +368,13 @@ export const setStaffRole = createServerFn({ method: "POST" })
       }
       await assertStaffInOrg(data.staffId, caller.organizationId);
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      if (data.role === null) {
-        const { error } = await supabaseAdmin
-          .from("role_assignments")
-          .delete()
-          .eq("staff_id", data.staffId)
-          .eq("organization_id", caller.organizationId);
-        if (error) throw error;
-      } else {
-        // Upsert: erst löschen, dann einfügen (eindeutige Rolle pro staff/org).
-        const { error: delErr } = await supabaseAdmin
-          .from("role_assignments")
-          .delete()
-          .eq("staff_id", data.staffId)
-          .eq("organization_id", caller.organizationId);
-        if (delErr) throw delErr;
-        const { error: insErr } = await supabaseAdmin.from("role_assignments").insert({
-          staff_id: data.staffId,
-          organization_id: caller.organizationId,
-          role: data.role,
-        });
-        if (insErr) throw insErr;
-      }
+      const { error: rpcErr } = await supabaseAdmin.rpc("replace_staff_role", {
+        p_staff_id: data.staffId,
+        p_organization_id: caller.organizationId,
+        // RPC akzeptiert NULL = Rolle entfernen; generierter Typ ist nicht-nullbar.
+        p_role: data.role as AppRole,
+      });
+      if (rpcErr) throw rpcErr;
       return {
         result: { ok: true as const },
         audit: {
@@ -416,23 +401,12 @@ export const assignStaffLocations = createServerFn({ method: "POST" })
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
     return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { error: delErr } = await supabaseAdmin
-        .from("staff_locations")
-        .delete()
-        .eq("staff_id", data.staffId)
-        .eq("organization_id", caller.organizationId);
-      if (delErr) throw delErr;
-      if (data.locationIds.length > 0) {
-        const { error: insErr } = await supabaseAdmin.from("staff_locations").insert(
-          data.locationIds.map((lid) => ({
-            staff_id: data.staffId,
-            organization_id: caller.organizationId,
-            location_id: lid,
-            department: "service" as const,
-          })),
-        );
-        if (insErr) throw insErr;
-      }
+      const { error: rpcErr } = await supabaseAdmin.rpc("replace_staff_locations", {
+        p_staff_id: data.staffId,
+        p_organization_id: caller.organizationId,
+        p_location_ids: data.locationIds,
+      });
+      if (rpcErr) throw rpcErr;
       return {
         result: { ok: true as const },
         audit: {

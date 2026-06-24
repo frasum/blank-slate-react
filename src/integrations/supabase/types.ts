@@ -3470,6 +3470,30 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      replace_staff_locations: {
+        Args: {
+          p_location_ids: string[]
+          p_organization_id: string
+          p_staff_id: string
+        }
+        Returns: undefined
+      }
+      replace_staff_role: {
+        Args: {
+          p_organization_id: string
+          p_role: Database["public"]["Enums"]["app_role"]
+          p_staff_id: string
+        }
+        Returns: undefined
+      }
+      replace_staff_skills: {
+        Args: {
+          p_organization_id: string
+          p_skill_ids: string[]
+          p_staff_id: string
+        }
+        Returns: undefined
+      }
       set_task_status: {
         Args: {
           p_caller_staff_id: string

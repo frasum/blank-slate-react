@@ -112,22 +112,12 @@ export const assignStaffSkills = createServerFn({ method: "POST" })
           }
         }
 
-        const { error: delErr } = await supabaseAdmin
-          .from("staff_skills")
-          .delete()
-          .eq("staff_id", data.staffId)
-          .eq("organization_id", caller.organizationId);
-        if (delErr) throw delErr;
-        if (data.skillIds.length > 0) {
-          const { error: insErr } = await supabaseAdmin.from("staff_skills").insert(
-            data.skillIds.map((sid) => ({
-              staff_id: data.staffId,
-              organization_id: caller.organizationId,
-              skill_id: sid,
-            })),
-          );
-          if (insErr) throw insErr;
-        }
+        const { error: rpcErr } = await supabaseAdmin.rpc("replace_staff_skills", {
+          p_staff_id: data.staffId,
+          p_organization_id: caller.organizationId,
+          p_skill_ids: data.skillIds,
+        });
+        if (rpcErr) throw rpcErr;
         return {
           result: { ok: true as const },
           audit: {
