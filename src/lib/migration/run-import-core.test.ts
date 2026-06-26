@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertCounterBalance, emptyCounters } from "./run-import-core";
+import { assertCounterBalance, emptyCounters, resolveLocationId } from "./run-import-core";
 
 describe("assertCounterBalance", () => {
   it("akzeptiert ausgeglichene Zähler", () => {
@@ -36,5 +36,26 @@ describe("assertCounterBalance", () => {
     c.imported = 2;
     c.skippedByReason.duplicate = 1;
     expect(() => assertCounterBalance(c)).toThrow(/Differenz=-1/);
+  });
+});
+
+describe("resolveLocationId", () => {
+  const map = new Map<string, string>([
+    ["spicery", "loc-sp"],
+    ["yum", "loc-yum"],
+  ]);
+
+  it("matcht case-insensitiv und trimmt", () => {
+    expect(resolveLocationId("Spicery", map)).toBe("loc-sp");
+    expect(resolveLocationId("  YUM ", map)).toBe("loc-yum");
+  });
+
+  it("liefert null bei fehlendem Namen", () => {
+    expect(resolveLocationId(null, map)).toBeNull();
+    expect(resolveLocationId("", map)).toBeNull();
+  });
+
+  it("liefert null bei unbekanntem Namen", () => {
+    expect(resolveLocationId("TSB", map)).toBeNull();
   });
 });

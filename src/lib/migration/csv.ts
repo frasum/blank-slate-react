@@ -101,11 +101,13 @@ export function assertHeaders(
   actual: string[],
   expected: readonly string[],
   context: string,
+  optional: readonly string[] = [],
 ): void {
   const actualSet = new Set(actual);
   const expectedSet = new Set(expected);
+  const optionalSet = new Set(optional);
   const missing = expected.filter((h) => !actualSet.has(h));
-  const extra = actual.filter((h) => !expectedSet.has(h));
+  const extra = actual.filter((h) => !expectedSet.has(h) && !optionalSet.has(h));
   if (missing.length === 0 && extra.length === 0) return;
   const parts: string[] = [];
   if (missing.length) parts.push(`fehlend: ${missing.join(", ")}`);
