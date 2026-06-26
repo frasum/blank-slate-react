@@ -27,6 +27,9 @@ const FULL: UebersichtCsvRow = {
   krankTage: 1,
   avgStdTag: 7.85,
   avgSfnTagCent: 1234,
+  absCalDays: 3,
+  refWorkedDays: 70,
+  refAbsenceDays: 8,
   error: null,
 };
 
@@ -56,11 +59,14 @@ const ERR: UebersichtCsvRow = {
   krankTage: null,
   avgStdTag: null,
   avgSfnTagCent: null,
+  absCalDays: null,
+  refWorkedDays: null,
+  refAbsenceDays: null,
   error: "Keine Personaldaten für diesen Mitarbeiter.",
 };
 
 const HEADER_LINE =
-  "perso_nr;name;stunden;stundensatz_cent;nacht25_std;nacht40_std;sonntag_std;zuschlag_cent;brutto_cent;lst_cent;soli_cent;kist_cent;kv_cent;rv_cent;av_cent;pv_cent;netto_cent;auszahlung_cent;arbeitstage;mahlzeiten_cent;sachbezug_cent;urlaub_tage;krank_tage;avg_std_tag;avg_sfn_tag_cent;fehler";
+  "perso_nr;name;stunden;stundensatz_cent;nacht25_std;nacht40_std;sonntag_std;zuschlag_cent;brutto_cent;lst_cent;soli_cent;kist_cent;kv_cent;rv_cent;av_cent;pv_cent;netto_cent;auszahlung_cent;arbeitstage;mahlzeiten_cent;sachbezug_cent;urlaub_tage;krank_tage;avg_std_tag;avg_sfn_tag_cent;abs_cal_days;ref_worked_days;ref_absence_days;fehler";
 
 describe("buildUebersichtCsv", () => {
   it("startet mit BOM, Kommentarzeile und exakter Header-Zeile", () => {
@@ -75,7 +81,7 @@ describe("buildUebersichtCsv", () => {
     const csv = buildUebersichtCsv([FULL], { periodLabel: "P", mode: "simple" });
     const lines = csv.split("\r\n");
     const row = lines[2].split(";");
-    expect(row).toHaveLength(26);
+    expect(row).toHaveLength(29);
     expect(row[0]).toBe("42");
     expect(row[1]).toBe("Müller, Anna");
   });
@@ -86,7 +92,7 @@ describe("buildUebersichtCsv", () => {
     expect(row[1]).toBe("Müller, Anna");
     expect(row[2]).toBe("12.5");
     expect(row[3]).toBe("1500");
-    expect(row[25]).toBe("");
+    expect(row[28]).toBe("");
   });
 
   it("Fehler-Zeile: Zahlenspalten leer, name escaped wegen ;, fehler gesetzt", () => {
