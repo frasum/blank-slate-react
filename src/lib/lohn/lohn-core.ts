@@ -81,6 +81,10 @@ export function berechneLohn(eingabe: LohnEingabe): LohnErgebnis {
       pvz: person.pvKinderlosZuschlag,
       pva: clampPva(person.kinderzahl, person.elterneigenschaft),
       freibetragCent: person.lstFreibetragMonatCent,
+      pkv: person.istPkv,
+      krvKeinRv: person.istPkv && person.rvFrei,
+      alvKeinAv: person.istPkv && person.avFrei,
+      pkpvCent: person.pkvBasisBeitragMonatCent,
     });
     lstCent = papErgebnis.lstlzzCent;
     soliCent = papErgebnis.solzlzzCent;
