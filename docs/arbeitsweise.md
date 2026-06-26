@@ -148,6 +148,7 @@ gh repo clone frasum/bestellung-5fff1793
 | M4 Lohn — Rechen-Kern (Stufe 1/3): PAP 2026 + SV, edlohn-cent-getestet                                  | ✅        |
 | M4 Lohn — SFN-Geld + Perioden-Aggregation + Verdrahtung (Stufe 2a–c)                                    | ✅        |
 | M4 Lohn — Lohnrechner-UI + Excel-Export (`/admin/lohnrechner`)                                          | ✅        |
+| M4 Lohn — Perioden-Übersicht (Liste aller aktiven MA je Periode, Klick → Detail)                        | ✅        |
 | Provision (wochenbasiert)                                                                               | ⏳ offen  |
 | Geofencing-Stempeln (UI clockIn nur am Standort, distinct-Location)                                     | ✅        |
 | PIN-Login via Vorname/Nickname                                                                          | ✅        |
@@ -172,6 +173,13 @@ gh repo clone frasum/bestellung-5fff1793
 | payroll = Büro (Index-Sperre + Dienstplan-Ausschluss, keine 4. Abteilung)                               | ✅        |
 | Wochenplan → Abrechnungsperioden (26.–25., gemeinsamer Periodenbegriff im Zeit-Screen)                  | ✅        |
 | Aufräumen: Dead-Code, `makeAuditWriter` zentral, Typ-Single-Source `staff-domain.ts`                    | ✅        |
+
+**Stand 26.06.2026 (Lohnrechner — Perioden-Übersicht):**
+
+- **Geteilter Rechen-Kern (`lohn-rechner.functions.ts`):** Der Pro-MA-Zusammenbau (`aggregateSfnPeriod` → `staff_personal_details` → `staffDetailsToPerson` → Entgeltzeilen → `berechneLohn`) wurde aus `berechneLohnFuerMitarbeiter` in den privaten Helper `computeLohnForStaff(supabaseAdmin, { staffId, fromDate, toDate, mode, zusatzZeilen })` extrahiert. **Einzelansicht und Übersicht rechnen über denselben Helper** — kein zweiter Rechenpfad, kein Drift. Reine Code-Verschiebung (Golden-Master + `lohn-core` unverändert grün → verhaltensgleich). Rückgabe-Shape von `berechneLohnFuerMitarbeiter` bleibt 1:1.
+- **Neue read-only serverFn `berechneLohnUebersicht`** (`payroll.calc.run`, `loadAdminCaller(["admin","payroll"])`, org-scoped): rechnet **alle aktiven MA** einer Periode. Schleife mit **`try/catch` pro MA** — ein MA ohne `staff_personal_details` erscheint mit „—" + Hinweis statt die ganze Liste abzureißen (die Einzelansicht wirft dort weiterhin bewusst). Übersicht rechnet **ohne** manuelle Zusatzzeilen (rohe Perioden-Rechnung); Zeilen liefern `totalHours`, `hourlyRateCents`, `zuschlagCents`, `bruttoCents`, `nettoCents`, `auszahlungCents`.
+- **UI `/admin/lohnrechner`:** Perioden-Dropdown (26.–25., aus `listPeriods`) **ersetzt** die freien Von/Bis-Felder; Default = neueste Periode. Übersichts-Tabelle mit Spalten **Mitarbeiter · Stunden · Stundenlohn · Zuschläge · Brutto · Netto · Auszahlung**. **Klick auf eine Zeile** öffnet die **unveränderte** Detailansicht (Zeilen, Person, Ergebnis, Excel-Export, Zusatzzeilen) für den MA; Fehlerzeilen sind nicht klickbar. Altes Staff-Dropdown entfernt.
+- **Gates:** `tsc`/`eslint --max-warnings=5`/`prettier`/`vitest` (743) grün. Kein Schema-/RLS-/Migrations-Eingriff (read-only über `supabaseAdmin` hinter Permission-Gate).
 
 **Stand 20.06.2026 (Session-Nachzug, Teil 2 — Härtung & Security-Header):**
 
