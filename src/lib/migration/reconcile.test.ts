@@ -12,6 +12,7 @@ function mk(partial: Partial<NormalizedShift> = {}): NormalizedShift {
     startedAt: "2026-01-15T16:00:00.000Z",
     endedAt: "2026-01-15T20:30:00.000Z",
     breakMinutes: 0,
+    locationName: null,
     isHoliday: false,
     altTotals: {
       totalHours: 4.5,

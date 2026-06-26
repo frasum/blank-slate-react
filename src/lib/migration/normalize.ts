@@ -22,6 +22,8 @@ export type NormalizedShift = {
   startedAt: string | null; // ISO timestamptz; null bei Skip
   endedAt: string | null;
   breakMinutes: number;
+  /** Quell-Restaurantname (optional). Wird im Importer case-insensitiv auf locations.id gemappt; null => location_id bleibt NULL. */
+  locationName: string | null;
   altTotals: AltTotals | null;
   /** Tagesabrechnung liefert is_holiday; bunker liefert kein Flag (false). */
   isHoliday: boolean;

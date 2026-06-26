@@ -1,25 +1,26 @@
-# Doku-Nachzug §10 — Zeit-Re-Import + location_id-Reparatur
+# Importer setzt `location_id` aus optionaler `restaurant`-Spalte
 
-Reine Dokumentations-Änderung an `docs/arbeitsweise.md`. Keine Code-, Schema- oder Migrations-Anpassung.
+Reiner TypeScript-Fix im Migration-Modul. Keine Migrationen, kein Schema-Change, kein SQL. Backward-Kompat: 15-Spalten-CSVs ohne `restaurant` importieren weiter (location_id bleibt NULL).
 
-## Änderungen
+## Dateien
 
-1. **Stand-Zeile (Zeile 5)** ersetzen:
-   - alt: `Stand: 24.06.2026`
-   - neu: `Stand: 26.06.2026`
-
-2. **Neuer Abschnitt §10** ans Dateiende anhängen (nach §9), Inhalt wortgleich zum Prompt:
-   - Einleitung: Re-Import März–Juni 2026 aus Legacy-`tagesabrechnung` über `/admin/migration`, ersetzt periodenweise; danach location_id-Reparatur.
-   - Ergebnis-Tabelle mit den vier Perioden (Zeilen / Std COCO / Std Quelle), Wasserlinien-Hinweis.
-   - Verbindliche Prozedur pro Periode (6 Schritte: Export+Sanity, Dry-Run, gescopter DELETE, Commit erst bei Rest=0, Endcheck, Stunden-Abgleich).
-   - Lektionen: „Success. No rows returned" sagt nichts; Importer setzt keine `location_id`; Backfill-Mechanik (34 Single-Location-MA via min(location_id::text)::uuid; 8 Mehrhaus-Fälle via `zt_shifts.week_id → weeks.period_id → scheduling_periods.restaurant_id`).
-   - Offen: Importer dauerhaft fixen, damit `location_id` direkt gesetzt wird.
-
-## Vor Commit
-
-- `npx prettier --write docs/arbeitsweise.md`
-- Sicherstellen: abschließender Zeilenumbruch am Dateiende.
+- `src/lib/migration/normalize.ts` — neues Pflichtfeld `locationName: string | null` im `NormalizedShift`-Typ (nach `breakMinutes`).
+- `src/lib/migration/csv.ts` — `assertHeaders` bekommt vierten Parameter `optional: readonly string[] = []`; optionale Header gelten nicht als „überzählig".
+- `src/lib/migration/parse-tagesabrechnung.ts` — neue Konstante `TAGESABRECHNUNG_OPTIONAL_HEADERS = ["restaurant"]`; `assertHeaders`-Aufruf um vierten Parameter erweitern; `locationName: (r.restaurant ?? "").trim() || null` ins base-Objekt.
+- `src/lib/migration/parse-bunker.ts` — `locationName: null` ins base-Objekt (Pflichtfeld erfüllen, kein Mapping; restaurant_id ist ID, kein Name).
+- `src/lib/migration/run-import-core.ts`:
+  - Exportierte reine Helper-Funktion `resolveLocationId(name, map)` — case-insensitiv + getrimmt, null bei leer/unbekannt.
+  - Insertable-Typ um `location_id: string | null` erweitern.
+  - Neuer Block direkt nach Idempotenz-Block: locations für `organizationId` laden, `locByName`-Map (lowercased) bauen.
+  - `inserts.push({…})` um `location_id: resolveLocationId(s.locationName, locByName)` ergänzen.
+- `src/lib/migration/parse-tagesabrechnung.test.ts` — zwei neue Cases: `restaurant`-Spalte → `locationName="Spicery"`; ohne Spalte → `null`.
+- `src/lib/migration/run-import-core.test.ts` — `resolveLocationId` importieren + describe-Block (case-insens/trim, null bei leer, null bei unbekannt).
+- `src/lib/migration/reconcile.test.ts` — Test-Factory `mk()` um `locationName: null` ergänzen (sonst tsc-Fehler).
 
 ## Nicht angefasst
 
-Keine andere Datei. §1–§9 inhaltlich unverändert (außer Stand-Zeile).
+`migration.functions.ts`, `delete-imported-shifts.ts`, `reconcile.ts`, `aggregate-by-business-date.ts`, `bootstrap-missing-staff.ts`, Bunker-Fachlogik, Auth/Rollencheck, Idempotenz, Wasserlinie, Counter-Bilanz.
+
+## Gate
+
+`tsc --noEmit`, `eslint`, `prettier --check`, `vitest run` müssen grün sein.

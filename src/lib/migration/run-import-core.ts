@@ -38,6 +38,19 @@ export function sha256(text: string): string {
   return createHash("sha256").update(text, "utf8").digest("hex");
 }
 
+/**
+ * Mappt einen Quell-Restaurantnamen case-insensitiv (getrimmt) auf eine COCO-location_id.
+ * Reine Funktion → blockierend unit-testbar. null bei fehlendem/unbekanntem Namen.
+ * Erwartete Namen in dieser Org: "Spicery"/"spicery", "YUM", "TSB" (Vergleich case-insensitiv).
+ */
+export function resolveLocationId(
+  locationName: string | null,
+  locByName: Map<string, string>,
+): string | null {
+  if (!locationName) return null;
+  return locByName.get(locationName.trim().toLowerCase()) ?? null;
+}
+
 export type RunImportArgs = {
   admin: SupabaseClient<Database>;
   organizationId: string;
@@ -101,6 +114,15 @@ export async function executeImport(args: RunImportArgs): Promise<RunImportResul
   const existingKeys = new Set<string>();
   for (const r of existingRows ?? []) if (r.import_key) existingKeys.add(r.import_key);
 
+  // 2b) Standort-Namen → location_id (case-insensitiv). Quelle: optionale CSV-Spalte `restaurant`.
+  const { data: locRows, error: locErr } = await admin
+    .from("locations")
+    .select("id, name")
+    .eq("organization_id", organizationId);
+  if (locErr) throw locErr;
+  const locByName = new Map<string, string>();
+  for (const l of locRows ?? []) if (l.name) locByName.set(l.name.trim().toLowerCase(), l.id);
+
   type Insertable = {
     organization_id: string;
     staff_id: string;
@@ -110,6 +132,7 @@ export async function executeImport(args: RunImportArgs): Promise<RunImportResul
     break_minutes: number;
     source: "import";
     import_key: string;
+    location_id: string | null;
   };
   const inserts: Insertable[] = [];
   let maxBusinessDate: string | null = null;
@@ -143,6 +166,7 @@ export async function executeImport(args: RunImportArgs): Promise<RunImportResul
       break_minutes: s.breakMinutes,
       source: "import",
       import_key: importKey,
+      location_id: resolveLocationId(s.locationName, locByName),
     });
     if (!maxBusinessDate || s.shiftDate > maxBusinessDate) maxBusinessDate = s.shiftDate;
   }

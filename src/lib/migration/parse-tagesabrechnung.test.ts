@@ -50,4 +50,17 @@ describe("parseTagesabrechnungCsv", () => {
     const rows = parseTagesabrechnungCsv(csv);
     expect(rows[0].skipReason).toBe("invalid_time");
   });
+
+  it("liest optionale restaurant-Spalte in locationName", () => {
+    const csv = `${HEADER},restaurant\nshift-1,emp-1,Anna,,2026-01-15,Service,17:00:00,21:30:00,,false,4.5,1.5,0,0,0,Spicery\n`;
+    const rows = parseTagesabrechnungCsv(csv);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].locationName).toBe("Spicery");
+  });
+
+  it("locationName ist null ohne restaurant-Spalte (Backward-Compat)", () => {
+    const csv = `${HEADER}\nshift-1,emp-1,Anna,,2026-01-15,Service,17:00:00,21:30:00,,false,4.5,1.5,0,0,0\n`;
+    const rows = parseTagesabrechnungCsv(csv);
+    expect(rows[0].locationName).toBeNull();
+  });
 });

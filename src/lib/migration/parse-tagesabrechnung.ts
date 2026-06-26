@@ -22,6 +22,9 @@ export const TAGESABRECHNUNG_HEADERS = [
   "sunday_holiday_hours",
 ] as const;
 
+/** Optionale Zusatzspalte: Quell-Restaurant (für location_id-Ableitung im Import). */
+export const TAGESABRECHNUNG_OPTIONAL_HEADERS = ["restaurant"] as const;
+
 function numOrZero(v: string | null): number {
   if (v === null) return 0;
   const n = Number(v);
@@ -30,7 +33,12 @@ function numOrZero(v: string | null): number {
 
 export function parseTagesabrechnungCsv(csvText: string): NormalizedShift[] {
   const { headers, rows } = parseCsv(csvText);
-  assertHeaders(headers, TAGESABRECHNUNG_HEADERS, "tagesabrechnung/zt_shifts");
+  assertHeaders(
+    headers,
+    TAGESABRECHNUNG_HEADERS,
+    "tagesabrechnung/zt_shifts",
+    TAGESABRECHNUNG_OPTIONAL_HEADERS,
+  );
 
   const out: NormalizedShift[] = [];
   for (const r of rows) {
@@ -54,6 +62,7 @@ export function parseTagesabrechnungCsv(csvText: string): NormalizedShift[] {
       altEmployeeName,
       shiftDate,
       breakMinutes: 0, // existiert in dieser Quelle nicht
+      locationName: (r.restaurant ?? "").trim() || null,
       altTotals: totals,
       isHoliday: (r.is_holiday ?? "").toLowerCase() === "true",
     };
