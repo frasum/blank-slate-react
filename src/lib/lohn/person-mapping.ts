@@ -31,6 +31,8 @@ export interface StaffDetailsForLohn {
   is_midijob?: boolean | null;
   kv_frei?: boolean | null;
   pv_frei?: boolean | null;
+  is_pkv?: boolean | null;
+  pkv_basis_beitrag_monat_cent?: number | null;
 }
 
 function alterAm(dob: string | null, asOf: string): number | null {
@@ -72,5 +74,7 @@ export function staffDetailsToPerson(d: StaffDetailsForLohn, asOf: string): Pers
     istMidijob: !!d.is_midijob,
     kvFrei: !!d.kv_frei,
     pvFrei: !!d.pv_frei,
+    istPkv: !!d.is_pkv,
+    pkvBasisBeitragMonatCent: Number(d.pkv_basis_beitrag_monat_cent ?? 0),
   };
 }
