@@ -24,6 +24,8 @@ const basePerson: LohnEingabe["person"] = {
   istMidijob: false,
   kvFrei: false,
   pvFrei: false,
+  istPkv: false,
+  pkvBasisBeitragMonatCent: 0,
 };
 
 const baseZeilen: Entgeltzeile[] = [
