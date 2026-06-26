@@ -34,6 +34,7 @@ import { buildLohnFileName, buildLohnXlsx, downloadBlob } from "@/lib/lohn/lohn-
 import { buildUebersichtCsv } from "@/lib/lohn/lohn-csv-export";
 import { FileSpreadsheet, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export const Route = createFileRoute("/_authenticated/admin/lohnrechner")({
   beforeLoad: ({ context }) => {
@@ -268,26 +269,34 @@ function LohnRechnerPage() {
                     )}
                   >
                     <TableCell>
-                      <div className="font-medium">{r.displayName}</div>
-                      {hasErr && <div className="text-xs text-muted-foreground">{r.error}</div>}
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{r.displayName}</span>
+                        {hasErr && (
+                          <TooltipProvider delayDuration={150}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span
+                                  aria-label="Hinweis zur Berechnung"
+                                  className="inline-block h-2 w-2 rounded-full bg-muted-foreground/40"
+                                />
+                              </TooltipTrigger>
+                              <TooltipContent>{r.error}</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{hrs(r.totalHours)} h</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {eur(r.hourlyRateCents)}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {r.totalHours != null ? hrs(r.totalHours) : "—"}
+                      {eur(r.zuschlagCents)}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {r.hourlyRateCents != null ? eur(r.hourlyRateCents) : "—"}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {r.zuschlagCents != null ? eur(r.zuschlagCents) : "—"}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {r.bruttoCents != null ? eur(r.bruttoCents) : "—"}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {r.nettoCents != null ? eur(r.nettoCents) : "—"}
-                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{eur(r.bruttoCents)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{eur(r.nettoCents)}</TableCell>
                     <TableCell className="text-right font-semibold tabular-nums">
-                      {r.auszahlungCents != null ? eur(r.auszahlungCents) : "—"}
+                      {eur(r.auszahlungCents)}
                     </TableCell>
                   </TableRow>
                 );
