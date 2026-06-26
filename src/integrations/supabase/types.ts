@@ -2643,11 +2643,13 @@ export type Database = {
           is_sv_exempt: boolean | null
           job_title: string | null
           kk_zusatzbeitrag: number | null
+          meal_allowance: boolean
           nationality: string | null
           organization_id: string
           personnel_group: string | null
           phone: string | null
           place_of_birth: string | null
+          sachbezug_monthly_cents: number
           salutation: string | null
           social_security_number: string | null
           staff_id: string
@@ -2679,11 +2681,13 @@ export type Database = {
           is_sv_exempt?: boolean | null
           job_title?: string | null
           kk_zusatzbeitrag?: number | null
+          meal_allowance?: boolean
           nationality?: string | null
           organization_id: string
           personnel_group?: string | null
           phone?: string | null
           place_of_birth?: string | null
+          sachbezug_monthly_cents?: number
           salutation?: string | null
           social_security_number?: string | null
           staff_id: string
@@ -2715,11 +2719,13 @@ export type Database = {
           is_sv_exempt?: boolean | null
           job_title?: string | null
           kk_zusatzbeitrag?: number | null
+          meal_allowance?: boolean
           nationality?: string | null
           organization_id?: string
           personnel_group?: string | null
           phone?: string | null
           place_of_birth?: string | null
+          sachbezug_monthly_cents?: number
           salutation?: string | null
           social_security_number?: string | null
           staff_id?: string
