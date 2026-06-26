@@ -27,6 +27,7 @@ export function lohnsteuer2026(e: PapEingabe): PapErgebnis {
     PVS: e.pvs ? 1 : 0,
     ALV: 0,
     KRV: 0,
+    LZZFREIB: e.freibetragCent ?? 0,
   };
 
   const pap = new Pap2026();
