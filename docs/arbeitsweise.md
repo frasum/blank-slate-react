@@ -2,7 +2,7 @@
 
 Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen Baublock konsultiert. Bewusst kurz gehalten — Architektur-Begründungen stehen im gruendungsdokument.md, nicht hier.
 
-Stand: 24.06.2026
+Stand: 26.06.2026
 
 ## 1. Rollenverteilung im Team
 
@@ -372,3 +372,40 @@ Sicherheits-Durchgang nach einem externen Review (ChatGPT, gegen einen Repo-Snap
 - `.env` ist zwar eingecheckt, enthält aber nur den publishable/anon-Key + domain-beschränkten Maps-Key (kein `service_role`/Secret) → niedrige Priorität.
 
 **Offen — Härtungs-Backlog (Defense-in-Depth, keine offene Lücke):** Display-Token `Referrer-Policy: no-referrer` + Rotation; `search_path`-Härtung breiter ausrollen; Composite-FKs `(organization_id, location_id)`; Check-Constraints (qty>0, cents≥0 — nuanciert, manche Beträge legitim negativ); db-security-Tests blockierend machen (aus dem flaky `db-integration`-Job herauslösen); Bun-Version pinnen.
+
+## 10. Zeit-Re-Import März–Juni 2026 + location_id-Reparatur (26.06.2026)
+
+Arbeitszeiten der Perioden **März–Juni 2026** wurden aus der Legacy-`tagesabrechnung` (`zt_shifts`) neu nach COCO `time_entries` importiert (über `/admin/migration`), weil die Quelldaten korrigiert wurden. Der Import **ersetzt** bestehende Import-Zeilen periodenweise. Danach war eine **location_id-Reparatur** nötig (siehe Lektion unten).
+
+### Ergebnis (alle Perioden verifiziert: Zeilen = distinct import_keys, Stunden = Quelle ± Rundung)
+
+| Periode | Zeitraum      | Zeilen | Std (COCO) | Std (Quelle) |
+| ------- | ------------- | ------ | ---------- | ------------ |
+| März    | 26.02.–25.03. | 649    | 5261,73    | 5261,79      |
+| April   | 26.03.–25.04. | 699    | 5675,67    | 5675,67      |
+| Mai     | 26.04.–25.05. | 676    | 5464,57    | 5464,55      |
+| Juni    | 26.05.–25.06. | 670    | 5369,38    | 5369,40      |
+
+Wasserlinie (`organization_settings.time_locked_through_date`) steht auf 25.06. Übersprungene Quell-Zeilen pro Periode sind legitime Leer-Platzhalter (0 h, keine Zeiten) + Abwesenheiten (Urlaub/Krank).
+
+### Verbindliche Prozedur pro Periode
+
+1. **Export + Sanity** (tagesabrechnung-DB): 15-Spalten-SELECT aus `zt_shifts` JOIN `staff` ON `staff.id = zt_shifts.employee_id`; `ohne_staff_match` muss **0** sein.
+2. **Dry-Run** auf `/admin/migration`.
+3. **Gescopter DELETE** der alten Import-Zeilen in COCO (`source='import'` + `business_date`-Range) — **niemals** `clock`/`manual` anfassen — **mit Rest-Check im SELBEN Editor-Lauf**.
+4. **Commit erst wenn Rest = 0.**
+5. **Endcheck**: `count = distinct import_keys = erwartete Zeilenzahl`.
+6. **Stunden-Abgleich** gegen die Quelle.
+
+### Lektionen (teuer gelernt)
+
+- **„Success. No rows returned" sagt NICHTS über betroffene Zeilen.** DELETE + Rest-Check immer in **einem** Editor-Lauf ausführen; **nie committen, solange Rest ≠ 0** (einmal beinahe doppelt importiert, weil ein DELETE in einem anderen Tab/Connection lief).
+- **Der Importer setzt KEIN `location_id`.** Re-importierte Zeilen hatten `location_id = NULL` und waren dadurch im Wochenplan **unsichtbar** — `getWeeklyTimeEntries` (in `src/lib/time/time-admin.functions.ts`) filtert strikt `.eq("location_id", …)`, und „Alle" lädt pro Standort und merged. NULL-Location-Zeilen erscheinen nirgends.
+- **location_id-Backfill-Mechanik** (einmalig, manuell per SQL — nicht im Importer):
+  - **34 Single-Location-Mitarbeiter**: neue NULL-Zeilen bekamen den (einzigen) Standort ihrer bestehenden Zeilen kopiert (`HAVING count(DISTINCT location_id) = 1`). UUID-Aggregat über `(min(location_id::text))::uuid` — `max(uuid)` existiert nicht.
+  - **8 Mehrhaus-Fälle** (DEAU, Elson, EM, MO, SUMITR, GUNG, NET + BIG): Standort **pro Schicht** aus der Quell-Kette abgeleitet — `zt_shifts.week_id` → `weeks.period_id` → `scheduling_periods.restaurant_id` → `restaurants.name`. Die **Abteilung disambiguiert NICHT** (alle arbeiten dieselbe Abteilung an beiden Häusern); die scheduling_period ist das einzige verlässliche Per-Schicht-Signal. Mapping auf COCO über `import_key = 'tagesabrechnung:' || zt_shifts.id`, dann gezieltes UPDATE (nur `source='import' AND location_id IS NULL`).
+  - Endstand: **0** Import-Zeilen ohne `location_id`.
+
+### Offen
+
+- **Importer dauerhaft fixen**: `location_id` beim Import direkt setzen (über dieselbe `week→period→restaurant`-Kette bzw. Single-Location-Ableitung), damit künftige Re-Importe keinen manuellen Backfill mehr brauchen. Bis dahin gilt: nach jedem Zeit-Re-Import den location_id-Backfill mitlaufen lassen.

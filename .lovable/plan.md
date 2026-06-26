@@ -1,27 +1,25 @@
-## Änderung
+# Doku-Nachzug §10 — Zeit-Re-Import + location_id-Reparatur
 
-In `src/routes/_authenticated/admin/staff.index.tsx`, Zeile ~431, in der Namens-Spalte der Mitarbeiter-Matrix:
+Reine Dokumentations-Änderung an `docs/arbeitsweise.md`. Keine Code-, Schema- oder Migrations-Anpassung.
 
-Die zweite Zeile unter dem `displayName` (aktuell `{staff.email ?? "—"}`) zeigt künftig **Vorname + Nachname** statt der E-Mail-Adresse.
+## Änderungen
 
-```tsx
-// vorher
-<span className="truncate">{staff.email ?? "—"}</span>
+1. **Stand-Zeile (Zeile 5)** ersetzen:
+   - alt: `Stand: 24.06.2026`
+   - neu: `Stand: 26.06.2026`
 
-// nachher
-<span className="truncate">
-  {[staff.firstName, staff.lastName].filter(Boolean).join(" ") || "—"}
-</span>
-```
+2. **Neuer Abschnitt §10** ans Dateiende anhängen (nach §9), Inhalt wortgleich zum Prompt:
+   - Einleitung: Re-Import März–Juni 2026 aus Legacy-`tagesabrechnung` über `/admin/migration`, ersetzt periodenweise; danach location_id-Reparatur.
+   - Ergebnis-Tabelle mit den vier Perioden (Zeilen / Std COCO / Std Quelle), Wasserlinien-Hinweis.
+   - Verbindliche Prozedur pro Periode (6 Schritte: Export+Sanity, Dry-Run, gescopter DELETE, Commit erst bei Rest=0, Endcheck, Stunden-Abgleich).
+   - Lektionen: „Success. No rows returned" sagt nichts; Importer setzt keine `location_id`; Backfill-Mechanik (34 Single-Location-MA via min(location_id::text)::uuid; 8 Mehrhaus-Fälle via `zt_shifts.week_id → weeks.period_id → scheduling_periods.restaurant_id`).
+   - Offen: Importer dauerhaft fixen, damit `location_id` direkt gesetzt wird.
 
-`firstName` und `lastName` werden bereits von `listStaff` zurückgegeben (siehe `src/lib/admin/staff.functions.ts`), kein Server- oder Query-Umbau nötig.
+## Vor Commit
+
+- `npx prettier --write docs/arbeitsweise.md`
+- Sicherstellen: abschließender Zeilenumbruch am Dateiende.
 
 ## Nicht angefasst
 
-- Die E-Mail-Adresse bleibt in der Detailseite (`staff.$staffId.tsx`) und im Konto-Dialog unverändert sichtbar.
-- Datenmodell, Server-Functions, Sortierung/Suche bleiben gleich (Suche filtert weiter über `displayName` + `email`).
-- Keine anderen Spalten/Seiten verändert.
-
-## Erfolgs-Gate
-
-`bunx prettier --check .`, `bunx tsgo --noEmit`, `bunx eslint . --max-warnings=5`, `bunx vitest run` — alle grün.
+Keine andere Datei. §1–§9 inhaltlich unverändert (außer Stand-Zeile).
