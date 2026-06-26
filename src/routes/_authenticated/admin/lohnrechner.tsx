@@ -31,7 +31,8 @@ import {
   berechneLohnUebersicht,
 } from "@/lib/lohn/lohn-rechner.functions";
 import { buildLohnFileName, buildLohnXlsx, downloadBlob } from "@/lib/lohn/lohn-excel-export";
-import { FileSpreadsheet } from "lucide-react";
+import { buildUebersichtCsv } from "@/lib/lohn/lohn-csv-export";
+import { FileSpreadsheet, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/admin/lohnrechner")({
@@ -133,6 +134,19 @@ function LohnRechnerPage() {
     return r?.displayName ?? staffId;
   }, [uebersichtQ.data, staffId]);
 
+  const periodLabel = useMemo(() => {
+    return periodsQ.data?.find((p) => p.id === periodId)?.label ?? `${fromDate}_${toDate}`;
+  }, [periodsQ.data, periodId, fromDate, toDate]);
+
+  function handleCsvExport() {
+    const rows = uebersichtQ.data?.rows;
+    if (!rows || rows.length === 0) return;
+    const csv = buildUebersichtCsv(rows, { periodLabel, mode });
+    const safeLabel = periodLabel.replace(/[\\/]/g, "-").replace(/\s+/g, "_");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    downloadBlob(blob, `lohn-uebersicht_${safeLabel}_${mode}.csv`);
+  }
+
   async function handleExport() {
     if (!result) return;
     try {
@@ -201,12 +215,23 @@ function LohnRechnerPage() {
       </Card>
 
       <Card className="p-4">
-        <h2 className="mb-3 text-base font-semibold">
-          Übersicht{" "}
-          <span className="text-sm font-normal text-muted-foreground">
-            ({fromDate} – {toDate})
-          </span>
-        </h2>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-base font-semibold">
+            Übersicht{" "}
+            <span className="text-sm font-normal text-muted-foreground">
+              ({fromDate} – {toDate})
+            </span>
+          </h2>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCsvExport}
+            disabled={uebersichtQ.isLoading || !uebersichtQ.data?.rows.length}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            CSV exportieren
+          </Button>
+        </div>
         {uebersichtQ.isLoading ? (
           <p className="text-sm text-muted-foreground">Lade…</p>
         ) : uebersichtQ.isError ? (

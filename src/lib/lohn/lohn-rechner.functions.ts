@@ -153,7 +153,7 @@ export const berechneLohnUebersicht = createServerFn({ method: "GET" })
 
     const { data: staffRows, error: staffErr } = await supabaseAdmin
       .from("staff")
-      .select("id, display_name, first_name, last_name")
+      .select("id, display_name, first_name, last_name, perso_nr")
       .eq("organization_id", caller.organizationId)
       .eq("is_active", true)
       .order("display_name", { ascending: true });
@@ -161,11 +161,22 @@ export const berechneLohnUebersicht = createServerFn({ method: "GET" })
 
     type Row = {
       staffId: string;
+      persoNr: number | null;
       displayName: string;
       totalHours: number | null;
       hourlyRateCents: number | null;
+      night25Hours: number | null;
+      night40Hours: number | null;
+      sundayHours: number | null;
       zuschlagCents: number | null;
       bruttoCents: number | null;
+      lstCent: number | null;
+      soliCent: number | null;
+      kistCent: number | null;
+      kvCent: number | null;
+      rvCent: number | null;
+      avCent: number | null;
+      pvCent: number | null;
       nettoCents: number | null;
       auszahlungCents: number | null;
       error: string | null;
@@ -176,6 +187,7 @@ export const berechneLohnUebersicht = createServerFn({ method: "GET" })
         (s.display_name as string | null)?.trim() ||
         [s.first_name, s.last_name].filter(Boolean).join(" ").trim() ||
         (s.id as string);
+      const persoNr = (s.perso_nr as number | null) ?? null;
       try {
         const r = await computeLohnForStaff(supabaseAdmin, {
           staffId: s.id as string,
@@ -186,11 +198,22 @@ export const berechneLohnUebersicht = createServerFn({ method: "GET" })
         });
         rows.push({
           staffId: s.id as string,
+          persoNr,
           displayName,
           totalHours: r.totalHours,
           hourlyRateCents: r.hourlyRateCents,
+          night25Hours: r.buckets.night25Hours,
+          night40Hours: r.buckets.night40Hours,
+          sundayHours: r.buckets.sundayHours,
           zuschlagCents: r.zuschlagCents,
           bruttoCents: r.ergebnis.gesamtbruttoCent,
+          lstCent: r.ergebnis.lstCent,
+          soliCent: r.ergebnis.soliCent,
+          kistCent: r.ergebnis.kistCent,
+          kvCent: r.ergebnis.kvCent,
+          rvCent: r.ergebnis.rvCent,
+          avCent: r.ergebnis.avCent,
+          pvCent: r.ergebnis.pvCent,
           nettoCents: r.ergebnis.gesamtnettoCent,
           auszahlungCents: r.ergebnis.auszahlungCent,
           error: null,
@@ -198,11 +221,22 @@ export const berechneLohnUebersicht = createServerFn({ method: "GET" })
       } catch (e) {
         rows.push({
           staffId: s.id as string,
+          persoNr,
           displayName,
           totalHours: null,
           hourlyRateCents: null,
+          night25Hours: null,
+          night40Hours: null,
+          sundayHours: null,
           zuschlagCents: null,
           bruttoCents: null,
+          lstCent: null,
+          soliCent: null,
+          kistCent: null,
+          kvCent: null,
+          rvCent: null,
+          avCent: null,
+          pvCent: null,
           nettoCents: null,
           auszahlungCents: null,
           error: e instanceof Error ? e.message : "Berechnung fehlgeschlagen",

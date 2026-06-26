@@ -1,51 +1,55 @@
 ## Ziel
 
-Im Lohnrechner (`/admin/lohnrechner`) eine **Perioden-Übersicht** als Liste aller aktiven Mitarbeiter zeigen. Klick auf eine Zeile öffnet die bestehende Detailansicht. Liste und Detail teilen sich denselben Rechen-Kern — kein zweiter Pfad, kein Drift.
+Auf `/admin/lohnrechner` einen Button **„CSV exportieren"** ergänzen, der die aktuell geladene Perioden-Übersicht als CSV (UTF-8 BOM, `;`-getrennt, `\r\n`) herunterlädt — mit allen Feldern für den Lohnbüro-Abgleich (Perso-Nr., SFN-Stunden-Töpfe, alle Steuer-/SV-Komponenten in Cent). Es wird **nichts neu gerechnet** — die Werte fallen in `computeLohnForStaff` bereits an und werden nur durchgereicht.
 
 ---
 
 ## Änderungen
 
-### 1) `src/lib/lohn/lohn-rechner.functions.ts`
+### 1) `src/lib/lohn/lohn-rechner.functions.ts` — `berechneLohnUebersicht` erweitern
 
-**1a — Helper extrahieren (kein Verhaltenswechsel):**
-Pro-MA-Zusammenbau aus `berechneLohnFuerMitarbeiter` (ab `aggregateSfnPeriod(...)` bis `return { ... ergebnis }`) in private async-Helferfunktion `computeLohnForStaff(supabaseAdmin, { staffId, fromDate, toDate, mode, zusatzZeilen })` ziehen.
+- Staff-Query um `perso_nr` ergänzen: `.select("id, display_name, first_name, last_name, perso_nr")`.
+- `Row`-Typ um folgende Felder erweitern (alle `number | null`):
+  - `persoNr`
+  - `night25Hours`, `night40Hours`, `sundayHours` (aus `r.buckets`)
+  - `lstCent`, `soliCent`, `kistCent`, `kvCent`, `rvCent`, `avCent`, `pvCent` (aus `r.ergebnis`)
+- Erfolgs-Zweig: neue Felder aus `r.buckets` / `r.ergebnis` befüllen; `persoNr: s.perso_nr ?? null`.
+- Fehler-Zweig (`catch`): `persoNr` setzen, alle neuen Zahlenfelder `null`.
+- UI-Tabelle bleibt unverändert (neue Felder sind nur für den Export).
 
-- `berechneLohnFuerMitarbeiter` bleibt nach außen **identisch**: Permission-Check, `loadAdminCaller`, org-scoped staff-Existenzprüfung bleiben im Handler; Handler ruft danach `computeLohnForStaff(...)` auf.
-- Werfen bei fehlenden `staff_personal_details` bleibt **im Helper** (Einzelansicht soll klar fehlschlagen).
+### 2) `src/lib/lohn/lohn-csv-export.ts` — neu, reines Modul
 
-**1b — Neue Function `berechneLohnUebersicht`:**
-- `method: "GET"`, `requireSupabaseAuth`, `assertPermission("payroll.calc.run")`, `loadAdminCaller(["admin","payroll"])`.
-- Input: `{ fromDate, toDate, mode: "simple"|"extended" }` (Zod, dateRegex).
-- Lädt alle `staff` mit `organization_id = caller.organizationId` und `is_active = true`, sortiert nach `display_name`.
-- Schleife mit `try/catch` pro MA: ruft `computeLohnForStaff(..., zusatzZeilen: [])` auf; bei Fehler Zeile mit `error: message` + `null`-Zahlen, damit die Liste **nicht abreißt**.
-- Rückgabe: `{ mode, fromDate, toDate, rows: [{ staffId, displayName, totalHours, hourlyRateCents, zuschlagCents, bruttoCents, nettoCents, auszahlungCents, error }] }`.
+- Exportiert `UebersichtCsvRow` (Shape exakt wie im Prompt) und `buildUebersichtCsv(rows, { periodLabel, mode }): string`.
+- Format:
+  - UTF-8 BOM `\uFEFF` voran, Trenner `;`, Zeilenende `\r\n`.
+  - Zeile 1 (Kommentar): `# COCO Lohn-Übersicht; Periode=<periodLabel>; Modus=<mode>`
+  - Zeile 2 (Header, exakt):
+    `perso_nr;name;stunden;stundensatz_cent;nacht25_std;nacht40_std;sonntag_std;zuschlag_cent;brutto_cent;lst_cent;soli_cent;kist_cent;kv_cent;rv_cent;av_cent;pv_cent;netto_cent;auszahlung_cent;fehler`
+  - Geld als ganzzahlige Cent, Stunden als Dezimal mit Punkt (`12.5`), `null` → leere Zelle.
+  - CSV-Escaping: Felder mit `;`, `"`, `\r` oder `\n` in `"…"`, enthaltene `"` verdoppeln.
 
-### 2) `src/routes/_authenticated/admin/lohnrechner.tsx`
+### 3) `src/lib/lohn/lohn-csv-export.test.ts` — neu
 
-- **Perioden-Dropdown** ersetzt freie Von/Bis-Inputs. `listPeriods` aus `@/lib/time/time-admin.functions` via `useQuery` (Key `["lohn-periods"]`). Auswahl setzt `fromDate = startDate`, `toDate = endDate`. Default = neueste Periode. `mode`-Select bleibt. `defaultFromTo()` als Fallback bis Perioden geladen.
-- **Übersichts-Tabelle** als Primäransicht: `useQuery` auf `berechneLohnUebersicht` (Key `["lohn-uebersicht", fromDate, toDate, mode]`, enabled wenn Daten gesetzt). Spalten: **Mitarbeiter · Stunden · Stundenlohn · Zuschläge · Brutto · Netto · Auszahlung** (Helper `eur()`/`hrs()`). Bestehende `Table`-Komponente nutzen.
-- Fehler-Zeilen (`error != null`): Name + Hinweis-Text in `text-muted-foreground text-xs`, Zahlenspalten „—".
-- Zeilen klickbar (`cursor-pointer`, Hover, ausgewählte Zeile hervorheben) → setzt `staffId` und triggert die **bestehende** `berechneLohnFuerMitarbeiter`-Mutation mit gleichem `fromDate`/`toDate`/`mode`. Bestehende Detail-JSX (Zeilen, Person, Ergebnis, Excel-Export) bleibt **unverändert**, wird inline unter der Liste gerendert.
-- **Altes Staff-Dropdown entfernen**, toten State aufräumen.
+- Header-/Kommentarzeile exakt.
+- Voll-Zeile: Cent als Ganzzahl, Stunden mit Punkt, korrekte Spaltenanzahl (19).
+- Fehler-Zeile: Zahlenspalten leer, `name`+`fehler` gesetzt, Escaping greift bei `name` mit `;`.
 
----
+### 4) `src/routes/_authenticated/admin/lohnrechner.tsx`
 
-## Nicht anfassen
-
-- Rechenlogik (`aggregateSfnPeriod`, `berechneLohn`, `staffDetailsToPerson`, `config-2026`, `pap-2026`, `sv-2026`, alle Tests/Golden-Master).
-- Rückgabe-Shape von `berechneLohnFuerMitarbeiter` bleibt 1:1.
-- `lohn-excel-export.ts`.
-- Permissions/RLS/Schema — keine Änderungen, keine Migration.
-
----
-
-## CSS-Hinweis
-
-Keine `hsl(var(--…))`. Nur Tailwind-Klassen bzw. `color-mix(in oklch, …)`.
+- Button **„CSV exportieren"** (`variant="outline"`) bei der Übersichts-Tabelle.
+- `disabled`, wenn `uebersichtQ.isLoading` oder keine Rows.
+- onClick: `buildUebersichtCsv(uebersichtQ.data.rows, { periodLabel, mode })` → `downloadBlob(new Blob([csv], { type: "text/csv;charset=utf-8" }), "lohn-uebersicht_<periodLabel-sanitized>_<mode>.csv")`. `downloadBlob` ist bereits importiert.
+- `periodLabel` aus der aktuell gewählten Periode (`periodsQ.data.find(p => p.id === periodId)?.label`); Slashes/Spaces im Dateinamen durch `-`/`_` ersetzen.
 
 ---
+
+## NICHT ANFASSEN
+
+- Rechenlogik (`aggregateSfnPeriod`, `berechneLohn`, `computeLohnForStaff`-Verhalten).
+- Rückgabe-Shape von `berechneLohnFuerMitarbeiter`.
+- `lohn-excel-export.ts` (nur `downloadBlob` wiederverwenden).
+- Permissions/RLS/Schema — keine Migration.
 
 ## Erfolgs-Gate
 
-`tsc --noEmit`, `format:check`, `eslint .` (max-warnings=5), `vitest run` alle grün. Manuell: Periode wählen → Liste; 0-Std-MA mit 0h+Stundenlohn; MA ohne Personaldaten mit „—"+Hinweis (Liste reißt nicht ab); Row-Click → unveränderte Detailansicht inkl. Excel.
+`tsc --noEmit`, `format:check`, `eslint . --max-warnings=5`, `vitest run` grün (inkl. `lohn-csv-export.test.ts`). Manuell: Periode wählen → Knopf lädt `.csv` mit BOM, `;`-getrennt, 19 Spalten, `perso_nr` gefüllt, Cent-Werte ganzzahlig, Fehler-MA mit leeren Zahlen + `fehler`-Text.
