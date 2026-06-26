@@ -15,11 +15,21 @@ import { aggregateSfnPeriod } from "./lohn-period.functions";
 import { staffDetailsToPerson } from "./person-mapping";
 import { berechneLohn } from "./lohn-core";
 import type { Entgeltzeile } from "./types";
+import type { Beschaeftigungsart } from "./types";
 import { buildFixedZeilen } from "./fixed-zeilen";
 import { computeUrlaubKrankDiagnose } from "./urlaub-krank-diagnose";
 import { buildUrlaubKrankZeilen } from "./urlaub-krank-zeilen";
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Liefert die Kategorie für die Zeitlohn-Zeile abhängig von der
+ * Beschäftigungsart. Minijobber müssen als `aushilfe_paust` gebucht werden,
+ * damit `svBeitraegeMinijob` den RV-Eigenanteil korrekt aufstockt.
+ */
+export function zeitlohnKategorie(b: Beschaeftigungsart): "aushilfe_paust" | "zeitlohn" {
+  return b === "minijob" ? "aushilfe_paust" : "zeitlohn";
+}
 
 /**
  * Geteilter Rechen-Kern: Aggregat → Personenparameter → Entgeltzeilen → Lohn.
@@ -94,8 +104,11 @@ async function computeLohnForStaff(
 
   const zeilen: Entgeltzeile[] = [
     {
-      kategorie: "zeitlohn",
-      bezeichnung: "Zeitlohn (Stunden × Satz)",
+      kategorie: zeitlohnKategorie(person.beschaeftigung),
+      bezeichnung:
+        person.beschaeftigung === "minijob"
+          ? "Aushilfe-Zeitlohn (pauschal)"
+          : "Zeitlohn (Stunden × Satz)",
       betragCent: zeitlohnCent,
       stunden: sfn.totalHours,
       satzCent: sfn.hourlyRateCents,
