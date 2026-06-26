@@ -25,8 +25,9 @@ export function lohnsteuer2026(e: PapEingabe): PapErgebnis {
     PVZ: e.pvz ? 1 : 0,
     PVA: e.pva ?? 0,
     PVS: e.pvs ? 1 : 0,
-    ALV: 0,
-    KRV: 0,
+    ALV: e.alvKeinAv ? 1 : 0,
+    KRV: e.krvKeinRv ? 1 : 0,
+    PKPV: e.pkpvCent ?? 0,
     LZZFREIB: e.freibetragCent ?? 0,
   };
 
