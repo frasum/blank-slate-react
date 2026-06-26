@@ -392,7 +392,7 @@ Wasserlinie (`organization_settings.time_locked_through_date`) steht auf 25.06. 
 
 1. **Export + Sanity** (tagesabrechnung-DB): **16**-Spalten-SELECT aus `zt_shifts` JOIN `staff` ON `staff.id = zt_shifts.employee_id`; `ohne_staff_match` muss **0** sein. Die 16. Spalte `restaurant` wird **pro Schicht** über die Kette `zt_shifts.week_id → weeks.period_id → scheduling_periods.restaurant_id → restaurants.name` abgeleitet (für die 8 Mehrhaus-Fälle ist das das einzige verlässliche Per-Schicht-Signal — **nicht** der Heimatstandort des MA).
 2. **Dry-Run** auf `/admin/migration`.
-2a. **Standort-Gate im Dry-Run**: Der Zähler **„ohne Standort"** (`importedWithoutLocation`) muss **0** sein. Ist er > 0, fehlt/ist falsch die Export-Spalte `restaurant` (oder ein Name matcht keine COCO-`locations`-Zeile) → **nicht committen**, Export korrigieren.
+   2a. **Standort-Gate im Dry-Run**: Der Zähler **„ohne Standort"** (`importedWithoutLocation`) muss **0** sein. Ist er > 0, fehlt/ist falsch die Export-Spalte `restaurant` (oder ein Name matcht keine COCO-`locations`-Zeile) → **nicht committen**, Export korrigieren.
 3. **Gescopter DELETE** der alten Import-Zeilen in COCO (`source='import'` + `business_date`-Range) — **niemals** `clock`/`manual` anfassen — **mit Rest-Check im SELBEN Editor-Lauf**.
 4. **Commit erst wenn Rest = 0.**
 5. **Endcheck**: `count = distinct import_keys = erwartete Zeilenzahl`.

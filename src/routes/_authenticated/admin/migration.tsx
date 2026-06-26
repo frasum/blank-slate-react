@@ -526,8 +526,8 @@ function CountersView({
       </div>
       {withoutLocation > 0 && (
         <p className="mt-2 text-xs text-muted-foreground">
-          Zeilen ohne <code>location_id</code> sind im Wochenplan unsichtbar. Vor dem Commit
-          prüfen, ob der Export die Spalte <code>restaurant</code> pro Schicht korrekt liefert.
+          Zeilen ohne <code>location_id</code> sind im Wochenplan unsichtbar. Vor dem Commit prüfen,
+          ob der Export die Spalte <code>restaurant</code> pro Schicht korrekt liefert.
         </p>
       )}
     </div>
