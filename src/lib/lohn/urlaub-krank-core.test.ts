@@ -2,13 +2,13 @@ import { describe, it, expect } from "vitest";
 import { workRate, estimateWorkdays } from "./urlaub-krank-core";
 
 describe("workRate", () => {
-  it("berechnet Arbeitsquote im Fenster", () => {
+  it("berechnet Soll-Arbeitstage-Quote im Fenster", () => {
     expect(workRate(78, 91)).toBeCloseTo(0.857, 3);
   });
-  it("ist 0 bei keinem gearbeiteten Tag", () => {
+  it("ist 0 bei keinem Soll-Arbeitstag", () => {
     expect(workRate(0, 91)).toBe(0);
   });
-  it("clamped auf 1, wenn mehr gearbeitete Tage als Fenster", () => {
+  it("clamped auf 1, wenn mehr Soll-Arbeitstage als Fenster", () => {
     expect(workRate(100, 91)).toBe(1);
   });
   it("ist 0 bei leerem Fenster", () => {
