@@ -15,6 +15,7 @@ import { aggregateSfnPeriod } from "./lohn-period.functions";
 import { staffDetailsToPerson } from "./person-mapping";
 import { berechneLohn } from "./lohn-core";
 import type { Entgeltzeile } from "./types";
+import { buildFixedZeilen } from "./fixed-zeilen";
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -43,7 +44,7 @@ async function computeLohnForStaff(
   const { data: details, error: detErr } = await supabaseAdmin
     .from("staff_personal_details")
     .select(
-      "tax_class, child_tax_allowances, kk_zusatzbeitrag, church_tax_liable, children_count, has_parent_status, is_minijob, date_of_birth",
+      "tax_class, child_tax_allowances, kk_zusatzbeitrag, church_tax_liable, children_count, has_parent_status, is_minijob, date_of_birth, meal_allowance, sachbezug_monthly_cents",
     )
     .eq("staff_id", args.staffId)
     .maybeSingle();
@@ -53,6 +54,13 @@ async function computeLohnForStaff(
   const person = staffDetailsToPerson(details, args.toDate);
 
   const zeitlohnCent = Math.round(sfn.totalHours * sfn.hourlyRateCents);
+  const periodYear = Number(args.toDate.slice(0, 4));
+  const fixedZeilen = buildFixedZeilen({
+    sachbezugMonthlyCents: details.sachbezug_monthly_cents ?? 0,
+    mealAllowance: details.meal_allowance ?? true,
+    workdayCount: sfn.workdayCount,
+    year: periodYear,
+  });
   const zeilen: Entgeltzeile[] = [
     {
       kategorie: "zeitlohn",
@@ -66,6 +74,7 @@ async function computeLohnForStaff(
       bezeichnung: `SFN-Zuschläge (${args.mode})`,
       betragCent: chosen.zuschlagCents,
     },
+    ...fixedZeilen,
     ...args.zusatzZeilen,
   ];
 
@@ -76,6 +85,7 @@ async function computeLohnForStaff(
     totalHours: sfn.totalHours,
     hourlyRateCents: sfn.hourlyRateCents,
     entryCount: sfn.entryCount,
+    workdayCount: sfn.workdayCount,
     zuschlagCents: chosen.zuschlagCents,
     buckets: chosen,
     zeilen,
@@ -179,6 +189,9 @@ export const berechneLohnUebersicht = createServerFn({ method: "GET" })
       pvCent: number | null;
       nettoCents: number | null;
       auszahlungCents: number | null;
+      workdayCount: number | null;
+      mahlzeitenCent: number | null;
+      sachbezugCent: number | null;
       error: string | null;
     };
     const rows: Row[] = [];
@@ -196,6 +209,10 @@ export const berechneLohnUebersicht = createServerFn({ method: "GET" })
           mode: data.mode,
           zusatzZeilen: [],
         });
+        const sumCat = (cat: string) =>
+          r.zeilen
+            .filter((z) => z.kategorie === cat)
+            .reduce((sum, z) => sum + z.betragCent, 0);
         rows.push({
           staffId: s.id as string,
           persoNr,
@@ -216,6 +233,9 @@ export const berechneLohnUebersicht = createServerFn({ method: "GET" })
           pvCent: r.ergebnis.pvCent,
           nettoCents: r.ergebnis.gesamtnettoCent,
           auszahlungCents: r.ergebnis.auszahlungCent,
+          workdayCount: r.workdayCount,
+          mahlzeitenCent: sumCat("mahlzeiten_paust"),
+          sachbezugCent: sumCat("sachbezug_frei"),
           error: null,
         });
       } catch (e) {
@@ -239,6 +259,9 @@ export const berechneLohnUebersicht = createServerFn({ method: "GET" })
           pvCent: null,
           nettoCents: null,
           auszahlungCents: null,
+          workdayCount: null,
+          mahlzeitenCent: null,
+          sachbezugCent: null,
           error: e instanceof Error ? e.message : "Berechnung fehlgeschlagen",
         });
       }

@@ -15,6 +15,7 @@ import { timeEntryToSfnRow } from "./time-entry-sfn";
 import { berechneSfnGeld } from "./sfn-geld/sfn-geld";
 import type { SfnGeldErgebnis } from "./sfn-geld/types";
 import { bavarianHolidaySurchargeRate } from "./holiday-rate";
+import { countDistinctWorkdays } from "./fixed-zeilen";
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -22,6 +23,7 @@ export interface SfnPeriodAggregate {
   hourlyRateCents: number;
   totalHours: number;
   entryCount: number;
+  workdayCount: number;
   simple: SfnGeldErgebnis;
   extended: SfnGeldErgebnis;
 }
@@ -73,8 +75,9 @@ export async function aggregateSfnPeriod(
   const simple = berechneSfnGeld(rows, "simple", hourlyRateCents, holidayRates);
   const extended = berechneSfnGeld(rows, "extended", hourlyRateCents, holidayRates);
   const totalHours = Math.round(rows.reduce((s, r) => s + r.totalHours, 0) * 100) / 100;
+  const workdayCount = countDistinctWorkdays(rows.map((r) => r.shiftDate));
 
-  return { hourlyRateCents, totalHours, entryCount: rows.length, simple, extended };
+  return { hourlyRateCents, totalHours, entryCount: rows.length, workdayCount, simple, extended };
 }
 
 export const getSfnPeriodForStaff = createServerFn({ method: "GET" })

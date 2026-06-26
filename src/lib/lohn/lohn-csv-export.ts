@@ -22,6 +22,9 @@ export type UebersichtCsvRow = {
   pvCent: number | null;
   nettoCents: number | null;
   auszahlungCents: number | null;
+  workdayCount: number | null;
+  mahlzeitenCent: number | null;
+  sachbezugCent: number | null;
   error: string | null;
 };
 
@@ -48,6 +51,9 @@ const HEADERS = [
   "pv_cent",
   "netto_cent",
   "auszahlung_cent",
+  "arbeitstage",
+  "mahlzeiten_cent",
+  "sachbezug_cent",
   "fehler",
 ] as const;
 
@@ -95,6 +101,9 @@ export function buildUebersichtCsv(
       fmtInt(r.pvCent),
       fmtInt(r.nettoCents),
       fmtInt(r.auszahlungCents),
+      fmtInt(r.workdayCount),
+      fmtInt(r.mahlzeitenCent),
+      fmtInt(r.sachbezugCent),
       escapeField(r.error ?? ""),
     ];
     return cells.join(SEP);
