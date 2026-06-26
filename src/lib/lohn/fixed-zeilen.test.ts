@@ -1,9 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  buildFixedZeilen,
-  countDistinctWorkdays,
-  mahlzeitSachbezugCent,
-} from "./fixed-zeilen";
+import { buildFixedZeilen, countDistinctWorkdays, mahlzeitSachbezugCent } from "./fixed-zeilen";
 
 describe("countDistinctWorkdays", () => {
   it("zählt jeden business_date nur einmal (Splitschicht = 1)", () => {

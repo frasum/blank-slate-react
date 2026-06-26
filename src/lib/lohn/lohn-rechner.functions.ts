@@ -210,9 +210,7 @@ export const berechneLohnUebersicht = createServerFn({ method: "GET" })
           zusatzZeilen: [],
         });
         const sumCat = (cat: string) =>
-          r.zeilen
-            .filter((z) => z.kategorie === cat)
-            .reduce((sum, z) => sum + z.betragCent, 0);
+          r.zeilen.filter((z) => z.kategorie === cat).reduce((sum, z) => sum + z.betragCent, 0);
         rows.push({
           staffId: s.id as string,
           persoNr,
