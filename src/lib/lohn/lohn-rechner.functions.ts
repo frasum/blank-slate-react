@@ -17,6 +17,7 @@ import { berechneLohn } from "./lohn-core";
 import type { Entgeltzeile } from "./types";
 import { buildFixedZeilen } from "./fixed-zeilen";
 import { computeUrlaubKrankDiagnose } from "./urlaub-krank-diagnose";
+import { buildUrlaubKrankZeilen } from "./urlaub-krank-zeilen";
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -63,6 +64,34 @@ async function computeLohnForStaff(
     workdayCount: sfn.workdayCount,
     year: periodYear,
   });
+
+  const diagnose = await computeUrlaubKrankDiagnose(supabaseAdmin, {
+    staffId: args.staffId,
+    organizationId: args.organizationId,
+    fromDate: args.fromDate,
+    toDate: args.toDate,
+    mode: args.mode,
+    sollHoursPerDay: Number(details.soll_hours_per_day ?? 8),
+  });
+
+  const { data: override, error: ovErr } = await supabaseAdmin
+    .from("lohn_absence_days")
+    .select("urlaub_tage, krank_tage")
+    .eq("staff_id", args.staffId)
+    .eq("period_start", args.fromDate)
+    .maybeSingle();
+  if (ovErr) throw ovErr;
+  const usedUrlaubTage = override?.urlaub_tage ?? 0;
+  const usedKrankTage = override?.krank_tage ?? 0;
+
+  const ukZeilen = buildUrlaubKrankZeilen({
+    urlaubTage: usedUrlaubTage,
+    krankTage: usedKrankTage,
+    sollHoursPerDay: Number(details.soll_hours_per_day ?? 8),
+    hourlyRateCents: sfn.hourlyRateCents,
+    sfnTagCent: diagnose.avgSfnTagCent,
+  });
+
   const zeilen: Entgeltzeile[] = [
     {
       kategorie: "zeitlohn",
@@ -77,19 +106,11 @@ async function computeLohnForStaff(
       betragCent: chosen.zuschlagCents,
     },
     ...fixedZeilen,
+    ...ukZeilen,
     ...args.zusatzZeilen,
   ];
 
   const ergebnis = berechneLohn({ person, zeilen });
-
-  const diagnose = await computeUrlaubKrankDiagnose(supabaseAdmin, {
-    staffId: args.staffId,
-    organizationId: args.organizationId,
-    fromDate: args.fromDate,
-    toDate: args.toDate,
-    mode: args.mode,
-    sollHoursPerDay: Number(details.soll_hours_per_day ?? 8),
-  });
 
   return {
     mode: args.mode,
@@ -103,6 +124,8 @@ async function computeLohnForStaff(
     person,
     ergebnis,
     diagnose,
+    usedUrlaubTage,
+    usedKrankTage,
   };
 }
 
