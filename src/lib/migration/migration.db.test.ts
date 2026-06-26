@@ -22,15 +22,23 @@ import { executeImport } from "./run-import-core";
 import { bootstrapMissingStaffCore } from "./bootstrap-missing-staff";
 
 const TA_HEADER =
-  "id,employee_id,staff_name,staff_nickname,shift_date,department,start_time,end_time,absence_type,is_holiday,total_hours,evening_hours,night_hours,night_deep_hours,sunday_holiday_hours";
+  "id,employee_id,staff_name,staff_nickname,shift_date,department,start_time,end_time,absence_type,is_holiday,total_hours,evening_hours,night_hours,night_deep_hours,sunday_holiday_hours,restaurant";
 
 function taCsv(
-  rows: { id: string; empId: string; name: string; date: string; start: string; end: string }[],
+  rows: {
+    id: string;
+    empId: string;
+    name: string;
+    date: string;
+    start: string;
+    end: string;
+    restaurant?: string;
+  }[],
 ): string {
   const body = rows
     .map(
       (r) =>
-        `${r.id},${r.empId},${r.name},,${r.date},service,${r.start},${r.end},,false,4.5,0.5,0,0,0`,
+        `${r.id},${r.empId},${r.name},,${r.date},service,${r.start},${r.end},,false,4.5,0.5,0,0,0,${r.restaurant ?? ""}`,
     )
     .join("\n");
   return `${TA_HEADER}\n${body}\n`;
