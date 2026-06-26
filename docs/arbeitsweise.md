@@ -512,3 +512,29 @@ CHEFIN (1), Peter (309), PIM (17): COCO gewährt die GKV-Vorsorgepauschale, obwo
 
 - **St-Brutto ≠ SV-Brutto** sobald bAV-Entgeltumwandlung im Spiel ist (steuerfrei, aber oberhalb 4 % BBG sv-pflichtig). Das gemeinsame `stSvBrutto` der Stufe 1 trug nur, weil die Referenzfälle es nie auseinandertrieben.
 - **Vorsorgepauschale ≠ tatsächliche SV.** Auch wer KV-frei ist (Werkstudent, GF, freiwillig GKV Firmenzahler), braucht für die LSt den korrekten `kk_zusatzbeitrag` bzw. PKV-Beitrag — die Pauschale rechnet unabhängig vom tatsächlichen Beitragsabzug. SUMITRs LSt-Rest war allein ihr fehlender `kk_zusatzbeitrag`.
+
+## 13. Modul M4 — Brutto-Overshoot (3M-Ø-Zuschlag): Methoden-Rest (26.06.2026)
+
+Betrifft die saubere 3M-Ø-Gruppe **23 Andre (+81,36)**, **117 APPEL (+69,32)**, **334 PON (+16,07)** — Δ jeweils **rein im Zuschlag „Urlaubsentgelt/Krank (3M-Ø)"**, Urlaubsstunden/Zeitlohn cent-genau gegen edlohn. edlohn baut die Zeile identisch (`Tage × Tagessatz`), nur der **Tagessatz** weicht ab.
+
+### Befund
+
+COCO: `avgSfnTagCent = round(refSFN(91 Tage) / scheduledDays)`, `scheduledDays = distinct Arbeitstage + Urlaub/Krank-Tage` im Fenster `[fromDate−91 .. fromDate−1]` (`urlaub-krank-diagnose.ts`). Diagnose-SQL (2026-02-24..2026-05-25) ergab `scheduled_days` = 64 / 56 / 57. Zurückgerechnet:
+
+| MA  | COCO Tagessatz | scheduled_days | COCO refSFN ≈ | edlohn Tagessatz | edlohn Divisor |
+| --- | -------------- | -------------- | ------------- | ---------------- | -------------- |
+| 23  | 36,50          | 64             | 2336 €        | 27,46            | 85             |
+| 117 | 22,48          | 56             | 1259 €        | 19,18            | 66             |
+| 334 | 20,05          | 57             | 1143 €        | 18,04            | 63             |
+
+**Divisoren 63 / 66 / 85 — keine ableitbare Regel** (kein „×65", kein Soll-Tage-Muster); Andre (16 Referenz-Urlaubstage) sprengt jedes Schema. Andersrum gelesen (gleicher Nenner): COCOs **SFN-Summe** wäre um 11 % / 17 % / 33 % zu hoch. Aus den vorliegenden Daten **nicht entscheidbar**, ob die Differenz im Zähler (SFN-Arten / Referenzfenster) oder Nenner (gezählte Tage) sitzt.
+
+### Entscheidung
+
+**Methoden-Rest, kein Hebel.** Cent-genaue Reproduktion bräuchte edlohns **Durchschnitts-Berechnungsbeleg SFN** (Referenz-SFN-Summe + Tagezahl je MA) — steht **nicht** auf der Juni-Abrechnung (0 Treffer). Fester Nenner (z. B. 65) als „Pfusch-Fix" würde APPEL/PON näherbringen, Andre verschlechtern → verworfen. Abgehakt, bis (falls) der edlohn-Durchschnittsbeleg vorliegt; dann saubere Nenner-/Zähler-Korrektur in `urlaub-krank-diagnose.ts`.
+
+### Abgrenzung (kein Teil dieses Rests)
+
+- **6 ANDI (+120) / 129 GERARD (−220):** echte Stundenzahl-Differenz → Zeitdaten-Abgleich, kein Rechen-Hebel.
+- **504 TIP:** Austritt/Teilmonat (Steuer-Tage) → eigenes Feature.
+- **320 / 352:** Doppelsatz (rate-1/rate-2), zurückgestellt (COCO hat keine Satz-Attribution; künftige `lohn_second_rate_hours`).
