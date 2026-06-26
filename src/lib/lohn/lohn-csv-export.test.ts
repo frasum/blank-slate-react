@@ -116,10 +116,10 @@ describe("buildUebersichtCsv", () => {
   });
 
   it("Null-Zeile mit persoNr=null: Messspalten 0, perso_nr bleibt leer", () => {
-    const csv = buildUebersichtCsv(
-      [{ ...ERR, persoNr: null, displayName: "Ohne Nummer" }],
-      { periodLabel: "P", mode: "simple" },
-    );
+    const csv = buildUebersichtCsv([{ ...ERR, persoNr: null, displayName: "Ohne Nummer" }], {
+      periodLabel: "P",
+      mode: "simple",
+    });
     const row = csv.split("\r\n")[2].split(";");
     expect(row).toHaveLength(28);
     expect(row[0]).toBe(""); // perso_nr NICHT "0"

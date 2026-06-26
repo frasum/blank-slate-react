@@ -34,12 +34,7 @@ import { buildLohnFileName, buildLohnXlsx, downloadBlob } from "@/lib/lohn/lohn-
 import { buildUebersichtCsv } from "@/lib/lohn/lohn-csv-export";
 import { FileSpreadsheet, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export const Route = createFileRoute("/_authenticated/admin/lohnrechner")({
   beforeLoad: ({ context }) => {
@@ -291,21 +286,15 @@ function LohnRechnerPage() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {hrs(r.totalHours)} h
-                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{hrs(r.totalHours)} h</TableCell>
                     <TableCell className="text-right tabular-nums">
                       {eur(r.hourlyRateCents)}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {eur(r.zuschlagCents)}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {eur(r.bruttoCents)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {eur(r.nettoCents)}
-                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{eur(r.bruttoCents)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{eur(r.nettoCents)}</TableCell>
                     <TableCell className="text-right font-semibold tabular-nums">
                       {eur(r.auszahlungCents)}
                     </TableCell>
