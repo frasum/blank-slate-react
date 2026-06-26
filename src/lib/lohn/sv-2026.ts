@@ -61,9 +61,7 @@ export function midijobBemessungCent(aeCent: number): number {
 
 /** Normalfall (kein Minijob). */
 export function svBeitraege(e: SvEingabe): SvErgebnis {
-  const basisCent = e.person.istMidijob
-    ? midijobBemessungCent(e.stSvBruttoCent)
-    : e.stSvBruttoCent;
+  const basisCent = e.person.istMidijob ? midijobBemessungCent(e.stSvBruttoCent) : e.stSvBruttoCent;
   const bemessungKvPv = Math.min(basisCent, BBG_MONAT_2026_CENT.KV_PV);
   const bemessungRvAv = Math.min(basisCent, BBG_MONAT_2026_CENT.RV_AV);
 
