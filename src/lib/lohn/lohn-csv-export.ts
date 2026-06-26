@@ -80,12 +80,6 @@ function fmtInt(n: number | null): string {
   return n == null ? "" : String(Math.trunc(n));
 }
 
-function fmtHours(n: number | null): string {
-  if (n == null) return "";
-  // Dezimalpunkt, ohne Tausender-Trennung, ohne unnötige Stellen.
-  return String(n);
-}
-
 function fmtIntZero(n: number | null): string {
   return n == null ? "0" : String(Math.trunc(n));
 }
