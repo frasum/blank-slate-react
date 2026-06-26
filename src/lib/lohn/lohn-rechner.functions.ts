@@ -16,6 +16,7 @@ import { staffDetailsToPerson } from "./person-mapping";
 import { berechneLohn } from "./lohn-core";
 import type { Entgeltzeile } from "./types";
 import { buildFixedZeilen } from "./fixed-zeilen";
+import { computeUrlaubKrankDiagnose } from "./urlaub-krank-diagnose";
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -32,6 +33,7 @@ async function computeLohnForStaff(
   supabaseAdmin: SupabaseClient<Database>,
   args: {
     staffId: string;
+    organizationId: string;
     fromDate: string;
     toDate: string;
     mode: "simple" | "extended";
@@ -80,6 +82,14 @@ async function computeLohnForStaff(
 
   const ergebnis = berechneLohn({ person, zeilen });
 
+  const diagnose = await computeUrlaubKrankDiagnose(supabaseAdmin, {
+    staffId: args.staffId,
+    organizationId: args.organizationId,
+    fromDate: args.fromDate,
+    toDate: args.toDate,
+    mode: args.mode,
+  });
+
   return {
     mode: args.mode,
     totalHours: sfn.totalHours,
@@ -91,6 +101,7 @@ async function computeLohnForStaff(
     zeilen,
     person,
     ergebnis,
+    diagnose,
   };
 }
 
@@ -138,6 +149,7 @@ export const berechneLohnFuerMitarbeiter = createServerFn({ method: "GET" })
 
     return computeLohnForStaff(supabaseAdmin, {
       staffId: data.staffId,
+      organizationId: caller.organizationId,
       fromDate: data.fromDate,
       toDate: data.toDate,
       mode: data.mode,
@@ -192,6 +204,10 @@ export const berechneLohnUebersicht = createServerFn({ method: "GET" })
       workdayCount: number | null;
       mahlzeitenCent: number | null;
       sachbezugCent: number | null;
+      urlaubTage: number | null;
+      krankTage: number | null;
+      avgStdTag: number | null;
+      avgSfnTagCent: number | null;
       error: string | null;
     };
     const rows: Row[] = [];
@@ -204,6 +220,7 @@ export const berechneLohnUebersicht = createServerFn({ method: "GET" })
       try {
         const r = await computeLohnForStaff(supabaseAdmin, {
           staffId: s.id as string,
+          organizationId: caller.organizationId,
           fromDate: data.fromDate,
           toDate: data.toDate,
           mode: data.mode,
@@ -234,6 +251,10 @@ export const berechneLohnUebersicht = createServerFn({ method: "GET" })
           workdayCount: r.workdayCount,
           mahlzeitenCent: sumCat("mahlzeiten_paust"),
           sachbezugCent: sumCat("sachbezug_frei"),
+          urlaubTage: r.diagnose.urlaubTage,
+          krankTage: r.diagnose.krankTage,
+          avgStdTag: r.diagnose.avgStdTag,
+          avgSfnTagCent: r.diagnose.avgSfnTagCent,
           error: null,
         });
       } catch (e) {
@@ -260,6 +281,10 @@ export const berechneLohnUebersicht = createServerFn({ method: "GET" })
           workdayCount: null,
           mahlzeitenCent: null,
           sachbezugCent: null,
+          urlaubTage: null,
+          krankTage: null,
+          avgStdTag: null,
+          avgSfnTagCent: null,
           error: e instanceof Error ? e.message : "Berechnung fehlgeschlagen",
         });
       }
