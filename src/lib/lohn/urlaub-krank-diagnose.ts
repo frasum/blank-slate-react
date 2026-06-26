@@ -6,10 +6,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { aggregateSfnPeriod } from "./lohn-period.functions";
-import {
-  deriveWorkingWeekdays,
-  countWorkdaysInAbsence,
-} from "./urlaub-krank-core";
+import { workRate, estimateWorkdays } from "./urlaub-krank-core";
 
 function addDaysIso(isoDate: string, delta: number): string {
   const d = new Date(`${isoDate}T00:00:00Z`);
@@ -22,7 +19,6 @@ export interface UrlaubKrankDiagnose {
   krankTage: number;
   avgStdTag: number;
   avgSfnTagCent: number;
-  workingWeekdays: number[];
 }
 
 export async function computeUrlaubKrankDiagnose(
@@ -33,31 +29,17 @@ export async function computeUrlaubKrankDiagnose(
     fromDate: string;
     toDate: string;
     mode: "simple" | "extended";
+    sollHoursPerDay: number;
   },
 ): Promise<UrlaubKrankDiagnose> {
   const refTo = addDaysIso(args.fromDate, -1);
   const refFrom = addDaysIso(args.fromDate, -91);
 
-  const sfn = await aggregateSfnPeriod(supabaseAdmin, args.staffId, refFrom, refTo);
-  const chosen = args.mode === "extended" ? sfn.extended : sfn.simple;
-  const avgStdTag =
-    sfn.workdayCount > 0 ? Math.round((sfn.totalHours / sfn.workdayCount) * 100) / 100 : 0;
+  const refAgg = await aggregateSfnPeriod(supabaseAdmin, args.staffId, refFrom, refTo);
+  const chosen = args.mode === "extended" ? refAgg.extended : refAgg.simple;
   const avgSfnTagCent =
-    sfn.workdayCount > 0 ? Math.round(chosen.zuschlagCents / sfn.workdayCount) : 0;
-
-  const { data: worked, error: workedErr } = await supabaseAdmin
-    .from("time_entries")
-    .select("business_date")
-    .eq("staff_id", args.staffId)
-    .gte("business_date", refFrom)
-    .lte("business_date", refTo)
-    .not("ended_at", "is", null);
-  if (workedErr) throw workedErr;
-  const workedDatesSet = new Set<string>();
-  for (const r of worked ?? []) {
-    if (r.business_date) workedDatesSet.add(r.business_date as string);
-  }
-  const workingWeekdays = deriveWorkingWeekdays(Array.from(workedDatesSet));
+    refAgg.workdayCount > 0 ? Math.round(chosen.zuschlagCents / refAgg.workdayCount) : 0;
+  const rate = workRate(refAgg.workdayCount, 91);
 
   const { data: absences, error: absErr } = await supabaseAdmin
     .from("roster_absence")
@@ -69,18 +51,17 @@ export async function computeUrlaubKrankDiagnose(
     .in("type", ["urlaub", "krank"]);
   if (absErr) throw absErr;
 
-  const urlaubDates: string[] = [];
-  const krankDates: string[] = [];
+  let urlaubCalDays = 0;
+  let krankCalDays = 0;
   for (const a of absences ?? []) {
-    if (a.type === "urlaub") urlaubDates.push(a.date as string);
-    else if (a.type === "krank") krankDates.push(a.date as string);
+    if (a.type === "urlaub") urlaubCalDays += 1;
+    else if (a.type === "krank") krankCalDays += 1;
   }
 
   return {
-    urlaubTage: countWorkdaysInAbsence(urlaubDates, workingWeekdays),
-    krankTage: countWorkdaysInAbsence(krankDates, workingWeekdays),
-    avgStdTag,
+    urlaubTage: estimateWorkdays(urlaubCalDays, rate),
+    krankTage: estimateWorkdays(krankCalDays, rate),
+    avgStdTag: args.sollHoursPerDay,
     avgSfnTagCent,
-    workingWeekdays: Array.from(workingWeekdays).sort((a, b) => a - b),
   };
 }

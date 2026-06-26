@@ -2652,6 +2652,7 @@ export type Database = {
           sachbezug_monthly_cents: number
           salutation: string | null
           social_security_number: string | null
+          soll_hours_per_day: number
           staff_id: string
           tax_class: string | null
           tax_id: string | null
@@ -2690,6 +2691,7 @@ export type Database = {
           sachbezug_monthly_cents?: number
           salutation?: string | null
           social_security_number?: string | null
+          soll_hours_per_day?: number
           staff_id: string
           tax_class?: string | null
           tax_id?: string | null
@@ -2728,6 +2730,7 @@ export type Database = {
           sachbezug_monthly_cents?: number
           salutation?: string | null
           social_security_number?: string | null
+          soll_hours_per_day?: number
           staff_id?: string
           tax_class?: string | null
           tax_id?: string | null
