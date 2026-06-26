@@ -2671,6 +2671,7 @@ export type Database = {
         Row: {
           account_holder: string | null
           address: string | null
+          av_frei: boolean
           bank_name: string | null
           child_tax_allowances: number | null
           children_count: number | null
@@ -2688,12 +2689,14 @@ export type Database = {
           is_sv_exempt: boolean | null
           job_title: string | null
           kk_zusatzbeitrag: number | null
+          lst_freibetrag_monat_cent: number
           meal_allowance: boolean
           nationality: string | null
           organization_id: string
           personnel_group: string | null
           phone: string | null
           place_of_birth: string | null
+          rv_frei: boolean
           sachbezug_monthly_cents: number
           salutation: string | null
           social_security_number: string | null
@@ -2710,6 +2713,7 @@ export type Database = {
         Insert: {
           account_holder?: string | null
           address?: string | null
+          av_frei?: boolean
           bank_name?: string | null
           child_tax_allowances?: number | null
           children_count?: number | null
@@ -2727,12 +2731,14 @@ export type Database = {
           is_sv_exempt?: boolean | null
           job_title?: string | null
           kk_zusatzbeitrag?: number | null
+          lst_freibetrag_monat_cent?: number
           meal_allowance?: boolean
           nationality?: string | null
           organization_id: string
           personnel_group?: string | null
           phone?: string | null
           place_of_birth?: string | null
+          rv_frei?: boolean
           sachbezug_monthly_cents?: number
           salutation?: string | null
           social_security_number?: string | null
@@ -2749,6 +2755,7 @@ export type Database = {
         Update: {
           account_holder?: string | null
           address?: string | null
+          av_frei?: boolean
           bank_name?: string | null
           child_tax_allowances?: number | null
           children_count?: number | null
@@ -2766,12 +2773,14 @@ export type Database = {
           is_sv_exempt?: boolean | null
           job_title?: string | null
           kk_zusatzbeitrag?: number | null
+          lst_freibetrag_monat_cent?: number
           meal_allowance?: boolean
           nationality?: string | null
           organization_id?: string
           personnel_group?: string | null
           phone?: string | null
           place_of_birth?: string | null
+          rv_frei?: boolean
           sachbezug_monthly_cents?: number
           salutation?: string | null
           social_security_number?: string | null
