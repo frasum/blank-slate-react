@@ -42,6 +42,7 @@ Erst wenn ESLint 0 Fehler und alle Tests grün sind → ABGENOMMEN.
   - Manuelles SQL durch Frank gilt nur noch für **Ad-hoc-/Daten-SQL** (Imports, einmalige Korrekturen) — nicht für Migrationsdateien.
   - **„prüfe" ist Nachkontrolle, kein Tor vor dem Livegang.** Das Tor _vor_ Live ist der **Prompt** (Migration als fertige SQL-Skizze + „Nicht-anfassen"-Liste + Stop-Bedingung). Fehler werden **vorwärts** mit einer Korrektur-Migration behoben (kein Rückbau — die DB kann nicht zuverlässig zurück). Migrationen daher **additiv/idempotent** (`IF NOT EXISTS`, `ON CONFLICT`, `DROP … IF EXISTS`).
   - Nach jedem Migrations-Commit **zügig prüfen + funktional smoke-testen** — statisches Review fängt Laufzeitfehler nicht (s. Caller-Param-Bug bei den Task-RPCs).
+- **Neue Stammdaten-Spalte ⇒ Select-Liste mitziehen.** Jede neue Spalte auf `staff_personal_details`, die der Berechnungspfad braucht, MUSS in die explizite `.select(...)`-Liste in `src/lib/lohn/lohn-rechner.functions.ts` (Funktion `computeLohnForStaff`). Migration + Mapping (`staffDetailsToPerson`) + Berechnung allein reichen NICHT: fehlt die Spalte im Select, kommt sie als `undefined` an → `!!undefined = false` bzw. `?? default` → das Feature greift stillschweigend nicht, obwohl Code, Daten und CI grün sind. (Aktivrente-Hebel 26.06.: ~1 h Phantom-Deploy-Suche, bis die fehlende Select-Spalte gefunden war.) Daher nennt jeder Hebel-Prompt mit neuer Spalte die Select-Erweiterung explizit.
 
 ## 4. Stammdaten-Referenz (COCO Produktion)
 
