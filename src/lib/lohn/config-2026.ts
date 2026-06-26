@@ -56,6 +56,17 @@ export const BBG_MONAT_2026_CENT = {
 export const KIRCHENSTEUER_BAYERN_PROZENT = 8;
 
 /**
+ * Übergangsbereich (Midijob) 2026 — Eckwerte als Cent.
+ * Untergrenze = Minijob-Grenze 2026 (603 €), Obergrenze = 2000 €.
+ */
+export const UEBERGANGSBEREICH_2026 = {
+  /** Untergrenze = Minijob-Grenze 2026 (603 €) in Cent. */
+  UG_CENT: 60300,
+  /** Obergrenze 2000 € in Cent. */
+  OG_CENT: 200000,
+} as const;
+
+/**
  * Standard-Lohnzahlungszeitraum (LZZ) des PAP: 2 = Monat.
  * Stufe 1 rechnet ausschließlich monatsweise.
  */

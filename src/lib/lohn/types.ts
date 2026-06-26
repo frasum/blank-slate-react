@@ -74,6 +74,12 @@ export interface PersonenParameter {
   avFrei: boolean;
   /** Monatlicher LSt-Freibetrag in Cent (0 = keiner). */
   lstFreibetragMonatCent: number;
+  /** Übergangsbereich (Midijob): reduzierte SV-Basis, wenn AE in (UG, OG]. */
+  istMidijob: boolean;
+  /** KV-AN-Befreiung (z. B. Werkstudent). */
+  kvFrei: boolean;
+  /** PV-AN-Befreiung (z. B. Werkstudent). */
+  pvFrei: boolean;
 }
 
 /** Vollständige Eingabe für eine Monatsabrechnung. */

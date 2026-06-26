@@ -8,7 +8,7 @@
  * Referenzfälle NICHT belegt — alle Bruttowerte liegen unter den BBG.
  */
 
-import { BBG_MONAT_2026_CENT, SV_SAETZE_2026 } from "./config-2026";
+import { BBG_MONAT_2026_CENT, SV_SAETZE_2026, UEBERGANGSBEREICH_2026 } from "./config-2026";
 import type { PersonenParameter } from "./types";
 
 export interface SvErgebnis {
@@ -52,19 +52,27 @@ export function pvSatzProzent(person: PersonenParameter): number {
   return satz;
 }
 
+/** AN-beitragspflichtige Einnahme im Übergangsbereich. AE in Cent. */
+export function midijobBemessungCent(aeCent: number): number {
+  const { UG_CENT, OG_CENT } = UEBERGANGSBEREICH_2026;
+  if (aeCent <= UG_CENT || aeCent > OG_CENT) return aeCent;
+  return roundCent((OG_CENT / (OG_CENT - UG_CENT)) * (aeCent - UG_CENT));
+}
+
 /** Normalfall (kein Minijob). */
 export function svBeitraege(e: SvEingabe): SvErgebnis {
-  const bemessungKvPv = Math.min(e.stSvBruttoCent, BBG_MONAT_2026_CENT.KV_PV);
-  const bemessungRvAv = Math.min(e.stSvBruttoCent, BBG_MONAT_2026_CENT.RV_AV);
+  const basisCent = e.person.istMidijob ? midijobBemessungCent(e.stSvBruttoCent) : e.stSvBruttoCent;
+  const bemessungKvPv = Math.min(basisCent, BBG_MONAT_2026_CENT.KV_PV);
+  const bemessungRvAv = Math.min(basisCent, BBG_MONAT_2026_CENT.RV_AV);
 
   const kvSatz = SV_SAETZE_2026.KV_AN_PROZENT + e.person.kvzProzent / 2;
   const pvSatz = pvSatzProzent(e.person);
 
   return {
-    kvCent: roundCent((bemessungKvPv * kvSatz) / 100),
+    kvCent: e.person.kvFrei ? 0 : roundCent((bemessungKvPv * kvSatz) / 100),
     rvCent: e.person.rvFrei ? 0 : roundCent((bemessungRvAv * SV_SAETZE_2026.RV_AN_PROZENT) / 100),
     avCent: e.person.avFrei ? 0 : roundCent((bemessungRvAv * SV_SAETZE_2026.AV_AN_PROZENT) / 100),
-    pvCent: roundCent((bemessungKvPv * pvSatz) / 100),
+    pvCent: e.person.pvFrei ? 0 : roundCent((bemessungKvPv * pvSatz) / 100),
   };
 }
 
