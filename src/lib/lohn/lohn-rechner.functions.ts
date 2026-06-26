@@ -189,6 +189,9 @@ export const berechneLohnUebersicht = createServerFn({ method: "GET" })
       pvCent: number | null;
       nettoCents: number | null;
       auszahlungCents: number | null;
+      workdayCount: number | null;
+      mahlzeitenCent: number | null;
+      sachbezugCent: number | null;
       error: string | null;
     };
     const rows: Row[] = [];
@@ -206,6 +209,10 @@ export const berechneLohnUebersicht = createServerFn({ method: "GET" })
           mode: data.mode,
           zusatzZeilen: [],
         });
+        const sumCat = (cat: string) =>
+          r.zeilen
+            .filter((z) => z.kategorie === cat)
+            .reduce((sum, z) => sum + z.betragCent, 0);
         rows.push({
           staffId: s.id as string,
           persoNr,
@@ -226,6 +233,9 @@ export const berechneLohnUebersicht = createServerFn({ method: "GET" })
           pvCent: r.ergebnis.pvCent,
           nettoCents: r.ergebnis.gesamtnettoCent,
           auszahlungCents: r.ergebnis.auszahlungCent,
+          workdayCount: r.workdayCount,
+          mahlzeitenCent: sumCat("mahlzeiten_paust"),
+          sachbezugCent: sumCat("sachbezug_frei"),
           error: null,
         });
       } catch (e) {
@@ -249,6 +259,9 @@ export const berechneLohnUebersicht = createServerFn({ method: "GET" })
           pvCent: null,
           nettoCents: null,
           auszahlungCents: null,
+          workdayCount: null,
+          mahlzeitenCent: null,
+          sachbezugCent: null,
           error: e instanceof Error ? e.message : "Berechnung fehlgeschlagen",
         });
       }
