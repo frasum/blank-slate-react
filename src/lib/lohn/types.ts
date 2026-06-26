@@ -68,6 +68,12 @@ export interface PersonenParameter {
   pvKinderlosZuschlag: boolean;
   /** Beschäftigungsart. */
   beschaeftigung: Beschaeftigungsart;
+  /** RV-Befreiung AN-Anteil (z. B. Regelaltersrentner). */
+  rvFrei: boolean;
+  /** AV-Befreiung AN-Anteil. */
+  avFrei: boolean;
+  /** Monatlicher LSt-Freibetrag in Cent (0 = keiner). */
+  lstFreibetragMonatCent: number;
 }
 
 /** Vollständige Eingabe für eine Monatsabrechnung. */
@@ -120,6 +126,8 @@ export interface PapEingabe {
   pva?: 0 | 1 | 2 | 3 | 4;
   /** Sachsen-Besonderheit PV. Default false. */
   pvs?: boolean;
+  /** Monatlicher LSt-Freibetrag in Cent (→ PAP LZZFREIB). Default 0. */
+  freibetragCent?: number;
 }
 
 /** Ausgabe des PAP-Wrappers. */
