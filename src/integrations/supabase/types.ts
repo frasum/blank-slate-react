@@ -2738,6 +2738,7 @@ export type Database = {
           id: string
           is_midijob: boolean
           is_minijob: boolean | null
+          is_pkv: boolean
           is_sv_exempt: boolean | null
           job_title: string | null
           kk_zusatzbeitrag: number | null
@@ -2748,6 +2749,7 @@ export type Database = {
           organization_id: string
           personnel_group: string | null
           phone: string | null
+          pkv_basis_beitrag_monat_cent: number
           place_of_birth: string | null
           pv_frei: boolean
           rv_frei: boolean
@@ -2783,6 +2785,7 @@ export type Database = {
           id?: string
           is_midijob?: boolean
           is_minijob?: boolean | null
+          is_pkv?: boolean
           is_sv_exempt?: boolean | null
           job_title?: string | null
           kk_zusatzbeitrag?: number | null
@@ -2793,6 +2796,7 @@ export type Database = {
           organization_id: string
           personnel_group?: string | null
           phone?: string | null
+          pkv_basis_beitrag_monat_cent?: number
           place_of_birth?: string | null
           pv_frei?: boolean
           rv_frei?: boolean
@@ -2828,6 +2832,7 @@ export type Database = {
           id?: string
           is_midijob?: boolean
           is_minijob?: boolean | null
+          is_pkv?: boolean
           is_sv_exempt?: boolean | null
           job_title?: string | null
           kk_zusatzbeitrag?: number | null
@@ -2838,6 +2843,7 @@ export type Database = {
           organization_id?: string
           personnel_group?: string | null
           phone?: string | null
+          pkv_basis_beitrag_monat_cent?: number
           place_of_birth?: string | null
           pv_frei?: boolean
           rv_frei?: boolean

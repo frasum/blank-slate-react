@@ -88,6 +88,10 @@ export interface PersonenParameter {
   kvFrei: boolean;
   /** PV-AN-Befreiung (z. B. Werkstudent). */
   pvFrei: boolean;
+  /** Privat kranken-/pflegeversichert (PKV-Teilbetrag statt GKV-Pauschalweg). */
+  istPkv: boolean;
+  /** Monatl. PKV-Basis-KV/PV-Beitrag in Cent. */
+  pkvBasisBeitragMonatCent: number;
 }
 
 /** Vollständige Eingabe für eine Monatsabrechnung. */
@@ -150,6 +154,12 @@ export interface PapEingabe {
   pvs?: boolean;
   /** Monatlicher LSt-Freibetrag in Cent (→ PAP LZZFREIB). Default 0. */
   freibetragCent?: number;
+  /** KRV=1: kein RV-Teilbetrag der Vorsorgepauschale (kein gesetzl. RV-Beitrag). */
+  krvKeinRv?: boolean;
+  /** ALV=1: kein AV-Teilbetrag (überspringt die AV-Höchstbetragsrechnung MVSPHB). */
+  alvKeinAv?: boolean;
+  /** Monatl. PKV-Basis-KV/PV-Beitrag in Cent (PKV-Teilbetrag; 0 = keiner). */
+  pkpvCent?: number;
 }
 
 /** Ausgabe des PAP-Wrappers. */
