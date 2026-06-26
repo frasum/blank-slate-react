@@ -66,7 +66,7 @@ describe("buildUebersichtCsv", () => {
     expect(row[1]).toBe("Müller, Anna");
   });
 
-  it("quotet name nur bei ;, \" oder Zeilenumbruch", () => {
+  it('quotet name nur bei ;, " oder Zeilenumbruch', () => {
     const csv = buildUebersichtCsv([FULL], { periodLabel: "P", mode: "simple" });
     const row = csv.split("\r\n")[2].split(";");
     expect(row[1]).toBe("Müller, Anna");
@@ -85,7 +85,7 @@ describe("buildUebersichtCsv", () => {
     expect(line.endsWith(";Keine Personaldaten für diesen Mitarbeiter.")).toBe(true);
   });
 
-  it("verdoppelt \" innerhalb gequoteter Felder", () => {
+  it('verdoppelt " innerhalb gequoteter Felder', () => {
     const row: UebersichtCsvRow = { ...FULL, displayName: 'Say "Hi"; ok' };
     const csv = buildUebersichtCsv([row], { periodLabel: "P", mode: "simple" });
     const line = csv.split("\r\n")[2];
