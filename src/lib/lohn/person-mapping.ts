@@ -28,6 +28,9 @@ export interface StaffDetailsForLohn {
   rv_frei?: boolean | null;
   av_frei?: boolean | null;
   lst_freibetrag_monat_cent?: number | null;
+  is_midijob?: boolean | null;
+  kv_frei?: boolean | null;
+  pv_frei?: boolean | null;
 }
 
 function alterAm(dob: string | null, asOf: string): number | null {
@@ -66,5 +69,8 @@ export function staffDetailsToPerson(d: StaffDetailsForLohn, asOf: string): Pers
     rvFrei: !!d.rv_frei,
     avFrei: !!d.av_frei,
     lstFreibetragMonatCent: Number(d.lst_freibetrag_monat_cent ?? 0),
+    istMidijob: !!d.is_midijob,
+    kvFrei: !!d.kv_frei,
+    pvFrei: !!d.pv_frei,
   };
 }
