@@ -46,7 +46,7 @@ async function computeLohnForStaff(
   const { data: details, error: detErr } = await supabaseAdmin
     .from("staff_personal_details")
     .select(
-      "tax_class, child_tax_allowances, kk_zusatzbeitrag, church_tax_liable, children_count, has_parent_status, is_minijob, date_of_birth, meal_allowance, sachbezug_monthly_cents",
+      "tax_class, child_tax_allowances, kk_zusatzbeitrag, church_tax_liable, children_count, has_parent_status, is_minijob, date_of_birth, meal_allowance, sachbezug_monthly_cents, soll_hours_per_day",
     )
     .eq("staff_id", args.staffId)
     .maybeSingle();
@@ -88,6 +88,7 @@ async function computeLohnForStaff(
     fromDate: args.fromDate,
     toDate: args.toDate,
     mode: args.mode,
+    sollHoursPerDay: Number(details.soll_hours_per_day ?? 8),
   });
 
   return {
