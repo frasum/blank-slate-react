@@ -15,6 +15,7 @@ import { aggregateSfnPeriod } from "./lohn-period.functions";
 import { staffDetailsToPerson } from "./person-mapping";
 import { berechneLohn } from "./lohn-core";
 import type { Entgeltzeile } from "./types";
+import { buildFixedZeilen } from "./fixed-zeilen";
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -43,7 +44,7 @@ async function computeLohnForStaff(
   const { data: details, error: detErr } = await supabaseAdmin
     .from("staff_personal_details")
     .select(
-      "tax_class, child_tax_allowances, kk_zusatzbeitrag, church_tax_liable, children_count, has_parent_status, is_minijob, date_of_birth",
+      "tax_class, child_tax_allowances, kk_zusatzbeitrag, church_tax_liable, children_count, has_parent_status, is_minijob, date_of_birth, meal_allowance, sachbezug_monthly_cents",
     )
     .eq("staff_id", args.staffId)
     .maybeSingle();
@@ -53,6 +54,13 @@ async function computeLohnForStaff(
   const person = staffDetailsToPerson(details, args.toDate);
 
   const zeitlohnCent = Math.round(sfn.totalHours * sfn.hourlyRateCents);
+  const periodYear = Number(args.toDate.slice(0, 4));
+  const fixedZeilen = buildFixedZeilen({
+    sachbezugMonthlyCents: details.sachbezug_monthly_cents ?? 0,
+    mealAllowance: details.meal_allowance ?? true,
+    workdayCount: sfn.workdayCount,
+    year: periodYear,
+  });
   const zeilen: Entgeltzeile[] = [
     {
       kategorie: "zeitlohn",
@@ -66,6 +74,7 @@ async function computeLohnForStaff(
       bezeichnung: `SFN-Zuschläge (${args.mode})`,
       betragCent: chosen.zuschlagCents,
     },
+    ...fixedZeilen,
     ...args.zusatzZeilen,
   ];
 
@@ -76,6 +85,7 @@ async function computeLohnForStaff(
     totalHours: sfn.totalHours,
     hourlyRateCents: sfn.hourlyRateCents,
     entryCount: sfn.entryCount,
+    workdayCount: sfn.workdayCount,
     zuschlagCents: chosen.zuschlagCents,
     buckets: chosen,
     zeilen,
