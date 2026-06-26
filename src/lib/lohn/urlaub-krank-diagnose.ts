@@ -19,6 +19,9 @@ export interface UrlaubKrankDiagnose {
   krankTage: number;
   avgStdTag: number;
   avgSfnTagCent: number;
+  absCalDays: number;
+  refWorkedDays: number;
+  refAbsenceDays: number;
 }
 
 export async function computeUrlaubKrankDiagnose(
@@ -37,9 +40,22 @@ export async function computeUrlaubKrankDiagnose(
 
   const refAgg = await aggregateSfnPeriod(supabaseAdmin, args.staffId, refFrom, refTo);
   const chosen = args.mode === "extended" ? refAgg.extended : refAgg.simple;
-  const avgSfnTagCent =
-    refAgg.workdayCount > 0 ? Math.round(chosen.zuschlagCents / refAgg.workdayCount) : 0;
-  const rate = workRate(refAgg.workdayCount, 91);
+
+  const { data: refAbsences, error: refAbsErr } = await supabaseAdmin
+    .from("roster_absence")
+    .select("date, type")
+    .eq("staff_id", args.staffId)
+    .eq("organization_id", args.organizationId)
+    .gte("date", refFrom)
+    .lte("date", refTo)
+    .in("type", ["urlaub", "krank"]);
+  if (refAbsErr) throw refAbsErr;
+  const refAbsenceDays = (refAbsences ?? []).length;
+  const refWorkedDays = refAgg.workdayCount;
+  const scheduledDays = refWorkedDays + refAbsenceDays;
+
+  const avgSfnTagCent = scheduledDays > 0 ? Math.round(chosen.zuschlagCents / scheduledDays) : 0;
+  const rate = workRate(scheduledDays, 91);
 
   const { data: absences, error: absErr } = await supabaseAdmin
     .from("roster_absence")
@@ -63,5 +79,8 @@ export async function computeUrlaubKrankDiagnose(
     krankTage: estimateWorkdays(krankCalDays, rate),
     avgStdTag: args.sollHoursPerDay,
     avgSfnTagCent,
+    absCalDays: urlaubCalDays + krankCalDays,
+    refWorkedDays,
+    refAbsenceDays,
   };
 }

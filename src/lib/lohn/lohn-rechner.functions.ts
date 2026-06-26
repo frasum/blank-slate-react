@@ -209,6 +209,9 @@ export const berechneLohnUebersicht = createServerFn({ method: "GET" })
       krankTage: number | null;
       avgStdTag: number | null;
       avgSfnTagCent: number | null;
+      absCalDays: number | null;
+      refWorkedDays: number | null;
+      refAbsenceDays: number | null;
       error: string | null;
     };
     const rows: Row[] = [];
@@ -256,6 +259,9 @@ export const berechneLohnUebersicht = createServerFn({ method: "GET" })
           krankTage: r.diagnose.krankTage,
           avgStdTag: r.diagnose.avgStdTag,
           avgSfnTagCent: r.diagnose.avgSfnTagCent,
+          absCalDays: r.diagnose.absCalDays,
+          refWorkedDays: r.diagnose.refWorkedDays,
+          refAbsenceDays: r.diagnose.refAbsenceDays,
           error: null,
         });
       } catch (e) {
@@ -286,6 +292,9 @@ export const berechneLohnUebersicht = createServerFn({ method: "GET" })
           krankTage: null,
           avgStdTag: null,
           avgSfnTagCent: null,
+          absCalDays: null,
+          refWorkedDays: null,
+          refAbsenceDays: null,
           error: e instanceof Error ? e.message : "Berechnung fehlgeschlagen",
         });
       }
