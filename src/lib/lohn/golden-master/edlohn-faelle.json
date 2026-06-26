@@ -29,6 +29,8 @@
       },
       "erwartet": {
         "gesamtbruttoCent": 386673,
+        "stBruttoCent": 365295,
+        "svBruttoCent": 365295,
         "stSvBruttoCent": 365295,
         "lstCent": 44233,
         "soliCent": 0,
@@ -71,6 +73,8 @@
       },
       "erwartet": {
         "gesamtbruttoCent": 50598,
+        "stBruttoCent": 0,
+        "svBruttoCent": 0,
         "stSvBruttoCent": 0,
         "lstCent": 0,
         "soliCent": 0,
@@ -109,6 +113,8 @@
       },
       "erwartet": {
         "gesamtbruttoCent": 442386,
+        "stBruttoCent": 333600,
+        "svBruttoCent": 333600,
         "stSvBruttoCent": 333600,
         "lstCent": 37691,
         "soliCent": 0,

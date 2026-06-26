@@ -1018,6 +1018,57 @@ export type Database = {
           },
         ]
       }
+      lohn_recurring_zeilen: {
+        Row: {
+          betrag_cent: number
+          bezeichnung: string
+          created_at: string
+          id: string
+          kategorie: string
+          organization_id: string
+          sort_order: number
+          staff_id: string
+          updated_at: string
+        }
+        Insert: {
+          betrag_cent: number
+          bezeichnung: string
+          created_at?: string
+          id?: string
+          kategorie: string
+          organization_id: string
+          sort_order?: number
+          staff_id: string
+          updated_at?: string
+        }
+        Update: {
+          betrag_cent?: number
+          bezeichnung?: string
+          created_at?: string
+          id?: string
+          kategorie?: string
+          organization_id?: string
+          sort_order?: number
+          staff_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lohn_recurring_zeilen_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lohn_recurring_zeilen_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           article_id: string | null

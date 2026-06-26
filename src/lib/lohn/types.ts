@@ -25,7 +25,15 @@ export type Kategorie =
   | "mahlzeiten_paust"
   | "aushilfe_paust"
   | "einmalbezug"
-  | "abzug";
+  | "abzug"
+  /** st-FREI + sv-FREI (Direktversicherung stsv-frei): im Gesamtbrutto, nicht St, nicht SV. */
+  | "bav_frei"
+  /** st-FREI + sv-PFLICHTIG (Direktversicherung stfr-svpfl): im Gesamtbrutto + SV, NICHT St. */
+  | "bav_sv"
+  /** st+sv PFLICHTIG, geldwerter Vorteil (Dienstrad 1 %): in St+SV, Auszahlung −. */
+  | "sachbezug_pflichtig"
+  /** st+sv PFLICHTIG, mindernd (Entgeltumwandlung: negativer Betrag). */
+  | "entgeltumwandlung";
 
 /** Steuerklassen lt. PAP. */
 export type Steuerklasse = 1 | 2 | 3 | 4 | 5 | 6;
@@ -91,6 +99,14 @@ export interface LohnEingabe {
 /** Ergebnis einer Monatsabrechnung. Alle Werte in Cent. */
 export interface LohnErgebnis {
   gesamtbruttoCent: number;
+  /**
+   * Steuer-Brutto (Bemessungsgrundlage Lohnsteuer).
+   * Aus Rückwärtskompatibilität zusätzlich als `stSvBruttoCent` gespiegelt.
+   */
+  stBruttoCent: number;
+  /** Sozialversicherungs-Brutto (Bemessungsgrundlage SV). */
+  svBruttoCent: number;
+  /** @deprecated identisch mit `stBruttoCent`. */
   stSvBruttoCent: number;
   lstCent: number;
   soliCent: number;
