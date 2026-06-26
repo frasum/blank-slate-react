@@ -5,11 +5,10 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -26,10 +25,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { listStaff } from "@/lib/admin/staff.functions";
-import { berechneLohnFuerMitarbeiter } from "@/lib/lohn/lohn-rechner.functions";
+import { listPeriods } from "@/lib/time/time-admin.functions";
+import {
+  berechneLohnFuerMitarbeiter,
+  berechneLohnUebersicht,
+} from "@/lib/lohn/lohn-rechner.functions";
 import { buildLohnFileName, buildLohnXlsx, downloadBlob } from "@/lib/lohn/lohn-excel-export";
 import { FileSpreadsheet } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/admin/lohnrechner")({
   beforeLoad: ({ context }) => {
@@ -69,31 +72,68 @@ function defaultFromTo(): { from: string; to: string } {
 }
 
 function LohnRechnerPage() {
-  const staffQ = useQuery({ queryKey: ["admin-staff-list"], queryFn: () => listStaff() });
-
   const def = useMemo(defaultFromTo, []);
-  const [staffId, setStaffId] = useState<string>("");
+  const periodsCallFn = useServerFn(listPeriods);
+  const periodsQ = useQuery({
+    queryKey: ["lohn-periods"],
+    queryFn: () => periodsCallFn(),
+  });
+
+  const [periodId, setPeriodId] = useState<string>("");
   const [fromDate, setFromDate] = useState<string>(def.from);
   const [toDate, setToDate] = useState<string>(def.to);
   const [mode, setMode] = useState<Mode>("simple");
+  const [staffId, setStaffId] = useState<string>("");
+
+  // Default = neueste Periode (listPeriods sortiert start_date desc).
+  useEffect(() => {
+    if (periodId) return;
+    const first = periodsQ.data?.[0];
+    if (first) {
+      setPeriodId(first.id);
+      setFromDate(first.startDate);
+      setToDate(first.endDate);
+    }
+  }, [periodsQ.data, periodId]);
+
+  function onPeriodChange(id: string) {
+    const p = periodsQ.data?.find((x) => x.id === id);
+    if (!p) return;
+    setPeriodId(id);
+    setFromDate(p.startDate);
+    setToDate(p.endDate);
+    setStaffId(""); // Auswahl zurücksetzen, Detail schließen
+  }
+
+  const uebersichtCallFn = useServerFn(berechneLohnUebersicht);
+  const uebersichtQ = useQuery({
+    queryKey: ["lohn-uebersicht", fromDate, toDate, mode],
+    queryFn: () => uebersichtCallFn({ data: { fromDate, toDate, mode } }),
+    enabled:
+      /^\d{4}-\d{2}-\d{2}$/.test(fromDate) &&
+      /^\d{4}-\d{2}-\d{2}$/.test(toDate),
+  });
 
   const callFn = useServerFn(berechneLohnFuerMitarbeiter);
   const mut = useMutation({
-    mutationFn: () => callFn({ data: { staffId, fromDate, toDate, mode, zusatzZeilen: [] } }),
+    mutationFn: (id: string) =>
+      callFn({ data: { staffId: id, fromDate, toDate, mode, zusatzZeilen: [] } }),
     onError: (e: unknown) =>
       toast.error(e instanceof Error ? e.message : "Berechnung fehlgeschlagen."),
   });
 
-  const canRun =
-    !!staffId && /^\d{4}-\d{2}-\d{2}$/.test(fromDate) && /^\d{4}-\d{2}-\d{2}$/.test(toDate);
+  function onRowClick(id: string, hasError: boolean) {
+    if (hasError) return;
+    setStaffId(id);
+    mut.mutate(id);
+  }
 
   const result = mut.data;
 
   const selectedStaffLabel = useMemo(() => {
-    const s = (staffQ.data ?? []).find((x) => x.id === staffId);
-    if (!s) return staffId;
-    return s.displayName || `${s.firstName ?? ""} ${s.lastName ?? ""}`.trim() || s.id;
-  }, [staffQ.data, staffId]);
+    const r = uebersichtQ.data?.rows.find((x) => x.staffId === staffId);
+    return r?.displayName ?? staffId;
+  }, [uebersichtQ.data, staffId]);
 
   async function handleExport() {
     if (!result) return;
@@ -131,37 +171,21 @@ function LohnRechnerPage() {
       </div>
 
       <Card className="space-y-4 p-4">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="staff">Mitarbeiter</Label>
-            <Select value={staffId} onValueChange={setStaffId}>
-              <SelectTrigger id="staff">
-                <SelectValue placeholder="Auswählen…" />
+            <Label htmlFor="period">Abrechnungsperiode</Label>
+            <Select value={periodId} onValueChange={onPeriodChange}>
+              <SelectTrigger id="period">
+                <SelectValue placeholder="Periode wählen…" />
               </SelectTrigger>
               <SelectContent>
-                {(staffQ.data ?? [])
-                  .slice()
-                  .sort((a, b) => (a.displayName ?? "").localeCompare(b.displayName ?? ""))
-                  .map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.displayName || `${s.firstName ?? ""} ${s.lastName ?? ""}`.trim() || s.id}
-                    </SelectItem>
-                  ))}
+                {(periodsQ.data ?? []).map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="from">Von</Label>
-            <Input
-              id="from"
-              type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="to">Bis</Label>
-            <Input id="to" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="mode">SFN-Modus</Label>
@@ -176,17 +200,94 @@ function LohnRechnerPage() {
             </Select>
           </div>
         </div>
-        <div className="flex justify-end">
-          <Button disabled={!canRun || mut.isPending} onClick={() => mut.mutate()}>
-            {mut.isPending ? "Rechne…" : "Berechnen"}
-          </Button>
-        </div>
+      </Card>
+
+      <Card className="p-4">
+        <h2 className="mb-3 text-base font-semibold">
+          Übersicht{" "}
+          <span className="text-sm font-normal text-muted-foreground">
+            ({fromDate} – {toDate})
+          </span>
+        </h2>
+        {uebersichtQ.isLoading ? (
+          <p className="text-sm text-muted-foreground">Lade…</p>
+        ) : uebersichtQ.isError ? (
+          <p className="text-sm text-destructive">
+            {(uebersichtQ.error as Error)?.message ?? "Fehler beim Laden."}
+          </p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Mitarbeiter</TableHead>
+                <TableHead className="text-right">Stunden</TableHead>
+                <TableHead className="text-right">Stundenlohn</TableHead>
+                <TableHead className="text-right">Zuschläge</TableHead>
+                <TableHead className="text-right">Brutto</TableHead>
+                <TableHead className="text-right">Netto</TableHead>
+                <TableHead className="text-right">Auszahlung</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {(uebersichtQ.data?.rows ?? []).map((r) => {
+                const hasErr = r.error != null;
+                const isSelected = r.staffId === staffId;
+                return (
+                  <TableRow
+                    key={r.staffId}
+                    onClick={() => onRowClick(r.staffId, hasErr)}
+                    className={cn(
+                      hasErr ? "cursor-not-allowed opacity-70" : "cursor-pointer",
+                      isSelected && "bg-muted/50",
+                    )}
+                  >
+                    <TableCell>
+                      <div className="font-medium">{r.displayName}</div>
+                      {hasErr && (
+                        <div className="text-xs text-muted-foreground">{r.error}</div>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {r.totalHours != null ? hrs(r.totalHours) : "—"}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {r.hourlyRateCents != null ? eur(r.hourlyRateCents) : "—"}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {r.zuschlagCents != null ? eur(r.zuschlagCents) : "—"}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {r.bruttoCents != null ? eur(r.bruttoCents) : "—"}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {r.nettoCents != null ? eur(r.nettoCents) : "—"}
+                    </TableCell>
+                    <TableCell className="text-right font-semibold tabular-nums">
+                      {r.auszahlungCents != null ? eur(r.auszahlungCents) : "—"}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+              {uebersichtQ.data && uebersichtQ.data.rows.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-sm text-muted-foreground">
+                    Keine aktiven Mitarbeiter.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        )}
       </Card>
 
       {mut.isError && (
         <Card className="p-4 text-sm text-destructive">
           {(mut.error as Error)?.message ?? "Fehler bei der Berechnung."}
         </Card>
+      )}
+
+      {mut.isPending && (
+        <Card className="p-4 text-sm text-muted-foreground">Rechne Detail…</Card>
       )}
 
       {result && (
