@@ -1,55 +1,51 @@
 ## Ziel
 
-Auf `/admin/lohnrechner` einen Button **„CSV exportieren"** ergänzen, der die aktuell geladene Perioden-Übersicht als CSV (UTF-8 BOM, `;`-getrennt, `\r\n`) herunterlädt — mit allen Feldern für den Lohnbüro-Abgleich (Perso-Nr., SFN-Stunden-Töpfe, alle Steuer-/SV-Komponenten in Cent). Es wird **nichts neu gerechnet** — die Werte fallen in `computeLohnForStaff` bereits an und werden nur durchgereicht.
+13-Wochen-Diagnose pro Mitarbeiter sichtbar machen (CSV-Spalten), **ohne** Brutto, Lohnarten oder bestehende Logik anzufassen. Reine READ-ONLY-Erweiterung zur edlohn-Verifikation.
 
----
+## Neue Dateien
 
-## Änderungen
+**`src/lib/lohn/urlaub-krank-core.ts`** — reines Modul
+- `isoWeekday(isoDate)` — UTC-stabil, 0=So…6=Sa
+- `deriveWorkingWeekdays(workedDates, threshold=7)` — Mehrheits-Regel über 13 Wochen
+- `countWorkdaysInAbsence(absenceDates, workingWeekdays)` — Filter nach Arbeits-Wochentagen
 
-### 1) `src/lib/lohn/lohn-rechner.functions.ts` — `berechneLohnUebersicht` erweitern
+**`src/lib/lohn/urlaub-krank-core.test.ts`** — Unit-Tests
+- isoWeekday Mo/So
+- deriveWorkingWeekdays Threshold-Verhalten
+- countWorkdaysInAbsence Mo–Fr aus 7 Kalendertagen → 5
 
-- Staff-Query um `perso_nr` ergänzen: `.select("id, display_name, first_name, last_name, perso_nr")`.
-- `Row`-Typ um folgende Felder erweitern (alle `number | null`):
-  - `persoNr`
-  - `night25Hours`, `night40Hours`, `sundayHours` (aus `r.buckets`)
-  - `lstCent`, `soliCent`, `kistCent`, `kvCent`, `rvCent`, `avCent`, `pvCent` (aus `r.ergebnis`)
-- Erfolgs-Zweig: neue Felder aus `r.buckets` / `r.ergebnis` befüllen; `persoNr: s.perso_nr ?? null`.
-- Fehler-Zweig (`catch`): `persoNr` setzen, alle neuen Zahlenfelder `null`.
-- UI-Tabelle bleibt unverändert (neue Felder sind nur für den Export).
+**`src/lib/lohn/urlaub-krank-diagnose.ts`** — Server-Helfer
+- `computeUrlaubKrankDiagnose(supabaseAdmin, { staffId, fromDate, toDate, mode })`
+- Berechnet `refFrom = fromDate − 91d`, `refTo = fromDate − 1d`
+- Ruft `aggregateSfnPeriod` (wiederverwendet, nicht geändert) für `avgStdTag` (2 NK) und `avgSfnTagCent` (ganze Cent, je nach `mode`)
+- Liest distinct `business_date` aus `time_entries` (abgeschlossen, im Ref-Fenster) → `deriveWorkingWeekdays`
+- Liest `roster_absence` (`type IN ('urlaub','krank')` im Perioden-Fenster) → getrennt `urlaubTage` / `krankTage` via `countWorkdaysInAbsence`
+- Rückgabe: `{ urlaubTage, krankTage, avgStdTag, avgSfnTagCent, workingWeekdays: number[] }`
 
-### 2) `src/lib/lohn/lohn-csv-export.ts` — neu, reines Modul
+## Änderungen an bestehenden Dateien (nur Durchreichung)
 
-- Exportiert `UebersichtCsvRow` (Shape exakt wie im Prompt) und `buildUebersichtCsv(rows, { periodLabel, mode }): string`.
-- Format:
-  - UTF-8 BOM `\uFEFF` voran, Trenner `;`, Zeilenende `\r\n`.
-  - Zeile 1 (Kommentar): `# COCO Lohn-Übersicht; Periode=<periodLabel>; Modus=<mode>`
-  - Zeile 2 (Header, exakt):
-    `perso_nr;name;stunden;stundensatz_cent;nacht25_std;nacht40_std;sonntag_std;zuschlag_cent;brutto_cent;lst_cent;soli_cent;kist_cent;kv_cent;rv_cent;av_cent;pv_cent;netto_cent;auszahlung_cent;fehler`
-  - Geld als ganzzahlige Cent, Stunden als Dezimal mit Punkt (`12.5`), `null` → leere Zelle.
-  - CSV-Escaping: Felder mit `;`, `"`, `\r` oder `\n` in `"…"`, enthaltene `"` verdoppeln.
+**`src/lib/lohn/lohn-rechner.functions.ts`**
+- In `computeLohnForStaff`: `computeUrlaubKrankDiagnose(...)` aufrufen, Ergebnis in Rückgabe mergen. `zeilen`, `ergebnis`, Brutto **unverändert**.
+- `berechneLohnUebersicht` Row-Typ: `urlaubTage`, `krankTage`, `avgStdTag`, `avgSfnTagCent` (alle `number | null`, Fehler-Zweig `null`).
 
-### 3) `src/lib/lohn/lohn-csv-export.test.ts` — neu
+**`src/lib/lohn/lohn-csv-export.ts`**
+- `UebersichtCsvRow` um vier Felder erweitern.
+- Header vor `fehler`: `urlaub_tage;krank_tage;avg_std_tag;avg_sfn_tag_cent`.
+- `urlaubTage`/`krankTage` als Integer, `avgStdTag` als Dezimal, `avgSfnTagCent` als Integer formatieren.
 
-- Header-/Kommentarzeile exakt.
-- Voll-Zeile: Cent als Ganzzahl, Stunden mit Punkt, korrekte Spaltenanzahl (19).
-- Fehler-Zeile: Zahlenspalten leer, `name`+`fehler` gesetzt, Escaping greift bei `name` mit `;`.
+**`src/lib/lohn/lohn-csv-export.test.ts`**
+- Spaltenzahl 22 → 26 anpassen, neue Header-Zeile, Voll-/Fehler-Zeilen-Fixtures erweitern.
 
-### 4) `src/routes/_authenticated/admin/lohnrechner.tsx`
+## Bewusst NICHT angefasst
 
-- Button **„CSV exportieren"** (`variant="outline"`) bei der Übersichts-Tabelle.
-- `disabled`, wenn `uebersichtQ.isLoading` oder keine Rows.
-- onClick: `buildUebersichtCsv(uebersichtQ.data.rows, { periodLabel, mode })` → `downloadBlob(new Blob([csv], { type: "text/csv;charset=utf-8" }), "lohn-uebersicht_<periodLabel-sanitized>_<mode>.csv")`. `downloadBlob` ist bereits importiert.
-- `periodLabel` aus der aktuell gewählten Periode (`periodsQ.data.find(p => p.id === periodId)?.label`); Slashes/Spaces im Dateinamen durch `-`/`_` ersetzen.
-
----
-
-## NICHT ANFASSEN
-
-- Rechenlogik (`aggregateSfnPeriod`, `berechneLohn`, `computeLohnForStaff`-Verhalten).
-- Rückgabe-Shape von `berechneLohnFuerMitarbeiter`.
-- `lohn-excel-export.ts` (nur `downloadBlob` wiederverwenden).
-- Permissions/RLS/Schema — keine Migration.
+- `berechneLohn` / `lohn-core.ts` / `types.ts` Kategorien — keine neue Lohnart, kein Brutto-Eingriff.
+- `aggregateSfnPeriod`, `fixed-zeilen.ts`, SFN-/Sachbezug-/Mahlzeiten-Logik — nur Aufrufer.
+- UI (`/admin/lohnrechner`) — neue Felder erscheinen nur im CSV.
 
 ## Erfolgs-Gate
 
-`tsc --noEmit`, `format:check`, `eslint . --max-warnings=5`, `vitest run` grün (inkl. `lohn-csv-export.test.ts`). Manuell: Periode wählen → Knopf lädt `.csv` mit BOM, `;`-getrennt, 19 Spalten, `perso_nr` gefüllt, Cent-Werte ganzzahlig, Fehler-MA mit leeren Zahlen + `fehler`-Text.
+`tsc --noEmit`, `format:check`, `eslint . --max-warnings=5`, `vitest run` grün inkl. neuer Tests. Vor Commit: `prettier --write` + `eslint --fix` auf geänderten Dateien.
+
+## Offene Frage
+
+Die roster_absence-Query nutzt service-role (supabaseAdmin) und filtert auf `staff_id` + Datumsbereich — `organization_id`-Scope ist bereits durch den vorgelagerten Staff-Org-Check in `berechneLohnUebersicht` gewährleistet. OK so, oder soll ich `organization_id` zusätzlich in der Query mitgeben (Defense-in-Depth)?

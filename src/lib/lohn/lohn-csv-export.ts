@@ -25,6 +25,10 @@ export type UebersichtCsvRow = {
   workdayCount: number | null;
   mahlzeitenCent: number | null;
   sachbezugCent: number | null;
+  urlaubTage: number | null;
+  krankTage: number | null;
+  avgStdTag: number | null;
+  avgSfnTagCent: number | null;
   error: string | null;
 };
 
@@ -54,6 +58,10 @@ const HEADERS = [
   "arbeitstage",
   "mahlzeiten_cent",
   "sachbezug_cent",
+  "urlaub_tage",
+  "krank_tage",
+  "avg_std_tag",
+  "avg_sfn_tag_cent",
   "fehler",
 ] as const;
 
@@ -104,6 +112,10 @@ export function buildUebersichtCsv(
       fmtInt(r.workdayCount),
       fmtInt(r.mahlzeitenCent),
       fmtInt(r.sachbezugCent),
+      fmtInt(r.urlaubTage),
+      fmtInt(r.krankTage),
+      fmtHours(r.avgStdTag),
+      fmtInt(r.avgSfnTagCent),
       escapeField(r.error ?? ""),
     ];
     return cells.join(SEP);
