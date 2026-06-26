@@ -25,6 +25,9 @@ export interface StaffDetailsForLohn {
   has_parent_status: boolean | null;
   is_minijob: boolean | null;
   date_of_birth: string | null;
+  rv_frei?: boolean | null;
+  av_frei?: boolean | null;
+  lst_freibetrag_monat_cent?: number | null;
 }
 
 function alterAm(dob: string | null, asOf: string): number | null {
@@ -60,5 +63,8 @@ export function staffDetailsToPerson(d: StaffDetailsForLohn, asOf: string): Pers
     // Zuschlag setzen, damit nicht versehentlich zu wenig PV abgezogen wird.
     pvKinderlosZuschlag: kinderzahl === 0 && (age === null ? true : age >= 23),
     beschaeftigung: (d.is_minijob ? "minijob" : "normal") as Beschaeftigungsart,
+    rvFrei: !!d.rv_frei,
+    avFrei: !!d.av_frei,
+    lstFreibetragMonatCent: Number(d.lst_freibetrag_monat_cent ?? 0),
   };
 }

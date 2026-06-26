@@ -16,7 +16,7 @@ type Fall = {
   erwartet: LohnErgebnis;
 };
 
-const faelle = (fixtures as { faelle: Fall[] }).faelle;
+const faelle = (fixtures as unknown as { faelle: Fall[] }).faelle;
 
 describe("Golden Master: berechneLohn (edlohn)", () => {
   it("Fixture enthält die erwarteten 3 Fälle", () => {

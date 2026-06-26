@@ -62,8 +62,12 @@ export function svBeitraege(e: SvEingabe): SvErgebnis {
 
   return {
     kvCent: roundCent((bemessungKvPv * kvSatz) / 100),
-    rvCent: roundCent((bemessungRvAv * SV_SAETZE_2026.RV_AN_PROZENT) / 100),
-    avCent: roundCent((bemessungRvAv * SV_SAETZE_2026.AV_AN_PROZENT) / 100),
+    rvCent: e.person.rvFrei
+      ? 0
+      : roundCent((bemessungRvAv * SV_SAETZE_2026.RV_AN_PROZENT) / 100),
+    avCent: e.person.avFrei
+      ? 0
+      : roundCent((bemessungRvAv * SV_SAETZE_2026.AV_AN_PROZENT) / 100),
     pvCent: roundCent((bemessungKvPv * pvSatz) / 100),
   };
 }
