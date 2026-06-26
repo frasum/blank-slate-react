@@ -14,7 +14,7 @@ import { assertPermission } from "@/lib/admin/admin-call";
 import { aggregateSfnPeriod } from "./lohn-period.functions";
 import { staffDetailsToPerson } from "./person-mapping";
 import { berechneLohn } from "./lohn-core";
-import type { Beschaeftigungsart, Entgeltzeile } from "./types";
+import type { Beschaeftigungsart, Entgeltzeile, Kategorie } from "./types";
 import { buildFixedZeilen } from "./fixed-zeilen";
 import { computeUrlaubKrankDiagnose } from "./urlaub-krank-diagnose";
 import { buildUrlaubKrankZeilen } from "./urlaub-krank-zeilen";
@@ -101,6 +101,18 @@ async function computeLohnForStaff(
     sfnTagCent: diagnose.avgSfnTagCent,
   });
 
+  const { data: recurring, error: recErr } = await supabaseAdmin
+    .from("lohn_recurring_zeilen")
+    .select("bezeichnung, betrag_cent, kategorie, sort_order")
+    .eq("staff_id", args.staffId)
+    .order("sort_order");
+  if (recErr) throw recErr;
+  const recurringZeilen: Entgeltzeile[] = (recurring ?? []).map((r) => ({
+    kategorie: r.kategorie as Kategorie,
+    bezeichnung: r.bezeichnung,
+    betragCent: r.betrag_cent,
+  }));
+
   const zeilen: Entgeltzeile[] = [
     {
       kategorie: zeitlohnKategorie(person.beschaeftigung),
@@ -119,6 +131,7 @@ async function computeLohnForStaff(
     },
     ...fixedZeilen,
     ...ukZeilen,
+    ...recurringZeilen,
     ...args.zusatzZeilen,
   ];
 
