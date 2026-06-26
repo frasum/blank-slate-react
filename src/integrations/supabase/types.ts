@@ -973,6 +973,51 @@ export type Database = {
           },
         ]
       }
+      lohn_absence_days: {
+        Row: {
+          created_at: string
+          krank_tage: number
+          organization_id: string
+          period_start: string
+          staff_id: string
+          updated_at: string
+          urlaub_tage: number
+        }
+        Insert: {
+          created_at?: string
+          krank_tage?: number
+          organization_id: string
+          period_start: string
+          staff_id: string
+          updated_at?: string
+          urlaub_tage?: number
+        }
+        Update: {
+          created_at?: string
+          krank_tage?: number
+          organization_id?: string
+          period_start?: string
+          staff_id?: string
+          updated_at?: string
+          urlaub_tage?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lohn_absence_days_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lohn_absence_days_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           article_id: string | null
