@@ -538,3 +538,51 @@ COCO: `avgSfnTagCent = round(refSFN(91 Tage) / scheduledDays)`, `scheduledDays =
 - **6 ANDI (+120) / 129 GERARD (−220):** echte Stundenzahl-Differenz → Zeitdaten-Abgleich, kein Rechen-Hebel.
 - **504 TIP:** Austritt/Teilmonat (Steuer-Tage) → eigenes Feature.
 - **320 / 352:** Doppelsatz (rate-1/rate-2), zurückgestellt (COCO hat keine Satz-Attribution; künftige `lohn_second_rate_hours`).
+
+## 14. Modul M4 — GF/PKV-Vorsorgepauschale: Phase-2-Blocker gelöst (27.06.2026)
+
+Voll sozialversicherungsfreie, privat krankenversicherte Geschäftsführer (CHEFIN/perso 1, Peter/perso 309) wichen in der **Lohnsteuer** ab (Brutto/SV identisch). Ursache war **nicht** ein fehlender KV/PV-Beitrag (so war Phase 2 bisher blockiert), sondern drei **fälschlich gewährte Vorsorgepauschale-Teilbeträge**.
+
+### Bug im PAP-Wrapper
+
+`lohnsteuer-2026.ts` verdrahtete `KRV=0` und `ALV=0` hart und speiste `PKV` nie. Für einen SV-freien GF erzeugt das:
+
+- **RV-Teilbetrag** (KRV=0 statt 1) — er zahlt keine GRV.
+- **GKV-KV/PV-Teilbetrag** (PKV ungesetzt → GKV-Pauschalweg) — er ist PKV.
+- **AV-Teilbetrag** (ALV=0 → `MVSPHB` läuft, `0,013 × BBGRVALV`) — er zahlt keine AV.
+
+Mechanik (verifiziert via PAP-Probe gegen die Engine): `MVSPHB` (AV-/Höchstbetrag) wird in `UPEVP` genau dann ausgeführt, wenn **`ALV !== 1`**. `KRV=1` nullt den RV-Teil, `PKV=1`+`PKPV=0` nullt den KV/PV-Teil, `ALV=1` überspringt den AV-Teil ⇒ Vorsorgepauschale = 0.
+
+### Fix (Commits 6d21b18 + f81d9c6)
+
+Drei optionale PapEingabe-Felder (`krvKeinRv`, `alvKeinAv`, `pkpvCent`), in `lohn-core` **ausschließlich für `is_pkv`-MA** gesetzt:
+
+```
+pkv: person.istPkv,
+krvKeinRv: person.istPkv && person.rvFrei,
+alvKeinAv: person.istPkv && person.avFrei,
+pkpvCent: person.pkvBasisBeitragMonatCent,
+```
+
+Neue Spalten `is_pkv` (default false), `pkv_basis_beitrag_monat_cent` (default 0). **SELECT-Liste erweitert** (§3). Defaults erhalten Altverhalten bit-identisch → das `is_pkv`-Gate garantiert null Regression (nur 1 & 309 geflaggt; Diff-Export bestätigt: je genau eine Zeile bewegt).
+
+### Ergebnis cent-genau
+
+- **CHEFIN (1):** StKl 1, St-Brutto 10.918,76. edlohn gewährt **VSP = 0** → `is_pkv=true`, `pkpv=0`. LSt 3.054,00 → **3.613,58**, Auszahlung 10.288,14 → **9.691,44**. Zerlegung der 559,58 LSt: RV 330,09 + KV/PV 168,66 + AV 46,17 + kvz 14,66.
+- **Peter (309):** StKl 4, St-Brutto 7.084,00, Basisabsicherung 981,00. edlohn gewährt **VSP ≈ 683 €/Jahr** (nicht 0, nicht der volle Beitrag) → `pkv_basis_beitrag_monat_cent=5692` (netto 56,92/Monat). LSt 1.496,83 → **1.979,00**, Auszahlung 6.926,97 → **6.411,11**.
+
+### Offener Faden (Peter)
+
+Die **56,92 sind rückgerechnet, nicht erklärt**: voller 981er-Beitrag gäbe LSt 1.590,91, halber AG-Zuschuss 1.796,91 — beide verfehlen edlohns 1.979,00. edlohn setzt deutlich **weniger** an, als der Basisbeitrag hergäbe. Wert ist beitragsbasiert/monatsstabil, aber ETL-Beleg („welcher PKV-Basisbeitrag fließt in Peters Vorsorgepauschale?") steht aus.
+
+### Lektion
+
+SV-Befreiung ist eine **Lohnsteuer**-Frage (Vorsorgepauschale), nicht SV: SV-frei ⇒ keine/kaum Vorsorgepauschale ⇒ **höhere** LSt. Der vermeintliche Phase-2-Blocker („wir brauchen die Beiträge") löste sich auf — flag-getrieben, ohne Beitragszahl (CHEFIN) bzw. nur netto-effektiver PKPV (Peter). Tarif selbst war korrekt (UPTAB26 Zone 4 `0,42×X − 11.135,63`).
+
+### Phase-2-Status
+
+| MA          | Status                                               |
+| ----------- | ---------------------------------------------------- |
+| CHEFIN (1)  | ✅ cent-genau (VSP = 0)                              |
+| Peter (309) | ✅ cent-genau (PKPV 5692; ETL-Beleg offen)           |
+| PIM (17)    | offen — Werkstudent-Mindestvorsorge, Mini-Rest ~33 € |
