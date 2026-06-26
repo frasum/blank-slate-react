@@ -54,8 +54,7 @@ export async function computeUrlaubKrankDiagnose(
   const refWorkedDays = refAgg.workdayCount;
   const scheduledDays = refWorkedDays + refAbsenceDays;
 
-  const avgSfnTagCent =
-    scheduledDays > 0 ? Math.round(chosen.zuschlagCents / scheduledDays) : 0;
+  const avgSfnTagCent = scheduledDays > 0 ? Math.round(chosen.zuschlagCents / scheduledDays) : 0;
   const rate = workRate(scheduledDays, 91);
 
   const { data: absences, error: absErr } = await supabaseAdmin
