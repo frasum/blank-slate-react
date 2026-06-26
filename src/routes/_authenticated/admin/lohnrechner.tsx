@@ -109,9 +109,7 @@ function LohnRechnerPage() {
   const uebersichtQ = useQuery({
     queryKey: ["lohn-uebersicht", fromDate, toDate, mode],
     queryFn: () => uebersichtCallFn({ data: { fromDate, toDate, mode } }),
-    enabled:
-      /^\d{4}-\d{2}-\d{2}$/.test(fromDate) &&
-      /^\d{4}-\d{2}-\d{2}$/.test(toDate),
+    enabled: /^\d{4}-\d{2}-\d{2}$/.test(fromDate) && /^\d{4}-\d{2}-\d{2}$/.test(toDate),
   });
 
   const callFn = useServerFn(berechneLohnFuerMitarbeiter);
@@ -243,9 +241,7 @@ function LohnRechnerPage() {
                   >
                     <TableCell>
                       <div className="font-medium">{r.displayName}</div>
-                      {hasErr && (
-                        <div className="text-xs text-muted-foreground">{r.error}</div>
-                      )}
+                      {hasErr && <div className="text-xs text-muted-foreground">{r.error}</div>}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {r.totalHours != null ? hrs(r.totalHours) : "—"}
@@ -286,9 +282,7 @@ function LohnRechnerPage() {
         </Card>
       )}
 
-      {mut.isPending && (
-        <Card className="p-4 text-sm text-muted-foreground">Rechne Detail…</Card>
-      )}
+      {mut.isPending && <Card className="p-4 text-sm text-muted-foreground">Rechne Detail…</Card>}
 
       {result && (
         <div className="space-y-6">
