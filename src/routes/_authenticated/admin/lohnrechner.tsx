@@ -138,22 +138,33 @@ function LohnRechnerPage() {
     return periodsQ.data?.find((p) => p.id === periodId)?.label ?? `${fromDate}_${toDate}`;
   }, [periodsQ.data, periodId, fromDate, toDate]);
 
-  function handleCsvExport() {
+  const [csvExport, setCsvExport] = useState<{
+    url: string;
+    filename: string;
+  } | null>(null);
+
+  useEffect(() => {
     const rows = uebersichtQ.data?.rows;
     if (!rows || rows.length === 0) {
+      setCsvExport(null);
+      return;
+    }
+
+    const csv = buildUebersichtCsv(rows, { periodLabel, mode });
+    const safeLabel = periodLabel.replace(/[\\/]/g, "-").replace(/\s+/g, "_");
+    const filename = `lohn-uebersicht_${safeLabel}_${mode}.csv`;
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    setCsvExport({ url, filename });
+
+    return () => URL.revokeObjectURL(url);
+  }, [uebersichtQ.data?.rows, periodLabel, mode]);
+
+  function handleCsvExport() {
+    if (!csvExport) {
       toast.error("Keine Daten zum Exportieren.");
       return;
     }
-    try {
-      const csv = buildUebersichtCsv(rows, { periodLabel, mode });
-      const safeLabel = periodLabel.replace(/[\\/]/g, "-").replace(/\s+/g, "_");
-      const filename = `lohn-uebersicht_${safeLabel}_${mode}.csv`;
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-      downloadBlob(blob, filename);
-      toast.success(`CSV erzeugt: ${filename}`);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "CSV-Export fehlgeschlagen.");
-    }
+    toast.success(`CSV-Download gestartet: ${csvExport.filename}`);
   }
 
   async function handleExport() {
@@ -231,16 +242,38 @@ function LohnRechnerPage() {
               ({fromDate} – {toDate})
             </span>
           </h2>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleCsvExport}
-            disabled={uebersichtQ.isLoading || !uebersichtQ.data?.rows.length}
-          >
-            <Download className="mr-2 h-4 w-4" />
-            CSV exportieren
-          </Button>
+          {csvExport ? (
+            <Button asChild variant="outline" size="sm" onClick={handleCsvExport}>
+              <a href={csvExport.url} download={csvExport.filename}>
+                <Download className="mr-2 h-4 w-4" />
+                CSV exportieren
+              </a>
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCsvExport}
+              disabled={uebersichtQ.isLoading || !uebersichtQ.data?.rows.length}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              CSV exportieren
+            </Button>
+          )}
         </div>
+        {csvExport ? (
+          <p className="mb-3 text-xs text-muted-foreground">
+            Falls der Browser keinen Download-Dialog zeigt: {" "}
+            <a
+              className="font-medium text-primary underline underline-offset-2"
+              href={csvExport.url}
+              target="_blank"
+              rel="noreferrer"
+            >
+              CSV direkt öffnen
+            </a>
+          </p>
+        ) : null}
         {uebersichtQ.isLoading ? (
           <p className="text-sm text-muted-foreground">Lade…</p>
         ) : uebersichtQ.isError ? (
