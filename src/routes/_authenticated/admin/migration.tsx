@@ -492,11 +492,13 @@ function CountersView({
   counters: {
     read: number;
     imported: number;
+    importedWithoutLocation?: number;
     skippedByReason: Record<string, number>;
   };
 }) {
   const skipped = Object.values(counters.skippedByReason).reduce((a, b) => a + b, 0);
   const balanced = counters.read === counters.imported + skipped;
+  const withoutLocation = counters.importedWithoutLocation ?? 0;
   return (
     <div className="rounded-md border border-border bg-muted/30 p-3 text-sm">
       <div className="mb-1 font-medium">{title}</div>
@@ -518,7 +520,16 @@ function CountersView({
           ) : null,
         )}
         {!balanced && <Badge variant="destructive">Bilanz verletzt!</Badge>}
+        {withoutLocation > 0 && (
+          <Badge variant="destructive">{withoutLocation} ohne Standort</Badge>
+        )}
       </div>
+      {withoutLocation > 0 && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Zeilen ohne <code>location_id</code> sind im Wochenplan unsichtbar. Vor dem Commit prüfen,
+          ob der Export die Spalte <code>restaurant</code> pro Schicht korrekt liefert.
+        </p>
+      )}
     </div>
   );
 }

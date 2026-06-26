@@ -22,15 +22,23 @@ import { executeImport } from "./run-import-core";
 import { bootstrapMissingStaffCore } from "./bootstrap-missing-staff";
 
 const TA_HEADER =
-  "id,employee_id,staff_name,staff_nickname,shift_date,department,start_time,end_time,absence_type,is_holiday,total_hours,evening_hours,night_hours,night_deep_hours,sunday_holiday_hours";
+  "id,employee_id,staff_name,staff_nickname,shift_date,department,start_time,end_time,absence_type,is_holiday,total_hours,evening_hours,night_hours,night_deep_hours,sunday_holiday_hours,restaurant";
 
 function taCsv(
-  rows: { id: string; empId: string; name: string; date: string; start: string; end: string }[],
+  rows: {
+    id: string;
+    empId: string;
+    name: string;
+    date: string;
+    start: string;
+    end: string;
+    restaurant?: string;
+  }[],
 ): string {
   const body = rows
     .map(
       (r) =>
-        `${r.id},${r.empId},${r.name},,${r.date},service,${r.start},${r.end},,false,4.5,0.5,0,0,0`,
+        `${r.id},${r.empId},${r.name},,${r.date},service,${r.start},${r.end},,false,4.5,0.5,0,0,0,${r.restaurant ?? ""}`,
     )
     .join("\n");
   return `${TA_HEADER}\n${body}\n`;
@@ -156,6 +164,57 @@ describe.skipIf(!dbTestsEnabled)("migration — Importer + RLS", () => {
       .eq("organization_id", org.orgId)
       .maybeSingle();
     expect(settings?.time_locked_through_date).toBe("2026-03-12");
+  });
+
+  it("(1b) location_id-Auflösung: gültiger restaurant-Name → location_id; leer/unbekannt → NULL + Zähler", async () => {
+    const csv = taCsv([
+      {
+        id: "A-1",
+        empId: "EMP-1",
+        name: "Anna Test",
+        date: "2026-04-02",
+        start: "17:00:00",
+        end: "21:30:00",
+        restaurant: "Hauptstandort",
+      },
+      {
+        id: "B-1",
+        empId: "EMP-1",
+        name: "Anna Test",
+        date: "2026-04-03",
+        start: "17:00:00",
+        end: "21:30:00",
+        restaurant: "",
+      },
+    ]);
+
+    const res = await executeImport({
+      admin: org.service,
+      organizationId: org.orgId,
+      actorUserId: admin.userId,
+      actorStaffId: admin.staffId,
+      sourceSystem: "tagesabrechnung",
+      csvText: csv,
+      mode: "commit",
+    });
+    expect(res.counters.imported).toBe(2);
+    expect(res.counters.importedWithoutLocation).toBe(1);
+
+    const { data: rowA } = await org.service
+      .from("time_entries")
+      .select("location_id")
+      .eq("organization_id", org.orgId)
+      .eq("import_key", "tagesabrechnung:A-1")
+      .single();
+    expect(rowA?.location_id).toBe(org.defaultLocationId);
+
+    const { data: rowB } = await org.service
+      .from("time_entries")
+      .select("location_id")
+      .eq("organization_id", org.orgId)
+      .eq("import_key", "tagesabrechnung:B-1")
+      .single();
+    expect(rowB?.location_id).toBeNull();
   });
 
   it("(4) RLS: Manager kann import_runs/staff_identity_map weder INSERTen noch UPDATEn", async () => {

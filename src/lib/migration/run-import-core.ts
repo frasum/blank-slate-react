@@ -19,6 +19,9 @@ import type { NormalizedShift, SkipReason, SourceSystem } from "./normalize";
 export type Counters = {
   read: number;
   imported: number;
+  /** Teilmenge von `imported`: importierte Zeilen ohne aufgelöste location_id.
+   *  NICHT Teil der Bilanz-Invariante (`imported + skipped === read`). */
+  importedWithoutLocation: number;
   skippedByReason: Record<SkipReason, number>;
 };
 
@@ -26,6 +29,7 @@ export function emptyCounters(): Counters {
   return {
     read: 0,
     imported: 0,
+    importedWithoutLocation: 0,
     skippedByReason: { absence: 0, invalid_time: 0, unmapped_staff: 0, duplicate: 0 },
   };
 }
@@ -157,6 +161,8 @@ export async function executeImport(args: RunImportArgs): Promise<RunImportResul
       counters.skippedByReason.invalid_time++;
       continue;
     }
+    const locationId = resolveLocationId(s.locationName, locByName);
+    if (locationId === null) counters.importedWithoutLocation++;
     inserts.push({
       organization_id: organizationId,
       staff_id: staffId,
@@ -166,7 +172,7 @@ export async function executeImport(args: RunImportArgs): Promise<RunImportResul
       break_minutes: s.breakMinutes,
       source: "import",
       import_key: importKey,
-      location_id: resolveLocationId(s.locationName, locByName),
+      location_id: locationId,
     });
     if (!maxBusinessDate || s.shiftDate > maxBusinessDate) maxBusinessDate = s.shiftDate;
   }
