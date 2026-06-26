@@ -20,6 +20,9 @@ const FULL: UebersichtCsvRow = {
   pvCent: 300,
   nettoCents: 195120,
   auszahlungCents: 195120,
+  workdayCount: 19,
+  mahlzeitenCent: 8683,
+  sachbezugCent: 5000,
   error: null,
 };
 
@@ -42,11 +45,14 @@ const ERR: UebersichtCsvRow = {
   pvCent: null,
   nettoCents: null,
   auszahlungCents: null,
+  workdayCount: null,
+  mahlzeitenCent: null,
+  sachbezugCent: null,
   error: "Keine Personaldaten für diesen Mitarbeiter.",
 };
 
 const HEADER_LINE =
-  "perso_nr;name;stunden;stundensatz_cent;nacht25_std;nacht40_std;sonntag_std;zuschlag_cent;brutto_cent;lst_cent;soli_cent;kist_cent;kv_cent;rv_cent;av_cent;pv_cent;netto_cent;auszahlung_cent;fehler";
+  "perso_nr;name;stunden;stundensatz_cent;nacht25_std;nacht40_std;sonntag_std;zuschlag_cent;brutto_cent;lst_cent;soli_cent;kist_cent;kv_cent;rv_cent;av_cent;pv_cent;netto_cent;auszahlung_cent;arbeitstage;mahlzeiten_cent;sachbezug_cent;fehler";
 
 describe("buildUebersichtCsv", () => {
   it("startet mit BOM, Kommentarzeile und exakter Header-Zeile", () => {
@@ -61,7 +67,7 @@ describe("buildUebersichtCsv", () => {
     const csv = buildUebersichtCsv([FULL], { periodLabel: "P", mode: "simple" });
     const lines = csv.split("\r\n");
     const row = lines[2].split(";");
-    expect(row).toHaveLength(19);
+    expect(row).toHaveLength(22);
     expect(row[0]).toBe("42");
     expect(row[1]).toBe("Müller, Anna");
   });
@@ -72,7 +78,7 @@ describe("buildUebersichtCsv", () => {
     expect(row[1]).toBe("Müller, Anna");
     expect(row[2]).toBe("12.5");
     expect(row[3]).toBe("1500");
-    expect(row[18]).toBe("");
+    expect(row[21]).toBe("");
   });
 
   it("Fehler-Zeile: Zahlenspalten leer, name escaped wegen ;, fehler gesetzt", () => {
