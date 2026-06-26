@@ -105,7 +105,7 @@ describe("buildUebersichtCsv", () => {
     expect(row).not.toContain("");
     expect(line.endsWith(";Keine Personaldaten für diesen Mitarbeiter.")).toBe(true);
     // Spot-Check: viele "0"-Felder hintereinander
-    expect(line).toContain(";0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;");
+    expect(line).toContain(";0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;");
   });
 
   it('verdoppelt " innerhalb gequoteter Felder', () => {
