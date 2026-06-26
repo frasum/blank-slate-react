@@ -36,13 +36,28 @@ export function berechneLohn(eingabe: LohnEingabe): LohnErgebnis {
   const summeSachbezugFrei = sumBy(zeilen, (k) => k === "sachbezug_frei");
   const summeMahlzeitenPaust = sumBy(zeilen, (k) => k === "mahlzeiten_paust");
   const summeAushilfePaust = sumBy(zeilen, (k) => k === "aushilfe_paust");
+  const summeBavFrei = sumBy(zeilen, (k) => k === "bav_frei");
+  const summeBavSv = sumBy(zeilen, (k) => k === "bav_sv");
 
-  const stSvBruttoCent =
+  // St-Brutto: alle freien + pauschalen Bestandteile abziehen, inkl. bav_sv (st-frei).
+  const stBruttoCent =
     gesamtbruttoCent -
     summeZuschlagFrei -
     summeSachbezugFrei -
     summeMahlzeitenPaust -
-    summeAushilfePaust;
+    summeAushilfePaust -
+    summeBavFrei -
+    summeBavSv;
+  // SV-Brutto: bav_sv bleibt drin (sv-pflichtig), bav_frei ist sv-frei.
+  const svBruttoCent =
+    gesamtbruttoCent -
+    summeZuschlagFrei -
+    summeSachbezugFrei -
+    summeMahlzeitenPaust -
+    summeAushilfePaust -
+    summeBavFrei;
+  // Rückwärtskompatibilität: viele Verbraucher lesen weiterhin stSvBruttoCent.
+  const stSvBruttoCent = stBruttoCent;
 
   // --- Schritt C: Lohnsteuer / Soli / KiSt ---
   let lstCent = 0;
@@ -59,7 +74,7 @@ export function berechneLohn(eingabe: LohnEingabe): LohnErgebnis {
     const papErgebnis = lohnsteuer2026({
       stkl: person.steuerklasse,
       lzz: LZZ_MONAT,
-      re4Cent: stSvBruttoCent,
+      re4Cent: stBruttoCent,
       zkf: person.zkf,
       kvzProzent: person.kvzProzent,
       kirchensteuer: person.kirchensteuerBayern,
@@ -72,7 +87,7 @@ export function berechneLohn(eingabe: LohnEingabe): LohnErgebnis {
     if (person.kirchensteuerBayern) {
       kistCent = roundCent((papErgebnis.bkCent * KIRCHENSTEUER_BAYERN_PROZENT) / 100);
     }
-    sv = svBeitraege({ stSvBruttoCent, person });
+    sv = svBeitraege({ stSvBruttoCent: svBruttoCent, person });
   }
 
   // --- Schritt E: Gesamtnetto ---
@@ -88,10 +103,18 @@ export function berechneLohn(eingabe: LohnEingabe): LohnErgebnis {
 
   // --- Schritt F: Auszahlung ---
   const summeAbzug = sumBy(zeilen, (k) => k === "abzug");
-  const auszahlungCent = gesamtnettoCent - summeSachbezugFrei - summeMahlzeitenPaust - summeAbzug;
+  const summeSachbezugPflichtig = sumBy(zeilen, (k) => k === "sachbezug_pflichtig");
+  const auszahlungCent =
+    gesamtnettoCent -
+    summeSachbezugFrei -
+    summeSachbezugPflichtig -
+    summeMahlzeitenPaust -
+    summeAbzug;
 
   return {
     gesamtbruttoCent,
+    stBruttoCent,
+    svBruttoCent,
     stSvBruttoCent,
     lstCent,
     soliCent,
