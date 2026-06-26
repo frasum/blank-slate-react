@@ -205,6 +205,15 @@ export const berechneLohnUebersicht = createServerFn({ method: "GET" })
       .order("display_name", { ascending: true });
     if (staffErr) throw staffErr;
 
+    const { data: payrollRows, error: payrollErr } = await supabaseAdmin
+      .from("role_assignments")
+      .select("staff_id")
+      .eq("organization_id", caller.organizationId)
+      .eq("role", "payroll");
+    if (payrollErr) throw payrollErr;
+    const payrollIds = new Set((payrollRows ?? []).map((r) => r.staff_id as string));
+    const visibleStaffRows = (staffRows ?? []).filter((s) => !payrollIds.has(s.id as string));
+
     type Row = {
       staffId: string;
       persoNr: number | null;
@@ -237,7 +246,7 @@ export const berechneLohnUebersicht = createServerFn({ method: "GET" })
       error: string | null;
     };
     const rows: Row[] = [];
-    for (const s of staffRows ?? []) {
+    for (const s of visibleStaffRows) {
       const displayName =
         (s.display_name as string | null)?.trim() ||
         [s.first_name, s.last_name].filter(Boolean).join(" ").trim() ||

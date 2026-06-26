@@ -93,14 +93,19 @@ describe("buildUebersichtCsv", () => {
     expect(row[27]).toBe("");
   });
 
-  it("Fehler-Zeile: Zahlenspalten leer, name escaped wegen ;, fehler gesetzt", () => {
+  it("Fehler-Zeile: Messspalten 0, name escaped wegen ;, fehler gesetzt", () => {
     const csv = buildUebersichtCsv([ERR], { periodLabel: "P", mode: "simple" });
     const line = csv.split("\r\n")[2];
     // Name enthält ";", muss in Anführungszeichen
     expect(line.startsWith('7;"Schmid; Max";')).toBe(true);
-    // Alle Zahlenspalten leer ⇒ viele aufeinanderfolgende ;
-    expect(line).toContain(";;;;;;;;;;;;;;;;");
+    // Messspalten jetzt "0" statt leer
+    const row = line.split(";");
+    // Achtung: name ist gequotet und enthält ein ";" → splittet in zwei Felder.
+    // Wir prüfen daher explizit auf die Zero-Sequenz nach dem Namen.
+    expect(row).not.toContain("");
     expect(line.endsWith(";Keine Personaldaten für diesen Mitarbeiter.")).toBe(true);
+    // Spot-Check: viele "0"-Felder hintereinander
+    expect(line).toContain(";0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;");
   });
 
   it('verdoppelt " innerhalb gequoteter Felder', () => {
@@ -108,5 +113,18 @@ describe("buildUebersichtCsv", () => {
     const csv = buildUebersichtCsv([row], { periodLabel: "P", mode: "simple" });
     const line = csv.split("\r\n")[2];
     expect(line).toContain('"Say ""Hi""; ok"');
+  });
+
+  it("Null-Zeile mit persoNr=null: Messspalten 0, perso_nr bleibt leer", () => {
+    const csv = buildUebersichtCsv(
+      [{ ...ERR, persoNr: null, displayName: "Ohne Nummer" }],
+      { periodLabel: "P", mode: "simple" },
+    );
+    const row = csv.split("\r\n")[2].split(";");
+    expect(row).toHaveLength(28);
+    expect(row[0]).toBe(""); // perso_nr NICHT "0"
+    expect(row[2]).toBe("0"); // stunden → 0
+    expect(row[8]).toBe("0"); // brutto_cent → 0
+    expect(row[27]).toBe("Keine Personaldaten für diesen Mitarbeiter.");
   });
 });

@@ -86,6 +86,14 @@ function fmtHours(n: number | null): string {
   return String(n);
 }
 
+function fmtIntZero(n: number | null): string {
+  return n == null ? "0" : String(Math.trunc(n));
+}
+
+function fmtHoursZero(n: number | null): string {
+  return n == null ? "0" : String(n);
+}
+
 export function buildUebersichtCsv(
   rows: UebersichtCsvRow[],
   meta: { periodLabel: string; mode: string },
@@ -97,31 +105,31 @@ export function buildUebersichtCsv(
     const cells = [
       fmtInt(r.persoNr),
       escapeField(r.displayName),
-      fmtHours(r.totalHours),
-      fmtInt(r.hourlyRateCents),
-      fmtHours(r.night25Hours),
-      fmtHours(r.night40Hours),
-      fmtHours(r.sundayHours),
-      fmtInt(r.zuschlagCents),
-      fmtInt(r.bruttoCents),
-      fmtInt(r.lstCent),
-      fmtInt(r.soliCent),
-      fmtInt(r.kistCent),
-      fmtInt(r.kvCent),
-      fmtInt(r.rvCent),
-      fmtInt(r.avCent),
-      fmtInt(r.pvCent),
-      fmtInt(r.nettoCents),
-      fmtInt(r.auszahlungCents),
-      fmtInt(r.workdayCount),
-      fmtInt(r.mahlzeitenCent),
-      fmtInt(r.sachbezugCent),
-      fmtInt(r.urlaubTage),
-      fmtInt(r.krankTage),
-      fmtInt(r.urlaubTageEst),
-      fmtInt(r.krankTageEst),
-      fmtHours(r.avgStdTag),
-      fmtInt(r.avgSfnTagCent),
+      fmtHoursZero(r.totalHours),
+      fmtIntZero(r.hourlyRateCents),
+      fmtHoursZero(r.night25Hours),
+      fmtHoursZero(r.night40Hours),
+      fmtHoursZero(r.sundayHours),
+      fmtIntZero(r.zuschlagCents),
+      fmtIntZero(r.bruttoCents),
+      fmtIntZero(r.lstCent),
+      fmtIntZero(r.soliCent),
+      fmtIntZero(r.kistCent),
+      fmtIntZero(r.kvCent),
+      fmtIntZero(r.rvCent),
+      fmtIntZero(r.avCent),
+      fmtIntZero(r.pvCent),
+      fmtIntZero(r.nettoCents),
+      fmtIntZero(r.auszahlungCents),
+      fmtIntZero(r.workdayCount),
+      fmtIntZero(r.mahlzeitenCent),
+      fmtIntZero(r.sachbezugCent),
+      fmtIntZero(r.urlaubTage),
+      fmtIntZero(r.krankTage),
+      fmtIntZero(r.urlaubTageEst),
+      fmtIntZero(r.krankTageEst),
+      fmtHoursZero(r.avgStdTag),
+      fmtIntZero(r.avgSfnTagCent),
       escapeField(r.error ?? ""),
     ];
     return cells.join(SEP);
