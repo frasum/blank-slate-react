@@ -456,14 +456,14 @@ COCO-Lohnrechner cent-genau gegen die offizielle edlohn-Abrechnung Juni 2026 (Ma
 
 ### Code-Hebel (Lovable, CI-grün, deployt)
 
-| Hebel            | MA                | Status | Mechanik                                                                                                                                         |
-| ---------------- | ----------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| StKl 6           | 11                | ✅     | reine Daten (`tax_class` I→VI)                                                                                                                   |
-| Pauschal-Minijob | 12, 20            | ✅     | `zeitlohnKategorie()` → erste Zeile `aushilfe_paust`; RV = 3,6 % Aufstockung; KV/AV/PV/LSt = 0                                                   |
-| Aktivrente       | 100, 331          | ✅     | neue Spalten `rv_frei`/`av_frei`/`lst_freibetrag_monat_cent`; RV/AV-Befreiung in `svBeitraege`; Freibetrag via `freibetragCent` → PAP `LZZFREIB` |
-| Midijob/Werkstudent | 17,23,117,334,358 | ✅ | Übergangsbereich `midijobBemessungCent` (UG=603/OG=2000) + Werkstudent (`kv_frei`/`av_frei`/`pv_frei`); s. §12 |
-| Privat-KV/GF | 1, 109, 309 | 🔄 | SV (Ph.1) + Brutto/St-SV-Split (Ph.3) ✅; LSt-Vorsorgepauschale (Ph.2) offen; s. §12 |
-| Doppelsatz       | 320, 352          | ⏸️     | zurückgestellt — COCO kennt keine Rate-1/Rate-2-Attribution; Lösung später per `lohn_second_rate_hours`-Tabelle                                  |
+| Hebel               | MA                | Status | Mechanik                                                                                                                                         |
+| ------------------- | ----------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| StKl 6              | 11                | ✅     | reine Daten (`tax_class` I→VI)                                                                                                                   |
+| Pauschal-Minijob    | 12, 20            | ✅     | `zeitlohnKategorie()` → erste Zeile `aushilfe_paust`; RV = 3,6 % Aufstockung; KV/AV/PV/LSt = 0                                                   |
+| Aktivrente          | 100, 331          | ✅     | neue Spalten `rv_frei`/`av_frei`/`lst_freibetrag_monat_cent`; RV/AV-Befreiung in `svBeitraege`; Freibetrag via `freibetragCent` → PAP `LZZFREIB` |
+| Midijob/Werkstudent | 17,23,117,334,358 | ✅     | Übergangsbereich `midijobBemessungCent` (UG=603/OG=2000) + Werkstudent (`kv_frei`/`av_frei`/`pv_frei`); s. §12                                   |
+| Privat-KV/GF        | 1, 109, 309       | 🔄     | SV (Ph.1) + Brutto/St-SV-Split (Ph.3) ✅; LSt-Vorsorgepauschale (Ph.2) offen; s. §12                                                             |
+| Doppelsatz          | 320, 352          | ⏸️     | zurückgestellt — COCO kennt keine Rate-1/Rate-2-Attribution; Lösung später per `lohn_second_rate_hours`-Tabelle                                  |
 
 Aktivrente-Detail: DEAU (100) voll RV+AV-frei + Freibetrag 2000 €/Monat; NOK (331) nur AV-frei + Freibetrag, RV bleibt. `is_sv_exempt` (Alt-Spalte) bleibt unverdrahtet — zu grob (RV ≠ AV). Mini-Rest DEAU: KV +7,29 = ermäßigter Satz 14,0 % (Rentnerin ohne Krankengeld) → späterer Bool `kv_ermaessigt`.
 
@@ -479,20 +479,20 @@ Setzt §11 fort. Der Hebel-Status **hier** ist maßgeblich.
 
 ### Aktueller Hebel-Status
 
-| Hebel | MA | Status |
-| --- | --- | --- |
-| StKl 6 | 11 | ✅ |
-| Pauschal-Minijob | 12, 20 | ✅ |
-| Aktivrente | 100, 331 | ✅ |
-| Midijob/Übergangsbereich | 358; RV-Teil 17 | ✅ |
-| Werkstudent-SV | 17 | ✅ |
-| Privat-KV/GF — SV (Phase 1) | 1, 109, 309 | ✅ |
-| St/SV-Brutto-Split + Lohnarten (Phase 3) | 1, 109 | ✅ |
-| SUMITR komplett cent-genau | 109 | ✅ |
-| Vorsorgepauschale (Phase 2) | 1, 309, 17 | ⏸️ blockiert — braucht KV/PV-Beiträge + AG-Zuschuss |
-| Brutto-Overshoot (3M-Ø Zuschlag) | 6, 23, 117, 129, 334, 504 | offen, eigenes Thema |
-| Doppelsatz | 320, 352 | zurückgestellt |
-| KV ermäßigt (DEAU) | 100 | Mini-Rest +7,29 |
+| Hebel                                    | MA                        | Status                                              |
+| ---------------------------------------- | ------------------------- | --------------------------------------------------- |
+| StKl 6                                   | 11                        | ✅                                                  |
+| Pauschal-Minijob                         | 12, 20                    | ✅                                                  |
+| Aktivrente                               | 100, 331                  | ✅                                                  |
+| Midijob/Übergangsbereich                 | 358; RV-Teil 17           | ✅                                                  |
+| Werkstudent-SV                           | 17                        | ✅                                                  |
+| Privat-KV/GF — SV (Phase 1)              | 1, 109, 309               | ✅                                                  |
+| St/SV-Brutto-Split + Lohnarten (Phase 3) | 1, 109                    | ✅                                                  |
+| SUMITR komplett cent-genau               | 109                       | ✅                                                  |
+| Vorsorgepauschale (Phase 2)              | 1, 309, 17                | ⏸️ blockiert — braucht KV/PV-Beiträge + AG-Zuschuss |
+| Brutto-Overshoot (3M-Ø Zuschlag)         | 6, 23, 117, 129, 334, 504 | offen, eigenes Thema                                |
+| Doppelsatz                               | 320, 352                  | zurückgestellt                                      |
+| KV ermäßigt (DEAU)                       | 100                       | Mini-Rest +7,29                                     |
 
 ### Neue Mechaniken
 
