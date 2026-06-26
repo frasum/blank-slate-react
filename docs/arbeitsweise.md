@@ -461,8 +461,8 @@ COCO-Lohnrechner cent-genau gegen die offizielle edlohn-Abrechnung Juni 2026 (Ma
 | StKl 6           | 11                | ✅     | reine Daten (`tax_class` I→VI)                                                                                                                   |
 | Pauschal-Minijob | 12, 20            | ✅     | `zeitlohnKategorie()` → erste Zeile `aushilfe_paust`; RV = 3,6 % Aufstockung; KV/AV/PV/LSt = 0                                                   |
 | Aktivrente       | 100, 331          | ✅     | neue Spalten `rv_frei`/`av_frei`/`lst_freibetrag_monat_cent`; RV/AV-Befreiung in `svBeitraege`; Freibetrag via `freibetragCent` → PAP `LZZFREIB` |
-| Midijob          | 17,23,117,334,358 | ⬜     | offen — Übergangsbereich, reduzierte SV-Bemessung                                                                                                |
-| Privat-KV/GF     | 1, 109, 309       | ⬜     | offen — größter €-Posten (privat-KV/GF über BBG + bAV + Dienstrad)                                                                               |
+| Midijob/Werkstudent | 17,23,117,334,358 | ✅ | Übergangsbereich `midijobBemessungCent` (UG=603/OG=2000) + Werkstudent (`kv_frei`/`av_frei`/`pv_frei`); s. §12 |
+| Privat-KV/GF | 1, 109, 309 | 🔄 | SV (Ph.1) + Brutto/St-SV-Split (Ph.3) ✅; LSt-Vorsorgepauschale (Ph.2) offen; s. §12 |
 | Doppelsatz       | 320, 352          | ⏸️     | zurückgestellt — COCO kennt keine Rate-1/Rate-2-Attribution; Lösung später per `lohn_second_rate_hours`-Tabelle                                  |
 
 Aktivrente-Detail: DEAU (100) voll RV+AV-frei + Freibetrag 2000 €/Monat; NOK (331) nur AV-frei + Freibetrag, RV bleibt. `is_sv_exempt` (Alt-Spalte) bleibt unverdrahtet — zu grob (RV ≠ AV). Mini-Rest DEAU: KV +7,29 = ermäßigter Satz 14,0 % (Rentnerin ohne Krankengeld) → späterer Bool `kv_ermaessigt`.
@@ -472,3 +472,43 @@ Aktivrente-Detail: DEAU (100) voll RV+AV-frei + Freibetrag 2000 €/Monat; NOK (
 - **Neue Spalte ⇒ Select-Liste** (s. Abschnitt 3). Ursache der Aktivrente-Phantomsuche.
 - **Green CI ≠ live.** Produktion braucht ggf. expliziten Publish/Redeploy in Lovable; neuer Commit triggert frischen Cloudflare-Build (~5–8 Min, nicht zu früh exportieren).
 - **Export nur aus eigenständigem `…lovable.app`-Tab** — der eingebettete Preview-iframe blockiert CSV-Downloads (Sandbox).
+
+## 12. Modul M4 — Hebel-Fortschritt, Forts. (26.06.2026)
+
+Setzt §11 fort. Der Hebel-Status **hier** ist maßgeblich.
+
+### Aktueller Hebel-Status
+
+| Hebel | MA | Status |
+| --- | --- | --- |
+| StKl 6 | 11 | ✅ |
+| Pauschal-Minijob | 12, 20 | ✅ |
+| Aktivrente | 100, 331 | ✅ |
+| Midijob/Übergangsbereich | 358; RV-Teil 17 | ✅ |
+| Werkstudent-SV | 17 | ✅ |
+| Privat-KV/GF — SV (Phase 1) | 1, 109, 309 | ✅ |
+| St/SV-Brutto-Split + Lohnarten (Phase 3) | 1, 109 | ✅ |
+| SUMITR komplett cent-genau | 109 | ✅ |
+| Vorsorgepauschale (Phase 2) | 1, 309, 17 | ⏸️ blockiert — braucht KV/PV-Beiträge + AG-Zuschuss |
+| Brutto-Overshoot (3M-Ø Zuschlag) | 6, 23, 117, 129, 334, 504 | offen, eigenes Thema |
+| Doppelsatz | 320, 352 | zurückgestellt |
+| KV ermäßigt (DEAU) | 100 | Mini-Rest +7,29 |
+
+### Neue Mechaniken
+
+**Midijob / Übergangsbereich** (358; RV-Teil von PIM 17): AN-beitragspflichtige Einnahme = `OG/(OG−UG) × (AE−UG)`, UG=603 (Minijob-Grenze 2026), OG=2000, nur wenn `is_midijob` UND UG<AE≤OG. Konstante `UEBERGANGSBEREICH_2026` (config-2026), Helper `midijobBemessungCent` + Schalter in `svBeitraege`. MA mit AE>2000 (23/117/334) bekommen keine Reduktion → ihr Rest ist Brutto-Overshoot, kein SV-Thema. Faktor F nicht nötig (nur AG-Seite).
+
+**Werkstudent** (PIM 17, BGR 0-1-0-0): KV/AV/PV-AN = 0 über `kv_frei`/`av_frei`/`pv_frei`, RV bleibt (auf Übergangsbereich-Basis). Die vier Branchen-Befreiungs-Flags `rv_frei`/`av_frei`/`kv_frei`/`pv_frei` decken Aktivrente, Werkstudent UND Privat-KV-SV ab — ein gemeinsames Muster. `is_sv_exempt` bleibt unverdrahtet (zu grob).
+
+**Privat-KV/GF SV (Phase 1):** GF (1 CHEFIN, 309 Peter) BGR 0-0-0-0 → alle vier `*_frei`=true (SV komplett 0). SUMITR (109) BGR 9-1-1-1, freiwillig GKV → nur `kv_frei`/`pv_frei` (RV/AV bleiben). Reine Daten, größter €-Posten je Kopf (~1.300–1.460 €).
+
+**St/SV-Brutto-Split + Lohnarten (Phase 3):** `lohn-core` trennt `stBruttoCent` (LSt-Basis) von `svBruttoCent` (SV-Basis). Vier neue Kategorien: `bav_frei` (st+sv-frei), `bav_sv` (st-FREI/sv-PFLICHTIG — der Grund für den Split), `sachbezug_pflichtig` (st+sv-pflichtig, Auszahlung −), `entgeltumwandlung` (negativ, mindert beide Brutto). Wiederkehrende MA-Lohnarten in neuer Tabelle `lohn_recurring_zeilen` (staff_id, organization_id, bezeichnung, betrag_cent, kategorie, sort_order), geladen in `computeLohnForStaff`. Bildet Direktversicherung (stsv-frei / stfr-svpfl) + Dienstrad (1 % gwV + Entgeltverzicht) ab. SUMITR damit komplett cent-genau.
+
+### Offen — Phase 2 (LSt-Vorsorgepauschale), blockiert
+
+CHEFIN (1), Peter (309), PIM (17): COCO gewährt die GKV-Vorsorgepauschale, obwohl GF ohne GRV bzw. privat bzw. Werkstudent → LSt zu niedrig (CHEFIN −560, Peter −482). PAP-Pfad steht: `KRV=1` nullt den RV-Teilbetrag (`pap2026` Z. ~962), `PKV>0` bildet den KV/PV-Teilbetrag aus `PKPV−PKPVAGZ` mit Günstigerprüfung gg. Mindestvorsorge. **Der Wrapper `lohnsteuer-2026.ts` verdrahtet aktuell `KRV:0`/`PKV:0` hart** — das ist die Lücke. Cent-genaue Reproduktion braucht je MA die **monatlichen KV/PV-Beiträge + AG-Zuschuss** (lokale PAP-Probe ohne diese: ±15–250 € daneben). PIM = Mindestvorsorgepauschale (kein PKV-Beitrag). Wartet auf die Beitragszahlen aus den edlohn-Stammdaten.
+
+### Lektionen
+
+- **St-Brutto ≠ SV-Brutto** sobald bAV-Entgeltumwandlung im Spiel ist (steuerfrei, aber oberhalb 4 % BBG sv-pflichtig). Das gemeinsame `stSvBrutto` der Stufe 1 trug nur, weil die Referenzfälle es nie auseinandertrieben.
+- **Vorsorgepauschale ≠ tatsächliche SV.** Auch wer KV-frei ist (Werkstudent, GF, freiwillig GKV Firmenzahler), braucht für die LSt den korrekten `kk_zusatzbeitrag` bzw. PKV-Beitrag — die Pauschale rechnet unabhängig vom tatsächlichen Beitragsabzug. SUMITRs LSt-Rest war allein ihr fehlender `kk_zusatzbeitrag`.
