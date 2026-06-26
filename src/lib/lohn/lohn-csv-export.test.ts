@@ -63,8 +63,7 @@ describe("buildUebersichtCsv", () => {
     const row = lines[2].split(";");
     expect(row).toHaveLength(19);
     expect(row[0]).toBe("42");
-    expect(row[1]).toBe('"Müller, Anna"'); // Komma triggert kein Escaping → kein Quote
-    // Re-check: Komma ist kein Sondertrenner → name bleibt unquoted
+    expect(row[1]).toBe("Müller, Anna");
   });
 
   it("quotet name nur bei ;, \" oder Zeilenumbruch", () => {
