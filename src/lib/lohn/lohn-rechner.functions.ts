@@ -27,9 +27,7 @@ const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
  * Beschäftigungsart. Minijobber müssen als `aushilfe_paust` gebucht werden,
  * damit `svBeitraegeMinijob` den RV-Eigenanteil korrekt aufstockt.
  */
-export function zeitlohnKategorie(
-  b: Beschaeftigungsart,
-): "aushilfe_paust" | "zeitlohn" {
+export function zeitlohnKategorie(b: Beschaeftigungsart): "aushilfe_paust" | "zeitlohn" {
   return b === "minijob" ? "aushilfe_paust" : "zeitlohn";
 }
 
