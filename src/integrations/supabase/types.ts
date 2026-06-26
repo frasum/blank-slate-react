@@ -2685,10 +2685,12 @@ export type Database = {
           health_insurance: string | null
           iban: string | null
           id: string
+          is_midijob: boolean
           is_minijob: boolean | null
           is_sv_exempt: boolean | null
           job_title: string | null
           kk_zusatzbeitrag: number | null
+          kv_frei: boolean
           lst_freibetrag_monat_cent: number
           meal_allowance: boolean
           nationality: string | null
@@ -2696,6 +2698,7 @@ export type Database = {
           personnel_group: string | null
           phone: string | null
           place_of_birth: string | null
+          pv_frei: boolean
           rv_frei: boolean
           sachbezug_monthly_cents: number
           salutation: string | null
@@ -2727,10 +2730,12 @@ export type Database = {
           health_insurance?: string | null
           iban?: string | null
           id?: string
+          is_midijob?: boolean
           is_minijob?: boolean | null
           is_sv_exempt?: boolean | null
           job_title?: string | null
           kk_zusatzbeitrag?: number | null
+          kv_frei?: boolean
           lst_freibetrag_monat_cent?: number
           meal_allowance?: boolean
           nationality?: string | null
@@ -2738,6 +2743,7 @@ export type Database = {
           personnel_group?: string | null
           phone?: string | null
           place_of_birth?: string | null
+          pv_frei?: boolean
           rv_frei?: boolean
           sachbezug_monthly_cents?: number
           salutation?: string | null
@@ -2769,10 +2775,12 @@ export type Database = {
           health_insurance?: string | null
           iban?: string | null
           id?: string
+          is_midijob?: boolean
           is_minijob?: boolean | null
           is_sv_exempt?: boolean | null
           job_title?: string | null
           kk_zusatzbeitrag?: number | null
+          kv_frei?: boolean
           lst_freibetrag_monat_cent?: number
           meal_allowance?: boolean
           nationality?: string | null
@@ -2780,6 +2788,7 @@ export type Database = {
           personnel_group?: string | null
           phone?: string | null
           place_of_birth?: string | null
+          pv_frei?: boolean
           rv_frei?: boolean
           sachbezug_monthly_cents?: number
           salutation?: string | null
