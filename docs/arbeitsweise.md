@@ -42,6 +42,7 @@ Erst wenn ESLint 0 Fehler und alle Tests grün sind → ABGENOMMEN.
   - Manuelles SQL durch Frank gilt nur noch für **Ad-hoc-/Daten-SQL** (Imports, einmalige Korrekturen) — nicht für Migrationsdateien.
   - **„prüfe" ist Nachkontrolle, kein Tor vor dem Livegang.** Das Tor _vor_ Live ist der **Prompt** (Migration als fertige SQL-Skizze + „Nicht-anfassen"-Liste + Stop-Bedingung). Fehler werden **vorwärts** mit einer Korrektur-Migration behoben (kein Rückbau — die DB kann nicht zuverlässig zurück). Migrationen daher **additiv/idempotent** (`IF NOT EXISTS`, `ON CONFLICT`, `DROP … IF EXISTS`).
   - Nach jedem Migrations-Commit **zügig prüfen + funktional smoke-testen** — statisches Review fängt Laufzeitfehler nicht (s. Caller-Param-Bug bei den Task-RPCs).
+- **Neue Stammdaten-Spalte ⇒ Select-Liste mitziehen.** Jede neue Spalte auf `staff_personal_details`, die der Berechnungspfad braucht, MUSS in die explizite `.select(...)`-Liste in `src/lib/lohn/lohn-rechner.functions.ts` (Funktion `computeLohnForStaff`). Migration + Mapping (`staffDetailsToPerson`) + Berechnung allein reichen NICHT: fehlt die Spalte im Select, kommt sie als `undefined` an → `!!undefined = false` bzw. `?? default` → das Feature greift stillschweigend nicht, obwohl Code, Daten und CI grün sind. (Aktivrente-Hebel 26.06.: ~1 h Phantom-Deploy-Suche, bis die fehlende Select-Spalte gefunden war.) Daher nennt jeder Hebel-Prompt mit neuer Spalte die Select-Erweiterung explizit.
 
 ## 4. Stammdaten-Referenz (COCO Produktion)
 
@@ -437,3 +438,37 @@ Wasserlinie (`organization_settings.time_locked_through_date`) steht auf 25.06. 
 ### Offen
 
 - **Importer setzt `location_id` jetzt beim Import** (erledigt): optionale CSV-Spalte `restaurant` → `resolveLocationId()` (rein, case-insensitiv, getrimmt; `null` bei Miss) gegen die `locations`-Namens-Map der Org. Neuer Zähler `importedWithoutLocation` macht NULL-Location-Zeilen im Dry-Run/Commit sichtbar (Badge „X ohne Standort" im Migrations-UI). **Voraussetzung:** der Export liefert die 16. Spalte `restaurant` pro Schicht (s. Prozedur). Der frühere manuelle location_id-Backfill ist nur noch **Fallback**, falls versehentlich ein alter 15-Spalten-Export ohne `restaurant` benutzt wurde (dann zeigt der Dry-Run `importedWithoutLocation > 0`).
+
+## 11. Modul M4 — edlohn-Cent-Abgleich Juni 2026 (26.06.2026)
+
+COCO-Lohnrechner cent-genau gegen die offizielle edlohn-Abrechnung Juni 2026 (Mandant 09290/205, 39 MA) abgeglichen. Methode: CSV-Export `/admin/lohnrechner` (simple) ↔ edlohn-Referenz, Diff je Spalte. Standard-Kohorte deckungsgleich (Rest <0,3 % Rundungsrauschen — COCO rundet SFN/Stunden minimal niedrig, immateriell). Sonderfälle als „Hebel" abgearbeitet.
+
+### Datenfixes (reine Stammdaten, Produktion)
+
+- `kk_zusatzbeitrag` für 33 GKV-MA gesetzt → KV cent-genau.
+- `lohn_absence_days` (Urlaub/Krank-Tage) für 10 MA.
+- `soll_hours_per_day` korrigiert (Perso 23, 117, 334).
+- `tax_class`: 11→VI, 352→IV, 358→V.
+- `children_count`/`has_parent_status` (Treiber-C, PV-Sätze) für Eltern inkl. 331 (1 Kind).
+- `date_of_birth`-Fix (25, 27).
+- `is_minijob = true` (12, 20).
+- Perso 27 (NET = Narunet Dannerbeck): war `perso_nr = null` („Steuerklasse fehlt") → repariert (perso_nr, tax_class IV, kk_zusatzbeitrag).
+
+### Code-Hebel (Lovable, CI-grün, deployt)
+
+| Hebel            | MA                | Status | Mechanik                                                                                                                                         |
+| ---------------- | ----------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| StKl 6           | 11                | ✅     | reine Daten (`tax_class` I→VI)                                                                                                                   |
+| Pauschal-Minijob | 12, 20            | ✅     | `zeitlohnKategorie()` → erste Zeile `aushilfe_paust`; RV = 3,6 % Aufstockung; KV/AV/PV/LSt = 0                                                   |
+| Aktivrente       | 100, 331          | ✅     | neue Spalten `rv_frei`/`av_frei`/`lst_freibetrag_monat_cent`; RV/AV-Befreiung in `svBeitraege`; Freibetrag via `freibetragCent` → PAP `LZZFREIB` |
+| Midijob          | 17,23,117,334,358 | ⬜     | offen — Übergangsbereich, reduzierte SV-Bemessung                                                                                                |
+| Privat-KV/GF     | 1, 109, 309       | ⬜     | offen — größter €-Posten (privat-KV/GF über BBG + bAV + Dienstrad)                                                                               |
+| Doppelsatz       | 320, 352          | ⏸️     | zurückgestellt — COCO kennt keine Rate-1/Rate-2-Attribution; Lösung später per `lohn_second_rate_hours`-Tabelle                                  |
+
+Aktivrente-Detail: DEAU (100) voll RV+AV-frei + Freibetrag 2000 €/Monat; NOK (331) nur AV-frei + Freibetrag, RV bleibt. `is_sv_exempt` (Alt-Spalte) bleibt unverdrahtet — zu grob (RV ≠ AV). Mini-Rest DEAU: KV +7,29 = ermäßigter Satz 14,0 % (Rentnerin ohne Krankengeld) → späterer Bool `kv_ermaessigt`.
+
+### Lektionen (teuer gelernt)
+
+- **Neue Spalte ⇒ Select-Liste** (s. Abschnitt 3). Ursache der Aktivrente-Phantomsuche.
+- **Green CI ≠ live.** Produktion braucht ggf. expliziten Publish/Redeploy in Lovable; neuer Commit triggert frischen Cloudflare-Build (~5–8 Min, nicht zu früh exportieren).
+- **Export nur aus eigenständigem `…lovable.app`-Tab** — der eingebettete Preview-iframe blockiert CSV-Downloads (Sandbox).
