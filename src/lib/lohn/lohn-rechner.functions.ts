@@ -6,6 +6,8 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { assertPermission } from "@/lib/admin/admin-call";
@@ -15,6 +17,72 @@ import { berechneLohn } from "./lohn-core";
 import type { Entgeltzeile } from "./types";
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Geteilter Rechen-Kern: Aggregat → Personenparameter → Entgeltzeilen → Lohn.
+ * Wird von der Einzel-Function `berechneLohnFuerMitarbeiter` und der
+ * Übersichts-Function `berechneLohnUebersicht` aufgerufen — kein zweiter
+ * Rechenpfad, kein Drift.
+ *
+ * Wirft bei fehlenden `staff_personal_details` (gewollt — die Einzelansicht
+ * soll klar fehlschlagen; die Übersicht fängt es pro Zeile ab).
+ */
+async function computeLohnForStaff(
+  supabaseAdmin: SupabaseClient<Database>,
+  args: {
+    staffId: string;
+    fromDate: string;
+    toDate: string;
+    mode: "simple" | "extended";
+    zusatzZeilen: Entgeltzeile[];
+  },
+) {
+  const sfn = await aggregateSfnPeriod(supabaseAdmin, args.staffId, args.fromDate, args.toDate);
+  const chosen = args.mode === "extended" ? sfn.extended : sfn.simple;
+
+  const { data: details, error: detErr } = await supabaseAdmin
+    .from("staff_personal_details")
+    .select(
+      "tax_class, child_tax_allowances, kk_zusatzbeitrag, church_tax_liable, children_count, has_parent_status, is_minijob, date_of_birth",
+    )
+    .eq("staff_id", args.staffId)
+    .maybeSingle();
+  if (detErr) throw detErr;
+  if (!details) throw new Error("Keine Personaldaten für diesen Mitarbeiter.");
+
+  const person = staffDetailsToPerson(details, args.toDate);
+
+  const zeitlohnCent = Math.round(sfn.totalHours * sfn.hourlyRateCents);
+  const zeilen: Entgeltzeile[] = [
+    {
+      kategorie: "zeitlohn",
+      bezeichnung: "Zeitlohn (Stunden × Satz)",
+      betragCent: zeitlohnCent,
+      stunden: sfn.totalHours,
+      satzCent: sfn.hourlyRateCents,
+    },
+    {
+      kategorie: "zuschlag_frei",
+      bezeichnung: `SFN-Zuschläge (${args.mode})`,
+      betragCent: chosen.zuschlagCents,
+    },
+    ...args.zusatzZeilen,
+  ];
+
+  const ergebnis = berechneLohn({ person, zeilen });
+
+  return {
+    mode: args.mode,
+    totalHours: sfn.totalHours,
+    hourlyRateCents: sfn.hourlyRateCents,
+    entryCount: sfn.entryCount,
+    zuschlagCents: chosen.zuschlagCents,
+    buckets: chosen,
+    zeilen,
+    person,
+    ergebnis,
+  };
+}
 
 export const berechneLohnFuerMitarbeiter = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -58,49 +126,88 @@ export const berechneLohnFuerMitarbeiter = createServerFn({ method: "GET" })
     if (staffErr) throw staffErr;
     if (!staff) throw new Error("Mitarbeiter nicht in dieser Organisation.");
 
-    const sfn = await aggregateSfnPeriod(supabaseAdmin, data.staffId, data.fromDate, data.toDate);
-    const chosen = data.mode === "extended" ? sfn.extended : sfn.simple;
-
-    const { data: details, error: detErr } = await supabaseAdmin
-      .from("staff_personal_details")
-      .select(
-        "tax_class, child_tax_allowances, kk_zusatzbeitrag, church_tax_liable, children_count, has_parent_status, is_minijob, date_of_birth",
-      )
-      .eq("staff_id", data.staffId)
-      .maybeSingle();
-    if (detErr) throw detErr;
-    if (!details) throw new Error("Keine Personaldaten für diesen Mitarbeiter.");
-
-    const person = staffDetailsToPerson(details, data.toDate);
-
-    const zeitlohnCent = Math.round(sfn.totalHours * sfn.hourlyRateCents);
-    const zeilen: Entgeltzeile[] = [
-      {
-        kategorie: "zeitlohn",
-        bezeichnung: "Zeitlohn (Stunden × Satz)",
-        betragCent: zeitlohnCent,
-        stunden: sfn.totalHours,
-        satzCent: sfn.hourlyRateCents,
-      },
-      {
-        kategorie: "zuschlag_frei",
-        bezeichnung: `SFN-Zuschläge (${data.mode})`,
-        betragCent: chosen.zuschlagCents,
-      },
-      ...data.zusatzZeilen,
-    ];
-
-    const ergebnis = berechneLohn({ person, zeilen });
-
-    return {
+    return computeLohnForStaff(supabaseAdmin, {
+      staffId: data.staffId,
+      fromDate: data.fromDate,
+      toDate: data.toDate,
       mode: data.mode,
-      totalHours: sfn.totalHours,
-      hourlyRateCents: sfn.hourlyRateCents,
-      entryCount: sfn.entryCount,
-      zuschlagCents: chosen.zuschlagCents,
-      buckets: chosen,
-      zeilen,
-      person,
-      ergebnis,
+      zusatzZeilen: data.zusatzZeilen,
+    });
+  });
+
+export const berechneLohnUebersicht = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        fromDate: z.string().regex(dateRegex),
+        toDate: z.string().regex(dateRegex),
+        mode: z.enum(["simple", "extended"]).default("simple"),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertPermission(context.supabase, "payroll.calc.run");
+    const caller = await loadAdminCaller(context.supabase, context.userId, ["admin", "payroll"]);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: staffRows, error: staffErr } = await supabaseAdmin
+      .from("staff")
+      .select("id, display_name, first_name, last_name")
+      .eq("organization_id", caller.organizationId)
+      .eq("is_active", true)
+      .order("display_name", { ascending: true });
+    if (staffErr) throw staffErr;
+
+    type Row = {
+      staffId: string;
+      displayName: string;
+      totalHours: number | null;
+      hourlyRateCents: number | null;
+      zuschlagCents: number | null;
+      bruttoCents: number | null;
+      nettoCents: number | null;
+      auszahlungCents: number | null;
+      error: string | null;
     };
+    const rows: Row[] = [];
+    for (const s of staffRows ?? []) {
+      const displayName =
+        (s.display_name as string | null)?.trim() ||
+        [s.first_name, s.last_name].filter(Boolean).join(" ").trim() ||
+        (s.id as string);
+      try {
+        const r = await computeLohnForStaff(supabaseAdmin, {
+          staffId: s.id as string,
+          fromDate: data.fromDate,
+          toDate: data.toDate,
+          mode: data.mode,
+          zusatzZeilen: [],
+        });
+        rows.push({
+          staffId: s.id as string,
+          displayName,
+          totalHours: r.totalHours,
+          hourlyRateCents: r.hourlyRateCents,
+          zuschlagCents: r.zuschlagCents,
+          bruttoCents: r.ergebnis.gesamtbruttoCent,
+          nettoCents: r.ergebnis.gesamtnettoCent,
+          auszahlungCents: r.ergebnis.auszahlungCent,
+          error: null,
+        });
+      } catch (e) {
+        rows.push({
+          staffId: s.id as string,
+          displayName,
+          totalHours: null,
+          hourlyRateCents: null,
+          zuschlagCents: null,
+          bruttoCents: null,
+          nettoCents: null,
+          auszahlungCents: null,
+          error: e instanceof Error ? e.message : "Berechnung fehlgeschlagen",
+        });
+      }
+    }
+    return { mode: data.mode, fromDate: data.fromDate, toDate: data.toDate, rows };
   });
