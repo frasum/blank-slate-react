@@ -79,7 +79,7 @@ describe("buildUebersichtCsv", () => {
     const csv = buildUebersichtCsv([FULL], { periodLabel: "P", mode: "simple" });
     const lines = csv.split("\r\n");
     const row = lines[2].split(";");
-    expect(row).toHaveLength(29);
+    expect(row).toHaveLength(28);
     expect(row[0]).toBe("42");
     expect(row[1]).toBe("Müller, Anna");
   });
@@ -90,7 +90,7 @@ describe("buildUebersichtCsv", () => {
     expect(row[1]).toBe("Müller, Anna");
     expect(row[2]).toBe("12.5");
     expect(row[3]).toBe("1500");
-    expect(row[28]).toBe("");
+    expect(row[27]).toBe("");
   });
 
   it("Fehler-Zeile: Zahlenspalten leer, name escaped wegen ;, fehler gesetzt", () => {
