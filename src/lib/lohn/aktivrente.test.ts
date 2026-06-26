@@ -19,6 +19,9 @@ const basePerson: PersonenParameter = {
   rvFrei: false,
   avFrei: false,
   lstFreibetragMonatCent: 0,
+  istMidijob: false,
+  kvFrei: false,
+  pvFrei: false,
 };
 
 describe("svBeitraege — RV/AV-Befreiung", () => {
