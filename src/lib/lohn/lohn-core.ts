@@ -65,6 +65,7 @@ export function berechneLohn(eingabe: LohnEingabe): LohnErgebnis {
       kirchensteuer: person.kirchensteuerBayern,
       pvz: person.pvKinderlosZuschlag,
       pva: clampPva(person.kinderzahl, person.elterneigenschaft),
+      freibetragCent: person.lstFreibetragMonatCent,
     });
     lstCent = papErgebnis.lstlzzCent;
     soliCent = papErgebnis.solzlzzCent;
