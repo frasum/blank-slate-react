@@ -140,11 +140,20 @@ function LohnRechnerPage() {
 
   function handleCsvExport() {
     const rows = uebersichtQ.data?.rows;
-    if (!rows || rows.length === 0) return;
-    const csv = buildUebersichtCsv(rows, { periodLabel, mode });
-    const safeLabel = periodLabel.replace(/[\\/]/g, "-").replace(/\s+/g, "_");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    downloadBlob(blob, `lohn-uebersicht_${safeLabel}_${mode}.csv`);
+    if (!rows || rows.length === 0) {
+      toast.error("Keine Daten zum Exportieren.");
+      return;
+    }
+    try {
+      const csv = buildUebersichtCsv(rows, { periodLabel, mode });
+      const safeLabel = periodLabel.replace(/[\\/]/g, "-").replace(/\s+/g, "_");
+      const filename = `lohn-uebersicht_${safeLabel}_${mode}.csv`;
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      downloadBlob(blob, filename);
+      toast.success(`CSV erzeugt: ${filename}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "CSV-Export fehlgeschlagen.");
+    }
   }
 
   async function handleExport() {
