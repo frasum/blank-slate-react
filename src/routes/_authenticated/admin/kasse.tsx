@@ -578,6 +578,8 @@ function KassePage() {
                 void invalidate();
               })
             }
+            previousDeficitCents={previousDeficitCents}
+            previousDeficitSourceDate={previousDeficitSourceDate}
           />
 
           <TipPoolCard
