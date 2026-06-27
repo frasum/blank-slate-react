@@ -22,7 +22,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { getMySettlement, submitWaiterSettlement } from "@/lib/cash/cash.functions";
+import {
+  getMySettlement,
+  submitWaiterSettlement,
+  getOrCreateOpenSession,
+} from "@/lib/cash/cash.functions";
+import { listLocations } from "@/lib/admin/locations.functions";
+import { LocationPills } from "@/components/shared/LocationPills";
+import { useAuth } from "@/hooks/use-auth";
 import { calcWaiterSettlement, waiterNetTipCents } from "@/lib/cash/waiter-settlement";
 import { SecondWaiterSelect } from "@/components/cash/SecondWaiterSelect";
 import { parseEuroToCents as parseEuroToCentsBase } from "@/lib/format";
