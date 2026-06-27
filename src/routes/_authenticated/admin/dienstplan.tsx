@@ -33,9 +33,12 @@ import {
   moveRosterShift,
   updateRosterShiftSkill,
   updateRosterShiftStatus,
+  getRosterRelease,
+  setRosterRelease,
   type RosterShift,
   type RosterSkill,
 } from "@/lib/roster/roster.functions";
+import { Button } from "@/components/ui/button";
 import { RosterGrid } from "@/components/roster/RosterGrid";
 import { PaintToolbar, type PaintSelection } from "@/components/roster/PaintToolbar";
 import { SkillFilterChips } from "@/components/roster/SkillFilterChips";
@@ -102,6 +105,36 @@ function DienstplanPage() {
   const effectiveLocationId = locationId ?? locations[0]?.id ?? null;
 
   const periodLocked = effectivePeriod?.status === "locked";
+
+  const releaseQ = useQuery({
+    queryKey: ["roster-release", effectiveLocationId, effectivePeriod?.id],
+    queryFn: () =>
+      getRosterRelease({
+        data: { locationId: effectiveLocationId!, periodId: effectivePeriod!.id },
+      }),
+    enabled: !!effectiveLocationId && !!effectivePeriod,
+  });
+  const released = releaseQ.data?.released ?? false;
+
+  async function handleToggleRelease() {
+    if (!canEdit || !effectiveLocationId || !effectivePeriod) return;
+    setBusy(true);
+    try {
+      await setRosterRelease({
+        data: {
+          locationId: effectiveLocationId,
+          periodId: effectivePeriod.id,
+          released: !released,
+        },
+      });
+      qc.invalidateQueries({ queryKey: ["roster-release"] });
+      toast.success(released ? "Freigabe zurückgezogen." : "Dienstplan freigegeben.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   // Anzeigefenster = Periode ± 14 Tage je nach Halb-Offset.
   const windowStart = useMemo(() => {
