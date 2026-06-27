@@ -28,6 +28,13 @@ import { TabButton } from "@/components/ui/nav-tab";
 import { PersonalDetailsTab } from "@/components/admin/PersonalDetailsTab";
 import { PermissionsTab } from "@/components/admin/PermissionsTab";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  deletePayslip,
+  getPayslipSignedUrl,
+  listStaffPayslips,
+  uploadPayslip,
+  type PayslipEntry,
+} from "@/lib/payslips/payslips.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/staff/$staffId")({
   head: () => ({ meta: [{ title: "Mitarbeiter · Verwaltung" }] }),
@@ -42,7 +49,8 @@ type Tab =
   | "role"
   | "pin"
   | "account"
-  | "permissions";
+  | "permissions"
+  | "lohn";
 
 function StaffDetailPage() {
   const { staffId } = Route.useParams();
@@ -86,6 +94,7 @@ function StaffDetailPage() {
             ["pin", "PIN"],
             ...(isAdmin ? ([["account", "Login"]] as [Tab, string][]) : []),
             ...(isAdmin ? ([["permissions", "Rechte"]] as [Tab, string][]) : []),
+            ...(isAdmin ? ([["lohn", "Lohn"]] as [Tab, string][]) : []),
           ] as [Tab, string][]
         ).map(([k, label]) => (
           <TabButton key={k} active={tab === k} onClick={() => setTab(k)}>
@@ -104,6 +113,7 @@ function StaffDetailPage() {
       {tab === "pin" && <PinTab staffId={s.id} hasPin={s.hasPin} />}
       {tab === "account" && isAdmin && <AccountTab staffId={s.id} staffEmail={s.email} />}
       {tab === "permissions" && isAdmin && <PermissionsTab staffId={s.id} />}
+      {tab === "lohn" && isAdmin && <PayslipsTab staffId={s.id} />}
     </div>
   );
 }
@@ -841,5 +851,133 @@ function TextField(props: {
         className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
       />
     </label>
+  );
+}
+
+function fmtDate(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("de-DE", { year: "numeric", month: "2-digit", day: "2-digit" });
+}
+
+function PayslipsTab({ staffId }: { staffId: string }) {
+  const queryClient = useQueryClient();
+  const callOpen = useServerFn(getPayslipSignedUrl);
+  const callUpload = useServerFn(uploadPayslip);
+  const callDelete = useServerFn(deletePayslip);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const q = useQuery({
+    queryKey: ["payslips", "staff", staffId],
+    queryFn: () => listStaffPayslips({ data: { staffId } }),
+  });
+
+  async function open(entry: PayslipEntry) {
+    try {
+      const res = await callOpen({ data: { path: entry.path } });
+      window.open(res.url, "_blank", "noopener");
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Öffnen fehlgeschlagen.");
+    }
+  }
+
+  async function remove(entry: PayslipEntry) {
+    if (!confirm(`Lohnabrechnung „${entry.name}" wirklich löschen?`)) return;
+    try {
+      await callDelete({ data: { path: entry.path } });
+      setMsg("Gelöscht.");
+      await queryClient.invalidateQueries({ queryKey: ["payslips", "staff", staffId] });
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Löschen fehlgeschlagen.");
+    }
+  }
+
+  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const dataUrl: string = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(reader.error ?? new Error("Lesefehler"));
+        reader.onload = () => resolve(String(reader.result));
+        reader.readAsDataURL(file);
+      });
+      const contentBase64 = dataUrl.split(",")[1] ?? "";
+      await callUpload({ data: { staffId, fileName: file.name, contentBase64 } });
+      setMsg("Hochgeladen.");
+      await queryClient.invalidateQueries({ queryKey: ["payslips", "staff", staffId] });
+    } catch (err) {
+      setMsg(err instanceof Error ? err.message : "Upload fehlgeschlagen.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const items = q.data ?? [];
+
+  return (
+    <section className="max-w-xl space-y-4">
+      <div>
+        <h2 className="text-lg font-medium text-foreground">Lohnabrechnungen</h2>
+        <p className="text-xs text-muted-foreground">
+          PDF-Upload pro Mitarbeiter. Nur Admins sehen diese Karte.
+        </p>
+      </div>
+
+      <label className="block space-y-1">
+        <span className="text-xs font-medium text-muted-foreground">PDF hochladen</span>
+        <input
+          type="file"
+          accept="application/pdf"
+          disabled={busy}
+          onChange={onFile}
+          className="block w-full text-sm"
+        />
+      </label>
+
+      {msg && <p className="text-xs text-muted-foreground">{msg}</p>}
+
+      {q.isLoading ? (
+        <p className="text-sm text-muted-foreground">Lädt …</p>
+      ) : q.error ? (
+        <p className="text-sm text-destructive">
+          {q.error instanceof Error ? q.error.message : "Fehler."}
+        </p>
+      ) : items.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Noch keine Lohnabrechnungen hinterlegt.</p>
+      ) : (
+        <ul className="divide-y divide-border rounded-md border border-border">
+          {items.map((it) => (
+            <li key={it.path} className="flex items-center justify-between gap-3 px-4 py-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-foreground">{it.name}</p>
+                <p className="text-xs text-muted-foreground">{fmtDate(it.createdAt)}</p>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                <button
+                  type="button"
+                  onClick={() => open(it)}
+                  className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
+                >
+                  Öffnen
+                </button>
+                <button
+                  type="button"
+                  onClick={() => remove(it)}
+                  className="rounded-md border border-border px-3 py-1.5 text-sm text-destructive hover:bg-muted"
+                >
+                  Löschen
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
