@@ -556,8 +556,16 @@ function DisplayPanel({ locationId }: { locationId: string }) {
   const refresh = () => qc.invalidateQueries({ queryKey: ["display-settings", locationId] });
 
   const upsertMut = useMutation({
-    mutationFn: (input: { isEnabled?: boolean; refreshIntervalSeconds?: number }) =>
-      callUpsert({ data: { locationId, ...input } }),
+    mutationFn: (input: {
+      isEnabled?: boolean;
+      refreshIntervalSeconds?: number;
+      rotationEnabled?: boolean;
+      rotationIntervalSeconds?: number;
+      showAreas?: ("kitchen" | "service" | "gl")[] | null;
+      showHeader?: boolean;
+      showFooter?: boolean;
+      customMessage?: string | null;
+    }) => callUpsert({ data: { locationId, ...input } }),
     onSuccess: () => {
       setMsg(null);
       return refresh();
@@ -663,7 +671,14 @@ function DisplayPanel({ locationId }: { locationId: string }) {
             Öffnen
           </a>
         </div>
+        <div className="pt-2">
+          <div className="inline-block rounded bg-white p-2">
+            <QRCodeSVG value={displayUrl} size={140} />
+          </div>
+        </div>
       </div>
+
+      <DisplayOptions settings={settings} onChange={(input) => upsertMut.mutate(input)} />
 
       <div className="flex items-center justify-between">
         <button
@@ -680,6 +695,121 @@ function DisplayPanel({ locationId }: { locationId: string }) {
       </div>
 
       {msg && <p className="text-xs text-muted-foreground">{msg}</p>}
+    </div>
+  );
+}
+
+type DisplayOptionsInput = {
+  rotationEnabled?: boolean;
+  rotationIntervalSeconds?: number;
+  showAreas?: ("kitchen" | "service" | "gl")[] | null;
+  showHeader?: boolean;
+  showFooter?: boolean;
+  customMessage?: string | null;
+};
+
+function DisplayOptions({
+  settings,
+  onChange,
+}: {
+  settings: {
+    rotation_enabled: boolean;
+    rotation_interval_seconds: number;
+    show_areas: string[] | null;
+    show_header: boolean;
+    show_footer: boolean;
+    custom_message: string | null;
+  };
+  onChange: (input: DisplayOptionsInput) => void;
+}) {
+  const allAreas: ("kitchen" | "service" | "gl")[] = ["kitchen", "service", "gl"];
+  const labels: Record<string, string> = { kitchen: "Küche", service: "Service", gl: "Sonstige" };
+  const current = settings.show_areas ?? allAreas;
+  const [msg, setMsg] = useState(settings.custom_message ?? "");
+
+  useEffect(() => {
+    setMsg(settings.custom_message ?? "");
+  }, [settings.custom_message]);
+
+  const toggleArea = (a: "kitchen" | "service" | "gl") => {
+    const next = current.includes(a) ? current.filter((x) => x !== a) : [...current, a];
+    const normalized = allAreas.filter((x) => next.includes(x));
+    onChange({ showAreas: normalized.length === allAreas.length ? null : normalized });
+  };
+
+  return (
+    <div className="space-y-3 rounded border border-input bg-background/50 p-3">
+      <div className="flex flex-wrap items-center gap-4">
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={settings.rotation_enabled}
+            onChange={(e) => onChange({ rotationEnabled: e.target.checked })}
+          />
+          <span>Rotation</span>
+        </label>
+        <label className="flex items-center gap-2 text-muted-foreground">
+          Intervall
+          <select
+            value={settings.rotation_interval_seconds}
+            onChange={(e) => onChange({ rotationIntervalSeconds: Number(e.target.value) })}
+            className="rounded border border-input bg-background px-2 py-1"
+          >
+            <option value={15}>15 s</option>
+            <option value={30}>30 s</option>
+            <option value={45}>45 s</option>
+            <option value={60}>60 s</option>
+          </select>
+        </label>
+      </div>
+      <div>
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">Sichtbare Bereiche</p>
+        <div className="mt-1 flex flex-wrap gap-3">
+          {allAreas.map((a) => (
+            <label key={a} className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={current.includes(a)}
+                onChange={() => toggleArea(a)}
+              />
+              <span>{labels[a]}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-4">
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={settings.show_header}
+            onChange={(e) => onChange({ showHeader: e.target.checked })}
+          />
+          <span>Header anzeigen</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={settings.show_footer}
+            onChange={(e) => onChange({ showFooter: e.target.checked })}
+          />
+          <span>Legende anzeigen</span>
+        </label>
+      </div>
+      <div>
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">Eigene Nachricht</p>
+        <textarea
+          value={msg}
+          onChange={(e) => setMsg(e.target.value.slice(0, 280))}
+          onBlur={() => {
+            const next = msg.trim() === "" ? null : msg;
+            if (next !== (settings.custom_message ?? null)) onChange({ customMessage: next });
+          }}
+          rows={2}
+          maxLength={280}
+          placeholder="z. B. „Heute Sonderöffnung bis 23 Uhr"
+          className="mt-1 w-full rounded border border-input bg-background px-2 py-1 text-sm"
+        />
+      </div>
     </div>
   );
 }
