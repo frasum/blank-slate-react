@@ -49,24 +49,32 @@ function EasyOrderPage() {
   const selectedLocation = locations.find((l) => l.locationId === effectiveLocationId) ?? null;
 
   if (ctxQ.isLoading) {
-    return <p className="p-6 text-sm text-muted-foreground">Lädt …</p>;
+    return (
+      <div className="mx-auto w-full max-w-3xl px-4">
+        <p className="p-6 text-sm text-muted-foreground">Lädt …</p>
+      </div>
+    );
   }
   if (ctxQ.error) {
     return (
-      <p className="p-6 text-sm text-destructive">
-        Fehler: {ctxQ.error instanceof Error ? ctxQ.error.message : "Unbekannt"}
-      </p>
+      <div className="mx-auto w-full max-w-3xl px-4">
+        <p className="p-6 text-sm text-destructive">
+          Fehler: {ctxQ.error instanceof Error ? ctxQ.error.message : "Unbekannt"}
+        </p>
+      </div>
     );
   }
 
   // State 0 — kein Zugang
   if (!ctxQ.data?.hasEasyOrder) {
     return (
-      <div className="mx-auto max-w-lg rounded-lg border border-border bg-card p-8 text-center">
-        <h2 className="mb-2 text-xl font-semibold text-foreground">Kein Zugriff</h2>
-        <p className="text-sm text-muted-foreground">
-          Du bist nicht für EasyOrder freigeschaltet. Bitte wende dich an deine Leitung.
-        </p>
+      <div className="mx-auto w-full max-w-3xl px-4">
+        <div className="mx-auto max-w-lg rounded-lg border border-border bg-card p-8 text-center">
+          <h2 className="mb-2 text-xl font-semibold text-foreground">Kein Zugriff</h2>
+          <p className="text-sm text-muted-foreground">
+            Du bist nicht für EasyOrder freigeschaltet. Bitte wende dich an deine Leitung.
+          </p>
+        </div>
       </div>
     );
   }
@@ -74,32 +82,36 @@ function EasyOrderPage() {
   // State 1 — Location wählen
   if (!effectiveLocationId) {
     return (
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-foreground">Wo bestellst du?</h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {locations.map((l) => (
-            <button
-              key={l.locationId}
-              onClick={() => setSelectedLocationId(l.locationId)}
-              className="rounded-lg border border-border bg-card p-6 text-left text-lg font-medium text-foreground transition hover:border-primary hover:bg-accent"
-            >
-              {l.locationName}
-            </button>
-          ))}
+      <div className="mx-auto w-full max-w-3xl px-4">
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-foreground">Wo bestellst du?</h2>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {locations.map((l) => (
+              <button
+                key={l.locationId}
+                onClick={() => setSelectedLocationId(l.locationId)}
+                className="rounded-lg border border-border bg-card p-6 text-left text-lg font-medium text-foreground transition hover:border-primary hover:bg-accent"
+              >
+                {l.locationName}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <EasyOrderCart
-      locationId={effectiveLocationId}
-      locationName={selectedLocation?.locationName ?? ""}
-      canAddFreeItems={selectedLocation?.canAddFreeItems ?? false}
-      canSwitchLocation={locations.length > 1}
-      onSwitchLocation={() => setSelectedLocationId(null)}
-      callPlace={callPlace}
-    />
+    <div className="mx-auto w-full max-w-3xl px-4">
+      <EasyOrderCart
+        locationId={effectiveLocationId}
+        locationName={selectedLocation?.locationName ?? ""}
+        canAddFreeItems={selectedLocation?.canAddFreeItems ?? false}
+        canSwitchLocation={locations.length > 1}
+        onSwitchLocation={() => setSelectedLocationId(null)}
+        callPlace={callPlace}
+      />
+    </div>
   );
 }
 
