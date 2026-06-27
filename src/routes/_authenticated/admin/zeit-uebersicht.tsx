@@ -245,11 +245,8 @@ function ZeitUebersichtPage() {
   const periods = periodsQ.data ?? [];
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>("");
   const today = todayIso();
-  const periodContainingToday = periods.find(
-    (p) => p.startDate <= today && p.endDate >= today,
-  );
-  const effectivePeriodId =
-    selectedPeriodId || periodContainingToday?.id || periods[0]?.id || "";
+  const periodContainingToday = periods.find((p) => p.startDate <= today && p.endDate >= today);
+  const effectivePeriodId = selectedPeriodId || periodContainingToday?.id || periods[0]?.id || "";
   const selectedPeriod = periods.find((p) => p.id === effectivePeriodId);
 
   // Fallback: freie Daten, wenn keine Periode existiert.
