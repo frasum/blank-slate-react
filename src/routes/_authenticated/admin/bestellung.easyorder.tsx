@@ -152,7 +152,14 @@ function EasyOrderCart(props: {
       freeTextItems?: EasyOrderFreeTextInput[];
       notes?: string;
     }) => {
-      const fix = await getCurrentPosition();
+      let fix:
+        | { latitude: number; longitude: number; accuracyM: number }
+        | undefined;
+      try {
+        fix = await getCurrentPosition();
+      } catch {
+        fix = undefined;
+      }
       return callPlace({ data: { ...input, geo: fix } });
     },
     onSuccess: (res) => {
