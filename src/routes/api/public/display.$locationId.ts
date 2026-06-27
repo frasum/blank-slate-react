@@ -27,6 +27,7 @@ type DisplayPayload = {
   showHeader: boolean;
   showFooter: boolean;
   customMessage: string | null;
+  birthdays: string[];
 };
 
 function jsonError(status: number, error: string) {
