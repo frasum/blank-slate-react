@@ -19,6 +19,7 @@ type DisplayPayload = {
   generatedAt: string;
   refreshIntervalSeconds: number;
   date: string;
+  released: boolean;
   shifts: ShiftDto[];
 };
 
@@ -91,6 +92,41 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
 
         const date = todayIso();
 
+        // Periode zu heute auflösen und Freigabe prüfen.
+        const { data: period } = await supabaseAdmin
+          .from("periods")
+          .select("id")
+          .eq("organization_id", s.organization_id)
+          .lte("start_date", date)
+          .gte("end_date", date)
+          .maybeSingle();
+
+        let released = false;
+        if (period) {
+          const { data: rel } = await supabaseAdmin
+            .from("roster_releases")
+            .select("id")
+            .eq("location_id", locationId)
+            .eq("period_id", (period as { id: string }).id)
+            .maybeSingle();
+          released = !!rel;
+        }
+
+        if (!released) {
+          const payload: DisplayPayload = {
+            location: { id: location.id, name: location.name },
+            generatedAt: new Date().toISOString(),
+            refreshIntervalSeconds: s.refresh_interval_seconds,
+            date,
+            released: false,
+            shifts: [],
+          };
+          return new Response(JSON.stringify(payload), {
+            status: 200,
+            headers: { "content-type": "application/json", "cache-control": "no-store" },
+          });
+        }
+
         const { data: shifts, error: shiftsErr } = await supabaseAdmin
           .from("roster_shifts")
           .select("id, area, skill_id, status, staff_id")
@@ -151,6 +187,7 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
           generatedAt: new Date().toISOString(),
           refreshIntervalSeconds: s.refresh_interval_seconds,
           date,
+          released: true,
           shifts: shiftsDto,
         };
 
