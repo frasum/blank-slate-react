@@ -52,7 +52,10 @@ export const upsertDisplaySettings = createServerFn({ method: "POST" })
         refreshIntervalSeconds: z.number().int().min(15).max(3600).optional(),
         rotationEnabled: z.boolean().optional(),
         rotationIntervalSeconds: z.number().int().min(10).max(600).optional(),
-        showAreas: z.array(z.enum(["kitchen", "service", "gl"])).nullable().optional(),
+        showAreas: z
+          .array(z.enum(["kitchen", "service", "gl"]))
+          .nullable()
+          .optional(),
         showHeader: z.boolean().optional(),
         showFooter: z.boolean().optional(),
         customMessage: z.string().max(280).nullable().optional(),

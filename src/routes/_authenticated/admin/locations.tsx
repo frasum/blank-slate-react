@@ -767,11 +767,7 @@ function DisplayOptions({
         <div className="mt-1 flex flex-wrap gap-3">
           {allAreas.map((a) => (
             <label key={a} className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={current.includes(a)}
-                onChange={() => toggleArea(a)}
-              />
+              <input type="checkbox" checked={current.includes(a)} onChange={() => toggleArea(a)} />
               <span>{labels[a]}</span>
             </label>
           ))}
