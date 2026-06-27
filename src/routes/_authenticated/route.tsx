@@ -42,7 +42,13 @@ function AuthenticatedLayout() {
   return (
     <>
       <ImpersonationBanner />
-      {inAdmin ? <Outlet /> : <PortalShell><Outlet /></PortalShell>}
+      {inAdmin ? (
+        <Outlet />
+      ) : (
+        <PortalShell>
+          <Outlet />
+        </PortalShell>
+      )}
     </>
   );
 }
