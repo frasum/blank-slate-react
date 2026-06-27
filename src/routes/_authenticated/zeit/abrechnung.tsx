@@ -193,7 +193,7 @@ function AbrechnungPage() {
   if (!session) {
     return (
       <main className="mx-auto max-w-xl space-y-6 px-4 py-8">
-        <Header />
+      <Header showKasseLink={canOpenSession} />
         <Card className="p-6 text-sm">
           Für den Geschäftstag <strong>{businessDate}</strong> ist noch keine Session offen. Bitte
           warte, bis der Manager die Session anlegt, oder frage kurz nach.
@@ -235,7 +235,7 @@ function AbrechnungPage() {
     const sessionLocked = session.status === "locked";
     return (
       <main className="mx-auto max-w-xl space-y-6 px-4 py-8">
-        <Header />
+        <Header showKasseLink={canOpenSession} />
         <Card className="space-y-4 p-6">
           <div className="flex items-center justify-between">
             <div className="text-sm text-muted-foreground">Geschäftstag {businessDate}</div>
@@ -313,7 +313,7 @@ function AbrechnungPage() {
   // Eingabe-Formular.
   return (
     <main className="mx-auto max-w-xl space-y-6 px-4 py-8">
-      <Header />
+      <Header showKasseLink={canOpenSession} />
       <Card className="space-y-4 p-6">
         <div className="text-sm text-muted-foreground">Geschäftstag {businessDate}</div>
         <EuroField
@@ -465,13 +465,20 @@ function AbrechnungPage() {
   );
 }
 
-function Header() {
+function Header({ showKasseLink = false }: { showKasseLink?: boolean }) {
   return (
     <header className="flex items-center justify-between">
       <h1 className="text-2xl font-semibold tracking-tight">Abrechnung</h1>
-      <Link to="/zeit" className="text-sm text-muted-foreground hover:text-foreground">
-        Zur Stempeluhr
-      </Link>
+      <div className="flex items-center gap-3 text-sm">
+        {showKasseLink && (
+          <Link to="/admin/kasse" className="text-muted-foreground hover:text-foreground">
+            Zur Kassenübersicht
+          </Link>
+        )}
+        <Link to="/zeit" className="text-muted-foreground hover:text-foreground">
+          Zur Stempeluhr
+        </Link>
+      </div>
     </header>
   );
 }
