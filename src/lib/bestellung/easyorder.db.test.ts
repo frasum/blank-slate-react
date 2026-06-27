@@ -72,7 +72,14 @@ describe.skipIf(!dbTestsEnabled)("easyorder (DB)", () => {
         })
         .select("id")
         .single();
-      return data!.id as string;
+      const articleId = data!.id as string;
+      // Standard: Artikel ist für den Test-Standort bestellbar.
+      await org.service.from("article_locations").insert({
+        organization_id: org.orgId,
+        article_id: articleId,
+        location_id: org.defaultLocationId,
+      });
+      return articleId;
     };
     artA1 = await mkArt(supplierA, "Tomaten", 250);
     artA2 = await mkArt(supplierA, "Basilikum", 180);
