@@ -165,8 +165,7 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
                 display_name: string | null;
               };
               if (dobMap.get(r.id) === todayMmDd) {
-                const name =
-                  r.display_name || `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim();
+                const name = r.display_name || `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim();
                 if (name) birthdays.push(name);
               }
             }
