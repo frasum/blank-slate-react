@@ -15,6 +15,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as DisplayLocationIdRouteImport } from './routes/display.$locationId'
 import { Route as AuthenticatedPasswortAendernRouteImport } from './routes/_authenticated/passwort-aendern'
+import { Route as AuthenticatedEasyorderRouteImport } from './routes/_authenticated/easyorder'
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
 import { Route as AuthenticatedZeitIndexRouteImport } from './routes/_authenticated/zeit/index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
@@ -49,7 +50,6 @@ import { Route as AuthenticatedAdminBestellungWeinRouteImport } from './routes/_
 import { Route as AuthenticatedAdminBestellungLieferantenRouteImport } from './routes/_authenticated/admin/bestellung.lieferanten'
 import { Route as AuthenticatedAdminBestellungInventurRouteImport } from './routes/_authenticated/admin/bestellung.inventur'
 import { Route as AuthenticatedAdminBestellungEasyorderVerwaltungRouteImport } from './routes/_authenticated/admin/bestellung.easyorder-verwaltung'
-import { Route as AuthenticatedAdminBestellungEasyorderRouteImport } from './routes/_authenticated/admin/bestellung.easyorder'
 import { Route as AuthenticatedAdminBestellungBestellungenRouteImport } from './routes/_authenticated/admin/bestellung.bestellungen'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -82,6 +82,11 @@ const AuthenticatedPasswortAendernRoute =
     path: '/passwort-aendern',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedEasyorderRoute = AuthenticatedEasyorderRouteImport.update({
+  id: '/easyorder',
+  path: '/easyorder',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAdminRouteRoute = AuthenticatedAdminRouteRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -280,12 +285,6 @@ const AuthenticatedAdminBestellungEasyorderVerwaltungRoute =
     path: '/easyorder-verwaltung',
     getParentRoute: () => AuthenticatedAdminBestellungRoute,
   } as any)
-const AuthenticatedAdminBestellungEasyorderRoute =
-  AuthenticatedAdminBestellungEasyorderRouteImport.update({
-    id: '/easyorder',
-    path: '/easyorder',
-    getParentRoute: () => AuthenticatedAdminBestellungRoute,
-  } as any)
 const AuthenticatedAdminBestellungBestellungenRoute =
   AuthenticatedAdminBestellungBestellungenRouteImport.update({
     id: '/bestellungen',
@@ -298,6 +297,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
+  '/easyorder': typeof AuthenticatedEasyorderRoute
   '/passwort-aendern': typeof AuthenticatedPasswortAendernRoute
   '/display/$locationId': typeof DisplayLocationIdRoute
   '/admin/aufgaben': typeof AuthenticatedAdminAufgabenRoute
@@ -324,7 +324,6 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/zeit/': typeof AuthenticatedZeitIndexRoute
   '/admin/bestellung/bestellungen': typeof AuthenticatedAdminBestellungBestellungenRoute
-  '/admin/bestellung/easyorder': typeof AuthenticatedAdminBestellungEasyorderRoute
   '/admin/bestellung/easyorder-verwaltung': typeof AuthenticatedAdminBestellungEasyorderVerwaltungRoute
   '/admin/bestellung/inventur': typeof AuthenticatedAdminBestellungInventurRoute
   '/admin/bestellung/lieferanten': typeof AuthenticatedAdminBestellungLieferantenRoute
@@ -339,6 +338,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/easyorder': typeof AuthenticatedEasyorderRoute
   '/passwort-aendern': typeof AuthenticatedPasswortAendernRoute
   '/display/$locationId': typeof DisplayLocationIdRoute
   '/': typeof AuthenticatedIndexRoute
@@ -364,7 +364,6 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/zeit': typeof AuthenticatedZeitIndexRoute
   '/admin/bestellung/bestellungen': typeof AuthenticatedAdminBestellungBestellungenRoute
-  '/admin/bestellung/easyorder': typeof AuthenticatedAdminBestellungEasyorderRoute
   '/admin/bestellung/easyorder-verwaltung': typeof AuthenticatedAdminBestellungEasyorderVerwaltungRoute
   '/admin/bestellung/inventur': typeof AuthenticatedAdminBestellungInventurRoute
   '/admin/bestellung/lieferanten': typeof AuthenticatedAdminBestellungLieferantenRoute
@@ -382,6 +381,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteRouteWithChildren
+  '/_authenticated/easyorder': typeof AuthenticatedEasyorderRoute
   '/_authenticated/passwort-aendern': typeof AuthenticatedPasswortAendernRoute
   '/display/$locationId': typeof DisplayLocationIdRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
@@ -409,7 +409,6 @@ export interface FileRoutesById {
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/zeit/': typeof AuthenticatedZeitIndexRoute
   '/_authenticated/admin/bestellung/bestellungen': typeof AuthenticatedAdminBestellungBestellungenRoute
-  '/_authenticated/admin/bestellung/easyorder': typeof AuthenticatedAdminBestellungEasyorderRoute
   '/_authenticated/admin/bestellung/easyorder-verwaltung': typeof AuthenticatedAdminBestellungEasyorderVerwaltungRoute
   '/_authenticated/admin/bestellung/inventur': typeof AuthenticatedAdminBestellungInventurRoute
   '/_authenticated/admin/bestellung/lieferanten': typeof AuthenticatedAdminBestellungLieferantenRoute
@@ -428,6 +427,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/admin'
+    | '/easyorder'
     | '/passwort-aendern'
     | '/display/$locationId'
     | '/admin/aufgaben'
@@ -454,7 +454,6 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/zeit/'
     | '/admin/bestellung/bestellungen'
-    | '/admin/bestellung/easyorder'
     | '/admin/bestellung/easyorder-verwaltung'
     | '/admin/bestellung/inventur'
     | '/admin/bestellung/lieferanten'
@@ -469,6 +468,7 @@ export interface FileRouteTypes {
   to:
     | '/auth'
     | '/reset-password'
+    | '/easyorder'
     | '/passwort-aendern'
     | '/display/$locationId'
     | '/'
@@ -494,7 +494,6 @@ export interface FileRouteTypes {
     | '/admin'
     | '/zeit'
     | '/admin/bestellung/bestellungen'
-    | '/admin/bestellung/easyorder'
     | '/admin/bestellung/easyorder-verwaltung'
     | '/admin/bestellung/inventur'
     | '/admin/bestellung/lieferanten'
@@ -511,6 +510,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/_authenticated/admin'
+    | '/_authenticated/easyorder'
     | '/_authenticated/passwort-aendern'
     | '/display/$locationId'
     | '/_authenticated/'
@@ -538,7 +538,6 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/'
     | '/_authenticated/zeit/'
     | '/_authenticated/admin/bestellung/bestellungen'
-    | '/_authenticated/admin/bestellung/easyorder'
     | '/_authenticated/admin/bestellung/easyorder-verwaltung'
     | '/_authenticated/admin/bestellung/inventur'
     | '/_authenticated/admin/bestellung/lieferanten'
@@ -601,6 +600,13 @@ declare module '@tanstack/react-router' {
       path: '/passwort-aendern'
       fullPath: '/passwort-aendern'
       preLoaderRoute: typeof AuthenticatedPasswortAendernRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/easyorder': {
+      id: '/_authenticated/easyorder'
+      path: '/easyorder'
+      fullPath: '/easyorder'
+      preLoaderRoute: typeof AuthenticatedEasyorderRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/admin': {
@@ -841,13 +847,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminBestellungEasyorderVerwaltungRouteImport
       parentRoute: typeof AuthenticatedAdminBestellungRoute
     }
-    '/_authenticated/admin/bestellung/easyorder': {
-      id: '/_authenticated/admin/bestellung/easyorder'
-      path: '/easyorder'
-      fullPath: '/admin/bestellung/easyorder'
-      preLoaderRoute: typeof AuthenticatedAdminBestellungEasyorderRouteImport
-      parentRoute: typeof AuthenticatedAdminBestellungRoute
-    }
     '/_authenticated/admin/bestellung/bestellungen': {
       id: '/_authenticated/admin/bestellung/bestellungen'
       path: '/bestellungen'
@@ -860,7 +859,6 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedAdminBestellungRouteChildren {
   AuthenticatedAdminBestellungBestellungenRoute: typeof AuthenticatedAdminBestellungBestellungenRoute
-  AuthenticatedAdminBestellungEasyorderRoute: typeof AuthenticatedAdminBestellungEasyorderRoute
   AuthenticatedAdminBestellungEasyorderVerwaltungRoute: typeof AuthenticatedAdminBestellungEasyorderVerwaltungRoute
   AuthenticatedAdminBestellungInventurRoute: typeof AuthenticatedAdminBestellungInventurRoute
   AuthenticatedAdminBestellungLieferantenRoute: typeof AuthenticatedAdminBestellungLieferantenRoute
@@ -873,8 +871,6 @@ const AuthenticatedAdminBestellungRouteChildren: AuthenticatedAdminBestellungRou
   {
     AuthenticatedAdminBestellungBestellungenRoute:
       AuthenticatedAdminBestellungBestellungenRoute,
-    AuthenticatedAdminBestellungEasyorderRoute:
-      AuthenticatedAdminBestellungEasyorderRoute,
     AuthenticatedAdminBestellungEasyorderVerwaltungRoute:
       AuthenticatedAdminBestellungEasyorderVerwaltungRoute,
     AuthenticatedAdminBestellungInventurRoute:
@@ -961,6 +957,7 @@ const AuthenticatedAdminRouteRouteWithChildren =
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRouteRoute: typeof AuthenticatedAdminRouteRouteWithChildren
+  AuthenticatedEasyorderRoute: typeof AuthenticatedEasyorderRoute
   AuthenticatedPasswortAendernRoute: typeof AuthenticatedPasswortAendernRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedZeitAbrechnungRoute: typeof AuthenticatedZeitAbrechnungRoute
@@ -974,6 +971,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRouteRoute: AuthenticatedAdminRouteRouteWithChildren,
+  AuthenticatedEasyorderRoute: AuthenticatedEasyorderRoute,
   AuthenticatedPasswortAendernRoute: AuthenticatedPasswortAendernRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedZeitAbrechnungRoute: AuthenticatedZeitAbrechnungRoute,
