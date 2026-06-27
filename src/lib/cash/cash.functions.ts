@@ -2382,3 +2382,185 @@ export async function deleteSessionTipPoolEntryCore(
     };
   });
 }
+
+// ------------------------------------------------------------------------
+// Vortagsdefizit (rollender operativer Saldo der Vortage, ≤ 0)
+// ------------------------------------------------------------------------
+//
+// Liest Sessions im 90-Tage-Fenster VOR `businessDate` an `locationId`,
+// baut je Session denselben DayInput wie getCashOverview/CashSummaryBlock,
+// rechnet rawBargeld = computeDailyCash(day) und rollt mit
+// rollOperativeDeficitCents zum heutigen Defizit. sourceDate ist die
+// business_date der letzten Session, bei der der Saldo nach diesem Tag
+// noch < 0 war (oder die letzte Session, falls kein Defizit).
+
+export const getPreviousOperativeDeficit = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        locationId: z.string().uuid(),
+        businessDate: z.string().regex(ISO_DATE),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    return getPreviousOperativeDeficitCore(caller, data);
+  });
+
+export async function getPreviousOperativeDeficitCore(
+  caller: AdminCaller,
+  data: { locationId: string; businessDate: string },
+): Promise<{ deficitCents: number; sourceDate: string | null }> {
+  await assertLocationInOrg(caller.organizationId, data.locationId);
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  const fromDate = (() => {
+    const d = new Date(data.businessDate + "T00:00:00Z");
+    d.setUTCDate(d.getUTCDate() - 90);
+    return d.toISOString().slice(0, 10);
+  })();
+
+  const { data: sessions, error: sErr } = await supabaseAdmin
+    .from("sessions")
+    .select(
+      "id, business_date, vectron_daily_total_cents, vouchers_sold_cents, vouchers_redeemed_cents, finedine_vouchers_cents, einladung_cents, sonstige_einnahme_cents, vorschuss_cents",
+    )
+    .eq("organization_id", caller.organizationId)
+    .eq("location_id", data.locationId)
+    .gte("business_date", fromDate)
+    .lt("business_date", data.businessDate)
+    .order("business_date", { ascending: true });
+  if (sErr) throw sErr;
+  if (!sessions || sessions.length === 0) {
+    return { deficitCents: 0, sourceDate: null };
+  }
+
+  const sessionIds = sessions.map((s) => s.id);
+
+  const [chRes, tmRes, wsRes, expRes, advRes, chanRes] = await Promise.all([
+    supabaseAdmin
+      .from("session_channel_amounts")
+      .select("session_id, channel_id, amount_cents")
+      .eq("organization_id", caller.organizationId)
+      .in("session_id", sessionIds),
+    supabaseAdmin
+      .from("session_terminal_amounts")
+      .select("session_id, amount_cents")
+      .eq("organization_id", caller.organizationId)
+      .in("session_id", sessionIds),
+    supabaseAdmin
+      .from("waiter_settlements")
+      .select("session_id, open_invoices_cents, status")
+      .eq("organization_id", caller.organizationId)
+      .in("session_id", sessionIds),
+    supabaseAdmin
+      .from("session_expenses")
+      .select("session_id, amount_cents")
+      .eq("organization_id", caller.organizationId)
+      .in("session_id", sessionIds),
+    supabaseAdmin
+      .from("session_advances")
+      .select("session_id, amount_cents")
+      .eq("organization_id", caller.organizationId)
+      .in("session_id", sessionIds),
+    supabaseAdmin
+      .from("revenue_channels")
+      .select("id, kind")
+      .eq("organization_id", caller.organizationId)
+      .eq("location_id", data.locationId),
+  ]);
+  if (chRes.error) throw chRes.error;
+  if (tmRes.error) throw tmRes.error;
+  if (wsRes.error) throw wsRes.error;
+  if (expRes.error) throw expRes.error;
+  if (advRes.error) throw advRes.error;
+  if (chanRes.error) throw chanRes.error;
+
+  const channelKindById = new Map<string, string>(
+    (chanRes.data ?? []).map((c) => [c.id, c.kind as string]),
+  );
+
+  type Bucket = {
+    cardTotalCents: number;
+    deliverySouseCents: number;
+    deliveryWoltCents: number;
+    openInvoicesCents: number[];
+    expensesCents: number[];
+    advancesCents: number[];
+  };
+  const bySession = new Map<string, Bucket>();
+  const ensure = (id: string): Bucket => {
+    let b = bySession.get(id);
+    if (!b) {
+      b = {
+        cardTotalCents: 0,
+        deliverySouseCents: 0,
+        deliveryWoltCents: 0,
+        openInvoicesCents: [],
+        expensesCents: [],
+        advancesCents: [],
+      };
+      bySession.set(id, b);
+    }
+    return b;
+  };
+
+  for (const r of tmRes.data ?? []) {
+    ensure(r.session_id).cardTotalCents += Number(r.amount_cents);
+  }
+  for (const r of chRes.data ?? []) {
+    const kind = channelKindById.get(r.channel_id);
+    if (kind === "delivery_souse") {
+      ensure(r.session_id).deliverySouseCents += Number(r.amount_cents);
+    } else if (kind === "delivery_wolt") {
+      ensure(r.session_id).deliveryWoltCents += Number(r.amount_cents);
+    }
+  }
+  for (const r of wsRes.data ?? []) {
+    if ((r.status as string) === "superseded") continue;
+    ensure(r.session_id).openInvoicesCents.push(Number(r.open_invoices_cents));
+  }
+  for (const r of expRes.data ?? []) {
+    ensure(r.session_id).expensesCents.push(Number(r.amount_cents));
+  }
+  for (const r of advRes.data ?? []) {
+    ensure(r.session_id).advancesCents.push(Number(r.amount_cents));
+  }
+
+  let bal = 0;
+  let lastDeficitDate: string | null = null;
+  for (const sess of sessions) {
+    const b = ensure(sess.id);
+    const dayInput = sessionToDayInput(
+      {
+        business_date: sess.business_date,
+        vectron_daily_total_cents: sess.vectron_daily_total_cents,
+        vouchers_sold_cents: sess.vouchers_sold_cents,
+        vouchers_redeemed_cents: sess.vouchers_redeemed_cents,
+        finedine_vouchers_cents: sess.finedine_vouchers_cents,
+        einladung_cents: sess.einladung_cents,
+        sonstige_einnahme_cents: sess.sonstige_einnahme_cents,
+        vorschuss_cents: sess.vorschuss_cents,
+      },
+      {
+        cardTotalCents: b.cardTotalCents,
+        deliverySouseCents: b.deliverySouseCents,
+        deliveryWoltCents: b.deliveryWoltCents,
+        openInvoicesCents: b.openInvoicesCents,
+        expensesCents: b.expensesCents,
+        advancesCents: b.advancesCents,
+      },
+    );
+    bal += computeDailyCash(dayInput);
+    bal -= Math.max(0, bal);
+    if (bal < 0) lastDeficitDate = sess.business_date;
+  }
+
+  // Sanity: dieselbe Berechnung wie das reine Helper-Modul.
+  void rollOperativeDeficitCents; // ausdrücklicher Import-Referenz-Anker
+
+  const sourceDate = bal < 0 ? lastDeficitDate : sessions[sessions.length - 1].business_date;
+  return { deficitCents: bal, sourceDate };
+}
