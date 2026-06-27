@@ -19,7 +19,7 @@ type DisplayPayload = {
   generatedAt: string;
   refreshIntervalSeconds: number;
   date: string;
-  released: boolean;
+  releasedAreas: string[];
   shifts: ShiftDto[];
 };
 
@@ -111,6 +111,8 @@ function DisplayPage() {
   const kitchen = data.shifts.filter((s) => s.area === "kitchen");
   const service = data.shifts.filter((s) => s.area === "service");
   const other = data.shifts.filter((s) => s.area !== "kitchen" && s.area !== "service");
+  const kitchenReleased = data.releasedAreas.includes("kitchen");
+  const serviceReleased = data.releasedAreas.includes("service");
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -125,20 +127,47 @@ function DisplayPage() {
         </div>
       </header>
 
-      {data.released ? (
-        <main className="grid grid-cols-1 gap-8 p-10 md:grid-cols-2">
+      <main className="grid grid-cols-1 gap-8 p-10 md:grid-cols-2">
+        {kitchenReleased ? (
           <Column title="Küche" shifts={kitchen} accent="bg-orange-500/10 border-orange-500/30" />
+        ) : (
+          <PlaceholderColumn
+            title="Küche"
+            accent="bg-orange-500/10 border-orange-500/30"
+            message="Küche – noch nicht freigegeben"
+          />
+        )}
+        {serviceReleased ? (
           <Column title="Service" shifts={service} accent="bg-sky-500/10 border-sky-500/30" />
-          {other.length > 0 && (
-            <Column title="Sonstige" shifts={other} accent="bg-slate-500/10 border-slate-500/30" />
-          )}
-        </main>
-      ) : (
-        <main className="flex min-h-[60vh] items-center justify-center p-10">
-          <p className="text-3xl text-slate-400">Dienstplan noch nicht freigegeben</p>
-        </main>
-      )}
+        ) : (
+          <PlaceholderColumn
+            title="Service"
+            accent="bg-sky-500/10 border-sky-500/30"
+            message="Service – noch nicht freigegeben"
+          />
+        )}
+        {other.length > 0 && (
+          <Column title="Sonstige" shifts={other} accent="bg-slate-500/10 border-slate-500/30" />
+        )}
+      </main>
     </div>
+  );
+}
+
+function PlaceholderColumn({
+  title,
+  accent,
+  message,
+}: {
+  title: string;
+  accent: string;
+  message: string;
+}) {
+  return (
+    <section className={`rounded-2xl border p-6 ${accent}`}>
+      <h2 className="mb-4 text-2xl font-semibold">{title}</h2>
+      <p className="text-xl text-slate-400">{message}</p>
+    </section>
   );
 }
 
