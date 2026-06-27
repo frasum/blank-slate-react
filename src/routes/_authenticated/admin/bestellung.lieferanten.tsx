@@ -631,19 +631,21 @@ function LieferantenPage() {
           {articleDialog && (
             <ArticleForm
               initial={articleDialog.mode === "edit" ? articleDialog.initial : EMPTY_ARTICLE_DRAFT}
+              suppliers={(suppliersQ.data ?? []).map((s) => ({ id: s.id, name: s.name }))}
+              initialSupplierId={articleDialog.supplierId}
               submitLabel={articleDialog.mode === "edit" ? "Speichern" : "Anlegen"}
               submitting={
                 articleDialog.mode === "edit" ? updateArtMut.isPending : createArtMut.isPending
               }
-              onSubmit={(d) => {
+              onSubmit={(d, supplierId) => {
                 if (articleDialog.mode === "edit") {
                   updateArtMut.mutate({
                     articleId: articleDialog.articleId,
-                    supplierId: articleDialog.supplierId,
+                    supplierId,
                     draft: d,
                   });
                 } else {
-                  createArtMut.mutate({ supplierId: articleDialog.supplierId, draft: d });
+                  createArtMut.mutate({ supplierId, draft: d });
                 }
               }}
               onCancel={() => setArticleDialog(null)}
@@ -847,12 +849,15 @@ function SupplierForm(props: {
 
 function ArticleForm(props: {
   initial: ArticleDraft;
+  suppliers: { id: string; name: string }[];
+  initialSupplierId: string;
   submitLabel: string;
   submitting: boolean;
-  onSubmit: (d: ArticleDraft) => void;
+  onSubmit: (d: ArticleDraft, supplierId: string) => void;
   onCancel: () => void;
 }) {
   const [d, setD] = useState<ArticleDraft>(props.initial);
+  const [supplierId, setSupplierId] = useState(props.initialSupplierId);
   const set = <K extends keyof ArticleDraft>(k: K, v: ArticleDraft[K]) =>
     setD((prev) => ({ ...prev, [k]: v }));
   return (
@@ -860,9 +865,22 @@ function ArticleForm(props: {
       className="space-y-3"
       onSubmit={(e) => {
         e.preventDefault();
-        props.onSubmit(d);
+        props.onSubmit(d, supplierId);
       }}
     >
+      <Field label="Lieferant">
+        <select
+          className={inputCls}
+          value={supplierId}
+          onChange={(e) => setSupplierId(e.target.value)}
+        >
+          {props.suppliers.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+      </Field>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <Field label="Name *">
           <input
