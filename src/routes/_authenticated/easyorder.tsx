@@ -461,7 +461,29 @@ function EasyOrderCart(props: {
                             )}
                           </p>
                         </div>
-                        <Stepper value={n} onChange={(next) => setItemQty(a.id, next)} min={0} />
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setItemQty(a.id, n + 1)}
+                            className="rounded-full bg-primary/10 p-2 text-primary hover:bg-primary/20"
+                            title="Hinzufügen"
+                          >
+                            🛒
+                          </button>
+                          {n > 0 && (
+                            <>
+                              <span className="min-w-[1.5rem] text-center text-base font-medium text-foreground">
+                                {n}
+                              </span>
+                              <button
+                                onClick={() => setItemQty(a.id, n - 1)}
+                                className="rounded-full bg-muted px-3 py-1 text-base text-muted-foreground hover:bg-accent"
+                                title="Menge verringern"
+                              >
+                                −
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </li>
                     );
                   })}
