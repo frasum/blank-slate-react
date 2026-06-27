@@ -420,19 +420,26 @@ function EasyOrderCart(props: {
       )}
       <div className="space-y-3">
         {groups.map((g) => {
-          const isCollapsed = collapsed[g.supplierName] ?? false;
+          const searchActive = search.trim() !== "";
+          const isCollapsed = searchActive ? false : (collapsed[g.supplierName] ?? true);
           return (
             <div key={g.supplierName} className="rounded-md border border-border bg-card">
               <button
                 onClick={() =>
-                  setCollapsed((prev) => ({ ...prev, [g.supplierName]: !isCollapsed }))
+                  setCollapsed((prev) => ({
+                    ...prev,
+                    [g.supplierName]: !(prev[g.supplierName] ?? true),
+                  }))
                 }
-                className="flex w-full items-center justify-between border-b border-border bg-muted/30 px-4 py-3 text-left"
+                className={`flex w-full items-center gap-3 px-4 py-3 text-left ${
+                  isCollapsed ? "" : "border-b border-border bg-muted/30"
+                }`}
               >
-                <span className="font-semibold text-foreground">{g.supplierName}</span>
-                <span className="text-xs text-muted-foreground">
-                  {g.rows.length} Artikel {isCollapsed ? "▸" : "▾"}
+                <span className="text-muted-foreground">{isCollapsed ? "▸" : "▾"}</span>
+                <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                  {g.rows.length}
                 </span>
+                <span className="font-medium text-foreground">{g.supplierName}</span>
               </button>
               {!isCollapsed && (
                 <ul>
