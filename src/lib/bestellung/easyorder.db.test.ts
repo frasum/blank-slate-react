@@ -202,4 +202,35 @@ describe.skipIf(!dbTestsEnabled)("easyorder (DB)", () => {
       }),
     ).rejects.toThrow(/Freitext/);
   });
+
+  it("(g) Manager ohne geo → Bestellung angelegt, kein Fence-Check", async () => {
+    const managerUser = await org.mkUser("manager");
+    await org.service.from("staff_easyorder_access").insert({
+      organization_id: org.orgId,
+      staff_id: managerUser.staffId,
+      location_id: org.defaultLocationId,
+      can_add_free_items: true,
+      is_active: true,
+    });
+    const managerCaller: AdminCaller = {
+      userId: managerUser.userId,
+      staffId: managerUser.staffId,
+      organizationId: org.orgId,
+      role: "manager",
+    };
+    const result = await placeEasyOrderCore(org.service, managerCaller, {
+      locationId: org.defaultLocationId,
+      items: [{ articleId: artA1, quantity: 1 }],
+    });
+    expect(result.orderIds.length).toBeGreaterThan(0);
+  });
+
+  it("(h) Staff ohne geo → 'Standort erforderlich.'", async () => {
+    await expect(
+      placeEasyOrderCore(org.service, callerOf(staffUserA), {
+        locationId: org.defaultLocationId,
+        items: [{ articleId: artA1, quantity: 1 }],
+      }),
+    ).rejects.toThrow(/Standort erforderlich/);
+  });
 });
