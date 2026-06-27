@@ -1074,6 +1074,96 @@ export const createDayOffWish = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+// =========================================================================
+// Dienstplan-Freigabe pro (Standort, Periode)
+// =========================================================================
+
+export const getRosterRelease = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        locationId: z.string().uuid(),
+        periodId: z.string().uuid(),
+      })
+      .parse(input),
+  )
+  .handler(
+    async ({ data, context }): Promise<{ released: boolean; releasedAt: string | null }> => {
+      const caller = await loadAdminCaller(context.supabase, context.userId, READ_ROLES);
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: row, error } = await supabaseAdmin
+        .from("roster_releases")
+        .select("released_at")
+        .eq("organization_id", caller.organizationId)
+        .eq("location_id", data.locationId)
+        .eq("period_id", data.periodId)
+        .maybeSingle();
+      if (error) throw error;
+      return {
+        released: !!row,
+        releasedAt: (row?.released_at as string | null) ?? null,
+      };
+    },
+  );
+
+export const setRosterRelease = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        locationId: z.string().uuid(),
+        periodId: z.string().uuid(),
+        released: z.boolean(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
+    return runWithPermission(
+      context.supabase,
+      "roster.shift.manage",
+      null,
+      makeAuditWriter(caller),
+      async () => {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        if (data.released) {
+          const { error } = await supabaseAdmin.from("roster_releases").upsert(
+            {
+              organization_id: caller.organizationId,
+              location_id: data.locationId,
+              period_id: data.periodId,
+              released_at: new Date().toISOString(),
+              released_by: caller.staffId,
+            },
+            { onConflict: "location_id,period_id" },
+          );
+          if (error) throw error;
+        } else {
+          const { error } = await supabaseAdmin
+            .from("roster_releases")
+            .delete()
+            .eq("organization_id", caller.organizationId)
+            .eq("location_id", data.locationId)
+            .eq("period_id", data.periodId);
+          if (error) throw error;
+        }
+        return {
+          result: { ok: true as const, released: data.released },
+          audit: {
+            action: "roster.release",
+            entity: "roster_release",
+            meta: {
+              locationId: data.locationId,
+              periodId: data.periodId,
+              released: data.released,
+            },
+          },
+        };
+      },
+    );
+  });
+
 export const deleteDayOffWish = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
