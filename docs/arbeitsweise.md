@@ -586,3 +586,38 @@ SV-Befreiung ist eine **Lohnsteuer**-Frage (Vorsorgepauschale), nicht SV: SV-fre
 | CHEFIN (1)  | ✅ cent-genau (VSP = 0)                              |
 | Peter (309) | ✅ cent-genau (PKPV 5692; ETL-Beleg offen)           |
 | PIM (17)    | offen — Werkstudent-Mindestvorsorge, Mini-Rest ~33 € |
+
+## 15. Modul D3 — Dienstplan-Display: Einstellungen, Bereichs-Freigabe, Geburtstags-Banner (27.06.2026)
+
+Drei Features, alle CI-grün (tsc / eslint-Prettier-3.7.3 / 787 Tests) + live.
+
+### 15a. Display-Einstellungen (Voll-Port aus thaitime)
+
+- `display_settings` (je Standort) erweitert: `rotation_enabled` (bool, def false), `rotation_interval_seconds` (int, def 30), `show_areas` (text[], **null = alle**; Werte `kitchen|service|gl`), `show_header` (bool, def true), `show_footer` (bool, def true = **Legende**), `custom_message` (text). Dependency `qrcode.react`.
+- Server: `src/lib/display/display.functions.ts` (Validator + Persist); Public-API `src/routes/api/public/display.$locationId.ts` exponiert alle Felder (camelCase).
+- UI: `src/routes/_authenticated/admin/locations.tsx` (Display-Sektion) — Display-URL (origin-basiert) + Kopieren/Öffnen + **QR** (`QRCodeSVG`), Rotation-Switch+Intervall, Bereichs-Checkboxen (alle angehakt ⇒ `show_areas=null`), Header-/Legende-Switch, Nachricht-Textarea.
+- Display `src/routes/display.$locationId.tsx`: `showHeader` blendet Kopf, `customMessage` als Banner, `showFooter` = Legende-Footer, `showAreas` filtert Spalten, **Rotation** mit Fortschrittsbalken + Punkt-Indikatoren (aus thaitime `ScheduleDisplay.tsx` portiert; rotierbare Gruppen = sichtbare nicht-leere Bereiche; Hooks **vor** den Early-Returns). Merke: in thaitime ist `show_footer` = die Legende.
+
+### 15b. Bereichs-Freigabe (Küche/Service getrennt), Modell B
+
+- `roster_releases` + Spalte `area` (NOT NULL); alte Unique `(location_id,period_id)` **ersetzt** durch `(location_id,period_id,area)`; Backfill je (Standort, Periode, Bereich) für `area IN ('kitchen','service')` aus `roster_shifts` → bestehende Displays bleiben sichtbar.
+- Server `src/lib/roster/roster.functions.ts`: `getRosterRelease → {kitchen,service}`; `setRosterRelease({locationId,periodId,area,released})` (Upsert `onConflict location_id,period_id,area` / Delete je area); Audit `roster.release`.
+- Public-API liefert `releasedAreas: string[]` und **filtert Schichten serverseitig**: unfreigegebene Küche/Service gehen **nicht** an den Client; `gl` immer. Display zeigt „Bereich – noch nicht freigegeben" je Bereich.
+- Grid `src/routes/_authenticated/admin/dienstplan.tsx`: zwei Buttons (Küche/Service), `kitchenReleased`/`serviceReleased`, `handleToggleArea`. Freigabe = **expliziter Button** (Modell B), pro (Standort, Periode, **Bereich**).
+
+### 15c. Geburtstags-Banner
+
+- Public-API: `staff_locations` (Team des Standorts) → `staff` (`is_active=true`) → `staff_personal_details.date_of_birth`; Abgleich **Tag+Monat** (`date.slice(5)` vs. `date_of_birth.slice(5,10)`). Liefert `birthdays: string[]` (Anzeigename; ganzes aktives Team, nicht nur heute Eingeteilte).
+- Display: festliches Banner oben (🎂), eigenständig (unabhängig von `showHeader`), nur wenn `birthdays.length > 0`.
+
+### 15d. Domain-Wechsel → cocoplatform.online
+
+- Alle App-URLs **origin-basiert** (`window.location.origin`): Display-Link, QR, Passwort-Reset → **domain-agnostisch**, kein Repo-Change. Keine hartkodierte App-Domain (das `lovable.dev` in den Security-Headers ist nur CSP fürs Editor-Preview).
+- **Aktion (Dashboard, nicht Repo):** Supabase → Authentication → URL Configuration: Site-URL + Redirect-Allowlist müssen `https://cocoplatform.online` enthalten, sonst brechen Login-/Reset-Redirects.
+- **Geofencing domain-unabhängig:** Fence (`latitude`/`longitude`/`geofence_radius_m`) in `locations`, Distanz-Check serverseitig (`assertWithinFence`); `Permissions-Policy: geolocation=(self)` ist origin-relativ → greift automatisch. Einzige Folge: Browser-Standortfreigabe ist **pro Origin** → MA werden auf neuer Domain einmal neu gefragt (erwartet).
+
+### 15e. Lektionen (teuer gelernt)
+
+1. **`.in([viele IDs])` sprengt die PostgREST-URL-Länge → HTTP 400.** Bei großen Mengen (z. B. alle Artikel-IDs) stattdessen **Inner-Join** (`tabelle!inner(spalte)` + `.eq(...)`) oder org-weit laden + im Speicher filtern. Kleine Mengen (≤ ~50, z. B. Team eines Standorts) sind mit `.in` ok.
+2. **Neue Tabellen/Spalten brauchen `notify pgrst, 'reload schema';` in der Migration.** Raw-SQL-Editor umgeht PostgREST (sieht Änderungen sofort), die App geht **durch** PostgREST (Schema-Cache) → ohne Reload „column/table not found".
+3. **Prettier exakt `3.7.3`** (package.json + bun.lock, **kein** Caret). Lokal **vor** `eslint`/`format:check`: `npm i prettier@3.7.3` (sonst löst node_modules evtl. 3.8.5 auf → falsch grün/rot). Lovable committet gelegentlich nicht-3.7.3-formatiert → CI `check` rot → Fix: `prettier --write <Datei>`. Der `db-integration`-Job ist `continue-on-error` → sein rotes ❌ ist normal, blockiert nichts.
