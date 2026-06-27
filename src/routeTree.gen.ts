@@ -15,6 +15,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as DisplayLocationIdRouteImport } from './routes/display.$locationId'
 import { Route as AuthenticatedPasswortAendernRouteImport } from './routes/_authenticated/passwort-aendern'
+import { Route as AuthenticatedLohnRouteImport } from './routes/_authenticated/lohn'
 import { Route as AuthenticatedEasyorderRouteImport } from './routes/_authenticated/easyorder'
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
 import { Route as AuthenticatedZeitIndexRouteImport } from './routes/_authenticated/zeit/index'
@@ -82,6 +83,11 @@ const AuthenticatedPasswortAendernRoute =
     path: '/passwort-aendern',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedLohnRoute = AuthenticatedLohnRouteImport.update({
+  id: '/lohn',
+  path: '/lohn',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedEasyorderRoute = AuthenticatedEasyorderRouteImport.update({
   id: '/easyorder',
   path: '/easyorder',
@@ -298,6 +304,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/easyorder': typeof AuthenticatedEasyorderRoute
+  '/lohn': typeof AuthenticatedLohnRoute
   '/passwort-aendern': typeof AuthenticatedPasswortAendernRoute
   '/display/$locationId': typeof DisplayLocationIdRoute
   '/admin/aufgaben': typeof AuthenticatedAdminAufgabenRoute
@@ -339,6 +346,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/easyorder': typeof AuthenticatedEasyorderRoute
+  '/lohn': typeof AuthenticatedLohnRoute
   '/passwort-aendern': typeof AuthenticatedPasswortAendernRoute
   '/display/$locationId': typeof DisplayLocationIdRoute
   '/': typeof AuthenticatedIndexRoute
@@ -382,6 +390,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/_authenticated/easyorder': typeof AuthenticatedEasyorderRoute
+  '/_authenticated/lohn': typeof AuthenticatedLohnRoute
   '/_authenticated/passwort-aendern': typeof AuthenticatedPasswortAendernRoute
   '/display/$locationId': typeof DisplayLocationIdRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
@@ -428,6 +437,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/admin'
     | '/easyorder'
+    | '/lohn'
     | '/passwort-aendern'
     | '/display/$locationId'
     | '/admin/aufgaben'
@@ -469,6 +479,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/easyorder'
+    | '/lohn'
     | '/passwort-aendern'
     | '/display/$locationId'
     | '/'
@@ -511,6 +522,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/_authenticated/admin'
     | '/_authenticated/easyorder'
+    | '/_authenticated/lohn'
     | '/_authenticated/passwort-aendern'
     | '/display/$locationId'
     | '/_authenticated/'
@@ -600,6 +612,13 @@ declare module '@tanstack/react-router' {
       path: '/passwort-aendern'
       fullPath: '/passwort-aendern'
       preLoaderRoute: typeof AuthenticatedPasswortAendernRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/lohn': {
+      id: '/_authenticated/lohn'
+      path: '/lohn'
+      fullPath: '/lohn'
+      preLoaderRoute: typeof AuthenticatedLohnRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/easyorder': {
@@ -958,6 +977,7 @@ const AuthenticatedAdminRouteRouteWithChildren =
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRouteRoute: typeof AuthenticatedAdminRouteRouteWithChildren
   AuthenticatedEasyorderRoute: typeof AuthenticatedEasyorderRoute
+  AuthenticatedLohnRoute: typeof AuthenticatedLohnRoute
   AuthenticatedPasswortAendernRoute: typeof AuthenticatedPasswortAendernRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedZeitAbrechnungRoute: typeof AuthenticatedZeitAbrechnungRoute
@@ -972,6 +992,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRouteRoute: AuthenticatedAdminRouteRouteWithChildren,
   AuthenticatedEasyorderRoute: AuthenticatedEasyorderRoute,
+  AuthenticatedLohnRoute: AuthenticatedLohnRoute,
   AuthenticatedPasswortAendernRoute: AuthenticatedPasswortAendernRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedZeitAbrechnungRoute: AuthenticatedZeitAbrechnungRoute,

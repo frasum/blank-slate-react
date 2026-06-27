@@ -1,5 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
-import { Home, Clock, Receipt, ShoppingCart, LayoutDashboard, type LucideIcon } from "lucide-react";
+import {
+   Home,
+   Clock,
+   Receipt,
+   ShoppingCart,
+   LayoutDashboard,
+   FileText,
+   type LucideIcon,
+} from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { getMyEasyOrderContext } from "@/lib/bestellung/easyorder.functions";
 
@@ -20,6 +28,7 @@ export function usePortalNav(): { items: PortalNavItem[]; isLoading: boolean } {
   if (role === "admin" || role === "manager" || role === "staff") {
     items.push({ to: "/zeit", label: "Stempeln", icon: Clock });
     items.push({ to: "/zeit/abrechnung", label: "Abrechnung", icon: Receipt });
+    items.push({ to: "/lohn", label: "Lohn", icon: FileText });
   }
   if (hasEasyOrder) items.push({ to: "/easyorder", label: "Bestellung", icon: ShoppingCart });
   if (role === "admin" || role === "manager")
