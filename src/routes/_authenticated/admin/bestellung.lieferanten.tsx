@@ -30,6 +30,7 @@ import {
   updateCartItem,
 } from "@/lib/bestellung/cart.functions";
 import { getLastOrderByArticle } from "@/lib/bestellung/orders.functions";
+import { listLocations } from "@/lib/admin/locations.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/bestellung/lieferanten")({
   head: () => ({ meta: [{ title: "Lieferanten · Bestellung" }] }),
@@ -128,6 +129,7 @@ function LieferantenPage() {
         supplierId: string;
         articleId: string;
         initial: ArticleDraft;
+        initialLocationIds: string[];
       }
     | null
   >(null);
@@ -148,6 +150,10 @@ function LieferantenPage() {
     queryKey: ["bestellung", "last-order-by-article"],
     queryFn: () => getLastOrderByArticle(),
     staleTime: 5 * 60 * 1000,
+  });
+  const locationsQ = useQuery({
+    queryKey: ["admin", "locations"],
+    queryFn: () => listLocations(),
   });
 
   const refreshSuppliers = () => qc.invalidateQueries({ queryKey: ["bestellung", "suppliers"] });
@@ -257,7 +263,7 @@ function LieferantenPage() {
   });
 
   const createArtMut = useMutation({
-    mutationFn: (input: { supplierId: string; draft: ArticleDraft }) =>
+    mutationFn: (input: { supplierId: string; draft: ArticleDraft; locationIds: string[] }) =>
       callCreateArt({
         data: {
           supplierId: input.supplierId,
@@ -270,6 +276,7 @@ function LieferantenPage() {
           packagingUnit: input.draft.packagingUnit
             ? Math.max(1, Math.round(Number(input.draft.packagingUnit)))
             : null,
+          locationIds: input.locationIds,
         },
       }),
     onSuccess: () => {
@@ -281,7 +288,12 @@ function LieferantenPage() {
   });
 
   const updateArtMut = useMutation({
-    mutationFn: (input: { articleId: string; supplierId: string; draft: ArticleDraft }) =>
+    mutationFn: (input: {
+      articleId: string;
+      supplierId: string;
+      draft: ArticleDraft;
+      locationIds: string[];
+    }) =>
       callUpdateArt({
         data: {
           articleId: input.articleId,
@@ -295,6 +307,7 @@ function LieferantenPage() {
           packagingUnit: input.draft.packagingUnit
             ? Math.max(1, Math.round(Number(input.draft.packagingUnit)))
             : null,
+          locationIds: input.locationIds,
         },
       }),
     onSuccess: () => {
@@ -582,6 +595,8 @@ function LieferantenPage() {
                                               : "",
                                           packagingUnit: a.packaging_unit?.toString() ?? "",
                                         },
+                                        initialLocationIds:
+                                          a.locationIds ?? (locationsQ.data ?? []).map((l) => l.id),
                                       })
                                     }
                                     className="rounded border border-input bg-background p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
@@ -633,19 +648,26 @@ function LieferantenPage() {
               initial={articleDialog.mode === "edit" ? articleDialog.initial : EMPTY_ARTICLE_DRAFT}
               suppliers={(suppliersQ.data ?? []).map((s) => ({ id: s.id, name: s.name }))}
               initialSupplierId={articleDialog.supplierId}
+              locations={(locationsQ.data ?? []).map((l) => ({ id: l.id, name: l.name }))}
+              initialLocationIds={
+                articleDialog.mode === "edit"
+                  ? articleDialog.initialLocationIds
+                  : (locationsQ.data ?? []).map((l) => l.id)
+              }
               submitLabel={articleDialog.mode === "edit" ? "Speichern" : "Anlegen"}
               submitting={
                 articleDialog.mode === "edit" ? updateArtMut.isPending : createArtMut.isPending
               }
-              onSubmit={(d, supplierId) => {
+              onSubmit={(d, supplierId, locationIds) => {
                 if (articleDialog.mode === "edit") {
                   updateArtMut.mutate({
                     articleId: articleDialog.articleId,
                     supplierId,
                     draft: d,
+                    locationIds,
                   });
                 } else {
-                  createArtMut.mutate({ supplierId, draft: d });
+                  createArtMut.mutate({ supplierId, draft: d, locationIds });
                 }
               }}
               onCancel={() => setArticleDialog(null)}
@@ -851,21 +873,26 @@ function ArticleForm(props: {
   initial: ArticleDraft;
   suppliers: { id: string; name: string }[];
   initialSupplierId: string;
+  locations: { id: string; name: string }[];
+  initialLocationIds: string[];
   submitLabel: string;
   submitting: boolean;
-  onSubmit: (d: ArticleDraft, supplierId: string) => void;
+  onSubmit: (d: ArticleDraft, supplierId: string, locationIds: string[]) => void;
   onCancel: () => void;
 }) {
   const [d, setD] = useState<ArticleDraft>(props.initial);
   const [supplierId, setSupplierId] = useState(props.initialSupplierId);
+  const [locationIds, setLocationIds] = useState<string[]>(props.initialLocationIds);
   const set = <K extends keyof ArticleDraft>(k: K, v: ArticleDraft[K]) =>
     setD((prev) => ({ ...prev, [k]: v }));
+  const toggleLocation = (id: string) =>
+    setLocationIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   return (
     <form
       className="space-y-3"
       onSubmit={(e) => {
         e.preventDefault();
-        props.onSubmit(d, supplierId);
+        props.onSubmit(d, supplierId, locationIds);
       }}
     >
       <Field label="Lieferant">
@@ -880,6 +907,22 @@ function ArticleForm(props: {
             </option>
           ))}
         </select>
+      </Field>
+      <Field label="Bestellbar für">
+        <div className="flex flex-wrap gap-3">
+          {props.locations.map((l) => {
+            const on = locationIds.includes(l.id);
+            return (
+              <label key={l.id} className="flex items-center gap-2 text-sm text-foreground">
+                <input type="checkbox" checked={on} onChange={() => toggleLocation(l.id)} />
+                {l.name}
+              </label>
+            );
+          })}
+        </div>
+        {locationIds.length === 0 && (
+          <p className="mt-1 text-xs text-destructive">Mindestens ein Restaurant auswählen.</p>
+        )}
       </Field>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <Field label="Name *">
@@ -938,7 +981,9 @@ function ArticleForm(props: {
       <div className="flex items-center gap-2">
         <button
           type="submit"
-          disabled={props.submitting || !d.name.trim() || !d.unit.trim()}
+          disabled={
+            props.submitting || !d.name.trim() || !d.unit.trim() || locationIds.length === 0
+          }
           className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
           {props.submitLabel}

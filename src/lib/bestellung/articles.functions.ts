@@ -79,6 +79,7 @@ const ArticleInput = z.object({
     .or(z.literal(""))
     .transform((v) => (v ? v : null)),
   specialAttributes: z.array(z.string().trim().min(1).max(60)).optional().nullable(),
+  locationIds: z.array(z.string().uuid()).min(1, "Mindestens ein Restaurant auswählen."),
 });
 
 export const listArticles = createServerFn({ method: "GET" })
@@ -116,7 +117,22 @@ export const listArticles = createServerFn({ method: "GET" })
     }
     const { data: rows, error } = await q;
     if (error) throw error;
-    return rows ?? [];
+    const articleRows = rows ?? [];
+    if (articleRows.length === 0) return [];
+    const ids = articleRows.map((r) => r.id);
+    const { data: links, error: linkErr } = await supabaseAdmin
+      .from("article_locations")
+      .select("article_id, location_id")
+      .eq("organization_id", caller.organizationId)
+      .in("article_id", ids);
+    if (linkErr) throw linkErr;
+    const byArticle = new Map<string, string[]>();
+    for (const l of links ?? []) {
+      const arr = byArticle.get(l.article_id) ?? [];
+      arr.push(l.location_id);
+      byArticle.set(l.article_id, arr);
+    }
+    return articleRows.map((r) => ({ ...r, locationIds: byArticle.get(r.id) ?? [] }));
   });
 
 export const listArticleCategories = createServerFn({ method: "GET" })
@@ -155,6 +171,18 @@ export const createArticle = createServerFn({ method: "POST" })
       if (supErr) throw supErr;
       if (!sup) throw new Error("Lieferant gehört nicht zur Organisation.");
 
+      // Standort-IDs müssen zur Organisation gehören.
+      const { data: validLocs, error: locErr } = await supabaseAdmin
+        .from("locations")
+        .select("id")
+        .eq("organization_id", caller.organizationId)
+        .in("id", data.locationIds);
+      if (locErr) throw locErr;
+      const validLocIds = new Set((validLocs ?? []).map((l) => l.id));
+      if (validLocIds.size !== data.locationIds.length) {
+        throw new Error("Mindestens ein Standort gehört nicht zur Organisation.");
+      }
+
       const { data: row, error } = await supabaseAdmin
         .from("articles")
         .insert({
@@ -178,13 +206,26 @@ export const createArticle = createServerFn({ method: "POST" })
         .select("id")
         .single();
       if (error) throw error;
+      const { error: alErr } = await supabaseAdmin.from("article_locations").insert(
+        data.locationIds.map((locationId) => ({
+          organization_id: caller.organizationId,
+          article_id: row.id,
+          location_id: locationId,
+        })),
+      );
+      if (alErr) throw alErr;
       return {
         result: { id: row.id },
         audit: {
           action: "article.create",
           entity: "article",
           entityId: row.id,
-          meta: { name: data.name, supplierId: data.supplierId, priceCents: data.priceCents },
+          meta: {
+            name: data.name,
+            supplierId: data.supplierId,
+            priceCents: data.priceCents,
+            locationIds: data.locationIds,
+          },
         },
       };
     });
@@ -205,6 +246,17 @@ export const updateArticle = createServerFn({ method: "POST" })
         .maybeSingle();
       if (supErr) throw supErr;
       if (!sup) throw new Error("Lieferant gehört nicht zur Organisation.");
+
+      const { data: validLocs, error: locErr } = await supabaseAdmin
+        .from("locations")
+        .select("id")
+        .eq("organization_id", caller.organizationId)
+        .in("id", data.locationIds);
+      if (locErr) throw locErr;
+      const validLocIds = new Set((validLocs ?? []).map((l) => l.id));
+      if (validLocIds.size !== data.locationIds.length) {
+        throw new Error("Mindestens ein Standort gehört nicht zur Organisation.");
+      }
 
       const { error } = await supabaseAdmin
         .from("articles")
@@ -228,13 +280,28 @@ export const updateArticle = createServerFn({ method: "POST" })
         .eq("id", data.articleId)
         .eq("organization_id", caller.organizationId);
       if (error) throw error;
+      // Standort-Zuordnung ersetzen.
+      const { error: delErr } = await supabaseAdmin
+        .from("article_locations")
+        .delete()
+        .eq("organization_id", caller.organizationId)
+        .eq("article_id", data.articleId);
+      if (delErr) throw delErr;
+      const { error: insErr } = await supabaseAdmin.from("article_locations").insert(
+        data.locationIds.map((locationId) => ({
+          organization_id: caller.organizationId,
+          article_id: data.articleId,
+          location_id: locationId,
+        })),
+      );
+      if (insErr) throw insErr;
       return {
         result: { ok: true as const },
         audit: {
           action: "article.update",
           entity: "article",
           entityId: data.articleId,
-          meta: { name: data.name, priceCents: data.priceCents },
+          meta: { name: data.name, priceCents: data.priceCents, locationIds: data.locationIds },
         },
       };
     });
