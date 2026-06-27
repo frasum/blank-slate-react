@@ -623,32 +623,50 @@ export type Database = {
       display_settings: {
         Row: {
           created_at: string
+          custom_message: string | null
           display_token: string
           id: string
           is_enabled: boolean
           location_id: string
           organization_id: string
           refresh_interval_seconds: number
+          rotation_enabled: boolean
+          rotation_interval_seconds: number
+          show_areas: string[] | null
+          show_footer: boolean
+          show_header: boolean
           updated_at: string
         }
         Insert: {
           created_at?: string
+          custom_message?: string | null
           display_token?: string
           id?: string
           is_enabled?: boolean
           location_id: string
           organization_id: string
           refresh_interval_seconds?: number
+          rotation_enabled?: boolean
+          rotation_interval_seconds?: number
+          show_areas?: string[] | null
+          show_footer?: boolean
+          show_header?: boolean
           updated_at?: string
         }
         Update: {
           created_at?: string
+          custom_message?: string | null
           display_token?: string
           id?: string
           is_enabled?: boolean
           location_id?: string
           organization_id?: string
           refresh_interval_seconds?: number
+          rotation_enabled?: boolean
+          rotation_interval_seconds?: number
+          show_areas?: string[] | null
+          show_footer?: boolean
+          show_header?: boolean
           updated_at?: string
         }
         Relationships: [
