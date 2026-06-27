@@ -5,10 +5,11 @@
 // ssr:false, weil Supabase die Session in localStorage hält und der
 // Server sie bei Hard-Refresh nicht sehen kann.
 
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect, useRouterState } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyIdentity } from "@/lib/auth/me.functions";
 import { ImpersonationBanner } from "@/components/impersonation-banner";
+import { PortalShell } from "@/components/portal/PortalShell";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -36,10 +37,12 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 function AuthenticatedLayout() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const inAdmin = pathname === "/admin" || pathname.startsWith("/admin/");
   return (
     <>
       <ImpersonationBanner />
-      <Outlet />
+      {inAdmin ? <Outlet /> : <PortalShell><Outlet /></PortalShell>}
     </>
   );
 }
