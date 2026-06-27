@@ -114,9 +114,10 @@ function DienstplanPage() {
       }),
     enabled: !!effectiveLocationId && !!effectivePeriod,
   });
-  const released = releaseQ.data?.released ?? false;
+  const kitchenReleased = releaseQ.data?.kitchen ?? false;
+  const serviceReleased = releaseQ.data?.service ?? false;
 
-  async function handleToggleRelease() {
+  async function handleToggleArea(area: "kitchen" | "service", currentlyReleased: boolean) {
     if (!canEdit || !effectiveLocationId || !effectivePeriod) return;
     setBusy(true);
     try {
@@ -124,11 +125,16 @@ function DienstplanPage() {
         data: {
           locationId: effectiveLocationId,
           periodId: effectivePeriod.id,
-          released: !released,
+          area,
+          released: !currentlyReleased,
         },
       });
       qc.invalidateQueries({ queryKey: ["roster-release"] });
-      toast.success(released ? "Freigabe zurückgezogen." : "Dienstplan freigegeben.");
+      toast.success(
+        currentlyReleased
+          ? `Freigabe ${area === "kitchen" ? "Küche" : "Service"} zurückgezogen.`
+          : `${area === "kitchen" ? "Küche" : "Service"} freigegeben.`,
+      );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
     } finally {
