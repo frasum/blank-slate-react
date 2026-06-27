@@ -680,3 +680,41 @@ function DienstplanPage() {
     </div>
   );
 }
+
+function AreaReleaseControl({
+  label,
+  released,
+  canEdit,
+  busy,
+  disabled,
+  onToggle,
+}: {
+  label: string;
+  released: boolean;
+  canEdit: boolean;
+  busy: boolean;
+  disabled: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      {released && (
+        <span className="rounded-md bg-emerald-500/10 px-2 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+          ✓ freigegeben
+        </span>
+      )}
+      {canEdit && (
+        <Button
+          type="button"
+          size="sm"
+          variant={released ? "outline" : "default"}
+          disabled={busy || disabled}
+          onClick={onToggle}
+        >
+          {released ? "Freigabe zurückziehen" : "freigeben"}
+        </Button>
+      )}
+    </div>
+  );
+}
