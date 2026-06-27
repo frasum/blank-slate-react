@@ -1,7 +1,7 @@
-import { Input } from "@/components/ui/input";
 import { fmtCents } from "@/lib/format";
 import { parseEuroToCents } from "@/lib/cash/kasse-helpers";
-import { computeSummaryRows } from "@/lib/cash/cash-summary";
+import { computeWechselgeld } from "@/lib/cash/cash-summary";
+import { computeDailyCash } from "@/lib/cash/cash-ledger";
 import { sessionToDayInput } from "@/lib/cash/session-day-input";
 import type { Overview } from "@/lib/cash/kasse-types";
 
@@ -21,7 +21,6 @@ type CashSummaryMisc = {
 
 export function CashSummaryBlock({
   misc,
-  setMisc,
   writable,
   chRows,
   channelById,
@@ -30,9 +29,10 @@ export function CashSummaryBlock({
   advances,
   overview,
   cashBalanceTargetCents,
+  previousDeficitCents,
+  previousDeficitSourceDate,
 }: {
   misc: CashSummaryMisc;
-  setMisc: React.Dispatch<React.SetStateAction<CashSummaryMisc>>;
   writable: boolean;
   chRows: { id: string; euro: string }[];
   channelById: Record<string, { kind: string } | undefined>;
@@ -41,7 +41,10 @@ export function CashSummaryBlock({
   advances: Array<{ amountCents: number }>;
   overview: Overview;
   cashBalanceTargetCents: number;
+  previousDeficitCents: number;
+  previousDeficitSourceDate: string | null;
 }) {
+  void writable;
   const sess = overview.session!;
   const channelSum = (kind: string) =>
     chRows
@@ -74,68 +77,68 @@ export function CashSummaryBlock({
     },
   );
 
-  const caRaw = misc.cashActual.trim();
-  const cashActualCents = caRaw === "" ? null : parseEuroToCents(caRaw);
-  const rows = computeSummaryRows({
-    dayInput,
-    cashActualCents,
+  const tagesBargeldCents = computeDailyCash(dayInput);
+  const { tresorCents, wechselgeldbestandCents } = computeWechselgeld({
+    tagesBargeldCents,
+    previousDeficitCents,
     cashTargetCents: cashBalanceTargetCents,
   });
 
   const fmtEur = (c: number) => `${fmtCents(c)} €`;
+  const fmtDate = (iso: string): string => {
+    const [y, m, d] = iso.split("-");
+    return `${d}.${m}.${y}`;
+  };
+  const below = wechselgeldbestandCents < cashBalanceTargetCents;
 
   return (
     <div>
       <div
         className={`border-b px-3 py-2 flex items-center justify-between text-sm ${
-          rows.tagesBargeldCents < 0 ? "bg-red-50" : "bg-emerald-50"
+          tagesBargeldCents < 0 ? "bg-red-50" : "bg-emerald-50"
         }`}
       >
         <span className="font-semibold text-foreground">Tages-Bargeld</span>
         <span
           className={`font-mono tabular-nums font-semibold ${
-            rows.tagesBargeldCents < 0 ? "text-red-700" : "text-emerald-700"
+            tagesBargeldCents < 0 ? "text-red-700" : "text-emerald-700"
           }`}
         >
-          {fmtEur(rows.tagesBargeldCents)}
+          {fmtEur(tagesBargeldCents)}
         </span>
       </div>
-      {rows.tresorCents > 0 && (
-        <div className="border-b bg-orange-50 px-3 py-2 flex items-center justify-between text-sm">
-          <span className="text-orange-700">Bargeld mit der Abrechnung in den Tresor legen</span>
-          <span className="font-mono tabular-nums text-orange-700">{fmtEur(rows.tresorCents)}</span>
+      {previousDeficitCents < 0 && (
+        <div className="border-b bg-red-50 px-3 py-2 flex items-center justify-between text-sm">
+          <span className="text-red-700">
+            Fehlbetrag Vortag
+            {previousDeficitSourceDate ? ` (${fmtDate(previousDeficitSourceDate)})` : ""}
+          </span>
+          <span className="font-mono tabular-nums text-red-700">
+            {fmtEur(previousDeficitCents)}
+          </span>
         </div>
       )}
-      <div className="bg-emerald-50 px-3 py-2 flex items-center justify-between gap-3 text-sm">
-        <label htmlFor="wechselgeld-input" className="font-semibold text-foreground">
+      {tresorCents > 0 && (
+        <div className="border-b bg-orange-50 px-3 py-2 flex items-center justify-between text-sm">
+          <span className="text-orange-700">Bargeld mit der Abrechnung in den Tresor legen</span>
+          <span className="font-mono tabular-nums text-orange-700">{fmtEur(tresorCents)}</span>
+        </div>
+      )}
+      <div
+        className={`px-3 py-2 flex items-center justify-between gap-3 text-sm ${
+          below ? "bg-red-50" : "bg-emerald-50"
+        }`}
+      >
+        <span className="font-semibold text-foreground">
           Wechselgeldbestand (soll ist {fmtEur(cashBalanceTargetCents)})
-        </label>
-        {(() => {
-          const parsed = parseEuroToCents(misc.cashActual);
-          const effective =
-            parsed ??
-            (rows.tagesBargeldCents < 0 ? cashBalanceTargetCents + rows.tagesBargeldCents : null);
-          const below = effective !== null && effective < cashBalanceTargetCents;
-          return (
-            <Input
-              id="wechselgeld-input"
-              className={`h-7 w-36 text-sm text-right font-mono bg-white ${
-                below
-                  ? "border-red-300 text-red-700 placeholder:text-red-700"
-                  : "border-emerald-200"
-              }`}
-              inputMode="decimal"
-              value={misc.cashActual}
-              placeholder={
-                rows.tagesBargeldCents < 0
-                  ? fmtCents(cashBalanceTargetCents + rows.tagesBargeldCents)
-                  : undefined
-              }
-              onChange={(e) => setMisc((prev) => ({ ...prev, cashActual: e.target.value }))}
-              disabled={!writable}
-            />
-          );
-        })()}
+        </span>
+        <span
+          className={`font-mono tabular-nums font-semibold ${
+            below ? "text-red-700" : "text-emerald-700"
+          }`}
+        >
+          {fmtEur(wechselgeldbestandCents)}
+        </span>
       </div>
     </div>
   );
