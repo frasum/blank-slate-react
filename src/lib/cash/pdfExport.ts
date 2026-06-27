@@ -278,6 +278,25 @@ export async function generateDailySummaryPdf(data: PdfExportData): Promise<{
     },
   ]);
   summaryRows.push(["Hilf Mahl", fmtEur(sumHilf)]);
+  const _prevDeficitForRow = data.previousDeficitCents ?? 0;
+  if (_prevDeficitForRow < 0) {
+    const dateLabel = (() => {
+      const iso = data.previousDeficitSourceDate;
+      if (!iso) return "";
+      const [y, m, d] = iso.split("-");
+      return ` (${d}.${m}.${y})`;
+    })();
+    summaryRows.push([
+      {
+        content: `Fehlbetrag Vortag${dateLabel}`,
+        styles: { textColor: RED },
+      },
+      {
+        content: fmtEur(_prevDeficitForRow),
+        styles: { halign: "right", textColor: RED },
+      },
+    ]);
+  }
   summaryRows.push([
     {
       content: "Differenz zum Wechselgeldbestand",
@@ -319,20 +338,26 @@ export async function generateDailySummaryPdf(data: PdfExportData): Promise<{
   });
   let leftEndY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
 
-  // Optional: Wechselgeldbestand (Kasse Ist) als Highlight unter Summary
-  if (sess.cash_actual_cents != null) {
-    leftEndY += 1;
-    const rc = sess.cash_actual_cents;
+  // Wechselgeldbestand (berechnet) als Highlight unter Summary
+  {
     const cashTarget = data.cashBalanceTargetCents ?? 200_000;
+    const { wechselgeldbestandCents } = computeWechselgeld({
+      tagesBargeldCents: bargeldCents,
+      previousDeficitCents: data.previousDeficitCents ?? 0,
+      cashTargetCents: cashTarget,
+    });
+    leftEndY += 1;
     const fillColor: [number, number, number] =
-      rc >= cashTarget ? [220, 252, 231] : [254, 226, 226];
+      wechselgeldbestandCents >= cashTarget ? [220, 252, 231] : [254, 226, 226];
     doc.setFillColor(...fillColor);
     doc.rect(leftX, leftEndY - 4, leftColWidth, 8, "F");
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(0);
     doc.text("Wechselgeldbestand", leftX + 2, leftEndY);
-    doc.text(fmtEur(rc), leftX + leftColWidth - 2, leftEndY, { align: "right" });
+    doc.text(fmtEur(wechselgeldbestandCents), leftX + leftColWidth - 2, leftEndY, {
+      align: "right",
+    });
     leftEndY += 8;
   }
 
@@ -460,7 +485,7 @@ export async function generateDailySummaryPdf(data: PdfExportData): Promise<{
 
   // ---- Schnittlinie + Wechselgeldbestand-Footer --------------------------
   y = Math.max(leftEndY, rightEndY) + 6;
-  if (sess.cash_actual_cents != null) {
+  {
     const cutLineY = y;
     doc.setDrawColor(120);
     doc.setLineWidth(0.5);
@@ -468,11 +493,17 @@ export async function generateDailySummaryPdf(data: PdfExportData): Promise<{
     doc.line(margin, cutLineY, pageWidth - margin, cutLineY);
     doc.setLineDashPattern([], 0);
 
+    const cashTarget = data.cashBalanceTargetCents ?? 200_000;
+    const { wechselgeldbestandCents } = computeWechselgeld({
+      tagesBargeldCents: bargeldCents,
+      previousDeficitCents: data.previousDeficitCents ?? 0,
+      cashTargetCents: cashTarget,
+    });
     const textY = cutLineY + 12;
     doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(0);
-    doc.text(`Wechselgeldbestand: ${fmtEur(sess.cash_actual_cents)}`, pageWidth / 2, textY, {
+    doc.text(`Wechselgeldbestand: ${fmtEur(wechselgeldbestandCents)}`, pageWidth / 2, textY, {
       align: "center",
     });
 
