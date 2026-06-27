@@ -1,51 +1,49 @@
-## Ziel
+## Lohnabrechnungen (payslips) — Plan
 
-13-Wochen-Diagnose pro Mitarbeiter sichtbar machen (CSV-Spalten), **ohne** Brutto, Lohnarten oder bestehende Logik anzufassen. Reine READ-ONLY-Erweiterung zur edlohn-Verifikation.
+### 1. Migration (RLS-Korrektur)
+Neue Supabase-Migration: die vier vorhandenen `payslips_*`-Policies auf `storage.objects` droppen und neu anlegen.
+- `payslips_select_own_or_admin` (SELECT): Staff liest eigene (`org/staff/...`), Admin liest alle der eigenen Org.
+- `payslips_insert_admin`, `payslips_update_admin`, `payslips_delete_admin`: nur `ra.role = 'admin'` der Org (Manager-Zweig fällt weg).
+- Pfad-Konvention `{organization_id}/{staff_id}/<name>` bleibt; SQL exakt wie im Prompt.
 
-## Neue Dateien
+### 2. Reines Modul + Test
+- `src/lib/payslips/payslip-path.ts`:
+  - `payslipFolder(org, staff)` → `${org}/${staff}`.
+  - `sanitizePayslipFileName(name)`: erlaubt `[A-Za-z0-9._ -]`, lehnt `/`, `\`, `..`, leer, mit `.` beginnend ab → `string | null`.
+  - `isPayslipPathAllowed({ path, organizationId, staffId, role })`: eigene immer, Admin org-weit, sonst false.
+- `src/lib/payslips/payslip-path.test.ts` mit den im Prompt genannten Fällen, abschließendem Newline.
 
-**`src/lib/lohn/urlaub-krank-core.ts`** — reines Modul
-- `isoWeekday(isoDate)` — UTC-stabil, 0=So…6=Sa
-- `deriveWorkingWeekdays(workedDates, threshold=7)` — Mehrheits-Regel über 13 Wochen
-- `countWorkdaysInAbsence(absenceDates, workingWeekdays)` — Filter nach Arbeits-Wochentagen
+### 3. Server-Functions
+`src/lib/payslips/payslips.functions.ts` analog `cash.functions.ts`:
+- `loadAdminCaller(context.supabase, context.userId, minRole)` zur Gate-Prüfung.
+- `supabaseAdmin` per `await import("@/integrations/supabase/client.server")` innerhalb des Handlers.
+- Funktionen:
+  1. `listMyPayslips` (GET, `staff`): list folder, `.emptyFolderPlaceholder` filtern, Rückgabe `{ name, path, createdAt, sizeBytes }[]`.
+  2. `getPayslipSignedUrl` (POST, `staff`, `{ path }`): `isPayslipPathAllowed` prüfen, sonst `ForbiddenError`; `createSignedUrl(path, 60)`.
+  3. `listStaffPayslips` (GET, `admin`, `{ staffId }`): wie 1 für fremden Folder.
+  4. `uploadPayslip` (POST, `admin`, `{ staffId, fileName, contentBase64 }`): Sanitize, `Uint8Array.from(atob(...), c => c.charCodeAt(0))`, Upload mit `contentType: "application/pdf"`, `upsert: true`.
+  5. `deletePayslip` (POST, `admin`, `{ path }`): `path.startsWith(org + "/")` prüfen, `remove([path])`.
 
-**`src/lib/lohn/urlaub-krank-core.test.ts`** — Unit-Tests
-- isoWeekday Mo/So
-- deriveWorkingWeekdays Threshold-Verhalten
-- countWorkdaysInAbsence Mo–Fr aus 7 Kalendertagen → 5
+### 4. Staff-Portal-Route
+`src/routes/_authenticated/lohn.tsx`:
+- `createFileRoute`, Title „Lohnabrechnungen".
+- `mx-auto max-w-xl space-y-6 px-4 py-8` (PortalShell vorhanden).
+- `useQuery(["payslips","mine"], listMyPayslips)`.
+- Liste mit Dateiname + Datum, „Öffnen" → `getPayslipSignedUrl` → `window.open(url, "_blank")`.
+- Leerzustand-Text, Header-Link „Zur Stempeluhr".
 
-**`src/lib/lohn/urlaub-krank-diagnose.ts`** — Server-Helfer
-- `computeUrlaubKrankDiagnose(supabaseAdmin, { staffId, fromDate, toDate, mode })`
-- Berechnet `refFrom = fromDate − 91d`, `refTo = fromDate − 1d`
-- Ruft `aggregateSfnPeriod` (wiederverwendet, nicht geändert) für `avgStdTag` (2 NK) und `avgSfnTagCent` (ganze Cent, je nach `mode`)
-- Liest distinct `business_date` aus `time_entries` (abgeschlossen, im Ref-Fenster) → `deriveWorkingWeekdays`
-- Liest `roster_absence` (`type IN ('urlaub','krank')` im Perioden-Fenster) → getrennt `urlaubTage` / `krankTage` via `countWorkdaysInAbsence`
-- Rückgabe: `{ urlaubTage, krankTage, avgStdTag, avgSfnTagCent, workingWeekdays: number[] }`
+### 5. Portal-Nav-Erweiterung
+`src/lib/nav/portal-nav.ts`: neues Item `{ to: "/lohn", label: "Lohn", icon: FileText }` (lucide) für staff/manager/admin direkt nach „Abrechnung".
 
-## Änderungen an bestehenden Dateien (nur Durchreichung)
+### 6. Admin-Karte
+`src/routes/_authenticated/admin/staff.$staffId.tsx`: Karte „Lohnabrechnungen" nur wenn `identity.role === "admin"`:
+- `useQuery(["payslips","staff",staffId], …)`, „Öffnen" + „Löschen" (mit `confirm`).
+- Upload via `<input type="file" accept="application/pdf">`, `FileReader.readAsDataURL`, base64 = `result.split(",")[1]`, danach Liste invalidieren, Toast.
 
-**`src/lib/lohn/lohn-rechner.functions.ts`**
-- In `computeLohnForStaff`: `computeUrlaubKrankDiagnose(...)` aufrufen, Ergebnis in Rückgabe mergen. `zeilen`, `ergebnis`, Brutto **unverändert**.
-- `berechneLohnUebersicht` Row-Typ: `urlaubTage`, `krankTage`, `avgStdTag`, `avgSfnTagCent` (alle `number | null`, Fehler-Zweig `null`).
+### 7. Abschluss
+`prettier --write` auf alle neuen/geänderten Dateien (3.7.3); `tsc`, `eslint`, `vitest` müssen grün bleiben.
 
-**`src/lib/lohn/lohn-csv-export.ts`**
-- `UebersichtCsvRow` um vier Felder erweitern.
-- Header vor `fehler`: `urlaub_tage;krank_tage;avg_std_tag;avg_sfn_tag_cent`.
-- `urlaubTage`/`krankTage` als Integer, `avgStdTag` als Dezimal, `avgSfnTagCent` als Integer formatieren.
-
-**`src/lib/lohn/lohn-csv-export.test.ts`**
-- Spaltenzahl 22 → 26 anpassen, neue Header-Zeile, Voll-/Fehler-Zeilen-Fixtures erweitern.
-
-## Bewusst NICHT angefasst
-
-- `berechneLohn` / `lohn-core.ts` / `types.ts` Kategorien — keine neue Lohnart, kein Brutto-Eingriff.
-- `aggregateSfnPeriod`, `fixed-zeilen.ts`, SFN-/Sachbezug-/Mahlzeiten-Logik — nur Aufrufer.
-- UI (`/admin/lohnrechner`) — neue Felder erscheinen nur im CSV.
-
-## Erfolgs-Gate
-
-`tsc --noEmit`, `format:check`, `eslint . --max-warnings=5`, `vitest run` grün inkl. neuer Tests. Vor Commit: `prettier --write` + `eslint --fix` auf geänderten Dateien.
-
-## Offene Frage
-
-Die roster_absence-Query nutzt service-role (supabaseAdmin) und filtert auf `staff_id` + Datumsbereich — `organization_id`-Scope ist bereits durch den vorgelagerten Staff-Org-Check in `berechneLohnUebersicht` gewährleistet. OK so, oder soll ich `organization_id` zusätzlich in der Query mitgeben (Defense-in-Depth)?
+### Reihenfolge der Tool-Calls
+1. `supabase--migration` für RLS (wartet auf Approval, Types werden regeneriert).
+2. Danach Code: payslip-path + Test, payslips.functions.ts, /lohn-Route, portal-nav, staff-Detail-Karte.
+3. Prettier-Lauf.
