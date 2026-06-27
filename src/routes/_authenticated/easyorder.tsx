@@ -18,7 +18,7 @@ import {
 } from "@/lib/bestellung/easyorder.functions";
 import { getCurrentPosition } from "@/lib/geo/client";
 
-export const Route = createFileRoute("/_authenticated/admin/bestellung/easyorder")({
+export const Route = createFileRoute("/_authenticated/easyorder")({
   head: () => ({ meta: [{ title: "EasyOrder · Bestellung" }] }),
   component: EasyOrderPage,
 });

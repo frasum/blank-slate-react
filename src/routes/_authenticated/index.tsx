@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Link } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/use-auth";
+import { useQuery } from "@tanstack/react-query";
+import { getMyEasyOrderContext } from "@/lib/bestellung/easyorder.functions";
 
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
@@ -15,6 +17,12 @@ export const Route = createFileRoute("/_authenticated/")({
 function Index() {
   const { identity, identityLoading, signOut } = useAuth();
   const role = identity?.role;
+  const easyOrderQ = useQuery({
+    queryKey: ["easyorder", "context"],
+    queryFn: () => getMyEasyOrderContext(),
+    enabled: !!identity?.staffId,
+  });
+  const hasEasyOrder = (easyOrderQ.data?.locations.length ?? 0) > 0;
   const canAdmin = role === "admin" || role === "manager";
   const isPayroll = role === "payroll";
   const isStaff = role === "staff";
@@ -45,6 +53,10 @@ function Index() {
       role ? i.roles.includes(role as "admin" | "manager" | "payroll" | "staff") : false,
     )
     .sort((a, b) => a.label.localeCompare(b.label, "de"));
+  if (hasEasyOrder && !visible.some((v) => v.to === "/easyorder")) {
+    visible.push({ to: "/easyorder", label: "EasyOrder", roles: ["admin", "manager", "staff"] });
+    visible.sort((a, b) => a.label.localeCompare(b.label, "de"));
+  }
   void canAdmin;
   void isPayroll;
   void isStaff;
