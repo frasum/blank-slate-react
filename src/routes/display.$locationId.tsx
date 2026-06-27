@@ -21,6 +21,12 @@ type DisplayPayload = {
   date: string;
   releasedAreas: string[];
   shifts: ShiftDto[];
+  rotationEnabled: boolean;
+  rotationIntervalSeconds: number;
+  showAreas: string[] | null;
+  showHeader: boolean;
+  showFooter: boolean;
+  customMessage: string | null;
 };
 
 const searchSchema = z.object({ token: z.string().min(1).max(256).optional() });
@@ -42,6 +48,8 @@ function DisplayPage() {
   const [data, setData] = useState<DisplayPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(new Date());
+  const [rotIndex, setRotIndex] = useState(0);
+  const [rotProgress, setRotProgress] = useState(0);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 30 * 1000);
@@ -89,6 +97,58 @@ function DisplayPage() {
     };
   }, [locationId, token]);
 
+  const groups: { key: string; title: string; shifts: ShiftDto[]; accent: string }[] = (() => {
+    if (!data) return [];
+    const wanted = data.showAreas;
+    const all = [
+      {
+        key: "kitchen",
+        title: "Küche",
+        shifts: data.shifts.filter((s) => s.area === "kitchen"),
+        accent: "bg-orange-500/10 border-orange-500/30",
+      },
+      {
+        key: "service",
+        title: "Service",
+        shifts: data.shifts.filter((s) => s.area === "service"),
+        accent: "bg-sky-500/10 border-sky-500/30",
+      },
+      {
+        key: "gl",
+        title: "Sonstige",
+        shifts: data.shifts.filter((s) => s.area !== "kitchen" && s.area !== "service"),
+        accent: "bg-slate-500/10 border-slate-500/30",
+      },
+    ];
+    return all.filter((g) => (wanted ? wanted.includes(g.key) : true));
+  })();
+
+  const rotIntervalMs = Math.max(1000, (data?.rotationIntervalSeconds ?? 30) * 1000);
+  const rotationActive = !!data && data.rotationEnabled && groups.length > 1;
+
+  useEffect(() => {
+    if (!rotationActive) {
+      setRotProgress(0);
+      return;
+    }
+    const step = 100 / (rotIntervalMs / 100);
+    const t = setInterval(() => {
+      setRotProgress((p) => {
+        const next = p + step;
+        if (next >= 100) {
+          setRotIndex((i) => (i + 1) % groups.length);
+          return 0;
+        }
+        return next;
+      });
+    }, 100);
+    return () => clearInterval(t);
+  }, [rotationActive, rotIntervalMs, groups.length]);
+
+  useEffect(() => {
+    if (rotIndex >= groups.length) setRotIndex(0);
+  }, [groups.length, rotIndex]);
+
   if (error && !data) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 p-8 text-slate-100">
@@ -108,50 +168,94 @@ function DisplayPage() {
     );
   }
 
-  const kitchen = data.shifts.filter((s) => s.area === "kitchen");
-  const service = data.shifts.filter((s) => s.area === "service");
-  const other = data.shifts.filter((s) => s.area !== "kitchen" && s.area !== "service");
-  const kitchenReleased = data.releasedAreas.includes("kitchen");
-  const serviceReleased = data.releasedAreas.includes("service");
-
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      <header className="flex items-center justify-between border-b border-slate-800 px-10 py-6">
-        <div>
-          <h1 className="text-4xl font-bold tracking-tight">{data.location.name}</h1>
-          <p className="mt-1 text-lg text-slate-400">{formatShortDate(data.date)}</p>
-        </div>
-        <div className="text-right">
-          <div className="text-5xl font-mono font-semibold tabular-nums">{formatTime(now)}</div>
-          {error && <p className="mt-1 text-sm text-amber-400">{error}</p>}
-        </div>
-      </header>
+      {data.showHeader && (
+        <header className="flex items-center justify-between border-b border-slate-800 px-10 py-6">
+          <div>
+            <h1 className="text-4xl font-bold tracking-tight">{data.location.name}</h1>
+            <p className="mt-1 text-lg text-slate-400">{formatShortDate(data.date)}</p>
+          </div>
+          <div className="text-right">
+            <div className="text-5xl font-mono font-semibold tabular-nums">{formatTime(now)}</div>
+            {error && <p className="mt-1 text-sm text-amber-400">{error}</p>}
+          </div>
+        </header>
+      )}
 
-      <main className="grid grid-cols-1 gap-8 p-10 md:grid-cols-2">
-        {kitchenReleased ? (
-          <Column title="Küche" shifts={kitchen} accent="bg-orange-500/10 border-orange-500/30" />
+      {data.customMessage && (
+        <div className="border-b border-slate-800 bg-amber-500/10 px-10 py-3 text-center text-lg text-amber-200">
+          {data.customMessage}
+        </div>
+      )}
+
+      <main className="p-10">
+        {rotationActive ? (
+          <div className="space-y-4">
+            <RotationColumn
+              group={groups[rotIndex] ?? groups[0]}
+              releasedAreas={data.releasedAreas}
+            />
+            <div className="h-1 w-full overflow-hidden rounded-full bg-slate-800">
+              <div
+                className="h-full bg-slate-200 transition-[width] duration-100"
+                style={{ width: `${Math.min(100, rotProgress)}%` }}
+              />
+            </div>
+            <div className="flex justify-center gap-2">
+              {groups.map((g, i) => (
+                <span
+                  key={g.key}
+                  className={`h-2 w-2 rounded-full ${i === rotIndex ? "bg-slate-200" : "bg-slate-700"}`}
+                />
+              ))}
+            </div>
+          </div>
         ) : (
-          <PlaceholderColumn
-            title="Küche"
-            accent="bg-orange-500/10 border-orange-500/30"
-            message="Küche – noch nicht freigegeben"
-          />
-        )}
-        {serviceReleased ? (
-          <Column title="Service" shifts={service} accent="bg-sky-500/10 border-sky-500/30" />
-        ) : (
-          <PlaceholderColumn
-            title="Service"
-            accent="bg-sky-500/10 border-sky-500/30"
-            message="Service – noch nicht freigegeben"
-          />
-        )}
-        {other.length > 0 && (
-          <Column title="Sonstige" shifts={other} accent="bg-slate-500/10 border-slate-500/30" />
+          <div className={`grid grid-cols-1 gap-8 ${groups.length > 1 ? "md:grid-cols-2" : ""}`}>
+            {groups.map((g) => (
+              <RotationColumn key={g.key} group={g} releasedAreas={data.releasedAreas} />
+            ))}
+          </div>
         )}
       </main>
+
+      {data.showFooter && (
+        <footer className="border-t border-slate-800 px-10 py-4 text-center text-sm text-slate-400">
+          <span className="font-medium text-slate-300">Legende:</span> X = Service · B = Bar · GL =
+          Geschäftsleitung · H = Hausmeister · 19h = ab 19 Uhr
+        </footer>
+      )}
     </div>
   );
+}
+
+function RotationColumn({
+  group,
+  releasedAreas,
+}: {
+  group: { key: string; title: string; shifts: ShiftDto[]; accent: string };
+  releasedAreas: string[];
+}) {
+  if (group.key === "kitchen" && !releasedAreas.includes("kitchen")) {
+    return (
+      <PlaceholderColumn
+        title="Küche"
+        accent={group.accent}
+        message="Küche – noch nicht freigegeben"
+      />
+    );
+  }
+  if (group.key === "service" && !releasedAreas.includes("service")) {
+    return (
+      <PlaceholderColumn
+        title="Service"
+        accent={group.accent}
+        message="Service – noch nicht freigegeben"
+      />
+    );
+  }
+  return <Column title={group.title} shifts={group.shifts} accent={group.accent} />;
 }
 
 function PlaceholderColumn({
