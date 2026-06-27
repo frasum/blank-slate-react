@@ -621,3 +621,54 @@ Drei Features, alle CI-grün (tsc / eslint-Prettier-3.7.3 / 787 Tests) + live.
 1. **`.in([viele IDs])` sprengt die PostgREST-URL-Länge → HTTP 400.** Bei großen Mengen (z. B. alle Artikel-IDs) stattdessen **Inner-Join** (`tabelle!inner(spalte)` + `.eq(...)`) oder org-weit laden + im Speicher filtern. Kleine Mengen (≤ ~50, z. B. Team eines Standorts) sind mit `.in` ok.
 2. **Neue Tabellen/Spalten brauchen `notify pgrst, 'reload schema';` in der Migration.** Raw-SQL-Editor umgeht PostgREST (sieht Änderungen sofort), die App geht **durch** PostgREST (Schema-Cache) → ohne Reload „column/table not found".
 3. **Prettier exakt `3.7.3`** (package.json + bun.lock, **kein** Caret). Lokal **vor** `eslint`/`format:check`: `npm i prettier@3.7.3` (sonst löst node_modules evtl. 3.8.5 auf → falsch grün/rot). Lovable committet gelegentlich nicht-3.7.3-formatiert → CI `check` rot → Fix: `prettier --write <Datei>`. Der `db-integration`-Job ist `continue-on-error` → sein rotes ❌ ist normal, blockiert nichts.
+
+## 16. Kasse, Portal-Architektur, EasyOrder-Optik & Lohnabrechnungs-Verteilung (27.06.2026)
+
+### 16a. Kasse — Vortagsdefizit / Auto-Abschöpfung Wechselgeldbestand
+
+**Entscheidung:** Wechselgeldbestand wird **auto-berechnet** (Auto-Abschöpfung), das manuelle „Ist gezählt"-Feld ist aus der Anzeige raus. Vortagsdefizit wird mitgeschleppt (wie Alt-System), 90 Tage rollierend.
+
+- **Modell:** `diff = Tages-Bargeld + min(0, Vortagsdefizit)` · `Tresor = max(0, diff)` · `Wechselgeld = Soll + min(0, diff)`. Rollierend: `bal += rawBargeld; bal -= max(0, bal)` → Ergebnis ≤ 0.
+- **Reine Helfer** in `src/lib/cash/cash-summary.ts`: `rollOperativeDeficitCents(rawBargeldByDayCents[])` + `computeWechselgeld({ tagesBargeldCents, previousDeficitCents, cashTargetCents })`. Getestet in `cash-summary.test.ts`.
+- **Server-Fn** `getPreviousOperativeDeficit`/`…Core` in `src/lib/cash/cash.functions.ts`: 90-Tage-Fenster (org-/standort-gescoped, `business_date ≥ datum−90 ∧ < datum`, asc). **Bit-genau:** baut den `DayInput` über das kanonische `sessionToDayInput` + `computeDailyCash` (KEINE Re-Implementierung). Inputs 1:1 wie die Tagesabrechnung: `cardTotal = Σ session_terminal_amounts`; `delivery_souse`/`delivery_wolt` aus `session_channel_amounts` nach `revenue_channels.kind`; offene Rechnungen = `waiter_settlements` **ohne `superseded`**; Ausgaben/Vorschüsse als Listen; Skalare (vectron, Gutscheine, einladung, sonstige, vorschuss) aus der gespeicherten Session. Roll inline identisch zum Helfer. Rückgabe `{ deficitCents, sourceDate }`.
+- **UI:** `CashSummaryBlock.tsx` ohne manuelles Feld, nutzt `computeWechselgeld`, zeigt „Fehlbetrag Vortag" bei `previousDeficitCents < 0`. `kasse.tsx` lädt den Defizit (90 d) und reicht `previousDeficitCents`/`SourceDate` an Block + PDF.
+- **PDF** (`src/lib/cash/pdfExport.ts`): `computeWechselgeld` an Highlight + Footer; zusätzlich **Vorschuss-Quittungsblätter** — je Vorschuss eine separate, signierbare Seite (addPage: Header, „Vorschussquittung", Mitarbeiter, Betrag, Bestätigungstext, „Datum, Unterschrift").
+- **Rest:** Spalte `cash_actual_cents` + ihr Form-State in `SessionFieldsCard.tsx` sind tot (kein sichtbares Feld mehr) — bei Gelegenheit entfernbar, kein Blocker.
+
+### 16b. Abrechnung — Session-Eröffnen-Karte + Kasse-Sprung
+
+- `src/routes/_authenticated/zeit/abrechnung.tsx`: ist keine Session offen, sehen **admin/manager** (`canOpenSession`) eine Karte „Session für heute eröffnen" (`LocationPills` + `getOrCreateOpenSession`). **Kein Auto-Redirect** (bewusst zurückgenommen) — nach Anlegen bleibt man auf der Seite (Toast + `["cash"]`-Invalidierung → Formular erscheint); stattdessen „Zur Kassenübersicht"-Link im Header (nur admin/manager).
+- `src/routes/_authenticated/admin/kasse.tsx`: `validateSearch` (`locationId`, `businessDate`, beide optional) → `KassePage` initialisiert Standort/Datum aus den Search-Params (Vorauswahl).
+
+### 16c. Portal-Architektur — Capability-Quelle + PortalShell
+
+Eine Quelle (Rolle + Freischaltungen) treibt **Navigation UND Erreichbarkeit** → „sichtbar = erreichbar", verhindert strukturell ANDI-artige Bugs.
+
+- `src/lib/nav/portal-nav.ts` — `usePortalNav()`: leitet `PortalNavItem[]` aus `identity.role` + EasyOrder-Zugriff ab. Items: Start (`/`), Stempeln (`/zeit`), Abrechnung (`/zeit/abrechnung`), **Lohn (`/lohn`)** für staff/manager/admin; Bestellung (`/easyorder`) bei `hasEasyOrder`; Backoffice (`/admin`) für admin/manager.
+- `src/components/portal/PortalShell.tsx` — responsive: Desktop sticky Top-Bar (`hidden sm:flex`), Mobile Bottom-Tabs (`fixed inset-x-0 bottom-0 sm:hidden`, Content `pb-24`).
+- `src/routes/_authenticated/route.tsx` — `inAdmin = pathname === "/admin" || startsWith("/admin/")`; `{inAdmin ? <Outlet/> : <PortalShell><Outlet/></PortalShell>}`. /admin behält eigene Shell. **Neue Portal-Routen daher NICHT selbst in PortalShell wrappen.**
+- **EasyOrder-Bestellseite liegt unter `/easyorder`** (aus `/admin` rausgezogen, damit staff-Rolle Zugriff hat — das `/admin`-Layout leitet nicht-(admin/manager/payroll) auf `/` um). EasyOrder-**Verwaltung** bleibt unter `/admin` (manager+).
+
+### 16d. EasyOrder — Admin-Bestelloptik (Accordion + Warenkorb-Icon)
+
+`src/routes/_authenticated/easyorder.tsx`, angeglichen an die Admin-Ansicht `bestellung.lieferanten.tsx`:
+
+- Lieferanten-Gruppen per Default **eingeklappt** (`collapsed[name] ?? true`); bei aktiver Suche (`search.trim() !== ""`) Auto-Expand. Header = Chevron `▸/▾` + runde Zähler-Badge (`rounded-full bg-muted`) + Name; `border-b/bg-muted` nur im aufgeklappten Zustand.
+- Mengen-Interaktion: **Warenkorb-Icon statt Stepper** — `🛒` = +1, ab Menge > 0 Anzahl + „−" = −1. Verdrahtet an lokalem `qty`/`setItemQty` (clamp 0..9999, bei 0 `delete copy[id]`); Absende-RPC + Submit-Filter (`q > 0`) unverändert. **Stepper-Import bleibt** (Free-Text „Sonstiger Artikel" nutzt ihn weiter).
+
+### 16e. Modul — Lohnabrechnungs-Verteilung (payslips, privater Storage-Bucket)
+
+Admin lädt PDF je Mitarbeiter hoch → Mitarbeiter sieht/öffnet die eigene Abrechnung. Erster produktive Supabase-**Storage**-Nutzung im Repo. (Die edlohn-PDF-Split-Automatik — Sammel-PDF je Mandant/Personalnummer auftrennen — bleibt davon getrennt offen.)
+
+- **Bucket** `payslips` (privat, im Dashboard angelegt — **NICHT** per Migration). Pfad-Konvention `{organization_id}/{staff_id}/<datei>`.
+- **RLS** (`storage.objects`, zwei Migrationen): SELECT = eigene (`foldername[1]=org ∧ [2]=staff`) **oder Admin der Org**; INSERT/UPDATE/DELETE = **nur Admin** der Org (`ra.role = 'admin'`). Manager bewusst draußen.
+- **Reines Modul** `src/lib/payslips/payslip-path.ts` (+ Test): `payslipFolder`, `sanitizePayslipFileName` (lehnt `/`, `\`, `..`, führenden Punkt, leer, Fremdzeichen ab), `isPayslipPathAllowed` (eigener Pfad mit Trailing-Slash gegen ID-Prefix-Kollision; Admin org-weit).
+- **Server-Fns** `src/lib/payslips/payslips.functions.ts` (Muster `cash.functions.ts`, Storage über `supabaseAdmin`): `listMyPayslips` (staff), `getPayslipSignedUrl` (staff, `isPayslipPathAllowed`-Gate), `listStaffPayslips`/`uploadPayslip`/`deletePayslip` (admin). Runtime = Cloudflare Workers → base64 via `Uint8Array.from(atob(...), c => c.charCodeAt(0))`, **kein `Buffer`**.
+- **UI:** `/lohn` (`src/routes/_authenticated/lohn.tsx`, Self-Download, PortalShell-konform) + Portal-Nav „Lohn" (staff/manager/admin) + Admin-Karte als Tab „Lohn" in `staff.$staffId.tsx`, **doppelt `isAdmin`-gated** (Tab-Liste + Render).
+
+### 16f. Lektionen (teuer gelernt)
+
+1. **Roll-Logik nicht aus dem Bauch testen.** Mein Prompt-Erwartungswert `rollOperativeDeficitCents([5000, -2000]) === 0` war **falsch** — korrekt `-2000`: der Tag-1-Überschuss wird sofort abgeschöpft (bal → 0), das Tag-2-Defizit läuft **neu** auf, der alte Überschuss deckt nichts mehr. Impl/Test stimmten; mein Wert nicht. → Erwartungswerte gegen den Algorithmus rechnen, nicht gegen die Intuition.
+2. **Supabase-Storage-Gotchas (erstmals genutzt):** `createSignedUrl` liefert **`data.signedUrl`** (nicht `data.url`). `.list()`-Felder: `created_at` (nicht camelCase) + Größe unter **`metadata.size`** (nicht Top-Level). Bucket-Anlage passiert im Dashboard, nicht per Migration — RLS-Policies referenzieren nur `bucket_id`.
+3. **Lovable baut große Pläne teilweise.** Beim Payslip-Plan kamen zuerst nur das reine Modul + Migration; Server-Fns + UI (Schritt 3–6) fehlten komplett → separater Nachzieh-Prompt nötig. Nach jedem Lauf gegen die **Dateiliste** prüfen (`git diff --stat`), nicht nur Gates.
+4. **Newline-Pflicht weiterhin Lovables Schwachstelle:** trotz expliziter Prompt-Anweisung fehlte neuen Dateien der Schluss-Zeilenumbruch → `format:check`/`eslint` rot. Standard-Fix `prettier --write <datei>`.
