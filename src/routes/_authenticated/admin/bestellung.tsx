@@ -22,7 +22,7 @@ function BestellungLayout() {
         <SubLink to="/admin/bestellung/inventur">Inventur</SubLink>
         <SubLink to="/admin/bestellung/wein">Wein</SubLink>
         <SubLink to="/admin/bestellung/wein-quiz">Wein-Quiz</SubLink>
-        <SubLink to="/admin/bestellung/easyorder">EasyOrder</SubLink>
+        <SubLink to="/easyorder">EasyOrder</SubLink>
         <SubLink to="/admin/bestellung/easyorder-verwaltung">EasyOrder-Verwaltung</SubLink>
       </nav>
       <Outlet />
