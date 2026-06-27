@@ -874,21 +874,26 @@ function ArticleForm(props: {
   initial: ArticleDraft;
   suppliers: { id: string; name: string }[];
   initialSupplierId: string;
+  locations: { id: string; name: string }[];
+  initialLocationIds: string[];
   submitLabel: string;
   submitting: boolean;
-  onSubmit: (d: ArticleDraft, supplierId: string) => void;
+  onSubmit: (d: ArticleDraft, supplierId: string, locationIds: string[]) => void;
   onCancel: () => void;
 }) {
   const [d, setD] = useState<ArticleDraft>(props.initial);
   const [supplierId, setSupplierId] = useState(props.initialSupplierId);
+  const [locationIds, setLocationIds] = useState<string[]>(props.initialLocationIds);
   const set = <K extends keyof ArticleDraft>(k: K, v: ArticleDraft[K]) =>
     setD((prev) => ({ ...prev, [k]: v }));
+  const toggleLocation = (id: string) =>
+    setLocationIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   return (
     <form
       className="space-y-3"
       onSubmit={(e) => {
         e.preventDefault();
-        props.onSubmit(d, supplierId);
+        props.onSubmit(d, supplierId, locationIds);
       }}
     >
       <Field label="Lieferant">
@@ -903,6 +908,22 @@ function ArticleForm(props: {
             </option>
           ))}
         </select>
+      </Field>
+      <Field label="Bestellbar für">
+        <div className="flex flex-wrap gap-3">
+          {props.locations.map((l) => {
+            const on = locationIds.includes(l.id);
+            return (
+              <label key={l.id} className="flex items-center gap-2 text-sm text-foreground">
+                <input type="checkbox" checked={on} onChange={() => toggleLocation(l.id)} />
+                {l.name}
+              </label>
+            );
+          })}
+        </div>
+        {locationIds.length === 0 && (
+          <p className="mt-1 text-xs text-destructive">Mindestens ein Restaurant auswählen.</p>
+        )}
       </Field>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <Field label="Name *">
@@ -961,7 +982,9 @@ function ArticleForm(props: {
       <div className="flex items-center gap-2">
         <button
           type="submit"
-          disabled={props.submitting || !d.name.trim() || !d.unit.trim()}
+          disabled={
+            props.submitting || !d.name.trim() || !d.unit.trim() || locationIds.length === 0
+          }
           className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
           {props.submitLabel}
