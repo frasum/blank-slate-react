@@ -42,6 +42,8 @@ export function SessionFieldsCard({
   onRemoveAdvance,
   cashBalanceTargetCents,
   kpiSlot,
+  previousDeficitCents,
+  previousDeficitSourceDate,
 }: {
   sessionId: string;
   overview: Overview;
@@ -63,6 +65,8 @@ export function SessionFieldsCard({
   onRemoveAdvance: (id: string) => Promise<unknown>;
   cashBalanceTargetCents: number;
   kpiSlot?: React.ReactNode;
+  previousDeficitCents: number;
+  previousDeficitSourceDate: string | null;
 }) {
   type Row = { id: string; euro: string };
   const initialChannels: Row[] = channels.map((c) => {
@@ -385,7 +389,6 @@ export function SessionFieldsCard({
           <ExcelSectionHeader label="Kontrolle" colorClass="border-l-muted-foreground" />
           <CashSummaryBlock
             misc={misc}
-            setMisc={setMisc}
             writable={writable}
             chRows={chRows}
             channelById={channelById}
@@ -394,6 +397,8 @@ export function SessionFieldsCard({
             advances={advances}
             overview={overview}
             cashBalanceTargetCents={cashBalanceTargetCents}
+            previousDeficitCents={previousDeficitCents}
+            previousDeficitSourceDate={previousDeficitSourceDate}
           />
         </div>
 

@@ -40,6 +40,7 @@ import {
   correctWaiterSettlement,
   finalizeSession,
   getCashOverview,
+  getPreviousOperativeDeficit,
   getOrCreateOpenSession,
   listPaymentTerminals,
   listRevenueChannels,
@@ -98,6 +99,7 @@ function KassePage() {
   const [locationId, setLocationId] = useState<string>("");
 
   const fetchOverview = useServerFn(getCashOverview);
+  const fetchPrevDeficit = useServerFn(getPreviousOperativeDeficit);
   const fetchChannels = useServerFn(listRevenueChannels);
   const fetchTerminals = useServerFn(listPaymentTerminals);
   const fetchStaff = useServerFn(listStaff);
@@ -128,6 +130,11 @@ function KassePage() {
     queryFn: () => fetchOverview({ data: { businessDate, locationId } }),
     enabled: locationId !== "",
   });
+  const prevDeficitQ = useQuery({
+    queryKey: ["cash", "prev-deficit", businessDate, locationId],
+    queryFn: () => fetchPrevDeficit({ data: { businessDate, locationId } }),
+    enabled: locationId !== "",
+  });
   const channelsQ = useQuery({
     queryKey: ["cash", "channels", locationId],
     queryFn: () => fetchChannels({ data: { locationId } }),
@@ -155,6 +162,8 @@ function KassePage() {
   const cashBalanceTargetResolvedCents = Number(
     currentLocation?.cashBalanceTargetResolvedCents ?? 200_000,
   );
+  const previousDeficitCents = prevDeficitQ.data?.deficitCents ?? 0;
+  const previousDeficitSourceDate = prevDeficitQ.data?.sourceDate ?? null;
 
   // -------------------- Session anlegen --------------------
   const createSessionMut = useMutation({
@@ -353,6 +362,8 @@ function KassePage() {
           note: a.note,
         })),
         cashBalanceTargetCents: cashBalanceTargetResolvedCents,
+        previousDeficitCents,
+        previousDeficitSourceDate,
       });
       setPdfPreview(out);
     } catch (e) {
@@ -567,6 +578,8 @@ function KassePage() {
                 void invalidate();
               })
             }
+            previousDeficitCents={previousDeficitCents}
+            previousDeficitSourceDate={previousDeficitSourceDate}
           />
 
           <TipPoolCard

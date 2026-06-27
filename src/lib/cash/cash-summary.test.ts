@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeSummaryRows } from "./cash-summary";
+import { computeSummaryRows, computeWechselgeld, rollOperativeDeficitCents } from "./cash-summary";
 import type { DayInput } from "./cash-ledger";
 
 function emptyDay(overrides: Partial<DayInput> = {}): DayInput {
@@ -68,5 +68,42 @@ describe("computeSummaryRows", () => {
     });
     expect(r.differenzCents).toBe(0);
     expect(r.tresorCents).toBe(33_646);
+  });
+});
+
+describe("rollOperativeDeficitCents", () => {
+  it("leere Liste → 0", () => {
+    expect(rollOperativeDeficitCents([])).toBe(0);
+  });
+  it("Überschuss wird täglich abgeschöpft, Folgetag bringt eigenes Defizit", () => {
+    // Tag 1: +5000 → sofort abgeschöpft (Bal 0). Tag 2: -2000 (Bal -2000).
+    expect(rollOperativeDeficitCents([5000, -2000])).toBe(-2000);
+  });
+  it("Defizit läuft auf", () => {
+    expect(rollOperativeDeficitCents([-3000, -1000])).toBe(-4000);
+  });
+  it("teils gedeckt", () => {
+    expect(rollOperativeDeficitCents([-3000, 1000])).toBe(-2000);
+  });
+});
+
+describe("computeWechselgeld", () => {
+  it("ohne Vortagsdefizit: Tresor = Bargeld, Wechselgeld = Soll", () => {
+    expect(
+      computeWechselgeld({
+        tagesBargeldCents: 5000,
+        previousDeficitCents: 0,
+        cashTargetCents: 200_000,
+      }),
+    ).toEqual({ diffCents: 5000, tresorCents: 5000, wechselgeldbestandCents: 200_000 });
+  });
+  it("Vortagsdefizit zieht Wechselgeld unter Soll, Tresor = 0 bei diff<0", () => {
+    expect(
+      computeWechselgeld({
+        tagesBargeldCents: 1000,
+        previousDeficitCents: -3000,
+        cashTargetCents: 200_000,
+      }),
+    ).toEqual({ diffCents: -2000, tresorCents: 0, wechselgeldbestandCents: 198_000 });
   });
 });

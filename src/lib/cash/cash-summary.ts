@@ -34,3 +34,36 @@ export function computeSummaryRows(args: {
     tresorCents: tagesBargeldCents - differenzCents,
   };
 }
+
+/**
+ * Rollender operativer Saldo über Vortage (≤ 0). Pro Tag wird das
+ * `rawBargeld` addiert, ein Überschuss aber sofort abgeschöpft, sodass
+ * nur Defizit weiterläuft. Eingabe chronologisch (ältester zuerst).
+ */
+export function rollOperativeDeficitCents(rawBargeldByDayCents: number[]): number {
+  let bal = 0;
+  for (const raw of rawBargeldByDayCents) {
+    bal += raw;
+    bal -= Math.max(0, bal);
+  }
+  return bal;
+}
+
+/**
+ * Tages-Ergebnis inkl. Vortagsdefizit. `previousDeficitCents` ≤ 0.
+ * - diff = TagesBargeld + min(0, Vortagsdefizit)
+ * - Tresor = max(0, diff)
+ * - Wechselgeldbestand = Soll + min(0, diff)
+ */
+export function computeWechselgeld(args: {
+  tagesBargeldCents: number;
+  previousDeficitCents: number;
+  cashTargetCents: number;
+}): { diffCents: number; tresorCents: number; wechselgeldbestandCents: number } {
+  const diff = args.tagesBargeldCents + Math.min(0, args.previousDeficitCents);
+  return {
+    diffCents: diff,
+    tresorCents: Math.max(0, diff),
+    wechselgeldbestandCents: args.cashTargetCents + Math.min(0, diff),
+  };
+}
