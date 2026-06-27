@@ -119,15 +119,15 @@ export const listArticles = createServerFn({ method: "GET" })
     if (error) throw error;
     const articleRows = rows ?? [];
     if (articleRows.length === 0) return [];
-    const ids = articleRows.map((r) => r.id);
+    const articleIds = new Set(articleRows.map((r) => r.id));
     const { data: links, error: linkErr } = await supabaseAdmin
       .from("article_locations")
       .select("article_id, location_id")
-      .eq("organization_id", caller.organizationId)
-      .in("article_id", ids);
+      .eq("organization_id", caller.organizationId);
     if (linkErr) throw linkErr;
     const byArticle = new Map<string, string[]>();
     for (const l of links ?? []) {
+      if (!articleIds.has(l.article_id)) continue;
       const arr = byArticle.get(l.article_id) ?? [];
       arr.push(l.location_id);
       byArticle.set(l.article_id, arr);
