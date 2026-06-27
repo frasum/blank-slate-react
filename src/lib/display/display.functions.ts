@@ -16,6 +16,12 @@ export type DisplaySettings = {
   refresh_interval_seconds: number;
   created_at: string;
   updated_at: string;
+  rotation_enabled: boolean;
+  rotation_interval_seconds: number;
+  show_areas: string[] | null;
+  show_header: boolean;
+  show_footer: boolean;
+  custom_message: string | null;
 };
 
 const ALLOWED_ROLES = ["manager", "admin"] as const;
@@ -44,6 +50,12 @@ export const upsertDisplaySettings = createServerFn({ method: "POST" })
         locationId: z.string().uuid(),
         isEnabled: z.boolean().optional(),
         refreshIntervalSeconds: z.number().int().min(15).max(3600).optional(),
+        rotationEnabled: z.boolean().optional(),
+        rotationIntervalSeconds: z.number().int().min(10).max(600).optional(),
+        showAreas: z.array(z.enum(["kitchen", "service", "gl"])).nullable().optional(),
+        showHeader: z.boolean().optional(),
+        showFooter: z.boolean().optional(),
+        customMessage: z.string().max(280).nullable().optional(),
       })
       .parse(input),
   )
@@ -67,6 +79,13 @@ export const upsertDisplaySettings = createServerFn({ method: "POST" })
       if (data.isEnabled !== undefined) payload.is_enabled = data.isEnabled;
       if (data.refreshIntervalSeconds !== undefined)
         payload.refresh_interval_seconds = data.refreshIntervalSeconds;
+      if (data.rotationEnabled !== undefined) payload.rotation_enabled = data.rotationEnabled;
+      if (data.rotationIntervalSeconds !== undefined)
+        payload.rotation_interval_seconds = data.rotationIntervalSeconds;
+      if (data.showAreas !== undefined) payload.show_areas = data.showAreas;
+      if (data.showHeader !== undefined) payload.show_header = data.showHeader;
+      if (data.showFooter !== undefined) payload.show_footer = data.showFooter;
+      if (data.customMessage !== undefined) payload.custom_message = data.customMessage;
       const { data: row, error } = await supabaseAdmin
         .from("display_settings" as never)
         .insert(payload as never)
@@ -80,6 +99,13 @@ export const upsertDisplaySettings = createServerFn({ method: "POST" })
     if (data.isEnabled !== undefined) patch.is_enabled = data.isEnabled;
     if (data.refreshIntervalSeconds !== undefined)
       patch.refresh_interval_seconds = data.refreshIntervalSeconds;
+    if (data.rotationEnabled !== undefined) patch.rotation_enabled = data.rotationEnabled;
+    if (data.rotationIntervalSeconds !== undefined)
+      patch.rotation_interval_seconds = data.rotationIntervalSeconds;
+    if (data.showAreas !== undefined) patch.show_areas = data.showAreas;
+    if (data.showHeader !== undefined) patch.show_header = data.showHeader;
+    if (data.showFooter !== undefined) patch.show_footer = data.showFooter;
+    if (data.customMessage !== undefined) patch.custom_message = data.customMessage;
 
     if (Object.keys(patch).length === 0) {
       const { data: row, error } = await supabaseAdmin
