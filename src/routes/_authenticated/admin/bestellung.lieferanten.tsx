@@ -30,6 +30,7 @@ import {
   updateCartItem,
 } from "@/lib/bestellung/cart.functions";
 import { getLastOrderByArticle } from "@/lib/bestellung/orders.functions";
+import { listLocations } from "@/lib/admin/locations.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/bestellung/lieferanten")({
   head: () => ({ meta: [{ title: "Lieferanten · Bestellung" }] }),
@@ -128,6 +129,7 @@ function LieferantenPage() {
         supplierId: string;
         articleId: string;
         initial: ArticleDraft;
+        initialLocationIds: string[];
       }
     | null
   >(null);
@@ -148,6 +150,10 @@ function LieferantenPage() {
     queryKey: ["bestellung", "last-order-by-article"],
     queryFn: () => getLastOrderByArticle(),
     staleTime: 5 * 60 * 1000,
+  });
+  const locationsQ = useQuery({
+    queryKey: ["admin", "locations"],
+    queryFn: () => listLocations(),
   });
 
   const refreshSuppliers = () => qc.invalidateQueries({ queryKey: ["bestellung", "suppliers"] });
@@ -257,7 +263,7 @@ function LieferantenPage() {
   });
 
   const createArtMut = useMutation({
-    mutationFn: (input: { supplierId: string; draft: ArticleDraft }) =>
+    mutationFn: (input: { supplierId: string; draft: ArticleDraft; locationIds: string[] }) =>
       callCreateArt({
         data: {
           supplierId: input.supplierId,
@@ -270,6 +276,7 @@ function LieferantenPage() {
           packagingUnit: input.draft.packagingUnit
             ? Math.max(1, Math.round(Number(input.draft.packagingUnit)))
             : null,
+          locationIds: input.locationIds,
         },
       }),
     onSuccess: () => {
@@ -281,7 +288,12 @@ function LieferantenPage() {
   });
 
   const updateArtMut = useMutation({
-    mutationFn: (input: { articleId: string; supplierId: string; draft: ArticleDraft }) =>
+    mutationFn: (input: {
+      articleId: string;
+      supplierId: string;
+      draft: ArticleDraft;
+      locationIds: string[];
+    }) =>
       callUpdateArt({
         data: {
           articleId: input.articleId,
@@ -295,6 +307,7 @@ function LieferantenPage() {
           packagingUnit: input.draft.packagingUnit
             ? Math.max(1, Math.round(Number(input.draft.packagingUnit)))
             : null,
+          locationIds: input.locationIds,
         },
       }),
     onSuccess: () => {
