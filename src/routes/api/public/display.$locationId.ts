@@ -129,6 +129,50 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
           }
         }
 
+        // Geburtstage des aktiven Teams am Standort (Tag+Monat == heute).
+        const todayMmDd = date.slice(5); // "MM-DD"
+        const birthdays: string[] = [];
+        const { data: locRows } = await supabaseAdmin
+          .from("staff_locations")
+          .select("staff_id")
+          .eq("location_id", locationId)
+          .eq("organization_id", s.organization_id);
+        const teamIds = Array.from(
+          new Set((locRows ?? []).map((r) => (r as { staff_id: string }).staff_id)),
+        );
+        if (teamIds.length) {
+          const { data: teamRows } = await supabaseAdmin
+            .from("staff")
+            .select("id, first_name, last_name, display_name")
+            .in("id", teamIds)
+            .eq("is_active", true);
+          const activeIds = (teamRows ?? []).map((r) => (r as { id: string }).id);
+          if (activeIds.length) {
+            const { data: dobRows } = await supabaseAdmin
+              .from("staff_personal_details")
+              .select("staff_id, date_of_birth")
+              .in("staff_id", activeIds);
+            const dobMap = new Map<string, string>();
+            for (const d of dobRows ?? []) {
+              const r = d as { staff_id: string; date_of_birth: string | null };
+              if (r.date_of_birth) dobMap.set(r.staff_id, String(r.date_of_birth).slice(5, 10));
+            }
+            for (const t of teamRows ?? []) {
+              const r = t as {
+                id: string;
+                first_name: string | null;
+                last_name: string | null;
+                display_name: string | null;
+              };
+              if (dobMap.get(r.id) === todayMmDd) {
+                const name =
+                  r.display_name || `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim();
+                if (name) birthdays.push(name);
+              }
+            }
+          }
+        }
+
         const { data: shifts, error: shiftsErr } = await supabaseAdmin
           .from("roster_shifts")
           .select("id, area, skill_id, status, staff_id")
@@ -203,6 +247,7 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
           showHeader: s.show_header,
           showFooter: s.show_footer,
           customMessage: s.custom_message,
+          birthdays,
         };
 
         return new Response(JSON.stringify(payload), {
