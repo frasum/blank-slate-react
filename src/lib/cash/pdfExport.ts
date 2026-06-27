@@ -489,6 +489,96 @@ export async function generateDailySummaryPdf(data: PdfExportData): Promise<{
   doc.text(`Seite 1`, pageWidth - margin, pageHeight - 6, { align: "right" });
   doc.setTextColor(0);
 
+  // ---- Vorschuss-Quittungsblätter (je ein Blatt pro Vorschuss) ------------
+  if (data.advances.length > 0) {
+    const dateLong = format(new Date(sess.business_date + "T00:00:00"), "EEEE, d. MMMM yyyy", {
+      locale: de,
+    });
+    for (const adv of data.advances) {
+      doc.addPage();
+      let qy = 30;
+
+      // Kopf: Restaurant · Datum
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(100);
+      const qHeader = data.locationName ? `${data.locationName}  ·  ${dateLong}` : dateLong;
+      doc.text(qHeader, pageWidth / 2, qy, { align: "center" });
+      qy += 16;
+
+      // Titel
+      doc.setFontSize(24);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(0);
+      doc.text("Vorschussquittung", pageWidth / 2, qy, { align: "center" });
+      qy += 20;
+
+      doc.setDrawColor(200);
+      doc.setLineWidth(0.5);
+      doc.line(margin + 20, qy, pageWidth - margin - 20, qy);
+      qy += 16;
+
+      // Mitarbeiter
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(80);
+      doc.text("Mitarbeiter:", pageWidth / 2, qy, { align: "center" });
+      qy += 10;
+      doc.setFontSize(20);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(0);
+      doc.text(adv.staffName, pageWidth / 2, qy, { align: "center" });
+      qy += 16;
+
+      // Betrag
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(80);
+      doc.text("Betrag:", pageWidth / 2, qy, { align: "center" });
+      qy += 10;
+      doc.setFontSize(28);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(0);
+      doc.text(fmtEur(adv.amountCents), pageWidth / 2, qy, { align: "center" });
+      qy += 16;
+
+      // optional: Notiz
+      if (adv.note && adv.note.trim().length > 0) {
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(100);
+        doc.text(`Notiz: ${adv.note}`, pageWidth / 2, qy, { align: "center" });
+        doc.setTextColor(0);
+        qy += 10;
+      }
+
+      qy += 8;
+      doc.setDrawColor(200);
+      doc.line(margin + 20, qy, pageWidth - margin - 20, qy);
+      qy += 16;
+
+      // Bestätigungstext
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(0);
+      const confirm = "Hiermit bestätige ich, den oben genannten Vorschuss bar erhalten zu haben.";
+      const cl = doc.splitTextToSize(confirm, pageWidth - 2 * margin - 40) as string[];
+      doc.text(cl, pageWidth / 2, qy, { align: "center" });
+      qy += cl.length * 6 + 30;
+
+      // Unterschriftslinie (unten am Blatt)
+      const sigY = Math.max(qy, pageHeight - 50);
+      doc.setDrawColor(0);
+      doc.setLineWidth(0.5);
+      doc.line(margin + 30, sigY, pageWidth - margin - 30, sigY);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(100);
+      doc.text("Datum, Unterschrift", pageWidth / 2, sigY + 5, { align: "center" });
+      doc.setTextColor(0);
+    }
+  }
+
   const fileName = `Tagesabrechnung_${sess.business_date}.pdf`;
   const blob = doc.output("blob");
   return { doc, blob, fileName };
