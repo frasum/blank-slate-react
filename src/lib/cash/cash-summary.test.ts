@@ -75,8 +75,9 @@ describe("rollOperativeDeficitCents", () => {
   it("leere Liste → 0", () => {
     expect(rollOperativeDeficitCents([])).toBe(0);
   });
-  it("Überschuss wird abgeschöpft, danach Defizit gedeckt → 0", () => {
-    expect(rollOperativeDeficitCents([5000, -2000])).toBe(0);
+  it("Überschuss wird täglich abgeschöpft, Folgetag bringt eigenes Defizit", () => {
+    // Tag 1: +5000 → sofort abgeschöpft (Bal 0). Tag 2: -2000 (Bal -2000).
+    expect(rollOperativeDeficitCents([5000, -2000])).toBe(-2000);
   });
   it("Defizit läuft auf", () => {
     expect(rollOperativeDeficitCents([-3000, -1000])).toBe(-4000);
