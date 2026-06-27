@@ -6,6 +6,7 @@ import { de } from "date-fns/locale";
 import type jsPDF from "jspdf";
 import type { RowInput } from "jspdf-autotable";
 import { computeDailyCash, type DayInput } from "./cash-ledger";
+import { computeWechselgeld } from "./cash-summary";
 import { sessionToDayInput } from "./session-day-input";
 
 type Cents = number;
@@ -62,6 +63,10 @@ export interface PdfExportData {
   advances: { staffName: string; amountCents: Cents; note: string | null }[];
   /** Soll-Wechselgeldbestand (resolved: Location ?? Org) in Cents. */
   cashBalanceTargetCents?: Cents;
+  /** Rollender operativer Saldo der Vortage (≤ 0). */
+  previousDeficitCents?: Cents;
+  /** Datum, das in der Summary-Zeile "Fehlbetrag Vortag (…)" angezeigt wird. */
+  previousDeficitSourceDate?: string | null;
 }
 
 function fmtEur(cents: Cents | null | undefined): string {
