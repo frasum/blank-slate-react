@@ -596,8 +596,7 @@ function LieferantenPage() {
                                           packagingUnit: a.packaging_unit?.toString() ?? "",
                                         },
                                         initialLocationIds:
-                                          a.locationIds ??
-                                          (locationsQ.data ?? []).map((l) => l.id),
+                                          a.locationIds ?? (locationsQ.data ?? []).map((l) => l.id),
                                       })
                                     }
                                     className="rounded border border-input bg-background p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
