@@ -1088,24 +1088,22 @@ export const getRosterRelease = createServerFn({ method: "GET" })
       })
       .parse(input),
   )
-  .handler(
-    async ({ data, context }): Promise<{ released: boolean; releasedAt: string | null }> => {
-      const caller = await loadAdminCaller(context.supabase, context.userId, READ_ROLES);
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: row, error } = await supabaseAdmin
-        .from("roster_releases")
-        .select("released_at")
-        .eq("organization_id", caller.organizationId)
-        .eq("location_id", data.locationId)
-        .eq("period_id", data.periodId)
-        .maybeSingle();
-      if (error) throw error;
-      return {
-        released: !!row,
-        releasedAt: (row?.released_at as string | null) ?? null,
-      };
-    },
-  );
+  .handler(async ({ data, context }): Promise<{ released: boolean; releasedAt: string | null }> => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, READ_ROLES);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row, error } = await supabaseAdmin
+      .from("roster_releases")
+      .select("released_at")
+      .eq("organization_id", caller.organizationId)
+      .eq("location_id", data.locationId)
+      .eq("period_id", data.periodId)
+      .maybeSingle();
+    if (error) throw error;
+    return {
+      released: !!row,
+      releasedAt: (row?.released_at as string | null) ?? null,
+    };
+  });
 
 export const setRosterRelease = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
