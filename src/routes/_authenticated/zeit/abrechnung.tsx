@@ -4,7 +4,7 @@
 // Geschäftslogik. Live-Vorschau über das gleiche reine Modul
 // `calcWaiterSettlement` (Source-of-Truth bleibt der Server-Snapshot).
 
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
@@ -80,6 +80,7 @@ const EMPTY_FORM: FormState = {
 
 function AbrechnungPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const fetchMy = useServerFn(getMySettlement);
   const doSubmit = useServerFn(submitWaiterSettlement);
   const { identity } = useAuth();
@@ -97,9 +98,15 @@ function AbrechnungPage() {
       if (!createLocationId) throw new Error("Bitte einen Standort wählen.");
       return callCreateSession({ data: { locationId: createLocationId } });
     },
-    onSuccess: () => {
+    onSuccess: (res) => {
       toast.success("Session geöffnet.");
       void qc.invalidateQueries({ queryKey: ["cash"] });
+      const businessDate =
+        (res as { businessDate?: string } | null | undefined)?.businessDate;
+      void navigate({
+        to: "/admin/kasse",
+        search: { locationId: createLocationId, businessDate },
+      });
     },
     onError: (e: Error) => toast.error(e.message),
   });
