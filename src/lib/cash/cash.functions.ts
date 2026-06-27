@@ -27,7 +27,6 @@ import {
 import { assertCashWritable, CashLockedError } from "./cash-lock";
 import type { Json } from "@/integrations/supabase/types";
 import { ForbiddenError } from "@/lib/admin/role-guard";
-import { rollOperativeDeficitCents } from "./cash-summary";
 import { sessionToDayInput } from "./session-day-input";
 
 // ------------------------------------------------------------------------
@@ -2557,9 +2556,6 @@ export async function getPreviousOperativeDeficitCore(
     bal -= Math.max(0, bal);
     if (bal < 0) lastDeficitDate = sess.business_date;
   }
-
-  // Sanity: dieselbe Berechnung wie das reine Helper-Modul.
-  void rollOperativeDeficitCents; // ausdrücklicher Import-Referenz-Anker
 
   const sourceDate = bal < 0 ? lastDeficitDate : sessions[sessions.length - 1].business_date;
   return { deficitCents: bal, sourceDate };
