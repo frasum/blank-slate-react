@@ -110,6 +110,52 @@ export type Database = {
           },
         ]
       }
+      article_locations: {
+        Row: {
+          article_id: string
+          created_at: string
+          id: string
+          location_id: string
+          organization_id: string
+        }
+        Insert: {
+          article_id: string
+          created_at?: string
+          id?: string
+          location_id: string
+          organization_id: string
+        }
+        Update: {
+          article_id?: string
+          created_at?: string
+          id?: string
+          location_id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_locations_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "article_locations_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "article_locations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       articles: {
         Row: {
           category: string | null
