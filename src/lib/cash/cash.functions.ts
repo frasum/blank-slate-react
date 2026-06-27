@@ -27,7 +27,6 @@ import {
 import { assertCashWritable, CashLockedError } from "./cash-lock";
 import type { Json } from "@/integrations/supabase/types";
 import { ForbiddenError } from "@/lib/admin/role-guard";
-import { computeDailyCash } from "./cash-ledger";
 import { rollOperativeDeficitCents } from "./cash-summary";
 import { sessionToDayInput } from "./session-day-input";
 
