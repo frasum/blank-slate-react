@@ -649,19 +649,26 @@ function LieferantenPage() {
               initial={articleDialog.mode === "edit" ? articleDialog.initial : EMPTY_ARTICLE_DRAFT}
               suppliers={(suppliersQ.data ?? []).map((s) => ({ id: s.id, name: s.name }))}
               initialSupplierId={articleDialog.supplierId}
+              locations={(locationsQ.data ?? []).map((l) => ({ id: l.id, name: l.name }))}
+              initialLocationIds={
+                articleDialog.mode === "edit"
+                  ? articleDialog.initialLocationIds
+                  : (locationsQ.data ?? []).map((l) => l.id)
+              }
               submitLabel={articleDialog.mode === "edit" ? "Speichern" : "Anlegen"}
               submitting={
                 articleDialog.mode === "edit" ? updateArtMut.isPending : createArtMut.isPending
               }
-              onSubmit={(d, supplierId) => {
+              onSubmit={(d, supplierId, locationIds) => {
                 if (articleDialog.mode === "edit") {
                   updateArtMut.mutate({
                     articleId: articleDialog.articleId,
                     supplierId,
                     draft: d,
+                    locationIds,
                   });
                 } else {
-                  createArtMut.mutate({ supplierId, draft: d });
+                  createArtMut.mutate({ supplierId, draft: d, locationIds });
                 }
               }}
               onCancel={() => setArticleDialog(null)}
