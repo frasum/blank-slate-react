@@ -22,7 +22,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { getMySettlement, submitWaiterSettlement } from "@/lib/cash/cash.functions";
+import {
+  getMySettlement,
+  submitWaiterSettlement,
+  getOrCreateOpenSession,
+} from "@/lib/cash/cash.functions";
+import { listLocations } from "@/lib/admin/locations.functions";
+import { LocationPills } from "@/components/shared/LocationPills";
+import { useAuth } from "@/hooks/use-auth";
 import { calcWaiterSettlement, waiterNetTipCents } from "@/lib/cash/waiter-settlement";
 import { SecondWaiterSelect } from "@/components/cash/SecondWaiterSelect";
 import { parseEuroToCents as parseEuroToCentsBase } from "@/lib/format";
@@ -75,6 +82,27 @@ function AbrechnungPage() {
   const qc = useQueryClient();
   const fetchMy = useServerFn(getMySettlement);
   const doSubmit = useServerFn(submitWaiterSettlement);
+  const { identity } = useAuth();
+  const canOpenSession = identity?.role === "admin" || identity?.role === "manager";
+  const fetchLocations = useServerFn(listLocations);
+  const callCreateSession = useServerFn(getOrCreateOpenSession);
+  const [createLocationId, setCreateLocationId] = useState<string>("");
+  const locationsQ = useQuery({
+    queryKey: ["admin-locations"],
+    queryFn: () => fetchLocations(),
+    enabled: canOpenSession,
+  });
+  const createSessionMut = useMutation({
+    mutationFn: () => {
+      if (!createLocationId) throw new Error("Bitte einen Standort wählen.");
+      return callCreateSession({ data: { locationId: createLocationId } });
+    },
+    onSuccess: () => {
+      toast.success("Session geöffnet.");
+      void qc.invalidateQueries({ queryKey: ["cash"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const myQ = useQuery({
     queryKey: ["cash", "my-settlement"],
@@ -170,6 +198,29 @@ function AbrechnungPage() {
           Für den Geschäftstag <strong>{businessDate}</strong> ist noch keine Session offen. Bitte
           warte, bis der Manager die Session anlegt, oder frage kurz nach.
         </Card>
+        {canOpenSession && (
+          <Card className="space-y-3 p-6">
+            <div className="text-sm font-medium">Session für heute eröffnen</div>
+            {locationsQ.data && locationsQ.data.length > 0 ? (
+              <>
+                <LocationPills
+                  locations={locationsQ.data}
+                  value={createLocationId}
+                  onChange={setCreateLocationId}
+                />
+                <Button
+                  className="w-full"
+                  disabled={!createLocationId || createSessionMut.isPending}
+                  onClick={() => createSessionMut.mutate()}
+                >
+                  {createSessionMut.isPending ? "Wird angelegt…" : "Session anlegen"}
+                </Button>
+              </>
+            ) : (
+              <div className="text-sm text-muted-foreground">Lade Standorte…</div>
+            )}
+          </Card>
+        )}
       </main>
     );
   }
