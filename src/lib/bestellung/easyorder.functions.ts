@@ -107,24 +107,17 @@ export async function getEasyOrderCatalogCore(
     .eq("location_id", locationId);
   const allowedSupplierIds = (wl ?? []).map((r) => r.supplier_id);
 
-  // Standort-Zuordnung: nur Artikel zeigen, die für diesen Standort freigegeben sind.
-  const { data: locLinks, error: locLinksErr } = await admin
-    .from("article_locations")
-    .select("article_id")
-    .eq("organization_id", caller.organizationId)
-    .eq("location_id", locationId);
-  if (locLinksErr) throw new Error(locLinksErr.message);
-  const allowedArticleIds = (locLinks ?? []).map((r) => r.article_id);
-  if (allowedArticleIds.length === 0) {
-    return { locationId, articles: [] };
-  }
-
+  // Standort-Zuordnung: nur Artikel zeigen, die für diesen Standort freigegeben
+  // sind. Inner-Join auf article_locations, damit wir keine riesige IN-Liste
+  // (URL-Längen-Limit von PostgREST) bauen müssen.
   let q = admin
     .from("articles")
-    .select("id, name, sku, unit, price_cents, category, supplier_id, suppliers(name)")
+    .select(
+      "id, name, sku, unit, price_cents, category, supplier_id, suppliers(name), article_locations!inner(location_id)",
+    )
     .eq("organization_id", caller.organizationId)
     .eq("is_active", true)
-    .in("id", allowedArticleIds);
+    .eq("article_locations.location_id", locationId);
   if (allowedSupplierIds.length > 0) q = q.in("supplier_id", allowedSupplierIds);
   const { data: articles, error } = await q.order("name");
   if (error) throw new Error(error.message);
