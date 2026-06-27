@@ -193,7 +193,7 @@ function AbrechnungPage() {
   if (!session) {
     return (
       <main className="mx-auto max-w-xl space-y-6 px-4 py-8">
-      <Header showKasseLink={canOpenSession} />
+        <Header showKasseLink={canOpenSession} />
         <Card className="p-6 text-sm">
           Für den Geschäftstag <strong>{businessDate}</strong> ist noch keine Session offen. Bitte
           warte, bis der Manager die Session anlegt, oder frage kurz nach.
