@@ -64,6 +64,10 @@ import type jsPDF from "jspdf";
 
 export const Route = createFileRoute("/_authenticated/admin/kasse")({
   head: () => ({ meta: [{ title: "Kasse" }] }),
+  validateSearch: (search: Record<string, unknown>) => ({
+    locationId: typeof search.locationId === "string" ? search.locationId : undefined,
+    businessDate: typeof search.businessDate === "string" ? search.businessDate : undefined,
+  }),
   component: KassePage,
 });
 
@@ -92,11 +96,12 @@ type CreateState = {
 
 function KassePage() {
   const { identity } = Route.useRouteContext();
+  const search = Route.useSearch();
   const isAdmin = identity.role === "admin";
   const qc = useQueryClient();
 
-  const [businessDate, setBusinessDate] = useState<string>(todayIso());
-  const [locationId, setLocationId] = useState<string>("");
+  const [businessDate, setBusinessDate] = useState<string>(search.businessDate ?? todayIso());
+  const [locationId, setLocationId] = useState<string>(search.locationId ?? "");
 
   const fetchOverview = useServerFn(getCashOverview);
   const fetchPrevDeficit = useServerFn(getPreviousOperativeDeficit);
