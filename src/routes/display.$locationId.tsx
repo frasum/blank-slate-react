@@ -27,6 +27,7 @@ type DisplayPayload = {
   showHeader: boolean;
   showFooter: boolean;
   customMessage: string | null;
+  birthdays: string[];
 };
 
 const searchSchema = z.object({ token: z.string().min(1).max(256).optional() });
@@ -186,6 +187,14 @@ function DisplayPage() {
       {data.customMessage && (
         <div className="border-b border-slate-800 bg-amber-500/10 px-10 py-3 text-center text-lg text-amber-200">
           {data.customMessage}
+        </div>
+      )}
+
+      {data.birthdays.length > 0 && (
+        <div className="border-b border-amber-400/40 bg-gradient-to-r from-amber-500/20 via-yellow-400/20 to-amber-500/20 px-10 py-5 text-center">
+          <p className="text-3xl font-semibold tracking-tight text-amber-100">
+            🎂 Heute Geburtstag: {data.birthdays.join(" · ")}
+          </p>
         </div>
       )}
 
