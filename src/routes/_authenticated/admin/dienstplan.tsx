@@ -619,7 +619,24 @@ function DienstplanPage() {
                   }}
                 />
               </div>
-              <div />
+              <div className="flex items-center justify-end gap-2">
+                {released && (
+                  <span className="rounded-md bg-emerald-500/10 px-2 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                    ✓ Freigegeben
+                  </span>
+                )}
+                {canEdit && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={released ? "outline" : "default"}
+                    disabled={busy || !effectivePeriod || !effectiveLocationId}
+                    onClick={handleToggleRelease}
+                  >
+                    {released ? "Freigabe zurückziehen" : "Dienstplan freigeben"}
+                  </Button>
+                )}
+              </div>
             </div>
             <RosterGrid
               activeArea={activeArea}
