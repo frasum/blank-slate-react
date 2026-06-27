@@ -19,7 +19,7 @@ type DisplayPayload = {
   generatedAt: string;
   refreshIntervalSeconds: number;
   date: string;
-  released: boolean;
+  releasedAreas: string[];
   shifts: ShiftDto[];
 };
 
@@ -101,30 +101,17 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
           .gte("end_date", date)
           .maybeSingle();
 
-        let released = false;
+        const releasedAreas: string[] = [];
         if (period) {
-          const { data: rel } = await supabaseAdmin
+          const { data: rels } = await supabaseAdmin
             .from("roster_releases")
-            .select("id")
+            .select("area")
             .eq("location_id", locationId)
-            .eq("period_id", (period as { id: string }).id)
-            .maybeSingle();
-          released = !!rel;
-        }
-
-        if (!released) {
-          const payload: DisplayPayload = {
-            location: { id: location.id, name: location.name },
-            generatedAt: new Date().toISOString(),
-            refreshIntervalSeconds: s.refresh_interval_seconds,
-            date,
-            released: false,
-            shifts: [],
-          };
-          return new Response(JSON.stringify(payload), {
-            status: 200,
-            headers: { "content-type": "application/json", "cache-control": "no-store" },
-          });
+            .eq("period_id", (period as { id: string }).id);
+          for (const r of rels ?? []) {
+            const a = (r as { area: string }).area;
+            if (a === "kitchen" || a === "service") releasedAreas.push(a);
+          }
         }
 
         const { data: shifts, error: shiftsErr } = await supabaseAdmin
@@ -135,9 +122,15 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
           .eq("shift_date", date);
         if (shiftsErr) return jsonError(500, "Daten konnten nicht geladen werden.");
 
-        const staffIds = Array.from(new Set((shifts ?? []).map((s) => s.staff_id)));
+        const filteredShifts = (shifts ?? []).filter((sh) => {
+          if (sh.area === "kitchen") return releasedAreas.includes("kitchen");
+          if (sh.area === "service") return releasedAreas.includes("service");
+          return true;
+        });
+
+        const staffIds = Array.from(new Set(filteredShifts.map((s) => s.staff_id)));
         const skillIds = Array.from(
-          new Set((shifts ?? []).map((s) => s.skill_id).filter(Boolean) as string[]),
+          new Set(filteredShifts.map((s) => s.skill_id).filter(Boolean) as string[]),
         );
 
         const [staffRes, skillRes] = await Promise.all([
@@ -167,7 +160,7 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
           skillMap.set((sk as { id: string }).id, (sk as { name: string }).name);
         }
 
-        const shiftsDto: ShiftDto[] = (shifts ?? [])
+        const shiftsDto: ShiftDto[] = filteredShifts
           .map((sh) => ({
             id: sh.id,
             staffName: staffMap.get(sh.staff_id) ?? "—",
@@ -187,7 +180,7 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
           generatedAt: new Date().toISOString(),
           refreshIntervalSeconds: s.refresh_interval_seconds,
           date,
-          released: true,
+          releasedAreas,
           shifts: shiftsDto,
         };
 

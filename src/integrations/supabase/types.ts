@@ -1826,6 +1826,7 @@ export type Database = {
       }
       roster_releases: {
         Row: {
+          area: string
           id: string
           location_id: string
           organization_id: string
@@ -1834,6 +1835,7 @@ export type Database = {
           released_by: string | null
         }
         Insert: {
+          area: string
           id?: string
           location_id: string
           organization_id: string
@@ -1842,6 +1844,7 @@ export type Database = {
           released_by?: string | null
         }
         Update: {
+          area?: string
           id?: string
           location_id?: string
           organization_id?: string

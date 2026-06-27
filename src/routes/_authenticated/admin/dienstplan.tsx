@@ -114,9 +114,10 @@ function DienstplanPage() {
       }),
     enabled: !!effectiveLocationId && !!effectivePeriod,
   });
-  const released = releaseQ.data?.released ?? false;
+  const kitchenReleased = releaseQ.data?.kitchen ?? false;
+  const serviceReleased = releaseQ.data?.service ?? false;
 
-  async function handleToggleRelease() {
+  async function handleToggleArea(area: "kitchen" | "service", currentlyReleased: boolean) {
     if (!canEdit || !effectiveLocationId || !effectivePeriod) return;
     setBusy(true);
     try {
@@ -124,11 +125,16 @@ function DienstplanPage() {
         data: {
           locationId: effectiveLocationId,
           periodId: effectivePeriod.id,
-          released: !released,
+          area,
+          released: !currentlyReleased,
         },
       });
       qc.invalidateQueries({ queryKey: ["roster-release"] });
-      toast.success(released ? "Freigabe zurückgezogen." : "Dienstplan freigegeben.");
+      toast.success(
+        currentlyReleased
+          ? `Freigabe ${area === "kitchen" ? "Küche" : "Service"} zurückgezogen.`
+          : `${area === "kitchen" ? "Küche" : "Service"} freigegeben.`,
+      );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
     } finally {
@@ -619,23 +625,23 @@ function DienstplanPage() {
                   }}
                 />
               </div>
-              <div className="flex items-center justify-end gap-2">
-                {released && (
-                  <span className="rounded-md bg-emerald-500/10 px-2 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
-                    ✓ Freigegeben
-                  </span>
-                )}
-                {canEdit && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={released ? "outline" : "default"}
-                    disabled={busy || !effectivePeriod || !effectiveLocationId}
-                    onClick={handleToggleRelease}
-                  >
-                    {released ? "Freigabe zurückziehen" : "Dienstplan freigeben"}
-                  </Button>
-                )}
+              <div className="flex flex-wrap items-center justify-end gap-4">
+                <AreaReleaseControl
+                  label="Küche"
+                  released={kitchenReleased}
+                  canEdit={canEdit}
+                  busy={busy}
+                  disabled={!effectivePeriod || !effectiveLocationId}
+                  onToggle={() => handleToggleArea("kitchen", kitchenReleased)}
+                />
+                <AreaReleaseControl
+                  label="Service"
+                  released={serviceReleased}
+                  canEdit={canEdit}
+                  busy={busy}
+                  disabled={!effectivePeriod || !effectiveLocationId}
+                  onToggle={() => handleToggleArea("service", serviceReleased)}
+                />
               </div>
             </div>
             <RosterGrid
@@ -671,6 +677,44 @@ function DienstplanPage() {
           </DndContext>
         )}
       </TooltipProvider>
+    </div>
+  );
+}
+
+function AreaReleaseControl({
+  label,
+  released,
+  canEdit,
+  busy,
+  disabled,
+  onToggle,
+}: {
+  label: string;
+  released: boolean;
+  canEdit: boolean;
+  busy: boolean;
+  disabled: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      {released && (
+        <span className="rounded-md bg-emerald-500/10 px-2 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+          ✓ freigegeben
+        </span>
+      )}
+      {canEdit && (
+        <Button
+          type="button"
+          size="sm"
+          variant={released ? "outline" : "default"}
+          disabled={busy || disabled}
+          onClick={onToggle}
+        >
+          {released ? "Freigabe zurückziehen" : "freigeben"}
+        </Button>
+      )}
     </div>
   );
 }

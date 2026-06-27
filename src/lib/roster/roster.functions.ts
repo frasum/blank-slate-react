@@ -1088,21 +1088,18 @@ export const getRosterRelease = createServerFn({ method: "GET" })
       })
       .parse(input),
   )
-  .handler(async ({ data, context }): Promise<{ released: boolean; releasedAt: string | null }> => {
+  .handler(async ({ data, context }): Promise<{ kitchen: boolean; service: boolean }> => {
     const caller = await loadAdminCaller(context.supabase, context.userId, READ_ROLES);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: row, error } = await supabaseAdmin
+    const { data: rows, error } = await supabaseAdmin
       .from("roster_releases")
-      .select("released_at")
+      .select("area")
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId)
-      .eq("period_id", data.periodId)
-      .maybeSingle();
+      .eq("period_id", data.periodId);
     if (error) throw error;
-    return {
-      released: !!row,
-      releasedAt: (row?.released_at as string | null) ?? null,
-    };
+    const areas = new Set((rows ?? []).map((r) => r.area as string));
+    return { kitchen: areas.has("kitchen"), service: areas.has("service") };
   });
 
 export const setRosterRelease = createServerFn({ method: "POST" })
@@ -1112,6 +1109,7 @@ export const setRosterRelease = createServerFn({ method: "POST" })
       .object({
         locationId: z.string().uuid(),
         periodId: z.string().uuid(),
+        area: z.enum(["kitchen", "service"]),
         released: z.boolean(),
       })
       .parse(input),
@@ -1131,10 +1129,11 @@ export const setRosterRelease = createServerFn({ method: "POST" })
               organization_id: caller.organizationId,
               location_id: data.locationId,
               period_id: data.periodId,
+              area: data.area,
               released_at: new Date().toISOString(),
               released_by: caller.staffId,
             },
-            { onConflict: "location_id,period_id" },
+            { onConflict: "location_id,period_id,area" },
           );
           if (error) throw error;
         } else {
@@ -1143,7 +1142,8 @@ export const setRosterRelease = createServerFn({ method: "POST" })
             .delete()
             .eq("organization_id", caller.organizationId)
             .eq("location_id", data.locationId)
-            .eq("period_id", data.periodId);
+            .eq("period_id", data.periodId)
+            .eq("area", data.area);
           if (error) throw error;
         }
         return {
@@ -1154,6 +1154,7 @@ export const setRosterRelease = createServerFn({ method: "POST" })
             meta: {
               locationId: data.locationId,
               periodId: data.periodId,
+              area: data.area,
               released: data.released,
             },
           },
