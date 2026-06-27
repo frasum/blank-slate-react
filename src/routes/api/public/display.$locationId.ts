@@ -21,6 +21,12 @@ type DisplayPayload = {
   date: string;
   releasedAreas: string[];
   shifts: ShiftDto[];
+  rotationEnabled: boolean;
+  rotationIntervalSeconds: number;
+  showAreas: string[] | null;
+  showHeader: boolean;
+  showFooter: boolean;
+  customMessage: string | null;
 };
 
 function jsonError(status: number, error: string) {
@@ -60,7 +66,9 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
 
         const { data: settings, error: settingsErr } = await supabaseAdmin
           .from("display_settings" as never)
-          .select("display_token, is_enabled, refresh_interval_seconds, organization_id")
+          .select(
+            "display_token, is_enabled, refresh_interval_seconds, organization_id, rotation_enabled, rotation_interval_seconds, show_areas, show_header, show_footer, custom_message",
+          )
           .eq("location_id", locationId)
           .maybeSingle();
 
@@ -73,6 +81,12 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
           is_enabled: boolean;
           refresh_interval_seconds: number;
           organization_id: string;
+          rotation_enabled: boolean;
+          rotation_interval_seconds: number;
+          show_areas: string[] | null;
+          show_header: boolean;
+          show_footer: boolean;
+          custom_message: string | null;
         };
 
         if (!safeCompare(s.display_token, token)) {
@@ -182,6 +196,12 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
           date,
           releasedAreas,
           shifts: shiftsDto,
+          rotationEnabled: s.rotation_enabled,
+          rotationIntervalSeconds: s.rotation_interval_seconds,
+          showAreas: s.show_areas,
+          showHeader: s.show_header,
+          showFooter: s.show_footer,
+          customMessage: s.custom_message,
         };
 
         return new Response(JSON.stringify(payload), {
