@@ -19,6 +19,7 @@ type DisplayPayload = {
   generatedAt: string;
   refreshIntervalSeconds: number;
   date: string;
+  released: boolean;
   shifts: ShiftDto[];
 };
 
@@ -124,13 +125,19 @@ function DisplayPage() {
         </div>
       </header>
 
-      <main className="grid grid-cols-1 gap-8 p-10 md:grid-cols-2">
-        <Column title="Küche" shifts={kitchen} accent="bg-orange-500/10 border-orange-500/30" />
-        <Column title="Service" shifts={service} accent="bg-sky-500/10 border-sky-500/30" />
-        {other.length > 0 && (
-          <Column title="Sonstige" shifts={other} accent="bg-slate-500/10 border-slate-500/30" />
-        )}
-      </main>
+      {data.released ? (
+        <main className="grid grid-cols-1 gap-8 p-10 md:grid-cols-2">
+          <Column title="Küche" shifts={kitchen} accent="bg-orange-500/10 border-orange-500/30" />
+          <Column title="Service" shifts={service} accent="bg-sky-500/10 border-sky-500/30" />
+          {other.length > 0 && (
+            <Column title="Sonstige" shifts={other} accent="bg-slate-500/10 border-slate-500/30" />
+          )}
+        </main>
+      ) : (
+        <main className="flex min-h-[60vh] items-center justify-center p-10">
+          <p className="text-3xl text-slate-400">Dienstplan noch nicht freigegeben</p>
+        </main>
+      )}
     </div>
   );
 }
