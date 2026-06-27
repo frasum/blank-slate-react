@@ -1824,6 +1824,62 @@ export type Database = {
           },
         ]
       }
+      roster_releases: {
+        Row: {
+          id: string
+          location_id: string
+          organization_id: string
+          period_id: string
+          released_at: string
+          released_by: string | null
+        }
+        Insert: {
+          id?: string
+          location_id: string
+          organization_id: string
+          period_id: string
+          released_at?: string
+          released_by?: string | null
+        }
+        Update: {
+          id?: string
+          location_id?: string
+          organization_id?: string
+          period_id?: string
+          released_at?: string
+          released_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roster_releases_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roster_releases_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roster_releases_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "periods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roster_releases_released_by_fkey"
+            columns: ["released_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       roster_shifts: {
         Row: {
           area: Database["public"]["Enums"]["staff_department"]
