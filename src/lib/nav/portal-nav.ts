@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import {
-   Home,
-   Clock,
-   Receipt,
-   ShoppingCart,
-   LayoutDashboard,
-   FileText,
-   type LucideIcon,
+  Home,
+  Clock,
+  Receipt,
+  ShoppingCart,
+  LayoutDashboard,
+  FileText,
+  type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { getMyEasyOrderContext } from "@/lib/bestellung/easyorder.functions";
