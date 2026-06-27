@@ -101,8 +101,7 @@ function AbrechnungPage() {
     onSuccess: (res) => {
       toast.success("Session geöffnet.");
       void qc.invalidateQueries({ queryKey: ["cash"] });
-      const businessDate =
-        (res as { businessDate?: string } | null | undefined)?.businessDate;
+      const businessDate = (res as { businessDate?: string } | null | undefined)?.businessDate;
       void navigate({
         to: "/admin/kasse",
         search: { locationId: createLocationId, businessDate },
