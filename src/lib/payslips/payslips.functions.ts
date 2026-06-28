@@ -22,16 +22,25 @@ const BUCKET = "payslips";
 async function listFolder(folder: string): Promise<PayslipEntry[]> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin.storage.from(BUCKET).list(folder, {
-    sortBy: { column: "created_at", order: "desc" },
+    limit: 1000,
+    offset: 0,
+    sortBy: { column: "name", order: "asc" },
   });
   if (error) throw new Error(error.message);
   const rows = (data ?? []).filter((o) => o.name !== ".emptyFolderPlaceholder");
-  return rows.map((o) => ({
+  const mapped = rows.map((o) => ({
     name: o.name,
     path: `${folder}/${o.name}`,
     createdAt: (o as { created_at?: string | null }).created_at ?? null,
     sizeBytes: (o.metadata as { size?: number } | null | undefined)?.size ?? null,
   }));
+  mapped.sort((a, b) => {
+    const ta = a.createdAt ? Date.parse(a.createdAt) : 0;
+    const tb = b.createdAt ? Date.parse(b.createdAt) : 0;
+    if (tb !== ta) return tb - ta;
+    return b.name.localeCompare(a.name);
+  });
+  return mapped;
 }
 
 export const listMyPayslips = createServerFn({ method: "GET" })
