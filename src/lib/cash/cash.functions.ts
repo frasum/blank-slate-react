@@ -293,7 +293,7 @@ export async function getCashOverviewCore(
     supabaseAdmin
       .from("waiter_settlements")
       .select(
-        "id, staff_id, partner_staff_id, pos_sales_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents, differenz_cents, kitchen_tip_cents, kitchen_tip_rate, status, submitted_at, corrected_from_id, auto_clockout_time_entry_id, primary_staff:staff!waiter_settlements_staff_id_fkey(display_name), partner_staff:staff!waiter_settlements_partner_staff_id_fkey(display_name)",
+        "id, staff_id, partner_staff_id, pos_sales_cents, kassiert_brutto_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents, differenz_cents, kitchen_tip_cents, kitchen_tip_rate, status, submitted_at, corrected_from_id, auto_clockout_time_entry_id, primary_staff:staff!waiter_settlements_staff_id_fkey(display_name), partner_staff:staff!waiter_settlements_partner_staff_id_fkey(display_name)",
       )
       .eq("organization_id", caller.organizationId)
       .eq("session_id", session.id)
@@ -428,7 +428,7 @@ export async function getMySettlementCore(caller: StaffCaller) {
   const { data: row } = await supabaseAdmin
     .from("waiter_settlements")
     .select(
-      "id, status, pos_sales_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents, differenz_cents, kitchen_tip_cents, kitchen_tip_rate, submitted_at, auto_clockout_time_entry_id, second_waiter_name, additional_waiters",
+      "id, status, pos_sales_cents, kassiert_brutto_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents, differenz_cents, kitchen_tip_cents, kitchen_tip_rate, submitted_at, auto_clockout_time_entry_id, second_waiter_name, additional_waiters",
     )
     .eq("organization_id", caller.organizationId)
     .eq("session_id", session.id)
@@ -517,7 +517,7 @@ async function computeSessionTipPoolCore(
     supabaseAdmin
       .from("waiter_settlements")
       .select(
-        "staff_id, pos_sales_cents, card_total_cents, cash_handed_in_cents, open_invoices_cents, hilf_mahl_cents, kitchen_tip_cents, status",
+        "staff_id, pos_sales_cents, kassiert_brutto_cents, card_total_cents, cash_handed_in_cents, open_invoices_cents, hilf_mahl_cents, kitchen_tip_cents, status",
       )
       .eq("organization_id", caller.organizationId)
       .eq("session_id", session.id)
@@ -542,6 +542,7 @@ async function computeSessionTipPoolCore(
   const settlements = (settlementsRes.data ?? []).map((r) => ({
     staffId: r.staff_id,
     posSalesCents: Number(r.pos_sales_cents),
+    kassiertBruttoCents: Number(r.kassiert_brutto_cents),
     cardTotalCents: Number(r.card_total_cents),
     cashHandedInCents: Number(r.cash_handed_in_cents),
     openInvoicesCents: Number(r.open_invoices_cents),
@@ -1274,6 +1275,10 @@ export const removeSessionSatellite = createServerFn({ method: "POST" })
 
 const settlementInputSchema = z.object({
   posSalesCents: z.number().int().min(0),
+  // Abzugebender Betrag (kassiert_brutto). Optional aus Backwards-Kompat-
+  // Gründen: Wenn weggelassen, wird posSalesCents übernommen (Leistung =
+  // Abgabe, kein Tisch-Transfer). UI sendet ihn immer mit.
+  kassiertBruttoCents: z.number().int().min(0).optional(),
   cardTotalCents: z.number().int().min(0),
   hilfMahlCents: z.number().int().min(0),
   openInvoicesCents: z.number().int().min(0),
@@ -1348,7 +1353,7 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
   const { data: existing } = await supabaseAdmin
     .from("waiter_settlements")
     .select(
-      "id, status, auto_clockout_time_entry_id, kitchen_tip_rate, pos_sales_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents",
+      "id, status, auto_clockout_time_entry_id, kitchen_tip_rate, pos_sales_cents, kassiert_brutto_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents",
     )
     .eq("organization_id", caller.organizationId)
     .eq("session_id", session.id)
@@ -1364,6 +1369,7 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
 
   const calc = calcWaiterSettlement({
     posSalesCents: data.posSalesCents,
+    kassiertBruttoCents: data.kassiertBruttoCents ?? data.posSalesCents,
     cardTotalCents: data.cardTotalCents,
     hilfMahlCents: data.hilfMahlCents,
     openInvoicesCents: data.openInvoicesCents,
@@ -1393,6 +1399,7 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
       .from("waiter_settlements")
       .update({
         pos_sales_cents: data.posSalesCents,
+        kassiert_brutto_cents: data.kassiertBruttoCents ?? data.posSalesCents,
         card_total_cents: data.cardTotalCents,
         hilf_mahl_cents: data.hilfMahlCents,
         open_invoices_cents: data.openInvoicesCents,
@@ -1417,6 +1424,7 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
         session_id: session.id,
         staff_id: caller.staffId,
         pos_sales_cents: data.posSalesCents,
+        kassiert_brutto_cents: data.kassiertBruttoCents ?? data.posSalesCents,
         card_total_cents: data.cardTotalCents,
         hilf_mahl_cents: data.hilfMahlCents,
         open_invoices_cents: data.openInvoicesCents,
@@ -1500,6 +1508,7 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
 const correctSchema = z.object({
   originalId: z.string().uuid(),
   posSalesCents: z.number().int().min(0),
+  kassiertBruttoCents: z.number().int().min(0).optional(),
   cardTotalCents: z.number().int().min(0),
   hilfMahlCents: z.number().int().min(0),
   openInvoicesCents: z.number().int().min(0),
@@ -1568,6 +1577,7 @@ export async function correctWaiterSettlementCore(
     const inheritedRate = Number(original.kitchen_tip_rate);
     const calc = calcWaiterSettlement({
       posSalesCents: data.posSalesCents,
+      kassiertBruttoCents: data.kassiertBruttoCents ?? data.posSalesCents,
       cardTotalCents: data.cardTotalCents,
       hilfMahlCents: data.hilfMahlCents,
       openInvoicesCents: data.openInvoicesCents,
@@ -1591,6 +1601,7 @@ export async function correctWaiterSettlementCore(
         staff_id: original.staff_id,
         partner_staff_id: newPartnerId,
         pos_sales_cents: data.posSalesCents,
+        kassiert_brutto_cents: data.kassiertBruttoCents ?? data.posSalesCents,
         card_total_cents: data.cardTotalCents,
         hilf_mahl_cents: data.hilfMahlCents,
         open_invoices_cents: data.openInvoicesCents,
@@ -1640,6 +1651,7 @@ const adminCreateSettlementSchema = z.object({
   sessionId: z.string().uuid(),
   staffId: z.string().uuid(),
   posSalesCents: z.number().int().min(0),
+  kassiertBruttoCents: z.number().int().min(0).optional(),
   cardTotalCents: z.number().int().min(0),
   hilfMahlCents: z.number().int().min(0),
   openInvoicesCents: z.number().int().min(0),
@@ -1710,6 +1722,7 @@ export async function adminCreateWaiterSettlementCore(
     const settings = await loadOrgSettings(caller.organizationId);
     const calc = calcWaiterSettlement({
       posSalesCents: data.posSalesCents,
+      kassiertBruttoCents: data.kassiertBruttoCents ?? data.posSalesCents,
       cardTotalCents: data.cardTotalCents,
       hilfMahlCents: data.hilfMahlCents,
       openInvoicesCents: data.openInvoicesCents,
@@ -1724,6 +1737,7 @@ export async function adminCreateWaiterSettlementCore(
         staff_id: data.staffId,
         partner_staff_id: data.partnerStaffId ?? null,
         pos_sales_cents: data.posSalesCents,
+        kassiert_brutto_cents: data.kassiertBruttoCents ?? data.posSalesCents,
         card_total_cents: data.cardTotalCents,
         hilf_mahl_cents: data.hilfMahlCents,
         open_invoices_cents: data.openInvoicesCents,

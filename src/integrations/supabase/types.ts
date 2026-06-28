@@ -3371,6 +3371,7 @@ export type Database = {
           differenz_cents: number
           hilf_mahl_cents: number
           id: string
+          kassiert_brutto_cents: number
           kitchen_tip_cents: number
           kitchen_tip_rate: number
           open_invoices_cents: number
@@ -3394,6 +3395,7 @@ export type Database = {
           differenz_cents?: number
           hilf_mahl_cents?: number
           id?: string
+          kassiert_brutto_cents?: number
           kitchen_tip_cents?: number
           kitchen_tip_rate: number
           open_invoices_cents?: number
@@ -3417,6 +3419,7 @@ export type Database = {
           differenz_cents?: number
           hilf_mahl_cents?: number
           id?: string
+          kassiert_brutto_cents?: number
           kitchen_tip_cents?: number
           kitchen_tip_rate?: number
           open_invoices_cents?: number

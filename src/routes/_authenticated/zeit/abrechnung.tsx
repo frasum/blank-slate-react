@@ -60,6 +60,7 @@ function formatTime(iso: string): string {
 
 type FormState = {
   posSales: string;
+  kassiertBrutto: string;
   cardTotal: string;
   hilfMahl: string;
   openInvoices: string;
@@ -70,6 +71,7 @@ type FormState = {
 
 const EMPTY_FORM: FormState = {
   posSales: "",
+  kassiertBrutto: "",
   cardTotal: "",
   hilfMahl: "",
   openInvoices: "",
@@ -115,6 +117,7 @@ function AbrechnungPage() {
   const parsed = useMemo(() => {
     return {
       posSalesCents: parseEuroToCents(form.posSales),
+      kassiertBruttoCents: parseEuroToCents(form.kassiertBrutto),
       cardTotalCents: parseEuroToCents(form.cardTotal),
       hilfMahlCents: parseEuroToCents(form.hilfMahl),
       openInvoicesCents: parseEuroToCents(form.openInvoices),
@@ -124,6 +127,7 @@ function AbrechnungPage() {
 
   const allValid =
     parsed.posSalesCents !== null &&
+    parsed.kassiertBruttoCents !== null &&
     parsed.cardTotalCents !== null &&
     parsed.hilfMahlCents !== null &&
     parsed.openInvoicesCents !== null &&
@@ -133,6 +137,7 @@ function AbrechnungPage() {
     if (!allValid || myQ.data == null) return null;
     return calcWaiterSettlement({
       posSalesCents: parsed.posSalesCents!,
+      kassiertBruttoCents: parsed.kassiertBruttoCents!,
       cardTotalCents: parsed.cardTotalCents!,
       hilfMahlCents: parsed.hilfMahlCents!,
       openInvoicesCents: parsed.openInvoicesCents!,
@@ -146,6 +151,7 @@ function AbrechnungPage() {
       return doSubmit({
         data: {
           posSalesCents: parsed.posSalesCents!,
+          kassiertBruttoCents: parsed.kassiertBruttoCents!,
           cardTotalCents: parsed.cardTotalCents!,
           hilfMahlCents: parsed.hilfMahlCents!,
           openInvoicesCents: parsed.openInvoicesCents!,
@@ -230,7 +236,12 @@ function AbrechnungPage() {
     const locked = settlement.status === "locked" || session.status === "locked";
     const diff = Number(settlement.differenz_cents);
     const pos = Number(settlement.pos_sales_cents);
+    const kassiertBrutto = Number(
+      (settlement as { kassiert_brutto_cents?: number | string | null }).kassiert_brutto_cents ??
+        settlement.pos_sales_cents,
+    );
     const tipNetCents = waiterNetTipCents(diff, Number(settlement.kitchen_tip_cents));
+    // Quote bezieht sich auf die Leistung (POS), nicht auf den abzugebenden Betrag.
     const tipPct = pos > 0 ? (tipNetCents / pos) * 100 : null;
     const sessionLocked = session.status === "locked";
     return (
@@ -241,7 +252,8 @@ function AbrechnungPage() {
             <div className="text-sm text-muted-foreground">Geschäftstag {businessDate}</div>
             <Badge variant={locked ? "secondary" : "default"}>{settlement.status}</Badge>
           </div>
-          <ReadOnlyRow label="Kassenbon (POS)" cents={Number(settlement.pos_sales_cents)} />
+          <ReadOnlyRow label="Leistung (POS)" cents={pos} />
+          <ReadOnlyRow label="Abzugebender Betrag" cents={kassiertBrutto} />
           <ReadOnlyRow label="EC-/Kartensumme" cents={Number(settlement.card_total_cents)} />
           <ReadOnlyRow label="Hilfsmahlzeiten" cents={Number(settlement.hilf_mahl_cents)} />
           <ReadOnlyRow label="Offene Rechnungen" cents={Number(settlement.open_invoices_cents)} />
@@ -256,7 +268,7 @@ function AbrechnungPage() {
             cents={Number(settlement.kitchen_tip_cents)}
           />
           <hr className="border-border" />
-          <ReadOnlyRow label="Mein Trinkgeld (netto, Küche ab)" cents={tipNetCents} />
+          <ReadOnlyRow label="Soll-Abgabe ./. Küche" cents={tipNetCents} />
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Trinkgeld-Quote</span>
             <span className="font-mono tabular-nums">
@@ -318,10 +330,17 @@ function AbrechnungPage() {
         <div className="text-sm text-muted-foreground">Geschäftstag {businessDate}</div>
         <EuroField
           id="pos"
-          label="Kassenbon (POS)"
+          label="Leistung (POS)"
           value={form.posSales}
           onChange={(v) => setForm({ ...form, posSales: v })}
           error={parsed.posSalesCents === null && form.posSales !== ""}
+        />
+        <EuroField
+          id="kassiertBrutto"
+          label="Abzugebender Betrag"
+          value={form.kassiertBrutto}
+          onChange={(v) => setForm({ ...form, kassiertBrutto: v })}
+          error={parsed.kassiertBruttoCents === null && form.kassiertBrutto !== ""}
         />
         <EuroField
           id="card"
