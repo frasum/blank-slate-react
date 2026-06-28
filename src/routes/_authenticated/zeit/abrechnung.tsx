@@ -237,8 +237,8 @@ function AbrechnungPage() {
     const diff = Number(settlement.differenz_cents);
     const pos = Number(settlement.pos_sales_cents);
     const kassiertBrutto = Number(
-      (settlement as { kassiert_brutto_cents?: number | string | null })
-        .kassiert_brutto_cents ?? settlement.pos_sales_cents,
+      (settlement as { kassiert_brutto_cents?: number | string | null }).kassiert_brutto_cents ??
+        settlement.pos_sales_cents,
     );
     const tipNetCents = waiterNetTipCents(diff, Number(settlement.kitchen_tip_cents));
     // Quote bezieht sich auf die Leistung (POS), nicht auf den abzugebenden Betrag.

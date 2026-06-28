@@ -58,8 +58,7 @@ export function calcWaiterSettlement(input: WaiterSettlementInput): WaiterSettle
   // Differenz/Soll rechnet auf dem ABZUGEBENDEN Betrag (kassiert_brutto),
   // damit Tisch-Transfers korrekt abgebildet sind. Leistung (posSales)
   // bleibt für POS-Abgleich + Küchen-Tip.
-  const differenzCents =
-    kassiertBruttoCents + hilfMahlCents - openInvoicesCents - cardTotalCents;
+  const differenzCents = kassiertBruttoCents + hilfMahlCents - openInvoicesCents - cardTotalCents;
   const kitchenTipCents = roundHalfAwayFromZero(posSalesCents * kitchenTipRate);
 
   return { differenzCents, kitchenTipCents };
