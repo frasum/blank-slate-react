@@ -13,19 +13,12 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { parsePayslipName } from "./payslip-filename";
-import {
-  classifyAssignment,
-  type AssignDecision,
-  type StaffLite,
-} from "./payslip-assign-core";
+import { classifyAssignment, type AssignDecision, type StaffLite } from "./payslip-assign-core";
 import { payslipFolder, sanitizePayslipFileName } from "./payslip-path";
 
 const BUCKET = "payslips";
 
-async function loadStaffByPerso(
-  organizationId: string,
-  persoNr: number,
-): Promise<StaffLite[]> {
+async function loadStaffByPerso(organizationId: string, persoNr: number): Promise<StaffLite[]> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("staff")
