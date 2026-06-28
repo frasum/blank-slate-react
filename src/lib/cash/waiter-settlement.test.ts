@@ -97,3 +97,28 @@ describe("waiterNetTipCents", () => {
     expect(waiterNetTipCents(-200, 50)).toBe(0);
   });
 });
+
+describe("calcWaiterSettlement: Tisch-Transfer (kassiert_brutto ≠ pos_sales)", () => {
+  it("Differenz rechnet auf kassiert_brutto; kitchenTip bleibt auf posSales", () => {
+    const r = calcWaiterSettlement({
+      posSalesCents: 10000,
+      kassiertBruttoCents: 12000,
+      cardTotalCents: 0,
+      hilfMahlCents: 0,
+      openInvoicesCents: 0,
+      kitchenTipRate: 0.02,
+    });
+    expect(r).toEqual({ differenzCents: 12000, kitchenTipCents: 200 });
+  });
+
+  it("ohne kassiertBruttoCents bleibt Verhalten identisch (Fallback = posSales)", () => {
+    const r = calcWaiterSettlement({
+      posSalesCents: 100_00,
+      cardTotalCents: 60_00,
+      hilfMahlCents: 5_00,
+      openInvoicesCents: 10_00,
+      kitchenTipRate: 0.02,
+    });
+    expect(r).toEqual({ differenzCents: 3500, kitchenTipCents: 200 });
+  });
+});
