@@ -3699,6 +3699,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      list_payslip_objects: {
+        Args: { p_prefix: string }
+        Returns: {
+          created_at: string
+          name: string
+          size: number
+        }[]
+      }
       load_draft_into_cart: {
         Args: {
           p_cart_id: string
