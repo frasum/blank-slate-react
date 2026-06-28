@@ -293,7 +293,7 @@ export async function getCashOverviewCore(
     supabaseAdmin
       .from("waiter_settlements")
       .select(
-        "id, staff_id, partner_staff_id, pos_sales_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents, differenz_cents, kitchen_tip_cents, kitchen_tip_rate, status, submitted_at, corrected_from_id, auto_clockout_time_entry_id, primary_staff:staff!waiter_settlements_staff_id_fkey(display_name), partner_staff:staff!waiter_settlements_partner_staff_id_fkey(display_name)",
+        "id, staff_id, partner_staff_id, pos_sales_cents, kassiert_brutto_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents, differenz_cents, kitchen_tip_cents, kitchen_tip_rate, status, submitted_at, corrected_from_id, auto_clockout_time_entry_id, primary_staff:staff!waiter_settlements_staff_id_fkey(display_name), partner_staff:staff!waiter_settlements_partner_staff_id_fkey(display_name)",
       )
       .eq("organization_id", caller.organizationId)
       .eq("session_id", session.id)
@@ -428,7 +428,7 @@ export async function getMySettlementCore(caller: StaffCaller) {
   const { data: row } = await supabaseAdmin
     .from("waiter_settlements")
     .select(
-      "id, status, pos_sales_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents, differenz_cents, kitchen_tip_cents, kitchen_tip_rate, submitted_at, auto_clockout_time_entry_id, second_waiter_name, additional_waiters",
+      "id, status, pos_sales_cents, kassiert_brutto_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents, differenz_cents, kitchen_tip_cents, kitchen_tip_rate, submitted_at, auto_clockout_time_entry_id, second_waiter_name, additional_waiters",
     )
     .eq("organization_id", caller.organizationId)
     .eq("session_id", session.id)
@@ -517,7 +517,7 @@ async function computeSessionTipPoolCore(
     supabaseAdmin
       .from("waiter_settlements")
       .select(
-        "staff_id, pos_sales_cents, card_total_cents, cash_handed_in_cents, open_invoices_cents, hilf_mahl_cents, kitchen_tip_cents, status",
+        "staff_id, pos_sales_cents, kassiert_brutto_cents, card_total_cents, cash_handed_in_cents, open_invoices_cents, hilf_mahl_cents, kitchen_tip_cents, status",
       )
       .eq("organization_id", caller.organizationId)
       .eq("session_id", session.id)
@@ -542,6 +542,7 @@ async function computeSessionTipPoolCore(
   const settlements = (settlementsRes.data ?? []).map((r) => ({
     staffId: r.staff_id,
     posSalesCents: Number(r.pos_sales_cents),
+    kassiertBruttoCents: Number(r.kassiert_brutto_cents),
     cardTotalCents: Number(r.card_total_cents),
     cashHandedInCents: Number(r.cash_handed_in_cents),
     openInvoicesCents: Number(r.open_invoices_cents),
