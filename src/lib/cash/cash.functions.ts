@@ -1369,7 +1369,7 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
 
   const calc = calcWaiterSettlement({
     posSalesCents: data.posSalesCents,
-    kassiertBruttoCents: data.kassiertBruttoCents ?? data.posSalesCents,
+    kassiertBruttoCents: kassiertBruttoCents,
     cardTotalCents: data.cardTotalCents,
     hilfMahlCents: data.hilfMahlCents,
     openInvoicesCents: data.openInvoicesCents,
@@ -1399,7 +1399,7 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
       .from("waiter_settlements")
       .update({
         pos_sales_cents: data.posSalesCents,
-        kassiert_brutto_cents: data.kassiertBruttoCents ?? data.posSalesCents,
+        kassiert_brutto_cents: kassiertBruttoCents,
         card_total_cents: data.cardTotalCents,
         hilf_mahl_cents: data.hilfMahlCents,
         open_invoices_cents: data.openInvoicesCents,
@@ -1424,7 +1424,7 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
         session_id: session.id,
         staff_id: caller.staffId,
         pos_sales_cents: data.posSalesCents,
-        kassiert_brutto_cents: data.kassiertBruttoCents ?? data.posSalesCents,
+        kassiert_brutto_cents: kassiertBruttoCents,
         card_total_cents: data.cardTotalCents,
         hilf_mahl_cents: data.hilfMahlCents,
         open_invoices_cents: data.openInvoicesCents,
