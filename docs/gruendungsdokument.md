@@ -567,3 +567,55 @@ Self-Service: `claim_task` weist eine offene, unassignete Task am eigenen Stando
 Lektion (live gelernt): Die RPCs hatten anfangs `current_staff_id()`/`has_permission()` intern, wurden aber via `supabaseAdmin` (service_role) aufgerufen → `auth.uid()` NULL → „kein aktiver Aufrufer", jeder Schreibvorgang scheiterte. Statisches Review fing das nicht (DB-Integrationstests sind `continue-on-error`); erst der manuelle Smoke-Test. Fix: Migration `…123007` (Caller-Parameter, service_role-only). Konsequenz für künftige service_role-RPCs: Identität immer als Parameter, nie `auth.uid()` in der RPC.
 
 Stand 21.06.2026: End-to-End-Smoke-Test bestätigt (Anlegen → Staff sieht/claimt → Realtime live). Assignee-Filter nach Kategorie umgesetzt — reines, getestetes `filter-staff-by-category.ts`. Standort ist über die Quelle bereits erzwungen; der Filter narrowt zusätzlich nach Skill/Rolle (`service`/`kitchen` → Skill-Kategorie, `manager_admin`/`maintenance` → Rolle bzw. `other`-Skill).
+
+## Nachtrag M-Statistik — Auswertungen / Statistiken (Modul-Schnitt, Stand 29.06.2026)
+
+Quelle der Wahrheit: Die Statistik-Seite von `tagesabrechnung` (Konzept + UI-Vorlage). **Neu gerechnet** auf COCOs normalisiertem Cent-Modell — nicht das alte Schema portieren. Auf Wunsch geprüft: tagesabrechnung wertet an mehreren Stellen falsch aus (s. „So nicht"). COCOs Datenmodell (sessions + revenue_channels + session_channel_amounts) vermeidet die schlimmste Falle bereits strukturell.
+
+Datenbasis (vorhanden, nichts Neues nötig):
+
+- `sessions` (BIGINT cents): `vectron_daily_total_cents`, `business_date`, `location_id`, `status`, `*_cents`-Felder, `session_expenses`.
+- `revenue_channels`: Kanäle je Standort mit Flag `is_takeaway`. Verifiziert: YUM/Spicery führen nur Takeaway-Kanäle (Wolt/SOUSE/Vectron-Takeaway); TSB hat zusätzlich einen `pos`-Kanal „Kasse".
+- `session_channel_amounts`: Betrag je Session je Kanal.
+- Trinkgeld: `session_tip_pool_entries` / `waiter_settlements` (M2-Tippool).
+- Personalzeit: `time_entries` (M1).
+
+Designentscheidungen:
+
+S-1 (Eine reine, getestete Cent-Funktion): Alle Kennzahlen aus EINEM reinen TS-Modul (`src/lib/statistics/`), BIGINT cents, keine Floats. **Wert und Trend stammen aus demselben Modul über dasselbe Fenster** — das beseitigt die tagesabrechnung-Fehler „zwei Formeln / zwei Fenster" per Konstruktion.
+
+S-2 (Umsatzdefinition — an echten Zahlen verifiziert): Kanäle sind disjunkte Zeilen, keine ineinander verschachtelten Summen → keine Doppelzählung.
+
+- Haus-Umsatz je Session = `vectron_daily_total_cents` **oder** Σ(Kanäle mit `is_takeaway=false`) — **pro Standort genau eine Quelle, nie beides.** Verifiziert: YUM/Spicery haben keinen pos-Kanal (`pos_channel = 0`) → Haus = `vectron_daily_total_cents`.
+- Takeaway/Lieferung = Σ(Kanäle mit `is_takeaway=true`). Verifiziert additiv und separat von Vectron.
+- Gesamtumsatz = Haus + Takeaway.
+
+S-3 (Zeitraum = Abrechnungsperiode 26.–25.): „Monat" ist die Periode (org-weite Einstellung), nicht der Kalendermonat. Vergleich immer „diese Periode vs. vorige Periode gleicher Länge". Kein „Woche = 2 Wochen"-Sonderfall.
+
+S-4 (Tagesreihe nach `business_date` aggregiert): Eine Zeile pro Geschäftstag, im „Alle"-Modus über Standorte summiert — nicht eine Zeile pro Session.
+
+S-5 (Umsatz unabhängig von Schichten): Umsatz und „Tage mit Daten" zählen über alle Sessions mit Umsatz/Kanaldaten. Nur Trinkgeld wird an Schichten/Pool geknüpft. (tagesabrechnung verwarf den Umsatz schichtloser Tage komplett.)
+
+S-6 (Welche Sessions zählen): Aktuell sind alle Sessions `status='open'` (das Team finalisiert nicht). Default: zählen, sobald Umsatz vorhanden ist (`vectron>0` oder Kanalbetrag vorhanden), Status-Schwelle dokumentiert. Bewusst entschieden, nicht stillschweigend.
+
+S-7 (Trinkgeld — ein Begriff): Pool-Verteilung aus dem M2-Tippool (`session_tip_pool_entries`/`waiter_settlements`), EINE Trinkgeld-Definition für Service und Küche. Keine zwei parallelen Formeln.
+
+S-8 (Personalquote — Ergänzung ggü. tagesabrechnung): Stunden/Kosten aus M1 (`time_entries`) gegen Umsatz → Personalquote je Periode/Standort. Für Gastro die zentrale Kennzahl; tagesabrechnung hatte sie nicht, COCO hat die Daten bereits.
+
+Übernehmen aus tagesabrechnung (Konzept gut): Modus pro Standort / Alle / Vergleich; Vorperioden-Trend auf KPI-Karten; Umsatzverlauf; Trinkgeld pro Mitarbeiter (Service+Küche); Vergleichs-PDF. Ergänzen: Personalquote, Ausgaben nach Kategorie, CSV-Export der Rohdaten.
+
+So nicht (tagesabrechnung-Schwächen, explizit ausgeschlossen):
+
+1. Doppelzählung Lieferumsatz (`ordersmart + wolt + takeaway_total`, während der Pie `takeaway_total` als Obermenge annimmt).
+2. KPI-Wert und Trendpfeil über unterschiedliche Zeitfenster (Wert 2 Wochen, Trend 1-gegen-1-Woche).
+3. Zwei verschiedene Trinkgeld-Formeln im selben Bild (`differenz` vs. `kassiert_brutto+hilf_mahl-open_invoices-card_total`).
+4. Umsatz von Sessions ohne Kellnerschicht verworfen (`shifts.length>0`-Filter).
+5. „Alle"-Tagesverlauf nicht nach Datum aggregiert (eine Zeile pro Session statt pro Tag).
+
+Offene Verifikation (an echten Zahlen, sobald verfügbar):
+
+- TSB-Haus-Umsatz: Füllt TSB `vectron_daily_total_cents` UND den „Kasse"-pos-Kanal gleichzeitig? Falls ja, greift die S-2-Regel „pro Standort nur eine Quelle" — vor Live-Nutzung an echten TSB-Sessions bestätigen. (YUM/Spicery bereits verifiziert.)
+
+Bauschritte (grob, wenn freigegeben): kein Schema nötig → reine lib + Charakterisierungstests gegen manuell gerechnete Referenztage → Read-Server-Fns (`createServerFn`, manager/payroll-gated, org/standort-scoped) → UI (Karten/Charts) → Personalquote.
+
+Erfolgs-Gate (wenn gebaut): reine Funktion bitgenau gegen Referenztage; `Gesamtumsatz == Σ(Tagesreihe)`; Trend konsistent mit demselben Modul; RLS-Inventur unverändert; tsc/eslint/vitest grün.
