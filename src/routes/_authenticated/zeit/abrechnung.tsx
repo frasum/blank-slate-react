@@ -115,9 +115,14 @@ function AbrechnungPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const parsed = useMemo(() => {
+    const posSalesCents = parseEuroToCents(form.posSales);
+    // „Abzugebender Betrag" ist optional: leeres Feld → Fallback auf Leistung (POS).
+    const kassiertRaw = form.kassiertBrutto.trim();
+    const kassiertBruttoCents =
+      kassiertRaw === "" ? posSalesCents : parseEuroToCents(form.kassiertBrutto);
     return {
-      posSalesCents: parseEuroToCents(form.posSales),
-      kassiertBruttoCents: parseEuroToCents(form.kassiertBrutto),
+      posSalesCents,
+      kassiertBruttoCents,
       cardTotalCents: parseEuroToCents(form.cardTotal),
       hilfMahlCents: parseEuroToCents(form.hilfMahl),
       openInvoicesCents: parseEuroToCents(form.openInvoices),
@@ -341,6 +346,8 @@ function AbrechnungPage() {
           value={form.kassiertBrutto}
           onChange={(v) => setForm({ ...form, kassiertBrutto: v })}
           error={parsed.kassiertBruttoCents === null && form.kassiertBrutto !== ""}
+          hint="Leer lassen, wenn identisch mit Leistung (POS)."
+          placeholder="wie Leistung (POS)"
         />
         <EuroField
           id="card"
@@ -508,12 +515,16 @@ function EuroField({
   value,
   onChange,
   error,
+  hint,
+  placeholder,
 }: {
   id: string;
   label: string;
   value: string;
   onChange: (v: string) => void;
   error: boolean;
+  hint?: string;
+  placeholder?: string;
 }) {
   return (
     <div className="space-y-1">
@@ -521,12 +532,13 @@ function EuroField({
       <Input
         id={id}
         inputMode="decimal"
-        placeholder="0,00"
+        placeholder={placeholder ?? "0,00"}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         aria-invalid={error}
       />
       {error && <p className="text-xs text-destructive">Bitte einen Eurobetrag eingeben.</p>}
+      {!error && hint && <p className="text-xs text-muted-foreground">{hint}</p>}
     </div>
   );
 }
