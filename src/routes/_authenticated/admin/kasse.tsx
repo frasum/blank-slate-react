@@ -190,6 +190,9 @@ function KassePage() {
   const correctMut = useMutation({
     mutationFn: () => {
       if (!correct) throw new Error("invalid state");
+      if (correct.kassiertBrutto.trim().startsWith("-")) {
+        throw new Error("Der abzugebende Betrag darf nicht negativ sein.");
+      }
       const pos = parseEuroToCents(correct.posSales);
       // „Abzugebender Betrag" optional: leeres Feld → Fallback auf Leistung (POS).
       const kassiert =
@@ -240,6 +243,9 @@ function KassePage() {
       if (!createSettlement) throw new Error("invalid state");
       if (!sessionId) throw new Error("Keine Session");
       if (!createSettlement.staffId) throw new Error("Bitte einen Kellner wählen.");
+      if (createSettlement.kassiertBrutto.trim().startsWith("-")) {
+        throw new Error("Der abzugebende Betrag darf nicht negativ sein.");
+      }
       const pos = parseEuroToCents(createSettlement.posSales);
       // „Abzugebender Betrag" optional: leeres Feld → Fallback auf Leistung (POS).
       const kassiert =

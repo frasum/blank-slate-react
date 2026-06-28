@@ -130,9 +130,14 @@ function AbrechnungPage() {
     };
   }, [form]);
 
+  // Negative Eingabe explizit erkennen, damit eine konkrete Fehlermeldung möglich ist
+  // (parseEuroToCents lehnt negative Werte mit `null` ab — sonst nicht von „kein Eurobetrag" unterscheidbar).
+  const kassiertBruttoNegative = form.kassiertBrutto.trim().startsWith("-");
+
   const allValid =
     parsed.posSalesCents !== null &&
     parsed.kassiertBruttoCents !== null &&
+    !kassiertBruttoNegative &&
     parsed.cardTotalCents !== null &&
     parsed.hilfMahlCents !== null &&
     parsed.openInvoicesCents !== null &&
@@ -345,7 +350,15 @@ function AbrechnungPage() {
           label="Abzugebender Betrag"
           value={form.kassiertBrutto}
           onChange={(v) => setForm({ ...form, kassiertBrutto: v })}
-          error={parsed.kassiertBruttoCents === null && form.kassiertBrutto !== ""}
+          error={
+            (parsed.kassiertBruttoCents === null && form.kassiertBrutto !== "") ||
+            kassiertBruttoNegative
+          }
+          errorMessage={
+            kassiertBruttoNegative
+              ? "Der abzugebende Betrag darf nicht negativ sein."
+              : undefined
+          }
           hint="Leer lassen, wenn identisch mit Leistung (POS)."
           placeholder="wie Leistung (POS)"
         />
@@ -517,6 +530,7 @@ function EuroField({
   error,
   hint,
   placeholder,
+  errorMessage,
 }: {
   id: string;
   label: string;
@@ -525,6 +539,7 @@ function EuroField({
   error: boolean;
   hint?: string;
   placeholder?: string;
+  errorMessage?: string;
 }) {
   return (
     <div className="space-y-1">
@@ -537,7 +552,11 @@ function EuroField({
         onChange={(e) => onChange(e.target.value)}
         aria-invalid={error}
       />
-      {error && <p className="text-xs text-destructive">Bitte einen Eurobetrag eingeben.</p>}
+      {error && (
+        <p className="text-xs text-destructive">
+          {errorMessage ?? "Bitte einen Eurobetrag eingeben."}
+        </p>
+      )}
       {!error && hint && <p className="text-xs text-muted-foreground">{hint}</p>}
     </div>
   );
