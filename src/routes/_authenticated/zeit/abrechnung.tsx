@@ -198,7 +198,6 @@ function AbrechnungPage() {
   const {
     session,
     settlement,
-    kitchenTipRate,
     businessDate,
     staffId: myStaffId,
     myPoolShareCents,
