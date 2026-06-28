@@ -905,12 +905,21 @@ function KassePage() {
                     onChange={(e) =>
                       setCreateSettlement({ ...createSettlement, [key]: e.target.value })
                     }
+                    aria-invalid={
+                      key === "kassiertBrutto" &&
+                      createSettlement.kassiertBrutto.trim().startsWith("-")
+                    }
                   />
-                  {key === "kassiertBrutto" && (
+                  {key === "kassiertBrutto" &&
+                  createSettlement.kassiertBrutto.trim().startsWith("-") ? (
+                    <p className="text-xs text-destructive">
+                      Der abzugebende Betrag darf nicht negativ sein.
+                    </p>
+                  ) : key === "kassiertBrutto" ? (
                     <p className="text-xs text-muted-foreground">
                       Leer lassen, wenn identisch mit Leistung (POS).
                     </p>
-                  )}
+                  ) : null}
                 </div>
               ))}
               <div className="space-y-1">
