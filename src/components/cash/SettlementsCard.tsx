@@ -36,7 +36,8 @@ export function SettlementsCard({
         <TableHeader>
           <TableRow>
             <TableHead>Kellner</TableHead>
-            <TableHead className="text-right">POS</TableHead>
+            <TableHead className="text-right">Leistung</TableHead>
+            <TableHead className="text-right">Abgabe</TableHead>
             <TableHead className="text-right">Karte</TableHead>
             <TableHead className="text-right">Hilf</TableHead>
             <TableHead className="text-right">Offen</TableHead>
@@ -51,7 +52,7 @@ export function SettlementsCard({
         <TableBody>
           {rows.length === 0 && (
             <TableRow>
-              <TableCell colSpan={11} className="text-center text-muted-foreground">
+              <TableCell colSpan={12} className="text-center text-muted-foreground">
                 Noch keine Abrechnungen.
               </TableCell>
             </TableRow>
@@ -59,6 +60,10 @@ export function SettlementsCard({
           {rows.map((r) => {
             const superseded = r.status === "superseded";
             const pos = Number(r.pos_sales_cents);
+            const kassiertBrutto = Number(
+              (r as { kassiert_brutto_cents?: number | string | null }).kassiert_brutto_cents ??
+                r.pos_sales_cents,
+            );
             const diff = Number(r.differenz_cents);
             const tipTotal = Number(r.kitchen_tip_cents) + Math.max(0, diff);
             const tipPct = pos > 0 ? (tipTotal / pos) * 100 : null;
@@ -75,6 +80,7 @@ export function SettlementsCard({
                 <TableCell className="text-right font-mono">
                   {fmtCents(Number(r.pos_sales_cents))}
                 </TableCell>
+                <TableCell className="text-right font-mono">{fmtCents(kassiertBrutto)}</TableCell>
                 <TableCell className="text-right font-mono">
                   {fmtCents(Number(r.card_total_cents))}
                 </TableCell>
