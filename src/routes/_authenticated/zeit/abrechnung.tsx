@@ -273,7 +273,6 @@ function AbrechnungPage() {
             cents={Number(settlement.cash_handed_in_cents)}
           />
           <hr className="border-border" />
-          <ReadOnlyRow label="Differenz" cents={Number(settlement.differenz_cents)} highlight />
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Meine Trinkgeld-Quote</span>
             <span className="font-mono tabular-nums">
@@ -445,12 +444,6 @@ function AbrechnungPage() {
         )}
         <hr className="border-border" />
         <div className="space-y-1 text-sm">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Differenz (Vorschau)</span>
-            <span className="font-mono tabular-nums">
-              {preview ? `${formatCents(preview.differenzCents)} €` : "—"}
-            </span>
-          </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Meine Trinkgeld-Quote (Vorschau)</span>
             <span className="font-mono tabular-nums">
