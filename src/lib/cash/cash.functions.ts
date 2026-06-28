@@ -1275,7 +1275,10 @@ export const removeSessionSatellite = createServerFn({ method: "POST" })
 
 const settlementInputSchema = z.object({
   posSalesCents: z.number().int().min(0),
-  kassiertBruttoCents: z.number().int().min(0),
+  // Abzugebender Betrag (kassiert_brutto). Optional aus Backwards-Kompat-
+  // Gründen: Wenn weggelassen, wird posSalesCents übernommen (Leistung =
+  // Abgabe, kein Tisch-Transfer). UI sendet ihn immer mit.
+  kassiertBruttoCents: z.number().int().min(0).optional(),
   cardTotalCents: z.number().int().min(0),
   hilfMahlCents: z.number().int().min(0),
   openInvoicesCents: z.number().int().min(0),
@@ -1366,7 +1369,7 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
 
   const calc = calcWaiterSettlement({
     posSalesCents: data.posSalesCents,
-    kassiertBruttoCents: data.kassiertBruttoCents,
+    kassiertBruttoCents: data.kassiertBruttoCents ?? data.posSalesCents,
     cardTotalCents: data.cardTotalCents,
     hilfMahlCents: data.hilfMahlCents,
     openInvoicesCents: data.openInvoicesCents,
@@ -1396,7 +1399,7 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
       .from("waiter_settlements")
       .update({
         pos_sales_cents: data.posSalesCents,
-        kassiert_brutto_cents: data.kassiertBruttoCents,
+        kassiert_brutto_cents: data.kassiertBruttoCents ?? data.posSalesCents,
         card_total_cents: data.cardTotalCents,
         hilf_mahl_cents: data.hilfMahlCents,
         open_invoices_cents: data.openInvoicesCents,
@@ -1421,7 +1424,7 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
         session_id: session.id,
         staff_id: caller.staffId,
         pos_sales_cents: data.posSalesCents,
-        kassiert_brutto_cents: data.kassiertBruttoCents,
+        kassiert_brutto_cents: data.kassiertBruttoCents ?? data.posSalesCents,
         card_total_cents: data.cardTotalCents,
         hilf_mahl_cents: data.hilfMahlCents,
         open_invoices_cents: data.openInvoicesCents,
