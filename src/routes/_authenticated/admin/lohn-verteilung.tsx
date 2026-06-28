@@ -8,6 +8,7 @@ import {
   type AssignUploadResult,
 } from "@/lib/payslips/payslip-assign.functions";
 import type { AssignDecision, AssignStatus } from "@/lib/payslips/payslip-assign-core";
+import { splitCombinedPdf, bytesToBase64, type SplitOutput } from "@/lib/payslips/split-combined";
 
 export const Route = createFileRoute("/_authenticated/admin/lohn-verteilung")({
   head: () => ({ meta: [{ title: "Lohn-Verteilung · Verwaltung" }] }),
@@ -46,6 +47,11 @@ function LohnVerteilungPage() {
   const isAdmin = identity.role === "admin";
 
   const [files, setFiles] = useState<File[]>([]);
+  const [splitOutputs, setSplitOutputs] = useState<SplitOutput[]>([]);
+  const [splitTotalPages, setSplitTotalPages] = useState<number | null>(null);
+  const [splitUnparsable, setSplitUnparsable] = useState<number[]>([]);
+  const [splitting, setSplitting] = useState(false);
+  const [splitError, setSplitError] = useState<string | null>(null);
   const [decisions, setDecisions] = useState<AssignDecision[] | null>(null);
   const [results, setResults] = useState<AssignUploadResult[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -53,9 +59,16 @@ function LohnVerteilungPage() {
   const callPlan = useServerFn(planPayslipAssignment);
   const callAssign = useServerFn(assignPayslips);
 
+  const planFileNames = (): { fileName: string }[] => {
+    if (splitOutputs.length > 0) return splitOutputs.map((o) => ({ fileName: o.fileName }));
+    return files.map((f) => ({ fileName: f.name }));
+  };
+
   const planMut = useMutation({
     mutationFn: async () => {
-      const res = await callPlan({ data: { files: files.map((f) => ({ fileName: f.name })) } });
+      const list = planFileNames();
+      if (list.length === 0) throw new Error("Keine Dateien gewählt.");
+      const res = await callPlan({ data: { files: list } });
       return res;
     },
     onSuccess: (data) => {
@@ -72,9 +85,16 @@ function LohnVerteilungPage() {
       const uploadable = decisions.filter((d) => isUploadable(d.status)).map((d) => d.fileName);
       const set = new Set(uploadable);
       const payload: { fileName: string; contentBase64: string }[] = [];
-      for (const f of files) {
-        if (!set.has(f.name)) continue;
-        payload.push({ fileName: f.name, contentBase64: await fileToBase64(f) });
+      if (splitOutputs.length > 0) {
+        for (const o of splitOutputs) {
+          if (!set.has(o.fileName)) continue;
+          payload.push({ fileName: o.fileName, contentBase64: bytesToBase64(o.bytes) });
+        }
+      } else {
+        for (const f of files) {
+          if (!set.has(f.name)) continue;
+          payload.push({ fileName: f.name, contentBase64: await fileToBase64(f) });
+        }
       }
       if (payload.length === 0) throw new Error("Keine hochladbaren Dateien.");
       return callAssign({ data: { files: payload } });
@@ -94,34 +114,90 @@ function LohnVerteilungPage() {
   const uploadedCount = results?.filter((r) => r.status === "uploaded").length ?? 0;
   const skippedCount = results ? results.length - uploadedCount : 0;
 
+  function resetDownstream() {
+    setDecisions(null);
+    setResults(null);
+    setError(null);
+  }
+
+  async function onCombinedSelected(file: File | null) {
+    setSplitError(null);
+    setSplitOutputs([]);
+    setSplitTotalPages(null);
+    setSplitUnparsable([]);
+    resetDownstream();
+    if (!file) return;
+    // Beim Sammel-PDF-Modus den Einzeldatei-Modus räumen, damit nur EINE Quelle aktiv ist.
+    setFiles([]);
+    setSplitting(true);
+    try {
+      const res = await splitCombinedPdf(file);
+      setSplitOutputs(res.outputs);
+      setSplitTotalPages(res.totalPages);
+      setSplitUnparsable(res.unparsablePages);
+    } catch (e) {
+      setSplitError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSplitting(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Lohn-Verteilung</h1>
         <p className="text-sm text-muted-foreground">
-          Mehrere edlohn-PDFs auswählen. Das System liest die Personal-Nr aus dem Dateinamen und
-          legt jede PDF in den Ordner des passenden Mitarbeiters. Mehrdeutige oder unbekannte
-          Dateien werden übersprungen, nie falsch zugeordnet.
+          Entweder mehrere bereits gesplittete edlohn-PDFs hochladen — oder das Sammel-PDF
+          (Monatsexport je Mandant) wählen, das hier im Browser nach Personal-Nr aufgeteilt wird.
+          Das System legt jede PDF in den Ordner des passenden Mitarbeiters. Mehrdeutige oder
+          unbekannte Dateien werden übersprungen, nie falsch zugeordnet.
         </p>
       </div>
 
       <div className="space-y-3 rounded-lg border border-border bg-card p-4">
+        <h2 className="text-sm font-semibold">Sammel-PDF aufteilen</h2>
+        <input
+          type="file"
+          accept="application/pdf"
+          onChange={(e) => {
+            const f = e.target.files?.[0] ?? null;
+            void onCombinedSelected(f);
+          }}
+        />
+        {splitting ? <p className="text-sm text-muted-foreground">Teile PDF auf…</p> : null}
+        {splitError ? <p className="text-sm text-destructive">{splitError}</p> : null}
+        {splitOutputs.length > 0 && splitTotalPages !== null ? (
+          <p className="text-sm">
+            {splitTotalPages} Seiten → <strong>{splitOutputs.length} Mitarbeiter</strong>.
+          </p>
+        ) : null}
+        {splitUnparsable.length > 0 ? (
+          <p className="text-sm text-destructive">
+            Warnung: {splitUnparsable.length} Seite(n) ohne lesbare Personal-Nr werden NICHT
+            hochgeladen — Seiten (1-basiert): {splitUnparsable.map((p) => p + 1).join(", ")}
+          </p>
+        ) : null}
+      </div>
+
+      <div className="space-y-3 rounded-lg border border-border bg-card p-4">
+        <h2 className="text-sm font-semibold">Einzeldateien hochladen</h2>
         <input
           type="file"
           accept="application/pdf"
           multiple
           onChange={(e) => {
             setFiles(Array.from(e.target.files ?? []));
-            setDecisions(null);
-            setResults(null);
-            setError(null);
+            setSplitOutputs([]);
+            setSplitTotalPages(null);
+            setSplitUnparsable([]);
+            resetDownstream();
           }}
         />
         <div className="flex gap-2">
           <button
             type="button"
             className="rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent disabled:opacity-50"
-            disabled={files.length === 0 || planMut.isPending}
+            disabled={(files.length === 0 && splitOutputs.length === 0) || planMut.isPending}
             onClick={() => planMut.mutate()}
           >
             {planMut.isPending ? "Prüfe…" : "Vorschau"}
