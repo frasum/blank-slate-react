@@ -190,6 +190,9 @@ function KassePage() {
   const correctMut = useMutation({
     mutationFn: () => {
       if (!correct) throw new Error("invalid state");
+      if (correct.kassiertBrutto.trim().startsWith("-")) {
+        throw new Error("Der abzugebende Betrag darf nicht negativ sein.");
+      }
       const pos = parseEuroToCents(correct.posSales);
       // „Abzugebender Betrag" optional: leeres Feld → Fallback auf Leistung (POS).
       const kassiert =
@@ -240,6 +243,9 @@ function KassePage() {
       if (!createSettlement) throw new Error("invalid state");
       if (!sessionId) throw new Error("Keine Session");
       if (!createSettlement.staffId) throw new Error("Bitte einen Kellner wählen.");
+      if (createSettlement.kassiertBrutto.trim().startsWith("-")) {
+        throw new Error("Der abzugebende Betrag darf nicht negativ sein.");
+      }
       const pos = parseEuroToCents(createSettlement.posSales);
       // „Abzugebender Betrag" optional: leeres Feld → Fallback auf Leistung (POS).
       const kassiert =
@@ -772,12 +778,19 @@ function KassePage() {
                     value={correct[key]}
                     placeholder={key === "kassiertBrutto" ? "wie Leistung (POS)" : "0,00"}
                     onChange={(e) => setCorrect({ ...correct, [key]: e.target.value })}
+                    aria-invalid={
+                      key === "kassiertBrutto" && correct.kassiertBrutto.trim().startsWith("-")
+                    }
                   />
-                  {key === "kassiertBrutto" && (
+                  {key === "kassiertBrutto" && correct.kassiertBrutto.trim().startsWith("-") ? (
+                    <p className="text-xs text-destructive">
+                      Der abzugebende Betrag darf nicht negativ sein.
+                    </p>
+                  ) : key === "kassiertBrutto" ? (
                     <p className="text-xs text-muted-foreground">
                       Leer lassen, wenn identisch mit Leistung (POS).
                     </p>
-                  )}
+                  ) : null}
                 </div>
               ))}
               <div className="space-y-1">
@@ -795,7 +808,12 @@ function KassePage() {
               Abbrechen
             </Button>
             <Button
-              disabled={!correct || correct.reason.trim().length < 3 || correctMut.isPending}
+              disabled={
+                !correct ||
+                correct.reason.trim().length < 3 ||
+                correct.kassiertBrutto.trim().startsWith("-") ||
+                correctMut.isPending
+              }
               onClick={() => correctMut.mutate()}
             >
               {correctMut.isPending ? "Speichert…" : "Korrektur speichern"}
@@ -887,12 +905,21 @@ function KassePage() {
                     onChange={(e) =>
                       setCreateSettlement({ ...createSettlement, [key]: e.target.value })
                     }
+                    aria-invalid={
+                      key === "kassiertBrutto" &&
+                      createSettlement.kassiertBrutto.trim().startsWith("-")
+                    }
                   />
-                  {key === "kassiertBrutto" && (
+                  {key === "kassiertBrutto" &&
+                  createSettlement.kassiertBrutto.trim().startsWith("-") ? (
+                    <p className="text-xs text-destructive">
+                      Der abzugebende Betrag darf nicht negativ sein.
+                    </p>
+                  ) : key === "kassiertBrutto" ? (
                     <p className="text-xs text-muted-foreground">
                       Leer lassen, wenn identisch mit Leistung (POS).
                     </p>
-                  )}
+                  ) : null}
                 </div>
               ))}
               <div className="space-y-1">
@@ -916,6 +943,7 @@ function KassePage() {
                 !createSettlement ||
                 !createSettlement.staffId ||
                 createSettlement.reason.trim().length < 3 ||
+                createSettlement.kassiertBrutto.trim().startsWith("-") ||
                 createSettlementMut.isPending
               }
               onClick={() => createSettlementMut.mutate()}
