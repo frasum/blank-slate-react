@@ -946,8 +946,7 @@ function PayslipsTab({ staffId }: { staffId: string }) {
         <p className="text-sm text-muted-foreground">Lade…</p>
       ) : q.isError ? (
         <p className="text-sm text-destructive">
-          Fehler beim Laden:{" "}
-          {q.error instanceof Error ? q.error.message : "Unbekannter Fehler."}
+          Fehler beim Laden: {q.error instanceof Error ? q.error.message : "Unbekannter Fehler."}
         </p>
       ) : items.length === 0 ? (
         <p className="text-sm text-muted-foreground">Noch keine Lohnabrechnungen hinterlegt.</p>
