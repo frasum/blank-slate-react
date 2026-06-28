@@ -50,10 +50,11 @@ function LohnPage() {
       </header>
 
       {q.isLoading ? (
-        <p className="text-sm text-muted-foreground">Lädt …</p>
-      ) : q.error ? (
+        <p className="text-sm text-muted-foreground">Lade…</p>
+      ) : q.isError ? (
         <p className="text-sm text-destructive">
-          {q.error instanceof Error ? q.error.message : "Fehler beim Laden."}
+          Fehler beim Laden:{" "}
+          {q.error instanceof Error ? q.error.message : "Unbekannter Fehler."}
         </p>
       ) : items.length === 0 ? (
         <p className="text-sm text-muted-foreground">Noch keine Lohnabrechnungen hinterlegt.</p>
