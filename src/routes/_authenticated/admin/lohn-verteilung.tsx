@@ -8,11 +8,7 @@ import {
   type AssignUploadResult,
 } from "@/lib/payslips/payslip-assign.functions";
 import type { AssignDecision, AssignStatus } from "@/lib/payslips/payslip-assign-core";
-import {
-  splitCombinedPdf,
-  bytesToBase64,
-  type SplitOutput,
-} from "@/lib/payslips/split-combined";
+import { splitCombinedPdf, bytesToBase64, type SplitOutput } from "@/lib/payslips/split-combined";
 
 export const Route = createFileRoute("/_authenticated/admin/lohn-verteilung")({
   head: () => ({ meta: [{ title: "Lohn-Verteilung · Verwaltung" }] }),
@@ -152,9 +148,9 @@ function LohnVerteilungPage() {
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Lohn-Verteilung</h1>
         <p className="text-sm text-muted-foreground">
           Entweder mehrere bereits gesplittete edlohn-PDFs hochladen — oder das Sammel-PDF
-          (Monatsexport je Mandant) wählen, das hier im Browser nach Personal-Nr aufgeteilt
-          wird. Das System legt jede PDF in den Ordner des passenden Mitarbeiters. Mehrdeutige
-          oder unbekannte Dateien werden übersprungen, nie falsch zugeordnet.
+          (Monatsexport je Mandant) wählen, das hier im Browser nach Personal-Nr aufgeteilt wird.
+          Das System legt jede PDF in den Ordner des passenden Mitarbeiters. Mehrdeutige oder
+          unbekannte Dateien werden übersprungen, nie falsch zugeordnet.
         </p>
       </div>
 
@@ -178,8 +174,7 @@ function LohnVerteilungPage() {
         {splitUnparsable.length > 0 ? (
           <p className="text-sm text-destructive">
             Warnung: {splitUnparsable.length} Seite(n) ohne lesbare Personal-Nr werden NICHT
-            hochgeladen — Seiten (1-basiert):{" "}
-            {splitUnparsable.map((p) => p + 1).join(", ")}
+            hochgeladen — Seiten (1-basiert): {splitUnparsable.map((p) => p + 1).join(", ")}
           </p>
         ) : null}
       </div>

@@ -64,7 +64,8 @@ export function parseRunMonth(text: string): RunMonth | null {
   if (korr) {
     return { year: parseInt(korr[2], 10), month: parseInt(korr[1], 10), isKorrektur: true };
   }
-  const re = /(Januar|Februar|März|Maerz|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+(\d{4})/i;
+  const re =
+    /(Januar|Februar|März|Maerz|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+(\d{4})/i;
   const m = re.exec(text);
   if (!m) return null;
   const month = MONATE[m[1].toLowerCase()];
