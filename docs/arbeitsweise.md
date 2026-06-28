@@ -709,3 +709,12 @@ Lohn läuft über **zwei GmbHs / edlohn-Mandanten**: **GmbH A = YUM + Spicery**,
 2. **Nur `perso_nr` ist der Schlüssel, nie der Name.** Im echten Export: zwei verschiedene „Schumann" (perso 1 ≠ 109), zwei „Robkla" (perso 6 ≠ 12). `display_name` ist ohnehin nur ein Spitzname/Rolle (perso 1 = „CHEFIN" = Frank Schumann).
 3. **PDF-Text muss im Browser gelesen werden** (`pdfjs-dist`), nicht auf Cloudflare Workers. `pdf-lib` kann zerlegen, aber keinen Text extrahieren.
 4. **Unparsable-Seiten nie automatisch zuordnen** — melden und den Menschen prüfen lassen.
+
+### 17e. Zurückgestellt — Payslip-Auslieferung (Ad-Blocker-Block)
+
+Die hochgeladene Lohnabrechnung wird in `lohn.tsx` und `staff.$staffId.tsx` per `window.open(res.url, "_blank", "noopener")` geöffnet — also als neuer Tab direkt auf die rohe `*.supabase.co`-Signed-URL (`getPayslipSignedUrl` → `createSignedUrl`).
+
+- **Symptom:** Clientseitige Ad-/Tracking-Blocker (uBlock Origin, Brave-Shields, In-App-Blocker auf Mobilgeräten) können diesen Tab blockieren → Chrome zeigt `ERR_BLOCKED_BY_CLIENT`. **Kein** Server-/RLS-/Code-Fehler — die Anfrage erreicht Supabase gar nicht erst.
+- **Sofort-Workaround:** Inkognito-Fenster (Erweiterungen aus) oder im Blocker `cocoplatform.online` + `*.supabase.co` whitelisten.
+- **Robuste Lösung (zurückgestellt):** Payslip-Bytes über COCOs **eigene Domain** ausliefern — Server-Fn streamt die Datei server-seitig aus dem Storage (`supabaseAdmin`), der Browser trifft nur noch `cocoplatform.online/...` (auf keiner Blockliste). Löst zugleich den dokumentierten Safari-`blob:`-Stolperstein (Vorschau via pdfjs-Canvas statt Roh-URL).
+- **Auslöser zum Bauen:** sobald relevant — z. B. Mitarbeiter-Beschwerden, dass die eigene Abrechnung nicht öffnet. Bis dahin keine Änderung am Auslieferungspfad.
