@@ -121,4 +121,17 @@ describe("calcWaiterSettlement: Tisch-Transfer (kassiert_brutto ≠ pos_sales)",
     });
     expect(r).toEqual({ differenzCents: 3500, kitchenTipCents: 200 });
   });
+
+  it("verweigert negativen kassiertBruttoCents (Invariante)", () => {
+    expect(() =>
+      calcWaiterSettlement({
+        posSalesCents: 100_00,
+        kassiertBruttoCents: -1,
+        cardTotalCents: 0,
+        hilfMahlCents: 0,
+        openInvoicesCents: 0,
+        kitchenTipRate: 0.02,
+      }),
+    ).toThrow(/kassiertBruttoCents/);
+  });
 });

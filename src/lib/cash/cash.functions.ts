@@ -1367,9 +1367,12 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
       ? Number(existing.kitchen_tip_rate)
       : settings.kitchenTipRate;
 
+  // Abzugebender Betrag: leeres Feld → Fallback auf Leistung (posSales).
+  const kassiertBruttoCents = data.kassiertBruttoCents ?? data.posSalesCents;
+
   const calc = calcWaiterSettlement({
     posSalesCents: data.posSalesCents,
-    kassiertBruttoCents: data.kassiertBruttoCents ?? data.posSalesCents,
+    kassiertBruttoCents: kassiertBruttoCents,
     cardTotalCents: data.cardTotalCents,
     hilfMahlCents: data.hilfMahlCents,
     openInvoicesCents: data.openInvoicesCents,
@@ -1399,7 +1402,7 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
       .from("waiter_settlements")
       .update({
         pos_sales_cents: data.posSalesCents,
-        kassiert_brutto_cents: data.kassiertBruttoCents ?? data.posSalesCents,
+        kassiert_brutto_cents: kassiertBruttoCents,
         card_total_cents: data.cardTotalCents,
         hilf_mahl_cents: data.hilfMahlCents,
         open_invoices_cents: data.openInvoicesCents,
@@ -1424,7 +1427,7 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
         session_id: session.id,
         staff_id: caller.staffId,
         pos_sales_cents: data.posSalesCents,
-        kassiert_brutto_cents: data.kassiertBruttoCents ?? data.posSalesCents,
+        kassiert_brutto_cents: kassiertBruttoCents,
         card_total_cents: data.cardTotalCents,
         hilf_mahl_cents: data.hilfMahlCents,
         open_invoices_cents: data.openInvoicesCents,
@@ -1575,9 +1578,10 @@ export async function correctWaiterSettlementCore(
 
     // Rate ERBEN vom Original — Rate-Änderung darf rückwirkend nichts ändern.
     const inheritedRate = Number(original.kitchen_tip_rate);
+    const kassiertBruttoCents = data.kassiertBruttoCents ?? data.posSalesCents;
     const calc = calcWaiterSettlement({
       posSalesCents: data.posSalesCents,
-      kassiertBruttoCents: data.kassiertBruttoCents ?? data.posSalesCents,
+      kassiertBruttoCents: kassiertBruttoCents,
       cardTotalCents: data.cardTotalCents,
       hilfMahlCents: data.hilfMahlCents,
       openInvoicesCents: data.openInvoicesCents,
@@ -1601,7 +1605,7 @@ export async function correctWaiterSettlementCore(
         staff_id: original.staff_id,
         partner_staff_id: newPartnerId,
         pos_sales_cents: data.posSalesCents,
-        kassiert_brutto_cents: data.kassiertBruttoCents ?? data.posSalesCents,
+        kassiert_brutto_cents: kassiertBruttoCents,
         card_total_cents: data.cardTotalCents,
         hilf_mahl_cents: data.hilfMahlCents,
         open_invoices_cents: data.openInvoicesCents,
@@ -1720,9 +1724,10 @@ export async function adminCreateWaiterSettlementCore(
     if (existing) throw new WaiterSettlementAlreadyExistsError(session.id, data.staffId);
 
     const settings = await loadOrgSettings(caller.organizationId);
+    const kassiertBruttoCents = data.kassiertBruttoCents ?? data.posSalesCents;
     const calc = calcWaiterSettlement({
       posSalesCents: data.posSalesCents,
-      kassiertBruttoCents: data.kassiertBruttoCents ?? data.posSalesCents,
+      kassiertBruttoCents: kassiertBruttoCents,
       cardTotalCents: data.cardTotalCents,
       hilfMahlCents: data.hilfMahlCents,
       openInvoicesCents: data.openInvoicesCents,
@@ -1737,7 +1742,7 @@ export async function adminCreateWaiterSettlementCore(
         staff_id: data.staffId,
         partner_staff_id: data.partnerStaffId ?? null,
         pos_sales_cents: data.posSalesCents,
-        kassiert_brutto_cents: data.kassiertBruttoCents ?? data.posSalesCents,
+        kassiert_brutto_cents: kassiertBruttoCents,
         card_total_cents: data.cardTotalCents,
         hilf_mahl_cents: data.hilfMahlCents,
         open_invoices_cents: data.openInvoicesCents,

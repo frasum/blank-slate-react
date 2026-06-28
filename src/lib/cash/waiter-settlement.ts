@@ -53,6 +53,7 @@ export function calcWaiterSettlement(input: WaiterSettlementInput): WaiterSettle
     throw new Error("openInvoicesCents must be integer cents");
   if (!Number.isInteger(kassiertBruttoCents))
     throw new Error("kassiertBruttoCents must be integer cents");
+  if (kassiertBruttoCents < 0) throw new Error("kassiertBruttoCents must be >= 0");
   if (!(kitchenTipRate >= 0 && kitchenTipRate <= 1)) throw new Error("kitchenTipRate out of [0,1]");
 
   // Differenz/Soll rechnet auf dem ABZUGEBENDEN Betrag (kassiert_brutto),

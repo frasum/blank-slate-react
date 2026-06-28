@@ -191,7 +191,9 @@ function KassePage() {
     mutationFn: () => {
       if (!correct) throw new Error("invalid state");
       const pos = parseEuroToCents(correct.posSales);
-      const kassiert = parseEuroToCents(correct.kassiertBrutto);
+      // „Abzugebender Betrag" optional: leeres Feld → Fallback auf Leistung (POS).
+      const kassiert =
+        correct.kassiertBrutto.trim() === "" ? pos : parseEuroToCents(correct.kassiertBrutto);
       const card = parseEuroToCents(correct.cardTotal);
       const hilf = parseEuroToCents(correct.hilfMahl);
       const open = parseEuroToCents(correct.openInvoices);
@@ -239,7 +241,11 @@ function KassePage() {
       if (!sessionId) throw new Error("Keine Session");
       if (!createSettlement.staffId) throw new Error("Bitte einen Kellner wählen.");
       const pos = parseEuroToCents(createSettlement.posSales);
-      const kassiert = parseEuroToCents(createSettlement.kassiertBrutto);
+      // „Abzugebender Betrag" optional: leeres Feld → Fallback auf Leistung (POS).
+      const kassiert =
+        createSettlement.kassiertBrutto.trim() === ""
+          ? pos
+          : parseEuroToCents(createSettlement.kassiertBrutto);
       const card = parseEuroToCents(createSettlement.cardTotal);
       const hilf = parseEuroToCents(createSettlement.hilfMahl);
       const open = parseEuroToCents(createSettlement.openInvoices);
@@ -764,8 +770,14 @@ function KassePage() {
                   <Input
                     inputMode="decimal"
                     value={correct[key]}
+                    placeholder={key === "kassiertBrutto" ? "wie Leistung (POS)" : "0,00"}
                     onChange={(e) => setCorrect({ ...correct, [key]: e.target.value })}
                   />
+                  {key === "kassiertBrutto" && (
+                    <p className="text-xs text-muted-foreground">
+                      Leer lassen, wenn identisch mit Leistung (POS).
+                    </p>
+                  )}
                 </div>
               ))}
               <div className="space-y-1">
@@ -871,10 +883,16 @@ function KassePage() {
                   <Input
                     inputMode="decimal"
                     value={createSettlement[key]}
+                    placeholder={key === "kassiertBrutto" ? "wie Leistung (POS)" : "0,00"}
                     onChange={(e) =>
                       setCreateSettlement({ ...createSettlement, [key]: e.target.value })
                     }
                   />
+                  {key === "kassiertBrutto" && (
+                    <p className="text-xs text-muted-foreground">
+                      Leer lassen, wenn identisch mit Leistung (POS).
+                    </p>
+                  )}
                 </div>
               ))}
               <div className="space-y-1">

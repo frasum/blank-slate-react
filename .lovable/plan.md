@@ -1,49 +1,64 @@
-## Lohnabrechnungen (payslips) — Plan
 
-### 1. Migration (RLS-Korrektur)
-Neue Supabase-Migration: die vier vorhandenen `payslips_*`-Policies auf `storage.objects` droppen und neu anlegen.
-- `payslips_select_own_or_admin` (SELECT): Staff liest eigene (`org/staff/...`), Admin liest alle der eigenen Org.
-- `payslips_insert_admin`, `payslips_update_admin`, `payslips_delete_admin`: nur `ra.role = 'admin'` der Org (Manager-Zweig fällt weg).
-- Pfad-Konvention `{organization_id}/{staff_id}/<name>` bleibt; SQL exakt wie im Prompt.
+## Ziel
 
-### 2. Reines Modul + Test
-- `src/lib/payslips/payslip-path.ts`:
-  - `payslipFolder(org, staff)` → `${org}/${staff}`.
-  - `sanitizePayslipFileName(name)`: erlaubt `[A-Za-z0-9._ -]`, lehnt `/`, `\`, `..`, leer, mit `.` beginnend ab → `string | null`.
-  - `isPayslipPathAllowed({ path, organizationId, staffId, role })`: eigene immer, Admin org-weit, sonst false.
-- `src/lib/payslips/payslip-path.test.ts` mit den im Prompt genannten Fällen, abschließendem Newline.
+Das neue Feld **„Abzugebender Betrag"** (`kassiert_brutto`) soll:
+1. **leer = OK** → automatisch den Wert aus **„Leistung (POS)"** übernehmen (Standardfall ohne Tisch-Transfer).
+2. **bei Eingabe** als Eurobetrag parsebar und **≥ 0** sein, sonst Fehlerzustand am Feld.
+3. **serverseitig** zusätzlich abgesichert (Schema + reine Logik), damit auch andere Aufrufer nicht negativ einliefern können.
 
-### 3. Server-Functions
-`src/lib/payslips/payslips.functions.ts` analog `cash.functions.ts`:
-- `loadAdminCaller(context.supabase, context.userId, minRole)` zur Gate-Prüfung.
-- `supabaseAdmin` per `await import("@/integrations/supabase/client.server")` innerhalb des Handlers.
-- Funktionen:
-  1. `listMyPayslips` (GET, `staff`): list folder, `.emptyFolderPlaceholder` filtern, Rückgabe `{ name, path, createdAt, sizeBytes }[]`.
-  2. `getPayslipSignedUrl` (POST, `staff`, `{ path }`): `isPayslipPathAllowed` prüfen, sonst `ForbiddenError`; `createSignedUrl(path, 60)`.
-  3. `listStaffPayslips` (GET, `admin`, `{ staffId }`): wie 1 für fremden Folder.
-  4. `uploadPayslip` (POST, `admin`, `{ staffId, fileName, contentBase64 }`): Sanitize, `Uint8Array.from(atob(...), c => c.charCodeAt(0))`, Upload mit `contentType: "application/pdf"`, `upsert: true`.
-  5. `deletePayslip` (POST, `admin`, `{ path }`): `path.startsWith(org + "/")` prüfen, `remove([path])`.
+Außerhalb des Scopes: Berechnungsformeln, Pool-Verteilung, PDF, Settlement-Warnings, Migration — alles bereits umgesetzt und bleibt unverändert.
 
-### 4. Staff-Portal-Route
-`src/routes/_authenticated/lohn.tsx`:
-- `createFileRoute`, Title „Lohnabrechnungen".
-- `mx-auto max-w-xl space-y-6 px-4 py-8` (PortalShell vorhanden).
-- `useQuery(["payslips","mine"], listMyPayslips)`.
-- Liste mit Dateiname + Datum, „Öffnen" → `getPayslipSignedUrl` → `window.open(url, "_blank")`.
-- Leerzustand-Text, Header-Link „Zur Stempeluhr".
+## Änderungen
 
-### 5. Portal-Nav-Erweiterung
-`src/lib/nav/portal-nav.ts`: neues Item `{ to: "/lohn", label: "Lohn", icon: FileText }` (lucide) für staff/manager/admin direkt nach „Abrechnung".
+### 1. Kellner-Selbstabrechnung — `src/routes/_authenticated/zeit/abrechnung.tsx`
 
-### 6. Admin-Karte
-`src/routes/_authenticated/admin/staff.$staffId.tsx`: Karte „Lohnabrechnungen" nur wenn `identity.role === "admin"`:
-- `useQuery(["payslips","staff",staffId], …)`, „Öffnen" + „Löschen" (mit `confirm`).
-- Upload via `<input type="file" accept="application/pdf">`, `FileReader.readAsDataURL`, base64 = `result.split(",")[1]`, danach Liste invalidieren, Toast.
+- `parsed.kassiertBruttoCents`:
+  - wenn `form.kassiertBrutto.trim() === ""` → Fallback `parsed.posSalesCents`
+  - sonst `parseEuroToCents(form.kassiertBrutto)` (liefert `null` bei Müll → Feld-Error)
+- `allValid`: Feld nicht mehr „pflicht", nur valid wenn `kassiertBruttoCents !== null && kassiertBruttoCents >= 0`.
+- `EuroField` für „Abzugebender Betrag":
+  - `placeholder` = der aktuell eingegebene POS-Wert (oder „wie Leistung"), als optischer Hinweis auf den Fallback
+  - `error` nur, wenn der User aktiv etwas Ungültiges eingetippt hat (also Eingabe vorhanden, aber nicht parsebar oder < 0)
+- Kleiner Hinweistext unter dem Feld: „Leer lassen, wenn der abzugebende Betrag der Leistung entspricht."
 
-### 7. Abschluss
-`prettier --write` auf alle neuen/geänderten Dateien (3.7.3); `tsc`, `eslint`, `vitest` müssen grün bleiben.
+### 2. Admin-Dialoge — `src/routes/_authenticated/admin/kasse.tsx`
 
-### Reihenfolge der Tool-Calls
-1. `supabase--migration` für RLS (wartet auf Approval, Types werden regeneriert).
-2. Danach Code: payslip-path + Test, payslips.functions.ts, /lohn-Route, portal-nav, staff-Detail-Karte.
-3. Prettier-Lauf.
+Gleicher Fallback und gleiche Validierung in den beiden Dialogen **„Korrektur"** und **„Abrechnung manuell anlegen"**:
+
+- Beim Aufbau der Server-Payload: `kassiertBruttoCents = kassiert ?? pos` (leer → POS übernehmen).
+- Negative Eingabe → Eurobetrag-Fehler-Toast wie bei anderen Feldern.
+- Beim Öffnen des Korrektur-Dialogs den vorhandenen DB-Wert vorbelegen (bleibt wie heute), beim Anlegen-Dialog Feld leer lassen (= Fallback auf POS).
+
+### 3. Server-Schemas — `src/lib/cash/cash.functions.ts`
+
+`kassiertBruttoCents` bleibt `z.number().int().min(0).optional()` (≥ 0 ist bereits enthalten). Zusätzlich beim Verarbeiten **explizit den Fallback auf `posSalesCents` zentralisieren** und kommentieren — in `submitWaiterSettlementCore`, `correctWaiterSettlementCore` und `adminCreateWaiterSettlementCore` einheitlich:
+
+```ts
+const kassiertBruttoCents = data.kassiertBruttoCents ?? data.posSalesCents;
+```
+
+Wert dann sowohl an `calcWaiterSettlement` als auch an den INSERT/UPDATE weiterreichen (statt heute zweimal `?? data.posSalesCents` zu schreiben).
+
+### 4. Reine Logik — `src/lib/cash/waiter-settlement.ts`
+
+In `calcWaiterSettlement` zusätzlich zur bestehenden Integer-Prüfung explizit:
+
+```ts
+if (kassiertBruttoCents < 0) throw new Error("kassiertBruttoCents must be >= 0");
+```
+
+Damit ist die Invariante in der reinen Funktion verankert — falls jemand am Server-Schema vorbei aufruft.
+
+### 5. Tests — `src/lib/cash/waiter-settlement.test.ts`
+
+Zwei kleine Tests ergänzen:
+
+- `calcWaiterSettlement` wirft bei `kassiertBruttoCents = -1`.
+- `calcWaiterSettlement` ohne `kassiertBruttoCents` und ohne explizite Übergabe verhält sich wie mit `kassiertBruttoCents = posSalesCents` (bereits da — bleibt grün als Regression-Anker für den Fallback).
+
+## Erfolgs-Gate
+
+- `tsgo --noEmit` grün
+- `vitest run src/lib/cash` grün (inkl. neuer Negativ-Test)
+- `prettier --write` auf geänderten Dateien
+- Manuell: Feld leer lassen → Differenz/POS-Abgleich wie vorher (Fallback wirkt); negative Eingabe → Feld zeigt Fehler, Submit blockiert; positiver Wert ≠ POS → Differenz rechnet auf dem abzugebenden Betrag (unverändert zur vorherigen Stufe).
