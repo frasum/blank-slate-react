@@ -497,6 +497,10 @@ function KassePage() {
                   cardTotalCents: Number(s.card_total_cents),
                   cashHandedInCents: Number(s.cash_handed_in_cents),
                   posSalesCents: Number(s.pos_sales_cents),
+                  kassiertBruttoCents: Number(
+                    (s as { kassiert_brutto_cents?: number | string | null })
+                      .kassiert_brutto_cents ?? s.pos_sales_cents,
+                  ),
                   openInvoicesCents: Number(s.open_invoices_cents),
                   hilfMahlCents: Number(s.hilf_mahl_cents),
                 })),
