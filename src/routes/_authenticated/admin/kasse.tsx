@@ -76,6 +76,7 @@ type CorrectState = {
   staffName: string;
   partnerStaffId: string;
   posSales: string;
+  kassiertBrutto: string;
   cardTotal: string;
   hilfMahl: string;
   openInvoices: string;
@@ -87,6 +88,7 @@ type CreateState = {
   staffId: string;
   partnerStaffId: string;
   posSales: string;
+  kassiertBrutto: string;
   cardTotal: string;
   hilfMahl: string;
   openInvoices: string;
@@ -189,17 +191,26 @@ function KassePage() {
     mutationFn: () => {
       if (!correct) throw new Error("invalid state");
       const pos = parseEuroToCents(correct.posSales);
+      const kassiert = parseEuroToCents(correct.kassiertBrutto);
       const card = parseEuroToCents(correct.cardTotal);
       const hilf = parseEuroToCents(correct.hilfMahl);
       const open = parseEuroToCents(correct.openInvoices);
       const cash = parseEuroToCents(correct.cashHandedIn);
-      if (pos === null || card === null || hilf === null || open === null || cash === null) {
+      if (
+        pos === null ||
+        kassiert === null ||
+        card === null ||
+        hilf === null ||
+        open === null ||
+        cash === null
+      ) {
         throw new Error("Bitte gültige Eurobeträge eintragen.");
       }
       return callCorrect({
         data: {
           originalId: correct.originalId,
           posSalesCents: pos,
+          kassiertBruttoCents: kassiert,
           cardTotalCents: card,
           hilfMahlCents: hilf,
           openInvoicesCents: open,
@@ -228,11 +239,19 @@ function KassePage() {
       if (!sessionId) throw new Error("Keine Session");
       if (!createSettlement.staffId) throw new Error("Bitte einen Kellner wählen.");
       const pos = parseEuroToCents(createSettlement.posSales);
+      const kassiert = parseEuroToCents(createSettlement.kassiertBrutto);
       const card = parseEuroToCents(createSettlement.cardTotal);
       const hilf = parseEuroToCents(createSettlement.hilfMahl);
       const open = parseEuroToCents(createSettlement.openInvoices);
       const cash = parseEuroToCents(createSettlement.cashHandedIn);
-      if (pos === null || card === null || hilf === null || open === null || cash === null) {
+      if (
+        pos === null ||
+        kassiert === null ||
+        card === null ||
+        hilf === null ||
+        open === null ||
+        cash === null
+      ) {
         throw new Error("Bitte gültige Eurobeträge eintragen.");
       }
       return callAdminCreate({
@@ -241,6 +260,7 @@ function KassePage() {
           staffId: createSettlement.staffId,
           partnerStaffId: createSettlement.partnerStaffId ? createSettlement.partnerStaffId : null,
           posSalesCents: pos,
+          kassiertBruttoCents: kassiert,
           cardTotalCents: card,
           hilfMahlCents: hilf,
           openInvoicesCents: open,
@@ -450,6 +470,7 @@ function KassePage() {
                     ?.id ?? "",
                 partnerStaffId: "",
                 posSales: "0.00",
+                kassiertBrutto: "0.00",
                 cardTotal: "0.00",
                 hilfMahl: "0.00",
                 openInvoices: "0.00",
@@ -463,6 +484,12 @@ function KassePage() {
                 staffName: row.staffName,
                 partnerStaffId: row.partner_staff_id ?? "",
                 posSales: (Number(row.pos_sales_cents) / 100).toFixed(2),
+                kassiertBrutto: (
+                  Number(
+                    (row as { kassiert_brutto_cents?: number | string | null })
+                      .kassiert_brutto_cents ?? row.pos_sales_cents,
+                  ) / 100
+                ).toFixed(2),
                 cardTotal: (Number(row.card_total_cents) / 100).toFixed(2),
                 hilfMahl: (Number(row.hilf_mahl_cents) / 100).toFixed(2),
                 openInvoices: (Number(row.open_invoices_cents) / 100).toFixed(2),
@@ -724,7 +751,8 @@ function KassePage() {
               </div>
               {(
                 [
-                  ["posSales", "Kassenbon (POS)"],
+                  ["posSales", "Leistung (POS)"],
+                  ["kassiertBrutto", "Abzugebender Betrag"],
                   ["cardTotal", "EC-/Kartensumme"],
                   ["hilfMahl", "Hilfsmahlzeiten"],
                   ["openInvoices", "Offene Rechnungen"],
@@ -830,7 +858,8 @@ function KassePage() {
               </div>
               {(
                 [
-                  ["posSales", "Kassenbon (POS)"],
+                  ["posSales", "Leistung (POS)"],
+                  ["kassiertBrutto", "Abzugebender Betrag"],
                   ["cardTotal", "EC-/Kartensumme"],
                   ["hilfMahl", "Hilfsmahlzeiten"],
                   ["openInvoices", "Offene Rechnungen"],
