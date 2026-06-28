@@ -355,9 +355,7 @@ function AbrechnungPage() {
             kassiertBruttoNegative
           }
           errorMessage={
-            kassiertBruttoNegative
-              ? "Der abzugebende Betrag darf nicht negativ sein."
-              : undefined
+            kassiertBruttoNegative ? "Der abzugebende Betrag darf nicht negativ sein." : undefined
           }
           hint="Leer lassen, wenn identisch mit Leistung (POS)."
           placeholder="wie Leistung (POS)"

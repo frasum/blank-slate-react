@@ -943,6 +943,7 @@ function KassePage() {
                 !createSettlement ||
                 !createSettlement.staffId ||
                 createSettlement.reason.trim().length < 3 ||
+                createSettlement.kassiertBrutto.trim().startsWith("-") ||
                 createSettlementMut.isPending
               }
               onClick={() => createSettlementMut.mutate()}
