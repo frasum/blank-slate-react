@@ -21,18 +21,17 @@ const BUCKET = "payslips";
 
 async function listFolder(folder: string): Promise<PayslipEntry[]> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin.storage.from(BUCKET).list(folder, {
-    limit: 1000,
-    offset: 0,
-    sortBy: { column: "name", order: "asc" },
+  const { data, error } = await supabaseAdmin.rpc("list_payslip_objects", {
+    p_prefix: folder,
   });
   if (error) throw new Error(error.message);
-  const rows = (data ?? []).filter((o) => o.name !== ".emptyFolderPlaceholder");
-  const mapped = rows.map((o) => ({
+  const rows =
+    (data as { name: string; created_at: string | null; size: number | null }[] | null) ?? [];
+  const mapped: PayslipEntry[] = rows.map((o) => ({
     name: o.name,
     path: `${folder}/${o.name}`,
-    createdAt: (o as { created_at?: string | null }).created_at ?? null,
-    sizeBytes: (o.metadata as { size?: number } | null | undefined)?.size ?? null,
+    createdAt: o.created_at ?? null,
+    sizeBytes: o.size ?? null,
   }));
   mapped.sort((a, b) => {
     const ta = a.createdAt ? Date.parse(a.createdAt) : 0;
