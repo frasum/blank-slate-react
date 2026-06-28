@@ -202,13 +202,7 @@ function AbrechnungPage() {
     );
   }
 
-  const {
-    session,
-    settlement,
-    businessDate,
-    staffId: myStaffId,
-    myPoolShareCents,
-  } = myQ.data;
+  const { session, settlement, businessDate, staffId: myStaffId, myPoolShareCents } = myQ.data;
   const myExcludeStaffIds = [myStaffId];
 
   // Falls noch keine Session offen: read-only Hinweis.
