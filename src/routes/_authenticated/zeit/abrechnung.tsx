@@ -30,7 +30,7 @@ import {
 import { listLocations } from "@/lib/admin/locations.functions";
 import { LocationPills } from "@/components/shared/LocationPills";
 import { useAuth } from "@/hooks/use-auth";
-import { calcWaiterSettlement, waiterNetTipCents } from "@/lib/cash/waiter-settlement";
+import { calcWaiterSettlement } from "@/lib/cash/waiter-settlement";
 import { SecondWaiterSelect } from "@/components/cash/SecondWaiterSelect";
 import { parseEuroToCents as parseEuroToCentsBase } from "@/lib/format";
 
@@ -250,9 +250,10 @@ function AbrechnungPage() {
       (settlement as { kassiert_brutto_cents?: number | string | null }).kassiert_brutto_cents ??
         settlement.pos_sales_cents,
     );
-    const tipNetCents = waiterNetTipCents(diff, Number(settlement.kitchen_tip_cents));
-    // Quote bezieht sich auf die Leistung (POS), nicht auf den abzugebenden Betrag.
-    const tipPct = pos > 0 ? (tipNetCents / pos) * 100 : null;
+    // Brutto-Trinkgeld INKL. Küchenanteil = abgegebenes Bargeld − Soll-Abgabe (Differenz).
+    const grossTipCents = Number(settlement.cash_handed_in_cents) - diff;
+    // Quote auf die Leistung (POS); Küche 2 % ist eingerechnet, wird nicht separat ausgewiesen.
+    const tipPct = pos > 0 ? (grossTipCents / pos) * 100 : null;
     const sessionLocked = session.status === "locked";
     return (
       <main className="mx-auto max-w-xl space-y-6 px-4 py-8">
@@ -273,14 +274,8 @@ function AbrechnungPage() {
           />
           <hr className="border-border" />
           <ReadOnlyRow label="Differenz" cents={Number(settlement.differenz_cents)} highlight />
-          <ReadOnlyRow
-            label={`Trinkgeld Küche (${(Number(settlement.kitchen_tip_rate) * 100).toFixed(2)}%)`}
-            cents={Number(settlement.kitchen_tip_cents)}
-          />
-          <hr className="border-border" />
-          <ReadOnlyRow label="Soll-Abgabe ./. Küche" cents={tipNetCents} />
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Trinkgeld-Quote</span>
+            <span className="text-muted-foreground">Meine Trinkgeld-Quote</span>
             <span className="font-mono tabular-nums">
               {tipPct === null ? "–" : `${tipPct.toFixed(1).replace(".", ",")} %`}
             </span>
