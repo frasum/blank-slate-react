@@ -29,6 +29,11 @@ export function computeTipTotalCents(
     posSalesCents: number;
     openInvoicesCents: number;
     hilfMahlCents: number;
+    /**
+     * Abzugebender Betrag — Pool-Beitrag rechnet hierauf statt auf posSales.
+     * Fallback auf posSalesCents, wenn nicht gesetzt (Backwards-Kompat).
+     */
+    kassiertBruttoCents?: number;
   }>,
 ): number {
   return settlements.reduce(
@@ -36,12 +41,13 @@ export function computeTipTotalCents(
     //   open_invoices wird wie Bargeld behandelt (addiert, nicht abgezogen),
     //   hilf_mahl wird zusätzlich abgezogen (Mitarbeiteressen mindert Trinkgeld).
     //   Verhindert künstlich negative Pools bei hohen offenen Rechnungen.
+    // Pool-Beitrag = card + cashHandedIn + open − kassiertBrutto − hilfMahl.
     (s, x) =>
       s +
       x.cardTotalCents +
       x.cashHandedInCents +
       x.openInvoicesCents -
-      x.posSalesCents -
+      (x.kassiertBruttoCents ?? x.posSalesCents) -
       x.hilfMahlCents,
     0,
   );
