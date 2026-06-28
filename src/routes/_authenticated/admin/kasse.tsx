@@ -778,12 +778,19 @@ function KassePage() {
                     value={correct[key]}
                     placeholder={key === "kassiertBrutto" ? "wie Leistung (POS)" : "0,00"}
                     onChange={(e) => setCorrect({ ...correct, [key]: e.target.value })}
+                    aria-invalid={
+                      key === "kassiertBrutto" && correct.kassiertBrutto.trim().startsWith("-")
+                    }
                   />
-                  {key === "kassiertBrutto" && (
+                  {key === "kassiertBrutto" && correct.kassiertBrutto.trim().startsWith("-") ? (
+                    <p className="text-xs text-destructive">
+                      Der abzugebende Betrag darf nicht negativ sein.
+                    </p>
+                  ) : key === "kassiertBrutto" ? (
                     <p className="text-xs text-muted-foreground">
                       Leer lassen, wenn identisch mit Leistung (POS).
                     </p>
-                  )}
+                  ) : null}
                 </div>
               ))}
               <div className="space-y-1">
@@ -801,7 +808,12 @@ function KassePage() {
               Abbrechen
             </Button>
             <Button
-              disabled={!correct || correct.reason.trim().length < 3 || correctMut.isPending}
+              disabled={
+                !correct ||
+                correct.reason.trim().length < 3 ||
+                correct.kassiertBrutto.trim().startsWith("-") ||
+                correctMut.isPending
+              }
               onClick={() => correctMut.mutate()}
             >
               {correctMut.isPending ? "Speichert…" : "Korrektur speichern"}
