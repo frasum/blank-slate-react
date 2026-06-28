@@ -1508,6 +1508,7 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
 const correctSchema = z.object({
   originalId: z.string().uuid(),
   posSalesCents: z.number().int().min(0),
+  kassiertBruttoCents: z.number().int().min(0).optional(),
   cardTotalCents: z.number().int().min(0),
   hilfMahlCents: z.number().int().min(0),
   openInvoicesCents: z.number().int().min(0),
@@ -1576,6 +1577,7 @@ export async function correctWaiterSettlementCore(
     const inheritedRate = Number(original.kitchen_tip_rate);
     const calc = calcWaiterSettlement({
       posSalesCents: data.posSalesCents,
+      kassiertBruttoCents: data.kassiertBruttoCents ?? data.posSalesCents,
       cardTotalCents: data.cardTotalCents,
       hilfMahlCents: data.hilfMahlCents,
       openInvoicesCents: data.openInvoicesCents,
@@ -1599,6 +1601,7 @@ export async function correctWaiterSettlementCore(
         staff_id: original.staff_id,
         partner_staff_id: newPartnerId,
         pos_sales_cents: data.posSalesCents,
+        kassiert_brutto_cents: data.kassiertBruttoCents ?? data.posSalesCents,
         card_total_cents: data.cardTotalCents,
         hilf_mahl_cents: data.hilfMahlCents,
         open_invoices_cents: data.openInvoicesCents,
@@ -1648,6 +1651,7 @@ const adminCreateSettlementSchema = z.object({
   sessionId: z.string().uuid(),
   staffId: z.string().uuid(),
   posSalesCents: z.number().int().min(0),
+  kassiertBruttoCents: z.number().int().min(0).optional(),
   cardTotalCents: z.number().int().min(0),
   hilfMahlCents: z.number().int().min(0),
   openInvoicesCents: z.number().int().min(0),
@@ -1718,6 +1722,7 @@ export async function adminCreateWaiterSettlementCore(
     const settings = await loadOrgSettings(caller.organizationId);
     const calc = calcWaiterSettlement({
       posSalesCents: data.posSalesCents,
+      kassiertBruttoCents: data.kassiertBruttoCents ?? data.posSalesCents,
       cardTotalCents: data.cardTotalCents,
       hilfMahlCents: data.hilfMahlCents,
       openInvoicesCents: data.openInvoicesCents,
@@ -1732,6 +1737,7 @@ export async function adminCreateWaiterSettlementCore(
         staff_id: data.staffId,
         partner_staff_id: data.partnerStaffId ?? null,
         pos_sales_cents: data.posSalesCents,
+        kassiert_brutto_cents: data.kassiertBruttoCents ?? data.posSalesCents,
         card_total_cents: data.cardTotalCents,
         hilf_mahl_cents: data.hilfMahlCents,
         open_invoices_cents: data.openInvoicesCents,
