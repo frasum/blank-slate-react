@@ -155,6 +155,13 @@ function AbrechnungPage() {
     });
   }, [allValid, parsed, myQ.data]);
 
+  // Brutto-Trinkgeld-Quote (Küche eingerechnet) = (abgegebenes Bargeld − Differenz) / Leistung.
+  // `preview` ist nur != null, wenn alle Felder valide sind → parsed-Werte sind dann gesetzt.
+  const previewTipPct =
+    preview && parsed.posSalesCents! > 0
+      ? ((parsed.cashHandedInCents! - preview.differenzCents) / parsed.posSalesCents!) * 100
+      : null;
+
   const submitMut = useMutation({
     mutationFn: () => {
       if (!allValid) throw new Error("Bitte alle Felder als Eurobetrag eintragen.");
@@ -195,14 +202,7 @@ function AbrechnungPage() {
     );
   }
 
-  const {
-    session,
-    settlement,
-    kitchenTipRate,
-    businessDate,
-    staffId: myStaffId,
-    myPoolShareCents,
-  } = myQ.data;
+  const { session, settlement, businessDate, staffId: myStaffId, myPoolShareCents } = myQ.data;
   const myExcludeStaffIds = [myStaffId];
 
   // Falls noch keine Session offen: read-only Hinweis.
@@ -452,11 +452,9 @@ function AbrechnungPage() {
             </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">
-              Trinkgeld Küche ({(kitchenTipRate * 100).toFixed(2)}%)
-            </span>
+            <span className="text-muted-foreground">Meine Trinkgeld-Quote (Vorschau)</span>
             <span className="font-mono tabular-nums">
-              {preview ? `${formatCents(preview.kitchenTipCents)} €` : "—"}
+              {previewTipPct === null ? "—" : `${previewTipPct.toFixed(1).replace(".", ",")} %`}
             </span>
           </div>
           <p className="pt-2 text-xs text-muted-foreground">
