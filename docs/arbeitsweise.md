@@ -2,7 +2,7 @@
 
 Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen Baublock konsultiert. Bewusst kurz gehalten — Architektur-Begründungen stehen im gruendungsdokument.md, nicht hier.
 
-Stand: 26.06.2026
+Stand: 28.06.2026
 
 ## 1. Rollenverteilung im Team
 
@@ -672,3 +672,40 @@ Admin lädt PDF je Mitarbeiter hoch → Mitarbeiter sieht/öffnet die eigene Abr
 2. **Supabase-Storage-Gotchas (erstmals genutzt):** `createSignedUrl` liefert **`data.signedUrl`** (nicht `data.url`). `.list()`-Felder: `created_at` (nicht camelCase) + Größe unter **`metadata.size`** (nicht Top-Level). Bucket-Anlage passiert im Dashboard, nicht per Migration — RLS-Policies referenzieren nur `bucket_id`.
 3. **Lovable baut große Pläne teilweise.** Beim Payslip-Plan kamen zuerst nur das reine Modul + Migration; Server-Fns + UI (Schritt 3–6) fehlten komplett → separater Nachzieh-Prompt nötig. Nach jedem Lauf gegen die **Dateiliste** prüfen (`git diff --stat`), nicht nur Gates.
 4. **Newline-Pflicht weiterhin Lovables Schwachstelle:** trotz expliziter Prompt-Anweisung fehlte neuen Dateien der Schluss-Zeilenumbruch → `format:check`/`eslint` rot. Standard-Fix `prettier --write <datei>`.
+
+## 17. Modul Welle D — Lohnabrechnungs-Verteilung: Auto-Matcher + Sammel-PDF-Splitter (28.06.2026)
+
+Aufbauend auf 16e (manueller Einzel-Upload). Beide Schritte abgenommen (tsc/eslint/vitest grün, Diff-Review). Der manuelle Einzel-Upload aus 16e bleibt unverändert bestehen.
+
+### 17a. Auto-Matcher für Einzeldateien (HEAD a55d892)
+
+Admin lädt mehrere bereits gesplittete edlohn-PDFs auf einmal in `/admin/lohn-verteilung`. Zuordnung über die **Personal-Nr im Dateinamen**, nicht über manuelle Auswahl.
+
+- **Reine Module:** `src/lib/payslips/payslip-filename.ts` (`parsePayslipName`, Regex `-(\d{6})-(\d{4})-(0[1-9]|1[0-2])\.pdf$`) + `payslip-assign-core.ts` (`classifyAssignment` → Status `matched`/`matched_inactive`/`unknown_perso`/`ambiguous`/`unparsable`).
+- **Server-Fns** `payslip-assign.functions.ts`, beide admin-gated via `loadAdminCaller(…, "admin")`: `planPayslipAssignment` (Dry-Run, nur Dateinamen) + `assignPayslips` (lädt nur eindeutige Treffer). **Auflösung rein server-seitig** über `staff.perso_nr` (org-scoped); Client liefert nie eine `staffId`. base64 via `atob` (kein Buffer). Konsistent mit `uploadPayslip`: kein `audit_log`.
+- **Zwei-Schritt:** Vorschau-Tabelle (perso · Mitarbeiter · Status) → bestätigen → Upload. Nur `matched`/`matched_inactive` werden hochgeladen.
+- **`ambiguous`-Sicherheitsnetz:** >1 `staff` zur perso → kein Upload, Meldung. Der Matcher verweigert im Zweifel, statt je falsch zuzuordnen.
+
+### 17b. Sammel-PDF-Splitter (HEAD 11b9488)
+
+Ein edlohn-Monatsexport je Mandant (alle Mitarbeiter hintereinander) wird **im Browser** in Einzel-PDFs zerlegt und in denselben Matcher (17a) gespeist. **Server-Matcher unverändert** — der Splitter erzeugt nur dessen Eingaben.
+
+- **Dependency neu:** `pdf-lib` (`^1.17.1`). `pdfjs-dist` (`^6`) war bereits da (Worker-Setup wie `PdfCanvasPreview.tsx`).
+- **Reines Modul** `src/lib/payslips/split-combined-core.ts` (+ Golden-Master-Test): `parsePersoFromPageText`, `parseRunMonth` (Korrektur-Seiten liefern den Lauf-Monat via „Korrektur in MM.YYYY"), `groupPagesByPerso` → gruppiert nach perso (Reihenfolge erhalten), Lauf-Monat per Mehrheit, Dateiname `Lohn-NNNNNN-YYYY-MM.pdf` (matcher-kompatibel). Seiten ohne perso → `unparsablePages`, **nie** an Nachbarn gehängt.
+- **Browser-Harness** `split-combined.ts`: `extractPageTexts` (pdfjs), `splitCombinedPdf` (pdf-lib `copyPages` je Gruppe), `bytesToBase64` (chunked, kein Buffer). PDF-Inhalt wird nicht geloggt.
+- **Golden Master** aus echtem Mai-2026-Export (YUM GmbH): 49 Seiten → 39 Mitarbeiter; Seitenzahl pro Person **variabel** (Korrektur-Monate hängen an derselben perso: perso 000001 = 5 Seiten, 000109 = 5, 000011/000027 = je 2).
+
+### 17c. Mandanten / TSB — dokumentierte Wiedervorlage (zurückgestellt)
+
+Lohn läuft über **zwei GmbHs / edlohn-Mandanten**: **GmbH A = YUM + Spicery**, **GmbH B = TSB**. edlohn-Personal-Nrn sind nur **je Mandant** eindeutig. COCO modelliert die GmbH aktuell **nicht** (kein Feld an `staff`/`locations`, kein Unique-Index auf `perso_nr`).
+
+- **Aktuelle Annahme (per Live-CSV bestätigt):** `perso_nr` ist heute org-weit eindeutig (0 Doppelungen). **TSB ist lohnseitig ausgeklammert** → Matcher löst org-weit auf. Das `ambiguous`-Netz (17a) fängt künftige perso-Kollisionen ab (verweigert, statt fehlzuzuordnen).
+- **Offene Frage vor TSB-Aktivierung:** Es arbeitet jemand über die GmbH-Grenze. Zu klären: **eine** Lohnabrechnung (eine GmbH zahlt, hilft nur aus) **oder zwei** (je GmbH eine Personal-Nr)? Bei „zwei" reicht ein einzelnes `staff.mandant_id` nicht → Zuordnungstabelle `staff_payroll_identities (staff_id, mandant_id, perso_nr)` nötig.
+- **Zurückgestellter Prompt „Mandanten-Fundament"** (`mandanten`-Tabelle + `staff.mandant_id` + partieller Unique-Index `(mandant_id, perso_nr)` + GmbH-Dropdown in der Mitarbeiter-Anlage): erst bauen, wenn TSB in den Lohnlauf kommt und die Ein/Zwei-Abrechnungs-Frage entschieden ist. Bis dahin keine Mandanten-Logik im Code.
+
+### 17d. Lektionen (teuer gelernt)
+
+1. **Sammel-PDF: nach perso gruppieren, nicht nach Seitenzahl.** Korrektur-Monate erzeugen variable Seitenzahlen pro Person. Annahme „2 Seiten pro Person" wäre falsch gewesen.
+2. **Nur `perso_nr` ist der Schlüssel, nie der Name.** Im echten Export: zwei verschiedene „Schumann" (perso 1 ≠ 109), zwei „Robkla" (perso 6 ≠ 12). `display_name` ist ohnehin nur ein Spitzname/Rolle (perso 1 = „CHEFIN" = Frank Schumann).
+3. **PDF-Text muss im Browser gelesen werden** (`pdfjs-dist`), nicht auf Cloudflare Workers. `pdf-lib` kann zerlegen, aber keinen Text extrahieren.
+4. **Unparsable-Seiten nie automatisch zuordnen** — melden und den Menschen prüfen lassen.
