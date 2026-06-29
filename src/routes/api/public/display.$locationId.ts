@@ -214,9 +214,7 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
         rowEntries.sort((a, b) => a.staffName.localeCompare(b.staffName, "de"));
 
         const rowStaffIds = Array.from(new Set(rowEntries.map((r) => r.staffId)));
-        const idSafe = rowStaffIds.length
-          ? rowStaffIds
-          : ["00000000-0000-0000-0000-000000000000"];
+        const idSafe = rowStaffIds.length ? rowStaffIds : ["00000000-0000-0000-0000-000000000000"];
 
         // Schichten im Fenster.
         const { data: shiftRows, error: shiftErr } = await supabaseAdmin
@@ -235,8 +233,7 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
           const staffId = sh.staff_id as string;
           const date = sh.shift_date as string;
           const rawArea = sh.area as string;
-          const blockArea: "kitchen" | "service" =
-            rawArea === "kitchen" ? "kitchen" : "service";
+          const blockArea: "kitchen" | "service" = rawArea === "kitchen" ? "kitchen" : "service";
           const skillId = (sh.skill_id as string | null) ?? null;
           const key = `${staffId}|${date}|${blockArea}`;
           const existing = shiftMap.get(key);
@@ -298,14 +295,10 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
           }
         }
         const wishSet = new Set<string>(
-          (wishRes.data ?? []).map(
-            (w) => `${w.staff_id as string}|${w.wish_date as string}`,
-          ),
+          (wishRes.data ?? []).map((w) => `${w.staff_id as string}|${w.wish_date as string}`),
         );
         const availSet = new Set<string>(
-          (availRes.data ?? []).map(
-            (a) => `${a.staff_id as string}|${a.date as string}`,
-          ),
+          (availRes.data ?? []).map((a) => `${a.staff_id as string}|${a.date as string}`),
         );
 
         // Blöcke bauen.

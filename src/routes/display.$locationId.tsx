@@ -235,10 +235,7 @@ function BlockTable({ block, days }: { block: DisplayBlock; days: string[] }) {
           <tbody>
             {block.rows.length === 0 && (
               <tr>
-                <td
-                  colSpan={days.length + 2}
-                  className="px-4 py-6 text-center text-slate-500"
-                >
+                <td colSpan={days.length + 2} className="px-4 py-6 text-center text-slate-500">
                   Keine Mitarbeiter für diesen Bereich.
                 </td>
               </tr>
