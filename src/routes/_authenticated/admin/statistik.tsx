@@ -294,7 +294,8 @@ function StatistikPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Statistik</h1>
         <p className="text-sm text-muted-foreground">
-          Umsatz je Kalendermonat — Haus und Takeaway, mit Trend gegen den Vormonat.
+          Umsatz je Kalendermonat — Haus und Takeaway. Vergleich gegen denselben Zeitraum des
+          Vormonats.
         </p>
       </div>
 
@@ -309,6 +310,15 @@ function StatistikPage() {
               onChange={(e) => setMonth(e.target.value)}
               className="h-9 rounded-md border border-input bg-background px-3 text-sm"
             />
+            {statsQ.data?.coverage?.isPartial && month === currentMonthString() ? (
+              <div className="text-xs text-muted-foreground">
+                · unvollständig (Stand{" "}
+                {statsQ.data.coverage.lastDataDay
+                  ? statsQ.data.coverage.lastDataDay.slice(8, 10) + "."
+                  : "—"}
+                )
+              </div>
+            ) : null}
           </div>
           <div className="space-y-1">
             <Label htmlFor="stat-loc">Standort</Label>
