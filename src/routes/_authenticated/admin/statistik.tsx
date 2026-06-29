@@ -26,7 +26,7 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/admin/statistik")({
   head: () => ({ meta: [{ title: "Statistik" }] }),
-  component: StatistikPage;
+  component: StatistikPage,
 });
 
 type RevenueStats = Awaited<ReturnType<typeof getRevenueStats>>;
