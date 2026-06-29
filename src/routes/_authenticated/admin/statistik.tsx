@@ -680,11 +680,15 @@ function LocationCompareSection({
                           <span className="inline-flex items-center justify-end gap-1">
                             {ratio === null ? "—" : `${ratio.toFixed(1)} %`}
                             {missing > 0 ? (
-                              <AlertTriangle
-                                className="h-3.5 w-3.5 text-amber-600"
-                                aria-hidden
+                              <span
                                 title={`${missing} ohne Stundenlohn — Quote untertreibt`}
-                              />
+                                className="inline-flex"
+                              >
+                                <AlertTriangle
+                                  className="h-3.5 w-3.5 text-amber-600"
+                                  aria-hidden
+                                />
+                              </span>
                             ) : null}
                           </span>
                         </TableCell>
