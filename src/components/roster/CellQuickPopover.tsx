@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { CalendarX, CalendarCheck, Umbrella, HeartPulse } from "lucide-react";
+import { CalendarX, CalendarCheck, Umbrella, HeartPulse, Heart } from "lucide-react";
 import type { RosterSkill } from "@/lib/roster/roster.functions";
 import { AbsenceRangeForm } from "./AbsenceRangeForm";
 
@@ -27,6 +27,9 @@ type Props = {
   onClearAbsence: () => void;
   defaultDate: string;
   staffShiftDates: string[];
+  hasWish: boolean;
+  onSetWish: () => void;
+  onClearWish: () => void;
 };
 
 export function CellQuickPopover({
@@ -45,6 +48,9 @@ export function CellQuickPopover({
   onClearAbsence,
   defaultDate,
   staffShiftDates,
+  hasWish,
+  onSetWish,
+  onClearWish,
 }: Props) {
   const [mode, setMode] = React.useState<"menu" | "urlaub" | "krank">("menu");
   React.useEffect(() => {
@@ -145,6 +151,16 @@ export function CellQuickPopover({
               >
                 <HeartPulse className="mr-1.5 h-3.5 w-3.5 text-red-600" />
                 {absenceType === "krank" ? "Krank entfernen" : "Krank eintragen"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy}
+                onClick={hasWish ? onClearWish : onSetWish}
+                className="mt-2 h-7 w-full text-xs"
+              >
+                <Heart className="mr-1.5 h-3.5 w-3.5 text-purple-600" />
+                {hasWish ? "Wunschfrei entfernen" : "Wunschfrei eintragen"}
               </Button>
             </div>
           </>
