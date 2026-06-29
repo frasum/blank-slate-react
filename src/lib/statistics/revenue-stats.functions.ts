@@ -24,11 +24,7 @@ import {
   type PeriodSummary,
   type Trend,
 } from "./revenue-core";
-import {
-  mapToSessionInputs,
-  type ChannelAmountRow,
-  type SessionRow,
-} from "./revenue-map";
+import { mapToSessionInputs, type ChannelAmountRow, type SessionRow } from "./revenue-map";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
