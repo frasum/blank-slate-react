@@ -7,8 +7,12 @@ import { supabase } from "./client";
 export const attachSupabaseAuth = createMiddleware({ type: "function" }).client(
   async ({ next }) => {
     let { data } = await supabase.auth.getSession();
-    if (!data.session?.access_token) {
-      // Access-Token fehlt/abgelaufen → mit Refresh-Token einmal erneuern.
+    const nowSec = Math.floor(Date.now() / 1000);
+    const expiresAt = data.session?.expires_at ?? 0;
+    // Token fehlt ODER läuft in <30 s ab → einmal proaktiv refreshen.
+    // Sonst landen abgelaufene Tokens am Server und kippen geschützte
+    // beforeLoad-Calls (Admin-Gate) in den Root-Error-Boundary.
+    if (!data.session?.access_token || expiresAt - nowSec < 30) {
       await supabase.auth.refreshSession();
       ({ data } = await supabase.auth.getSession());
     }
