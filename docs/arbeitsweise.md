@@ -179,7 +179,7 @@ Rekonstruiert per Kalibrierung gegen bereits validierte Bestands-Sessions (Refer
 | M-Statistik — Umsatz (S-1/S-2: reine Fn + Server-Fn, Kalendermonat, doppelzählungsfrei)                                                | ✅       |
 | M-Statistik — Trinkgeld (S-7: Tagesreihe + Totals + perStaff, Reuse computeSessionTipPoolCore)                                         | ✅       |
 | M-Statistik — Personalquote (S-8: Basis-Brutto B2, gültigkeitsdatierter hourly_rate)                                                   | ✅       |
-| M-Statistik — UI (Karten/Charts/Vergleich/PDF)                                                                                         | ⏳ offen |
+| M-Statistik — UI (Tabs, KPI/Chart, Trinkgeld, Personalquote, Standortvergleich, PDF, freier Zeitraum)                                  | ✅       |
 | Inventur-Session an DB gebunden                                                                                                        | ✅       |
 | Self-Service Welle B — Freier-Tag-Wunsch (`/zeit/wuensche`)                                                                            | ✅       |
 | Self-Service Welle C — Urlaubsanträge + Genehmigung (`/zeit/urlaub`, `/admin/urlaub`)                                                  | ✅       |
@@ -780,6 +780,26 @@ Quelle der Wahrheit: Analyse der `tagesabrechnung`-Statistikseite (Auswertungs-F
 
 **Server-Fns:** `getRevenueStats`, `getTipStats`, `getPersonnelStats` — gleiches Input-/Perioden-Modell (`month`/Custom/Default), Trend gegen Vorperiode.
 
-**Offen:** UI (Karten/Charts/Vergleich/PDF, konsumiert die drei Read-Fns + `personnelRatioPct`); TSB-Haus-Umsatz-Verifikation.
+**Offen:** TSB-Haus-Umsatz-Verifikation. (UI ist umgesetzt — siehe Abschnitt 19.)
 
 **Verifizierter Stand:** HEAD `f0ba414` — `tsc`/`eslint --max-warnings=5`/`vitest` (870) grün.
+
+## 19. Modul M-Statistik — UI (29.06.2026)
+
+Route `/admin/statistik` (gated `["manager","admin","payroll"]`), konsumiert die drei Read-Fns aus Abschnitt 18 + `personnelRatioPct`. Drei Bauschritte, alle abgenommen.
+
+### Tabs gegen Endlos-Scroll (HEAD 862568a)
+
+Vier Tabs (`Umsatz` · `Trinkgeld` · `Personalquote` · `Standortvergleich`, shadcn `ui/tabs`). Die Filterleiste (Monat/Standort/PDF) bleibt **global oberhalb** der Tabs. **Wichtig:** alle Query-Hooks (`statsQ`/`tipsQ`/`personnelQ` + die drei Compare-`useQueries`) bleiben **eager** oben in `StatistikPage` — Tabs steuern nur Sichtbarkeit, weil der PDF-Export alle Daten gleichzeitig braucht. Nicht in Tabs verschieben/konditionalisieren.
+
+### Chart-Lückenfüllung (HEAD 862568a)
+
+Reine, getestete Funktion `fillDailyGaps` in `src/lib/statistics/chart-fill.ts`: erzeugt aus den vorhandenen Tagen eine **lückenlose** Folge von min..max `businessDate`, fehlende Kalendertage als Null-Balken (`houseCents/takeawayCents/totalCents = 0`). UTC-Millisekunden-Schritte (kein DST-/Zeitzonen-Drift, Monatsgrenzen korrekt), nur Innen-Lücken (keine führenden/nachfolgenden Leertage). `RevenueChart` schickt `daily` vor dem Mapping durch diese Funktion → lineare X-Achse.
+
+### Freier Zeitraum (HEAD db13823)
+
+Modus-Umschalter `Monat ⇄ Zeitraum` (Segmented aus zwei Buttons). Im Zeitraum-Modus zwei `type=date`-Felder (Von/Bis), beim Umschalten mit den Grenzen des aktuellen Monats (`monthRange`) vorbelegt. Eine Quelle der Wahrheit (`periodArgs` = `{month}` bzw. `{startDate,endDate}`, plus `periodValid`) speist **alle vier** Query-Gruppen inkl. Compare; `queryKey`s tragen `mode + month + startDate + endDate + locationFilter`; `enabled: periodValid` blockt ungültige/leere Bereiche (`endDate ≥ startDate`).
+
+**Backend war bereits range-fähig** (`startDate/endDate`, Vorperiode = gleich langes Vorfenster via `previousRangeForDates`, Trend wird auch im Range-Modus berechnet). **Merker:** im Range-Modus liefert das Backend `range.label = null` — UI **und** PDF bauen das Label selbst aus `startDate–endDate`. `periodLabel` (Monat „LLLL yyyy" bzw. „TT.MM.JJJJ – TT.MM.JJJJ") fließt in PDF-Kopf + Dateiname; `exportDisabled` schließt `!periodValid` ein. `MonthNav` und die „· unvollständig (Stand …)"-Anzeige bleiben **monatsspezifisch** (Coverage-Klemmung U5a gilt nur im Monatsmodus).
+
+**Offen (M-Statistik gesamt):** nur noch TSB-Haus-Umsatz-Verifikation; größere Charts könnten später `recharts` lazy laden (separater Schritt, vgl. Abschnitt 18-Umfeld).
