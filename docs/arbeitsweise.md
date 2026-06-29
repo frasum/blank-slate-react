@@ -133,7 +133,7 @@ gh repo clone frasum/bestellung-5fff1793
 
 Über das Nickname in Klammern im thaitime-Vornamen, z.B. „REDACTED" → COCO display_name „REDACTED". Sonderfall: „REDACTED" → REDACTED. „REDACTED" existiert nicht in COCO (ignoriert).
 
-## 6. Aktueller Modul-Status (21.06.2026)
+## 6. Aktueller Modul-Status (29.06.2026)
 
 | Modul                                                                                                                                  | Status   |
 | -------------------------------------------------------------------------------------------------------------------------------------- | -------- |
@@ -158,6 +158,10 @@ gh repo clone frasum/bestellung-5fff1793
 | Geofencing-Stempeln (UI clockIn nur am Standort, distinct-Location)                                                                    | ✅       |
 | PIN-Login via Vorname/Nickname                                                                                                         | ✅       |
 | Hub & Meine Schichten (`/zeit/schichten`, `/zeit/stempeln`)                                                                            | ✅       |
+| M-Statistik — Umsatz (S-1/S-2: reine Fn + Server-Fn, Kalendermonat, doppelzählungsfrei)                                                | ✅       |
+| M-Statistik — Trinkgeld (S-7: Tagesreihe + Totals + perStaff, Reuse computeSessionTipPoolCore)                                         | ✅       |
+| M-Statistik — Personalquote (S-8: Basis-Brutto B2, gültigkeitsdatierter hourly_rate)                                                   | ✅       |
+| M-Statistik — UI (Karten/Charts/Vergleich/PDF)                                                                                         | ⏳ offen |
 | Inventur-Session an DB gebunden                                                                                                        | ✅       |
 | Self-Service Welle B — Freier-Tag-Wunsch (`/zeit/wuensche`)                                                                            | ✅       |
 | Self-Service Welle C — Urlaubsanträge + Genehmigung (`/zeit/urlaub`, `/admin/urlaub`)                                                  | ✅       |
