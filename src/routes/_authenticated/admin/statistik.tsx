@@ -29,6 +29,8 @@ type RevenueStats = Awaited<ReturnType<typeof getRevenueStats>>;
 type Trend = NonNullable<RevenueStats["trend"]>["total"];
 type TipStats = Awaited<ReturnType<typeof getTipStats>>;
 type PersonnelStats = Awaited<ReturnType<typeof getPersonnelStats>>;
+type TipPerStaff = TipStats["perStaff"][number];
+type PersonnelPerStaff = PersonnelStats["perStaff"][number];
 
 function currentMonthString(): string {
   const d = new Date();
