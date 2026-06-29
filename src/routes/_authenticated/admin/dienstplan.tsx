@@ -523,7 +523,7 @@ function DienstplanPage() {
     setBusy(true);
     try {
       await createDayOffWishFor({ data: { staffId, wishDate: iso } });
-      qc.invalidateQueries({ queryKey: ["roster-wishes"] });
+      qc.invalidateQueries({ queryKey: ["day-off-wishes"] });
       toast.success("Wunschfrei eingetragen.");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
@@ -537,7 +537,7 @@ function DienstplanPage() {
     setBusy(true);
     try {
       await deleteDayOffWishFor({ data: { staffId, wishDate: iso } });
-      qc.invalidateQueries({ queryKey: ["roster-wishes"] });
+      qc.invalidateQueries({ queryKey: ["day-off-wishes"] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
     } finally {
