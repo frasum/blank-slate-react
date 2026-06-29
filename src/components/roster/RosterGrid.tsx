@@ -737,6 +737,9 @@ function EmptyCell({
   onClearAbsence,
   defaultDate,
   staffShiftDates,
+  hasWish,
+  onSetWish,
+  onClearWish,
 }: {
   row: RosterStaffRow;
   iso: string;
@@ -762,6 +765,9 @@ function EmptyCell({
   onClearAbsence: () => void;
   defaultDate: string;
   staffShiftDates: string[];
+  hasWish: boolean;
+  onSetWish: () => void;
+  onClearWish: () => void;
 }) {
   const { profile, other } = skillsForCell(row, activeArea, allSkills);
   const marker = (
@@ -824,6 +830,9 @@ function EmptyCell({
       onClearAbsence={onClearAbsence}
       defaultDate={defaultDate}
       staffShiftDates={staffShiftDates}
+      hasWish={hasWish}
+      onSetWish={onSetWish}
+      onClearWish={onClearWish}
     >
       {cellInner}
     </CellQuickPopover>
