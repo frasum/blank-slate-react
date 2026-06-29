@@ -149,7 +149,7 @@ Rekonstruiert per Kalibrierung gegen bereits validierte Bestands-Sessions (Refer
 
 ### Mitarbeiter-Mapping
 
-Über das Nickname in Klammern im thaitime-Vornamen, z.B. „REDACTED" → COCO display_name „REDACTED". Sonderfall: „REDACTED" → REDACTED. „REDACTED" existiert nicht in COCO (ignoriert).
+Über das Nickname in Klammern im thaitime-Vornamen, z.B. „REDACTED" → COCO display_name „REDACTED". Sonderfall: „REDACTED" → REDACTED. „REDACTED" existiert nicht in COCO (ignoriert). Sonderfall Doppel-Nickname GIG: Der bestehende Küchen-„GIG" (perso 360) und der neue Service-„GIG" tragen in thaitime denselben Nickname-Stamm — daher KEIN Auto-Match. „(GIG SERVICE)" ist per Hardcode auf den eigenen Service-Mitarbeiter `staff_id 93e44abe-d1d8-4763-b0a6-63cea7313687` (display_name „GIG SERVIE", Spicery/`service`) gemappt; der Küchen-GIG bleibt unverändert.
 
 ## 6. Aktueller Modul-Status (29.06.2026)
 
@@ -162,7 +162,7 @@ Rekonstruiert per Kalibrierung gegen bereits validierte Bestands-Sessions (Refer
 | D1 Dienstplan-Datenmodell + Grid                                                                                                       | ✅       |
 | D2a–e Dienstplan editierbar, Realtime, Service-Symbole, Cross-Booking                                                                  | ✅       |
 | D-8 Eine Einteilung/MA/Tag (Pre-Check + UI-Lock, kein DB-Constraint)                                                                   | ✅       |
-| Dienstplan-Migration (re-migriert 17.06.: 3764 echte Schichten)                                                                        | ✅       |
+| Dienstplan-Migration (Re-Import 17.06.: 3764 · Delta-Nachimport 29.06.: +114 → 3873, inkl. Jul–Sep-Planung + GIG-Service)                                                                        | ✅       |
 | D3 Display — Token, Auto-Refresh, Einstellungen (Rotation/Bereiche/Header/Legende/Nachricht/QR), Bereichs-Freigabe, Geburtstags-Banner | ✅       |
 | M4 Lohn — Rechen-Kern (Stufe 1/3): PAP 2026 + SV, edlohn-cent-getestet                                                                 | ✅       |
 | M4 Lohn — SFN-Geld + Perioden-Aggregation + Verdrahtung (Stufe 2a–c)                                                                   | ✅       |
