@@ -149,7 +149,7 @@ Rekonstruiert per Kalibrierung gegen bereits validierte Bestands-Sessions (Refer
 
 ### Mitarbeiter-Mapping
 
-Über das Nickname in Klammern im thaitime-Vornamen, z.B. „REDACTED" → COCO display_name „REDACTED". Sonderfall: „REDACTED" → REDACTED. „REDACTED" existiert nicht in COCO (ignoriert).
+Über das Nickname in Klammern im thaitime-Vornamen, z.B. „REDACTED" → COCO display_name „REDACTED". Sonderfall: „REDACTED" → REDACTED. „REDACTED" existiert nicht in COCO (ignoriert). Sonderfall Doppel-Nickname GIG: Der bestehende Küchen-„GIG" (perso 360) und der neue Service-„GIG" tragen in thaitime denselben Nickname-Stamm — daher KEIN Auto-Match. „(GIG SERVICE)" ist per Hardcode auf den eigenen Service-Mitarbeiter `staff_id 93e44abe-d1d8-4763-b0a6-63cea7313687` (display_name „GIG SERVIE", Spicery/`service`) gemappt; der Küchen-GIG bleibt unverändert.
 
 ## 6. Aktueller Modul-Status (29.06.2026)
 
@@ -162,7 +162,7 @@ Rekonstruiert per Kalibrierung gegen bereits validierte Bestands-Sessions (Refer
 | D1 Dienstplan-Datenmodell + Grid                                                                                                       | ✅       |
 | D2a–e Dienstplan editierbar, Realtime, Service-Symbole, Cross-Booking                                                                  | ✅       |
 | D-8 Eine Einteilung/MA/Tag (Pre-Check + UI-Lock, kein DB-Constraint)                                                                   | ✅       |
-| Dienstplan-Migration (re-migriert 17.06.: 3764 echte Schichten)                                                                        | ✅       |
+| Dienstplan-Migration (Re-Import 17.06.: 3764 · Delta-Nachimport 29.06.: +114 → 3873, inkl. Jul–Sep-Planung + GIG-Service)              | ✅       |
 | D3 Display — Token, Auto-Refresh, Einstellungen (Rotation/Bereiche/Header/Legende/Nachricht/QR), Bereichs-Freigabe, Geburtstags-Banner | ✅       |
 | M4 Lohn — Rechen-Kern (Stufe 1/3): PAP 2026 + SV, edlohn-cent-getestet                                                                 | ✅       |
 | M4 Lohn — SFN-Geld + Perioden-Aggregation + Verdrahtung (Stufe 2a–c)                                                                   | ✅       |
@@ -282,6 +282,7 @@ Rekonstruiert per Kalibrierung gegen bereits validierte Bestands-Sessions (Refer
 **Stand 17.06.2026 (Session-Nachzug):**
 
 - **Dienstplan-Re-Import korrigiert (4362 → 3764):** `roster_shifts` aus korrigiertem thaitime-`schedule_entries`-Export neu aufgebaut. Aufteilung: Spicery 1848, YUM 1905, TSB 11. Lektion: `locations.name` für Spicery ist klein geschrieben („spicery") — Standort-Auflösung daher über feste `location_id`-UUIDs (§4), nicht über den Namen (ein Name-Join scheiterte zunächst an allen 1846 Spicery-Zeilen). Mapping-Sonderfälle bestätigt: „Sumitr (PAE)" → `SUMITR`, „Elson" (ohne Nickname) → display_name `Elson`; Kosal/BIG inaktiv mit 3 Schichten. **Marker-Lektion:** thaitime speichert „nicht verfügbar" als `schedule_entries`-Zeile mit `notes='\t='` (Beleg WIT 27.01.) — Import nimmt nur notiz-freie Zeilen (3764 echte Schichten); der 4365-Vollexport enthält 601 dieser Marker und darf NICHT importiert werden. Die Lasse-Zeilen sind selbst Marker (existieren nicht in COCO). Nachtrag: der 10:59-Export ließ zusätzlich 2 echte Gerard-Schichten (Spicery 08./09.04.) aus — nachgesetzt → Endstand 3764.
+- **Dienstplan-Delta-Nachimport (29.06.: +114 → 3873):** Additiver Nachimport (Mode A) der seit dem 17.06.-Re-Import in thaitime hinzugekommenen Plan-Schichten. 3711 von 3825 thaitime-Zeilen trafen exakt bestehende COCO-Keys (Mapping 1:1 bestätigt); 114 echte Lücken (Spicery 107, YUM 7; Küche 89 / Service 25; Planungshorizont Jun–Sep, Aug + Sep vorher 0). Idempotent via `ON CONFLICT (staff_id, location_id, shift_date, area) DO NOTHING` in `BEGIN…COMMIT`, alle `status='confirmed'`. **Neuer MA „GIG SERVICE":** trägt in thaitime denselben Nickname-Stamm wie der bestehende Küchen-GIG (perso 360) → KEIN Auto-Match, sondern eigener COCO-MA (`93e44abe-d1d8-4763-b0a6-63cea7313687`, „GIG SERVIE", Spicery/`service` in `staff_locations`) + Hardcode-Mapping „(GIG SERVICE)" → diese `staff_id` (18 Schichten). **Lektion:** Delta gegen validierte Bestands-Keys kalibrieren statt raten; Doppel-Nicknames (Gig Küche vs. Service) per Hardcode trennen, sonst zieht der Auto-Resolver beide auf denselben MA; Kalibrier-CSVs mit JOIN-Spalten täuschen echte Tabellen-Spalten vor → vor jedem INSERT `select *` einer Referenzzeile prüfen.
 
 **Stand 16.06.2026 (Session-Nachzug):**
 
