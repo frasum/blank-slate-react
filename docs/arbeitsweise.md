@@ -718,3 +718,20 @@ Die hochgeladene Lohnabrechnung wird in `lohn.tsx` und `staff.$staffId.tsx` per 
 - **Sofort-Workaround:** Inkognito-Fenster (Erweiterungen aus) oder im Blocker `cocoplatform.online` + `*.supabase.co` whitelisten.
 - **Robuste Lösung (zurückgestellt):** Payslip-Bytes über COCOs **eigene Domain** ausliefern — Server-Fn streamt die Datei server-seitig aus dem Storage (`supabaseAdmin`), der Browser trifft nur noch `cocoplatform.online/...` (auf keiner Blockliste). Löst zugleich den dokumentierten Safari-`blob:`-Stolperstein (Vorschau via pdfjs-Canvas statt Roh-URL).
 - **Auslöser zum Bauen:** sobald relevant — z. B. Mitarbeiter-Beschwerden, dass die eigene Abrechnung nicht öffnet. Bis dahin keine Änderung am Auslieferungspfad.
+
+### 17f. Admin-Payslip-Sicht — Auflösung (29.06.2026)
+
+Symptom war: Admin-Lohn-Tab und `/lohn`-Selbstansicht blieben leer, obwohl die Dateien im Storage lagen. Drei Ursachen lagen übereinander; alle behoben:
+
+1. **Auflistung über RPC statt `storage.list()`** (HEAD `dd8a1ff`). `supabaseAdmin.storage.from("payslips").list("{org}/{staffId}")` liefert bei **zweistufig verschachteltem Präfix leer** zurück — auch mit Service-Role (RLS umgangen), auch mit Limit/Sortierung. Lösung: `listFolder` in `payslips.functions.ts` ruft die neue SECURITY-DEFINER-RPC `public.list_payslip_objects(p_prefix)` (Migration `20260628191912_*.sql`), die `storage.objects` direkt nach Präfix liest (`name like prefix||'/%' and not like prefix||'/%/%'`). EXECUTE nur `service_role`, `search_path=''`. Per direktem RPC-Aufruf an echten Daten verifiziert (liefert die Dateien).
+
+2. **Fehleranzeige statt maskiertem „leer"** (HEAD `16c52d3`, Prettier-Nachzug `8992644`). `PayslipsTab` (in `staff.$staffId.tsx`) und `lohn.tsx` trennen jetzt Laden / Fehler (`q.error.message`, rot) / Leer / Liste. Vorher erschien **jeder geworfene Fehler identisch als „Noch keine Lohnabrechnungen"** — die eigentliche Ursache blieb unsichtbar.
+
+3. **Account-Verknüpfung korrigiert (eigentliche Wurzel).** `frank.schumann@me.com` war in `user_links` an **ANDIs** Datensatz gehängt (`6dfb47b9-…`, perso 6, Rolle **staff**) statt an Franks eigenen (`ce04575a-…`, perso 1, CHEFIN, **admin**). Beim E-Mail-Login war Frank im Selbst-Kontext also ANDI. Korrigiert per SQL (Option A): Schatten-Link auf `ce04575a` gelöst → E-Mail-Login von `6dfb47b9` auf `ce04575a` umgehängt. Verifiziert: `frank.schumann@me.com → ce04575a, perso 1, CHEFIN, admin`.
+
+Lektionen (teuer gelernt):
+
+- **`storage.list()` ist bei verschachteltem Präfix unzuverlässig** — Listen über RPC auf `storage.objects` lesen, nicht über die Storage-List-API.
+- **UI darf einen Fehler nie als „leer" maskieren** — sonst debuggt man die falsche Ebene (hier zweimal).
+- **`user_links` hat `user_id` UND `staff_id` je UNIQUE** — ein Datensatz hat genau einen Login und umgekehrt. Ein Login umhängen heißt: erst den belegenden Link am Ziel-Datensatz lösen, dann umhängen (sonst Unique-Verletzung). Vor jeder solchen Änderung Rolle am Ziel prüfen (Lockout-Schutz: `ce04575a` hatte bereits `admin`).
+- **Nur `perso_nr`/`staff_id` sind verlässlich, nie der Anzeigename** — `display_name` ist Spitzname/Rolle (perso 1 = „CHEFIN" = Frank Schumann).
