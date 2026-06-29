@@ -5,24 +5,33 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Buffer } from "node:buffer";
 import { timingSafeEqual } from "node:crypto";
+import { resolveCellKind } from "@/lib/display/cell";
 
-type ShiftDto = {
-  id: string;
-  staffName: string;
-  area: "kitchen" | "service" | string;
-  skillName: string | null;
-  status: string | null;
+type DisplayCell = {
+  k: "shift" | "urlaub" | "krank" | "wish" | "available" | "empty";
+  skill: string | null;
+  color: string | null;
 };
-
+type DisplayRow = {
+  staffId: string;
+  staffName: string;
+  cells: DisplayCell[];
+  shiftCount: number;
+};
+type DisplayBlock = {
+  area: "kitchen" | "service";
+  title: string;
+  rows: DisplayRow[];
+  dayCounts: number[];
+};
 type DisplayPayload = {
   location: { id: string; name: string };
   generatedAt: string;
   refreshIntervalSeconds: number;
-  date: string;
-  releasedAreas: string[];
-  shifts: ShiftDto[];
-  rotationEnabled: boolean;
-  rotationIntervalSeconds: number;
+  windowStart: string;
+  windowEnd: string;
+  days: string[];
+  blocks: DisplayBlock[];
   showAreas: string[] | null;
   showHeader: boolean;
   showFooter: boolean;
@@ -46,6 +55,16 @@ function safeCompare(a: string, b: string): boolean {
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+function rollingDays(startIso: string, count: number): string[] {
+  const out: string[] = [];
+  const d = new Date(startIso + "T00:00:00Z");
+  for (let i = 0; i < count; i++) {
+    out.push(d.toISOString().slice(0, 10));
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return out;
 }
 
 export const Route = createFileRoute("/api/public/display/$locationId")({
@@ -105,32 +124,13 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
           .maybeSingle();
         if (locErr || !location) return jsonError(404, "Filiale nicht gefunden.");
 
-        const date = todayIso();
-
-        // Periode zu heute auflösen und Freigabe prüfen.
-        const { data: period } = await supabaseAdmin
-          .from("periods")
-          .select("id")
-          .eq("organization_id", s.organization_id)
-          .lte("start_date", date)
-          .gte("end_date", date)
-          .maybeSingle();
-
-        const releasedAreas: string[] = [];
-        if (period) {
-          const { data: rels } = await supabaseAdmin
-            .from("roster_releases")
-            .select("area")
-            .eq("location_id", locationId)
-            .eq("period_id", (period as { id: string }).id);
-          for (const r of rels ?? []) {
-            const a = (r as { area: string }).area;
-            if (a === "kitchen" || a === "service") releasedAreas.push(a);
-          }
-        }
+        const today = todayIso();
+        const days = rollingDays(today, 31);
+        const windowStart = days[0];
+        const windowEnd = days[days.length - 1];
 
         // Geburtstage des aktiven Teams am Standort (Tag+Monat == heute).
-        const todayMmDd = date.slice(5); // "MM-DD"
+        const todayMmDd = today.slice(5); // "MM-DD"
         const birthdays: string[] = [];
         const { data: locRows } = await supabaseAdmin
           .from("staff_locations")
@@ -172,76 +172,185 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
           }
         }
 
-        const { data: shifts, error: shiftsErr } = await supabaseAdmin
+        // Zeilenbasis: payroll-IDs ausschließen, Standort-Mitarbeiter laden.
+        const { data: payrollRows, error: payrollErr } = await supabaseAdmin
+          .from("role_assignments")
+          .select("staff_id")
+          .eq("organization_id", s.organization_id)
+          .eq("role", "payroll");
+        if (payrollErr) return jsonError(500, "Daten konnten nicht geladen werden.");
+        const payrollIds = new Set((payrollRows ?? []).map((r) => r.staff_id as string));
+
+        const { data: slRows, error: slErr } = await supabaseAdmin
+          .from("staff_locations")
+          .select("staff_id, department, staff(id, display_name, is_active)")
+          .eq("organization_id", s.organization_id)
+          .eq("location_id", locationId);
+        if (slErr) return jsonError(500, "Daten konnten nicht geladen werden.");
+
+        type RowEntry = {
+          staffId: string;
+          staffName: string;
+          area: "kitchen" | "service";
+        };
+        const rowEntries: RowEntry[] = [];
+        const rowSeen = new Set<string>();
+        for (const r of slRows ?? []) {
+          const staffId = r.staff_id as string;
+          if (payrollIds.has(staffId)) continue;
+          const st = r.staff as { display_name: string | null; is_active: boolean } | null;
+          if (st?.is_active === false) continue;
+          const dept = r.department as "kitchen" | "service" | "gl" | null;
+          const area: "kitchen" | "service" = dept === "kitchen" ? "kitchen" : "service";
+          const key = `${staffId}|${area}`;
+          if (rowSeen.has(key)) continue;
+          rowSeen.add(key);
+          rowEntries.push({
+            staffId,
+            staffName: st?.display_name ?? "—",
+            area,
+          });
+        }
+        rowEntries.sort((a, b) => a.staffName.localeCompare(b.staffName, "de"));
+
+        const rowStaffIds = Array.from(new Set(rowEntries.map((r) => r.staffId)));
+        const idSafe = rowStaffIds.length ? rowStaffIds : ["00000000-0000-0000-0000-000000000000"];
+
+        // Schichten im Fenster.
+        const { data: shiftRows, error: shiftErr } = await supabaseAdmin
           .from("roster_shifts")
-          .select("id, area, skill_id, status, staff_id")
+          .select("staff_id, shift_date, area, skill_id")
           .eq("organization_id", s.organization_id)
           .eq("location_id", locationId)
-          .eq("shift_date", date);
-        if (shiftsErr) return jsonError(500, "Daten konnten nicht geladen werden.");
+          .gte("shift_date", windowStart)
+          .lte("shift_date", windowEnd);
+        if (shiftErr) return jsonError(500, "Daten konnten nicht geladen werden.");
 
-        const filteredShifts = (shifts ?? []).filter((sh) => {
-          if (sh.area === "kitchen") return releasedAreas.includes("kitchen");
-          if (sh.area === "service") return releasedAreas.includes("service");
-          return true;
-        });
+        // Map staffId|date|blockArea → skill_id (gesetzten Eintrag bevorzugen).
+        const shiftMap = new Map<string, string | null>();
+        const skillIdSet = new Set<string>();
+        for (const sh of shiftRows ?? []) {
+          const staffId = sh.staff_id as string;
+          const date = sh.shift_date as string;
+          const rawArea = sh.area as string;
+          const blockArea: "kitchen" | "service" = rawArea === "kitchen" ? "kitchen" : "service";
+          const skillId = (sh.skill_id as string | null) ?? null;
+          const key = `${staffId}|${date}|${blockArea}`;
+          const existing = shiftMap.get(key);
+          if (existing === undefined || (existing === null && skillId !== null)) {
+            shiftMap.set(key, skillId);
+          }
+          if (skillId) skillIdSet.add(skillId);
+        }
 
-        const staffIds = Array.from(new Set(filteredShifts.map((s) => s.staff_id)));
-        const skillIds = Array.from(
-          new Set(filteredShifts.map((s) => s.skill_id).filter(Boolean) as string[]),
-        );
+        // Skills.
+        const skillIds = Array.from(skillIdSet);
+        const skillMap = new Map<string, { name: string; color: string | null }>();
+        if (skillIds.length) {
+          const { data: skRows, error: skErr } = await supabaseAdmin
+            .from("skills")
+            .select("id, name, color")
+            .in("id", skillIds);
+          if (skErr) return jsonError(500, "Daten konnten nicht geladen werden.");
+          for (const sk of skRows ?? []) {
+            skillMap.set(sk.id as string, {
+              name: sk.name as string,
+              color: (sk.color as string | null) ?? null,
+            });
+          }
+        }
 
-        const [staffRes, skillRes] = await Promise.all([
-          staffIds.length
-            ? supabaseAdmin
-                .from("staff")
-                .select("id, first_name, last_name, display_name")
-                .in("id", staffIds)
-            : Promise.resolve({ data: [], error: null }),
-          skillIds.length
-            ? supabaseAdmin.from("skills").select("id, name").in("id", skillIds)
-            : Promise.resolve({ data: [], error: null }),
+        // Overlays (org-weit, nicht standort-gefiltert).
+        const [absRes, wishRes, availRes] = await Promise.all([
+          supabaseAdmin
+            .from("roster_absence")
+            .select("staff_id, date, type")
+            .eq("organization_id", s.organization_id)
+            .in("staff_id", idSafe)
+            .gte("date", windowStart)
+            .lte("date", windowEnd),
+          supabaseAdmin
+            .from("day_off_wishes")
+            .select("staff_id, wish_date")
+            .eq("organization_id", s.organization_id)
+            .in("staff_id", idSafe)
+            .gte("wish_date", windowStart)
+            .lte("wish_date", windowEnd),
+          supabaseAdmin
+            .from("roster_availability")
+            .select("staff_id, date")
+            .eq("organization_id", s.organization_id)
+            .in("staff_id", idSafe)
+            .gte("date", windowStart)
+            .lte("date", windowEnd),
         ]);
-        if (staffRes.error || skillRes.error) {
+        if (absRes.error || wishRes.error || availRes.error) {
           return jsonError(500, "Daten konnten nicht geladen werden.");
         }
-
-        const staffMap = new Map<string, string>();
-        for (const st of staffRes.data ?? []) {
-          const name =
-            (st as { display_name: string | null }).display_name ||
-            `${(st as { first_name: string }).first_name} ${(st as { last_name: string }).last_name}`.trim();
-          staffMap.set((st as { id: string }).id, name);
+        const absenceMap = new Map<string, "urlaub" | "krank">();
+        for (const a of absRes.data ?? []) {
+          const t = a.type as string;
+          if (t === "urlaub" || t === "krank") {
+            absenceMap.set(`${a.staff_id as string}|${a.date as string}`, t);
+          }
         }
-        const skillMap = new Map<string, string>();
-        for (const sk of skillRes.data ?? []) {
-          skillMap.set((sk as { id: string }).id, (sk as { name: string }).name);
-        }
+        const wishSet = new Set<string>(
+          (wishRes.data ?? []).map((w) => `${w.staff_id as string}|${w.wish_date as string}`),
+        );
+        const availSet = new Set<string>(
+          (availRes.data ?? []).map((a) => `${a.staff_id as string}|${a.date as string}`),
+        );
 
-        const shiftsDto: ShiftDto[] = filteredShifts
-          .map((sh) => ({
-            id: sh.id,
-            staffName: staffMap.get(sh.staff_id) ?? "—",
-            area: sh.area as string,
-            skillName: sh.skill_id ? (skillMap.get(sh.skill_id) ?? null) : null,
-            status: sh.status ?? null,
-          }))
-          .sort(
-            (a, b) =>
-              a.area.localeCompare(b.area) ||
-              (a.skillName ?? "").localeCompare(b.skillName ?? "") ||
-              a.staffName.localeCompare(b.staffName),
-          );
+        // Blöcke bauen.
+        const wantedAreas = s.show_areas;
+        const areaOrder: Array<{ area: "kitchen" | "service"; title: string }> = [
+          { area: "kitchen", title: "Küche" },
+          { area: "service", title: "Service" },
+        ];
+        const blocks: DisplayBlock[] = [];
+        for (const { area, title } of areaOrder) {
+          if (wantedAreas && !wantedAreas.includes(area)) continue;
+          const blockRows = rowEntries.filter((r) => r.area === area);
+          const dayCounts = new Array<number>(days.length).fill(0);
+          const rows: DisplayRow[] = blockRows.map((entry) => {
+            const cells: DisplayCell[] = days.map((date, i) => {
+              const shiftKey = `${entry.staffId}|${date}|${area}`;
+              const hasShift = shiftMap.has(shiftKey);
+              const overlayKey = `${entry.staffId}|${date}`;
+              const absenceType = absenceMap.get(overlayKey) ?? null;
+              const hasWish = wishSet.has(overlayKey);
+              const hasAvailability = availSet.has(overlayKey);
+              const k = resolveCellKind({ hasShift, absenceType, hasWish, hasAvailability });
+              let skill: string | null = null;
+              let color: string | null = null;
+              if (k === "shift") {
+                const sid = shiftMap.get(shiftKey) ?? null;
+                const meta = sid ? (skillMap.get(sid) ?? null) : null;
+                skill = meta?.name ?? null;
+                if (area === "kitchen") color = meta?.color ?? null;
+                dayCounts[i] += 1;
+              }
+              return { k, skill, color };
+            });
+            const shiftCount = cells.reduce((n, c) => n + (c.k === "shift" ? 1 : 0), 0);
+            return {
+              staffId: entry.staffId,
+              staffName: entry.staffName,
+              cells,
+              shiftCount,
+            };
+          });
+          blocks.push({ area, title, rows, dayCounts });
+        }
 
         const payload: DisplayPayload = {
           location: { id: location.id, name: location.name },
           generatedAt: new Date().toISOString(),
           refreshIntervalSeconds: s.refresh_interval_seconds,
-          date,
-          releasedAreas,
-          shifts: shiftsDto,
-          rotationEnabled: s.rotation_enabled,
-          rotationIntervalSeconds: s.rotation_interval_seconds,
+          windowStart,
+          windowEnd,
+          days,
+          blocks,
           showAreas: s.show_areas,
           showHeader: s.show_header,
           showFooter: s.show_footer,

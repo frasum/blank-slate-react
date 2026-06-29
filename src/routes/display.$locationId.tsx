@@ -4,25 +4,35 @@
 import { createFileRoute, useParams, useSearch } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
-import { formatShortDate } from "@/lib/format-date";
+import { Umbrella, Thermometer, Heart } from "lucide-react";
+import { serviceMarker } from "@/lib/roster/service-marker";
 
-type ShiftDto = {
-  id: string;
+type DisplayCell = {
+  k: "shift" | "urlaub" | "krank" | "wish" | "available" | "empty";
+  skill: string | null;
+  color: string | null;
+};
+type DisplayRow = {
+  staffId: string;
   staffName: string;
-  area: string;
-  skillName: string | null;
-  status: string | null;
+  cells: DisplayCell[];
+  shiftCount: number;
+};
+type DisplayBlock = {
+  area: "kitchen" | "service";
+  title: string;
+  rows: DisplayRow[];
+  dayCounts: number[];
 };
 
 type DisplayPayload = {
   location: { id: string; name: string };
   generatedAt: string;
   refreshIntervalSeconds: number;
-  date: string;
-  releasedAreas: string[];
-  shifts: ShiftDto[];
-  rotationEnabled: boolean;
-  rotationIntervalSeconds: number;
+  windowStart: string;
+  windowEnd: string;
+  days: string[];
+  blocks: DisplayBlock[];
   showAreas: string[] | null;
   showHeader: boolean;
   showFooter: boolean;
@@ -43,14 +53,30 @@ function formatTime(d: Date): string {
   return d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
 }
 
+function formatDayHeader(iso: string): { wd: string; dm: string } {
+  const d = new Date(iso + "T00:00:00Z");
+  const wd = d.toLocaleDateString("de-DE", { weekday: "short", timeZone: "UTC" });
+  const dm = `${d.getUTCDate()}.${d.getUTCMonth() + 1}.`;
+  return { wd, dm };
+}
+
+function isWeekend(iso: string): boolean {
+  const d = new Date(iso + "T00:00:00Z").getUTCDay();
+  return d === 0 || d === 6;
+}
+
+function formatRangeLabel(start: string, end: string): string {
+  const s = formatDayHeader(start);
+  const e = formatDayHeader(end);
+  return `${s.dm} – ${e.dm}`;
+}
+
 function DisplayPage() {
   const { locationId } = useParams({ from: "/display/$locationId" });
   const { token } = useSearch({ from: "/display/$locationId" });
   const [data, setData] = useState<DisplayPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(new Date());
-  const [rotIndex, setRotIndex] = useState(0);
-  const [rotProgress, setRotProgress] = useState(0);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 30 * 1000);
@@ -98,58 +124,6 @@ function DisplayPage() {
     };
   }, [locationId, token]);
 
-  const groups: { key: string; title: string; shifts: ShiftDto[]; accent: string }[] = (() => {
-    if (!data) return [];
-    const wanted = data.showAreas;
-    const all = [
-      {
-        key: "kitchen",
-        title: "Küche",
-        shifts: data.shifts.filter((s) => s.area === "kitchen"),
-        accent: "bg-orange-500/10 border-orange-500/30",
-      },
-      {
-        key: "service",
-        title: "Service",
-        shifts: data.shifts.filter((s) => s.area === "service"),
-        accent: "bg-sky-500/10 border-sky-500/30",
-      },
-      {
-        key: "gl",
-        title: "Sonstige",
-        shifts: data.shifts.filter((s) => s.area !== "kitchen" && s.area !== "service"),
-        accent: "bg-slate-500/10 border-slate-500/30",
-      },
-    ];
-    return all.filter((g) => (wanted ? wanted.includes(g.key) : true));
-  })();
-
-  const rotIntervalMs = Math.max(1000, (data?.rotationIntervalSeconds ?? 30) * 1000);
-  const rotationActive = !!data && data.rotationEnabled && groups.length > 1;
-
-  useEffect(() => {
-    if (!rotationActive) {
-      setRotProgress(0);
-      return;
-    }
-    const step = 100 / (rotIntervalMs / 100);
-    const t = setInterval(() => {
-      setRotProgress((p) => {
-        const next = p + step;
-        if (next >= 100) {
-          setRotIndex((i) => (i + 1) % groups.length);
-          return 0;
-        }
-        return next;
-      });
-    }, 100);
-    return () => clearInterval(t);
-  }, [rotationActive, rotIntervalMs, groups.length]);
-
-  useEffect(() => {
-    if (rotIndex >= groups.length) setRotIndex(0);
-  }, [groups.length, rotIndex]);
-
   if (error && !data) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 p-8 text-slate-100">
@@ -175,7 +149,9 @@ function DisplayPage() {
         <header className="flex items-center justify-between border-b border-slate-800 px-10 py-6">
           <div>
             <h1 className="text-4xl font-bold tracking-tight">{data.location.name}</h1>
-            <p className="mt-1 text-lg text-slate-400">{formatShortDate(data.date)}</p>
+            <p className="mt-1 text-lg text-slate-400">
+              {formatRangeLabel(data.windowStart, data.windowEnd)}
+            </p>
           </div>
           <div className="text-right">
             <div className="text-5xl font-mono font-semibold tabular-nums">{formatTime(now)}</div>
@@ -198,115 +174,164 @@ function DisplayPage() {
         </div>
       )}
 
-      <main className="p-10">
-        {rotationActive ? (
-          <div className="space-y-4">
-            <RotationColumn
-              group={groups[rotIndex] ?? groups[0]}
-              releasedAreas={data.releasedAreas}
-            />
-            <div className="h-1 w-full overflow-hidden rounded-full bg-slate-800">
-              <div
-                className="h-full bg-slate-200 transition-[width] duration-100"
-                style={{ width: `${Math.min(100, rotProgress)}%` }}
-              />
-            </div>
-            <div className="flex justify-center gap-2">
-              {groups.map((g, i) => (
-                <span
-                  key={g.key}
-                  className={`h-2 w-2 rounded-full ${i === rotIndex ? "bg-slate-200" : "bg-slate-700"}`}
-                />
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className={`grid grid-cols-1 gap-8 ${groups.length > 1 ? "md:grid-cols-2" : ""}`}>
-            {groups.map((g) => (
-              <RotationColumn key={g.key} group={g} releasedAreas={data.releasedAreas} />
-            ))}
-          </div>
+      <main className="space-y-8 p-6">
+        {data.blocks.map((block) => (
+          <BlockTable key={block.area} block={block} days={data.days} />
+        ))}
+        {data.blocks.length === 0 && (
+          <p className="text-center text-slate-400">Keine Bereiche konfiguriert.</p>
         )}
       </main>
 
       {data.showFooter && (
         <footer className="border-t border-slate-800 px-10 py-4 text-center text-sm text-slate-400">
-          <span className="font-medium text-slate-300">Legende:</span> X = Service · B = Bar · GL =
-          Geschäftsleitung · H = Hausmeister · 19h = ab 19 Uhr
+          <span className="font-medium text-slate-300">Legende:</span> X Arbeitet · − Frei · ☂
+          Urlaub · 🌡 Krank · ♡ Wunsch-frei · ○ Verfügbar
         </footer>
       )}
     </div>
   );
 }
 
-function RotationColumn({
-  group,
-  releasedAreas,
-}: {
-  group: { key: string; title: string; shifts: ShiftDto[]; accent: string };
-  releasedAreas: string[];
-}) {
-  if (group.key === "kitchen" && !releasedAreas.includes("kitchen")) {
-    return (
-      <PlaceholderColumn
-        title="Küche"
-        accent={group.accent}
-        message="Küche – noch nicht freigegeben"
-      />
-    );
-  }
-  if (group.key === "service" && !releasedAreas.includes("service")) {
-    return (
-      <PlaceholderColumn
-        title="Service"
-        accent={group.accent}
-        message="Service – noch nicht freigegeben"
-      />
-    );
-  }
-  return <Column title={group.title} shifts={group.shifts} accent={group.accent} />;
-}
-
-function PlaceholderColumn({
-  title,
-  accent,
-  message,
-}: {
-  title: string;
-  accent: string;
-  message: string;
-}) {
+function BlockTable({ block, days }: { block: DisplayBlock; days: string[] }) {
   return (
-    <section className={`rounded-2xl border p-6 ${accent}`}>
-      <h2 className="mb-4 text-2xl font-semibold">{title}</h2>
-      <p className="text-xl text-slate-400">{message}</p>
+    <section className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40">
+      <header className="border-b border-slate-800 bg-slate-900/60 px-4 py-3">
+        <h2 className="text-xl font-semibold">{block.title}</h2>
+      </header>
+      <div className="overflow-x-auto">
+        <table className="w-full border-separate border-spacing-0 text-xs">
+          <thead>
+            <tr>
+              <th className="sticky left-0 z-20 min-w-[10rem] border-b border-slate-800 bg-slate-900 px-3 py-2 text-left font-medium text-slate-300">
+                Mitarbeiter
+              </th>
+              {days.map((iso, i) => {
+                const { wd, dm } = formatDayHeader(iso);
+                const today = i === 0;
+                const we = isWeekend(iso);
+                return (
+                  <th
+                    key={iso}
+                    className={[
+                      "border-b border-slate-800 px-1 py-2 text-center font-medium",
+                      today
+                        ? "bg-sky-500/20 text-sky-100 ring-1 ring-inset ring-sky-400/60"
+                        : we
+                          ? "bg-slate-900/80 text-slate-400"
+                          : "bg-slate-900 text-slate-300",
+                    ].join(" ")}
+                  >
+                    <div className="leading-tight">{wd}</div>
+                    <div className="leading-tight tabular-nums">{dm}</div>
+                  </th>
+                );
+              })}
+              <th className="sticky right-0 z-20 border-b border-slate-800 bg-slate-900 px-3 py-2 text-center font-medium text-slate-300">
+                Σ
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {block.rows.length === 0 && (
+              <tr>
+                <td colSpan={days.length + 2} className="px-4 py-6 text-center text-slate-500">
+                  Keine Mitarbeiter für diesen Bereich.
+                </td>
+              </tr>
+            )}
+            {block.rows.map((row) => (
+              <tr key={`${block.area}-${row.staffId}`}>
+                <td className="sticky left-0 z-10 border-b border-slate-800/60 bg-slate-950 px-3 py-1 text-sm font-medium text-slate-100">
+                  {row.staffName}
+                </td>
+                {row.cells.map((cell, i) => (
+                  <td
+                    key={i}
+                    className={[
+                      "border-b border-slate-800/60 p-1 text-center align-middle",
+                      isWeekend(days[i]) ? "bg-slate-900/40" : "",
+                      i === 0 ? "bg-sky-500/5" : "",
+                    ].join(" ")}
+                  >
+                    <CellView cell={cell} area={block.area} />
+                  </td>
+                ))}
+                <td className="sticky right-0 z-10 border-b border-slate-800/60 bg-slate-950 px-3 py-1 text-center text-sm font-semibold tabular-nums text-slate-100">
+                  {row.shiftCount}
+                </td>
+              </tr>
+            ))}
+            {block.rows.length > 0 && (
+              <tr>
+                <td className="sticky left-0 z-10 bg-slate-900/80 px-3 py-1 text-sm font-medium text-slate-300">
+                  Arbeitet
+                </td>
+                {block.dayCounts.map((n, i) => (
+                  <td
+                    key={i}
+                    className={[
+                      "px-1 py-1 text-center text-xs font-semibold tabular-nums",
+                      isWeekend(days[i]) ? "bg-slate-900/60" : "bg-slate-900/40",
+                      i === 0 ? "bg-sky-500/10 text-sky-100" : "text-slate-200",
+                    ].join(" ")}
+                  >
+                    {n}
+                  </td>
+                ))}
+                <td className="sticky right-0 z-10 bg-slate-900/80" />
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }
 
-function Column({ title, shifts, accent }: { title: string; shifts: ShiftDto[]; accent: string }) {
-  return (
-    <section className={`rounded-2xl border p-6 ${accent}`}>
-      <h2 className="mb-4 text-2xl font-semibold">{title}</h2>
-      {shifts.length === 0 ? (
-        <p className="text-slate-400">Keine Schichten heute.</p>
-      ) : (
-        <ul className="space-y-2">
-          {shifts.map((s) => (
-            <li
-              key={s.id}
-              className="flex items-center justify-between rounded-lg bg-slate-900/60 px-4 py-3"
-            >
-              <span className="text-2xl font-medium">{s.staffName}</span>
-              {s.skillName && (
-                <span className="rounded-md bg-slate-800 px-3 py-1 text-sm uppercase tracking-wide text-slate-300">
-                  {s.skillName}
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
+function CellView({ cell, area }: { cell: DisplayCell; area: "kitchen" | "service" }) {
+  if (cell.k === "shift") {
+    if (area === "kitchen") {
+      const label = cell.skill && cell.skill.trim() ? cell.skill : "·";
+      return (
+        <span
+          className="inline-flex min-w-[2rem] items-center justify-center rounded px-2 py-0.5 text-xs font-semibold text-slate-900"
+          style={{ backgroundColor: cell.color ?? "#e2e8f0" }}
+        >
+          {label}
+        </span>
+      );
+    }
+    const m = serviceMarker(cell.skill);
+    return (
+      <span className="inline-flex min-w-[2rem] items-center justify-center rounded border border-slate-700 bg-white px-2 py-0.5 text-xs font-bold text-slate-900">
+        {m}
+      </span>
+    );
+  }
+  if (cell.k === "urlaub") {
+    return (
+      <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-green-500/20 text-green-300">
+        <Umbrella className="h-3.5 w-3.5" />
+      </span>
+    );
+  }
+  if (cell.k === "krank") {
+    return (
+      <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-orange-500/20 text-orange-300">
+        <Thermometer className="h-3.5 w-3.5" />
+      </span>
+    );
+  }
+  if (cell.k === "wish") {
+    return (
+      <span className="inline-flex h-6 w-6 items-center justify-center rounded border border-dashed border-purple-400 text-purple-300">
+        <Heart className="h-3.5 w-3.5" />
+      </span>
+    );
+  }
+  if (cell.k === "available") {
+    return <span className="text-slate-500">○</span>;
+  }
+  return <span className="text-slate-600">−</span>;
 }
