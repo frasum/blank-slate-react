@@ -5,15 +5,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -199,9 +191,7 @@ function StatsView({ data }: { data: RevenueStats }) {
         <CardHeader>
           <CardTitle className="text-base">Umsatzverlauf</CardTitle>
         </CardHeader>
-        <CardContent>
-          {hasDaily ? <RevenueChart daily={data.daily} /> : <EmptyChart />}
-        </CardContent>
+        <CardContent>{hasDaily ? <RevenueChart daily={data.daily} /> : <EmptyChart />}</CardContent>
       </Card>
     </div>
   );
