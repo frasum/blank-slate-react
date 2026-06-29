@@ -33,6 +33,7 @@ function OrgSettingsPage() {
   // Tastatureingabe Number-parsiert wird (Komma → Punkt erst beim Speichern).
   const [tipRatePercent, setTipRatePercent] = useState("");
   const [minHours, setMinHours] = useState("");
+  const [kitchenManualOnly, setKitchenManualOnly] = useState(false);
   const [testModeEnabled, setTestModeEnabled] = useState(false);
   const [testModeEmail, setTestModeEmail] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
@@ -42,6 +43,7 @@ function OrgSettingsPage() {
     if (!settingsQ.data) return;
     setTipRatePercent((settingsQ.data.kitchenTipRate * 100).toFixed(2));
     setMinHours(settingsQ.data.tipPoolMinHours.toFixed(2));
+    setKitchenManualOnly(settingsQ.data.kitchenManualOnly);
     setTestModeEnabled(settingsQ.data.testModeEnabled);
     setTestModeEmail(settingsQ.data.testModeEmail ?? "");
   }, [settingsQ.data]);
@@ -67,6 +69,7 @@ function OrgSettingsPage() {
         data: {
           kitchenTipRate: rate,
           tipPoolMinHours: hours,
+          kitchenManualOnly,
           testModeEnabled,
           testModeEmail: trimmedEmail === "" ? null : trimmedEmail,
         },
@@ -142,6 +145,23 @@ function OrgSettingsPage() {
             />
             <span className="ml-2 text-xs text-muted-foreground">
               Tagessumme, inklusive Grenze (2,50 = 2:30 zählt mit, 2:29 nicht)
+            </span>
+          </label>
+
+          <label className="flex items-start gap-3 pt-1">
+            <input
+              type="checkbox"
+              checked={kitchenManualOnly}
+              onChange={(e) => setKitchenManualOnly(e.target.checked)}
+              disabled={!canEdit}
+              className="mt-1 h-4 w-4 rounded border-input"
+            />
+            <span className="text-sm text-foreground">
+              Küchentrinkgeld manuell verteilen (Stempelzeiten der Küche ignorieren)
+              <span className="mt-0.5 block text-xs text-muted-foreground">
+                Wenn aktiv, fließt die Küche nur über manuell eingetragene Schichten (Start/Ende) in
+                den Pool. Service bleibt unverändert über Stempelzeiten.
+              </span>
             </span>
           </label>
 

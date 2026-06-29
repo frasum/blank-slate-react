@@ -38,6 +38,7 @@ import {
   listSessionTipPoolEntries,
   upsertSessionTipPoolEntry,
 } from "@/lib/cash/cash.functions";
+import { kitchenShiftMinutes } from "@/lib/cash/kitchen-shift-hours";
 
 type StaffListItem = {
   id: string;
@@ -51,6 +52,8 @@ type ManualDraft = {
   department: "kitchen" | "service";
   hours: string;
   minutes: string;
+  shiftStart: string;
+  shiftEnd: string;
 };
 
 export function TipPoolCard({
@@ -89,6 +92,8 @@ export function TipPoolCard({
     department: "service",
     hours: "0",
     minutes: "00",
+    shiftStart: "",
+    shiftEnd: "",
   });
 
   const invalidatePool = () => {
@@ -99,6 +104,23 @@ export function TipPoolCard({
   const upsertMut = useMutation({
     mutationFn: () => {
       if (!draft.staffId) throw new Error("Bitte einen Mitarbeiter wählen.");
+      const useShift = draft.department === "kitchen" && Boolean(poolQ.data?.kitchenManualOnly);
+      if (useShift) {
+        if (!draft.shiftStart || !draft.shiftEnd) {
+          throw new Error("Start- und Endzeit angeben.");
+        }
+        // Validierung serverseitig, hier nur frühe Fehlermeldung:
+        kitchenShiftMinutes(draft.shiftStart, draft.shiftEnd);
+        return callUpsert({
+          data: {
+            sessionId,
+            staffId: draft.staffId,
+            department: draft.department,
+            shiftStart: draft.shiftStart,
+            shiftEnd: draft.shiftEnd,
+          },
+        });
+      }
       const h = Number.parseInt(draft.hours, 10);
       const m = Number.parseInt(draft.minutes, 10);
       if (!Number.isFinite(h) || h < 0 || h > 24) throw new Error("Stunden 0–24.");
@@ -116,7 +138,14 @@ export function TipPoolCard({
     },
     onSuccess: () => {
       toast.success("Pool-Eintrag gespeichert.");
-      setDraft({ staffId: "", department: "service", hours: "0", minutes: "00" });
+      setDraft({
+        staffId: "",
+        department: "service",
+        hours: "0",
+        minutes: "00",
+        shiftStart: "",
+        shiftEnd: "",
+      });
       invalidatePool();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -143,6 +172,7 @@ export function TipPoolCard({
     );
   }
   const data = poolQ.data;
+  const kitchenManualOnly = data.kitchenManualOnly;
   const manualSet = new Set(data.manualStaffIds);
   const kitchen = data.shares.filter((s) => s.department === "kitchen");
   const service = data.shares.filter((s) => s.department === "service");
@@ -204,7 +234,13 @@ export function TipPoolCard({
         </Button>
       </div>
       <div className="flex flex-col gap-4 md:flex-row">
-        {renderTable("Küchen-Pool", kitchen, data.kitchenPoolCents)}
+        {renderTable(
+          kitchenManualOnly
+            ? "Küchen-Pool (manuell — Stempelzeiten der Küche werden ignoriert)"
+            : "Küchen-Pool",
+          kitchen,
+          data.kitchenPoolCents,
+        )}
         {renderTable("Service-Pool", service, data.servicePoolCents)}
       </div>
 
@@ -298,22 +334,60 @@ export function TipPoolCard({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="col-span-2">
-                <Label className="text-xs">Std.</Label>
-                <Input
-                  inputMode="numeric"
-                  value={draft.hours}
-                  onChange={(e) => setDraft({ ...draft, hours: e.target.value })}
-                />
-              </div>
-              <div className="col-span-2">
-                <Label className="text-xs">Min.</Label>
-                <Input
-                  inputMode="numeric"
-                  value={draft.minutes}
-                  onChange={(e) => setDraft({ ...draft, minutes: e.target.value })}
-                />
-              </div>
+              {draft.department === "kitchen" && kitchenManualOnly ? (
+                <>
+                  <div className="col-span-2">
+                    <Label className="text-xs">Von</Label>
+                    <Input
+                      type="time"
+                      value={draft.shiftStart}
+                      onChange={(e) => setDraft({ ...draft, shiftStart: e.target.value })}
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-xs">Bis</Label>
+                    <Input
+                      type="time"
+                      value={draft.shiftEnd}
+                      onChange={(e) => setDraft({ ...draft, shiftEnd: e.target.value })}
+                    />
+                  </div>
+                  {draft.shiftStart && draft.shiftEnd && (
+                    <div className="col-span-12 -mt-1 text-xs text-muted-foreground">
+                      Dauer:{" "}
+                      {(() => {
+                        try {
+                          const mins = kitchenShiftMinutes(draft.shiftStart, draft.shiftEnd);
+                          const hh = Math.floor(mins / 60);
+                          const mm = mins % 60;
+                          return `${hh}:${mm.toString().padStart(2, "0")} h`;
+                        } catch {
+                          return "ungültig";
+                        }
+                      })()}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="col-span-2">
+                    <Label className="text-xs">Std.</Label>
+                    <Input
+                      inputMode="numeric"
+                      value={draft.hours}
+                      onChange={(e) => setDraft({ ...draft, hours: e.target.value })}
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-xs">Min.</Label>
+                    <Input
+                      inputMode="numeric"
+                      value={draft.minutes}
+                      onChange={(e) => setDraft({ ...draft, minutes: e.target.value })}
+                    />
+                  </div>
+                </>
+              )}
             </div>
           </div>
 

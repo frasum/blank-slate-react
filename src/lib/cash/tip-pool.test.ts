@@ -1,5 +1,5 @@
 import { describe, expect, it, test } from "vitest";
-import { computeTipPool, computeTipTotalCents } from "./tip-pool";
+import { computeTipPool, computeTipTotalCents, resolvePoolTimeEntries } from "./tip-pool";
 
 function iso(h: number, m = 0): string {
   const d = new Date("2025-06-01T00:00:00Z");
@@ -324,5 +324,83 @@ describe("computeTipPool: Mindeststunden", () => {
     };
     expect(computeTipPool({ ...base }).shares).toHaveLength(1);
     expect(computeTipPool({ ...base, minHoursPerDay: 0 }).shares).toHaveLength(1);
+  });
+});
+
+describe("resolvePoolTimeEntries: kitchenManualOnly-Matrix", () => {
+  const businessDate = "2025-06-01";
+  const raw = [
+    { staffId: "k1", startedAt: iso(10), endedAt: iso(15) },
+    { staffId: "s1", startedAt: iso(10), endedAt: iso(15) },
+  ];
+  const depts = new Map<string, "kitchen" | "service" | "gl">([
+    ["k1", "kitchen"],
+    ["k2", "kitchen"],
+    ["s1", "service"],
+  ]);
+
+  it("Off: Küchen-Stempel ohne manuell zählt; Service unberührt", () => {
+    const out = resolvePoolTimeEntries({
+      rawTimeEntries: raw,
+      manualEntries: [],
+      staffDepartments: depts,
+      settlementOnly: false,
+      kitchenManualOnly: false,
+      businessDate,
+    });
+    expect(out.map((e) => e.staffId).sort()).toEqual(["k1", "s1"]);
+  });
+
+  it("An: Küchen-Stempel ohne manuell fällt raus, Service unberührt", () => {
+    const out = resolvePoolTimeEntries({
+      rawTimeEntries: raw,
+      manualEntries: [],
+      staffDepartments: depts,
+      settlementOnly: false,
+      kitchenManualOnly: true,
+      businessDate,
+    });
+    expect(out.map((e) => e.staffId)).toEqual(["s1"]);
+  });
+
+  it("An + manueller Küchen-Eintrag: synthetischer Entry für k2 zählt", () => {
+    const out = resolvePoolTimeEntries({
+      rawTimeEntries: raw,
+      manualEntries: [{ staffId: "k2", department: "kitchen", hoursMinutes: 390 }],
+      staffDepartments: depts,
+      settlementOnly: false,
+      kitchenManualOnly: true,
+      businessDate,
+    });
+    const ids = out.map((e) => e.staffId).sort();
+    expect(ids).toEqual(["k2", "s1"]);
+    const k2 = out.find((e) => e.staffId === "k2")!;
+    expect(new Date(k2.endedAt).getTime() - new Date(k2.startedAt).getTime()).toBe(390 * 60_000);
+  });
+
+  it("Manueller Eintrag verdrängt Stempel desselben Mitarbeiters (Off-Mode)", () => {
+    const out = resolvePoolTimeEntries({
+      rawTimeEntries: raw,
+      manualEntries: [{ staffId: "k1", department: "kitchen", hoursMinutes: 120 }],
+      staffDepartments: depts,
+      settlementOnly: false,
+      kitchenManualOnly: false,
+      businessDate,
+    });
+    expect(out.filter((e) => e.staffId === "k1")).toHaveLength(1);
+    const k1 = out.find((e) => e.staffId === "k1")!;
+    expect(new Date(k1.endedAt).getTime() - new Date(k1.startedAt).getTime()).toBe(120 * 60_000);
+  });
+
+  it("settlementOnly: Roh-Stempel werden ignoriert, manuelle bleiben", () => {
+    const out = resolvePoolTimeEntries({
+      rawTimeEntries: raw,
+      manualEntries: [{ staffId: "s1", department: "service", hoursMinutes: 60 }],
+      staffDepartments: depts,
+      settlementOnly: true,
+      kitchenManualOnly: false,
+      businessDate,
+    });
+    expect(out.map((e) => e.staffId)).toEqual(["s1"]);
   });
 });

@@ -21,9 +21,11 @@ import { calcWaiterSettlement } from "./waiter-settlement";
 import {
   computeTipPool,
   computeTipTotalCents,
+  resolvePoolTimeEntries,
   type TipPoolResult,
   type StaffDepartment,
 } from "./tip-pool";
+import { kitchenShiftMinutes } from "./kitchen-shift-hours";
 import { assertCashWritable, CashLockedError } from "./cash-lock";
 import type { Json } from "@/integrations/supabase/types";
 import { ForbiddenError } from "@/lib/admin/role-guard";
@@ -96,13 +98,14 @@ export async function loadOrgSettings(orgId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("organization_settings")
-    .select("kitchen_tip_rate, tip_pool_min_hours")
+    .select("kitchen_tip_rate, tip_pool_min_hours, kitchen_manual_only")
     .eq("organization_id", orgId)
     .maybeSingle();
   if (error) throw error;
   return {
     kitchenTipRate: Number(data?.kitchen_tip_rate ?? 0.02),
     tipPoolMinHours: Number(data?.tip_pool_min_hours ?? 2.5),
+    kitchenManualOnly: Boolean(data?.kitchen_manual_only ?? false),
   };
 }
 
@@ -495,7 +498,13 @@ export const getTipPoolOverview = createServerFn({ method: "GET" })
 export async function getTipPoolOverviewCore(
   caller: AdminCaller,
   data: { sessionId: string },
-): Promise<TipPoolResult & { staffNames: Record<string, string>; manualStaffIds: string[] }> {
+): Promise<
+  TipPoolResult & {
+    staffNames: Record<string, string>;
+    manualStaffIds: string[];
+    kitchenManualOnly: boolean;
+  }
+> {
   const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
   const settings = await loadOrgSettings(caller.organizationId);
   return computeSessionTipPoolCore(caller, session, settings);
@@ -510,7 +519,13 @@ export async function computeSessionTipPoolCore(
   caller: AdminCaller,
   session: LoadedSession,
   settings: LoadedOrgSettings,
-): Promise<TipPoolResult & { staffNames: Record<string, string>; manualStaffIds: string[] }> {
+): Promise<
+  TipPoolResult & {
+    staffNames: Record<string, string>;
+    manualStaffIds: string[];
+    kitchenManualOnly: boolean;
+  }
+> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
   const [settlementsRes, timeRes, manualRes] = await Promise.all([
@@ -549,41 +564,25 @@ export async function computeSessionTipPoolCore(
     hilfMahlCents: Number(r.hilf_mahl_cents),
     kitchenTipCents: Number(r.kitchen_tip_cents),
   }));
-  const manualByStaff = new Map<string, { department: StaffDepartment; hoursMinutes: number }>();
-  for (const r of manualRes.data ?? []) {
-    manualByStaff.set(r.staff_id, {
-      department: r.department as StaffDepartment,
-      hoursMinutes: Number(r.hours_minutes),
-    });
-  }
+  const manualEntries = (manualRes.data ?? []).map((r) => ({
+    staffId: r.staff_id,
+    department: r.department as StaffDepartment,
+    hoursMinutes: Number(r.hours_minutes),
+  }));
+  const manualByStaff = new Map(manualEntries.map((m) => [m.staffId, m]));
 
-  const rawTimeEntries = session.tip_pool_settlement_only
-    ? []
-    : (timeRes.data ?? [])
-        .filter(
-          (r): r is { staff_id: string; started_at: string; ended_at: string } =>
-            r.ended_at !== null,
-        )
-        .map((r) => ({ staffId: r.staff_id, startedAt: r.started_at, endedAt: r.ended_at }));
-  // Manuelle Einträge überschreiben Stempelzeiten desselben Mitarbeiters
-  // vollständig — keine Vermischung.
-  const timeEntries = rawTimeEntries.filter((te) => !manualByStaff.has(te.staffId));
-  const syntheticBase = new Date(session.business_date + "T00:00:00Z").getTime();
-  for (const [staffId, m] of manualByStaff) {
-    if (m.hoursMinutes <= 0) continue;
-    const startedAt = new Date(syntheticBase).toISOString();
-    const endedAt = new Date(syntheticBase + m.hoursMinutes * 60_000).toISOString();
-    timeEntries.push({ staffId, startedAt, endedAt });
-  }
+  const rawTimeEntries = (timeRes.data ?? [])
+    .filter(
+      (r): r is { staff_id: string; started_at: string; ended_at: string } => r.ended_at !== null,
+    )
+    .map((r) => ({ staffId: r.staff_id, startedAt: r.started_at, endedAt: r.ended_at }));
 
-  const kitchenPoolCents = settlements.reduce((s, x) => s + x.kitchenTipCents, 0);
-  const tipTotalCents = computeTipTotalCents(settlements);
-  const servicePoolCents = tipTotalCents - kitchenPoolCents;
-
+  // staffDepartments VOR dem Stunden-Bau laden — der kitchenManualOnly-Filter
+  // braucht das Department, um Küchen-Stempel zu verwerfen.
   const staffIds = Array.from(
     new Set<string>([
       ...settlements.map((s) => s.staffId),
-      ...timeEntries.map((t) => t.staffId),
+      ...rawTimeEntries.map((t) => t.staffId),
       ...manualByStaff.keys(),
     ]),
   );
@@ -619,10 +618,23 @@ export async function computeSessionTipPoolCore(
 
   // Manuelle Einträge erzwingen Department + Teilnahme;
   // hours_minutes = 0 = explizit ausgeschlossen.
-  for (const [staffId, m] of manualByStaff) {
-    staffDepartments.set(staffId, m.department);
-    staffParticipates.set(staffId, m.hoursMinutes > 0);
+  for (const m of manualEntries) {
+    staffDepartments.set(m.staffId, m.department);
+    staffParticipates.set(m.staffId, m.hoursMinutes > 0);
   }
+
+  const timeEntries = resolvePoolTimeEntries({
+    rawTimeEntries,
+    manualEntries,
+    staffDepartments,
+    settlementOnly: Boolean(session.tip_pool_settlement_only),
+    kitchenManualOnly: settings.kitchenManualOnly,
+    businessDate: session.business_date,
+  });
+
+  const kitchenPoolCents = settlements.reduce((s, x) => s + x.kitchenTipCents, 0);
+  const tipTotalCents = computeTipTotalCents(settlements);
+  const servicePoolCents = tipTotalCents - kitchenPoolCents;
 
   const result = computeTipPool({
     kitchenPoolCents,
@@ -634,7 +646,12 @@ export async function computeSessionTipPoolCore(
     minHoursPerDay: settings.tipPoolMinHours,
   });
 
-  return { ...result, staffNames, manualStaffIds: Array.from(manualByStaff.keys()) };
+  return {
+    ...result,
+    staffNames,
+    manualStaffIds: Array.from(manualByStaff.keys()),
+    kitchenManualOnly: settings.kitchenManualOnly,
+  };
 }
 
 // ------------------------------------------------------------------------
@@ -2269,13 +2286,33 @@ export async function getCashDailyBreakdownCore(
 // die aus time_entries abgeleiteten Pool-Stunden desselben Mitarbeiters
 // vollständig. hours_minutes = 0 schließt den Mitarbeiter explizit aus.
 
-const tipPoolEntryUpsertSchema = z.object({
-  sessionId: z.string().uuid(),
-  staffId: z.string().uuid(),
-  department: z.enum(["kitchen", "service"]),
-  hoursMinutes: z.number().int().min(0).max(1440),
-  note: z.string().trim().max(500).optional(),
-});
+const HHMM_RE = /^([01]?\d|2[0-3]):([0-5]\d)$/;
+const tipPoolEntryUpsertSchema = z
+  .object({
+    sessionId: z.string().uuid(),
+    staffId: z.string().uuid(),
+    department: z.enum(["kitchen", "service"]),
+    hoursMinutes: z.number().int().min(0).max(1440).optional(),
+    shiftStart: z.string().regex(HHMM_RE).optional(),
+    shiftEnd: z.string().regex(HHMM_RE).optional(),
+    note: z.string().trim().max(500).optional(),
+  })
+  .superRefine((v, ctx) => {
+    const hasShift = v.shiftStart !== undefined && v.shiftEnd !== undefined;
+    const hasMinutes = v.hoursMinutes !== undefined;
+    if (!hasShift && !hasMinutes) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Entweder hoursMinutes oder shiftStart+shiftEnd angeben.",
+      });
+    }
+    if ((v.shiftStart === undefined) !== (v.shiftEnd === undefined)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "shiftStart und shiftEnd nur paarweise.",
+      });
+    }
+  });
 
 export type SessionTipPoolEntry = {
   staffId: string;
@@ -2328,6 +2365,13 @@ export async function upsertSessionTipPoolEntryCore(
     });
     await assertStaffBoundToLocation(caller.organizationId, data.staffId, session.location_id);
 
+    const hoursMinutes =
+      data.shiftStart !== undefined && data.shiftEnd !== undefined
+        ? kitchenShiftMinutes(data.shiftStart, data.shiftEnd)
+        : (data.hoursMinutes as number);
+    const shiftStart = data.shiftStart ?? null;
+    const shiftEnd = data.shiftEnd ?? null;
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error: upErr } = await supabaseAdmin.from("session_tip_pool_entries").upsert(
       {
@@ -2335,7 +2379,9 @@ export async function upsertSessionTipPoolEntryCore(
         session_id: session.id,
         staff_id: data.staffId,
         department: data.department,
-        hours_minutes: data.hoursMinutes,
+        hours_minutes: hoursMinutes,
+        shift_start: shiftStart,
+        shift_end: shiftEnd,
         note: data.note ?? null,
         created_by: caller.userId,
       },
@@ -2352,7 +2398,9 @@ export async function upsertSessionTipPoolEntryCore(
           sessionId: session.id,
           staffId: data.staffId,
           department: data.department,
-          hoursMinutes: data.hoursMinutes,
+          hoursMinutes,
+          shiftStart,
+          shiftEnd,
         },
       },
     };
