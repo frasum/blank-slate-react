@@ -4,13 +4,21 @@
 
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { AlertTriangle, ArrowDown, ArrowUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { LocationPills } from "@/components/shared/LocationPills";
 import { listLocations } from "@/lib/admin/locations.functions";
 import { getRevenueStats } from "@/lib/statistics/revenue-stats.functions";
@@ -31,6 +39,7 @@ type TipStats = Awaited<ReturnType<typeof getTipStats>>;
 type PersonnelStats = Awaited<ReturnType<typeof getPersonnelStats>>;
 type TipPerStaff = TipStats["perStaff"][number];
 type PersonnelPerStaff = PersonnelStats["perStaff"][number];
+type LocationRow = Awaited<ReturnType<typeof listLocations>>[number];
 
 function currentMonthString(): string {
   const d = new Date();
