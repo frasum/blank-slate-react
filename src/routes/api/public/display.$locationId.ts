@@ -5,24 +5,33 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Buffer } from "node:buffer";
 import { timingSafeEqual } from "node:crypto";
+import { resolveCellKind } from "@/lib/display/cell";
 
-type ShiftDto = {
-  id: string;
-  staffName: string;
-  area: "kitchen" | "service" | string;
-  skillName: string | null;
-  status: string | null;
+type DisplayCell = {
+  k: "shift" | "urlaub" | "krank" | "wish" | "available" | "empty";
+  skill: string | null;
+  color: string | null;
 };
-
+type DisplayRow = {
+  staffId: string;
+  staffName: string;
+  cells: DisplayCell[];
+  shiftCount: number;
+};
+type DisplayBlock = {
+  area: "kitchen" | "service";
+  title: string;
+  rows: DisplayRow[];
+  dayCounts: number[];
+};
 type DisplayPayload = {
   location: { id: string; name: string };
   generatedAt: string;
   refreshIntervalSeconds: number;
-  date: string;
-  releasedAreas: string[];
-  shifts: ShiftDto[];
-  rotationEnabled: boolean;
-  rotationIntervalSeconds: number;
+  windowStart: string;
+  windowEnd: string;
+  days: string[];
+  blocks: DisplayBlock[];
   showAreas: string[] | null;
   showHeader: boolean;
   showFooter: boolean;
@@ -46,6 +55,16 @@ function safeCompare(a: string, b: string): boolean {
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+function rollingDays(startIso: string, count: number): string[] {
+  const out: string[] = [];
+  const d = new Date(startIso + "T00:00:00Z");
+  for (let i = 0; i < count; i++) {
+    out.push(d.toISOString().slice(0, 10));
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return out;
 }
 
 export const Route = createFileRoute("/api/public/display/$locationId")({
