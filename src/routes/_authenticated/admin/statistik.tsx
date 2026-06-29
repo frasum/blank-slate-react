@@ -23,12 +23,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { LocationPills } from "@/components/shared/LocationPills";
+import { MonthNav } from "@/components/shared/MonthNav";
 import { listLocations } from "@/lib/admin/locations.functions";
 import { getRevenueStats } from "@/lib/statistics/revenue-stats.functions";
 import { getTipStats } from "@/lib/statistics/tip-stats.functions";
 import { getPersonnelStats } from "@/lib/statistics/personnel-stats.functions";
 import { personnelRatioPct } from "@/lib/statistics/personnel-core";
 import { generateStatistikPdf, type StatistikPdfData } from "@/lib/statistics/statistik-pdf";
+import { currentMonth } from "@/lib/statistics/period-window";
 import { fmtCents } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -44,11 +46,6 @@ type PersonnelStats = Awaited<ReturnType<typeof getPersonnelStats>>;
 type TipPerStaff = TipStats["perStaff"][number];
 type PersonnelPerStaff = PersonnelStats["perStaff"][number];
 type LocationRow = Awaited<ReturnType<typeof listLocations>>[number];
-
-function currentMonthString(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
 
 function fmtEuro(cents: number): string {
   return `${fmtCents(cents)} €`;
@@ -142,7 +139,7 @@ function KpiCard({
 }
 
 function StatistikPage() {
-  const [month, setMonth] = useState<string>(currentMonthString());
+  const [month, setMonth] = useState<string>(currentMonth());
   const [locationFilter, setLocationFilter] = useState<string>("all");
 
   const locationsQ = useQuery({
@@ -302,15 +299,9 @@ function StatistikPage() {
       <Card className="p-3">
         <div className="flex flex-wrap items-end gap-4">
           <div className="space-y-1">
-            <Label htmlFor="stat-month">Monat</Label>
-            <input
-              id="stat-month"
-              type="month"
-              value={month}
-              onChange={(e) => setMonth(e.target.value)}
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-            />
-            {statsQ.data?.coverage?.isPartial && month === currentMonthString() ? (
+            <Label>Monat</Label>
+            <MonthNav value={month} onChange={setMonth} />
+            {statsQ.data?.coverage?.isPartial && month === currentMonth() ? (
               <div className="text-xs text-muted-foreground">
                 · unvollständig (Stand{" "}
                 {statsQ.data.coverage.lastDataDay

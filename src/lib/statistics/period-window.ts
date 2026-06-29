@@ -99,3 +99,12 @@ export function previousMonthRange(
 export function currentMonth(now: Date = new Date()): string {
   return `${now.getUTCFullYear()}-${pad2(now.getUTCMonth() + 1)}`;
 }
+
+/**
+ * "YYYY-MM" um delta Monate verschieben. UTC-sicher, inkl. Jahreswechsel.
+ */
+export function addMonths(yearMonth: string, delta: number): string {
+  const { year, month } = parseYearMonth(yearMonth);
+  const d = new Date(Date.UTC(year, month - 1 + delta, 1));
+  return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}`;
+}
