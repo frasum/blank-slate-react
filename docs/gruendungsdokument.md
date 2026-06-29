@@ -590,7 +590,7 @@ S-2 (Umsatzdefinition — an echten Zahlen verifiziert): Kanäle sind disjunkte 
 - Takeaway/Lieferung = Σ(Kanäle mit `is_takeaway=true`). Verifiziert additiv und separat von Vectron.
 - Gesamtumsatz = Haus + Takeaway.
 
-S-3 (Zeitraum = Abrechnungsperiode 26.–25.): „Monat" ist die Periode (org-weite Einstellung), nicht der Kalendermonat. Vergleich immer „diese Periode vs. vorige Periode gleicher Länge". Kein „Woche = 2 Wochen"-Sonderfall.
+S-3 (Zeitraum = Kalendermonat 1.–Monatsende — NUR Statistik): Die Statistik rechnet bewusst Kalendermonate (1. bis Monatsende), NICHT die 26.–25.-Abrechnungsperiode. Begründung: Umsatz-/Trinkgeldberichte werden „pro Kalendermonat" gelesen und sollen vom Lohnzyklus entkoppelt sein; Lohn/Zeit bleiben unverändert bei 26.–25. (`periods`-Tabelle). Implementierung: Selektor `month: "YYYY-MM"` → Fenster `[1., Monatsende]`; Vergleich = echter Vormonat (variable Länge 28/30/31). Optionale Custom-Range (`startDate`/`endDate`) → Vorperiode = gleich langes Fenster davor. Ohne Argumente: aktueller Kalendermonat (UTC). Der `periodId`/`periods`-Pfad ist aus den Statistik-Fns entfernt. Reine, UTC-sichere Helfer `monthRange`/`previousMonthRange` in `src/lib/statistics/period-window.ts` (geteilt von Umsatz und Trinkgeld, damit beide dasselbe Fenster nutzen). Kein „Woche = 2 Wochen"-Sonderfall.
 
 S-4 (Tagesreihe nach `business_date` aggregiert): Eine Zeile pro Geschäftstag, im „Alle"-Modus über Standorte summiert — nicht eine Zeile pro Session.
 
