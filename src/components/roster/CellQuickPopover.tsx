@@ -115,29 +115,23 @@ export function CellQuickPopover({
               </span>
             )}
             <div className="mt-3 border-t pt-2">
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={busy}
-                onClick={isUnavailable ? onClearUnavailable : onSetUnavailable}
-                className="h-7 w-full text-xs"
-              >
-                {isUnavailable ? (
-                  <>
-                    <CalendarCheck className="mr-1.5 h-3.5 w-3.5" /> Verfügbarkeit wiederherstellen
-                  </>
-                ) : (
-                  <>
-                    <CalendarX className="mr-1.5 h-3.5 w-3.5" /> Als nicht verfügbar markieren
-                  </>
-                )}
-              </Button>
+              {isUnavailable && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={onClearUnavailable}
+                  className="mb-2 h-7 w-full text-xs"
+                >
+                  <CalendarCheck className="mr-1.5 h-3.5 w-3.5" /> Verfügbarkeit wiederherstellen
+                </Button>
+              )}
               <Button
                 size="sm"
                 variant="outline"
                 disabled={busy}
                 onClick={absenceType === "urlaub" ? onClearAbsence : () => setMode("urlaub")}
-                className="mt-2 h-7 w-full text-xs"
+                className="h-7 w-full text-xs"
               >
                 <Umbrella className="mr-1.5 h-3.5 w-3.5 text-green-600" />
                 {absenceType === "urlaub" ? "Urlaub entfernen" : "Urlaub eintragen"}
