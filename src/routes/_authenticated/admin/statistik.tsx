@@ -348,3 +348,226 @@ function ChartTip({ active, payload }: TipPayload) {
     </div>
   );
 }
+
+// ---------- Trinkgeld-Section ----------
+
+function TipsSection({
+  isLoading,
+  isError,
+  error,
+  data,
+}: {
+  isLoading: boolean;
+  isError: boolean;
+  error: unknown;
+  data: TipStats | undefined;
+}) {
+  return (
+    <section className="space-y-3">
+      <h2 className="text-lg font-semibold tracking-tight text-foreground">Trinkgeld</h2>
+      {isLoading ? (
+        <TipsLoading />
+      ) : isError ? (
+        <ErrorState message={(error as Error)?.message ?? "Unbekannter Fehler"} />
+      ) : data ? (
+        <TipsView data={data} />
+      ) : null}
+    </section>
+  );
+}
+
+function TipsLoading() {
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-3">
+        <Skeleton className="h-28" />
+        <Skeleton className="h-28" />
+        <Skeleton className="h-28" />
+      </div>
+      <Skeleton className="h-40" />
+    </div>
+  );
+}
+
+function TipsView({ data }: { data: TipStats }) {
+  const t = data.trend;
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-3">
+        <KpiCard title="Trinkgeld gesamt" cents={data.totals.totalCents} trend={t?.total ?? null} />
+        <KpiCard title="Service" cents={data.totals.serviceCents} trend={t?.service ?? null} />
+        <KpiCard title="Küche" cents={data.totals.kitchenCents} trend={t?.kitchen ?? null} />
+      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Trinkgeld pro Mitarbeiter</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {data.perStaff.length === 0 ? (
+            <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
+              Keine Trinkgeld-Auszahlungen in diesem Monat.
+            </div>
+          ) : (
+            <ul className="divide-y divide-border">
+              {data.perStaff.map((p) => (
+                <TipStaffRow key={p.staffId} row={p} />
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function TipStaffRow({ row }: { row: TipPerStaff }) {
+  const isService = row.department === "service";
+  return (
+    <li className="flex items-center justify-between gap-3 py-2">
+      <div className="flex items-center gap-2">
+        <Badge
+          variant="outline"
+          className={cn(
+            "border-transparent",
+            isService
+              ? "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
+              : "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
+          )}
+        >
+          {isService ? "Service" : "Küche"}
+        </Badge>
+        <span className="text-sm text-foreground">{row.name}</span>
+      </div>
+      <span className="text-sm font-medium tabular-nums">{fmtEuro(row.tipCents)}</span>
+    </li>
+  );
+}
+
+// ---------- Personalquote-Section ----------
+
+function PersonnelSection({
+  isLoading,
+  isError,
+  error,
+  personnel,
+  revenue,
+}: {
+  isLoading: boolean;
+  isError: boolean;
+  error: unknown;
+  personnel: PersonnelStats | undefined;
+  revenue: RevenueStats | undefined;
+}) {
+  return (
+    <section className="space-y-3">
+      <h2 className="text-lg font-semibold tracking-tight text-foreground">Personalquote</h2>
+      {isError ? (
+        <ErrorState message={(error as Error)?.message ?? "Unbekannter Fehler"} />
+      ) : isLoading || !personnel || !revenue ? (
+        <PersonnelLoading />
+      ) : (
+        <PersonnelView personnel={personnel} revenue={revenue} />
+      )}
+    </section>
+  );
+}
+
+function PersonnelLoading() {
+  return (
+    <div className="space-y-4">
+      <Skeleton className="h-32" />
+      <div className="grid gap-4 md:grid-cols-3">
+        <Skeleton className="h-28" />
+        <Skeleton className="h-28" />
+        <Skeleton className="h-28" />
+      </div>
+    </div>
+  );
+}
+
+function PersonnelView({
+  personnel,
+  revenue,
+}: {
+  personnel: PersonnelStats;
+  revenue: RevenueStats;
+}) {
+  const ratio = personnelRatioPct(
+    personnel.totals.laborCostCents,
+    revenue.summary.totalCents,
+  );
+  const netHours = personnel.totals.netHours;
+  const revPerHourCents =
+    netHours > 0 ? Math.round(revenue.summary.totalCents / netHours) : null;
+  const trend = personnel.trend;
+
+  if (netHours === 0) {
+    return (
+      <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
+        Keine Stunden in diesem Monat.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <KpiCard
+        title="Personalquote"
+        unit="pct"
+        value={ratio}
+        caption="Basis-Brutto (Netto-Stunden × Stundenlohn) — ohne AG-SV, SFN, Zweitsatz."
+      />
+      <div className="grid gap-4 md:grid-cols-3">
+        <KpiCard
+          title="Netto-Stunden"
+          unit="hours"
+          value={netHours}
+          trendRenderer={() => <TrendLineHours trend={trend?.hours ?? null} />}
+        />
+        <KpiCard
+          title="Basis-Lohnkosten"
+          cents={personnel.totals.laborCostCents}
+          trend={trend?.cost ?? null}
+        />
+        <KpiCard
+          title="Umsatz / Stunde"
+          unit={revPerHourCents === null ? "pct" : "eur"}
+          cents={revPerHourCents ?? 0}
+          value={revPerHourCents === null ? null : undefined}
+        />
+      </div>
+      {personnel.staffWithoutRate.length > 0 ? (
+        <StaffWithoutRateBanner
+          ids={personnel.staffWithoutRate}
+          perStaff={personnel.perStaff}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function StaffWithoutRateBanner({
+  ids,
+  perStaff,
+}: {
+  ids: string[];
+  perStaff: PersonnelPerStaff[];
+}) {
+  const names = ids
+    .map((id) => perStaff.find((p) => p.staffId === id)?.name ?? id)
+    .join(", ");
+  return (
+    <Card className="border-amber-300/60 bg-amber-50/60 p-4 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+      <div className="flex items-start gap-2">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+        <div className="space-y-1">
+          <div className="font-medium">
+            {ids.length} {ids.length === 1 ? "Mitarbeiter" : "Mitarbeiter"} ohne hinterlegten
+            Stundenlohn — Lohnkosten und Quote untertreiben.
+          </div>
+          <div className="text-xs opacity-90">{names}</div>
+        </div>
+      </div>
+    </Card>
+  );
+}
