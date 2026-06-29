@@ -338,37 +338,50 @@ function StatistikPage() {
         </div>
       </Card>
 
-      {statsQ.isLoading ? (
-        <LoadingState />
-      ) : statsQ.isError ? (
-        <ErrorState message={(statsQ.error as Error)?.message ?? "Unbekannter Fehler"} />
-      ) : statsQ.data ? (
-        <StatsView data={statsQ.data} />
-      ) : null}
-
-      <TipsSection
-        isLoading={tipsQ.isLoading}
-        isError={tipsQ.isError}
-        error={tipsQ.error}
-        data={tipsQ.data}
-      />
-
-      <PersonnelSection
-        isLoading={personnelQ.isLoading || statsQ.isLoading}
-        isError={personnelQ.isError}
-        error={personnelQ.error}
-        personnel={personnelQ.data}
-        revenue={statsQ.data}
-      />
-
-      <LocationCompareSection
-        locations={locations}
-        revQueries={revQueries}
-        tipQueries={tipQueries}
-        perQueries={perQueries}
-        isLoading={compareLoading}
-        firstError={compareError}
-      />
+      <Tabs defaultValue="umsatz" className="space-y-4">
+        <TabsList className="flex h-auto flex-wrap">
+          <TabsTrigger value="umsatz">Umsatz</TabsTrigger>
+          <TabsTrigger value="trinkgeld">Trinkgeld</TabsTrigger>
+          <TabsTrigger value="personal">Personalquote</TabsTrigger>
+          <TabsTrigger value="vergleich">Standortvergleich</TabsTrigger>
+        </TabsList>
+        <TabsContent value="umsatz">
+          {statsQ.isLoading ? (
+            <LoadingState />
+          ) : statsQ.isError ? (
+            <ErrorState message={(statsQ.error as Error)?.message ?? "Unbekannter Fehler"} />
+          ) : statsQ.data ? (
+            <StatsView data={statsQ.data} />
+          ) : null}
+        </TabsContent>
+        <TabsContent value="trinkgeld">
+          <TipsSection
+            isLoading={tipsQ.isLoading}
+            isError={tipsQ.isError}
+            error={tipsQ.error}
+            data={tipsQ.data}
+          />
+        </TabsContent>
+        <TabsContent value="personal">
+          <PersonnelSection
+            isLoading={personnelQ.isLoading || statsQ.isLoading}
+            isError={personnelQ.isError}
+            error={personnelQ.error}
+            personnel={personnelQ.data}
+            revenue={statsQ.data}
+          />
+        </TabsContent>
+        <TabsContent value="vergleich">
+          <LocationCompareSection
+            locations={locations}
+            revQueries={revQueries}
+            tipQueries={tipQueries}
+            perQueries={perQueries}
+            isLoading={compareLoading}
+            firstError={compareError}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
