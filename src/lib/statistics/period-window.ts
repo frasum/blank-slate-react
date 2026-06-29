@@ -70,12 +70,27 @@ export function monthRange(yearMonth: string): { startDate: string; endDate: str
 
 /**
  * "YYYY-MM" des Vormonats. Jahreswechsel: Januar → Dezember Vorjahr.
+ *
+ * Optionales `throughDay` (1..31) klemmt das Enddatum auf
+ * `min(throughDay, letzter Tag des Vormonats)` — für faire Vergleiche bei
+ * unvollständigem laufenden Monat. Ohne `throughDay` voller Vormonat
+ * (rückwärtskompatibel).
  */
-export function previousMonthRange(yearMonth: string): { startDate: string; endDate: string } {
+export function previousMonthRange(
+  yearMonth: string,
+  throughDay?: number,
+): { startDate: string; endDate: string } {
   const { year, month } = parseYearMonth(yearMonth);
   const prevYear = month === 1 ? year - 1 : year;
   const prevMonth = month === 1 ? 12 : month - 1;
-  return monthRange(`${prevYear}-${pad2(prevMonth)}`);
+  const full = monthRange(`${prevYear}-${pad2(prevMonth)}`);
+  if (throughDay === undefined) return full;
+  if (!Number.isInteger(throughDay) || throughDay < 1 || throughDay > 31) {
+    throw new Error(`Ungültiger throughDay: ${throughDay} (erwartet 1..31).`);
+  }
+  const prevLastDay = Number(full.endDate.slice(8, 10));
+  const clamped = Math.min(throughDay, prevLastDay);
+  return { startDate: full.startDate, endDate: `${full.startDate.slice(0, 7)}-${pad2(clamped)}` };
 }
 
 /**
