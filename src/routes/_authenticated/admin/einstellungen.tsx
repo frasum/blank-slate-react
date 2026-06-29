@@ -148,6 +148,23 @@ function OrgSettingsPage() {
             </span>
           </label>
 
+          <label className="flex items-start gap-3 pt-1">
+            <input
+              type="checkbox"
+              checked={kitchenManualOnly}
+              onChange={(e) => setKitchenManualOnly(e.target.checked)}
+              disabled={!canEdit}
+              className="mt-1 h-4 w-4 rounded border-input"
+            />
+            <span className="text-sm text-foreground">
+              Küchentrinkgeld manuell verteilen (Stempelzeiten der Küche ignorieren)
+              <span className="mt-0.5 block text-xs text-muted-foreground">
+                Wenn aktiv, fließt die Küche nur über manuell eingetragene Schichten
+                (Start/Ende) in den Pool. Service bleibt unverändert über Stempelzeiten.
+              </span>
+            </span>
+          </label>
+
           {msg && <p className="text-xs text-muted-foreground">{msg}</p>}
           {err && <p className="text-xs text-destructive">{err}</p>}
 
