@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   addDays,
+  addMonths,
   currentMonth,
   daysBetween,
   monthRange,
@@ -111,5 +112,20 @@ describe("currentMonth", () => {
   it("formatiert YYYY-MM in UTC", () => {
     expect(currentMonth(new Date("2026-06-29T22:00:00Z"))).toBe("2026-06");
     expect(currentMonth(new Date("2026-01-01T00:00:00Z"))).toBe("2026-01");
+  });
+});
+
+describe("addMonths", () => {
+  it("verschiebt um -1", () => {
+    expect(addMonths("2026-06", -1)).toBe("2026-05");
+  });
+  it("Jahreswechsel rückwärts", () => {
+    expect(addMonths("2026-01", -1)).toBe("2025-12");
+  });
+  it("Jahreswechsel vorwärts", () => {
+    expect(addMonths("2026-11", 3)).toBe("2027-02");
+  });
+  it("delta=0 unverändert", () => {
+    expect(addMonths("2026-06", 0)).toBe("2026-06");
   });
 });
