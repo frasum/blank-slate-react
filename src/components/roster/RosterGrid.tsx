@@ -85,6 +85,8 @@ type Props = {
     type: "urlaub" | "krank",
   ) => Promise<void> | void;
   onClearAbsence: (staffId: string, iso: string) => Promise<void> | void;
+  onSetWish: (staffId: string, iso: string) => Promise<void> | void;
+  onClearWish: (staffId: string, iso: string) => Promise<void> | void;
 };
 
 export function RosterGrid({
@@ -112,6 +114,8 @@ export function RosterGrid({
   onClearUnavailable,
   onSetAbsenceRange,
   onClearAbsence,
+  onSetWish,
+  onClearWish,
 }: Props) {
   const [openCell, setOpenCell] = React.useState<string | null>(null);
   const [openPill, setOpenPill] = React.useState<string | null>(null);
@@ -466,6 +470,15 @@ export function RosterGrid({
                                 await onClearAbsence(row.staffId, iso);
                                 setOpenCell(null);
                               }}
+                              hasWish={hasWish}
+                              onSetWish={async () => {
+                                await onSetWish(row.staffId, iso);
+                                setOpenCell(null);
+                              }}
+                              onClearWish={async () => {
+                                await onClearWish(row.staffId, iso);
+                                setOpenCell(null);
+                              }}
                               defaultDate={iso}
                               staffShiftDates={shiftDatesByStaff.get(row.staffId) ?? []}
                             />
@@ -724,6 +737,9 @@ function EmptyCell({
   onClearAbsence,
   defaultDate,
   staffShiftDates,
+  hasWish,
+  onSetWish,
+  onClearWish,
 }: {
   row: RosterStaffRow;
   iso: string;
@@ -749,6 +765,9 @@ function EmptyCell({
   onClearAbsence: () => void;
   defaultDate: string;
   staffShiftDates: string[];
+  hasWish: boolean;
+  onSetWish: () => void;
+  onClearWish: () => void;
 }) {
   const { profile, other } = skillsForCell(row, activeArea, allSkills);
   const marker = (
@@ -811,6 +830,9 @@ function EmptyCell({
       onClearAbsence={onClearAbsence}
       defaultDate={defaultDate}
       staffShiftDates={staffShiftDates}
+      hasWish={hasWish}
+      onSetWish={onSetWish}
+      onClearWish={onClearWish}
     >
       {cellInner}
     </CellQuickPopover>

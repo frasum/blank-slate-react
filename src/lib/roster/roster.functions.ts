@@ -1181,3 +1181,96 @@ export const deleteDayOffWish = createServerFn({ method: "POST" })
     if (error) throw error;
     return { ok: true as const };
   });
+
+// =========================================================================
+// Manager-Erfassung: Wunschfrei manuell setzen/entfernen
+// =========================================================================
+
+export const createDayOffWishFor = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        staffId: z.string().uuid(),
+        wishDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        note: z
+          .string()
+          .max(200)
+          .nullable()
+          .optional()
+          .transform((v) => {
+            if (v == null) return null;
+            const trimmed = v.trim();
+            return trimmed.length === 0 ? null : trimmed;
+          }),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
+    return runWithPermission(
+      context.supabase,
+      "roster.wish.manage_all",
+      null,
+      makeAuditWriter(caller),
+      async () => {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { error } = await supabaseAdmin.from("day_off_wishes").upsert(
+          {
+            organization_id: caller.organizationId,
+            staff_id: data.staffId,
+            wish_date: data.wishDate,
+            note: data.note,
+          },
+          { onConflict: "staff_id,wish_date" },
+        );
+        if (error) throw error;
+        return {
+          result: { ok: true as const },
+          audit: {
+            action: "roster.wish.set_for",
+            entity: "day_off_wish",
+            meta: { staffId: data.staffId, wishDate: data.wishDate },
+          },
+        };
+      },
+    );
+  });
+
+export const deleteDayOffWishFor = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        staffId: z.string().uuid(),
+        wishDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
+    return runWithPermission(
+      context.supabase,
+      "roster.wish.manage_all",
+      null,
+      makeAuditWriter(caller),
+      async () => {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { error } = await supabaseAdmin
+          .from("day_off_wishes")
+          .delete()
+          .eq("organization_id", caller.organizationId)
+          .eq("staff_id", data.staffId)
+          .eq("wish_date", data.wishDate);
+        if (error) throw error;
+        return {
+          result: { ok: true as const },
+          audit: {
+            action: "roster.wish.clear_for",
+            entity: "day_off_wish",
+            meta: { staffId: data.staffId, wishDate: data.wishDate },
+          },
+        };
+      },
+    );
+  });

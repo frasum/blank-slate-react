@@ -1,53 +1,43 @@
 ## Ziel
-U4 — client-seitiger PDF-Export für die M-Statistik-Seite. Neuer Helfer + Export-Button auf `statistik.tsx`. **Keine** neuen Server-Fns, **keine** Migration, **keine** Berechnungslogik in `src/lib/statistics/*`.
+Manager/Admin sollen im Dienstplan-Popover (leere Zelle) einen **Wunschfrei**-Eintrag für den jeweiligen Mitarbeiter und Tag manuell setzen/entfernen können. Die Datenquelle ist die bereits genutzte `day_off_wishes`-Tabelle und der bestehende `getDayOffWishes`/`wishMap`-Pfad. Nur die manuelle Manager-Erfassung fehlt.
 
-Deps bereits vorhanden: `jspdf@4.2.1`, `jspdf-autotable@5.0.8`, `date-fns@4.1.0` — kein `bun add`.
+Keine Änderungen an Schema, RLS, Mitarbeiter-Self-Service (`/zeit/wuensche`), Berechnungen oder anderen Popovern.
 
-## Datei 1 (neu) — `src/lib/statistics/statistik-pdf.ts`
+## Änderungen
 
-Muster wie `src/lib/cash/pdfExport.ts`: dynamische `jspdf`/`jspdf-autotable`-Imports, kein `Buffer`, kein `node:`-Modul.
+### 1) `src/lib/roster/roster.functions.ts` — zwei neue Server-Fns
+- `createDayOffWishFor({ staffId, wishDate, note? })`: nutzt `loadAdminCaller(..., "manager")`, schreibt per Upsert in `day_off_wishes` mit `organization_id` des Callers, `onConflict: "staff_id,wish_date"`. Optional `note` (max 200, trim → null).
+- `deleteDayOffWishFor({ staffId, wishDate })`: Manager-Caller, löscht den passenden Eintrag in der Caller-Org.
+- Beide schreiben einen Audit-Log-Eintrag (`runGuarded`-Muster wie bei anderen Manager-Aktionen im File, z. B. Release).
 
-- Export `StatistikPdfData` exakt wie im Auftrag (Umsatz, Tips inkl. `perStaff`, Personal mit `ratioPct: number | null` und `staffWithoutRateNames`, `dailyRevenue`, `comparison`).
-- `generateStatistikPdf(data): Promise<{ doc: jsPDF; blob: Blob; fileName: string }>`:
-  - `import type jsPDF from "jspdf"` für Rückgabetyp; konkret `(await import("jspdf")).default`.
-  - `autoTable(doc, {...})` v5-Funktionsform.
-  - Folge-Tabellen positionieren via `(doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY` — einzige zulässige Cast-Stelle.
-  - Geld immer `fmtCents`, Prozent `toFixed(1)`, Stunden `toFixed(2)`.
-- Abschnitte (Reihenfolge):
-  1. Kopf: „Statistik-Bericht" + zentrierte Sub-Zeile `monthLabel · scopeLabel`.
-  2. Umsatz: Tabelle Haus/Takeaway/Gesamt + Zeile „Tage mit Umsatz: N".
-  3. Trinkgeld: Service/Küche/Gesamt + Tabelle „Trinkgeld pro Mitarbeiter" (Name, Bereich „Service"/„Küche", Betrag rechtsbündig).
-  4. Personal: Netto-Std., Basis-Lohnkosten, Personalquote (`null → "—"` sonst `toFixed(1)+" %"`). Kleine Fußnote „Basis-Brutto (Netto-Stunden × Stundenlohn) — ohne AG-SV, SFN, Zweitsatz." Falls `staffWithoutRateNames.length>0`: Zusatzzeile „Ohne hinterlegten Stundenlohn: <Namen> — Quote untertreibt." (mit `splitTextToSize`).
-  5. Umsatzverlauf: Tagestabelle (Datum, Haus, Takeaway, Gesamt) aus `dailyRevenue`; autoTable bricht selbst um.
-  6. Standort-Vergleich: Tabelle (Standort, Umsatz, Trinkgeld, Personalquote, Netto-Std., Basis-Lohnkosten). `hasMissingRate` → `*` an der Quote, Fußnote unter der Tabelle.
-- `fileName = \`Statistik_${monthLabel.replace(/\s+/g,"-")}_${scopeLabel.replace(/\s+/g,"-")}.pdf\``.
+Bestehende `createDayOffWish`/`deleteDayOffWish` (Self-Service) bleiben unverändert.
 
-## Datei 2 — `src/routes/_authenticated/admin/statistik.tsx`
+### 2) `src/components/roster/CellQuickPopover.tsx` — neue Pille
+Neue Props: `hasWish: boolean`, `onSetWish: () => void`, `onClearWish: () => void`.
+Im Aktionen-Block (unter „Als nicht verfügbar", über/unter Urlaub/Krank) eine weitere Button-Zeile:
+- Icon: `Heart` (lila, `text-purple-600`) — passt zum bestehenden „lila Herz"-Konzept der Wünsche.
+- Label: `hasWish ? "Wunschfrei entfernen" : "Wunschfrei eintragen"`.
+- Klick ruft entsprechend `onClearWish`/`onSetWish` auf, schließt das Popover.
 
-- Neue Imports: `Button` (`@/components/ui/button`), `Download` (lucide), `format` (`date-fns`), `de` (`date-fns/locale`), `generateStatistikPdf` + Typ `StatistikPdfData`.
-- Compare-Queries (`revQueries`/`tipQueries`/`perQueries`) genau einmal in `StatistikPage` deklarieren und als Props an `LocationCompareSection` reichen. **Markup und Zeilen der Vergleichstabelle bleiben byte-identisch zu U3** — nur Datenquelle wechselt von intern zu Props.
-- Export-Handler in `StatistikPage`:
-  - `monthLabel = format(new Date(month + "-01T00:00:00"), "LLLL yyyy", { locale: de })`.
-  - `scopeLabel = locationFilter === "all" ? "Alle Standorte" : (locations.find(l => l.id === locationFilter)?.name ?? "Standort")`.
-  - `revenue/tips/personnel` aus `statsQ.data`/`tipsQ.data`/`personnelQ.data`; `personnel.ratioPct = personnelRatioPct(laborCostCents, statsQ.summary.totalCents)`; `staffWithoutRateNames` über `personnel.perStaff` mappen.
-  - `dailyRevenue = statsQ.data.daily`.
-  - `comparison`: Index-Zip über `locations` × `revQueries`/`tipQueries`/`perQueries`. Nur Standorte aufnehmen, deren alle drei Queries `data` haben; `ratioPct` via `personnelRatioPct`; `hasMissingRate = per.staffWithoutRate.length > 0`.
-  - `const { doc, fileName } = await generateStatistikPdf(data); doc.save(fileName);`.
-- Button-Platzierung: in der Filter-Card oben rechts (`ml-auto`), Label „PDF" mit `Download`-Icon.
-- `disabled` solange `!statsQ.data || !tipsQ.data || !personnelQ.data` oder Compare noch lädt / Fehler hat — kein PDF aus halben Daten.
+### 3) `src/components/roster/RosterGrid.tsx` — Props durchreichen
+- Neue Cell-Props `hasWish`, `onSetWish`, `onClearWish` aus den bestehenden Zellen-Render-Pfaden (`CellQuickPopover`-Aufruf bei Zeile 798–816). Lookup analog zu `isUnavailable`/`absenceType` über einen neuen `wishSet`/`wishMap`-Prop am Grid (Key `staffId|iso`).
+- Grid-Top-Level-Prop: `wishSet: Set<string>`, `onSetWish(staffId, iso)`, `onClearWish(staffId, iso)`.
 
-## Stil / Fallen
-- Kein `any` außer dokumentierter `lastAutoTable`-Cast.
-- Kein `Buffer`, kein `node:`-Import.
-- Keine `hsl(var(--…))`-Farben im PDF (jsPDF nutzt RGB).
-- Compare-Queries existieren genau einmal — keine Doppel-Queries.
+### 4) `src/routes/_authenticated/admin/dienstplan.tsx` — Mutationen + Verdrahtung
+- `wishMap` existiert bereits → zusätzlich `wishSet` (Keys) ableiten oder vorhandene Map nutzen.
+- Zwei `useMutation`s: `setWishM` (ruft `createDayOffWishFor`), `clearWishM` (ruft `deleteDayOffWishFor`). `onSuccess` → `qc.invalidateQueries({ queryKey: ["day-off-wishes"] })` und Toast.
+- An `RosterGrid` durchreichen:
+  - `wishSet`
+  - `onSetWish: (staffId, iso) => setWishM.mutate({ data: { staffId, wishDate: iso } })`
+  - `onClearWish: (staffId, iso) => clearWishM.mutate({ data: { staffId, wishDate: iso } })`
+- Realtime-Subscription auf `day_off_wishes` ist schon vorhanden — UI aktualisiert sich automatisch.
 
-## Nicht angefasst
-- `src/lib/statistics/*`-Berechnungen, Server-Fns, Schema, Migrationen.
-- `src/lib/cash/pdfExport.ts` (nur Vorlage).
-- U1–U3-Markup außer dem neuen Button und dem Prop-Durchreichen.
+## Stil/Fallen
+- Nur Wunschfrei-Pille im **leeren** Cell-Popover (Bildkontext). PillConfirmPopover (bestehende Schicht) nicht anfassen.
+- Keine Schema-/Migrations-Änderung — `day_off_wishes` und RLS existieren bereits.
+- Audit-Log analog zu vorhandenen Manager-Mutationen, keine neuen Action-Namen außer `roster.wish.set_for` / `roster.wish.clear_for`.
+- TypeScript strikt, kein `any`. Prettier + ESLint clean.
 
 ## Verifikation
-- `bunx tsgo --noEmit`, `bunx eslint src/ --max-warnings=5`, `bunx vitest run` grün.
-- `npx prettier --write src/` + `npx eslint --fix` vor Abschluss.
-- Manueller E2E: Button erzeugt PDF mit allen sechs Abschnitten; Monat/Standort im Kopf korrekt; Personalquote-Fußnote + `staffWithoutRate`-Hinweis vorhanden; Vergleichstabelle listet alle Standorte; Button disabled bei unvollständigen Daten.
+- `bunx tsgo --noEmit`, `bunx eslint`, `bunx vitest run` grün.
+- Manuell: leere Zelle anklicken → neue Pille „Wunschfrei eintragen" sichtbar; nach Klick erscheint lila Herz-Marker in der Zelle, Toggle-Text wechselt; Realtime-Update aus dem Self-Service-Pfad weiterhin funktional.

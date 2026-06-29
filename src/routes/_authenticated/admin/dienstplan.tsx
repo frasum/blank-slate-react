@@ -29,6 +29,8 @@ import {
   setAbsenceRange,
   clearAbsence,
   getDayOffWishes,
+  createDayOffWishFor,
+  deleteDayOffWishFor,
   listSkills,
   moveRosterShift,
   updateRosterShiftSkill,
@@ -516,6 +518,33 @@ function DienstplanPage() {
     }
   }
 
+  async function handleSetWish(staffId: string, iso: string) {
+    if (!canEdit) return;
+    setBusy(true);
+    try {
+      await createDayOffWishFor({ data: { staffId, wishDate: iso } });
+      qc.invalidateQueries({ queryKey: ["day-off-wishes"] });
+      toast.success("Wunschfrei eingetragen.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleClearWish(staffId: string, iso: string) {
+    if (!canEdit) return;
+    setBusy(true);
+    try {
+      await deleteDayOffWishFor({ data: { staffId, wishDate: iso } });
+      qc.invalidateQueries({ queryKey: ["day-off-wishes"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="space-y-4">
       <TooltipProvider delayDuration={150}>
@@ -676,6 +705,8 @@ function DienstplanPage() {
               onClearUnavailable={handleClearUnavailable}
               onSetAbsenceRange={handleSetAbsenceRange}
               onClearAbsence={handleClearAbsence}
+              onSetWish={handleSetWish}
+              onClearWish={handleClearWish}
             />
           </DndContext>
         )}
