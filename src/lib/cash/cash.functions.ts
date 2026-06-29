@@ -573,8 +573,7 @@ export async function computeSessionTipPoolCore(
 
   const rawTimeEntries = (timeRes.data ?? [])
     .filter(
-      (r): r is { staff_id: string; started_at: string; ended_at: string } =>
-        r.ended_at !== null,
+      (r): r is { staff_id: string; started_at: string; ended_at: string } => r.ended_at !== null,
     )
     .map((r) => ({ staffId: r.staff_id, startedAt: r.started_at, endedAt: r.ended_at }));
 

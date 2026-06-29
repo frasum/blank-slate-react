@@ -375,9 +375,7 @@ describe("resolvePoolTimeEntries: kitchenManualOnly-Matrix", () => {
     const ids = out.map((e) => e.staffId).sort();
     expect(ids).toEqual(["k2", "s1"]);
     const k2 = out.find((e) => e.staffId === "k2")!;
-    expect(new Date(k2.endedAt).getTime() - new Date(k2.startedAt).getTime()).toBe(
-      390 * 60_000,
-    );
+    expect(new Date(k2.endedAt).getTime() - new Date(k2.startedAt).getTime()).toBe(390 * 60_000);
   });
 
   it("Manueller Eintrag verdrängt Stempel desselben Mitarbeiters (Off-Mode)", () => {
@@ -391,9 +389,7 @@ describe("resolvePoolTimeEntries: kitchenManualOnly-Matrix", () => {
     });
     expect(out.filter((e) => e.staffId === "k1")).toHaveLength(1);
     const k1 = out.find((e) => e.staffId === "k1")!;
-    expect(new Date(k1.endedAt).getTime() - new Date(k1.startedAt).getTime()).toBe(
-      120 * 60_000,
-    );
+    expect(new Date(k1.endedAt).getTime() - new Date(k1.startedAt).getTime()).toBe(120 * 60_000);
   });
 
   it("settlementOnly: Roh-Stempel werden ignoriert, manuelle bleiben", () => {

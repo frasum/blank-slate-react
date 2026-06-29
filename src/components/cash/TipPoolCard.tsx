@@ -104,8 +104,7 @@ export function TipPoolCard({
   const upsertMut = useMutation({
     mutationFn: () => {
       if (!draft.staffId) throw new Error("Bitte einen Mitarbeiter wählen.");
-      const useShift =
-        draft.department === "kitchen" && Boolean(poolQ.data?.kitchenManualOnly);
+      const useShift = draft.department === "kitchen" && Boolean(poolQ.data?.kitchenManualOnly);
       if (useShift) {
         if (!draft.shiftStart || !draft.shiftEnd) {
           throw new Error("Start- und Endzeit angeben.");

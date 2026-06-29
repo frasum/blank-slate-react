@@ -159,8 +159,8 @@ function OrgSettingsPage() {
             <span className="text-sm text-foreground">
               Küchentrinkgeld manuell verteilen (Stempelzeiten der Küche ignorieren)
               <span className="mt-0.5 block text-xs text-muted-foreground">
-                Wenn aktiv, fließt die Küche nur über manuell eingetragene Schichten
-                (Start/Ende) in den Pool. Service bleibt unverändert über Stempelzeiten.
+                Wenn aktiv, fließt die Küche nur über manuell eingetragene Schichten (Start/Ende) in
+                den Pool. Service bleibt unverändert über Stempelzeiten.
               </span>
             </span>
           </label>
