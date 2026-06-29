@@ -203,6 +203,8 @@ Rekonstruiert per Kalibrierung gegen bereits validierte Bestands-Sessions (Refer
 
 **Juni-Kassenlücke geschlossen (29.06.2026):** YUM (16., 18.–25.) und Spicery (16., 18.–25., 28.) aus `tagesabrechnung` nachimportiert — 19 Sessions; das leere native YUM-28 durch Legacy-Daten ersetzt. `vectron_daily_total_cents` 19/19 gegen die Quelle verifiziert. Mapping siehe Abschnitt 5.
 
+**⚠ Offen bei COCO-Go-Live (Wiederholung des Imports):** COCO läuft derzeit nur als **Test**; `tagesabrechnung` ist weiterhin **live** und im Produktivbetrieb. Beim Umschalten von COCO auf live müssen **alle bis dahin in COCO fehlenden Tagesabrechnungen erneut** aus `tagesabrechnung` nachgezogen werden (nicht nur die Juni-Lücke). Das Mapping und das idempotente Import-Verfahren (`WHERE NOT EXISTS`) stehen in Abschnitt 5 und sind 1:1 wiederverwendbar — pro Durchlauf nur die fehlenden Session-IDs/Tage neu exportieren und einspielen.
+
 **Stand 26.06.2026 (Lohnrechner — Perioden-Übersicht):**
 
 - **Geteilter Rechen-Kern (`lohn-rechner.functions.ts`):** Der Pro-MA-Zusammenbau (`aggregateSfnPeriod` → `staff_personal_details` → `staffDetailsToPerson` → Entgeltzeilen → `berechneLohn`) wurde aus `berechneLohnFuerMitarbeiter` in den privaten Helper `computeLohnForStaff(supabaseAdmin, { staffId, fromDate, toDate, mode, zusatzZeilen })` extrahiert. **Einzelansicht und Übersicht rechnen über denselben Helper** — kein zweiter Rechenpfad, kein Drift. Reine Code-Verschiebung (Golden-Master + `lohn-core` unverändert grün → verhaltensgleich). Rückgabe-Shape von `berechneLohnFuerMitarbeiter` bleibt 1:1.
