@@ -2287,13 +2287,33 @@ export async function getCashDailyBreakdownCore(
 // die aus time_entries abgeleiteten Pool-Stunden desselben Mitarbeiters
 // vollständig. hours_minutes = 0 schließt den Mitarbeiter explizit aus.
 
-const tipPoolEntryUpsertSchema = z.object({
-  sessionId: z.string().uuid(),
-  staffId: z.string().uuid(),
-  department: z.enum(["kitchen", "service"]),
-  hoursMinutes: z.number().int().min(0).max(1440),
-  note: z.string().trim().max(500).optional(),
-});
+const HHMM_RE = /^([01]?\d|2[0-3]):([0-5]\d)$/;
+const tipPoolEntryUpsertSchema = z
+  .object({
+    sessionId: z.string().uuid(),
+    staffId: z.string().uuid(),
+    department: z.enum(["kitchen", "service"]),
+    hoursMinutes: z.number().int().min(0).max(1440).optional(),
+    shiftStart: z.string().regex(HHMM_RE).optional(),
+    shiftEnd: z.string().regex(HHMM_RE).optional(),
+    note: z.string().trim().max(500).optional(),
+  })
+  .superRefine((v, ctx) => {
+    const hasShift = v.shiftStart !== undefined && v.shiftEnd !== undefined;
+    const hasMinutes = v.hoursMinutes !== undefined;
+    if (!hasShift && !hasMinutes) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Entweder hoursMinutes oder shiftStart+shiftEnd angeben.",
+      });
+    }
+    if ((v.shiftStart === undefined) !== (v.shiftEnd === undefined)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "shiftStart und shiftEnd nur paarweise.",
+      });
+    }
+  });
 
 export type SessionTipPoolEntry = {
   staffId: string;
