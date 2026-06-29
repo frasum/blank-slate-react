@@ -1,30 +1,66 @@
-## Problem
+## M-Statistik Schritt 2 — Server-Fn + Perioden-Anbindung
 
-Der Lohn-Tab im Mitarbeiter-Detail (`/admin/staff/$staffId`, Tab „Lohn") zeigt „Noch keine Lohnabrechnungen hinterlegt", obwohl im Storage-Bucket `payslips` Dateien unter `{org_id}/{staff_id}/...` liegen (per Sammel-Upload aus Lohn-Verteilung erzeugt). Pfad-Konvention und Server-Fn `listStaffPayslips` sehen formal korrekt aus — d.h. die Daten landen, werden aber im UI nicht gelistet.
+Zwei neue Dateien (plus ein Test). Keine UI, keine Migration, keine Änderung an `revenue-core.ts`.
 
-## Vorgehen
+### Datei 1 — `src/lib/statistics/revenue-map.ts`
 
-1. **Reproduktion & Diagnose** an einem Mitarbeiter, bei dem laut DB eine Datei im Ordner liegt (z. B. `b209bc94-…`):
-   - Server-Fn `listStaffPayslips` mit dieser staff_id über die Konsole aufrufen und Rückgabe prüfen.
-   - Falls leer: in `src/lib/payslips/payslips.functions.ts → listFolder()` testweise loggen, was `supabaseAdmin.storage.from("payslips").list(folder, …)` liefert (Anzahl, Fehler).
-   - Häufigste Ursachen bei Supabase-Storage `list()`: (a) `sortBy.column: "created_at"` wird vom Storage-Endpoint je nach Version nicht akzeptiert und liefert leeres Array, (b) fehlender `limit`-Parameter führt zu 0 Treffern bei alten Clients, (c) `.list("a/b")` mit verschachteltem Pfad braucht auf manchen Versionen ein leeres `prefix` zusätzlich.
+Reine Mapping-Funktion ohne DB-Zugriffe.
 
-2. **Fix in `listFolder`** je nach Befund — wahrscheinlich:
-   - `limit: 1000, offset: 0` ergänzen.
-   - `sortBy` weglassen oder auf `{ column: "name", order: "asc" }` umstellen und clientseitig nach `created_at` sortieren.
-   - Aufruferreihenfolge prüfen: `list(folder)` ohne führenden/abschließenden Slash.
+- Typen `SessionRow` und `ChannelAmountRow` wie spezifiziert.
+- `mapToSessionInputs(sessions, channelAmounts)`:
+  - Channel-Amounts per `Map<sessionId, ChannelAmount[]>` gruppieren.
+  - Über `sessions` iterieren (Reihenfolge = Eingabe), für jede Session `{ sessionId, businessDate, locationId, vectronCents, channels: map.get(id) ?? [] }` bauen.
+  - Channel-Amounts mit unbekannter `sessionId` werden implizit ignoriert (kein passender Bucket).
 
-3. **Selbe Korrektur** auf `listMyPayslips` und die Auflistung in `/lohn` (gleicher Helfer) anwenden, damit das Verhalten dort konsistent bleibt.
+### Datei 1-Test — `src/lib/statistics/revenue-map.test.ts`
 
-4. **Smoke-Test**:
-   - Mitarbeiter mit bekannt vorhandener PDF (`b209bc94-676b-4d8d-b95e-f7ee768b4095`) öffnen → Datei muss erscheinen, „Öffnen" liefert signierte URL.
-   - Neuer Upload über den Tab → Liste aktualisiert sich.
-   - Lösch-Button entfernt die Datei.
+- Session mit zwei Kanälen (1× takeaway, 1× nicht) → korrekte `channels[]`.
+- Session ohne Kanäle → `channels: []`.
+- ChannelAmount mit unbekannter `sessionId` → wird ignoriert, alle anderen Sessions unverändert.
+- Reihenfolge: Output-Reihenfolge gleich Sessions-Eingabereihenfolge.
 
-5. **Kein Touch** an Bucket-Pfaden, RLS-Policies oder der Sammel-Splitter-Logik — die schreiben in den richtigen Ordner, das ist bereits verifiziert (20 Dateien sichtbar in `storage.objects`).
+### Datei 2 — `src/lib/statistics/revenue-stats.functions.ts`
 
-## Technische Notizen
+Dünne Read-Server-Fn nach Muster der bestehenden `lohn`-Server-Fns:
 
-- Datei: `src/lib/payslips/payslips.functions.ts` (Helper `listFolder`).
-- Kein DB-Migrationsbedarf, kein neuer Tab — der Tab `Lohn` existiert bereits in `src/routes/_authenticated/admin/staff.$staffId.tsx` Z. 97 und rendert `PayslipsTab` (Z. 864 ff.) korrekt.
-- Server-Fn nutzt `supabaseAdmin` → RLS auf `storage.objects` ist nicht die Ursache.
+```ts
+export const getRevenueStats = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: {
+    periodId?: string;
+    startDate?: string;
+    endDate?: string;
+    locationId?: string;
+  }) => d)
+  .handler(async ({ data, context }) => { … });
+```
+
+Handler-Ablauf:
+
+1. `caller = await loadAdminCaller(context.supabase, context.userId, ["manager","admin","payroll"])`; `org = caller.organizationId`.
+2. `supabaseAdmin` per `await import("@/integrations/supabase/client.server")` laden (in der Handler-Funktion, nicht top-level).
+3. Zeitraum auflösen:
+   - `periodId` gesetzt → `periods` lesen (`id=periodId AND organization_id=org`); fehlend → Error „Periode nicht gefunden". Label aus DB.
+   - Sonst: `startDate` und `endDate` Pflicht, sonst Error. `label = null`.
+4. Vorperiode auflösen:
+   - `periodId` → größte Periode mit `start_date < current.start_date AND organization_id=org` (`order start_date desc limit 1`). Keine → `previous = null`.
+   - Sonst: gleich langes Fenster direkt davor: `prevEnd = startDate − 1 Tag`, `prevStart = prevEnd − (endDate − startDate)` (Tagesdifferenz in Tagen).
+5. Reine Hilfsfunktion `loadWindow(start, end)`:
+   - `sessions` lesen: `select id, business_date, location_id, vectron_daily_total_cents` where `organization_id=org AND business_date between start and end [AND location_id=locationId]`. Alle Status (kein Filter — S-6-Begründung als Kommentar).
+   - `session_channel_amounts` lesen mit Join: `.select("session_id, amount_cents, revenue_channels!inner(is_takeaway)")` where `organization_id=org AND session_id in (...)`. Wenn keine Sessions → leeres Array, kein Query.
+   - Beide Rows in `SessionRow[]` / `ChannelAmountRow[]` mappen (mit minimalem expliziten Typ für die Join-Zeile, kein `any`).
+   - `mapToSessionInputs` → `aggregateByBusinessDate` → `summarize`. Rückgabe `{ daily, summary }`.
+6. `current = loadWindow(currentStart, currentEnd)`; wenn `previous`-Fenster existiert: `prev = loadWindow(prevStart, prevEnd)` (nur `summary` verwendet), sonst `null`.
+7. Trend: wenn `prev` null → `trend = null`. Sonst `{ total, house, takeaway }` mit `computeTrend(current.summary.X, prev.summary.X)`.
+
+Rückgabe-Shape exakt wie in der Spezifikation.
+
+### Hinweise
+
+- TSB-Verifikationspunkt (vectron + „Kasse"-pos-Kanal evtl. doppelt) als Code-Kommentar an der Fetch-/Map-Stelle vermerken — keine Sonderlogik.
+- `locationId` (optional) wird ungeprüft in den `eq`-Filter genommen; Org-Scope der `sessions`-Query stellt sicher, dass keine Fremd-Org sichtbar wird.
+- Keine Änderungen an `revenue-core.ts`.
+
+### Erfolgs-Gate
+
+`tsc --noEmit`, `eslint src/ --max-warnings=5`, `vitest run` grün. `revenue-map.test.ts` grün. Keine `any`. Vor dem Commit `prettier --write src/` + `eslint --fix`.
