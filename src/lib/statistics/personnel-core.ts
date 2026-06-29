@@ -109,10 +109,7 @@ export function aggregatePersonnel(
  * Einzige Quote-Definition — UI ruft diese Funktion mit den Totals aus
  * getPersonnelStats + getRevenueStats.
  */
-export function personnelRatioPct(
-  laborCostCents: number,
-  revenueCents: number,
-): number | null {
+export function personnelRatioPct(laborCostCents: number, revenueCents: number): number | null {
   if (revenueCents === 0) return null;
   return (laborCostCents / revenueCents) * 100;
 }
