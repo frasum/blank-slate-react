@@ -129,6 +129,24 @@ gh repo clone frasum/bestellung-5fff1793
 | GL                 | GL          |
 | Hausmeister        | Hausmeister |
 
+### tagesabrechnung → COCO Kassen-Mapping (Juni-Nachimport, 29.06.2026)
+
+Rekonstruiert per Kalibrierung gegen bereits validierte Bestands-Sessions (Referenztag 10.06.). Geld = Quellwert ×100 → `*_cents`. **`sessions.id` und `waiter_settlements.id` werden 1:1 aus der Quelle übernommen.**
+
+**Standort:** `restaurant_id` `3065f458-…` → YUM, `a1710390-…` → Spicery. (TSB hat in der Quelle keine Kassen-Sessions.)
+
+**`sessions`:** `pos_total`→`vectron_daily_total_cents`; `session_date`→`business_date`; `guest_count`, `einladung`, `finedine_vouchers`, `vorschuss`, `sonstige_einnahme`, `vouchers_sold/redeemed` → gleichnamige `*_cents`. Konstant gesetzt: `status='open'`, `tip_pool_settlement_only=true`, `opentabs_deduction_cents=0`, `cash_actual_cents`/`opening_balance_cents`=NULL.
+
+**Kanäle (`session_channel_amounts`, je `channel_id`):** `wolt_revenue`→Wolt, `takeaway_total`→Vectron-Takeaway, `ordersmart_revenue`→SOUSE. **Terminals (`session_terminal_amounts`, je `terminal_id`):** `terminal_1_total`→Terminal 1, `terminal_2_total`→Terminal 2, `card_total_gl`→Kredit Karten GL. **Null-Beträge erzeugen keine Zeile.** Diese Tabellen haben **keine** `location_id`-Spalte.
+
+**`waiter_settlements` (eine Zeile je `waiter_shifts`):** `pos_sales`→`pos_sales_cents`; **`kassiert_brutto_cents = pos_sales` (Entscheidung A** — folgt der Live-Wahrheit, nicht dem Quell-Feld `kassiert_brutto`); `card_total`, `cash_handed_in`, `differenz`, `open_invoices`, `kitchen_tip`, `hilf_mahl` → `*_cents`; `kitchen_tip_rate`=0.0200; `status='submitted'`; `submitted_at` aus Quelle. `partner_staff_id`/`second_waiter_name`=NULL, `additional_waiters='[]'`. **Die Tabelle hat keine `location_id`-Spalte.** Zusatzkellner bekommen **keine** Settlement-Zeile.
+
+**`session_tip_pool_entries`:** `hours_minutes = round(hours_worked × 60)`. Service je `waiter_shifts` mit `participates_in_pool=true`; Küche je `kitchen_shifts`. **Zusatzkellner** (`additional_waiters`/`second_waiter_name`) erhalten einen **eigenen** Service-Eintrag mit den Stunden des Primärkellners und `note='Zusatzkellner-Nachimport'`. Die Tabelle hat **keine** `location_id`-Spalte.
+
+**Mitarbeiter-Auflösung:** Quell-`waiter_name`/`staff_name` → COCO `staff_id` über `upper(staff.display_name)` (case-insensitive). Sonderfall: Login-Form `jirawut.saechiang` → `COCO` (perso 19).
+
+**Idempotenz:** Import-SQL nutzt durchgängig `WHERE NOT EXISTS` (gefahrlos mehrfach ausführbar); Kassendetail-Tabellen (`session_card_transactions`/`session_expenses`/`session_bank_deposits`/`session_advances`/`session_register_transfers`) werden für diese settlement-only-Sessions **nicht** befüllt.
+
 ### Mitarbeiter-Mapping
 
 Über das Nickname in Klammern im thaitime-Vornamen, z.B. „REDACTED" → COCO display_name „REDACTED". Sonderfall: „REDACTED" → REDACTED. „REDACTED" existiert nicht in COCO (ignoriert).
@@ -182,6 +200,8 @@ gh repo clone frasum/bestellung-5fff1793
 | payroll = Büro (Index-Sperre + Dienstplan-Ausschluss, keine 4. Abteilung)                                                              | ✅       |
 | Wochenplan → Abrechnungsperioden (26.–25., gemeinsamer Periodenbegriff im Zeit-Screen)                                                 | ✅       |
 | Aufräumen: Dead-Code, `makeAuditWriter` zentral, Typ-Single-Source `staff-domain.ts`                                                   | ✅       |
+
+**Juni-Kassenlücke geschlossen (29.06.2026):** YUM (16., 18.–25.) und Spicery (16., 18.–25., 28.) aus `tagesabrechnung` nachimportiert — 19 Sessions; das leere native YUM-28 durch Legacy-Daten ersetzt. `vectron_daily_total_cents` 19/19 gegen die Quelle verifiziert. Mapping siehe Abschnitt 5.
 
 **Stand 26.06.2026 (Lohnrechner — Perioden-Übersicht):**
 
