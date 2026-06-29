@@ -2366,6 +2366,13 @@ export async function upsertSessionTipPoolEntryCore(
     });
     await assertStaffBoundToLocation(caller.organizationId, data.staffId, session.location_id);
 
+    const hoursMinutes =
+      data.shiftStart !== undefined && data.shiftEnd !== undefined
+        ? kitchenShiftMinutes(data.shiftStart, data.shiftEnd)
+        : (data.hoursMinutes as number);
+    const shiftStart = data.shiftStart ?? null;
+    const shiftEnd = data.shiftEnd ?? null;
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error: upErr } = await supabaseAdmin.from("session_tip_pool_entries").upsert(
       {
@@ -2373,7 +2380,9 @@ export async function upsertSessionTipPoolEntryCore(
         session_id: session.id,
         staff_id: data.staffId,
         department: data.department,
-        hours_minutes: data.hoursMinutes,
+        hours_minutes: hoursMinutes,
+        shift_start: shiftStart,
+        shift_end: shiftEnd,
         note: data.note ?? null,
         created_by: caller.userId,
       },
@@ -2390,7 +2399,9 @@ export async function upsertSessionTipPoolEntryCore(
           sessionId: session.id,
           staffId: data.staffId,
           department: data.department,
-          hoursMinutes: data.hoursMinutes,
+          hoursMinutes,
+          shiftStart,
+          shiftEnd,
         },
       },
     };
