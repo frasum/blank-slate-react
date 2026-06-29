@@ -62,11 +62,13 @@ export const getTipStats = createServerFn({ method: "GET" })
     let current: Window;
     let previous: Window | null;
     let label: string | null;
+    let monthForClamp: string | null = null;
 
     if (data.month) {
       current = monthRange(data.month);
       previous = previousMonthRange(data.month);
       label = data.month;
+      monthForClamp = data.month;
     } else if (data.startDate && data.endDate) {
       if (data.endDate < data.startDate) {
         throw new Error("endDate muss ≥ startDate sein.");
@@ -79,6 +81,7 @@ export const getTipStats = createServerFn({ method: "GET" })
       current = monthRange(m);
       previous = previousMonthRange(m);
       label = m;
+      monthForClamp = m;
     } else {
       throw new Error("startDate und endDate müssen gemeinsam gesetzt sein.");
     }
@@ -122,6 +125,25 @@ export const getTipStats = createServerFn({ method: "GET" })
     }
 
     const cur = await loadTipWindow(current);
+
+    // U5a: Vorperiode im Monatsmodus auf letzten Tag mit Trinkgeld klemmen.
+    let lastDataDay: string | null = null;
+    let isPartial = false;
+    if (monthForClamp) {
+      const daysWithData = cur.daily
+        .filter((d) => d.serviceCents + d.kitchenCents > 0)
+        .map((d) => d.businessDate);
+      lastDataDay = daysWithData.length > 0 ? daysWithData.reduce((a, b) => (a > b ? a : b)) : null;
+      const monthLastDay = Number(monthRange(monthForClamp).endDate.slice(8, 10));
+      const throughDay = lastDataDay ? Number(lastDataDay.slice(8, 10)) : null;
+      isPartial = throughDay !== null && throughDay < monthLastDay;
+      if (lastDataDay === null) {
+        previous = null;
+      } else if (isPartial && throughDay !== null) {
+        previous = previousMonthRange(monthForClamp, throughDay);
+      }
+    }
+
     const prev = previous ? await loadTipWindow(previous) : null;
 
     const trend: { total: Trend; service: Trend; kitchen: Trend } | null = prev
@@ -139,5 +161,6 @@ export const getTipStats = createServerFn({ method: "GET" })
       perStaff: cur.perStaff,
       previous: prev ? prev.totals : null,
       trend,
+      coverage: { lastDataDay, isPartial },
     };
   });
