@@ -25,13 +25,14 @@ import {
 } from "@/components/ui/table";
 import { LocationPills } from "@/components/shared/LocationPills";
 import { MonthNav } from "@/components/shared/MonthNav";
+import { Input } from "@/components/ui/input";
 import { listLocations } from "@/lib/admin/locations.functions";
 import { getRevenueStats } from "@/lib/statistics/revenue-stats.functions";
 import { getTipStats } from "@/lib/statistics/tip-stats.functions";
 import { getPersonnelStats } from "@/lib/statistics/personnel-stats.functions";
 import { personnelRatioPct } from "@/lib/statistics/personnel-core";
 import { generateStatistikPdf, type StatistikPdfData } from "@/lib/statistics/statistik-pdf";
-import { currentMonth } from "@/lib/statistics/period-window";
+import { currentMonth, monthRange } from "@/lib/statistics/period-window";
 import { fillDailyGaps } from "@/lib/statistics/chart-fill";
 import { fmtCents } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -143,6 +144,27 @@ function KpiCard({
 function StatistikPage() {
   const [month, setMonth] = useState<string>(currentMonth());
   const [locationFilter, setLocationFilter] = useState<string>("all");
+  const [mode, setMode] = useState<"month" | "range">("month");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+
+  function handleModeChange(next: "month" | "range") {
+    if (next === "range" && (startDate === "" || endDate === "")) {
+      const r = monthRange(month);
+      setStartDate(r.startDate);
+      setEndDate(r.endDate);
+    }
+    setMode(next);
+  }
+
+  const periodArgs = useMemo(
+    () => (mode === "month" ? { month } : { startDate, endDate }),
+    [mode, month, startDate, endDate],
+  );
+  const periodValid =
+    mode === "month"
+      ? month.length === 7
+      : startDate !== "" && endDate !== "" && endDate >= startDate;
 
   const locationsQ = useQuery({
     queryKey: ["admin-locations"],
@@ -151,54 +173,54 @@ function StatistikPage() {
   const locations = useMemo(() => locationsQ.data ?? [], [locationsQ.data]);
 
   const statsQ = useQuery({
-    queryKey: ["stats", "revenue", month, locationFilter],
+    queryKey: ["stats", "revenue", mode, month, startDate, endDate, locationFilter],
     queryFn: () =>
       getRevenueStats({
         data: {
-          month,
+          ...periodArgs,
           ...(locationFilter !== "all" ? { locationId: locationFilter } : {}),
         },
       }),
-    enabled: month.length === 7,
+    enabled: periodValid,
   });
 
   const tipArgs = {
-    month,
+    ...periodArgs,
     ...(locationFilter !== "all" ? { locationId: locationFilter } : {}),
   };
   const tipsQ = useQuery({
-    queryKey: ["stats", "tips", month, locationFilter],
+    queryKey: ["stats", "tips", mode, month, startDate, endDate, locationFilter],
     queryFn: () => getTipStats({ data: tipArgs }),
-    enabled: month.length === 7,
+    enabled: periodValid,
   });
   const personnelQ = useQuery({
-    queryKey: ["stats", "personnel", month, locationFilter],
+    queryKey: ["stats", "personnel", mode, month, startDate, endDate, locationFilter],
     queryFn: () => getPersonnelStats({ data: tipArgs }),
-    enabled: month.length === 7,
+    enabled: periodValid,
   });
 
   // Compare-Queries (alle Standorte, ignorieren den Pill-Filter) — genau einmal
   // hier deklariert, damit der PDF-Export dieselben Daten nutzen kann wie die
   // Vergleichstabelle. LocationCompareSection erhält die Ergebnisse als Props.
-  const enabledCmp = month.length === 7;
+  const enabledCmp = periodValid;
   const revQueries = useQueries({
     queries: locations.map((loc) => ({
-      queryKey: ["stats", "cmp", "rev", loc.id, month],
-      queryFn: () => getRevenueStats({ data: { month, locationId: loc.id } }),
+      queryKey: ["stats", "cmp", "rev", loc.id, mode, month, startDate, endDate],
+      queryFn: () => getRevenueStats({ data: { ...periodArgs, locationId: loc.id } }),
       enabled: enabledCmp,
     })),
   });
   const tipQueries = useQueries({
     queries: locations.map((loc) => ({
-      queryKey: ["stats", "cmp", "tip", loc.id, month],
-      queryFn: () => getTipStats({ data: { month, locationId: loc.id } }),
+      queryKey: ["stats", "cmp", "tip", loc.id, mode, month, startDate, endDate],
+      queryFn: () => getTipStats({ data: { ...periodArgs, locationId: loc.id } }),
       enabled: enabledCmp,
     })),
   });
   const perQueries = useQueries({
     queries: locations.map((loc) => ({
-      queryKey: ["stats", "cmp", "per", loc.id, month],
-      queryFn: () => getPersonnelStats({ data: { month, locationId: loc.id } }),
+      queryKey: ["stats", "cmp", "per", loc.id, mode, month, startDate, endDate],
+      queryFn: () => getPersonnelStats({ data: { ...periodArgs, locationId: loc.id } }),
       enabled: enabledCmp,
     })),
   });
@@ -214,7 +236,25 @@ function StatistikPage() {
     null;
 
   const exportDisabled =
-    !statsQ.data || !tipsQ.data || !personnelQ.data || compareLoading || compareError !== null;
+    !periodValid ||
+    !statsQ.data ||
+    !tipsQ.data ||
+    !personnelQ.data ||
+    compareLoading ||
+    compareError !== null;
+
+  const periodLabel = useMemo(() => {
+    if (mode === "month") {
+      return format(new Date(`${month}-01T00:00:00`), "LLLL yyyy", { locale: de });
+    }
+    if (!startDate || !endDate) return "";
+    const a = format(new Date(`${startDate}T00:00:00`), "dd.MM.yyyy", { locale: de });
+    const b = format(new Date(`${endDate}T00:00:00`), "dd.MM.yyyy", { locale: de });
+    return `${a} – ${b}`;
+  }, [mode, month, startDate, endDate]);
+
+  const rangeInvalid =
+    mode === "range" && endDate !== "" && startDate !== "" && endDate < startDate;
 
   async function handleExport() {
     if (!statsQ.data || !tipsQ.data || !personnelQ.data) return;
@@ -222,7 +262,7 @@ function StatistikPage() {
     const tip = tipsQ.data;
     const per = personnelQ.data;
 
-    const monthLabel = format(new Date(`${month}-01T00:00:00`), "LLLL yyyy", { locale: de });
+    const monthLabel = periodLabel;
     const scopeLabel =
       locationFilter === "all"
         ? "Alle Standorte"
@@ -293,13 +333,35 @@ function StatistikPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Statistik</h1>
         <p className="text-sm text-muted-foreground">
-          Umsatz je Kalendermonat — Haus und Takeaway. Vergleich gegen denselben Zeitraum des
-          Vormonats.
+          Umsatz, Trinkgeld und Personalquote — Haus und Takeaway. Vergleich gegen den
+          vorangehenden, gleich langen Zeitraum.
         </p>
       </div>
 
       <Card className="p-3">
         <div className="flex flex-wrap items-end gap-4">
+          <div className="space-y-1">
+            <Label>Ansicht</Label>
+            <div className="inline-flex h-10 items-center rounded-md border border-input p-0.5">
+              <Button
+                type="button"
+                size="sm"
+                variant={mode === "month" ? "default" : "ghost"}
+                onClick={() => handleModeChange("month")}
+              >
+                Monat
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={mode === "range" ? "default" : "ghost"}
+                onClick={() => handleModeChange("range")}
+              >
+                Zeitraum
+              </Button>
+            </div>
+          </div>
+          {mode === "month" ? (
           <div className="space-y-1">
             <Label>Monat</Label>
             <MonthNav value={month} onChange={setMonth} />
@@ -313,6 +375,35 @@ function StatistikPage() {
               </div>
             ) : null}
           </div>
+          ) : (
+            <>
+              <div className="space-y-1">
+                <Label htmlFor="stat-from">Von</Label>
+                <Input
+                  id="stat-from"
+                  type="date"
+                  value={startDate}
+                  max={endDate || undefined}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="h-10 w-[160px]"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="stat-to">Bis</Label>
+                <Input
+                  id="stat-to"
+                  type="date"
+                  value={endDate}
+                  min={startDate || undefined}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="h-10 w-[160px]"
+                />
+                {rangeInvalid ? (
+                  <div className="text-xs text-destructive">Bis muss ≥ Von sein.</div>
+                ) : null}
+              </div>
+            </>
+          )}
           <div className="space-y-1">
             <Label htmlFor="stat-loc">Standort</Label>
             <div id="stat-loc">
