@@ -4,13 +4,21 @@
 
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { AlertTriangle, ArrowDown, ArrowUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { LocationPills } from "@/components/shared/LocationPills";
 import { listLocations } from "@/lib/admin/locations.functions";
 import { getRevenueStats } from "@/lib/statistics/revenue-stats.functions";
@@ -31,6 +39,7 @@ type TipStats = Awaited<ReturnType<typeof getTipStats>>;
 type PersonnelStats = Awaited<ReturnType<typeof getPersonnelStats>>;
 type TipPerStaff = TipStats["perStaff"][number];
 type PersonnelPerStaff = PersonnelStats["perStaff"][number];
+type LocationRow = Awaited<ReturnType<typeof listLocations>>[number];
 
 function currentMonthString(): string {
   const d = new Date();
@@ -223,6 +232,8 @@ function StatistikPage() {
         personnel={personnelQ.data}
         revenue={statsQ.data}
       />
+
+      <LocationCompareSection month={month} locations={locations} />
     </div>
   );
 }
@@ -560,5 +571,131 @@ function StaffWithoutRateBanner({
         </div>
       </div>
     </Card>
+  );
+}
+
+// ---------- Standort-Vergleich-Section ----------
+
+function LocationCompareSection({ month, locations }: { month: string; locations: LocationRow[] }) {
+  const enabled = month.length === 7;
+  const revQueries = useQueries({
+    queries: locations.map((loc) => ({
+      queryKey: ["stats", "cmp", "rev", loc.id, month],
+      queryFn: () => getRevenueStats({ data: { month, locationId: loc.id } }),
+      enabled,
+    })),
+  });
+  const tipQueries = useQueries({
+    queries: locations.map((loc) => ({
+      queryKey: ["stats", "cmp", "tip", loc.id, month],
+      queryFn: () => getTipStats({ data: { month, locationId: loc.id } }),
+      enabled,
+    })),
+  });
+  const perQueries = useQueries({
+    queries: locations.map((loc) => ({
+      queryKey: ["stats", "cmp", "per", loc.id, month],
+      queryFn: () => getPersonnelStats({ data: { month, locationId: loc.id } }),
+      enabled,
+    })),
+  });
+
+  const isLoading =
+    revQueries.some((q) => q.isLoading) ||
+    tipQueries.some((q) => q.isLoading) ||
+    perQueries.some((q) => q.isLoading);
+  const firstError =
+    revQueries.find((q) => q.isError)?.error ??
+    tipQueries.find((q) => q.isError)?.error ??
+    perQueries.find((q) => q.isError)?.error ??
+    null;
+
+  return (
+    <section className="space-y-3">
+      <h2 className="text-lg font-semibold tracking-tight text-foreground">Standort-Vergleich</h2>
+      <p className="text-xs text-muted-foreground">Alle Standorte, unabhängig vom Filter oben.</p>
+      {locations.length === 0 ? (
+        <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
+          Keine Standorte vorhanden.
+        </div>
+      ) : firstError ? (
+        <ErrorState message={(firstError as Error)?.message ?? "Unbekannter Fehler"} />
+      ) : isLoading ? (
+        <Skeleton className="h-48" />
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Standort</TableHead>
+                    <TableHead className="text-right">Umsatz</TableHead>
+                    <TableHead className="text-right">Trinkgeld</TableHead>
+                    <TableHead className="text-right">Personalquote</TableHead>
+                    <TableHead className="text-right">Netto-Std.</TableHead>
+                    <TableHead className="text-right">Basis-Lohnkosten</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {locations.map((loc, i) => {
+                    const rev = revQueries[i]?.data;
+                    const tip = tipQueries[i]?.data;
+                    const per = perQueries[i]?.data;
+                    if (!rev || !tip || !per) {
+                      return (
+                        <TableRow key={loc.id}>
+                          <TableCell>{loc.name}</TableCell>
+                          <TableCell className="text-right text-muted-foreground">—</TableCell>
+                          <TableCell className="text-right text-muted-foreground">—</TableCell>
+                          <TableCell className="text-right text-muted-foreground">—</TableCell>
+                          <TableCell className="text-right text-muted-foreground">—</TableCell>
+                          <TableCell className="text-right text-muted-foreground">—</TableCell>
+                        </TableRow>
+                      );
+                    }
+                    const ratio = personnelRatioPct(
+                      per.totals.laborCostCents,
+                      rev.summary.totalCents,
+                    );
+                    const missing = per.staffWithoutRate.length;
+                    return (
+                      <TableRow key={loc.id}>
+                        <TableCell className="font-medium">{loc.name}</TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {fmtEuro(rev.summary.totalCents)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {fmtEuro(tip.totals.totalCents)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          <span className="inline-flex items-center justify-end gap-1">
+                            {ratio === null ? "—" : `${ratio.toFixed(1)} %`}
+                            {missing > 0 ? (
+                              <span
+                                title={`${missing} ohne Stundenlohn — Quote untertreibt`}
+                                className="inline-flex"
+                              >
+                                <AlertTriangle className="h-3.5 w-3.5 text-amber-600" aria-hidden />
+                              </span>
+                            ) : null}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {per.totals.netHours.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {fmtEuro(per.totals.laborCostCents)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </section>
   );
 }

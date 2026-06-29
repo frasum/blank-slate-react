@@ -1,62 +1,70 @@
 ## Ziel
-`src/routes/_authenticated/admin/statistik.tsx` um zwei Abschnitte unter dem Umsatzblock ergänzen: **Trinkgeld** und **Personalquote**. Reines Frontend, nutzt vorhandene Server-Fns (`getTipStats`, `getPersonnelStats`) und `personnelRatioPct`.
+`src/routes/_authenticated/admin/statistik.tsx` um Abschnitt **Standort-Vergleich** unter den bestehenden Blöcken erweitern. Reines Frontend, nur Konsum bestehender Server-Fns. Vergleich ignoriert den oberen Pill-Filter.
 
 ## Änderungen in `statistik.tsx`
 
 ### Imports ergänzen
-- `getTipStats` aus `@/lib/statistics/tip-stats.functions`
-- `getPersonnelStats` aus `@/lib/statistics/personnel-stats.functions`
-- `personnelRatioPct` aus `@/lib/statistics/personnel-core`
-- `Badge` aus `@/components/ui/badge`
-- `AlertTriangle` (lucide) für staffWithoutRate-Hinweis
+- `useQueries` aus `@tanstack/react-query`.
+- Vorhandene `getRevenueStats`, `getTipStats`, `getPersonnelStats`, `personnelRatioPct` bleiben.
+- `Table`-Primitive aus `@/components/ui/table` nutzen, wenn vorhanden — sonst schlichte `<table>`-Struktur mit Tailwind. Vor dem Bauen einmal `src/components/ui/table.tsx` prüfen.
 
-### Helper (U1 wiederverwenden, rückwärtskompatibel)
-- `fmtEuro`, `fmtSignedEuro`, `TrendLine`, `KpiCard` bleiben bestehen und arbeiten weiter wie heute.
-- `KpiCard` bekommt zusätzliche **optionale** Props mit Defaults, damit alle bestehenden U1-Aufrufe (`title`, `cents`, `trend`) unverändert weiterlaufen:
-  - `unit?: "eur" | "hours" | "pct"` — Default `"eur"` (heutiges Verhalten).
-  - `value?: number` — alternativ zu `cents`, für Stunden/Prozent.
-  - `trendRenderer?: (trend) => ReactNode` — überschreibt die Default-`TrendLine` (für Stunden-Trend).
-  - Wenn `unit === "eur"`: weiterhin `fmtEuro(cents)` (Aufrufe ohne neue Props bleiben identisch).
-  - Wenn `unit === "hours"`: `${value!.toFixed(2)} h`.
-  - Wenn `unit === "pct"`: `value === null ? "—" : value.toFixed(1) + " %"`.
-- Neue kleine Funktion `TrendLineHours({ trend })`: zeigt Pfeil + `pct` + Delta in Stunden (`(deltaCents/60).toFixed(1)} h`, „deltaCents" ist hier in Wahrheit Minuten — wird **nie als €** gerendert). `pct === null` / `trend === null` → „—".
+### Multi-Standort-Queries — drei homogene `useQueries`
+Vorbild: `allLocationQueries` in `zeit-uebersicht.tsx`. Drei getrennte, homogen typisierte Arrays — kein `flatMap`, kein Union-Typ, kein Cast.
 
-### Queries (im `StatistikPage`-Body, neben `statsQ`)
 ```ts
-const tipArgs = { month, ...(locationFilter !== "all" ? { locationId: locationFilter } : {}) };
-const tipsQ = useQuery({ queryKey: ["stats","tips",month,locationFilter], queryFn: () => getTipStats({ data: tipArgs }), enabled: month.length === 7 });
-const personnelQ = useQuery({ queryKey: ["stats","personnel",month,locationFilter], queryFn: () => getPersonnelStats({ data: tipArgs }), enabled: month.length === 7 });
+const revQueries = useQueries({
+  queries: locations.map((loc) => ({
+    queryKey: ["stats","cmp","rev", loc.id, month],
+    queryFn: () => getRevenueStats({ data: { month, locationId: loc.id } }),
+    enabled: month.length === 7,
+  })),
+});
+const tipQueries = useQueries({ queries: locations.map((loc) => ({ … getTipStats … })) });
+const perQueries = useQueries({ queries: locations.map((loc) => ({ … getPersonnelStats … })) });
 ```
-Typen via `Awaited<ReturnType<typeof getTipStats>>` / `getPersonnelStats`. Kein `any`.
 
-### Abschnitt „Trinkgeld" (eigene Section unter Umsatz-Chart)
-- Eigener Lade-/Fehler-/Leer-Zustand (3 Skeleton-Karten + Listen-Skeleton).
-- 3 KPI-Karten (`KpiCard` Default "eur"): Gesamt / Service / Küche mit Trends.
-- Card „Trinkgeld pro Mitarbeiter": Liste aus `perStaff` — pro Zeile `Badge` (Service / Küche via Tailwind-Token-Klassen), Name links, `fmtEuro(tipCents)` rechts tabular-nums. Leer → freundlicher Hinweis.
+- Pro Standort `i` zippen: `revQueries[i]`, `tipQueries[i]`, `perQueries[i]`. Jeder Array-Eintrag ist bereits korrekt typisiert (`UseQueryResult<Awaited<ReturnType<…>>>`).
+- Aggregat:
+  - `isLoading` = irgendeine der drei Arrays enthält ein `q.isLoading === true`.
+  - `firstError` = erste Query mit `isError` → Fehlerbanner mit deren Message.
+- `enabled` greift; bei `locations.length === 0` sind alle Arrays leer.
 
-### Abschnitt „Personalquote" (unter Trinkgeld)
-- Gemeinsame Ladebedingung: Skeleton, solange `statsQ.data` ODER `personnelQ.data` fehlt.
-- Hauptkarte **Personalquote** (`KpiCard unit="pct" value={ratio}`):
-  - `ratio = personnelRatioPct(personnelQ.data.totals.laborCostCents, statsQ.data.summary.totalCents)`.
-  - Caption (text-xs muted unter Wert): „Basis-Brutto (Netto-Stunden × Stundenlohn) — ohne AG-SV, SFN, Zweitsatz." (über `children`-Slot oder zusätzliche Card-Markup).
-- Begleit-KPIs (3 Karten):
-  - Netto-Stunden: `KpiCard unit="hours" value={totals.netHours} trendRenderer={() => <TrendLineHours trend={trend?.hours} />}`.
-  - Basis-Lohnkosten: `KpiCard` Default eur mit `trend?.cost`.
-  - Umsatz/Stunde: `totals.netHours > 0 ? KpiCard eur cents={Math.round(summary.totalCents/totals.netHours)}` ohne Trend, sonst Karte mit „—".
-- `staffWithoutRate`-Banner: wenn `length > 0`, eigene Card mit warn-Tailwind-Klassen + `AlertTriangle`:
-  „N Mitarbeiter ohne hinterlegten Stundenlohn — Lohnkosten und Quote untertreiben." gefolgt von Komma-Liste der Namen (Mapping `perStaff.find(p=>p.staffId===id)?.name ?? id`).
-- Fehler in `personnelQ` → eigener Error-Block; Erfolg ohne Stunden (`totals.netHours === 0`) → Leerzustand „Keine Stunden in diesem Monat."
+### Neue Komponente `LocationCompareSection`
+- Eigene Section unter `PersonnelSection`.
+- Props: `month: string`, `locations: Location[]` (Typ via `Awaited<ReturnType<typeof listLocations>>[number]`).
+- Card mit Titel „Standort-Vergleich" und Caption „Alle Standorte, unabhängig vom Filter oben."
+- Zustände: Loading (Skeleton-Tabelle), Error (`ErrorState`), Empty (`locations.length === 0`) — sonst Tabelle.
+
+### Tabelle
+- Spalten: Standort | Umsatz | Trinkgeld | Personalquote | Netto-Std. | Basis-Lohnkosten.
+- Numerische Spalten rechtsbündig, `tabular-nums`. Wrapper `overflow-x-auto` für schmale Viewports.
+- Zellen pro Index `i`:
+  - `rev = revQueries[i].data`, `tip = tipQueries[i].data`, `per = perQueries[i].data` (alle definiert, da Section sonst noch lädt).
+  - Umsatz → `fmtEuro(rev.summary.totalCents)`.
+  - Trinkgeld → `fmtEuro(tip.totals.totalCents)`.
+  - Personalquote → `personnelRatioPct(per.totals.laborCostCents, rev.summary.totalCents)`; `null` → „—"; sonst `value.toFixed(1) + " %"`.
+  - Netto-Std. → `per.totals.netHours.toFixed(2)`.
+  - Basis-Lohnkosten → `fmtEuro(per.totals.laborCostCents)`.
+- `staffWithoutRate`-Marker: bei `per.staffWithoutRate.length > 0` kleines ⚠ (lucide `AlertTriangle`, `h-3.5 w-3.5 text-amber-600`) neben Personalquote-Zelle, natives `title=…` „N ohne Stundenlohn — Quote untertreibt". Kein Popover, kein Banner.
+- Standorte in Reihenfolge `locationsQ.data` (entspricht Pills).
+- Keine Summenzeile (bewusst weggelassen).
+
+### Integration in `StatistikPage`
+- Nach `<PersonnelSection …/>` einfügen:
+  `<LocationCompareSection month={month} locations={locations} />`.
 
 ## Stil / Fallen
-- Geld ausschließlich `fmtCents` via `fmtEuro`/`fmtSignedEuro`. Prozent mit `.toFixed(1)`.
-- Keine `hsl(var(--…))`-Farben — Tailwind-Tokens / hex wie U1 (`text-emerald-600`, `text-rose-600`).
-- Trend-Komponente aus U1 wiederverwendet; `TrendLineHours` neu, nur für Stunden.
-- Rückwärtskompatibilität `KpiCard`: alle bestehenden U1-Aufrufe (`title`, `cents`, `trend`) bleiben unverändert; nur neue optionale Props.
+- Geld nur über `fmtEuro` (→ `fmtCents`). Prozent `toFixed(1)`. Stunden `toFixed(2)`.
+- Keine `hsl(var(--…))` — Tailwind-Tokens / Hex.
+- `tabular-nums` für alle Zahlenspalten.
+- `locationFilter` (Pill-Filter) wird **nicht** in die Compare-Queries gereicht.
+- Kein `any`, keine Casts — Homogenität der drei Arrays sichert die Typen.
 
 ## Nicht angefasst
-- `src/lib/statistics/*`, Server-Fns, Schema, Migrationen, andere Routen, U1-Umsatzcode.
+- `src/lib/statistics/*`, Server-Fns, Schema, Migrationen, andere Routen.
+- Obere U1-/U2-Blöcke und Standort-Pill-Filter bleiben unverändert.
 
 ## Verifikation
 - `bunx tsgo --noEmit`, `bunx eslint src/ --max-warnings=5`, `bunx vitest run` grün.
 - Prettier `--write` + `eslint --fix` vor Abschluss.
-- Manueller Sanity: drei Sections sichtbar; leerer Monat → Leerzustände je Section; Stunden-Trend zeigt „h" / „%", niemals „€"; `staffWithoutRate`-Banner erscheint nur bei fehlenden Sätzen.
+- Manueller Sanity: Vergleich zeigt alle Standorte; Monatswechsel aktualisiert; ⚠ nur bei fehlenden Sätzen; leerer Monat → „—" / `0,00 €`; oberer Pill-Filter ändert Compare-Zeilen nicht.
