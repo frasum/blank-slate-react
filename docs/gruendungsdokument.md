@@ -600,7 +600,7 @@ S-6 (Welche Sessions zählen): Aktuell sind alle Sessions `status='open'` (das T
 
 S-7 (Trinkgeld — ein Begriff): Pool-Verteilung aus dem M2-Tippool (`session_tip_pool_entries`/`waiter_settlements`), EINE Trinkgeld-Definition für Service und Küche. Keine zwei parallelen Formeln.
 
-S-8 (Personalquote — Ergänzung ggü. tagesabrechnung): Stunden/Kosten aus M1 (`time_entries`) gegen Umsatz → Personalquote je Periode/Standort. Für Gastro die zentrale Kennzahl; tagesabrechnung hatte sie nicht, COCO hat die Daten bereits.
+S-8 (Personalquote — Ergänzung ggü. tagesabrechnung): Stufe B2 (umgesetzt) rechnet **Basis-Brutto-Lohnkosten** = Netto-Stunden aus M1 (`time_entries`, gross − `break_minutes`) × gültigkeitsdatiertem Basis-Stundenlohn (`staff_compensation.hourly_rate`, EUR, Satz mit größtem `valid_from ≤ business_date`). Bewusst NICHT enthalten (spätere Lohn-Modul-Stufe): Arbeitgeber-SV-Anteil, SFN-Zuschläge, zweiter Satz `hourly_rate_2`. Ehrliche Näherung der Brutto-Lohnkosten, NICHT die volle Arbeitgeberkostenquote. `getPersonnelStats` liefert Stunden + Basis-Lohnkosten (+ `staffWithoutRate`-Diagnose); die **Personalquote = Kosten/Umsatz** wird in der UI aus `getPersonnelStats` + `getRevenueStats` via der einzigen Quote-Definition `personnelRatioPct` gebildet (revenue 0 → null). Für Gastro die zentrale Kennzahl; tagesabrechnung hatte sie nicht, COCO hat die Daten bereits.
 
 Übernehmen aus tagesabrechnung (Konzept gut): Modus pro Standort / Alle / Vergleich; Vorperioden-Trend auf KPI-Karten; Umsatzverlauf; Trinkgeld pro Mitarbeiter (Service+Küche); Vergleichs-PDF. Ergänzen: Personalquote, Ausgaben nach Kategorie, CSV-Export der Rohdaten.
 
