@@ -179,3 +179,58 @@ export function computeTipPool(input: TipPoolInput): TipPoolResult {
     excludedByMinHours,
   };
 }
+
+// ------------------------------------------------------------------------
+// Stunden-Auflösung für den Pool (Stempel + manuelle Overrides)
+// ------------------------------------------------------------------------
+//
+// Reine Funktion: liefert die finale `timeEntries`-Liste, die computeTipPool
+// konsumiert. Regeln:
+//   * settlementOnly → Roh-Stempel werden ignoriert.
+//   * Mitarbeiter mit manuellem Eintrag: Stempel verworfen, synthetischer
+//     Eintrag aus hoursMinutes (keine Vermischung).
+//   * kitchenManualOnly: jeder Stempel-Eintrag eines Mitarbeiters mit
+//     department === 'kitchen' wird verworfen — auch ohne manuellen
+//     Eintrag. Service-Stempel bleiben unberührt.
+
+export type RawTimeEntry = {
+  staffId: string;
+  startedAt: string;
+  endedAt: string;
+};
+
+export type ManualPoolEntry = {
+  staffId: string;
+  department: StaffDepartment;
+  hoursMinutes: number;
+};
+
+export function resolvePoolTimeEntries(input: {
+  rawTimeEntries: RawTimeEntry[];
+  manualEntries: ManualPoolEntry[];
+  staffDepartments: Map<string, StaffDepartment>;
+  settlementOnly: boolean;
+  kitchenManualOnly: boolean;
+  businessDate: string; // YYYY-MM-DD — Basis für synthetische ISO-Stempel
+}): RawTimeEntry[] {
+  const manualIds = new Set(input.manualEntries.map((m) => m.staffId));
+  const raw = input.settlementOnly ? [] : input.rawTimeEntries;
+  const filtered = raw.filter((te) => {
+    if (manualIds.has(te.staffId)) return false;
+    if (input.kitchenManualOnly && input.staffDepartments.get(te.staffId) === "kitchen") {
+      return false;
+    }
+    return true;
+  });
+  const out: RawTimeEntry[] = [...filtered];
+  const base = new Date(input.businessDate + "T00:00:00Z").getTime();
+  for (const m of input.manualEntries) {
+    if (m.hoursMinutes <= 0) continue;
+    out.push({
+      staffId: m.staffId,
+      startedAt: new Date(base).toISOString(),
+      endedAt: new Date(base + m.hoursMinutes * 60_000).toISOString(),
+    });
+  }
+  return out;
+}
