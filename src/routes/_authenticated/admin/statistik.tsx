@@ -181,6 +181,121 @@ function StatistikPage() {
     enabled: month.length === 7,
   });
 
+  // Compare-Queries (alle Standorte, ignorieren den Pill-Filter) — genau einmal
+  // hier deklariert, damit der PDF-Export dieselben Daten nutzen kann wie die
+  // Vergleichstabelle. LocationCompareSection erhält die Ergebnisse als Props.
+  const enabledCmp = month.length === 7;
+  const revQueries = useQueries({
+    queries: locations.map((loc) => ({
+      queryKey: ["stats", "cmp", "rev", loc.id, month],
+      queryFn: () => getRevenueStats({ data: { month, locationId: loc.id } }),
+      enabled: enabledCmp,
+    })),
+  });
+  const tipQueries = useQueries({
+    queries: locations.map((loc) => ({
+      queryKey: ["stats", "cmp", "tip", loc.id, month],
+      queryFn: () => getTipStats({ data: { month, locationId: loc.id } }),
+      enabled: enabledCmp,
+    })),
+  });
+  const perQueries = useQueries({
+    queries: locations.map((loc) => ({
+      queryKey: ["stats", "cmp", "per", loc.id, month],
+      queryFn: () => getPersonnelStats({ data: { month, locationId: loc.id } }),
+      enabled: enabledCmp,
+    })),
+  });
+
+  const compareLoading =
+    revQueries.some((q) => q.isLoading) ||
+    tipQueries.some((q) => q.isLoading) ||
+    perQueries.some((q) => q.isLoading);
+  const compareError =
+    revQueries.find((q) => q.isError)?.error ??
+    tipQueries.find((q) => q.isError)?.error ??
+    perQueries.find((q) => q.isError)?.error ??
+    null;
+
+  const exportDisabled =
+    !statsQ.data ||
+    !tipsQ.data ||
+    !personnelQ.data ||
+    compareLoading ||
+    compareError !== null;
+
+  async function handleExport() {
+    if (!statsQ.data || !tipsQ.data || !personnelQ.data) return;
+    const rev = statsQ.data;
+    const tip = tipsQ.data;
+    const per = personnelQ.data;
+
+    const monthLabel = format(new Date(`${month}-01T00:00:00`), "LLLL yyyy", { locale: de });
+    const scopeLabel =
+      locationFilter === "all"
+        ? "Alle Standorte"
+        : (locations.find((l) => l.id === locationFilter)?.name ?? "Standort");
+
+    const ratio = personnelRatioPct(per.totals.laborCostCents, rev.summary.totalCents);
+    const staffWithoutRateNames = per.staffWithoutRate.map(
+      (id) => per.perStaff.find((p) => p.staffId === id)?.name ?? id,
+    );
+
+    const comparison: StatistikPdfData["comparison"] = [];
+    locations.forEach((loc, i) => {
+      const r = revQueries[i]?.data;
+      const t = tipQueries[i]?.data;
+      const p = perQueries[i]?.data;
+      if (!r || !t || !p) return;
+      comparison.push({
+        locationName: loc.name,
+        totalCents: r.summary.totalCents,
+        tipTotalCents: t.totals.totalCents,
+        ratioPct: personnelRatioPct(p.totals.laborCostCents, r.summary.totalCents),
+        netHours: p.totals.netHours,
+        laborCostCents: p.totals.laborCostCents,
+        hasMissingRate: p.staffWithoutRate.length > 0,
+      });
+    });
+
+    const data: StatistikPdfData = {
+      monthLabel,
+      scopeLabel,
+      revenue: {
+        houseCents: rev.summary.houseCents,
+        takeawayCents: rev.summary.takeawayCents,
+        totalCents: rev.summary.totalCents,
+        daysWithRevenue: rev.daily.filter((d) => d.totalCents > 0).length,
+      },
+      tips: {
+        serviceCents: tip.totals.serviceCents,
+        kitchenCents: tip.totals.kitchenCents,
+        totalCents: tip.totals.totalCents,
+        perStaff: tip.perStaff.map((p) => ({
+          name: p.name,
+          department: p.department,
+          tipCents: p.tipCents,
+        })),
+      },
+      personnel: {
+        netHours: per.totals.netHours,
+        laborCostCents: per.totals.laborCostCents,
+        ratioPct: ratio,
+        staffWithoutRateNames,
+      },
+      dailyRevenue: rev.daily.map((d) => ({
+        businessDate: d.businessDate,
+        houseCents: d.houseCents,
+        takeawayCents: d.takeawayCents,
+        totalCents: d.totalCents,
+      })),
+      comparison,
+    };
+
+    const { doc, fileName } = await generateStatistikPdf(data);
+    doc.save(fileName);
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -214,6 +329,16 @@ function StatistikPage() {
               />
             </div>
           </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="ml-auto"
+            onClick={handleExport}
+            disabled={exportDisabled}
+          >
+            <Download className="h-4 w-4" />
+            PDF
+          </Button>
         </div>
       </Card>
 
@@ -240,7 +365,14 @@ function StatistikPage() {
         revenue={statsQ.data}
       />
 
-      <LocationCompareSection month={month} locations={locations} />
+      <LocationCompareSection
+        locations={locations}
+        revQueries={revQueries}
+        tipQueries={tipQueries}
+        perQueries={perQueries}
+        isLoading={compareLoading}
+        firstError={compareError}
+      />
     </div>
   );
 }
