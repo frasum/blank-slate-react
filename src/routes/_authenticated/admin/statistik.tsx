@@ -436,7 +436,7 @@ function EmptyChart() {
 type DailyRow = RevenueStats["daily"][number];
 
 function RevenueChart({ daily }: { daily: DailyRow[] }) {
-  const rows = daily.map((d) => ({
+  const rows = fillDailyGaps(daily).map((d) => ({
     day: d.businessDate.slice(8, 10),
     fullDate: d.businessDate,
     haus: d.houseCents / 100,
