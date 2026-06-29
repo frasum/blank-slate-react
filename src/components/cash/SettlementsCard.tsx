@@ -42,7 +42,6 @@ export function SettlementsCard({
             <TableHead className="text-right">Hilf</TableHead>
             <TableHead className="text-right">Offen</TableHead>
             <TableHead className="text-right">Bargeld</TableHead>
-            <TableHead className="text-right">Differenz</TableHead>
             <TableHead className="text-right">Tip</TableHead>
             <TableHead className="text-right">Tip %</TableHead>
             <TableHead>Status</TableHead>
@@ -52,7 +51,7 @@ export function SettlementsCard({
         <TableBody>
           {rows.length === 0 && (
             <TableRow>
-              <TableCell colSpan={12} className="text-center text-muted-foreground">
+              <TableCell colSpan={11} className="text-center text-muted-foreground">
                 Noch keine Abrechnungen.
               </TableCell>
             </TableRow>
@@ -92,11 +91,6 @@ export function SettlementsCard({
                 </TableCell>
                 <TableCell className="text-right font-mono">
                   {fmtCents(Number(r.cash_handed_in_cents))}
-                </TableCell>
-                <TableCell
-                  className={`text-right font-mono ${Number(r.differenz_cents) < 0 ? "text-destructive" : ""}`}
-                >
-                  {fmtCents(Number(r.differenz_cents))}
                 </TableCell>
                 <TableCell className="text-right font-mono">{fmtCents(tipTotal)}</TableCell>
                 <TableCell className="text-right font-mono">
