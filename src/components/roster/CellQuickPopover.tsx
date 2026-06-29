@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { CalendarX, CalendarCheck, Umbrella, HeartPulse, Heart } from "lucide-react";
+import { CalendarCheck, Umbrella, HeartPulse, Heart } from "lucide-react";
 import type { RosterSkill } from "@/lib/roster/roster.functions";
 import { AbsenceRangeForm } from "./AbsenceRangeForm";
 
@@ -41,7 +41,6 @@ export function CellQuickPopover({
   busy,
   onPick,
   isUnavailable,
-  onSetUnavailable,
   onClearUnavailable,
   absenceType,
   onSetAbsenceRange,
