@@ -1,70 +1,53 @@
 ## Ziel
-`src/routes/_authenticated/admin/statistik.tsx` um Abschnitt **Standort-Vergleich** unter den bestehenden Blöcken erweitern. Reines Frontend, nur Konsum bestehender Server-Fns. Vergleich ignoriert den oberen Pill-Filter.
+U4 — client-seitiger PDF-Export für die M-Statistik-Seite. Neuer Helfer + Export-Button auf `statistik.tsx`. **Keine** neuen Server-Fns, **keine** Migration, **keine** Berechnungslogik in `src/lib/statistics/*`.
 
-## Änderungen in `statistik.tsx`
+Deps bereits vorhanden: `jspdf@4.2.1`, `jspdf-autotable@5.0.8`, `date-fns@4.1.0` — kein `bun add`.
 
-### Imports ergänzen
-- `useQueries` aus `@tanstack/react-query`.
-- Vorhandene `getRevenueStats`, `getTipStats`, `getPersonnelStats`, `personnelRatioPct` bleiben.
-- `Table`-Primitive aus `@/components/ui/table` nutzen, wenn vorhanden — sonst schlichte `<table>`-Struktur mit Tailwind. Vor dem Bauen einmal `src/components/ui/table.tsx` prüfen.
+## Datei 1 (neu) — `src/lib/statistics/statistik-pdf.ts`
 
-### Multi-Standort-Queries — drei homogene `useQueries`
-Vorbild: `allLocationQueries` in `zeit-uebersicht.tsx`. Drei getrennte, homogen typisierte Arrays — kein `flatMap`, kein Union-Typ, kein Cast.
+Muster wie `src/lib/cash/pdfExport.ts`: dynamische `jspdf`/`jspdf-autotable`-Imports, kein `Buffer`, kein `node:`-Modul.
 
-```ts
-const revQueries = useQueries({
-  queries: locations.map((loc) => ({
-    queryKey: ["stats","cmp","rev", loc.id, month],
-    queryFn: () => getRevenueStats({ data: { month, locationId: loc.id } }),
-    enabled: month.length === 7,
-  })),
-});
-const tipQueries = useQueries({ queries: locations.map((loc) => ({ … getTipStats … })) });
-const perQueries = useQueries({ queries: locations.map((loc) => ({ … getPersonnelStats … })) });
-```
+- Export `StatistikPdfData` exakt wie im Auftrag (Umsatz, Tips inkl. `perStaff`, Personal mit `ratioPct: number | null` und `staffWithoutRateNames`, `dailyRevenue`, `comparison`).
+- `generateStatistikPdf(data): Promise<{ doc: jsPDF; blob: Blob; fileName: string }>`:
+  - `import type jsPDF from "jspdf"` für Rückgabetyp; konkret `(await import("jspdf")).default`.
+  - `autoTable(doc, {...})` v5-Funktionsform.
+  - Folge-Tabellen positionieren via `(doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY` — einzige zulässige Cast-Stelle.
+  - Geld immer `fmtCents`, Prozent `toFixed(1)`, Stunden `toFixed(2)`.
+- Abschnitte (Reihenfolge):
+  1. Kopf: „Statistik-Bericht" + zentrierte Sub-Zeile `monthLabel · scopeLabel`.
+  2. Umsatz: Tabelle Haus/Takeaway/Gesamt + Zeile „Tage mit Umsatz: N".
+  3. Trinkgeld: Service/Küche/Gesamt + Tabelle „Trinkgeld pro Mitarbeiter" (Name, Bereich „Service"/„Küche", Betrag rechtsbündig).
+  4. Personal: Netto-Std., Basis-Lohnkosten, Personalquote (`null → "—"` sonst `toFixed(1)+" %"`). Kleine Fußnote „Basis-Brutto (Netto-Stunden × Stundenlohn) — ohne AG-SV, SFN, Zweitsatz." Falls `staffWithoutRateNames.length>0`: Zusatzzeile „Ohne hinterlegten Stundenlohn: <Namen> — Quote untertreibt." (mit `splitTextToSize`).
+  5. Umsatzverlauf: Tagestabelle (Datum, Haus, Takeaway, Gesamt) aus `dailyRevenue`; autoTable bricht selbst um.
+  6. Standort-Vergleich: Tabelle (Standort, Umsatz, Trinkgeld, Personalquote, Netto-Std., Basis-Lohnkosten). `hasMissingRate` → `*` an der Quote, Fußnote unter der Tabelle.
+- `fileName = \`Statistik_${monthLabel.replace(/\s+/g,"-")}_${scopeLabel.replace(/\s+/g,"-")}.pdf\``.
 
-- Pro Standort `i` zippen: `revQueries[i]`, `tipQueries[i]`, `perQueries[i]`. Jeder Array-Eintrag ist bereits korrekt typisiert (`UseQueryResult<Awaited<ReturnType<…>>>`).
-- Aggregat:
-  - `isLoading` = irgendeine der drei Arrays enthält ein `q.isLoading === true`.
-  - `firstError` = erste Query mit `isError` → Fehlerbanner mit deren Message.
-- `enabled` greift; bei `locations.length === 0` sind alle Arrays leer.
+## Datei 2 — `src/routes/_authenticated/admin/statistik.tsx`
 
-### Neue Komponente `LocationCompareSection`
-- Eigene Section unter `PersonnelSection`.
-- Props: `month: string`, `locations: Location[]` (Typ via `Awaited<ReturnType<typeof listLocations>>[number]`).
-- Card mit Titel „Standort-Vergleich" und Caption „Alle Standorte, unabhängig vom Filter oben."
-- Zustände: Loading (Skeleton-Tabelle), Error (`ErrorState`), Empty (`locations.length === 0`) — sonst Tabelle.
-
-### Tabelle
-- Spalten: Standort | Umsatz | Trinkgeld | Personalquote | Netto-Std. | Basis-Lohnkosten.
-- Numerische Spalten rechtsbündig, `tabular-nums`. Wrapper `overflow-x-auto` für schmale Viewports.
-- Zellen pro Index `i`:
-  - `rev = revQueries[i].data`, `tip = tipQueries[i].data`, `per = perQueries[i].data` (alle definiert, da Section sonst noch lädt).
-  - Umsatz → `fmtEuro(rev.summary.totalCents)`.
-  - Trinkgeld → `fmtEuro(tip.totals.totalCents)`.
-  - Personalquote → `personnelRatioPct(per.totals.laborCostCents, rev.summary.totalCents)`; `null` → „—"; sonst `value.toFixed(1) + " %"`.
-  - Netto-Std. → `per.totals.netHours.toFixed(2)`.
-  - Basis-Lohnkosten → `fmtEuro(per.totals.laborCostCents)`.
-- `staffWithoutRate`-Marker: bei `per.staffWithoutRate.length > 0` kleines ⚠ (lucide `AlertTriangle`, `h-3.5 w-3.5 text-amber-600`) neben Personalquote-Zelle, natives `title=…` „N ohne Stundenlohn — Quote untertreibt". Kein Popover, kein Banner.
-- Standorte in Reihenfolge `locationsQ.data` (entspricht Pills).
-- Keine Summenzeile (bewusst weggelassen).
-
-### Integration in `StatistikPage`
-- Nach `<PersonnelSection …/>` einfügen:
-  `<LocationCompareSection month={month} locations={locations} />`.
+- Neue Imports: `Button` (`@/components/ui/button`), `Download` (lucide), `format` (`date-fns`), `de` (`date-fns/locale`), `generateStatistikPdf` + Typ `StatistikPdfData`.
+- Compare-Queries (`revQueries`/`tipQueries`/`perQueries`) genau einmal in `StatistikPage` deklarieren und als Props an `LocationCompareSection` reichen. **Markup und Zeilen der Vergleichstabelle bleiben byte-identisch zu U3** — nur Datenquelle wechselt von intern zu Props.
+- Export-Handler in `StatistikPage`:
+  - `monthLabel = format(new Date(month + "-01T00:00:00"), "LLLL yyyy", { locale: de })`.
+  - `scopeLabel = locationFilter === "all" ? "Alle Standorte" : (locations.find(l => l.id === locationFilter)?.name ?? "Standort")`.
+  - `revenue/tips/personnel` aus `statsQ.data`/`tipsQ.data`/`personnelQ.data`; `personnel.ratioPct = personnelRatioPct(laborCostCents, statsQ.summary.totalCents)`; `staffWithoutRateNames` über `personnel.perStaff` mappen.
+  - `dailyRevenue = statsQ.data.daily`.
+  - `comparison`: Index-Zip über `locations` × `revQueries`/`tipQueries`/`perQueries`. Nur Standorte aufnehmen, deren alle drei Queries `data` haben; `ratioPct` via `personnelRatioPct`; `hasMissingRate = per.staffWithoutRate.length > 0`.
+  - `const { doc, fileName } = await generateStatistikPdf(data); doc.save(fileName);`.
+- Button-Platzierung: in der Filter-Card oben rechts (`ml-auto`), Label „PDF" mit `Download`-Icon.
+- `disabled` solange `!statsQ.data || !tipsQ.data || !personnelQ.data` oder Compare noch lädt / Fehler hat — kein PDF aus halben Daten.
 
 ## Stil / Fallen
-- Geld nur über `fmtEuro` (→ `fmtCents`). Prozent `toFixed(1)`. Stunden `toFixed(2)`.
-- Keine `hsl(var(--…))` — Tailwind-Tokens / Hex.
-- `tabular-nums` für alle Zahlenspalten.
-- `locationFilter` (Pill-Filter) wird **nicht** in die Compare-Queries gereicht.
-- Kein `any`, keine Casts — Homogenität der drei Arrays sichert die Typen.
+- Kein `any` außer dokumentierter `lastAutoTable`-Cast.
+- Kein `Buffer`, kein `node:`-Import.
+- Keine `hsl(var(--…))`-Farben im PDF (jsPDF nutzt RGB).
+- Compare-Queries existieren genau einmal — keine Doppel-Queries.
 
 ## Nicht angefasst
-- `src/lib/statistics/*`, Server-Fns, Schema, Migrationen, andere Routen.
-- Obere U1-/U2-Blöcke und Standort-Pill-Filter bleiben unverändert.
+- `src/lib/statistics/*`-Berechnungen, Server-Fns, Schema, Migrationen.
+- `src/lib/cash/pdfExport.ts` (nur Vorlage).
+- U1–U3-Markup außer dem neuen Button und dem Prop-Durchreichen.
 
 ## Verifikation
 - `bunx tsgo --noEmit`, `bunx eslint src/ --max-warnings=5`, `bunx vitest run` grün.
-- Prettier `--write` + `eslint --fix` vor Abschluss.
-- Manueller Sanity: Vergleich zeigt alle Standorte; Monatswechsel aktualisiert; ⚠ nur bei fehlenden Sätzen; leerer Monat → „—" / `0,00 €`; oberer Pill-Filter ändert Compare-Zeilen nicht.
+- `npx prettier --write src/` + `npx eslint --fix` vor Abschluss.
+- Manueller E2E: Button erzeugt PDF mit allen sechs Abschnitten; Monat/Standort im Kopf korrekt; Personalquote-Fußnote + `staffWithoutRate`-Hinweis vorhanden; Vergleichstabelle listet alle Standorte; Button disabled bei unvollständigen Daten.
