@@ -28,10 +28,7 @@ import { getRevenueStats } from "@/lib/statistics/revenue-stats.functions";
 import { getTipStats } from "@/lib/statistics/tip-stats.functions";
 import { getPersonnelStats } from "@/lib/statistics/personnel-stats.functions";
 import { personnelRatioPct } from "@/lib/statistics/personnel-core";
-import {
-  generateStatistikPdf,
-  type StatistikPdfData,
-} from "@/lib/statistics/statistik-pdf";
+import { generateStatistikPdf, type StatistikPdfData } from "@/lib/statistics/statistik-pdf";
 import { fmtCents } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -218,11 +215,7 @@ function StatistikPage() {
     null;
 
   const exportDisabled =
-    !statsQ.data ||
-    !tipsQ.data ||
-    !personnelQ.data ||
-    compareLoading ||
-    compareError !== null;
+    !statsQ.data || !tipsQ.data || !personnelQ.data || compareLoading || compareError !== null;
 
   async function handleExport() {
     if (!statsQ.data || !tipsQ.data || !personnelQ.data) return;
