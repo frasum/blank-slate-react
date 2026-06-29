@@ -102,6 +102,13 @@ const GROUPS: Group[] = [
     sub: [{ to: "/admin/locations", label: "Standorte" }],
   },
   {
+    key: "statistik",
+    label: "Statistik",
+    default: "/admin/statistik",
+    prefixes: ["/admin/statistik"],
+    sub: [{ to: "/admin/statistik", label: "Umsatz" }],
+  },
+  {
     key: "einstellungen",
     label: "Einstellungen",
     default: "/admin/einstellungen",
