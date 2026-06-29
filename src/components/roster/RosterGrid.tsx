@@ -85,6 +85,8 @@ type Props = {
     type: "urlaub" | "krank",
   ) => Promise<void> | void;
   onClearAbsence: (staffId: string, iso: string) => Promise<void> | void;
+  onSetWish: (staffId: string, iso: string) => Promise<void> | void;
+  onClearWish: (staffId: string, iso: string) => Promise<void> | void;
 };
 
 export function RosterGrid({
@@ -112,6 +114,8 @@ export function RosterGrid({
   onClearUnavailable,
   onSetAbsenceRange,
   onClearAbsence,
+  onSetWish,
+  onClearWish,
 }: Props) {
   const [openCell, setOpenCell] = React.useState<string | null>(null);
   const [openPill, setOpenPill] = React.useState<string | null>(null);
@@ -464,6 +468,15 @@ export function RosterGrid({
                               }}
                               onClearAbsence={async () => {
                                 await onClearAbsence(row.staffId, iso);
+                                setOpenCell(null);
+                              }}
+                              hasWish={hasWish}
+                              onSetWish={async () => {
+                                await onSetWish(row.staffId, iso);
+                                setOpenCell(null);
+                              }}
+                              onClearWish={async () => {
+                                await onClearWish(row.staffId, iso);
                                 setOpenCell(null);
                               }}
                               defaultDate={iso}
