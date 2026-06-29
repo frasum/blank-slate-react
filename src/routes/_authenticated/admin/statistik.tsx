@@ -4,13 +4,16 @@
 
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { AlertTriangle, ArrowDown, ArrowUp } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, Download } from "lucide-react";
+import { format } from "date-fns";
+import { de } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -25,6 +28,7 @@ import { getRevenueStats } from "@/lib/statistics/revenue-stats.functions";
 import { getTipStats } from "@/lib/statistics/tip-stats.functions";
 import { getPersonnelStats } from "@/lib/statistics/personnel-stats.functions";
 import { personnelRatioPct } from "@/lib/statistics/personnel-core";
+import { generateStatistikPdf, type StatistikPdfData } from "@/lib/statistics/statistik-pdf";
 import { fmtCents } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -174,6 +178,117 @@ function StatistikPage() {
     enabled: month.length === 7,
   });
 
+  // Compare-Queries (alle Standorte, ignorieren den Pill-Filter) — genau einmal
+  // hier deklariert, damit der PDF-Export dieselben Daten nutzen kann wie die
+  // Vergleichstabelle. LocationCompareSection erhält die Ergebnisse als Props.
+  const enabledCmp = month.length === 7;
+  const revQueries = useQueries({
+    queries: locations.map((loc) => ({
+      queryKey: ["stats", "cmp", "rev", loc.id, month],
+      queryFn: () => getRevenueStats({ data: { month, locationId: loc.id } }),
+      enabled: enabledCmp,
+    })),
+  });
+  const tipQueries = useQueries({
+    queries: locations.map((loc) => ({
+      queryKey: ["stats", "cmp", "tip", loc.id, month],
+      queryFn: () => getTipStats({ data: { month, locationId: loc.id } }),
+      enabled: enabledCmp,
+    })),
+  });
+  const perQueries = useQueries({
+    queries: locations.map((loc) => ({
+      queryKey: ["stats", "cmp", "per", loc.id, month],
+      queryFn: () => getPersonnelStats({ data: { month, locationId: loc.id } }),
+      enabled: enabledCmp,
+    })),
+  });
+
+  const compareLoading =
+    revQueries.some((q) => q.isLoading) ||
+    tipQueries.some((q) => q.isLoading) ||
+    perQueries.some((q) => q.isLoading);
+  const compareError =
+    revQueries.find((q) => q.isError)?.error ??
+    tipQueries.find((q) => q.isError)?.error ??
+    perQueries.find((q) => q.isError)?.error ??
+    null;
+
+  const exportDisabled =
+    !statsQ.data || !tipsQ.data || !personnelQ.data || compareLoading || compareError !== null;
+
+  async function handleExport() {
+    if (!statsQ.data || !tipsQ.data || !personnelQ.data) return;
+    const rev = statsQ.data;
+    const tip = tipsQ.data;
+    const per = personnelQ.data;
+
+    const monthLabel = format(new Date(`${month}-01T00:00:00`), "LLLL yyyy", { locale: de });
+    const scopeLabel =
+      locationFilter === "all"
+        ? "Alle Standorte"
+        : (locations.find((l) => l.id === locationFilter)?.name ?? "Standort");
+
+    const ratio = personnelRatioPct(per.totals.laborCostCents, rev.summary.totalCents);
+    const staffWithoutRateNames = per.staffWithoutRate.map(
+      (id) => per.perStaff.find((p) => p.staffId === id)?.name ?? id,
+    );
+
+    const comparison: StatistikPdfData["comparison"] = [];
+    locations.forEach((loc, i) => {
+      const r = revQueries[i]?.data;
+      const t = tipQueries[i]?.data;
+      const p = perQueries[i]?.data;
+      if (!r || !t || !p) return;
+      comparison.push({
+        locationName: loc.name,
+        totalCents: r.summary.totalCents,
+        tipTotalCents: t.totals.totalCents,
+        ratioPct: personnelRatioPct(p.totals.laborCostCents, r.summary.totalCents),
+        netHours: p.totals.netHours,
+        laborCostCents: p.totals.laborCostCents,
+        hasMissingRate: p.staffWithoutRate.length > 0,
+      });
+    });
+
+    const data: StatistikPdfData = {
+      monthLabel,
+      scopeLabel,
+      revenue: {
+        houseCents: rev.summary.houseCents,
+        takeawayCents: rev.summary.takeawayCents,
+        totalCents: rev.summary.totalCents,
+        daysWithRevenue: rev.daily.filter((d) => d.totalCents > 0).length,
+      },
+      tips: {
+        serviceCents: tip.totals.serviceCents,
+        kitchenCents: tip.totals.kitchenCents,
+        totalCents: tip.totals.totalCents,
+        perStaff: tip.perStaff.map((p) => ({
+          name: p.name,
+          department: p.department,
+          tipCents: p.tipCents,
+        })),
+      },
+      personnel: {
+        netHours: per.totals.netHours,
+        laborCostCents: per.totals.laborCostCents,
+        ratioPct: ratio,
+        staffWithoutRateNames,
+      },
+      dailyRevenue: rev.daily.map((d) => ({
+        businessDate: d.businessDate,
+        houseCents: d.houseCents,
+        takeawayCents: d.takeawayCents,
+        totalCents: d.totalCents,
+      })),
+      comparison,
+    };
+
+    const { doc, fileName } = await generateStatistikPdf(data);
+    doc.save(fileName);
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -207,6 +322,16 @@ function StatistikPage() {
               />
             </div>
           </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="ml-auto"
+            onClick={handleExport}
+            disabled={exportDisabled}
+          >
+            <Download className="h-4 w-4" />
+            PDF
+          </Button>
         </div>
       </Card>
 
@@ -233,7 +358,14 @@ function StatistikPage() {
         revenue={statsQ.data}
       />
 
-      <LocationCompareSection month={month} locations={locations} />
+      <LocationCompareSection
+        locations={locations}
+        revQueries={revQueries}
+        tipQueries={tipQueries}
+        perQueries={perQueries}
+        isLoading={compareLoading}
+        firstError={compareError}
+      />
     </div>
   );
 }
@@ -576,40 +708,21 @@ function StaffWithoutRateBanner({
 
 // ---------- Standort-Vergleich-Section ----------
 
-function LocationCompareSection({ month, locations }: { month: string; locations: LocationRow[] }) {
-  const enabled = month.length === 7;
-  const revQueries = useQueries({
-    queries: locations.map((loc) => ({
-      queryKey: ["stats", "cmp", "rev", loc.id, month],
-      queryFn: () => getRevenueStats({ data: { month, locationId: loc.id } }),
-      enabled,
-    })),
-  });
-  const tipQueries = useQueries({
-    queries: locations.map((loc) => ({
-      queryKey: ["stats", "cmp", "tip", loc.id, month],
-      queryFn: () => getTipStats({ data: { month, locationId: loc.id } }),
-      enabled,
-    })),
-  });
-  const perQueries = useQueries({
-    queries: locations.map((loc) => ({
-      queryKey: ["stats", "cmp", "per", loc.id, month],
-      queryFn: () => getPersonnelStats({ data: { month, locationId: loc.id } }),
-      enabled,
-    })),
-  });
-
-  const isLoading =
-    revQueries.some((q) => q.isLoading) ||
-    tipQueries.some((q) => q.isLoading) ||
-    perQueries.some((q) => q.isLoading);
-  const firstError =
-    revQueries.find((q) => q.isError)?.error ??
-    tipQueries.find((q) => q.isError)?.error ??
-    perQueries.find((q) => q.isError)?.error ??
-    null;
-
+function LocationCompareSection({
+  locations,
+  revQueries,
+  tipQueries,
+  perQueries,
+  isLoading,
+  firstError,
+}: {
+  locations: LocationRow[];
+  revQueries: UseQueryResult<RevenueStats>[];
+  tipQueries: UseQueryResult<TipStats>[];
+  perQueries: UseQueryResult<PersonnelStats>[];
+  isLoading: boolean;
+  firstError: unknown;
+}) {
   return (
     <section className="space-y-3">
       <h2 className="text-lg font-semibold tracking-tight text-foreground">Standort-Vergleich</h2>
