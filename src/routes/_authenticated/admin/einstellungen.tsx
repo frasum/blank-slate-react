@@ -33,6 +33,7 @@ function OrgSettingsPage() {
   // Tastatureingabe Number-parsiert wird (Komma → Punkt erst beim Speichern).
   const [tipRatePercent, setTipRatePercent] = useState("");
   const [minHours, setMinHours] = useState("");
+  const [kitchenManualOnly, setKitchenManualOnly] = useState(false);
   const [testModeEnabled, setTestModeEnabled] = useState(false);
   const [testModeEmail, setTestModeEmail] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
@@ -42,6 +43,7 @@ function OrgSettingsPage() {
     if (!settingsQ.data) return;
     setTipRatePercent((settingsQ.data.kitchenTipRate * 100).toFixed(2));
     setMinHours(settingsQ.data.tipPoolMinHours.toFixed(2));
+    setKitchenManualOnly(settingsQ.data.kitchenManualOnly);
     setTestModeEnabled(settingsQ.data.testModeEnabled);
     setTestModeEmail(settingsQ.data.testModeEmail ?? "");
   }, [settingsQ.data]);
@@ -67,6 +69,7 @@ function OrgSettingsPage() {
         data: {
           kitchenTipRate: rate,
           tipPoolMinHours: hours,
+          kitchenManualOnly,
           testModeEnabled,
           testModeEmail: trimmedEmail === "" ? null : trimmedEmail,
         },
