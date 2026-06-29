@@ -335,22 +335,60 @@ export function TipPoolCard({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="col-span-2">
-                <Label className="text-xs">Std.</Label>
-                <Input
-                  inputMode="numeric"
-                  value={draft.hours}
-                  onChange={(e) => setDraft({ ...draft, hours: e.target.value })}
-                />
-              </div>
-              <div className="col-span-2">
-                <Label className="text-xs">Min.</Label>
-                <Input
-                  inputMode="numeric"
-                  value={draft.minutes}
-                  onChange={(e) => setDraft({ ...draft, minutes: e.target.value })}
-                />
-              </div>
+              {draft.department === "kitchen" && kitchenManualOnly ? (
+                <>
+                  <div className="col-span-2">
+                    <Label className="text-xs">Von</Label>
+                    <Input
+                      type="time"
+                      value={draft.shiftStart}
+                      onChange={(e) => setDraft({ ...draft, shiftStart: e.target.value })}
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-xs">Bis</Label>
+                    <Input
+                      type="time"
+                      value={draft.shiftEnd}
+                      onChange={(e) => setDraft({ ...draft, shiftEnd: e.target.value })}
+                    />
+                  </div>
+                  {draft.shiftStart && draft.shiftEnd && (
+                    <div className="col-span-12 -mt-1 text-xs text-muted-foreground">
+                      Dauer:{" "}
+                      {(() => {
+                        try {
+                          const mins = kitchenShiftMinutes(draft.shiftStart, draft.shiftEnd);
+                          const hh = Math.floor(mins / 60);
+                          const mm = mins % 60;
+                          return `${hh}:${mm.toString().padStart(2, "0")} h`;
+                        } catch {
+                          return "ungültig";
+                        }
+                      })()}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="col-span-2">
+                    <Label className="text-xs">Std.</Label>
+                    <Input
+                      inputMode="numeric"
+                      value={draft.hours}
+                      onChange={(e) => setDraft({ ...draft, hours: e.target.value })}
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-xs">Min.</Label>
+                    <Input
+                      inputMode="numeric"
+                      value={draft.minutes}
+                      onChange={(e) => setDraft({ ...draft, minutes: e.target.value })}
+                    />
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
