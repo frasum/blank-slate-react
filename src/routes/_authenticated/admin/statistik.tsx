@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -31,6 +32,7 @@ import { getPersonnelStats } from "@/lib/statistics/personnel-stats.functions";
 import { personnelRatioPct } from "@/lib/statistics/personnel-core";
 import { generateStatistikPdf, type StatistikPdfData } from "@/lib/statistics/statistik-pdf";
 import { currentMonth } from "@/lib/statistics/period-window";
+import { fillDailyGaps } from "@/lib/statistics/chart-fill";
 import { fmtCents } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -336,37 +338,50 @@ function StatistikPage() {
         </div>
       </Card>
 
-      {statsQ.isLoading ? (
-        <LoadingState />
-      ) : statsQ.isError ? (
-        <ErrorState message={(statsQ.error as Error)?.message ?? "Unbekannter Fehler"} />
-      ) : statsQ.data ? (
-        <StatsView data={statsQ.data} />
-      ) : null}
-
-      <TipsSection
-        isLoading={tipsQ.isLoading}
-        isError={tipsQ.isError}
-        error={tipsQ.error}
-        data={tipsQ.data}
-      />
-
-      <PersonnelSection
-        isLoading={personnelQ.isLoading || statsQ.isLoading}
-        isError={personnelQ.isError}
-        error={personnelQ.error}
-        personnel={personnelQ.data}
-        revenue={statsQ.data}
-      />
-
-      <LocationCompareSection
-        locations={locations}
-        revQueries={revQueries}
-        tipQueries={tipQueries}
-        perQueries={perQueries}
-        isLoading={compareLoading}
-        firstError={compareError}
-      />
+      <Tabs defaultValue="umsatz" className="space-y-4">
+        <TabsList className="flex h-auto flex-wrap">
+          <TabsTrigger value="umsatz">Umsatz</TabsTrigger>
+          <TabsTrigger value="trinkgeld">Trinkgeld</TabsTrigger>
+          <TabsTrigger value="personal">Personalquote</TabsTrigger>
+          <TabsTrigger value="vergleich">Standortvergleich</TabsTrigger>
+        </TabsList>
+        <TabsContent value="umsatz">
+          {statsQ.isLoading ? (
+            <LoadingState />
+          ) : statsQ.isError ? (
+            <ErrorState message={(statsQ.error as Error)?.message ?? "Unbekannter Fehler"} />
+          ) : statsQ.data ? (
+            <StatsView data={statsQ.data} />
+          ) : null}
+        </TabsContent>
+        <TabsContent value="trinkgeld">
+          <TipsSection
+            isLoading={tipsQ.isLoading}
+            isError={tipsQ.isError}
+            error={tipsQ.error}
+            data={tipsQ.data}
+          />
+        </TabsContent>
+        <TabsContent value="personal">
+          <PersonnelSection
+            isLoading={personnelQ.isLoading || statsQ.isLoading}
+            isError={personnelQ.isError}
+            error={personnelQ.error}
+            personnel={personnelQ.data}
+            revenue={statsQ.data}
+          />
+        </TabsContent>
+        <TabsContent value="vergleich">
+          <LocationCompareSection
+            locations={locations}
+            revQueries={revQueries}
+            tipQueries={tipQueries}
+            perQueries={perQueries}
+            isLoading={compareLoading}
+            firstError={compareError}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
@@ -434,7 +449,7 @@ function EmptyChart() {
 type DailyRow = RevenueStats["daily"][number];
 
 function RevenueChart({ daily }: { daily: DailyRow[] }) {
-  const rows = daily.map((d) => ({
+  const rows = fillDailyGaps(daily).map((d) => ({
     day: d.businessDate.slice(8, 10),
     fullDate: d.businessDate,
     haus: d.houseCents / 100,
