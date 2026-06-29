@@ -73,9 +73,7 @@ export function sessionRevenue(input: SessionRevenueInput): SessionRevenue {
   };
 }
 
-export function aggregateByBusinessDate(
-  sessions: SessionRevenueInput[],
-): DailyRevenue[] {
+export function aggregateByBusinessDate(sessions: SessionRevenueInput[]): DailyRevenue[] {
   const byDate = new Map<string, DailyRevenue>();
   for (const s of sessions) {
     const rev = sessionRevenue(s);
@@ -114,10 +112,7 @@ export function summarize(daily: DailyRevenue[]): PeriodSummary {
   return { houseCents, takeawayCents, totalCents, daysWithRevenue };
 }
 
-export function computeTrend(
-  currentCents: number,
-  previousCents: number,
-): Trend {
+export function computeTrend(currentCents: number, previousCents: number): Trend {
   const deltaCents = currentCents - previousCents;
   const pct = previousCents === 0 ? null : (deltaCents / previousCents) * 100;
   return { deltaCents, pct };
