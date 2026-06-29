@@ -133,7 +133,7 @@ gh repo clone frasum/bestellung-5fff1793
 
 Über das Nickname in Klammern im thaitime-Vornamen, z.B. „REDACTED" → COCO display_name „REDACTED". Sonderfall: „REDACTED" → REDACTED. „REDACTED" existiert nicht in COCO (ignoriert).
 
-## 6. Aktueller Modul-Status (21.06.2026)
+## 6. Aktueller Modul-Status (29.06.2026)
 
 | Modul                                                                                                                                  | Status   |
 | -------------------------------------------------------------------------------------------------------------------------------------- | -------- |
@@ -158,6 +158,10 @@ gh repo clone frasum/bestellung-5fff1793
 | Geofencing-Stempeln (UI clockIn nur am Standort, distinct-Location)                                                                    | ✅       |
 | PIN-Login via Vorname/Nickname                                                                                                         | ✅       |
 | Hub & Meine Schichten (`/zeit/schichten`, `/zeit/stempeln`)                                                                            | ✅       |
+| M-Statistik — Umsatz (S-1/S-2: reine Fn + Server-Fn, Kalendermonat, doppelzählungsfrei)                                                | ✅       |
+| M-Statistik — Trinkgeld (S-7: Tagesreihe + Totals + perStaff, Reuse computeSessionTipPoolCore)                                         | ✅       |
+| M-Statistik — Personalquote (S-8: Basis-Brutto B2, gültigkeitsdatierter hourly_rate)                                                   | ✅       |
+| M-Statistik — UI (Karten/Charts/Vergleich/PDF)                                                                                         | ⏳ offen |
 | Inventur-Session an DB gebunden                                                                                                        | ✅       |
 | Self-Service Welle B — Freier-Tag-Wunsch (`/zeit/wuensche`)                                                                            | ✅       |
 | Self-Service Welle C — Urlaubsanträge + Genehmigung (`/zeit/urlaub`, `/admin/urlaub`)                                                  | ✅       |
@@ -735,3 +739,25 @@ Lektionen (teuer gelernt):
 - **UI darf einen Fehler nie als „leer" maskieren** — sonst debuggt man die falsche Ebene (hier zweimal).
 - **`user_links` hat `user_id` UND `staff_id` je UNIQUE** — ein Datensatz hat genau einen Login und umgekehrt. Ein Login umhängen heißt: erst den belegenden Link am Ziel-Datensatz lösen, dann umhängen (sonst Unique-Verletzung). Vor jeder solchen Änderung Rolle am Ziel prüfen (Lockout-Schutz: `ce04575a` hatte bereits `admin`).
 - **Nur `perso_nr`/`staff_id` sind verlässlich, nie der Anzeigename** — `display_name` ist Spitzname/Rolle (perso 1 = „CHEFIN" = Frank Schumann).
+
+## 18. Modul M-Statistik — Backend (29.06.2026)
+
+Quelle der Wahrheit: Analyse der `tagesabrechnung`-Statistikseite (Auswertungs-Fehler kartiert), Neubau in COCO als reine, getestete Funktionen + dünne Read-Server-Fns. Alle cent-basiert, gated `["manager","admin","payroll"]`, org-/standort-scoped.
+
+**Designentscheidungen (verbindlich):**
+
+- **Kalendermonat NUR für die Statistik** (1.–Monatsende). Lohn/Zeit bleiben bei 26.–25. (`periods`-Tabelle). Selektor `month: "YYYY-MM"`; Vergleich = echter Vormonat (variable Länge); Custom-Range möglich (Vorperiode = gleich langes Fenster davor); ohne Argumente = aktueller Monat. Geteilte UTC-sichere Helfer in `src/lib/statistics/period-window.ts` (`monthRange`/`previousMonthRange`/`previousRangeForDates`) — Umsatz und Trinkgeld nutzen dasselbe Fenster.
+- **Umsatz doppelzählungsfrei:** `Gesamtumsatz = vectron_daily_total_cents + Σ(is_takeaway-Kanäle)`. YUM/Spicery sind Takeaway-only (`pos`-Kanal = 0) → Haus = vectron, Takeaway additiv/disjunkt. TSB hat zusätzlich einen `Kasse`/pos-Kanal (is_takeaway=false) → Haus-Umsatz-Verifikation offen, sobald TSB-Sessions finalisiert sind.
+- **Alle Sessions zählen** (S-6): Team finalisiert nicht, daher kein Status-Filter; gezählt wird, sobald Umsatz vorhanden ist.
+- **Ein Trinkgeld-Begriff** (S-7): ausschließlich `computeSessionTipPoolCore` (M2) wiederverwendet — keine zweite Formel. perStaff = Summe der `TipPoolShare` über die Sessions. Second-Waiter wie der Kern es heute liefert (zurückgestellt).
+- **Personalquote = Basis-Brutto (B2):** Netto-Stunden × gültigkeitsdatiertem `hourly_rate` (EUR, `numeric(10,2)`). OHNE AG-SV, SFN, `hourly_rate_2`. Quote (Kosten/Umsatz) in der UI via `personnelRatioPct`. `staffWithoutRate` als Diagnose, damit fehlende Sätze die Quote nicht stillschweigend untertreiben.
+
+**Vermiedene tagesabrechnung-Fehler:** Doppelzählung Lieferumsatz; KPI-Wert vs. Trend über verschiedene Fenster; zwei parallele Trinkgeld-Formeln; verworfener Umsatz schichtloser Sessions; „Alle"-Tagesverlauf nicht nach Datum aggregiert.
+
+**Dateien (`src/lib/statistics/`):** `revenue-core.ts`, `revenue-map.ts`, `revenue-stats.functions.ts`, `period-window.ts`, `tip-aggregate.ts`, `tip-stats.functions.ts`, `personnel-core.ts`, `personnel-stats.functions.ts` (je mit Tests). In `cash.functions.ts` wurden `computeSessionTipPoolCore`, `loadOrgSettings` (+ zwei Typen) nur `export`-sichtbar gemacht — keine Logikänderung.
+
+**Server-Fns:** `getRevenueStats`, `getTipStats`, `getPersonnelStats` — gleiches Input-/Perioden-Modell (`month`/Custom/Default), Trend gegen Vorperiode.
+
+**Offen:** UI (Karten/Charts/Vergleich/PDF, konsumiert die drei Read-Fns + `personnelRatioPct`); TSB-Haus-Umsatz-Verifikation.
+
+**Verifizierter Stand:** HEAD `f0ba414` — `tsc`/`eslint --max-warnings=5`/`vitest` (870) grün.
