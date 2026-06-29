@@ -492,13 +492,9 @@ function PersonnelView({
   personnel: PersonnelStats;
   revenue: RevenueStats;
 }) {
-  const ratio = personnelRatioPct(
-    personnel.totals.laborCostCents,
-    revenue.summary.totalCents,
-  );
+  const ratio = personnelRatioPct(personnel.totals.laborCostCents, revenue.summary.totalCents);
   const netHours = personnel.totals.netHours;
-  const revPerHourCents =
-    netHours > 0 ? Math.round(revenue.summary.totalCents / netHours) : null;
+  const revPerHourCents = netHours > 0 ? Math.round(revenue.summary.totalCents / netHours) : null;
   const trend = personnel.trend;
 
   if (netHours === 0) {
@@ -537,10 +533,7 @@ function PersonnelView({
         />
       </div>
       {personnel.staffWithoutRate.length > 0 ? (
-        <StaffWithoutRateBanner
-          ids={personnel.staffWithoutRate}
-          perStaff={personnel.perStaff}
-        />
+        <StaffWithoutRateBanner ids={personnel.staffWithoutRate} perStaff={personnel.perStaff} />
       ) : null}
     </div>
   );
@@ -553,9 +546,7 @@ function StaffWithoutRateBanner({
   ids: string[];
   perStaff: PersonnelPerStaff[];
 }) {
-  const names = ids
-    .map((id) => perStaff.find((p) => p.staffId === id)?.name ?? id)
-    .join(", ");
+  const names = ids.map((id) => perStaff.find((p) => p.staffId === id)?.name ?? id).join(", ");
   return (
     <Card className="border-amber-300/60 bg-amber-50/60 p-4 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
       <div className="flex items-start gap-2">
