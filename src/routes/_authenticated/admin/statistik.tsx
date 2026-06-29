@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -31,6 +32,7 @@ import { getPersonnelStats } from "@/lib/statistics/personnel-stats.functions";
 import { personnelRatioPct } from "@/lib/statistics/personnel-core";
 import { generateStatistikPdf, type StatistikPdfData } from "@/lib/statistics/statistik-pdf";
 import { currentMonth } from "@/lib/statistics/period-window";
+import { fillDailyGaps } from "@/lib/statistics/chart-fill";
 import { fmtCents } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
