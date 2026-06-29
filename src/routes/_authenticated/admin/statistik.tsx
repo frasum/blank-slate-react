@@ -6,13 +6,17 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ArrowDown, ArrowUp } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { LocationPills } from "@/components/shared/LocationPills";
 import { listLocations } from "@/lib/admin/locations.functions";
 import { getRevenueStats } from "@/lib/statistics/revenue-stats.functions";
+import { getTipStats } from "@/lib/statistics/tip-stats.functions";
+import { getPersonnelStats } from "@/lib/statistics/personnel-stats.functions";
+import { personnelRatioPct } from "@/lib/statistics/personnel-core";
 import { fmtCents } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +27,10 @@ export const Route = createFileRoute("/_authenticated/admin/statistik")({
 
 type RevenueStats = Awaited<ReturnType<typeof getRevenueStats>>;
 type Trend = NonNullable<RevenueStats["trend"]>["total"];
+type TipStats = Awaited<ReturnType<typeof getTipStats>>;
+type PersonnelStats = Awaited<ReturnType<typeof getPersonnelStats>>;
+type TipPerStaff = TipStats["perStaff"][number];
+type PersonnelPerStaff = PersonnelStats["perStaff"][number];
 
 function currentMonthString(): string {
   const d = new Date();
@@ -55,23 +63,66 @@ function TrendLine({ trend }: { trend: Trend | null | undefined }) {
   );
 }
 
+function TrendLineHours({ trend }: { trend: Trend | null | undefined }) {
+  // ACHTUNG: `deltaCents` ist hier in Wahrheit Delta-Minuten (Trend-Typ
+  // wird wiederverwendet). NIE als „€" rendern.
+  if (!trend || trend.pct === null) {
+    return <div className="text-xs text-muted-foreground">— keine Vorperiode</div>;
+  }
+  const up = trend.deltaCents >= 0;
+  const Icon = up ? ArrowUp : ArrowDown;
+  const color = up ? "text-emerald-600" : "text-rose-600";
+  const pctTxt = `${up ? "+" : "−"}${Math.abs(trend.pct).toFixed(1)} %`;
+  const hoursTxt = `${up ? "+" : "−"}${(Math.abs(trend.deltaCents) / 60).toFixed(1)} h`;
+  return (
+    <div className={cn("flex items-center gap-1 text-xs", color)}>
+      <Icon className="h-3.5 w-3.5" aria-hidden />
+      <span className="font-medium">{pctTxt}</span>
+      <span className="text-muted-foreground">({hoursTxt})</span>
+    </div>
+  );
+}
+
+type KpiCardProps = {
+  title: string;
+  /** EUR-Cents (Default-Unit "eur"). Rückwärtskompatibel zu U1. */
+  cents?: number;
+  trend?: Trend | null | undefined;
+  unit?: "eur" | "hours" | "pct";
+  /** Für unit="hours" (Stunden) oder unit="pct" (Prozent oder null). */
+  value?: number | null;
+  /** Optionaler Trend-Renderer; überschreibt die Default-`TrendLine`. */
+  trendRenderer?: () => React.ReactNode;
+  /** Optionale Caption unter dem Wert (kleine, gedämpfte Zeile). */
+  caption?: React.ReactNode;
+};
+
 function KpiCard({
   title,
   cents,
   trend,
-}: {
-  title: string;
-  cents: number;
-  trend: Trend | null | undefined;
-}) {
+  unit = "eur",
+  value,
+  trendRenderer,
+  caption,
+}: KpiCardProps) {
+  let display: string;
+  if (unit === "eur") {
+    display = fmtEuro(cents ?? 0);
+  } else if (unit === "hours") {
+    display = value === null || value === undefined ? "—" : `${value.toFixed(2)} h`;
+  } else {
+    display = value === null || value === undefined ? "—" : `${value.toFixed(1)} %`;
+  }
   return (
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-1">
-        <div className="text-2xl font-semibold tabular-nums">{fmtEuro(cents)}</div>
-        <TrendLine trend={trend} />
+        <div className="text-2xl font-semibold tabular-nums">{display}</div>
+        {trendRenderer ? trendRenderer() : <TrendLine trend={trend} />}
+        {caption ? <div className="text-xs text-muted-foreground">{caption}</div> : null}
       </CardContent>
     </Card>
   );
@@ -96,6 +147,21 @@ function StatistikPage() {
           ...(locationFilter !== "all" ? { locationId: locationFilter } : {}),
         },
       }),
+    enabled: month.length === 7,
+  });
+
+  const tipArgs = {
+    month,
+    ...(locationFilter !== "all" ? { locationId: locationFilter } : {}),
+  };
+  const tipsQ = useQuery({
+    queryKey: ["stats", "tips", month, locationFilter],
+    queryFn: () => getTipStats({ data: tipArgs }),
+    enabled: month.length === 7,
+  });
+  const personnelQ = useQuery({
+    queryKey: ["stats", "personnel", month, locationFilter],
+    queryFn: () => getPersonnelStats({ data: tipArgs }),
     enabled: month.length === 7,
   });
 
@@ -142,6 +208,21 @@ function StatistikPage() {
       ) : statsQ.data ? (
         <StatsView data={statsQ.data} />
       ) : null}
+
+      <TipsSection
+        isLoading={tipsQ.isLoading}
+        isError={tipsQ.isError}
+        error={tipsQ.error}
+        data={tipsQ.data}
+      />
+
+      <PersonnelSection
+        isLoading={personnelQ.isLoading || statsQ.isLoading}
+        isError={personnelQ.isError}
+        error={personnelQ.error}
+        personnel={personnelQ.data}
+        revenue={statsQ.data}
+      />
     </div>
   );
 }
@@ -265,5 +346,219 @@ function ChartTip({ active, payload }: TipPayload) {
         <span className="text-right font-medium">{fmtEuro(row.total)}</span>
       </div>
     </div>
+  );
+}
+
+// ---------- Trinkgeld-Section ----------
+
+function TipsSection({
+  isLoading,
+  isError,
+  error,
+  data,
+}: {
+  isLoading: boolean;
+  isError: boolean;
+  error: unknown;
+  data: TipStats | undefined;
+}) {
+  return (
+    <section className="space-y-3">
+      <h2 className="text-lg font-semibold tracking-tight text-foreground">Trinkgeld</h2>
+      {isLoading ? (
+        <TipsLoading />
+      ) : isError ? (
+        <ErrorState message={(error as Error)?.message ?? "Unbekannter Fehler"} />
+      ) : data ? (
+        <TipsView data={data} />
+      ) : null}
+    </section>
+  );
+}
+
+function TipsLoading() {
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-3">
+        <Skeleton className="h-28" />
+        <Skeleton className="h-28" />
+        <Skeleton className="h-28" />
+      </div>
+      <Skeleton className="h-40" />
+    </div>
+  );
+}
+
+function TipsView({ data }: { data: TipStats }) {
+  const t = data.trend;
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-3">
+        <KpiCard title="Trinkgeld gesamt" cents={data.totals.totalCents} trend={t?.total ?? null} />
+        <KpiCard title="Service" cents={data.totals.serviceCents} trend={t?.service ?? null} />
+        <KpiCard title="Küche" cents={data.totals.kitchenCents} trend={t?.kitchen ?? null} />
+      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Trinkgeld pro Mitarbeiter</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {data.perStaff.length === 0 ? (
+            <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
+              Keine Trinkgeld-Auszahlungen in diesem Monat.
+            </div>
+          ) : (
+            <ul className="divide-y divide-border">
+              {data.perStaff.map((p) => (
+                <TipStaffRow key={p.staffId} row={p} />
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function TipStaffRow({ row }: { row: TipPerStaff }) {
+  const isService = row.department === "service";
+  return (
+    <li className="flex items-center justify-between gap-3 py-2">
+      <div className="flex items-center gap-2">
+        <Badge
+          variant="outline"
+          className={cn(
+            "border-transparent",
+            isService
+              ? "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
+              : "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
+          )}
+        >
+          {isService ? "Service" : "Küche"}
+        </Badge>
+        <span className="text-sm text-foreground">{row.name}</span>
+      </div>
+      <span className="text-sm font-medium tabular-nums">{fmtEuro(row.tipCents)}</span>
+    </li>
+  );
+}
+
+// ---------- Personalquote-Section ----------
+
+function PersonnelSection({
+  isLoading,
+  isError,
+  error,
+  personnel,
+  revenue,
+}: {
+  isLoading: boolean;
+  isError: boolean;
+  error: unknown;
+  personnel: PersonnelStats | undefined;
+  revenue: RevenueStats | undefined;
+}) {
+  return (
+    <section className="space-y-3">
+      <h2 className="text-lg font-semibold tracking-tight text-foreground">Personalquote</h2>
+      {isError ? (
+        <ErrorState message={(error as Error)?.message ?? "Unbekannter Fehler"} />
+      ) : isLoading || !personnel || !revenue ? (
+        <PersonnelLoading />
+      ) : (
+        <PersonnelView personnel={personnel} revenue={revenue} />
+      )}
+    </section>
+  );
+}
+
+function PersonnelLoading() {
+  return (
+    <div className="space-y-4">
+      <Skeleton className="h-32" />
+      <div className="grid gap-4 md:grid-cols-3">
+        <Skeleton className="h-28" />
+        <Skeleton className="h-28" />
+        <Skeleton className="h-28" />
+      </div>
+    </div>
+  );
+}
+
+function PersonnelView({
+  personnel,
+  revenue,
+}: {
+  personnel: PersonnelStats;
+  revenue: RevenueStats;
+}) {
+  const ratio = personnelRatioPct(personnel.totals.laborCostCents, revenue.summary.totalCents);
+  const netHours = personnel.totals.netHours;
+  const revPerHourCents = netHours > 0 ? Math.round(revenue.summary.totalCents / netHours) : null;
+  const trend = personnel.trend;
+
+  if (netHours === 0) {
+    return (
+      <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
+        Keine Stunden in diesem Monat.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <KpiCard
+        title="Personalquote"
+        unit="pct"
+        value={ratio}
+        caption="Basis-Brutto (Netto-Stunden × Stundenlohn) — ohne AG-SV, SFN, Zweitsatz."
+      />
+      <div className="grid gap-4 md:grid-cols-3">
+        <KpiCard
+          title="Netto-Stunden"
+          unit="hours"
+          value={netHours}
+          trendRenderer={() => <TrendLineHours trend={trend?.hours ?? null} />}
+        />
+        <KpiCard
+          title="Basis-Lohnkosten"
+          cents={personnel.totals.laborCostCents}
+          trend={trend?.cost ?? null}
+        />
+        <KpiCard
+          title="Umsatz / Stunde"
+          unit={revPerHourCents === null ? "pct" : "eur"}
+          cents={revPerHourCents ?? 0}
+          value={revPerHourCents === null ? null : undefined}
+        />
+      </div>
+      {personnel.staffWithoutRate.length > 0 ? (
+        <StaffWithoutRateBanner ids={personnel.staffWithoutRate} perStaff={personnel.perStaff} />
+      ) : null}
+    </div>
+  );
+}
+
+function StaffWithoutRateBanner({
+  ids,
+  perStaff,
+}: {
+  ids: string[];
+  perStaff: PersonnelPerStaff[];
+}) {
+  const names = ids.map((id) => perStaff.find((p) => p.staffId === id)?.name ?? id).join(", ");
+  return (
+    <Card className="border-amber-300/60 bg-amber-50/60 p-4 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+      <div className="flex items-start gap-2">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+        <div className="space-y-1">
+          <div className="font-medium">
+            {ids.length} {ids.length === 1 ? "Mitarbeiter" : "Mitarbeiter"} ohne hinterlegten
+            Stundenlohn — Lohnkosten und Quote untertreiben.
+          </div>
+          <div className="text-xs opacity-90">{names}</div>
+        </div>
+      </div>
+    </Card>
   );
 }
