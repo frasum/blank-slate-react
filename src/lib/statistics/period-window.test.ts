@@ -82,6 +82,29 @@ describe("previousMonthRange", () => {
       endDate: "2024-02-29",
     });
   });
+  it("throughDay klemmt Enddatum (unvollständiger laufender Monat)", () => {
+    expect(previousMonthRange("2026-06", 15)).toEqual({
+      startDate: "2026-05-01",
+      endDate: "2026-05-15",
+    });
+  });
+  it("throughDay > Tage im Vormonat wird auf Monatsende geklemmt", () => {
+    // April hat 30 Tage
+    expect(previousMonthRange("2026-05", 31)).toEqual({
+      startDate: "2026-04-01",
+      endDate: "2026-04-30",
+    });
+  });
+  it("throughDay über Jahreswechsel", () => {
+    expect(previousMonthRange("2026-01", 10)).toEqual({
+      startDate: "2025-12-01",
+      endDate: "2025-12-10",
+    });
+  });
+  it("ungültiges throughDay wirft", () => {
+    expect(() => previousMonthRange("2026-06", 0)).toThrow();
+    expect(() => previousMonthRange("2026-06", 32)).toThrow();
+  });
 });
 
 describe("currentMonth", () => {
