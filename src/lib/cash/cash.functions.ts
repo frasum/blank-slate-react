@@ -501,8 +501,8 @@ export async function getTipPoolOverviewCore(
   return computeSessionTipPoolCore(caller, session, settings);
 }
 
-type LoadedSession = Awaited<ReturnType<typeof loadSessionWithLock>>;
-type LoadedOrgSettings = Awaited<ReturnType<typeof loadOrgSettings>>;
+export type LoadedSession = Awaited<ReturnType<typeof loadSessionWithLock>>;
+export type LoadedOrgSettings = Awaited<ReturnType<typeof loadOrgSettings>>;
 
 // Rechnet den Trinkgeld-Pool für eine bereits geladene Session + settings.
 // Reiner Refactor aus getTipPoolOverviewCore — keine Verhaltensänderung.
