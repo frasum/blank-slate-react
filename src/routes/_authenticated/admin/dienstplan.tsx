@@ -29,6 +29,8 @@ import {
   setAbsenceRange,
   clearAbsence,
   getDayOffWishes,
+  createDayOffWishFor,
+  deleteDayOffWishFor,
   listSkills,
   moveRosterShift,
   updateRosterShiftSkill,
