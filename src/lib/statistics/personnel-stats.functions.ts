@@ -38,6 +38,7 @@ type WindowResult = {
   agg: PersonnelAgg;
   totalNetMinutes: number; // ganzzahlig, für Trend
   staffIds: string[];
+  lastDataDay: string | null; // max business_date mit netMinutes > 0
 };
 
 export const getPersonnelStats = createServerFn({ method: "GET" })
@@ -65,11 +66,13 @@ export const getPersonnelStats = createServerFn({ method: "GET" })
     let current: Window;
     let previous: Window | null;
     let label: string | null;
+    let monthForClamp: string | null = null;
 
     if (data.month) {
       current = monthRange(data.month);
       previous = previousMonthRange(data.month);
       label = data.month;
+      monthForClamp = data.month;
     } else if (data.startDate && data.endDate) {
       if (data.endDate < data.startDate) {
         throw new Error("endDate muss ≥ startDate sein.");
@@ -82,6 +85,7 @@ export const getPersonnelStats = createServerFn({ method: "GET" })
       current = monthRange(m);
       previous = previousMonthRange(m);
       label = m;
+      monthForClamp = m;
     } else {
       throw new Error("startDate und endDate müssen gemeinsam gesetzt sein.");
     }
@@ -103,12 +107,16 @@ export const getPersonnelStats = createServerFn({ method: "GET" })
       const entries: WorkEntry[] = [];
       const staffIdSet = new Set<string>();
       let totalNetMinutes = 0;
+      let lastDataDay: string | null = null;
       for (const r of rows ?? []) {
         if (!r.ended_at || !r.started_at || !r.business_date || !r.staff_id) continue;
         const gross = grossMinutesBetween(new Date(r.started_at), new Date(r.ended_at));
         const net = Math.max(0, gross - (r.break_minutes ?? 0));
         totalNetMinutes += net;
         staffIdSet.add(r.staff_id);
+        if (net > 0 && (lastDataDay === null || r.business_date > lastDataDay)) {
+          lastDataDay = r.business_date;
+        }
         entries.push({
           staffId: r.staff_id,
           businessDate: r.business_date,
@@ -135,10 +143,24 @@ export const getPersonnelStats = createServerFn({ method: "GET" })
       }
 
       const agg = aggregatePersonnel(entries, compByStaff);
-      return { agg, totalNetMinutes, staffIds };
+      return { agg, totalNetMinutes, staffIds, lastDataDay };
     }
 
     const cur = await loadWindow(current);
+
+    // U5a: Vorperiode im Monatsmodus auf letzten Tag mit Arbeitszeit klemmen.
+    let isPartial = false;
+    if (monthForClamp) {
+      const monthLastDay = Number(monthRange(monthForClamp).endDate.slice(8, 10));
+      const throughDay = cur.lastDataDay ? Number(cur.lastDataDay.slice(8, 10)) : null;
+      isPartial = throughDay !== null && throughDay < monthLastDay;
+      if (cur.lastDataDay === null) {
+        previous = null;
+      } else if (isPartial && throughDay !== null) {
+        previous = previousMonthRange(monthForClamp, throughDay);
+      }
+    }
+
     const prev = previous ? await loadWindow(previous) : null;
 
     // Staff-Namen für perStaff (Pattern aus cash.functions.ts: id, display_name).
@@ -184,5 +206,6 @@ export const getPersonnelStats = createServerFn({ method: "GET" })
           }
         : null,
       trend,
+      coverage: { lastDataDay: cur.lastDataDay, isPartial },
     };
   });
