@@ -72,11 +72,15 @@ export const getRevenueStats = createServerFn({ method: "GET" })
     let current: Window;
     let previous: Window | null;
     let label: string | null;
+    // Monatsmodus markieren — nur dort wird Vorperiode ggf. an `lastDataDay`
+    // geklemmt (U5a: fairer Vergleich bei unvollständigem laufendem Monat).
+    let monthForClamp: string | null = null;
 
     if (data.month) {
       current = monthRange(data.month);
       previous = previousMonthRange(data.month);
       label = data.month;
+      monthForClamp = data.month;
     } else if (data.startDate && data.endDate) {
       if (data.endDate < data.startDate) {
         throw new Error("endDate muss ≥ startDate sein.");
@@ -89,6 +93,7 @@ export const getRevenueStats = createServerFn({ method: "GET" })
       current = monthRange(m);
       previous = previousMonthRange(m);
       label = m;
+      monthForClamp = m;
     } else {
       throw new Error("startDate und endDate müssen gemeinsam gesetzt sein.");
     }
@@ -142,6 +147,24 @@ export const getRevenueStats = createServerFn({ method: "GET" })
     }
 
     const cur = await loadWindow(current);
+
+    // U5a: Im Monatsmodus Vorperiode auf den Tagesausschnitt klemmen, in dem
+    // der laufende Monat tatsächlich Daten hat. Keine Daten → keine Vorperiode.
+    let lastDataDay: string | null = null;
+    let isPartial = false;
+    if (monthForClamp) {
+      const daysWithData = cur.daily.filter((d) => d.totalCents > 0).map((d) => d.businessDate);
+      lastDataDay = daysWithData.length > 0 ? daysWithData.reduce((a, b) => (a > b ? a : b)) : null;
+      const monthLastDay = Number(monthRange(monthForClamp).endDate.slice(8, 10));
+      const throughDay = lastDataDay ? Number(lastDataDay.slice(8, 10)) : null;
+      isPartial = throughDay !== null && throughDay < monthLastDay;
+      if (lastDataDay === null) {
+        previous = null;
+      } else if (isPartial && throughDay !== null) {
+        previous = previousMonthRange(monthForClamp, throughDay);
+      }
+    }
+
     const prev = previous ? await loadWindow(previous) : null;
 
     const trend: { total: Trend; house: Trend; takeaway: Trend } | null = prev
@@ -158,5 +181,6 @@ export const getRevenueStats = createServerFn({ method: "GET" })
       summary: cur.summary,
       previous: prev ? prev.summary : null,
       trend,
+      coverage: { lastDataDay, isPartial },
     };
   });
