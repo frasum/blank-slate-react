@@ -232,6 +232,8 @@ function StatistikPage() {
         personnel={personnelQ.data}
         revenue={statsQ.data}
       />
+
+      <LocationCompareSection month={month} locations={locations} />
     </div>
   );
 }
