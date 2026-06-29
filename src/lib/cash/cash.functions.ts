@@ -498,7 +498,13 @@ export const getTipPoolOverview = createServerFn({ method: "GET" })
 export async function getTipPoolOverviewCore(
   caller: AdminCaller,
   data: { sessionId: string },
-): Promise<TipPoolResult & { staffNames: Record<string, string>; manualStaffIds: string[] }> {
+): Promise<
+  TipPoolResult & {
+    staffNames: Record<string, string>;
+    manualStaffIds: string[];
+    kitchenManualOnly: boolean;
+  }
+> {
   const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
   const settings = await loadOrgSettings(caller.organizationId);
   return computeSessionTipPoolCore(caller, session, settings);
@@ -513,7 +519,13 @@ export async function computeSessionTipPoolCore(
   caller: AdminCaller,
   session: LoadedSession,
   settings: LoadedOrgSettings,
-): Promise<TipPoolResult & { staffNames: Record<string, string>; manualStaffIds: string[] }> {
+): Promise<
+  TipPoolResult & {
+    staffNames: Record<string, string>;
+    manualStaffIds: string[];
+    kitchenManualOnly: boolean;
+  }
+> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
   const [settlementsRes, timeRes, manualRes] = await Promise.all([
@@ -552,41 +564,26 @@ export async function computeSessionTipPoolCore(
     hilfMahlCents: Number(r.hilf_mahl_cents),
     kitchenTipCents: Number(r.kitchen_tip_cents),
   }));
-  const manualByStaff = new Map<string, { department: StaffDepartment; hoursMinutes: number }>();
-  for (const r of manualRes.data ?? []) {
-    manualByStaff.set(r.staff_id, {
-      department: r.department as StaffDepartment,
-      hoursMinutes: Number(r.hours_minutes),
-    });
-  }
+  const manualEntries = (manualRes.data ?? []).map((r) => ({
+    staffId: r.staff_id,
+    department: r.department as StaffDepartment,
+    hoursMinutes: Number(r.hours_minutes),
+  }));
+  const manualByStaff = new Map(manualEntries.map((m) => [m.staffId, m]));
 
-  const rawTimeEntries = session.tip_pool_settlement_only
-    ? []
-    : (timeRes.data ?? [])
-        .filter(
-          (r): r is { staff_id: string; started_at: string; ended_at: string } =>
-            r.ended_at !== null,
-        )
-        .map((r) => ({ staffId: r.staff_id, startedAt: r.started_at, endedAt: r.ended_at }));
-  // Manuelle Einträge überschreiben Stempelzeiten desselben Mitarbeiters
-  // vollständig — keine Vermischung.
-  const timeEntries = rawTimeEntries.filter((te) => !manualByStaff.has(te.staffId));
-  const syntheticBase = new Date(session.business_date + "T00:00:00Z").getTime();
-  for (const [staffId, m] of manualByStaff) {
-    if (m.hoursMinutes <= 0) continue;
-    const startedAt = new Date(syntheticBase).toISOString();
-    const endedAt = new Date(syntheticBase + m.hoursMinutes * 60_000).toISOString();
-    timeEntries.push({ staffId, startedAt, endedAt });
-  }
+  const rawTimeEntries = (timeRes.data ?? [])
+    .filter(
+      (r): r is { staff_id: string; started_at: string; ended_at: string } =>
+        r.ended_at !== null,
+    )
+    .map((r) => ({ staffId: r.staff_id, startedAt: r.started_at, endedAt: r.ended_at }));
 
-  const kitchenPoolCents = settlements.reduce((s, x) => s + x.kitchenTipCents, 0);
-  const tipTotalCents = computeTipTotalCents(settlements);
-  const servicePoolCents = tipTotalCents - kitchenPoolCents;
-
+  // staffDepartments VOR dem Stunden-Bau laden — der kitchenManualOnly-Filter
+  // braucht das Department, um Küchen-Stempel zu verwerfen.
   const staffIds = Array.from(
     new Set<string>([
       ...settlements.map((s) => s.staffId),
-      ...timeEntries.map((t) => t.staffId),
+      ...rawTimeEntries.map((t) => t.staffId),
       ...manualByStaff.keys(),
     ]),
   );
@@ -622,10 +619,23 @@ export async function computeSessionTipPoolCore(
 
   // Manuelle Einträge erzwingen Department + Teilnahme;
   // hours_minutes = 0 = explizit ausgeschlossen.
-  for (const [staffId, m] of manualByStaff) {
-    staffDepartments.set(staffId, m.department);
-    staffParticipates.set(staffId, m.hoursMinutes > 0);
+  for (const m of manualEntries) {
+    staffDepartments.set(m.staffId, m.department);
+    staffParticipates.set(m.staffId, m.hoursMinutes > 0);
   }
+
+  const timeEntries = resolvePoolTimeEntries({
+    rawTimeEntries,
+    manualEntries,
+    staffDepartments,
+    settlementOnly: Boolean(session.tip_pool_settlement_only),
+    kitchenManualOnly: settings.kitchenManualOnly,
+    businessDate: session.business_date,
+  });
+
+  const kitchenPoolCents = settlements.reduce((s, x) => s + x.kitchenTipCents, 0);
+  const tipTotalCents = computeTipTotalCents(settlements);
+  const servicePoolCents = tipTotalCents - kitchenPoolCents;
 
   const result = computeTipPool({
     kitchenPoolCents,
@@ -637,7 +647,12 @@ export async function computeSessionTipPoolCore(
     minHoursPerDay: settings.tipPoolMinHours,
   });
 
-  return { ...result, staffNames, manualStaffIds: Array.from(manualByStaff.keys()) };
+  return {
+    ...result,
+    staffNames,
+    manualStaffIds: Array.from(manualByStaff.keys()),
+    kitchenManualOnly: settings.kitchenManualOnly,
+  };
 }
 
 // ------------------------------------------------------------------------
