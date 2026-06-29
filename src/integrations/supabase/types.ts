@@ -2576,60 +2576,6 @@ export type Database = {
           },
         ]
       }
-      staff_absences: {
-        Row: {
-          absence_type: Database["public"]["Enums"]["absence_type"]
-          created_at: string
-          created_by: string | null
-          end_date: string
-          id: string
-          note: string | null
-          organization_id: string
-          staff_id: string
-          start_date: string
-          updated_at: string
-        }
-        Insert: {
-          absence_type: Database["public"]["Enums"]["absence_type"]
-          created_at?: string
-          created_by?: string | null
-          end_date: string
-          id?: string
-          note?: string | null
-          organization_id: string
-          staff_id: string
-          start_date: string
-          updated_at?: string
-        }
-        Update: {
-          absence_type?: Database["public"]["Enums"]["absence_type"]
-          created_at?: string
-          created_by?: string | null
-          end_date?: string
-          id?: string
-          note?: string | null
-          organization_id?: string
-          staff_id?: string
-          start_date?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "staff_absences_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "staff_absences_staff_id_fkey"
-            columns: ["staff_id"]
-            isOneToOne: false
-            referencedRelation: "staff"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       staff_compensation: {
         Row: {
           created_at: string
@@ -3916,7 +3862,6 @@ export type Database = {
       }
     }
     Enums: {
-      absence_type: "urlaub" | "krankheit" | "sonderurlaub"
       app_permission:
         | "cash.session.view"
         | "cash.session.open"
@@ -4112,7 +4057,6 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      absence_type: ["urlaub", "krankheit", "sonderurlaub"],
       app_permission: [
         "cash.session.view",
         "cash.session.open",
