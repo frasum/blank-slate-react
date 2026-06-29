@@ -626,22 +626,25 @@ function DienstplanPage() {
                 />
               </div>
               <div className="flex flex-wrap items-center justify-end gap-4">
-                <AreaReleaseControl
-                  label="Küche"
-                  released={kitchenReleased}
-                  canEdit={canEdit}
-                  busy={busy}
-                  disabled={!effectivePeriod || !effectiveLocationId}
-                  onToggle={() => handleToggleArea("kitchen", kitchenReleased)}
-                />
-                <AreaReleaseControl
-                  label="Service"
-                  released={serviceReleased}
-                  canEdit={canEdit}
-                  busy={busy}
-                  disabled={!effectivePeriod || !effectiveLocationId}
-                  onToggle={() => handleToggleArea("service", serviceReleased)}
-                />
+                {activeArea === "kitchen" ? (
+                  <AreaReleaseControl
+                    label="Küche"
+                    released={kitchenReleased}
+                    canEdit={canEdit}
+                    busy={busy}
+                    disabled={!effectivePeriod || !effectiveLocationId}
+                    onToggle={() => handleToggleArea("kitchen", kitchenReleased)}
+                  />
+                ) : (
+                  <AreaReleaseControl
+                    label="Service"
+                    released={serviceReleased}
+                    canEdit={canEdit}
+                    busy={busy}
+                    disabled={!effectivePeriod || !effectiveLocationId}
+                    onToggle={() => handleToggleArea("service", serviceReleased)}
+                  />
+                )}
               </div>
             </div>
             <RosterGrid
