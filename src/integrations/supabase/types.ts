@@ -1326,6 +1326,7 @@ export type Database = {
       organization_settings: {
         Row: {
           created_at: string
+          kitchen_manual_only: boolean
           kitchen_tip_rate: number
           order_email_bcc: string | null
           order_email_reply_to: string | null
@@ -1338,6 +1339,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          kitchen_manual_only?: boolean
           kitchen_tip_rate?: number
           order_email_bcc?: string | null
           order_email_reply_to?: string | null
@@ -1350,6 +1352,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          kitchen_manual_only?: boolean
           kitchen_tip_rate?: number
           order_email_bcc?: string | null
           order_email_reply_to?: string | null
@@ -2319,6 +2322,8 @@ export type Database = {
           note: string | null
           organization_id: string
           session_id: string
+          shift_end: string | null
+          shift_start: string | null
           staff_id: string
           updated_at: string
         }
@@ -2331,6 +2336,8 @@ export type Database = {
           note?: string | null
           organization_id: string
           session_id: string
+          shift_end?: string | null
+          shift_start?: string | null
           staff_id: string
           updated_at?: string
         }
@@ -2343,6 +2350,8 @@ export type Database = {
           note?: string | null
           organization_id?: string
           session_id?: string
+          shift_end?: string | null
+          shift_start?: string | null
           staff_id?: string
           updated_at?: string
         }
