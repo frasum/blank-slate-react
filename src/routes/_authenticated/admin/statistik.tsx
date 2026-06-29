@@ -362,19 +362,19 @@ function StatistikPage() {
             </div>
           </div>
           {mode === "month" ? (
-          <div className="space-y-1">
-            <Label>Monat</Label>
-            <MonthNav value={month} onChange={setMonth} />
-            {statsQ.data?.coverage?.isPartial && month === currentMonth() ? (
-              <div className="text-xs text-muted-foreground">
-                · unvollständig (Stand{" "}
-                {statsQ.data.coverage.lastDataDay
-                  ? statsQ.data.coverage.lastDataDay.slice(8, 10) + "."
-                  : "—"}
-                )
-              </div>
-            ) : null}
-          </div>
+            <div className="space-y-1">
+              <Label>Monat</Label>
+              <MonthNav value={month} onChange={setMonth} />
+              {statsQ.data?.coverage?.isPartial && month === currentMonth() ? (
+                <div className="text-xs text-muted-foreground">
+                  · unvollständig (Stand{" "}
+                  {statsQ.data.coverage.lastDataDay
+                    ? statsQ.data.coverage.lastDataDay.slice(8, 10) + "."
+                    : "—"}
+                  )
+                </div>
+              ) : null}
+            </div>
           ) : (
             <>
               <div className="space-y-1">
