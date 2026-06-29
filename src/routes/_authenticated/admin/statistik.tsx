@@ -4,13 +4,16 @@
 
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { AlertTriangle, ArrowDown, ArrowUp } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, Download } from "lucide-react";
+import { format } from "date-fns";
+import { de } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -25,6 +28,10 @@ import { getRevenueStats } from "@/lib/statistics/revenue-stats.functions";
 import { getTipStats } from "@/lib/statistics/tip-stats.functions";
 import { getPersonnelStats } from "@/lib/statistics/personnel-stats.functions";
 import { personnelRatioPct } from "@/lib/statistics/personnel-core";
+import {
+  generateStatistikPdf,
+  type StatistikPdfData,
+} from "@/lib/statistics/statistik-pdf";
 import { fmtCents } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
