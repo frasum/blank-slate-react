@@ -8,6 +8,10 @@
 // Status (`open|finalized|locked`) werden gezählt. Leere Tage tragen 0;
 // `daysWithRevenue` aus `summarize` zählt nur Tage mit total > 0.
 //
+// S-3 (revidiert 29.06.2026): Statistik rechnet KALENDERMONATE (1. bis
+// Monatsende), nicht die 26.–25.-Abrechnungsperiode. Lohn/Zeit nutzen
+// weiterhin `periods`. Diese Fn berührt `periods` NICHT.
+//
 // TSB-Verifikationspunkt (offen): vectron + `pos`-Kanal „Kasse" eventuell
 // gleichzeitig befüllt → doppelte Zählung. Diese Fn behandelt das NICHT
 // speziell; sie summiert nur, was die DB liefert.
@@ -25,8 +29,15 @@ import {
   type Trend,
 } from "./revenue-core";
 import { mapToSessionInputs, type ChannelAmountRow, type SessionRow } from "./revenue-map";
+import {
+  currentMonth,
+  monthRange,
+  previousMonthRange,
+  previousRangeForDates,
+} from "./period-window";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const MONTH_RE = /^\d{4}-\d{2}$/;
 
 type ChannelAmountQueryRow = {
   session_id: string;
@@ -36,37 +47,17 @@ type ChannelAmountQueryRow = {
 
 type Window = { startDate: string; endDate: string };
 
-function addDays(iso: string, delta: number): string {
-  const d = new Date(`${iso}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + delta);
-  return d.toISOString().slice(0, 10);
-}
-
-function daysBetween(start: string, end: string): number {
-  const a = Date.UTC(
-    Number(start.slice(0, 4)),
-    Number(start.slice(5, 7)) - 1,
-    Number(start.slice(8, 10)),
-  );
-  const b = Date.UTC(
-    Number(end.slice(0, 4)),
-    Number(end.slice(5, 7)) - 1,
-    Number(end.slice(8, 10)),
-  );
-  return Math.round((b - a) / 86_400_000);
-}
-
 export const getRevenueStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
     z
       .object({
-        periodId: z.string().uuid().optional(),
+        month: z.string().regex(MONTH_RE).optional(),
         startDate: z.string().regex(DATE_RE).optional(),
         endDate: z.string().regex(DATE_RE).optional(),
         locationId: z.string().uuid().optional(),
       })
-      .parse(input),
+      .parse(input ?? {}),
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, [
@@ -77,56 +68,29 @@ export const getRevenueStats = createServerFn({ method: "GET" })
     const org = caller.organizationId;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    // 1) Aktuellen Zeitraum + Label auflösen.
+    // Zeitraum + Vorperiode auflösen (identisch zu getTipStats).
     let current: Window;
-    let label: string | null = null;
-    let currentStartIso: string | null = null;
+    let previous: Window | null;
+    let label: string | null;
 
-    if (data.periodId) {
-      const { data: p, error } = await supabaseAdmin
-        .from("periods")
-        .select("id, label, start_date, end_date")
-        .eq("id", data.periodId)
-        .eq("organization_id", org)
-        .maybeSingle();
-      if (error) throw error;
-      if (!p) throw new Error("Periode nicht gefunden.");
-      current = { startDate: p.start_date as string, endDate: p.end_date as string };
-      label = (p.label as string) ?? null;
-      currentStartIso = current.startDate;
-    } else {
-      if (!data.startDate || !data.endDate) {
-        throw new Error("startDate und endDate sind ohne periodId Pflicht.");
-      }
+    if (data.month) {
+      current = monthRange(data.month);
+      previous = previousMonthRange(data.month);
+      label = data.month;
+    } else if (data.startDate && data.endDate) {
       if (data.endDate < data.startDate) {
         throw new Error("endDate muss ≥ startDate sein.");
       }
       current = { startDate: data.startDate, endDate: data.endDate };
-    }
-
-    // 2) Vorperiode auflösen.
-    let previous: Window | null = null;
-    if (data.periodId && currentStartIso) {
-      const { data: prev, error } = await supabaseAdmin
-        .from("periods")
-        .select("start_date, end_date")
-        .eq("organization_id", org)
-        .lt("start_date", currentStartIso)
-        .order("start_date", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      if (prev) {
-        previous = {
-          startDate: prev.start_date as string,
-          endDate: prev.end_date as string,
-        };
-      }
+      previous = previousRangeForDates(data.startDate, data.endDate);
+      label = null;
+    } else if (!data.startDate && !data.endDate) {
+      const m = currentMonth();
+      current = monthRange(m);
+      previous = previousMonthRange(m);
+      label = m;
     } else {
-      const len = daysBetween(current.startDate, current.endDate); // 0 = ein Tag
-      const prevEnd = addDays(current.startDate, -1);
-      const prevStart = addDays(prevEnd, -len);
-      previous = { startDate: prevStart, endDate: prevEnd };
+      throw new Error("startDate und endDate müssen gemeinsam gesetzt sein.");
     }
 
     // 3) Fenster laden: Sessions + Channel-Amounts.
