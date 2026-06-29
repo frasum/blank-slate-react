@@ -92,7 +92,7 @@ async function getCurrentBusinessDate(): Promise<string> {
   return data as unknown as string;
 }
 
-async function loadOrgSettings(orgId: string) {
+export async function loadOrgSettings(orgId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("organization_settings")
@@ -506,7 +506,7 @@ type LoadedOrgSettings = Awaited<ReturnType<typeof loadOrgSettings>>;
 
 // Rechnet den Trinkgeld-Pool für eine bereits geladene Session + settings.
 // Reiner Refactor aus getTipPoolOverviewCore — keine Verhaltensänderung.
-async function computeSessionTipPoolCore(
+export async function computeSessionTipPoolCore(
   caller: AdminCaller,
   session: LoadedSession,
   settings: LoadedOrgSettings,
