@@ -576,13 +576,7 @@ function StaffWithoutRateBanner({
 
 // ---------- Standort-Vergleich-Section ----------
 
-function LocationCompareSection({
-  month,
-  locations,
-}: {
-  month: string;
-  locations: LocationRow[];
-}) {
+function LocationCompareSection({ month, locations }: { month: string; locations: LocationRow[] }) {
   const enabled = month.length === 7;
   const revQueries = useQueries({
     queries: locations.map((loc) => ({
@@ -619,9 +613,7 @@ function LocationCompareSection({
   return (
     <section className="space-y-3">
       <h2 className="text-lg font-semibold tracking-tight text-foreground">Standort-Vergleich</h2>
-      <p className="text-xs text-muted-foreground">
-        Alle Standorte, unabhängig vom Filter oben.
-      </p>
+      <p className="text-xs text-muted-foreground">Alle Standorte, unabhängig vom Filter oben.</p>
       {locations.length === 0 ? (
         <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
           Keine Standorte vorhanden.
@@ -684,10 +676,7 @@ function LocationCompareSection({
                                 title={`${missing} ohne Stundenlohn — Quote untertreibt`}
                                 className="inline-flex"
                               >
-                                <AlertTriangle
-                                  className="h-3.5 w-3.5 text-amber-600"
-                                  aria-hidden
-                                />
+                                <AlertTriangle className="h-3.5 w-3.5 text-amber-600" aria-hidden />
                               </span>
                             ) : null}
                           </span>
