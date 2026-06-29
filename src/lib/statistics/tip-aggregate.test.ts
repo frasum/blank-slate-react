@@ -24,9 +24,24 @@ describe("aggregateTips", () => {
 
   it("daily aufsteigend sortiert", () => {
     const results: SessionTipResult[] = [
-      { businessDate: "2026-06-12", serviceRemainderCents: 0, kitchenRemainderCents: 0, shares: [] },
-      { businessDate: "2026-06-10", serviceRemainderCents: 0, kitchenRemainderCents: 0, shares: [] },
-      { businessDate: "2026-06-11", serviceRemainderCents: 0, kitchenRemainderCents: 0, shares: [] },
+      {
+        businessDate: "2026-06-12",
+        serviceRemainderCents: 0,
+        kitchenRemainderCents: 0,
+        shares: [],
+      },
+      {
+        businessDate: "2026-06-10",
+        serviceRemainderCents: 0,
+        kitchenRemainderCents: 0,
+        shares: [],
+      },
+      {
+        businessDate: "2026-06-11",
+        serviceRemainderCents: 0,
+        kitchenRemainderCents: 0,
+        shares: [],
+      },
     ];
     const { daily } = aggregateTips(results, {});
     expect(daily.map((d) => d.businessDate)).toEqual(["2026-06-10", "2026-06-11", "2026-06-12"]);
