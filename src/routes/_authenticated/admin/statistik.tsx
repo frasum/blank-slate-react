@@ -715,40 +715,21 @@ function StaffWithoutRateBanner({
 
 // ---------- Standort-Vergleich-Section ----------
 
-function LocationCompareSection({ month, locations }: { month: string; locations: LocationRow[] }) {
-  const enabled = month.length === 7;
-  const revQueries = useQueries({
-    queries: locations.map((loc) => ({
-      queryKey: ["stats", "cmp", "rev", loc.id, month],
-      queryFn: () => getRevenueStats({ data: { month, locationId: loc.id } }),
-      enabled,
-    })),
-  });
-  const tipQueries = useQueries({
-    queries: locations.map((loc) => ({
-      queryKey: ["stats", "cmp", "tip", loc.id, month],
-      queryFn: () => getTipStats({ data: { month, locationId: loc.id } }),
-      enabled,
-    })),
-  });
-  const perQueries = useQueries({
-    queries: locations.map((loc) => ({
-      queryKey: ["stats", "cmp", "per", loc.id, month],
-      queryFn: () => getPersonnelStats({ data: { month, locationId: loc.id } }),
-      enabled,
-    })),
-  });
-
-  const isLoading =
-    revQueries.some((q) => q.isLoading) ||
-    tipQueries.some((q) => q.isLoading) ||
-    perQueries.some((q) => q.isLoading);
-  const firstError =
-    revQueries.find((q) => q.isError)?.error ??
-    tipQueries.find((q) => q.isError)?.error ??
-    perQueries.find((q) => q.isError)?.error ??
-    null;
-
+function LocationCompareSection({
+  locations,
+  revQueries,
+  tipQueries,
+  perQueries,
+  isLoading,
+  firstError,
+}: {
+  locations: LocationRow[];
+  revQueries: UseQueryResult<RevenueStats>[];
+  tipQueries: UseQueryResult<TipStats>[];
+  perQueries: UseQueryResult<PersonnelStats>[];
+  isLoading: boolean;
+  firstError: unknown;
+}) {
   return (
     <section className="space-y-3">
       <h2 className="text-lg font-semibold tracking-tight text-foreground">Standort-Vergleich</h2>
