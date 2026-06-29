@@ -138,7 +138,7 @@ export async function generateStatistikPdf(
   if (data.tips.perStaff.length === 0) {
     doc.setFont("helvetica", "italic");
     doc.setFontSize(9);
-    doc.text("Keine Trinkgeld-Auszahlungen in diesem Monat.", marginX, cursorY + 14);
+    doc.text("Keine Trinkgeld-Auszahlungen im gewählten Zeitraum.", marginX, cursorY + 14);
     cursorY += 24;
   } else {
     autoTable(doc, {
@@ -210,7 +210,7 @@ export async function generateStatistikPdf(
   if (data.dailyRevenue.length === 0) {
     doc.setFont("helvetica", "italic");
     doc.setFontSize(9);
-    doc.text("Keine Umsätze in diesem Monat.", marginX, cursorY + 14);
+    doc.text("Keine Umsätze im gewählten Zeitraum.", marginX, cursorY + 14);
     cursorY += 24;
   } else {
     autoTable(doc, {
