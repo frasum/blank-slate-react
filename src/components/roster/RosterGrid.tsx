@@ -299,7 +299,7 @@ export function RosterGrid({
               })}
               <th
                 className={cn(
-                  "sticky z-10 border-l bg-muted/50 text-left font-medium",
+                  "sticky z-10 border-l bg-muted/50 text-right font-medium",
                   isFit ? "px-2 py-1" : "px-3 py-2",
                 )}
                 style={{ right: isFit ? 32 : 48 }}
@@ -498,7 +498,7 @@ export function RosterGrid({
                     })}
                     <td
                       className={cn(
-                        "sticky z-10 border-l bg-background font-medium",
+                        "sticky z-10 border-l bg-background text-right font-medium",
                         isFit ? "truncate px-2 py-0.5 text-[11px]" : "px-3 py-1",
                       )}
                       style={{ right: isFit ? 32 : 48 }}
@@ -799,7 +799,7 @@ function EmptyCell({
       }}
       aria-label={`Schicht anlegen: ${row.displayName}, ${iso}`}
       className={cn(
-        "mx-auto block h-6 w-10 rounded border border-dashed bg-transparent",
+        "mx-auto block h-6 w-full max-w-10 rounded border border-dashed bg-transparent",
         editable ? "border-muted-foreground/30 hover:border-primary" : "border-transparent",
       )}
     />
