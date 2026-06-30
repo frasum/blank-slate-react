@@ -1558,6 +1558,7 @@ export type Database = {
       }
       permission_overrides: {
         Row: {
+          area: Database["public"]["Enums"]["staff_department"] | null
           created_at: string
           created_by: string | null
           effect: Database["public"]["Enums"]["permission_effect"]
@@ -1569,6 +1570,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          area?: Database["public"]["Enums"]["staff_department"] | null
           created_at?: string
           created_by?: string | null
           effect: Database["public"]["Enums"]["permission_effect"]
@@ -1580,6 +1582,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          area?: Database["public"]["Enums"]["staff_department"] | null
           created_at?: string
           created_by?: string | null
           effect?: Database["public"]["Enums"]["permission_effect"]
@@ -3681,6 +3684,7 @@ export type Database = {
       effective_permissions: {
         Args: { _staff: string }
         Returns: {
+          area: Database["public"]["Enums"]["staff_department"]
           effect: Database["public"]["Enums"]["permission_effect"]
           location_id: string
           permission: Database["public"]["Enums"]["app_permission"]
@@ -3692,13 +3696,22 @@ export type Database = {
         Args: { _min: Database["public"]["Enums"]["app_role"] }
         Returns: boolean
       }
-      has_permission: {
-        Args: {
-          _location?: string
-          _perm: Database["public"]["Enums"]["app_permission"]
-        }
-        Returns: boolean
-      }
+      has_permission:
+        | {
+            Args: {
+              _location?: string
+              _perm: Database["public"]["Enums"]["app_permission"]
+            }
+            Returns: boolean
+          }
+        | {
+            Args: {
+              _area: Database["public"]["Enums"]["staff_department"]
+              _location: string
+              _perm: Database["public"]["Enums"]["app_permission"]
+            }
+            Returns: boolean
+          }
       has_role: {
         Args: { _role: Database["public"]["Enums"]["app_role"] }
         Returns: boolean
