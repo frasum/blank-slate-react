@@ -16,6 +16,7 @@ import { berechneSfnGeld } from "./sfn-geld/sfn-geld";
 import type { SfnGeldErgebnis } from "./sfn-geld/types";
 import { bavarianHolidaySurchargeRate } from "./holiday-rate";
 import { countDistinctWorkdays } from "./fixed-zeilen";
+import { dropPoolWhenRealEntryExists } from "@/lib/cash/pool-time-writeback";
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -49,23 +50,27 @@ export async function aggregateSfnPeriod(
 
   const { data: entries, error: entriesErr } = await supabaseAdmin
     .from("time_entries")
-    .select("started_at, ended_at, business_date, break_minutes")
+    .select("started_at, ended_at, business_date, break_minutes, source")
     .eq("staff_id", staffId)
     .gte("business_date", fromDate)
     .lte("business_date", toDate)
     .not("ended_at", "is", null);
   if (entriesErr) throw entriesErr;
 
-  const rows = (entries ?? [])
-    .filter((e) => e.ended_at != null)
-    .map((e) =>
-      timeEntryToSfnRow({
-        startedAt: e.started_at,
-        endedAt: e.ended_at as string,
-        businessDate: e.business_date,
-        breakMinutes: e.break_minutes ?? 0,
-      }),
-    );
+  const filteredEntries = dropPoolWhenRealEntryExists(
+    (entries ?? [])
+      .filter((e) => e.ended_at != null)
+      .map((e) => ({ ...e, businessDate: e.business_date, source: e.source as string })),
+  );
+
+  const rows = filteredEntries.map((e) =>
+    timeEntryToSfnRow({
+      startedAt: e.started_at,
+      endedAt: e.ended_at as string,
+      businessDate: e.business_date,
+      breakMinutes: e.break_minutes ?? 0,
+    }),
+  );
 
   const holidayRates = new Map<string, number>();
   for (const r of rows) {

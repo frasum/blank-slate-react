@@ -1,4 +1,4 @@
-// B-1: Reines Modul für die Pool-Zeit-Rückschreibung.
+// B-1/B-2: Reines Modul für die Pool-Zeit-Rückschreibung.
 //
 // Mitarbeiter, die nicht stempeln (Küche bei `kitchen_manual_only`, GL),
 // haben ihre Arbeitszeit nur in `session_tip_pool_entries(shift_start,
@@ -14,6 +14,16 @@
 // der Stempler. B erzeugt NEUE Einträge nur für Nicht-Stempler — die
 // Kollisionsregel (`staffWithRealEntry`) verhindert Doppelzählung im
 // Lohn.
+//
+// B-2 ergänzt zwei reine Helfer:
+//   * poolLocalTimeToIso — baut DST-korrekte ISO-Timestamps für den
+//     Insert in time_entries (Europe/Berlin-Offset pro Tag).
+//   * dropPoolWhenRealEntryExists — Lohn-Nachrangigkeit: falls für
+//     einen (Mitarbeiter, Tag) zusätzlich ein echter Eintrag existiert
+//     (clock/manual/import), werden die Pool-Zeilen jenes Tages
+//     verworfen.
+
+import { berlinOffsetMinutes, offsetString } from "@/lib/time/shift-hours";
 
 export type PoolWritebackEntry = {
   id: string;
@@ -85,4 +95,40 @@ export function buildPoolTimeEntryRows(input: PoolWritebackInput): PoolTimeEntry
     });
   }
   return rows;
+}
+
+// Baut einen ISO-Timestamp für einen lokalen "HH:MM"-Zeitpunkt am
+// businessDate (dayOffset=0) bzw. am Folgetag (dayOffset=1, für
+// Mitternachts-Wraps). Verwendet den jeweils tagesgültigen Berlin-Offset
+// — DST-sicher, weil offset des Folgetags eigenständig bestimmt wird.
+export function poolLocalTimeToIso(businessDate: string, hhmm: string, dayOffset: 0 | 1): string {
+  // businessDate ist YYYY-MM-DD; Tag ggf. um 1 verschieben.
+  let isoDate = businessDate;
+  if (dayOffset === 1) {
+    const t = Date.UTC(
+      Number(businessDate.slice(0, 4)),
+      Number(businessDate.slice(5, 7)) - 1,
+      Number(businessDate.slice(8, 10)),
+      12,
+      0,
+      0,
+    );
+    const next = new Date(t + 24 * 3_600_000);
+    isoDate = `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, "0")}-${String(
+      next.getUTCDate(),
+    ).padStart(2, "0")}`;
+  }
+  const off = offsetString(berlinOffsetMinutes(isoDate));
+  return new Date(`${isoDate}T${hhmm}:00${off}`).toISOString();
+}
+
+// Lohn-Nachrangigkeit: pro businessDate werden alle 'pool'-Zeilen
+// verworfen, wenn am selben Tag mindestens ein Eintrag mit source !==
+// 'pool' existiert (clock/manual/import).
+export function dropPoolWhenRealEntryExists<T extends { businessDate: string; source: string }>(
+  rows: T[],
+): T[] {
+  const realDays = new Set<string>();
+  for (const r of rows) if (r.source !== "pool") realDays.add(r.businessDate);
+  return rows.filter((r) => !(r.source === "pool" && realDays.has(r.businessDate)));
 }
