@@ -11,8 +11,8 @@ import { makeAuditWriter } from "@/lib/admin/audit";
 import { loadStaffCaller } from "@/lib/time/time.functions";
 import type { MyShiftRow } from "@/lib/roster/my-shifts";
 
-const READ_ROLES = ["manager", "admin", "payroll", "staff"] as const;
-const WRITE_ROLES = ["manager", "admin"] as const;
+const READ_ROLES = ["manager", "admin", "payroll", "staff", "planer"] as const;
+const WRITE_ROLES = ["manager", "admin", "planer"] as const;
 
 async function assertShiftDateUnlocked(
   admin: import("@supabase/supabase-js").SupabaseClient<
