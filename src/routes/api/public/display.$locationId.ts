@@ -327,7 +327,7 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
                 const sid = shiftMap.get(shiftKey) ?? null;
                 const meta = sid ? (skillMap.get(sid) ?? null) : null;
                 skill = meta?.name ?? null;
-                if (area === "kitchen") color = meta?.color ?? null;
+                color = meta?.color ?? null;
                 dayCounts[i] += 1;
               }
               return { k, skill, color };

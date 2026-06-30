@@ -5,13 +5,9 @@ import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
 import type { RosterShift } from "@/lib/roster/roster.functions";
 import { serviceMarker } from "@/lib/roster/service-marker";
+import { abbr, pillStyle } from "@/lib/roster/pill-style";
 
 const FIT_PILL_CLASS = "h-5 w-8 text-[9px]";
-
-function abbr(s: string | null | undefined): string {
-  if (!s) return "";
-  return s.trim().slice(0, 2).toUpperCase();
-}
 
 type Props = {
   shift: RosterShift;
@@ -29,21 +25,14 @@ export function ShiftPill({ shift, area, draggable, onClick }: Props) {
 
   const isService = area === "service";
   const label = isService ? serviceMarker(shift.skillName) : abbr(shift.skillName);
-  // Skill-Farbe kommt jetzt ausschließlich aus skills.color (DB). Die
-  // Default-Service-Pille ("X" = ohne Skill) bleibt weiß/schwarz.
+  const status: "planned" | "confirmed" = shift.status === "confirmed" ? "confirmed" : "planned";
+  const { backgroundColor, textClass } = pillStyle({
+    skillColor: shift.skillColor,
+    area,
+    label,
+    status,
+  });
   const isDefaultService = isService && label === "X";
-  const bg = shift.skillColor ?? (isService ? "#ffffff" : "#9ca3af");
-  const textCls = isDefaultService
-    ? "text-black border-transparent"
-    : "text-white border-transparent";
-  const isPlanned = shift.status !== "confirmed";
-  // BG nur leicht abdunkeln, damit der weiße Text gut kontrastiert, die
-  // gewählte Farbe aber sichtbar bleibt. Für die Default-Service-Pille (X)
-  // bleibt der Hintergrund weiß und der Text schwarz.
-  const mixPct = isPlanned ? 92 : 85;
-  const backgroundColor = isDefaultService
-    ? "#ffffff"
-    : `color-mix(in oklab, ${bg} ${mixPct}%, black)`;
   const style: React.CSSProperties = {
     transform: CSS.Translate.toString(transform),
     backgroundColor,
@@ -66,7 +55,7 @@ export function ShiftPill({ shift, area, draggable, onClick }: Props) {
       className={cn(
         "mx-auto flex items-center justify-center rounded border font-bold leading-none transition-shadow hover:shadow-md",
         FIT_PILL_CLASS,
-        textCls,
+        textClass,
         draggable && "cursor-grab active:cursor-grabbing",
       )}
     >
