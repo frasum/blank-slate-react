@@ -251,6 +251,9 @@ function BestellungenPage() {
                         onCancel={() => cancelMut.mutate(o.id)}
                         cancelling={cancelMut.isPending}
                         supplierHasEmail={!!suppliersById.get(o.supplier_id)?.email}
+                        canResend={o.status !== "cancelled"}
+                        onResend={() => sendMut.mutate(o.id)}
+                        resending={sendMut.isPending}
                       />
                       </td>
                     </tr>,
@@ -272,6 +275,9 @@ function OrderDetail(props: {
   onCancel: () => void;
   cancelling: boolean;
   supplierHasEmail: boolean;
+  canResend: boolean;
+  onResend: () => void;
+  resending: boolean;
 }) {
   const detailQ = useQuery({
     queryKey: ["bestellung", "order", props.orderId],
@@ -295,6 +301,23 @@ function OrderDetail(props: {
             {order.email_sent_at ? `Zeitpunkt: ${formatShortDateTime(order.email_sent_at)}` : "Zeitpunkt: —"}
             {order.email_message_id ? ` · Message-ID: ${order.email_message_id}` : ""}
           </p>
+          {props.canResend && (
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={props.onResend}
+                disabled={props.resending || !props.supplierHasEmail}
+                title={
+                  !props.supplierHasEmail
+                    ? "Lieferant hat keine E-Mail-Adresse hinterlegt"
+                    : undefined
+                }
+                className="rounded border border-destructive/40 bg-background px-2 py-1 text-xs text-destructive hover:bg-destructive/10 disabled:opacity-50"
+              >
+                {props.resending ? "Sende …" : "E-Mail erneut senden"}
+              </button>
+            </div>
+          )}
         </div>
       )}
       <div className="grid grid-cols-1 gap-2 md:grid-cols-3 text-xs">
@@ -353,15 +376,36 @@ function OrderDetail(props: {
         <p className="text-sm">
           Gesamt: <span className="font-mono font-medium">{fmtEuro(order.total_amount_cents)}</span>
         </p>
-        {props.canCancel && (
-          <button
-            onClick={props.onCancel}
-            disabled={props.cancelling}
-            className="rounded border border-destructive/40 px-3 py-1 text-xs text-destructive hover:bg-destructive/10 disabled:opacity-50"
-          >
-            Bestellung stornieren
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {props.canResend && (
+            <button
+              type="button"
+              onClick={props.onResend}
+              disabled={props.resending || !props.supplierHasEmail}
+              title={
+                !props.supplierHasEmail
+                  ? "Lieferant hat keine E-Mail-Adresse hinterlegt"
+                  : undefined
+              }
+              className="rounded border border-input bg-background px-3 py-1 text-xs hover:bg-accent disabled:opacity-50"
+            >
+              {props.resending
+                ? "Sende …"
+                : order.email_sent
+                  ? "E-Mail erneut senden"
+                  : "Per E-Mail senden"}
+            </button>
+          )}
+          {props.canCancel && (
+            <button
+              onClick={props.onCancel}
+              disabled={props.cancelling}
+              className="rounded border border-destructive/40 px-3 py-1 text-xs text-destructive hover:bg-destructive/10 disabled:opacity-50"
+            >
+              Bestellung stornieren
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
