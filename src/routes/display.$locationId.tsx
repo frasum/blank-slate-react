@@ -2,12 +2,13 @@
 // Holt Daten alle refreshIntervalSeconds vom öffentlichen Endpoint.
 
 import { createFileRoute, useParams, useSearch } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { Umbrella, HeartPulse, Heart } from "lucide-react";
 import { serviceMarker } from "@/lib/roster/service-marker";
 import { abbr, pillStyle } from "@/lib/roster/pill-style";
 import { cn } from "@/lib/utils";
+import { useFitCellSize } from "@/lib/display/use-fit-cell-size";
 
 type DisplayCell = {
   k: "shift" | "urlaub" | "krank" | "wish" | "available" | "empty";
@@ -148,35 +149,35 @@ function DisplayPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       {data.showHeader && (
-        <header className="flex items-center justify-between border-b border-slate-800 px-10 py-6">
+        <header className="flex items-center justify-between border-b border-slate-800 px-6 py-3">
           <div>
-            <h1 className="text-4xl font-bold tracking-tight">{data.location.name}</h1>
-            <p className="mt-1 text-lg text-slate-400">
+            <h1 className="text-2xl font-bold tracking-tight">{data.location.name}</h1>
+            <p className="mt-0.5 text-sm text-slate-400">
               {formatRangeLabel(data.windowStart, data.windowEnd)}
             </p>
           </div>
           <div className="text-right">
-            <div className="text-5xl font-mono font-semibold tabular-nums">{formatTime(now)}</div>
-            {error && <p className="mt-1 text-sm text-amber-400">{error}</p>}
+            <div className="text-3xl font-mono font-semibold tabular-nums">{formatTime(now)}</div>
+            {error && <p className="mt-1 text-xs text-amber-400">{error}</p>}
           </div>
         </header>
       )}
 
       {data.customMessage && (
-        <div className="border-b border-slate-800 bg-amber-500/10 px-10 py-3 text-center text-lg text-amber-200">
+        <div className="border-b border-slate-800 bg-amber-500/10 px-6 py-2 text-center text-base text-amber-200">
           {data.customMessage}
         </div>
       )}
 
       {data.birthdays.length > 0 && (
-        <div className="border-b border-amber-400/40 bg-gradient-to-r from-amber-500/20 via-yellow-400/20 to-amber-500/20 px-10 py-5 text-center">
-          <p className="text-3xl font-semibold tracking-tight text-amber-100">
+        <div className="border-b border-amber-400/40 bg-gradient-to-r from-amber-500/20 via-yellow-400/20 to-amber-500/20 px-6 py-3 text-center">
+          <p className="text-xl font-semibold tracking-tight text-amber-100">
             🎂 Heute Geburtstag: {data.birthdays.join(" · ")}
           </p>
         </div>
       )}
 
-      <main className="space-y-8 p-6">
+      <main className="space-y-4 p-3">
         {data.blocks.map((block) => (
           <BlockTable key={block.area} block={block} days={data.days} />
         ))}
@@ -186,7 +187,7 @@ function DisplayPage() {
       </main>
 
       {data.showFooter && (
-        <footer className="border-t border-slate-800 px-10 py-4 text-center text-sm text-slate-400">
+        <footer className="border-t border-slate-800 px-6 py-2 text-center text-xs text-slate-400">
           <span className="font-medium text-slate-300">Legende:</span> X Arbeitet · − Frei · ☂
           Urlaub · 🌡 Krank · ♡ Wunsch-frei · ○ Verfügbar
         </footer>
@@ -196,13 +197,30 @@ function DisplayPage() {
 }
 
 function BlockTable({ block, days }: { block: DisplayBlock; days: string[] }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const { cellSize, leftNameWidth, rightNameWidth, sumColWidth, showRightName } = useFitCellSize(
+    containerRef,
+    days.length,
+  );
+  const tableWidth = leftNameWidth + cellSize * days.length + rightNameWidth + sumColWidth;
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40">
-      <header className="border-b border-slate-800 bg-slate-900/60 px-4 py-3">
-        <h2 className="text-xl font-semibold">{block.title}</h2>
+      <header className="border-b border-slate-800 bg-slate-900/60 px-3 py-2">
+        <h2 className="text-base font-semibold">{block.title}</h2>
       </header>
-      <div className="overflow-x-auto">
-        <table className="w-full border-separate border-spacing-0 text-xs">
+      <div ref={containerRef} className="overflow-x-auto">
+        <table
+          className="border-separate border-spacing-0 text-xs"
+          style={{ tableLayout: "fixed", width: `${tableWidth}px` }}
+        >
+          <colgroup>
+            <col style={{ width: `${leftNameWidth}px` }} />
+            {days.map((iso) => (
+              <col key={iso} style={{ width: `${cellSize}px` }} />
+            ))}
+            {showRightName && <col style={{ width: `${rightNameWidth}px` }} />}
+            <col style={{ width: `${sumColWidth}px` }} />
+          </colgroup>
           <thead>
             <tr>
               <th className="sticky left-0 z-20 min-w-[10rem] border-b border-slate-800 bg-slate-900 px-3 py-2 text-center font-medium text-slate-300">
@@ -217,7 +235,7 @@ function BlockTable({ block, days }: { block: DisplayBlock; days: string[] }) {
                   <th
                     key={iso}
                     className={[
-                      "border-b border-slate-800 px-1 py-2 text-center font-medium",
+                      "border-b border-slate-800 px-0.5 py-1 text-center font-medium leading-tight",
                       today
                         ? "bg-sky-500/20 text-sky-100 ring-1 ring-inset ring-sky-400/60"
                         : we
@@ -238,13 +256,15 @@ function BlockTable({ block, days }: { block: DisplayBlock; days: string[] }) {
                   </th>
                 );
               })}
-              <th
-                className="sticky z-20 min-w-[8rem] border-b border-slate-800 bg-slate-900 px-3 py-2 text-center font-medium text-slate-300"
-                style={{ right: 64 }}
-              >
-                Mitarbeiter
-              </th>
-              <th className="sticky right-0 z-20 min-w-[4rem] border-b border-slate-800 bg-slate-900 px-3 py-2 text-center font-medium text-slate-300">
+              {showRightName && (
+                <th
+                  className="sticky z-20 border-b border-slate-800 bg-slate-900 px-2 py-1 text-center font-medium text-slate-300"
+                  style={{ right: sumColWidth }}
+                >
+                  Mitarbeiter
+                </th>
+              )}
+              <th className="sticky right-0 z-20 border-b border-slate-800 bg-slate-900 px-2 py-1 text-center font-medium text-slate-300">
                 Σ
               </th>
             </tr>
@@ -252,21 +272,24 @@ function BlockTable({ block, days }: { block: DisplayBlock; days: string[] }) {
           <tbody>
             {block.rows.length === 0 && (
               <tr>
-                <td colSpan={days.length + 3} className="px-4 py-6 text-center text-slate-500">
+                <td
+                  colSpan={days.length + (showRightName ? 3 : 2)}
+                  className="px-4 py-6 text-center text-slate-500"
+                >
                   Keine Mitarbeiter für diesen Bereich.
                 </td>
               </tr>
             )}
             {block.rows.map((row) => (
               <tr key={`${block.area}-${row.staffId}`} className="group/row even:bg-slate-900/40">
-                <td className="sticky left-0 z-10 border-b border-slate-800/60 bg-slate-950 px-3 py-1 text-center text-sm font-medium text-slate-100 group-even/row:bg-slate-900">
+                <td className="sticky left-0 z-10 truncate border-b border-slate-800/60 bg-slate-950 px-2 py-0.5 text-center text-xs font-medium text-slate-100 group-even/row:bg-slate-900">
                   {row.staffName}
                 </td>
                 {row.cells.map((cell, i) => (
                   <td
                     key={i}
                     className={[
-                      "border-b border-slate-800/60 p-1 text-center align-middle",
+                      "border-b border-slate-800/60 px-0.5 py-0.5 text-center align-middle",
                       isWeekend(days[i]) ? "bg-slate-900/40" : "",
                       i === 0 ? "bg-sky-500/5" : "",
                     ].join(" ")}
@@ -274,13 +297,15 @@ function BlockTable({ block, days }: { block: DisplayBlock; days: string[] }) {
                     <CellView cell={cell} area={block.area} />
                   </td>
                 ))}
-                <td
-                  className="sticky z-10 min-w-[8rem] border-b border-slate-800/60 bg-slate-950 px-3 py-1 text-center text-sm font-medium text-slate-100 group-even/row:bg-slate-900"
-                  style={{ right: 64 }}
-                >
-                  {row.staffName}
-                </td>
-                <td className="sticky right-0 z-10 min-w-[4rem] border-b border-slate-800/60 bg-slate-950 px-3 py-1 text-center text-sm font-semibold tabular-nums text-slate-100 group-even/row:bg-slate-900">
+                {showRightName && (
+                  <td
+                    className="sticky z-10 truncate border-b border-slate-800/60 bg-slate-950 px-2 py-0.5 text-center text-xs font-medium text-slate-100 group-even/row:bg-slate-900"
+                    style={{ right: sumColWidth }}
+                  >
+                    {row.staffName}
+                  </td>
+                )}
+                <td className="sticky right-0 z-10 border-b border-slate-800/60 bg-slate-950 px-2 py-0.5 text-center text-xs font-semibold tabular-nums text-slate-100 group-even/row:bg-slate-900">
                   {row.shiftCount}
                 </td>
               </tr>
