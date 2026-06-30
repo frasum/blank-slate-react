@@ -1,9 +1,22 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { Link } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/use-auth";
 import { usePortalNav } from "@/lib/nav/portal-nav";
+import { supabase } from "@/integrations/supabase/client";
+import { getMyIdentity } from "@/lib/auth/me.functions";
 
 export const Route = createFileRoute("/_authenticated/")({
+  beforeLoad: async ({ context }) => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session?.user) return;
+    const identity = await context.queryClient.ensureQueryData({
+      queryKey: ["identity", sessionData.session.user.id ?? null],
+      queryFn: () => getMyIdentity(),
+    });
+    if (identity.role === "planer") {
+      throw redirect({ to: "/admin/dienstplan" });
+    }
+  },
   head: () => ({
     meta: [
       { title: "COCO – Central Operations Cockpit" },

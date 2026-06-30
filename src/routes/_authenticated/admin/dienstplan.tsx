@@ -12,7 +12,6 @@ import { Card } from "@/components/ui/card";
 import { parseIso, todayIso } from "@/lib/format";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
 import { listLocations } from "@/lib/admin/locations.functions";
 import { LocationPills } from "@/components/shared/LocationPills";
 import { listPeriods } from "@/lib/time/time-admin.functions";
@@ -37,9 +36,11 @@ import {
   updateRosterShiftStatus,
   getRosterRelease,
   setRosterRelease,
+  getMyRosterScopes,
   type RosterShift,
   type RosterSkill,
 } from "@/lib/roster/roster.functions";
+import { allowedLocations, canEditScope } from "@/lib/roster/scope-util";
 import { Button } from "@/components/ui/button";
 import { RosterGrid } from "@/components/roster/RosterGrid";
 import { PaintToolbar, type PaintSelection } from "@/components/roster/PaintToolbar";
@@ -73,14 +74,16 @@ function daysBetween(fromIso: string, toIso: string): string[] {
 }
 function DienstplanPage() {
   const today = todayIso();
-  const auth = useAuth();
-  const role = auth.identity?.role ?? null;
-  const canEdit = role === "manager" || role === "admin";
   const qc = useQueryClient();
 
   const periodsQ = useQuery({ queryKey: ["periods"], queryFn: () => listPeriods() });
   const locationsQ = useQuery({ queryKey: ["locations"], queryFn: () => listLocations() });
   const skillsQ = useQuery({ queryKey: ["skills"], queryFn: () => listSkills() });
+  const scopesQ = useQuery({
+    queryKey: ["roster-scopes"],
+    queryFn: () => getMyRosterScopes(),
+  });
+  const scopes = useMemo(() => scopesQ.data ?? [], [scopesQ.data]);
 
   const [periodId, setPeriodId] = useState<string | null>(null);
   // Halb-Offset: false = Periode 1:1, true = Fenster +14 Tage (überlappt
@@ -97,7 +100,10 @@ function DienstplanPage() {
     () => [...(periodsQ.data ?? [])].sort((a, b) => a.startDate.localeCompare(b.startDate)),
     [periodsQ.data],
   );
-  const locations = useMemo(() => locationsQ.data ?? [], [locationsQ.data]);
+  const locations = useMemo(
+    () => allowedLocations(locationsQ.data ?? [], scopes),
+    [locationsQ.data, scopes],
+  );
   const allSkills: RosterSkill[] = useMemo(() => skillsQ.data ?? [], [skillsQ.data]);
 
   const effectivePeriod = useMemo(() => {
@@ -105,6 +111,10 @@ function DienstplanPage() {
     return periods.find((p) => p.startDate <= today && today <= p.endDate) ?? periods[0] ?? null;
   }, [periods, periodId, today]);
   const effectiveLocationId = locationId ?? locations[0]?.id ?? null;
+  const canEdit = useMemo(
+    () => canEditScope(scopes, effectiveLocationId, activeArea),
+    [scopes, effectiveLocationId, activeArea],
+  );
 
   const periodLocked = effectivePeriod?.status === "locked";
 

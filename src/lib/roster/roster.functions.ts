@@ -200,6 +200,42 @@ export const listSkills = createServerFn({ method: "GET" })
     }));
   });
 
+// P-3b — Scopes des aktuellen Aufrufers: in welchen (Standort, Bereich)-
+// Kombinationen darf er Dienstpläne schreiben (roster.shift.manage)?
+// Spiegelt nur die Server-Durchsetzung (P-2) ins UI – die harte Grenze
+// bleibt runWithPermission. Für admin/manager liefert has_permission
+// global true → alle Kombinationen; für planer nur dessen Freigaben.
+// Bewusst eingegrenzt: kitchen/service (Grid-Bereiche). area='gl' bleibt
+// aussen vor – das Grid kennt nur die zwei Spalten.
+export type RosterScopeRow = { locationId: string; area: "kitchen" | "service" };
+
+export const getMyRosterScopes = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<RosterScopeRow[]> => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, READ_ROLES);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: locs, error } = await supabaseAdmin
+      .from("locations")
+      .select("id")
+      .eq("organization_id", caller.organizationId);
+    if (error) throw error;
+    const areas = ["kitchen", "service"] as const;
+    const combos = (locs ?? []).flatMap((l) =>
+      areas.map((a) => ({ locationId: l.id as string, area: a })),
+    );
+    const checks = await Promise.all(
+      combos.map(async (c) => {
+        const { data: allowed } = await context.supabase.rpc("has_permission", {
+          _perm: "roster.shift.manage",
+          _location: c.locationId,
+          _area: c.area,
+        });
+        return allowed === true ? c : null;
+      }),
+    );
+    return checks.filter((x): x is RosterScopeRow => x !== null);
+  });
+
 export const getStaffForRoster = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({ locationId: z.string().uuid() }).parse(input))
