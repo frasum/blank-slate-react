@@ -566,7 +566,7 @@ function RoleTab({ staff }: { staff: { id: string; role: AppRole | null; isActiv
       <div className="space-y-2">
         <div className="text-xs font-medium text-muted-foreground">Rolle</div>
         <div className="flex flex-wrap gap-2">
-          {(["admin", "manager", "staff", "payroll", null] as const).map((r) => (
+          {(["admin", "manager", "planer", "staff", "payroll", null] as const).map((r) => (
             <button
               key={r ?? "none"}
               onClick={() => {
@@ -580,7 +580,7 @@ function RoleTab({ staff }: { staff: { id: string; role: AppRole | null; isActiv
                   : "border-input bg-background text-foreground hover:bg-accent"
               }`}
             >
-              {r === "payroll" ? "Lohnbüro" : (r ?? "Keine")}
+              {r === "payroll" ? "Lohnbüro" : r === "planer" ? "Planer" : (r ?? "Keine")}
             </button>
           ))}
         </div>

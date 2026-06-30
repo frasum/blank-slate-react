@@ -355,7 +355,7 @@ export const setStaffRole = createServerFn({ method: "POST" })
     z
       .object({
         staffId: z.string().uuid(),
-        role: z.enum(["admin", "manager", "staff", "payroll"]).nullable(),
+        role: z.enum(["admin", "manager", "planer", "staff", "payroll"]).nullable(),
       })
       .parse(input),
   )
