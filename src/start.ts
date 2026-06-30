@@ -2,7 +2,11 @@ import { createStart, createMiddleware } from "@tanstack/react-start";
 
 import { renderErrorPage } from "./lib/error-page";
 import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
-import { logServerFnErrors, installServerFnFetchLogger } from "@/lib/server-fn-error-logger";
+import {
+  logServerFnErrors,
+  logServerFnErrorsServer,
+  installServerFnFetchLogger,
+} from "@/lib/server-fn-error-logger";
 
 // Patcht window.fetch einmalig, damit jeder /_serverFn/*-Aufruf mit ≥400
 // im Browser eine ausführliche Diagnosezeile (Funktionsname, Route, Dauer)
@@ -25,6 +29,6 @@ const errorMiddleware = createMiddleware().server(async ({ next }) => {
 });
 
 export const startInstance = createStart(() => ({
-  functionMiddleware: [attachSupabaseAuth, logServerFnErrors],
+  functionMiddleware: [attachSupabaseAuth, logServerFnErrors, logServerFnErrorsServer],
   requestMiddleware: [errorMiddleware],
 }));
