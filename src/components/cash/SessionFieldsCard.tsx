@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -113,12 +113,23 @@ export function SessionFieldsCard({
   const [tmRows, setTmRows] = useState<Row[]>(initialTerminals);
   const [misc, setMisc] = useState<Misc>(initialMisc);
   const [saving, setSaving] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [autoSaveError, setAutoSaveError] = useState<string | null>(null);
+  const lastSavedSnapshotRef = useRef<string | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const skipNextAutoSaveRef = useRef<boolean>(true);
+  const pendingPayloadRef = useRef<UpdatePayload | null>(null);
 
   // Wenn neue Reads kommen, lokale State zurücksetzen.
   useEffect(() => {
     setChRows(initialChannels);
     setTmRows(initialTerminals);
     setMisc(initialMisc);
+    // Nach externem Refresh: aktuellen Server-State als „gespeichert" markieren
+    // und den nächsten Auto-Save überspringen (sonst feuert er sofort wieder).
+    skipNextAutoSaveRef.current = true;
+    // Snapshot wird im Auto-Save-Effekt unten neu gesetzt.
+    lastSavedSnapshotRef.current = null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [overview]);
 
@@ -187,12 +198,76 @@ export function SessionFieldsCard({
     setSaving(true);
     try {
       await onSave(payload);
+      lastSavedSnapshotRef.current = JSON.stringify(payload);
+      setLastSavedAt(new Date());
+      setAutoSaveError(null);
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
       setSaving(false);
     }
   }
+
+  // ── Auto-Save: nach 800 ms Stille gültigen Payload persistieren ──
+  useEffect(() => {
+    if (!writable) return;
+    const payload = build();
+    if (!payload) {
+      pendingPayloadRef.current = null;
+      setAutoSaveError("Eingabe ungültig");
+      return;
+    }
+    const snap = JSON.stringify(payload);
+    if (skipNextAutoSaveRef.current) {
+      skipNextAutoSaveRef.current = false;
+      lastSavedSnapshotRef.current = snap;
+      return;
+    }
+    if (snap === lastSavedSnapshotRef.current) return;
+    pendingPayloadRef.current = payload;
+    setAutoSaveError(null);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      const p = pendingPayloadRef.current;
+      if (!p) return;
+      setSaving(true);
+      try {
+        await onSave(p);
+        lastSavedSnapshotRef.current = JSON.stringify(p);
+        setLastSavedAt(new Date());
+        setAutoSaveError(null);
+      } catch (e) {
+        setAutoSaveError((e as Error).message);
+      } finally {
+        setSaving(false);
+      }
+    }, 800);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chRows, tmRows, misc, writable]);
+
+  // Warnung beim Schließen, falls noch ungespeicherte Änderungen pendieren
+  useEffect(() => {
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      const payload = pendingPayloadRef.current;
+      if (payload && JSON.stringify(payload) !== lastSavedSnapshotRef.current) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, []);
+
+  const saveStatusLabel = saving
+    ? "Speichert…"
+    : autoSaveError
+      ? `Nicht gespeichert: ${autoSaveError}`
+      : lastSavedAt
+        ? `Gespeichert · ${lastSavedAt.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}`
+        : "Auto-Save aktiv";
 
   const channelById = Object.fromEntries(channels.map((c) => [c.id, c]));
   const terminalById = Object.fromEntries(terminals.map((t) => [t.id, t]));
@@ -495,6 +570,13 @@ export function SessionFieldsCard({
         {!writable && (
           <p className="text-xs text-muted-foreground self-center">
             Schreibgeschützt (Session ist {sess.status}).
+          </p>
+        )}
+        {writable && (
+          <p
+            className={`text-xs self-center ${autoSaveError ? "text-destructive" : "text-muted-foreground"}`}
+          >
+            {saveStatusLabel}
           </p>
         )}
         <Button disabled={!writable || saving} onClick={handleSave}>
