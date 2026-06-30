@@ -163,12 +163,6 @@ function DisplayPage() {
         </header>
       )}
 
-      {data.customMessage && (
-        <div className="border-b border-slate-800 bg-amber-500/10 px-6 py-2 text-center text-base text-amber-200">
-          {data.customMessage}
-        </div>
-      )}
-
       {data.birthdays.length > 0 && (
         <div className="border-b border-amber-400/40 bg-gradient-to-r from-amber-500/20 via-yellow-400/20 to-amber-500/20 px-6 py-3 text-center">
           <p className="text-xl font-semibold tracking-tight text-amber-100">
@@ -178,9 +172,21 @@ function DisplayPage() {
       )}
 
       <main className="space-y-4 p-3">
-        {data.blocks.map((block) => (
-          <BlockTable key={block.area} block={block} days={data.days} />
+        {data.blocks.map((block, idx) => (
+          <div key={block.area} className="space-y-4">
+            <BlockTable block={block} days={data.days} />
+            {data.customMessage && idx < data.blocks.length - 1 && (
+              <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 px-6 py-3 text-center text-base text-amber-200">
+                {data.customMessage}
+              </div>
+            )}
+          </div>
         ))}
+        {data.customMessage && data.blocks.length <= 1 && (
+          <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 px-6 py-3 text-center text-base text-amber-200">
+            {data.customMessage}
+          </div>
+        )}
         {data.blocks.length === 0 && (
           <p className="text-center text-slate-400">Keine Bereiche konfiguriert.</p>
         )}
