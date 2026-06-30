@@ -864,3 +864,22 @@ Verifizierter Stand HEAD `c9c35f1` (tsc 0, eslint 0, vitest 911, prettier sauber
 - **Feature war großteils schon da:** Küchentrinkgeld rechnete COCO bereits (`kitchen_tip_cents`, `kitchenPool`, Verteilung). Vor Neubau erst Bestand prüfen.
 - **Geld-Regel blockierend testbar machen:** inline-Logik in async-Fns ist nur über den flaky `db-integration`-Job prüfbar → als reine Fn extrahieren (`effectiveParticipation`, Muster `resolvePoolTimeEntries`) und im `check`-Gate unit-testen.
 - **Snapshot nur im Create-Zweig:** sonst legt jeder Session-Get doppelt an.
+
+## 22. Dienstplan-Display — Farbschema an Grid angeglichen, geteilte `pill-style.ts` (30.06.2026)
+
+Verifizierter Stand HEAD `406010a` (tsc 0, eslint 0, vitest 918, prettier sauber). Das öffentliche Display (`display.$locationId.tsx`, `CellView`) sieht jetzt farblich genauso aus wie der Dienstplan (`ShiftPill` + Grid-Zelle).
+
+### Befund (Drift durch Duplizierung)
+Grid und Display rendern Schicht-Pillen unabhängig voneinander → auseinandergelaufen: Grid dunkelte die Skill-Farbe ab (`color-mix(in oklab, color 85/92%, black)`) + weißer Text + Abkürzung; Display nahm die **rohe** `cell.color` + dunklen Text + vollen Skill-Namen. Abwesenheiten zusätzlich mit abweichendem Icon (Krank: Display `Thermometer` vs. Grid `HeartPulse`).
+
+### Lösung — geteilte Quelle (Muster wie `service-marker.ts`)
+- Neue Datei **`src/lib/roster/pill-style.ts`**: reine Fns `pillStyle({ skillColor, area, label, status }) → { backgroundColor, textClass }` und `abbr(skillName)`, aus `ShiftPill` extrahiert.
+- **`ShiftPill` UND Display-`CellView` rufen jetzt dieselbe Funktion** — kein Copy-Paste mehr, kein erneuter Drift. (Genau dieselbe Philosophie, mit der schon `serviceMarker` zwischen Grid und Display geteilt wird.)
+- Charakterisierungstest `pill-style.test.ts` (7 Tests) nagelt `backgroundColor`/`textClass` fest → der Refactor kann die Grid-Optik nicht still verschieben.
+
+### Theme-Entscheidung (bewusst)
+- **Skill-Pillen exakt gleich:** abgedunkelte Farbe + weißer Text + Abkürzung (`abbr`) — hintergrund-unabhängig, da die Pille eigenen Hintergrund mitbringt.
+- **Display bleibt dunkel** (`bg-slate-950`). Abwesenheiten daher **nicht** 1:1 farbgleich, sondern **gleiche Icons + gleiche Farb-Familie, aufgehellt** (400er statt 600er): Urlaub `Umbrella` grün, Krank **`HeartPulse`** (nicht mehr `Thermometer`) rot, Wunsch `Heart` lila — lesbar auf dunklem Grund.
+
+### Lektion
+Darstellungs-Logik, die an zwei Orten gleich aussehen soll, gehört in **eine** geteilte Funktion (`service-marker.ts`, jetzt `pill-style.ts`). Dupliziert man sie, driftet sie garantiert auseinander — der hier behobene Fall.
