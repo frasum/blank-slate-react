@@ -17,6 +17,12 @@ import { loadStaffCaller, performClockOut, type StaffCaller } from "@/lib/time/t
 import { runGuarded } from "@/lib/admin/admin-call";
 import { writeAuditLog, makeAuditWriter } from "@/lib/admin/audit";
 import { arbzgMinimumBreak, grossMinutesBetween } from "@/lib/time/break-rules";
+import {
+  buildPoolTimeEntryRows,
+  poolLocalTimeToIso,
+  type PoolWritebackEntry,
+} from "./pool-time-writeback";
+import { assertBusinessDateUnlocked, TimeLockedError } from "@/lib/time/time-lock";
 import { calcWaiterSettlement } from "./waiter-settlement";
 import {
   computeTipPool,
