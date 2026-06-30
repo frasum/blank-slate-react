@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildPoolTimeEntryRows, type PoolWritebackInput } from "./pool-time-writeback";
+import {
+  buildPoolTimeEntryRows,
+  dropPoolWhenRealEntryExists,
+  poolLocalTimeToIso,
+  type PoolWritebackInput,
+} from "./pool-time-writeback";
 
 function base(overrides: Partial<PoolWritebackInput> = {}): PoolWritebackInput {
   return {
@@ -193,5 +198,71 @@ describe("buildPoolTimeEntryRows", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].staffId).toBe("kitchen-ok");
     expect(rows[0].importKey).toBe("pool:b");
+  });
+});
+
+describe("poolLocalTimeToIso", () => {
+  it("Winter (CET = UTC+1): 15:00 lokal → 14:00 UTC", () => {
+    const iso = poolLocalTimeToIso("2026-01-15", "15:00", 0);
+    expect(iso).toBe("2026-01-15T14:00:00.000Z");
+  });
+  it("Sommer (CEST = UTC+2): 15:00 lokal → 13:00 UTC", () => {
+    const iso = poolLocalTimeToIso("2026-07-15", "15:00", 0);
+    expect(iso).toBe("2026-07-15T13:00:00.000Z");
+  });
+  it("Mitternachts-Wrap: dayOffset=1 nimmt Folgetag", () => {
+    const iso = poolLocalTimeToIso("2026-07-15", "02:00", 1);
+    // 16. Juli 02:00 CEST = 00:00 UTC
+    expect(iso).toBe("2026-07-16T00:00:00.000Z");
+  });
+  it("DST-Wechsel März: 02:00 lokal am 29.03.2026 (Folgetag des 28.) — Sommerzeit", () => {
+    // 28.03.2026 → Folgetag 29.03., dort gilt CEST (+02:00)
+    const iso = poolLocalTimeToIso("2026-03-28", "03:00", 1);
+    expect(iso).toBe("2026-03-29T01:00:00.000Z");
+  });
+  it("DST-Wechsel Oktober: Folgetag 26.10.2026 ist Winterzeit (+01:00)", () => {
+    const iso = poolLocalTimeToIso("2026-10-25", "03:00", 1);
+    expect(iso).toBe("2026-10-26T02:00:00.000Z");
+  });
+});
+
+describe("dropPoolWhenRealEntryExists", () => {
+  it("Tag mit clock+pool → pool raus, clock bleibt", () => {
+    const out = dropPoolWhenRealEntryExists([
+      { businessDate: "2026-06-30", source: "clock" },
+      { businessDate: "2026-06-30", source: "pool" },
+    ]);
+    expect(out).toEqual([{ businessDate: "2026-06-30", source: "clock" }]);
+  });
+  it("Tag mit nur pool → bleibt", () => {
+    const out = dropPoolWhenRealEntryExists([{ businessDate: "2026-06-30", source: "pool" }]);
+    expect(out).toHaveLength(1);
+  });
+  it("import+pool → pool raus", () => {
+    const out = dropPoolWhenRealEntryExists([
+      { businessDate: "2026-06-30", source: "import" },
+      { businessDate: "2026-06-30", source: "pool" },
+    ]);
+    expect(out.map((r) => r.source)).toEqual(["import"]);
+  });
+  it("manual+pool → pool raus", () => {
+    const out = dropPoolWhenRealEntryExists([
+      { businessDate: "2026-06-30", source: "manual" },
+      { businessDate: "2026-06-30", source: "pool" },
+    ]);
+    expect(out.map((r) => r.source)).toEqual(["manual"]);
+  });
+  it("mehrere Tage gemischt: nur Tage mit real-Eintrag verwerfen pool", () => {
+    const out = dropPoolWhenRealEntryExists([
+      { businessDate: "2026-06-29", source: "pool" },
+      { businessDate: "2026-06-30", source: "clock" },
+      { businessDate: "2026-06-30", source: "pool" },
+      { businessDate: "2026-07-01", source: "pool" },
+    ]);
+    expect(out).toEqual([
+      { businessDate: "2026-06-29", source: "pool" },
+      { businessDate: "2026-06-30", source: "clock" },
+      { businessDate: "2026-07-01", source: "pool" },
+    ]);
   });
 });
