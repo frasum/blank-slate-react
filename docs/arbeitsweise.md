@@ -2,7 +2,7 @@
 
 Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen Baublock konsultiert. Bewusst kurz gehalten — Architektur-Begründungen stehen im gruendungsdokument.md, nicht hier.
 
-Stand: 29.06.2026
+Stand: 30.06.2026
 
 ## 1. Rollenverteilung im Team
 
@@ -154,7 +154,7 @@ Rekonstruiert per Kalibrierung gegen bereits validierte Bestands-Sessions (Refer
 
 Über das Nickname in Klammern im thaitime-Vornamen, z.B. „REDACTED" → COCO display_name „REDACTED". Sonderfall: „REDACTED" → REDACTED. „REDACTED" existiert nicht in COCO (ignoriert). Sonderfall Doppel-Nickname GIG: Der bestehende Küchen-„GIG" (perso 360) und der neue Service-„GIG" tragen in thaitime denselben Nickname-Stamm — daher KEIN Auto-Match. „(GIG SERVICE)" ist per Hardcode auf den eigenen Service-Mitarbeiter `staff_id 93e44abe-d1d8-4763-b0a6-63cea7313687` (display_name „GIG SERVIE", Spicery/`service`) gemappt; der Küchen-GIG bleibt unverändert.
 
-## 6. Aktueller Modul-Status (29.06.2026)
+## 6. Aktueller Modul-Status (30.06.2026)
 
 | Modul                                                                                                                                  | Status   |
 | -------------------------------------------------------------------------------------------------------------------------------------- | -------- |
@@ -188,6 +188,7 @@ Rekonstruiert per Kalibrierung gegen bereits validierte Bestands-Sessions (Refer
 | Self-Service Welle C — Urlaubsanträge + Genehmigung (`/zeit/urlaub`, `/admin/urlaub`)                                                  | ✅       |
 | Kasse — Vier-Zeilen-Bargeldblock + Soll-Wechselgeld je Standort                                                                        | ✅       |
 | Kasse — Abgleichs-Warnungen (POS-/Terminal-Differenz, `payment_terminals.is_gl`)                                                       | ✅       |
+| Trinkgeld-Pool — Küche manuell, Plan-Snapshot, GL-Sicht, Teilnahme-Override (§21)                                                      | ✅       |
 | Impersonation („Anmelden als") + granularer Rechte-Tab + Passwort-Flows (ändern/zurücksetzen)                                          | ✅       |
 | M4 — Payroll-Policies erweitert (`m4-payroll-permissions.db.test`)                                                                     | ✅       |
 | Buchhaltung §3b-Block (`/admin/zeit-uebersicht`, payroll-Tab) inkl. Feiertags-Fix                                                      | ✅       |
