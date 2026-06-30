@@ -987,3 +987,39 @@ Functions mit `loadAdminCaller(…, "staff")` (String = `assertMinRole`, „mind
 - **Seitenrolle ⇒ keine `staff`-Vererbung.** Eine neue Seitenrolle (RANK 0) bricht jede Function, die per `loadAdminCaller(…, "staff")` (= `assertMinRole`) gated ist. Beim Einführen einer Seitenrolle für eine bisherige `staff`-Person systematisch alle solchen Gates prüfen. `loadStaffCaller` (kein Rollen-Filter) ist davon nicht betroffen.
 - **Scope-Check immer gegen DB-Werte der Schicht** (Pre-Load), nie gegen `null`, nie gegen Client-Input.
 - **`has_permission` 2-arg/3-arg-Koexistenz** via Delegation hält bestehende RLS-Policies gültig — neue Signatur additiv, alte delegiert.
+
+## 26. Rolle „Planer" — Nachträge nach Live-Test (30.06.2026)
+
+Befunde und Erweiterungen aus dem ersten Live-Test von SUMITR (erster Planer, Küche Spicery + YUM). Ergänzt §25. Verifizierter Stand HEAD `0824bcd` (tsc 0, eslint 0, vitest 943).
+
+### a) Stammdaten-Lese-Functions für `planer` nachgezogen
+
+§25/P-3b gab `planer` Zugriff auf `getMyRosterScopes` und die Roster-Daten-Functions (`READ_ROLES`), übersah aber die **generischen** Lese-Functions, die die Dienstplan-Seite zum **Initialladen** braucht. Folge: SUMITRs Dienstplan brach mit „Keine Periode angelegt", „(Read-only)" und App-Fehler.
+
+Behoben — `planer` zu drei Functions ergänzt (reine Lesezugriffe): `listLocations`, `listPeriods` (je `"planer"` in die Rollen-Liste), `listSkills` (String-Gate `"manager"` → Array `["manager", "admin", "planer"]`).
+
+**Lektion (zu §25):** Eine neue Seitenrolle braucht nicht nur die **fachspezifischen** Functions (roster), sondern auch die **generischen Stammdaten-Lese-Functions**, die die Seite beim Laden aufruft (Standorte, Perioden, Skills). Beim Freischalten einer Rolle die **komplette** Query-Liste der Seite durchgehen.
+
+### b) „Vorschau als" (Impersonation) spiegelt Seitenrollen nicht sauber
+
+Der Live-Test über **„Vorschau als SUMITR"** (Admin-Impersonation, `admin_impersonations`) schlug fehl, obwohl der Planer-Code korrekt ist. Über **echten PIN-Login** funktioniert alles.
+
+Ursache: Während einer Impersonation lösen die DB-Helfer (`current_role`, `_effective_user_id`, RLS) die Identität über `admin_impersonations` auf den **Mitarbeiter** auf — `loadAdminCaller` nimmt aber weiter `context.userId` = **echter Admin**. `getMyIdentity` ist impersonation-bewusst, `loadAdminCaller` nicht → bei einer scoped Seitenrolle laufen die Ebenen auseinander.
+
+**Merkpunkt:** Seitenrollen (planer, payroll) über **echten Login** verifizieren, nicht über „Vorschau als". Kein Produktions-Blocker. **Offen (zurückgestellt):** `loadAdminCaller` impersonation-bewusst machen (analog `getMyIdentity`).
+
+### c) Abwesenheits-Durchsetzung scoped (P-2-Lücke geschlossen)
+
+P-2 hatte nur `roster.shift.manage` für die fünf Schicht-Functions scoped; die **Abwesenheits**-Functions blieben offen. Nachgezogen: `setAbsence`, `clearAbsence`, `setAbsenceRange` setzen jetzt `roster.absence.manage` scoped durch.
+
+Mechanik: Eine Abwesenheit gilt einem **Mitarbeiter** (nicht einer Schicht), hat also keinen eigenen (Standort, Bereich). Neue Helfer-Fn `resolveAllowedStaffScope(staffId, perm)` lädt die `staff_locations` des betroffenen Mitarbeiters und gibt den ersten `(location, area)` zurück, in dem der **Caller** das Recht hat (`has_permission` im Caller-Client, `staff_locations` RLS-frei via `supabaseAdmin`). Dieser Scope geht in `runWithPermission` — findet sich keiner (`{null, null}`), wirft es für den Planer (Admin/Manager bleiben global true).
+
+**Praxis-Hinweis:** `planer` hat per Default **nur** `view`-Rechte für Abwesenheiten, **kein** `roster.absence.manage`. Soll ein Planer Abwesenheiten verwalten, braucht er dafür **eigene Overrides** (Standort+Bereich), analog zum `roster.shift.manage`-Setup. Ohne diese Overrides plant er nur Schichten — Abwesenheiten werden serverseitig abgelehnt (gewolltes Verhalten, sofern keine Override gesetzt).
+
+### d) Bereich-Tabs auf erlaubte Bereiche beschränkt (`visibleAreas`)
+
+Statt dem Planer beide Tabs (Küche/Service) zu zeigen und Service nur read-only zu halten (P-3b), zeigt der Dienstplan jetzt **nur die Bereiche, in denen der Planer am aktuellen Standort einen Scope hat**. `dienstplan.tsx` leitet `visibleAreas` aus `scopes` (für `effectiveLocationId`) ab; `RosterGrid` rendert nur die zugehörigen `TabsTrigger`. Ein `useEffect` schaltet `activeArea` auf den ersten sichtbaren Bereich um, falls der aktive ausgeblendet wird. Für Admin/Manager (keine spezifischen Scopes, globaler Default) bleiben beide Tabs sichtbar.
+
+### e) Bereich-Freigabe: optimistisches Cache-Update
+
+Der Freigabe-Toggle (`AreaReleaseControl`, „Plan freigeben") aktualisiert den `roster-release`-Cache jetzt optimistisch via `setQueryData` (vorher nur `invalidateQueries`) und invalidiert danach. Das korrigiert einen Anzeige-Abbruch beim Umschalten der Freigabe.
