@@ -113,9 +113,7 @@ function DienstplanPage() {
   const effectiveLocationId = locationId ?? locations[0]?.id ?? null;
   const visibleAreas = useMemo<GridArea[]>(() => {
     if (!effectiveLocationId) return ["kitchen", "service"];
-    const areas = scopes
-      .filter((s) => s.locationId === effectiveLocationId)
-      .map((s) => s.area);
+    const areas = scopes.filter((s) => s.locationId === effectiveLocationId).map((s) => s.area);
     // Wenn keine Scopes geladen sind (z. B. Admin/Manager via globalem Default),
     // sind beide Bereiche sichtbar.
     if (areas.length === 0) return ["kitchen", "service"];
