@@ -338,12 +338,12 @@ export function RosterGrid({
                 return (
                   <tr
                     key={`${activeArea}-${row.staffId}`}
-                    className="group/row border-b last:border-b-0 even:bg-muted/40 hover:bg-muted/30"
+                    className="group/row border-b last:border-b-0 even:bg-muted-foreground/15 hover:bg-muted/30"
                     style={{ height: rowH }}
                   >
                     <td
                       className={cn(
-                        "sticky left-0 z-10 bg-background text-center font-medium group-even/row:bg-muted/40",
+                        "sticky left-0 z-10 bg-background text-center font-medium group-even/row:bg-muted-foreground/15",
                         isFit ? "truncate px-2 py-0.5 text-[11px]" : "px-3 py-1",
                       )}
                     >
@@ -498,14 +498,14 @@ export function RosterGrid({
                     })}
                     <td
                       className={cn(
-                        "sticky z-10 border-l bg-background text-center font-medium group-even/row:bg-muted/40",
+                        "sticky z-10 border-l bg-background text-center font-medium group-even/row:bg-muted-foreground/15",
                         isFit ? "truncate px-2 py-0.5 text-[11px]" : "px-3 py-1",
                       )}
                       style={{ right: isFit ? 32 : 48 }}
                     >
                       {row.displayName}
                     </td>
-                    <td className="sticky right-0 z-10 border-l bg-muted px-1 py-1 text-center font-mono text-xs tabular-nums group-even/row:bg-muted/70">
+                    <td className="sticky right-0 z-10 border-l bg-muted px-1 py-1 text-center font-mono text-xs tabular-nums group-even/row:bg-muted-foreground/20">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span
