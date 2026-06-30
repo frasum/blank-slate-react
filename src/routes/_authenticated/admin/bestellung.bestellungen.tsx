@@ -287,6 +287,16 @@ function OrderDetail(props: {
           Kein E-Mail-Versand möglich — Lieferant hat keine Adresse.
         </p>
       )}
+      {order.email_error && (
+        <div className="rounded border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive space-y-1">
+          <p className="font-medium uppercase tracking-wide">E-Mail-Versand fehlgeschlagen</p>
+          <p className="whitespace-pre-wrap font-mono text-foreground">{order.email_error}</p>
+          <p className="text-muted-foreground">
+            {order.email_sent_at ? `Zeitpunkt: ${formatShortDateTime(order.email_sent_at)}` : "Zeitpunkt: —"}
+            {order.email_message_id ? ` · Message-ID: ${order.email_message_id}` : ""}
+          </p>
+        </div>
+      )}
       <div className="grid grid-cols-1 gap-2 md:grid-cols-3 text-xs">
         <div>
           <p className="uppercase tracking-wide text-muted-foreground">Lieferdatum</p>
