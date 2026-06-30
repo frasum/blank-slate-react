@@ -2610,7 +2610,11 @@ async function syncServicePoolEndFromAutoClockout(input: {
       .eq("location_id", input.locationId)
       .eq("department", "service")
       .maybeSingle(),
-    supabaseAdmin.from("time_entries").select("ended_at").eq("id", input.autoClockoutId).maybeSingle(),
+    supabaseAdmin
+      .from("time_entries")
+      .select("ended_at")
+      .eq("id", input.autoClockoutId)
+      .maybeSingle(),
   ]);
   if (!entry || entry.department !== "service") return;
   if (!def?.default_checkout || !entry.shift_end) return;

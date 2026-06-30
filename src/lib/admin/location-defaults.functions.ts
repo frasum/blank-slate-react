@@ -33,7 +33,9 @@ export const listLocationDepartmentDefaults = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await supabaseAdmin
       .from("location_department_defaults")
-      .select("location_id, department, default_checkin, default_checkout, locations!inner(organization_id)")
+      .select(
+        "location_id, department, default_checkin, default_checkout, locations!inner(organization_id)",
+      )
       .eq("locations.organization_id", caller.organizationId);
     if (error) throw error;
     return (data ?? []).map((r) => ({
@@ -69,18 +71,16 @@ export const upsertLocationDepartmentDefault = createServerFn({ method: "POST" }
       if (!loc || loc.organization_id !== caller.organizationId) {
         throw new Error("Standort nicht in deiner Organisation.");
       }
-      const { error } = await supabaseAdmin
-        .from("location_department_defaults")
-        .upsert(
-          {
-            organization_id: caller.organizationId,
-            location_id: data.locationId,
-            department: data.department,
-            default_checkin: data.defaultCheckin,
-            default_checkout: data.defaultCheckout,
-          },
-          { onConflict: "location_id,department" },
-        );
+      const { error } = await supabaseAdmin.from("location_department_defaults").upsert(
+        {
+          organization_id: caller.organizationId,
+          location_id: data.locationId,
+          department: data.department,
+          default_checkin: data.defaultCheckin,
+          default_checkout: data.defaultCheckout,
+        },
+        { onConflict: "location_id,department" },
+      );
       if (error) throw error;
       return {
         result: { ok: true as const },
