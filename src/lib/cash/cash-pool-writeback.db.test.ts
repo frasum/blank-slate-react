@@ -57,6 +57,7 @@ describe.skipIf(!dbTestsEnabled)("Pool-Zeit-Rückschreibung (DB)", () => {
       department: dept,
       shift_start: "15:00",
       shift_end: "23:00",
+      hours_minutes: 480,
     });
     if (error) throw new Error(`pool entry seed: ${error.message}`);
   }
