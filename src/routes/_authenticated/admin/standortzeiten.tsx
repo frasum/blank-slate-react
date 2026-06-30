@@ -166,8 +166,8 @@ function Page() {
             </TableBody>
           </Table>
           <div className="mt-2 text-xs text-muted-foreground">
-            Hinweis: Für GL kann „Beginn" gespeichert werden, ist aber für den Snapshot
-            irrelevant — GL-Zeilen werden ohne Standardzeit angelegt.
+            Hinweis: Für GL kann „Beginn" gespeichert werden, ist aber für den Snapshot irrelevant —
+            GL-Zeilen werden ohne Standardzeit angelegt.
           </div>
         </Card>
       ))}

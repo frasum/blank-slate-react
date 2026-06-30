@@ -13,7 +13,13 @@ describe("buildRosterPoolSnapshot", () => {
       defaultsByArea: defaults,
     });
     expect(res).toEqual([
-      { staffId: "a", department: "kitchen", shiftStart: "15:00", shiftEnd: "23:30", hoursMinutes: 510 },
+      {
+        staffId: "a",
+        department: "kitchen",
+        shiftStart: "15:00",
+        shiftEnd: "23:30",
+        hoursMinutes: 510,
+      },
     ]);
   });
 
