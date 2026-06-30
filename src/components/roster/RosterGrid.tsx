@@ -93,6 +93,7 @@ type Props = {
 export function RosterGrid({
   activeArea,
   onActiveAreaChange,
+  visibleAreas,
   days,
   today,
   staff,
