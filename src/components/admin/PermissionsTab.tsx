@@ -15,12 +15,15 @@ import {
   type PermissionMeta,
   type PermissionModule,
 } from "@/lib/admin/permissions-catalog";
+import type { StaffDepartment } from "@/lib/staff-domain";
 
 type Cell = "default" | "allow" | "deny";
+type AreaScope = "all" | StaffDepartment;
 
 export function PermissionsTab({ staffId }: { staffId: string }) {
   const queryClient = useQueryClient();
   const [scope, setScope] = useState<string>("global"); // "global" oder location.id
+  const [areaScope, setAreaScope] = useState<AreaScope>("all");
 
   const permsQ = useQuery({
     queryKey: ["admin", "permissions", staffId],
@@ -39,22 +42,27 @@ export function PermissionsTab({ staffId }: { staffId: string }) {
       permission: AppPermission;
       effect: PermissionEffect;
       locationId: string | null;
+      area: StaffDepartment | null;
     }) => setFn({ data: { staffId, ...input } }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "permissions", staffId] }),
   });
   const clearMut = useMutation({
-    mutationFn: (input: { permission: AppPermission; locationId: string | null }) =>
-      clearFn({ data: { staffId, ...input } }),
+    mutationFn: (input: {
+      permission: AppPermission;
+      locationId: string | null;
+      area: StaffDepartment | null;
+    }) => clearFn({ data: { staffId, ...input } }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "permissions", staffId] }),
   });
 
   const scopedLocation: string | null = scope === "global" ? null : scope;
+  const scopedArea: StaffDepartment | null = areaScope === "all" ? null : areaScope;
 
   const overrideMap = useMemo(() => {
     const m = new Map<string, PermissionEffect>();
     if (!permsQ.data) return m;
     for (const o of permsQ.data.overrides) {
-      const key = `${o.permission}::${o.locationId ?? "null"}`;
+      const key = `${o.permission}::${o.locationId ?? "null"}::${o.area ?? "null"}`;
       m.set(key, o.effect);
     }
     return m;
@@ -84,7 +92,7 @@ export function PermissionsTab({ staffId }: { staffId: string }) {
   const isAdminRole = permsQ.data.role === "admin";
 
   function cellState(perm: AppPermission): Cell {
-    const key = `${perm}::${scopedLocation ?? "null"}`;
+    const key = `${perm}::${scopedLocation ?? "null"}::${scopedArea ?? "null"}`;
     const ov = overrideMap.get(key);
     if (ov === "allow") return "allow";
     if (ov === "deny") return "deny";
@@ -93,17 +101,17 @@ export function PermissionsTab({ staffId }: { staffId: string }) {
 
   function effectiveBadge(perm: AppPermission): { text: string; cls: string } {
     if (isAdminRole) return { text: "ja (Admin)", cls: "bg-emerald-500/15 text-emerald-700" };
-    // DENY global oder im gewählten Scope?
-    const denyGlobal = overrideMap.get(`${perm}::null`) === "deny";
-    const denyScope = scopedLocation
-      ? overrideMap.get(`${perm}::${scopedLocation}`) === "deny"
-      : false;
-    if (denyGlobal || denyScope) return { text: "nein", cls: "bg-rose-500/15 text-rose-700" };
-    const allowGlobal = overrideMap.get(`${perm}::null`) === "allow";
-    const allowScope = scopedLocation
-      ? overrideMap.get(`${perm}::${scopedLocation}`) === "allow"
-      : false;
-    if (allowGlobal || allowScope) return { text: "ja", cls: "bg-emerald-500/15 text-emerald-700" };
+    const a = scopedArea ?? "null";
+    const loc = scopedLocation ?? "null";
+    const candidates = [
+      `${perm}::null::null`,
+      `${perm}::null::${a}`,
+      `${perm}::${loc}::null`,
+      `${perm}::${loc}::${a}`,
+    ];
+    const effects = candidates.map((k) => overrideMap.get(k));
+    if (effects.includes("deny")) return { text: "nein", cls: "bg-rose-500/15 text-rose-700" };
+    if (effects.includes("allow")) return { text: "ja", cls: "bg-emerald-500/15 text-emerald-700" };
     const def = defaultSet.has(perm);
     return def
       ? { text: "ja (Default)", cls: "bg-emerald-500/10 text-emerald-700" }
@@ -136,6 +144,17 @@ export function PermissionsTab({ staffId }: { staffId: string }) {
               {l.name}
             </option>
           ))}
+        </select>
+        <label className="ml-2 text-xs font-medium text-muted-foreground">Bereich:</label>
+        <select
+          value={areaScope}
+          onChange={(e) => setAreaScope(e.target.value as AreaScope)}
+          className="rounded-md border border-input bg-background px-2 py-1 text-sm"
+        >
+          <option value="all">Alle Bereiche</option>
+          <option value="kitchen">Küche</option>
+          <option value="service">Service</option>
+          <option value="gl">GL</option>
         </select>
       </div>
 
@@ -198,12 +217,14 @@ export function PermissionsTab({ staffId }: { staffId: string }) {
                                       clearMut.mutate({
                                         permission: p.key,
                                         locationId: scopedLocation,
+                                        area: scopedArea,
                                       });
                                     } else {
                                       setMut.mutate({
                                         permission: p.key,
                                         effect: val,
                                         locationId: scopedLocation,
+                                        area: scopedArea,
                                       });
                                     }
                                   }}
