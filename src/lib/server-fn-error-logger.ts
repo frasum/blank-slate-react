@@ -68,13 +68,107 @@ export function installServerFnFetchLogger(): void {
   };
 }
 
+// Feldnamen, deren Werte niemals im Log auftauchen dürfen (Substring-Match,
+// case-insensitive). Deckt Auth-/PII-Klassiker ab.
+const SENSITIVE_KEY_PATTERNS = [
+  "password",
+  "passwort",
+  "pass_hash",
+  "passwordhash",
+  "pin",
+  "token",
+  "secret",
+  "api_key",
+  "apikey",
+  "authorization",
+  "auth",
+  "cookie",
+  "session",
+  "refresh",
+  "access_token",
+  "client_secret",
+  "iban",
+  "bic",
+  "ssn",
+  "steuer",
+  "tax_id",
+  "geburts",
+  "birthdate",
+  "dob",
+  "email",
+  "e_mail",
+  "mail",
+  "phone",
+  "telefon",
+  "mobile",
+  "address",
+  "adresse",
+  "street",
+  "strasse",
+  "city",
+  "ort",
+  "plz",
+  "postcode",
+  "zip",
+  "first_name",
+  "last_name",
+  "firstname",
+  "lastname",
+  "vorname",
+  "nachname",
+  "fullname",
+  "name",
+];
+
+// Werte, die nach E-Mail/JWT/IBAN-Muster aussehen, werden geredacted, auch wenn
+// der Key nicht in der Liste oben steht (z. B. positional in Arrays).
+const EMAIL_RE = /[\w.+-]+@[\w-]+\.[\w.-]+/g;
+const JWT_RE = /\beyJ[\w-]+\.[\w-]+\.[\w-]+\b/g;
+const LONG_HEX_RE = /\b[a-f0-9]{32,}\b/gi;
+const IBAN_RE = /\b[A-Z]{2}\d{2}[A-Z0-9]{10,30}\b/g;
+
+function isSensitiveKey(key: string): boolean {
+  const k = key.toLowerCase();
+  return SENSITIVE_KEY_PATTERNS.some((p) => k.includes(p));
+}
+
+function redactString(s: string): string {
+  return s
+    .replace(EMAIL_RE, "[email-redacted]")
+    .replace(JWT_RE, "[jwt-redacted]")
+    .replace(IBAN_RE, "[iban-redacted]")
+    .replace(LONG_HEX_RE, "[hex-redacted]");
+}
+
+function redact(value: unknown, depth = 0): unknown {
+  if (value == null) return value;
+  if (depth > 6) return "[depth-cap]";
+  if (typeof value === "string") return redactString(value);
+  if (typeof value === "number" || typeof value === "boolean") return value;
+  if (Array.isArray(value)) return value.slice(0, 50).map((v) => redact(v, depth + 1));
+  if (typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (isSensitiveKey(k)) {
+        out[k] = "[redacted]";
+      } else {
+        out[k] = redact(v, depth + 1);
+      }
+    }
+    return out;
+  }
+  // Functions, Symbols, BigInts etc. → Typname statt Wert.
+  return `[${typeof value}]`;
+}
+
 function safePreview(value: unknown, max = 400): string {
   try {
-    const s = typeof value === "string" ? value : JSON.stringify(value);
-    if (!s) return String(value);
+    const redacted = redact(value);
+    const s = typeof redacted === "string" ? redacted : JSON.stringify(redacted);
+    if (!s) return String(redacted);
     return s.length > max ? s.slice(0, max) + `… [+${s.length - max} chars]` : s;
   } catch {
-    return String(value);
+    return "[unserializable]";
   }
 }
 
