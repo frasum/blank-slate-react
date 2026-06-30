@@ -178,9 +178,7 @@ function BestellungenPage() {
                     <td className="px-3 py-2 text-xs text-muted-foreground">
                       <button
                         type="button"
-                        onClick={() =>
-                          setEmailLogOrder(emailLogOrder === o.id ? null : o.id)
-                        }
+                        onClick={() => setEmailLogOrder(emailLogOrder === o.id ? null : o.id)}
                         className={
                           "rounded px-2 py-0.5 text-xs underline-offset-2 hover:underline " +
                           (o.email_error
@@ -245,16 +243,16 @@ function BestellungenPage() {
                   extra.push(
                     <tr key={o.id + "-detail"} className="border-t border-border bg-muted/10">
                       <td colSpan={8} className="px-3 py-4">
-                      <OrderDetail
-                        orderId={o.id}
-                        canCancel={o.status !== "cancelled"}
-                        onCancel={() => cancelMut.mutate(o.id)}
-                        cancelling={cancelMut.isPending}
-                        supplierHasEmail={!!suppliersById.get(o.supplier_id)?.email}
-                        canResend={o.status !== "cancelled"}
-                        onResend={() => sendMut.mutate(o.id)}
-                        resending={sendMut.isPending}
-                      />
+                        <OrderDetail
+                          orderId={o.id}
+                          canCancel={o.status !== "cancelled"}
+                          onCancel={() => cancelMut.mutate(o.id)}
+                          cancelling={cancelMut.isPending}
+                          supplierHasEmail={!!suppliersById.get(o.supplier_id)?.email}
+                          canResend={o.status !== "cancelled"}
+                          onResend={() => sendMut.mutate(o.id)}
+                          resending={sendMut.isPending}
+                        />
                       </td>
                     </tr>,
                   );
@@ -298,7 +296,9 @@ function OrderDetail(props: {
           <p className="font-medium uppercase tracking-wide">E-Mail-Versand fehlgeschlagen</p>
           <p className="whitespace-pre-wrap font-mono text-foreground">{order.email_error}</p>
           <p className="text-muted-foreground">
-            {order.email_sent_at ? `Zeitpunkt: ${formatShortDateTime(order.email_sent_at)}` : "Zeitpunkt: —"}
+            {order.email_sent_at
+              ? `Zeitpunkt: ${formatShortDateTime(order.email_sent_at)}`
+              : "Zeitpunkt: —"}
             {order.email_message_id ? ` · Message-ID: ${order.email_message_id}` : ""}
           </p>
           {props.canResend && (
@@ -423,16 +423,18 @@ function EmailDeliveryTimeline(props: {
   const steps: { label: string; ts: string | null; tone: "ok" | "err" | "muted" }[] = [
     { label: "Bestellung erstellt", ts: null, tone: "muted" },
     {
-      label: props.error ? "Versand fehlgeschlagen" : props.sent ? "An Mail-Server übergeben" : "Noch nicht versendet",
+      label: props.error
+        ? "Versand fehlgeschlagen"
+        : props.sent
+          ? "An Mail-Server übergeben"
+          : "Noch nicht versendet",
       ts: props.sentAt,
       tone: props.error ? "err" : props.sent ? "ok" : "muted",
     },
   ];
   return (
     <div className="space-y-2 text-xs">
-      <p className="font-medium uppercase tracking-wide text-muted-foreground">
-        E-Mail-Zustellung
-      </p>
+      <p className="font-medium uppercase tracking-wide text-muted-foreground">E-Mail-Zustellung</p>
       <ol className="space-y-1">
         {steps.map((s, i) => (
           <li key={i} className="flex items-start gap-2">
