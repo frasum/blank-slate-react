@@ -2,6 +2,7 @@
 // Stornieren (Manager+). E-Mail-Versand folgt in Welle 1-D.
 
 import { useMemo, useState } from "react";
+import type React from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -358,3 +359,63 @@ function OrderDetail(props: {
 
 const selectCls =
   "w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
+
+function EmailDeliveryTimeline(props: {
+  sent: boolean;
+  sentAt: string | null;
+  messageId: string | null;
+  error: string | null;
+}) {
+  const steps: { label: string; ts: string | null; tone: "ok" | "err" | "muted" }[] = [
+    { label: "Bestellung erstellt", ts: null, tone: "muted" },
+    {
+      label: props.error ? "Versand fehlgeschlagen" : props.sent ? "An Mail-Server übergeben" : "Noch nicht versendet",
+      ts: props.sentAt,
+      tone: props.error ? "err" : props.sent ? "ok" : "muted",
+    },
+  ];
+  return (
+    <div className="space-y-2 text-xs">
+      <p className="font-medium uppercase tracking-wide text-muted-foreground">
+        E-Mail-Zustellung
+      </p>
+      <ol className="space-y-1">
+        {steps.map((s, i) => (
+          <li key={i} className="flex items-start gap-2">
+            <span
+              className={
+                "mt-1 inline-block h-2 w-2 rounded-full " +
+                (s.tone === "ok"
+                  ? "bg-green-500"
+                  : s.tone === "err"
+                    ? "bg-destructive"
+                    : "bg-muted-foreground/40")
+              }
+            />
+            <span className="flex-1">
+              <span className="text-foreground">{s.label}</span>
+              {s.ts && (
+                <span className="ml-2 text-muted-foreground">{formatShortDateTime(s.ts)}</span>
+              )}
+            </span>
+          </li>
+        ))}
+      </ol>
+      {props.messageId && (
+        <p className="text-muted-foreground">
+          Message-ID: <span className="font-mono text-foreground">{props.messageId}</span>
+        </p>
+      )}
+      {props.error && (
+        <p className="rounded border border-destructive/40 bg-destructive/5 px-2 py-1 text-destructive">
+          {props.error}
+        </p>
+      )}
+      {!props.sent && !props.error && (
+        <p className="text-muted-foreground">
+          Noch kein Versand-Versuch — über „Per E-Mail senden" auslösen.
+        </p>
+      )}
+    </div>
+  );
+}
