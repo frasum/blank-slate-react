@@ -111,6 +111,19 @@ function DienstplanPage() {
     return periods.find((p) => p.startDate <= today && today <= p.endDate) ?? periods[0] ?? null;
   }, [periods, periodId, today]);
   const effectiveLocationId = locationId ?? locations[0]?.id ?? null;
+  const visibleAreas = useMemo<GridArea[]>(() => {
+    if (!effectiveLocationId) return ["kitchen", "service"];
+    const areas = scopes.filter((s) => s.locationId === effectiveLocationId).map((s) => s.area);
+    // Wenn keine Scopes geladen sind (z. B. Admin/Manager via globalem Default),
+    // sind beide Bereiche sichtbar.
+    if (areas.length === 0) return ["kitchen", "service"];
+    return areas;
+  }, [scopes, effectiveLocationId]);
+  useEffect(() => {
+    if (!visibleAreas.includes(activeArea) && visibleAreas[0]) {
+      setActiveArea(visibleAreas[0]);
+    }
+  }, [visibleAreas, activeArea]);
   const canEdit = useMemo(
     () => canEditScope(scopes, effectiveLocationId, activeArea),
     [scopes, effectiveLocationId, activeArea],
@@ -688,6 +701,7 @@ function DienstplanPage() {
             </div>
             <RosterGrid
               activeArea={activeArea}
+              visibleAreas={visibleAreas}
               onActiveAreaChange={(a) => {
                 setActiveArea(a);
                 setPaint(null); // Paint-Auswahl zurücksetzen, da Skill-Pool wechselt
