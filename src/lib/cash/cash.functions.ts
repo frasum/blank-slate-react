@@ -532,6 +532,13 @@ export async function computeSessionTipPoolCore(
     staffNames: Record<string, string>;
     manualStaffIds: string[];
     kitchenManualOnly: boolean;
+    glEntries: Array<{
+      staffId: string;
+      displayName: string;
+      shiftStart: string | null;
+      shiftEnd: string | null;
+      hoursMinutes: number;
+    }>;
   }
 > {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -554,7 +561,7 @@ export async function computeSessionTipPoolCore(
       .not("ended_at", "is", null),
     supabaseAdmin
       .from("session_tip_pool_entries")
-      .select("staff_id, department, hours_minutes")
+      .select("staff_id, department, hours_minutes, shift_start, shift_end")
       .eq("organization_id", caller.organizationId)
       .eq("session_id", session.id),
   ]);
@@ -572,12 +579,25 @@ export async function computeSessionTipPoolCore(
     hilfMahlCents: Number(r.hilf_mahl_cents),
     kitchenTipCents: Number(r.kitchen_tip_cents),
   }));
-  const manualEntries = (manualRes.data ?? []).map((r) => ({
+  const allPoolRows = (manualRes.data ?? []).map((r) => ({
     staffId: r.staff_id,
     department: r.department as StaffDepartment,
     hoursMinutes: Number(r.hours_minutes),
+    shiftStart: r.shift_start as string | null,
+    shiftEnd: r.shift_end as string | null,
   }));
+  // GL-Zeilen NIE als „manuell" an die Verteilrechnung geben — die
+  // Verteillogik schließt zwar gl bereits aus, aber `staffParticipates`
+  // würde GL sonst als Pool-Teilnehmer markieren (hours_minutes > 0).
+  const manualEntries = allPoolRows
+    .filter((r) => r.department === "kitchen" || r.department === "service")
+    .map((r) => ({
+      staffId: r.staffId,
+      department: r.department,
+      hoursMinutes: r.hoursMinutes,
+    }));
   const manualByStaff = new Map(manualEntries.map((m) => [m.staffId, m]));
+  const glRows = allPoolRows.filter((r) => r.department === "gl");
 
   const rawTimeEntries = (timeRes.data ?? [])
     .filter(
@@ -592,6 +612,7 @@ export async function computeSessionTipPoolCore(
       ...settlements.map((s) => s.staffId),
       ...rawTimeEntries.map((t) => t.staffId),
       ...manualByStaff.keys(),
+      ...glRows.map((r) => r.staffId),
     ]),
   );
 
@@ -659,6 +680,13 @@ export async function computeSessionTipPoolCore(
     staffNames,
     manualStaffIds: Array.from(manualByStaff.keys()),
     kitchenManualOnly: settings.kitchenManualOnly,
+    glEntries: glRows.map((r) => ({
+      staffId: r.staffId,
+      displayName: staffNames[r.staffId] ?? r.staffId,
+      shiftStart: r.shiftStart ? r.shiftStart.slice(0, 5) : null,
+      shiftEnd: r.shiftEnd ? r.shiftEnd.slice(0, 5) : null,
+      hoursMinutes: r.hoursMinutes,
+    })),
   };
 }
 
