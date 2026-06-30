@@ -27,7 +27,7 @@ Erst wenn ESLint 0 Fehler und alle Tests grün sind → ABGENOMMEN.
 
 ## 3. Pflicht-Regeln (aus Erfahrung teuer gelernt)
 
-- **Prettier/ESLint VOR jedem Commit.** Jeder Lovable-Prompt endet mit: „Vor dem Commit: `npx prettier --write` + `npx eslint --fix` über alle geänderten Dateien. CI muss grün sein." → Spart die wiederkehrenden Formatierungs-Nachzieher.
+- **Prettier/ESLint VOR jedem Commit.** Die CI fährt `prettier --check` über das **ganze Repo** (inkl. `docs/`), nicht nur `src/` — genau daran hingen mehrfach rote Runs (tsc/vitest grün, nur Format rot). Jeder Lovable-Prompt endet daher mit diesem Pflicht-Block: „Vor dem Commit: `npx prettier --write .` + `npx eslint --fix src/` über alle geänderten Dateien. Danach müssen `npx tsc --noEmit` (0 Fehler), `npx eslint . --max-warnings=5` (0 Fehler), `npx vitest run` (grün) und `npx prettier --check .` (sauber, **ganzes Repo**) alle durchlaufen. Erst dann committen." → Spart die wiederkehrenden Formatierungs-Nachzieher.
 - **CI nach JEDEM Commit prüfen**, nicht erst wenn rote Runs auflaufen. (Lektion: zwischen CI #75 und #88 waren ~13 rote Runs unbemerkt.)
 - **Migrationen immer als Vorab-SQL-Skizze im Prompt mitgeben** — nicht Lovable raten lassen. Reduziert Schema-Fehler erheblich.
 - **Massen-SQL in Batches** (max. ~2000–2500 Zeilen pro Datei), sonst bricht der Supabase-Editor mit Connection-Fehler ab. Bei Fehler einfach nochmal „Run".
@@ -63,7 +63,7 @@ Erst wenn ESLint 0 Fehler und alle Tests grün sind → ABGENOMMEN.
 
 ### Rollen
 
-`admin > manager > staff` (Hierarchie) + `payroll` (Seitenrolle, nur Lesezugriff auf Zeitübersicht/Perioden/Buchhaltung, kein Schreibrecht).
+`admin > manager > staff` (Hierarchie) + zwei **Seitenrollen** (RANK 0 — erben **keine** Hierarchie-Rechte): `payroll` (nur Lesezugriff auf Zeitübersicht/Perioden/Buchhaltung, kein Schreibrecht) und `planer` (Dienstplan-Bearbeitung, aber nur in freigegebenen `(Standort, Bereich)`-Kombinationen via `permission_overrides`; sieht den ganzen Plan, ändert nur den eigenen Scope — Details §25/§26).
 
 ### Abrechnungsperioden
 
@@ -1023,3 +1023,12 @@ Statt dem Planer beide Tabs (Küche/Service) zu zeigen und Service nur read-only
 ### e) Bereich-Freigabe: optimistisches Cache-Update
 
 Der Freigabe-Toggle (`AreaReleaseControl`, „Plan freigeben") aktualisiert den `roster-release`-Cache jetzt optimistisch via `setQueryData` (vorher nur `invalidateQueries`) und invalidiert danach. Das korrigiert einen Anzeige-Abbruch beim Umschalten der Freigabe.
+
+### f) Ist-Zustand SUMITR (Live, 30.06.2026)
+
+SUMITR ist als erster (und bislang einziger) `planer` produktiv. Setup per SQL in der **COCO-DB**: Rolle `planer` (`role_assignments`) + vier `permission_overrides`, alle `effect='allow'`:
+
+- `roster.shift.manage` — Spicery/Küche, YUM/Küche
+- `roster.absence.manage` — Spicery/Küche, YUM/Küche
+
+Damit plant SUMITR Schichten **und** verwaltet Abwesenheiten für Küchen-Mitarbeiter in Spicery + YUM. Die Bereich-Tabs zeigen ihm nur „Küche" (§26.d); andere Standorte/Bereiche bleiben read-only. **Verifiziert über echten PIN-Login** (nicht „Vorschau als" — §26.b). Soll ein weiterer Bereich/Standort dazukommen, je ein zusätzliches `allow`-Override pro `(Standort, Bereich)` und Permission setzen.
