@@ -1,17 +1,18 @@
-## Zebra-Streifen für RosterGrid (Dienstplan)
+Änderungen in `src/routes/display.$locationId.tsx` (nur Display, dunkles Theme):
 
-Ziel: Jede zweite Mitarbeiterzeile bekommt einen leicht abgesetzten Hintergrund — gleicher Farbton wie die Wochenend-Spalten (`bg-muted-foreground/25` aus dem Header bzw. abgeschwächt `bg-muted/30`/`bg-muted/40` für ungerade Zeilen), damit das Auge horizontal besser folgen kann.
+## 1. Zebra-Streifen für Datenzeilen
+- `<tr>` der Datenzeilen erhält `group/row even:bg-slate-900/40`.
+- Linke sticky Namens-Spalte (`bg-slate-950`) erhält zusätzlich `group-even/row:bg-slate-900` damit der sticky-Hintergrund deckend bleibt.
+- Rechte sticky Namens-Spalte (style right:64): gleiches Pattern.
+- Σ-Spalte (sticky right-0): gleiches Pattern.
+- Wochenend- und Heute-Hervorhebung in den Zellen bleibt — überschreibt den Zeilen-Hintergrund weiterhin.
 
-### Änderungen — nur `src/components/roster/RosterGrid.tsx`
+## 2. Tages-Schichtzahl in den Spalten-Header verlegen
+Wie im Dienstplan-Grid: pro Tagesspalte zusätzlich zur `Wd / dm` eine dritte Zeile mit der Anzahl an Schichten dieses Bereichs an diesem Tag (`block.dayCounts[i]`).
+- Im `<thead>` jeder `BlockTable`: dritter `<div>` mit `tabular-nums font-semibold text-[10px]`, gleiche Heute/Wochenend-Logik wie bisher.
+- 0 → dezenter Punkt (`text-slate-600`), sonst `text-slate-200` (Heute: `text-sky-100`).
 
-1. Im `<tbody>`-Map über `visibleStaff`: `<tr>` bekommt zusätzlich `even:bg-muted/40` (Zebra-Streifen in Wochenend-Grau-Ton, gedämpft).
-2. Die sticky linke + rechte Namens-Spalte sowie die sticky Σ-Spalte nutzen aktuell `bg-background` / `bg-muted`. Damit sie beim Zebra mitziehen, werden sie ebenfalls über `group/row` + `group-even/row:bg-muted/40` gestreift — Variante: `tr` erhält `group/row even:bg-muted/40`, die sticky-`td`s erhalten `bg-background group-even/row:bg-muted/40` (bzw. die Σ-Spalte `bg-muted group-even/row:bg-muted/60`), damit der sticky-Hintergrund deckend bleibt und nicht durchscheint.
-3. Wochenend-Spalten und Heute-Highlight bleiben unverändert (höhere Priorität via konkretere Klassen — Wochenende: `bg-muted-foreground/25`, Heute: `bg-yellow-200/70`).
-4. Hover-Effekt (`hover:bg-muted/30`) bleibt; Zebra wirkt nur im Ruhezustand.
+## 3. „Arbeitet"-Footer-Zeile entfernen
+Den gesamten `block.rows.length > 0 && (<tr>…Arbeitet…</tr>)`-Block in `BlockTable` löschen — Daten kommen jetzt aus dem Header.
 
-### Nicht angefasst
-Display-Route (`display.$locationId.tsx`) — dort sind die Zeilen schon kontrastreich auf dunklem Grund; Zebra nur im Admin-Grid wie auf dem Screenshot gewünscht. Daten-, Sticky-, Drag- oder Paint-Logik bleibt unberührt.
-
-### Erfolgs-Gate
-- visuell: jede zweite Zeile leicht grau; Wochenend-Spalten weiterhin dunkler; Heute-Spalte gelb dominiert; sticky-Spalten links/rechts/Σ ohne Durchscheinen.
-- `bun run tsc --noEmit` grün, kein Eslint-Drift.
+Daten/Realtime/Sticky-Offsets/CellView/Pillen unverändert; Grid wird nicht angefasst.
