@@ -30,6 +30,7 @@ import { Route as AuthenticatedAdminZeitUebersichtRouteImport } from './routes/_
 import { Route as AuthenticatedAdminUrlaubRouteImport } from './routes/_authenticated/admin/urlaub'
 import { Route as AuthenticatedAdminTrinkgeldRestRouteImport } from './routes/_authenticated/admin/trinkgeld-rest'
 import { Route as AuthenticatedAdminStatistikRouteImport } from './routes/_authenticated/admin/statistik'
+import { Route as AuthenticatedAdminStandortzeitenRouteImport } from './routes/_authenticated/admin/standortzeiten'
 import { Route as AuthenticatedAdminStaffRouteImport } from './routes/_authenticated/admin/staff'
 import { Route as AuthenticatedAdminMigrationRouteImport } from './routes/_authenticated/admin/migration'
 import { Route as AuthenticatedAdminLohnrechnerRouteImport } from './routes/_authenticated/admin/lohnrechner'
@@ -167,6 +168,12 @@ const AuthenticatedAdminStatistikRoute =
   AuthenticatedAdminStatistikRouteImport.update({
     id: '/statistik',
     path: '/statistik',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAdminStandortzeitenRoute =
+  AuthenticatedAdminStandortzeitenRouteImport.update({
+    id: '/standortzeiten',
+    path: '/standortzeiten',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
 const AuthenticatedAdminStaffRoute = AuthenticatedAdminStaffRouteImport.update({
@@ -334,6 +341,7 @@ export interface FileRoutesByFullPath {
   '/admin/lohnrechner': typeof AuthenticatedAdminLohnrechnerRoute
   '/admin/migration': typeof AuthenticatedAdminMigrationRoute
   '/admin/staff': typeof AuthenticatedAdminStaffRouteWithChildren
+  '/admin/standortzeiten': typeof AuthenticatedAdminStandortzeitenRoute
   '/admin/statistik': typeof AuthenticatedAdminStatistikRoute
   '/admin/trinkgeld-rest': typeof AuthenticatedAdminTrinkgeldRestRoute
   '/admin/urlaub': typeof AuthenticatedAdminUrlaubRoute
@@ -377,6 +385,7 @@ export interface FileRoutesByTo {
   '/admin/lohn-verteilung': typeof AuthenticatedAdminLohnVerteilungRoute
   '/admin/lohnrechner': typeof AuthenticatedAdminLohnrechnerRoute
   '/admin/migration': typeof AuthenticatedAdminMigrationRoute
+  '/admin/standortzeiten': typeof AuthenticatedAdminStandortzeitenRoute
   '/admin/statistik': typeof AuthenticatedAdminStatistikRoute
   '/admin/trinkgeld-rest': typeof AuthenticatedAdminTrinkgeldRestRoute
   '/admin/urlaub': typeof AuthenticatedAdminUrlaubRoute
@@ -425,6 +434,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/lohnrechner': typeof AuthenticatedAdminLohnrechnerRoute
   '/_authenticated/admin/migration': typeof AuthenticatedAdminMigrationRoute
   '/_authenticated/admin/staff': typeof AuthenticatedAdminStaffRouteWithChildren
+  '/_authenticated/admin/standortzeiten': typeof AuthenticatedAdminStandortzeitenRoute
   '/_authenticated/admin/statistik': typeof AuthenticatedAdminStatistikRoute
   '/_authenticated/admin/trinkgeld-rest': typeof AuthenticatedAdminTrinkgeldRestRoute
   '/_authenticated/admin/urlaub': typeof AuthenticatedAdminUrlaubRoute
@@ -473,6 +483,7 @@ export interface FileRouteTypes {
     | '/admin/lohnrechner'
     | '/admin/migration'
     | '/admin/staff'
+    | '/admin/standortzeiten'
     | '/admin/statistik'
     | '/admin/trinkgeld-rest'
     | '/admin/urlaub'
@@ -516,6 +527,7 @@ export interface FileRouteTypes {
     | '/admin/lohn-verteilung'
     | '/admin/lohnrechner'
     | '/admin/migration'
+    | '/admin/standortzeiten'
     | '/admin/statistik'
     | '/admin/trinkgeld-rest'
     | '/admin/urlaub'
@@ -563,6 +575,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/lohnrechner'
     | '/_authenticated/admin/migration'
     | '/_authenticated/admin/staff'
+    | '/_authenticated/admin/standortzeiten'
     | '/_authenticated/admin/statistik'
     | '/_authenticated/admin/trinkgeld-rest'
     | '/_authenticated/admin/urlaub'
@@ -743,6 +756,13 @@ declare module '@tanstack/react-router' {
       path: '/statistik'
       fullPath: '/admin/statistik'
       preLoaderRoute: typeof AuthenticatedAdminStatistikRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/standortzeiten': {
+      id: '/_authenticated/admin/standortzeiten'
+      path: '/standortzeiten'
+      fullPath: '/admin/standortzeiten'
+      preLoaderRoute: typeof AuthenticatedAdminStandortzeitenRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
     '/_authenticated/admin/staff': {
@@ -981,6 +1001,7 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminLohnrechnerRoute: typeof AuthenticatedAdminLohnrechnerRoute
   AuthenticatedAdminMigrationRoute: typeof AuthenticatedAdminMigrationRoute
   AuthenticatedAdminStaffRoute: typeof AuthenticatedAdminStaffRouteWithChildren
+  AuthenticatedAdminStandortzeitenRoute: typeof AuthenticatedAdminStandortzeitenRoute
   AuthenticatedAdminStatistikRoute: typeof AuthenticatedAdminStatistikRoute
   AuthenticatedAdminTrinkgeldRestRoute: typeof AuthenticatedAdminTrinkgeldRestRoute
   AuthenticatedAdminUrlaubRoute: typeof AuthenticatedAdminUrlaubRoute
@@ -1006,6 +1027,8 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
     AuthenticatedAdminLohnrechnerRoute: AuthenticatedAdminLohnrechnerRoute,
     AuthenticatedAdminMigrationRoute: AuthenticatedAdminMigrationRoute,
     AuthenticatedAdminStaffRoute: AuthenticatedAdminStaffRouteWithChildren,
+    AuthenticatedAdminStandortzeitenRoute:
+      AuthenticatedAdminStandortzeitenRoute,
     AuthenticatedAdminStatistikRoute: AuthenticatedAdminStatistikRoute,
     AuthenticatedAdminTrinkgeldRestRoute: AuthenticatedAdminTrinkgeldRestRoute,
     AuthenticatedAdminUrlaubRoute: AuthenticatedAdminUrlaubRoute,
