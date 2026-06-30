@@ -2344,7 +2344,7 @@ const tipPoolEntryUpsertSchema = z
   .object({
     sessionId: z.string().uuid(),
     staffId: z.string().uuid(),
-    department: z.enum(["kitchen", "service"]),
+    department: z.enum(["kitchen", "service", "gl"]),
     hoursMinutes: z.number().int().min(0).max(1440).optional(),
     shiftStart: z.string().regex(HHMM_RE).optional(),
     shiftEnd: z.string().regex(HHMM_RE).optional(),
@@ -2369,8 +2369,10 @@ const tipPoolEntryUpsertSchema = z
 
 export type SessionTipPoolEntry = {
   staffId: string;
-  department: "kitchen" | "service";
+  department: "kitchen" | "service" | "gl";
   hoursMinutes: number;
+  shiftStart: string | null;
+  shiftEnd: string | null;
   note: string | null;
 };
 
@@ -2383,14 +2385,16 @@ export const listSessionTipPoolEntries = createServerFn({ method: "GET" })
     const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
     const { data: rows, error } = await supabaseAdmin
       .from("session_tip_pool_entries")
-      .select("staff_id, department, hours_minutes, note")
+      .select("staff_id, department, hours_minutes, shift_start, shift_end, note")
       .eq("organization_id", caller.organizationId)
       .eq("session_id", session.id);
     if (error) throw error;
     return (rows ?? []).map<SessionTipPoolEntry>((r) => ({
       staffId: r.staff_id,
-      department: r.department as "kitchen" | "service",
+      department: r.department as "kitchen" | "service" | "gl",
       hoursMinutes: Number(r.hours_minutes),
+      shiftStart: r.shift_start ? (r.shift_start as string).slice(0, 5) : null,
+      shiftEnd: r.shift_end ? (r.shift_end as string).slice(0, 5) : null,
       note: r.note,
     }));
   });
