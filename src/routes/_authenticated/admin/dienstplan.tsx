@@ -154,7 +154,15 @@ function DienstplanPage() {
           released: !currentlyReleased,
         },
       });
-      qc.invalidateQueries({ queryKey: ["roster-release"] });
+      qc.setQueryData<{ kitchen: boolean; service: boolean }>(
+        ["roster-release", effectiveLocationId, effectivePeriod.id],
+        (old) => ({
+          kitchen: old?.kitchen ?? false,
+          service: old?.service ?? false,
+          [area]: !currentlyReleased,
+        }),
+      );
+      await qc.invalidateQueries({ queryKey: ["roster-release"] });
       toast.success(
         currentlyReleased
           ? `Freigabe ${area === "kitchen" ? "Küche" : "Service"} zurückgezogen.`

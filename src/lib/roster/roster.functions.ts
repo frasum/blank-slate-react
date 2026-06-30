@@ -1174,7 +1174,7 @@ export const createDayOffWish = createServerFn({ method: "POST" })
   });
 
 // =========================================================================
-// Dienstplan-Freigabe pro (Standort, Periode)
+// Dienstplan-Freigabe pro (Standort, Periode, Bereich)
 // =========================================================================
 
 export const getRosterRelease = createServerFn({ method: "GET" })
@@ -1223,34 +1223,47 @@ export const setRosterRelease = createServerFn({ method: "POST" })
       makeAuditWriter(caller),
       async () => {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        let releaseId: string | undefined;
         if (data.released) {
-          const { error } = await supabaseAdmin.from("roster_releases").upsert(
-            {
-              organization_id: caller.organizationId,
-              location_id: data.locationId,
-              period_id: data.periodId,
-              area: data.area,
-              released_at: new Date().toISOString(),
-              released_by: caller.staffId,
-            },
-            { onConflict: "location_id,period_id,area" },
-          );
+          const { data: row, error } = await supabaseAdmin
+            .from("roster_releases")
+            .upsert(
+              {
+                organization_id: caller.organizationId,
+                location_id: data.locationId,
+                period_id: data.periodId,
+                area: data.area,
+                released_at: new Date().toISOString(),
+                released_by: caller.staffId,
+              },
+              { onConflict: "location_id,period_id,area" },
+            )
+            .select("id")
+            .single();
           if (error) throw error;
+          releaseId = row.id as string;
         } else {
-          const { error } = await supabaseAdmin
+          // Idempotent zurückziehen: wenn die Freigabe schon weg ist, ist das
+          // Ergebnis ebenfalls „nicht freigegeben“. Die Rückgabe der gelöschten
+          // ID macht sichtbar, dass wirklich die Bereichs-Zeile entfernt wurde.
+          const { data: deleted, error } = await supabaseAdmin
             .from("roster_releases")
             .delete()
             .eq("organization_id", caller.organizationId)
             .eq("location_id", data.locationId)
             .eq("period_id", data.periodId)
-            .eq("area", data.area);
+            .eq("area", data.area)
+            .select("id")
+            .maybeSingle();
           if (error) throw error;
+          releaseId = (deleted?.id as string | undefined) ?? undefined;
         }
         return {
           result: { ok: true as const, released: data.released },
           audit: {
             action: "roster.release",
             entity: "roster_release",
+            entityId: releaseId,
             meta: {
               locationId: data.locationId,
               periodId: data.periodId,
