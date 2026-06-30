@@ -2584,6 +2584,70 @@ async function applyRosterPoolSnapshot(input: {
   return count ?? 0;
 }
 
+// Nachzug: Service-Pool-Ende des abrechnenden Kellners auf den
+// Ausstempel-Zeitpunkt setzen — nur wenn shift_end exakt dem
+// Service-`default_checkout` des Standorts entspricht (= unverändert
+// seit der Plan-Snapshot-Eröffnung). `time_entries` wird ausschließlich
+// gelesen, nie geschrieben.
+async function syncServicePoolEndFromAutoClockout(input: {
+  organizationId: string;
+  sessionId: string;
+  locationId: string;
+  staffId: string;
+  autoClockoutId: string;
+}): Promise<void> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const [{ data: entry }, { data: def }, { data: te }] = await Promise.all([
+    supabaseAdmin
+      .from("session_tip_pool_entries")
+      .select("department, shift_start, shift_end")
+      .eq("session_id", input.sessionId)
+      .eq("staff_id", input.staffId)
+      .maybeSingle(),
+    supabaseAdmin
+      .from("location_department_defaults")
+      .select("default_checkout")
+      .eq("location_id", input.locationId)
+      .eq("department", "service")
+      .maybeSingle(),
+    supabaseAdmin.from("time_entries").select("ended_at").eq("id", input.autoClockoutId).maybeSingle(),
+  ]);
+  if (!entry || entry.department !== "service") return;
+  if (!def?.default_checkout || !entry.shift_end) return;
+  const normalized = (v: string) => v.slice(0, 5);
+  if (normalized(entry.shift_end) !== normalized(def.default_checkout)) return;
+  if (!te?.ended_at) return;
+  const ended = new Date(te.ended_at as string);
+  const hh = String(ended.getHours()).padStart(2, "0");
+  const mm = String(ended.getMinutes()).padStart(2, "0");
+  const newEnd = `${hh}:${mm}`;
+  const startHHMM = entry.shift_start ? normalized(entry.shift_start as string) : null;
+  let minutes = 0;
+  if (startHHMM) {
+    try {
+      const { kitchenShiftMinutes: kHelp } = await import("./kitchen-shift-hours");
+      minutes = kHelp(startHHMM, newEnd);
+    } catch {
+      minutes = 0;
+    }
+  }
+  await supabaseAdmin
+    .from("session_tip_pool_entries")
+    .update({ shift_end: newEnd, hours_minutes: minutes })
+    .eq("organization_id", input.organizationId)
+    .eq("session_id", input.sessionId)
+    .eq("staff_id", input.staffId);
+  await writeAuditLog({
+    organizationId: input.organizationId,
+    actorUserId: null,
+    actorStaffId: input.staffId,
+    action: "cash.tip_pool.service_end_synced",
+    entity: "session_tip_pool_entry",
+    entityId: input.sessionId,
+    meta: { before: normalized(entry.shift_end), after: newEnd, hoursMinutes: minutes },
+  });
+}
+
 // Manueller „Aus Dienstplan ergänzen"-Knopf — idempotent, überschreibt
 // nie bestehende Zeilen.
 export const addRosterSnapshotMissing = createServerFn({ method: "POST" })
