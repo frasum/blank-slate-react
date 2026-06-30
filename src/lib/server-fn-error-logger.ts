@@ -8,6 +8,7 @@
 // (welche Funktion, welche Argumente, welche Seite war offen).
 
 import { createMiddleware } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 
 type AnyRecord = Record<string, unknown>;
 
@@ -112,6 +113,67 @@ export const logServerFnErrors = createMiddleware({ type: "function" }).client(
           typeof window !== "undefined"
             ? window.location.pathname + window.location.search
             : "ssr",
+        startedAt: isoStart,
+        data: safePreview(data),
+        stack: e?.stack,
+      });
+      throw err;
+    }
+  },
+);
+
+// Server-seitiges Gegenstück: loggt im Worker bei Fehlern oder ≥400-Responses
+// die echte Ursache (Funktion aus URL-Hash, Methode, Referer-Pfad, Payload,
+// Stack). So sind Details auch ohne Browser-Konsole in den Worker-Logs sichtbar.
+export const logServerFnErrorsServer = createMiddleware({ type: "function" }).server(
+  async ({ next, data }) => {
+    const startedAt = Date.now();
+    const isoStart = new Date(startedAt).toISOString();
+    let req: Request | undefined;
+    try {
+      req = getRequest();
+    } catch {
+      // außerhalb Request-Kontext (z. B. Tests) → ignorieren
+    }
+    const url = req?.url ?? "";
+    const method = req?.method ?? "";
+    const referer = req?.headers.get("referer") ?? "";
+    const { file, export: exp } = url ? decodeFnFromUrl(url) : {};
+    try {
+      const result = await next();
+      const status = (result as AnyRecord | undefined)?.response as
+        | { status?: number }
+        | undefined;
+      if (status?.status && status.status >= 400) {
+        // eslint-disable-next-line no-console
+        console.error("[serverFn server ≥400]", {
+          fn: exp,
+          file,
+          status: status.status,
+          method,
+          referer,
+          url,
+          durationMs: Date.now() - startedAt,
+          startedAt: isoStart,
+          data: safePreview(data),
+        });
+      }
+      return result;
+    } catch (err) {
+      const e = err as
+        | (Error & { status?: number; statusCode?: number; response?: { status?: number } })
+        | undefined;
+      // eslint-disable-next-line no-console
+      console.error("[serverFn server error]", {
+        fn: exp,
+        file,
+        name: e?.name,
+        message: e?.message ?? String(err),
+        status: e?.status ?? e?.statusCode ?? e?.response?.status,
+        method,
+        referer,
+        url,
+        durationMs: Date.now() - startedAt,
         startedAt: isoStart,
         data: safePreview(data),
         stack: e?.stack,
