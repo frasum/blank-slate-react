@@ -38,7 +38,7 @@ export function installServerFnFetchLogger(): void {
       const res = await orig(input, init);
       if (isServerFn && res.status >= 400) {
         const { file, export: exp } = decodeFnFromUrl(url);
-        // eslint-disable-next-line no-console
+
         console.error("[serverFn HTTP " + res.status + "]", {
           fn: exp,
           file,
@@ -53,7 +53,7 @@ export function installServerFnFetchLogger(): void {
     } catch (err) {
       if (isServerFn) {
         const { file, export: exp } = decodeFnFromUrl(url);
-        // eslint-disable-next-line no-console
+
         console.error("[serverFn fetch failed]", {
           fn: exp,
           file,
@@ -182,7 +182,6 @@ export const logServerFnErrors = createMiddleware({ type: "function" }).client(
       // Manche Adapter geben ein Result-Objekt mit response/status zurück.
       const status = (result as AnyRecord | undefined)?.response as { status?: number } | undefined;
       if (status?.status && status.status >= 400) {
-        // eslint-disable-next-line no-console
         console.error("[serverFn ≥400]", {
           status: status.status,
           durationMs: Math.round(performance.now() - startedAt),
@@ -199,7 +198,7 @@ export const logServerFnErrors = createMiddleware({ type: "function" }).client(
       const e = err as
         | (Error & { status?: number; statusCode?: number; response?: { status?: number } })
         | undefined;
-      // eslint-disable-next-line no-console
+
       console.error("[serverFn error]", {
         name: e?.name,
         message: e?.message ?? String(err),
@@ -237,7 +236,6 @@ export const logServerFnErrorsServer = createMiddleware({ type: "function" }).se
       const result = await next();
       const status = (result as AnyRecord | undefined)?.response as { status?: number } | undefined;
       if (status?.status && status.status >= 400) {
-        // eslint-disable-next-line no-console
         console.error("[serverFn server ≥400]", {
           fn: exp,
           file,
@@ -255,7 +253,7 @@ export const logServerFnErrorsServer = createMiddleware({ type: "function" }).se
       const e = err as
         | (Error & { status?: number; statusCode?: number; response?: { status?: number } })
         | undefined;
-      // eslint-disable-next-line no-console
+
       console.error("[serverFn server error]", {
         fn: exp,
         file,
