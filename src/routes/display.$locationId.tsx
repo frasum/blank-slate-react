@@ -212,6 +212,7 @@ function BlockTable({ block, days }: { block: DisplayBlock; days: string[] }) {
                 const { wd, dm } = formatDayHeader(iso);
                 const today = i === 0;
                 const we = isWeekend(iso);
+                const cnt = block.dayCounts[i] ?? 0;
                 return (
                   <th
                     key={iso}
@@ -226,6 +227,18 @@ function BlockTable({ block, days }: { block: DisplayBlock; days: string[] }) {
                   >
                     <div className="leading-tight">{wd}</div>
                     <div className="leading-tight tabular-nums">{dm}</div>
+                    <div
+                      className={[
+                        "leading-tight tabular-nums text-[10px] font-semibold",
+                        cnt === 0
+                          ? "text-slate-600"
+                          : today
+                            ? "text-sky-100"
+                            : "text-slate-200",
+                      ].join(" ")}
+                    >
+                      {cnt > 0 ? cnt : "·"}
+                    </div>
                   </th>
                 );
               })}
@@ -249,8 +262,11 @@ function BlockTable({ block, days }: { block: DisplayBlock; days: string[] }) {
               </tr>
             )}
             {block.rows.map((row) => (
-              <tr key={`${block.area}-${row.staffId}`}>
-                <td className="sticky left-0 z-10 border-b border-slate-800/60 bg-slate-950 px-3 py-1 text-center text-sm font-medium text-slate-100">
+              <tr
+                key={`${block.area}-${row.staffId}`}
+                className="group/row even:bg-slate-900/40"
+              >
+                <td className="sticky left-0 z-10 border-b border-slate-800/60 bg-slate-950 px-3 py-1 text-center text-sm font-medium text-slate-100 group-even/row:bg-slate-900">
                   {row.staffName}
                 </td>
                 {row.cells.map((cell, i) => (
@@ -266,37 +282,16 @@ function BlockTable({ block, days }: { block: DisplayBlock; days: string[] }) {
                   </td>
                 ))}
                 <td
-                  className="sticky z-10 min-w-[8rem] border-b border-slate-800/60 bg-slate-950 px-3 py-1 text-center text-sm font-medium text-slate-100"
+                  className="sticky z-10 min-w-[8rem] border-b border-slate-800/60 bg-slate-950 px-3 py-1 text-center text-sm font-medium text-slate-100 group-even/row:bg-slate-900"
                   style={{ right: 64 }}
                 >
                   {row.staffName}
                 </td>
-                <td className="sticky right-0 z-10 min-w-[4rem] border-b border-slate-800/60 bg-slate-950 px-3 py-1 text-center text-sm font-semibold tabular-nums text-slate-100">
+                <td className="sticky right-0 z-10 min-w-[4rem] border-b border-slate-800/60 bg-slate-950 px-3 py-1 text-center text-sm font-semibold tabular-nums text-slate-100 group-even/row:bg-slate-900">
                   {row.shiftCount}
                 </td>
               </tr>
             ))}
-            {block.rows.length > 0 && (
-              <tr>
-                <td className="sticky left-0 z-10 bg-slate-900/80 px-3 py-1 text-sm font-medium text-slate-300">
-                  Arbeitet
-                </td>
-                {block.dayCounts.map((n, i) => (
-                  <td
-                    key={i}
-                    className={[
-                      "px-1 py-1 text-center text-xs font-semibold tabular-nums",
-                      isWeekend(days[i]) ? "bg-slate-900/60" : "bg-slate-900/40",
-                      i === 0 ? "bg-sky-500/10 text-sky-100" : "text-slate-200",
-                    ].join(" ")}
-                  >
-                    {n}
-                  </td>
-                ))}
-                <td className="sticky z-10 bg-slate-900/80" style={{ right: 64 }} />
-                <td className="sticky right-0 z-10 min-w-[4rem] bg-slate-900/80" />
-              </tr>
-            )}
           </tbody>
         </table>
       </div>
