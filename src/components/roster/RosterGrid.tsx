@@ -252,7 +252,7 @@ export function RosterGrid({
             <tr className="border-b bg-muted/50">
               <th
                 className={cn(
-                  "sticky left-0 z-10 bg-muted/50 text-left font-medium",
+                  "sticky left-0 z-10 bg-muted/50 text-center font-medium",
                   isFit ? "px-2 py-1" : "px-3 py-2",
                 )}
               >
@@ -299,7 +299,7 @@ export function RosterGrid({
               })}
               <th
                 className={cn(
-                  "sticky z-10 border-l bg-muted/50 text-right font-medium",
+                  "sticky z-10 border-l bg-muted/50 text-center font-medium",
                   isFit ? "px-2 py-1" : "px-3 py-2",
                 )}
                 style={{ right: isFit ? 32 : 48 }}
@@ -343,7 +343,7 @@ export function RosterGrid({
                   >
                     <td
                       className={cn(
-                        "sticky left-0 z-10 bg-background font-medium",
+                        "sticky left-0 z-10 bg-background text-center font-medium",
                         isFit ? "truncate px-2 py-0.5 text-[11px]" : "px-3 py-1",
                       )}
                     >
@@ -498,7 +498,7 @@ export function RosterGrid({
                     })}
                     <td
                       className={cn(
-                        "sticky z-10 border-l bg-background text-right font-medium",
+                        "sticky z-10 border-l bg-background text-center font-medium",
                         isFit ? "truncate px-2 py-0.5 text-[11px]" : "px-3 py-1",
                       )}
                       style={{ right: isFit ? 32 : 48 }}
