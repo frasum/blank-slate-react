@@ -245,6 +245,7 @@ export function RosterGrid({
                 style={layout.dayMinPx > 0 ? { width: `${layout.dayMinPx}px` } : undefined}
               />
             ))}
+            <col style={{ width: `${layout.staffColPx}px` }} />
             <col style={{ width: isFit ? "32px" : "48px" }} />
           </colgroup>
           <thead>
@@ -298,7 +299,16 @@ export function RosterGrid({
               })}
               <th
                 className={cn(
-                  "border-l bg-muted text-center font-mono uppercase text-muted-foreground",
+                  "sticky z-10 border-l bg-muted/50 text-left font-medium",
+                  isFit ? "px-2 py-1" : "px-3 py-2",
+                )}
+                style={{ right: isFit ? 32 : 48 }}
+              >
+                Mitarbeiter
+              </th>
+              <th
+                className={cn(
+                  "sticky right-0 z-10 border-l bg-muted text-center font-mono uppercase text-muted-foreground",
                   isFit ? "px-0.5 py-1 text-[9px]" : "px-1 py-1.5 text-[10px]",
                 )}
               >
@@ -315,7 +325,7 @@ export function RosterGrid({
             {visibleStaff.length === 0 ? (
               <tr>
                 <td
-                  colSpan={days.length + 2}
+                  colSpan={days.length + 3}
                   className="px-3 py-6 text-center text-muted-foreground"
                 >
                   Keine Mitarbeiter im Bereich {AREA_LABEL[activeArea]}.
@@ -486,7 +496,16 @@ export function RosterGrid({
                         </DropCell>
                       );
                     })}
-                    <td className="border-l bg-muted/30 px-1 py-1 text-center font-mono text-xs tabular-nums">
+                    <td
+                      className={cn(
+                        "sticky z-10 border-l bg-background font-medium",
+                        isFit ? "truncate px-2 py-0.5 text-[11px]" : "px-3 py-1",
+                      )}
+                      style={{ right: isFit ? 32 : 48 }}
+                    >
+                      {row.displayName}
+                    </td>
+                    <td className="sticky right-0 z-10 border-l bg-muted px-1 py-1 text-center font-mono text-xs tabular-nums">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span
