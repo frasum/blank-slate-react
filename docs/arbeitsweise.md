@@ -820,3 +820,47 @@ Modus-Umschalter `Monat ⇄ Zeitraum` (Segmented aus zwei Buttons). Im Zeitraum-
 **Datenstand Urlaub (geklärt, kein Schaden):** Während der Arbeit fiel `roster_absence`-Urlaub von 951 auf 835. **Durch keine unserer Operationen verursachbar** — Krank-Import = nur Insert, Korrektur-Migration = nur CHECK (beide ohne Delete/Update von Urlaub); `audit_log` (`entity='roster_absence'`) zeigte im Fenster **kein `clear`**, nur 1 `set_range`. Die Urlaub-Quelle (433 genehmigte thaitime-Anträge → **849 Tage**, exakt gleiche Datumsspanne 2025-12-02…2027-01-17) liegt dicht an 835; die ursprünglichen 951 enthielten ~100 Tage aus Nicht-Antrags-Quellen (Grid-Direkteinträge), die außerhalb der Session weggefallen sein können. **835 ist plausibel korrekt.** Ein gefahrloser additiver Abgleich (849 Antrags-Tage, `ON CONFLICT DO NOTHING`, ändert/löscht nichts) liegt bereit, ist aber nicht erforderlich.
 
 **Lektion (teuer gelernt):** **Vor jedem neuen Tabellen-/Enum-Bau erst bestehenden Schema-Stand UND diese Doku prüfen** — `roster_absence` / `leave_requests` standen längst in Abschnitt 6, die Antwort lag im Dokument. Direkt im Editor angelegte Tabellen sind Repo-Drift → immer per idempotenter Migration über Lovable nachziehen (so geschehen) statt nur im SQL-Editor. `roster_absence` hat `UNIQUE (staff_id, date)`; `setAbsenceRange` upsertet (kann Urlaub↔Krank umflaggen) und löscht überlappende `roster_shifts`. Idempotenz für Daten-Importe immer über `ON CONFLICT DO NOTHING`.
+
+## 21. Trinkgeld-Pool — manuelle Küchen-Verteilung, Plan-Snapshot, GL-Sicht, Teilnahme-Override (30.06.2026)
+
+Verifizierter Stand HEAD `c9c35f1` (tsc 0, eslint 0, vitest 911, prettier sauber). In vier Schritten gebaut; Geld-Logik durchgehend gegen `computeTipPool` (unverändert) abgesichert.
+
+### 21a. Küche manuell (Schalter)
+
+- Org-Einstellung `organization_settings.kitchen_manual_only` (bool, default false). Aktiv → für die **Küche** werden Stempelstunden ignoriert; die Stundenbasis kommt ausschließlich aus manuell erfassten Schichten. **Service unverändert** auf Stempelstunden.
+- Eingabe per **Start/Ende-Zeit**: `session_tip_pool_entries.shift_start/shift_end` (time). Reine Fn `kitchenShiftMinutes(start,end)` (`src/lib/cash/`), Mitternachts-Wrap `end<start → +1440`, `start==end → 0` (bewusste Abweichung vom Legacy-„=24h"). `hours_minutes` bleibt die von der Verteilung konsumierte Größe.
+- Stunden-Auflösung als reine Fn `resolvePoolTimeEntries` (kitchenManualOnly verwirft Küchen-Stempel, auch ohne manuellen Eintrag).
+
+### 21b. Plan-Snapshot bei Session-Eröffnung
+
+- `getOrCreateOpenSession` legt **nur im Create-Zweig** je bestätigter (`status='confirmed'`) `roster_shifts`-Schicht des Tages/Standorts eine `session_tip_pool_entries`-Zeile an (idempotent `on conflict do nothing`); Snapshot-Fehler eröffnen die Session trotzdem (Komfort, kein Blocker). Reine Fn `buildRosterPoolSnapshot` (`src/lib/cash/roster-pool-snapshot.ts`).
+- **Snapshot-Semantik:** Zusammensetzung wird bei Eröffnung eingefroren — spätere Plan-Änderungen wirken nicht zurück. Card-Button „Aus Dienstplan ergänzen" fügt nachträglich Bestätigte hinzu (überschreibt nichts).
+- **Standardzeiten** in `location_department_defaults` (bestehend): `default_checkin` + neue Spalte **`default_checkout`**, je Standort × Bereich. Stammdaten-UI: `src/routes/_authenticated/admin/standortzeiten.tsx`. Küche z. B. 15:00–23:30, Service 16:00–23:00 (Service-Ende ist vorläufiger Fallback).
+- **Service-Ende-Nachzug:** bei der Kellnerabrechnung (`submitWaiterSettlementCore`) wird das Service-Pool-Ende auf den echten Auto-ClockOut (`time_entries.ended_at`) gesetzt — **nur, wenn `shift_end` noch exakt dem Service-`default_checkout` entspricht** (= seit Eröffnung unverändert). Kein Extra-Flag; manuell geändertes Ende bleibt. `time_entries` wird dabei **nur gelesen**.
+
+### 21c. GL-Sichtbarkeit (ohne Trinkgeld)
+
+- GL wird beim Snapshot mit angelegt: `department='gl'`, `shift_start/end=null`, `hours_minutes=0` (**keine** Standardzeit). Eigene Card-Sektion „Geschäftsleitung — Arbeitszeit (keine Trinkgeld-Beteiligung)", erfassbar, **ohne** Anteil-Spalte.
+- **Doppelte Geld-Sicherheit:** (a) `computeTipPool` schließt über `staffDepartments` alles außer kitchen/service aus; (b) GL liegt in getrennter Anzeige-Liste (`glEntries`). `session_tip_pool_entries` trägt damit bewusst auch Nicht-Trinkgeld-Arbeitszeit.
+- Bereichs-Priorität bei Mehrfach-Einteilung: **kitchen > service > gl** (eine Zeile je MA; Mehrfach-Einteilung bleibt architektonisch erlaubt, D-3/D-6 unverändert).
+
+### 21d. Teilnahme-Übersteuerung pro Session
+
+- Spalte `session_tip_pool_entries.participates` (bool **nullable**): NULL = Stammdaten-Default (`staff.participates_in_pool`), true/false = Session-Override. **Entkoppelt von den Stunden** — löst den Fall „früher heimgeschickt" (echte Stunden bleiben, MA trotzdem ganz aus dem Pool).
+- Reine Fn **`effectiveParticipation(override, staffDefault) = override ?? staffDefault`** (`tip-pool.ts`), ersetzt die frühere `hours_minutes>0`-Heuristik. Verdrahtet in `computeSessionTipPoolCore`; `computeTipPool` unverändert.
+- Card: Teilnahme-Toggle je kitchen/service-Zeile, vorbelegt mit effektivem Status; **abgewählte bleiben sichtbar** (0 Anteil) über die vollständige `poolEntries`-Liste; live-Recompute. GL ohne Toggle.
+
+### Ausgeführte Migrationen (COCO-DB, Frank)
+
+`organization_settings.kitchen_manual_only`; `session_tip_pool_entries.shift_start/shift_end`; `location_department_defaults.default_checkout`; `session_tip_pool_entries.participates`. Alle additiv (`add column if not exists`), keine neuen Policies.
+
+### Offen / bewusst vertagt
+
+- **Fähigkeit B (an M4):** Rückschreibung der Pool-Start/Ende (inkl. GL) in `time_entries (source='manual')` für MA **ohne** `clock`-Eintrag — idempotent, Wasserlinien-Schutz, eigene DB-Tests. Datenbasis (Start/Ende je Eintrag) steht bereits. Begründung der Vertagung: B ist ein Lohn-Thema (M4 rechnet auf `time_entries`), nicht Trinkgeld; die Kollisionsregel (Plan-Zeit nur ohne echten Stempel) wird erst gegen echte Lohndaten getestet.
+- Teilnahme-Override greift nur für MA **mit** `session_tip_pool_entry`; reine Stempel-MA ohne Eintrag erst nach Aufnahme in der Card übersteuerbar.
+
+### Lektionen (teuer gelernt)
+
+- **Feature war großteils schon da:** Küchentrinkgeld rechnete COCO bereits (`kitchen_tip_cents`, `kitchenPool`, Verteilung). Vor Neubau erst Bestand prüfen.
+- **Geld-Regel blockierend testbar machen:** inline-Logik in async-Fns ist nur über den flaky `db-integration`-Job prüfbar → als reine Fn extrahieren (`effectiveParticipation`, Muster `resolvePoolTimeEntries`) und im `check`-Gate unit-testen.
+- **Snapshot nur im Create-Zweig:** sonst legt jeder Session-Get doppelt an.
