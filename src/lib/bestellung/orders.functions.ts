@@ -78,7 +78,7 @@ export const listOrders = createServerFn({ method: "GET" })
     let q = supabaseAdmin
       .from("orders")
       .select(
-        "id, order_number, supplier_id, location_id, status, total_amount_cents, delivery_date, time_window, email_sent, email_sent_at, created_at",
+        "id, order_number, supplier_id, location_id, status, total_amount_cents, delivery_date, time_window, email_sent, email_sent_at, email_message_id, email_error, created_at",
       )
       .eq("organization_id", caller.organizationId)
       .order("created_at", { ascending: false });

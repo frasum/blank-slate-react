@@ -2,6 +2,7 @@
 // Stornieren (Manager+). E-Mail-Versand folgt in Welle 1-D.
 
 import { useMemo, useState } from "react";
+import type React from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -44,6 +45,7 @@ function BestellungenPage() {
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [supplierFilter, setSupplierFilter] = useState<string>("");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [emailLogOrder, setEmailLogOrder] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
   const suppliersQ = useQuery({
@@ -146,6 +148,7 @@ function BestellungenPage() {
                 <th className="px-3 py-2">Lieferant</th>
                 <th className="px-3 py-2">Status</th>
                 <th className="px-3 py-2">E-Mail</th>
+                <th className="px-3 py-2">Versendet am</th>
                 <th className="px-3 py-2 text-right">Summe</th>
                 <th className="px-3 py-2"></th>
               </tr>
@@ -173,7 +176,26 @@ function BestellungenPage() {
                       </span>
                     </td>
                     <td className="px-3 py-2 text-xs text-muted-foreground">
-                      {o.email_sent ? "ja" : "nein"}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setEmailLogOrder(emailLogOrder === o.id ? null : o.id)
+                        }
+                        className={
+                          "rounded px-2 py-0.5 text-xs underline-offset-2 hover:underline " +
+                          (o.email_error
+                            ? "bg-destructive/10 text-destructive"
+                            : o.email_sent
+                              ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                              : "bg-muted text-muted-foreground")
+                        }
+                        title="E-Mail-Verlauf anzeigen"
+                      >
+                        {o.email_error ? "Fehler" : o.email_sent ? "ja" : "nein"}
+                      </button>
+                    </td>
+                    <td className="px-3 py-2 text-xs text-muted-foreground">
+                      {o.email_sent_at ? formatShortDateTime(o.email_sent_at) : "—"}
                     </td>
                     <td className="px-3 py-2 text-right font-mono">
                       {fmtEuro(o.total_amount_cents)}
@@ -204,11 +226,25 @@ function BestellungenPage() {
                     </td>
                   </tr>
                 );
-                if (expanded !== o.id) return [row];
-                return [
-                  row,
-                  <tr key={o.id + "-detail"} className="border-t border-border bg-muted/10">
-                    <td colSpan={7} className="px-3 py-4">
+                const extra: React.ReactNode[] = [];
+                if (emailLogOrder === o.id) {
+                  extra.push(
+                    <tr key={o.id + "-email"} className="border-t border-border bg-muted/10">
+                      <td colSpan={8} className="px-3 py-3">
+                        <EmailDeliveryTimeline
+                          sent={o.email_sent}
+                          sentAt={o.email_sent_at}
+                          messageId={o.email_message_id}
+                          error={o.email_error}
+                        />
+                      </td>
+                    </tr>,
+                  );
+                }
+                if (expanded === o.id) {
+                  extra.push(
+                    <tr key={o.id + "-detail"} className="border-t border-border bg-muted/10">
+                      <td colSpan={8} className="px-3 py-4">
                       <OrderDetail
                         orderId={o.id}
                         canCancel={o.status !== "cancelled"}
@@ -216,9 +252,11 @@ function BestellungenPage() {
                         cancelling={cancelMut.isPending}
                         supplierHasEmail={!!suppliersById.get(o.supplier_id)?.email}
                       />
-                    </td>
-                  </tr>,
-                ];
+                      </td>
+                    </tr>,
+                  );
+                }
+                return [row, ...extra];
               })}
             </tbody>
           </table>
@@ -321,3 +359,63 @@ function OrderDetail(props: {
 
 const selectCls =
   "w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
+
+function EmailDeliveryTimeline(props: {
+  sent: boolean;
+  sentAt: string | null;
+  messageId: string | null;
+  error: string | null;
+}) {
+  const steps: { label: string; ts: string | null; tone: "ok" | "err" | "muted" }[] = [
+    { label: "Bestellung erstellt", ts: null, tone: "muted" },
+    {
+      label: props.error ? "Versand fehlgeschlagen" : props.sent ? "An Mail-Server übergeben" : "Noch nicht versendet",
+      ts: props.sentAt,
+      tone: props.error ? "err" : props.sent ? "ok" : "muted",
+    },
+  ];
+  return (
+    <div className="space-y-2 text-xs">
+      <p className="font-medium uppercase tracking-wide text-muted-foreground">
+        E-Mail-Zustellung
+      </p>
+      <ol className="space-y-1">
+        {steps.map((s, i) => (
+          <li key={i} className="flex items-start gap-2">
+            <span
+              className={
+                "mt-1 inline-block h-2 w-2 rounded-full " +
+                (s.tone === "ok"
+                  ? "bg-green-500"
+                  : s.tone === "err"
+                    ? "bg-destructive"
+                    : "bg-muted-foreground/40")
+              }
+            />
+            <span className="flex-1">
+              <span className="text-foreground">{s.label}</span>
+              {s.ts && (
+                <span className="ml-2 text-muted-foreground">{formatShortDateTime(s.ts)}</span>
+              )}
+            </span>
+          </li>
+        ))}
+      </ol>
+      {props.messageId && (
+        <p className="text-muted-foreground">
+          Message-ID: <span className="font-mono text-foreground">{props.messageId}</span>
+        </p>
+      )}
+      {props.error && (
+        <p className="rounded border border-destructive/40 bg-destructive/5 px-2 py-1 text-destructive">
+          {props.error}
+        </p>
+      )}
+      {!props.sent && !props.error && (
+        <p className="text-muted-foreground">
+          Noch kein Versand-Versuch — über „Per E-Mail senden" auslösen.
+        </p>
+      )}
+    </div>
+  );
+}
