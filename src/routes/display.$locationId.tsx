@@ -205,7 +205,7 @@ function BlockTable({ block, days }: { block: DisplayBlock; days: string[] }) {
         <table className="w-full border-separate border-spacing-0 text-xs">
           <thead>
             <tr>
-              <th className="sticky left-0 z-20 min-w-[10rem] border-b border-slate-800 bg-slate-900 px-3 py-2 text-left font-medium text-slate-300">
+              <th className="sticky left-0 z-20 min-w-[10rem] border-b border-slate-800 bg-slate-900 px-3 py-2 text-center font-medium text-slate-300">
                 Mitarbeiter
               </th>
               {days.map((iso, i) => {
@@ -229,7 +229,13 @@ function BlockTable({ block, days }: { block: DisplayBlock; days: string[] }) {
                   </th>
                 );
               })}
-              <th className="sticky right-0 z-20 border-b border-slate-800 bg-slate-900 px-3 py-2 text-center font-medium text-slate-300">
+              <th
+                className="sticky z-20 min-w-[8rem] border-b border-slate-800 bg-slate-900 px-3 py-2 text-center font-medium text-slate-300"
+                style={{ right: 64 }}
+              >
+                Mitarbeiter
+              </th>
+              <th className="sticky right-0 z-20 min-w-[4rem] border-b border-slate-800 bg-slate-900 px-3 py-2 text-center font-medium text-slate-300">
                 Σ
               </th>
             </tr>
@@ -237,14 +243,14 @@ function BlockTable({ block, days }: { block: DisplayBlock; days: string[] }) {
           <tbody>
             {block.rows.length === 0 && (
               <tr>
-                <td colSpan={days.length + 2} className="px-4 py-6 text-center text-slate-500">
+                <td colSpan={days.length + 3} className="px-4 py-6 text-center text-slate-500">
                   Keine Mitarbeiter für diesen Bereich.
                 </td>
               </tr>
             )}
             {block.rows.map((row) => (
               <tr key={`${block.area}-${row.staffId}`}>
-                <td className="sticky left-0 z-10 border-b border-slate-800/60 bg-slate-950 px-3 py-1 text-sm font-medium text-slate-100">
+                <td className="sticky left-0 z-10 border-b border-slate-800/60 bg-slate-950 px-3 py-1 text-center text-sm font-medium text-slate-100">
                   {row.staffName}
                 </td>
                 {row.cells.map((cell, i) => (
@@ -259,7 +265,13 @@ function BlockTable({ block, days }: { block: DisplayBlock; days: string[] }) {
                     <CellView cell={cell} area={block.area} />
                   </td>
                 ))}
-                <td className="sticky right-0 z-10 border-b border-slate-800/60 bg-slate-950 px-3 py-1 text-center text-sm font-semibold tabular-nums text-slate-100">
+                <td
+                  className="sticky z-10 min-w-[8rem] border-b border-slate-800/60 bg-slate-950 px-3 py-1 text-center text-sm font-medium text-slate-100"
+                  style={{ right: 64 }}
+                >
+                  {row.staffName}
+                </td>
+                <td className="sticky right-0 z-10 min-w-[4rem] border-b border-slate-800/60 bg-slate-950 px-3 py-1 text-center text-sm font-semibold tabular-nums text-slate-100">
                   {row.shiftCount}
                 </td>
               </tr>
@@ -281,7 +293,8 @@ function BlockTable({ block, days }: { block: DisplayBlock; days: string[] }) {
                     {n}
                   </td>
                 ))}
-                <td className="sticky right-0 z-10 bg-slate-900/80" />
+                <td className="sticky z-10 bg-slate-900/80" style={{ right: 64 }} />
+                <td className="sticky right-0 z-10 min-w-[4rem] bg-slate-900/80" />
               </tr>
             )}
           </tbody>
