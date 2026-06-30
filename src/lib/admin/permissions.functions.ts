@@ -8,8 +8,9 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { writeAuditLog } from "./audit";
 import { assertStaffInOrg } from "./org-guards";
 import type { AppPermission, PermissionEffect } from "./permissions-catalog";
+import type { StaffDepartment } from "@/lib/staff-domain";
 
-type RoleKey = "admin" | "manager" | "staff" | "payroll";
+type RoleKey = "admin" | "manager" | "staff" | "payroll" | "planer";
 
 export type RoleDefault = { role: RoleKey; permission: AppPermission };
 
@@ -18,6 +19,7 @@ export type StaffOverride = {
   permission: AppPermission;
   effect: PermissionEffect;
   locationId: string | null;
+  area: StaffDepartment | null;
   createdAt: string;
   createdBy: string | null;
 };
@@ -75,7 +77,7 @@ export const getStaffPermissions = createServerFn({ method: "GET" })
         : Promise.resolve({ data: [], error: null } as const),
       supabaseAdmin
         .from("permission_overrides")
-        .select("id, permission, effect, location_id, created_at, created_by")
+        .select("id, permission, effect, location_id, area, created_at, created_by")
         .eq("staff_id", data.staffId)
         .order("created_at", { ascending: false }),
     ]);
@@ -92,6 +94,7 @@ export const getStaffPermissions = createServerFn({ method: "GET" })
         permission: r.permission as AppPermission,
         effect: r.effect as PermissionEffect,
         locationId: r.location_id,
+        area: (r.area as StaffDepartment | null) ?? null,
         createdAt: r.created_at,
         createdBy: r.created_by,
       })),
@@ -106,10 +109,19 @@ export const setPermissionOverride = createServerFn({ method: "POST" })
       permission: AppPermission;
       effect: PermissionEffect;
       locationId: string | null;
+      area: StaffDepartment | null;
     }) => {
       if (!input?.staffId) throw new Error("staffId fehlt");
       if (!input?.permission) throw new Error("permission fehlt");
       if (input.effect !== "allow" && input.effect !== "deny") throw new Error("effect ungültig");
+      if (
+        input.area !== null &&
+        input.area !== "kitchen" &&
+        input.area !== "service" &&
+        input.area !== "gl"
+      ) {
+        throw new Error("area ungültig");
+      }
       return input;
     },
   )
@@ -137,9 +149,10 @@ export const setPermissionOverride = createServerFn({ method: "POST" })
       .delete()
       .eq("staff_id", data.staffId)
       .eq("permission", data.permission);
-    const del = await (data.locationId
+    const delLoc = data.locationId
       ? delQ.eq("location_id", data.locationId)
-      : delQ.is("location_id", null));
+      : delQ.is("location_id", null);
+    const del = await (data.area ? delLoc.eq("area", data.area) : delLoc.is("area", null));
     if (del.error) throw new Error(del.error.message);
 
     const { error: insErr } = await supabaseAdmin.from("permission_overrides").insert({
@@ -148,6 +161,7 @@ export const setPermissionOverride = createServerFn({ method: "POST" })
       permission: data.permission,
       effect: data.effect,
       location_id: data.locationId,
+      area: data.area,
       created_by: context.userId,
     });
     if (insErr) throw new Error(insErr.message);
@@ -163,6 +177,7 @@ export const setPermissionOverride = createServerFn({ method: "POST" })
         permission: data.permission,
         effect: data.effect,
         location_id: data.locationId,
+        area: data.area,
       },
     });
     return { ok: true };
@@ -171,7 +186,12 @@ export const setPermissionOverride = createServerFn({ method: "POST" })
 export const clearPermissionOverride = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
-    (input: { staffId: string; permission: AppPermission; locationId: string | null }) => {
+    (input: {
+      staffId: string;
+      permission: AppPermission;
+      locationId: string | null;
+      area: StaffDepartment | null;
+    }) => {
       if (!input?.staffId) throw new Error("staffId fehlt");
       if (!input?.permission) throw new Error("permission fehlt");
       return input;
@@ -199,9 +219,10 @@ export const clearPermissionOverride = createServerFn({ method: "POST" })
       .delete()
       .eq("staff_id", data.staffId)
       .eq("permission", data.permission);
-    const del = await (data.locationId
+    const delLoc = data.locationId
       ? delQ.eq("location_id", data.locationId)
-      : delQ.is("location_id", null));
+      : delQ.is("location_id", null);
+    const del = await (data.area ? delLoc.eq("area", data.area) : delLoc.is("area", null));
     if (del.error) throw new Error(del.error.message);
 
     await writeAuditLog({
@@ -211,7 +232,7 @@ export const clearPermissionOverride = createServerFn({ method: "POST" })
       action: "permissions.override_cleared",
       entity: "permission_overrides",
       entityId: data.staffId,
-      meta: { permission: data.permission, location_id: data.locationId },
+      meta: { permission: data.permission, location_id: data.locationId, area: data.area },
     });
     return { ok: true };
   });
