@@ -36,6 +36,7 @@ export const listLocations = createServerFn({ method: "GET" })
       "manager",
       "admin",
       "payroll",
+      "planer",
     ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const [{ data, error }, { data: org, error: orgErr }] = await Promise.all([
