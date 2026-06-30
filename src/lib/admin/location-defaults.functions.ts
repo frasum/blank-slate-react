@@ -47,7 +47,8 @@ export const listLocationDepartmentDefaults = createServerFn({ method: "GET" })
 const upsertSchema = z.object({
   locationId: z.string().uuid(),
   department: z.enum(["kitchen", "service", "gl"]),
-  defaultCheckin: optTime,
+  // Pflicht: HH:MM. default_checkin ist in der DB NOT NULL.
+  defaultCheckin: z.string().regex(HHMM, "Format HH:MM"),
   defaultCheckout: optTime,
 });
 
@@ -72,6 +73,7 @@ export const upsertLocationDepartmentDefault = createServerFn({ method: "POST" }
         .from("location_department_defaults")
         .upsert(
           {
+            organization_id: caller.organizationId,
             location_id: data.locationId,
             department: data.department,
             default_checkin: data.defaultCheckin,
