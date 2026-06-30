@@ -1,7 +1,7 @@
 // Welle 4-B — EasyOrder Resolver + Mitarbeiter-Bestellung.
 //
 // Sicherheitskritisch: jede Funktion leitet staffId/orgId AUSSCHLIESSLICH
-// aus auth.uid() via user_links ab — niemals aus Client-Input.
+// aus auth.uid() via loadAdminCaller ab — niemals aus Client-Input.
 // Berechtigungen (Location-Zugang, Lieferanten-Whitelist,
 // can_add_free_items) werden bei Lesen UND Schreiben server-seitig
 // erneut geprüft. Bestellanlage geht durch die bestehende atomare
@@ -16,40 +16,13 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import type { AdminCaller } from "@/lib/admin/admin-context";
+import { loadAdminCaller, type AdminCaller } from "@/lib/admin/admin-context";
 import { writeAuditLog } from "@/lib/admin/audit";
-import { ForbiddenError, hasMinRole, type AppRole } from "@/lib/admin/role-guard";
+import { hasMinRole } from "@/lib/admin/role-guard";
 import { assertWithinFence } from "@/lib/geo/server-check";
 import type { Database } from "@/integrations/supabase/types";
 
 type Admin = SupabaseClient<Database>;
-
-async function loadEasyOrderCaller(
-  supabase: SupabaseClient<Database>,
-  userId: string,
-): Promise<AdminCaller> {
-  const { data: link, error: linkErr } = await supabase
-    .from("user_links")
-    .select("staff_id, organization_id")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (linkErr || !link) throw new ForbiddenError();
-
-  const { data: roleRow, error: roleErr } = await supabase
-    .from("role_assignments")
-    .select("role")
-    .eq("staff_id", link.staff_id)
-    .eq("organization_id", link.organization_id)
-    .maybeSingle();
-  if (roleErr) throw new ForbiddenError();
-
-  return {
-    userId,
-    staffId: link.staff_id,
-    organizationId: link.organization_id,
-    role: (roleRow?.role as AppRole | undefined) ?? "staff",
-  };
-}
 
 export type EasyOrderLocation = {
   locationId: string;
@@ -348,7 +321,12 @@ export async function placeEasyOrderCore(
 export const getMyEasyOrderContext = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const caller = await loadEasyOrderCaller(context.supabase, context.userId);
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "admin",
+      "manager",
+      "staff",
+      "planer",
+    ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     return getMyEasyOrderContextCore(supabaseAdmin, caller);
   });
@@ -359,7 +337,12 @@ export const getEasyOrderCatalog = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => CatalogInput.parse(input))
   .handler(async ({ data, context }) => {
-    const caller = await loadEasyOrderCaller(context.supabase, context.userId);
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "admin",
+      "manager",
+      "staff",
+      "planer",
+    ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     return getEasyOrderCatalogCore(supabaseAdmin, caller, data.locationId);
   });
@@ -398,7 +381,12 @@ export const placeEasyOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => PlaceInput.parse(input))
   .handler(async ({ data, context }) => {
-    const caller = await loadEasyOrderCaller(context.supabase, context.userId);
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "admin",
+      "manager",
+      "staff",
+      "planer",
+    ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const result = await placeEasyOrderCore(supabaseAdmin, caller, data);
     await writeAuditLog({
