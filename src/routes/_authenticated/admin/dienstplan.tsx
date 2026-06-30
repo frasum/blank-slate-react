@@ -366,8 +366,7 @@ function DienstplanPage() {
   }
 
   const onCreateFor =
-    (locationId: string) =>
-    (staffId: string, iso: string, area: GridArea, skillId: string) =>
+    (locationId: string) => (staffId: string, iso: string, area: GridArea, skillId: string) =>
       handleCreate(locationId, staffId, iso, area, skillId);
 
   async function handleDelete(id: string) {
