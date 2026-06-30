@@ -45,7 +45,12 @@ async function listFolder(folder: string): Promise<PayslipEntry[]> {
 export const listMyPayslips = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<PayslipEntry[]> => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "staff");
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "admin",
+      "manager",
+      "staff",
+      "planer",
+    ]);
     return listFolder(payslipFolder(caller.organizationId, caller.staffId));
   });
 
@@ -53,7 +58,12 @@ export const getPayslipSignedUrl = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({ path: z.string().min(1) }).parse(input))
   .handler(async ({ data, context }): Promise<{ url: string }> => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "staff");
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "admin",
+      "manager",
+      "staff",
+      "planer",
+    ]);
     if (
       !isPayslipPathAllowed({
         path: data.path,
