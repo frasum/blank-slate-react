@@ -20,7 +20,12 @@ export const saveWineQuizScore = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => SaveInput.parse(input))
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "staff");
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "admin",
+      "manager",
+      "staff",
+      "planer",
+    ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row, error } = await supabaseAdmin
       .from("wine_quiz_scores")
@@ -48,7 +53,12 @@ export const listWineQuizScores = createServerFn({ method: "GET" })
       .parse(input ?? {}),
   )
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "staff");
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "admin",
+      "manager",
+      "staff",
+      "planer",
+    ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: rows, error } = await supabaseAdmin
       .from("wine_quiz_scores")
