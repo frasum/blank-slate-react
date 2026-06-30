@@ -30,7 +30,8 @@ export function installServerFnFetchLogger(): void {
   fetchPatched = true;
   const orig = window.fetch.bind(window);
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+    const url =
+      typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
     const isServerFn = url.includes("/_serverFn/");
     const startedAt = performance.now();
     try {
@@ -179,15 +180,16 @@ export const logServerFnErrors = createMiddleware({ type: "function" }).client(
     try {
       const result = await next();
       // Manche Adapter geben ein Result-Objekt mit response/status zurück.
-      const status = (result as AnyRecord | undefined)?.response as
-        | { status?: number }
-        | undefined;
+      const status = (result as AnyRecord | undefined)?.response as { status?: number } | undefined;
       if (status?.status && status.status >= 400) {
         // eslint-disable-next-line no-console
         console.error("[serverFn ≥400]", {
           status: status.status,
           durationMs: Math.round(performance.now() - startedAt),
-          route: typeof window !== "undefined" ? window.location.pathname + window.location.search : "ssr",
+          route:
+            typeof window !== "undefined"
+              ? window.location.pathname + window.location.search
+              : "ssr",
           startedAt: isoStart,
           data: safePreview(data),
         });
@@ -204,9 +206,7 @@ export const logServerFnErrors = createMiddleware({ type: "function" }).client(
         status: e?.status ?? e?.statusCode ?? e?.response?.status,
         durationMs: Math.round(performance.now() - startedAt),
         route:
-          typeof window !== "undefined"
-            ? window.location.pathname + window.location.search
-            : "ssr",
+          typeof window !== "undefined" ? window.location.pathname + window.location.search : "ssr",
         startedAt: isoStart,
         data: safePreview(data),
         stack: e?.stack,
@@ -235,9 +235,7 @@ export const logServerFnErrorsServer = createMiddleware({ type: "function" }).se
     const { file, export: exp } = url ? decodeFnFromUrl(url) : {};
     try {
       const result = await next();
-      const status = (result as AnyRecord | undefined)?.response as
-        | { status?: number }
-        | undefined;
+      const status = (result as AnyRecord | undefined)?.response as { status?: number } | undefined;
       if (status?.status && status.status >= 400) {
         // eslint-disable-next-line no-console
         console.error("[serverFn server ≥400]", {

@@ -34,7 +34,7 @@ export function useFitCellSize(
       // Try with right name column first
       let avail = w - LEFT_NAME - RIGHT_NAME - SUM_COL;
       let cell = Math.max(MIN_CELL, Math.floor(avail / daysCount));
-      let showRight = LEFT_NAME + RIGHT_NAME + SUM_COL + cell * daysCount <= w;
+      const showRight = LEFT_NAME + RIGHT_NAME + SUM_COL + cell * daysCount <= w;
 
       if (!showRight) {
         // Drop right name column to gain space
