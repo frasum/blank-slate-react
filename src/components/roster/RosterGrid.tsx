@@ -87,6 +87,10 @@ type Props = {
   onClearAbsence: (staffId: string, iso: string) => Promise<void> | void;
   onSetWish: (staffId: string, iso: string) => Promise<void> | void;
   onClearWish: (staffId: string, iso: string) => Promise<void> | void;
+  /** Wenn true, wird die Bereich-Tabs-Leiste nicht gerendert (Bereich kommt von außen). */
+  hideAreaTabs?: boolean;
+  /** Wenn gesetzt, wird eine schlichte Standort-Überschrift über der Tabelle gerendert. */
+  locationLabel?: string;
 };
 
 export function RosterGrid({
@@ -116,6 +120,8 @@ export function RosterGrid({
   onClearAbsence,
   onSetWish,
   onClearWish,
+  hideAreaTabs,
+  locationLabel,
 }: Props) {
   const [openCell, setOpenCell] = React.useState<string | null>(null);
   const [openPill, setOpenPill] = React.useState<string | null>(null);
@@ -222,16 +228,21 @@ export function RosterGrid({
 
   return (
     <div className="space-y-2">
-      <Tabs value={activeArea} onValueChange={(v) => onActiveAreaChange(v as GridArea)}>
-        <TabsList>
-          <TabsTrigger value="kitchen" className="gap-2">
-            <ChefHat className="h-3.5 w-3.5" /> Küche
-          </TabsTrigger>
-          <TabsTrigger value="service" className="gap-2">
-            <UtensilsCrossed className="h-3.5 w-3.5" /> Service
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
+      {!hideAreaTabs && (
+        <Tabs value={activeArea} onValueChange={(v) => onActiveAreaChange(v as GridArea)}>
+          <TabsList>
+            <TabsTrigger value="kitchen" className="gap-2">
+              <ChefHat className="h-3.5 w-3.5" /> Küche
+            </TabsTrigger>
+            <TabsTrigger value="service" className="gap-2">
+              <UtensilsCrossed className="h-3.5 w-3.5" /> Service
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      )}
+      {locationLabel && (
+        <div className="px-1 text-sm font-semibold text-foreground">{locationLabel}</div>
+      )}
 
       <Card className={cn(layout.horizontalScroll ? "overflow-x-auto" : "overflow-x-visible")}>
         <table

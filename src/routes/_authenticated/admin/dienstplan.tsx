@@ -330,8 +330,14 @@ function DienstplanPage() {
   // Filter-Chips zeigen ebenfalls nur Skills der aktiven Area-Kategorien.
   const filterSkills = paintSkills;
 
-  async function handleCreate(staffId: string, iso: string, area: GridArea, skillId: string) {
-    if (!canEdit || periodLocked || !effectiveLocationId) return;
+  async function handleCreate(
+    locationId: string,
+    staffId: string,
+    iso: string,
+    area: GridArea,
+    skillId: string,
+  ) {
+    if (!canEdit || periodLocked) return;
     const lock = lockMap.get(`${staffId}|${iso}`);
     if (lock) {
       const name = staffNameById.get(staffId) ?? "Mitarbeiter";
@@ -342,7 +348,7 @@ function DienstplanPage() {
     try {
       await createRosterShift({
         data: {
-          locationId: effectiveLocationId,
+          locationId,
           staffId,
           shiftDate: iso,
           area,
@@ -358,6 +364,10 @@ function DienstplanPage() {
       setBusy(false);
     }
   }
+
+  const onCreateFor =
+    (locationId: string) => (staffId: string, iso: string, area: GridArea, skillId: string) =>
+      handleCreate(locationId, staffId, iso, area, skillId);
 
   async function handleDelete(id: string) {
     if (!canEdit || periodLocked) return;
@@ -707,7 +717,7 @@ function DienstplanPage() {
               locked={!!periodLocked}
               paint={paintEnabled ? paint : null}
               busy={busy}
-              onCreate={handleCreate}
+              onCreate={onCreateFor(effectiveLocationId!)}
               onDelete={handleDelete}
               onChangeSkill={handleChangeSkill}
               onChangeStatus={handleChangeStatus}
