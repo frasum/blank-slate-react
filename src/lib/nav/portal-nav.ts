@@ -26,7 +26,7 @@ export function usePortalNav(): { items: PortalNavItem[]; isLoading: boolean } {
 
   const items: PortalNavItem[] = [{ to: "/", label: "Start", icon: Home }];
   if (role === "admin" || role === "manager" || role === "staff") {
-    items.push({ to: "/zeit", label: "Stempeln", icon: Clock });
+    items.push({ to: "/zeit", label: "Mein COCO", icon: Clock });
     items.push({ to: "/zeit/abrechnung", label: "Abrechnung", icon: Receipt });
     items.push({ to: "/lohn", label: "Lohn", icon: FileText });
   }
