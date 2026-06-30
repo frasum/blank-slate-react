@@ -504,6 +504,13 @@ export async function getTipPoolOverviewCore(
     staffNames: Record<string, string>;
     manualStaffIds: string[];
     kitchenManualOnly: boolean;
+    glEntries: Array<{
+      staffId: string;
+      displayName: string;
+      shiftStart: string | null;
+      shiftEnd: string | null;
+      hoursMinutes: number;
+    }>;
   }
 > {
   const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
