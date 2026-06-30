@@ -579,6 +579,7 @@ export const listPeriods = createServerFn({ method: "GET" })
       "manager",
       "admin",
       "payroll",
+      "planer",
     ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await supabaseAdmin
