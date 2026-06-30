@@ -204,6 +204,7 @@ Rekonstruiert per Kalibrierung gegen bereits validierte Bestands-Sessions (Refer
 | payroll = Büro (Index-Sperre + Dienstplan-Ausschluss, keine 4. Abteilung)                                                              | ✅       |
 | Wochenplan → Abrechnungsperioden (26.–25., gemeinsamer Periodenbegriff im Zeit-Screen)                                                 | ✅       |
 | Aufräumen: Dead-Code, `makeAuditWriter` zentral, Typ-Single-Source `staff-domain.ts`                                                   | ✅       |
+| Rolle „Planer" (P-1..P-3b: scoped Dienstplan-Zugang, Verwaltung, Login-Redirect; Multiblock verworfen)                                 | ✅       |
 
 **Juni-Kassenlücke geschlossen (29.06.2026):** YUM (16., 18.–25.) und Spicery (16., 18.–25., 28.) aus `tagesabrechnung` nachimportiert — 19 Sessions; das leere native YUM-28 durch Legacy-Daten ersetzt. `vectron_daily_total_cents` 19/19 gegen die Quelle verifiziert. Mapping siehe Abschnitt 5.
 
@@ -404,6 +405,8 @@ Quelle der Wahrheit: Legacy `bestellung` (Repo `bestellung-5fff1793`, hat `SYSTE
 Bekanntes Supabase/PostgREST-Problem (Issues #42183, #39446): nach Migrationen kennt der PostgREST-Schema-Cache neue Tabellen/Spalten nicht (PGRST204 `guest_count` / PGRST205 `wine_quiz_scores`). 4 DB-Tests scheitern dauerhaft daran (im Test-SETUP beim `suppliers`-Insert, NICHT in der Logik). 75/79 DB-Tests grün. 4 CI-Fix-Versuche (Container-Restart, Probe-Logik, `db reset`, `pgrst_watch`-Event-Trigger) lösten es im CI nicht. Entscheidung: `db-integration` via `continue-on-error` NON-BLOCKING — läuft + reportet, blockiert aber nicht den grünen Gesamtstatus. `check`-Job (tsc+eslint+vitest) bleibt blockierend. Revisiten wenn Supabase-CLI den Cache-Reload nach `db reset` fixt → `continue-on-error` entfernen. Konsequenz: EasyOrder 4-B/4-D Sicherheits-DB-Tests statisch wasserdicht, aber nicht real in CI bewiesen (scheitern im Setup, nicht an der Logik). Der `pgrst_watch`-Trigger bleibt drin (hilft in Produktion).
 
 **Hinweis CI:** Die 5 tolerierten `react-hooks/exhaustive-deps`-Warnings sind aufgeräumt — `eslint .` ist wieder bei **0 Warnings**. Am 18.06. wurde ein **Format-Job** in der CI ergänzt (prüft Prettier). **Wiederkehrendes Muster:** Lovable überspringt gern `npx prettier --write` → CI wird **nur** an Prettier rot (tsc/vitest grün). Standing Fix: `prettier --write` vor jedem Commit (steht in §3). Optionaler Folgeschritt: husky Pre-Commit-Hook, der `prettier --write` lokal automatisch laufen lässt.
+
+**Lektion (30.06.2026):** Die CI fährt `prettier --check .` über das **ganze Repo** (inkl. `docs/`), nicht nur `src/`. Lokale Prüfung daher ebenfalls mit `prettier --check .` — ein Check nur über `src/**/*.{ts,tsx}` übersieht Doku-Format-Drift, der die CI rot hält (so geschehen: ~9 rote Runs allein wegen unformatierter `arbeitsweise.md`, während `src/` grün war).
 
 ## 9. Sicherheits-Härtung #1–#3 (24.06.2026)
 
@@ -923,3 +926,64 @@ A (Service-Ende-Nachzug) **updated** existierende **clock**-Einträge der Stempl
 
 - `ALTER TYPE … ADD VALUE` muss in **eigener** Transaktion committet sein, bevor ein Index/Code den Wert nutzt (sonst „invalid enum value").
 - Geld-/zeit-kritische TZ-Konstruktion gehört in eine reine Fn **mit DST-Charakterisierung** (`poolLocalTimeToIso`) — nicht inline im I/O-Pfad.
+
+## 24. Dienstplan & Display — Spalten-Feinschliff (30.06.2026)
+
+Rein visuelle Angleichungen an Grid (`RosterGrid.tsx`) und öffentlichem Display (`display.$locationId.tsx`); keine Logikänderung.
+
+- **Zweite Mitarbeiter-Spalte rechts:** Sowohl Grid als auch Display zeigen den Mitarbeiternamen jetzt links **und** rechts (vor der Σ-Spalte) — bei breiten Zeiträumen bleibt der Name am rechten Rand ablesbar.
+- **Sticky-Spalten:** Linke Namensspalte, rechte Namensspalte und Σ-Spalte sind beim horizontalen Scrollen fixiert (solide Hintergründe, kein Durchscheinen).
+- **Namen zentriert** in beiden Namensspalten (Grid + Display).
+- **Zebra-Streifen im Display** (`even:bg-slate-900/40`); die sticky-Zellen führen den Streifen mit, damit die Zeile durchgängig wirkt.
+
+## 25. Rolle „Planer" — eingeschränkter Dienstplan-Zugang (30.06.2026)
+
+Verifizierter Endstand HEAD `e85943f` (tsc 0, eslint 0, vitest 943, prettier sauber). Neue **Seitenrolle** `planer`: darf Dienstpläne machen, aber nur in freigegebenen `(Standort, Bereich)`-Kombinationen. Sieht den ganzen Plan, ändert nur den eigenen Scope. SUMITR ist der erste Planer (Küche Spicery + YUM).
+
+### P-1 — Schema + Rolle
+
+- Migration (in COCO-DB ausgeführt): `app_role` um `'planer'` erweitert; `permission_overrides` um Spalte `area staff_department` (kitchen/service/gl), Unique-Indizes neu mit `area`.
+- **`has_permission`**: neue 3-arg-Variante `has_permission(_perm, _location, _area)` (volle area-Logik: `location IS NULL` = global, `area IS NULL` = alle Bereiche; DENY > ALLOW > Default). Die bestehende 2-arg-Signatur **bleibt** und delegiert auf die 3-arg mit `_area := NULL` → RLS-Policies bit-identisch gültig, keine Ambiguität.
+- `planer` trägt **Lese**-Defaults (ganzen Plan sehen), **kein** `roster.shift.manage` im Default. Schreibrecht gibt es ausschließlich als scoped ALLOW-Override (Standort + Bereich).
+- `role-guard.ts`: `planer` ist **Seitenrolle** (RANK 0 wie `payroll`, **nicht** in der Hierarchie `admin > manager > staff`) → erbt keine Manager-Rechte.
+
+### P-2 — Schreibpfad-Durchsetzung
+
+Alle fünf Roster-Schreib-Functions prüfen `roster.shift.manage` gegen die **echte** `(location, area)` der Schicht, nie gegen `null`:
+
+- `createRosterShift` → Input-Scope `(data.locationId, data.area)`.
+- `delete`/`updateStatus`/`updateSkill` → Schicht **vor** dem Permission-Check laden (Pre-Load), dann gegen `(snap.location_id, snap.area)`.
+- `moveRosterShift` → Quelle **und** Ziel: bei Bereichswechsel zusätzlich `assertPermission(snap.location_id, data.area)`.
+
+DB-Test `roster-scope-p2.db.test.ts` deckt die Matrix ab (Planer create scoped ok/abgelehnt; „ohne area" abgelehnt = kein globaler Default; move kitchen→service Ziel abgelehnt; Manager-Regression).
+
+### P-3a — Verwaltung + Zugang
+
+- Rolle `planer` in der Rollen-Auswahl des Mitarbeiter-Stammblatts.
+- area-Dimension im Berechtigungen-Tab (`PermissionsTab` + `setPermissionOverride`/`getStaffPermissions`): Standort **und** Bereich frei kombinierbar. **Kritisch:** das delete+insert-Upsert trifft area-genau (`data.area ? .eq("area") : .is("area", null)`) — ein (Standort, Küche)-Override reißt den (Standort, Service)-Override nicht mehr mit. DB-Test `permission-override-area.db.test.ts` beweist die Koexistenz.
+- `admin/route.tsx`: `planer` darf ins Admin-Layout, aber **nur** `/admin/dienstplan` (Vorbild: `payroll` → `/admin/zeit-uebersicht`); Nav zeigt dem Planer nur den Dienstplan.
+
+### P-3b — Fundament (UI-Spiegelung der Durchsetzung)
+
+- Server-Fn **`getMyRosterScopes`**: prüft pro `(Standort × {kitchen,service})` via `has_permission` (mit dem **Caller**-Client, nicht `supabaseAdmin`) und liefert die schreibbaren Kombis. Für Admin/Manager automatisch alle, für Planer nur die Freigaben — das Frontend braucht **keine** Rollen-Sonderfälle.
+- Reine Fns `allowedLocations`/`canEditScope` (`scope-util.ts`, unit-getestet).
+- `dienstplan.tsx`: Standort-Auswahl auf erlaubte Standorte gefiltert (LocationPills + Default-Standort lösen sich automatisch); `canEdit = canEditScope(scopes, effectiveLocationId, activeArea)` — weil das Grid tab-/einzelstandort-basiert ist, greift damit jeder bestehende `if (!canEdit …)`-Gate korrekt: **sieht alles, malt nur den freigegebenen Bereich**.
+- Login-Redirect: `planer` landet direkt auf `/admin/dienstplan` (kein Hub-Umweg).
+
+### P-3c (Mehr-Standort-Ansicht) — bewusst **verworfen**
+
+Eine gestapelte „beide Küchen auf einen Blick"-Ansicht (Multiblock) wurde geplant (P-3c-1 Vorbereitung gebaut), dann **zurückgebaut** (`e85943f` = bit-identisch zum P-3b-Zustand): zu verschachtelt (Cross-Block-Move, Freigabe pro Block). SUMITR nutzt die bestehende Umschalter-/Tab-Ansicht aus P-3b (Standortwechsel per Klick, nur erlaubte Standorte).
+
+### Seitenrollen-Fixes (Folge von „Planer erbt keine staff-Rechte")
+
+Functions mit `loadAdminCaller(…, "staff")` (String = `assertMinRole`, „mindestens staff-Rang") schließen `planer` (RANK 0) aus. An den Self-Service-Stellen, die ein Planer nutzen können soll, auf Array-Form `["admin","manager","staff","planer"]` umgestellt: **EasyOrder** (`getMyEasyOrderContext`/`getEasyOrderCatalog`/`placeEasyOrder`), **payslips** (`listMyPayslips` + Signed-URL), **wine-quiz** (Score speichern/lesen). Verwaltungs-Functions (`loadAdminCaller(…, "admin")`) bleiben für `planer` gesperrt. Zentrale Staff-Functions (Stempeln, Self-Service, Kasse) nutzen `loadStaffCaller` (rollen-agnostisch) — dort war nichts zu ändern.
+
+### Auth-Feinschliff (Nebenarbeit)
+
+`auth-attacher.ts`: abgelaufene/geleerte Session ohne Token leitet hart auf `/auth` (statt unverständlichem 401). Greift nicht im PIN-Login (läuft auf `/auth`, dort vom Redirect ausgenommen).
+
+### Lektionen
+
+- **Seitenrolle ⇒ keine `staff`-Vererbung.** Eine neue Seitenrolle (RANK 0) bricht jede Function, die per `loadAdminCaller(…, "staff")` (= `assertMinRole`) gated ist. Beim Einführen einer Seitenrolle für eine bisherige `staff`-Person systematisch alle solchen Gates prüfen. `loadStaffCaller` (kein Rollen-Filter) ist davon nicht betroffen.
+- **Scope-Check immer gegen DB-Werte der Schicht** (Pre-Load), nie gegen `null`, nie gegen Client-Input.
+- **`has_permission` 2-arg/3-arg-Koexistenz** via Delegation hält bestehende RLS-Policies gültig — neue Signatur additiv, alte delegiert.
