@@ -718,7 +718,7 @@ function DienstplanPage() {
               locked={!!periodLocked}
               paint={paintEnabled ? paint : null}
               busy={busy}
-              onCreate={handleCreate}
+              onCreate={onCreateFor(effectiveLocationId!)}
               onDelete={handleDelete}
               onChangeSkill={handleChangeSkill}
               onChangeStatus={handleChangeStatus}
