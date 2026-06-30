@@ -1,5 +1,10 @@
 import { describe, expect, it, test } from "vitest";
-import { computeTipPool, computeTipTotalCents, resolvePoolTimeEntries } from "./tip-pool";
+import {
+  computeTipPool,
+  computeTipTotalCents,
+  effectiveParticipation,
+  resolvePoolTimeEntries,
+} from "./tip-pool";
 
 function iso(h: number, m = 0): string {
   const d = new Date("2025-06-01T00:00:00Z");
