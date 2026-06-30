@@ -9,6 +9,7 @@ import { assertMinRole, ForbiddenError, type AppRole } from "./role-guard";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import type { AppPermission } from "./permissions-catalog";
+import type { StaffDepartment } from "@/lib/staff-domain";
 
 export type AuditEntry = {
   action: string;
@@ -46,10 +47,12 @@ export async function assertPermission(
   supabase: SupabaseClient<Database>,
   permission: AppPermission,
   locationId: string | null = null,
+  area: StaffDepartment | null = null,
 ): Promise<void> {
   const { data, error } = await supabase.rpc("has_permission", {
     _perm: permission,
     ...(locationId !== null ? { _location: locationId } : {}),
+    ...(area !== null ? { _area: area } : {}),
   });
   if (error) {
     throw new ForbiddenError(`Rechte-Check fehlgeschlagen: ${error.message}`);
@@ -62,6 +65,11 @@ export async function assertPermission(
 /**
  * Analog zu `runGuarded`, aber mit Permission-Key statt Mindestrolle.
  * Bei ForbiddenError wird `writeAudit` nicht aufgerufen.
+ *
+ * Signatur (P-2): area kann zwischen locationId und writeAudit übergeben
+ * werden. Bestehende Aufrufer ohne area-Bedarf bleiben unverändert; die
+ * Überladung erkennt die alte 5-Argument-Variante anhand des Function-Typs
+ * im 4. Parameter.
  */
 export async function runWithPermission<T>(
   supabase: SupabaseClient<Database>,
@@ -69,8 +77,35 @@ export async function runWithPermission<T>(
   locationId: string | null,
   writeAudit: AuditWriter,
   op: () => Promise<{ result: T; audit: AuditEntry }>,
+): Promise<T>;
+export async function runWithPermission<T>(
+  supabase: SupabaseClient<Database>,
+  permission: AppPermission,
+  locationId: string | null,
+  area: StaffDepartment | null,
+  writeAudit: AuditWriter,
+  op: () => Promise<{ result: T; audit: AuditEntry }>,
+): Promise<T>;
+export async function runWithPermission<T>(
+  supabase: SupabaseClient<Database>,
+  permission: AppPermission,
+  locationId: string | null,
+  arg4: AuditWriter | StaffDepartment | null,
+  arg5: AuditWriter | (() => Promise<{ result: T; audit: AuditEntry }>),
+  arg6?: () => Promise<{ result: T; audit: AuditEntry }>,
 ): Promise<T> {
-  await assertPermission(supabase, permission, locationId);
+  let area: StaffDepartment | null = null;
+  let writeAudit: AuditWriter;
+  let op: () => Promise<{ result: T; audit: AuditEntry }>;
+  if (typeof arg4 === "function") {
+    writeAudit = arg4 as AuditWriter;
+    op = arg5 as () => Promise<{ result: T; audit: AuditEntry }>;
+  } else {
+    area = (arg4 as StaffDepartment | null) ?? null;
+    writeAudit = arg5 as AuditWriter;
+    op = arg6 as () => Promise<{ result: T; audit: AuditEntry }>;
+  }
+  await assertPermission(supabase, permission, locationId, area);
   const { result, audit } = await op();
   await writeAudit(audit);
   return result;

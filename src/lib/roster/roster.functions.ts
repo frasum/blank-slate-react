@@ -11,8 +11,8 @@ import { makeAuditWriter } from "@/lib/admin/audit";
 import { loadStaffCaller } from "@/lib/time/time.functions";
 import type { MyShiftRow } from "@/lib/roster/my-shifts";
 
-const READ_ROLES = ["manager", "admin", "payroll", "staff"] as const;
-const WRITE_ROLES = ["manager", "admin"] as const;
+const READ_ROLES = ["manager", "admin", "payroll", "staff", "planer"] as const;
+const WRITE_ROLES = ["manager", "admin", "planer"] as const;
 
 async function assertShiftDateUnlocked(
   admin: import("@supabase/supabase-js").SupabaseClient<
@@ -342,7 +342,8 @@ export const createRosterShift = createServerFn({ method: "POST" })
     return runWithPermission(
       context.supabase,
       "roster.shift.manage",
-      null,
+      data.locationId,
+      data.area,
       makeAuditWriter(caller),
       async () => {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -407,22 +408,22 @@ export const deleteRosterShift = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: snap, error: loadErr } = await supabaseAdmin
+      .from("roster_shifts")
+      .select("*")
+      .eq("id", data.id)
+      .eq("organization_id", caller.organizationId)
+      .maybeSingle();
+    if (loadErr) throw loadErr;
+    if (!snap) throw new Error("Schicht nicht gefunden.");
     return runWithPermission(
       context.supabase,
       "roster.shift.manage",
-      null,
+      snap.location_id as string,
+      snap.area as "kitchen" | "service" | "gl",
       makeAuditWriter(caller),
       async () => {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { data: snap, error: loadErr } = await supabaseAdmin
-          .from("roster_shifts")
-          .select("*")
-          .eq("id", data.id)
-          .eq("organization_id", caller.organizationId)
-          .maybeSingle();
-        if (loadErr) throw loadErr;
-        if (!snap) throw new Error("Schicht nicht gefunden.");
-
         await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, snap.shift_date);
 
         const { error } = await supabaseAdmin
@@ -467,21 +468,22 @@ export const updateRosterShiftStatus = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: snap, error: loadErr } = await supabaseAdmin
+      .from("roster_shifts")
+      .select("shift_date, status, location_id, area")
+      .eq("id", data.id)
+      .eq("organization_id", caller.organizationId)
+      .maybeSingle();
+    if (loadErr) throw loadErr;
+    if (!snap) throw new Error("Schicht nicht gefunden.");
     return runWithPermission(
       context.supabase,
       "roster.shift.manage",
-      null,
+      snap.location_id as string,
+      snap.area as "kitchen" | "service" | "gl",
       makeAuditWriter(caller),
       async () => {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { data: snap, error: loadErr } = await supabaseAdmin
-          .from("roster_shifts")
-          .select("shift_date, status")
-          .eq("id", data.id)
-          .eq("organization_id", caller.organizationId)
-          .maybeSingle();
-        if (loadErr) throw loadErr;
-        if (!snap) throw new Error("Schicht nicht gefunden.");
         await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, snap.shift_date);
 
         const { error } = await supabaseAdmin
@@ -516,21 +518,22 @@ export const updateRosterShiftSkill = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: snap, error: loadErr } = await supabaseAdmin
+      .from("roster_shifts")
+      .select("shift_date, skill_id, location_id, area")
+      .eq("id", data.id)
+      .eq("organization_id", caller.organizationId)
+      .maybeSingle();
+    if (loadErr) throw loadErr;
+    if (!snap) throw new Error("Schicht nicht gefunden.");
     return runWithPermission(
       context.supabase,
       "roster.shift.manage",
-      null,
+      snap.location_id as string,
+      snap.area as "kitchen" | "service" | "gl",
       makeAuditWriter(caller),
       async () => {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { data: snap, error: loadErr } = await supabaseAdmin
-          .from("roster_shifts")
-          .select("shift_date, skill_id")
-          .eq("id", data.id)
-          .eq("organization_id", caller.organizationId)
-          .maybeSingle();
-        if (loadErr) throw loadErr;
-        if (!snap) throw new Error("Schicht nicht gefunden.");
         await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, snap.shift_date);
 
         const { error } = await supabaseAdmin
@@ -570,22 +573,22 @@ export const moveRosterShift = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: snap, error: loadErr } = await supabaseAdmin
+      .from("roster_shifts")
+      .select("location_id, staff_id, shift_date, area, skill_id, status")
+      .eq("id", data.id)
+      .eq("organization_id", caller.organizationId)
+      .maybeSingle();
+    if (loadErr) throw loadErr;
+    if (!snap) throw new Error("Schicht nicht gefunden.");
     return runWithPermission(
       context.supabase,
       "roster.shift.manage",
-      null,
+      snap.location_id as string,
+      snap.area as "kitchen" | "service" | "gl",
       makeAuditWriter(caller),
       async () => {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { data: snap, error: loadErr } = await supabaseAdmin
-          .from("roster_shifts")
-          .select("location_id, staff_id, shift_date, area, skill_id, status")
-          .eq("id", data.id)
-          .eq("organization_id", caller.organizationId)
-          .maybeSingle();
-        if (loadErr) throw loadErr;
-        if (!snap) throw new Error("Schicht nicht gefunden.");
-
         // No-op guard: nichts ändert sich.
         if (
           snap.staff_id === data.staffId &&
@@ -601,6 +604,18 @@ export const moveRosterShift = createServerFn({ method: "POST" })
               meta: { noop: true },
             },
           };
+        }
+
+        // Ziel-Bereich-Check: wenn sich der Bereich ändert, muss auch der
+        // Ziel-Bereich am gleichen Standort erlaubt sein (für scoped Planer).
+        // Wirft VOR der Mutation → kein audit_log-Eintrag bei Verweigerung.
+        if (snap.area !== data.area) {
+          await assertPermission(
+            context.supabase,
+            "roster.shift.manage",
+            snap.location_id as string,
+            data.area,
+          );
         }
 
         // Lock-Check auf alte UND neue shift_date.
