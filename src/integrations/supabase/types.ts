@@ -3937,7 +3937,7 @@ export type Database = {
       staff_department: "kitchen" | "service" | "gl"
       task_category: "service" | "kitchen" | "maintenance" | "manager_admin"
       task_status: "open" | "in_progress" | "done" | "cancelled"
-      time_entry_source: "clock" | "manual" | "import"
+      time_entry_source: "clock" | "manual" | "import" | "pool"
       token_type: "badge_login"
       waiter_settlement_status:
         | "draft"
@@ -4134,7 +4134,7 @@ export const Constants = {
       staff_department: ["kitchen", "service", "gl"],
       task_category: ["service", "kitchen", "maintenance", "manager_admin"],
       task_status: ["open", "in_progress", "done", "cancelled"],
-      time_entry_source: ["clock", "manual", "import"],
+      time_entry_source: ["clock", "manual", "import", "pool"],
       token_type: ["badge_login"],
       waiter_settlement_status: [
         "draft",

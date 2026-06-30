@@ -1,0 +1,1 @@
+ALTER TYPE public.time_entry_source ADD VALUE IF NOT EXISTS 'pool';
