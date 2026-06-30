@@ -504,6 +504,16 @@ export async function getTipPoolOverviewCore(
     staffNames: Record<string, string>;
     manualStaffIds: string[];
     kitchenManualOnly: boolean;
+    poolEntries: Array<{
+      staffId: string;
+      displayName: string;
+      department: "kitchen" | "service";
+      hoursMinutes: number;
+      shiftStart: string | null;
+      shiftEnd: string | null;
+      participates: boolean;
+      participatesOverride: boolean | null;
+    }>;
     glEntries: Array<{
       staffId: string;
       displayName: string;
@@ -532,6 +542,16 @@ export async function computeSessionTipPoolCore(
     staffNames: Record<string, string>;
     manualStaffIds: string[];
     kitchenManualOnly: boolean;
+    poolEntries: Array<{
+      staffId: string;
+      displayName: string;
+      department: "kitchen" | "service";
+      hoursMinutes: number;
+      shiftStart: string | null;
+      shiftEnd: string | null;
+      participates: boolean;
+      participatesOverride: boolean | null;
+    }>;
     glEntries: Array<{
       staffId: string;
       displayName: string;
