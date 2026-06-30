@@ -704,22 +704,41 @@ export async function computeSessionTipPoolCore(
     staffNames,
     manualStaffIds: Array.from(manualByStaff.keys()),
     kitchenManualOnly: settings.kitchenManualOnly,
-    poolEntries: manualEntries.map((m) => ({
-      staffId: m.staffId,
-      displayName: staffNames[m.staffId] ?? m.staffId,
-      department: m.department as "kitchen" | "service",
-      hoursMinutes: m.hoursMinutes,
-      shiftStart: (() => {
-        const row = allPoolRows.find((r) => r.staffId === m.staffId);
-        return row?.shiftStart ? row.shiftStart.slice(0, 5) : null;
-      })(),
-      shiftEnd: (() => {
-        const row = allPoolRows.find((r) => r.staffId === m.staffId);
-        return row?.shiftEnd ? row.shiftEnd.slice(0, 5) : null;
-      })(),
-      participates: staffParticipates.get(m.staffId) ?? false,
-      participatesOverride: m.participates,
-    })),
+    poolEntries: (() => {
+      // Vollständige kitchen/service-Liste (inkl. abgewählter + reiner
+      // Stempel-MA), damit das UI die Teilnahme beidseitig schalten kann.
+      const ids = Array.from(staffIds).filter((id) => {
+        const d = staffDepartments.get(id);
+        return d === "kitchen" || d === "service";
+      });
+      // Stempel-Stunden je MA für Anzeige + als Fallback beim Toggle-Anlegen.
+      const stampMinutes = new Map<string, number>();
+      for (const t of rawTimeEntries) {
+        const ms = new Date(t.endedAt).getTime() - new Date(t.startedAt).getTime();
+        if (ms > 0) {
+          stampMinutes.set(
+            t.staffId,
+            (stampMinutes.get(t.staffId) ?? 0) + Math.round(ms / 60_000),
+          );
+        }
+      }
+      return ids.map((id) => {
+        const manual = manualByStaff.get(id);
+        const row = allPoolRows.find((r) => r.staffId === id);
+        const dept = staffDepartments.get(id) as "kitchen" | "service";
+        const hoursMinutes = manual ? manual.hoursMinutes : (stampMinutes.get(id) ?? 0);
+        return {
+          staffId: id,
+          displayName: staffNames[id] ?? id,
+          department: dept,
+          hoursMinutes,
+          shiftStart: row?.shiftStart ? row.shiftStart.slice(0, 5) : null,
+          shiftEnd: row?.shiftEnd ? row.shiftEnd.slice(0, 5) : null,
+          participates: staffParticipates.get(id) ?? false,
+          participatesOverride: manual ? (manual.participates ?? null) : null,
+        };
+      });
+    })(),
     glEntries: glRows.map((r) => ({
       staffId: r.staffId,
       displayName: staffNames[r.staffId] ?? r.staffId,
