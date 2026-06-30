@@ -856,7 +856,7 @@ Verifizierter Stand HEAD `c9c35f1` (tsc 0, eslint 0, vitest 911, prettier sauber
 
 ### Offen / bewusst vertagt
 
-- **Fähigkeit B (an M4):** Rückschreibung der Pool-Start/Ende (inkl. GL) in `time_entries (source='manual')` für MA **ohne** `clock`-Eintrag — idempotent, Wasserlinien-Schutz, eigene DB-Tests. Datenbasis (Start/Ende je Eintrag) steht bereits. Begründung der Vertagung: B ist ein Lohn-Thema (M4 rechnet auf `time_entries`), nicht Trinkgeld; die Kollisionsregel (Plan-Zeit nur ohne echten Stempel) wird erst gegen echte Lohndaten getestet.
+- **Fähigkeit B (an M4): ✅ umgesetzt am 30.06.2026 — siehe §23.** (Realisiert als `source='pool'`, nicht `'manual'`.)
 - Teilnahme-Override greift nur für MA **mit** `session_tip_pool_entry`; reine Stempel-MA ohne Eintrag erst nach Aufnahme in der Card übersteuerbar.
 
 ### Lektionen (teuer gelernt)
