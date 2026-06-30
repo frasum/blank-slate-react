@@ -342,7 +342,8 @@ export const createRosterShift = createServerFn({ method: "POST" })
     return runWithPermission(
       context.supabase,
       "roster.shift.manage",
-      null,
+      data.locationId,
+      data.area,
       makeAuditWriter(caller),
       async () => {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
