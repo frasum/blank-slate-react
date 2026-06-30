@@ -22,6 +22,17 @@
 import type { StaffDepartment } from "@/lib/staff-domain";
 export type { StaffDepartment };
 
+/**
+ * Effektive Pool-Teilnahme: Session-Übersteuerung schlägt den Stammdaten-Default,
+ * vollständig entkoppelt von den Stunden. NULL = kein Override → Default.
+ */
+export function effectiveParticipation(
+  override: boolean | null | undefined,
+  staffDefault: boolean,
+): boolean {
+  return override ?? staffDefault;
+}
+
 export function computeTipTotalCents(
   settlements: Array<{
     cardTotalCents: number;

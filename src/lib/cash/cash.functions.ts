@@ -21,6 +21,7 @@ import { calcWaiterSettlement } from "./waiter-settlement";
 import {
   computeTipPool,
   computeTipTotalCents,
+  effectiveParticipation,
   resolvePoolTimeEntries,
   type TipPoolResult,
   type StaffDepartment,
@@ -673,7 +674,7 @@ export async function computeSessionTipPoolCore(
   for (const m of manualEntries) {
     staffDepartments.set(m.staffId, m.department);
     const staffDefault = staffParticipates.get(m.staffId) ?? false;
-    staffParticipates.set(m.staffId, m.participates ?? staffDefault);
+    staffParticipates.set(m.staffId, effectiveParticipation(m.participates, staffDefault));
   }
 
   const timeEntries = resolvePoolTimeEntries({
