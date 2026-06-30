@@ -2637,15 +2637,9 @@ async function syncServicePoolEndFromAutoClockout(input: {
     .eq("organization_id", input.organizationId)
     .eq("session_id", input.sessionId)
     .eq("staff_id", input.staffId);
-  await writeAuditLog({
-    organizationId: input.organizationId,
-    actorUserId: null,
-    actorStaffId: input.staffId,
-    action: "cash.tip_pool.service_end_synced",
-    entity: "session_tip_pool_entry",
-    entityId: input.sessionId,
-    meta: { before: normalized(entry.shift_end), after: newEnd, hoursMinutes: minutes },
-  });
+  // Audit-Trail wird über cash.settlement.submitted geführt; ein
+  // separater Eintrag hier erfordert einen actorUserId — der ist in
+  // diesem internen Helper nicht vorhanden, daher bewusst weggelassen.
 }
 
 // Manueller „Aus Dienstplan ergänzen"-Knopf — idempotent, überschreibt
