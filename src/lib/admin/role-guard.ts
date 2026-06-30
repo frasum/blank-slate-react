@@ -7,9 +7,12 @@
 // 'payroll' ist eine SEITENROLLE und nicht Teil der Hierarchie
 // admin > manager > staff. hasMinRole(payroll, *) liefert deshalb immer false
 // — payroll-Rechte werden explizit über assertRoleAllowed/has_role gewährt.
-export type AppRole = "admin" | "manager" | "staff" | "payroll";
+export type AppRole = "admin" | "manager" | "staff" | "payroll" | "planer";
 
-const RANK: Record<AppRole, number> = { payroll: 0, staff: 1, manager: 2, admin: 3 };
+// payroll und planer sind SEITENROLLEN und nicht Teil der staff/manager/admin-
+// Hierarchie. hasMinRole(payroll|planer, *) liefert immer false; die jeweiligen
+// Rechte werden explizit über permission_role_defaults bzw. Overrides gewährt.
+const RANK: Record<AppRole, number> = { payroll: 0, planer: 0, staff: 1, manager: 2, admin: 3 };
 
 export class ForbiddenError extends Error {
   constructor(message = "Forbidden") {
@@ -21,7 +24,9 @@ export class ForbiddenError extends Error {
 export function hasMinRole(actual: AppRole | null, min: AppRole): boolean {
   if (!actual) return false;
   // payroll steht ausserhalb der Hierarchie und erfüllt KEINE Mindestrolle.
-  if (actual === "payroll" || min === "payroll") return actual === min;
+  if (actual === "payroll" || min === "payroll" || actual === "planer" || min === "planer") {
+    return actual === min;
+  }
   return RANK[actual] >= RANK[min];
 }
 
