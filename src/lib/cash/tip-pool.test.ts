@@ -409,3 +409,61 @@ describe("resolvePoolTimeEntries: kitchenManualOnly-Matrix", () => {
     expect(out.map((e) => e.staffId)).toEqual(["s1"]);
   });
 });
+
+describe("effectiveParticipation", () => {
+  it("Übersteuerung schaltet zu (true over default false)", () => {
+    expect(effectiveParticipation(true, false)).toBe(true);
+  });
+  it("Übersteuerung schaltet ab (false over default true)", () => {
+    expect(effectiveParticipation(false, true)).toBe(false);
+  });
+  it("NULL → Stammdaten-Default", () => {
+    expect(effectiveParticipation(null, true)).toBe(true);
+    expect(effectiveParticipation(null, false)).toBe(false);
+  });
+});
+
+describe("computeTipPool: Teilnahme-Übersteuerung entkoppelt von Stunden", () => {
+  it("(b) 'früher heimgeschickt': echte Stunden, aber participates=false → kein Anteil; Rest teilt sich Pool", () => {
+    const r = computeTipPool({
+      kitchenPoolCents: 0,
+      servicePoolCents: 10_000,
+      settlements: [],
+      timeEntries: [
+        { staffId: "s1", startedAt: iso(10), endedAt: iso(15) }, // 5h, ausgeschlossen
+        { staffId: "s2", startedAt: iso(10), endedAt: iso(15) }, // 5h
+        { staffId: "s3", startedAt: iso(10), endedAt: iso(15) }, // 5h
+      ],
+      staffDepartments: new Map<string, "kitchen" | "service" | "gl">([
+        ["s1", "service"],
+        ["s2", "service"],
+        ["s3", "service"],
+      ]),
+      staffParticipates: new Map([
+        ["s1", false],
+        ["s2", true],
+        ["s3", true],
+      ]),
+    });
+    expect(r.shares.find((s) => s.staffId === "s1")).toBeUndefined();
+    const s2 = r.shares.find((s) => s.staffId === "s2")!;
+    const s3 = r.shares.find((s) => s.staffId === "s3")!;
+    expect(s2.shareCents).toBe(5_000);
+    expect(s3.shareCents).toBe(5_000);
+  });
+
+  it("(c) Standard-Nicht-Teilnehmer wird per Override zugeschaltet und erhält Anteil", () => {
+    expect(effectiveParticipation(true, false)).toBe(true);
+    const r = computeTipPool({
+      kitchenPoolCents: 0,
+      servicePoolCents: 10_000,
+      settlements: [],
+      timeEntries: [{ staffId: "x", startedAt: iso(10), endedAt: iso(15) }],
+      staffDepartments: new Map<string, "kitchen" | "service" | "gl">([["x", "service"]]),
+      // Default wäre false; Session-Override true (via effectiveParticipation)
+      staffParticipates: new Map([["x", effectiveParticipation(true, false)]]),
+    });
+    expect(r.shares).toHaveLength(1);
+    expect(r.shares[0]).toMatchObject({ staffId: "x", shareCents: 10_000 });
+  });
+});
