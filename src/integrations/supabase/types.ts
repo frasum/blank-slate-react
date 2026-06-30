@@ -3925,7 +3925,7 @@ export type Database = {
         | "tasks.assign"
         | "tasks.change_status"
         | "tasks.delete"
-      app_role: "admin" | "manager" | "staff" | "payroll"
+      app_role: "admin" | "manager" | "staff" | "payroll" | "planer"
       permission_effect: "allow" | "deny"
       register_transfer_direction:
         | "to_restaurant"
@@ -4121,7 +4121,7 @@ export const Constants = {
         "tasks.change_status",
         "tasks.delete",
       ],
-      app_role: ["admin", "manager", "staff", "payroll"],
+      app_role: ["admin", "manager", "staff", "payroll", "planer"],
       permission_effect: ["allow", "deny"],
       register_transfer_direction: [
         "to_restaurant",
