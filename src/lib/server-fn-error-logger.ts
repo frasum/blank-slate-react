@@ -11,12 +11,60 @@ import { createMiddleware } from "@tanstack/react-start";
 
 type AnyRecord = Record<string, unknown>;
 
-function decodeFnName(): string {
-  // Server-Functions werden über /_serverFn/<base64(json)> aufgerufen.
-  // Wir versuchen den Hash aus dem aktuellen XHR-Stack zu lesen — das ist
-  // im Client-Middleware-Kontext nicht direkt verfügbar, deshalb fallen
-  // wir auf "unknown" zurück, falls der Caller den Namen nicht mitgibt.
-  return "unknown";
+function decodeFnFromUrl(url: string): { file?: string; export?: string } {
+  try {
+    const m = url.match(/\/_serverFn\/([^/?#]+)/);
+    if (!m) return {};
+    const json = atob(decodeURIComponent(m[1]));
+    const parsed = JSON.parse(json) as { file?: string; export?: string };
+    return { file: parsed.file, export: parsed.export };
+  } catch {
+    return {};
+  }
+}
+
+let fetchPatched = false;
+export function installServerFnFetchLogger(): void {
+  if (fetchPatched || typeof window === "undefined") return;
+  fetchPatched = true;
+  const orig = window.fetch.bind(window);
+  window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+    const isServerFn = url.includes("/_serverFn/");
+    const startedAt = performance.now();
+    try {
+      const res = await orig(input, init);
+      if (isServerFn && res.status >= 400) {
+        const { file, export: exp } = decodeFnFromUrl(url);
+        // eslint-disable-next-line no-console
+        console.error("[serverFn HTTP " + res.status + "]", {
+          fn: exp,
+          file,
+          method: init?.method ?? "GET",
+          durationMs: Math.round(performance.now() - startedAt),
+          route: window.location.pathname + window.location.search,
+          startedAt: new Date().toISOString(),
+          url,
+        });
+      }
+      return res;
+    } catch (err) {
+      if (isServerFn) {
+        const { file, export: exp } = decodeFnFromUrl(url);
+        // eslint-disable-next-line no-console
+        console.error("[serverFn fetch failed]", {
+          fn: exp,
+          file,
+          method: init?.method ?? "GET",
+          durationMs: Math.round(performance.now() - startedAt),
+          route: window.location.pathname + window.location.search,
+          startedAt: new Date().toISOString(),
+          error: (err as Error)?.message ?? String(err),
+        });
+      }
+      throw err;
+    }
+  };
 }
 
 function safePreview(value: unknown, max = 400): string {
@@ -47,7 +95,6 @@ export const logServerFnErrors = createMiddleware({ type: "function" }).client(
           route: typeof window !== "undefined" ? window.location.pathname + window.location.search : "ssr",
           startedAt: isoStart,
           data: safePreview(data),
-          fn: decodeFnName(),
         });
       }
       return result;
@@ -67,7 +114,6 @@ export const logServerFnErrors = createMiddleware({ type: "function" }).client(
             : "ssr",
         startedAt: isoStart,
         data: safePreview(data),
-        fn: decodeFnName(),
         stack: e?.stack,
       });
       throw err;
