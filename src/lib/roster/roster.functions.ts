@@ -1016,10 +1016,16 @@ export const setAbsenceRange = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
+    const scope = await resolveAllowedStaffScope(
+      context.supabase,
+      data.staffId,
+      "roster.absence.manage",
+    );
     return runWithPermission(
       context.supabase,
       "roster.absence.manage",
-      null,
+      scope.locationId,
+      scope.area,
       makeAuditWriter(caller),
       async () => {
         const days = expandDateRange(data.fromDate, data.toDate);
