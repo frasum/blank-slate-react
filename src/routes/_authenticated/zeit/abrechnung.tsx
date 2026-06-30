@@ -494,7 +494,11 @@ function Header({ showKasseLink = false }: { showKasseLink?: boolean }) {
       <h1 className="text-2xl font-semibold tracking-tight">Abrechnung</h1>
       <div className="flex items-center gap-3 text-sm">
         {showKasseLink && (
-          <Link to="/admin/kasse" className="text-muted-foreground hover:text-foreground">
+          <Link
+            to="/admin/kasse"
+            search={{}}
+            className="text-muted-foreground hover:text-foreground"
+          >
             Zur Kassenübersicht
           </Link>
         )}
