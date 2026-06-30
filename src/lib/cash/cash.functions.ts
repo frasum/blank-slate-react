@@ -832,13 +832,30 @@ export async function getOrCreateOpenSessionCore(
       .select("id, status")
       .single();
     if (error) throw error;
+    // Snapshot bestätigter Plan-Schichten in den Trinkgeld-Pool einfrieren.
+    // Eröffnungs-Hook: nur im Create-Zweig, nie beim "get". Fehler hier
+    // dürfen die Session-Eröffnung NICHT blocken (Komfort-Feature).
+    let snapshotCount = 0;
+    try {
+      snapshotCount = await applyRosterPoolSnapshot({
+        organizationId: caller.organizationId,
+        sessionId: created.id,
+        locationId: data.locationId,
+        businessDate,
+      });
+    } catch (e) {
+      // Bewusst still: Snapshot-Probleme (z. B. keine Defaults gepflegt)
+      // dürfen die Session nicht blockieren. Im audit_log unten landet
+      // snapshotCount=0; eine echte Fehlerspur liefert get-existing.
+      console.error("roster pool snapshot failed:", e);
+    }
     return {
       result: { id: created.id, status: created.status, businessDate, created: true },
       audit: {
         action: "cash.session.created",
         entity: "session",
         entityId: created.id,
-        meta: { businessDate, locationId: data.locationId },
+        meta: { businessDate, locationId: data.locationId, poolSnapshotCount: snapshotCount },
       },
     };
   });
