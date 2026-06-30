@@ -24,7 +24,7 @@ describe("pillStyle", () => {
     expect(r.textClass).toBe("text-white border-transparent");
   });
 
-  it("Default-Service \"X\" → weiß/schwarz", () => {
+  it('Default-Service "X" → weiß/schwarz', () => {
     const r = pillStyle({ skillColor: null, area: "service", label: "X", status: "confirmed" });
     expect(r.backgroundColor).toBe("#ffffff");
     expect(r.textClass).toBe("text-black border-transparent");
@@ -47,7 +47,7 @@ describe("pillStyle", () => {
     expect(confirmed.backgroundColor).toBe("color-mix(in oklab, #00ff00 85%, black)");
   });
 
-  it("Service mit Skill (z. B. \"B\") → abgedunkelte Farbe + weißer Text", () => {
+  it('Service mit Skill (z. B. "B") → abgedunkelte Farbe + weißer Text', () => {
     const r = pillStyle({
       skillColor: "#3366ff",
       area: "service",

@@ -25,8 +25,7 @@ export function ShiftPill({ shift, area, draggable, onClick }: Props) {
 
   const isService = area === "service";
   const label = isService ? serviceMarker(shift.skillName) : abbr(shift.skillName);
-  const status: "planned" | "confirmed" =
-    shift.status === "confirmed" ? "confirmed" : "planned";
+  const status: "planned" | "confirmed" = shift.status === "confirmed" ? "confirmed" : "planned";
   const { backgroundColor, textClass } = pillStyle({
     skillColor: shift.skillColor,
     area,
