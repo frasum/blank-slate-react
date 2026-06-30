@@ -63,15 +63,14 @@ export async function aggregateSfnPeriod(
       .map((e) => ({ ...e, businessDate: e.business_date, source: e.source as string })),
   );
 
-  const rows = filteredEntries
-    .map((e) =>
-      timeEntryToSfnRow({
-        startedAt: e.started_at,
-        endedAt: e.ended_at as string,
-        businessDate: e.business_date,
-        breakMinutes: e.break_minutes ?? 0,
-      }),
-    );
+  const rows = filteredEntries.map((e) =>
+    timeEntryToSfnRow({
+      startedAt: e.started_at,
+      endedAt: e.ended_at as string,
+      businessDate: e.business_date,
+      breakMinutes: e.break_minutes ?? 0,
+    }),
+  );
 
   const holidayRates = new Map<string, number>();
   for (const r of rows) {

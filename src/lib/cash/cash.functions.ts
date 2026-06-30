@@ -1664,22 +1664,20 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
         row.endTime,
         row.crossesMidnight ? 1 : 0,
       );
-      const { error: insErr, count } = await supabaseAdmin
-        .from("time_entries")
-        .upsert(
-          {
-            organization_id: row.organizationId,
-            staff_id: row.staffId,
-            business_date: row.businessDate,
-            started_at: startedAt,
-            ended_at: endedAt,
-            break_minutes: 0,
-            location_id: row.locationId,
-            source: "pool",
-            import_key: row.importKey,
-          },
-          { onConflict: "organization_id,import_key", ignoreDuplicates: true, count: "exact" },
-        );
+      const { error: insErr, count } = await supabaseAdmin.from("time_entries").upsert(
+        {
+          organization_id: row.organizationId,
+          staff_id: row.staffId,
+          business_date: row.businessDate,
+          started_at: startedAt,
+          ended_at: endedAt,
+          break_minutes: 0,
+          location_id: row.locationId,
+          source: "pool",
+          import_key: row.importKey,
+        },
+        { onConflict: "organization_id,import_key", ignoreDuplicates: true, count: "exact" },
+      );
       if (insErr) throw insErr;
       if ((count ?? 0) > 0) poolWritebackInserted += 1;
     }

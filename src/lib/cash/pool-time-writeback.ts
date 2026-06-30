@@ -101,11 +101,7 @@ export function buildPoolTimeEntryRows(input: PoolWritebackInput): PoolTimeEntry
 // businessDate (dayOffset=0) bzw. am Folgetag (dayOffset=1, für
 // Mitternachts-Wraps). Verwendet den jeweils tagesgültigen Berlin-Offset
 // — DST-sicher, weil offset des Folgetags eigenständig bestimmt wird.
-export function poolLocalTimeToIso(
-  businessDate: string,
-  hhmm: string,
-  dayOffset: 0 | 1,
-): string {
+export function poolLocalTimeToIso(businessDate: string, hhmm: string, dayOffset: 0 | 1): string {
   // businessDate ist YYYY-MM-DD; Tag ggf. um 1 verschieben.
   let isoDate = businessDate;
   if (dayOffset === 1) {
@@ -129,9 +125,9 @@ export function poolLocalTimeToIso(
 // Lohn-Nachrangigkeit: pro businessDate werden alle 'pool'-Zeilen
 // verworfen, wenn am selben Tag mindestens ein Eintrag mit source !==
 // 'pool' existiert (clock/manual/import).
-export function dropPoolWhenRealEntryExists<
-  T extends { businessDate: string; source: string },
->(rows: T[]): T[] {
+export function dropPoolWhenRealEntryExists<T extends { businessDate: string; source: string }>(
+  rows: T[],
+): T[] {
   const realDays = new Set<string>();
   for (const r of rows) if (r.source !== "pool") realDays.add(r.businessDate);
   return rows.filter((r) => !(r.source === "pool" && realDays.has(r.businessDate)));
