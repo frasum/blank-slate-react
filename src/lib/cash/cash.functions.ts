@@ -26,6 +26,7 @@ import {
   type StaffDepartment,
 } from "./tip-pool";
 import { kitchenShiftMinutes } from "./kitchen-shift-hours";
+import { buildRosterPoolSnapshot } from "./roster-pool-snapshot";
 import { assertCashWritable, CashLockedError } from "./cash-lock";
 import type { Json } from "@/integrations/supabase/types";
 import { ForbiddenError } from "@/lib/admin/role-guard";
@@ -503,6 +504,13 @@ export async function getTipPoolOverviewCore(
     staffNames: Record<string, string>;
     manualStaffIds: string[];
     kitchenManualOnly: boolean;
+    glEntries: Array<{
+      staffId: string;
+      displayName: string;
+      shiftStart: string | null;
+      shiftEnd: string | null;
+      hoursMinutes: number;
+    }>;
   }
 > {
   const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
@@ -524,6 +532,13 @@ export async function computeSessionTipPoolCore(
     staffNames: Record<string, string>;
     manualStaffIds: string[];
     kitchenManualOnly: boolean;
+    glEntries: Array<{
+      staffId: string;
+      displayName: string;
+      shiftStart: string | null;
+      shiftEnd: string | null;
+      hoursMinutes: number;
+    }>;
   }
 > {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -546,7 +561,7 @@ export async function computeSessionTipPoolCore(
       .not("ended_at", "is", null),
     supabaseAdmin
       .from("session_tip_pool_entries")
-      .select("staff_id, department, hours_minutes")
+      .select("staff_id, department, hours_minutes, shift_start, shift_end")
       .eq("organization_id", caller.organizationId)
       .eq("session_id", session.id),
   ]);
@@ -564,12 +579,25 @@ export async function computeSessionTipPoolCore(
     hilfMahlCents: Number(r.hilf_mahl_cents),
     kitchenTipCents: Number(r.kitchen_tip_cents),
   }));
-  const manualEntries = (manualRes.data ?? []).map((r) => ({
+  const allPoolRows = (manualRes.data ?? []).map((r) => ({
     staffId: r.staff_id,
     department: r.department as StaffDepartment,
     hoursMinutes: Number(r.hours_minutes),
+    shiftStart: r.shift_start as string | null,
+    shiftEnd: r.shift_end as string | null,
   }));
+  // GL-Zeilen NIE als „manuell" an die Verteilrechnung geben — die
+  // Verteillogik schließt zwar gl bereits aus, aber `staffParticipates`
+  // würde GL sonst als Pool-Teilnehmer markieren (hours_minutes > 0).
+  const manualEntries = allPoolRows
+    .filter((r) => r.department === "kitchen" || r.department === "service")
+    .map((r) => ({
+      staffId: r.staffId,
+      department: r.department,
+      hoursMinutes: r.hoursMinutes,
+    }));
   const manualByStaff = new Map(manualEntries.map((m) => [m.staffId, m]));
+  const glRows = allPoolRows.filter((r) => r.department === "gl");
 
   const rawTimeEntries = (timeRes.data ?? [])
     .filter(
@@ -584,6 +612,7 @@ export async function computeSessionTipPoolCore(
       ...settlements.map((s) => s.staffId),
       ...rawTimeEntries.map((t) => t.staffId),
       ...manualByStaff.keys(),
+      ...glRows.map((r) => r.staffId),
     ]),
   );
 
@@ -651,6 +680,13 @@ export async function computeSessionTipPoolCore(
     staffNames,
     manualStaffIds: Array.from(manualByStaff.keys()),
     kitchenManualOnly: settings.kitchenManualOnly,
+    glEntries: glRows.map((r) => ({
+      staffId: r.staffId,
+      displayName: staffNames[r.staffId] ?? r.staffId,
+      shiftStart: r.shiftStart ? r.shiftStart.slice(0, 5) : null,
+      shiftEnd: r.shiftEnd ? r.shiftEnd.slice(0, 5) : null,
+      hoursMinutes: r.hoursMinutes,
+    })),
   };
 }
 
@@ -831,13 +867,30 @@ export async function getOrCreateOpenSessionCore(
       .select("id, status")
       .single();
     if (error) throw error;
+    // Snapshot bestätigter Plan-Schichten in den Trinkgeld-Pool einfrieren.
+    // Eröffnungs-Hook: nur im Create-Zweig, nie beim "get". Fehler hier
+    // dürfen die Session-Eröffnung NICHT blocken (Komfort-Feature).
+    let snapshotCount = 0;
+    try {
+      snapshotCount = await applyRosterPoolSnapshot({
+        organizationId: caller.organizationId,
+        sessionId: created.id,
+        locationId: data.locationId,
+        businessDate,
+      });
+    } catch (e) {
+      // Bewusst still: Snapshot-Probleme (z. B. keine Defaults gepflegt)
+      // dürfen die Session nicht blockieren. Im audit_log unten landet
+      // snapshotCount=0; eine echte Fehlerspur liefert get-existing.
+      console.error("roster pool snapshot failed:", e);
+    }
     return {
       result: { id: created.id, status: created.status, businessDate, created: true },
       audit: {
         action: "cash.session.created",
         entity: "session",
         entityId: created.id,
-        meta: { businessDate, locationId: data.locationId },
+        meta: { businessDate, locationId: data.locationId, poolSnapshotCount: snapshotCount },
       },
     };
   });
@@ -1489,6 +1542,18 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
           .eq("id", settlementId)
           .eq("organization_id", caller.organizationId);
         if (linkErr) throw linkErr;
+        // Service-Pool-Ende nachziehen, NUR wenn shift_end noch dem
+        // Service-Default des Standorts entspricht (= seit der Eröffnung
+        // unverändert). Geändertes Ende bleibt. Küche/GL: kein Nachzug.
+        // Edge-Case: manuell auf Default gesetzte Werte werden ebenfalls
+        // überschrieben — bewusst vernachlässigt.
+        await syncServicePoolEndFromAutoClockout({
+          organizationId: caller.organizationId,
+          sessionId: session.id,
+          locationId: session.location_id,
+          staffId: caller.staffId,
+          autoClockoutId,
+        });
       }
     } else {
       noOpenTimeEntry = true;
@@ -2291,7 +2356,7 @@ const tipPoolEntryUpsertSchema = z
   .object({
     sessionId: z.string().uuid(),
     staffId: z.string().uuid(),
-    department: z.enum(["kitchen", "service"]),
+    department: z.enum(["kitchen", "service", "gl"]),
     hoursMinutes: z.number().int().min(0).max(1440).optional(),
     shiftStart: z.string().regex(HHMM_RE).optional(),
     shiftEnd: z.string().regex(HHMM_RE).optional(),
@@ -2316,8 +2381,10 @@ const tipPoolEntryUpsertSchema = z
 
 export type SessionTipPoolEntry = {
   staffId: string;
-  department: "kitchen" | "service";
+  department: "kitchen" | "service" | "gl";
   hoursMinutes: number;
+  shiftStart: string | null;
+  shiftEnd: string | null;
   note: string | null;
 };
 
@@ -2330,14 +2397,16 @@ export const listSessionTipPoolEntries = createServerFn({ method: "GET" })
     const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
     const { data: rows, error } = await supabaseAdmin
       .from("session_tip_pool_entries")
-      .select("staff_id, department, hours_minutes, note")
+      .select("staff_id, department, hours_minutes, shift_start, shift_end, note")
       .eq("organization_id", caller.organizationId)
       .eq("session_id", session.id);
     if (error) throw error;
     return (rows ?? []).map<SessionTipPoolEntry>((r) => ({
       staffId: r.staff_id,
-      department: r.department as "kitchen" | "service",
+      department: r.department as "kitchen" | "service" | "gl",
       hoursMinutes: Number(r.hours_minutes),
+      shiftStart: r.shift_start ? (r.shift_start as string).slice(0, 5) : null,
+      shiftEnd: r.shift_end ? (r.shift_end as string).slice(0, 5) : null,
       note: r.note,
     }));
   });
@@ -2444,6 +2513,171 @@ export async function deleteSessionTipPoolEntryCore(
         action: "cash.tip_pool.manual_delete",
         entity: "session_tip_pool_entry",
         meta: { sessionId: session.id, staffId: data.staffId },
+      },
+    };
+  });
+}
+
+// ------------------------------------------------------------------------
+// Plan-Snapshot in den Pool (bei Session-Eröffnung + manueller Nachzug)
+// ------------------------------------------------------------------------
+//
+// Liest die BESTÄTIGTEN Plan-Schichten eines Geschäftstags an einem
+// Standort und schreibt sie idempotent als Pool-Zeilen. Idempotenz über
+// das vorhandene `unique(session_id, staff_id)` — wir setzen
+// `onConflict: 'session_id,staff_id'` mit `ignoreDuplicates:true`.
+//
+// GL-Einträge werden mitgeschrieben (als Arbeitszeit-Anker), bekommen
+// aber via computeTipPool keinen Trinkgeld-Anteil.
+async function applyRosterPoolSnapshot(input: {
+  organizationId: string;
+  sessionId: string;
+  locationId: string;
+  businessDate: string;
+}): Promise<number> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const [shiftsRes, defaultsRes] = await Promise.all([
+    supabaseAdmin
+      .from("roster_shifts")
+      .select("staff_id, area")
+      .eq("organization_id", input.organizationId)
+      .eq("location_id", input.locationId)
+      .eq("shift_date", input.businessDate)
+      .eq("status", "confirmed"),
+    supabaseAdmin
+      .from("location_department_defaults")
+      .select("department, default_checkin, default_checkout")
+      .eq("location_id", input.locationId),
+  ]);
+  if (shiftsRes.error) throw shiftsRes.error;
+  if (defaultsRes.error) throw defaultsRes.error;
+
+  const defaultsByArea: Record<string, { checkin: string | null; checkout: string | null }> = {};
+  for (const d of defaultsRes.data ?? []) {
+    defaultsByArea[d.department as string] = {
+      checkin: (d.default_checkin as string | null) ?? null,
+      checkout: (d.default_checkout as string | null) ?? null,
+    };
+  }
+  const snapshot = buildRosterPoolSnapshot({
+    rosterShifts: (shiftsRes.data ?? []).map((r) => ({
+      staffId: r.staff_id as string,
+      area: r.area as StaffDepartment,
+    })),
+    defaultsByArea,
+  });
+  if (snapshot.length === 0) return 0;
+
+  const rows = snapshot.map((e) => ({
+    organization_id: input.organizationId,
+    session_id: input.sessionId,
+    staff_id: e.staffId,
+    department: e.department,
+    hours_minutes: e.hoursMinutes,
+    shift_start: e.shiftStart,
+    shift_end: e.shiftEnd,
+  }));
+  const { error, count } = await supabaseAdmin
+    .from("session_tip_pool_entries")
+    .upsert(rows, { onConflict: "session_id,staff_id", ignoreDuplicates: true, count: "exact" });
+  if (error) throw error;
+  return count ?? 0;
+}
+
+// Nachzug: Service-Pool-Ende des abrechnenden Kellners auf den
+// Ausstempel-Zeitpunkt setzen — nur wenn shift_end exakt dem
+// Service-`default_checkout` des Standorts entspricht (= unverändert
+// seit der Plan-Snapshot-Eröffnung). `time_entries` wird ausschließlich
+// gelesen, nie geschrieben.
+async function syncServicePoolEndFromAutoClockout(input: {
+  organizationId: string;
+  sessionId: string;
+  locationId: string;
+  staffId: string;
+  autoClockoutId: string;
+}): Promise<void> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const [{ data: entry }, { data: def }, { data: te }] = await Promise.all([
+    supabaseAdmin
+      .from("session_tip_pool_entries")
+      .select("department, shift_start, shift_end")
+      .eq("session_id", input.sessionId)
+      .eq("staff_id", input.staffId)
+      .maybeSingle(),
+    supabaseAdmin
+      .from("location_department_defaults")
+      .select("default_checkout")
+      .eq("location_id", input.locationId)
+      .eq("department", "service")
+      .maybeSingle(),
+    supabaseAdmin.from("time_entries").select("ended_at").eq("id", input.autoClockoutId).maybeSingle(),
+  ]);
+  if (!entry || entry.department !== "service") return;
+  if (!def?.default_checkout || !entry.shift_end) return;
+  const normalized = (v: string) => v.slice(0, 5);
+  if (normalized(entry.shift_end) !== normalized(def.default_checkout)) return;
+  if (!te?.ended_at) return;
+  const ended = new Date(te.ended_at as string);
+  const hh = String(ended.getHours()).padStart(2, "0");
+  const mm = String(ended.getMinutes()).padStart(2, "0");
+  const newEnd = `${hh}:${mm}`;
+  const startHHMM = entry.shift_start ? normalized(entry.shift_start as string) : null;
+  let minutes = 0;
+  if (startHHMM) {
+    try {
+      const { kitchenShiftMinutes: kHelp } = await import("./kitchen-shift-hours");
+      minutes = kHelp(startHHMM, newEnd);
+    } catch {
+      minutes = 0;
+    }
+  }
+  await supabaseAdmin
+    .from("session_tip_pool_entries")
+    .update({ shift_end: newEnd, hours_minutes: minutes })
+    .eq("organization_id", input.organizationId)
+    .eq("session_id", input.sessionId)
+    .eq("staff_id", input.staffId);
+  // Audit-Trail wird über cash.settlement.submitted geführt; ein
+  // separater Eintrag hier erfordert einen actorUserId — der ist in
+  // diesem internen Helper nicht vorhanden, daher bewusst weggelassen.
+}
+
+// Manueller „Aus Dienstplan ergänzen"-Knopf — idempotent, überschreibt
+// nie bestehende Zeilen.
+export const addRosterSnapshotMissing = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ sessionId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    return addRosterSnapshotMissingCore(caller, data);
+  });
+
+export async function addRosterSnapshotMissingCore(
+  caller: AdminCaller,
+  data: { sessionId: string },
+) {
+  return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+    const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
+    const waterline = await loadLocationCashLock(caller.organizationId, session.location_id);
+    assertCashWritable({
+      businessDate: session.business_date,
+      sessionStatus: session.status as "open" | "finalized" | "locked",
+      sessionLockedAt: session.locked_at,
+      cashLockedThroughDate: waterline,
+    });
+    const count = await applyRosterPoolSnapshot({
+      organizationId: caller.organizationId,
+      sessionId: session.id,
+      locationId: session.location_id,
+      businessDate: session.business_date,
+    });
+    return {
+      result: { added: count },
+      audit: {
+        action: "cash.tip_pool.snapshot_added",
+        entity: "session",
+        entityId: session.id,
+        meta: { added: count },
       },
     };
   });
