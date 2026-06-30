@@ -22,19 +22,28 @@ export const Route = createFileRoute("/_authenticated/admin")({
       queryKey: ["identity", sessionData.session.user.id ?? null],
       queryFn: () => getMyIdentity(),
     });
-    if (identity.role !== "admin" && identity.role !== "manager" && identity.role !== "payroll") {
+    if (
+      identity.role !== "admin" &&
+      identity.role !== "manager" &&
+      identity.role !== "payroll" &&
+      identity.role !== "planer"
+    ) {
       throw redirect({ to: "/" });
     }
     // Lohnbüro darf NUR die Arbeitszeiten sehen.
     if (identity.role === "payroll" && location.pathname !== "/admin/zeit-uebersicht") {
       throw redirect({ to: "/admin/zeit-uebersicht" });
     }
+    // Planer darf NUR den Dienstplan sehen.
+    if (identity.role === "planer" && location.pathname !== "/admin/dienstplan") {
+      throw redirect({ to: "/admin/dienstplan" });
+    }
     return { identity };
   },
   component: AdminLayout,
 });
 
-type Role = "admin" | "manager" | "payroll";
+type Role = "admin" | "manager" | "payroll" | "planer";
 
 type SubItem = { to: string; label: string; roles?: Role[] };
 type Group = {
@@ -137,6 +146,7 @@ function matchPrefix(pathname: string, prefixes: string[]): boolean {
 function AdminLayout() {
   const { identity } = Route.useRouteContext();
   const isPayroll = identity.role === "payroll";
+  const isPlaner = identity.role === "planer";
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const role = identity.role as Role;
   const visibleGroups = GROUPS.filter((g) => !g.roles || g.roles.includes(role));
@@ -169,6 +179,12 @@ function AdminLayout() {
             <nav className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border/60 pb-0 text-sm">
               <Link to="/admin/zeit-uebersicht" className={tabClass(true)}>
                 Arbeitszeiten
+              </Link>
+            </nav>
+          ) : isPlaner ? (
+            <nav className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border/60 pb-0 text-sm">
+              <Link to="/admin/dienstplan" className={tabClass(true)}>
+                Dienstplan
               </Link>
             </nav>
           ) : (
