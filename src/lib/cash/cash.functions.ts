@@ -1542,6 +1542,18 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
           .eq("id", settlementId)
           .eq("organization_id", caller.organizationId);
         if (linkErr) throw linkErr;
+        // Service-Pool-Ende nachziehen, NUR wenn shift_end noch dem
+        // Service-Default des Standorts entspricht (= seit der Eröffnung
+        // unverändert). Geändertes Ende bleibt. Küche/GL: kein Nachzug.
+        // Edge-Case: manuell auf Default gesetzte Werte werden ebenfalls
+        // überschrieben — bewusst vernachlässigt.
+        await syncServicePoolEndFromAutoClockout({
+          organizationId: caller.organizationId,
+          sessionId: session.id,
+          locationId: session.location_id,
+          staffId: caller.staffId,
+          autoClockoutId,
+        });
       }
     } else {
       noOpenTimeEntry = true;
