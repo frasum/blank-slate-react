@@ -716,10 +716,7 @@ export async function computeSessionTipPoolCore(
       for (const t of rawTimeEntries) {
         const ms = new Date(t.endedAt).getTime() - new Date(t.startedAt).getTime();
         if (ms > 0) {
-          stampMinutes.set(
-            t.staffId,
-            (stampMinutes.get(t.staffId) ?? 0) + Math.round(ms / 60_000),
-          );
+          stampMinutes.set(t.staffId, (stampMinutes.get(t.staffId) ?? 0) + Math.round(ms / 60_000));
         }
       }
       return ids.map((id) => {
