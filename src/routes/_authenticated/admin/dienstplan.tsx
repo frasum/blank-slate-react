@@ -12,7 +12,6 @@ import { Card } from "@/components/ui/card";
 import { parseIso, todayIso } from "@/lib/format";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
 import { listLocations } from "@/lib/admin/locations.functions";
 import { LocationPills } from "@/components/shared/LocationPills";
 import { listPeriods } from "@/lib/time/time-admin.functions";
@@ -75,7 +74,6 @@ function daysBetween(fromIso: string, toIso: string): string[] {
 }
 function DienstplanPage() {
   const today = todayIso();
-  useAuth();
   const qc = useQueryClient();
 
   const periodsQ = useQuery({ queryKey: ["periods"], queryFn: () => listPeriods() });
