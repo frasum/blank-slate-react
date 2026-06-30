@@ -94,7 +94,7 @@ function KasseSaldoPage() {
   const now = useMemo(() => new Date(), []);
   const months = useMemo(() => buildMonthOptions(now), [now]);
   const [monthKey, setMonthKey] = useState<string>(months[0].key);
-  const [locationId, setLocationId] = useState<string>("");
+  const [locationId, setLocationId] = useState<string | null>(null);
 
   const selected = months.find((m) => m.key === monthKey) ?? months[0];
   const { fromDate, toDate } = monthRange(selected.year, selected.month);
@@ -106,9 +106,8 @@ function KasseSaldoPage() {
     queryFn: () => fetchLocations(),
   });
 
-  // Default: erster Standort (nicht "Alle").
   useEffect(() => {
-    if (!locationId && locationsQ.data && locationsQ.data.length > 0) {
+    if (locationId === null && locationsQ.data && locationsQ.data.length > 0) {
       setLocationId(locationsQ.data[0].id);
     }
   }, [locationId, locationsQ.data]);
