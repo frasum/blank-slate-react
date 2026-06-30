@@ -1623,6 +1623,88 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
     }
   }
 
+  // B-2: Pool-Zeit-Rückschreibung als time_entries (source='pool') für
+  // Nicht-Stempler. Best-effort — Fehler dürfen die Abgabe NICHT kippen.
+  let poolWritebackInserted = 0;
+  let poolWritebackSkippedLocked = false;
+  try {
+    await assertBusinessDateUnlocked(supabaseAdmin, caller.organizationId, businessDate);
+    const { data: poolRows } = await supabaseAdmin
+      .from("session_tip_pool_entries")
+      .select("id, staff_id, department, shift_start, shift_end")
+      .eq("organization_id", caller.organizationId)
+      .eq("session_id", session.id);
+    const { data: realEntries } = await supabaseAdmin
+      .from("time_entries")
+      .select("staff_id")
+      .eq("organization_id", caller.organizationId)
+      .eq("business_date", businessDate)
+      .in("source", ["clock", "manual", "import"]);
+    const staffWithRealEntry = new Set((realEntries ?? []).map((r) => r.staff_id));
+
+    const writebackInput: PoolWritebackEntry[] = (poolRows ?? []).map((p) => ({
+      id: p.id,
+      staffId: p.staff_id,
+      department: p.department as PoolWritebackEntry["department"],
+      shiftStart: p.shift_start as string | null,
+      shiftEnd: p.shift_end as string | null,
+    }));
+    const candidates = buildPoolTimeEntryRows({
+      poolEntries: writebackInput,
+      businessDate,
+      organizationId: caller.organizationId,
+      locationId: session.location_id,
+      staffWithRealEntry,
+    });
+
+    for (const row of candidates) {
+      const startedAt = poolLocalTimeToIso(row.businessDate, row.startTime, 0);
+      const endedAt = poolLocalTimeToIso(
+        row.businessDate,
+        row.endTime,
+        row.crossesMidnight ? 1 : 0,
+      );
+      const { error: insErr, count } = await supabaseAdmin
+        .from("time_entries")
+        .upsert(
+          {
+            organization_id: row.organizationId,
+            staff_id: row.staffId,
+            business_date: row.businessDate,
+            started_at: startedAt,
+            ended_at: endedAt,
+            break_minutes: 0,
+            location_id: row.locationId,
+            source: "pool",
+            import_key: row.importKey,
+          },
+          { onConflict: "organization_id,import_key", ignoreDuplicates: true, count: "exact" },
+        );
+      if (insErr) throw insErr;
+      if ((count ?? 0) > 0) poolWritebackInserted += 1;
+    }
+
+    if (poolWritebackInserted > 0) {
+      await writeAuditLog({
+        organizationId: caller.organizationId,
+        actorUserId: caller.userId,
+        actorStaffId: caller.staffId,
+        action: "pool_time.writeback",
+        entity: "session",
+        entityId: session.id,
+        meta: { sessionId: session.id, businessDate, inserted: poolWritebackInserted },
+      });
+    }
+  } catch (err) {
+    if (err instanceof TimeLockedError) {
+      poolWritebackSkippedLocked = true;
+    } else {
+      // Best-effort: nicht werfen, damit die Abgabe nicht kippt.
+      console.error("[pool-time-writeback] failed", err);
+    }
+  }
+  void poolWritebackSkippedLocked;
+
   await writeAuditLog({
     organizationId: caller.organizationId,
     actorUserId: caller.userId,
