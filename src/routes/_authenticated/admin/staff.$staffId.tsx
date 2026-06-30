@@ -542,7 +542,7 @@ function SkillsTab({ staffId, isAdmin }: { staffId: string; isAdmin: boolean }) 
 function RoleTab({
   staff,
 }: {
-  staff: { id: string; role: "admin" | "manager" | "staff" | "payroll" | null; isActive: boolean };
+  staff: { id: string; role: AppRole | null; isActive: boolean };
 }) {
   const queryClient = useQueryClient();
   const callSetRole = useServerFn(setStaffRole);
@@ -554,7 +554,7 @@ function RoleTab({
   };
 
   const roleMutation = useMutation({
-    mutationFn: (role: "admin" | "manager" | "staff" | "payroll" | null) =>
+    mutationFn: (role: AppRole | null) =>
       callSetRole({ data: { staffId: staff.id, role } }),
     onSuccess: refresh,
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
