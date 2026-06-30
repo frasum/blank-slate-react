@@ -2324,6 +2324,7 @@ export type Database = {
           id: string
           note: string | null
           organization_id: string
+          participates: boolean | null
           session_id: string
           shift_end: string | null
           shift_start: string | null
@@ -2338,6 +2339,7 @@ export type Database = {
           id?: string
           note?: string | null
           organization_id: string
+          participates?: boolean | null
           session_id: string
           shift_end?: string | null
           shift_start?: string | null
@@ -2352,6 +2354,7 @@ export type Database = {
           id?: string
           note?: string | null
           organization_id?: string
+          participates?: boolean | null
           session_id?: string
           shift_end?: string | null
           shift_start?: string | null
