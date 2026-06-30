@@ -18,8 +18,15 @@ export const attachSupabaseAuth = createMiddleware({ type: "function" }).client(
     }
     const token = data.session?.access_token;
     if (!token) {
-      // Öffentliche Server-Functions wie PIN-Login laufen VOR einer Session.
-      // Geschützte Functions lehnt requireSupabaseAuth weiterhin serverseitig ab.
+      // Öffentliche Server-Functions wie PIN-Login laufen VOR einer Session →
+      // ohne Token weiterreichen. Geschützte Functions lehnt requireSupabaseAuth
+      // serverseitig ab; in dem Fall ist die Session abgelaufen/geleert worden,
+      // ohne dass das _authenticated-Gate neu greifen konnte (z. B. weil der Tab
+      // offen blieb). Wir leiten dann hart auf /auth, statt den User mit einem
+      // unverständlichen 401 stehen zu lassen.
+      if (typeof window !== "undefined" && !window.location.pathname.startsWith("/auth")) {
+        window.location.replace("/auth");
+      }
       return next();
     }
     return next({
