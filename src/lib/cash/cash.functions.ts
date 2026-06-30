@@ -561,7 +561,7 @@ export async function computeSessionTipPoolCore(
       .not("ended_at", "is", null),
     supabaseAdmin
       .from("session_tip_pool_entries")
-      .select("staff_id, department, hours_minutes, shift_start, shift_end")
+      .select("staff_id, department, hours_minutes, shift_start, shift_end, participates")
       .eq("organization_id", caller.organizationId)
       .eq("session_id", session.id),
   ]);
@@ -585,6 +585,7 @@ export async function computeSessionTipPoolCore(
     hoursMinutes: Number(r.hours_minutes),
     shiftStart: r.shift_start as string | null,
     shiftEnd: r.shift_end as string | null,
+    participates: (r as { participates: boolean | null }).participates ?? null,
   }));
   // GL-Zeilen NIE als „manuell" an die Verteilrechnung geben — die
   // Verteillogik schließt zwar gl bereits aus, aber `staffParticipates`
@@ -595,6 +596,7 @@ export async function computeSessionTipPoolCore(
       staffId: r.staffId,
       department: r.department,
       hoursMinutes: r.hoursMinutes,
+      participates: r.participates,
     }));
   const manualByStaff = new Map(manualEntries.map((m) => [m.staffId, m]));
   const glRows = allPoolRows.filter((r) => r.department === "gl");
@@ -645,11 +647,13 @@ export async function computeSessionTipPoolCore(
     }
   }
 
-  // Manuelle Einträge erzwingen Department + Teilnahme;
-  // hours_minutes = 0 = explizit ausgeschlossen.
+  // Manuelle Einträge erzwingen das Department; die Teilnahme ist von den
+  // Stunden entkoppelt: explizites `participates` übersteuert den
+  // Stammdaten-Default (`staff.participates_in_pool`). NULL = Standard.
   for (const m of manualEntries) {
     staffDepartments.set(m.staffId, m.department);
-    staffParticipates.set(m.staffId, m.hoursMinutes > 0);
+    const staffDefault = staffParticipates.get(m.staffId) ?? false;
+    staffParticipates.set(m.staffId, m.participates ?? staffDefault);
   }
 
   const timeEntries = resolvePoolTimeEntries({
@@ -680,6 +684,22 @@ export async function computeSessionTipPoolCore(
     staffNames,
     manualStaffIds: Array.from(manualByStaff.keys()),
     kitchenManualOnly: settings.kitchenManualOnly,
+    poolEntries: manualEntries.map((m) => ({
+      staffId: m.staffId,
+      displayName: staffNames[m.staffId] ?? m.staffId,
+      department: m.department as "kitchen" | "service",
+      hoursMinutes: m.hoursMinutes,
+      shiftStart: (() => {
+        const row = allPoolRows.find((r) => r.staffId === m.staffId);
+        return row?.shiftStart ? row.shiftStart.slice(0, 5) : null;
+      })(),
+      shiftEnd: (() => {
+        const row = allPoolRows.find((r) => r.staffId === m.staffId);
+        return row?.shiftEnd ? row.shiftEnd.slice(0, 5) : null;
+      })(),
+      participates: staffParticipates.get(m.staffId) ?? false,
+      participatesOverride: m.participates,
+    })),
     glEntries: glRows.map((r) => ({
       staffId: r.staffId,
       displayName: staffNames[r.staffId] ?? r.staffId,
