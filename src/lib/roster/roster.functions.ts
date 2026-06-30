@@ -14,6 +14,36 @@ import type { MyShiftRow } from "@/lib/roster/my-shifts";
 const READ_ROLES = ["manager", "admin", "payroll", "staff", "planer"] as const;
 const WRITE_ROLES = ["manager", "admin", "planer"] as const;
 
+// P-3b Fix: Berechtigung für absence-Operationen wird in einem der
+// Standort/Bereich-Scopes des Mitarbeiters geprüft. Für Admin/Manager
+// liefert has_permission ohnehin global true; für Planer muss ein
+// passender Override am Standort/Bereich des Mitarbeiters existieren.
+async function resolveAllowedStaffScope(
+  supabase: import("@supabase/supabase-js").SupabaseClient<
+    import("@/integrations/supabase/types").Database
+  >,
+  staffId: string,
+  perm: "roster.absence.manage" | "roster.shift.manage",
+): Promise<{ locationId: string | null; area: "kitchen" | "service" | "gl" | null }> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("staff_locations")
+    .select("location_id, department")
+    .eq("staff_id", staffId);
+  if (error) return { locationId: null, area: null };
+  for (const row of data ?? []) {
+    const locId = row.location_id as string;
+    const dept = row.department as "kitchen" | "service" | "gl";
+    const { data: ok } = await supabase.rpc("has_permission", {
+      _perm: perm,
+      _location: locId,
+      _area: dept,
+    });
+    if (ok === true) return { locationId: locId, area: dept };
+  }
+  return { locationId: null, area: null };
+}
+
 async function assertShiftDateUnlocked(
   admin: import("@supabase/supabase-js").SupabaseClient<
     import("@/integrations/supabase/types").Database
@@ -882,10 +912,16 @@ export const setAbsence = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
+    const scope = await resolveAllowedStaffScope(
+      context.supabase,
+      data.staffId,
+      "roster.absence.manage",
+    );
     return runWithPermission(
       context.supabase,
       "roster.absence.manage",
-      null,
+      scope.locationId,
+      scope.area,
       makeAuditWriter(caller),
       async () => {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -923,10 +959,16 @@ export const clearAbsence = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
+    const scope = await resolveAllowedStaffScope(
+      context.supabase,
+      data.staffId,
+      "roster.absence.manage",
+    );
     return runWithPermission(
       context.supabase,
       "roster.absence.manage",
-      null,
+      scope.locationId,
+      scope.area,
       makeAuditWriter(caller),
       async () => {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -974,10 +1016,16 @@ export const setAbsenceRange = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
+    const scope = await resolveAllowedStaffScope(
+      context.supabase,
+      data.staffId,
+      "roster.absence.manage",
+    );
     return runWithPermission(
       context.supabase,
       "roster.absence.manage",
-      null,
+      scope.locationId,
+      scope.area,
       makeAuditWriter(caller),
       async () => {
         const days = expandDateRange(data.fromDate, data.toDate);
@@ -1170,7 +1218,8 @@ export const setRosterRelease = createServerFn({ method: "POST" })
     return runWithPermission(
       context.supabase,
       "roster.shift.manage",
-      null,
+      data.locationId,
+      data.area,
       makeAuditWriter(caller),
       async () => {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
