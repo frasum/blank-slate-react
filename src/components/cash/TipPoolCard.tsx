@@ -37,6 +37,7 @@ import {
   getTipPoolOverview,
   listSessionTipPoolEntries,
   upsertSessionTipPoolEntry,
+  addRosterSnapshotMissing,
 } from "@/lib/cash/cash.functions";
 import { kitchenShiftMinutes } from "@/lib/cash/kitchen-shift-hours";
 
@@ -49,7 +50,7 @@ type StaffListItem = {
 
 type ManualDraft = {
   staffId: string;
-  department: "kitchen" | "service";
+  department: "kitchen" | "service" | "gl";
   hours: string;
   minutes: string;
   shiftStart: string;
@@ -74,6 +75,7 @@ export function TipPoolCard({
   const fetchEntries = useServerFn(listSessionTipPoolEntries);
   const callUpsert = useServerFn(upsertSessionTipPoolEntry);
   const callDelete = useServerFn(deleteSessionTipPoolEntry);
+  const callAddSnapshot = useServerFn(addRosterSnapshotMissing);
 
   const poolQ = useQuery({
     queryKey: ["cash", "tip-pool", sessionId],
@@ -104,20 +106,37 @@ export function TipPoolCard({
   const upsertMut = useMutation({
     mutationFn: () => {
       if (!draft.staffId) throw new Error("Bitte einen Mitarbeiter wählen.");
-      const useShift = draft.department === "kitchen" && Boolean(poolQ.data?.kitchenManualOnly);
+      // Von/Bis ist primärer Eingabepfad für service und gl, und für
+      // Küche, wenn der Standortmodus „Küche manuell" aktiv ist.
+      const useShift =
+        draft.department === "service" ||
+        draft.department === "gl" ||
+        (draft.department === "kitchen" && Boolean(poolQ.data?.kitchenManualOnly));
       if (useShift) {
-        if (!draft.shiftStart || !draft.shiftEnd) {
+        // GL darf leere Zeiten haben (reine Arbeitszeit-Anker-Zeile).
+        if (draft.department !== "gl" && (!draft.shiftStart || !draft.shiftEnd)) {
           throw new Error("Start- und Endzeit angeben.");
         }
-        // Validierung serverseitig, hier nur frühe Fehlermeldung:
-        kitchenShiftMinutes(draft.shiftStart, draft.shiftEnd);
+        if (draft.shiftStart && draft.shiftEnd) {
+          // Frühe Validierung; Server prüft erneut.
+          kitchenShiftMinutes(draft.shiftStart, draft.shiftEnd);
+          return callUpsert({
+            data: {
+              sessionId,
+              staffId: draft.staffId,
+              department: draft.department,
+              shiftStart: draft.shiftStart,
+              shiftEnd: draft.shiftEnd,
+            },
+          });
+        }
+        // GL ohne Zeiten → 0 Minuten als Anker-Eintrag.
         return callUpsert({
           data: {
             sessionId,
             staffId: draft.staffId,
             department: draft.department,
-            shiftStart: draft.shiftStart,
-            shiftEnd: draft.shiftEnd,
+            hoursMinutes: 0,
           },
         });
       }
@@ -160,6 +179,19 @@ export function TipPoolCard({
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const snapshotMut = useMutation({
+    mutationFn: () => callAddSnapshot({ data: { sessionId } }),
+    onSuccess: (r: { added: number }) => {
+      toast.success(
+        r.added > 0
+          ? `${r.added} Plan-Schicht(en) in den Pool übernommen.`
+          : "Keine neuen Plan-Schichten zu ergänzen.",
+      );
+      invalidatePool();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   if (!hasSettlements) return null;
   if (poolQ.isLoading) {
     return <Card className="p-4 text-sm text-muted-foreground">Lade Trinkgeld-Pool…</Card>;
@@ -177,6 +209,7 @@ export function TipPoolCard({
   const kitchen = data.shares.filter((s) => s.department === "kitchen");
   const service = data.shares.filter((s) => s.department === "service");
   const entries = entriesQ.data ?? [];
+  const glEntries = data.glEntries ?? [];
   const eligibleStaff = staffList.filter(
     (s) => s.isActive && (locationId === "" || s.locationIds.includes(locationId)),
   );
@@ -229,9 +262,25 @@ export function TipPoolCard({
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <div className="text-sm font-medium">Trinkgeld-Pool</div>
-        <Button size="sm" variant="outline" disabled={!editable} onClick={() => setEditOpen(true)}>
-          Pool bearbeiten
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!editable || snapshotMut.isPending}
+            onClick={() => snapshotMut.mutate()}
+            title="Bestätigte Plan-Schichten ohne Eintrag in den Pool übernehmen (idempotent)."
+          >
+            {snapshotMut.isPending ? "Ergänze…" : "Aus Dienstplan ergänzen"}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!editable}
+            onClick={() => setEditOpen(true)}
+          >
+            Pool bearbeiten
+          </Button>
+        </div>
       </div>
       <div className="flex flex-col gap-4 md:flex-row">
         {renderTable(
@@ -243,6 +292,48 @@ export function TipPoolCard({
         )}
         {renderTable("Service-Pool", service, data.servicePoolCents)}
       </div>
+
+      {glEntries.length > 0 && (
+        <Card>
+          <div className="border-b px-4 py-3 text-sm font-medium">
+            Geschäftsleitung — Arbeitszeit{" "}
+            <span className="text-xs font-normal text-muted-foreground">
+              (keine Trinkgeld-Beteiligung)
+            </span>
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Mitarbeiter</TableHead>
+                <TableHead className="w-32">Von</TableHead>
+                <TableHead className="w-32">Bis</TableHead>
+                <TableHead className="text-right">Stunden</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {glEntries.map((g) => (
+                <GlRow
+                  key={g.staffId}
+                  entry={g}
+                  editable={editable}
+                  onSave={(shiftStart, shiftEnd) =>
+                    callUpsert({
+                      data: {
+                        sessionId,
+                        staffId: g.staffId,
+                        department: "gl",
+                        ...(shiftStart && shiftEnd
+                          ? { shiftStart, shiftEnd }
+                          : { hoursMinutes: 0 }),
+                      },
+                    }).then(invalidatePool)
+                  }
+                />
+              ))}
+            </TableBody>
+          </Table>
+        </Card>
+      )}
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-w-2xl">
@@ -280,7 +371,9 @@ export function TipPoolCard({
                       <TableCell>{data.staffNames[e.staffId] ?? e.staffId}</TableCell>
                       <TableCell>{e.department}</TableCell>
                       <TableCell className="text-right font-mono">
-                        {h}:{m.toString().padStart(2, "0")}
+                        {e.shiftStart && e.shiftEnd
+                          ? `${e.shiftStart}–${e.shiftEnd}`
+                          : `${h}:${m.toString().padStart(2, "0")}`}
                       </TableCell>
                       <TableCell>
                         <Button
@@ -322,7 +415,7 @@ export function TipPoolCard({
                 <Select
                   value={draft.department}
                   onValueChange={(v) =>
-                    setDraft({ ...draft, department: v as "kitchen" | "service" })
+                    setDraft({ ...draft, department: v as "kitchen" | "service" | "gl" })
                   }
                 >
                   <SelectTrigger>
@@ -331,10 +424,13 @@ export function TipPoolCard({
                   <SelectContent>
                     <SelectItem value="service">service</SelectItem>
                     <SelectItem value="kitchen">kitchen</SelectItem>
+                    <SelectItem value="gl">gl (ohne Trinkgeld)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              {draft.department === "kitchen" && kitchenManualOnly ? (
+              {draft.department === "service" ||
+              draft.department === "gl" ||
+              (draft.department === "kitchen" && kitchenManualOnly) ? (
                 <>
                   <div className="col-span-2">
                     <Label className="text-xs">Von</Label>
