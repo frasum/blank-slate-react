@@ -16,7 +16,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { loadAdminCaller, type AdminCaller } from "@/lib/admin/admin-context";
+import type { AdminCaller } from "@/lib/admin/admin-context";
 import { writeAuditLog } from "@/lib/admin/audit";
 import { ForbiddenError, hasMinRole, type AppRole } from "@/lib/admin/role-guard";
 import { assertWithinFence } from "@/lib/geo/server-check";
