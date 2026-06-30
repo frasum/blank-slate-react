@@ -321,7 +321,12 @@ export async function placeEasyOrderCore(
 export const getMyEasyOrderContext = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "staff");
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "admin",
+      "manager",
+      "staff",
+      "planer",
+    ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     return getMyEasyOrderContextCore(supabaseAdmin, caller);
   });
@@ -332,7 +337,12 @@ export const getEasyOrderCatalog = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => CatalogInput.parse(input))
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "staff");
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "admin",
+      "manager",
+      "staff",
+      "planer",
+    ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     return getEasyOrderCatalogCore(supabaseAdmin, caller, data.locationId);
   });
