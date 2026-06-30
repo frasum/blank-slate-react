@@ -55,6 +55,7 @@ import { skillsForCell } from "./skills-for-cell";
 type Props = {
   activeArea: GridArea;
   onActiveAreaChange: (a: GridArea) => void;
+  visibleAreas?: GridArea[];
   days: string[];
   today: string;
   staff: RosterStaffRow[];
