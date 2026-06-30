@@ -883,3 +883,33 @@ Grid und Display rendern Schicht-Pillen unabhängig voneinander → auseinanderg
 
 ### Lektion
 Darstellungs-Logik, die an zwei Orten gleich aussehen soll, gehört in **eine** geteilte Funktion (`service-marker.ts`, jetzt `pill-style.ts`). Dupliziert man sie, driftet sie garantiert auseinander — der hier behobene Fall.
+
+## 23. Fähigkeit B — Pool-Zeiten → `time_entries` für den Lohn (30.06.2026)
+
+Verifizierter Stand HEAD `33cdd1e` (tsc 0, eslint 0, vitest 936, prettier sauber). Migration in COCO-DB ausgeführt (ENUM-Wert `pool` + Index `time_entries_pool_key_unique`). Damit rechnet M4 die Arbeitszeit der **Nicht-Stempler** (Küche bei `kitchen_manual_only`, GL) mit: ihre `session_tip_pool_entries`-Zeiten (`shift_start/shift_end`, §21a) werden bei der Kellnerabrechnungs-Abgabe als `time_entries (source='pool')` geschrieben.
+
+### Entscheidungen (Frank)
+- **`source='pool'`** (neuer ENUM-Wert, nicht `'manual'`) — sauber separierbar, eigener Idempotenz-Index.
+- **`break_minutes=0`** — volle Pool-Zeit zählt als Arbeitszeit.
+- **Auslöser: bei Abrechnungs-Abgabe** (neben A's `performClockOut`), best-effort.
+- **GL mit erfasster Zeit kommt mit** (Arbeitszeit für Lohn, nicht Trinkgeld); GL ohne Zeit nicht.
+
+### Abgrenzung zu A
+A (Service-Ende-Nachzug) **updated** existierende **clock**-Einträge der Stempler (`auto_clockout_time_entry_id`). B **inserted** neue Einträge nur für **Nicht-Stempler**. Keine Überschneidung.
+
+### B-1 — Schema + reines Modul (`src/lib/cash/pool-time-writeback.ts`)
+- Migration (getrennt): `ALTER TYPE … ADD VALUE 'pool'` (eigene Transaktion, vor Nutzung committet), dann partieller Unique-Index `time_entries_pool_key_unique (organization_id, import_key) WHERE source='pool'`.
+- Reine Fn `buildPoolTimeEntryRows`: je Pool-Eintrag mit gesetztem `shift_start`+`shift_end`, **Kollisionsregel** (staff mit clock/manual am `business_date` → überspringen → kein Doppel), `crossesMidnight = end<start`, `start==end` → keine Row, `import_key='pool:<id>'`. Department egal (GL kommt mit).
+
+### B-2 — Verdrahtung + TZ + Lohn-Nachrangigkeit
+- **TZ:** `berlinOffsetMinutes`/`offsetString` aus `shift-hours.ts` exportiert + wiederverwendet; reine Fn `poolLocalTimeToIso(businessDate, "HH:MM", dayOffset)` baut den Berlin-korrekten ISO-Timestamp. **DST-getestet** (Winter/Sommer + beide Umstellungstage 29.03./26.10.) — bestimmt die SFN-Stunden, cent-relevant.
+- **Verdrahtung** in `submitWaiterSettlementCore`: `assertBusinessDateUnlocked` (Wasserlinie → bei Sperre skip, kein Audit) → `buildPoolTimeEntryRows` → Insert mit `onConflict: organization_id,import_key, ignoreDuplicates` (idempotent) → Audit `pool_time.writeback {sessionId, businessDate, inserted}`. Best-effort: Writeback-Fehler kippt die Abrechnung **nicht**.
+- **Lohn-Nachrangigkeit:** `lohn-period.functions.ts` lädt jetzt `source`; reine Fn `dropPoolWhenRealEntryExists` verwirft **vor** der Aggregation alle `pool`-Zeilen eines Tages, an dem ein `clock`/`manual`/`import`-Eintrag existiert.
+
+### Doppelzählungs-Schutz (zwei Ebenen)
+1. **Schreibseite:** `buildPoolTimeEntryRows` überspringt Stempler.
+2. **Leseseite:** `dropPoolWhenRealEntryExists` lässt echte Zeit `pool` schlagen — robust auch gegen späteres Stempeln nach der Abgabe.
+
+### Lektionen
+- `ALTER TYPE … ADD VALUE` muss in **eigener** Transaktion committet sein, bevor ein Index/Code den Wert nutzt (sonst „invalid enum value").
+- Geld-/zeit-kritische TZ-Konstruktion gehört in eine reine Fn **mit DST-Charakterisierung** (`poolLocalTimeToIso`) — nicht inline im I/O-Pfad.
