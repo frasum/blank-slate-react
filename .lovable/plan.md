@@ -1,67 +1,36 @@
-## Ziel
+## Problem
 
-Display `/display/:locationId` füllt einen Bildschirm vollständig — keine horizontale Scroll-Notwendigkeit und kompaktere Zeilen, damit beide Bereiche (Küche + Service) gleichzeitig sichtbar bleiben. Vorbild ist `thaitime` (`useDynamicCellSize` in `QuickScheduleGrid`).
+In `SessionFieldsCard` werden alle Eingaben (Umsatz-Kanäle, Terminals, Gutscheine, Gästeanzahl, Notiz, Bargeld-Ist) nur im lokalen React-State gehalten. Sie landen erst nach Klick auf **„Session speichern"** in der DB. Beim Tab-Wechsel oder Reload ist der lokale State weg → Eingaben verloren.
 
-## Befund in COCO
+## Lösung: Auto-Save mit Debounce
 
-`src/routes/display.$locationId.tsx` rendert pro Bereich eine Tabelle mit:
+Statt manuellem Speichern-Button wird jede Änderung automatisch gespeichert — ca. 800 ms nach der letzten Tastatureingabe (Debounce, damit nicht jedes Zeichen einen Request auslöst).
 
-- linke Sticky-Spalte „Mitarbeiter" (`min-w-[10rem]`)
-- 31 Tagesspalten ohne feste Breite (Inhalt bestimmt Breite → ~32–40 px je nach Pillen)
-- rechte Sticky-Spalte „Mitarbeiter" (`min-w-[8rem]`, doppelt)
-- Σ-Spalte (`min-w-[4rem]`)
-- Wrapper `overflow-x-auto`
+### Verhalten
 
-Rechnung 1280 px: 160 + 128 + 64 + 31 × min ~30 = ~1280 px → schon ohne Reserve am Limit, mit größeren Pillen scrollt es.
+- Tippen in irgendeinem Feld → nach 800 ms Stille läuft `onSave(payload)` automatisch.
+- Beim Verlassen des Feldes (`onBlur`) und vor Unmount wird ein ausstehender Save sofort geflusht.
+- Status oben rechts in der Card: „Gespeichert · HH:MM" / „Speichert…" / „Ungespeicherte Änderungen".
+- Validierung wie bisher: Wenn ein Feld kein gültiger Euro-Wert ist, kein Save (Status zeigt „Eingabe ungültig"), restliche gültige Felder werden beim nächsten gültigen Zustand mitgesichert.
+- Der **„Session speichern"**-Button bleibt erhalten als manueller Flush (für Nutzer-Sicherheit), wird aber zur Bestätigung statt Pflicht.
+- Schreibgeschützte Sessions (`writable=false`): kein Auto-Save (bisheriges Verhalten).
 
-Vertikal: `px-3 py-1` pro Zelle plus zwei Header-Zeilen pro Block → bei 20+ Mitarbeitern + zwei Blöcken passt es auf 1080 px nicht mehr ohne Scrollen.
+### Technische Details
 
-## Plan
+Geänderte Datei: `src/components/cash/SessionFieldsCard.tsx`
 
-Reine UI-Änderungen in `src/routes/display.$locationId.tsx` — keine Daten/Realtime/Pill-Logik anfassen.
+1. Neues kleines Hook-Modul `src/lib/use-debounced-effect.ts` (oder inline) für die Debounce-Logik mit Cleanup auf Unmount.
+2. In `SessionFieldsCard`:
+   - Effekt, der auf `chRows`, `tmRows`, `misc` lauscht, `build()` aufruft und bei gültigem Payload nach Debounce `onSave` triggert.
+   - Initial-Mount überspringen (sonst sofortiger Save direkt nach Hydration mit `overview`-Reset).
+   - Tracking eines „last-saved snapshot" (JSON-Stringify des Payloads), um Re-Saves bei identischem Inhalt zu vermeiden — besonders wichtig, da `useEffect`-Reset auf neue `overview`-Reads wieder feuert.
+   - `beforeunload`-Handler: bei pendierendem Save sofort flushen (`navigator.sendBeacon`-Pfad ist Overkill — wir nutzen synchronen flush via Promise und Warnung im Browser, falls noch nicht fertig).
+   - Statuszeile mit `lastSavedAt` (Date) und `isSaving` Boolean.
 
-### 1. Dynamische Spaltenbreite (Breiten-Fit wie thaitime)
+Andere Felder bleiben unverändert (Vorschüsse/Ausgaben gehen bereits direkt per `onAddAdvance`/`onAddExpense` und sind nicht betroffen).
 
-- Pro `BlockTable` einen Wrapper-`<div ref>` mit `useRef<HTMLDivElement>` und einem `ResizeObserver`.
-- Konstanten: `LEFT_NAME = 96`, `RIGHT_NAME = 80`, `SUM_COL = 48`, `MIN_CELL = 28`.
-- `cellSize = max(MIN_CELL, floor((containerWidth − LEFT_NAME − RIGHT_NAME − SUM_COL) / days.length))`.
-- `<table>` bekommt `tableLayout: fixed` plus `<colgroup>` mit festen `width`-Werten (Name, 31 × cellSize, Name, Σ).
-- `overflow-x-auto` bleibt als Fallback, scrollt aber im Normalfall nicht mehr.
+### Was nicht geändert wird
 
-### 2. Optional zweite Namens-Spalte ausblenden, wenn Platz knapp
-
-Wenn `cellSize === MIN_CELL` und damit die Tabelle trotzdem >100 % wäre, rechte Namens-Spalte (`RIGHT_NAME = 0`) weglassen — sticky-Header/Σ bleiben. Steuerung über das gleiche Resize-Hook-Ergebnis (`showRightName: boolean`), passend zu beiden `<thead>` und `<tbody>`.
-
-### 3. Vertikale Kompaktheit
-
-- Zellen-Padding `px-3 py-1` → `px-2 py-0.5`.
-- Header `px-3 py-2` → `px-2 py-1`, Zeile mit Wochentag/Datum/Schichtzahl bleibt drei-zeilig, aber `text-[10px]`/`leading-tight` durchziehen.
-- Pille `h-5 w-8` bleibt; nur Zellen-Padding schrumpft.
-- Sektion `space-y-8 p-6` → `space-y-4 p-3` und Block-Header `py-3` → `py-2`.
-
-### 4. Header/Footer flexibler
-
-Header `py-6` → `py-3`, Geburtstags-Banner `py-5` → `py-3`. Schriftgrößen leicht reduzieren (`text-4xl` → `text-2xl`, `text-3xl` → `text-xl`), damit oben weniger Höhe verloren geht.
-
-## Technisches Detail
-
-```text
-useDynamicCellSize(containerRef, daysCount):
-  on mount + resize:
-    w = containerRef.clientWidth
-    cellSize = max(MIN_CELL, floor((w − LEFT − RIGHT − SUM) / daysCount))
-    showRightName = (LEFT + RIGHT + SUM + cellSize * daysCount) <= w
-  return { cellSize, showRightName }
-```
-
-Hook neu unter `src/lib/display/use-fit-cell-size.ts` (rein clientseitig, SSR-safe via `useEffect`).
-
-## Gates
-
-```bash
-bunx tsgo --noEmit
-bunx vitest run
-npx prettier --check .
-```
-
-Keine neuen Tests nötig (rein presentational); manueller Sicht-Check im Preview auf 1280 × 800 und 1920 × 1080.
+- Keine LocalStorage-Persistenz — die DB ist die einzige Wahrheit. Auto-Save sichert direkt in der Session.
+- Keine Änderung an `onSave` / Server-Funktion.
+- Keine Änderung an Trinkgeld-Pool, Settlements oder PDF.
