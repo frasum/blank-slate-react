@@ -2401,6 +2401,9 @@ const tipPoolEntryUpsertSchema = z
     shiftStart: z.string().regex(HHMM_RE).optional(),
     shiftEnd: z.string().regex(HHMM_RE).optional(),
     note: z.string().trim().max(500).optional(),
+    // NULL/undefined = Standard (staff.participates_in_pool).
+    // true/false übersteuern die Pool-Teilnahme pro Session.
+    participates: z.boolean().nullable().optional(),
   })
   .superRefine((v, ctx) => {
     const hasShift = v.shiftStart !== undefined && v.shiftEnd !== undefined;
@@ -2492,6 +2495,7 @@ export async function upsertSessionTipPoolEntryCore(
         shift_start: shiftStart,
         shift_end: shiftEnd,
         note: data.note ?? null,
+        participates: data.participates ?? null,
         created_by: caller.userId,
       },
       { onConflict: "session_id,staff_id" },
@@ -2510,6 +2514,7 @@ export async function upsertSessionTipPoolEntryCore(
           hoursMinutes,
           shiftStart,
           shiftEnd,
+          participates: data.participates ?? null,
         },
       },
     };
