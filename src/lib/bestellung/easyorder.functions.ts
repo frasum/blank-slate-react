@@ -381,7 +381,12 @@ export const placeEasyOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => PlaceInput.parse(input))
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "staff");
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "admin",
+      "manager",
+      "staff",
+      "planer",
+    ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const result = await placeEasyOrderCore(supabaseAdmin, caller, data);
     await writeAuditLog({
