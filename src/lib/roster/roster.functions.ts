@@ -468,21 +468,22 @@ export const updateRosterShiftStatus = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: snap, error: loadErr } = await supabaseAdmin
+      .from("roster_shifts")
+      .select("shift_date, status, location_id, area")
+      .eq("id", data.id)
+      .eq("organization_id", caller.organizationId)
+      .maybeSingle();
+    if (loadErr) throw loadErr;
+    if (!snap) throw new Error("Schicht nicht gefunden.");
     return runWithPermission(
       context.supabase,
       "roster.shift.manage",
-      null,
+      snap.location_id as string,
+      snap.area as "kitchen" | "service" | "gl",
       makeAuditWriter(caller),
       async () => {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { data: snap, error: loadErr } = await supabaseAdmin
-          .from("roster_shifts")
-          .select("shift_date, status")
-          .eq("id", data.id)
-          .eq("organization_id", caller.organizationId)
-          .maybeSingle();
-        if (loadErr) throw loadErr;
-        if (!snap) throw new Error("Schicht nicht gefunden.");
         await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, snap.shift_date);
 
         const { error } = await supabaseAdmin
