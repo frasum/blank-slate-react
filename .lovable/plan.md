@@ -1,12 +1,17 @@
-## Änderungen am Dienstplan-Grid (`src/components/roster/RosterGrid.tsx`)
+## Zebra-Streifen für RosterGrid (Dienstplan)
 
-**1. Überlappende „Leer"-Marker entschärfen**
-Die gestrichelten Platzhalter-Buttons in leeren Zellen haben aktuell eine feste Breite (`w-10` = 40 px). In der schmalen `isFit`-Spaltenbreite ragen sie über die Zellgrenzen und überlappen die Nachbarzellen optisch (siehe Screenshot 1).
-- Im `EmptyCell.marker`: `w-10` → `w-full max-w-10` und horizontales Padding der Zelle leicht erhöhen, sodass jede dashed Pille sauber innerhalb ihrer Spalte bleibt — auch wenn die Spalte schmaler als 40 px wird.
+Ziel: Jede zweite Mitarbeiterzeile bekommt einen leicht abgesetzten Hintergrund — gleicher Farbton wie die Wochenend-Spalten (`bg-muted-foreground/25` aus dem Header bzw. abgeschwächt `bg-muted/30`/`bg-muted/40` für ungerade Zeilen), damit das Auge horizontal besser folgen kann.
 
-**2. Rechte Mitarbeiter-Spalte rechtsbündig**
-Die neue, rechts klebende Namens-Spalte (Header + Datenzellen) bekommt `text-right` statt `text-left`, damit die Namen direkt an der Σ-Spalte stehen (siehe Screenshot 2).
-- Header-`<th>` „Mitarbeiter" (rechts): `text-left` → `text-right`
-- Daten-`<td>` mit `{row.displayName}` (rechts): `text-left` → `text-right` (linke Spalte bleibt unverändert linksbündig)
+### Änderungen — nur `src/components/roster/RosterGrid.tsx`
 
-Keine Änderungen an Logik, Sticky-Verhalten, Σ-Berechnung oder Display-Seite.
+1. Im `<tbody>`-Map über `visibleStaff`: `<tr>` bekommt zusätzlich `even:bg-muted/40` (Zebra-Streifen in Wochenend-Grau-Ton, gedämpft).
+2. Die sticky linke + rechte Namens-Spalte sowie die sticky Σ-Spalte nutzen aktuell `bg-background` / `bg-muted`. Damit sie beim Zebra mitziehen, werden sie ebenfalls über `group/row` + `group-even/row:bg-muted/40` gestreift — Variante: `tr` erhält `group/row even:bg-muted/40`, die sticky-`td`s erhalten `bg-background group-even/row:bg-muted/40` (bzw. die Σ-Spalte `bg-muted group-even/row:bg-muted/60`), damit der sticky-Hintergrund deckend bleibt und nicht durchscheint.
+3. Wochenend-Spalten und Heute-Highlight bleiben unverändert (höhere Priorität via konkretere Klassen — Wochenende: `bg-muted-foreground/25`, Heute: `bg-yellow-200/70`).
+4. Hover-Effekt (`hover:bg-muted/30`) bleibt; Zebra wirkt nur im Ruhezustand.
+
+### Nicht angefasst
+Display-Route (`display.$locationId.tsx`) — dort sind die Zeilen schon kontrastreich auf dunklem Grund; Zebra nur im Admin-Grid wie auf dem Screenshot gewünscht. Daten-, Sticky-, Drag- oder Paint-Logik bleibt unberührt.
+
+### Erfolgs-Gate
+- visuell: jede zweite Zeile leicht grau; Wochenend-Spalten weiterhin dunkler; Heute-Spalte gelb dominiert; sticky-Spalten links/rechts/Σ ohne Durchscheinen.
+- `bun run tsc --noEmit` grün, kein Eslint-Drift.
