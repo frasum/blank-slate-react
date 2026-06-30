@@ -27,6 +27,7 @@ import {
 import { TabButton } from "@/components/ui/nav-tab";
 import { PersonalDetailsTab } from "@/components/admin/PersonalDetailsTab";
 import { PermissionsTab } from "@/components/admin/PermissionsTab";
+import type { AppRole } from "@/lib/admin/role-guard";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   deletePayslip,
@@ -542,7 +543,7 @@ function SkillsTab({ staffId, isAdmin }: { staffId: string; isAdmin: boolean }) 
 function RoleTab({
   staff,
 }: {
-  staff: { id: string; role: "admin" | "manager" | "staff" | "payroll" | null; isActive: boolean };
+  staff: { id: string; role: AppRole | null; isActive: boolean };
 }) {
   const queryClient = useQueryClient();
   const callSetRole = useServerFn(setStaffRole);
@@ -554,7 +555,7 @@ function RoleTab({
   };
 
   const roleMutation = useMutation({
-    mutationFn: (role: "admin" | "manager" | "staff" | "payroll" | null) =>
+    mutationFn: (role: AppRole | null) =>
       callSetRole({ data: { staffId: staff.id, role } }),
     onSuccess: refresh,
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),

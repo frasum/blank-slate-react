@@ -21,7 +21,7 @@ export function sanitizePayslipFileName(name: string): string | null {
   return trimmed;
 }
 
-export type PayslipRole = "admin" | "manager" | "staff" | "payroll";
+export type PayslipRole = "admin" | "manager" | "staff" | "payroll" | "planer";
 
 /**
  * True, wenn der Aufrufer den angegebenen Storage-Pfad lesen darf:
