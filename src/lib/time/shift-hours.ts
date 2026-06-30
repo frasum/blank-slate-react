@@ -85,7 +85,7 @@ export function isSundayOrHoliday(date: Date): boolean {
   return isBavarianHoliday(date);
 }
 
-function berlinOffsetMinutes(dateIso: string): number {
+export function berlinOffsetMinutes(dateIso: string): number {
   // Bestimmt den Europe/Berlin-Offset (in Minuten) zum Mittag des angegebenen Tages.
   const ref = new Date(`${dateIso}T12:00:00Z`);
   const dtf = new Intl.DateTimeFormat("en-US", {
@@ -111,7 +111,7 @@ function berlinOffsetMinutes(dateIso: string): number {
   return Math.round((asUtc - ref.getTime()) / 60000);
 }
 
-function offsetString(minutes: number): string {
+export function offsetString(minutes: number): string {
   const sign = minutes >= 0 ? "+" : "-";
   const abs = Math.abs(minutes);
   return `${sign}${String(Math.floor(abs / 60)).padStart(2, "0")}:${String(abs % 60).padStart(2, "0")}`;
