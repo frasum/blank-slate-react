@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -206,15 +207,43 @@ export function TipPoolCard({
   const data = poolQ.data;
   const kitchenManualOnly = data.kitchenManualOnly;
   const manualSet = new Set(data.manualStaffIds);
-  const kitchen = data.shares.filter((s) => s.department === "kitchen");
-  const service = data.shares.filter((s) => s.department === "service");
+  const sharesByStaff = new Map(data.shares.map((s) => [s.staffId, s]));
+  const poolEntries = data.poolEntries ?? [];
+  const kitchenRows = poolEntries.filter((p) => p.department === "kitchen");
+  const serviceRows = poolEntries.filter((p) => p.department === "service");
   const entries = entriesQ.data ?? [];
   const glEntries = data.glEntries ?? [];
   const eligibleStaff = staffList.filter(
     (s) => s.isActive && (locationId === "" || s.locationIds.includes(locationId)),
   );
 
-  const renderTable = (title: string, rows: typeof data.shares, _poolCents: number) => {
+  const toggleParticipates = async (
+    row: (typeof poolEntries)[number],
+    nextParticipates: boolean,
+  ) => {
+    try {
+      // Wenn nur Stempel vorhanden (kein manueller Eintrag), eine
+      // Pool-Zeile mit den aktuellen Stempel-Minuten anlegen, damit
+      // die Stunden erhalten bleiben, wenn der MA wieder zugeschaltet
+      // wird.
+      await callUpsert({
+        data: {
+          sessionId,
+          staffId: row.staffId,
+          department: row.department,
+          ...(row.shiftStart && row.shiftEnd
+            ? { shiftStart: row.shiftStart, shiftEnd: row.shiftEnd }
+            : { hoursMinutes: row.hoursMinutes }),
+          participates: nextParticipates,
+        },
+      });
+      invalidatePool();
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  };
+
+  const renderTable = (title: string, rows: typeof poolEntries) => {
     return (
       <Card className="flex-1">
         <div className="border-b px-4 py-3 text-sm font-medium">{title}</div>
@@ -222,6 +251,7 @@ export function TipPoolCard({
           <TableHeader>
             <TableRow>
               <TableHead>Mitarbeiter</TableHead>
+              <TableHead className="w-20 text-center">Im Pool</TableHead>
               <TableHead>Abt.</TableHead>
               <TableHead className="text-right">Stunden</TableHead>
               <TableHead className="text-right">Anteil</TableHead>
@@ -230,28 +260,47 @@ export function TipPoolCard({
           <TableBody>
             {rows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={4} className="text-center text-muted-foreground">
-                  Keine teilnehmenden Mitarbeiter.
+                <TableCell colSpan={5} className="text-center text-muted-foreground">
+                  Keine Mitarbeiter erfasst.
                 </TableCell>
               </TableRow>
             )}
-            {rows.map((r) => (
-              <TableRow key={r.staffId}>
-                <TableCell>
-                  {data.staffNames[r.staffId] ?? r.staffId}
-                  {manualSet.has(r.staffId) && (
-                    <Badge variant="secondary" className="ml-2">
-                      manuell
-                    </Badge>
-                  )}
-                </TableCell>
-                <TableCell>{r.department}</TableCell>
-                <TableCell className="text-right font-mono">
-                  {r.hoursWorked.toFixed(2).replace(".", ",")}
-                </TableCell>
-                <TableCell className="text-right font-mono">{fmtCents(r.shareCents)}</TableCell>
-              </TableRow>
-            ))}
+            {rows.map((r) => {
+              const share = sharesByStaff.get(r.staffId);
+              const hoursDisplay = share
+                ? share.hoursWorked.toFixed(2).replace(".", ",")
+                : (r.hoursMinutes / 60).toFixed(2).replace(".", ",");
+              return (
+                <TableRow key={r.staffId}>
+                  <TableCell>
+                    {r.displayName}
+                    {manualSet.has(r.staffId) && (
+                      <Badge variant="secondary" className="ml-2">
+                        manuell
+                      </Badge>
+                    )}
+                    {r.participatesOverride === null ? null : (
+                      <Badge variant="outline" className="ml-2">
+                        übersteuert
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Switch
+                      checked={r.participates}
+                      disabled={!editable}
+                      onCheckedChange={(v) => void toggleParticipates(r, v)}
+                      aria-label="Im Pool"
+                    />
+                  </TableCell>
+                  <TableCell>{r.department}</TableCell>
+                  <TableCell className="text-right font-mono">{hoursDisplay}</TableCell>
+                  <TableCell className="text-right font-mono">
+                    {share ? fmtCents(share.shareCents) : "—"}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </Card>
@@ -287,10 +336,9 @@ export function TipPoolCard({
           kitchenManualOnly
             ? "Küchen-Pool (manuell — Stempelzeiten der Küche werden ignoriert)"
             : "Küchen-Pool",
-          kitchen,
-          data.kitchenPoolCents,
+          kitchenRows,
         )}
-        {renderTable("Service-Pool", service, data.servicePoolCents)}
+        {renderTable("Service-Pool", serviceRows)}
       </div>
 
       {glEntries.length > 0 && (

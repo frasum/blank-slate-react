@@ -504,6 +504,16 @@ export async function getTipPoolOverviewCore(
     staffNames: Record<string, string>;
     manualStaffIds: string[];
     kitchenManualOnly: boolean;
+    poolEntries: Array<{
+      staffId: string;
+      displayName: string;
+      department: "kitchen" | "service";
+      hoursMinutes: number;
+      shiftStart: string | null;
+      shiftEnd: string | null;
+      participates: boolean;
+      participatesOverride: boolean | null;
+    }>;
     glEntries: Array<{
       staffId: string;
       displayName: string;
@@ -532,6 +542,16 @@ export async function computeSessionTipPoolCore(
     staffNames: Record<string, string>;
     manualStaffIds: string[];
     kitchenManualOnly: boolean;
+    poolEntries: Array<{
+      staffId: string;
+      displayName: string;
+      department: "kitchen" | "service";
+      hoursMinutes: number;
+      shiftStart: string | null;
+      shiftEnd: string | null;
+      participates: boolean;
+      participatesOverride: boolean | null;
+    }>;
     glEntries: Array<{
       staffId: string;
       displayName: string;
@@ -561,7 +581,7 @@ export async function computeSessionTipPoolCore(
       .not("ended_at", "is", null),
     supabaseAdmin
       .from("session_tip_pool_entries")
-      .select("staff_id, department, hours_minutes, shift_start, shift_end")
+      .select("staff_id, department, hours_minutes, shift_start, shift_end, participates")
       .eq("organization_id", caller.organizationId)
       .eq("session_id", session.id),
   ]);
@@ -585,6 +605,7 @@ export async function computeSessionTipPoolCore(
     hoursMinutes: Number(r.hours_minutes),
     shiftStart: r.shift_start as string | null,
     shiftEnd: r.shift_end as string | null,
+    participates: (r as { participates: boolean | null }).participates ?? null,
   }));
   // GL-Zeilen NIE als „manuell" an die Verteilrechnung geben — die
   // Verteillogik schließt zwar gl bereits aus, aber `staffParticipates`
@@ -595,6 +616,7 @@ export async function computeSessionTipPoolCore(
       staffId: r.staffId,
       department: r.department,
       hoursMinutes: r.hoursMinutes,
+      participates: r.participates,
     }));
   const manualByStaff = new Map(manualEntries.map((m) => [m.staffId, m]));
   const glRows = allPoolRows.filter((r) => r.department === "gl");
@@ -645,11 +667,13 @@ export async function computeSessionTipPoolCore(
     }
   }
 
-  // Manuelle Einträge erzwingen Department + Teilnahme;
-  // hours_minutes = 0 = explizit ausgeschlossen.
+  // Manuelle Einträge erzwingen das Department; die Teilnahme ist von den
+  // Stunden entkoppelt: explizites `participates` übersteuert den
+  // Stammdaten-Default (`staff.participates_in_pool`). NULL = Standard.
   for (const m of manualEntries) {
     staffDepartments.set(m.staffId, m.department);
-    staffParticipates.set(m.staffId, m.hoursMinutes > 0);
+    const staffDefault = staffParticipates.get(m.staffId) ?? false;
+    staffParticipates.set(m.staffId, m.participates ?? staffDefault);
   }
 
   const timeEntries = resolvePoolTimeEntries({
@@ -680,6 +704,38 @@ export async function computeSessionTipPoolCore(
     staffNames,
     manualStaffIds: Array.from(manualByStaff.keys()),
     kitchenManualOnly: settings.kitchenManualOnly,
+    poolEntries: (() => {
+      // Vollständige kitchen/service-Liste (inkl. abgewählter + reiner
+      // Stempel-MA), damit das UI die Teilnahme beidseitig schalten kann.
+      const ids = Array.from(staffIds).filter((id) => {
+        const d = staffDepartments.get(id);
+        return d === "kitchen" || d === "service";
+      });
+      // Stempel-Stunden je MA für Anzeige + als Fallback beim Toggle-Anlegen.
+      const stampMinutes = new Map<string, number>();
+      for (const t of rawTimeEntries) {
+        const ms = new Date(t.endedAt).getTime() - new Date(t.startedAt).getTime();
+        if (ms > 0) {
+          stampMinutes.set(t.staffId, (stampMinutes.get(t.staffId) ?? 0) + Math.round(ms / 60_000));
+        }
+      }
+      return ids.map((id) => {
+        const manual = manualByStaff.get(id);
+        const row = allPoolRows.find((r) => r.staffId === id);
+        const dept = staffDepartments.get(id) as "kitchen" | "service";
+        const hoursMinutes = manual ? manual.hoursMinutes : (stampMinutes.get(id) ?? 0);
+        return {
+          staffId: id,
+          displayName: staffNames[id] ?? id,
+          department: dept,
+          hoursMinutes,
+          shiftStart: row?.shiftStart ? row.shiftStart.slice(0, 5) : null,
+          shiftEnd: row?.shiftEnd ? row.shiftEnd.slice(0, 5) : null,
+          participates: staffParticipates.get(id) ?? false,
+          participatesOverride: manual ? (manual.participates ?? null) : null,
+        };
+      });
+    })(),
     glEntries: glRows.map((r) => ({
       staffId: r.staffId,
       displayName: staffNames[r.staffId] ?? r.staffId,
@@ -2361,6 +2417,9 @@ const tipPoolEntryUpsertSchema = z
     shiftStart: z.string().regex(HHMM_RE).optional(),
     shiftEnd: z.string().regex(HHMM_RE).optional(),
     note: z.string().trim().max(500).optional(),
+    // NULL/undefined = Standard (staff.participates_in_pool).
+    // true/false übersteuern die Pool-Teilnahme pro Session.
+    participates: z.boolean().nullable().optional(),
   })
   .superRefine((v, ctx) => {
     const hasShift = v.shiftStart !== undefined && v.shiftEnd !== undefined;
@@ -2442,6 +2501,22 @@ export async function upsertSessionTipPoolEntryCore(
     const shiftEnd = data.shiftEnd ?? null;
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // Vorhandenen Eintrag lesen, um `participates` (Session-Übersteuerung)
+    // bei Eingaben, die nur Zeiten ändern, nicht zu überschreiben.
+    let participatesValue: boolean | null;
+    if (data.participates !== undefined) {
+      participatesValue = data.participates;
+    } else {
+      const { data: existing } = await supabaseAdmin
+        .from("session_tip_pool_entries")
+        .select("participates")
+        .eq("organization_id", caller.organizationId)
+        .eq("session_id", session.id)
+        .eq("staff_id", data.staffId)
+        .maybeSingle();
+      participatesValue =
+        (existing as { participates: boolean | null } | null)?.participates ?? null;
+    }
     const { error: upErr } = await supabaseAdmin.from("session_tip_pool_entries").upsert(
       {
         organization_id: caller.organizationId,
@@ -2452,6 +2527,7 @@ export async function upsertSessionTipPoolEntryCore(
         shift_start: shiftStart,
         shift_end: shiftEnd,
         note: data.note ?? null,
+        participates: participatesValue,
         created_by: caller.userId,
       },
       { onConflict: "session_id,staff_id" },
@@ -2470,6 +2546,7 @@ export async function upsertSessionTipPoolEntryCore(
           hoursMinutes,
           shiftStart,
           shiftEnd,
+          participates: participatesValue,
         },
       },
     };
