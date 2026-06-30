@@ -226,12 +226,16 @@ export function RosterGrid({
     <div className="space-y-2">
       <Tabs value={activeArea} onValueChange={(v) => onActiveAreaChange(v as GridArea)}>
         <TabsList>
-          <TabsTrigger value="kitchen" className="gap-2">
-            <ChefHat className="h-3.5 w-3.5" /> Küche
-          </TabsTrigger>
-          <TabsTrigger value="service" className="gap-2">
-            <UtensilsCrossed className="h-3.5 w-3.5" /> Service
-          </TabsTrigger>
+          {(!visibleAreas || visibleAreas.includes("kitchen")) && (
+            <TabsTrigger value="kitchen" className="gap-2">
+              <ChefHat className="h-3.5 w-3.5" /> Küche
+            </TabsTrigger>
+          )}
+          {(!visibleAreas || visibleAreas.includes("service")) && (
+            <TabsTrigger value="service" className="gap-2">
+              <UtensilsCrossed className="h-3.5 w-3.5" /> Service
+            </TabsTrigger>
+          )}
         </TabsList>
       </Tabs>
 
