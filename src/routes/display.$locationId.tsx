@@ -230,11 +230,7 @@ function BlockTable({ block, days }: { block: DisplayBlock; days: string[] }) {
                     <div
                       className={[
                         "leading-tight tabular-nums text-[10px] font-semibold",
-                        cnt === 0
-                          ? "text-slate-600"
-                          : today
-                            ? "text-sky-100"
-                            : "text-slate-200",
+                        cnt === 0 ? "text-slate-600" : today ? "text-sky-100" : "text-slate-200",
                       ].join(" ")}
                     >
                       {cnt > 0 ? cnt : "·"}
@@ -262,10 +258,7 @@ function BlockTable({ block, days }: { block: DisplayBlock; days: string[] }) {
               </tr>
             )}
             {block.rows.map((row) => (
-              <tr
-                key={`${block.area}-${row.staffId}`}
-                className="group/row even:bg-slate-900/40"
-              >
+              <tr key={`${block.area}-${row.staffId}`} className="group/row even:bg-slate-900/40">
                 <td className="sticky left-0 z-10 border-b border-slate-800/60 bg-slate-950 px-3 py-1 text-center text-sm font-medium text-slate-100 group-even/row:bg-slate-900">
                   {row.staffName}
                 </td>
