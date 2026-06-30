@@ -573,22 +573,22 @@ export const moveRosterShift = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: snap, error: loadErr } = await supabaseAdmin
+      .from("roster_shifts")
+      .select("location_id, staff_id, shift_date, area, skill_id, status")
+      .eq("id", data.id)
+      .eq("organization_id", caller.organizationId)
+      .maybeSingle();
+    if (loadErr) throw loadErr;
+    if (!snap) throw new Error("Schicht nicht gefunden.");
     return runWithPermission(
       context.supabase,
       "roster.shift.manage",
-      null,
+      snap.location_id as string,
+      snap.area as "kitchen" | "service" | "gl",
       makeAuditWriter(caller),
       async () => {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { data: snap, error: loadErr } = await supabaseAdmin
-          .from("roster_shifts")
-          .select("location_id, staff_id, shift_date, area, skill_id, status")
-          .eq("id", data.id)
-          .eq("organization_id", caller.organizationId)
-          .maybeSingle();
-        if (loadErr) throw loadErr;
-        if (!snap) throw new Error("Schicht nicht gefunden.");
-
         // No-op guard: nichts ändert sich.
         if (
           snap.staff_id === data.staffId &&
@@ -604,6 +604,18 @@ export const moveRosterShift = createServerFn({ method: "POST" })
               meta: { noop: true },
             },
           };
+        }
+
+        // Ziel-Bereich-Check: wenn sich der Bereich ändert, muss auch der
+        // Ziel-Bereich am gleichen Standort erlaubt sein (für scoped Planer).
+        // Wirft VOR der Mutation → kein audit_log-Eintrag bei Verweigerung.
+        if (snap.area !== data.area) {
+          await assertPermission(
+            context.supabase,
+            "roster.shift.manage",
+            snap.location_id as string,
+            data.area,
+          );
         }
 
         // Lock-Check auf alte UND neue shift_date.
