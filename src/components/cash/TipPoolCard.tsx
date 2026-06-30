@@ -503,3 +503,72 @@ export function TipPoolCard({
     </div>
   );
 }
+
+function GlRow({
+  entry,
+  editable,
+  onSave,
+}: {
+  entry: {
+    staffId: string;
+    displayName: string;
+    shiftStart: string | null;
+    shiftEnd: string | null;
+    hoursMinutes: number;
+  };
+  editable: boolean;
+  onSave: (shiftStart: string, shiftEnd: string) => Promise<unknown>;
+}) {
+  const [start, setStart] = useState(entry.shiftStart ?? "");
+  const [end, setEnd] = useState(entry.shiftEnd ?? "");
+  const dirty = start !== (entry.shiftStart ?? "") || end !== (entry.shiftEnd ?? "");
+  let preview = `${Math.floor(entry.hoursMinutes / 60)}:${(entry.hoursMinutes % 60)
+    .toString()
+    .padStart(2, "0")}`;
+  if (start && end) {
+    try {
+      const m = kitchenShiftMinutes(start, end);
+      preview = `${Math.floor(m / 60)}:${(m % 60).toString().padStart(2, "0")}`;
+    } catch {
+      preview = "ungültig";
+    }
+  }
+  return (
+    <TableRow>
+      <TableCell>{entry.displayName}</TableCell>
+      <TableCell>
+        <Input
+          type="time"
+          value={start}
+          disabled={!editable}
+          onChange={(e) => setStart(e.target.value)}
+        />
+      </TableCell>
+      <TableCell>
+        <Input
+          type="time"
+          value={end}
+          disabled={!editable}
+          onChange={(e) => setEnd(e.target.value)}
+        />
+      </TableCell>
+      <TableCell className="text-right font-mono">
+        <div className="flex items-center justify-end gap-2">
+          <span>{preview}</span>
+          {dirty && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!editable}
+              onClick={() => {
+                void onSave(start, end).then(() => toast.success("GL-Zeit gespeichert."));
+              }}
+            >
+              Speichern
+            </Button>
+          )}
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
