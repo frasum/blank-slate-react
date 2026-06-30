@@ -703,6 +703,7 @@ function DienstplanPage() {
             </div>
             <RosterGrid
               activeArea={activeArea}
+              visibleAreas={visibleAreas}
               onActiveAreaChange={(a) => {
                 setActiveArea(a);
                 setPaint(null); // Paint-Auswahl zurücksetzen, da Skill-Pool wechselt
