@@ -44,6 +44,7 @@ function BestellungenPage() {
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [supplierFilter, setSupplierFilter] = useState<string>("");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [emailLogOrder, setEmailLogOrder] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
   const suppliersQ = useQuery({
@@ -146,6 +147,7 @@ function BestellungenPage() {
                 <th className="px-3 py-2">Lieferant</th>
                 <th className="px-3 py-2">Status</th>
                 <th className="px-3 py-2">E-Mail</th>
+                <th className="px-3 py-2">Versendet am</th>
                 <th className="px-3 py-2 text-right">Summe</th>
                 <th className="px-3 py-2"></th>
               </tr>
@@ -173,7 +175,26 @@ function BestellungenPage() {
                       </span>
                     </td>
                     <td className="px-3 py-2 text-xs text-muted-foreground">
-                      {o.email_sent ? "ja" : "nein"}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setEmailLogOrder(emailLogOrder === o.id ? null : o.id)
+                        }
+                        className={
+                          "rounded px-2 py-0.5 text-xs underline-offset-2 hover:underline " +
+                          (o.email_error
+                            ? "bg-destructive/10 text-destructive"
+                            : o.email_sent
+                              ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                              : "bg-muted text-muted-foreground")
+                        }
+                        title="E-Mail-Verlauf anzeigen"
+                      >
+                        {o.email_error ? "Fehler" : o.email_sent ? "ja" : "nein"}
+                      </button>
+                    </td>
+                    <td className="px-3 py-2 text-xs text-muted-foreground">
+                      {o.email_sent_at ? formatShortDateTime(o.email_sent_at) : "—"}
                     </td>
                     <td className="px-3 py-2 text-right font-mono">
                       {fmtEuro(o.total_amount_cents)}
@@ -204,11 +225,25 @@ function BestellungenPage() {
                     </td>
                   </tr>
                 );
-                if (expanded !== o.id) return [row];
-                return [
-                  row,
-                  <tr key={o.id + "-detail"} className="border-t border-border bg-muted/10">
-                    <td colSpan={7} className="px-3 py-4">
+                const extra: React.ReactNode[] = [];
+                if (emailLogOrder === o.id) {
+                  extra.push(
+                    <tr key={o.id + "-email"} className="border-t border-border bg-muted/10">
+                      <td colSpan={8} className="px-3 py-3">
+                        <EmailDeliveryTimeline
+                          sent={o.email_sent}
+                          sentAt={o.email_sent_at}
+                          messageId={o.email_message_id}
+                          error={o.email_error}
+                        />
+                      </td>
+                    </tr>,
+                  );
+                }
+                if (expanded === o.id) {
+                  extra.push(
+                    <tr key={o.id + "-detail"} className="border-t border-border bg-muted/10">
+                      <td colSpan={8} className="px-3 py-4">
                       <OrderDetail
                         orderId={o.id}
                         canCancel={o.status !== "cancelled"}
@@ -216,9 +251,11 @@ function BestellungenPage() {
                         cancelling={cancelMut.isPending}
                         supplierHasEmail={!!suppliersById.get(o.supplier_id)?.email}
                       />
-                    </td>
-                  </tr>,
-                ];
+                      </td>
+                    </tr>,
+                  );
+                }
+                return [row, ...extra];
               })}
             </tbody>
           </table>
