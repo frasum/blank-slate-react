@@ -2485,6 +2485,22 @@ export async function upsertSessionTipPoolEntryCore(
     const shiftEnd = data.shiftEnd ?? null;
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // Vorhandenen Eintrag lesen, um `participates` (Session-Übersteuerung)
+    // bei Eingaben, die nur Zeiten ändern, nicht zu überschreiben.
+    let participatesValue: boolean | null;
+    if (data.participates !== undefined) {
+      participatesValue = data.participates;
+    } else {
+      const { data: existing } = await supabaseAdmin
+        .from("session_tip_pool_entries")
+        .select("participates")
+        .eq("organization_id", caller.organizationId)
+        .eq("session_id", session.id)
+        .eq("staff_id", data.staffId)
+        .maybeSingle();
+      participatesValue =
+        (existing as { participates: boolean | null } | null)?.participates ?? null;
+    }
     const { error: upErr } = await supabaseAdmin.from("session_tip_pool_entries").upsert(
       {
         organization_id: caller.organizationId,
@@ -2495,7 +2511,7 @@ export async function upsertSessionTipPoolEntryCore(
         shift_start: shiftStart,
         shift_end: shiftEnd,
         note: data.note ?? null,
-        participates: data.participates ?? null,
+        participates: participatesValue,
         created_by: caller.userId,
       },
       { onConflict: "session_id,staff_id" },
@@ -2514,7 +2530,7 @@ export async function upsertSessionTipPoolEntryCore(
           hoursMinutes,
           shiftStart,
           shiftEnd,
-          participates: data.participates ?? null,
+          participates: participatesValue,
         },
       },
     };
