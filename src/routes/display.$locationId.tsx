@@ -4,8 +4,10 @@
 import { createFileRoute, useParams, useSearch } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
-import { Umbrella, Thermometer, Heart } from "lucide-react";
+import { Umbrella, HeartPulse, Heart } from "lucide-react";
 import { serviceMarker } from "@/lib/roster/service-marker";
+import { abbr, pillStyle } from "@/lib/roster/pill-style";
+import { cn } from "@/lib/utils";
 
 type DisplayCell = {
   k: "shift" | "urlaub" | "krank" | "wish" | "available" | "empty";
@@ -291,42 +293,44 @@ function BlockTable({ block, days }: { block: DisplayBlock; days: string[] }) {
 
 function CellView({ cell, area }: { cell: DisplayCell; area: "kitchen" | "service" }) {
   if (cell.k === "shift") {
-    if (area === "kitchen") {
-      const label = cell.skill && cell.skill.trim() ? cell.skill : "·";
-      return (
-        <span
-          className="inline-flex min-w-[2rem] items-center justify-center rounded px-2 py-0.5 text-xs font-semibold text-slate-900"
-          style={{ backgroundColor: cell.color ?? "#e2e8f0" }}
-        >
-          {label}
-        </span>
-      );
-    }
-    const m = serviceMarker(cell.skill);
+    const label = area === "kitchen" ? abbr(cell.skill) : serviceMarker(cell.skill);
+    const { backgroundColor, textClass } = pillStyle({
+      skillColor: cell.color,
+      area,
+      label,
+      status: "confirmed",
+    });
+    const isDefaultService = area === "service" && label === "X";
     return (
-      <span className="inline-flex min-w-[2rem] items-center justify-center rounded border border-slate-700 bg-white px-2 py-0.5 text-xs font-bold text-slate-900">
-        {m}
+      <span
+        style={{ backgroundColor }}
+        className={cn(
+          "mx-auto inline-flex h-5 w-8 items-center justify-center rounded border font-bold leading-none text-[9px]",
+          textClass,
+        )}
+      >
+        <span className={cn(isDefaultService && "text-[13px] leading-none")}>{label}</span>
       </span>
     );
   }
   if (cell.k === "urlaub") {
     return (
-      <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-green-500/20 text-green-300">
+      <span className="inline-flex h-6 w-6 items-center justify-center rounded text-green-400">
         <Umbrella className="h-3.5 w-3.5" />
       </span>
     );
   }
   if (cell.k === "krank") {
     return (
-      <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-orange-500/20 text-orange-300">
-        <Thermometer className="h-3.5 w-3.5" />
+      <span className="inline-flex h-6 w-6 items-center justify-center rounded text-red-400">
+        <HeartPulse className="h-3.5 w-3.5" />
       </span>
     );
   }
   if (cell.k === "wish") {
     return (
-      <span className="inline-flex h-6 w-6 items-center justify-center rounded border border-dashed border-purple-400 text-purple-300">
-        <Heart className="h-3.5 w-3.5" />
+      <span className="inline-flex h-6 w-6 items-center justify-center rounded text-purple-400">
+        <Heart className="h-3.5 w-3.5 fill-purple-400" />
       </span>
     );
   }
