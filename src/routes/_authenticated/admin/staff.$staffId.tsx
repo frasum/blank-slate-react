@@ -580,11 +580,7 @@ function RoleTab({ staff }: { staff: { id: string; role: AppRole | null; isActiv
                   : "border-input bg-background text-foreground hover:bg-accent"
               }`}
             >
-              {r === "payroll"
-                ? "Lohnbüro"
-                : r === "planer"
-                  ? "Planer"
-                  : (r ?? "Keine")}
+              {r === "payroll" ? "Lohnbüro" : r === "planer" ? "Planer" : (r ?? "Keine")}
             </button>
           ))}
         </div>

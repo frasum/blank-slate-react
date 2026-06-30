@@ -41,9 +41,7 @@ describe.skipIf(!dbTestsEnabled)("permission_overrides area-Upsert (P-3a)", () =
       .delete()
       .eq("staff_id", planerStaffId)
       .eq("permission", permission as never);
-    const delLoc = locationId
-      ? delQ.eq("location_id", locationId)
-      : delQ.is("location_id", null);
+    const delLoc = locationId ? delQ.eq("location_id", locationId) : delQ.is("location_id", null);
     const del = await (area ? delLoc.eq("area", area as never) : delLoc.is("area", null));
     if (del.error) throw new Error(`delete failed: ${del.error.message}`);
 
