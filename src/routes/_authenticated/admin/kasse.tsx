@@ -118,6 +118,7 @@ function KassePage() {
   const callRemoveSat = useServerFn(removeSessionSatellite);
   const callFinalize = useServerFn(finalizeSession);
   const callLock = useServerFn(lockSession);
+  const callReopen = useServerFn(reopenSession);
   const callCorrect = useServerFn(correctWaiterSettlement);
   const callAdminCreate = useServerFn(adminCreateWaiterSettlement);
   const callCashLock = useServerFn(setCashLock);
