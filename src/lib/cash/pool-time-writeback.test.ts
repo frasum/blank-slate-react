@@ -442,8 +442,10 @@ describe("Pool-Zeit-Wrap: shiftEnd < shiftStart", () => {
     if (r.action !== "upsert") throw new Error("unreachable");
     const startedAt = poolLocalTimeToIso("2026-10-25", r.startTime, 0);
     const endedAt = poolLocalTimeToIso("2026-10-25", r.endTime, 1);
-    // 25.10. 22:00 CEST (+02) → 20:00 UTC; 26.10. 04:00 CET (+01) → 03:00 UTC
-    expect(startedAt).toBe("2026-10-25T20:00:00.000Z");
+    // Anchor per Tag: 25.10. wird bereits als CET (+01) angesehen
+    // (DST-Ende am 25.10. 03:00 CEST→02:00 CET), 26.10. ebenfalls CET.
+    // 25.10. 22:00 CET (+01) → 21:00 UTC; 26.10. 04:00 CET (+01) → 03:00 UTC
+    expect(startedAt).toBe("2026-10-25T21:00:00.000Z");
     expect(endedAt).toBe("2026-10-26T03:00:00.000Z");
   });
 
