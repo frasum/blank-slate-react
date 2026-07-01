@@ -1032,8 +1032,8 @@ function KassePage() {
           <DialogHeader>
             <DialogTitle>Session wieder öffnen?</DialogTitle>
             <DialogDescription>
-              Setzt den Status von „finalisiert" zurück auf „offen", sodass Kellner-Abrechnungen
-              und Satelliten für diesen Geschäftstag erneut bearbeitet werden können. Nur möglich,
+              Setzt den Status von „finalisiert" zurück auf „offen", sodass Kellner-Abrechnungen und
+              Satelliten für diesen Geschäftstag erneut bearbeitet werden können. Nur möglich,
               solange die Session nicht gesperrt und nicht unter der Wasserlinie liegt.
             </DialogDescription>
           </DialogHeader>
