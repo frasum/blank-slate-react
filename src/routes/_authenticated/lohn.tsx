@@ -27,10 +27,15 @@ function LohnPage() {
   });
 
   async function open(entry: PayslipEntry) {
+    // iOS-Safari verwirft window.open nach await als non-user-gesture.
+    // Tab-Handle synchron im Click öffnen, dann URL setzen; sonst gleicher Tab.
+    const win = window.open("about:blank", "_blank", "noopener");
     try {
       const res = await callOpen({ data: { path: entry.path } });
-      window.open(res.url, "_blank", "noopener");
+      if (win && !win.closed) win.location.href = res.url;
+      else window.location.href = res.url;
     } catch (e) {
+      if (win && !win.closed) win.close();
       alert(e instanceof Error ? e.message : "Öffnen fehlgeschlagen.");
     }
   }

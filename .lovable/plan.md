@@ -1,36 +1,41 @@
-## Problem
+## Ursache
 
-In `SessionFieldsCard` werden alle Eingaben (Umsatz-Kanäle, Terminals, Gutscheine, Gästeanzahl, Notiz, Bargeld-Ist) nur im lokalen React-State gehalten. Sie landen erst nach Klick auf **„Session speichern"** in der DB. Beim Tab-Wechsel oder Reload ist der lokale State weg → Eingaben verloren.
+Auf Datenseite sind alle drei identisch (Rolle `staff`, verknüpfter User, Dateien im richtigen Storage-Pfad, gleiche Org). Der Unterschied liegt im Client-Code `src/routes/_authenticated/lohn.tsx`:
 
-## Lösung: Auto-Save mit Debounce
+```ts
+async function open(entry) {
+  const res = await callOpen({ data: { path: entry.path } }); // async
+  window.open(res.url, "_blank", "noopener");                 // NACH await
+}
+```
 
-Statt manuellem Speichern-Button wird jede Änderung automatisch gespeichert — ca. 800 ms nach der letzten Tastatureingabe (Debounce, damit nicht jedes Zeichen einen Request auslöst).
+`window.open` **nach** einem `await` wird von iOS-Browsern (Safari, Chrome iOS) als „nicht aus User-Gesture" gewertet und vom **Popup-Blocker still verworfen** — genau das Symptom „Datei ist sichtbar, aber Klick auf Öffnen tut nichts". Ob es blockiert wird, hängt an der individuellen Safari-Einstellung *Einstellungen → Safari → Popups blockieren* — deshalb ging es bei Jasmin (Popups erlaubt) und bei Andi/Europe (Standard-Einstellung: Popups blockiert) nicht.
 
-### Verhalten
+## Fix (in Build-Modus umzusetzen)
 
-- Tippen in irgendeinem Feld → nach 800 ms Stille läuft `onSave(payload)` automatisch.
-- Beim Verlassen des Feldes (`onBlur`) und vor Unmount wird ein ausstehender Save sofort geflusht.
-- Status oben rechts in der Card: „Gespeichert · HH:MM" / „Speichert…" / „Ungespeicherte Änderungen".
-- Validierung wie bisher: Wenn ein Feld kein gültiger Euro-Wert ist, kein Save (Status zeigt „Eingabe ungültig"), restliche gültige Felder werden beim nächsten gültigen Zustand mitgesichert.
-- Der **„Session speichern"**-Button bleibt erhalten als manueller Flush (für Nutzer-Sicherheit), wird aber zur Bestätigung statt Pflicht.
-- Schreibgeschützte Sessions (`writable=false`): kein Auto-Save (bisheriges Verhalten).
+Nur `src/routes/_authenticated/lohn.tsx` anpassen — keine Server-Fn-, RLS- oder Schema-Änderung nötig.
 
-### Technische Details
+Beim Klick **sofort synchron** ein neues Tab-Handle öffnen (im User-Gesture), dann die Signed-URL holen und `handle.location.href` setzen. Wenn der Browser trotzdem blockiert (`win === null`), im aktuellen Tab weiterleiten — das umgeht Popup-Blocker vollständig.
 
-Geänderte Datei: `src/components/cash/SessionFieldsCard.tsx`
+```ts
+async function open(entry) {
+  const win = window.open("about:blank", "_blank", "noopener");
+  try {
+    const res = await callOpen({ data: { path: entry.path } });
+    if (win && !win.closed) win.location.href = res.url;
+    else window.location.href = res.url; // Fallback: gleicher Tab
+  } catch (e) {
+    if (win && !win.closed) win.close();
+    alert(e instanceof Error ? e.message : "Öffnen fehlgeschlagen.");
+  }
+}
+```
 
-1. Neues kleines Hook-Modul `src/lib/use-debounced-effect.ts` (oder inline) für die Debounce-Logik mit Cleanup auf Unmount.
-2. In `SessionFieldsCard`:
-   - Effekt, der auf `chRows`, `tmRows`, `misc` lauscht, `build()` aufruft und bei gültigem Payload nach Debounce `onSave` triggert.
-   - Initial-Mount überspringen (sonst sofortiger Save direkt nach Hydration mit `overview`-Reset).
-   - Tracking eines „last-saved snapshot" (JSON-Stringify des Payloads), um Re-Saves bei identischem Inhalt zu vermeiden — besonders wichtig, da `useEffect`-Reset auf neue `overview`-Reads wieder feuert.
-   - `beforeunload`-Handler: bei pendierendem Save sofort flushen (`navigator.sendBeacon`-Pfad ist Overkill — wir nutzen synchronen flush via Promise und Warnung im Browser, falls noch nicht fertig).
-   - Statuszeile mit `lastSavedAt` (Date) und `isSaving` Boolean.
+Zusätzlich kurz prüfen, ob die Admin-Payslip-Öffnen-Stelle in `src/routes/_authenticated/admin/staff.$staffId.tsx` das gleiche Muster hat, und dort spiegeln.
 
-Andere Felder bleiben unverändert (Vorschüsse/Ausgaben gehen bereits direkt per `onAddAdvance`/`onAddExpense` und sind nicht betroffen).
+## Verifikation
 
-### Was nicht geändert wird
+- Prettier/ESLint/tsc/Vitest-Gate laufen lassen.
+- Andi oder Europe die Datei antippen lassen — der Tab öffnet jetzt zuverlässig (bzw. das PDF öffnet notfalls im gleichen Tab, ohne dass es „nichts tut").
 
-- Keine LocalStorage-Persistenz — die DB ist die einzige Wahrheit. Auto-Save sichert direkt in der Session.
-- Keine Änderung an `onSave` / Server-Funktion.
-- Keine Änderung an Trinkgeld-Pool, Settlements oder PDF.
+Kein Datenkorrektur-Bedarf für Andi/Europe; ausschließlich Frontend-Change.
