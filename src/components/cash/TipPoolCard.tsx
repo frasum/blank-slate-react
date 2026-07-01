@@ -253,6 +253,8 @@ export function TipPoolCard({
               <TableHead>Mitarbeiter</TableHead>
               <TableHead className="w-20 text-center">Im Pool</TableHead>
               <TableHead>Abt.</TableHead>
+              <TableHead className="w-28">Anfang</TableHead>
+              <TableHead className="w-28">Ende</TableHead>
               <TableHead className="text-right">Stunden</TableHead>
               <TableHead className="text-right">Anteil</TableHead>
             </TableRow>
@@ -260,45 +262,40 @@ export function TipPoolCard({
           <TableBody>
             {rows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground">
+                <TableCell colSpan={7} className="text-center text-muted-foreground">
                   Keine Mitarbeiter erfasst.
                 </TableCell>
               </TableRow>
             )}
             {rows.map((r) => {
               const share = sharesByStaff.get(r.staffId);
-              const hoursDisplay = share
-                ? share.hoursWorked.toFixed(2).replace(".", ",")
-                : (r.hoursMinutes / 60).toFixed(2).replace(".", ",");
+              const timeEditable =
+                r.department === "service" ||
+                (r.department === "kitchen" && Boolean(kitchenManualOnly));
               return (
-                <TableRow key={r.staffId}>
-                  <TableCell>
-                    {r.displayName}
-                    {manualSet.has(r.staffId) && (
-                      <Badge variant="secondary" className="ml-2">
-                        manuell
-                      </Badge>
-                    )}
-                    {r.participatesOverride === null ? null : (
-                      <Badge variant="outline" className="ml-2">
-                        übersteuert
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Switch
-                      checked={r.participates}
-                      disabled={!editable}
-                      onCheckedChange={(v) => void toggleParticipates(r, v)}
-                      aria-label="Im Pool"
-                    />
-                  </TableCell>
-                  <TableCell>{r.department}</TableCell>
-                  <TableCell className="text-right font-mono">{hoursDisplay}</TableCell>
-                  <TableCell className="text-right font-mono">
-                    {share ? fmtCents(share.shareCents) : "—"}
-                  </TableCell>
-                </TableRow>
+                <PoolRow
+                  key={r.staffId}
+                  row={r}
+                  share={share}
+                  manual={manualSet.has(r.staffId)}
+                  editable={editable}
+                  timeEditable={timeEditable}
+                  onToggleParticipates={(v) => void toggleParticipates(r, v)}
+                  onSaveTimes={(shiftStart, shiftEnd) =>
+                    callUpsert({
+                      data: {
+                        sessionId,
+                        staffId: r.staffId,
+                        department: r.department,
+                        shiftStart,
+                        shiftEnd,
+                      },
+                    }).then(() => {
+                      toast.success("Zeit gespeichert.");
+                      invalidatePool();
+                    })
+                  }
+                />
               );
             })}
           </TableBody>
