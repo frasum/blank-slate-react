@@ -32,8 +32,8 @@ describe("buildRosterPoolSnapshot", () => {
       staffId: "b",
       department: "service",
       shiftStart: "16:00",
-      shiftEnd: "23:00",
-      hoursMinutes: 420,
+      shiftEnd: null,
+      hoursMinutes: 0,
     });
   });
 
@@ -68,6 +68,45 @@ describe("buildRosterPoolSnapshot", () => {
     const res = buildRosterPoolSnapshot({
       rosterShifts: [{ staffId: "k", area: "kitchen" }],
       defaultsByArea: { service: { checkin: "16:00", checkout: "23:00" } },
+    });
+    expect(res[0]).toMatchObject({
+      department: "kitchen",
+      shiftStart: null,
+      shiftEnd: null,
+      hoursMinutes: 0,
+    });
+  });
+
+  it("Service nur mit checkin (checkout null) → shiftStart, shiftEnd null, 0 min", () => {
+    const res = buildRosterPoolSnapshot({
+      rosterShifts: [{ staffId: "s", area: "service" }],
+      defaultsByArea: { service: { checkin: "16:00", checkout: null } },
+    });
+    expect(res[0]).toMatchObject({
+      department: "service",
+      shiftStart: "16:00",
+      shiftEnd: null,
+      hoursMinutes: 0,
+    });
+  });
+
+  it("Service ohne checkin → null/null/0", () => {
+    const res = buildRosterPoolSnapshot({
+      rosterShifts: [{ staffId: "s", area: "service" }],
+      defaultsByArea: { service: { checkin: null, checkout: null } },
+    });
+    expect(res[0]).toMatchObject({
+      department: "service",
+      shiftStart: null,
+      shiftEnd: null,
+      hoursMinutes: 0,
+    });
+  });
+
+  it("Kitchen mit checkin, checkout null → null/null/0", () => {
+    const res = buildRosterPoolSnapshot({
+      rosterShifts: [{ staffId: "k", area: "kitchen" }],
+      defaultsByArea: { kitchen: { checkin: "15:00", checkout: null } },
     });
     expect(res[0]).toMatchObject({
       department: "kitchen",
