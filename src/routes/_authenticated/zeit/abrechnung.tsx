@@ -7,7 +7,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -26,6 +26,7 @@ import {
   getMySettlement,
   submitWaiterSettlement,
   getOrCreateOpenSession,
+  ensureMyOpenSession,
 } from "@/lib/cash/cash.functions";
 import { listLocations } from "@/lib/admin/locations.functions";
 import { LocationPills } from "@/components/shared/LocationPills";
@@ -88,6 +89,7 @@ function AbrechnungPage() {
   const canOpenSession = identity?.role === "admin" || identity?.role === "manager";
   const fetchLocations = useServerFn(listLocations);
   const callCreateSession = useServerFn(getOrCreateOpenSession);
+  const callEnsureMySession = useServerFn(ensureMyOpenSession);
   const [createLocationId, setCreateLocationId] = useState<string>("");
   const locationsQ = useQuery({
     queryKey: ["admin-locations"],
@@ -110,6 +112,25 @@ function AbrechnungPage() {
     queryKey: ["cash", "my-settlement"],
     queryFn: () => fetchMy(),
   });
+
+  // Kellner-Auto-Open: wenn (noch) keine Session offen ist, wird sie beim
+  // ersten Aufruf automatisch angelegt. Manager-Button bleibt als Fallback.
+  const autoOpenTriedRef = useRef(false);
+  const [autoOpenError, setAutoOpenError] = useState<string | null>(null);
+  const noSession = myQ.data != null && myQ.data.session == null;
+  useEffect(() => {
+    if (!noSession) return;
+    if (autoOpenTriedRef.current) return;
+    autoOpenTriedRef.current = true;
+    setAutoOpenError(null);
+    callEnsureMySession()
+      .then(() => {
+        void qc.invalidateQueries({ queryKey: ["cash"] });
+      })
+      .catch((e: unknown) => {
+        setAutoOpenError(e instanceof Error ? e.message : "Unbekannter Fehler");
+      });
+  }, [noSession, callEnsureMySession, qc]);
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -207,12 +228,25 @@ function AbrechnungPage() {
 
   // Falls noch keine Session offen: read-only Hinweis.
   if (!session) {
+    // Standard: Auto-Open läuft im Hintergrund — Kellner sieht kurz
+    // „wird vorbereitet". Erst wenn der Auto-Open scheitert, wird der
+    // klassische Hinweis (bzw. für Manager der manuelle Button) angezeigt.
+    if (!autoOpenError) {
+      return (
+        <main className="mx-auto max-w-xl space-y-6 px-4 py-8">
+          <Header showKasseLink={canOpenSession} />
+          <Card className="p-6 text-sm text-muted-foreground">
+            Session für <strong>{businessDate}</strong> wird vorbereitet…
+          </Card>
+        </main>
+      );
+    }
     return (
       <main className="mx-auto max-w-xl space-y-6 px-4 py-8">
         <Header showKasseLink={canOpenSession} />
         <Card className="p-6 text-sm">
-          Für den Geschäftstag <strong>{businessDate}</strong> ist noch keine Session offen. Bitte
-          warte, bis der Manager die Session anlegt, oder frage kurz nach.
+          Für den Geschäftstag <strong>{businessDate}</strong> konnte automatisch keine Session
+          angelegt werden: {autoOpenError}. Bitte den Manager bitten, eine Session zu eröffnen.
         </Card>
         {canOpenSession && (
           <Card className="space-y-3 p-6">
