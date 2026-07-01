@@ -104,10 +104,7 @@ export const Route = createFileRoute("/api/public/calendar/$token")({
           for (const s of sks ?? []) skillMap.set(s.id, s.name);
         }
 
-        const defaults = new Map<
-          string,
-          { checkin: string | null; checkout: string | null }
-        >();
+        const defaults = new Map<string, { checkin: string | null; checkout: string | null }>();
         if (locationIds.length) {
           const { data: lddRows } = await supabaseAdmin
             .from("location_department_defaults")
