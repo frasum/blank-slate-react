@@ -871,10 +871,13 @@ function PayslipsTab({ staffId }: { staffId: string }) {
   });
 
   async function open(entry: PayslipEntry) {
+    const win = window.open("about:blank", "_blank", "noopener");
     try {
       const res = await callOpen({ data: { path: entry.path } });
-      window.open(res.url, "_blank", "noopener");
+      if (win && !win.closed) win.location.href = res.url;
+      else window.location.href = res.url;
     } catch (e) {
+      if (win && !win.closed) win.close();
       setMsg(e instanceof Error ? e.message : "Öffnen fehlgeschlagen.");
     }
   }
