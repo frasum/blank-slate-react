@@ -2751,6 +2751,33 @@ export async function upsertSessionTipPoolEntryCore(
     );
     if (upErr) throw upErr;
 
+    // Laufender Sync: den zugehörigen source='pool'-Zeiteintrag mit der
+    // frisch gespeicherten Zeit synchronisieren (upsert oder delete).
+    // Best-effort — Sync-Fehler kippen die Korrektur nicht.
+    try {
+      const { data: savedRow } = await supabaseAdmin
+        .from("session_tip_pool_entries")
+        .select("id")
+        .eq("organization_id", caller.organizationId)
+        .eq("session_id", session.id)
+        .eq("staff_id", data.staffId)
+        .maybeSingle();
+      if (savedRow?.id) {
+        await syncPoolTimeEntry({
+          organizationId: caller.organizationId,
+          locationId: session.location_id,
+          businessDate: session.business_date,
+          entryId: savedRow.id,
+          staffId: data.staffId,
+          department: data.department,
+          shiftStart,
+          shiftEnd,
+        });
+      }
+    } catch (err) {
+      console.error("[pool-time-sync] failed", err);
+    }
+
     return {
       result: { ok: true as const },
       audit: {
