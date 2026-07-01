@@ -1237,13 +1237,16 @@ export async function reopenSessionCore(caller: AdminCaller, data: { sessionId: 
     if (session.status === "locked") {
       throw new Error("Session ist gesperrt und kann nicht wieder geöffnet werden.");
     }
-    if (waterline !== null && session.business_date <= waterline) {
-      throw new CashLockedError(session.business_date, waterline);
-    }
+    assertCashWritable({
+      businessDate: session.business_date,
+      sessionStatus: session.status as "open" | "finalized" | "locked",
+      sessionLockedAt: session.locked_at,
+      cashLockedThroughDate: waterline,
+      blockIfFinalized: false,
+    });
     if (session.status !== "finalized") {
       throw new Error("Nur abgeschlossene Sessions können wieder geöffnet werden.");
     }
-    const previousFinalizedAt = session.finalized_at;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("sessions")
@@ -1257,7 +1260,7 @@ export async function reopenSessionCore(caller: AdminCaller, data: { sessionId: 
         action: "cash.session.reopened",
         entity: "session",
         entityId: session.id,
-        meta: { businessDate: session.business_date, previousFinalizedAt },
+        meta: { businessDate: session.business_date },
       },
     };
   });
