@@ -34,6 +34,7 @@ import {
 } from "./tip-pool";
 import { kitchenShiftMinutes } from "./kitchen-shift-hours";
 import { buildRosterPoolSnapshot } from "./roster-pool-snapshot";
+import { resolveServicePoolEnd } from "./service-pool-end";
 import { assertCashWritable, CashLockedError } from "./cash-lock";
 import type { Json } from "@/integrations/supabase/types";
 import { ForbiddenError } from "@/lib/admin/role-guard";
