@@ -564,6 +564,144 @@ function GlRow({
   editable: boolean;
   onSave: (shiftStart: string, shiftEnd: string) => Promise<unknown>;
 }) {
+  return <GlRowInner entry={entry} editable={editable} onSave={onSave} />;
+}
+
+type PoolRowData = {
+  staffId: string;
+  displayName: string;
+  department: "kitchen" | "service";
+  hoursMinutes: number;
+  shiftStart: string | null;
+  shiftEnd: string | null;
+  participates: boolean;
+  participatesOverride: boolean | null;
+};
+
+function PoolRow({
+  row,
+  share,
+  manual,
+  editable,
+  timeEditable,
+  onToggleParticipates,
+  onSaveTimes,
+}: {
+  row: PoolRowData;
+  share: { hoursWorked: number; shareCents: number } | undefined;
+  manual: boolean;
+  editable: boolean;
+  timeEditable: boolean;
+  onToggleParticipates: (v: boolean) => void;
+  onSaveTimes: (shiftStart: string, shiftEnd: string) => Promise<unknown>;
+}) {
+  const [start, setStart] = useState(row.shiftStart ?? "");
+  const [end, setEnd] = useState(row.shiftEnd ?? "");
+  const [saving, setSaving] = useState(false);
+  const dirty = start !== (row.shiftStart ?? "") || end !== (row.shiftEnd ?? "");
+
+  let hoursDisplay: string;
+  if (dirty && start && end) {
+    try {
+      const m = kitchenShiftMinutes(start, end);
+      hoursDisplay = (m / 60).toFixed(2).replace(".", ",");
+    } catch {
+      hoursDisplay = "ungültig";
+    }
+  } else if (share) {
+    hoursDisplay = share.hoursWorked.toFixed(2).replace(".", ",");
+  } else {
+    hoursDisplay = (row.hoursMinutes / 60).toFixed(2).replace(".", ",");
+  }
+
+  return (
+    <TableRow>
+      <TableCell>
+        {row.displayName}
+        {manual && (
+          <Badge variant="secondary" className="ml-2">
+            manuell
+          </Badge>
+        )}
+        {row.participatesOverride === null ? null : (
+          <Badge variant="outline" className="ml-2">
+            übersteuert
+          </Badge>
+        )}
+      </TableCell>
+      <TableCell className="text-center">
+        <Switch
+          checked={row.participates}
+          disabled={!editable}
+          onCheckedChange={onToggleParticipates}
+          aria-label="Im Pool"
+        />
+      </TableCell>
+      <TableCell>{row.department}</TableCell>
+      <TableCell>
+        {timeEditable ? (
+          <Input
+            type="time"
+            value={start}
+            disabled={!editable}
+            onChange={(e) => setStart(e.target.value)}
+          />
+        ) : (
+          <span className="font-mono text-sm">{row.shiftStart ?? "—"}</span>
+        )}
+      </TableCell>
+      <TableCell>
+        {timeEditable ? (
+          <div className="flex items-center gap-2">
+            <Input
+              type="time"
+              value={end}
+              disabled={!editable}
+              onChange={(e) => setEnd(e.target.value)}
+            />
+            {dirty && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!editable || saving || !start || !end}
+                onClick={() => {
+                  setSaving(true);
+                  void Promise.resolve(onSaveTimes(start, end)).finally(() =>
+                    setSaving(false),
+                  );
+                }}
+              >
+                {saving ? "…" : "OK"}
+              </Button>
+            )}
+          </div>
+        ) : (
+          <span className="font-mono text-sm">{row.shiftEnd ?? "—"}</span>
+        )}
+      </TableCell>
+      <TableCell className="text-right font-mono">{hoursDisplay}</TableCell>
+      <TableCell className="text-right font-mono">
+        {share ? fmtCents(share.shareCents) : "—"}
+      </TableCell>
+    </TableRow>
+  );
+}
+
+function GlRowInner({
+  entry,
+  editable,
+  onSave,
+}: {
+  entry: {
+    staffId: string;
+    displayName: string;
+    shiftStart: string | null;
+    shiftEnd: string | null;
+    hoursMinutes: number;
+  };
+  editable: boolean;
+  onSave: (shiftStart: string, shiftEnd: string) => Promise<unknown>;
+}) {
   const [start, setStart] = useState(entry.shiftStart ?? "");
   const [end, setEnd] = useState(entry.shiftEnd ?? "");
   const dirty = start !== (entry.shiftStart ?? "") || end !== (entry.shiftEnd ?? "");
