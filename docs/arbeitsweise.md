@@ -1108,4 +1108,3 @@ Seite `/zeit/kalender` (Kachel „Kalender-Abo" im `/zeit`-Hub): holt den Token 
 ### Betrieb
 
 Voraussetzung für zeitliche Service-Events: `default_checkout` für Service unter `/admin/standortzeiten` eintragen (sonst ganztägig; Küche zeigt 15:00–23:30, sobald die Auscheckzeit dort steht). Android: URL-Abo geht bei Google nur am Computer (calendar.google.com → „Per URL"), nicht in der Handy-App — daher der Kopier-Weg auf der Seite.
-
