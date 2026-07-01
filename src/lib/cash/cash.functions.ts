@@ -1219,6 +1219,50 @@ export const lockSession = createServerFn({ method: "POST" })
     return lockSessionCore(caller, data);
   });
 
+// Admin-only: eine bereits finalisierte Session wieder auf "open" setzen,
+// damit ein Vortag nachträglich bearbeitet werden kann. Bei `locked` oder
+// unterhalb der Wasserlinie bleibt die Session gesperrt.
+export const reopenSession = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ sessionId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    return reopenSessionCore(caller, data);
+  });
+
+export async function reopenSessionCore(caller: AdminCaller, data: { sessionId: string }) {
+  return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
+    const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
+    const waterline = await loadLocationCashLock(caller.organizationId, session.location_id);
+    if (session.status === "locked") {
+      throw new Error("Session ist gesperrt und kann nicht wieder geöffnet werden.");
+    }
+    if (waterline !== null && session.business_date <= waterline) {
+      throw new CashLockedError(session.business_date, waterline);
+    }
+    if (session.status !== "finalized") {
+      throw new Error("Nur abgeschlossene Sessions können wieder geöffnet werden.");
+    }
+    const previousFinalizedAt = session.finalized_at;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("sessions")
+      .update({ status: "open", finalized_at: null, finalized_by: null })
+      .eq("id", session.id)
+      .eq("organization_id", caller.organizationId);
+    if (error) throw error;
+    return {
+      result: { ok: true as const },
+      audit: {
+        action: "cash.session.reopened",
+        entity: "session",
+        entityId: session.id,
+        meta: { businessDate: session.business_date, previousFinalizedAt },
+      },
+    };
+  });
+}
+
 export async function lockSessionCore(caller: AdminCaller, data: { sessionId: string }) {
   return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
     const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
