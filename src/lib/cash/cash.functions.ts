@@ -2932,9 +2932,7 @@ async function applyServicePoolEnd(input: {
     .maybeSingle();
   if (!entry || entry.department !== "service") return;
   if (entry.shift_end) return; // schon gesetzt (manuell oder früherer Lauf)
-  const startHHMM = entry.shift_start
-    ? (entry.shift_start as string).slice(0, 5)
-    : null;
+  const startHHMM = entry.shift_start ? (entry.shift_start as string).slice(0, 5) : null;
   const resolved = resolveServicePoolEnd({
     shiftStartHHMM: startHHMM,
     submissionIso: input.submissionIso,

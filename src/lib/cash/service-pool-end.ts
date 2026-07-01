@@ -22,8 +22,7 @@ const partsFormatter = new Intl.DateTimeFormat("en-CA", {
 
 function berlinHHMM(iso: string): { hh: string; mm: string; minutes: number } {
   const parts = partsFormatter.formatToParts(new Date(iso));
-  const get = (t: Intl.DateTimeFormatPartTypes) =>
-    parts.find((p) => p.type === t)?.value ?? "00";
+  const get = (t: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === t)?.value ?? "00";
   const hourRaw = get("hour");
   const hh = hourRaw === "24" ? "00" : hourRaw.padStart(2, "0");
   const mm = get("minute").padStart(2, "0");
