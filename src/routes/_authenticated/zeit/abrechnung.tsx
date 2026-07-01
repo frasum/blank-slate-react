@@ -259,10 +259,13 @@ function AbrechnungPage() {
   // Falls noch keine Session offen: read-only Hinweis.
   if (!session) {
     const lastAtLabel = autoOpenLastAt
-      ? autoOpenLastAt.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+      ? autoOpenLastAt.toLocaleTimeString("de-DE", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        })
       : null;
-    const exhausted =
-      autoOpenError !== null && autoOpenAttempts >= MAX_AUTO_OPEN_ATTEMPTS;
+    const exhausted = autoOpenError !== null && autoOpenAttempts >= MAX_AUTO_OPEN_ATTEMPTS;
 
     // Standard: Auto-Open läuft (oder wird gleich neu versucht). Kellner
     // sieht Fortschritt inkl. Versuch + Zeitstempel. Erst nach erschöpften
