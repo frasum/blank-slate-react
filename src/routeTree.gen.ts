@@ -47,6 +47,7 @@ import { Route as AuthenticatedAdminAufgabenRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminStaffIndexRouteImport } from './routes/_authenticated/admin/staff.index'
 import { Route as AuthenticatedAdminBestellungIndexRouteImport } from './routes/_authenticated/admin/bestellung.index'
 import { Route as ApiPublicDisplayLocationIdRouteImport } from './routes/api/public/display.$locationId'
+import { Route as ApiPublicCalendarTokenRouteImport } from './routes/api/public/calendar.$token'
 import { Route as AuthenticatedAdminStaffNewRouteImport } from './routes/_authenticated/admin/staff.new'
 import { Route as AuthenticatedAdminStaffStaffIdRouteImport } from './routes/_authenticated/admin/staff.$staffId'
 import { Route as AuthenticatedAdminBestellungWeinQuizRouteImport } from './routes/_authenticated/admin/bestellung.wein-quiz'
@@ -270,6 +271,11 @@ const ApiPublicDisplayLocationIdRoute =
     path: '/api/public/display/$locationId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCalendarTokenRoute = ApiPublicCalendarTokenRouteImport.update({
+  id: '/api/public/calendar/$token',
+  path: '/api/public/calendar/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedAdminStaffNewRoute =
   AuthenticatedAdminStaffNewRouteImport.update({
     id: '/new',
@@ -362,6 +368,7 @@ export interface FileRoutesByFullPath {
   '/admin/bestellung/wein-quiz': typeof AuthenticatedAdminBestellungWeinQuizRoute
   '/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
   '/admin/staff/new': typeof AuthenticatedAdminStaffNewRoute
+  '/api/public/calendar/$token': typeof ApiPublicCalendarTokenRoute
   '/api/public/display/$locationId': typeof ApiPublicDisplayLocationIdRoute
   '/admin/bestellung/': typeof AuthenticatedAdminBestellungIndexRoute
   '/admin/staff/': typeof AuthenticatedAdminStaffIndexRoute
@@ -406,6 +413,7 @@ export interface FileRoutesByTo {
   '/admin/bestellung/wein-quiz': typeof AuthenticatedAdminBestellungWeinQuizRoute
   '/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
   '/admin/staff/new': typeof AuthenticatedAdminStaffNewRoute
+  '/api/public/calendar/$token': typeof ApiPublicCalendarTokenRoute
   '/api/public/display/$locationId': typeof ApiPublicDisplayLocationIdRoute
   '/admin/bestellung': typeof AuthenticatedAdminBestellungIndexRoute
   '/admin/staff': typeof AuthenticatedAdminStaffIndexRoute
@@ -455,6 +463,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/bestellung/wein-quiz': typeof AuthenticatedAdminBestellungWeinQuizRoute
   '/_authenticated/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
   '/_authenticated/admin/staff/new': typeof AuthenticatedAdminStaffNewRoute
+  '/api/public/calendar/$token': typeof ApiPublicCalendarTokenRoute
   '/api/public/display/$locationId': typeof ApiPublicDisplayLocationIdRoute
   '/_authenticated/admin/bestellung/': typeof AuthenticatedAdminBestellungIndexRoute
   '/_authenticated/admin/staff/': typeof AuthenticatedAdminStaffIndexRoute
@@ -504,6 +513,7 @@ export interface FileRouteTypes {
     | '/admin/bestellung/wein-quiz'
     | '/admin/staff/$staffId'
     | '/admin/staff/new'
+    | '/api/public/calendar/$token'
     | '/api/public/display/$locationId'
     | '/admin/bestellung/'
     | '/admin/staff/'
@@ -548,6 +558,7 @@ export interface FileRouteTypes {
     | '/admin/bestellung/wein-quiz'
     | '/admin/staff/$staffId'
     | '/admin/staff/new'
+    | '/api/public/calendar/$token'
     | '/api/public/display/$locationId'
     | '/admin/bestellung'
     | '/admin/staff'
@@ -596,6 +607,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/bestellung/wein-quiz'
     | '/_authenticated/admin/staff/$staffId'
     | '/_authenticated/admin/staff/new'
+    | '/api/public/calendar/$token'
     | '/api/public/display/$locationId'
     | '/_authenticated/admin/bestellung/'
     | '/_authenticated/admin/staff/'
@@ -606,6 +618,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   DisplayLocationIdRoute: typeof DisplayLocationIdRoute
+  ApiPublicCalendarTokenRoute: typeof ApiPublicCalendarTokenRoute
   ApiPublicDisplayLocationIdRoute: typeof ApiPublicDisplayLocationIdRoute
 }
 
@@ -877,6 +890,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicDisplayLocationIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/calendar/$token': {
+      id: '/api/public/calendar/$token'
+      path: '/api/public/calendar/$token'
+      fullPath: '/api/public/calendar/$token'
+      preLoaderRoute: typeof ApiPublicCalendarTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/admin/staff/new': {
       id: '/_authenticated/admin/staff/new'
       path: '/new'
@@ -1080,6 +1100,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   DisplayLocationIdRoute: DisplayLocationIdRoute,
+  ApiPublicCalendarTokenRoute: ApiPublicCalendarTokenRoute,
   ApiPublicDisplayLocationIdRoute: ApiPublicDisplayLocationIdRoute,
 }
 export const routeTree = rootRouteImport
