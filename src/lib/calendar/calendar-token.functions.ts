@@ -4,15 +4,15 @@
 // user_links abgeleitet, nie vom Client.
 
 import { createServerFn } from "@tanstack/react-start";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { generateBadgeToken } from "@/lib/admin/token-generator";
 
 type CallerLink = { staffId: string; organizationId: string };
 
 async function loadCallerLink(
-  supabase: Parameters<typeof requireSupabaseAuth>[0] extends never
-    ? never
-    : Awaited<ReturnType<typeof requireSupabaseAuthContext>>["supabase"],
+  supabase: SupabaseClient<Database>,
   userId: string,
 ): Promise<CallerLink> {
   const { data, error } = await supabase
@@ -23,13 +23,6 @@ async function loadCallerLink(
   if (error || !data) throw new Error("Kein Mitarbeiterprofil.");
   return { staffId: data.staff_id, organizationId: data.organization_id };
 }
-
-// Nur zur Typ-Extraktion des context.supabase — wird nie aufgerufen.
-declare function requireSupabaseAuthContext(): {
-  supabase: import("@supabase/supabase-js").SupabaseClient<
-    import("@/integrations/supabase/types").Database
-  >;
-};
 
 export const getOrCreateMyCalendarToken = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
