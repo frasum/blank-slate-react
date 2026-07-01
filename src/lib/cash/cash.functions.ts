@@ -1036,6 +1036,10 @@ export async function ensureDailySessions(): Promise<{
   return { businessDate, results };
 }
 
+// Kellner-Auto-Open: beim ersten Aufruf von /zeit/abrechnung wird die
+// Session für den Standort des Kellners automatisch angelegt, damit der
+// Manager keinen manuellen Schritt mehr braucht. Der Manager-Button in
+// /admin/kasse bleibt als Fallback bestehen.
 export const ensureMyOpenSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
