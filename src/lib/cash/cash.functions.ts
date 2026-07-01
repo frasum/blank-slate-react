@@ -35,7 +35,7 @@ import { assertCashWritable, CashLockedError } from "./cash-lock";
 import type { Json } from "@/integrations/supabase/types";
 import { ForbiddenError } from "@/lib/admin/role-guard";
 import { sessionToDayInput } from "./session-day-input";
-import { pickSingleLocation } from "@/lib/time/resolve-location";
+import { resolveSessionLocation } from "./session-location";
 
 // ------------------------------------------------------------------------
 // Fehlerklassen
@@ -1008,19 +1008,54 @@ export const ensureMyOpenSession = createServerFn({ method: "POST" })
     if (!caller.isActive) throw new ForbiddenError();
     const businessDate = await getCurrentBusinessDate();
 
-    // Standort des Kellners bestimmen. Bei genau einem eindeutigen Standort
-    // wird dieser verwendet; ansonsten Fehler mit klarer Meldung.
+    // Rolle bestimmen (Manager/Admin dürfen ohne Dienstplan-Einteilung öffnen).
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: roleRow } = await supabaseAdmin
+      .from("role_assignments")
+      .select("role")
+      .eq("staff_id", caller.staffId)
+      .eq("organization_id", caller.organizationId)
+      .maybeSingle();
+    const role = roleRow?.role ?? null;
+    const isPrivileged = role === "admin" || role === "manager";
+
+    // Standort-Zuordnungen laden.
     const { data: rows, error: locErr } = await supabaseAdmin
       .from("staff_locations")
       .select("location_id")
       .eq("organization_id", caller.organizationId)
       .eq("staff_id", caller.staffId);
     if (locErr) throw locErr;
-    const locationId = pickSingleLocation(rows ?? []);
-    if (!locationId) {
+    const assignedLocationIds = [...new Set((rows ?? []).map((r) => r.location_id))];
+
+    // Für staff zusätzlich die heutigen Service-Schichten laden.
+    let serviceShiftLocationIds: string[] = [];
+    if (!isPrivileged) {
+      const { data: shifts, error: shiftErr } = await supabaseAdmin
+        .from("roster_shifts")
+        .select("location_id")
+        .eq("organization_id", caller.organizationId)
+        .eq("staff_id", caller.staffId)
+        .eq("shift_date", businessDate)
+        .eq("area", "service");
+      if (shiftErr) throw shiftErr;
+      serviceShiftLocationIds = [...new Set((shifts ?? []).map((s) => s.location_id))];
+    }
+
+    const resolved = resolveSessionLocation({
+      isPrivileged,
+      assignedLocationIds,
+      serviceShiftLocationIds,
+    });
+    if (!resolved.ok) {
+      if (resolved.reason === "not_scheduled") {
+        throw new ForbiddenError(
+          "Du bist heute nicht als Service im Dienstplan eingeteilt — bitte den Manager, die Session zu eröffnen.",
+        );
+      }
       throw new Error("Standort mehrdeutig — bitte den Manager bitten, die Session zu eröffnen.");
     }
+    const locationId = resolved.locationId;
 
     const outcome = await ensureOpenSessionRaw({
       organizationId: caller.organizationId,
@@ -1041,6 +1076,7 @@ export const ensureMyOpenSession = createServerFn({ method: "POST" })
             locationId,
             poolSnapshotCount: outcome.snapshotCount,
             source: "auto_waiter_settlement",
+            scheduledCheck: isPrivileged ? "privileged" : "service_shift",
           }
         : { businessDate, locationId, source: "auto_waiter_settlement" },
     });
