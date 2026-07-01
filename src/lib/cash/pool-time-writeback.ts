@@ -24,6 +24,7 @@
 //     verworfen.
 
 import { berlinOffsetMinutes, offsetString } from "@/lib/time/shift-hours";
+import { kitchenShiftMinutes } from "./kitchen-shift-hours";
 
 export type PoolWritebackEntry = {
   id: string;
@@ -131,4 +132,136 @@ export function dropPoolWhenRealEntryExists<T extends { businessDate: string; so
   const realDays = new Set<string>();
   for (const r of rows) if (r.source !== "pool") realDays.add(r.businessDate);
   return rows.filter((r) => !(r.source === "pool" && realDays.has(r.businessDate)));
+}
+
+// ------------------------------------------------------------------------
+// Laufender Sync (manuelle Pool-Korrekturen)
+// ------------------------------------------------------------------------
+//
+// Anders als der B-2-Erzeuger oben (der beim Abgabe-Writeback nur neue
+// Einträge einfügt), entscheidet dieser reine Helfer PRO Pool-Eintrag,
+// ob der zugehörige `time_entries(source='pool')`-Datensatz aktualisiert
+// (upsert) oder entfernt (delete) werden muss. Er ist die Grundlage für
+// den laufenden Sync bei manuellen Zeit-Korrekturen und für den
+// aktualisierenden Abgabe-Writeback.
+
+const HHMM_ANY = /^([01]?\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/;
+function normalize(value: string): string | null {
+  const m = HHMM_ANY.exec(value.trim());
+  if (!m) return null;
+  return `${m[1].padStart(2, "0")}:${m[2]}`;
+}
+
+export type ResolvePoolSyncInput = {
+  shiftStart: string | null;
+  shiftEnd: string | null;
+  department: "kitchen" | "service" | "gl";
+  hasRealEntry: boolean;
+};
+
+export type ResolvePoolSyncResult =
+  | { action: "delete" }
+  | {
+      action: "upsert";
+      startTime: string;
+      endTime: string;
+      crossesMidnight: boolean;
+      minutes: number;
+    };
+
+export function resolvePoolTimeEntrySync(input: ResolvePoolSyncInput): ResolvePoolSyncResult {
+  // Regel 1: echter Stempel gewinnt — Pool-Eintrag entfernen.
+  if (input.hasRealEntry) return { action: "delete" };
+  // Regel 2: unvollständige Zeit → nichts synchronisieren, ggf. entfernen.
+  if (!input.shiftStart || !input.shiftEnd) return { action: "delete" };
+  const start = normalize(input.shiftStart);
+  const end = normalize(input.shiftEnd);
+  if (!start || !end) return { action: "delete" };
+  if (start === end) return { action: "delete" };
+  return {
+    action: "upsert",
+    startTime: start,
+    endTime: end,
+    crossesMidnight: end < start,
+    minutes: kitchenShiftMinutes(start, end),
+  };
+}
+
+// I/O-Helfer: einen einzelnen Pool-Eintrag mit `time_entries`
+// synchronisieren. Nur `source='pool'`-Einträge werden geschrieben oder
+// gelöscht — echte Stempel (clock/manual/import) bleiben unberührt.
+// Best-effort: Fehler werden nach oben propagiert, der Aufrufer
+// entscheidet, ob er sie schluckt.
+export type SyncPoolTimeEntryInput = {
+  organizationId: string;
+  locationId: string | null;
+  businessDate: string;
+  entryId: string;
+  staffId: string;
+  department: "kitchen" | "service" | "gl";
+  shiftStart: string | null;
+  shiftEnd: string | null;
+};
+
+export type SyncPoolTimeEntryOutcome =
+  | { action: "delete"; changed: boolean }
+  | { action: "upsert"; changed: boolean };
+
+export async function syncPoolTimeEntry(
+  input: SyncPoolTimeEntryInput,
+): Promise<SyncPoolTimeEntryOutcome> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const importKey = `pool:${input.entryId}`;
+
+  const { data: realRows, error: realErr } = await supabaseAdmin
+    .from("time_entries")
+    .select("id")
+    .eq("organization_id", input.organizationId)
+    .eq("staff_id", input.staffId)
+    .eq("business_date", input.businessDate)
+    .in("source", ["clock", "manual", "import"])
+    .limit(1);
+  if (realErr) throw realErr;
+  const hasRealEntry = (realRows ?? []).length > 0;
+
+  const decision = resolvePoolTimeEntrySync({
+    shiftStart: input.shiftStart,
+    shiftEnd: input.shiftEnd,
+    department: input.department,
+    hasRealEntry,
+  });
+
+  if (decision.action === "delete") {
+    const { error, count } = await supabaseAdmin
+      .from("time_entries")
+      .delete({ count: "exact" })
+      .eq("organization_id", input.organizationId)
+      .eq("import_key", importKey)
+      .eq("source", "pool");
+    if (error) throw error;
+    return { action: "delete", changed: (count ?? 0) > 0 };
+  }
+
+  const startedAt = poolLocalTimeToIso(input.businessDate, decision.startTime, 0);
+  const endedAt = poolLocalTimeToIso(
+    input.businessDate,
+    decision.endTime,
+    decision.crossesMidnight ? 1 : 0,
+  );
+  const { error, count } = await supabaseAdmin.from("time_entries").upsert(
+    {
+      organization_id: input.organizationId,
+      staff_id: input.staffId,
+      business_date: input.businessDate,
+      started_at: startedAt,
+      ended_at: endedAt,
+      break_minutes: 0,
+      location_id: input.locationId,
+      source: "pool",
+      import_key: importKey,
+    },
+    { onConflict: "organization_id,import_key", count: "exact" },
+  );
+  if (error) throw error;
+  return { action: "upsert", changed: (count ?? 0) > 0 };
 }
