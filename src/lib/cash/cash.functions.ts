@@ -20,6 +20,7 @@ import { arbzgMinimumBreak, grossMinutesBetween } from "@/lib/time/break-rules";
 import {
   buildPoolTimeEntryRows,
   poolLocalTimeToIso,
+  syncPoolTimeEntry,
   type PoolWritebackEntry,
 } from "./pool-time-writeback";
 import { assertBusinessDateUnlocked, TimeLockedError } from "@/lib/time/time-lock";
