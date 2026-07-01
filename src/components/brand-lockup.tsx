@@ -12,10 +12,29 @@ const ALT = "COCO – Central Operations Cockpit";
 export function BrandLockup({ size = "lg" }: { size?: Size }) {
   const sizeClass =
     size === "sm" ? "h-8 w-auto md:h-9" : "mx-auto w-full max-w-xs h-auto md:max-w-sm";
+  // Intrinsische Größe des Original-PNG — verhindert Layout-Shift.
+  const width = size === "sm" ? 144 : 384;
+  const height = size === "sm" ? 36 : 96;
   return (
     <div className={size === "lg" ? "text-center" : "flex items-center"}>
-      <img src={logoLight.url} alt={ALT} className={`${sizeClass} block dark:hidden`} />
-      <img src={logoDark.url} alt={ALT} className={`${sizeClass} hidden dark:block`} />
+      <img
+        src={logoLight.url}
+        alt={ALT}
+        width={width}
+        height={height}
+        fetchPriority="high"
+        decoding="async"
+        className={`${sizeClass} block dark:hidden`}
+      />
+      <img
+        src={logoDark.url}
+        alt={ALT}
+        width={width}
+        height={height}
+        fetchPriority="high"
+        decoding="async"
+        className={`${sizeClass} hidden dark:block`}
+      />
     </div>
   );
 }

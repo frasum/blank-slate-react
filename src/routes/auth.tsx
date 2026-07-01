@@ -14,6 +14,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { validatePin } from "@/lib/auth/auth-flows.functions";
 import { BrandLockup } from "@/components/brand-lockup";
+import cocoLogoLight from "@/assets/coco-logo-light.png.asset.json";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
@@ -23,6 +24,9 @@ export const Route = createFileRoute("/auth")({
   },
   head: () => ({
     meta: [{ title: "Anmelden · COCO" }, { name: "robots", content: "noindex" }],
+    links: [
+      { rel: "preload", as: "image", href: cocoLogoLight.url, fetchpriority: "high" },
+    ],
   }),
   component: AuthPage,
 });
