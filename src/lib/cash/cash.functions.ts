@@ -997,6 +997,45 @@ async function ensureOpenSessionRaw(args: {
   return { id: created.id, status: created.status, created: true, snapshotCount };
 }
 
+// Täglicher Cron-Einstieg: legt für jeden Standort mit geplanten Schichten
+// am aktuellen Geschäftstag eine Session an (idempotent, inkl. Pool-
+// Snapshot über ensureOpenSessionRaw). Wird von /api/public/cron-ensure-
+// sessions aufgerufen; Autorisierung passiert dort per x-cron-secret.
+export async function ensureDailySessions(): Promise<{
+  businessDate: string;
+  results: { organizationId: string; locationId: string; created: boolean }[];
+}> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const businessDate = await getCurrentBusinessDate();
+  const { data: shifts, error } = await supabaseAdmin
+    .from("roster_shifts")
+    .select("organization_id, location_id")
+    .eq("shift_date", businessDate);
+  if (error) throw error;
+  const seen = new Set<string>();
+  const pairs: { organizationId: string; locationId: string }[] = [];
+  for (const row of shifts ?? []) {
+    const key = `${row.organization_id}|${row.location_id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    pairs.push({ organizationId: row.organization_id, locationId: row.location_id });
+  }
+  const results: { organizationId: string; locationId: string; created: boolean }[] = [];
+  for (const p of pairs) {
+    const outcome = await ensureOpenSessionRaw({
+      organizationId: p.organizationId,
+      locationId: p.locationId,
+      businessDate,
+    });
+    results.push({
+      organizationId: p.organizationId,
+      locationId: p.locationId,
+      created: outcome.created,
+    });
+  }
+  return { businessDate, results };
+}
+
 // Kellner-Auto-Open: beim ersten Aufruf von /zeit/abrechnung wird die
 // Session für den Standort des Kellners automatisch angelegt, damit der
 // Manager keinen manuellen Schritt mehr braucht. Der Manager-Button in
