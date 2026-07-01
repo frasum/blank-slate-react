@@ -108,6 +108,11 @@ function AbrechnungPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const myQ = useQuery({
+    queryKey: ["cash", "my-settlement"],
+    queryFn: () => fetchMy(),
+  });
+
   // Kellner-Auto-Open: wenn (noch) keine Session offen ist, wird sie beim
   // ersten Aufruf automatisch angelegt. Manager-Button bleibt als Fallback.
   const autoOpenTriedRef = useRef(false);
@@ -126,11 +131,6 @@ function AbrechnungPage() {
         setAutoOpenError(e instanceof Error ? e.message : "Unbekannter Fehler");
       });
   }, [noSession, callEnsureMySession, qc]);
-
-  const myQ = useQuery({
-    queryKey: ["cash", "my-settlement"],
-    queryFn: () => fetchMy(),
-  });
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [confirmOpen, setConfirmOpen] = useState(false);
