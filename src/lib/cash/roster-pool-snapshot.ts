@@ -74,6 +74,29 @@ export function buildRosterPoolSnapshot(input: {
     const def = input.defaultsByArea[dept];
     const checkin = def?.checkin ?? null;
     const checkout = def?.checkout ?? null;
+    // Service: `default_checkout` ist bewusst variabel (Abgabezeit setzt
+    // shift_end später) — `default_checkin` allein genügt. Küche
+    // braucht weiterhin beide Defaults (feste Schicht).
+    if (dept === "service") {
+      if (!checkin) {
+        out.push({
+          staffId,
+          department: dept,
+          shiftStart: null,
+          shiftEnd: null,
+          hoursMinutes: 0,
+        });
+        continue;
+      }
+      out.push({
+        staffId,
+        department: dept,
+        shiftStart: checkin.slice(0, 5),
+        shiftEnd: null,
+        hoursMinutes: 0,
+      });
+      continue;
+    }
     if (!checkin || !checkout) {
       out.push({
         staffId,
