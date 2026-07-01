@@ -3,7 +3,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
@@ -81,11 +80,33 @@ function Page() {
         },
       }),
     onSuccess: () => {
-      toast.success("Gespeichert.");
       void qc.invalidateQueries({ queryKey: ["admin", "location-department-defaults"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const HHMM = /^([01]?\d|2[0-3]):([0-5]\d)$/;
+  const commit = (loc: string, dept: Dept) => {
+    const k = key(loc, dept);
+    const dv = draft[k] ?? { checkin: "", checkout: "" };
+    const sv = serverMap[k] ?? { checkin: "", checkout: "" };
+    const dirty = dv.checkin !== sv.checkin || dv.checkout !== sv.checkout;
+    if (!dirty) return;
+    if (!HHMM.test(dv.checkin)) {
+      toast.error("Standard-Beginn im Format HH:MM ist Pflicht.");
+      return;
+    }
+    if (dv.checkout && !HHMM.test(dv.checkout)) {
+      toast.error("Standard-Ende hat kein gültiges HH:MM.");
+      return;
+    }
+    upsertMut.mutate({
+      locationId: loc,
+      department: dept,
+      checkin: dv.checkin,
+      checkout: dv.checkout,
+    });
+  };
 
   if (locQ.isLoading || defQ.isLoading) {
     return <div className="p-4 text-sm text-muted-foreground">Lädt…</div>;
@@ -132,6 +153,10 @@ function Page() {
                         onChange={(e) =>
                           setDraft({ ...draft, [k]: { ...dv, checkin: e.target.value } })
                         }
+                        onBlur={() => commit(loc.id, d.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                        }}
                       />
                     </TableCell>
                     <TableCell>
@@ -141,24 +166,16 @@ function Page() {
                         onChange={(e) =>
                           setDraft({ ...draft, [k]: { ...dv, checkout: e.target.value } })
                         }
+                        onBlur={() => commit(loc.id, d.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                        }}
                       />
                     </TableCell>
                     <TableCell>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={!dirty || !dv.checkin || upsertMut.isPending}
-                        onClick={() =>
-                          upsertMut.mutate({
-                            locationId: loc.id,
-                            department: d.value,
-                            checkin: dv.checkin,
-                            checkout: dv.checkout,
-                          })
-                        }
-                      >
-                        Speichern
-                      </Button>
+                      <span className="text-xs text-muted-foreground">
+                        {dirty ? "ungespeichert" : upsertMut.isPending ? "speichert…" : "✓"}
+                      </span>
                     </TableCell>
                   </TableRow>
                 );
@@ -166,8 +183,9 @@ function Page() {
             </TableBody>
           </Table>
           <div className="mt-2 text-xs text-muted-foreground">
-            Hinweis: Für GL kann „Beginn" gespeichert werden, ist aber für den Snapshot irrelevant —
-            GL-Zeilen werden ohne Standardzeit angelegt.
+            Speichern erfolgt automatisch beim Verlassen des Feldes (Tab/Enter/Klick daneben). Für
+            GL kann „Beginn" gespeichert werden, ist aber für den Snapshot irrelevant — GL-Zeilen
+            werden ohne Standardzeit angelegt.
           </div>
         </Card>
       ))}
