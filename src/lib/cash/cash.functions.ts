@@ -1751,21 +1751,38 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
           .eq("id", settlementId)
           .eq("organization_id", caller.organizationId);
         if (linkErr) throw linkErr;
-        // Service-Pool-Ende nachziehen, NUR wenn shift_end noch dem
-        // Service-Default des Standorts entspricht (= seit der Eröffnung
-        // unverändert). Geändertes Ende bleibt. Küche/GL: kein Nachzug.
-        // Edge-Case: manuell auf Default gesetzte Werte werden ebenfalls
-        // überschrieben — bewusst vernachlässigt.
-        await syncServicePoolEndFromAutoClockout({
-          organizationId: caller.organizationId,
-          sessionId: session.id,
-          locationId: session.location_id,
-          staffId: caller.staffId,
-          autoClockoutId,
-        });
+        // Service-Pool-Ende aus dem Auto-Clockout-Zeitpunkt ableiten.
+        // Ersetzt die frühere, an `default_checkout` gebundene Nachzugs-
+        // Logik (`syncServicePoolEndFromAutoClockout`): Service hat kein
+        // festes `default_checkout` mehr — das Ende kommt aus der
+        // tatsächlichen Abgabe/Ausstempelzeit.
+        const { data: teRow } = await supabaseAdmin
+          .from("time_entries")
+          .select("ended_at")
+          .eq("id", autoClockoutId)
+          .maybeSingle();
+        if (teRow?.ended_at) {
+          await applyServicePoolEnd({
+            organizationId: caller.organizationId,
+            sessionId: session.id,
+            staffId: caller.staffId,
+            submissionIso: teRow.ended_at as string,
+            businessDate,
+          });
+        }
       }
     } else {
       noOpenTimeEntry = true;
+      // Nicht-Stempler-Zweig: Service-Pool-Ende aus dem
+      // Abgabezeitpunkt setzen, damit der B-2-Writeback unten einen
+      // time_entry (source='pool') erzeugen kann.
+      await applyServicePoolEnd({
+        organizationId: caller.organizationId,
+        sessionId: session.id,
+        staffId: caller.staffId,
+        submissionIso: new Date().toISOString(),
+        businessDate,
+      });
     }
   }
 
