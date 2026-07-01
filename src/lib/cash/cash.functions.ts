@@ -1043,7 +1043,7 @@ export async function ensureDailySessions(): Promise<{
   return { businessDate, results };
 }
 
-const _ensureMyOpenSession_marker = createServerFn({ method: "POST" })
+export const ensureMyOpenSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const caller = await loadStaffCaller(context.supabase, context.userId);
