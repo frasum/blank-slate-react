@@ -997,13 +997,6 @@ async function ensureOpenSessionRaw(args: {
   return { id: created.id, status: created.status, created: true, snapshotCount };
 }
 
-// Kellner-Auto-Open: beim ersten Aufruf von /zeit/abrechnung wird die
-// Session für den Standort des Kellners automatisch angelegt, damit der
-// Manager keinen manuellen Schritt mehr braucht. Der Manager-Button in
-// /admin/kasse bleibt als Fallback bestehen.
-export const ensureMyOpenSession = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-
 // Täglicher Cron-Einstieg: legt für jeden Standort mit geplanten Schichten
 // am aktuellen Geschäftstag eine Session an (idempotent, inkl. Pool-
 // Snapshot über ensureOpenSessionRaw). Wird von /api/public/cron-ensure-
