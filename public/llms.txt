@@ -1,0 +1,9 @@
+# COCO – Central Operations Cockpit
+
+> Interne Gastronomie-Betriebsplattform (Dienstplan, Zeiterfassung, Kasse, Lohn, Bestellwesen). Zugang nur für Mitarbeitende der betreibenden Organisation.
+
+COCO ist keine öffentliche Website. Alle Funktionen liegen hinter einem Login; öffentlich zugängliche Inhalte gibt es nicht.
+
+## Optional
+
+- [Anmelden](/auth): Login-Seite für berechtigte Mitarbeitende.
