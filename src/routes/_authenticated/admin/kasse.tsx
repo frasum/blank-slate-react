@@ -1026,6 +1026,32 @@ function KassePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={reopenConfirm} onOpenChange={setReopenConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Session wieder öffnen?</DialogTitle>
+            <DialogDescription>
+              Setzt den Status von „finalisiert" zurück auf „offen", sodass Kellner-Abrechnungen
+              und Satelliten für diesen Geschäftstag erneut bearbeitet werden können. Nur möglich,
+              solange die Session nicht gesperrt und nicht unter der Wasserlinie liegt.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReopenConfirm(false)}>
+              Abbrechen
+            </Button>
+            <Button
+              disabled={reopenMut.isPending}
+              onClick={() =>
+                reopenMut.mutate(undefined, { onSuccess: () => setReopenConfirm(false) })
+              }
+            >
+              Wieder öffnen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
