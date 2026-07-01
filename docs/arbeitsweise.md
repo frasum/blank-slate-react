@@ -1063,6 +1063,10 @@ Die reine Fn `resolveServicePoolEnd` (`src/lib/cash/service-pool-end.ts`, getest
 
 `/admin/standortzeiten` (admin-only) pflegt `default_checkin`/`default_checkout` je Standort + Abteilung. Für Küche beide setzen (15:00/23:30); für Service reicht `default_checkin` (16:00).
 
+### Zeiten korrigieren (Pool-Ansicht)
+
+Die Pool-Tabelle (`TipPoolCard`, Zeilen-Komponente `PoolRow`) zeigt pro Mitarbeiter **Anfang** und **Ende** und lässt sie direkt korrigieren. Zeit-Felder sind editierbar bei Service-Zeilen (immer) und Küchen-Zeilen im Manuell-Modus (`kitchenManualOnly`); im Küchen-Stempel-Modus sind Anfang/Ende read-only. Die Stunden aktualisieren sich live aus Anfang/Ende (`kitchenShiftMinutes`); gespeichert wird pro Zeile per Button über `upsertSessionTipPoolEntry` (manager+, `assertCashWritable`, Audit). Gesperrte/finalisierte Tage bleiben schreibgeschützt. GL behält seinen eigenen Abschnitt (`GlRow`); die Anteils-/Geldberechnung ist unberührt.
+
 ## 28. Session wieder öffnen + Datumswähler (01.07.2026)
 
 **`reopenSession`** (`cash.functions.ts`, admin-only via `loadAdminCaller(…, "admin")` + `runGuarded(…, "admin")`): öffnet eine **abgeschlossene** Session wieder (`status='open'`, `finalized_at`/`finalized_by` → NULL). Guards: nur `finalized` (offene und `locked` werden abgelehnt); Wasserlinie via `assertCashWritable` (`cashLockedThroughDate`) — ein gesperrter Geschäftstag bleibt gesperrt, auch für Admins. Audit-Action `cash.session.reopened`.
