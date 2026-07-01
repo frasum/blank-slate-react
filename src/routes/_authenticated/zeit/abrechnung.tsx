@@ -7,7 +7,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -26,6 +26,7 @@ import {
   getMySettlement,
   submitWaiterSettlement,
   getOrCreateOpenSession,
+  ensureMyOpenSession,
 } from "@/lib/cash/cash.functions";
 import { listLocations } from "@/lib/admin/locations.functions";
 import { LocationPills } from "@/components/shared/LocationPills";
@@ -88,6 +89,7 @@ function AbrechnungPage() {
   const canOpenSession = identity?.role === "admin" || identity?.role === "manager";
   const fetchLocations = useServerFn(listLocations);
   const callCreateSession = useServerFn(getOrCreateOpenSession);
+  const callEnsureMySession = useServerFn(ensureMyOpenSession);
   const [createLocationId, setCreateLocationId] = useState<string>("");
   const locationsQ = useQuery({
     queryKey: ["admin-locations"],
@@ -105,6 +107,25 @@ function AbrechnungPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  // Kellner-Auto-Open: wenn (noch) keine Session offen ist, wird sie beim
+  // ersten Aufruf automatisch angelegt. Manager-Button bleibt als Fallback.
+  const autoOpenTriedRef = useRef(false);
+  const [autoOpenError, setAutoOpenError] = useState<string | null>(null);
+  const noSession = myQ.data != null && myQ.data.session == null;
+  useEffect(() => {
+    if (!noSession) return;
+    if (autoOpenTriedRef.current) return;
+    autoOpenTriedRef.current = true;
+    setAutoOpenError(null);
+    callEnsureMySession()
+      .then(() => {
+        void qc.invalidateQueries({ queryKey: ["cash"] });
+      })
+      .catch((e: unknown) => {
+        setAutoOpenError(e instanceof Error ? e.message : "Unbekannter Fehler");
+      });
+  }, [noSession, callEnsureMySession, qc]);
 
   const myQ = useQuery({
     queryKey: ["cash", "my-settlement"],
