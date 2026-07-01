@@ -965,9 +965,13 @@ async function ensureOpenSessionRaw(args: {
     .select("id, status")
     .single();
   if (error) {
-    // Race: ein paralleler Aufruf hat die Session gerade angelegt (Unique-
-    // Constraint auf org+location+business_date greift). Re-lesen und
-    // zurückgeben, damit beide Aufrufer dieselbe Session erhalten.
+    // Nur Unique-Violation (23505) auf sessions_org_loc_date_key ist ein
+    // erwarteter Race — Doppelklick oder zwei parallele Aufrufe (Kellner
+    // + Manager) haben gleichzeitig eingefügt. Andere Fehler werden
+    // unverändert propagiert, damit sie nicht stillschweigend als „Race"
+    // fehlinterpretiert werden.
+    const code = (error as { code?: string }).code;
+    if (code !== "23505") throw error;
     const { data: raced } = await supabaseAdmin
       .from("sessions")
       .select("id, status")
