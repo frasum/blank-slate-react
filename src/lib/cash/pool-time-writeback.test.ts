@@ -356,3 +356,125 @@ describe("resolvePoolTimeEntrySync", () => {
     }
   });
 });
+
+// Ende-vor-Anfang-Fälle (Mitternachts-Wrap): das gesamte Zusammenspiel
+// von resolvePoolTimeEntrySync + poolLocalTimeToIso muss started_at auf
+// den Business-Tag und ended_at auf den Folgetag legen — DST-korrekt.
+describe("Pool-Zeit-Wrap: shiftEnd < shiftStart", () => {
+  it("Sommer-Wrap (CEST): 22:00 → 02:00 ergibt korrekte UTC-Timestamps", () => {
+    const r = resolvePoolTimeEntrySync({
+      shiftStart: "22:00",
+      shiftEnd: "02:00",
+      department: "service",
+      hasRealEntry: false,
+    });
+    expect(r).toEqual({
+      action: "upsert",
+      startTime: "22:00",
+      endTime: "02:00",
+      crossesMidnight: true,
+      minutes: 240,
+    });
+    if (r.action !== "upsert") throw new Error("unreachable");
+    const startedAt = poolLocalTimeToIso("2026-07-15", r.startTime, 0);
+    const endedAt = poolLocalTimeToIso("2026-07-15", r.endTime, r.crossesMidnight ? 1 : 0);
+    // 15.07. 22:00 CEST → 20:00 UTC; 16.07. 02:00 CEST → 00:00 UTC
+    expect(startedAt).toBe("2026-07-15T20:00:00.000Z");
+    expect(endedAt).toBe("2026-07-16T00:00:00.000Z");
+    expect(new Date(endedAt).getTime() - new Date(startedAt).getTime()).toBe(r.minutes * 60_000);
+  });
+
+  it("Winter-Wrap (CET): 23:30 → 00:30 legt Ende auf Folgetag", () => {
+    const r = resolvePoolTimeEntrySync({
+      shiftStart: "23:30",
+      shiftEnd: "00:30",
+      department: "kitchen",
+      hasRealEntry: false,
+    });
+    expect(r).toMatchObject({ action: "upsert", crossesMidnight: true, minutes: 60 });
+    if (r.action !== "upsert") throw new Error("unreachable");
+    const startedAt = poolLocalTimeToIso("2026-01-15", r.startTime, 0);
+    const endedAt = poolLocalTimeToIso("2026-01-15", r.endTime, r.crossesMidnight ? 1 : 0);
+    // 15.01. 23:30 CET → 22:30 UTC; 16.01. 00:30 CET → 23:30 UTC (Vortag)
+    expect(startedAt).toBe("2026-01-15T22:30:00.000Z");
+    expect(endedAt).toBe("2026-01-15T23:30:00.000Z");
+    expect(new Date(endedAt).getTime()).toBeGreaterThan(new Date(startedAt).getTime());
+  });
+
+  it("HH:MM:SS-Wrap: 23:00:00 → 05:00:00 normalisiert & wickelt um", () => {
+    const r = resolvePoolTimeEntrySync({
+      shiftStart: "23:00:00",
+      shiftEnd: "05:00:00",
+      department: "kitchen",
+      hasRealEntry: false,
+    });
+    expect(r).toEqual({
+      action: "upsert",
+      startTime: "23:00",
+      endTime: "05:00",
+      crossesMidnight: true,
+      minutes: 360,
+    });
+  });
+
+  it("DST-Wrap Ende März: Business-Tag 28.03. → Ende auf 29.03. (CEST)", () => {
+    const r = resolvePoolTimeEntrySync({
+      shiftStart: "22:00",
+      shiftEnd: "04:00",
+      department: "service",
+      hasRealEntry: false,
+    });
+    if (r.action !== "upsert") throw new Error("unreachable");
+    const startedAt = poolLocalTimeToIso("2026-03-28", r.startTime, 0);
+    const endedAt = poolLocalTimeToIso("2026-03-28", r.endTime, 1);
+    // 28.03. 22:00 CET (+01) → 21:00 UTC; 29.03. 04:00 CEST (+02) → 02:00 UTC
+    expect(startedAt).toBe("2026-03-28T21:00:00.000Z");
+    expect(endedAt).toBe("2026-03-29T02:00:00.000Z");
+  });
+
+  it("DST-Wrap Ende Oktober: Folgetag 26.10. gilt Winterzeit (+01:00)", () => {
+    const r = resolvePoolTimeEntrySync({
+      shiftStart: "22:00",
+      shiftEnd: "04:00",
+      department: "service",
+      hasRealEntry: false,
+    });
+    if (r.action !== "upsert") throw new Error("unreachable");
+    const startedAt = poolLocalTimeToIso("2026-10-25", r.startTime, 0);
+    const endedAt = poolLocalTimeToIso("2026-10-25", r.endTime, 1);
+    // 25.10. 22:00 CEST (+02) → 20:00 UTC; 26.10. 04:00 CET (+01) → 03:00 UTC
+    expect(startedAt).toBe("2026-10-25T20:00:00.000Z");
+    expect(endedAt).toBe("2026-10-26T03:00:00.000Z");
+  });
+
+  it("Monats-/Jahreswechsel: 31.12. 23:00 → 01.01. 01:00", () => {
+    const startedAt = poolLocalTimeToIso("2026-12-31", "23:00", 0);
+    const endedAt = poolLocalTimeToIso("2026-12-31", "01:00", 1);
+    expect(startedAt).toBe("2026-12-31T22:00:00.000Z");
+    expect(endedAt).toBe("2027-01-01T00:00:00.000Z");
+  });
+
+  it("buildPoolTimeEntryRows-Wrap: crossesMidnight + startTime/endTime konsistent", () => {
+    const rows = buildPoolTimeEntryRows(
+      base({
+        businessDate: "2026-07-15",
+        poolEntries: [
+          {
+            id: "wrap",
+            staffId: "sw",
+            department: "service",
+            shiftStart: "22:00",
+            shiftEnd: "02:00",
+          },
+        ],
+      }),
+    );
+    expect(rows).toHaveLength(1);
+    const row = rows[0];
+    expect(row.crossesMidnight).toBe(true);
+    const startedAt = poolLocalTimeToIso(row.businessDate, row.startTime, 0);
+    const endedAt = poolLocalTimeToIso(row.businessDate, row.endTime, row.crossesMidnight ? 1 : 0);
+    expect(new Date(endedAt).getTime()).toBeGreaterThan(new Date(startedAt).getTime());
+    expect((new Date(endedAt).getTime() - new Date(startedAt).getTime()) / 60_000).toBe(240);
+  });
+});
