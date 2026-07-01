@@ -46,6 +46,7 @@ import {
   listRevenueChannels,
   lockSession,
   removeSessionSatellite,
+  reopenSession,
   setCashLock,
   updateSession,
 } from "@/lib/cash/cash.functions";
@@ -117,6 +118,7 @@ function KassePage() {
   const callRemoveSat = useServerFn(removeSessionSatellite);
   const callFinalize = useServerFn(finalizeSession);
   const callLock = useServerFn(lockSession);
+  const callReopen = useServerFn(reopenSession);
   const callCorrect = useServerFn(correctWaiterSettlement);
   const callAdminCreate = useServerFn(adminCreateWaiterSettlement);
   const callCashLock = useServerFn(setCashLock);
@@ -315,6 +317,19 @@ function KassePage() {
     onError: (e: Error) => toast.error(e.message),
   });
   const [lockConfirm, setLockConfirm] = useState(false);
+
+  const reopenMut = useMutation({
+    mutationFn: () => {
+      if (!sessionId) throw new Error("Keine Session");
+      return callReopen({ data: { sessionId } });
+    },
+    onSuccess: () => {
+      toast.success("Session wieder geöffnet.");
+      void invalidate();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const [reopenConfirm, setReopenConfirm] = useState(false);
 
   // -------------------- Wasserlinie (Admin) --------------------
   const [cashLockDate, setCashLockDate] = useState<string>("");
@@ -652,6 +667,15 @@ function KassePage() {
                 onClick={() => setLockConfirm(true)}
               >
                 Session sperren
+              </Button>
+            )}
+            {isAdmin && sessionStatus === "finalized" && !underWaterline && (
+              <Button
+                variant="outline"
+                disabled={reopenMut.isPending}
+                onClick={() => setReopenConfirm(true)}
+              >
+                Session wieder öffnen
               </Button>
             )}
           </Card>
@@ -998,6 +1022,32 @@ function KassePage() {
               onClick={() => lockMut.mutate(undefined, { onSuccess: () => setLockConfirm(false) })}
             >
               Sperren
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={reopenConfirm} onOpenChange={setReopenConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Session wieder öffnen?</DialogTitle>
+            <DialogDescription>
+              Setzt den Status von „finalisiert" zurück auf „offen", sodass Kellner-Abrechnungen
+              und Satelliten für diesen Geschäftstag erneut bearbeitet werden können. Nur möglich,
+              solange die Session nicht gesperrt und nicht unter der Wasserlinie liegt.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReopenConfirm(false)}>
+              Abbrechen
+            </Button>
+            <Button
+              disabled={reopenMut.isPending}
+              onClick={() =>
+                reopenMut.mutate(undefined, { onSuccess: () => setReopenConfirm(false) })
+              }
+            >
+              Wieder öffnen
             </Button>
           </DialogFooter>
         </DialogContent>
