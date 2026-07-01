@@ -228,12 +228,25 @@ function AbrechnungPage() {
 
   // Falls noch keine Session offen: read-only Hinweis.
   if (!session) {
+    // Standard: Auto-Open läuft im Hintergrund — Kellner sieht kurz
+    // „wird vorbereitet". Erst wenn der Auto-Open scheitert, wird der
+    // klassische Hinweis (bzw. für Manager der manuelle Button) angezeigt.
+    if (!autoOpenError) {
+      return (
+        <main className="mx-auto max-w-xl space-y-6 px-4 py-8">
+          <Header showKasseLink={canOpenSession} />
+          <Card className="p-6 text-sm text-muted-foreground">
+            Session für <strong>{businessDate}</strong> wird vorbereitet…
+          </Card>
+        </main>
+      );
+    }
     return (
       <main className="mx-auto max-w-xl space-y-6 px-4 py-8">
         <Header showKasseLink={canOpenSession} />
         <Card className="p-6 text-sm">
-          Für den Geschäftstag <strong>{businessDate}</strong> ist noch keine Session offen. Bitte
-          warte, bis der Manager die Session anlegt, oder frage kurz nach.
+          Für den Geschäftstag <strong>{businessDate}</strong> konnte automatisch keine Session
+          angelegt werden: {autoOpenError}. Bitte den Manager bitten, eine Session zu eröffnen.
         </Card>
         {canOpenSession && (
           <Card className="space-y-3 p-6">
