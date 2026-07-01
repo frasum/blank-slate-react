@@ -419,12 +419,20 @@ export async function getMySettlementCore(caller: StaffCaller) {
   const businessDate = await getCurrentBusinessDate();
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const settings = await loadOrgSettings(caller.organizationId);
-  const { data: session } = await supabaseAdmin
+  // Standort des Kellners auflösen — sonst kollidieren in Orgs mit mehreren
+  // Standorten (z. B. YUM + spicery) zwei offene Sessions und maybeSingle()
+  // gibt still null zurück, was den Auto-Open in eine Endlosschleife schickt.
+  const { resolveMySessionLocation } = await import("./session-location.server");
+  const resolved = await resolveMySessionLocation(supabaseAdmin, caller, businessDate);
+  let sessionQuery = supabaseAdmin
     .from("sessions")
     .select("id, business_date, status, locked_at, location_id, tip_pool_settlement_only")
     .eq("organization_id", caller.organizationId)
-    .eq("business_date", businessDate)
-    .maybeSingle();
+    .eq("business_date", businessDate);
+  if (resolved.ok) {
+    sessionQuery = sessionQuery.eq("location_id", resolved.locationId);
+  }
+  const { data: session } = await sessionQuery.maybeSingle();
   if (!session) {
     return {
       businessDate,
