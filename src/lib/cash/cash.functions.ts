@@ -36,6 +36,7 @@ import type { Json } from "@/integrations/supabase/types";
 import { ForbiddenError } from "@/lib/admin/role-guard";
 import { sessionToDayInput } from "./session-day-input";
 import { pickSingleLocation } from "@/lib/time/resolve-location";
+import { resolveSessionLocation } from "./session-location";
 
 // ------------------------------------------------------------------------
 // Fehlerklassen
