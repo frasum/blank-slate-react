@@ -1022,9 +1022,7 @@ export const ensureMyOpenSession = createServerFn({ method: "POST" })
     if (locErr) throw locErr;
     const locationId = pickSingleLocation(rows ?? []);
     if (!locationId) {
-      throw new Error(
-        "Standort mehrdeutig — bitte den Manager bitten, die Session zu eröffnen.",
-      );
+      throw new Error("Standort mehrdeutig — bitte den Manager bitten, die Session zu eröffnen.");
     }
 
     const outcome = await ensureOpenSessionRaw({
