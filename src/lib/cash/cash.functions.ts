@@ -900,64 +900,159 @@ export async function getOrCreateOpenSessionCore(
   return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
     const businessDate = data.businessDate ?? (await getCurrentBusinessDate());
     await assertLocationInOrg(caller.organizationId, data.locationId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: existing } = await supabaseAdmin
-      .from("sessions")
-      .select("id, status, business_date")
-      .eq("organization_id", caller.organizationId)
-      .eq("location_id", data.locationId)
-      .eq("business_date", businessDate)
-      .maybeSingle();
-    if (existing) {
-      return {
-        result: { id: existing.id, status: existing.status, businessDate, created: false },
-        audit: {
-          action: "cash.session.get_existing",
-          entity: "session",
-          entityId: existing.id,
-          meta: { businessDate, locationId: data.locationId },
-        },
-      };
-    }
-    const { data: created, error } = await supabaseAdmin
-      .from("sessions")
-      .insert({
-        organization_id: caller.organizationId,
-        location_id: data.locationId,
-        business_date: businessDate,
-        status: "open",
-      })
-      .select("id, status")
-      .single();
-    if (error) throw error;
-    // Snapshot bestätigter Plan-Schichten in den Trinkgeld-Pool einfrieren.
-    // Eröffnungs-Hook: nur im Create-Zweig, nie beim "get". Fehler hier
-    // dürfen die Session-Eröffnung NICHT blocken (Komfort-Feature).
-    let snapshotCount = 0;
-    try {
-      snapshotCount = await applyRosterPoolSnapshot({
-        organizationId: caller.organizationId,
-        sessionId: created.id,
-        locationId: data.locationId,
-        businessDate,
-      });
-    } catch (e) {
-      // Bewusst still: Snapshot-Probleme (z. B. keine Defaults gepflegt)
-      // dürfen die Session nicht blockieren. Im audit_log unten landet
-      // snapshotCount=0; eine echte Fehlerspur liefert get-existing.
-      console.error("roster pool snapshot failed:", e);
-    }
+    const outcome = await ensureOpenSessionRaw({
+      organizationId: caller.organizationId,
+      locationId: data.locationId,
+      businessDate,
+    });
     return {
-      result: { id: created.id, status: created.status, businessDate, created: true },
-      audit: {
-        action: "cash.session.created",
-        entity: "session",
-        entityId: created.id,
-        meta: { businessDate, locationId: data.locationId, poolSnapshotCount: snapshotCount },
+      result: {
+        id: outcome.id,
+        status: outcome.status,
+        businessDate,
+        created: outcome.created,
       },
+      audit: outcome.created
+        ? {
+            action: "cash.session.created",
+            entity: "session",
+            entityId: outcome.id,
+            meta: {
+              businessDate,
+              locationId: data.locationId,
+              poolSnapshotCount: outcome.snapshotCount,
+              source: "manager_manual",
+            },
+          }
+        : {
+            action: "cash.session.get_existing",
+            entity: "session",
+            entityId: outcome.id,
+            meta: { businessDate, locationId: data.locationId },
+          },
     };
   });
 }
+
+// Shared low-level "ensure exists" für getOrCreateOpenSession (Manager) und
+// ensureMyOpenSession (Kellner-Auto-Open). Enthält keinerlei Rollen-/Audit-
+// Logik — die Aufrufer setzen ihren jeweiligen Rechte- und Audit-Kontext.
+async function ensureOpenSessionRaw(args: {
+  organizationId: string;
+  locationId: string;
+  businessDate: string;
+}): Promise<{ id: string; status: string; created: boolean; snapshotCount: number }> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: existing } = await supabaseAdmin
+    .from("sessions")
+    .select("id, status")
+    .eq("organization_id", args.organizationId)
+    .eq("location_id", args.locationId)
+    .eq("business_date", args.businessDate)
+    .maybeSingle();
+  if (existing) {
+    return { id: existing.id, status: existing.status, created: false, snapshotCount: 0 };
+  }
+  const { data: created, error } = await supabaseAdmin
+    .from("sessions")
+    .insert({
+      organization_id: args.organizationId,
+      location_id: args.locationId,
+      business_date: args.businessDate,
+      status: "open",
+    })
+    .select("id, status")
+    .single();
+  if (error) {
+    // Race: ein paralleler Aufruf hat die Session gerade angelegt (Unique-
+    // Constraint auf org+location+business_date greift). Re-lesen und
+    // zurückgeben, damit beide Aufrufer dieselbe Session erhalten.
+    const { data: raced } = await supabaseAdmin
+      .from("sessions")
+      .select("id, status")
+      .eq("organization_id", args.organizationId)
+      .eq("location_id", args.locationId)
+      .eq("business_date", args.businessDate)
+      .maybeSingle();
+    if (raced) {
+      return { id: raced.id, status: raced.status, created: false, snapshotCount: 0 };
+    }
+    throw error;
+  }
+  // Roster→Trinkgeld-Pool-Snapshot einfrieren. Fehler hier dürfen die
+  // Session-Eröffnung NICHT blocken (Komfort-Feature).
+  let snapshotCount = 0;
+  try {
+    snapshotCount = await applyRosterPoolSnapshot({
+      organizationId: args.organizationId,
+      sessionId: created.id,
+      locationId: args.locationId,
+      businessDate: args.businessDate,
+    });
+  } catch (e) {
+    console.error("roster pool snapshot failed:", e);
+  }
+  return { id: created.id, status: created.status, created: true, snapshotCount };
+}
+
+// Kellner-Auto-Open: beim ersten Aufruf von /zeit/abrechnung wird die
+// Session für den Standort des Kellners automatisch angelegt, damit der
+// Manager keinen manuellen Schritt mehr braucht. Der Manager-Button in
+// /admin/kasse bleibt als Fallback bestehen.
+export const ensureMyOpenSession = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const caller = await loadStaffCaller(context.supabase, context.userId);
+    if (!caller.isActive) throw new ForbiddenError();
+    const businessDate = await getCurrentBusinessDate();
+
+    // Standort des Kellners bestimmen. Bei genau einem eindeutigen Standort
+    // wird dieser verwendet; ansonsten Fehler mit klarer Meldung.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error: locErr } = await supabaseAdmin
+      .from("staff_locations")
+      .select("location_id")
+      .eq("organization_id", caller.organizationId)
+      .eq("staff_id", caller.staffId);
+    if (locErr) throw locErr;
+    const locationId = pickSingleLocation(rows ?? []);
+    if (!locationId) {
+      throw new Error(
+        "Standort mehrdeutig — bitte den Manager bitten, die Session zu eröffnen.",
+      );
+    }
+
+    const outcome = await ensureOpenSessionRaw({
+      organizationId: caller.organizationId,
+      locationId,
+      businessDate,
+    });
+
+    await writeAuditLog({
+      organizationId: caller.organizationId,
+      actorUserId: caller.userId,
+      actorStaffId: caller.staffId,
+      action: outcome.created ? "cash.session.created" : "cash.session.get_existing",
+      entity: "session",
+      entityId: outcome.id,
+      meta: outcome.created
+        ? {
+            businessDate,
+            locationId,
+            poolSnapshotCount: outcome.snapshotCount,
+            source: "auto_waiter_settlement",
+          }
+        : { businessDate, locationId, source: "auto_waiter_settlement" },
+    });
+
+    return {
+      id: outcome.id,
+      status: outcome.status,
+      businessDate,
+      locationId,
+      created: outcome.created,
+    };
+  });
 
 const updateSessionSchema = z.object({
   sessionId: z.string().uuid(),
