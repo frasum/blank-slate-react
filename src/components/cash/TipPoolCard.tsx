@@ -253,6 +253,8 @@ export function TipPoolCard({
               <TableHead>Mitarbeiter</TableHead>
               <TableHead className="w-20 text-center">Im Pool</TableHead>
               <TableHead>Abt.</TableHead>
+              <TableHead className="w-28">Anfang</TableHead>
+              <TableHead className="w-28">Ende</TableHead>
               <TableHead className="text-right">Stunden</TableHead>
               <TableHead className="text-right">Anteil</TableHead>
             </TableRow>
@@ -260,45 +262,40 @@ export function TipPoolCard({
           <TableBody>
             {rows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground">
+                <TableCell colSpan={7} className="text-center text-muted-foreground">
                   Keine Mitarbeiter erfasst.
                 </TableCell>
               </TableRow>
             )}
             {rows.map((r) => {
               const share = sharesByStaff.get(r.staffId);
-              const hoursDisplay = share
-                ? share.hoursWorked.toFixed(2).replace(".", ",")
-                : (r.hoursMinutes / 60).toFixed(2).replace(".", ",");
+              const timeEditable =
+                r.department === "service" ||
+                (r.department === "kitchen" && Boolean(kitchenManualOnly));
               return (
-                <TableRow key={r.staffId}>
-                  <TableCell>
-                    {r.displayName}
-                    {manualSet.has(r.staffId) && (
-                      <Badge variant="secondary" className="ml-2">
-                        manuell
-                      </Badge>
-                    )}
-                    {r.participatesOverride === null ? null : (
-                      <Badge variant="outline" className="ml-2">
-                        übersteuert
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Switch
-                      checked={r.participates}
-                      disabled={!editable}
-                      onCheckedChange={(v) => void toggleParticipates(r, v)}
-                      aria-label="Im Pool"
-                    />
-                  </TableCell>
-                  <TableCell>{r.department}</TableCell>
-                  <TableCell className="text-right font-mono">{hoursDisplay}</TableCell>
-                  <TableCell className="text-right font-mono">
-                    {share ? fmtCents(share.shareCents) : "—"}
-                  </TableCell>
-                </TableRow>
+                <PoolRow
+                  key={r.staffId}
+                  row={r}
+                  share={share}
+                  manual={manualSet.has(r.staffId)}
+                  editable={editable}
+                  timeEditable={timeEditable}
+                  onToggleParticipates={(v) => void toggleParticipates(r, v)}
+                  onSaveTimes={(shiftStart, shiftEnd) =>
+                    callUpsert({
+                      data: {
+                        sessionId,
+                        staffId: r.staffId,
+                        department: r.department,
+                        shiftStart,
+                        shiftEnd,
+                      },
+                    }).then(() => {
+                      toast.success("Zeit gespeichert.");
+                      invalidatePool();
+                    })
+                  }
+                />
               );
             })}
           </TableBody>
@@ -553,6 +550,142 @@ export function TipPoolCard({
 }
 
 function GlRow({
+  entry,
+  editable,
+  onSave,
+}: {
+  entry: {
+    staffId: string;
+    displayName: string;
+    shiftStart: string | null;
+    shiftEnd: string | null;
+    hoursMinutes: number;
+  };
+  editable: boolean;
+  onSave: (shiftStart: string, shiftEnd: string) => Promise<unknown>;
+}) {
+  return <GlRowInner entry={entry} editable={editable} onSave={onSave} />;
+}
+
+type PoolRowData = {
+  staffId: string;
+  displayName: string;
+  department: "kitchen" | "service";
+  hoursMinutes: number;
+  shiftStart: string | null;
+  shiftEnd: string | null;
+  participates: boolean;
+  participatesOverride: boolean | null;
+};
+
+function PoolRow({
+  row,
+  share,
+  manual,
+  editable,
+  timeEditable,
+  onToggleParticipates,
+  onSaveTimes,
+}: {
+  row: PoolRowData;
+  share: { hoursWorked: number; shareCents: number } | undefined;
+  manual: boolean;
+  editable: boolean;
+  timeEditable: boolean;
+  onToggleParticipates: (v: boolean) => void;
+  onSaveTimes: (shiftStart: string, shiftEnd: string) => Promise<unknown>;
+}) {
+  const [start, setStart] = useState(row.shiftStart ?? "");
+  const [end, setEnd] = useState(row.shiftEnd ?? "");
+  const [saving, setSaving] = useState(false);
+  const dirty = start !== (row.shiftStart ?? "") || end !== (row.shiftEnd ?? "");
+
+  let hoursDisplay: string;
+  if (dirty && start && end) {
+    try {
+      const m = kitchenShiftMinutes(start, end);
+      hoursDisplay = (m / 60).toFixed(2).replace(".", ",");
+    } catch {
+      hoursDisplay = "ungültig";
+    }
+  } else if (share) {
+    hoursDisplay = share.hoursWorked.toFixed(2).replace(".", ",");
+  } else {
+    hoursDisplay = (row.hoursMinutes / 60).toFixed(2).replace(".", ",");
+  }
+
+  return (
+    <TableRow>
+      <TableCell>
+        {row.displayName}
+        {manual && (
+          <Badge variant="secondary" className="ml-2">
+            manuell
+          </Badge>
+        )}
+        {row.participatesOverride === null ? null : (
+          <Badge variant="outline" className="ml-2">
+            übersteuert
+          </Badge>
+        )}
+      </TableCell>
+      <TableCell className="text-center">
+        <Switch
+          checked={row.participates}
+          disabled={!editable}
+          onCheckedChange={onToggleParticipates}
+          aria-label="Im Pool"
+        />
+      </TableCell>
+      <TableCell>{row.department}</TableCell>
+      <TableCell>
+        {timeEditable ? (
+          <Input
+            type="time"
+            value={start}
+            disabled={!editable}
+            onChange={(e) => setStart(e.target.value)}
+          />
+        ) : (
+          <span className="font-mono text-sm">{row.shiftStart ?? "—"}</span>
+        )}
+      </TableCell>
+      <TableCell>
+        {timeEditable ? (
+          <div className="flex items-center gap-2">
+            <Input
+              type="time"
+              value={end}
+              disabled={!editable}
+              onChange={(e) => setEnd(e.target.value)}
+            />
+            {dirty && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!editable || saving || !start || !end}
+                onClick={() => {
+                  setSaving(true);
+                  void Promise.resolve(onSaveTimes(start, end)).finally(() => setSaving(false));
+                }}
+              >
+                {saving ? "…" : "OK"}
+              </Button>
+            )}
+          </div>
+        ) : (
+          <span className="font-mono text-sm">{row.shiftEnd ?? "—"}</span>
+        )}
+      </TableCell>
+      <TableCell className="text-right font-mono">{hoursDisplay}</TableCell>
+      <TableCell className="text-right font-mono">
+        {share ? fmtCents(share.shareCents) : "—"}
+      </TableCell>
+    </TableRow>
+  );
+}
+
+function GlRowInner({
   entry,
   editable,
   onSave,
