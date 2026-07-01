@@ -2,7 +2,7 @@
 
 Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen Baublock konsultiert. Bewusst kurz gehalten — Architektur-Begründungen stehen im gruendungsdokument.md, nicht hier.
 
-Stand: 30.06.2026
+Stand: 01.07.2026
 
 ## 1. Rollenverteilung im Team
 
@@ -329,7 +329,7 @@ Rekonstruiert per Kalibrierung gegen bereits validierte Bestands-Sessions (Refer
 - **Kassen-Saldo + Excel-Export — vorhanden:** `/admin/kasse-saldo` (`bargeld-export.ts`, „Export Excel").
 - **Wirklich offen:**
   - **Provision (wochenbasiert)** — umsatzbasierte Commission-Formel (`commissionPct`/`minRevenue`: Pool/Tag = Σ max(0,(Umsatz − minRevenue × Kellnerzahl) × %)). Kein Modul/Tabelle im Code. (= der separate „Provision"-⏳-Eintrag.)
-  - **D-M2-1 Auto-Ausstempeln bei Abrechnungs-Abgabe** — im Code nicht vorhanden; erst damit stempelt das Team in COCO um.
+  - **D-M2-1 Auto-Ausstempeln bei Abrechnungs-Abgabe** — ✅ umgesetzt (§27): Die Abgabe stempelt Stempler automatisch aus und setzt für Nicht-Stempler das Service-Pool-Ende aus dem Abgabezeitpunkt („Ablauf B"). Damit stempelt das Service-Team in COCO um.
   - **B3c-1 manuelles E2E** des Trinkgeld-/Abrechnungs-Pfads.
   - **D3-Display-Rest:** Bereichs-Rotation, Legende (X/–/U/K/B/♡), Geburtstags-Banner.
 
@@ -1032,3 +1032,39 @@ SUMITR ist als erster (und bislang einziger) `planer` produktiv. Setup per SQL i
 - `roster.absence.manage` — Spicery/Küche, YUM/Küche
 
 Damit plant SUMITR Schichten **und** verwaltet Abwesenheiten für Küchen-Mitarbeiter in Spicery + YUM. Die Bereich-Tabs zeigen ihm nur „Küche" (§26.d); andere Standorte/Bereiche bleiben read-only. **Verifiziert über echten PIN-Login** (nicht „Vorschau als" — §26.b). Soll ein weiterer Bereich/Standort dazukommen, je ein zusätzliches `allow`-Override pro `(Standort, Bereich)` und Permission setzen.
+
+## 27. Trinkgeld-Pool — Arbeitszeit-Herleitung: Küche fest, Service aus Abgabe („Ablauf B") (01.07.2026)
+
+Präzisiert §21 (Plan-Snapshot) und §23 (Pool-Zeiten → `time_entries`). Die Pool-Stunden je Mitarbeiter stammen aus einer von drei Quellen: (a) Ist-Stempelzeiten (`time_entries`), (b) manuelle Einträge, (c) Dienstplan-Snapshot mit **festen Abteilungs-Zeiten** aus `location_department_defaults` (`default_checkin`/`default_checkout` je Standort + Abteilung). „Aus Dienstplan ergänzen" nutzt (c).
+
+### Live-Befund (30.06./01.07.): alle 0,00 Stunden
+
+Ursache: Die Spalte `default_checkout` wurde erst am 30.06. neu angelegt und war für die Standorte leer (NULL). Der Snapshot verlangte pro Abteilung **beide** Zeiten — fehlte checkout, wurden `shift_start` **und** `shift_end` auf NULL gesetzt, und der B-2-Writeback (§23, `buildPoolTimeEntryRows`, Regel 1 „beides nötig") übersprang die Zeile. Ergebnis: 0,00, „manuell".
+
+### Küche — feste Zeiten
+
+Die Küche läuft über feste Defaults: `default_checkin` 15:00 (geseedet), `default_checkout` **23:30** ist unter `/admin/standortzeiten` (admin) je Standort einzutragen. Der Modus „Küchentrinkgeld manuell verteilen" (`kitchenManualOnly`, §21) ignoriert die Küchen-**Stempel** — die Zeiten kommen dann synthetisch aus den Defaults, nicht aus der Stempeluhr.
+
+### Service — variables Ende aus der Abrechnungsabgabe („Ablauf B")
+
+Kellner stempeln **nicht** ein. Der Snapshot setzt für `department='service'` nur noch `shift_start` = `default_checkin` (16:00); `shift_end` bleibt **offen** (checkout wird für Service NICHT benötigt). Küche/GL unverändert (Küche braucht beide, GL manuell/0).
+
+Bei der Abrechnungsabgabe (`submitWaiterSettlement`) setzt `applyServicePoolEnd` das `shift_end` des abgebenden Service-Kellners aus dem **Abgabezeitpunkt**:
+
+- **Stempler** (offener Eintrag vorhanden): Ende = tatsächliche Ausstempelzeit (`performClockOut`).
+- **Nicht-Stempler**: Ende = Zeitpunkt der Abgabe.
+- Nur wenn `shift_end` noch NULL ist (manuell gesetzte Enden bleiben).
+
+Die reine Fn `resolveServicePoolEnd` (`src/lib/cash/service-pool-end.ts`, getestet) rechnet Berlin-lokal mit 3-Uhr-Geschäftstag-Cutoff: Ende ≥ Start → `dayOffset 0`; Ende < Start und < 03:00 → `dayOffset 1` (Wrap über Mitternacht); Ende < Start und ≥ 03:00 → `null` (Abgabe vor Schichtbeginn, kein Eintrag). Danach greift der bestehende B-2-Writeback (§23) und erzeugt den `time_entry (source='pool')` mit 16:00–Abgabe.
+
+**Ehrlichkeitsregel:** `resolveServicePoolEnd`/`applyServicePoolEnd` **ersetzen** die frühere `syncServicePoolEndFromAutoClockout`, die an ein festes `default_checkout` gebunden war. Für Service gibt es kein festes Ende mehr.
+
+### Verwaltung
+
+`/admin/standortzeiten` (admin-only) pflegt `default_checkin`/`default_checkout` je Standort + Abteilung. Für Küche beide setzen (15:00/23:30); für Service reicht `default_checkin` (16:00).
+
+## 28. Session wieder öffnen + Datumswähler (01.07.2026)
+
+**`reopenSession`** (`cash.functions.ts`, admin-only via `loadAdminCaller(…, "admin")` + `runGuarded(…, "admin")`): öffnet eine **abgeschlossene** Session wieder (`status='open'`, `finalized_at`/`finalized_by` → NULL). Guards: nur `finalized` (offene und `locked` werden abgelehnt); Wasserlinie via `assertCashWritable` (`cashLockedThroughDate`) — ein gesperrter Geschäftstag bleibt gesperrt, auch für Admins. Audit-Action `cash.session.reopened`.
+
+**Datumswähler** in `kasse.tsx`: vergangene Geschäftstage ansehen (Grundlage für Korrekturen via `reopenSession`).
