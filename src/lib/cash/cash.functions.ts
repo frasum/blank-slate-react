@@ -35,7 +35,8 @@ import { assertCashWritable, CashLockedError } from "./cash-lock";
 import type { Json } from "@/integrations/supabase/types";
 import { ForbiddenError } from "@/lib/admin/role-guard";
 import { sessionToDayInput } from "./session-day-input";
-import { resolveSessionLocation } from "./session-location";
+// resolveSessionLocation wird über den Server-Helper aufgerufen, damit
+// Kachel-Sichtbarkeit und tatsächliche Eröffnungs-Regel identisch bleiben.
 
 // ------------------------------------------------------------------------
 // Fehlerklassen
@@ -1007,46 +1008,9 @@ export const ensureMyOpenSession = createServerFn({ method: "POST" })
     const caller = await loadStaffCaller(context.supabase, context.userId);
     if (!caller.isActive) throw new ForbiddenError();
     const businessDate = await getCurrentBusinessDate();
-
-    // Rolle bestimmen (Manager/Admin dürfen ohne Dienstplan-Einteilung öffnen).
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: roleRow } = await supabaseAdmin
-      .from("role_assignments")
-      .select("role")
-      .eq("staff_id", caller.staffId)
-      .eq("organization_id", caller.organizationId)
-      .maybeSingle();
-    const role = roleRow?.role ?? null;
-    const isPrivileged = role === "admin" || role === "manager";
-
-    // Standort-Zuordnungen laden.
-    const { data: rows, error: locErr } = await supabaseAdmin
-      .from("staff_locations")
-      .select("location_id")
-      .eq("organization_id", caller.organizationId)
-      .eq("staff_id", caller.staffId);
-    if (locErr) throw locErr;
-    const assignedLocationIds = [...new Set((rows ?? []).map((r) => r.location_id))];
-
-    // Für staff zusätzlich die heutigen Service-Schichten laden.
-    let serviceShiftLocationIds: string[] = [];
-    if (!isPrivileged) {
-      const { data: shifts, error: shiftErr } = await supabaseAdmin
-        .from("roster_shifts")
-        .select("location_id")
-        .eq("organization_id", caller.organizationId)
-        .eq("staff_id", caller.staffId)
-        .eq("shift_date", businessDate)
-        .eq("area", "service");
-      if (shiftErr) throw shiftErr;
-      serviceShiftLocationIds = [...new Set((shifts ?? []).map((s) => s.location_id))];
-    }
-
-    const resolved = resolveSessionLocation({
-      isPrivileged,
-      assignedLocationIds,
-      serviceShiftLocationIds,
-    });
+    const { resolveMySessionLocation } = await import("./session-location.server");
+    const resolved = await resolveMySessionLocation(supabaseAdmin, caller, businessDate);
     if (!resolved.ok) {
       if (resolved.reason === "not_scheduled") {
         throw new ForbiddenError(
@@ -1062,6 +1026,19 @@ export const ensureMyOpenSession = createServerFn({ method: "POST" })
       locationId,
       businessDate,
     });
+
+    // Rolle nochmal ableiten, ausschließlich fürs Audit-Meta beim Anlegen.
+    let isPrivileged = false;
+    if (outcome.created) {
+      const { data: roleRow } = await supabaseAdmin
+        .from("role_assignments")
+        .select("role")
+        .eq("staff_id", caller.staffId)
+        .eq("organization_id", caller.organizationId)
+        .maybeSingle();
+      const role = roleRow?.role ?? null;
+      isPrivileged = role === "admin" || role === "manager";
+    }
 
     await writeAuditLog({
       organizationId: caller.organizationId,
