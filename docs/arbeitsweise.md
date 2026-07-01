@@ -1067,6 +1067,14 @@ Die reine Fn `resolveServicePoolEnd` (`src/lib/cash/service-pool-end.ts`, getest
 
 Die Pool-Tabelle (`TipPoolCard`, Zeilen-Komponente `PoolRow`) zeigt pro Mitarbeiter **Anfang** und **Ende** und lässt sie direkt korrigieren. Zeit-Felder sind editierbar bei Service-Zeilen (immer) und Küchen-Zeilen im Manuell-Modus (`kitchenManualOnly`); im Küchen-Stempel-Modus sind Anfang/Ende read-only. Die Stunden aktualisieren sich live aus Anfang/Ende (`kitchenShiftMinutes`); gespeichert wird pro Zeile per Button über `upsertSessionTipPoolEntry` (manager+, `assertCashWritable`, Audit). Gesperrte/finalisierte Tage bleiben schreibgeschützt. GL behält seinen eigenen Abschnitt (`GlRow`); die Anteils-/Geldberechnung ist unberührt.
 
+### Übertrag in die Zeiterfassung (laufender Sync)
+
+Jede Änderung einer Pool-Zeit hält den zugehörigen `time_entries`-Eintrag (`source='pool'`, `import_key = pool:<entryId>`) synchron — Grundlage für die spätere Lohnauswertung. `syncPoolTimeEntry` läuft an **beiden** Stellen: beim manuellen Speichern (`upsertSessionTipPoolEntryCore`) und bei der Abrechnungsabgabe (`submitWaiterSettlement` — ersetzt den früheren nur-erzeugenden Writeback aus §23).
+
+Die reine Fn `resolvePoolTimeEntrySync` entscheidet: echter Stempel (`clock`/`manual`/`import`) am Tag → **delete** (Stempel gewinnt, keine Doppelzählung); Zeit unvollständig oder zurückgenommen → **delete**; sonst **upsert** — **aktualisierend** (kein `ignoreDuplicates`), mit `crossesMidnight` für Schichten über Mitternacht. Das Löschen ist dreifach gescoped (`organization_id` + `import_key` + `source='pool'`); echte Stempel werden nie angetastet. Best-effort: ein Sync-Fehler kippt weder Abgabe noch Korrektur (nur Log). Getestet inkl. Mitternachts-Wrap und DST-Wechsel (26.10.).
+
+**Praxis:** Für bereits abgerechnete Tage ohne übertragene Zeiten (z. B. YUM vor dem Ablauf-B-Stand) die Zeiten einmal neu speichern — das löst den Sync aus.
+
 ## 28. Session wieder öffnen + Datumswähler (01.07.2026)
 
 **`reopenSession`** (`cash.functions.ts`, admin-only via `loadAdminCaller(…, "admin")` + `runGuarded(…, "admin")`): öffnet eine **abgeschlossene** Session wieder (`status='open'`, `finalized_at`/`finalized_by` → NULL). Guards: nur `finalized` (offene und `locked` werden abgelehnt); Wasserlinie via `assertCashWritable` (`cashLockedThroughDate`) — ein gesperrter Geschäftstag bleibt gesperrt, auch für Admins. Audit-Action `cash.session.reopened`.
