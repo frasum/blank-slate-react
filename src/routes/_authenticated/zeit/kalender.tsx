@@ -154,12 +154,13 @@ function KalenderPage() {
             </AccordionContent>
           </AccordionItem>
           <AccordionItem value="android">
-            <AccordionTrigger className="px-3">Anleitung Android / Google Kalender</AccordionTrigger>
+            <AccordionTrigger className="px-3">
+              Anleitung Android / Google Kalender
+            </AccordionTrigger>
             <AccordionContent className="px-3 text-sm text-muted-foreground">
-              Link kopieren → am Computer{" "}
-              <span className="font-mono">calendar.google.com</span> öffnen → links bei „Weitere
-              Kalender" auf „+" → „Per URL" → Link einfügen → „Kalender hinzufügen". Erscheint
-              danach automatisch auf dem Android-Handy.
+              Link kopieren → am Computer <span className="font-mono">calendar.google.com</span>{" "}
+              öffnen → links bei „Weitere Kalender" auf „+" → „Per URL" → Link einfügen → „Kalender
+              hinzufügen". Erscheint danach automatisch auf dem Android-Handy.
             </AccordionContent>
           </AccordionItem>
         </Accordion>

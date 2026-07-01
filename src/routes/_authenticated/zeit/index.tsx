@@ -1,14 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card } from "@/components/ui/card";
-import {
-  Clock,
-  CalendarDays,
-  Receipt,
-  Heart,
-  Plane,
-  ListChecks,
-  CalendarPlus,
-} from "lucide-react";
+import { Clock, CalendarDays, Receipt, Heart, Plane, ListChecks, CalendarPlus } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/zeit/")({
   head: () => ({
