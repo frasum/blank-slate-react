@@ -3,6 +3,7 @@ import {
   buildPoolTimeEntryRows,
   dropPoolWhenRealEntryExists,
   poolLocalTimeToIso,
+  resolvePoolTimeEntrySync,
   type PoolWritebackInput,
 } from "./pool-time-writeback";
 
