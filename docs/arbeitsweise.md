@@ -1080,3 +1080,27 @@ Die reine Fn `resolvePoolTimeEntrySync` entscheidet: echter Stempel (`clock`/`ma
 **`reopenSession`** (`cash.functions.ts`, admin-only via `loadAdminCaller(…, "admin")` + `runGuarded(…, "admin")`): öffnet eine **abgeschlossene** Session wieder (`status='open'`, `finalized_at`/`finalized_by` → NULL). Guards: nur `finalized` (offene und `locked` werden abgelehnt); Wasserlinie via `assertCashWritable` (`cashLockedThroughDate`) — ein gesperrter Geschäftstag bleibt gesperrt, auch für Admins. Audit-Action `cash.session.reopened`.
 
 **Datumswähler** in `kasse.tsx`: vergangene Geschäftstage ansehen (Grundlage für Korrekturen via `reopenSession`).
+
+## 29. Kalender-Abo für Dienstplan-Schichten (Schritt 1: Backend, 01.07.2026)
+
+Mitarbeiter können ihre eingeteilten Schichten (`roster_shifts`) als iCalendar-Feed im Handy-Kalender abonnieren — iPhone **und** Android/Google (`.ics` ist ein universeller Standard). Persönliche, widerrufbare Abo-URL; der Kalender pollt periodisch und aktualisiert die Schichten selbst.
+
+### Token
+
+Über das bestehende `access_tokens`-System: neuer `token_type`-Enum-Wert `calendar_feed` (`ALTER TYPE … ADD VALUE IF NOT EXISTS`). Ein Abo-Token = Zeile mit `staff_id`, `expires_at=NULL` (dauerhaft), `used_at=NULL` (aktiv; Widerruf setzt `used_at`). Erzeugt per `generateBadgeToken` (32 Byte CSPRNG, base64url).
+
+### Öffentliche Feed-Route
+
+`src/routes/api/public/calendar.$token.ts` → `/api/public/calendar/<token>[.ics]` (der `/api/public/*`-Präfix bypasst die Publishing-Auth; Muster: Display-Route). Sicherheit: timing-sichere Token-Prüfung (`safeCompare` + `used_at IS NULL` + `expires_at`), generisches `404` bei jedem Fehler, Datenzugriff **doppelt gescoped** (`organization_id` + `staff_id` → nur die eigenen Schichten, kein Fremd-Leck), Token nie geloggt. Antwort `Content-Type: text/calendar`. Fenster: `heute-30 … heute+120`.
+
+### Zeit-Modell
+
+`roster_shifts` haben keine Uhrzeiten — die Zeiten kommen aus `location_department_defaults` je `(location, area)`: `default_checkin` **und** `default_checkout` gesetzt → zeitliches Event (`checkout < checkin` → Ende Folgetag, Mitternachts-Wrap); sonst Ganztags-Event. Für Service ist `default_checkout` eine reine **Kalender-Anzeige** (die echte Arbeitszeit bleibt via Ablauf B unberührt, §27). Lokale Zeit → UTC via `poolLocalTimeToIso` (DST-korrekt). Titel = Bereich-Label + ggf. `· <Skill>`, Ort = Standortname.
+
+### Reine Fn + Self-Service
+
+`buildRosterIcs` (`src/lib/calendar/roster-ics.ts`, getestet): RFC-5545-Escaping, stabile `UID` (`roster-<shiftId>@coco` → Updates/Löschungen ziehen mit), UTC-Basic / `VALUE=DATE`-Fallback. Server-Fns `getOrCreateMyCalendarToken`/`revokeMyCalendarToken` (`loadCallerLink` → `staffId` aus `auth.uid`).
+
+### Offen
+
+Schritt 2 (UI): „Kalender abonnieren"-Karte im Self-Service (`/zeit`) mit Abo-Link, Kopier-Button und Kurzanleitung für iPhone/Android. Voraussetzung für zeitliche Service-Events: `default_checkout` für Service unter `/admin/standortzeiten` eintragen (sonst ganztägig).
