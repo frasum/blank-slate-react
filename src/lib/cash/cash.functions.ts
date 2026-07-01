@@ -34,6 +34,7 @@ import {
 } from "./tip-pool";
 import { kitchenShiftMinutes } from "./kitchen-shift-hours";
 import { buildRosterPoolSnapshot } from "./roster-pool-snapshot";
+import { resolveServicePoolEnd } from "./service-pool-end";
 import { assertCashWritable, CashLockedError } from "./cash-lock";
 import type { Json } from "@/integrations/supabase/types";
 import { ForbiddenError } from "@/lib/admin/role-guard";
@@ -1750,21 +1751,38 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
           .eq("id", settlementId)
           .eq("organization_id", caller.organizationId);
         if (linkErr) throw linkErr;
-        // Service-Pool-Ende nachziehen, NUR wenn shift_end noch dem
-        // Service-Default des Standorts entspricht (= seit der Eröffnung
-        // unverändert). Geändertes Ende bleibt. Küche/GL: kein Nachzug.
-        // Edge-Case: manuell auf Default gesetzte Werte werden ebenfalls
-        // überschrieben — bewusst vernachlässigt.
-        await syncServicePoolEndFromAutoClockout({
-          organizationId: caller.organizationId,
-          sessionId: session.id,
-          locationId: session.location_id,
-          staffId: caller.staffId,
-          autoClockoutId,
-        });
+        // Service-Pool-Ende aus dem Auto-Clockout-Zeitpunkt ableiten.
+        // Ersetzt die frühere, an `default_checkout` gebundene Nachzugs-
+        // Logik (`syncServicePoolEndFromAutoClockout`): Service hat kein
+        // festes `default_checkout` mehr — das Ende kommt aus der
+        // tatsächlichen Abgabe/Ausstempelzeit.
+        const { data: teRow } = await supabaseAdmin
+          .from("time_entries")
+          .select("ended_at")
+          .eq("id", autoClockoutId)
+          .maybeSingle();
+        if (teRow?.ended_at) {
+          await applyServicePoolEnd({
+            organizationId: caller.organizationId,
+            sessionId: session.id,
+            staffId: caller.staffId,
+            submissionIso: teRow.ended_at as string,
+            businessDate,
+          });
+        }
       }
     } else {
       noOpenTimeEntry = true;
+      // Nicht-Stempler-Zweig: Service-Pool-Ende aus dem
+      // Abgabezeitpunkt setzen, damit der B-2-Writeback unten einen
+      // time_entry (source='pool') erzeugen kann.
+      await applyServicePoolEnd({
+        organizationId: caller.organizationId,
+        sessionId: session.id,
+        staffId: caller.staffId,
+        submissionIso: new Date().toISOString(),
+        businessDate,
+      });
     }
   }
 
@@ -2893,66 +2911,40 @@ async function applyRosterPoolSnapshot(input: {
   return count ?? 0;
 }
 
-// Nachzug: Service-Pool-Ende des abrechnenden Kellners auf den
-// Ausstempel-Zeitpunkt setzen — nur wenn shift_end exakt dem
-// Service-`default_checkout` des Standorts entspricht (= unverändert
-// seit der Plan-Snapshot-Eröffnung). `time_entries` wird ausschließlich
-// gelesen, nie geschrieben.
-async function syncServicePoolEndFromAutoClockout(input: {
+// Service-Pool-Ende aus dem Abgabezeitpunkt setzen — ohne Bindung an
+// `default_checkout` (Service hat kein festes Ende). Nur wenn der
+// Pool-Eintrag Service ist und `shift_end` noch NULL (also nicht manuell
+// oder durch einen früheren Abgabelauf gesetzt) → einmalig setzen.
+// Küche/GL: kein Eingriff.
+async function applyServicePoolEnd(input: {
   organizationId: string;
   sessionId: string;
-  locationId: string;
   staffId: string;
-  autoClockoutId: string;
+  submissionIso: string;
+  businessDate: string;
 }): Promise<void> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const [{ data: entry }, { data: def }, { data: te }] = await Promise.all([
-    supabaseAdmin
-      .from("session_tip_pool_entries")
-      .select("department, shift_start, shift_end")
-      .eq("session_id", input.sessionId)
-      .eq("staff_id", input.staffId)
-      .maybeSingle(),
-    supabaseAdmin
-      .from("location_department_defaults")
-      .select("default_checkout")
-      .eq("location_id", input.locationId)
-      .eq("department", "service")
-      .maybeSingle(),
-    supabaseAdmin
-      .from("time_entries")
-      .select("ended_at")
-      .eq("id", input.autoClockoutId)
-      .maybeSingle(),
-  ]);
+  const { data: entry } = await supabaseAdmin
+    .from("session_tip_pool_entries")
+    .select("department, shift_start, shift_end")
+    .eq("session_id", input.sessionId)
+    .eq("staff_id", input.staffId)
+    .maybeSingle();
   if (!entry || entry.department !== "service") return;
-  if (!def?.default_checkout || !entry.shift_end) return;
-  const normalized = (v: string) => v.slice(0, 5);
-  if (normalized(entry.shift_end) !== normalized(def.default_checkout)) return;
-  if (!te?.ended_at) return;
-  const ended = new Date(te.ended_at as string);
-  const hh = String(ended.getHours()).padStart(2, "0");
-  const mm = String(ended.getMinutes()).padStart(2, "0");
-  const newEnd = `${hh}:${mm}`;
-  const startHHMM = entry.shift_start ? normalized(entry.shift_start as string) : null;
-  let minutes = 0;
-  if (startHHMM) {
-    try {
-      const { kitchenShiftMinutes: kHelp } = await import("./kitchen-shift-hours");
-      minutes = kHelp(startHHMM, newEnd);
-    } catch {
-      minutes = 0;
-    }
-  }
+  if (entry.shift_end) return; // schon gesetzt (manuell oder früherer Lauf)
+  const startHHMM = entry.shift_start ? (entry.shift_start as string).slice(0, 5) : null;
+  const resolved = resolveServicePoolEnd({
+    shiftStartHHMM: startHHMM,
+    submissionIso: input.submissionIso,
+    businessDate: input.businessDate,
+  });
+  if (!resolved) return;
   await supabaseAdmin
     .from("session_tip_pool_entries")
-    .update({ shift_end: newEnd, hours_minutes: minutes })
+    .update({ shift_end: resolved.shiftEndHHMM, hours_minutes: resolved.hoursMinutes })
     .eq("organization_id", input.organizationId)
     .eq("session_id", input.sessionId)
     .eq("staff_id", input.staffId);
-  // Audit-Trail wird über cash.settlement.submitted geführt; ein
-  // separater Eintrag hier erfordert einen actorUserId — der ist in
-  // diesem internen Helper nicht vorhanden, daher bewusst weggelassen.
 }
 
 // Manueller „Aus Dienstplan ergänzen"-Knopf — idempotent, überschreibt
