@@ -24,9 +24,7 @@ export const Route = createFileRoute("/auth")({
   },
   head: () => ({
     meta: [{ title: "Anmelden · COCO" }, { name: "robots", content: "noindex" }],
-    links: [
-      { rel: "preload", as: "image", href: cocoLogoLight.url, fetchpriority: "high" },
-    ],
+    links: [{ rel: "preload", as: "image", href: cocoLogoLight.url, fetchpriority: "high" }],
   }),
   component: AuthPage,
 });
