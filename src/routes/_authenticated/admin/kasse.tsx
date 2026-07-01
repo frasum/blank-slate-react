@@ -318,6 +318,19 @@ function KassePage() {
   });
   const [lockConfirm, setLockConfirm] = useState(false);
 
+  const reopenMut = useMutation({
+    mutationFn: () => {
+      if (!sessionId) throw new Error("Keine Session");
+      return callReopen({ data: { sessionId } });
+    },
+    onSuccess: () => {
+      toast.success("Session wieder geöffnet.");
+      void invalidate();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const [reopenConfirm, setReopenConfirm] = useState(false);
+
   // -------------------- Wasserlinie (Admin) --------------------
   const [cashLockDate, setCashLockDate] = useState<string>("");
   const [cashLockReason, setCashLockReason] = useState<string>("");
@@ -654,6 +667,15 @@ function KassePage() {
                 onClick={() => setLockConfirm(true)}
               >
                 Session sperren
+              </Button>
+            )}
+            {isAdmin && sessionStatus === "finalized" && !underWaterline && (
+              <Button
+                variant="outline"
+                disabled={reopenMut.isPending}
+                onClick={() => setReopenConfirm(true)}
+              >
+                Session wieder öffnen
               </Button>
             )}
           </Card>
