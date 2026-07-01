@@ -1,0 +1,1 @@
+ALTER TYPE public.token_type ADD VALUE IF NOT EXISTS 'calendar_feed';
