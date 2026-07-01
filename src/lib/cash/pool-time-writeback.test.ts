@@ -267,3 +267,92 @@ describe("dropPoolWhenRealEntryExists", () => {
     ]);
   });
 });
+
+describe("resolvePoolTimeEntrySync", () => {
+  it("realer Stempel gewinnt → delete", () => {
+    expect(
+      resolvePoolTimeEntrySync({
+        shiftStart: "16:00",
+        shiftEnd: "23:00",
+        department: "service",
+        hasRealEntry: true,
+      }),
+    ).toEqual({ action: "delete" });
+  });
+
+  it("Zeit unvollständig → delete", () => {
+    expect(
+      resolvePoolTimeEntrySync({
+        shiftStart: null,
+        shiftEnd: "23:00",
+        department: "kitchen",
+        hasRealEntry: false,
+      }),
+    ).toEqual({ action: "delete" });
+    expect(
+      resolvePoolTimeEntrySync({
+        shiftStart: "16:00",
+        shiftEnd: null,
+        department: "kitchen",
+        hasRealEntry: false,
+      }),
+    ).toEqual({ action: "delete" });
+  });
+
+  it("Start == Ende → delete (keine 0-Dauer)", () => {
+    expect(
+      resolvePoolTimeEntrySync({
+        shiftStart: "16:00",
+        shiftEnd: "16:00",
+        department: "service",
+        hasRealEntry: false,
+      }),
+    ).toEqual({ action: "delete" });
+  });
+
+  it("normale Zeit → upsert mit minutes/crossesMidnight=false", () => {
+    const r = resolvePoolTimeEntrySync({
+      shiftStart: "16:00",
+      shiftEnd: "23:30",
+      department: "service",
+      hasRealEntry: false,
+    });
+    expect(r).toEqual({
+      action: "upsert",
+      startTime: "16:00",
+      endTime: "23:30",
+      crossesMidnight: false,
+      minutes: 450,
+    });
+  });
+
+  it("Wrap: shiftEnd < shiftStart → crossesMidnight=true", () => {
+    const r = resolvePoolTimeEntrySync({
+      shiftStart: "18:00",
+      shiftEnd: "02:00",
+      department: "kitchen",
+      hasRealEntry: false,
+    });
+    expect(r).toEqual({
+      action: "upsert",
+      startTime: "18:00",
+      endTime: "02:00",
+      crossesMidnight: true,
+      minutes: 480,
+    });
+  });
+
+  it("normalisiert 'HH:MM:SS' aus Postgres time", () => {
+    const r = resolvePoolTimeEntrySync({
+      shiftStart: "15:00:00",
+      shiftEnd: "23:30:00",
+      department: "kitchen",
+      hasRealEntry: false,
+    });
+    expect(r.action).toBe("upsert");
+    if (r.action === "upsert") {
+      expect(r.startTime).toBe("15:00");
+      expect(r.endTime).toBe("23:30");
+    }
+  });
+});
