@@ -115,22 +115,52 @@ function AbrechnungPage() {
 
   // Kellner-Auto-Open: wenn (noch) keine Session offen ist, wird sie beim
   // ersten Aufruf automatisch angelegt. Manager-Button bleibt als Fallback.
-  const autoOpenTriedRef = useRef(false);
+  const autoOpenInFlightRef = useRef(false);
   const [autoOpenError, setAutoOpenError] = useState<string | null>(null);
+  const [autoOpenAttempts, setAutoOpenAttempts] = useState(0);
+  const [autoOpenLastAt, setAutoOpenLastAt] = useState<Date | null>(null);
+  const [autoOpenPending, setAutoOpenPending] = useState(false);
   const noSession = myQ.data != null && myQ.data.session == null;
+  const MAX_AUTO_OPEN_ATTEMPTS = 3;
+
+  const tryAutoOpen = useMemo(
+    () => async () => {
+      if (autoOpenInFlightRef.current) return;
+      autoOpenInFlightRef.current = true;
+      setAutoOpenPending(true);
+      setAutoOpenError(null);
+      setAutoOpenAttempts((n) => n + 1);
+      try {
+        await callEnsureMySession();
+        setAutoOpenLastAt(new Date());
+        void qc.invalidateQueries({ queryKey: ["cash"] });
+      } catch (e: unknown) {
+        setAutoOpenLastAt(new Date());
+        setAutoOpenError(e instanceof Error ? e.message : "Unbekannter Fehler");
+      } finally {
+        autoOpenInFlightRef.current = false;
+        setAutoOpenPending(false);
+      }
+    },
+    [callEnsureMySession, qc],
+  );
+
+  // Erster Versuch automatisch; danach Auto-Retry mit Backoff bis MAX Versuche.
   useEffect(() => {
     if (!noSession) return;
-    if (autoOpenTriedRef.current) return;
-    autoOpenTriedRef.current = true;
-    setAutoOpenError(null);
-    callEnsureMySession()
-      .then(() => {
-        void qc.invalidateQueries({ queryKey: ["cash"] });
-      })
-      .catch((e: unknown) => {
-        setAutoOpenError(e instanceof Error ? e.message : "Unbekannter Fehler");
-      });
-  }, [noSession, callEnsureMySession, qc]);
+    if (autoOpenPending) return;
+    if (autoOpenAttempts === 0) {
+      void tryAutoOpen();
+      return;
+    }
+    if (autoOpenError && autoOpenAttempts < MAX_AUTO_OPEN_ATTEMPTS) {
+      const delayMs = Math.min(1000 * 2 ** (autoOpenAttempts - 1), 8000);
+      const t = setTimeout(() => {
+        void tryAutoOpen();
+      }, delayMs);
+      return () => clearTimeout(t);
+    }
+  }, [noSession, autoOpenPending, autoOpenAttempts, autoOpenError, tryAutoOpen]);
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -228,15 +258,48 @@ function AbrechnungPage() {
 
   // Falls noch keine Session offen: read-only Hinweis.
   if (!session) {
-    // Standard: Auto-Open läuft im Hintergrund — Kellner sieht kurz
-    // „wird vorbereitet". Erst wenn der Auto-Open scheitert, wird der
-    // klassische Hinweis (bzw. für Manager der manuelle Button) angezeigt.
-    if (!autoOpenError) {
+    const lastAtLabel = autoOpenLastAt
+      ? autoOpenLastAt.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+      : null;
+    const exhausted =
+      autoOpenError !== null && autoOpenAttempts >= MAX_AUTO_OPEN_ATTEMPTS;
+
+    // Standard: Auto-Open läuft (oder wird gleich neu versucht). Kellner
+    // sieht Fortschritt inkl. Versuch + Zeitstempel. Erst nach erschöpften
+    // Versuchen erscheint der harte Fehler-Fallback (Manager-Button etc.).
+    if (!exhausted) {
+      const status = autoOpenPending
+        ? `Versuche Session zu öffnen (Versuch ${autoOpenAttempts} von ${MAX_AUTO_OPEN_ATTEMPTS})…`
+        : autoOpenError
+          ? `Nächster Versuch läuft an (Versuch ${autoOpenAttempts} schlug fehl).`
+          : `Session für ${businessDate} wird vorbereitet…`;
       return (
         <main className="mx-auto max-w-xl space-y-6 px-4 py-8">
           <Header showKasseLink={canOpenSession} />
-          <Card className="p-6 text-sm text-muted-foreground">
-            Session für <strong>{businessDate}</strong> wird vorbereitet…
+          <Card className="space-y-3 p-6 text-sm">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              {autoOpenPending && (
+                <span
+                  aria-hidden
+                  className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"
+                />
+              )}
+              <span>{status}</span>
+            </div>
+            {lastAtLabel && (
+              <div className="text-xs text-muted-foreground">
+                Letzter Versuch: {lastAtLabel}
+                {autoOpenError ? ` · ${autoOpenError}` : ""}
+              </div>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={autoOpenPending}
+              onClick={() => void tryAutoOpen()}
+            >
+              {autoOpenPending ? "Läuft…" : "Jetzt erneut versuchen"}
+            </Button>
           </Card>
         </main>
       );
@@ -246,8 +309,22 @@ function AbrechnungPage() {
         <Header showKasseLink={canOpenSession} />
         <Card className="p-6 text-sm">
           Für den Geschäftstag <strong>{businessDate}</strong> konnte automatisch keine Session
-          angelegt werden: {autoOpenError}. Bitte den Manager bitten, eine Session zu eröffnen.
+          angelegt werden (nach {autoOpenAttempts} Versuchen
+          {lastAtLabel ? `, letzter um ${lastAtLabel}` : ""}): {autoOpenError}. Bitte den Manager
+          bitten, eine Session zu eröffnen.
         </Card>
+        <Button
+          variant="outline"
+          className="w-full"
+          disabled={autoOpenPending}
+          onClick={() => {
+            setAutoOpenAttempts(0);
+            setAutoOpenError(null);
+            void tryAutoOpen();
+          }}
+        >
+          Erneut versuchen
+        </Button>
         {canOpenSession && (
           <Card className="space-y-3 p-6">
             <div className="text-sm font-medium">Session für heute eröffnen</div>
