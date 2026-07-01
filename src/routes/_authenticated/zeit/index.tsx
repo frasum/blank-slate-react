@@ -1,13 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Clock, CalendarDays, Receipt, Heart, Plane, ListChecks, CalendarPlus } from "lucide-react";
-import { canSeeAbrechnungTile } from "@/lib/zeit/abrechnung-visibility.functions";
-
-const abrechnungVisibilityQuery = queryOptions({
-  queryKey: ["zeit", "abrechnung-visible"],
-  queryFn: () => canSeeAbrechnungTile(),
-});
 
 export const Route = createFileRoute("/_authenticated/zeit/")({
   head: () => ({
@@ -16,9 +9,6 @@ export const Route = createFileRoute("/_authenticated/zeit/")({
       { name: "description", content: "Self-Service: Stempeln, Schichten, Abrechnung" },
     ],
   }),
-  loader: ({ context }) => {
-    context.queryClient.ensureQueryData(abrechnungVisibilityQuery);
-  },
   component: ZeitHub,
 });
 
@@ -84,8 +74,6 @@ const TILES: Tile[] = [
 ];
 
 function ZeitHub() {
-  const { data: abrechnung } = useSuspenseQuery(abrechnungVisibilityQuery);
-  const tiles = TILES.filter((t) => t.to !== "/zeit/abrechnung" || abrechnung.visible);
   return (
     <main className="mx-auto max-w-xl space-y-6 px-4 py-8">
       <header className="space-y-1">
@@ -93,7 +81,7 @@ function ZeitHub() {
         <p className="text-sm text-muted-foreground">Self-Service für Mitarbeiter.</p>
       </header>
       <div className="grid gap-3">
-        {tiles.map(({ to, title, description, Icon, iconClassName }) => (
+        {TILES.map(({ to, title, description, Icon, iconClassName }) => (
           <Link key={to} to={to} className="block">
             <Card className="flex items-center gap-4 p-5 transition hover:bg-accent/40">
               <div className="rounded-md bg-primary/10 p-3 text-primary">

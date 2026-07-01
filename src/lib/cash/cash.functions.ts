@@ -35,8 +35,7 @@ import { assertCashWritable, CashLockedError } from "./cash-lock";
 import type { Json } from "@/integrations/supabase/types";
 import { ForbiddenError } from "@/lib/admin/role-guard";
 import { sessionToDayInput } from "./session-day-input";
-// resolveSessionLocation wird über den Server-Helper aufgerufen, damit
-// Kachel-Sichtbarkeit und tatsächliche Eröffnungs-Regel identisch bleiben.
+import { pickSingleLocation } from "@/lib/time/resolve-location";
 
 // ------------------------------------------------------------------------
 // Fehlerklassen
@@ -419,20 +418,12 @@ export async function getMySettlementCore(caller: StaffCaller) {
   const businessDate = await getCurrentBusinessDate();
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const settings = await loadOrgSettings(caller.organizationId);
-  // Standort des Kellners auflösen — sonst kollidieren in Orgs mit mehreren
-  // Standorten (z. B. YUM + spicery) zwei offene Sessions und maybeSingle()
-  // gibt still null zurück, was den Auto-Open in eine Endlosschleife schickt.
-  const { resolveMySessionLocation } = await import("./session-location.server");
-  const resolved = await resolveMySessionLocation(supabaseAdmin, caller, businessDate);
-  let sessionQuery = supabaseAdmin
+  const { data: session } = await supabaseAdmin
     .from("sessions")
     .select("id, business_date, status, locked_at, location_id, tip_pool_settlement_only")
     .eq("organization_id", caller.organizationId)
-    .eq("business_date", businessDate);
-  if (resolved.ok) {
-    sessionQuery = sessionQuery.eq("location_id", resolved.locationId);
-  }
-  const { data: session } = await sessionQuery.maybeSingle();
+    .eq("business_date", businessDate)
+    .maybeSingle();
   if (!session) {
     return {
       businessDate,
@@ -1016,37 +1007,26 @@ export const ensureMyOpenSession = createServerFn({ method: "POST" })
     const caller = await loadStaffCaller(context.supabase, context.userId);
     if (!caller.isActive) throw new ForbiddenError();
     const businessDate = await getCurrentBusinessDate();
+
+    // Standort des Kellners bestimmen. Bei genau einem eindeutigen Standort
+    // wird dieser verwendet; ansonsten Fehler mit klarer Meldung.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { resolveMySessionLocation } = await import("./session-location.server");
-    const resolved = await resolveMySessionLocation(supabaseAdmin, caller, businessDate);
-    if (!resolved.ok) {
-      if (resolved.reason === "not_scheduled") {
-        throw new ForbiddenError(
-          "Du bist heute nicht als Service im Dienstplan eingeteilt — bitte den Manager, die Session zu eröffnen.",
-        );
-      }
+    const { data: rows, error: locErr } = await supabaseAdmin
+      .from("staff_locations")
+      .select("location_id")
+      .eq("organization_id", caller.organizationId)
+      .eq("staff_id", caller.staffId);
+    if (locErr) throw locErr;
+    const locationId = pickSingleLocation(rows ?? []);
+    if (!locationId) {
       throw new Error("Standort mehrdeutig — bitte den Manager bitten, die Session zu eröffnen.");
     }
-    const locationId = resolved.locationId;
 
     const outcome = await ensureOpenSessionRaw({
       organizationId: caller.organizationId,
       locationId,
       businessDate,
     });
-
-    // Rolle nochmal ableiten, ausschließlich fürs Audit-Meta beim Anlegen.
-    let isPrivileged = false;
-    if (outcome.created) {
-      const { data: roleRow } = await supabaseAdmin
-        .from("role_assignments")
-        .select("role")
-        .eq("staff_id", caller.staffId)
-        .eq("organization_id", caller.organizationId)
-        .maybeSingle();
-      const role = roleRow?.role ?? null;
-      isPrivileged = role === "admin" || role === "manager";
-    }
 
     await writeAuditLog({
       organizationId: caller.organizationId,
@@ -1061,7 +1041,6 @@ export const ensureMyOpenSession = createServerFn({ method: "POST" })
             locationId,
             poolSnapshotCount: outcome.snapshotCount,
             source: "auto_waiter_settlement",
-            scheduledCheck: isPrivileged ? "privileged" : "service_shift",
           }
         : { businessDate, locationId, source: "auto_waiter_settlement" },
     });
