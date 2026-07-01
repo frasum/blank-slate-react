@@ -666,9 +666,7 @@ function PoolRow({
                 disabled={!editable || saving || !start || !end}
                 onClick={() => {
                   setSaving(true);
-                  void Promise.resolve(onSaveTimes(start, end)).finally(() =>
-                    setSaving(false),
-                  );
+                  void Promise.resolve(onSaveTimes(start, end)).finally(() => setSaving(false));
                 }}
               >
                 {saving ? "…" : "OK"}
