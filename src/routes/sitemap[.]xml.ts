@@ -16,9 +16,7 @@ export const Route = createFileRoute("/sitemap.xml")({
         // COCO ist eine Login-only-Betriebsplattform.
         // Öffentlich indexierbar ist nur die Startseite; alles Weitere liegt
         // hinter /auth und ist per robots/noindex ausgeschlossen.
-        const entries: SitemapEntry[] = [
-          { path: "/", changefreq: "monthly", priority: "1.0" },
-        ];
+        const entries: SitemapEntry[] = [{ path: "/", changefreq: "monthly", priority: "1.0" }];
 
         const urls = entries.map((e) =>
           [
