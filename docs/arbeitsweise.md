@@ -1101,6 +1101,16 @@ Mitarbeiter können ihre eingeteilten Schichten (`roster_shifts`) als iCalendar-
 
 `buildRosterIcs` (`src/lib/calendar/roster-ics.ts`, getestet): RFC-5545-Escaping, stabile `UID` (`roster-<shiftId>@coco` → Updates/Löschungen ziehen mit), UTC-Basic / `VALUE=DATE`-Fallback. Server-Fns `getOrCreateMyCalendarToken`/`revokeMyCalendarToken` (`loadCallerLink` → `staffId` aus `auth.uid`).
 
-### Offen
+### Schritt 2 (UI, umgesetzt)
 
-Schritt 2 (UI): „Kalender abonnieren"-Karte im Self-Service (`/zeit`) mit Abo-Link, Kopier-Button und Kurzanleitung für iPhone/Android. Voraussetzung für zeitliche Service-Events: `default_checkout` für Service unter `/admin/standortzeiten` eintragen (sonst ganztägig).
+Seite `/zeit/kalender` (Kachel „Kalender-Abo" im `/zeit`-Hub): holt den Token via `getOrCreateMyCalendarToken`, baut `httpsUrl = window.location.origin + feedPath` und `webcalUrl` (Schema `https`→`webcal`). „Im Kalender öffnen" (`<a href={webcalUrl}>`, öffnet den iPhone-Abo-Dialog), Kopierfeld mit der https-URL (für Android/Google Kalender), Klapp-Anleitung iPhone/Android, Geheim-Hinweis, Widerruf („Link zurückziehen & neuen erstellen" → `revokeMyCalendarToken` + `invalidateQueries`/`refetch` → neuer Token, neue URL). Kein `localStorage`.
+
+### Betrieb
+
+Voraussetzung für zeitliche Service-Events: `default_checkout` für Service unter `/admin/standortzeiten` eintragen (sonst ganztägig; Küche zeigt 15:00–23:30, sobald die Auscheckzeit dort steht). Android: URL-Abo geht bei Google nur am Computer (calendar.google.com → „Per URL"), nicht in der Handy-App — daher der Kopier-Weg auf der Seite.
+
+## 30. Session-Eröffnung nur bei Standort-Zuordnung + Service-Einteilung (01.07.2026)
+
+`ensureMyOpenSession` (`cash.functions.ts`) ist der einzige Eröffnungs-Pfad (aufgerufen auf `/zeit/abrechnung`, wenn der Kellner mit dem Abrechnen beginnt). Ein **einfacher Mitarbeiter** kann eine Kassen-Session nur eröffnen, wenn er (a) dem Standort zugeordnet ist (`staff_locations`) **und** (b) an dem Geschäftstag dort als **Service** im Dienstplan eingeteilt ist (`roster_shifts`, `area='service'`, `shift_date = current_business_date` inkl. 3-Uhr-Cutoff). **Manager/Admin sind ausgenommen** — sie dürfen immer eröffnen (Einspringen); ihr Standort kommt wie bisher aus genau einer `staff_locations`-Zuordnung.
+
+Auswahl als reine Fn `resolveSessionLocation` (`src/lib/cash/session-location.ts`, 7 Tests): privileged → genau ein zugeordneter Standort (sonst `ambiguous`); staff → Schnittmenge `assignedLocationIds ∩ serviceShiftLocationIds` (genau einer → ok; leer → `not_scheduled`; mehrere → `ambiguous`). Fehler-Mapping: `not_scheduled` → `ForbiddenError` mit deutscher Meldung („heute nicht als Service im Dienstplan eingeteilt …"), `ambiguous` → bestehende „Standort mehrdeutig"-Meldung. Die Hierarchie-`role` kommt aus `role_assignments` (gescoped auf den Caller, `maybeSingle`); `staffId`/`role` stammen aus `auth.uid` (`loadStaffCaller`), nie vom Client.
