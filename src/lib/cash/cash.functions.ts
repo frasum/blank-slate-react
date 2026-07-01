@@ -1011,21 +1011,6 @@ export const ensureMyOpenSession = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { resolveMySessionLocation } = await import("./session-location.server");
     const resolved = await resolveMySessionLocation(supabaseAdmin, caller, businessDate);
-    const isPrivileged =
-      resolved.ok || resolved.reason === "ambiguous"
-        ? // gleiche Rolle-Ableitung wie im Helper — wir brauchen sie nur noch
-          // fürs Audit-Meta.
-          await (async () => {
-            const { data: roleRow } = await supabaseAdmin
-              .from("role_assignments")
-              .select("role")
-              .eq("staff_id", caller.staffId)
-              .eq("organization_id", caller.organizationId)
-              .maybeSingle();
-            const role = roleRow?.role ?? null;
-            return role === "admin" || role === "manager";
-          })()
-        : false;
     if (!resolved.ok) {
       if (resolved.reason === "not_scheduled") {
         throw new ForbiddenError(
@@ -1041,6 +1026,19 @@ export const ensureMyOpenSession = createServerFn({ method: "POST" })
       locationId,
       businessDate,
     });
+
+    // Rolle nochmal ableiten, ausschließlich fürs Audit-Meta beim Anlegen.
+    let isPrivileged = false;
+    if (outcome.created) {
+      const { data: roleRow } = await supabaseAdmin
+        .from("role_assignments")
+        .select("role")
+        .eq("staff_id", caller.staffId)
+        .eq("organization_id", caller.organizationId)
+        .maybeSingle();
+      const role = roleRow?.role ?? null;
+      isPrivileged = role === "admin" || role === "manager";
+    }
 
     await writeAuditLog({
       organizationId: caller.organizationId,
