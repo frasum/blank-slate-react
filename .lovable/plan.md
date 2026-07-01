@@ -1,35 +1,51 @@
 ## Ziel
-Der Admin kann eine bereits abgeschlossene Session (Status `finalized`) auf einem Vortag wieder auf `open` setzen, um alle Felder erneut zu bearbeiten. Bei `locked` bleibt die Session gesperrt (Waterline schützt das Bank-Deposit).
 
-## Flow im Alltag
-1. Admin öffnet `/admin/kasse`.
-2. Oben über den `DateSelector` das gewünschte Datum (z. B. gestern) wählen.
-3. Ist die Session `finalized`, erscheint neben dem Status-Badge ein neuer Button **„Session wieder öffnen"**.
-4. Klick öffnet einen Bestätigungsdialog mit Hinweis, dass die Aktion protokolliert wird.
-5. Nach Bestätigung ist die Session `open`, alle Felder editierbar (inkl. Auto-Save wie gehabt).
-6. Wenn die Session `locked` ist (Waterline erreicht), bleibt nur der Read-Only-Modus — der Button erscheint nicht.
+Die Kachel „Abrechnung" im `/zeit`-Hub (`src/routes/_authenticated/zeit/index.tsx`) nur denjenigen zeigen, die sie realistisch nutzen können. Alle anderen sehen die Kachel nicht mehr.
+
+## Sichtbarkeits-Regel
+
+Kachel „Abrechnung" ist sichtbar, wenn **mindestens eine** dieser Bedingungen erfüllt ist:
+
+1. Caller hat Rolle `admin` oder `manager` in `role_assignments`.
+2. Caller ist Service-fähig: er hat **irgendeine** `roster_shifts`-Zeile mit `area='service'` (also mindestens einmal für Service eingeteilt gewesen — deckt „arbeitet in Küche und Service" automatisch mit ab).
+
+Für reine Küchenkräfte wie BÄNG (nur `area='kitchen'`-Schichten, Rolle `staff`) ist die Kachel damit ausgeblendet.
 
 ## Umsetzung
 
-**Backend — `src/lib/cash/cash.functions.ts`**
-- Neue Server-Fn `reopenSession` + `reopenSessionCore`:
-  - `requireSupabaseAuth` + `loadAdminCaller(..., "admin")` (nur Admin, wie gewünscht).
-  - Session laden, Guard: nur wenn `status === "finalized"` **und** `businessDate > cashLockedThroughDate` (nicht unter Waterline).
-  - Update `status='open'`, `finalized_at=null`, `finalized_by=null`.
-  - Audit-Log: `cash.session.reopened` mit `businessDate`, `previousFinalizedAt`.
+### 1) Server-Fn (neu)
 
-**UI — `src/routes/_authenticated/admin/kasse.tsx`**
-- Neuen `reopenMut` mit `useMutation` an `callReopenSession` binden.
-- Button „Session wieder öffnen" rendern, wenn:
-  - `caller.role === 'admin'`
-  - `sessionStatus === 'finalized'`
-  - `!underWaterline`
-- Bestätigungsdialog (bestehendes `AlertDialog`-Pattern) mit Text: „Die abgeschlossene Session vom TT.MM. wird wieder auf ‚offen' gesetzt. Alle Felder sind danach erneut bearbeitbar. Die Aktion wird protokolliert."
-- Nach Erfolg: `invalidateQueries(["cash"])`, Toast „Session wieder geöffnet".
+`src/lib/zeit/abrechnung-visibility.functions.ts`:
 
-**Kein Migrations-Bedarf** — `sessions.status` erlaubt bereits `open`, Audit-Log-Tabelle existiert, keine Schemaänderung.
+- `canSeeAbrechnungTile()` — `createServerFn({ method: "GET" })` + `requireSupabaseAuth`.
+- Nutzt `loadStaffCaller` (`staffId`/`organizationId` aus `auth.uid`, nie vom Client).
+- Prüft in dieser Reihenfolge (early-return true bei Treffer):
+  - `role_assignments`: Rolle des Callers = `admin`|`manager`? → true.
+  - `roster_shifts`: `exists (staff_id = caller, organization_id = caller, area = 'service')` mit `limit(1)` → true.
+- Sonst false.
+- Rückgabe: `{ visible: boolean }`.
+
+Reine Read-Fn, keine Migration, keine RLS-Änderung.
+
+### 2) Hub-Kachel filtern
+
+`src/routes/_authenticated/zeit/index.tsx`:
+
+- Component nutzt `useSuspenseQuery` mit `queryOptions({ queryKey: ["zeit","abrechnung-visible"], queryFn: canSeeAbrechnungTile })` und lädt via Loader (`context.queryClient.ensureQueryData`) — Standard-Muster laut `tanstack-query-integration`.
+- `TILES` bleibt statisch; im Render wird die Abrechnung-Kachel gefiltert (`.filter(t => t.to !== "/zeit/abrechnung" || visible)`).
+- Kein `localStorage`, kein Client-Rollen-Guess.
+
+### 3) Route `/zeit/abrechnung` bleibt hart-serverseitig geschützt
+
+`ensureMyOpenSession` (§30) bleibt unverändert die harte Grenze: URL-Aufrufe von Nicht-Service-Staff werden weiterhin mit `ForbiddenError` „heute nicht als Service im Dienstplan eingeteilt …" abgewiesen. Die Kachel-Filterung ist reine UI-Kosmetik zusätzlich zum bestehenden Server-Guard.
+
+### 4) Doku
+
+Kein neuer §; ein Satz in §30 anhängen: „Im `/zeit`-Hub wird die Kachel für Nicht-Service-Staff (kein `admin`/`manager` und keine einzige `area='service'`-Schicht in `roster_shifts`) ausgeblendet — die Server-Guard bleibt die harte Grenze." (Kommt beim nächsten Doku-Nachzug-Prompt in `arbeitsweise.md` — jetzt kein Doku-Commit.)
 
 ## Nicht enthalten
-- Kein Reopen bei `locked` (Waterline schützt Bank-Deposit).
-- Kein Zugriff für Manager (nur Admin, wie beantwortet).
-- Kein Bulk-Reopen; Datum-für-Datum via DateSelector.
+
+- Keine Änderung an `ensureMyOpenSession`/`resolveSessionLocation`.
+- Keine Änderung an `staff_locations`/`roster_shifts`/RLS.
+- Keine Umschreibung anderer Kacheln (Stempeluhr, Schichten, Kalender bleiben für alle sichtbar).
+- Kein Test-neu; kleine Sichtbarkeitshilfe, keine Geld-/Zeit-Logik.
