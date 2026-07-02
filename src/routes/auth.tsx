@@ -157,7 +157,7 @@ function PasswordForm({ onLoggedIn }: { onLoggedIn: () => Promise<void> }) {
 }
 
 async function verifyMagicHash(tokenHash: string): Promise<boolean> {
-  // Vor jedem PIN/Badge-Login bestehende Session beenden (Remix-Muster).
+  // Vor jedem PIN-Login bestehende Session beenden (Remix-Muster).
   await supabase.auth.signOut();
   const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "magiclink" });
   return !error;
