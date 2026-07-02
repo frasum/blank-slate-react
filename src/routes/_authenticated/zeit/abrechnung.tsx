@@ -174,21 +174,56 @@ function AbrechnungPage() {
     );
   }
 
-  const { session, settlement, businessDate, staffId: myStaffId, myPoolShareCents } = myQ.data;
+  const {
+    session,
+    settlement,
+    businessDate,
+    staffId: myStaffId,
+    myPoolShareCents,
+  } = myQ.data;
+  const otherLocationSessionsCount =
+    (myQ.data as { otherLocationSessionsCount?: number }).otherLocationSessionsCount ?? 0;
+  const hasStaffLocations =
+    (myQ.data as { hasStaffLocations?: boolean }).hasStaffLocations ?? false;
   const myExcludeStaffIds = [myStaffId];
 
-  // Falls noch keine Session offen: read-only Hinweis.
+  // Falls (für mich) keine Session offen: klarer Hinweis, ggf. mit Standort-Kontext.
   if (!session) {
+    const wrongLocation = otherLocationSessionsCount > 0;
+    const noStaffLocation = !hasStaffLocations;
     return (
       <main className="mx-auto max-w-xl space-y-6 px-4 py-8">
         <Header showKasseLink={canOpenSession} />
-        <Card className="p-6 text-sm text-muted-foreground">
-          Für den Geschäftstag <strong>{businessDate}</strong> wurde noch keine Kassen-Session
-          eröffnet. Bitte wende dich an deinen Manager oder Admin, damit die Session geöffnet wird.
+        <Card className="space-y-3 p-6 text-sm">
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary">Keine Session</Badge>
+            <span className="text-muted-foreground">Geschäftstag {businessDate}</span>
+          </div>
+          {wrongLocation ? (
+            <p className="text-muted-foreground">
+              An deinem zugeordneten Standort wurde für heute noch{" "}
+              <strong>keine Kassen-Session</strong> eröffnet. Es sind aber{" "}
+              {otherLocationSessionsCount} Session(s) an anderen Standorten offen — bitte deinen
+              Manager, an deinem Standort zu eröffnen oder deine Standort-Zuordnung zu prüfen.
+            </p>
+          ) : noStaffLocation ? (
+            <p className="text-muted-foreground">
+              Dir ist noch <strong>kein Standort</strong> zugeordnet. Bitte wende dich an deinen
+              Manager, damit deine Standort-Zuordnung eingerichtet wird.
+            </p>
+          ) : (
+            <p className="text-muted-foreground">
+              Für heute wurde noch <strong>keine Kassen-Session</strong> eröffnet. Bitte wende dich
+              an deinen Manager oder Admin, damit die Session geöffnet wird.
+            </p>
+          )}
         </Card>
       </main>
     );
   }
+
+  const sessionLocationName =
+    (session as { locationName?: string | null }).locationName ?? null;
 
   // Bereits abgegeben → read-only Ansicht.
   if (settlement) {
@@ -212,6 +247,7 @@ function AbrechnungPage() {
             <div className="text-sm text-muted-foreground">Geschäftstag {businessDate}</div>
             <Badge variant={locked ? "secondary" : "default"}>{settlement.status}</Badge>
           </div>
+          <SessionOpenBanner locationName={sessionLocationName} status={session.status} />
           <ReadOnlyRow label="Leistung (POS)" cents={pos} />
           <ReadOnlyRow label="Abzugebender Betrag" cents={kassiertBrutto} />
           <ReadOnlyRow label="EC-/Kartensumme" cents={Number(settlement.card_total_cents)} />
