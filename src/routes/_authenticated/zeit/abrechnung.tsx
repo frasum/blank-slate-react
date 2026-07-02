@@ -59,8 +59,7 @@ type FormState = {
   hilfMahl: string;
   openInvoices: string;
   cashHandedIn: string;
-  secondWaiterName: string | null;
-  additionalWaiters: string[];
+  partnerStaffId: string | null;
 };
 
 const EMPTY_FORM: FormState = {
@@ -70,8 +69,7 @@ const EMPTY_FORM: FormState = {
   hilfMahl: "",
   openInvoices: "",
   cashHandedIn: "",
-  secondWaiterName: null,
-  additionalWaiters: [],
+  partnerStaffId: null,
 };
 
 function AbrechnungPage() {
@@ -148,8 +146,7 @@ function AbrechnungPage() {
           hilfMahlCents: parsed.hilfMahlCents!,
           openInvoicesCents: parsed.openInvoicesCents!,
           cashHandedInCents: parsed.cashHandedInCents!,
-          secondWaiterName: form.secondWaiterName,
-          additionalWaiters: form.additionalWaiters.filter((n) => n.length > 0),
+          partnerStaffId: form.partnerStaffId,
         },
       });
     },
@@ -251,25 +248,22 @@ function AbrechnungPage() {
                 : " — kein offener Zeiteintrag, nichts ausgestempelt."}
             </div>
           )}
-          {(settlement.second_waiter_name ||
-            (Array.isArray(settlement.additional_waiters) &&
-              settlement.additional_waiters.length > 0)) && (
-            <div className="space-y-1 pt-2 text-sm">
-              {settlement.second_waiter_name && (
+          {(() => {
+            const partnerName =
+              (settlement as { partner_staff?: { display_name?: string | null } | null })
+                .partner_staff?.display_name ??
+              settlement.second_waiter_name ??
+              null;
+            if (!partnerName) return null;
+            return (
+              <div className="space-y-1 pt-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Zweiter Kellner</span>
-                  <span>{settlement.second_waiter_name}</span>
+                  <span>{partnerName}</span>
                 </div>
-              )}
-              {Array.isArray(settlement.additional_waiters) &&
-                settlement.additional_waiters.length > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Weitere Kellner</span>
-                    <span>{(settlement.additional_waiters as string[]).join(", ")}</span>
-                  </div>
-                )}
-            </div>
-          )}
+              </div>
+            );
+          })()}
         </Card>
         <p className="text-center text-xs text-muted-foreground">
           Änderungen kann nur der Manager über die Korrektur-Funktion eintragen.
@@ -337,63 +331,11 @@ function AbrechnungPage() {
         <div className="space-y-2">
           <Label>Zweiter Kellner (optional)</Label>
           <SecondWaiterSelect
-            value={form.secondWaiterName}
-            onValueChange={(v) => setForm({ ...form, secondWaiterName: v })}
+            value={form.partnerStaffId}
+            onValueChange={(v) => setForm({ ...form, partnerStaffId: v })}
             excludeStaffIds={myExcludeStaffIds}
-            excludeNames={form.additionalWaiters}
           />
         </div>
-        {form.additionalWaiters.length > 0 && (
-          <div className="space-y-2">
-            <Label>Weitere Kellner</Label>
-            {form.additionalWaiters.map((name, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <div className="flex-1">
-                  <SecondWaiterSelect
-                    value={name}
-                    onValueChange={(v) => {
-                      const next = [...form.additionalWaiters];
-                      if (v === null) {
-                        next.splice(i, 1);
-                      } else {
-                        next[i] = v;
-                      }
-                      setForm({ ...form, additionalWaiters: next });
-                    }}
-                    excludeStaffIds={myExcludeStaffIds}
-                    excludeNames={[
-                      form.secondWaiterName ?? "",
-                      ...form.additionalWaiters.filter((_, j) => j !== i),
-                    ]}
-                  />
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() =>
-                    setForm({
-                      ...form,
-                      additionalWaiters: form.additionalWaiters.filter((_, j) => j !== i),
-                    })
-                  }
-                >
-                  Entfernen
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
-        {form.additionalWaiters.length < 3 && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setForm({ ...form, additionalWaiters: [...form.additionalWaiters, ""] })}
-          >
-            + weiteren Kellner hinzufügen
-          </Button>
-        )}
         <hr className="border-border" />
         <div className="space-y-1 text-sm">
           <div className="flex justify-between">

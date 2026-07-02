@@ -436,7 +436,7 @@ export async function getMySettlementCore(caller: StaffCaller) {
   const { data: row } = await supabaseAdmin
     .from("waiter_settlements")
     .select(
-      "id, status, pos_sales_cents, kassiert_brutto_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents, differenz_cents, kitchen_tip_cents, kitchen_tip_rate, submitted_at, auto_clockout_time_entry_id, second_waiter_name, additional_waiters",
+      "id, status, pos_sales_cents, kassiert_brutto_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents, differenz_cents, kitchen_tip_cents, kitchen_tip_rate, submitted_at, auto_clockout_time_entry_id, second_waiter_name, additional_waiters, partner_staff_id, partner_staff:staff!waiter_settlements_partner_staff_id_fkey(display_name)",
     )
     .eq("organization_id", caller.organizationId)
     .eq("session_id", session.id)
@@ -1500,8 +1500,9 @@ const settlementInputSchema = z.object({
   hilfMahlCents: z.number().int().min(0),
   openInvoicesCents: z.number().int().min(0),
   cashHandedInCents: z.number().int().min(0),
-  secondWaiterName: z.string().trim().min(1).nullable().default(null),
-  additionalWaiters: z.array(z.string().trim().min(1)).max(3).default([]),
+  // Zweiter Kellner: staff_id (UUID). Wird direkt als partner_staff_id
+  // gespeichert — kein Textfeld mehr. Betriebsrealität: max. 1 Partner.
+  partnerStaffId: z.string().uuid().nullable().default(null),
 });
 
 export const submitWaiterSettlement = createServerFn({ method: "POST" })
@@ -1566,6 +1567,22 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
     cashLockedThroughDate: waterline,
   });
 
+  // Partner-Validierung (gleiche Regeln wie correctWaiterSettlement):
+  //   (a) Partner ≠ Haupt-Kellner (Selbst-Wahl verboten).
+  //   (b) Partner ist an denselben Standort gebunden (Org-Zugehörigkeit
+  //       implizit über staff_locations mit org-Filter).
+  //   (c) Partner ist nicht bereits Haupt- oder Partner einer aktiven
+  //       (nicht-superseded) Abrechnung in derselben Session.
+  const partnerStaffId = data.partnerStaffId ?? null;
+  if (partnerStaffId) {
+    if (partnerStaffId === caller.staffId) {
+      throw new Error("Partner-Kellner darf nicht der Haupt-Kellner sein.");
+    }
+    await assertStaffBoundToLocation(caller.organizationId, partnerStaffId, session.location_id);
+    // excludeSettlementId = existierende eigene (Draft) Zeile, damit ein
+    // erneutes Absenden nicht mit sich selbst kollidiert.
+  }
+
   // Idempotenz: existierende aktive Zeile prüfen.
   const { data: existing } = await supabaseAdmin
     .from("waiter_settlements")
@@ -1577,6 +1594,16 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
     .eq("staff_id", caller.staffId)
     .neq("status", "superseded")
     .maybeSingle();
+
+  if (partnerStaffId) {
+    await assertPartnerFree(
+      caller.organizationId,
+      session.id,
+      caller.staffId,
+      partnerStaffId,
+      existing?.id ?? null,
+    );
+  }
 
   // Rate snapshotten: draft/neu → aktuelle Org-Rate; submitted → Bestand erhalten.
   const kitchenTipRate =
@@ -1629,8 +1656,7 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
         kitchen_tip_rate: kitchenTipRate,
         status: "submitted",
         submitted_at: new Date().toISOString(),
-        second_waiter_name: data.secondWaiterName ?? null,
-        additional_waiters: (data.additionalWaiters ?? []) as unknown as Json,
+        partner_staff_id: partnerStaffId,
       })
       .eq("id", existing.id)
       .eq("organization_id", caller.organizationId);
@@ -1654,8 +1680,7 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
         kitchen_tip_rate: kitchenTipRate,
         status: "submitted",
         submitted_at: new Date().toISOString(),
-        second_waiter_name: data.secondWaiterName ?? null,
-        additional_waiters: (data.additionalWaiters ?? []) as unknown as Json,
+        partner_staff_id: partnerStaffId,
       })
       .select("id")
       .single();
