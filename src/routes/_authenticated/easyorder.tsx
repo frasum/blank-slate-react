@@ -445,6 +445,8 @@ function EasyOrderCart(props: {
                 <ul>
                   {g.rows.map((a) => {
                     const n = qty[a.id] ?? 0;
+                      const step = a.quantityStep ?? 1;
+                      const min = a.minOrderQuantity ?? 1;
                     return (
                       <li
                         key={a.id}
@@ -453,7 +455,8 @@ function EasyOrderCart(props: {
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-base font-medium text-foreground">{a.name}</p>
                           <p className="text-xs text-muted-foreground">
-                            {a.unit ?? "Stk"} · {fmtEuro(a.priceCents)}
+                              {a.orderUnit ?? a.unit ?? "Stk"} · {fmtEuro(a.priceCents)}
+                              {min > 1 && <span className="ml-2">· ab {min}</span>}
                             {n > 0 && (
                               <span className="ml-2">
                                 = <span className="font-mono">{fmtEuro(a.priceCents * n)}</span>
@@ -463,7 +466,7 @@ function EasyOrderCart(props: {
                         </div>
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => setItemQty(a.id, n + 1)}
+                              onClick={() => setItemQty(a.id, n === 0 ? min : n + step)}
                             className="rounded-full bg-primary/10 p-2 text-primary hover:bg-primary/20"
                             title="Hinzufügen"
                           >
@@ -475,7 +478,9 @@ function EasyOrderCart(props: {
                                 {n}
                               </span>
                               <button
-                                onClick={() => setItemQty(a.id, n - 1)}
+                                  onClick={() =>
+                                    setItemQty(a.id, n - step <= 0 || n - step < min ? 0 : n - step)
+                                  }
                                 className="rounded-full bg-muted px-3 py-1 text-base text-muted-foreground hover:bg-accent"
                                 title="Menge verringern"
                               >
