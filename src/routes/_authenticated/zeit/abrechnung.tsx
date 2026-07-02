@@ -329,63 +329,11 @@ function AbrechnungPage() {
         <div className="space-y-2">
           <Label>Zweiter Kellner (optional)</Label>
           <SecondWaiterSelect
-            value={form.secondWaiterName}
-            onValueChange={(v) => setForm({ ...form, secondWaiterName: v })}
+            value={form.partnerStaffId}
+            onValueChange={(v) => setForm({ ...form, partnerStaffId: v })}
             excludeStaffIds={myExcludeStaffIds}
-            excludeNames={form.additionalWaiters}
           />
         </div>
-        {form.additionalWaiters.length > 0 && (
-          <div className="space-y-2">
-            <Label>Weitere Kellner</Label>
-            {form.additionalWaiters.map((name, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <div className="flex-1">
-                  <SecondWaiterSelect
-                    value={name}
-                    onValueChange={(v) => {
-                      const next = [...form.additionalWaiters];
-                      if (v === null) {
-                        next.splice(i, 1);
-                      } else {
-                        next[i] = v;
-                      }
-                      setForm({ ...form, additionalWaiters: next });
-                    }}
-                    excludeStaffIds={myExcludeStaffIds}
-                    excludeNames={[
-                      form.secondWaiterName ?? "",
-                      ...form.additionalWaiters.filter((_, j) => j !== i),
-                    ]}
-                  />
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() =>
-                    setForm({
-                      ...form,
-                      additionalWaiters: form.additionalWaiters.filter((_, j) => j !== i),
-                    })
-                  }
-                >
-                  Entfernen
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
-        {form.additionalWaiters.length < 3 && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setForm({ ...form, additionalWaiters: [...form.additionalWaiters, ""] })}
-          >
-            + weiteren Kellner hinzufügen
-          </Button>
-        )}
         <hr className="border-border" />
         <div className="space-y-1 text-sm">
           <div className="flex justify-between">
