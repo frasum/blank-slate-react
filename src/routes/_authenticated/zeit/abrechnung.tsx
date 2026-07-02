@@ -59,7 +59,7 @@ type FormState = {
   hilfMahl: string;
   openInvoices: string;
   cashHandedIn: string;
-  partnerStaffId: string | null;
+  partnerStaffIds: string[];
 };
 
 const EMPTY_FORM: FormState = {
@@ -69,7 +69,7 @@ const EMPTY_FORM: FormState = {
   hilfMahl: "",
   openInvoices: "",
   cashHandedIn: "",
-  partnerStaffId: null,
+  partnerStaffIds: [],
 };
 
 function AbrechnungPage() {
@@ -146,7 +146,7 @@ function AbrechnungPage() {
           hilfMahlCents: parsed.hilfMahlCents!,
           openInvoicesCents: parsed.openInvoicesCents!,
           cashHandedInCents: parsed.cashHandedInCents!,
-          partnerStaffIds: form.partnerStaffId ? [form.partnerStaffId] : [],
+          partnerStaffIds: form.partnerStaffIds.filter(Boolean),
         },
       });
     },
