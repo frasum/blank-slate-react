@@ -492,7 +492,9 @@ export async function getMySettlementCore(caller: StaffCaller) {
   ];
   let sessionQuery = supabaseAdmin
     .from("sessions")
-    .select("id, business_date, status, locked_at, location_id, tip_pool_settlement_only")
+    .select(
+      "id, business_date, status, locked_at, location_id, tip_pool_settlement_only, locations:locations!sessions_location_id_fkey(name)",
+    )
     .eq("organization_id", caller.organizationId)
     .eq("business_date", businessDate)
     .order("created_at", { ascending: true });
@@ -502,6 +504,13 @@ export async function getMySettlementCore(caller: StaffCaller) {
   const { data: sessionRows } = await sessionQuery.limit(1);
   const session = sessionRows?.[0] ?? null;
   if (!session) {
+    // Zur Unterscheidung „gar keine Session am Tag" vs. „Session existiert,
+    // aber nicht an deinem Standort": org-weite Zählung ohne Standort-Filter.
+    const { count: openSessionsCount } = await supabaseAdmin
+      .from("sessions")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", caller.organizationId)
+      .eq("business_date", businessDate);
     return {
       businessDate,
       session: null,
@@ -509,6 +518,8 @@ export async function getMySettlementCore(caller: StaffCaller) {
       kitchenTipRate: settings.kitchenTipRate,
       staffId: caller.staffId,
       myPoolShareCents: null as number | null,
+      otherLocationSessionsCount: openSessionsCount ?? 0,
+      hasStaffLocations: staffLocationIds.length > 0,
     };
   }
   const { data: row } = await supabaseAdmin
@@ -547,13 +558,23 @@ export async function getMySettlementCore(caller: StaffCaller) {
     .sort((a, b) => a.localeCompare(b, "de"));
   const settlementWithPartners = row ? { ...row, partnerStaffNames: partnerRows } : null;
 
+  const sessionLocationName =
+    (session as { locations?: { name: string | null } | null }).locations?.name ?? null;
+
   return {
     businessDate,
-    session: { id: session.id, status: session.status },
+    session: {
+      id: session.id,
+      status: session.status,
+      locationId: session.location_id,
+      locationName: sessionLocationName,
+    },
     settlement: settlementWithPartners,
     kitchenTipRate: settings.kitchenTipRate,
     staffId: caller.staffId,
     myPoolShareCents,
+    otherLocationSessionsCount: 0,
+    hasStaffLocations: staffLocationIds.length > 0,
   };
 }
 
