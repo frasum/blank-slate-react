@@ -11,6 +11,7 @@ import { Pencil, Plus, Archive, RotateCcw } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatShortDate } from "@/lib/format-date";
 import { parseEuroToCents } from "@/lib/format";
+import { formatUnitPrice } from "@/lib/bestellung/unit-conversion";
 import {
   createSupplier,
   listSuppliers,
@@ -75,6 +76,14 @@ type ArticleDraft = {
   unit: string;
   priceEuro: string;
   packagingUnit: string;
+  orderUnit: string;
+  inventoryUnit: string;
+  orderToInventoryFactor: string;
+  minOrderQuantity: string;
+  quantityStep: string;
+  allowDecimalOrderQuantity: boolean;
+  targetStockTotal: string;
+  targetStockBar: string;
 };
 
 const EMPTY_ARTICLE_DRAFT: ArticleDraft = {
@@ -85,6 +94,14 @@ const EMPTY_ARTICLE_DRAFT: ArticleDraft = {
   unit: "Stk",
   priceEuro: "",
   packagingUnit: "",
+  orderUnit: "Stk",
+  inventoryUnit: "Stk",
+  orderToInventoryFactor: "1",
+  minOrderQuantity: "1",
+  quantityStep: "1",
+  allowDecimalOrderQuantity: false,
+  targetStockTotal: "",
+  targetStockBar: "",
 };
 
 function fmtEuro(cents: number | null | undefined): string {
@@ -102,6 +119,13 @@ function fmtTime(t: string | null | undefined): string {
 
 function fmtQty(q: number): string {
   return Number.isInteger(q) ? q.toString() : q.toLocaleString("de-DE");
+}
+
+function parseNumberDe(value: string): number | null {
+  const s = value.trim().replace(",", ".");
+  if (s === "") return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
 }
 
 function LieferantenPage() {
@@ -271,11 +295,20 @@ function LieferantenPage() {
           sku: input.draft.sku,
           description: input.draft.description,
           category: input.draft.category,
-          unit: input.draft.unit,
+          unit: input.draft.orderUnit || input.draft.unit,
           priceCents: parseEuroToCents(input.draft.priceEuro) ?? 0,
           packagingUnit: input.draft.packagingUnit
             ? Math.max(1, Math.round(Number(input.draft.packagingUnit)))
             : null,
+          orderUnit: input.draft.orderUnit || undefined,
+          inventoryUnit: input.draft.inventoryUnit || undefined,
+          orderToInventoryFactor:
+            parseNumberDe(input.draft.orderToInventoryFactor) ?? undefined,
+          minOrderQuantity: parseNumberDe(input.draft.minOrderQuantity) ?? undefined,
+          quantityStep: parseNumberDe(input.draft.quantityStep) ?? undefined,
+          allowDecimalOrderQuantity: input.draft.allowDecimalOrderQuantity,
+          targetStockTotal: parseNumberDe(input.draft.targetStockTotal),
+          targetStockBar: parseNumberDe(input.draft.targetStockBar),
           locationIds: input.locationIds,
         },
       }),
@@ -302,11 +335,20 @@ function LieferantenPage() {
           sku: input.draft.sku,
           description: input.draft.description,
           category: input.draft.category,
-          unit: input.draft.unit,
+          unit: input.draft.orderUnit || input.draft.unit,
           priceCents: parseEuroToCents(input.draft.priceEuro) ?? 0,
           packagingUnit: input.draft.packagingUnit
             ? Math.max(1, Math.round(Number(input.draft.packagingUnit)))
             : null,
+          orderUnit: input.draft.orderUnit || undefined,
+          inventoryUnit: input.draft.inventoryUnit || undefined,
+          orderToInventoryFactor:
+            parseNumberDe(input.draft.orderToInventoryFactor) ?? undefined,
+          minOrderQuantity: parseNumberDe(input.draft.minOrderQuantity) ?? undefined,
+          quantityStep: parseNumberDe(input.draft.quantityStep) ?? undefined,
+          allowDecimalOrderQuantity: input.draft.allowDecimalOrderQuantity,
+          targetStockTotal: parseNumberDe(input.draft.targetStockTotal),
+          targetStockBar: parseNumberDe(input.draft.targetStockBar),
           locationIds: input.locationIds,
         },
       }),
