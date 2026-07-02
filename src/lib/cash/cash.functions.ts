@@ -1567,6 +1567,22 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
     cashLockedThroughDate: waterline,
   });
 
+  // Partner-Validierung (gleiche Regeln wie correctWaiterSettlement):
+  //   (a) Partner ≠ Haupt-Kellner (Selbst-Wahl verboten).
+  //   (b) Partner ist an denselben Standort gebunden (Org-Zugehörigkeit
+  //       implizit über staff_locations mit org-Filter).
+  //   (c) Partner ist nicht bereits Haupt- oder Partner einer aktiven
+  //       (nicht-superseded) Abrechnung in derselben Session.
+  const partnerStaffId = data.partnerStaffId ?? null;
+  if (partnerStaffId) {
+    if (partnerStaffId === caller.staffId) {
+      throw new Error("Partner-Kellner darf nicht der Haupt-Kellner sein.");
+    }
+    await assertStaffBoundToLocation(caller.organizationId, partnerStaffId, session.location_id);
+    // excludeSettlementId = existierende eigene (Draft) Zeile, damit ein
+    // erneutes Absenden nicht mit sich selbst kollidiert.
+  }
+
   // Idempotenz: existierende aktive Zeile prüfen.
   const { data: existing } = await supabaseAdmin
     .from("waiter_settlements")
@@ -1578,6 +1594,16 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
     .eq("staff_id", caller.staffId)
     .neq("status", "superseded")
     .maybeSingle();
+
+  if (partnerStaffId) {
+    await assertPartnerFree(
+      caller.organizationId,
+      session.id,
+      caller.staffId,
+      partnerStaffId,
+      existing?.id ?? null,
+    );
+  }
 
   // Rate snapshotten: draft/neu → aktuelle Org-Rate; submitted → Bestand erhalten.
   const kitchenTipRate =
@@ -1630,8 +1656,7 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
         kitchen_tip_rate: kitchenTipRate,
         status: "submitted",
         submitted_at: new Date().toISOString(),
-        second_waiter_name: data.secondWaiterName ?? null,
-        additional_waiters: (data.additionalWaiters ?? []) as unknown as Json,
+        partner_staff_id: partnerStaffId,
       })
       .eq("id", existing.id)
       .eq("organization_id", caller.organizationId);
@@ -1655,8 +1680,7 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
         kitchen_tip_rate: kitchenTipRate,
         status: "submitted",
         submitted_at: new Date().toISOString(),
-        second_waiter_name: data.secondWaiterName ?? null,
-        additional_waiters: (data.additionalWaiters ?? []) as unknown as Json,
+        partner_staff_id: partnerStaffId,
       })
       .select("id")
       .single();
