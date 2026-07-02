@@ -167,7 +167,6 @@ export type Database = {
           image_url: string | null
           is_active: boolean
           name: string
-          order_unit_id: string | null
           organization_id: string
           origin_country: string | null
           packaging_unit: number | null
@@ -189,7 +188,6 @@ export type Database = {
           image_url?: string | null
           is_active?: boolean
           name: string
-          order_unit_id?: string | null
           organization_id: string
           origin_country?: string | null
           packaging_unit?: number | null
@@ -211,7 +209,6 @@ export type Database = {
           image_url?: string | null
           is_active?: boolean
           name?: string
-          order_unit_id?: string | null
           organization_id?: string
           origin_country?: string | null
           packaging_unit?: number | null
@@ -224,13 +221,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "articles_order_unit_id_fkey"
-            columns: ["order_unit_id"]
-            isOneToOne: false
-            referencedRelation: "order_units"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "articles_organization_id_fkey"
             columns: ["organization_id"]
@@ -1196,41 +1186,6 @@ export type Database = {
           },
           {
             foreignKeyName: "order_items_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      order_units: {
-        Row: {
-          abbreviation: string
-          created_at: string
-          id: string
-          is_default: boolean
-          name: string
-          organization_id: string | null
-        }
-        Insert: {
-          abbreviation: string
-          created_at?: string
-          id?: string
-          is_default?: boolean
-          name: string
-          organization_id?: string | null
-        }
-        Update: {
-          abbreviation?: string
-          created_at?: string
-          id?: string
-          is_default?: boolean
-          name?: string
-          organization_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "order_units_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -3720,16 +3675,6 @@ export type Database = {
         Returns: Database["public"]["Enums"]["app_role"]
       }
       current_staff_id: { Args: never; Returns: string }
-      effective_permissions: {
-        Args: { _staff: string }
-        Returns: {
-          area: Database["public"]["Enums"]["staff_department"]
-          effect: Database["public"]["Enums"]["permission_effect"]
-          location_id: string
-          permission: Database["public"]["Enums"]["app_permission"]
-          source: string
-        }[]
-      }
       generate_order_number: { Args: never; Returns: string }
       has_min_permission: {
         Args: { _min: Database["public"]["Enums"]["app_role"] }
@@ -3751,10 +3696,6 @@ export type Database = {
             }
             Returns: boolean
           }
-      has_role: {
-        Args: { _role: Database["public"]["Enums"]["app_role"] }
-        Returns: boolean
-      }
       is_admin: { Args: never; Returns: boolean }
       is_real_admin: { Args: never; Returns: boolean }
       link_account_to_staff: {
