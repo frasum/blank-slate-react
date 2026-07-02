@@ -363,9 +363,7 @@ function AbrechnungPage() {
             type="button"
             variant="outline"
             size="sm"
-            onClick={() =>
-              setForm({ ...form, partnerStaffIds: [...form.partnerStaffIds, ""] })
-            }
+            onClick={() => setForm({ ...form, partnerStaffIds: [...form.partnerStaffIds, ""] })}
           >
             + weiterer Kellner
           </Button>
