@@ -35,7 +35,6 @@ import { assertCashWritable, CashLockedError } from "./cash-lock";
 import type { Json } from "@/integrations/supabase/types";
 import { ForbiddenError } from "@/lib/admin/role-guard";
 import { sessionToDayInput } from "./session-day-input";
-import { pickSingleLocation } from "@/lib/time/resolve-location";
 
 // ------------------------------------------------------------------------
 // Fehlerklassen
