@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { aggregateChannelAmounts, buildDayInputFromAggregation } from "./session-channels";
+import {
+  aggregateChannelAmounts,
+  buildDayInputFromAggregation,
+  sumNonGlTerminalCents,
+} from "./session-channels";
 
 describe("aggregateChannelAmounts — kind-basierte Aggregation", () => {
   it("Summiert je kind und liefert cardTotal aus Terminals", () => {
@@ -44,5 +48,25 @@ describe("aggregateChannelAmounts — kind-basierte Aggregation", () => {
     expect(partial.grossRevenueCents).toBe(100_00);
     expect(partial.deliverySouseCents).toBe(20_00);
     expect(partial.cardTotalCents).toBe(50_00);
+  });
+});
+
+describe("sumNonGlTerminalCents — GL-Terminals dürfen Bargeld nicht mindern", () => {
+  it("Summiert nur physische Terminals (GL wird übersprungen)", () => {
+    const sum = sumNonGlTerminalCents([
+      { amountCents: 100_00, isGl: false },
+      { amountCents: 24_80, isGl: true },
+    ]);
+    expect(sum).toBe(100_00);
+  });
+
+  it("Leere Liste → 0", () => {
+    expect(sumNonGlTerminalCents([])).toBe(0);
+  });
+
+  it("Verweigert nicht-ganzzahlige Beträge", () => {
+    expect(() => sumNonGlTerminalCents([{ amountCents: 1.5, isGl: false }])).toThrow(
+      /integer cents/,
+    );
   });
 });
