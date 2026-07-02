@@ -80,80 +80,11 @@ function AbrechnungPage() {
   const doSubmit = useServerFn(submitWaiterSettlement);
   const { identity } = useAuth();
   const canOpenSession = identity?.role === "admin" || identity?.role === "manager";
-  const fetchLocations = useServerFn(listLocations);
-  const callCreateSession = useServerFn(getOrCreateOpenSession);
-  const callEnsureMySession = useServerFn(ensureMyOpenSession);
-  const [createLocationId, setCreateLocationId] = useState<string>("");
-  const locationsQ = useQuery({
-    queryKey: ["admin-locations"],
-    queryFn: () => fetchLocations(),
-    enabled: canOpenSession,
-  });
-  const createSessionMut = useMutation({
-    mutationFn: () => {
-      if (!createLocationId) throw new Error("Bitte einen Standort wählen.");
-      return callCreateSession({ data: { locationId: createLocationId } });
-    },
-    onSuccess: () => {
-      toast.success("Session geöffnet.");
-      void qc.invalidateQueries({ queryKey: ["cash"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
 
   const myQ = useQuery({
     queryKey: ["cash", "my-settlement"],
     queryFn: () => fetchMy(),
   });
-
-  // Kellner-Auto-Open: wenn (noch) keine Session offen ist, wird sie beim
-  // ersten Aufruf automatisch angelegt. Manager-Button bleibt als Fallback.
-  const autoOpenInFlightRef = useRef(false);
-  const [autoOpenError, setAutoOpenError] = useState<string | null>(null);
-  const [autoOpenAttempts, setAutoOpenAttempts] = useState(0);
-  const [autoOpenLastAt, setAutoOpenLastAt] = useState<Date | null>(null);
-  const [autoOpenPending, setAutoOpenPending] = useState(false);
-  const noSession = myQ.data != null && myQ.data.session == null;
-  const MAX_AUTO_OPEN_ATTEMPTS = 3;
-
-  const tryAutoOpen = useMemo(
-    () => async () => {
-      if (autoOpenInFlightRef.current) return;
-      autoOpenInFlightRef.current = true;
-      setAutoOpenPending(true);
-      setAutoOpenError(null);
-      setAutoOpenAttempts((n) => n + 1);
-      try {
-        await callEnsureMySession();
-        setAutoOpenLastAt(new Date());
-        void qc.invalidateQueries({ queryKey: ["cash"] });
-      } catch (e: unknown) {
-        setAutoOpenLastAt(new Date());
-        setAutoOpenError(e instanceof Error ? e.message : "Unbekannter Fehler");
-      } finally {
-        autoOpenInFlightRef.current = false;
-        setAutoOpenPending(false);
-      }
-    },
-    [callEnsureMySession, qc],
-  );
-
-  // Erster Versuch automatisch; danach Auto-Retry mit Backoff bis MAX Versuche.
-  useEffect(() => {
-    if (!noSession) return;
-    if (autoOpenPending) return;
-    if (autoOpenAttempts === 0) {
-      void tryAutoOpen();
-      return;
-    }
-    if (autoOpenError && autoOpenAttempts < MAX_AUTO_OPEN_ATTEMPTS) {
-      const delayMs = Math.min(1000 * 2 ** (autoOpenAttempts - 1), 8000);
-      const t = setTimeout(() => {
-        void tryAutoOpen();
-      }, delayMs);
-      return () => clearTimeout(t);
-    }
-  }, [noSession, autoOpenPending, autoOpenAttempts, autoOpenError, tryAutoOpen]);
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [confirmOpen, setConfirmOpen] = useState(false);
