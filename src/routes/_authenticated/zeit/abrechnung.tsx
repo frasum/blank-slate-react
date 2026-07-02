@@ -329,12 +329,46 @@ function AbrechnungPage() {
           error={parsed.cashHandedInCents === null && form.cashHandedIn !== ""}
         />
         <div className="space-y-2">
-          <Label>Zweiter Kellner (optional)</Label>
-          <SecondWaiterSelect
-            value={form.partnerStaffId}
-            onValueChange={(v) => setForm({ ...form, partnerStaffId: v })}
-            excludeStaffIds={myExcludeStaffIds}
-          />
+          <Label>Weitere Kellner (optional)</Label>
+          {form.partnerStaffIds.map((pid, idx) => {
+            const others = form.partnerStaffIds.filter((_, i) => i !== idx).filter(Boolean);
+            return (
+              <div key={idx} className="flex items-center gap-2">
+                <div className="flex-1">
+                  <SecondWaiterSelect
+                    value={pid || null}
+                    onValueChange={(v) => {
+                      const next = [...form.partnerStaffIds];
+                      next[idx] = v ?? "";
+                      setForm({ ...form, partnerStaffIds: next });
+                    }}
+                    excludeStaffIds={[...myExcludeStaffIds, ...others]}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    const next = form.partnerStaffIds.filter((_, i) => i !== idx);
+                    setForm({ ...form, partnerStaffIds: next });
+                  }}
+                >
+                  Entfernen
+                </Button>
+              </div>
+            );
+          })}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              setForm({ ...form, partnerStaffIds: [...form.partnerStaffIds, ""] })
+            }
+          >
+            + weiterer Kellner
+          </Button>
         </div>
         <hr className="border-border" />
         <div className="space-y-1 text-sm">
