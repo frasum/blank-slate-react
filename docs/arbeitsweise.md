@@ -2,7 +2,7 @@
 
 Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen Baublock konsultiert. Bewusst kurz gehalten — Architektur-Begründungen stehen im gruendungsdokument.md, nicht hier.
 
-Stand: 01.07.2026
+Stand: 02.07.2026
 
 ## 1. Rollenverteilung im Team
 
@@ -144,7 +144,7 @@ Rekonstruiert per Kalibrierung gegen bereits validierte Bestands-Sessions (Refer
 
 **`session_tip_pool_entries`:** `hours_minutes = round(hours_worked × 60)`. Service je `waiter_shifts` mit `participates_in_pool=true`; Küche je `kitchen_shifts`. **Zusatzkellner** (`additional_waiters`/`second_waiter_name`) erhalten einen **eigenen** Service-Eintrag mit den Stunden des Primärkellners und `note='Zusatzkellner-Nachimport'`. Die Tabelle hat **keine** `location_id`-Spalte.
 
-**Mitarbeiter-Auflösung:** Quell-`waiter_name`/`staff_name` → COCO `staff_id` über `upper(staff.display_name)` (case-insensitive). Sonderfall: Login-Form `jirawut.saechiang` → `COCO` (perso 19).
+**Mitarbeiter-Auflösung:** Quell-`waiter_name`/`staff_name` → COCO `staff_id` über `upper(staff.display_name)` (case-insensitive). Sonderfälle: Login-Form `jirawut.saechiang` → `COCO` (perso 19); `KRIS` → `KRISS` (Quelle schrieb dieselbe Person in zwei Schreibweisen).
 
 **Idempotenz:** Import-SQL nutzt durchgängig `WHERE NOT EXISTS` (gefahrlos mehrfach ausführbar); Kassendetail-Tabellen (`session_card_transactions`/`session_expenses`/`session_bank_deposits`/`session_advances`/`session_register_transfers`) werden für diese settlement-only-Sessions **nicht** befüllt.
 
@@ -1248,3 +1248,51 @@ Settlement-Rechenkern, Trinkgeld-Pool, Superseded-Logik, EasyOrder/Orders, Lohn-
   service-role-only; Hashing brächte nur bei einem DB-Dump-Leak Schutz. §29-Designentscheidung.
 - **`listStaffForImpersonation` listet auch inaktive Mitarbeiter** — reines UX-Thema, der Start
   blockt Accountlose; keine Sicherheitsrelevanz.
+
+## 37. Kassen-Reset + Re-Import „Cleaning Cut" (02.07.2026)
+
+Kompletter Reset aller COCO-Kassen-/Abrechnungs-/Trinkgelddaten inkl. Tresor und
+Neuimport aus tagesabrechnung (LIVE-Quelle). Grund: Test-Abrechnungen mit falschen
+Zahlen (Experimente ab 16.05.) hatten die Kassendaten verunreinigt. Zugleich war
+dies die Generalprobe für den Go-live-Re-Import nach der §5-Methode.
+
+### Ablauf (wiederverwendbar für den Go-live-Import)
+
+1. **Export zuerst** (tagesabrechnung, nur SELECT): sessions, waiter_shifts,
+   kitchen_shifts komplett als CSV — Sicherung VOR jeder Löschung.
+2. **Diagnose** (COCO): Bestand aller Kassen-Tabellen, time_entries nach source,
+   Wasserlinie. Ergebnis: keine `pool`-/`manual`-Einträge vorhanden → Löschung
+   lohnseitig unkritisch (edlohn-abgeglichene Perioden Mai/Juni unberührt).
+3. **Löschen** (COCO): FK-geordnet in einer Transaktion (settlement_partners →
+   waiter_settlements → session\_\* -Kinder → sessions → time_entries source='pool'),
+   org-gescoped, Rest-Check im SELBEN Editor-Lauf (alle 12 Tabellen = 0).
+4. **Import** (COCO, §5-Methode): Mapping-Check als Pflicht-Gate (Q1 muss leer
+   sein) → Sessions → Kanäle/Terminals → Settlements → Tip-Pool in Batches →
+   Abschluss-Abgleich mit eingebetteten Soll-Zahlen je Monat × Standort.
+
+### Endstand (verifiziert, Ist = Soll)
+
+sessions 271 · waiter_settlements 872 · session_tip_pool_entries 2363 ·
+session_channel_amounts 646 · session_terminal_amounts 592.
+Zeitraum: 16.02.–01.07.2026 (YUM + Spicery).
+
+### Lektionen / Regeln für den Go-live-Re-Import
+
+- **Laufenden Geschäftstag NIE importieren** (Stichtag = gestern): der offene Tag
+  der Quelle würde als leere Hülle landen und wäre durch `WHERE NOT EXISTS` beim
+  nächsten Import blockiert (§5-Hüllen-Falle).
+- **Namens-Overrides Kasse** (Quelle → COCO display_name): GUNC→GUNG,
+  PAE→SUMITR, jirawut.saechiang→COCO, **KRIS→KRISS** (Quelle schrieb dieselbe
+  Person in zwei Schreibweisen; 47 Zeilen fielen erst im Abgleich auf).
+- **Der Abschluss-Abgleich ist Pflicht**, nicht Kür: der Namens-Join lässt
+  unaufgelöste Zeilen STILL fallen — nur der Soll/Ist-Vergleich je Monat ×
+  Standort fängt das (hat KRIS und eine FRANK-Zeile gefunden).
+- **Mitternachts-Wrap der Quelle:** kitchen_shifts mit shift_end=00:00 haben
+  negative hours_worked (end−start ohne Wrap). Fix: bei h<0 → h+24.
+- **Bewusst ausgelassen:** 1 Zusatzkellner-Eintrag „FRANK" (17.02., Spicery,
+  0 Minuten, kein staff-Datensatz) — kein Pool-Beitrag, kein Nachtrag nötig.
+- **Tresor startet bei null:** die Quelle führt kein cash_actual/opening_balance —
+  die Tresor-Kette ist aus tagesabrechnung nicht rekonstruierbar und beginnt
+  erst mit dem COCO-Echtbetrieb. Historie bleibt in tagesabrechnung nachschlagbar.
+- `time_entries` mit source='pool' sind vollständig abgeleitete Daten: bei einem
+  Kassen-Reset immer mitlöschen; echte Stempel (clock/manual/import) nie anfassen.
