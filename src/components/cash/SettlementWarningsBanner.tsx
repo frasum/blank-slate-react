@@ -36,15 +36,17 @@ export function SettlementWarningsBanner({
     else physicalTerminalCents += Number(t.amountCents);
   }
 
+  const activeSettlements = overview.settlements.filter((s) => s.status !== "superseded");
+
   const warnings = computeSettlementWarnings({
-    hasSettlements: overview.settlements.length > 0,
+    hasSettlements: activeSettlements.length > 0,
     posTotalCents: Number(overview.session?.vectron_daily_total_cents ?? 0),
     deliveryVectronCents: agg.byKind.delivery_vectron,
     deliverySouseCents: agg.byKind.delivery_souse,
     terminalsTotalCents: physicalTerminalCents,
     glCardCents,
-    waiterPosSalesCents: overview.settlements.map((s) => Number(s.pos_sales_cents)),
-    waiterCardTotalCents: overview.settlements.map((s) => Number(s.card_total_cents)),
+    waiterPosSalesCents: activeSettlements.map((s) => Number(s.pos_sales_cents)),
+    waiterCardTotalCents: activeSettlements.map((s) => Number(s.card_total_cents)),
   });
 
   if (warnings.length === 0) return null;
