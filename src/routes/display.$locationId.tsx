@@ -196,8 +196,8 @@ function DisplayPage() {
         <footer className="border-t border-slate-800 px-6 py-2 text-center text-xs text-slate-400">
           <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
             <span>
-              <span className="font-medium text-slate-300">Küche:</span> VS Vorspeise · PA Pass ·
-              SP Spülen · CO Kochen
+              <span className="font-medium text-slate-300">Küche:</span> VS Vorspeise · PA Pass · SP
+              Spülen · CO Kochen
             </span>
             <span>
               <span className="font-medium text-slate-300">Service:</span> X Service · GL
