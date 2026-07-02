@@ -1189,3 +1189,30 @@ Werkzeuggestütztes Audit (knip 5, Entry-korrigiert für TanStack Start; npm aud
 - **npm audit:** 2× moderate via `exceljs`→`uuid` (GHSA-w5hq-g745-h8pq). Auto-Fix wäre Breaking-Downgrade → nicht angewendet; beobachten bis exceljs upstream fixt (Alternative: npm-`overrides`).
 - Die 5 tolerierten `exhaustive-deps`-Warnings: weiterhin §8-Merkposten.
 - **Phase 2 (DB-Audit):** RLS-Inventur + verwaiste Tabellen/Spalten per Diagnose-SQL. **Phase 3:** manuelles Review Geld-/Auth-Pfad. Beide ausstehend.
+
+## 35. Code-Audit Phase 2: Live-DB-Inventur (02.07.2026)
+
+Live-Inventur der COCO-DB (5 Diagnose-SQLs, CSV-verifiziert): Policies, Tabellen-Status, Referenzen, Trigger, Enums — abgeglichen gegen den Code.
+
+### Ergebnis: DB in ausgezeichnetem Zustand
+
+**0 anon-Policies · 0 Tabellen ohne RLS · 0 DB-Drift** (63 Live-Tabellen = exakt die 63 code-bekannten, trotz monatelanger Direkt-SQL-Arbeit) · 33 Trigger ausnahmslos Standard-Muster (updated_at/Seeds), keine Rollback-Reste · Enums decken sich mit dem Code. Die RLS-Helper sind quicklebendig: `has_min_permission` (30 Policies), `is_admin` (22), `current_staff_id` (13), `is_real_admin` (4), `_effective_user_id` (5 Function-Bodies).
+
+### Zurückgebaut (Migration `20260702152005`)
+
+- **Bestelleinheiten-Anschluss komplett entfernt** (Entscheidung Frank): `articles.order_unit_id` (Spalte + FK), Tabelle `order_units` (leer, count=0 live geprüft; ihre 4 Policies fielen mit) sowie `orderUnitId` aus `articles.functions.ts`/`bestellung.wein.tsx`. Begründung: nie fertiggestellt (Verwaltungs-Code war der Phase-1-Fund ohne Aufrufer), seit M5-Go-live mit 1.335 Artikeln nie befüllt; `articles.unit` + `articles.packaging_unit` sind die gelebten Einheiten-Felder.
+- **Zwei referenzlose DB-Functions gedropt:** `effective_permissions(uuid)`, `has_role(app_role)`.
+
+### Bewusste RLS-Ausnahmen (bei künftigen Audits NICHT erneut aufwerfen)
+
+- **`permission_role_defaults` mit `USING (true)` für `authenticated`** — das einzige Flag der Inventur: globaler Berechtigungs-Katalog (nur `role`/`permission`/effect, keine `organization_id`, keine Personen-/Org-Daten) → Lesen für alle Angemeldeten ist korrekt. Dies ist die dokumentierte Ausnahme zum §7-Gesetz.
+- **Sechs gewollte deny-all-Tabellen** (0 Client-Policies, Zugriff nur serverseitig/service_role): `access_tokens`, `audit_log`, `pin_attempts`, `staff_pins`, `roster_releases`, `article_locations`.
+- **`generate_order_number` LEBT** — Spalten-DEFAULT von `orders.order_number` (Bestellnummern ORD-JJJJ-MM-nnnn). Nie droppen.
+
+### Audit-Lektion (Methodik)
+
+Der Referenz-Check prüfte Policies, Function-Bodies und Trigger — aber **nicht Spalten-DEFAULTs**: `generate_order_number` war dadurch fälschlich als referenzlos eingestuft; der DROP scheiterte sauber (transaktionaler Rollback, Lovable stoppte korrekt ohne CASCADE). **Regel: DB-Referenz-Checks müssen auch `pg_attrdef` (Spalten-DEFAULTs), Views und Constraints einschließen.** Und: `drop function` bei Überladungen immer mit expliziter Signatur.
+
+### Offen
+
+Phase 3 (manuelles Review Geld-/Auth-Pfad) — letzter Audit-Teil.
