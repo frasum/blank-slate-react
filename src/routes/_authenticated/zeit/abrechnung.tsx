@@ -473,6 +473,25 @@ function Header({ showKasseLink = false }: { showKasseLink?: boolean }) {
   );
 }
 
+function SessionOpenBanner({
+  locationName,
+  status,
+}: {
+  locationName: string | null;
+  status: string;
+}) {
+  const locked = status === "locked";
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm">
+      <Badge variant={locked ? "secondary" : "default"}>
+        {locked ? "Session gesperrt" : "Session eröffnet"}
+      </Badge>
+      <span className="text-muted-foreground">Standort:</span>
+      <span className="font-medium">{locationName ?? "unbekannt"}</span>
+    </div>
+  );
+}
+
 function EuroField({
   id,
   label,
