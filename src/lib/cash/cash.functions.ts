@@ -436,7 +436,7 @@ export async function getMySettlementCore(caller: StaffCaller) {
   const { data: row } = await supabaseAdmin
     .from("waiter_settlements")
     .select(
-      "id, status, pos_sales_cents, kassiert_brutto_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents, differenz_cents, kitchen_tip_cents, kitchen_tip_rate, submitted_at, auto_clockout_time_entry_id, second_waiter_name, additional_waiters",
+      "id, status, pos_sales_cents, kassiert_brutto_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents, differenz_cents, kitchen_tip_cents, kitchen_tip_rate, submitted_at, auto_clockout_time_entry_id, second_waiter_name, additional_waiters, partner_staff_id, partner_staff:staff!waiter_settlements_partner_staff_id_fkey(display_name)",
     )
     .eq("organization_id", caller.organizationId)
     .eq("session_id", session.id)
