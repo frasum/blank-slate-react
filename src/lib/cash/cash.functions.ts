@@ -2060,7 +2060,7 @@ const adminCreateSettlementSchema = z.object({
   hilfMahlCents: z.number().int().min(0),
   openInvoicesCents: z.number().int().min(0),
   cashHandedInCents: z.number().int().min(0),
-  partnerStaffId: z.string().uuid().nullable().optional(),
+  partnerStaffIds: z.array(z.string().uuid()).default([]),
   reason: z.string().trim().min(3).max(500),
 });
 
@@ -2091,23 +2091,19 @@ export async function adminCreateWaiterSettlementCore(
     });
 
     await assertStaffBoundToLocation(caller.organizationId, data.staffId, session.location_id);
-    if (data.partnerStaffId) {
-      if (data.partnerStaffId === data.staffId) {
+    const partnerStaffIds = Array.from(new Set(data.partnerStaffIds ?? []));
+    for (const pid of partnerStaffIds) {
+      if (pid === data.staffId) {
         throw new Error("Partner-Kellner darf nicht der Haupt-Kellner sein.");
       }
-      await assertStaffBoundToLocation(
-        caller.organizationId,
-        data.partnerStaffId,
-        session.location_id,
-      );
-      await assertPartnerFree(
-        caller.organizationId,
-        session.id,
-        data.staffId,
-        data.partnerStaffId,
-        null,
-      );
+      await assertStaffBoundToLocation(caller.organizationId, pid, session.location_id);
     }
+    await assertPartnersFree(
+      caller.organizationId,
+      session.id,
+      [data.staffId, ...partnerStaffIds],
+      null,
+    );
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -2140,7 +2136,7 @@ export async function adminCreateWaiterSettlementCore(
         organization_id: caller.organizationId,
         session_id: session.id,
         staff_id: data.staffId,
-        partner_staff_id: data.partnerStaffId ?? null,
+        partner_staff_id: null,
         pos_sales_cents: data.posSalesCents,
         kassiert_brutto_cents: kassiertBruttoCents,
         card_total_cents: data.cardTotalCents,
@@ -2156,6 +2152,8 @@ export async function adminCreateWaiterSettlementCore(
       .select("id")
       .single();
     if (insErr) throw insErr;
+
+    await replaceSettlementPartners(caller.organizationId, created.id, partnerStaffIds);
 
     return {
       result: {
