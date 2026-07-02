@@ -295,9 +295,9 @@ function BlockTable({ block, days }: { block: DisplayBlock; days: string[] }) {
                   <td
                     key={i}
                     className={[
-                      "border-b border-slate-800/60 px-0.5 py-0.5 text-center align-middle",
-                      isWeekend(days[i]) ? "bg-slate-900/40" : "",
-                      i === 0 ? "bg-sky-500/5" : "",
+                      "border-b border-slate-800/60 px-0.5 py-0.5 text-center align-middle bg-slate-950 group-even/row:bg-slate-800/70",
+                      isWeekend(days[i]) ? "ring-1 ring-inset ring-slate-700/40" : "",
+                      i === 0 ? "ring-1 ring-inset ring-sky-400/40" : "",
                     ].join(" ")}
                   >
                     <CellView cell={cell} area={block.area} />
