@@ -269,12 +269,12 @@ function OpenSession({
           <thead className="text-left text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
               <th className="px-3 py-2">Artikel</th>
-              <th className="px-3 py-2">Einheit</th>
-              <th className="px-3 py-2 text-right">Preis</th>
-              <th className="px-3 py-2 text-center">Lager 1</th>
-              <th className="px-3 py-2 text-center">Lager 2</th>
-              <th className="px-3 py-2 text-right">Menge</th>
-              <th className="px-3 py-2 text-right">Wert</th>
+              <th className="px-3 py-2">Inventureinheit</th>
+              <th className="px-3 py-2 text-right">Einzelwert</th>
+              <th className="px-3 py-2 text-center">Bar</th>
+              <th className="px-3 py-2 text-center">Trockenlager</th>
+              <th className="px-3 py-2 text-right">Gesamt</th>
+              <th className="px-3 py-2 text-right">Gesamtwert</th>
             </tr>
           </thead>
           <tbody>
@@ -310,12 +310,18 @@ function ArticleRow({
     name: string;
     unit: string;
     price_cents: number;
+    order_unit?: string;
+    inventory_unit?: string;
+    order_to_inventory_factor?: number;
   };
   item: {
     storage_1: number;
     storage_2: number;
     total_qty: number;
     line_value_cents: number;
+    article_name_snapshot?: string | null;
+    inventory_unit_snapshot?: string | null;
+    normalized_price_per_inventory_unit_cents?: number | null;
   } | null;
   readOnly: boolean;
   onSave: (s1: number, s2: number) => void;
@@ -333,8 +339,20 @@ function ArticleRow({
     }
   }, [item, item?.storage_1, item?.storage_2]);
 
+  // Snapshot-first: bei abgeschlossenen Zeilen Anzeige aus Snapshot, sonst live.
+  const displayName = (readOnly && item?.article_name_snapshot) || article.name;
+  const invUnit =
+    (readOnly && item?.inventory_unit_snapshot) ||
+    article.inventory_unit ||
+    article.unit;
+  const factor = article.order_to_inventory_factor ?? 1;
+  const normalizedPerUnit =
+    readOnly && item?.normalized_price_per_inventory_unit_cents != null
+      ? Number(item.normalized_price_per_inventory_unit_cents)
+      : article.price_cents / (factor || 1);
   const qty = parseQty(s1) + parseQty(s2);
-  const liveValue = Math.round(qty * article.price_cents);
+  const liveValue =
+    readOnly && item ? item.line_value_cents : Math.round(qty * normalizedPerUnit);
 
   function schedule(nextS1: string, nextS2: string) {
     if (readOnly) return;
@@ -349,10 +367,14 @@ function ArticleRow({
 
   return (
     <tr className="border-t border-border">
-      <td className="px-3 py-2">{article.name}</td>
-      <td className="px-3 py-2 text-muted-foreground">{article.unit}</td>
+      <td className="px-3 py-2">{displayName}</td>
+      <td className="px-3 py-2 text-muted-foreground">{invUnit}</td>
       <td className="px-3 py-2 text-right font-mono text-muted-foreground">
-        {fmtEuro(article.price_cents)}
+        {(normalizedPerUnit / 100).toLocaleString("de-DE", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 4,
+        })}{" "}
+        €
       </td>
       <td className="px-3 py-2 text-center">
         <input
