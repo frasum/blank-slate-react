@@ -302,8 +302,7 @@ function LieferantenPage() {
             : null,
           orderUnit: input.draft.orderUnit || undefined,
           inventoryUnit: input.draft.inventoryUnit || undefined,
-          orderToInventoryFactor:
-            parseNumberDe(input.draft.orderToInventoryFactor) ?? undefined,
+          orderToInventoryFactor: parseNumberDe(input.draft.orderToInventoryFactor) ?? undefined,
           minOrderQuantity: parseNumberDe(input.draft.minOrderQuantity) ?? undefined,
           quantityStep: parseNumberDe(input.draft.quantityStep) ?? undefined,
           allowDecimalOrderQuantity: input.draft.allowDecimalOrderQuantity,
@@ -342,8 +341,7 @@ function LieferantenPage() {
             : null,
           orderUnit: input.draft.orderUnit || undefined,
           inventoryUnit: input.draft.inventoryUnit || undefined,
-          orderToInventoryFactor:
-            parseNumberDe(input.draft.orderToInventoryFactor) ?? undefined,
+          orderToInventoryFactor: parseNumberDe(input.draft.orderToInventoryFactor) ?? undefined,
           minOrderQuantity: parseNumberDe(input.draft.minOrderQuantity) ?? undefined,
           quantityStep: parseNumberDe(input.draft.quantityStep) ?? undefined,
           allowDecimalOrderQuantity: input.draft.allowDecimalOrderQuantity,

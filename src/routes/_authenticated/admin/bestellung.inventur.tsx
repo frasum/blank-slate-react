@@ -342,17 +342,14 @@ function ArticleRow({
   // Snapshot-first: bei abgeschlossenen Zeilen Anzeige aus Snapshot, sonst live.
   const displayName = (readOnly && item?.article_name_snapshot) || article.name;
   const invUnit =
-    (readOnly && item?.inventory_unit_snapshot) ||
-    article.inventory_unit ||
-    article.unit;
+    (readOnly && item?.inventory_unit_snapshot) || article.inventory_unit || article.unit;
   const factor = article.order_to_inventory_factor ?? 1;
   const normalizedPerUnit =
     readOnly && item?.normalized_price_per_inventory_unit_cents != null
       ? Number(item.normalized_price_per_inventory_unit_cents)
       : article.price_cents / (factor || 1);
   const qty = parseQty(s1) + parseQty(s2);
-  const liveValue =
-    readOnly && item ? item.line_value_cents : Math.round(qty * normalizedPerUnit);
+  const liveValue = readOnly && item ? item.line_value_cents : Math.round(qty * normalizedPerUnit);
 
   function schedule(nextS1: string, nextS2: string) {
     if (readOnly) return;

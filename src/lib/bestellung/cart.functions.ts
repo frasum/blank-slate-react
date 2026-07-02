@@ -22,9 +22,7 @@ async function assertOrderQuantityForArticle(
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data: a, error } = await supabaseAdmin
     .from("articles")
-    .select(
-      "id, order_unit, quantity_step, min_order_quantity, allow_decimal_order_quantity",
-    )
+    .select("id, order_unit, quantity_step, min_order_quantity, allow_decimal_order_quantity")
     .eq("id", articleId)
     .eq("organization_id", organizationId)
     .maybeSingle();
