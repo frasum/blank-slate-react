@@ -194,8 +194,29 @@ function DisplayPage() {
 
       {data.showFooter && (
         <footer className="border-t border-slate-800 px-6 py-2 text-center text-xs text-slate-400">
-          <span className="font-medium text-slate-300">Legende:</span> X Arbeitet · − Frei · ☂
-          Urlaub · 🌡 Krank · ♡ Wunsch-frei · ○ Verfügbar
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+            <span>
+              <span className="font-medium text-slate-300">Küche:</span> VS Vorspeise · PA Pass ·
+              SP Spülen · CO Kochen
+            </span>
+            <span>
+              <span className="font-medium text-slate-300">Service:</span> X Service · GL
+              Geschäftsleitung · B Bar · 19h 19-Uhr-Schicht · H Hausmeister
+            </span>
+            <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="font-medium text-slate-300">Status:</span>
+              <span>− Frei</span>
+              <span className="inline-flex items-center gap-1">
+                <Umbrella className="h-3 w-3 text-green-400" /> Urlaub
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <HeartPulse className="h-3 w-3 text-red-400" /> Krank
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <Heart className="h-3 w-3 fill-purple-400 text-purple-400" /> Wunsch-frei
+              </span>
+            </span>
+          </div>
         </footer>
       )}
     </div>
@@ -367,7 +388,7 @@ function CellView({ cell, area }: { cell: DisplayCell; area: "kitchen" | "servic
     );
   }
   if (cell.k === "available") {
-    return <span className="text-slate-500">○</span>;
+    return <span className="text-slate-600">−</span>;
   }
   return <span className="text-slate-600">−</span>;
 }
