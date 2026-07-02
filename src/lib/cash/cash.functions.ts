@@ -1564,9 +1564,11 @@ const settlementInputSchema = z.object({
   hilfMahlCents: z.number().int().min(0),
   openInvoicesCents: z.number().int().min(0),
   cashHandedInCents: z.number().int().min(0),
-  // Zweiter Kellner: staff_id (UUID). Wird direkt als partner_staff_id
-  // gespeichert — kein Textfeld mehr. Betriebsrealität: max. 1 Partner.
-  partnerStaffId: z.string().uuid().nullable().default(null),
+  // Mitarbeitende Kellner (staff_ids). Werden nach Insert in
+  // `settlement_partners` verknüpft. Leere Liste = solo. Duplikate und
+  // die Haupt-Kellner-Id werden serverseitig herausgefiltert bzw.
+  // abgelehnt.
+  partnerStaffIds: z.array(z.string().uuid()).default([]),
 });
 
 export const submitWaiterSettlement = createServerFn({ method: "POST" })
@@ -1635,16 +1637,15 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
   //   (a) Partner ≠ Haupt-Kellner (Selbst-Wahl verboten).
   //   (b) Partner ist an denselben Standort gebunden (Org-Zugehörigkeit
   //       implizit über staff_locations mit org-Filter).
-  //   (c) Partner ist nicht bereits Haupt- oder Partner einer aktiven
-  //       (nicht-superseded) Abrechnung in derselben Session.
-  const partnerStaffId = data.partnerStaffId ?? null;
-  if (partnerStaffId) {
-    if (partnerStaffId === caller.staffId) {
+  //   (c) Kein beteiligter Kellner (Haupt oder Partner) ist bereits in
+  //       einer anderen aktiven (nicht-superseded) Abrechnung derselben
+  //       Session verknüpft.
+  const partnerStaffIds = Array.from(new Set(data.partnerStaffIds ?? []));
+  for (const pid of partnerStaffIds) {
+    if (pid === caller.staffId) {
       throw new Error("Partner-Kellner darf nicht der Haupt-Kellner sein.");
     }
-    await assertStaffBoundToLocation(caller.organizationId, partnerStaffId, session.location_id);
-    // excludeSettlementId = existierende eigene (Draft) Zeile, damit ein
-    // erneutes Absenden nicht mit sich selbst kollidiert.
+    await assertStaffBoundToLocation(caller.organizationId, pid, session.location_id);
   }
 
   // Idempotenz: existierende aktive Zeile prüfen.
@@ -1659,15 +1660,12 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
     .neq("status", "superseded")
     .maybeSingle();
 
-  if (partnerStaffId) {
-    await assertPartnerFree(
-      caller.organizationId,
-      session.id,
-      caller.staffId,
-      partnerStaffId,
-      existing?.id ?? null,
-    );
-  }
+  await assertPartnersFree(
+    caller.organizationId,
+    session.id,
+    [caller.staffId, ...partnerStaffIds],
+    existing?.id ?? null,
+  );
 
   // Rate snapshotten: draft/neu → aktuelle Org-Rate; submitted → Bestand erhalten.
   const kitchenTipRate =
@@ -1720,7 +1718,7 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
         kitchen_tip_rate: kitchenTipRate,
         status: "submitted",
         submitted_at: new Date().toISOString(),
-        partner_staff_id: partnerStaffId,
+        partner_staff_id: null,
       })
       .eq("id", existing.id)
       .eq("organization_id", caller.organizationId);
@@ -1744,13 +1742,18 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
         kitchen_tip_rate: kitchenTipRate,
         status: "submitted",
         submitted_at: new Date().toISOString(),
-        partner_staff_id: partnerStaffId,
+        partner_staff_id: null,
       })
       .select("id")
       .single();
     if (error) throw error;
     settlementId = created.id;
   }
+
+  // Partner-Verknüpfung schreiben (delete-then-insert, atomar aus Sicht
+  // der Zeile — bestehende Zeilen kommen nur aus früheren Drafts/Submits
+  // derselben Abrechnung).
+  await replaceSettlementPartners(caller.organizationId, settlementId, partnerStaffIds);
 
   // Auto-Ausstempeln — nur wenn nicht bereits passiert.
   let autoClockoutId: string | null = null;
