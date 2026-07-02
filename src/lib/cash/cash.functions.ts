@@ -3160,6 +3160,8 @@ export async function getPreviousOperativeDeficitCore(
   };
 
   for (const r of tmRes.data ?? []) {
+    // GL-Terminals überspringen — sie mindern das Tages-Bargeld nicht.
+    if ((r.payment_terminals as { is_gl: boolean } | null)?.is_gl) continue;
     ensure(r.session_id).cardTotalCents += Number(r.amount_cents);
   }
   for (const r of chRes.data ?? []) {
