@@ -478,12 +478,29 @@ export async function getMySettlementCore(caller: StaffCaller) {
   const businessDate = await getCurrentBusinessDate();
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const settings = await loadOrgSettings(caller.organizationId);
-  const { data: session } = await supabaseAdmin
+  // Standort-Zuordnung des Kellners laden — es können mehrere offene Sessions
+  // am gleichen Geschäftstag existieren (eine je Standort). Ohne Filter würde
+  // maybeSingle() bei >1 Zeile einen Fehler liefern und die UI zeigte fälschlich
+  // „keine Session eröffnet".
+  const { data: staffLocRows } = await supabaseAdmin
+    .from("staff_locations")
+    .select("location_id")
+    .eq("staff_id", caller.staffId)
+    .eq("organization_id", caller.organizationId);
+  const staffLocationIds = [
+    ...new Set((staffLocRows ?? []).map((r) => r.location_id).filter(Boolean)),
+  ];
+  let sessionQuery = supabaseAdmin
     .from("sessions")
     .select("id, business_date, status, locked_at, location_id, tip_pool_settlement_only")
     .eq("organization_id", caller.organizationId)
     .eq("business_date", businessDate)
-    .maybeSingle();
+    .order("created_at", { ascending: true });
+  if (staffLocationIds.length > 0) {
+    sessionQuery = sessionQuery.in("location_id", staffLocationIds);
+  }
+  const { data: sessionRows } = await sessionQuery.limit(1);
+  const session = sessionRows?.[0] ?? null;
   if (!session) {
     return {
       businessDate,
