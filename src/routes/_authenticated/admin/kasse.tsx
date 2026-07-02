@@ -509,7 +509,10 @@ function KassePage() {
               setCorrect({
                 originalId: row.id,
                 staffName: row.staffName,
-                partnerStaffId: row.partner_staff_id ?? "",
+                partnerStaffId:
+                  ((row as { partnerStaffIds?: string[] }).partnerStaffIds ?? [])[0] ??
+                  row.partner_staff_id ??
+                  "",
                 posSales: (Number(row.pos_sales_cents) / 100).toFixed(2),
                 kassiertBrutto: (
                   Number(
