@@ -182,99 +182,13 @@ function AbrechnungPage() {
 
   // Falls noch keine Session offen: read-only Hinweis.
   if (!session) {
-    const lastAtLabel = autoOpenLastAt
-      ? autoOpenLastAt.toLocaleTimeString("de-DE", {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        })
-      : null;
-    const exhausted = autoOpenError !== null && autoOpenAttempts >= MAX_AUTO_OPEN_ATTEMPTS;
-
-    // Standard: Auto-Open läuft (oder wird gleich neu versucht). Kellner
-    // sieht Fortschritt inkl. Versuch + Zeitstempel. Erst nach erschöpften
-    // Versuchen erscheint der harte Fehler-Fallback (Manager-Button etc.).
-    if (!exhausted) {
-      const status = autoOpenPending
-        ? `Versuche Session zu öffnen (Versuch ${autoOpenAttempts} von ${MAX_AUTO_OPEN_ATTEMPTS})…`
-        : autoOpenError
-          ? `Nächster Versuch läuft an (Versuch ${autoOpenAttempts} schlug fehl).`
-          : `Session für ${businessDate} wird vorbereitet…`;
-      return (
-        <main className="mx-auto max-w-xl space-y-6 px-4 py-8">
-          <Header showKasseLink={canOpenSession} />
-          <Card className="space-y-3 p-6 text-sm">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              {autoOpenPending && (
-                <span
-                  aria-hidden
-                  className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"
-                />
-              )}
-              <span>{status}</span>
-            </div>
-            {lastAtLabel && (
-              <div className="text-xs text-muted-foreground">
-                Letzter Versuch: {lastAtLabel}
-                {autoOpenError ? ` · ${autoOpenError}` : ""}
-              </div>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={autoOpenPending}
-              onClick={() => void tryAutoOpen()}
-            >
-              {autoOpenPending ? "Läuft…" : "Jetzt erneut versuchen"}
-            </Button>
-          </Card>
-        </main>
-      );
-    }
     return (
       <main className="mx-auto max-w-xl space-y-6 px-4 py-8">
         <Header showKasseLink={canOpenSession} />
-        <Card className="p-6 text-sm">
-          Für den Geschäftstag <strong>{businessDate}</strong> konnte automatisch keine Session
-          angelegt werden (nach {autoOpenAttempts} Versuchen
-          {lastAtLabel ? `, letzter um ${lastAtLabel}` : ""}): {autoOpenError}. Bitte den Manager
-          bitten, eine Session zu eröffnen.
+        <Card className="p-6 text-sm text-muted-foreground">
+          Für den Geschäftstag <strong>{businessDate}</strong> wurde noch keine Kassen-Session
+          eröffnet. Bitte wende dich an deinen Manager oder Admin, damit die Session geöffnet wird.
         </Card>
-        <Button
-          variant="outline"
-          className="w-full"
-          disabled={autoOpenPending}
-          onClick={() => {
-            setAutoOpenAttempts(0);
-            setAutoOpenError(null);
-            void tryAutoOpen();
-          }}
-        >
-          Erneut versuchen
-        </Button>
-        {canOpenSession && (
-          <Card className="space-y-3 p-6">
-            <div className="text-sm font-medium">Session für heute eröffnen</div>
-            {locationsQ.data && locationsQ.data.length > 0 ? (
-              <>
-                <LocationPills
-                  locations={locationsQ.data}
-                  value={createLocationId}
-                  onChange={setCreateLocationId}
-                />
-                <Button
-                  className="w-full"
-                  disabled={!createLocationId || createSessionMut.isPending}
-                  onClick={() => createSessionMut.mutate()}
-                >
-                  {createSessionMut.isPending ? "Wird angelegt…" : "Session anlegen"}
-                </Button>
-              </>
-            ) : (
-              <div className="text-sm text-muted-foreground">Lade Standorte…</div>
-            )}
-          </Card>
-        )}
       </main>
     );
   }
