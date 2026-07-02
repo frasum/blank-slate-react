@@ -610,12 +610,16 @@ function LieferantenPage() {
                               <td className="px-3 py-2 text-muted-foreground">
                                 {a.description ?? "—"}
                               </td>
-                              <td className="px-3 py-2 text-muted-foreground">{a.unit}</td>
-                              <td className="px-3 py-2 text-muted-foreground">
-                                {a.packaging_unit ?? "—"}
-                              </td>
-                              <td className="px-3 py-2 text-right text-foreground">
-                                {fmtEuro(a.price_cents)}
+                              <td
+                                className="px-3 py-2 text-xs text-muted-foreground"
+                                colSpan={3}
+                              >
+                                {formatUnitPrice(
+                                  a.price_cents ?? 0,
+                                  a.order_unit ?? a.unit,
+                                  Number(a.order_to_inventory_factor ?? 1) || 1,
+                                  a.inventory_unit ?? a.unit,
+                                )}
                               </td>
                               <td className="px-3 py-2 text-right">
                                 <div className="flex items-center justify-end gap-1">
@@ -636,6 +640,28 @@ function LieferantenPage() {
                                               ? (a.price_cents / 100).toFixed(2).replace(".", ",")
                                               : "",
                                           packagingUnit: a.packaging_unit?.toString() ?? "",
+                                          orderUnit: a.order_unit ?? a.unit ?? "Stk",
+                                          inventoryUnit: a.inventory_unit ?? a.unit ?? "Stk",
+                                          orderToInventoryFactor: String(
+                                            a.order_to_inventory_factor ?? 1,
+                                          ).replace(".", ","),
+                                          minOrderQuantity: String(
+                                            a.min_order_quantity ?? 1,
+                                          ).replace(".", ","),
+                                          quantityStep: String(a.quantity_step ?? 1).replace(
+                                            ".",
+                                            ",",
+                                          ),
+                                          allowDecimalOrderQuantity:
+                                            !!a.allow_decimal_order_quantity,
+                                          targetStockTotal:
+                                            a.target_stock_total != null
+                                              ? String(a.target_stock_total).replace(".", ",")
+                                              : "",
+                                          targetStockBar:
+                                            a.target_stock_bar != null
+                                              ? String(a.target_stock_bar).replace(".", ",")
+                                              : "",
                                         },
                                         initialLocationIds:
                                           a.locationIds ?? (locationsQ.data ?? []).map((l) => l.id),
