@@ -249,17 +249,17 @@ function AbrechnungPage() {
             </div>
           )}
           {(() => {
-            const partnerName =
-              (settlement as { partner_staff?: { display_name?: string | null } | null })
-                .partner_staff?.display_name ??
-              settlement.second_waiter_name ??
-              null;
-            if (!partnerName) return null;
+            const partnerNames =
+              (settlement as { partnerStaffNames?: string[] }).partnerStaffNames ??
+              (settlement.second_waiter_name ? [settlement.second_waiter_name] : []);
+            if (partnerNames.length === 0) return null;
             return (
               <div className="space-y-1 pt-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Zweiter Kellner</span>
-                  <span>{partnerName}</span>
+                  <span className="text-muted-foreground">
+                    {partnerNames.length === 1 ? "Zweiter Kellner" : "Mitarbeitende Kellner"}
+                  </span>
+                  <span>{partnerNames.join(", ")}</span>
                 </div>
               </div>
             );
