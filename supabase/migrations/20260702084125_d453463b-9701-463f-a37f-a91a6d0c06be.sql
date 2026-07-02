@@ -1,0 +1,1 @@
+UPDATE public.display_settings SET custom_message='Guter Plan - starkes Team', rotation_interval_seconds=15 WHERE location_id='44a99e7e-93be-44b1-89ab-38e364a02ddc';
