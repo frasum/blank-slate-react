@@ -9,11 +9,10 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { runGuarded } from "@/lib/admin/admin-call";
 import { makeAuditWriter } from "@/lib/admin/audit";
-
-function computeLineValueCents(storage1: number, storage2: number, unitPriceCents: number): number {
-  const qty = storage1 + storage2;
-  return Math.round(qty * unitPriceCents);
-}
+import {
+  computeInventoryLineValueCents,
+  normalizedPriceCents,
+} from "./unit-conversion";
 
 async function recomputeSessionTotal(sessionId: string, organizationId: string): Promise<number> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -133,7 +132,7 @@ export const getInventorySession = createServerFn({ method: "GET" })
     const { data: items, error: iErr } = await supabaseAdmin
       .from("inventory_items")
       .select(
-        "id, article_id, storage_1, storage_2, total_qty, unit_price_cents, line_value_cents, updated_at",
+        "id, article_id, storage_1, storage_2, total_qty, unit_price_cents, line_value_cents, updated_at, article_name_snapshot, inventory_unit_snapshot, order_unit_snapshot, order_to_inventory_factor_snapshot, normalized_price_per_inventory_unit_cents",
       )
       .eq("session_id", session.id)
       .eq("organization_id", caller.organizationId);
@@ -142,11 +141,31 @@ export const getInventorySession = createServerFn({ method: "GET" })
     const { data: articles, error: aErr } = await supabaseAdmin
       .from("articles")
       .select("id, name, sku, unit, price_cents, category, supplier_id, sort_order")
+      // E1: zusätzliche Einheitenfelder für Live-Rendering
       .eq("organization_id", caller.organizationId)
       .eq("is_active", true)
       .order("sort_order")
       .order("name");
     if (aErr) throw aErr;
+
+    const { data: articleUnits, error: auErr } = await supabaseAdmin
+      .from("articles")
+      .select(
+        "id, order_unit, inventory_unit, order_to_inventory_factor",
+      )
+      .eq("organization_id", caller.organizationId);
+    if (auErr) throw auErr;
+    const unitsById = new Map<
+      string,
+      { order_unit: string; inventory_unit: string; order_to_inventory_factor: number }
+    >();
+    for (const u of articleUnits ?? []) {
+      unitsById.set(u.id, {
+        order_unit: u.order_unit,
+        inventory_unit: u.inventory_unit,
+        order_to_inventory_factor: Number(u.order_to_inventory_factor),
+      });
+    }
 
     const byArticle = new Map<
       string,
@@ -158,6 +177,11 @@ export const getInventorySession = createServerFn({ method: "GET" })
         unit_price_cents: number;
         line_value_cents: number;
         updated_at: string;
+        article_name_snapshot: string | null;
+        inventory_unit_snapshot: string | null;
+        order_unit_snapshot: string | null;
+        order_to_inventory_factor_snapshot: number | null;
+        normalized_price_per_inventory_unit_cents: number | null;
       }
     >();
     for (const it of items ?? []) {
@@ -169,11 +193,23 @@ export const getInventorySession = createServerFn({ method: "GET" })
         unit_price_cents: Number(it.unit_price_cents),
         line_value_cents: Number(it.line_value_cents),
         updated_at: it.updated_at,
+        article_name_snapshot: it.article_name_snapshot ?? null,
+        inventory_unit_snapshot: it.inventory_unit_snapshot ?? null,
+        order_unit_snapshot: it.order_unit_snapshot ?? null,
+        order_to_inventory_factor_snapshot:
+          it.order_to_inventory_factor_snapshot == null
+            ? null
+            : Number(it.order_to_inventory_factor_snapshot),
+        normalized_price_per_inventory_unit_cents:
+          it.normalized_price_per_inventory_unit_cents == null
+            ? null
+            : Number(it.normalized_price_per_inventory_unit_cents),
       });
     }
 
     const rows = (articles ?? []).map((a) => {
       const it = byArticle.get(a.id);
+      const u = unitsById.get(a.id);
       return {
         article: {
           id: a.id,
@@ -183,6 +219,9 @@ export const getInventorySession = createServerFn({ method: "GET" })
           category: a.category,
           supplier_id: a.supplier_id,
           price_cents: Number(a.price_cents),
+          order_unit: u?.order_unit ?? a.unit,
+          inventory_unit: u?.inventory_unit ?? a.unit,
+          order_to_inventory_factor: u?.order_to_inventory_factor ?? 1,
         },
         item: it ?? null,
       };
@@ -222,7 +261,9 @@ export const upsertInventoryItem = createServerFn({ method: "POST" })
 
       const { data: article, error: aErr } = await supabaseAdmin
         .from("articles")
-        .select("id, price_cents")
+        .select(
+          "id, name, price_cents, order_unit, inventory_unit, order_to_inventory_factor",
+        )
         .eq("id", data.articleId)
         .eq("organization_id", caller.organizationId)
         .maybeSingle();
@@ -230,7 +271,14 @@ export const upsertInventoryItem = createServerFn({ method: "POST" })
       if (!article) throw new Error("Artikel gehört nicht zur Organisation.");
 
       const unitPrice = Number(article.price_cents);
-      const lineValue = computeLineValueCents(data.storage1, data.storage2, unitPrice);
+      const factor = Number(article.order_to_inventory_factor) || 1;
+      const lineValue = computeInventoryLineValueCents(
+        data.storage1,
+        data.storage2,
+        unitPrice,
+        factor,
+      );
+      const normalized = normalizedPriceCents(unitPrice, factor);
 
       const { error: upErr } = await supabaseAdmin.from("inventory_items").upsert(
         {
@@ -241,6 +289,11 @@ export const upsertInventoryItem = createServerFn({ method: "POST" })
           storage_2: data.storage2,
           unit_price_cents: unitPrice,
           line_value_cents: lineValue,
+          article_name_snapshot: article.name,
+          inventory_unit_snapshot: article.inventory_unit ?? article.name,
+          order_unit_snapshot: article.order_unit ?? article.name,
+          order_to_inventory_factor_snapshot: factor,
+          normalized_price_per_inventory_unit_cents: normalized,
         },
         { onConflict: "session_id,article_id" },
       );
