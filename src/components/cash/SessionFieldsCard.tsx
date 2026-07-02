@@ -131,7 +131,7 @@ export function SessionFieldsCard({
     // Snapshot wird im Auto-Save-Effekt unten neu gesetzt.
     lastSavedSnapshotRef.current = null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [overview]);
+  }, [overview.session?.id]);
 
   function build(): UpdatePayload | null {
     const chAmts: { channelId: string; amountCents: number }[] = [];
