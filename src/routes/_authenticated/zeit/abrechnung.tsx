@@ -610,7 +610,7 @@ function Header({ showKasseLink = false }: { showKasseLink?: boolean }) {
         {showKasseLink && (
           <Link
             to="/admin/kasse"
-            search={{}}
+            search={{ locationId: undefined, businessDate: undefined }}
             className="text-muted-foreground hover:text-foreground"
           >
             Zur Kassenübersicht
