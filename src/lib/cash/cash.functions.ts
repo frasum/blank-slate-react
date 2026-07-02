@@ -349,7 +349,7 @@ export async function getCashOverviewCore(
     supabaseAdmin
       .from("waiter_settlements")
       .select(
-        "id, staff_id, partner_staff_id, pos_sales_cents, kassiert_brutto_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents, differenz_cents, kitchen_tip_cents, kitchen_tip_rate, status, submitted_at, corrected_from_id, auto_clockout_time_entry_id, primary_staff:staff!waiter_settlements_staff_id_fkey(display_name), partner_staff:staff!waiter_settlements_partner_staff_id_fkey(display_name)",
+        "id, staff_id, partner_staff_id, pos_sales_cents, kassiert_brutto_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents, differenz_cents, kitchen_tip_cents, kitchen_tip_rate, status, submitted_at, corrected_from_id, auto_clockout_time_entry_id, primary_staff:staff!waiter_settlements_staff_id_fkey(display_name), settlement_partners(staff:staff!settlement_partners_staff_id_fkey(display_name))",
       )
       .eq("organization_id", caller.organizationId)
       .eq("session_id", session.id)
@@ -401,12 +401,20 @@ export async function getCashOverviewCore(
     session,
     settlements: (settlementsRes.data ?? []).map((s) => {
       const primary = (s.primary_staff as { display_name: string } | null)?.display_name ?? "—";
-      const partner = (s.partner_staff as { display_name: string } | null)?.display_name ?? null;
+      const partnerRows = (s.settlement_partners ?? []) as Array<{
+        staff: { display_name: string } | null;
+      }>;
+      const partnerStaffNames = partnerRows
+        .map((p) => p.staff?.display_name ?? null)
+        .filter((n): n is string => !!n)
+        .sort((a, b) => a.localeCompare(b, "de"));
+      const staffName =
+        partnerStaffNames.length > 0 ? [primary, ...partnerStaffNames].join(" + ") : primary;
       return {
         ...s,
-        staffName: partner ? `${primary} + ${partner}` : primary,
+        staffName,
         primaryStaffName: primary,
-        partnerStaffName: partner,
+        partnerStaffNames,
       };
     }),
     channelAmounts: (channelAmtRes.data ?? []).map((r) => ({
