@@ -35,7 +35,6 @@ import { assertCashWritable, CashLockedError } from "./cash-lock";
 import type { Json } from "@/integrations/supabase/types";
 import { ForbiddenError } from "@/lib/admin/role-guard";
 import { sessionToDayInput } from "./session-day-input";
-import { pickSingleLocation } from "@/lib/time/resolve-location";
 
 // ------------------------------------------------------------------------
 // Fehlerklassen
@@ -932,9 +931,9 @@ export async function getOrCreateOpenSessionCore(
   });
 }
 
-// Shared low-level "ensure exists" für getOrCreateOpenSession (Manager) und
-// ensureMyOpenSession (Kellner-Auto-Open). Enthält keinerlei Rollen-/Audit-
-// Logik — die Aufrufer setzen ihren jeweiligen Rechte- und Audit-Kontext.
+// Shared low-level "ensure exists" für getOrCreateOpenSession (Manager).
+// Enthält keinerlei Rollen-/Audit-Logik — die Aufrufer setzen ihren
+// jeweiligen Rechte- und Audit-Kontext.
 async function ensureOpenSessionRaw(args: {
   organizationId: string;
   locationId: string;
@@ -996,102 +995,6 @@ async function ensureOpenSessionRaw(args: {
   }
   return { id: created.id, status: created.status, created: true, snapshotCount };
 }
-
-// Täglicher Cron-Einstieg: legt für jeden Standort mit geplanten Schichten
-// am aktuellen Geschäftstag eine Session an (idempotent, inkl. Pool-
-// Snapshot über ensureOpenSessionRaw). Wird von /api/public/cron-ensure-
-// sessions aufgerufen; Autorisierung passiert dort per x-cron-secret.
-export async function ensureDailySessions(): Promise<{
-  businessDate: string;
-  results: { organizationId: string; locationId: string; created: boolean }[];
-}> {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const businessDate = await getCurrentBusinessDate();
-  const { data: shifts, error } = await supabaseAdmin
-    .from("roster_shifts")
-    .select("organization_id, location_id")
-    .eq("shift_date", businessDate);
-  if (error) throw error;
-  const seen = new Set<string>();
-  const pairs: { organizationId: string; locationId: string }[] = [];
-  for (const row of shifts ?? []) {
-    const key = `${row.organization_id}|${row.location_id}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    pairs.push({ organizationId: row.organization_id, locationId: row.location_id });
-  }
-  const results: { organizationId: string; locationId: string; created: boolean }[] = [];
-  for (const p of pairs) {
-    const outcome = await ensureOpenSessionRaw({
-      organizationId: p.organizationId,
-      locationId: p.locationId,
-      businessDate,
-    });
-    results.push({
-      organizationId: p.organizationId,
-      locationId: p.locationId,
-      created: outcome.created,
-    });
-  }
-  return { businessDate, results };
-}
-
-// Kellner-Auto-Open: beim ersten Aufruf von /zeit/abrechnung wird die
-// Session für den Standort des Kellners automatisch angelegt, damit der
-// Manager keinen manuellen Schritt mehr braucht. Der Manager-Button in
-// /admin/kasse bleibt als Fallback bestehen.
-export const ensureMyOpenSession = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const caller = await loadStaffCaller(context.supabase, context.userId);
-    if (!caller.isActive) throw new ForbiddenError();
-    const businessDate = await getCurrentBusinessDate();
-
-    // Standort des Kellners bestimmen. Bei genau einem eindeutigen Standort
-    // wird dieser verwendet; ansonsten Fehler mit klarer Meldung.
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: rows, error: locErr } = await supabaseAdmin
-      .from("staff_locations")
-      .select("location_id")
-      .eq("organization_id", caller.organizationId)
-      .eq("staff_id", caller.staffId);
-    if (locErr) throw locErr;
-    const locationId = pickSingleLocation(rows ?? []);
-    if (!locationId) {
-      throw new Error("Standort mehrdeutig — bitte den Manager bitten, die Session zu eröffnen.");
-    }
-
-    const outcome = await ensureOpenSessionRaw({
-      organizationId: caller.organizationId,
-      locationId,
-      businessDate,
-    });
-
-    await writeAuditLog({
-      organizationId: caller.organizationId,
-      actorUserId: caller.userId,
-      actorStaffId: caller.staffId,
-      action: outcome.created ? "cash.session.created" : "cash.session.get_existing",
-      entity: "session",
-      entityId: outcome.id,
-      meta: outcome.created
-        ? {
-            businessDate,
-            locationId,
-            poolSnapshotCount: outcome.snapshotCount,
-            source: "auto_waiter_settlement",
-          }
-        : { businessDate, locationId, source: "auto_waiter_settlement" },
-    });
-
-    return {
-      id: outcome.id,
-      status: outcome.status,
-      businessDate,
-      locationId,
-      created: outcome.created,
-    };
-  });
 
 const updateSessionSchema = z.object({
   sessionId: z.string().uuid(),
