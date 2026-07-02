@@ -534,9 +534,7 @@ function LieferantenPage() {
                           <th className="px-3 py-2 w-24">Bestellen</th>
                           <th className="px-3 py-2">Artikel</th>
                           <th className="px-3 py-2">Beschreibung</th>
-                          <th className="px-3 py-2">Einheit</th>
-                          <th className="px-3 py-2">Stk/BE</th>
-                          <th className="px-3 py-2 text-right">Preis</th>
+                          <th className="px-3 py-2">Preis / Einheiten</th>
                           <th className="px-3 py-2"></th>
                         </tr>
                       </thead>
