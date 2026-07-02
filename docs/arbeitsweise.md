@@ -1166,3 +1166,26 @@ Ferner: Auth-Redirect-Flow direkt in Lovable gefixt (`f8d41ad`).
 **Umsetzung:** Beide Ladestellen der Aggregation joinen `payment_terminals!inner(is_gl)` und überspringen GL-Zeilen beim Summieren; reine, getestete Helper-Fn `sumNonGlTerminalCents` (`session-channels.ts`). **Verifikation:** COCO zeigt für 01.07. exakt die tagesabrechnung-Werte (Tages-Bargeld −384,23 €, Wechselgeldbestand 700,36 €).
 
 **Lektion:** Der Parallelbetrieb gegen die Legacy-Referenz ist der wirksamste Abgleich — Cent-Differenzen dort sofort ausermitteln, nicht wegerklären.
+
+## 34. Code-Audit Phase 1: toter Code & Dependencies (02.07.2026)
+
+Werkzeuggestütztes Audit (knip 5, Entry-korrigiert für TanStack Start; npm audit; grep-Inventuren) über 431 Dateien / ~76k Zeilen. Gesamtbild: sehr sauber (0 `console.log`, 2 dokumentierte TODOs, keine Rollback-Reste).
+
+### Behoben
+
+- **`@dnd-kit/utilities`** stand nicht in `package.json`, wurde aber importiert (Dienstplan-Drag&Drop) — lief nur als transitive Dependency. Explizit aufgenommen (`^3.2.2`).
+- **Toter Code entfernt:** `order-units.functions.ts` (M5-Rest, 0 Aufrufer) und der komplette **Badge-/QR-Login-Rest** aus B1c (`badges.functions.ts`, `resolveBadgeToken`, `activeBadges`-Zählung im Mitarbeiter-Index — nie mit UI verdrahtet; Entscheidung: Feature wird nicht weiterverfolgt). `@types/bcryptjs` entfernt (bcryptjs v3 bringt eigene Typen; `bcryptjs` selbst bleibt — PIN-Hashing).
+
+### Bewusste Behalten-Entscheidungen (bei künftigen Audits NICHT erneut aufwerfen)
+
+- **shadcn/ui-Vorrat** (`src/components/ui/*`, ~25 ungenutzte Komponenten + zugehörige Radix-Pakete): Standard-Lovable-Setup, Lovable greift beim UI-Bau darauf zu — bleibt.
+- **`*Core`-/Helper-Export-Breite** (~50 „unused exports"): bewusste Konvention (reine/Core-Fns exportiert für Testbarkeit) — Feature, kein Schmutz.
+- **knip-False-Positives:** `src/start.ts` (TanStack-Framework-Einstieg, lädt `auth-attacher` + `server-fn-error-logger` — alle lebendig), `tailwindcss`/`tw-animate-css` (via `src/styles.css` `@import`), `@tanstack/router-plugin` (Build-Kette).
+- **`token-generator.ts` (`generateBadgeToken`)**: trotz Namens KEIN Badge-Rest — generischer CSPRNG-Generator, vom Kalender-Feed (§29) genutzt.
+- **DB unangetastet:** Enum-Wert `token_type='badge_login'` und Alt-`access_tokens` bleiben (Enum-Rückbau riskant, ohne Nutzen).
+
+### Offen / beobachten
+
+- **npm audit:** 2× moderate via `exceljs`→`uuid` (GHSA-w5hq-g745-h8pq). Auto-Fix wäre Breaking-Downgrade → nicht angewendet; beobachten bis exceljs upstream fixt (Alternative: npm-`overrides`).
+- Die 5 tolerierten `exhaustive-deps`-Warnings: weiterhin §8-Merkposten.
+- **Phase 2 (DB-Audit):** RLS-Inventur + verwaiste Tabellen/Spalten per Diagnose-SQL. **Phase 3:** manuelles Review Geld-/Auth-Pfad. Beide ausstehend.
