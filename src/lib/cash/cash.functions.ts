@@ -2438,6 +2438,9 @@ export async function loadCashDayAggregates(
   for (const r of tRes.data ?? []) {
     const d = sessionDate.get(r.session_id);
     if (!d) continue;
+    // GL-Karten sind Kontrollposten und mindern das Tages-Bargeld nicht
+    // (Referenz: Legacy-tagesabrechnung). Nur physische Terminals summieren.
+    if ((r.payment_terminals as { is_gl: boolean } | null)?.is_gl) continue;
     getAgg(d).cardTotal += Number(r.amount_cents);
   }
   for (const r of expRes.data ?? []) {
