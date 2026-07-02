@@ -21,7 +21,6 @@ import { Route as AuthenticatedEasyorderRouteImport } from './routes/_authentica
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
 import { Route as AuthenticatedZeitIndexRouteImport } from './routes/_authenticated/zeit/index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
-import { Route as ApiPublicCronEnsureSessionsRouteImport } from './routes/api/public/cron-ensure-sessions'
 import { Route as AuthenticatedZeitWuenscheRouteImport } from './routes/_authenticated/zeit/wuensche'
 import { Route as AuthenticatedZeitUrlaubRouteImport } from './routes/_authenticated/zeit/urlaub'
 import { Route as AuthenticatedZeitStempelnRouteImport } from './routes/_authenticated/zeit/stempeln'
@@ -120,12 +119,6 @@ const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedAdminRouteRoute,
 } as any)
-const ApiPublicCronEnsureSessionsRoute =
-  ApiPublicCronEnsureSessionsRouteImport.update({
-    id: '/api/public/cron-ensure-sessions',
-    path: '/api/public/cron-ensure-sessions',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const AuthenticatedZeitWuenscheRoute =
   AuthenticatedZeitWuenscheRouteImport.update({
     id: '/zeit/wuensche',
@@ -380,7 +373,6 @@ export interface FileRoutesByFullPath {
   '/zeit/stempeln': typeof AuthenticatedZeitStempelnRoute
   '/zeit/urlaub': typeof AuthenticatedZeitUrlaubRoute
   '/zeit/wuensche': typeof AuthenticatedZeitWuenscheRoute
-  '/api/public/cron-ensure-sessions': typeof ApiPublicCronEnsureSessionsRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/zeit/': typeof AuthenticatedZeitIndexRoute
   '/admin/bestellung/bestellungen': typeof AuthenticatedAdminBestellungBestellungenRoute
@@ -428,7 +420,6 @@ export interface FileRoutesByTo {
   '/zeit/stempeln': typeof AuthenticatedZeitStempelnRoute
   '/zeit/urlaub': typeof AuthenticatedZeitUrlaubRoute
   '/zeit/wuensche': typeof AuthenticatedZeitWuenscheRoute
-  '/api/public/cron-ensure-sessions': typeof ApiPublicCronEnsureSessionsRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/zeit': typeof AuthenticatedZeitIndexRoute
   '/admin/bestellung/bestellungen': typeof AuthenticatedAdminBestellungBestellungenRoute
@@ -481,7 +472,6 @@ export interface FileRoutesById {
   '/_authenticated/zeit/stempeln': typeof AuthenticatedZeitStempelnRoute
   '/_authenticated/zeit/urlaub': typeof AuthenticatedZeitUrlaubRoute
   '/_authenticated/zeit/wuensche': typeof AuthenticatedZeitWuenscheRoute
-  '/api/public/cron-ensure-sessions': typeof ApiPublicCronEnsureSessionsRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/zeit/': typeof AuthenticatedZeitIndexRoute
   '/_authenticated/admin/bestellung/bestellungen': typeof AuthenticatedAdminBestellungBestellungenRoute
@@ -534,7 +524,6 @@ export interface FileRouteTypes {
     | '/zeit/stempeln'
     | '/zeit/urlaub'
     | '/zeit/wuensche'
-    | '/api/public/cron-ensure-sessions'
     | '/admin/'
     | '/zeit/'
     | '/admin/bestellung/bestellungen'
@@ -582,7 +571,6 @@ export interface FileRouteTypes {
     | '/zeit/stempeln'
     | '/zeit/urlaub'
     | '/zeit/wuensche'
-    | '/api/public/cron-ensure-sessions'
     | '/admin'
     | '/zeit'
     | '/admin/bestellung/bestellungen'
@@ -634,7 +622,6 @@ export interface FileRouteTypes {
     | '/_authenticated/zeit/stempeln'
     | '/_authenticated/zeit/urlaub'
     | '/_authenticated/zeit/wuensche'
-    | '/api/public/cron-ensure-sessions'
     | '/_authenticated/admin/'
     | '/_authenticated/zeit/'
     | '/_authenticated/admin/bestellung/bestellungen'
@@ -657,7 +644,6 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   DisplayLocationIdRoute: typeof DisplayLocationIdRoute
-  ApiPublicCronEnsureSessionsRoute: typeof ApiPublicCronEnsureSessionsRoute
   ApiPublicCalendarTokenRoute: typeof ApiPublicCalendarTokenRoute
   ApiPublicDisplayLocationIdRoute: typeof ApiPublicDisplayLocationIdRoute
 }
@@ -747,13 +733,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/'
       preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
-    }
-    '/api/public/cron-ensure-sessions': {
-      id: '/api/public/cron-ensure-sessions'
-      path: '/api/public/cron-ensure-sessions'
-      fullPath: '/api/public/cron-ensure-sessions'
-      preLoaderRoute: typeof ApiPublicCronEnsureSessionsRouteImport
-      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/zeit/wuensche': {
       id: '/_authenticated/zeit/wuensche'
@@ -1164,7 +1143,6 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   DisplayLocationIdRoute: DisplayLocationIdRoute,
-  ApiPublicCronEnsureSessionsRoute: ApiPublicCronEnsureSessionsRoute,
   ApiPublicCalendarTokenRoute: ApiPublicCalendarTokenRoute,
   ApiPublicDisplayLocationIdRoute: ApiPublicDisplayLocationIdRoute,
 }

@@ -7,7 +7,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -22,14 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  getMySettlement,
-  submitWaiterSettlement,
-  getOrCreateOpenSession,
-  ensureMyOpenSession,
-} from "@/lib/cash/cash.functions";
-import { listLocations } from "@/lib/admin/locations.functions";
-import { LocationPills } from "@/components/shared/LocationPills";
+import { getMySettlement, submitWaiterSettlement } from "@/lib/cash/cash.functions";
 import { useAuth } from "@/hooks/use-auth";
 import { calcWaiterSettlement } from "@/lib/cash/waiter-settlement";
 import { SecondWaiterSelect } from "@/components/cash/SecondWaiterSelect";
