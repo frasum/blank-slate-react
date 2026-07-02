@@ -22,10 +22,13 @@ export const attachSupabaseAuth = createMiddleware({ type: "function" }).client(
       // ohne Token weiterreichen. Geschützte Functions lehnt requireSupabaseAuth
       // serverseitig ab; in dem Fall ist die Session abgelaufen/geleert worden,
       // ohne dass das _authenticated-Gate neu greifen konnte (z. B. weil der Tab
-      // offen blieb). Wir leiten dann hart auf /auth, statt den User mit einem
-      // unverständlichen 401 stehen zu lassen.
+      // offen blieb). Wir leiten dann hart auf /auth und BRECHEN den RPC ab,
+      // damit der Aufruf nicht ohne Header rausgeht und als unverständlicher
+      // 401 („No authorization header provided") den Error-Boundary blankt.
       if (typeof window !== "undefined" && !window.location.pathname.startsWith("/auth")) {
         window.location.replace("/auth");
+        // Promise, die nie auflöst — der Redirect entlädt die Seite ohnehin.
+        await new Promise<never>(() => {});
       }
       return next();
     }
