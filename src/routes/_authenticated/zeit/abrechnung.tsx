@@ -251,7 +251,9 @@ function AbrechnungPage() {
           {(() => {
             const partnerName =
               (settlement as { partner_staff?: { display_name?: string | null } | null })
-                .partner_staff?.display_name ?? settlement.second_waiter_name ?? null;
+                .partner_staff?.display_name ??
+              settlement.second_waiter_name ??
+              null;
             if (!partnerName) return null;
             return (
               <div className="space-y-1 pt-2 text-sm">
