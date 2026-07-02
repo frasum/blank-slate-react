@@ -520,9 +520,11 @@ export async function getMySettlementCore(caller: StaffCaller) {
     }
   }
 
-  const partnerRows = ((row?.settlement_partners ?? []) as Array<{
-    staff: { display_name: string } | null;
-  }>)
+  const partnerRows = (
+    (row?.settlement_partners ?? []) as Array<{
+      staff: { display_name: string } | null;
+    }>
+  )
     .map((p) => p.staff?.display_name ?? null)
     .filter((n): n is string => !!n)
     .sort((a, b) => a.localeCompare(b, "de"));
