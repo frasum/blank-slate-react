@@ -1903,7 +1903,7 @@ const correctSchema = z.object({
   hilfMahlCents: z.number().int().min(0),
   openInvoicesCents: z.number().int().min(0),
   cashHandedInCents: z.number().int().min(0),
-  partnerStaffId: z.string().uuid().nullable().optional(),
+  partnerStaffIds: z.array(z.string().uuid()).optional(),
   reason: z.string().trim().min(3).max(500),
 });
 
@@ -1938,22 +1938,33 @@ export async function correctWaiterSettlementCore(
     }
 
     const session = await loadSessionWithLock(caller.organizationId, original.session_id);
-    // Partner-Validierung (optional). null = Partner entfernen.
-    const newPartnerId =
-      data.partnerStaffId === undefined ? original.partner_staff_id : data.partnerStaffId;
-    if (newPartnerId) {
-      if (newPartnerId === original.staff_id) {
+    // Partner-Validierung. `undefined` = Partner unverändert übernehmen
+    // (aus settlement_partners der Original-Zeile). Explizit `[]` =
+    // leeren.
+    let newPartnerIds: string[];
+    if (data.partnerStaffIds === undefined) {
+      const { data: existingParts, error: epErr } = await supabaseAdmin
+        .from("settlement_partners")
+        .select("staff_id")
+        .eq("organization_id", caller.organizationId)
+        .eq("settlement_id", original.id);
+      if (epErr) throw epErr;
+      newPartnerIds = (existingParts ?? []).map((r) => r.staff_id);
+    } else {
+      newPartnerIds = Array.from(new Set(data.partnerStaffIds));
+    }
+    for (const pid of newPartnerIds) {
+      if (pid === original.staff_id) {
         throw new Error("Partner-Kellner darf nicht der Haupt-Kellner sein.");
       }
-      await assertStaffBoundToLocation(caller.organizationId, newPartnerId, session.location_id);
-      await assertPartnerFree(
-        caller.organizationId,
-        session.id,
-        original.staff_id,
-        newPartnerId,
-        original.id,
-      );
+      await assertStaffBoundToLocation(caller.organizationId, pid, session.location_id);
     }
+    await assertPartnersFree(
+      caller.organizationId,
+      session.id,
+      [original.staff_id, ...newPartnerIds],
+      original.id,
+    );
     const waterline = await loadLocationCashLock(caller.organizationId, session.location_id);
     // Korrektur erlaubt bei open + finalized; gesperrt bei locked / Wasserlinie.
     assertCashWritable({
@@ -1990,7 +2001,7 @@ export async function correctWaiterSettlementCore(
         organization_id: caller.organizationId,
         session_id: original.session_id,
         staff_id: original.staff_id,
-        partner_staff_id: newPartnerId,
+        partner_staff_id: null,
         pos_sales_cents: data.posSalesCents,
         kassiert_brutto_cents: kassiertBruttoCents,
         card_total_cents: data.cardTotalCents,
@@ -2007,6 +2018,8 @@ export async function correctWaiterSettlementCore(
       .select("id")
       .single();
     if (insErr) throw insErr;
+
+    await replaceSettlementPartners(caller.organizationId, created.id, newPartnerIds);
 
     return {
       result: { newId: created.id, originalId: original.id },
