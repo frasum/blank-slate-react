@@ -314,6 +314,7 @@ function AbrechnungPage() {
       <Header showKasseLink={canOpenSession} />
       <Card className="space-y-4 p-6">
         <div className="text-sm text-muted-foreground">Geschäftstag {businessDate}</div>
+        <SessionOpenBanner locationName={sessionLocationName} status={session.status} />
         <EuroField
           id="pos"
           label="Leistung (POS)"
