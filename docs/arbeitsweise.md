@@ -1122,3 +1122,25 @@ Kassen-Sessions werden **nur** von Manager/Admin eröffnet — über den „Sess
 - **Täglicher Cron-Automatismus** (`ensureDailySessions` + Route `/api/public/cron-ensure-sessions` + Supabase `pg_cron`/`pg_net`): zu komplex und fragil (URL-/Secret-/Deploy-Abhängigkeiten) — Route und Fn gelöscht, `pg_cron`-Job entfernt (`cron.job` leer).
 
 Grundsatz für die Zukunft: bewusster, sichtbarer Handgriff (Manager öffnet) vor implizitem Automatismus — bei Geld-/Zeit-Daten ist Nachvollziehbarkeit wichtiger als Bequemlichkeit.
+
+## 31. Kassen-Abrechnung: Fixes + Partner-Verknüpfung (02.07.2026)
+
+Drei Fehler in der Kassen-/Kellner-Abrechnung behoben (alle Gates grün, vitest 970).
+
+### Abgleich zählt korrigierte Abrechnungen nicht mehr doppelt
+
+`SettlementWarningsBanner.tsx` summierte für POS-/Terminal-Differenz **alle** `overview.settlements` — auch `superseded`-Zeilen. Nach einer Kellner-Korrektur wurde dadurch jeder Betrag doppelt gezählt (Original + Korrektur). Fix: nur `activeSettlements` (`status !== "superseded"`) fließen in die Warnung. Das Backend filterte superseded bereits überall; nur dieser Frontend-Banner nicht.
+
+### Zweiter Kellner wird echt verknüpft — Verhaltensänderung
+
+Die Kellner-Abgabe speicherte den zweiten Kellner bisher nur als **Text** (`second_waiter_name`), nie als `partner_staff_id` — er erschien deshalb nicht als „Paar" und musste manuell nachkorrigiert werden (was zusätzlich Abgleichs-Doppelzählungen auslöste). Jetzt: `SecondWaiterSelect` liefert die `staff_id`; `submitWaiterSettlementCore` nimmt `partnerStaffId` und setzt `partner_staff_id` mit Validierung (nicht sich selbst; `assertStaffBoundToLocation`; Kollisions-Check `assertPartnerFree` — dieselbe wie die Manager-Korrektur). Die selten gebrauchten „weitere Kellner"-Felder (`additionalWaiters`) sind entfernt (Betriebsrealität: max. ein Partner pro Abrechnung). Partner-Anzeige aus `partner_staff.display_name`. DB-Spalten `second_waiter_name`/`additional_waiters` bleiben für Alt-Daten, werden aber nicht mehr geschrieben.
+
+### Kassen-Eingabefelder springen nicht mehr
+
+`SessionFieldsCard.tsx`: Der Reset-`useEffect` hing an `[overview]` und überschrieb bei **jedem** Auto-Save-Refetch die laufende Eingabe (Terminal-Beträge u. a. „sprangen" beim Tippen). Fix: Dependency `[overview.session?.id]` — Reset nur bei echtem Session-Wechsel (Standort/Tag/neu geöffnete Session), nicht bei Refetch derselben Session. Betrifft alle Felder der Karte.
+
+### Offen / bekannt: Kellner tragen „Karte" ≈ Umsatz statt Kartenanteil
+
+Live-Befund YUM 01.07.: Beide Kellner hatten den Kartenbetrag ≈ Gesamtumsatz eingetragen (Karte teils > Umsatz), statt nur den tatsächlichen Kartenanteil. Echte Kartensumme = Terminals (2.107,79 €); Differenz war reine Fehleingabe, kein Code-Fehler (die Korrektur übernahm die Werte 1:1). To-do Frank: betroffene Abrechnungen per Korrektur anpassen (Karte runter, Bargeld rauf, Summe bleibt). Prävention (offen, optional): klarerer Hinweis am „Karte"-Feld („nur Kartenanteil") + Warnung bei Karte > Umsatz.
+
+Ferner: Auth-Redirect-Flow direkt in Lovable gefixt (`f8d41ad`).
