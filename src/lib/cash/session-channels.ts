@@ -34,6 +34,26 @@ export const CHANNEL_KINDS: readonly ChannelKind[] = [
 
 export type ChannelAmountRow = { kind: ChannelKind; amountCents: number };
 export type TerminalAmountRow = { amountCents: number };
+export type TerminalAmountRowWithGl = { amountCents: number; isGl: boolean };
+
+/**
+ * Summiert nur die Beträge physischer Terminals (nicht GL). GL-Karten
+ * sind Kontrollposten (Guthaben-/Kreditkarten für Terminal-Abgleich)
+ * und dürfen das Tages-Bargeld NICHT mindern — Referenz: Legacy-
+ * `tagesabrechnung` (Kreditkarten = Terminal 1 + 2, GL separat).
+ */
+export function sumNonGlTerminalCents(rows: TerminalAmountRowWithGl[]): number {
+  let sum = 0;
+  for (let i = 0; i < rows.length; i += 1) {
+    const r = rows[i];
+    if (r.isGl) continue;
+    if (!Number.isInteger(r.amountCents)) {
+      throw new Error(`terminals[${i}].amount must be integer cents`);
+    }
+    sum += r.amountCents;
+  }
+  return sum;
+}
 
 export type ChannelTotalsByKind = Record<ChannelKind, number>;
 
