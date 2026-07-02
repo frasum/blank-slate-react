@@ -146,7 +146,7 @@ function AbrechnungPage() {
           hilfMahlCents: parsed.hilfMahlCents!,
           openInvoicesCents: parsed.openInvoicesCents!,
           cashHandedInCents: parsed.cashHandedInCents!,
-          partnerStaffId: form.partnerStaffId,
+          partnerStaffIds: form.partnerStaffId ? [form.partnerStaffId] : [],
         },
       });
     },
