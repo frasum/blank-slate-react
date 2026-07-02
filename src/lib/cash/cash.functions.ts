@@ -162,35 +162,83 @@ export async function assertStaffBoundToLocation(
   if (!data) throw new StaffLocationNotBoundError(staffId, locationId);
 }
 
-// Stellt sicher, dass `partnerId` in derselben Session nicht bereits als
-// Haupt- oder Partner-Kellner einer anderen aktiven (nicht-superseded)
-// Settlement vorkommt. `excludeSettlementId` schützt den Korrektur-Pfad
-// vor Selbstkollision mit der eigenen, gerade superseded'eten Zeile.
-export async function assertPartnerFree(
+// Stellt sicher, dass keiner der beteiligten Kellner (Haupt + Partner)
+// bereits in einer anderen aktiven (nicht-superseded) Abrechnung derselben
+// Session vorkommt — weder als `staff_id`, noch als (Alt-)`partner_staff_id`,
+// noch in `settlement_partners`. `excludeSettlementId` schützt den
+// Korrektur-Pfad vor Selbstkollision mit der eigenen, gerade
+// superseded'eten Zeile.
+export async function assertPartnersFree(
   orgId: string,
   sessionId: string,
-  primaryStaffId: string,
-  partnerStaffId: string,
+  staffIds: string[],
   excludeSettlementId: string | null,
 ): Promise<void> {
+  if (staffIds.length === 0) return;
+  const uniqueIds = Array.from(new Set(staffIds));
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  // 1) Aktive Abrechnungen der Session — staff_id oder alt-partner_staff_id.
   let q = supabaseAdmin
     .from("waiter_settlements")
     .select("id, staff_id, partner_staff_id, status")
     .eq("organization_id", orgId)
     .eq("session_id", sessionId)
-    .neq("status", "superseded")
-    .or(
-      `staff_id.eq.${partnerStaffId},partner_staff_id.eq.${partnerStaffId},partner_staff_id.eq.${primaryStaffId}`,
-    );
+    .neq("status", "superseded");
   if (excludeSettlementId) q = q.neq("id", excludeSettlementId);
-  const { data, error } = await q.limit(1);
-  if (error) throw error;
-  if (data && data.length > 0) {
+  const { data: settlements, error: sErr } = await q;
+  if (sErr) throw sErr;
+  const activeIds: string[] = (settlements ?? []).map((s) => s.id);
+
+  const hit = (settlements ?? []).find(
+    (s) =>
+      uniqueIds.includes(s.staff_id) ||
+      (s.partner_staff_id && uniqueIds.includes(s.partner_staff_id)),
+  );
+  if (hit) {
     throw new Error(
-      "Partner-Kellner hat bereits eine aktive Abrechnung in dieser Session oder ist bereits Partner einer anderen Abrechnung.",
+      "Kellner hat bereits eine aktive Abrechnung in dieser Session oder ist bereits Partner einer anderen Abrechnung.",
     );
   }
+
+  // 2) settlement_partners aktiver Abrechnungen.
+  if (activeIds.length > 0) {
+    const { data: parts, error: pErr } = await supabaseAdmin
+      .from("settlement_partners")
+      .select("staff_id")
+      .in("settlement_id", activeIds)
+      .in("staff_id", uniqueIds)
+      .limit(1);
+    if (pErr) throw pErr;
+    if (parts && parts.length > 0) {
+      throw new Error(
+        "Kellner ist bereits Partner einer anderen aktiven Abrechnung in dieser Session.",
+      );
+    }
+  }
+}
+
+// Schreibt die Partner-Verknüpfung neu (delete-then-insert, für Korrektur-
+// und Neuanlage-Pfade). Keine Client-Policies — nur via supabaseAdmin.
+async function replaceSettlementPartners(
+  orgId: string,
+  settlementId: string,
+  partnerStaffIds: string[],
+): Promise<void> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  await supabaseAdmin
+    .from("settlement_partners")
+    .delete()
+    .eq("organization_id", orgId)
+    .eq("settlement_id", settlementId);
+  if (partnerStaffIds.length === 0) return;
+  const rows = Array.from(new Set(partnerStaffIds)).map((staffId) => ({
+    organization_id: orgId,
+    settlement_id: settlementId,
+    staff_id: staffId,
+  }));
+  const { error } = await supabaseAdmin.from("settlement_partners").insert(rows);
+  if (error) throw error;
 }
 
 async function loadSessionWithLock(orgId: string, sessionId: string) {
