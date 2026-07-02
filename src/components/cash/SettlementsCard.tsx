@@ -70,12 +70,18 @@ export function SettlementsCard({
               <TableRow key={r.id} className={superseded ? "opacity-50" : ""}>
                 <TableCell>
                   {r.staffName}
-                  {((r as { partnerStaffIds?: string[] }).partnerStaffIds ?? []).length > 0 ||
-                  r.partner_staff_id ? (
-                    <Badge variant="secondary" className="ml-2">
-                      Paar
-                    </Badge>
-                  ) : null}
+                  {(() => {
+                    const partnerCount =
+                      (r as { partnerStaffNames?: string[] }).partnerStaffNames?.length ??
+                      (r as { partnerStaffIds?: string[] }).partnerStaffIds?.length ??
+                      (r.partner_staff_id ? 1 : 0);
+                    if (partnerCount <= 0) return null;
+                    return (
+                      <Badge variant="secondary" className="ml-2">
+                        {partnerCount === 1 ? "Paar" : "Gruppe"}
+                      </Badge>
+                    );
+                  })()}
                 </TableCell>
                 <TableCell className="text-right font-mono">
                   {fmtCents(Number(r.pos_sales_cents))}
