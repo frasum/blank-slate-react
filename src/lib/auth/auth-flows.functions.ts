@@ -1,4 +1,4 @@
-// Server-Functions für PIN- und Badge-Login.
+// Server-Function für PIN-Login.
 //
 // Architektur (B1b): kein Edge-Function-Layer. Beide Flüsse laufen
 // als createServerFn in der Worker-Runtime, supabaseAdmin wird ERST
@@ -18,7 +18,6 @@ import {
   ensureShadowUser,
   failed,
   generateSessionTokenHash,
-  parseBadgeLoginInput,
   parsePinLoginInput,
   tryStaffPasswordLogin,
   validatePinLoginName,
@@ -112,41 +111,4 @@ export const validatePin = createServerFn({ method: "POST" })
     const email = await ensureShadowUser(winner.id, winner.organization_id);
     const session_token_hash = await generateSessionTokenHash(email);
     return { kind: "pin" as const, session_token_hash };
-  });
-
-// =========================================================================
-// Badge-Login
-// =========================================================================
-
-export const resolveBadgeToken = createServerFn({ method: "POST" })
-  .inputValidator(parseBadgeLoginInput)
-  .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    const { data: tokenRow, error: tokenErr } = await supabaseAdmin
-      .from("access_tokens")
-      .select("id, organization_id, staff_id, token_type, expires_at, used_at")
-      .eq("token", data.token)
-      .maybeSingle();
-    if (tokenErr) failed();
-    if (!tokenRow) failed();
-    if (tokenRow.token_type !== "badge_login") failed();
-    if (!tokenRow.staff_id) failed();
-    if (tokenRow.used_at !== null) failed(); // widerrufen
-    if (tokenRow.expires_at && new Date(tokenRow.expires_at) <= new Date()) failed();
-
-    const { data: staff, error: staffErr } = await supabaseAdmin
-      .from("staff")
-      .select("id, organization_id, is_active")
-      .eq("id", tokenRow.staff_id)
-      .maybeSingle();
-    if (staffErr) failed();
-    if (!staff || !staff.is_active) failed();
-
-    // Badge-Tokens werden bei Login NICHT als used markiert (wiederverwendbar).
-    // used_at ist der Widerrufsmechanismus, nicht ein Verbrauchszähler.
-
-    const email = await ensureShadowUser(staff.id, staff.organization_id);
-    const session_token_hash = await generateSessionTokenHash(email);
-    return { session_token_hash };
   });
