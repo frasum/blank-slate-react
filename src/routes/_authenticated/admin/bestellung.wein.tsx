@@ -111,7 +111,6 @@ function WeinPage() {
       description: d.description,
       category: "Wein",
       unit: d.unit || "Fl",
-      orderUnitId: null,
       priceCents: cents,
       packagingUnit: null,
       imageUrl: d.imageUrl,
