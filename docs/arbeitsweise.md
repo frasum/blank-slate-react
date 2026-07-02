@@ -1108,3 +1108,17 @@ Seite `/zeit/kalender` (Kachel „Kalender-Abo" im `/zeit`-Hub): holt den Token 
 ### Betrieb
 
 Voraussetzung für zeitliche Service-Events: `default_checkout` für Service unter `/admin/standortzeiten` eintragen (sonst ganztägig; Küche zeigt 15:00–23:30, sobald die Auscheckzeit dort steht). Android: URL-Abo geht bei Google nur am Computer (calendar.google.com → „Per URL"), nicht in der Handy-App — daher der Kopier-Weg auf der Seite.
+
+## 30. Session-Eröffnung: ausschließlich durch Manager/Admin (02.07.2026)
+
+Kassen-Sessions werden **nur** von Manager/Admin eröffnet — über den „Session anlegen"-Button in `/admin/kasse` (Fn `getOrCreateOpenSession`, `manager`-gated via `loadAdminCaller` + `runGuarded`; legt die Session an und erzeugt den Trinkgeld-Pool-Snapshot über `ensureOpenSessionRaw`). Kellner öffnen nichts selbst: `/zeit/abrechnung` zeigt bei fehlender Session eine read-only Hinweiskarte („… für den Geschäftstag wurde noch keine Session eröffnet, bitte an Manager/Admin wenden"). Sobald die Session existiert, rechnen die Kellner normal ab.
+
+**Betriebsablauf:** Manager/Admin öffnet je Standort einmal pro Geschäftstag die Session in `/admin/kasse` → „Session anlegen". Danach rechnen die Kellner dort ab.
+
+**Bewusst verworfene Alternativen (nicht wieder einbauen):**
+
+- **Kellner-Auto-Open** (`ensureMyOpenSession` + Auto-Retry-Loop in `abrechnung.tsx`): an „wer zuerst kommt" gekoppelt, fragil — entfernt.
+- **Einteilungs-Regel** „nur wer als Service im Dienstplan steht, darf eröffnen" (`resolveSessionLocation` / `resolveMySessionLocation`, Service-Schicht-Pflicht): sperrte real arbeitende Kellner aus, wenn der Dienstplan nicht tagesaktuell gepflegt war, und verursachte Session-Filter-Kollisionen bei mehreren offenen Standort-Sessions — komplett zurückgebaut.
+- **Täglicher Cron-Automatismus** (`ensureDailySessions` + Route `/api/public/cron-ensure-sessions` + Supabase `pg_cron`/`pg_net`): zu komplex und fragil (URL-/Secret-/Deploy-Abhängigkeiten) — Route und Fn gelöscht, `pg_cron`-Job entfernt (`cron.job` leer).
+
+Grundsatz für die Zukunft: bewusster, sichtbarer Handgriff (Manager öffnet) vor implizitem Automatismus — bei Geld-/Zeit-Daten ist Nachvollziehbarkeit wichtiger als Bequemlichkeit.
