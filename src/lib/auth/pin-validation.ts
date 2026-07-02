@@ -39,3 +39,12 @@ export async function evaluatePin(input: PinEvaluationInput): Promise<PinEvaluat
   const ok = await input.compare(input.providedPin, input.storedHash);
   return ok ? { kind: "ok" } : { kind: "rejected", reasonCode: "mismatch" };
 }
+
+/**
+ * Rate-Limit-Entscheidung für den Passwort-Fallback in validatePin.
+ * Gleiche Schwelle wie der PIN-Pfad: ab PIN_RATE_LIMIT_MAX Fehlversuchen
+ * im Fenster wird der Kandidat gar nicht erst probiert.
+ */
+export function isCredentialAttemptAllowed(recentFailuresInWindow: number): boolean {
+  return recentFailuresInWindow < PIN_RATE_LIMIT_MAX;
+}
