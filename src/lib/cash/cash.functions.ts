@@ -3099,7 +3099,7 @@ export async function getPreviousOperativeDeficitCore(
       .in("session_id", sessionIds),
     supabaseAdmin
       .from("session_terminal_amounts")
-      .select("session_id, amount_cents")
+      .select("session_id, amount_cents, payment_terminals!inner(is_gl)")
       .eq("organization_id", caller.organizationId)
       .in("session_id", sessionIds),
     supabaseAdmin
