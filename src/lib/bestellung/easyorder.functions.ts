@@ -45,9 +45,6 @@ export type EasyOrderCatalogArticle = {
   category: string | null;
   supplierId: string | null;
   supplierName: string;
-  orderUnit: string | null;
-  minOrderQuantity: number;
-  quantityStep: number;
 };
 
 export type EasyOrderItemInput = { articleId: string; quantity: number };
@@ -116,7 +113,7 @@ export async function getEasyOrderCatalogCore(
   let q = admin
     .from("articles")
     .select(
-      "id, name, sku, unit, price_cents, category, supplier_id, order_unit, min_order_quantity, quantity_step, suppliers(name), article_locations!inner(location_id)",
+      "id, name, sku, unit, price_cents, category, supplier_id, suppliers(name), article_locations!inner(location_id)",
     )
     .eq("organization_id", caller.organizationId)
     .eq("is_active", true)
@@ -136,15 +133,6 @@ export async function getEasyOrderCatalogCore(
       category: a.category,
       supplierId: a.supplier_id,
       supplierName: (a.suppliers as { name: string } | null)?.name ?? "",
-      orderUnit: (a as { order_unit?: string | null }).order_unit ?? a.unit,
-      minOrderQuantity: Math.max(
-        1,
-        Math.round(Number((a as { min_order_quantity?: number }).min_order_quantity ?? 1)),
-      ),
-      quantityStep: Math.max(
-        1,
-        Math.round(Number((a as { quantity_step?: number }).quantity_step ?? 1)),
-      ),
     })),
   };
 }

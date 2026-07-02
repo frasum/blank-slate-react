@@ -158,7 +158,6 @@ export type Database = {
       }
       articles: {
         Row: {
-          allow_decimal_order_quantity: boolean
           category: string | null
           created_at: string
           description: string | null
@@ -166,28 +165,20 @@ export type Database = {
           grape_variety: string | null
           id: string
           image_url: string | null
-          inventory_unit: string
           is_active: boolean
-          min_order_quantity: number
           name: string
-          order_to_inventory_factor: number
-          order_unit: string
           organization_id: string
           origin_country: string | null
           packaging_unit: number | null
           price_cents: number
-          quantity_step: number
           sku: string | null
           sort_order: number
           special_attributes: string[] | null
           supplier_id: string
-          target_stock_bar: number | null
-          target_stock_total: number | null
           unit: string
           updated_at: string
         }
         Insert: {
-          allow_decimal_order_quantity?: boolean
           category?: string | null
           created_at?: string
           description?: string | null
@@ -195,28 +186,20 @@ export type Database = {
           grape_variety?: string | null
           id?: string
           image_url?: string | null
-          inventory_unit?: string
           is_active?: boolean
-          min_order_quantity?: number
           name: string
-          order_to_inventory_factor?: number
-          order_unit?: string
           organization_id: string
           origin_country?: string | null
           packaging_unit?: number | null
           price_cents?: number
-          quantity_step?: number
           sku?: string | null
           sort_order?: number
           special_attributes?: string[] | null
           supplier_id: string
-          target_stock_bar?: number | null
-          target_stock_total?: number | null
           unit?: string
           updated_at?: string
         }
         Update: {
-          allow_decimal_order_quantity?: boolean
           category?: string | null
           created_at?: string
           description?: string | null
@@ -224,23 +207,16 @@ export type Database = {
           grape_variety?: string | null
           id?: string
           image_url?: string | null
-          inventory_unit?: string
           is_active?: boolean
-          min_order_quantity?: number
           name?: string
-          order_to_inventory_factor?: number
-          order_unit?: string
           organization_id?: string
           origin_country?: string | null
           packaging_unit?: number | null
           price_cents?: number
-          quantity_step?: number
           sku?: string | null
           sort_order?: number
           special_attributes?: string[] | null
           supplier_id?: string
-          target_stock_bar?: number | null
-          target_stock_total?: number | null
           unit?: string
           updated_at?: string
         }
@@ -750,14 +726,9 @@ export type Database = {
       inventory_items: {
         Row: {
           article_id: string
-          article_name_snapshot: string | null
           created_at: string
           id: string
-          inventory_unit_snapshot: string | null
           line_value_cents: number
-          normalized_price_per_inventory_unit_cents: number | null
-          order_to_inventory_factor_snapshot: number | null
-          order_unit_snapshot: string | null
           organization_id: string
           session_id: string
           storage_1: number
@@ -768,14 +739,9 @@ export type Database = {
         }
         Insert: {
           article_id: string
-          article_name_snapshot?: string | null
           created_at?: string
           id?: string
-          inventory_unit_snapshot?: string | null
           line_value_cents?: number
-          normalized_price_per_inventory_unit_cents?: number | null
-          order_to_inventory_factor_snapshot?: number | null
-          order_unit_snapshot?: string | null
           organization_id: string
           session_id: string
           storage_1?: number
@@ -786,14 +752,9 @@ export type Database = {
         }
         Update: {
           article_id?: string
-          article_name_snapshot?: string | null
           created_at?: string
           id?: string
-          inventory_unit_snapshot?: string | null
           line_value_cents?: number
-          normalized_price_per_inventory_unit_cents?: number | null
-          order_to_inventory_factor_snapshot?: number | null
-          order_unit_snapshot?: string | null
           organization_id?: string
           session_id?: string
           storage_1?: number
@@ -1171,11 +1132,8 @@ export type Database = {
           article_name: string
           created_at: string
           id: string
-          inventory_unit_snapshot: string | null
           is_free_text_item: boolean
-          normalized_price_per_inventory_unit_cents: number | null
           order_id: string
-          order_to_inventory_factor_snapshot: number | null
           organization_id: string
           quantity: number
           sku: string | null
@@ -1188,11 +1146,8 @@ export type Database = {
           article_name: string
           created_at?: string
           id?: string
-          inventory_unit_snapshot?: string | null
           is_free_text_item?: boolean
-          normalized_price_per_inventory_unit_cents?: number | null
           order_id: string
-          order_to_inventory_factor_snapshot?: number | null
           organization_id: string
           quantity: number
           sku?: string | null
@@ -1205,11 +1160,8 @@ export type Database = {
           article_name?: string
           created_at?: string
           id?: string
-          inventory_unit_snapshot?: string | null
           is_free_text_item?: boolean
-          normalized_price_per_inventory_unit_cents?: number | null
           order_id?: string
-          order_to_inventory_factor_snapshot?: number | null
           organization_id?: string
           quantity?: number
           sku?: string | null

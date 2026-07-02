@@ -11,7 +11,6 @@ import { Pencil, Plus, Archive, RotateCcw } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatShortDate } from "@/lib/format-date";
 import { parseEuroToCents } from "@/lib/format";
-import { formatUnitPrice } from "@/lib/bestellung/unit-conversion";
 import {
   createSupplier,
   listSuppliers,
@@ -76,14 +75,6 @@ type ArticleDraft = {
   unit: string;
   priceEuro: string;
   packagingUnit: string;
-  orderUnit: string;
-  inventoryUnit: string;
-  orderToInventoryFactor: string;
-  minOrderQuantity: string;
-  quantityStep: string;
-  allowDecimalOrderQuantity: boolean;
-  targetStockTotal: string;
-  targetStockBar: string;
 };
 
 const EMPTY_ARTICLE_DRAFT: ArticleDraft = {
@@ -94,14 +85,6 @@ const EMPTY_ARTICLE_DRAFT: ArticleDraft = {
   unit: "Stk",
   priceEuro: "",
   packagingUnit: "",
-  orderUnit: "Stk",
-  inventoryUnit: "Stk",
-  orderToInventoryFactor: "1",
-  minOrderQuantity: "1",
-  quantityStep: "1",
-  allowDecimalOrderQuantity: false,
-  targetStockTotal: "",
-  targetStockBar: "",
 };
 
 function fmtEuro(cents: number | null | undefined): string {
@@ -119,13 +102,6 @@ function fmtTime(t: string | null | undefined): string {
 
 function fmtQty(q: number): string {
   return Number.isInteger(q) ? q.toString() : q.toLocaleString("de-DE");
-}
-
-function parseNumberDe(value: string): number | null {
-  const s = value.trim().replace(",", ".");
-  if (s === "") return null;
-  const n = Number(s);
-  return Number.isFinite(n) ? n : null;
 }
 
 function LieferantenPage() {
@@ -295,19 +271,11 @@ function LieferantenPage() {
           sku: input.draft.sku,
           description: input.draft.description,
           category: input.draft.category,
-          unit: input.draft.orderUnit || input.draft.unit,
+          unit: input.draft.unit,
           priceCents: parseEuroToCents(input.draft.priceEuro) ?? 0,
           packagingUnit: input.draft.packagingUnit
             ? Math.max(1, Math.round(Number(input.draft.packagingUnit)))
             : null,
-          orderUnit: input.draft.orderUnit || undefined,
-          inventoryUnit: input.draft.inventoryUnit || undefined,
-          orderToInventoryFactor: parseNumberDe(input.draft.orderToInventoryFactor) ?? undefined,
-          minOrderQuantity: parseNumberDe(input.draft.minOrderQuantity) ?? undefined,
-          quantityStep: parseNumberDe(input.draft.quantityStep) ?? undefined,
-          allowDecimalOrderQuantity: input.draft.allowDecimalOrderQuantity,
-          targetStockTotal: parseNumberDe(input.draft.targetStockTotal),
-          targetStockBar: parseNumberDe(input.draft.targetStockBar),
           locationIds: input.locationIds,
         },
       }),
@@ -334,19 +302,11 @@ function LieferantenPage() {
           sku: input.draft.sku,
           description: input.draft.description,
           category: input.draft.category,
-          unit: input.draft.orderUnit || input.draft.unit,
+          unit: input.draft.unit,
           priceCents: parseEuroToCents(input.draft.priceEuro) ?? 0,
           packagingUnit: input.draft.packagingUnit
             ? Math.max(1, Math.round(Number(input.draft.packagingUnit)))
             : null,
-          orderUnit: input.draft.orderUnit || undefined,
-          inventoryUnit: input.draft.inventoryUnit || undefined,
-          orderToInventoryFactor: parseNumberDe(input.draft.orderToInventoryFactor) ?? undefined,
-          minOrderQuantity: parseNumberDe(input.draft.minOrderQuantity) ?? undefined,
-          quantityStep: parseNumberDe(input.draft.quantityStep) ?? undefined,
-          allowDecimalOrderQuantity: input.draft.allowDecimalOrderQuantity,
-          targetStockTotal: parseNumberDe(input.draft.targetStockTotal),
-          targetStockBar: parseNumberDe(input.draft.targetStockBar),
           locationIds: input.locationIds,
         },
       }),
@@ -532,7 +492,9 @@ function LieferantenPage() {
                           <th className="px-3 py-2 w-24">Bestellen</th>
                           <th className="px-3 py-2">Artikel</th>
                           <th className="px-3 py-2">Beschreibung</th>
-                          <th className="px-3 py-2">Preis / Einheiten</th>
+                          <th className="px-3 py-2">Einheit</th>
+                          <th className="px-3 py-2">Stk/BE</th>
+                          <th className="px-3 py-2 text-right">Preis</th>
                           <th className="px-3 py-2"></th>
                         </tr>
                       </thead>
@@ -606,13 +568,12 @@ function LieferantenPage() {
                               <td className="px-3 py-2 text-muted-foreground">
                                 {a.description ?? "—"}
                               </td>
-                              <td className="px-3 py-2 text-xs text-muted-foreground">
-                                {formatUnitPrice(
-                                  a.price_cents ?? 0,
-                                  a.order_unit ?? a.unit,
-                                  Number(a.order_to_inventory_factor ?? 1) || 1,
-                                  a.inventory_unit ?? a.unit,
-                                )}
+                              <td className="px-3 py-2 text-muted-foreground">{a.unit}</td>
+                              <td className="px-3 py-2 text-muted-foreground">
+                                {a.packaging_unit ?? "—"}
+                              </td>
+                              <td className="px-3 py-2 text-right text-foreground">
+                                {fmtEuro(a.price_cents)}
                               </td>
                               <td className="px-3 py-2 text-right">
                                 <div className="flex items-center justify-end gap-1">
@@ -633,28 +594,6 @@ function LieferantenPage() {
                                               ? (a.price_cents / 100).toFixed(2).replace(".", ",")
                                               : "",
                                           packagingUnit: a.packaging_unit?.toString() ?? "",
-                                          orderUnit: a.order_unit ?? a.unit ?? "Stk",
-                                          inventoryUnit: a.inventory_unit ?? a.unit ?? "Stk",
-                                          orderToInventoryFactor: String(
-                                            a.order_to_inventory_factor ?? 1,
-                                          ).replace(".", ","),
-                                          minOrderQuantity: String(
-                                            a.min_order_quantity ?? 1,
-                                          ).replace(".", ","),
-                                          quantityStep: String(a.quantity_step ?? 1).replace(
-                                            ".",
-                                            ",",
-                                          ),
-                                          allowDecimalOrderQuantity:
-                                            !!a.allow_decimal_order_quantity,
-                                          targetStockTotal:
-                                            a.target_stock_total != null
-                                              ? String(a.target_stock_total).replace(".", ",")
-                                              : "",
-                                          targetStockBar:
-                                            a.target_stock_bar != null
-                                              ? String(a.target_stock_bar).replace(".", ",")
-                                              : "",
                                         },
                                         initialLocationIds:
                                           a.locationIds ?? (locationsQ.data ?? []).map((l) => l.id),
@@ -944,27 +883,10 @@ function ArticleForm(props: {
   const [d, setD] = useState<ArticleDraft>(props.initial);
   const [supplierId, setSupplierId] = useState(props.initialSupplierId);
   const [locationIds, setLocationIds] = useState<string[]>(props.initialLocationIds);
-  const [showTargets, setShowTargets] = useState(
-    !!(props.initial.targetStockTotal || props.initial.targetStockBar),
-  );
   const set = <K extends keyof ArticleDraft>(k: K, v: ArticleDraft[K]) =>
     setD((prev) => ({ ...prev, [k]: v }));
   const toggleLocation = (id: string) =>
     setLocationIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  const priceCentsPreview = parseEuroToCents(d.priceEuro) ?? 0;
-  const factorPreview = parseNumberDe(d.orderToInventoryFactor) ?? 1;
-  const livePreview =
-    priceCentsPreview > 0 &&
-    factorPreview > 0 &&
-    factorPreview !== 1 &&
-    d.orderUnit !== d.inventoryUnit
-      ? formatUnitPrice(
-          priceCentsPreview,
-          d.orderUnit || "Stk",
-          factorPreview,
-          d.inventoryUnit || "Stk",
-        )
-      : null;
   return (
     <form
       className="space-y-3"
@@ -1021,9 +943,16 @@ function ArticleForm(props: {
             className={inputCls}
           />
         </Field>
-        <Field label="Preis pro Bestelleinheit (€) *">
+        <Field label="Einheit *">
           <input
             required
+            value={d.unit}
+            onChange={(e) => set("unit", e.target.value)}
+            className={inputCls}
+          />
+        </Field>
+        <Field label="Preis (€)">
+          <input
             inputMode="decimal"
             placeholder="z. B. 12,90"
             value={d.priceEuro}
@@ -1031,61 +960,7 @@ function ArticleForm(props: {
             className={inputCls}
           />
         </Field>
-        <Field label="Bestelleinheit *">
-          <input
-            required
-            placeholder="Kiste, Sack, kg …"
-            value={d.orderUnit}
-            onChange={(e) => set("orderUnit", e.target.value)}
-            className={inputCls}
-          />
-        </Field>
-        <Field label="Inventureinheit *">
-          <input
-            required
-            placeholder="Flasche, kg, Liter …"
-            value={d.inventoryUnit}
-            onChange={(e) => set("inventoryUnit", e.target.value)}
-            className={inputCls}
-          />
-        </Field>
-        <Field
-          label={`1 ${d.orderUnit || "Bestelleinheit"} = X ${d.inventoryUnit || "Inventureinheit"}`}
-        >
-          <input
-            inputMode="decimal"
-            value={d.orderToInventoryFactor}
-            onChange={(e) => set("orderToInventoryFactor", e.target.value)}
-            className={inputCls}
-          />
-        </Field>
-        <Field label="Mindestbestellmenge">
-          <input
-            inputMode="decimal"
-            value={d.minOrderQuantity}
-            onChange={(e) => set("minOrderQuantity", e.target.value)}
-            className={inputCls}
-          />
-        </Field>
-        <Field label="Bestellschritt">
-          <input
-            inputMode="decimal"
-            value={d.quantityStep}
-            onChange={(e) => set("quantityStep", e.target.value)}
-            className={inputCls}
-          />
-        </Field>
-        <Field label="Dezimalbestellung erlaubt">
-          <label className="flex items-center gap-2 text-sm text-foreground">
-            <input
-              type="checkbox"
-              checked={d.allowDecimalOrderQuantity}
-              onChange={(e) => set("allowDecimalOrderQuantity", e.target.checked)}
-            />
-            Ja (E1: nur Vormerkung, Bestellung akzeptiert weiterhin Ganzzahlen)
-          </label>
-        </Field>
-        <Field label="Stk/BE (Legacy)">
+        <Field label="Stk/BE">
           <input
             type="number"
             min={1}
@@ -1094,40 +969,6 @@ function ArticleForm(props: {
             className={inputCls}
           />
         </Field>
-      </div>
-      {livePreview && (
-        <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground whitespace-pre-line">
-          {livePreview}
-        </div>
-      )}
-      <div>
-        <button
-          type="button"
-          onClick={() => setShowTargets((v) => !v)}
-          className="text-xs text-primary hover:underline"
-        >
-          {showTargets ? "▾" : "▸"} Zielbestände (optional, nur Datenfeld)
-        </button>
-        {showTargets && (
-          <div className="mt-2 grid grid-cols-1 gap-3 md:grid-cols-2">
-            <Field label={`Zielbestand gesamt (${d.inventoryUnit || "Einheit"})`}>
-              <input
-                inputMode="decimal"
-                value={d.targetStockTotal}
-                onChange={(e) => set("targetStockTotal", e.target.value)}
-                className={inputCls}
-              />
-            </Field>
-            <Field label={`Zielbestand Bar (${d.inventoryUnit || "Einheit"})`}>
-              <input
-                inputMode="decimal"
-                value={d.targetStockBar}
-                onChange={(e) => set("targetStockBar", e.target.value)}
-                className={inputCls}
-              />
-            </Field>
-          </div>
-        )}
       </div>
       <Field label="Beschreibung">
         <textarea
@@ -1141,11 +982,7 @@ function ArticleForm(props: {
         <button
           type="submit"
           disabled={
-            props.submitting ||
-            !d.name.trim() ||
-            !d.orderUnit.trim() ||
-            !d.inventoryUnit.trim() ||
-            locationIds.length === 0
+            props.submitting || !d.name.trim() || !d.unit.trim() || locationIds.length === 0
           }
           className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
