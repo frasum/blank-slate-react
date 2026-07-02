@@ -162,35 +162,83 @@ export async function assertStaffBoundToLocation(
   if (!data) throw new StaffLocationNotBoundError(staffId, locationId);
 }
 
-// Stellt sicher, dass `partnerId` in derselben Session nicht bereits als
-// Haupt- oder Partner-Kellner einer anderen aktiven (nicht-superseded)
-// Settlement vorkommt. `excludeSettlementId` schützt den Korrektur-Pfad
-// vor Selbstkollision mit der eigenen, gerade superseded'eten Zeile.
-export async function assertPartnerFree(
+// Stellt sicher, dass keiner der beteiligten Kellner (Haupt + Partner)
+// bereits in einer anderen aktiven (nicht-superseded) Abrechnung derselben
+// Session vorkommt — weder als `staff_id`, noch als (Alt-)`partner_staff_id`,
+// noch in `settlement_partners`. `excludeSettlementId` schützt den
+// Korrektur-Pfad vor Selbstkollision mit der eigenen, gerade
+// superseded'eten Zeile.
+export async function assertPartnersFree(
   orgId: string,
   sessionId: string,
-  primaryStaffId: string,
-  partnerStaffId: string,
+  staffIds: string[],
   excludeSettlementId: string | null,
 ): Promise<void> {
+  if (staffIds.length === 0) return;
+  const uniqueIds = Array.from(new Set(staffIds));
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  // 1) Aktive Abrechnungen der Session — staff_id oder alt-partner_staff_id.
   let q = supabaseAdmin
     .from("waiter_settlements")
     .select("id, staff_id, partner_staff_id, status")
     .eq("organization_id", orgId)
     .eq("session_id", sessionId)
-    .neq("status", "superseded")
-    .or(
-      `staff_id.eq.${partnerStaffId},partner_staff_id.eq.${partnerStaffId},partner_staff_id.eq.${primaryStaffId}`,
-    );
+    .neq("status", "superseded");
   if (excludeSettlementId) q = q.neq("id", excludeSettlementId);
-  const { data, error } = await q.limit(1);
-  if (error) throw error;
-  if (data && data.length > 0) {
+  const { data: settlements, error: sErr } = await q;
+  if (sErr) throw sErr;
+  const activeIds: string[] = (settlements ?? []).map((s) => s.id);
+
+  const hit = (settlements ?? []).find(
+    (s) =>
+      uniqueIds.includes(s.staff_id) ||
+      (s.partner_staff_id && uniqueIds.includes(s.partner_staff_id)),
+  );
+  if (hit) {
     throw new Error(
-      "Partner-Kellner hat bereits eine aktive Abrechnung in dieser Session oder ist bereits Partner einer anderen Abrechnung.",
+      "Kellner hat bereits eine aktive Abrechnung in dieser Session oder ist bereits Partner einer anderen Abrechnung.",
     );
   }
+
+  // 2) settlement_partners aktiver Abrechnungen.
+  if (activeIds.length > 0) {
+    const { data: parts, error: pErr } = await supabaseAdmin
+      .from("settlement_partners")
+      .select("staff_id")
+      .in("settlement_id", activeIds)
+      .in("staff_id", uniqueIds)
+      .limit(1);
+    if (pErr) throw pErr;
+    if (parts && parts.length > 0) {
+      throw new Error(
+        "Kellner ist bereits Partner einer anderen aktiven Abrechnung in dieser Session.",
+      );
+    }
+  }
+}
+
+// Schreibt die Partner-Verknüpfung neu (delete-then-insert, für Korrektur-
+// und Neuanlage-Pfade). Keine Client-Policies — nur via supabaseAdmin.
+async function replaceSettlementPartners(
+  orgId: string,
+  settlementId: string,
+  partnerStaffIds: string[],
+): Promise<void> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  await supabaseAdmin
+    .from("settlement_partners")
+    .delete()
+    .eq("organization_id", orgId)
+    .eq("settlement_id", settlementId);
+  if (partnerStaffIds.length === 0) return;
+  const rows = Array.from(new Set(partnerStaffIds)).map((staffId) => ({
+    organization_id: orgId,
+    settlement_id: settlementId,
+    staff_id: staffId,
+  }));
+  const { error } = await supabaseAdmin.from("settlement_partners").insert(rows);
+  if (error) throw error;
 }
 
 async function loadSessionWithLock(orgId: string, sessionId: string) {
@@ -301,7 +349,7 @@ export async function getCashOverviewCore(
     supabaseAdmin
       .from("waiter_settlements")
       .select(
-        "id, staff_id, partner_staff_id, pos_sales_cents, kassiert_brutto_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents, differenz_cents, kitchen_tip_cents, kitchen_tip_rate, status, submitted_at, corrected_from_id, auto_clockout_time_entry_id, primary_staff:staff!waiter_settlements_staff_id_fkey(display_name), partner_staff:staff!waiter_settlements_partner_staff_id_fkey(display_name)",
+        "id, staff_id, partner_staff_id, pos_sales_cents, kassiert_brutto_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents, differenz_cents, kitchen_tip_cents, kitchen_tip_rate, status, submitted_at, corrected_from_id, auto_clockout_time_entry_id, primary_staff:staff!waiter_settlements_staff_id_fkey(display_name), settlement_partners(staff_id, staff:staff!settlement_partners_staff_id_fkey(display_name))",
       )
       .eq("organization_id", caller.organizationId)
       .eq("session_id", session.id)
@@ -353,12 +401,25 @@ export async function getCashOverviewCore(
     session,
     settlements: (settlementsRes.data ?? []).map((s) => {
       const primary = (s.primary_staff as { display_name: string } | null)?.display_name ?? "—";
-      const partner = (s.partner_staff as { display_name: string } | null)?.display_name ?? null;
+      const partnerRows = (s.settlement_partners ?? []) as Array<{
+        staff_id: string;
+        staff: { display_name: string } | null;
+      }>;
+      const sortedPartners = [...partnerRows].sort((a, b) =>
+        (a.staff?.display_name ?? "").localeCompare(b.staff?.display_name ?? "", "de"),
+      );
+      const partnerStaffIds = sortedPartners.map((p) => p.staff_id);
+      const partnerStaffNames = sortedPartners
+        .map((p) => p.staff?.display_name ?? null)
+        .filter((n): n is string => !!n);
+      const staffName =
+        partnerStaffNames.length > 0 ? [primary, ...partnerStaffNames].join(" + ") : primary;
       return {
         ...s,
-        staffName: partner ? `${primary} + ${partner}` : primary,
+        staffName,
         primaryStaffName: primary,
-        partnerStaffName: partner,
+        partnerStaffNames,
+        partnerStaffIds,
       };
     }),
     channelAmounts: (channelAmtRes.data ?? []).map((r) => ({
@@ -436,7 +497,7 @@ export async function getMySettlementCore(caller: StaffCaller) {
   const { data: row } = await supabaseAdmin
     .from("waiter_settlements")
     .select(
-      "id, status, pos_sales_cents, kassiert_brutto_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents, differenz_cents, kitchen_tip_cents, kitchen_tip_rate, submitted_at, auto_clockout_time_entry_id, second_waiter_name, additional_waiters, partner_staff_id, partner_staff:staff!waiter_settlements_partner_staff_id_fkey(display_name)",
+      "id, status, pos_sales_cents, kassiert_brutto_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents, differenz_cents, kitchen_tip_cents, kitchen_tip_rate, submitted_at, auto_clockout_time_entry_id, second_waiter_name, additional_waiters, partner_staff_id, settlement_partners(staff:staff!settlement_partners_staff_id_fkey(display_name))",
     )
     .eq("organization_id", caller.organizationId)
     .eq("session_id", session.id)
@@ -459,10 +520,20 @@ export async function getMySettlementCore(caller: StaffCaller) {
     }
   }
 
+  const partnerRows = (
+    (row?.settlement_partners ?? []) as Array<{
+      staff: { display_name: string } | null;
+    }>
+  )
+    .map((p) => p.staff?.display_name ?? null)
+    .filter((n): n is string => !!n)
+    .sort((a, b) => a.localeCompare(b, "de"));
+  const settlementWithPartners = row ? { ...row, partnerStaffNames: partnerRows } : null;
+
   return {
     businessDate,
     session: { id: session.id, status: session.status },
-    settlement: row,
+    settlement: settlementWithPartners,
     kitchenTipRate: settings.kitchenTipRate,
     staffId: caller.staffId,
     myPoolShareCents,
@@ -1500,9 +1571,11 @@ const settlementInputSchema = z.object({
   hilfMahlCents: z.number().int().min(0),
   openInvoicesCents: z.number().int().min(0),
   cashHandedInCents: z.number().int().min(0),
-  // Zweiter Kellner: staff_id (UUID). Wird direkt als partner_staff_id
-  // gespeichert — kein Textfeld mehr. Betriebsrealität: max. 1 Partner.
-  partnerStaffId: z.string().uuid().nullable().default(null),
+  // Mitarbeitende Kellner (staff_ids). Werden nach Insert in
+  // `settlement_partners` verknüpft. Leere Liste = solo. Duplikate und
+  // die Haupt-Kellner-Id werden serverseitig herausgefiltert bzw.
+  // abgelehnt.
+  partnerStaffIds: z.array(z.string().uuid()).default([]),
 });
 
 export const submitWaiterSettlement = createServerFn({ method: "POST" })
@@ -1571,16 +1644,15 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
   //   (a) Partner ≠ Haupt-Kellner (Selbst-Wahl verboten).
   //   (b) Partner ist an denselben Standort gebunden (Org-Zugehörigkeit
   //       implizit über staff_locations mit org-Filter).
-  //   (c) Partner ist nicht bereits Haupt- oder Partner einer aktiven
-  //       (nicht-superseded) Abrechnung in derselben Session.
-  const partnerStaffId = data.partnerStaffId ?? null;
-  if (partnerStaffId) {
-    if (partnerStaffId === caller.staffId) {
+  //   (c) Kein beteiligter Kellner (Haupt oder Partner) ist bereits in
+  //       einer anderen aktiven (nicht-superseded) Abrechnung derselben
+  //       Session verknüpft.
+  const partnerStaffIds = Array.from(new Set(data.partnerStaffIds ?? []));
+  for (const pid of partnerStaffIds) {
+    if (pid === caller.staffId) {
       throw new Error("Partner-Kellner darf nicht der Haupt-Kellner sein.");
     }
-    await assertStaffBoundToLocation(caller.organizationId, partnerStaffId, session.location_id);
-    // excludeSettlementId = existierende eigene (Draft) Zeile, damit ein
-    // erneutes Absenden nicht mit sich selbst kollidiert.
+    await assertStaffBoundToLocation(caller.organizationId, pid, session.location_id);
   }
 
   // Idempotenz: existierende aktive Zeile prüfen.
@@ -1595,15 +1667,12 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
     .neq("status", "superseded")
     .maybeSingle();
 
-  if (partnerStaffId) {
-    await assertPartnerFree(
-      caller.organizationId,
-      session.id,
-      caller.staffId,
-      partnerStaffId,
-      existing?.id ?? null,
-    );
-  }
+  await assertPartnersFree(
+    caller.organizationId,
+    session.id,
+    [caller.staffId, ...partnerStaffIds],
+    existing?.id ?? null,
+  );
 
   // Rate snapshotten: draft/neu → aktuelle Org-Rate; submitted → Bestand erhalten.
   const kitchenTipRate =
@@ -1656,7 +1725,7 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
         kitchen_tip_rate: kitchenTipRate,
         status: "submitted",
         submitted_at: new Date().toISOString(),
-        partner_staff_id: partnerStaffId,
+        partner_staff_id: null,
       })
       .eq("id", existing.id)
       .eq("organization_id", caller.organizationId);
@@ -1680,13 +1749,18 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
         kitchen_tip_rate: kitchenTipRate,
         status: "submitted",
         submitted_at: new Date().toISOString(),
-        partner_staff_id: partnerStaffId,
+        partner_staff_id: null,
       })
       .select("id")
       .single();
     if (error) throw error;
     settlementId = created.id;
   }
+
+  // Partner-Verknüpfung schreiben (delete-then-insert, atomar aus Sicht
+  // der Zeile — bestehende Zeilen kommen nur aus früheren Drafts/Submits
+  // derselben Abrechnung).
+  await replaceSettlementPartners(caller.organizationId, settlementId, partnerStaffIds);
 
   // Auto-Ausstempeln — nur wenn nicht bereits passiert.
   let autoClockoutId: string | null = null;
@@ -1836,7 +1910,7 @@ const correctSchema = z.object({
   hilfMahlCents: z.number().int().min(0),
   openInvoicesCents: z.number().int().min(0),
   cashHandedInCents: z.number().int().min(0),
-  partnerStaffId: z.string().uuid().nullable().optional(),
+  partnerStaffIds: z.array(z.string().uuid()).optional(),
   reason: z.string().trim().min(3).max(500),
 });
 
@@ -1871,22 +1945,33 @@ export async function correctWaiterSettlementCore(
     }
 
     const session = await loadSessionWithLock(caller.organizationId, original.session_id);
-    // Partner-Validierung (optional). null = Partner entfernen.
-    const newPartnerId =
-      data.partnerStaffId === undefined ? original.partner_staff_id : data.partnerStaffId;
-    if (newPartnerId) {
-      if (newPartnerId === original.staff_id) {
+    // Partner-Validierung. `undefined` = Partner unverändert übernehmen
+    // (aus settlement_partners der Original-Zeile). Explizit `[]` =
+    // leeren.
+    let newPartnerIds: string[];
+    if (data.partnerStaffIds === undefined) {
+      const { data: existingParts, error: epErr } = await supabaseAdmin
+        .from("settlement_partners")
+        .select("staff_id")
+        .eq("organization_id", caller.organizationId)
+        .eq("settlement_id", original.id);
+      if (epErr) throw epErr;
+      newPartnerIds = (existingParts ?? []).map((r) => r.staff_id);
+    } else {
+      newPartnerIds = Array.from(new Set(data.partnerStaffIds));
+    }
+    for (const pid of newPartnerIds) {
+      if (pid === original.staff_id) {
         throw new Error("Partner-Kellner darf nicht der Haupt-Kellner sein.");
       }
-      await assertStaffBoundToLocation(caller.organizationId, newPartnerId, session.location_id);
-      await assertPartnerFree(
-        caller.organizationId,
-        session.id,
-        original.staff_id,
-        newPartnerId,
-        original.id,
-      );
+      await assertStaffBoundToLocation(caller.organizationId, pid, session.location_id);
     }
+    await assertPartnersFree(
+      caller.organizationId,
+      session.id,
+      [original.staff_id, ...newPartnerIds],
+      original.id,
+    );
     const waterline = await loadLocationCashLock(caller.organizationId, session.location_id);
     // Korrektur erlaubt bei open + finalized; gesperrt bei locked / Wasserlinie.
     assertCashWritable({
@@ -1923,7 +2008,7 @@ export async function correctWaiterSettlementCore(
         organization_id: caller.organizationId,
         session_id: original.session_id,
         staff_id: original.staff_id,
-        partner_staff_id: newPartnerId,
+        partner_staff_id: null,
         pos_sales_cents: data.posSalesCents,
         kassiert_brutto_cents: kassiertBruttoCents,
         card_total_cents: data.cardTotalCents,
@@ -1940,6 +2025,8 @@ export async function correctWaiterSettlementCore(
       .select("id")
       .single();
     if (insErr) throw insErr;
+
+    await replaceSettlementPartners(caller.organizationId, created.id, newPartnerIds);
 
     return {
       result: { newId: created.id, originalId: original.id },
@@ -1980,7 +2067,7 @@ const adminCreateSettlementSchema = z.object({
   hilfMahlCents: z.number().int().min(0),
   openInvoicesCents: z.number().int().min(0),
   cashHandedInCents: z.number().int().min(0),
-  partnerStaffId: z.string().uuid().nullable().optional(),
+  partnerStaffIds: z.array(z.string().uuid()).optional(),
   reason: z.string().trim().min(3).max(500),
 });
 
@@ -2011,23 +2098,19 @@ export async function adminCreateWaiterSettlementCore(
     });
 
     await assertStaffBoundToLocation(caller.organizationId, data.staffId, session.location_id);
-    if (data.partnerStaffId) {
-      if (data.partnerStaffId === data.staffId) {
+    const partnerStaffIds = Array.from(new Set(data.partnerStaffIds ?? []));
+    for (const pid of partnerStaffIds) {
+      if (pid === data.staffId) {
         throw new Error("Partner-Kellner darf nicht der Haupt-Kellner sein.");
       }
-      await assertStaffBoundToLocation(
-        caller.organizationId,
-        data.partnerStaffId,
-        session.location_id,
-      );
-      await assertPartnerFree(
-        caller.organizationId,
-        session.id,
-        data.staffId,
-        data.partnerStaffId,
-        null,
-      );
+      await assertStaffBoundToLocation(caller.organizationId, pid, session.location_id);
     }
+    await assertPartnersFree(
+      caller.organizationId,
+      session.id,
+      [data.staffId, ...partnerStaffIds],
+      null,
+    );
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -2060,7 +2143,7 @@ export async function adminCreateWaiterSettlementCore(
         organization_id: caller.organizationId,
         session_id: session.id,
         staff_id: data.staffId,
-        partner_staff_id: data.partnerStaffId ?? null,
+        partner_staff_id: null,
         pos_sales_cents: data.posSalesCents,
         kassiert_brutto_cents: kassiertBruttoCents,
         card_total_cents: data.cardTotalCents,
@@ -2076,6 +2159,8 @@ export async function adminCreateWaiterSettlementCore(
       .select("id")
       .single();
     if (insErr) throw insErr;
+
+    await replaceSettlementPartners(caller.organizationId, created.id, partnerStaffIds);
 
     return {
       result: {

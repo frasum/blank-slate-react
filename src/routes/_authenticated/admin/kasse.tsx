@@ -222,7 +222,7 @@ function KassePage() {
           hilfMahlCents: hilf,
           openInvoicesCents: open,
           cashHandedInCents: cash,
-          partnerStaffId: correct.partnerStaffId ? correct.partnerStaffId : null,
+          partnerStaffIds: correct.partnerStaffId ? [correct.partnerStaffId] : [],
           reason: correct.reason,
         },
       });
@@ -272,7 +272,7 @@ function KassePage() {
         data: {
           sessionId,
           staffId: createSettlement.staffId,
-          partnerStaffId: createSettlement.partnerStaffId ? createSettlement.partnerStaffId : null,
+          partnerStaffIds: createSettlement.partnerStaffId ? [createSettlement.partnerStaffId] : [],
           posSalesCents: pos,
           kassiertBruttoCents: kassiert,
           cardTotalCents: card,
@@ -509,7 +509,10 @@ function KassePage() {
               setCorrect({
                 originalId: row.id,
                 staffName: row.staffName,
-                partnerStaffId: row.partner_staff_id ?? "",
+                partnerStaffId:
+                  ((row as { partnerStaffIds?: string[] }).partnerStaffIds ?? [])[0] ??
+                  row.partner_staff_id ??
+                  "",
                 posSales: (Number(row.pos_sales_cents) / 100).toFixed(2),
                 kassiertBrutto: (
                   Number(
