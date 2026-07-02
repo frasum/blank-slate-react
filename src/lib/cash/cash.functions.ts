@@ -931,9 +931,9 @@ export async function getOrCreateOpenSessionCore(
   });
 }
 
-// Shared low-level "ensure exists" für getOrCreateOpenSession (Manager) und
-// ensureMyOpenSession (Kellner-Auto-Open). Enthält keinerlei Rollen-/Audit-
-// Logik — die Aufrufer setzen ihren jeweiligen Rechte- und Audit-Kontext.
+// Shared low-level "ensure exists" für getOrCreateOpenSession (Manager).
+// Enthält keinerlei Rollen-/Audit-Logik — die Aufrufer setzen ihren
+// jeweiligen Rechte- und Audit-Kontext.
 async function ensureOpenSessionRaw(args: {
   organizationId: string;
   locationId: string;
