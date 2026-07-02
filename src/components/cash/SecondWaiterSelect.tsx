@@ -1,8 +1,9 @@
 // SecondWaiterSelect — Dropdown der aktiven Kellner der eigenen Organisation.
 //
 // Datenquelle: listOrgWaiters (createServerFn, requireSupabaseAuth).
-// "none" ist der UI-interne Sentinelwert für "kein Kellner"; nach außen
-// wird stets null gemeldet, der Server speichert niemals den String "none".
+// `value` / `onValueChange` arbeiten mit der staff_id (UUID), angezeigt wird
+// der displayName. "none" ist der UI-interne Sentinelwert für "kein Kellner";
+// nach außen wird stets null gemeldet, der Server speichert niemals "none".
 
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -22,8 +23,6 @@ export type SecondWaiterSelectProps = {
   value: string | null;
   onValueChange: (v: string | null) => void;
   disabled?: boolean;
-  /** Anzeigenamen, die nicht angeboten werden sollen (z. B. bereits gewählte). */
-  excludeNames?: string[];
   /** Staff-IDs, die nicht angeboten werden sollen (i. d. R. die eigene). */
   excludeStaffIds?: string[];
   placeholder?: string;
@@ -33,7 +32,6 @@ export function SecondWaiterSelect({
   value,
   onValueChange,
   disabled,
-  excludeNames = [],
   excludeStaffIds = [],
   placeholder = "— kein zweiter Kellner —",
 }: SecondWaiterSelectProps) {
@@ -47,12 +45,9 @@ export function SecondWaiterSelect({
   const options = useMemo(() => {
     const all = q.data ?? [];
     const excludeIds = new Set(excludeStaffIds);
-    const excludeN = new Set(excludeNames.filter((n): n is string => Boolean(n)));
-    // Aktuell gewählten Namen NIE herausfiltern, sonst zeigt das Trigger den Wert leer an.
-    return all.filter(
-      (s) => !excludeIds.has(s.id) && (s.displayName === value || !excludeN.has(s.displayName)),
-    );
-  }, [q.data, excludeStaffIds, excludeNames, value]);
+    // Aktuell gewählte ID NIE herausfiltern, sonst zeigt das Trigger leer an.
+    return all.filter((s) => s.id === value || !excludeIds.has(s.id));
+  }, [q.data, excludeStaffIds, value]);
 
   return (
     <Select
@@ -66,7 +61,7 @@ export function SecondWaiterSelect({
       <SelectContent>
         <SelectItem value={NONE}>{placeholder}</SelectItem>
         {options.map((s) => (
-          <SelectItem key={s.id} value={s.displayName}>
+          <SelectItem key={s.id} value={s.id}>
             {s.displayName}
           </SelectItem>
         ))}
