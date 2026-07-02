@@ -946,10 +946,27 @@ function ArticleForm(props: {
   const [d, setD] = useState<ArticleDraft>(props.initial);
   const [supplierId, setSupplierId] = useState(props.initialSupplierId);
   const [locationIds, setLocationIds] = useState<string[]>(props.initialLocationIds);
+  const [showTargets, setShowTargets] = useState(
+    !!(props.initial.targetStockTotal || props.initial.targetStockBar),
+  );
   const set = <K extends keyof ArticleDraft>(k: K, v: ArticleDraft[K]) =>
     setD((prev) => ({ ...prev, [k]: v }));
   const toggleLocation = (id: string) =>
     setLocationIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const priceCentsPreview = parseEuroToCents(d.priceEuro) ?? 0;
+  const factorPreview = parseNumberDe(d.orderToInventoryFactor) ?? 1;
+  const livePreview =
+    priceCentsPreview > 0 &&
+    factorPreview > 0 &&
+    factorPreview !== 1 &&
+    d.orderUnit !== d.inventoryUnit
+      ? formatUnitPrice(
+          priceCentsPreview,
+          d.orderUnit || "Stk",
+          factorPreview,
+          d.inventoryUnit || "Stk",
+        )
+      : null;
   return (
     <form
       className="space-y-3"
@@ -1006,16 +1023,9 @@ function ArticleForm(props: {
             className={inputCls}
           />
         </Field>
-        <Field label="Einheit *">
+        <Field label="Preis pro Bestelleinheit (€) *">
           <input
             required
-            value={d.unit}
-            onChange={(e) => set("unit", e.target.value)}
-            className={inputCls}
-          />
-        </Field>
-        <Field label="Preis (€)">
-          <input
             inputMode="decimal"
             placeholder="z. B. 12,90"
             value={d.priceEuro}
@@ -1023,7 +1033,61 @@ function ArticleForm(props: {
             className={inputCls}
           />
         </Field>
-        <Field label="Stk/BE">
+        <Field label="Bestelleinheit *">
+          <input
+            required
+            placeholder="Kiste, Sack, kg …"
+            value={d.orderUnit}
+            onChange={(e) => set("orderUnit", e.target.value)}
+            className={inputCls}
+          />
+        </Field>
+        <Field label="Inventureinheit *">
+          <input
+            required
+            placeholder="Flasche, kg, Liter …"
+            value={d.inventoryUnit}
+            onChange={(e) => set("inventoryUnit", e.target.value)}
+            className={inputCls}
+          />
+        </Field>
+        <Field
+          label={`1 ${d.orderUnit || "Bestelleinheit"} = X ${d.inventoryUnit || "Inventureinheit"}`}
+        >
+          <input
+            inputMode="decimal"
+            value={d.orderToInventoryFactor}
+            onChange={(e) => set("orderToInventoryFactor", e.target.value)}
+            className={inputCls}
+          />
+        </Field>
+        <Field label="Mindestbestellmenge">
+          <input
+            inputMode="decimal"
+            value={d.minOrderQuantity}
+            onChange={(e) => set("minOrderQuantity", e.target.value)}
+            className={inputCls}
+          />
+        </Field>
+        <Field label="Bestellschritt">
+          <input
+            inputMode="decimal"
+            value={d.quantityStep}
+            onChange={(e) => set("quantityStep", e.target.value)}
+            className={inputCls}
+          />
+        </Field>
+        <Field label="Dezimalbestellung erlaubt">
+          <label className="flex items-center gap-2 text-sm text-foreground">
+            <input
+              type="checkbox"
+              checked={d.allowDecimalOrderQuantity}
+              onChange={(e) => set("allowDecimalOrderQuantity", e.target.checked)}
+            />
+            Ja (E1: nur Vormerkung, Bestellung akzeptiert weiterhin Ganzzahlen)
+          </label>
+        </Field>
+        <Field label="Stk/BE (Legacy)">
           <input
             type="number"
             min={1}
@@ -1032,6 +1096,40 @@ function ArticleForm(props: {
             className={inputCls}
           />
         </Field>
+      </div>
+      {livePreview && (
+        <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground whitespace-pre-line">
+          {livePreview}
+        </div>
+      )}
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowTargets((v) => !v)}
+          className="text-xs text-primary hover:underline"
+        >
+          {showTargets ? "▾" : "▸"} Zielbestände (optional, nur Datenfeld)
+        </button>
+        {showTargets && (
+          <div className="mt-2 grid grid-cols-1 gap-3 md:grid-cols-2">
+            <Field label={`Zielbestand gesamt (${d.inventoryUnit || "Einheit"})`}>
+              <input
+                inputMode="decimal"
+                value={d.targetStockTotal}
+                onChange={(e) => set("targetStockTotal", e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+            <Field label={`Zielbestand Bar (${d.inventoryUnit || "Einheit"})`}>
+              <input
+                inputMode="decimal"
+                value={d.targetStockBar}
+                onChange={(e) => set("targetStockBar", e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+          </div>
+        )}
       </div>
       <Field label="Beschreibung">
         <textarea
@@ -1045,7 +1143,11 @@ function ArticleForm(props: {
         <button
           type="submit"
           disabled={
-            props.submitting || !d.name.trim() || !d.unit.trim() || locationIds.length === 0
+            props.submitting ||
+            !d.name.trim() ||
+            !d.orderUnit.trim() ||
+            !d.inventoryUnit.trim() ||
+            locationIds.length === 0
           }
           className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
