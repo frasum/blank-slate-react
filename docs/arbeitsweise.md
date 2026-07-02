@@ -1216,3 +1216,35 @@ Der Referenz-Check prüfte Policies, Function-Bodies und Trigger — aber **nich
 ### Offen
 
 Phase 3 (manuelles Review Geld-/Auth-Pfad) — letzter Audit-Teil.
+
+## 36. Code-Audit Phase 3: manuelles Review Geld-/Auth-Pfad (02.07.2026)
+
+Abschluss des dreiteiligen Audits (§34 Code, §35 DB). Geprüft: Auth-Kern (PIN-/Passwort-Login,
+Shadow-User, requireSupabaseAuth, loadAdminCaller/runGuarded/runWithPermission, Impersonation,
+Kalender-Token + öffentliche Feed-Route, Payslip-Storage) und Geld-Pfad (alle Kassen-ServerFns,
+Settlement-Rechenkern, Trinkgeld-Pool, Superseded-Logik, EasyOrder/Orders, Lohn-Functions).
+
+### Bestätigt
+
+- Genau EINE ServerFn ohne Auth-Middleware im gesamten Repo: `validatePin` (dokumentiert öffentlich).
+- Alle Geld-Schreibpfade: loadAdminCaller → runGuarded → loadSessionWithLock → assertCashWritable,
+  Org-Scope auf jedem Query. staffId in Staff-Flows nie vom Client.
+- Geld durchgängig Integer-Cents (Zod `.int()` + `Number.isInteger`-Härtung im Rechenkern),
+  Rundung Half-Away-From-Zero, getestet. `superseded` an allen Lesestellen ausgeschlossen.
+- Impersonation über `is_real_admin` (nicht `is_admin`), org-gescoped, auditiert.
+- Kalender-Feed: timing-safe Vergleich, generisch 404.
+
+### Behoben
+
+- Passwort-Fallback in `validatePin` hatte KEIN App-Rate-Limit (nur der PIN-Zweig): jetzt gleiches
+  5-in-15-Min-Fenster + `pin_attempts`-Logging für beide Credential-Typen
+  (`isCredentialAttemptAllowed` in pin-validation.ts).
+- `isPayslipPathAllowed` weist jetzt `..`/`\` ab (Defense-in-Depth; Storage-Keys sind literal,
+  praktisch war es nicht ausnutzbar).
+
+### Bewusste Akzeptanz (bei künftigen Audits NICHT erneut aufwerfen)
+
+- **Klartext-Tokens in `access_tokens`** (calendar_feed, display): Tabelle ist deny-all/
+  service-role-only; Hashing brächte nur bei einem DB-Dump-Leak Schutz. §29-Designentscheidung.
+- **`listStaffForImpersonation` listet auch inaktive Mitarbeiter** — reines UX-Thema, der Start
+  blockt Accountlose; keine Sicherheitsrelevanz.

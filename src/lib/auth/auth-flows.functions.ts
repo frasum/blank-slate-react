@@ -13,7 +13,11 @@
 //   * Reine Validierungslogik ist in pin-validation.ts isoliert getestet.
 
 import { createServerFn } from "@tanstack/react-start";
-import { evaluatePin, PIN_RATE_LIMIT_WINDOW_MS } from "./pin-validation";
+import {
+  evaluatePin,
+  isCredentialAttemptAllowed,
+  PIN_RATE_LIMIT_WINDOW_MS,
+} from "./pin-validation";
 import {
   ensureShadowUser,
   failed,
@@ -56,11 +60,29 @@ export const validatePin = createServerFn({ method: "POST" })
       console.error("[pin-login] keine Kandidaten für Name:", data.firstName.trim());
     if (!candidates || candidates.length === 0) failed();
 
+    const sinceIso = new Date(Date.now() - PIN_RATE_LIMIT_WINDOW_MS).toISOString();
+
     if (!PIN_CREDENTIAL_PATTERN.test(data.pin)) {
       const sessions = [];
+      const attemptedCandidates: { id: string; organization_id: string }[] = [];
       for (const cand of candidates) {
+        const { count } = await supabaseAdmin
+          .from("pin_attempts")
+          .select("id", { count: "exact", head: true })
+          .eq("staff_id", cand.id)
+          .gte("attempted_at", sinceIso);
+        if (!isCredentialAttemptAllowed(count ?? 0)) continue;
+        attemptedCandidates.push({ id: cand.id, organization_id: cand.organization_id });
         const session = await tryStaffPasswordLogin(cand.id, data.pin);
         if (session) sessions.push(session);
+      }
+      if (sessions.length === 0) {
+        for (const cand of attemptedCandidates) {
+          await supabaseAdmin.from("pin_attempts").insert({
+            organization_id: cand.organization_id,
+            staff_id: cand.id,
+          });
+        }
       }
       if (sessions.length !== 1) console.error("[password-login] matches.length:", sessions.length);
       const session = sessions[0];
@@ -68,7 +90,6 @@ export const validatePin = createServerFn({ method: "POST" })
       return { kind: "password" as const, ...session };
     }
 
-    const sinceIso = new Date(Date.now() - PIN_RATE_LIMIT_WINDOW_MS).toISOString();
     const matches: { id: string; organization_id: string }[] = [];
 
     for (const cand of candidates) {

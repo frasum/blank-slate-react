@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { evaluatePin, PIN_RATE_LIMIT_MAX, type PinCompareFn } from "./pin-validation";
+import {
+  evaluatePin,
+  isCredentialAttemptAllowed,
+  PIN_RATE_LIMIT_MAX,
+  type PinCompareFn,
+} from "./pin-validation";
 
 const matchHash: PinCompareFn = (pin, hash) => pin === hash;
 
@@ -89,5 +94,18 @@ describe("evaluatePin", () => {
     });
     expect(result.kind).toBe("rejected");
     expect(called).toBe(false);
+  });
+});
+
+describe("isCredentialAttemptAllowed", () => {
+  it("erlaubt bei 0 Fehlversuchen", () => {
+    expect(isCredentialAttemptAllowed(0)).toBe(true);
+  });
+  it("erlaubt bei PIN_RATE_LIMIT_MAX - 1 Fehlversuchen", () => {
+    expect(isCredentialAttemptAllowed(PIN_RATE_LIMIT_MAX - 1)).toBe(true);
+  });
+  it("verbietet ab PIN_RATE_LIMIT_MAX Fehlversuchen", () => {
+    expect(isCredentialAttemptAllowed(PIN_RATE_LIMIT_MAX)).toBe(false);
+    expect(isCredentialAttemptAllowed(PIN_RATE_LIMIT_MAX + 5)).toBe(false);
   });
 });

@@ -35,6 +35,7 @@ export function isPayslipPathAllowed(args: {
 }): boolean {
   const { path, organizationId, staffId, role } = args;
   if (typeof path !== "string" || !path) return false;
+  if (path.includes("..") || path.includes("\\")) return false;
   if (path.startsWith(`${organizationId}/${staffId}/`)) return true;
   if (role === "admin" && path.startsWith(`${organizationId}/`)) return true;
   return false;

@@ -61,6 +61,28 @@ describe("isPayslipPathAllowed", () => {
       }),
     ).toBe(false);
   });
+
+  it("weist Pfade mit .. ab", () => {
+    expect(
+      isPayslipPathAllowed({
+        path: `${ORG_A}/${STAFF_1}/../x/f.pdf`,
+        organizationId: ORG_A,
+        staffId: STAFF_1,
+        role: "staff",
+      }),
+    ).toBe(false);
+  });
+
+  it("weist Pfade mit Backslash ab", () => {
+    expect(
+      isPayslipPathAllowed({
+        path: `${ORG_A}\\${STAFF_1}/f.pdf`,
+        organizationId: ORG_A,
+        staffId: STAFF_1,
+        role: "admin",
+      }),
+    ).toBe(false);
+  });
 });
 
 describe("sanitizePayslipFileName", () => {
