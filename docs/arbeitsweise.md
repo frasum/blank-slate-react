@@ -1131,9 +1131,14 @@ Drei Fehler in der Kassen-/Kellner-Abrechnung behoben (alle Gates grün, vitest 
 
 `SettlementWarningsBanner.tsx` summierte für POS-/Terminal-Differenz **alle** `overview.settlements` — auch `superseded`-Zeilen. Nach einer Kellner-Korrektur wurde dadurch jeder Betrag doppelt gezählt (Original + Korrektur). Fix: nur `activeSettlements` (`status !== "superseded"`) fließen in die Warnung. Das Backend filterte superseded bereits überall; nur dieser Frontend-Banner nicht.
 
-### Zweiter Kellner wird echt verknüpft — Verhaltensänderung
+### Mehrere Kellner pro Abrechnung — Verknüpfungstabelle `settlement_partners`
 
-Die Kellner-Abgabe speicherte den zweiten Kellner bisher nur als **Text** (`second_waiter_name`), nie als `partner_staff_id` — er erschien deshalb nicht als „Paar" und musste manuell nachkorrigiert werden (was zusätzlich Abgleichs-Doppelzählungen auslöste). Jetzt: `SecondWaiterSelect` liefert die `staff_id`; `submitWaiterSettlementCore` nimmt `partnerStaffId` und setzt `partner_staff_id` mit Validierung (nicht sich selbst; `assertStaffBoundToLocation`; Kollisions-Check `assertPartnerFree` — dieselbe wie die Manager-Korrektur). Die selten gebrauchten „weitere Kellner"-Felder (`additionalWaiters`) sind entfernt (Betriebsrealität: max. ein Partner pro Abrechnung). Partner-Anzeige aus `partner_staff.display_name`. DB-Spalten `second_waiter_name`/`additional_waiters` bleiben für Alt-Daten, werden aber nicht mehr geschrieben.
+Die Kellner-Abgabe speicherte mitarbeitende Kellner ursprünglich nur als Text (`second_waiter_name`) — sie erschienen nicht als Paar und mussten manuell nachkorrigiert werden. Nach einem Zwischenschritt (einzelnes `partner_staff_id`) gilt jetzt das finale Modell, weil im Betrieb auch **alle** Kellner zusammen abrechnen können: **ein** Kellner gibt für die ganze Gruppe ab (Gesamt-Umsatz) und wählt **beliebig viele** Beteiligte.
+
+- **Datenmodell:** Tabelle `settlement_partners` (`settlement_id` ↔ `staff_id`, unique, FK cascade; RLS: org-scoped SELECT, Schreiben nur serverseitig/`service_role`). Backfill hat bestehende `partner_staff_id`-Paare übernommen. Die Alt-Spalten `partner_staff_id`/`second_waiter_name`/`additional_waiters` bleiben für Alt-Daten, werden **nicht mehr geschrieben**.
+- **Backend:** `submitWaiterSettlementCore`/`correctWaiterSettlement` nehmen `partnerStaffIds: string[]`; je ID validiert (≠ Haupt-Kellner, `assertStaffBoundToLocation`, Kollisions-Check `assertPartnersFree` über **beide** Quellen: `waiter_settlements` und `settlement_partners` aktiver Abrechnungen, `excludeSettlementId` für den Korrektur-Pfad). Anzeige `staffName` = „A + B + C" aus `settlement_partners`, `partnerStaffNames: string[]`.
+- **UI:** dynamische Liste von `SecondWaiterSelect` („+ weiterer Kellner", Entfernen je Zeile), jede Auswahl schließt Haupt-Kellner und bereits gewählte aus. Badge: 1 Partner = „Paar", mehrere = „Gruppe".
+- **Zweck der Verknüpfung:** Anzeige + Schutz vor Doppel-Abrechnung. Die **Trinkgeld-Verteilung ist unabhängig davon** — sie läuft über Arbeitszeit/`session_tip_pool_entries` (§27).
 
 ### Kassen-Eingabefelder springen nicht mehr
 
@@ -1144,3 +1149,20 @@ Die Kellner-Abgabe speicherte den zweiten Kellner bisher nur als **Text** (`seco
 Live-Befund YUM 01.07.: Beide Kellner hatten den Kartenbetrag ≈ Gesamtumsatz eingetragen (Karte teils > Umsatz), statt nur den tatsächlichen Kartenanteil. Echte Kartensumme = Terminals (2.107,79 €); Differenz war reine Fehleingabe, kein Code-Fehler (die Korrektur übernahm die Werte 1:1). To-do Frank: betroffene Abrechnungen per Korrektur anpassen (Karte runter, Bargeld rauf, Summe bleibt). Prävention (offen, optional): klarerer Hinweis am „Karte"-Feld („nur Kartenanteil") + Warnung bei Karte > Umsatz.
 
 Ferner: Auth-Redirect-Flow direkt in Lovable gefixt (`f8d41ad`).
+
+## 32. D3-Display: Zebra, Legende, Symbol-Vereinheitlichung (02.07.2026)
+
+- **Zebra im Grid:** Grid-Zellen tragen jetzt `bg-slate-950` + `group-even/row:bg-slate-800/70` — der Zeilenwechsel ist so deutlich wie in den Namensspalten. Wochenend- und Heute-Markierung sind als `ring-inset` (Rahmen) statt konkurrierender `bg`-Klasse umgesetzt, damit sie den Zebra nicht überdecken (Tailwind-`bg`-Klassen gleicher Spezifität verdrängen sich sonst gegenseitig).
+- **Legende = echte Symbole:** Footer in drei Gruppen — Küche (`VS` Vorspeise · `PA` Pass · `SP` Spülen · `CO` Kochen), Service (`X` Service · `GL` Geschäftsleitung · `B` Bar · `19h` · `H` Hausmeister), Status (`−` Frei · Umbrella grün Urlaub · HeartPulse rot Krank · Heart lila Wunsch-frei). Die Status-Einträge nutzen die **echten Lucide-Icons in den Grid-Farben** (green-/red-/purple-400), kein Unicode.
+- **„Verfügbar" zusammengelegt:** Der Zell-Zustand `available` rendert nicht mehr `○`, sondern `−` wie „Frei" — ein Symbol für beides; „Verfügbar" ist aus Grid und Legende entfernt (Darstellung; Datenmodell unverändert).
+- Randnotiz: Spicery-Display-Settings per Direkt-Migration an YUM angeglichen (`custom_message`, `rotation_interval_seconds`).
+
+## 33. Geld-Regel: GL-Kartenzahlungen mindern das Tages-Bargeld NICHT (02.07.2026)
+
+**Live-Befund (Parallelbetrieb, 01.07.):** COCO und die produktive tagesabrechnung zeigten für denselben Tag abweichende Ergebnisse — Tages-Bargeld −409,03 € vs. −384,23 €, Wechselgeldbestand 675,56 € vs. 700,36 €. Differenz exakt 24,80 € = „Kredit Karten GL". Alle übrigen Eingaben und der Vortags-Fehlbetrag waren identisch; die Formeln (`computeDailyCash`, `computeWechselgeld` — Golden-Master-Portierung) korrekt.
+
+**Regel (Referenz Legacy-tagesabrechnung):** In den Kartenabzug des Tages-Bargelds fließen **nur physische Terminals** (Terminal 1 + 2). GL-Kartenzahlungen (`payment_terminals.is_gl = true`) sind ein **Kontrollposten** — sie gehören in den Terminal-Abgleich („Σ Terminals = Kellner-Karten + GL", §31), mindern aber das Bargeld nicht.
+
+**Umsetzung:** Beide Ladestellen der Aggregation joinen `payment_terminals!inner(is_gl)` und überspringen GL-Zeilen beim Summieren; reine, getestete Helper-Fn `sumNonGlTerminalCents` (`session-channels.ts`). **Verifikation:** COCO zeigt für 01.07. exakt die tagesabrechnung-Werte (Tages-Bargeld −384,23 €, Wechselgeldbestand 700,36 €).
+
+**Lektion:** Der Parallelbetrieb gegen die Legacy-Referenz ist der wirksamste Abgleich — Cent-Differenzen dort sofort ausermitteln, nicht wegerklären.
