@@ -45,7 +45,6 @@ const ArticleInput = z.object({
     .or(z.literal(""))
     .transform((v) => (v ? v : null)),
   unit: z.string().trim().min(1).max(40).default("Stk"),
-  orderUnitId: z.string().uuid().optional().nullable(),
   priceCents: z.number().int().min(0),
   packagingUnit: z.number().int().min(1).optional().nullable(),
   imageUrl: z
@@ -102,7 +101,7 @@ export const listArticles = createServerFn({ method: "GET" })
     let q = supabaseAdmin
       .from("articles")
       .select(
-        "id, supplier_id, name, sku, description, category, unit, order_unit_id, price_cents, packaging_unit, image_url, is_active, sort_order, created_at, updated_at, grape_variety, origin_country, food_pairings, special_attributes",
+        "id, supplier_id, name, sku, description, category, unit, price_cents, packaging_unit, image_url, is_active, sort_order, created_at, updated_at, grape_variety, origin_country, food_pairings, special_attributes",
       )
       .eq("organization_id", caller.organizationId)
       .order("sort_order")
@@ -193,7 +192,6 @@ export const createArticle = createServerFn({ method: "POST" })
           description: data.description,
           category: data.category,
           unit: data.unit,
-          order_unit_id: data.orderUnitId ?? null,
           price_cents: data.priceCents,
           packaging_unit: data.packagingUnit ?? null,
           image_url: data.imageUrl,
@@ -267,7 +265,6 @@ export const updateArticle = createServerFn({ method: "POST" })
           description: data.description,
           category: data.category,
           unit: data.unit,
-          order_unit_id: data.orderUnitId ?? null,
           price_cents: data.priceCents,
           packaging_unit: data.packagingUnit ?? null,
           image_url: data.imageUrl,
