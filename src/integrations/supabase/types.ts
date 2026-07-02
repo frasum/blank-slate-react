@@ -2491,6 +2491,45 @@ export type Database = {
           },
         ]
       }
+      settlement_partners: {
+        Row: {
+          created_at: string
+          id: string
+          organization_id: string
+          settlement_id: string
+          staff_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          organization_id: string
+          settlement_id: string
+          staff_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          organization_id?: string
+          settlement_id?: string
+          staff_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "settlement_partners_settlement_id_fkey"
+            columns: ["settlement_id"]
+            isOneToOne: false
+            referencedRelation: "waiter_settlements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "settlement_partners_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       skills: {
         Row: {
           category: Database["public"]["Enums"]["skill_category"]
