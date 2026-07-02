@@ -1500,8 +1500,9 @@ const settlementInputSchema = z.object({
   hilfMahlCents: z.number().int().min(0),
   openInvoicesCents: z.number().int().min(0),
   cashHandedInCents: z.number().int().min(0),
-  secondWaiterName: z.string().trim().min(1).nullable().default(null),
-  additionalWaiters: z.array(z.string().trim().min(1)).max(3).default([]),
+  // Zweiter Kellner: staff_id (UUID). Wird direkt als partner_staff_id
+  // gespeichert — kein Textfeld mehr. Betriebsrealität: max. 1 Partner.
+  partnerStaffId: z.string().uuid().nullable().default(null),
 });
 
 export const submitWaiterSettlement = createServerFn({ method: "POST" })
