@@ -10,8 +10,39 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
+import { validateOrderQuantity } from "./unit-conversion";
 
 const ALLOWED_ROLES = ["staff", "manager", "admin"] as const;
+
+async function assertOrderQuantityForArticle(
+  organizationId: string,
+  articleId: string,
+  qty: number,
+): Promise<void> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: a, error } = await supabaseAdmin
+    .from("articles")
+    .select(
+      "id, order_unit, quantity_step, min_order_quantity, allow_decimal_order_quantity",
+    )
+    .eq("id", articleId)
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!a) return;
+  const step = Number(a.quantity_step) || 1;
+  const min = Number(a.min_order_quantity) || 0;
+  // E1: quantity bleibt int → allowDecimal für die Server-Prüfung false.
+  const res = validateOrderQuantity(qty, {
+    step,
+    min,
+    allowDecimal: false,
+  });
+  if (!res.ok) {
+    const unit = a.order_unit ?? "Stk";
+    throw new Error(`${res.reason} (${unit})`);
+  }
+}
 
 // ---------- Active Cart ----------
 
@@ -135,13 +166,16 @@ export const addCartItem = createServerFn({ method: "POST" })
         .maybeSingle();
       if (exErr) throw exErr;
       if (existing) {
+        const nextQty = existing.quantity + data.quantity;
+        await assertOrderQuantityForArticle(caller.organizationId, data.articleId, nextQty);
         const { error } = await supabaseAdmin
           .from("cart_items")
-          .update({ quantity: existing.quantity + data.quantity })
+          .update({ quantity: nextQty })
           .eq("id", existing.id);
         if (error) throw error;
         return { id: existing.id };
       }
+      await assertOrderQuantityForArticle(caller.organizationId, data.articleId, data.quantity);
       const { data: row, error } = await supabaseAdmin
         .from("cart_items")
         .insert({
@@ -195,6 +229,16 @@ export const updateCartItem = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, ALLOWED_ROLES);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: item, error: itemErr } = await supabaseAdmin
+      .from("cart_items")
+      .select("id, article_id, is_free_text_item")
+      .eq("id", data.itemId)
+      .eq("organization_id", caller.organizationId)
+      .maybeSingle();
+    if (itemErr) throw itemErr;
+    if (item && !item.is_free_text_item && item.article_id) {
+      await assertOrderQuantityForArticle(caller.organizationId, item.article_id, data.quantity);
+    }
     const { error } = await supabaseAdmin
       .from("cart_items")
       .update({ quantity: data.quantity })
