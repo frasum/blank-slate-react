@@ -50,6 +50,15 @@ Erst wenn ESLint 0 Fehler und alle Tests grün sind → ABGENOMMEN.
   gehören in `docs/seed-storage.sql` (Ops-Seed, bei DB-Neuaufbau manuell nach
   den Migrationen ausführen). `storage.objects`-Policies sind davon nicht
   betroffen und bleiben reguläre Migrationen.
+- **Lovable-Diskrepanz-Meldungen: erst SHA-Beweis, dann glauben.** Zweimal
+  am 03.07. meldete Lovable „Prompt kollidiert mit Code-Realität" bzw.
+  behauptete „mein Workspace ist identisch mit origin/HEAD (Revert)" —
+  beide Male war die Sandbox desynchron und origin unversehrt (frischer
+  Clone mit Zeitstempel als Beweis). Regel: Bei jeder Diskrepanz-Meldung
+  zuerst `git rev-parse HEAD` des Workspace UND von origin verlangen;
+  Claude verifiziert parallel per frischem Clone. Bis zur Klärung darf
+  Lovable NICHTS committen (Push aus alter Sandbox wischt neuere Commits
+  weg — E1-Muster). Origin ist die Wahrheit, nie die Workspace-Aussage.
 
 ## 4. Stammdaten-Referenz (COCO Produktion)
 
