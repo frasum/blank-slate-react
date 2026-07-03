@@ -602,6 +602,12 @@ function StaffMatrixRow({
         {staff.hasPin ? "gesetzt" : "—"}
       </TableCell>
 
+      {isAdmin && (
+        <TableCell className="text-center">
+          {sofortStatus ? <SofortmeldungBadge status={sofortStatus} /> : "—"}
+        </TableCell>
+      )}
+
       {/* Aktionen */}
       <TableCell className="text-right">
         {isAdmin ? (
