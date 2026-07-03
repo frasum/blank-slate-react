@@ -36,14 +36,11 @@ describe("parseGermanAmountToCents", () => {
 
 // --- Fixture -------------------------------------------------------------
 
-const REAL_HEADER = (kst: string, report = "Betriebswirtschaftliche Auswertung", monat = "April 2025"): string[] => [
-  "1290 205",
-  report,
-  "YUM Gastronomie GmbH",
-  kst,
-  monat,
-  "WES: KG3",
-];
+const REAL_HEADER = (
+  kst: string,
+  report = "Betriebswirtschaftliche Auswertung",
+  monat = "April 2025",
+): string[] => ["1290 205", report, "YUM Gastronomie GmbH", kst, monat, "WES: KG3"];
 
 function makePage1(kst = "YUM", monat = "April 2025"): string[] {
   // Seite mit Kopf + Zeilen 1-28. Wertespalten je Zeile:

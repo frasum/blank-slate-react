@@ -202,7 +202,9 @@ function findCostCenter(lines: string[]): string | null {
     /([A-ZÄÖÜ][\w\s.&-]*\b(?:GmbH(?:\s*&\s*Co\.?\s*KG)?|AG|KG|UG|e\.K\.))/.test(l),
   );
   const mIdx = lines.findIndex((l) =>
-    /\b(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+\d{4}\b/i.test(l),
+    /\b(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+\d{4}\b/i.test(
+      l,
+    ),
   );
   if (eIdx >= 0 && mIdx === eIdx + 2) {
     const cand = lines[eIdx + 1].trim();
