@@ -134,6 +134,79 @@ export const listMyEntries = createServerFn({ method: "GET" })
     }));
   });
 
+// Z1 — gearbeitete Schichten der Abrechnungsperiode (Portal-Self-Service).
+// periodOffset: 0 = aktuelle Periode, -1 = vorherige usw. (nur Vergangenheit).
+export const getMyPeriodEntries = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({ periodOffset: z.number().int().min(-24).max(0).optional() })
+      .parse(input ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadStaffCaller(context.supabase, context.userId);
+    const offset = data.periodOffset ?? 0;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: periods, error: pErr } = await supabaseAdmin
+      .from("periods")
+      .select("id, label, start_date, end_date")
+      .eq("organization_id", caller.organizationId)
+      .order("start_date", { ascending: false });
+    if (pErr) throw pErr;
+    const all = periods ?? [];
+    const today = new Date().toISOString().slice(0, 10);
+    const currentIdx = all.findIndex(
+      (p) => (p.start_date as string) <= today && (p.end_date as string) >= today,
+    );
+    if (currentIdx < 0) {
+      throw new Error("Keine Abrechnungsperiode gefunden.");
+    }
+    const targetIdx = currentIdx - offset; // offset -1 → index+1 (frühere Periode)
+    const period = all[targetIdx];
+    if (!period) {
+      throw new Error("Keine Abrechnungsperiode gefunden.");
+    }
+
+    const { data: rows, error } = await supabaseAdmin
+      .from("time_entries")
+      .select("id, business_date, started_at, ended_at, break_minutes, source, location_id")
+      .eq("staff_id", caller.staffId)
+      .gte("business_date", period.start_date as string)
+      .lte("business_date", period.end_date as string)
+      .order("started_at", { ascending: true });
+    if (error) throw error;
+
+    const { data: locs, error: lErr } = await supabaseAdmin
+      .from("locations")
+      .select("id, name")
+      .eq("organization_id", caller.organizationId);
+    if (lErr) throw lErr;
+    const nameById = new Map<string, string>(
+      (locs ?? []).map((l) => [l.id as string, l.name as string]),
+    );
+
+    return {
+      period: {
+        id: period.id as string,
+        label: period.label as string,
+        startDate: period.start_date as string,
+        endDate: period.end_date as string,
+        isCurrent: offset === 0,
+      },
+      entries: (rows ?? []).map((r) => ({
+        id: r.id as string,
+        businessDate: r.business_date as string,
+        startedAt: r.started_at as string,
+        endedAt: (r.ended_at as string | null) ?? null,
+        breakMinutes: (r.break_minutes as number | null) ?? 0,
+        source: r.source as "clock" | "manual",
+        locationId: (r.location_id as string | null) ?? null,
+        locationName: r.location_id ? (nameById.get(r.location_id as string) ?? null) : null,
+      })),
+    };
+  });
+
 // =========================================================================
 // Schreiben (Stempeln)
 // =========================================================================
