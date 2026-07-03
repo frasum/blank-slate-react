@@ -581,3 +581,108 @@ describe("parseBilanzPdf – Seitenumbruch innerhalb eines Abschnitts", () => {
     expect(res.positions.some((p) => p.statement === "passiva" && p.code === "B")).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// F4b-Fix-3: Akkumulation gestapelter Teilsummen + Dezimalkomma-Pflicht
+// ---------------------------------------------------------------------------
+
+describe("parseBilanzPdf – F4b-Fix-3: gestapelte Teilsummen und Label-Zahlen", () => {
+  const doc = txt("YUM", "Gastronomie", "GmbH", "-", "Jahresabschluss", "zum", "31.12.2024");
+
+  it("B.II-Muster: zwei gestapelte Teilsummen einer Position ohne Gesamtzeile werden addiert", () => {
+    // Position B.II hat zwei Kontenbloecke mit je eigener reiner
+    // Betragszeile im aeusseren Band — B.II = Σ Teilsummen. Die
+    // nachfolgende Position B.III darf NICHT die zweite Teilsumme erben.
+    const passivaPage: Token[][] = [
+      doc,
+      txt("Kontennachweis", "zur", "Handelsbilanz", "zum", "31.12.2024"),
+      txt("Passiva"),
+      ...headerRows(2024),
+      posNoAmt("B.", "Umlaufvermögen"),
+      posNoAmt("II.", "Forderungen und sonstige Vermögensgegenstände"),
+      konto("1400", "Forderungen A", "100,00", "80,00"),
+      konto("1790", "Forderungen B", "31,39", "89,12"),
+      outerAmtLine("131,39", "169,12"),
+      konto("1570", "USt-Verrechnung A", "2,00", "0,50"),
+      konto("1787", "USt-Verrechnung B", "0,88", "0,38"),
+      outerAmtLine("2,88", "0,88"),
+      pos("III.", "Kassenbestand", "500,00", "400,00"),
+      konto("1000", "Kasse", "500,00", "400,00"),
+    ];
+    const res = parseBilanzPdf([passivaPage]);
+    const bII = res.positions.find((p) => p.code === "B.II")!;
+    // 131,39 + 2,88 = 134,27
+    expect(bII.betragCents).toBe(13427);
+    // 169,12 + 0,88 = 170,00
+    expect(bII.vorjahrCents).toBe(17000);
+    const bIII = res.positions.find((p) => p.code === "B.III")!;
+    expect(bIII.betragCents).toBe(50000);
+  });
+
+  it("8105-Muster: nackte Ganzzahlen im Label (§ 4 Nr. 12) werden NIE als Betrag genommen", () => {
+    // Konto 8105 mit Paragraphen-Zahlen ueber zwei Zeilen; die echten
+    // Betraege stehen erst auf der Fortsetzungszeile im inneren Band.
+    const guvPage: Token[][] = [
+      doc,
+      txt("Kontennachweis", "zur", "Gewinn-", "und", "Verlustrechnung"),
+      ...headerRows(2024),
+      pos("1.", "Umsatzerlöse", "1.000,00", "900,00"),
+      // Kontonummer + Label-Teil 1 inkl. nackter "4" und "12".
+      [T("8105", 93), T("Steuerfreie", 126), T("Umsätze", 175), T("§", 220), T("4", 235), T("Nr.", 245), T("12", 275), T("UStG", 290)],
+      // Fortsetzungs-Label + Betraege im inneren + aeusseren Band.
+      [T("(Vermietung)", 126), rT("1.000,00", 373), rT("900,00", 533)],
+    ];
+    const res = parseBilanzPdf([guvPage]);
+    const k = res.konten.find((k) => k.kontoNr === "8105")!;
+    expect(k.betragCents).toBe(100000);
+    expect(k.vorjahrCents).toBe(90000);
+    expect(k.label).toContain("Nr.");
+    expect(k.label).toContain("12");
+    // Sicherstellen: kein Konto mit 12,00 = 1200 cents materialisiert.
+    expect(res.konten.some((x) => x.kontoNr === "8105" && x.betragCents === 1200)).toBe(false);
+  });
+
+  it("2281-Muster: mehrzeiliges Label mit § und Kleinstbetrag −0,20 wird korrekt zugeordnet", () => {
+    const guvPage: Token[][] = [
+      doc,
+      txt("Kontennachweis", "zur", "Gewinn-", "und", "Verlustrechnung"),
+      ...headerRows(2024),
+      pos("9.", "Sonstige Steuern", "-0,20", "0,00"),
+      // Label ueber drei Zeilen, Betrag erst auf der letzten.
+      [T("2281", 93), T("Gewerbesteuernachzahlungen", 126)],
+      [T("nach", 126), T("§", 160), T("4", 175), T("Abs.", 185)],
+      [T("5b", 126), T("EStG", 160), rT("-0,20", 373), rT("0,00", 533)],
+    ];
+    const res = parseBilanzPdf([guvPage]);
+    const k = res.konten.find((k) => k.kontoNr === "2281")!;
+    expect(k.betragCents).toBe(-20);
+    expect(k.vorjahrCents).toBe(0);
+    expect(k.label).toContain("5b");
+    expect(k.label).toContain("EStG");
+  });
+
+  it("Nackte Ganzzahl-Zeile ohne Dezimalkomma zaehlt nie als Betrags-/Kontozeile", () => {
+    // Eine Zeile mit ausschliesslich nackten Ganzzahlen darf NICHT als
+    // subtotal (Konto-Innerband) oder Konto klassifiziert werden.
+    const passivaPage: Token[][] = [
+      doc,
+      txt("Kontennachweis", "zur", "Handelsbilanz", "zum", "31.12.2024"),
+      txt("Aktiva"),
+      ...headerRows(2024),
+      pos("A.", "Anlagevermögen", "500,00", "450,00"),
+      konto("0300", "Grundstücke", "500,00", "450,00"),
+      // Nackte Zahlen — kein Komma → keine Betraege.
+      [T("2024", 373), T("2023", 533)],
+      [T("1", 373), T("12", 533)],
+    ];
+    const res = parseBilanzPdf([passivaPage]);
+    // Konto 0300 unveraendert:
+    const k = res.konten.find((k) => k.kontoNr === "0300")!;
+    expect(k.betragCents).toBe(50000);
+    // Kein zusaetzliches Konto entstanden:
+    expect(res.konten).toHaveLength(1);
+    // Kein Betrag ueberschrieben:
+    const posA = res.positions.find((p) => p.code === "A")!;
+    expect(posA.betragCents).toBe(50000);
+  });
+});
