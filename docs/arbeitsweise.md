@@ -217,7 +217,8 @@ Rekonstruiert per Kalibrierung gegen bereits validierte Bestands-Sessions (Refer
 | M-BWA Welle F2a — Dashboard: KPIs+YoY, Prime Cost, Wasserfall, Break-even (§41)                                                        | ✅                                                      |
 | M-BWA Welle F2b — Vergleich-Tab, Sachkosten-Drilldown, Break-even-Sortier-Fix (§41)                                                    | ✅                                                      |
 | M-BWA Welle F3 — PDF-Upload + eurodata-Parser mit Review-Screen (§41)                                                                  | ✅                                                      |
-| M-BWA Welle F4a — Jahresabschluss-Parser + Server-Layer inkl. Gate-Härtung (§49)                                                       | ✅ (Migration offen)                                    |
+| M-BWA Welle F4a — Jahresabschluss-Parser + Server-Layer inkl. Gate-Härtung (§49)                                                       | ✅                                                      |
+| M-BWA Welle F4b — Jahresabschluss-UI (Upload, Drill-Down, KPIs, Mehrjahres) + Migrations-Nachzug F4a (§49)                             | ✅                                                      |
 | Lohn-RLS-Härtung — SELECT manager+ auf lohn_absence_days/lohn_recurring_zeilen (§42)                                                   | ✅                                                      |
 | Welle SP1 — Self-Service Stammdaten & Dokumente: Schema + Server-Layer (§43)                                                           | ✅                                                      |
 | Welle SP2 — Mitarbeiter-UI `/profil` (Kontakt direkt, Anträge, Dokumente) (§43)                                                        | ✅ (SP3 Admin-Review offen)                             |
@@ -1888,16 +1889,42 @@ blockieren, aber der UI in F4b als Hinweis dienen können.
 
 **Ehrlichkeits-Merkposten:**
 
-- Migrationsdatei für `bilanz_positions`/`bilanz_konten` + RPC
-  `replace_bilanz_year` steht noch aus; Draft liegt in
-  `docs/bilanz-schema-draft.sql`. Frank führt live aus, danach
-  Migration nachziehen — Muster §42. Bis dahin castet die Server-Fn
-  den `supabaseAdmin`-Client lokal auf eine minimale Bilanz-DB-
-  Signatur, damit `supabase gen types` die neuen Tabellen erst nach
-  der Migration überschreibt.
+- **Migrations-Nachzug F4a ✅ (03.07.2026):** Frank hat das SQL aus
+  `docs/bilanz-schema-draft.sql` am 03.07. manuell auf der Live-DB
+  ausgeführt; die zugehörige Migrationsdatei
+  (`20260703…_bilanz_f4a_nachzug.sql`) ist im Repo idempotent
+  (`IF NOT EXISTS` / `DROP POLICY IF EXISTS` / `CREATE OR REPLACE`) —
+  läuft in CI-Fresh-Stacks, ist auf der Live-DB ein No-Op. Draft-Datei
+  `docs/bilanz-schema-draft.sql` bleibt als Design-Referenz erhalten.
+  Die lokale Bilanz-DB-Signatur in `bilanz.functions.ts` bleibt bis zur
+  nächsten `supabase gen types`-Runde stehen.
 - MCP-Server-Welle wurde in `083965a8` revertiert (rote CI);
   Wiederaufbau als eigene Welle geplant, kein Vorgriff (kein
   `.prettierignore`-Eintrag, kein `get-bilanz-year`-Tool in dieser Welle).
+
+**Welle F4b — Jahresabschluss-UI (Frontend, 03.07.2026):**
+Neue Route `/admin/bilanz` (admin-gated) mit drei Tabs:
+
+- **Jahres-Ansicht:** KPI-Karten mit VJ-Delta (Bilanzsumme,
+  Eigenkapitalquote, Liquide Mittel, Jahresüberschuss); Drill-Down
+  Bilanz/GuV inkl. Kontennachweis; GuV-Wasserfall (recharts, gleiche
+  Chart-Bibliothek wie F2a). KPI-Ableitung im reinen Modul
+  `src/lib/bwa/bilanz-kpis.ts` (Label-Anker analog zum Parser,
+  Anker fehlt → „—", nie Halluzination).
+- **Mehrjahresvergleich:** Top-Level-Positionen über alle Jahre einer
+  Gesellschaft; VJ-Konsistenz-Warnung, wenn die VJ-Spalte des
+  N-Berichts vom GJ-Wert des N-1-Berichts abweicht (reine
+  Anzeige-Warnung, keine Blockade).
+- **Import:** PDF-Auswahl (client-seitig extrahiert via
+  `extractTokenLines` — neue Funktion in `pdf-lines.ts`, F3-Extraktion
+  unverändert) → Review-Screen (Kopf editierbar, Checks-Tabelle mit
+  ok/fail, Warnungen, Zähler, Hinweis auf bereits vorhandenen Stand) →
+  `replaceBilanzYear` (Server prüft Gates 1–3 erneut).
+
+Verwaltung: Lösch-Button pro Jahr mit Bestätigungsdialog →
+`deleteBilanzYear`. Verändert wurden **nicht** die Parser- oder
+Server-Fn-Module aus F4a; die UI ruft ausschließlich exportierte
+Funktionen.
 
 **Erfolgs-Gate erreicht (03.07.2026):** `prettier --check .` sauber;
 `vitest run` 1170 Tests grün (Bilanz-Parser 20 + Bilanz-Server 14 neu);

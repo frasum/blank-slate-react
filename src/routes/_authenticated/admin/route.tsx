@@ -136,6 +136,14 @@ const GROUPS: Group[] = [
     roles: ["admin"],
   },
   {
+    key: "bilanz",
+    label: "Jahresabschluss",
+    default: "/admin/bilanz",
+    prefixes: ["/admin/bilanz"],
+    sub: [{ to: "/admin/bilanz", label: "Bilanz & GuV" }],
+    roles: ["admin"],
+  },
+  {
     key: "einstellungen",
     label: "Einstellungen",
     default: "/admin/einstellungen",

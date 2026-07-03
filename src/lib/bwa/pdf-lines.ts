@@ -7,6 +7,13 @@
 
 export type TextItem = { x: number; y: number; s: string };
 
+// F4b: fuer den Bilanz-Parser brauchen wir NICHT den geglaetteten Zeilentext
+// (den liefert clusterItemsToLines fuer die F3-BWA), sondern Token pro Zeile
+// MIT x-Koordinate — deterministische Spaltenzuordnung ueber x-Schwellen.
+// Diese Funktion nutzt dieselbe y-Toleranz-Clustering-Logik und laesst die
+// bestehende clusterItemsToLines-Signatur (F3) unveraendert.
+export type LineToken = { text: string; x: number };
+
 /**
  * Toleranz für die y-Cluster-Bildung in PDF-Punkt. 2,5 pt deckt den
  * beobachteten Baseline-Versatz der Zeilennummer sicher ab (≈ 0,5 pt) und
@@ -44,4 +51,31 @@ export function clusterItemsToLines(items: TextItem[]): string[] {
         .trim(),
     )
     .filter((l) => l.length > 0);
+}
+
+/**
+ * Wie clusterItemsToLines, aber liefert pro Zeile die Token-Liste
+ * (Text + x-Koordinate). Leerzeichen-only Token werden verworfen.
+ * Ergebnis-Reihenfolge: Zeilen von oben nach unten, Tokens links→rechts.
+ */
+export function extractTokenLines(items: TextItem[]): LineToken[][] {
+  const sorted = [...items].sort((a, b) => b.y - a.y || a.x - b.x);
+  const clusters: TextItem[][] = [];
+  let anchor: number | null = null;
+  for (const it of sorted) {
+    if (anchor === null || anchor - it.y > LINE_Y_TOLERANCE) {
+      clusters.push([it]);
+      anchor = it.y;
+    } else {
+      clusters[clusters.length - 1].push(it);
+    }
+  }
+  return clusters
+    .map((c) =>
+      c
+        .sort((a, b) => a.x - b.x)
+        .map((i) => ({ text: i.s.trim(), x: i.x }))
+        .filter((t) => t.text.length > 0),
+    )
+    .filter((line) => line.length > 0);
 }
