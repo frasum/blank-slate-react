@@ -31,12 +31,14 @@ function header(): Token[] {
 
 // ---- Fixture: YUM 2024 mit AKTUELL erfuellten Gates ------------------------
 
-function buildFixturePages(overrides: {
-  konto0300?: string;
-  positionB?: string;
-  konto0800?: string;
-  guv3?: string;
-} = {}): Token[][][] {
+function buildFixturePages(
+  overrides: {
+    konto0300?: string;
+    positionB?: string;
+    konto0800?: string;
+    guv3?: string;
+  } = {},
+): Token[][][] {
   const doc = txt("YUM", "Gastronomie", "GmbH", "-", "Jahresabschluss", "zum", "31.12.2024");
 
   const aktivaPage: Token[][] = [
@@ -139,9 +141,7 @@ describe("parseBilanzPdf – Negativfaelle", () => {
   });
 
   it("vertauschte Bilanzsumme → Gate 2 (aktiva=passiva) faellt", () => {
-    const res = parseBilanzPdf(
-      buildFixturePages({ positionB: "1.100,00", konto0800: "1.100,00" }),
-    );
+    const res = parseBilanzPdf(buildFixturePages({ positionB: "1.100,00", konto0800: "1.100,00" }));
     const c = checkByName(res, "bilanzsumme_aktiva_eq_passiva")!;
     expect(c.ok).toBe(false);
   });

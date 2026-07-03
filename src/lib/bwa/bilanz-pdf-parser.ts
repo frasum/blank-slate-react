@@ -177,7 +177,10 @@ export function classifyRow(tokens: Token[], section: BilanzStatement | null): R
   if (nonAmount.length === 0 && tokens.length > 0) return "subtotal";
   if (nonAmount.length === 0) return "empty";
   const first = nonAmount[0].text;
-  const flat = nonAmount.map((t) => t.text).join(" ").toLowerCase();
+  const flat = nonAmount
+    .map((t) => t.text)
+    .join(" ")
+    .toLowerCase();
   if (flat.startsWith("übertrag") || flat.startsWith("uebertrag")) return "carry";
   if (nonAmount[0].text.toLowerCase() === "davon") return "davon";
   if (KONTO_RE.test(first)) return "konto";
@@ -273,7 +276,9 @@ export function parseBilanzPdf(pages: Token[][][]): ParsedBilanzYear {
     const statement = section.statement;
     const cols = findColumnAnchors(page);
     if (!cols) {
-      warnings.push(`Seite (${statement}): Spaltenkopf 'Geschäftsjahr / Vorjahr' nicht gefunden — übersprungen.`);
+      warnings.push(
+        `Seite (${statement}): Spaltenkopf 'Geschäftsjahr / Vorjahr' nicht gefunden — übersprungen.`,
+      );
       continue;
     }
 
@@ -341,7 +346,9 @@ export function parseBilanzPdf(pages: Token[][][]): ParsedBilanzYear {
           continue;
         }
         if (gj === null) {
-          warnings.push(`Konto ${kontoNr} (${label}): kein GJ-Betrag in der Geschäftsjahr-Spalte — übersprungen.`);
+          warnings.push(
+            `Konto ${kontoNr} (${label}): kein GJ-Betrag in der Geschäftsjahr-Spalte — übersprungen.`,
+          );
           continue;
         }
         if (!currentPositionCode) {
@@ -447,6 +454,7 @@ export function computeChecks(
     });
   }
 
-  if (posByStmt.size === 0) warnings.push("Keine Positionen erkannt — Kontennachweis vermutlich nicht enthalten.");
+  if (posByStmt.size === 0)
+    warnings.push("Keine Positionen erkannt — Kontennachweis vermutlich nicht enthalten.");
   return checks;
 }

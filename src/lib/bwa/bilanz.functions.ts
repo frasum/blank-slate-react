@@ -64,9 +64,10 @@ export type ReplaceBilanzPayload = z.infer<typeof replaceBilanzYearInput>;
 // Serverseitige Re-Validierung der Gates (dem Client nicht vertrauen)
 // ---------------------------------------------------------------------------
 
-export function validateReplacePayload(
-  payload: ReplaceBilanzPayload,
-): { ok: boolean; errors: string[] } {
+export function validateReplacePayload(payload: ReplaceBilanzPayload): {
+  ok: boolean;
+  errors: string[];
+} {
   const errors: string[] = [];
   const codesByStmt = new Map<string, Set<string>>();
   for (const p of payload.positions) {
@@ -87,7 +88,9 @@ export function validateReplacePayload(
   // Gate 1: Σ Konten je Blatt-Position = Positionsbetrag.
   for (const p of payload.positions) {
     if (!isLeaf(p.statement, p.code)) continue;
-    const rel = payload.konten.filter((k) => k.statement === p.statement && k.positionCode === p.code);
+    const rel = payload.konten.filter(
+      (k) => k.statement === p.statement && k.positionCode === p.code,
+    );
     if (rel.length === 0) continue;
     const sum = rel.reduce((a, k) => a + k.betragCents, 0);
     if (sum !== p.betragCents) {
@@ -99,7 +102,9 @@ export function validateReplacePayload(
 
   // Gate 2: Σ Top-Level Aktiva = Σ Top-Level Passiva.
   const topSum = (stmt: string) =>
-    payload.positions.filter((p) => p.statement === stmt && p.level === 0).reduce((a, p) => a + p.betragCents, 0);
+    payload.positions
+      .filter((p) => p.statement === stmt && p.level === 0)
+      .reduce((a, p) => a + p.betragCents, 0);
   const aktiva = topSum("aktiva");
   const passiva = topSum("passiva");
   if ((aktiva || passiva) && aktiva !== passiva) {
