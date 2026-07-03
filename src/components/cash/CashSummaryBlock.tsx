@@ -91,9 +91,31 @@ export function CashSummaryBlock({
     return `${d}.${m}.${y}`;
   };
   const below = wechselgeldbestandCents < cashBalanceTargetCents;
+  const expensesTotalCents = expenses.reduce((s, e) => s + e.amountCents, 0);
+  const diffToTargetCents = wechselgeldbestandCents - cashBalanceTargetCents;
+  const diffNegative = diffToTargetCents < 0;
 
   return (
     <div>
+      {previousDeficitCents < 0 && (
+        <div className="border-b bg-red-50 px-3 py-2 flex items-center justify-between text-sm">
+          <span className="text-red-700">
+            Fehlbetrag Vortag
+            {previousDeficitSourceDate ? ` (${fmtDate(previousDeficitSourceDate)})` : ""}
+          </span>
+          <span className="font-mono tabular-nums text-red-700">
+            {fmtEur(previousDeficitCents)}
+          </span>
+        </div>
+      )}
+      {expensesTotalCents > 0 && (
+        <div className="border-b px-3 py-2 flex items-center justify-between text-sm">
+          <span className="text-foreground">Ausgaben</span>
+          <span className="font-mono tabular-nums text-foreground">
+            {fmtEur(-expensesTotalCents)}
+          </span>
+        </div>
+      )}
       <div
         className={`border-b px-3 py-2 flex items-center justify-between text-sm ${
           tagesBargeldCents < 0 ? "bg-red-50" : "bg-emerald-50"
@@ -108,17 +130,16 @@ export function CashSummaryBlock({
           {fmtEur(tagesBargeldCents)}
         </span>
       </div>
-      {previousDeficitCents < 0 && (
-        <div className="border-b bg-red-50 px-3 py-2 flex items-center justify-between text-sm">
-          <span className="text-red-700">
-            Fehlbetrag Vortag
-            {previousDeficitSourceDate ? ` (${fmtDate(previousDeficitSourceDate)})` : ""}
-          </span>
-          <span className="font-mono tabular-nums text-red-700">
-            {fmtEur(previousDeficitCents)}
-          </span>
-        </div>
-      )}
+      <div className="border-b bg-muted px-3 py-2 flex items-center justify-between text-sm">
+        <span className="font-semibold text-foreground">Differenz zum Wechselgeldbestand</span>
+        <span
+          className={`font-mono tabular-nums font-semibold ${
+            diffNegative ? "text-red-700" : "text-emerald-700"
+          }`}
+        >
+          {fmtEur(diffToTargetCents)}
+        </span>
+      </div>
       {tresorCents > 0 && (
         <div className="border-b bg-orange-50 px-3 py-2 flex items-center justify-between text-sm">
           <span className="text-orange-700">Bargeld mit der Abrechnung in den Tresor legen</span>
