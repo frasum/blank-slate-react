@@ -246,7 +246,9 @@ async function loadPlaceholderInput(
     details: detailsRes.data ?? null,
     compensation: {
       hourly_wage_cents:
-        hourlyRate !== null && hourlyRate !== undefined ? Math.round(Number(hourlyRate) * 100) : null,
+        hourlyRate !== null && hourlyRate !== undefined
+          ? Math.round(Number(hourlyRate) * 100)
+          : null,
       contracted_hours_per_month: staff.contracted_hours_per_month,
     },
     organization: settingsRes.data ?? null,
@@ -354,9 +356,7 @@ export const saveGeneratedDocument = createServerFn({ method: "POST" })
 
 export const listGeneratedDocuments = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i) =>
-    z.object({ staffId: z.string().uuid().optional() }).parse(i ?? {}),
-  )
+  .inputValidator((i) => z.object({ staffId: z.string().uuid().optional() }).parse(i ?? {}))
   .handler(async ({ data, context }): Promise<GeneratedDocumentRow[]> => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

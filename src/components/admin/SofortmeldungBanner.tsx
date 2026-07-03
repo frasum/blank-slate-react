@@ -97,9 +97,7 @@ export function SofortmeldungBanner({ staffId }: { staffId: string }) {
           <span className="text-sm font-semibold text-foreground">Sofortmeldung §28a</span>
           <Badge className={statusClass(d.status)}>
             {STATUS_LABEL[d.status]}
-            {d.status === "gemeldet" && d.reportedAt
-              ? ` am ${formatShortDate(d.reportedAt)}`
-              : ""}
+            {d.status === "gemeldet" && d.reportedAt ? ` am ${formatShortDate(d.reportedAt)}` : ""}
           </Badge>
         </div>
         <label className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -130,9 +128,7 @@ export function SofortmeldungBanner({ staffId }: { staffId: string }) {
 
       {(d.status === "bereit" || d.status === "gemeldet") && (
         <div className="space-y-2">
-          <p className="text-xs font-medium text-muted-foreground">
-            Datenblock für sv.net
-          </p>
+          <p className="text-xs font-medium text-muted-foreground">Datenblock für sv.net</p>
           <div className="rounded-md border border-border bg-muted/30 p-3 font-mono text-xs">
             {d.dataBlock.map((r) => (
               <div key={r.label} className="flex gap-2">

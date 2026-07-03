@@ -46,11 +46,7 @@ describe("sofortmeldungMissingFields", () => {
   it("details=null ⇒ alle Detailfelder fehlen", () => {
     const m = sofortmeldungMissingFields(staff, null);
     expect(m).toEqual(
-      expect.arrayContaining([
-        "date_of_birth",
-        "employment_start_date",
-        "social_security_number",
-      ]),
+      expect.arrayContaining(["date_of_birth", "employment_start_date", "social_security_number"]),
     );
   });
 
@@ -62,19 +58,19 @@ describe("sofortmeldungMissingFields", () => {
 
 describe("sofortmeldungStatus", () => {
   it("required=false ⇒ nicht_erforderlich", () => {
-    expect(
-      sofortmeldungStatus({ required: false, missingFields: ["x"], reportedAt: null }),
-    ).toBe("nicht_erforderlich");
+    expect(sofortmeldungStatus({ required: false, missingFields: ["x"], reportedAt: null })).toBe(
+      "nicht_erforderlich",
+    );
   });
   it("required + vollständig + nicht gemeldet ⇒ bereit", () => {
-    expect(
-      sofortmeldungStatus({ required: true, missingFields: [], reportedAt: null }),
-    ).toBe("bereit");
+    expect(sofortmeldungStatus({ required: true, missingFields: [], reportedAt: null })).toBe(
+      "bereit",
+    );
   });
   it("required + unvollständig ⇒ unvollstaendig", () => {
-    expect(
-      sofortmeldungStatus({ required: true, missingFields: ["a"], reportedAt: null }),
-    ).toBe("unvollstaendig");
+    expect(sofortmeldungStatus({ required: true, missingFields: ["a"], reportedAt: null })).toBe(
+      "unvollstaendig",
+    );
   });
   it("reportedAt gesetzt ⇒ gemeldet gewinnt auch bei unvollständigen Daten", () => {
     expect(
