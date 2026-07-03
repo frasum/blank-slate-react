@@ -629,8 +629,9 @@ describe("parseBilanzPdf – F4b-Fix-3: gestapelte Teilsummen und Label-Zahlen",
       pos("1.", "Umsatzerlöse", "1.000,00", "900,00"),
       // Kontonummer + Label-Teil 1 inkl. nackter "4" und "12".
       [T("8105", 93), T("Steuerfreie", 126), T("Umsätze", 175), T("§", 220), T("4", 235), T("Nr.", 245), T("12", 275), T("UStG", 290)],
-      // Fortsetzungs-Label + Betraege im inneren + aeusseren Band.
-      [T("(Vermietung)", 126), rT("1.000,00", 373), rT("900,00", 533)],
+      // Fortsetzungs-Label (ohne Betraege), dann Innerband-Betragszeile.
+      [T("(Vermietung)", 126)],
+      innerAmtLine("1.000,00", "900,00"),
     ];
     const res = parseBilanzPdf([guvPage]);
     const k = res.konten.find((k) => k.kontoNr === "8105")!;
@@ -651,7 +652,8 @@ describe("parseBilanzPdf – F4b-Fix-3: gestapelte Teilsummen und Label-Zahlen",
       // Label ueber drei Zeilen, Betrag erst auf der letzten.
       [T("2281", 93), T("Gewerbesteuernachzahlungen", 126)],
       [T("nach", 126), T("§", 160), T("4", 175), T("Abs.", 185)],
-      [T("5b", 126), T("EStG", 160), rT("-0,20", 373), rT("0,00", 533)],
+      [T("5b", 126), T("EStG", 160)],
+      innerAmtLine("-0,20", "0,00"),
     ];
     const res = parseBilanzPdf([guvPage]);
     const k = res.konten.find((k) => k.kontoNr === "2281")!;
