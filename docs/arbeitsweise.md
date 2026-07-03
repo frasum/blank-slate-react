@@ -1607,6 +1607,7 @@ ungefähr gelesen), Zeitreihe mit Benchmark-Bändern (WES 28–32 %, Personal
   Steuerberater in den Import-Tab laden → Review prüfen → übernehmen.
   TSB folgt als zweite entity, sobald die erste TSB-BWA vorliegt (Name +
   Kostenstellen klären — siehe Designentscheidungen oben).
+
 - Später optional: `bwa_plan` (Soll/Ist-Vergleich, Budget-Wasserfall);
   BWA-Umsatz vs. COCO-Kassenumsatz-Abgleich (M-Statistik hat die Zahlen).
 
