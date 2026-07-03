@@ -31,6 +31,18 @@ export function berechneLohn(eingabe: LohnEingabe): LohnErgebnis {
   // --- Schritt A: Gesamtbrutto = Summe aller Zeilen außer 'abzug' ---
   const gesamtbruttoCent = sumBy(zeilen, (k) => k !== "abzug");
 
+  // Invariante: Minijob kennt weder 'zeitlohn' noch 'einmalbezug' — solche
+  // Beträge liefen still an der SV vorbei (RV-Eigenanteil würde fehlen).
+  // Lieber hart scheitern; die Übersicht fängt Fehler pro Zeile bereits ab.
+  if (person.beschaeftigung === "minijob") {
+    const bad = zeilen.find((z) => z.kategorie === "zeitlohn" || z.kategorie === "einmalbezug");
+    if (bad) {
+      throw new Error(
+        "Minijob: Kategorie 'zeitlohn'/'einmalbezug' nicht unterstützt — als 'aushilfe_paust' buchen.",
+      );
+    }
+  }
+
   // --- Schritt B: Steuer-/SV-Brutto ---
   const summeZuschlagFrei = sumBy(zeilen, (k) => k === "zuschlag_frei");
   const summeSachbezugFrei = sumBy(zeilen, (k) => k === "sachbezug_frei");
@@ -81,10 +93,14 @@ export function berechneLohn(eingabe: LohnEingabe): LohnErgebnis {
       pvz: person.pvKinderlosZuschlag,
       pva: clampPva(person.kinderzahl, person.elterneigenschaft),
       freibetragCent: person.lstFreibetragMonatCent,
-      pkv: person.istPkv,
+      // Werkstudent: KV/PV-frei → PAP mit PKV=1 und PKPV=0 → Mindest-
+      // vorsorgepauschale (edlohn-Verhalten). NICHT pauschal an `kvFrei`
+      // koppeln — freiwillig gesetzlich Versicherte sind ebenfalls kvFrei,
+      // brauchen aber die volle Vorsorgepauschale.
+      pkv: person.istPkv || !!person.istWerkstudent,
       krvKeinRv: person.istPkv && person.rvFrei,
       alvKeinAv: person.istPkv && person.avFrei,
-      pkpvCent: person.pkvBasisBeitragMonatCent,
+      pkpvCent: person.istWerkstudent ? 0 : person.pkvBasisBeitragMonatCent,
     });
     lstCent = papErgebnis.lstlzzCent;
     soliCent = papErgebnis.solzlzzCent;
@@ -113,11 +129,20 @@ export function berechneLohn(eingabe: LohnEingabe): LohnErgebnis {
     summeSachbezugFrei -
     summeSachbezugPflichtig -
     summeMahlzeitenPaust -
+    summeBavFrei -
+    summeBavSv -
     summeAbzug;
+
+  // Ausweis-Feld: edlohn bucht LSt-Freibeträge (Aktivrente) vom sichtbaren
+  // St-Brutto ab; die Lohnsteuer selbst ändert sich nicht (LZZFREIB wirkt
+  // bereits im PAP). Für den CSV-/Excel-Abgleich brauchen wir das gekappte
+  // Feld separat; `stBruttoCent` bleibt RE4 für den PAP.
+  const stBruttoAusweisCent = Math.max(0, stBruttoCent - person.lstFreibetragMonatCent);
 
   return {
     gesamtbruttoCent,
     stBruttoCent,
+    stBruttoAusweisCent,
     svBruttoCent,
     stSvBruttoCent,
     lstCent,
