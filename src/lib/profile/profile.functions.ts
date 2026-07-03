@@ -31,13 +31,21 @@ import {
 
 const BUCKET = "staff-documents";
 
+type JsonPrimitive = string | number | boolean | null;
+type SelfViewValue = JsonPrimitive;
+
 function pickSelfView(
   row: Record<string, unknown> | null,
-): Partial<Record<(typeof SELF_VIEW_FIELDS)[number], unknown>> {
+): Partial<Record<(typeof SELF_VIEW_FIELDS)[number], SelfViewValue>> {
   if (!row) return {};
-  const out: Record<string, unknown> = {};
+  const out: Partial<Record<(typeof SELF_VIEW_FIELDS)[number], SelfViewValue>> = {};
   for (const f of SELF_VIEW_FIELDS) {
-    if (f in row) out[f] = row[f];
+    if (f in row) {
+      const v = row[f];
+      if (v === null || v === undefined) out[f] = null;
+      else if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") out[f] = v;
+      else out[f] = String(v);
+    }
   }
   return out;
 }
@@ -48,7 +56,7 @@ export type MyProfile = {
     lastName: string | null;
     displayName: string | null;
   };
-  details: Partial<Record<(typeof SELF_VIEW_FIELDS)[number], unknown>>;
+  details: Partial<Record<(typeof SELF_VIEW_FIELDS)[number], SelfViewValue>>;
 };
 
 export const getMyProfile = createServerFn({ method: "GET" })
@@ -162,7 +170,7 @@ export const submitChangeRequest = createServerFn({ method: "POST" })
         .insert({
           organization_id: caller.organizationId,
           staff_id: caller.staffId,
-          payload: normalized,
+          payload: normalized as unknown as import("@/integrations/supabase/types").Json,
           note: data.note ?? null,
         })
         .select("id")
