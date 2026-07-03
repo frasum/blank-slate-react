@@ -364,12 +364,25 @@ export function parseBilanzPdf(pages: Token[][][]): ParsedBilanzYear {
     labelParts: string[];
     sortOrder: number;
   };
+  // F4b-Fix-3: Positions-Stack fuer gestapelte Teilsummen. Eine
+  // Position schliesst NICHT bei der ersten Betragszeile, sondern erst,
+  // wenn eine neue Positionszeile mit gleichem oder hoeherem Level
+  // (kleinere Level-Zahl) auftritt bzw. der Abschnitt endet. Reine
+  // Betragszeilen im aeusseren Band akkumulieren auf die innerste offene
+  // Position (GJ addiert immer; VJ addiert nur wenn alle bisherigen
+  // Teilzeilen einen VJ trugen — sonst wird VJ als unvollstaendig auf
+  // null gesetzt).
+  type OpenPos = {
+    pos: ParsedBilanzPosition;
+    vjIncomplete: boolean;
+    touched: boolean;
+  };
   type SectionState = {
     statement: BilanzStatement;
     path: Path;
     currentPositionCode: string | null;
     openKonto: OpenKonto | null;
-    awaitingPositions: ParsedBilanzPosition[];
+    awaitingPositions: OpenPos[];
   };
 
   const newState = (statement: BilanzStatement): SectionState => ({
@@ -381,6 +394,18 @@ export function parseBilanzPdf(pages: Token[][][]): ParsedBilanzYear {
   });
 
   let state: SectionState | null = null;
+
+  // Alle offenen Positionen mit level >= newLevel schliessen (Sibling oder
+  // tiefer). Die Position bleibt in positions[] mit dem bis dahin
+  // akkumulierten Betrag; der Roll-up traegt Nicht-Blaetter nach.
+  const closeAtLevel = (s: SectionState, newLevel: number): void => {
+    while (
+      s.awaitingPositions.length > 0 &&
+      s.awaitingPositions[s.awaitingPositions.length - 1].pos.level >= newLevel
+    ) {
+      s.awaitingPositions.pop();
+    }
+  };
 
   const finalizeKonto = (s: SectionState, gj: number, vj: number | null): void => {
     if (!s.openKonto) return;
@@ -409,6 +434,7 @@ export function parseBilanzPdf(pages: Token[][][]): ParsedBilanzYear {
   const finalizeSection = (): void => {
     if (!state) return;
     closeUnresolvedKonto(state);
+    state.awaitingPositions.length = 0;
     state = null;
   };
 
@@ -426,10 +452,21 @@ export function parseBilanzPdf(pages: Token[][][]): ParsedBilanzYear {
       if (kind === "subtotal") {
         const { gj: ogj, vj: ovj } = outerAmounts(amounts, cols);
         if (ogj !== null) {
-          const pos = s.awaitingPositions.pop();
-          if (pos) {
-            pos.betragCents = ogj;
-            if (pos.vorjahrCents === null && ovj !== null) pos.vorjahrCents = ovj;
+          const top = s.awaitingPositions[s.awaitingPositions.length - 1];
+          if (top) {
+            if (!top.touched) {
+              top.pos.betragCents = ogj;
+              top.touched = true;
+            } else {
+              top.pos.betragCents += ogj;
+            }
+            if (ovj === null) {
+              top.vjIncomplete = true;
+              top.pos.vorjahrCents = null;
+            } else if (!top.vjIncomplete) {
+              top.pos.vorjahrCents =
+                top.pos.vorjahrCents === null ? ovj : top.pos.vorjahrCents + ovj;
+            }
           }
           continue;
         }
@@ -452,6 +489,8 @@ export function parseBilanzPdf(pages: Token[][][]): ParsedBilanzYear {
       const firstText = nonAmount[0]?.text ?? "";
 
       const pushPosition = (level: number): void => {
+        // Siblings/tiefere Positionen schliessen, BEVOR die neue eroeffnet.
+        closeAtLevel(s, level);
         const code = makeCode(s.path);
         const label = labelFrom(line, 1);
         s.currentPositionCode = code;
@@ -470,7 +509,9 @@ export function parseBilanzPdf(pages: Token[][][]): ParsedBilanzYear {
           vorjahrCents: vj,
         };
         positions.push(p);
-        if (gj === null) s.awaitingPositions.push(p);
+        if (gj === null) {
+          s.awaitingPositions.push({ pos: p, vjIncomplete: false, touched: false });
+        }
       };
 
       if (kind === "position-letter") {
