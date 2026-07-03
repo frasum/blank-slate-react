@@ -18,7 +18,16 @@ import {
   validateChangeRequestPayload,
   type RequestField,
 } from "./profile-fields";
-import { isStaffDocumentPathAllowed, type StaffDocumentType } from "./staff-document-path";
+import {
+  ALLOWED_DOC_MIME,
+  DOC_TYPES,
+  MAX_DOC_SIZE_BYTES,
+  extensionForMime,
+  isStaffDocumentPathAllowed,
+  sanitizeDocumentFileName,
+  staffDocumentFolder,
+  type StaffDocumentType,
+} from "./staff-document-path";
 
 const BUCKET = "staff-documents";
 
