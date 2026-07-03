@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from "vitest";
 import { parseBwaPdfText, parseGermanAmountToCents } from "./bwa-pdf-parser";
-import { validateBwaMonth } from "./bwa-core";
+import { validateBwaMonth, type BwaMonthInput } from "./bwa-core";
 
 describe("parseGermanAmountToCents", () => {
   it("parst Ganzzahlen ohne Tausenderpunkt", () => {
