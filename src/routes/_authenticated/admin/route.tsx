@@ -80,7 +80,7 @@ const GROUPS: Group[] = [
   },
   {
     key: "kasse",
-    label: "Kasse",
+    label: "Tagesabrechnung",
     default: "/admin/kasse",
     prefixes: ["/admin/kasse", "/admin/kasse-saldo", "/admin/trinkgeld-rest"],
     sub: [

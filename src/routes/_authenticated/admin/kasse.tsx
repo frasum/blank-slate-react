@@ -64,7 +64,7 @@ import { fmtCents } from "@/lib/format";
 import type jsPDF from "jspdf";
 
 export const Route = createFileRoute("/_authenticated/admin/kasse")({
-  head: () => ({ meta: [{ title: "Kasse" }] }),
+  head: () => ({ meta: [{ title: "Tagesabrechnung" }] }),
   validateSearch: (search: Record<string, unknown>) => ({
     locationId: typeof search.locationId === "string" ? search.locationId : undefined,
     businessDate: typeof search.businessDate === "string" ? search.businessDate : undefined,
@@ -429,7 +429,7 @@ function KassePage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Kasse</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Tagesabrechnung</h1>
         <div className="flex items-end gap-3">
           <div className="space-y-1">
             <Label htmlFor="loc">Standort</Label>
