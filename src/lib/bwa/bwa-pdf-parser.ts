@@ -219,12 +219,6 @@ function stripReportTitlePrefix(s: string): string {
   return out;
 }
 
-function isReportTitleLine(s: string): boolean {
-  const stripped = stripReportTitlePrefix(s).trim();
-  // Wenn nach dem Strip nichts (außer evtl. Whitespace) übrig bleibt, war die
-  // Zeile eine reine Report-Titel-Zeile ohne Firmenname.
-  return stripped.length === 0 && s.trim().length > 0;
-}
 
 function findCostCenter(lines: string[]): string | null {
   // Variante A (Legacy/andere Layouts): explizites Label.
