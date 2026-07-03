@@ -228,3 +228,58 @@ describe("parseBwaPdfText – eurodata-Realitätsfälle", () => {
     expect(res.blocks[0].values.betriebsergebnisCents).toBe(-173700);
   });
 });
+
+describe("parseBwaPdfText – Teil 2: leere Monatsspalte + Label-Symmetrie", () => {
+  it("2-Token-Zeile (nur kumuliert) → Feld = 0 mit genau EINER Warnung", () => {
+    const p: string[] = [
+      ...REAL_HEADER("YUM"),
+      "50 Abschreibungen 9.219 1,6",
+    ];
+    const res = parseBwaPdfText([p]);
+    expect(res.blocks[0].values.abschreibungCents).toBe(0);
+    const zeroWarn = res.warnings.filter((w) => /Zeile 50.*als 0,00/i.test(w));
+    expect(zeroWarn).toHaveLength(1);
+  });
+
+  it("mehrere Fortsetzungsseiten mit derselben leeren Zeile → nur EINE Warnung", () => {
+    const p1: string[] = [...REAL_HEADER("YUM"), "50 Abschreibungen 9.219 1,6"];
+    const p2: string[] = [
+      ...REAL_HEADER("YUM"),
+      "Übertrag Vorseite",
+      "50 Abschreibungen 9.219 1,6",
+    ];
+    const res = parseBwaPdfText([p1, p2]);
+    expect(res.blocks[0].values.abschreibungCents).toBe(0);
+    const zeroWarn = res.warnings.filter((w) => /Zeile 50.*als 0,00/i.test(w));
+    expect(zeroWarn).toHaveLength(1);
+  });
+
+  it("echter Monatswert überschreibt eine zuvor angenommene 0", () => {
+    const p1: string[] = [...REAL_HEADER("YUM"), "50 Abschreibungen 9.219 1,6"];
+    const p2: string[] = [
+      ...REAL_HEADER("YUM"),
+      "Übertrag Vorseite",
+      "50 Abschreibungen -407 -0,3 -1.600 -0,4",
+    ];
+    const res = parseBwaPdfText([p1, p2]);
+    expect(res.blocks[0].values.abschreibungCents).toBe(-40700);
+  });
+
+  it("KFZ - Kosten mit Spaces um Bindestrich landet im Sachkosten-Detail", () => {
+    const p: string[] = [
+      ...REAL_HEADER("YUM"),
+      "39 KFZ - Kosten 899 0,6 2.663 0,5",
+    ];
+    const res = parseBwaPdfText([p]);
+    expect(res.blocks[0].sachkostenDetail["KFZ-Kosten"]).toBe(89900);
+  });
+
+  it("Restaurant- und Hotelbedarf (Bindestrich ohne Space) landet im Detail", () => {
+    const p: string[] = [
+      ...REAL_HEADER("YUM"),
+      "34 Restaurant- und Hotelbedarf 7.593 5,4 20.056 3,5",
+    ];
+    const res = parseBwaPdfText([p]);
+    expect(res.blocks[0].sachkostenDetail["Restaurant- und Hotelbedarf"]).toBe(759300);
+  });
+});
