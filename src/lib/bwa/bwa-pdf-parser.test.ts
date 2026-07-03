@@ -231,10 +231,7 @@ describe("parseBwaPdfText – eurodata-Realitätsfälle", () => {
 
 describe("parseBwaPdfText – Teil 2: leere Monatsspalte + Label-Symmetrie", () => {
   it("2-Token-Zeile (nur kumuliert) → Feld = 0 mit genau EINER Warnung", () => {
-    const p: string[] = [
-      ...REAL_HEADER("YUM"),
-      "50 Abschreibungen 9.219 1,6",
-    ];
+    const p: string[] = [...REAL_HEADER("YUM"), "50 Abschreibungen 9.219 1,6"];
     const res = parseBwaPdfText([p]);
     expect(res.blocks[0].values.abschreibungCents).toBe(0);
     const zeroWarn = res.warnings.filter((w) => /Zeile 50.*als 0,00/i.test(w));
@@ -266,10 +263,7 @@ describe("parseBwaPdfText – Teil 2: leere Monatsspalte + Label-Symmetrie", () 
   });
 
   it("KFZ - Kosten mit Spaces um Bindestrich landet im Sachkosten-Detail", () => {
-    const p: string[] = [
-      ...REAL_HEADER("YUM"),
-      "39 KFZ - Kosten 899 0,6 2.663 0,5",
-    ];
+    const p: string[] = [...REAL_HEADER("YUM"), "39 KFZ - Kosten 899 0,6 2.663 0,5"];
     const res = parseBwaPdfText([p]);
     expect(res.blocks[0].sachkostenDetail["KFZ-Kosten"]).toBe(89900);
   });
