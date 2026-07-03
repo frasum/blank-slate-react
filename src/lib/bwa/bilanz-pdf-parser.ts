@@ -373,8 +373,11 @@ export function parseBilanzPdf(pages: Token[][][]): ParsedBilanzYear {
 // ---------------------------------------------------------------------------
 
 function isLeafPosition(pos: ParsedBilanzPosition, allCodes: Set<string>): boolean {
-  // Blatt = keine andere Position hat mich als parent_code.
-  return !allCodes.has(`${pos.code}.child`) && ![...allCodes].some((c) => c.startsWith(pos.code + ".") && c !== pos.code);
+  // Blatt = keine andere Position hat den eigenen Code als Prefix.
+  for (const c of allCodes) {
+    if (c !== pos.code && c.startsWith(pos.code + ".")) return false;
+  }
+  return true;
 }
 
 export function computeChecks(
