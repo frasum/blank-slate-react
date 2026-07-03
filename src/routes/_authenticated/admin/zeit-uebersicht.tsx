@@ -344,6 +344,34 @@ function ZeitUebersichtPage() {
     enabled: Boolean(effectiveLocationId),
   });
 
+  // Schichten (Periode) — standortübergreifend zählen: pro Standort Overview laden
+  // und Kalender-Tage pro Mitarbeiter zu einem Set mergen (mehrere Einsätze am
+  // selben Tag = 1 Schicht).
+  const shiftCountQueries = useQueries({
+    queries: locations.map((l) => ({
+      queryKey: ["time-overview", l.id, fromDate, toDate],
+      queryFn: () => fetchOverview({ data: { locationId: l.id, fromDate, toDate } }),
+      enabled: Boolean(l.id) && Boolean(fromDate) && Boolean(toDate),
+    })),
+  });
+  const shiftsByStaff = useMemo(() => {
+    const days = new Map<string, Set<string>>();
+    for (const q of shiftCountQueries) {
+      const entries = (q.data as { entries?: Entry[] } | undefined)?.entries ?? [];
+      for (const e of entries) {
+        let set = days.get(e.staffId);
+        if (!set) {
+          set = new Set<string>();
+          days.set(e.staffId, set);
+        }
+        set.add(e.businessDate);
+      }
+    }
+    const counts = new Map<string, number>();
+    for (const [staffId, set] of days) counts.set(staffId, set.size);
+    return counts;
+  }, [shiftCountQueries]);
+
   const notesQ = useQuery({
     queryKey: ["payroll-notes", effectiveLocationId, fromDate, toDate],
     queryFn: () =>
@@ -965,6 +993,7 @@ function ZeitUebersichtPage() {
               for (const e of weeklyData?.entries ?? []) m.set(e.id, e);
               return m;
             }, [weeklyData])}
+            shiftsByStaff={shiftsByStaff}
           />
         </TabsContent>
 
@@ -1555,6 +1584,7 @@ function WeeklyPlan({
   onCreateInline,
   periodStart,
   periodEnd,
+  shiftsByStaff,
 }: {
   input: WeeklyExportInput | null;
   isLoading: boolean;
@@ -1566,6 +1596,7 @@ function WeeklyPlan({
   onCreateInline: (staffId: string, iso: string, from: string, to: string) => void;
   periodStart?: string;
   periodEnd?: string;
+  shiftsByStaff: Map<string, number>;
 }) {
   // Header-Tagesmeta (Wochentag-Label + Feiertags-Hint)
   const dayMeta = weekDays.map((d) => {
@@ -1581,8 +1612,8 @@ function WeeklyPlan({
     };
   });
 
-  // Spalten: Mitarbeiter + 7×2 (Anfang/Ende) + 6 Summen
-  const totalCols = 1 + 14 + 6;
+  // Spalten: Mitarbeiter + Schichten + 7×2 (Anfang/Ende) + 6 Summen
+  const totalCols = 1 + 1 + 14 + 6;
 
   const groups = input?.rowsByDept ?? [];
   const anyRows = groups.some((g) => g.rows.length > 0);
@@ -1671,6 +1702,13 @@ function WeeklyPlan({
           <TableRow>
             <TableHead rowSpan={2} className="w-[140px] min-w-[140px] align-bottom">
               Mitarbeiter
+            </TableHead>
+            <TableHead
+              rowSpan={2}
+              className="text-right align-bottom border-l whitespace-nowrap"
+              title="Schichten in der gewählten Abrechnungsperiode (standortübergreifend, 1 Tag = 1 Schicht)"
+            >
+              Schichten
             </TableHead>
             {dayMeta.map((dm) => (
               <TableHead
@@ -1777,6 +1815,9 @@ function WeeklyPlan({
                         className={`absolute left-0 top-0 bottom-0 w-[2px] ${DEPT_BAR[row.department]}`}
                       />
                       {row.displayName}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums border-l">
+                      {shiftsByStaff.get(row.staffId) ?? 0}
                     </TableCell>
                     {row.days.map((day, idx) => {
                       const dm = dayMeta[idx];
