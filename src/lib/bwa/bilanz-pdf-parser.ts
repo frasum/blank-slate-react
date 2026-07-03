@@ -58,7 +58,12 @@ export type ParsedBilanzYear = {
 // ---------------------------------------------------------------------------
 
 const COL_TOLERANCE = 8; // pt Toleranz um die Spalten-x
-const AMOUNT_RE = /^-?[\d.]+(?:,\d{1,2})?$/;
+// Strikte Erkennung deutscher Betraege: 1-3 Ziffern, optional weitere
+// Dreiergruppen mit Tausenderpunkt, optional Nachkomma mit Komma.
+// Verhindert bewusst, dass Hierarchie-Prefixe wie "1." als Zahl gelten
+// (Regex-Bug frueher Iteration) und dass 4-stellige Kontonummern wie
+// "0300" faelschlich als Betrag klassifiziert werden.
+const AMOUNT_RE = /^-?\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?$/;
 
 function isAmount(t: string): boolean {
   return AMOUNT_RE.test(t);
