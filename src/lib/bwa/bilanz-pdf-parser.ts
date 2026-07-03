@@ -393,7 +393,8 @@ export function parseBilanzPdf(pages: Token[][][]): ParsedBilanzYear {
     }
   }
 
-  const checks = computeChecks(positions, konten, warnings);
+  const anlageAnchors = findAnlageAnchors(pages);
+  const checks = computeChecks(positions, konten, warnings, anlageAnchors);
 
   return {
     entity: header.entity,
