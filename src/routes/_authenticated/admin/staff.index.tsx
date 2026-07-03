@@ -402,6 +402,7 @@ function StaffMatrixRow({
   locations,
   skills,
   isAdmin,
+  sofortStatus,
   deptPending,
   skillPending,
   activePending,
@@ -413,6 +414,7 @@ function StaffMatrixRow({
   locations: LocationRow[];
   skills: SkillRow[];
   isAdmin: boolean;
+  sofortStatus: SofortmeldungStatus | null;
   deptPending: boolean;
   skillPending: boolean;
   activePending: boolean;
