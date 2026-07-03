@@ -389,7 +389,7 @@ function DocumentsTab() {
 
   const today = useMemo(() => new Date(), []);
 
-  const allDocs = docsQ.data ?? [];
+  const allDocs = useMemo(() => docsQ.data ?? [], [docsQ.data]);
   const filtered = useMemo(
     () =>
       allDocs.filter(
