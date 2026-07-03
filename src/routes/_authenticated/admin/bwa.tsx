@@ -189,7 +189,36 @@ function BwaPage() {
  *  das parseBwaPdfText erwartet. Läuft NUR im Browser (lazy import), damit
  *  der Server-Bundle pdfjs nicht sieht.
  */
+function installPdfJsBrowserPolyfills(): void {
+  type AsyncReadableStreamPrototype = ReadableStream<unknown> & {
+    [Symbol.asyncIterator]?: () => AsyncIterator<unknown>;
+  };
+  const streamPrototype = globalThis.ReadableStream?.prototype as
+    | AsyncReadableStreamPrototype
+    | undefined;
+  if (streamPrototype && typeof streamPrototype[Symbol.asyncIterator] !== "function") {
+    Object.defineProperty(streamPrototype, Symbol.asyncIterator, {
+      configurable: true,
+      value: async function* readableStreamAsyncIterator(
+        this: ReadableStream<unknown>,
+      ): AsyncGenerator<unknown, void, unknown> {
+        const reader = this.getReader();
+        try {
+          while (true) {
+            const chunk = await reader.read();
+            if (chunk.done) return;
+            yield chunk.value;
+          }
+        } finally {
+          reader.releaseLock();
+        }
+      },
+    });
+  }
+}
+
 async function extractBwaPagesFromPdf(file: File): Promise<string[][]> {
+  installPdfJsBrowserPolyfills();
   const data = await file.arrayBuffer();
   // Legacy-Build: Safari (WebKit) unterstützt kein async-iterator auf
   // ReadableStream, was pdfjs v6 im Haupt-Build intern nutzt. Der
