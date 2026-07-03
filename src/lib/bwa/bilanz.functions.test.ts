@@ -3,7 +3,11 @@
 // eigentliche Server-Function wird per DB-Test in F4b/E2E abgedeckt.
 
 import { describe, expect, it } from "vitest";
-import { replaceBilanzYearInput, validateReplacePayload } from "./bilanz.functions";
+import {
+  replaceBilanzYearInput,
+  validateReplacePayload,
+  type ReplaceBilanzPayload,
+} from "./bilanz.functions";
 
 describe("replaceBilanzYearInput (Zod)", () => {
   it("weist Payload ohne Positionen ab", () => {
@@ -160,14 +164,14 @@ describe("validateReplacePayload (server-seitige Gates)", () => {
 // / Bilanzgewinn) — deckt Gate 3 segmentweise ab, sowie Gate 1 VJ.
 // ---------------------------------------------------------------------------
 
-function realisticStaffelPayload() {
+function realisticStaffelPayload(): ReplaceBilanzPayload {
   // 1.-8. operative (Umsatz 10000, Aufwand -6000) → Σ = 4000
   // 9. Ergebnis n. Steuern = 4000
   // 10. Sonstige Steuern -500
   // 11. Jahresueberschuss = 3500 (= 4000 + (-500))
   // 12. Gewinnvortrag 200
   // 13. Bilanzgewinn = 3700 (= 3500 + 200)
-  const guv = [
+  const guv: Array<{ code: string; label: string; betragCents: number; vorjahrCents: number | null }> = [
     { code: "guv.1", label: "Umsatzerlöse", betragCents: 10000, vorjahrCents: 9000 },
     { code: "guv.2", label: "Materialaufwand", betragCents: -6000, vorjahrCents: -5000 },
     { code: "guv.9", label: "Ergebnis nach Steuern", betragCents: 4000, vorjahrCents: 4000 },
