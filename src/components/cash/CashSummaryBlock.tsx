@@ -3,6 +3,7 @@ import { parseEuroToCents } from "@/lib/cash/kasse-helpers";
 import { computeWechselgeld } from "@/lib/cash/cash-summary";
 import { computeDailyCash } from "@/lib/cash/cash-ledger";
 import { sessionToDayInput } from "@/lib/cash/session-day-input";
+import { cardDeductionFromTerminalRows } from "@/lib/cash/session-channels";
 import type { Overview } from "@/lib/cash/kasse-types";
 
 type CashSummaryMisc = {
@@ -36,7 +37,7 @@ export function CashSummaryBlock({
   writable: boolean;
   chRows: { id: string; euro: string }[];
   channelById: Record<string, { kind: string } | undefined>;
-  tmRows: { id: string; euro: string }[];
+  tmRows: { id: string; euro: string; isGl: boolean }[];
   expenses: Array<{ amountCents: number }>;
   advances: Array<{ amountCents: number }>;
   overview: Overview;
@@ -50,7 +51,7 @@ export function CashSummaryBlock({
     chRows
       .filter((r) => channelById[r.id]?.kind === kind)
       .reduce((s, r) => s + (parseEuroToCents(r.euro) ?? 0), 0);
-  const cardTotalCents = tmRows.reduce((s, r) => s + (parseEuroToCents(r.euro) ?? 0), 0);
+  const cardTotalCents = cardDeductionFromTerminalRows(tmRows, parseEuroToCents);
 
   const openInvoicesCents = overview.settlements
     .filter((s) => (s.status as string) !== "superseded")
