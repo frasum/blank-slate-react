@@ -36,13 +36,14 @@ describe("Golden Master: berechneLohn (edlohn)", () => {
     }
   }
 
-  // Sonderblock Fall 7: pv/rv/av cent-genau, KV nicht — die edlohn-KV-
-  // Rundung ist bei ~38 Abrechnungen ±1 Cent nicht eindeutig rekonstruiert.
-  const fall7 = faelle.find((f) => f.erwartet_teilweise);
-  if (fall7?.erwartet_teilweise) {
-    it(`Teilassert (pv/rv/av): "${fall7.name}"`, () => {
-      const ist = berechneLohn(fall7.eingabe);
-      expect(ist).toMatchObject(fall7.erwartet_teilweise as Partial<LohnErgebnis>);
-    });
+  // Teilassert-Fälle (bekannte Modell-Grenze, s. Doku §40 – z. B. edlohn-KV-
+  // Rundung Fall 7 oder Selbstzahler-KV/PV-Beitrag Fall 4).
+  for (const fall of faelle) {
+    if (fall.erwartet_teilweise) {
+      it(`Teilassert: "${fall.name}"`, () => {
+        const ist = berechneLohn(fall.eingabe);
+        expect(ist).toMatchObject(fall.erwartet_teilweise as Partial<LohnErgebnis>);
+      });
+    }
   }
 });
