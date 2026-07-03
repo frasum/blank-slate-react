@@ -1997,3 +1997,33 @@ erzeugt Warnung + Wechsel). Nicht angefasst: Gate-Funktionen,
 
 **Lektion:** Abschnitte laufen über Seitengrenzen; der Anker steht nur
 auf der ersten Seite — Fortsetzungsseiten erkennt man am Spaltenkopf.
+
+**F4b-Fix-3 — Teilsummen akkumulieren + Dezimalkomma-Pflicht (03.07.2026):**
+Dritter E2E-Befund an allen drei echten Berichten: zwei Restursachen.
+(1) Positionen mit mehreren gestapelten Teilsummen (B.II Forderungen:
+zwei Kontenblöcke, je eigene reine Betragszeile, keine finale Gesamtzeile
+— B.II = Σ Teilsummen; erst B.III schließt) wurden vom Parser bei der
+ersten Teilsumme geschlossen, die zweite rutschte auf die nächste offene
+Position. (2) Konten mit Paragraphen-Zahlen im Label (8105
+„… § 4 Nr. 12 UStG …", 2281 „… nach § 4 Abs. 5b EStG") verloren ihre
+Beträge, weil die nackten Label-Zahlen „4"/„12" als GJ-Betrag gefressen
+und das Konto verfrüht geschlossen wurde — die Delta-Beträge stimmten
+cent-genau mit den echten Werten überein. Nachgezogen: Reine Betragszeile
+im äußeren Band schließt die innerste offene Position NICHT mehr — sie
+akkumuliert (GJ addiert immer; VJ addiert nur, wenn alle Teilzeilen einen
+VJ trugen, sonst wird VJ auf null gesetzt). Positionen schließen erst
+beim nächsten Positions-Header mit gleichem oder höherem Level bzw. am
+Abschnittsende (Level-Stack). Betrags-Klassifikation umgestellt auf
+Dezimalkomma-Pflicht (`^-?\d{1,3}(\.\d{3})*,\d{2}$`) — genau zwei
+Nachkommastellen, wie ETL-ADHOGA ausnahmslos druckt; Jahres-Kopfzeilen-
+Erkennung nutzt weiter ihr eigenes Muster. Neu abgedeckt durch vier
+Charakterisierungstests (B.II-Muster mit zwei Teilsummen, 8105-Muster mit
+nackten Label-Zahlen, 2281-Muster mit dreizeiligem §-Label und Kleinst-
+betrag −0,20, negative Zeile mit nur nackten Ganzzahlen). Nicht ange-
+fasst: Gate-Funktionen, Anker-/Band-Logik, Seitenfortsetzung aus Fix-2,
+`pdf-lines.ts`, `bilanz.functions.ts`, UI, Schema/Migration.
+
+**Lektion:** Positionen können mehrere gestapelte Teilsummen haben
+(Positionsende = nächster Positions-Header, nicht erste Summenzeile).
+Beträge haben im ETL-ADHOGA-Druck immer zwei Nachkommastellen — nackte
+Ganzzahlen sind Label-Bestandteile (§-Zitate!), nie Beträge.

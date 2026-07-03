@@ -84,12 +84,15 @@ export type AnlageAnchors = {
 
 // F4b: rechtsbuendige Spalten in der Druckrealitaet — Toleranz auf xEnd.
 const EDGE_TOL = 8;
-// Strikte Erkennung deutscher Betraege: 1-3 Ziffern, optional weitere
-// Dreiergruppen mit Tausenderpunkt, optional Nachkomma mit Komma.
-// Verhindert bewusst, dass Hierarchie-Prefixe wie "1." als Zahl gelten
-// (Regex-Bug frueher Iteration) und dass 4-stellige Kontonummern wie
-// "0300" faelschlich als Betrag klassifiziert werden.
-const AMOUNT_RE = /^-?\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?$/;
+// F4b-Fix-3: Dezimalkomma-Pflicht. ETL-ADHOGA druckt Betraege ausnahmslos
+// mit genau zwei Nachkommastellen. Nackte Ganzzahlen ("4", "12", "2024")
+// sind damit nie Betraege — das rettet Konten mit Paragraphen-Zahlen im
+// Label (§ 4 Nr. 12 UStG, § 4 Abs. 5b EStG), deren Label-Zahlen sonst als
+// GJ-Betrag gefressen wurden. 4-stellige Kontonummern und Konten-Ranges
+// ("0830-0838") sind strukturell nie mehr Betrags-Kandidaten. Einzige
+// Ausnahme bleibt die Jahres-Kopfzeilen-Erkennung (findColumnAnchors), die
+// ihr eigenes Muster nutzt.
+const AMOUNT_RE = /^-?\d{1,3}(?:\.\d{3})*,\d{2}$/;
 
 function isAmount(t: string): boolean {
   return AMOUNT_RE.test(t);
@@ -361,12 +364,25 @@ export function parseBilanzPdf(pages: Token[][][]): ParsedBilanzYear {
     labelParts: string[];
     sortOrder: number;
   };
+  // F4b-Fix-3: Positions-Stack fuer gestapelte Teilsummen. Eine
+  // Position schliesst NICHT bei der ersten Betragszeile, sondern erst,
+  // wenn eine neue Positionszeile mit gleichem oder hoeherem Level
+  // (kleinere Level-Zahl) auftritt bzw. der Abschnitt endet. Reine
+  // Betragszeilen im aeusseren Band akkumulieren auf die innerste offene
+  // Position (GJ addiert immer; VJ addiert nur wenn alle bisherigen
+  // Teilzeilen einen VJ trugen — sonst wird VJ als unvollstaendig auf
+  // null gesetzt).
+  type OpenPos = {
+    pos: ParsedBilanzPosition;
+    vjIncomplete: boolean;
+    touched: boolean;
+  };
   type SectionState = {
     statement: BilanzStatement;
     path: Path;
     currentPositionCode: string | null;
     openKonto: OpenKonto | null;
-    awaitingPositions: ParsedBilanzPosition[];
+    awaitingPositions: OpenPos[];
   };
 
   const newState = (statement: BilanzStatement): SectionState => ({
@@ -378,6 +394,18 @@ export function parseBilanzPdf(pages: Token[][][]): ParsedBilanzYear {
   });
 
   let state: SectionState | null = null;
+
+  // Alle offenen Positionen mit level >= newLevel schliessen (Sibling oder
+  // tiefer). Die Position bleibt in positions[] mit dem bis dahin
+  // akkumulierten Betrag; der Roll-up traegt Nicht-Blaetter nach.
+  const closeAtLevel = (s: SectionState, newLevel: number): void => {
+    while (
+      s.awaitingPositions.length > 0 &&
+      s.awaitingPositions[s.awaitingPositions.length - 1].pos.level >= newLevel
+    ) {
+      s.awaitingPositions.pop();
+    }
+  };
 
   const finalizeKonto = (s: SectionState, gj: number, vj: number | null): void => {
     if (!s.openKonto) return;
@@ -406,6 +434,7 @@ export function parseBilanzPdf(pages: Token[][][]): ParsedBilanzYear {
   const finalizeSection = (): void => {
     if (!state) return;
     closeUnresolvedKonto(state);
+    state.awaitingPositions.length = 0;
     state = null;
   };
 
@@ -423,10 +452,21 @@ export function parseBilanzPdf(pages: Token[][][]): ParsedBilanzYear {
       if (kind === "subtotal") {
         const { gj: ogj, vj: ovj } = outerAmounts(amounts, cols);
         if (ogj !== null) {
-          const pos = s.awaitingPositions.pop();
-          if (pos) {
-            pos.betragCents = ogj;
-            if (pos.vorjahrCents === null && ovj !== null) pos.vorjahrCents = ovj;
+          const top = s.awaitingPositions[s.awaitingPositions.length - 1];
+          if (top) {
+            if (!top.touched) {
+              top.pos.betragCents = ogj;
+              top.touched = true;
+            } else {
+              top.pos.betragCents += ogj;
+            }
+            if (ovj === null) {
+              top.vjIncomplete = true;
+              top.pos.vorjahrCents = null;
+            } else if (!top.vjIncomplete) {
+              top.pos.vorjahrCents =
+                top.pos.vorjahrCents === null ? ovj : top.pos.vorjahrCents + ovj;
+            }
           }
           continue;
         }
@@ -449,6 +489,8 @@ export function parseBilanzPdf(pages: Token[][][]): ParsedBilanzYear {
       const firstText = nonAmount[0]?.text ?? "";
 
       const pushPosition = (level: number): void => {
+        // Siblings/tiefere Positionen schliessen, BEVOR die neue eroeffnet.
+        closeAtLevel(s, level);
         const code = makeCode(s.path);
         const label = labelFrom(line, 1);
         s.currentPositionCode = code;
@@ -467,7 +509,9 @@ export function parseBilanzPdf(pages: Token[][][]): ParsedBilanzYear {
           vorjahrCents: vj,
         };
         positions.push(p);
-        if (gj === null) s.awaitingPositions.push(p);
+        if (gj === null) {
+          s.awaitingPositions.push({ pos: p, vjIncomplete: false, touched: false });
+        }
       };
 
       if (kind === "position-letter") {
