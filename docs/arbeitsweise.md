@@ -2049,3 +2049,27 @@ fasst: Gate-Funktionen, Anker-/Band-Logik, Seitenfortsetzung aus Fix-2,
 (Positionsende = nächster Positions-Header, nicht erste Summenzeile).
 Beträge haben im ETL-ADHOGA-Druck immer zwei Nachkommastellen — nackte
 Ganzzahlen sind Label-Bestandteile (§-Zitate!), nie Beträge.
+
+## 50. Fallstudie: „Forbidden" auf /profil unter Impersonation — fehlende Default-Rolle (04.07.2026)
+
+**Symptom:** „Vorschau als ANDI" → alle Portal-Tabs funktionieren, nur
+„Meine Daten" wirft „Fehler beim Laden: Forbidden".
+
+**Beweiskette:** (1) Impersonation wirkt bis in die RLS — Migration
+`20260617230538` definiert `current_staff_id()` effective-aware (bei
+aktiver Vorschau gilt die Zielperson als Identität); die Browser-Session
+bleibt die des Admins, `startImpersonation` schreibt nur die
+Overlay-Zeile. (2) `/profil` ist die einzige Portal-Seite auf
+`loadAdminCaller(…, "staff")` — der verlangt zwingend eine
+`role_assignments`-Zeile (`role = null` ⇒ ForbiddenError). Die übrigen
+Portal-Tabs laufen über `loadStaffCaller`, der KEINE Rolle prüft.
+(3) ANDI hatte keine Rollen-Zuweisung ⇒ Forbidden. Derselbe Fehler
+träfe sie auch beim echten PIN-Login.
+
+**Wurzel (systemisch, OFFEN):** `createStaff` vergibt keine Default-Rolle
+— jeder neue Mitarbeiter ohne manuell gesetzten Rechte-Tab läuft in
+dieses Loch. Sofort-Fix pro Person: Stammblatt → Rechte → Rolle `staff`.
+Geplanter Fix (Prompt wartet auf GO): `createStaff` schreibt die Rolle
+`staff` im selben runGuarded-Block mit (+ Backfill-SQL für Bestands-
+Mitarbeiter ohne Zeile). Bis dahin gehört „Rolle zuweisen" verbindlich
+in Schritt 2 des Onboarding-Runbooks.
