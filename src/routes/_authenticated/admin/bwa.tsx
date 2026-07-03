@@ -69,6 +69,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import { parseEuroToCents, fmtCents } from "@/lib/format";
 import {
   listBwaMonths,
@@ -77,6 +78,7 @@ import {
   type BwaRow,
 } from "@/lib/bwa/bwa.functions";
 import { deriveBwa, validateBwaMonth, type BwaMonthInput } from "@/lib/bwa/bwa-core";
+import { parseBwaPdfText, type ParsedBwaBlock } from "@/lib/bwa/bwa-pdf-parser";
 import {
   aggregateGroup,
   buildWaterfall,
@@ -154,6 +156,7 @@ function BwaPage() {
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="vergleich">Vergleich</TabsTrigger>
           <TabsTrigger value="erfassung">Erfassung</TabsTrigger>
+          <TabsTrigger value="pdf">PDF-Import</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard" className="space-y-6">
@@ -167,7 +170,481 @@ function BwaPage() {
         <TabsContent value="erfassung" className="space-y-6">
           <BwaErfassungTab rows={rows} loading={listQ.isLoading} />
         </TabsContent>
+
+        <TabsContent value="pdf" className="space-y-6">
+          <BwaPdfImportTab rows={rows} loading={listQ.isLoading} />
+        </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+// ============================================================================
+// F3 — PDF-Import-Tab
+// ============================================================================
+
+/** Client-seitige pdfjs-Extraktion, angelehnt an split-combined.
+ *  Gruppiert TextItems einer Seite nach y-Position zu Zeilen, innerhalb der
+ *  Zeile nach x sortiert, mit Leerzeichen geschlossen — genau das Format,
+ *  das parseBwaPdfText erwartet. Läuft NUR im Browser (lazy import), damit
+ *  der Server-Bundle pdfjs nicht sieht.
+ */
+async function extractBwaPagesFromPdf(file: File): Promise<string[][]> {
+  const data = await file.arrayBuffer();
+  const pdfjsLib = await import("pdfjs-dist");
+  const workerMod = await import("pdfjs-dist/build/pdf.worker.min.mjs?url");
+  pdfjsLib.GlobalWorkerOptions.workerSrc = workerMod.default;
+  const pdf = await pdfjsLib.getDocument({ data }).promise;
+  const pages: string[][] = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const rowMap = new Map<number, { x: number; s: string }[]>();
+    for (const it of content.items) {
+      if (!("str" in it)) continue;
+      const item = it as { str: string; transform: number[] };
+      if (!item.str) continue;
+      const y = Math.round(item.transform[5]);
+      const x = item.transform[4];
+      let arr = rowMap.get(y);
+      if (!arr) {
+        arr = [];
+        rowMap.set(y, arr);
+      }
+      arr.push({ x, s: item.str });
+    }
+    const ys = Array.from(rowMap.keys()).sort((a, b) => b - a);
+    const lines = ys
+      .map((y) =>
+        rowMap
+          .get(y)!
+          .sort((a, b) => a.x - b.x)
+          .map((c) => c.s)
+          .join(" ")
+          .replace(/\s+/g, " ")
+          .trim(),
+      )
+      .filter((l) => l.length > 0);
+    pages.push(lines);
+  }
+  return pages;
+}
+
+// Anzeige-Reihenfolge/Beschriftung der Euro-Felder im Review.
+const REVIEW_FIELDS: {
+  key: keyof BwaMonthInput;
+  label: string;
+  allowNegative?: boolean;
+}[] = [
+  { key: "umsatzCents", label: "Umsatz" },
+  { key: "sonstErtraegeCents", label: "Sonst. betr. Erträge" },
+  { key: "getraenkeCents", label: "Getränke" },
+  { key: "speisenHausCents", label: "Speisen im Haus" },
+  { key: "speisenAusserHausCents", label: "Speisen außer Haus" },
+  { key: "sonstigeErloeseCents", label: "Sonstige Erlöse" },
+  { key: "wareneinsatzCents", label: "Wareneinsatz" },
+  { key: "personalCents", label: "Personal" },
+  { key: "sachkostenCents", label: "Sachkosten" },
+  { key: "anlageCents", label: "Anlage", allowNegative: true },
+  { key: "abschreibungCents", label: "Abschreibung", allowNegative: true },
+  { key: "betriebsergebnisCents", label: "Betriebsergebnis", allowNegative: true },
+];
+
+type ReviewBlock = ParsedBwaBlock & {
+  key: string;
+  fileName: string;
+  /** Editierbarer Rohtext je Feld (Cent → deutsches Euro-Format). */
+  fieldText: Record<keyof BwaMonthInput, string>;
+  /** Angehakt = wird beim „Übernehmen" gespeichert. */
+  selected: boolean;
+  saveState: "idle" | "saving" | "ok" | "error";
+  saveError?: string;
+};
+
+function fieldTextFromValues(values: Partial<BwaMonthInput>): ReviewBlock["fieldText"] {
+  const out = {} as ReviewBlock["fieldText"];
+  for (const f of REVIEW_FIELDS) {
+    const v = values[f.key];
+    out[f.key] = v === undefined ? "" : (v / 100).toFixed(2).replace(".", ",");
+  }
+  return out;
+}
+
+function reviewToInput(b: ReviewBlock): BwaMonthInput | null {
+  const out = {} as BwaMonthInput;
+  for (const f of REVIEW_FIELDS) {
+    const parsed = parseEuroToCents(b.fieldText[f.key], {
+      emptyAs: 0,
+      allowNegative: !!f.allowNegative,
+    });
+    if (parsed === null) return null;
+    (out as unknown as Record<string, number>)[f.key] = parsed;
+  }
+  return out;
+}
+
+function BwaPdfImportTab({ rows, loading }: { rows: BwaRow[]; loading: boolean }) {
+  const qc = useQueryClient();
+  const upsertFn = useServerFn(upsertBwaMonth);
+  const [blocks, setBlocks] = useState<ReviewBlock[]>([]);
+  const [warnings, setWarnings] = useState<string[]>([]);
+  const [parsing, setParsing] = useState(false);
+  const [applying, setApplying] = useState(false);
+
+  async function handleFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setParsing(true);
+    const newBlocks: ReviewBlock[] = [];
+    const newWarnings: string[] = [];
+    try {
+      for (const file of Array.from(files)) {
+        if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+          newWarnings.push(`${file.name}: keine PDF-Datei, übersprungen.`);
+          continue;
+        }
+        try {
+          const pages = await extractBwaPagesFromPdf(file);
+          const parsed = parseBwaPdfText(pages);
+          for (const w of parsed.warnings) newWarnings.push(`${file.name}: ${w}`);
+          for (const b of parsed.blocks) {
+            newBlocks.push({
+              ...b,
+              key: `${file.name}::${b.entity}::${b.costCenter}::${b.month}::${newBlocks.length}`,
+              fileName: file.name,
+              fieldText: fieldTextFromValues(b.values),
+              selected: b.missingFields.length === 0,
+              saveState: "idle",
+            });
+          }
+          if (parsed.blocks.length === 0) {
+            newWarnings.push(`${file.name}: keine BWA-Blöcke erkannt.`);
+          }
+        } catch (e) {
+          newWarnings.push(
+            `${file.name}: PDF-Verarbeitung fehlgeschlagen — ${e instanceof Error ? e.message : String(e)}`,
+          );
+        }
+      }
+      setBlocks((prev) => [...prev, ...newBlocks]);
+      setWarnings((prev) => [...prev, ...newWarnings]);
+    } finally {
+      setParsing(false);
+    }
+  }
+
+  function updateBlock(key: string, patch: Partial<ReviewBlock>) {
+    setBlocks((prev) => prev.map((b) => (b.key === key ? { ...b, ...patch } : b)));
+  }
+
+  function updateField(key: string, field: keyof BwaMonthInput, value: string) {
+    setBlocks((prev) =>
+      prev.map((b) =>
+        b.key === key
+          ? {
+              ...b,
+              fieldText: { ...b.fieldText, [field]: value },
+              saveState: "idle",
+            }
+          : b,
+      ),
+    );
+  }
+
+  function clearBlocks() {
+    setBlocks([]);
+    setWarnings([]);
+  }
+
+  const selectedCount = blocks.filter((b) => b.selected).length;
+
+  async function applyAll() {
+    setApplying(true);
+    try {
+      for (const b of blocks) {
+        if (!b.selected || b.saveState === "ok") continue;
+        const input = reviewToInput(b);
+        if (!input) {
+          updateBlock(b.key, {
+            saveState: "error",
+            saveError: "Ungültige Euro-Eingabe.",
+          });
+          continue;
+        }
+        const check = validateBwaMonth(input);
+        if (!check.ok) {
+          updateBlock(b.key, { saveState: "error", saveError: check.errors.join(" ") });
+          continue;
+        }
+        // Detail-Summe gegen Zeile 47 prüfen — mehr als 3 € Abweichung
+        // → Detail wird NICHT mitgespeichert.
+        const detailSum = Object.values(b.sachkostenDetail).reduce((s, v) => s + v, 0);
+        const detailOk = Math.abs(detailSum - input.sachkostenCents) <= 300;
+        const detailHas = Object.keys(b.sachkostenDetail).length > 0;
+        updateBlock(b.key, { saveState: "saving", saveError: undefined });
+        try {
+          await upsertFn({
+            data: {
+              entity: b.entity.trim(),
+              costCenter: b.costCenter.trim(),
+              month: b.month,
+              source: "pdf",
+              ...input,
+              ...(detailHas && detailOk ? { sachkostenDetail: b.sachkostenDetail } : {}),
+            },
+          });
+          updateBlock(b.key, { saveState: "ok" });
+        } catch (e) {
+          updateBlock(b.key, {
+            saveState: "error",
+            saveError: e instanceof Error ? e.message : String(e),
+          });
+        }
+      }
+      qc.invalidateQueries({ queryKey: ["bwa-monthly"] });
+      toast.success("PDF-Import verarbeitet.");
+    } finally {
+      setApplying(false);
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle>PDF-Upload</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            eurodata-BWA-PDFs auswählen. Extraktion und Parsing laufen ausschließlich im Browser —
+            das PDF wird nicht hochgeladen. Erst ein Klick auf „Übernehmen" schreibt die bestätigten
+            Blöcke in die Datenbank.
+          </p>
+          <input
+            type="file"
+            accept="application/pdf"
+            multiple
+            disabled={parsing}
+            onChange={(e) => {
+              void handleFiles(e.target.files);
+              e.currentTarget.value = "";
+            }}
+            className="block text-sm"
+          />
+          {parsing && <p className="text-sm text-muted-foreground">Verarbeite PDF…</p>}
+          {blocks.length > 0 && (
+            <div className="flex items-center gap-3">
+              <Button onClick={applyAll} disabled={applying || selectedCount === 0}>
+                {applying ? "Übernehme…" : `${selectedCount} Block/-öcke übernehmen`}
+              </Button>
+              <Button variant="outline" onClick={clearBlocks} disabled={applying}>
+                Liste leeren
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {warnings.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Hinweise</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="text-xs text-muted-foreground space-y-1 list-disc pl-4">
+              {warnings.map((w, i) => (
+                <li key={i}>{w}</li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      {loading && <Skeleton className="h-32 w-full" />}
+
+      {blocks.map((b) => (
+        <PdfReviewCard
+          key={b.key}
+          block={b}
+          existing={rows.find(
+            (r) => r.entity === b.entity && r.costCenter === b.costCenter && r.month === b.month,
+          )}
+          onToggle={(v) => updateBlock(b.key, { selected: v })}
+          onFieldChange={(f, v) => updateField(b.key, f, v)}
+        />
+      ))}
+    </div>
+  );
+}
+
+function PdfReviewCard({
+  block,
+  existing,
+  onToggle,
+  onFieldChange,
+}: {
+  block: ReviewBlock;
+  existing: BwaRow | undefined;
+  onToggle: (v: boolean) => void;
+  onFieldChange: (field: keyof BwaMonthInput, value: string) => void;
+}) {
+  const [detailOpen, setDetailOpen] = useState(false);
+  const input = reviewToInput(block);
+  const validation = input ? validateBwaMonth(input) : null;
+  const derived = input ? deriveBwa(input) : null;
+  const detailSum = Object.values(block.sachkostenDetail).reduce((s, v) => s + v, 0);
+  const detailDiff = input ? detailSum - input.sachkostenCents : 0;
+  const detailMismatch = Math.abs(detailDiff) > 300;
+  const detailHas = Object.keys(block.sachkostenDetail).length > 0;
+  const disabledSelect =
+    !input || !validation?.ok || block.missingFields.length > 0 || block.saveState === "ok";
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="flex flex-wrap items-center gap-3 text-base">
+          <Checkbox
+            checked={block.selected}
+            disabled={disabledSelect}
+            onCheckedChange={(v) => onToggle(!!v)}
+          />
+          <span>{block.entity}</span>
+          <span className="text-muted-foreground">·</span>
+          <span>{block.costCenter}</span>
+          <span className="text-muted-foreground">·</span>
+          <span>{fmtMonth(block.month)}</span>
+          <Badge variant="secondary">PDF</Badge>
+          {block.saveState === "ok" && (
+            <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">gespeichert</Badge>
+          )}
+          {block.saveState === "error" && <Badge variant="destructive">Fehler</Badge>}
+          <span className="ml-auto text-xs text-muted-foreground font-normal">
+            {block.fileName}
+          </span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {block.missingFields.length > 0 && (
+          <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-900 dark:text-amber-200">
+            <strong>Fehlende Felder aus dem PDF:</strong>{" "}
+            {block.missingFields
+              .map((k) => REVIEW_FIELDS.find((f) => f.key === k)?.label ?? k)
+              .join(", ")}{" "}
+            — bitte manuell nachtragen, sonst ist der Block nicht anwählbar.
+          </div>
+        )}
+
+        {existing && (
+          <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive space-y-1">
+            <div>
+              <strong>Überschreibt vorhandene Werte</strong> (Quelle: {existing.source})
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-xs tabular-nums">
+              <DiffLine label="Umsatz" oldC={existing.umsatzCents} newC={input?.umsatzCents} />
+              <DiffLine
+                label="Personal"
+                oldC={existing.personalCents}
+                newC={input?.personalCents}
+              />
+              <DiffLine
+                label="Betriebsergebnis"
+                oldC={existing.betriebsergebnisCents}
+                newC={input?.betriebsergebnisCents}
+              />
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {REVIEW_FIELDS.map((f) => (
+            <FieldEuro
+              key={f.key}
+              label={f.label}
+              value={block.fieldText[f.key]}
+              allowNegative={f.allowNegative}
+              onChange={(v) => onFieldChange(f.key, v)}
+            />
+          ))}
+        </div>
+
+        {derived && (
+          <div className="rounded-md border p-3 text-sm bg-muted/30">
+            <div className="font-medium mb-2">Abgeleitete Werte</div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1 tabular-nums">
+              <DerivedLine label="Gesamtleistung" cents={derived.gesamtleistungCents} />
+              <DerivedLine label="Rohertrag I" cents={derived.rohertrag1Cents} />
+              <DerivedLine label="Rohertrag II" cents={derived.rohertrag2Cents} />
+              <DerivedLine label="Ergebnis op. Tätigkeit" cents={derived.ergebnisOpCents} />
+              <DerivedLine
+                label="Betriebsergebnis (Soll)"
+                cents={derived.betriebsergebnisSollCents}
+              />
+            </div>
+          </div>
+        )}
+
+        {validation && !validation.ok && (
+          <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive space-y-1">
+            {validation.errors.map((e, i) => (
+              <div key={i}>{e}</div>
+            ))}
+          </div>
+        )}
+
+        {detailHas && (
+          <div className="rounded-md border p-3 text-sm">
+            <button
+              type="button"
+              className="text-left w-full font-medium"
+              onClick={() => setDetailOpen((v) => !v)}
+            >
+              {detailOpen ? "▲" : "▼"} Sachkosten-Detail (
+              {Object.keys(block.sachkostenDetail).length} Positionen, Summe {fmtCents(detailSum)}{" "}
+              €)
+            </button>
+            {detailMismatch && (
+              <div className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+                Detail-Summe weicht um {fmtCents(Math.abs(detailDiff))} € von Zeile 47 ab — Detail
+                wird NICHT mitgespeichert.
+              </div>
+            )}
+            {detailOpen && (
+              <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                {Object.entries(block.sachkostenDetail).map(([k, v]) => (
+                  <div key={k} className="flex justify-between">
+                    <span className="text-muted-foreground">{k}</span>
+                    <span className="tabular-nums">{fmtCents(v)} €</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {block.saveError && (
+          <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+            {block.saveError}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function DiffLine({
+  label,
+  oldC,
+  newC,
+}: {
+  label: string;
+  oldC: number;
+  newC: number | undefined;
+}) {
+  return (
+    <div>
+      <div className="text-muted-foreground">{label}</div>
+      <div>
+        {fmtCents(oldC)} € → {newC === undefined ? "—" : `${fmtCents(newC)} €`}
+      </div>
     </div>
   );
 }
