@@ -219,7 +219,6 @@ function stripReportTitlePrefix(s: string): string {
   return out;
 }
 
-
 function findCostCenter(lines: string[]): string | null {
   // Variante A (Legacy/andere Layouts): explizites Label.
   for (const l of lines) {

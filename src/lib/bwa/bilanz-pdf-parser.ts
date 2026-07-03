@@ -53,6 +53,31 @@ export type ParsedBilanzYear = {
   warnings: string[];
 };
 
+// Minimal-Formen, die die shared Gate-Funktionen brauchen — bewusst
+// strukturell (kein Import aus bilanz.functions.ts, damit der Server-Layer
+// diese Funktionen ohne Zyklus konsumieren kann).
+export type PositionLike = {
+  statement: string;
+  code: string;
+  level: number;
+  label: string;
+  betragCents: number;
+  vorjahrCents?: number | null;
+};
+
+export type KontoLike = {
+  statement: string;
+  positionCode: string;
+  betragCents: number;
+  vorjahrCents?: number | null;
+};
+
+export type AnlageAnchors = {
+  summeAktivaCents: number | null;
+  summePassivaCents: number | null;
+  bilanzgewinnCents: number | null;
+};
+
 // ---------------------------------------------------------------------------
 // Konstanten / kleine Helper
 // ---------------------------------------------------------------------------
@@ -99,7 +124,7 @@ type SectionKind =
   | { kind: "anlage-bilanz" | "anlage-guv" }
   | { kind: "other" };
 
-function classifyPage(page: Token[][]): SectionKind {
+export function classifyPage(page: Token[][]): SectionKind {
   const txt = pageText(page);
   const knwBilanz = /Kontennachweis\s+zur\s+Handelsbilanz/i.test(txt);
   const knwGuv = /Kontennachweis\s+zur\s+Gewinn-?\s*und\s*Verlustrechnung/i.test(txt);
@@ -368,7 +393,8 @@ export function parseBilanzPdf(pages: Token[][][]): ParsedBilanzYear {
     }
   }
 
-  const checks = computeChecks(positions, konten, warnings);
+  const anlageAnchors = findAnlageAnchors(pages);
+  const checks = computeChecks(positions, konten, warnings, anlageAnchors);
 
   return {
     entity: header.entity,
@@ -392,37 +418,253 @@ function isLeafPosition(pos: ParsedBilanzPosition, allCodes: Set<string>): boole
   return true;
 }
 
+// ---------------------------------------------------------------------------
+// Shared Gate-Funktionen (Parser UND Server nutzen dieselbe Quelle)
+// ---------------------------------------------------------------------------
+
+// Label-Anker fuer die staffelbewusste GuV-Konsistenzpruefung.
+// Regex bewusst tolerant (Umlaut/Bindestrich/Klammerzusatz), aber wortgenau.
+const LBL_ERGEBNIS_NACH_STEUERN = /ergebnis\s+nach\s+steuern/i;
+const LBL_JAHRESUEBERSCHUSS =
+  /jahres(ü|ue)bersch(uss|üsse)|jahres(ü|ue)berschuss.*fehlbetrag|jahresfehlbetrag/i;
+const LBL_VORTRAG = /(gewinn|verlust)vortrag/i;
+const LBL_BILANZGEWINN = /bilanzgewinn|bilanzverlust/i;
+
+function isLeafBy(codes: Set<string>, code: string): boolean {
+  for (const c of codes) if (c !== code && c.startsWith(code + ".")) return false;
+  return true;
+}
+
+// Gate 1 (GJ oder VJ): Σ Konten je Blatt-Position = Positionsbetrag.
+// Skipt VJ-Pruefung, wenn Position oder ein zugehoeriges Konto keinen VJ hat
+// (mehrere PDF-Vintages ohne Vorjahresspalte kommen in der Praxis vor).
+export function checkKontenSumForYear(
+  positions: PositionLike[],
+  konten: KontoLike[],
+  which: "gj" | "vj",
+): BilanzCheck[] {
+  const codesByStmt = new Map<string, Set<string>>();
+  for (const p of positions) {
+    const set = codesByStmt.get(p.statement) ?? new Set<string>();
+    set.add(p.code);
+    codesByStmt.set(p.statement, set);
+  }
+  const namePrefix = which === "gj" ? "konten_sum" : "konten_sum_vj";
+  const posVal = (p: PositionLike): number | null =>
+    which === "gj" ? p.betragCents : (p.vorjahrCents ?? null);
+  const kVal = (k: KontoLike): number | null =>
+    which === "gj" ? k.betragCents : (k.vorjahrCents ?? null);
+
+  const checks: BilanzCheck[] = [];
+  for (const p of positions) {
+    const codes = codesByStmt.get(p.statement) ?? new Set<string>();
+    if (!isLeafBy(codes, p.code)) continue;
+    const rel = konten.filter((k) => k.statement === p.statement && k.positionCode === p.code);
+    if (rel.length === 0) continue;
+    const pv = posVal(p);
+    if (pv === null) continue;
+    const vals = rel.map(kVal);
+    if (vals.some((v) => v === null)) continue;
+    const sum = vals.reduce<number>((a, v) => a + (v ?? 0), 0);
+    if (sum === 0 && pv === 0) continue;
+    checks.push({
+      name: `${namePrefix}:${p.statement}:${p.code}`,
+      expectedCents: pv,
+      actualCents: sum,
+      ok: sum === pv,
+    });
+  }
+  return checks;
+}
+
+// Gate 3: staffelbewusste GuV-Konsistenz.
+// Bei erkannten Ankern (Ergebnis nach Steuern / Jahresueberschuss /
+// Bilanzgewinn) werden segmentweise Summen geprueft. Fehlen ALLE Anker
+// → Fallback auf die alte "letzter Posten = Σ Rest"-Regel. Fehlt ein Teil
+// der Anker → Warnung, aber wir liefern trotzdem die Segmentchecks fuer
+// die vorhandenen Anker.
+export function checkGuvStaffel(guvTopLevel: PositionLike[], warnings?: string[]): BilanzCheck[] {
+  if (guvTopLevel.length === 0) return [];
+
+  const iEns = guvTopLevel.findIndex((p) => LBL_ERGEBNIS_NACH_STEUERN.test(p.label));
+  const iJues = guvTopLevel.findIndex((p) => LBL_JAHRESUEBERSCHUSS.test(p.label));
+  const iVortrag = guvTopLevel.findIndex((p) => LBL_VORTRAG.test(p.label));
+  const iBilg = guvTopLevel.findIndex((p) => LBL_BILANZGEWINN.test(p.label));
+  const anchors = { iEns, iJues, iVortrag, iBilg };
+  const foundCore = [iEns, iJues, iBilg].filter((i) => i >= 0).length;
+
+  // Kein einziger Kern-Anker → Fallback (rueckwaertskompatibel).
+  if (foundCore === 0) {
+    if (guvTopLevel.length < 2) return [];
+    const last = guvTopLevel[guvTopLevel.length - 1];
+    const sum = guvTopLevel.slice(0, -1).reduce((a, p) => a + p.betragCents, 0);
+    return [
+      {
+        name: "guv_staffel_summe",
+        expectedCents: last.betragCents,
+        actualCents: sum,
+        ok: sum === last.betragCents,
+      },
+    ];
+  }
+
+  if (foundCore < 3 && warnings) {
+    warnings.push(
+      `GuV-Staffel: nicht alle Anker erkannt ` +
+        `(Ergebnis n. Steuern=${anchors.iEns >= 0}, ` +
+        `Jahresüberschuss=${anchors.iJues >= 0}, ` +
+        `Bilanzgewinn=${anchors.iBilg >= 0}) — nur Teil-Segmente geprueft.`,
+    );
+  }
+
+  const checks: BilanzCheck[] = [];
+
+  // Ergebnis nach Steuern = Σ operative Posten davor.
+  if (iEns > 0) {
+    const sum = guvTopLevel.slice(0, iEns).reduce((a, p) => a + p.betragCents, 0);
+    checks.push({
+      name: "guv_ergebnis_nach_steuern",
+      expectedCents: guvTopLevel[iEns].betragCents,
+      actualCents: sum,
+      ok: sum === guvTopLevel[iEns].betragCents,
+    });
+  }
+
+  // Jahresueberschuss = Σ (Ergebnis n. Steuern ... vor Jahresueberschuss)
+  // typisch: Ergebnis-n.-Steuern + (negative) Sonstige Steuern.
+  if (iEns >= 0 && iJues > iEns) {
+    const sum = guvTopLevel.slice(iEns, iJues).reduce((a, p) => a + p.betragCents, 0);
+    checks.push({
+      name: "guv_jahresueberschuss",
+      expectedCents: guvTopLevel[iJues].betragCents,
+      actualCents: sum,
+      ok: sum === guvTopLevel[iJues].betragCents,
+    });
+  }
+
+  // Bilanzgewinn = Σ (Jahresueberschuss ... vor Bilanzgewinn)
+  // typisch: Jahresueberschuss + Gewinn/Verlustvortrag.
+  if (iJues >= 0 && iBilg > iJues) {
+    const sum = guvTopLevel.slice(iJues, iBilg).reduce((a, p) => a + p.betragCents, 0);
+    checks.push({
+      name: "guv_bilanzgewinn",
+      expectedCents: guvTopLevel[iBilg].betragCents,
+      actualCents: sum,
+      ok: sum === guvTopLevel[iBilg].betragCents,
+    });
+  }
+
+  return checks;
+}
+
+// ---------------------------------------------------------------------------
+// Anlage-Anker (Gate 4, rein parser-seitig — geht nicht durchs Replace-Payload)
+// ---------------------------------------------------------------------------
+
+const ANLAGE_SUMME_AKTIVA = /^summe\s+aktiva\b/;
+const ANLAGE_SUMME_PASSIVA = /^summe\s+passiva\b/;
+const ANLAGE_BILANZGEWINN = /^(bilanzgewinn|bilanzverlust)\b/;
+
+export function findAnlageAnchors(pages: Token[][][]): AnlageAnchors {
+  let summeAktivaCents: number | null = null;
+  let summePassivaCents: number | null = null;
+  let bilanzgewinnCents: number | null = null;
+
+  for (const page of pages) {
+    const kind = classifyPage(page);
+    if (kind.kind !== "anlage-bilanz" && kind.kind !== "anlage-guv") continue;
+
+    for (const line of page) {
+      const labelText = line
+        .filter((t) => !isAmount(t.text))
+        .map((t) => t.text)
+        .join(" ")
+        .toLowerCase()
+        .trim();
+      if (!labelText) continue;
+      const amounts = line.filter((t) => isAmount(t.text));
+      if (amounts.length === 0) continue;
+      // Erster (linkester) Betrag = Geschaeftsjahr-Spalte.
+      const sorted = [...amounts].sort((a, b) => a.x - b.x);
+      const gj = parseGermanAmountToCents(sorted[0].text);
+
+      if (summeAktivaCents === null && ANLAGE_SUMME_AKTIVA.test(labelText)) {
+        summeAktivaCents = gj;
+      } else if (summePassivaCents === null && ANLAGE_SUMME_PASSIVA.test(labelText)) {
+        summePassivaCents = gj;
+      } else if (bilanzgewinnCents === null && ANLAGE_BILANZGEWINN.test(labelText)) {
+        bilanzgewinnCents = gj;
+      }
+    }
+  }
+  return { summeAktivaCents, summePassivaCents, bilanzgewinnCents };
+}
+
+export function checkAnlageAnchors(
+  anchors: AnlageAnchors,
+  positions: PositionLike[],
+): BilanzCheck[] {
+  const checks: BilanzCheck[] = [];
+  const topSum = (stmt: string) =>
+    positions
+      .filter((p) => p.statement === stmt && p.level === 0)
+      .reduce((a, p) => a + p.betragCents, 0);
+
+  if (anchors.summeAktivaCents !== null) {
+    const actual = topSum("aktiva");
+    checks.push({
+      name: "anlage_summe_aktiva",
+      expectedCents: anchors.summeAktivaCents,
+      actualCents: actual,
+      ok: actual === anchors.summeAktivaCents,
+    });
+  }
+  if (anchors.summePassivaCents !== null) {
+    const actual = topSum("passiva");
+    checks.push({
+      name: "anlage_summe_passiva",
+      expectedCents: anchors.summePassivaCents,
+      actualCents: actual,
+      ok: actual === anchors.summePassivaCents,
+    });
+  }
+  if (anchors.bilanzgewinnCents !== null) {
+    // Bilanzgewinn aus dem parsed GuV-Staffel-Endposten (Anker LBL_BILANZGEWINN).
+    const guv = positions.filter((p) => p.statement === "guv" && p.level === 0);
+    const bilg = guv.find((p) => LBL_BILANZGEWINN.test(p.label));
+    const actual = bilg ? bilg.betragCents : (guv[guv.length - 1]?.betragCents ?? 0);
+    checks.push({
+      name: "anlage_bilanzgewinn",
+      expectedCents: anchors.bilanzgewinnCents,
+      actualCents: actual,
+      ok: actual === anchors.bilanzgewinnCents,
+    });
+  }
+  return checks;
+}
+
+// ---------------------------------------------------------------------------
+// Aggregierte Gate-Berechnung (Parser-Innerei; ruft die shared Fns)
+// ---------------------------------------------------------------------------
+
 export function computeChecks(
   positions: ParsedBilanzPosition[],
   konten: ParsedBilanzKonto[],
   warnings: string[],
+  anlageAnchors?: AnlageAnchors,
 ): BilanzCheck[] {
   const checks: BilanzCheck[] = [];
+  void isLeafPosition; // helper bleibt exportfrei erhalten fuer moegliche Debug-Nutzung
+
+  // Gate 1 GJ und VJ (shared).
+  checks.push(...checkKontenSumForYear(positions, konten, "gj"));
+  checks.push(...checkKontenSumForYear(positions, konten, "vj"));
+
   const posByStmt = new Map<BilanzStatement, ParsedBilanzPosition[]>();
   for (const p of positions) {
     const arr = posByStmt.get(p.statement) ?? [];
     arr.push(p);
     posByStmt.set(p.statement, arr);
-  }
-
-  // Gate 1: Σ Konten je Blatt-Position = Positionsbetrag (GJ).
-  for (const [stmt, list] of posByStmt) {
-    const codes = new Set(list.map((p) => p.code));
-    for (const p of list) {
-      if (!isLeafPosition(p, codes)) continue;
-      const kSum = konten
-        .filter((k) => k.statement === stmt && k.positionCode === p.code)
-        .reduce((a, k) => a + k.betragCents, 0);
-      if (kSum === 0 && p.betragCents === 0) continue; // leere Position
-      if (konten.some((k) => k.statement === stmt && k.positionCode === p.code)) {
-        checks.push({
-          name: `konten_sum:${stmt}:${p.code}`,
-          expectedCents: p.betragCents,
-          actualCents: kSum,
-          ok: kSum === p.betragCents,
-        });
-      }
-    }
   }
 
   // Gate 2: Σ Top-Level Aktiva = Σ Top-Level Passiva.
@@ -439,19 +681,13 @@ export function computeChecks(
     });
   }
 
-  // Gate 3: GuV-Staffel-Arithmetik — Summe aller Top-Level GuV-Posten stimmt
-  // mit dem letzten Posten (Bilanzgewinn/-verlust) oder mit der Passiva-
-  // Bilanzgewinn-Position ueberein, wenn beide erkannt wurden.
-  const guv = (posByStmt.get("guv") ?? []).filter((p) => p.level === 0);
-  if (guv.length >= 2) {
-    const last = guv[guv.length - 1];
-    const sumWithoutLast = guv.slice(0, -1).reduce((a, p) => a + p.betragCents, 0);
-    checks.push({
-      name: "guv_staffel_summe",
-      expectedCents: last.betragCents,
-      actualCents: sumWithoutLast,
-      ok: sumWithoutLast === last.betragCents,
-    });
+  // Gate 3: staffelbewusste GuV-Konsistenz (shared).
+  const guvTop = (posByStmt.get("guv") ?? []).filter((p) => p.level === 0);
+  checks.push(...checkGuvStaffel(guvTop, warnings));
+
+  // Gate 4: Anlage-Anker vs. parsed Bilanz (parser-only).
+  if (anlageAnchors) {
+    checks.push(...checkAnlageAnchors(anlageAnchors, positions));
   }
 
   if (posByStmt.size === 0)

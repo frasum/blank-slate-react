@@ -19,6 +19,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { makeAuditWriter } from "@/lib/admin/audit";
+import {
+  checkGuvStaffel,
+  checkKontenSumForYear,
+  type PositionLike,
+  type KontoLike,
+} from "./bilanz-pdf-parser";
 
 // ---------------------------------------------------------------------------
 // Zod-Schemata
@@ -67,35 +73,38 @@ export type ReplaceBilanzPayload = z.infer<typeof replaceBilanzYearInput>;
 export function validateReplacePayload(payload: ReplaceBilanzPayload): {
   ok: boolean;
   errors: string[];
+  warnings: string[];
 } {
   const errors: string[] = [];
-  const codesByStmt = new Map<string, Set<string>>();
-  for (const p of payload.positions) {
-    const s = codesByStmt.get(p.statement) ?? new Set<string>();
-    s.add(p.code);
-    codesByStmt.set(p.statement, s);
-  }
+  const warnings: string[] = [];
 
-  const isLeaf = (stmt: string, code: string): boolean => {
-    const codes = codesByStmt.get(stmt);
-    if (!codes) return true;
-    for (const c of codes) {
-      if (c !== code && c.startsWith(code + ".")) return false;
-    }
-    return true;
-  };
+  // Gates 1 GJ + 1 VJ: shared mit dem Parser (checkKontenSumForYear).
+  const positionsShared: PositionLike[] = payload.positions.map((p) => ({
+    statement: p.statement,
+    code: p.code,
+    level: p.level,
+    label: p.label,
+    betragCents: p.betragCents,
+    vorjahrCents: p.vorjahrCents,
+  }));
+  const kontenShared: KontoLike[] = payload.konten.map((k) => ({
+    statement: k.statement,
+    positionCode: k.positionCode,
+    betragCents: k.betragCents,
+    vorjahrCents: k.vorjahrCents,
+  }));
 
-  // Gate 1: Σ Konten je Blatt-Position = Positionsbetrag.
-  for (const p of payload.positions) {
-    if (!isLeaf(p.statement, p.code)) continue;
-    const rel = payload.konten.filter(
-      (k) => k.statement === p.statement && k.positionCode === p.code,
-    );
-    if (rel.length === 0) continue;
-    const sum = rel.reduce((a, k) => a + k.betragCents, 0);
-    if (sum !== p.betragCents) {
+  for (const c of checkKontenSumForYear(positionsShared, kontenShared, "gj")) {
+    if (!c.ok) {
       errors.push(
-        `Konten-Summe fuer ${p.statement}:${p.code} = ${sum} ≠ Position ${p.betragCents}.`,
+        `Gate 1 GJ (${c.name}): Konten-Σ ${c.actualCents} ≠ Position ${c.expectedCents}.`,
+      );
+    }
+  }
+  for (const c of checkKontenSumForYear(positionsShared, kontenShared, "vj")) {
+    if (!c.ok) {
+      errors.push(
+        `Gate 1 VJ (${c.name}): Konten-Σ ${c.actualCents} ≠ Position ${c.expectedCents}.`,
       );
     }
   }
@@ -111,19 +120,18 @@ export function validateReplacePayload(payload: ReplaceBilanzPayload): {
     errors.push(`Bilanzsumme Aktiva (${aktiva}) ≠ Passiva (${passiva}).`);
   }
 
-  // Gate 3: GuV-Staffel — Σ(erste N-1 Top-Level) = letzter Top-Level.
-  const guv = payload.positions.filter((p) => p.statement === "guv" && p.level === 0);
-  if (guv.length >= 2) {
-    const last = guv[guv.length - 1];
-    const sumWoLast = guv.slice(0, -1).reduce((a, p) => a + p.betragCents, 0);
-    if (sumWoLast !== last.betragCents) {
-      errors.push(
-        `GuV-Staffel: Σ(erste ${guv.length - 1}) = ${sumWoLast} ≠ letzter Posten ${last.betragCents}.`,
-      );
+  // Gate 3: staffelbewusste GuV-Konsistenz — dieselbe exportierte Funktion
+  // wie der Parser. Warnings (nur Teil-Anker gefunden) blocken NICHT.
+  const guvTop: PositionLike[] = positionsShared.filter(
+    (p) => p.statement === "guv" && p.level === 0,
+  );
+  for (const c of checkGuvStaffel(guvTop, warnings)) {
+    if (!c.ok) {
+      errors.push(`Gate 3 (${c.name}): erwartet ${c.expectedCents}, gerechnet ${c.actualCents}.`);
     }
   }
 
-  return { ok: errors.length === 0, errors };
+  return { ok: errors.length === 0, errors, warnings };
 }
 
 // ---------------------------------------------------------------------------

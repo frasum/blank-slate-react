@@ -7,8 +7,14 @@ import { describe, expect, it } from "vitest";
 import {
   parseBilanzPdf,
   classifyRow,
+  checkGuvStaffel,
+  checkKontenSumForYear,
+  findAnlageAnchors,
+  checkAnlageAnchors,
   type Token,
   type ParsedBilanzYear,
+  type PositionLike,
+  type KontoLike,
 } from "./bilanz-pdf-parser";
 
 // ---- Kleine Token-Helper ---------------------------------------------------
@@ -174,5 +180,211 @@ describe("classifyRow", () => {
     expect(classifyRow([T("Übertrag", 50), T("1.000,00", 395)], "aktiva")).toBe("carry");
     expect(classifyRow([T("davon", 60), T("Restlaufzeit", 90)], "aktiva")).toBe("davon");
     expect(classifyRow(pos("1.", "Umsatzerlöse", "5.000", "4.000"), "guv")).toBe("position-guv");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// F4a-Fix: realistische GuV-Staffel-Fixture (Ergebnis n. Steuern /
+// Jahresueberschuss / Bilanzgewinn) — Positiv, Negativ, Fallback.
+// ---------------------------------------------------------------------------
+
+describe("checkGuvStaffel (shared, staffelbewusst)", () => {
+  function mkGuv(overrides: Partial<Record<"ens" | "jues" | "bilg", number>> = {}): PositionLike[] {
+    // 1..8 operative Σ = 4000; 9 Ergebnis n. St. = 4000; 10 Sonst. Steuern -500;
+    // 11 Jahresueberschuss = 3500; 12 Vortrag +200; 13 Bilanzgewinn = 3700.
+    return [
+      { statement: "guv", code: "guv.1", level: 0, label: "Umsatzerlöse", betragCents: 10000 },
+      { statement: "guv", code: "guv.2", level: 0, label: "Materialaufwand", betragCents: -6000 },
+      {
+        statement: "guv",
+        code: "guv.9",
+        level: 0,
+        label: "Ergebnis nach Steuern",
+        betragCents: overrides.ens ?? 4000,
+      },
+      {
+        statement: "guv",
+        code: "guv.10",
+        level: 0,
+        label: "Sonstige Steuern",
+        betragCents: -500,
+      },
+      {
+        statement: "guv",
+        code: "guv.11",
+        level: 0,
+        label: "Jahresüberschuss",
+        betragCents: overrides.jues ?? 3500,
+      },
+      {
+        statement: "guv",
+        code: "guv.12",
+        level: 0,
+        label: "Gewinnvortrag aus Vorjahr",
+        betragCents: 200,
+      },
+      {
+        statement: "guv",
+        code: "guv.13",
+        level: 0,
+        label: "Bilanzgewinn",
+        betragCents: overrides.bilg ?? 3700,
+      },
+    ];
+  }
+
+  it("Positivfall: alle 3 Segmente ok", () => {
+    const checks = checkGuvStaffel(mkGuv(), []);
+    const byName = Object.fromEntries(checks.map((c) => [c.name, c]));
+    expect(byName["guv_ergebnis_nach_steuern"]?.ok).toBe(true);
+    expect(byName["guv_jahresueberschuss"]?.ok).toBe(true);
+    expect(byName["guv_bilanzgewinn"]?.ok).toBe(true);
+  });
+
+  it("Negativ: Bilanzgewinn falsch", () => {
+    const checks = checkGuvStaffel(mkGuv({ bilg: 3800 }), []);
+    const c = checks.find((x) => x.name === "guv_bilanzgewinn")!;
+    expect(c.ok).toBe(false);
+    expect(c.expectedCents).toBe(3800);
+    expect(c.actualCents).toBe(3700);
+  });
+
+  it("Fallback: keine Anker-Labels → guv_staffel_summe (rueckwaertskompatibel)", () => {
+    const guv: PositionLike[] = [
+      { statement: "guv", code: "guv.1", level: 0, label: "Umsatz", betragCents: 500 },
+      { statement: "guv", code: "guv.2", level: 0, label: "Aufwand", betragCents: -200 },
+      { statement: "guv", code: "guv.3", level: 0, label: "Jahresergebnis", betragCents: 300 },
+    ];
+    const checks = checkGuvStaffel(guv, []);
+    expect(checks).toHaveLength(1);
+    expect(checks[0].name).toBe("guv_staffel_summe");
+    expect(checks[0].ok).toBe(true);
+  });
+
+  it("Teil-Anker: nur Bilanzgewinn → Warnung + kein guv_ergebnis_nach_steuern check", () => {
+    const guv = mkGuv();
+    // "Ergebnis nach Steuern" und "Jahresüberschuss" umbenennen.
+    guv[2].label = "Zwischenergebnis A";
+    guv[4].label = "Zwischenergebnis B";
+    const warnings: string[] = [];
+    const checks = checkGuvStaffel(guv, warnings);
+    expect(warnings.join(" ")).toMatch(/nicht alle Anker erkannt/);
+    expect(checks.find((c) => c.name === "guv_ergebnis_nach_steuern")).toBeUndefined();
+    expect(checks.find((c) => c.name === "guv_jahresueberschuss")).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Gate 1 VJ (shared)
+// ---------------------------------------------------------------------------
+
+describe("checkKontenSumForYear – VJ", () => {
+  const positions: PositionLike[] = [
+    {
+      statement: "aktiva",
+      code: "A.I.1",
+      level: 2,
+      label: "Grund",
+      betragCents: 700,
+      vorjahrCents: 600,
+    },
+    {
+      statement: "aktiva",
+      code: "A.I.2",
+      level: 2,
+      label: "Anlagen",
+      betragCents: 300,
+      vorjahrCents: null, // Vorjahr fehlt
+    },
+  ];
+  const konten: KontoLike[] = [
+    {
+      statement: "aktiva",
+      positionCode: "A.I.1",
+      betragCents: 700,
+      vorjahrCents: 600,
+    },
+    {
+      statement: "aktiva",
+      positionCode: "A.I.2",
+      betragCents: 300,
+      vorjahrCents: null,
+    },
+  ];
+
+  it("Positivfall: VJ-Konto = VJ-Position", () => {
+    const c = checkKontenSumForYear(positions, konten, "vj").find(
+      (x) => x.name === "konten_sum_vj:aktiva:A.I.1",
+    )!;
+    expect(c.ok).toBe(true);
+  });
+
+  it("Negativ: VJ-Konto abweichend", () => {
+    const bad = konten.map((k) => ({ ...k }));
+    bad[0].vorjahrCents = 500;
+    const c = checkKontenSumForYear(positions, bad, "vj").find(
+      (x) => x.name === "konten_sum_vj:aktiva:A.I.1",
+    )!;
+    expect(c.ok).toBe(false);
+    expect(c.actualCents).toBe(500);
+    expect(c.expectedCents).toBe(600);
+  });
+
+  it("Fallback: fehlende VJ auf Konto oder Position → uebersprungen", () => {
+    const checks = checkKontenSumForYear(positions, konten, "vj");
+    expect(checks.find((c) => c.name === "konten_sum_vj:aktiva:A.I.2")).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Gate 4: Anlage-Anker (parser-only)
+// ---------------------------------------------------------------------------
+
+describe("Gate 4 – Anlage-Anker vs. parsed Bilanz", () => {
+  function anlagePages(sumAktiva: string, sumPassiva: string, bilg: string): Token[][][] {
+    const doc = txt("YUM", "Gastronomie", "GmbH", "-", "Jahresabschluss", "zum", "31.12.2024");
+    const anlageBilanz: Token[][] = [
+      doc,
+      txt("Handelsbilanz", "zum", "31.12.2024"),
+      [T("Summe", 50), T("Aktiva", 80), T(sumAktiva, 395), T("900,00", 495)],
+      [T("Summe", 50), T("Passiva", 80), T(sumPassiva, 395), T("900,00", 495)],
+      [T("Bilanzgewinn", 50), T(bilg, 395), T("0,00", 495)],
+    ];
+    return [anlageBilanz];
+  }
+
+  it("findAnlageAnchors liest die drei Anker aus", () => {
+    const anchors = findAnlageAnchors(anlagePages("1.000,00", "1.000,00", "0,00"));
+    expect(anchors.summeAktivaCents).toBe(100000);
+    expect(anchors.summePassivaCents).toBe(100000);
+    expect(anchors.bilanzgewinnCents).toBe(0);
+  });
+
+  it("Positivfall: Anker stimmen mit parsed Top-Level-Summen ueberein", () => {
+    // Anlage-Summen == Σ Top-Level der buildFixturePages()-Aktiva/Passiva (je 1000,00 = 100000 cents).
+    const pages = [...buildFixturePages(), ...anlagePages("1.000,00", "1.000,00", "0,00")];
+    const res = parseBilanzPdf(pages);
+    const cA = res.checks.find((c) => c.name === "anlage_summe_aktiva")!;
+    const cP = res.checks.find((c) => c.name === "anlage_summe_passiva")!;
+    expect(cA.ok).toBe(true);
+    expect(cP.ok).toBe(true);
+  });
+
+  it("Negativ: Anlage-Summe Aktiva ≠ Σ Top-Level Aktiva", () => {
+    const anchors = { summeAktivaCents: 99900, summePassivaCents: null, bilanzgewinnCents: null };
+    const positions: PositionLike[] = [
+      { statement: "aktiva", code: "A", level: 0, label: "AV", betragCents: 100000 },
+    ];
+    const c = checkAnlageAnchors(anchors, positions)[0];
+    expect(c.name).toBe("anlage_summe_aktiva");
+    expect(c.ok).toBe(false);
+  });
+
+  it("Fehlende Anker → keine Checks", () => {
+    const checks = checkAnlageAnchors(
+      { summeAktivaCents: null, summePassivaCents: null, bilanzgewinnCents: null },
+      [],
+    );
+    expect(checks).toEqual([]);
   });
 });

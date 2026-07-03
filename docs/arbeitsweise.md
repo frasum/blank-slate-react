@@ -217,6 +217,7 @@ Rekonstruiert per Kalibrierung gegen bereits validierte Bestands-Sessions (Refer
 | M-BWA Welle F2a — Dashboard: KPIs+YoY, Prime Cost, Wasserfall, Break-even (§41)                                                        | ✅                                                      |
 | M-BWA Welle F2b — Vergleich-Tab, Sachkosten-Drilldown, Break-even-Sortier-Fix (§41)                                                    | ✅                                                      |
 | M-BWA Welle F3 — PDF-Upload + eurodata-Parser mit Review-Screen (§41)                                                                  | ✅                                                      |
+| M-BWA Welle F4a — Jahresabschluss-Parser + Server-Layer inkl. Gate-Härtung (§49)                                                       | ✅ (Migration offen)                                    |
 | Lohn-RLS-Härtung — SELECT manager+ auf lohn_absence_days/lohn_recurring_zeilen (§42)                                                   | ✅                                                      |
 | Welle SP1 — Self-Service Stammdaten & Dokumente: Schema + Server-Layer (§43)                                                           | ✅                                                      |
 | Welle SP2 — Mitarbeiter-UI `/profil` (Kontakt direkt, Anträge, Dokumente) (§43)                                                        | ✅ (SP3 Admin-Review offen)                             |
@@ -1832,3 +1833,74 @@ Migration). UI-Welle über dem V1-Server-Layer (§46):
   Folge von B1, keine Funktionsänderung.
 - Offen: manueller E2E durch Frank (inkl. Owner-Read-Beleg: Admin-Upload
   erscheint im `/profil` des MA).
+
+## 49. M-BWA Welle F4a — Jahresabschluss (Bilanzbericht): Parser + Server-Layer + Gate-Härtung (03.07.2026)
+
+Ziel: ETL-ADHOGA-Bilanzberichte (PDF, je Gesellschaft) in COCO importieren
+— Handelsbilanz, GuV und der Kontennachweis, der jede Position bis auf
+das einzelne DATEV-Konto auflöst. Entity-Modell wie bei der Monats-BWA
+(entity = 'YUM Gastronomie GmbH' etc.); Cent-Beträge, BIGINT.
+
+**Reines Parser-Modul (`bilanz-pdf-parser.ts`):** Deterministische
+Spaltenzuordnung über x-Schwellen (nicht über Token-Anzahl je Zeile),
+strikter Betrags-Regex (verhindert Verwechslung von Hierarchie-Prefixen
+oder 4-stelligen Kontonummern mit Beträgen), Anti-Halluzinations-Regel:
+Positionen nur mit Prefix + nicht-leerem Label; Konten nur mit
+Kontonummer + Label + GJ-Betrag im Geschäftsjahr-Band. Fehlt etwas →
+Warnung, nie „nächstbeste Zahl".
+
+**Konsistenz-Gates (shared Parser ↔ Server):** Damit derselbe
+Wahrheitsstand geprüft wird, sind Gates 1–3 als exportierte reine
+Funktionen implementiert; Parser (`computeChecks`) UND Server
+(`validateReplacePayload`) rufen dieselben Funktionen.
+
+- **Gate 1 GJ + VJ (`checkKontenSumForYear`):** Σ Konten je Blatt-Position
+  = Positionsbetrag, für Geschäfts- und Vorjahr getrennt. VJ-Check wird
+  übersprungen, wenn Position oder ein zugehöriges Konto keinen VJ-Wert
+  trägt (mehrere PDF-Vintages ohne Vorjahresspalte).
+- **Gate 2:** Σ Top-Level Aktiva = Σ Top-Level Passiva (unverändert).
+- **Gate 3 staffelbewusst (`checkGuvStaffel`):** Anker-Labels
+  „Ergebnis nach Steuern", „Jahresüberschuss/-fehlbetrag",
+  „Gewinn-/Verlustvortrag", „Bilanzgewinn/-verlust". Bei erkannten
+  Ankern werden Segmente einzeln geprüft: Σ operative = Ergebnis n. St.,
+  Σ (Erg. n. St. … vor Jahresüberschuss) = Jahresüberschuss,
+  Σ (Jahresüberschuss … vor Bilanzgewinn) = Bilanzgewinn. Kein Anker
+  erkannt → Fallback auf die ursprüngliche „letzter Posten = Σ Rest"-Regel
+  (Rückwärtskompatibilität mit älteren Fixtures). Teil-Anker → Warnung,
+  keine Blockade.
+- **Gate 4 rein parser-seitig (`findAnlageAnchors` +
+  `checkAnlageAnchors`):** Aus den Anlage-Seiten (Handelsbilanz-Deckblatt
+  bzw. GuV-Anlage) werden „Summe Aktiva", „Summe Passiva" und
+  „Bilanzgewinn/-verlust" extrahiert und gegen die parsed Top-Level-
+  Summen bzw. den GuV-Bilanzgewinn-Anker verglichen. Die Anlage-Anker
+  gehen bewusst NICHT durchs Replace-Payload — sie bleiben in
+  `checks[]` und werden nicht in `validateReplacePayload` gespiegelt;
+  der Server prüft weiterhin Gates 1–3.
+
+**Server-Fns (`bilanz.functions.ts`, Muster wie `bwa.functions.ts`):**
+`listBilanzYears`, `getBilanzYear`, `replaceBilanzYear`,
+`deleteBilanzYear` — alle admin-gated via `loadAdminCaller(["admin"])`,
+org-Scope aus Caller-Kontext, Audit nur bei Erfolg. Schreiben
+ausschließlich über die RPC `replace_bilanz_year` (delete +
+bulk-insert in EINER Transaktion). `validateReplacePayload` liefert
+zusätzlich `warnings[]` (Teil-Anker Gate 3), die den Server nicht
+blockieren, aber der UI in F4b als Hinweis dienen können.
+
+**Ehrlichkeits-Merkposten:**
+
+- Migrationsdatei für `bilanz_positions`/`bilanz_konten` + RPC
+  `replace_bilanz_year` steht noch aus; Draft liegt in
+  `docs/bilanz-schema-draft.sql`. Frank führt live aus, danach
+  Migration nachziehen — Muster §42. Bis dahin castet die Server-Fn
+  den `supabaseAdmin`-Client lokal auf eine minimale Bilanz-DB-
+  Signatur, damit `supabase gen types` die neuen Tabellen erst nach
+  der Migration überschreibt.
+- MCP-Server-Welle wurde in `083965a8` revertiert (rote CI);
+  Wiederaufbau als eigene Welle geplant, kein Vorgriff (kein
+  `.prettierignore`-Eintrag, kein `get-bilanz-year`-Tool in dieser Welle).
+
+**Erfolgs-Gate erreicht (03.07.2026):** `prettier --check .` sauber;
+`vitest run` 1170 Tests grün (Bilanz-Parser 20 + Bilanz-Server 14 neu);
+`tsgo --noEmit` fehlerfrei; `parseGermanAmountToCents` nicht dupliziert
+(einmal in `bwa-pdf-parser.ts`, Bilanz-Parser importiert). RLS-Inventur
+unverändert (Bilanz-Tabellen kommen mit der Migration).
