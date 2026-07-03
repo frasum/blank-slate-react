@@ -1411,6 +1411,7 @@ export type Database = {
       }
       organization_settings: {
         Row: {
+          betriebsnummer: string | null
           created_at: string
           kitchen_manual_only: boolean
           kitchen_tip_rate: number
@@ -1424,6 +1425,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          betriebsnummer?: string | null
           created_at?: string
           kitchen_manual_only?: boolean
           kitchen_tip_rate?: number
@@ -1437,6 +1439,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          betriebsnummer?: string | null
           created_at?: string
           kitchen_manual_only?: boolean
           kitchen_tip_rate?: number
@@ -2650,6 +2653,64 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sofortmeldung: {
+        Row: {
+          created_at: string
+          id: string
+          note: string | null
+          organization_id: string
+          reported_at: string | null
+          reported_by: string | null
+          required: boolean
+          staff_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          organization_id: string
+          reported_at?: string | null
+          reported_by?: string | null
+          required?: boolean
+          staff_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          organization_id?: string
+          reported_at?: string | null
+          reported_by?: string | null
+          required?: boolean
+          staff_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sofortmeldung_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sofortmeldung_reported_by_fkey"
+            columns: ["reported_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sofortmeldung_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: true
+            referencedRelation: "staff"
             referencedColumns: ["id"]
           },
         ]
