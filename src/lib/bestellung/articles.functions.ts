@@ -47,6 +47,15 @@ const ArticleInput = z.object({
   unit: z.string().trim().min(1).max(40).default("Stk"),
   priceCents: z.number().int().min(0),
   packagingUnit: z.number().int().min(1).optional().nullable(),
+  // E1 — Einheitenmodell.
+  orderUnit: z.string().trim().min(1).max(30).optional(),
+  inventoryUnit: z.string().trim().min(1).max(30).optional(),
+  orderToInventoryFactor: z.number().positive().optional(),
+  quantityStep: z.number().positive().optional(),
+  allowDecimalOrderQuantity: z.boolean().optional(),
+  minOrderQuantity: z.number().nonnegative().optional(),
+  targetStockTotal: z.number().nonnegative().nullable().optional(),
+  targetStockBar: z.number().nonnegative().nullable().optional(),
   imageUrl: z
     .string()
     .trim()
@@ -101,7 +110,7 @@ export const listArticles = createServerFn({ method: "GET" })
     let q = supabaseAdmin
       .from("articles")
       .select(
-        "id, supplier_id, name, sku, description, category, unit, price_cents, packaging_unit, image_url, is_active, sort_order, created_at, updated_at, grape_variety, origin_country, food_pairings, special_attributes",
+        "id, supplier_id, name, sku, description, category, unit, price_cents, packaging_unit, order_unit, inventory_unit, order_to_inventory_factor, quantity_step, allow_decimal_order_quantity, min_order_quantity, target_stock_total, target_stock_bar, image_url, is_active, sort_order, created_at, updated_at, grape_variety, origin_country, food_pairings, special_attributes",
       )
       .eq("organization_id", caller.organizationId)
       .order("sort_order")
@@ -194,6 +203,14 @@ export const createArticle = createServerFn({ method: "POST" })
           unit: data.unit,
           price_cents: data.priceCents,
           packaging_unit: data.packagingUnit ?? null,
+          order_unit: data.orderUnit ?? data.unit,
+          inventory_unit: data.inventoryUnit ?? data.unit,
+          order_to_inventory_factor: data.orderToInventoryFactor ?? 1,
+          quantity_step: data.quantityStep ?? 1,
+          allow_decimal_order_quantity: data.allowDecimalOrderQuantity ?? false,
+          min_order_quantity: data.minOrderQuantity ?? 1,
+          target_stock_total: data.targetStockTotal ?? null,
+          target_stock_bar: data.targetStockBar ?? null,
           image_url: data.imageUrl,
           sort_order: data.sortOrder ?? 0,
           grape_variety: data.grapeVariety,
@@ -267,6 +284,14 @@ export const updateArticle = createServerFn({ method: "POST" })
           unit: data.unit,
           price_cents: data.priceCents,
           packaging_unit: data.packagingUnit ?? null,
+          order_unit: data.orderUnit ?? data.unit,
+          inventory_unit: data.inventoryUnit ?? data.unit,
+          order_to_inventory_factor: data.orderToInventoryFactor ?? 1,
+          quantity_step: data.quantityStep ?? 1,
+          allow_decimal_order_quantity: data.allowDecimalOrderQuantity ?? false,
+          min_order_quantity: data.minOrderQuantity ?? 1,
+          target_stock_total: data.targetStockTotal ?? null,
+          target_stock_bar: data.targetStockBar ?? null,
           image_url: data.imageUrl,
           sort_order: data.sortOrder ?? 0,
           grape_variety: data.grapeVariety,
