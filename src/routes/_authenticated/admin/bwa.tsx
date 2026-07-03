@@ -781,7 +781,7 @@ function TimeSeriesCard({
                 />
               )}
               <Bar dataKey="umsatz" fill="hsl(var(--primary))" opacity={0.7} name="Umsatz" />
-              <DerivedLine
+              <Line
                 type="monotone"
                 dataKey="betrieb"
                 stroke="hsl(142 65% 40%)"
@@ -860,7 +860,7 @@ function QuoteBandsCard({
                   strokeDasharray="4 2"
                 />
               )}
-              <DerivedLine
+              <Line
                 type="monotone"
                 dataKey="wes"
                 stroke="hsl(215 90% 55%)"
@@ -868,7 +868,7 @@ function QuoteBandsCard({
                 dot={false}
                 name="WES-Quote"
               />
-              <DerivedLine
+              <Line
                 type="monotone"
                 dataKey="personal"
                 stroke="hsl(142 65% 40%)"
