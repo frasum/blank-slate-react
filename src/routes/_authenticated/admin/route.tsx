@@ -75,7 +75,7 @@ const GROUPS: Group[] = [
       { to: "/admin/urlaub", label: "Urlaubsanträge" },
       { to: "/admin/zeit-uebersicht", label: "Arbeitszeiten" },
       { to: "/admin/lohnrechner", label: "Lohnrechner", roles: ["admin"] },
-      { to: "/admin/lohn-verteilung", label: "Lohn-Verteilung", roles: ["admin"] },
+      { to: "/admin/lohn-verteilung", label: "Lohn PDF Import", roles: ["admin"] },
     ],
   },
   {

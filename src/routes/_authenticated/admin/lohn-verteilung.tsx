@@ -11,7 +11,7 @@ import type { AssignDecision, AssignStatus } from "@/lib/payslips/payslip-assign
 import { splitCombinedPdf, bytesToBase64, type SplitOutput } from "@/lib/payslips/split-combined";
 
 export const Route = createFileRoute("/_authenticated/admin/lohn-verteilung")({
-  head: () => ({ meta: [{ title: "Lohn-Verteilung · Verwaltung" }] }),
+  head: () => ({ meta: [{ title: "Lohn PDF Import · Verwaltung" }] }),
   beforeLoad: ({ context }) => {
     // Doppeltes Admin-Gate: serverseitige Schreib-Fns prüfen ebenfalls.
     const role = (context as { identity?: { role?: string } }).identity?.role;
@@ -145,7 +145,7 @@ function LohnVerteilungPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Lohn-Verteilung</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Lohn PDF Import</h1>
         <p className="text-sm text-muted-foreground">
           Entweder mehrere bereits gesplittete edlohn-PDFs hochladen — oder das Sammel-PDF
           (Monatsexport je Mandant) wählen, das hier im Browser nach Personal-Nr aufgeteilt wird.
