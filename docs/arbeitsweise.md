@@ -44,6 +44,12 @@ Erst wenn ESLint 0 Fehler und alle Tests grün sind → ABGENOMMEN.
   - Nach jedem Migrations-Commit **zügig prüfen + funktional smoke-testen** — statisches Review fängt Laufzeitfehler nicht (s. Caller-Param-Bug bei den Task-RPCs).
 - **Neue Stammdaten-Spalte ⇒ Select-Liste mitziehen.** Jede neue Spalte auf `staff_personal_details`, die der Berechnungspfad braucht, MUSS in die explizite `.select(...)`-Liste in `src/lib/lohn/lohn-rechner.functions.ts` (Funktion `computeLohnForStaff`). Migration + Mapping (`staffDetailsToPerson`) + Berechnung allein reichen NICHT: fehlt die Spalte im Select, kommt sie als `undefined` an → `!!undefined = false` bzw. `?? default` → das Feature greift stillschweigend nicht, obwohl Code, Daten und CI grün sind. (Aktivrente-Hebel 26.06.: ~1 h Phantom-Deploy-Suche, bis die fehlende Select-Spalte gefunden war.) Daher nennt jeder Hebel-Prompt mit neuer Spalte die Select-Erweiterung explizit.
 - **Vor neuem Tabellen-/Enum-Bau: existierendes Schema UND diese Doku prüfen.** Bevor eine neue Tabelle oder ein neuer Enum entsteht, gegen `src/integrations/supabase/types.ts` greppen (`awk '/^      <tabelle>: \{/,/^      }/' …`) UND Abschnitt 6 / diese Datei lesen — oft existiert der Speicher schon. Beispiel 29.06.: Für Abwesenheits-Overlays wurde kurzzeitig `staff_absences` gebaut, obwohl `roster_absence` / `leave_requests` (Abschnitt 6) Abwesenheiten längst führen → verworfen (siehe Abschnitt 20). Welle-B/C-Direktbauten (Frank+Lovable ohne Claude) existieren auch ohne Claudes Wissen; das prüfe-Protokoll (git pull + `types.ts` + Doku) gilt damit auch fürs **Schema**, nicht nur für Code.
+- **Storage-Buckets nie als Migration:** Der Lovable-Migrations-Guard blockiert
+  `INSERT INTO storage.buckets` in Migrationsdateien still (`bucket_sql_blocked`
+  — so dreimal unbemerkt beim staff-documents-Bucket, 03.07.2026). Buckets
+  gehören in `docs/seed-storage.sql` (Ops-Seed, bei DB-Neuaufbau manuell nach
+  den Migrationen ausführen). `storage.objects`-Policies sind davon nicht
+  betroffen und bleiben reguläre Migrationen.
 
 ## 4. Stammdaten-Referenz (COCO Produktion)
 
@@ -1610,10 +1616,6 @@ Falls sie je die Kirchensteuer speisen soll: Select-Liste in
 (Admin-Review `/admin/personal-antraege`: Antrags-Freigabe mit Ist/Neu-
 Vergleich und „manuell übernehmen"-Hinweis für Namensfelder; Dokumenten-
 Übersicht mit Ablauf-Ampel rot/gelb 60 Tage/grün, Sichtvermerk, Fehlend-
-Liste Gesundheitszeugnis) abgenommen. Welle SP damit komplett. Bucket-
-Migrationsdatei im SP3-Commit erneut versucht — **weiterhin blockiert**
-(`bucket_sql_blocked` beim Migrations-Tool UND File-Guard beim direkten
-`supabase/migrations/`-Schreiben). Ehrlichkeitsregel: der Anker fehlt im
-Repo, der Bucket ist live via Storage-Tool angelegt; ein DB-Neuaufbau aus
-den Migrationen bräuchte den Bucket manuell (dokumentiert hier als Betriebs-
-Anweisung, bis die Guards einen Weg zulassen).
+Liste Gesundheitszeugnis) abgenommen. Welle SP damit komplett.
+Bucket-Verankerung im Repo: NICHT als Migration (Guard-Block, siehe §3),
+sondern in docs/seed-storage.sql (beide Buckets, idempotent).
