@@ -15,8 +15,8 @@ export default tseslint.config(
       // AUTO-GENERATED von @lovable.dev/mcp-js — Plugin schreibt bei jedem
       // Build neu; Formatierung/Details sind Sache des Plugins.
       "src/routes/mcp.ts",
-      "src/routes/[.mcp]/**",
-      "src/routes/[.well-known]/oauth-protected-resource.ts",
+      "src/routes/**/*.mcp*/**",
+      "src/routes/**/*.well-known*/oauth-protected-resource.ts",
     ],
   },
   {
