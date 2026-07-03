@@ -365,7 +365,7 @@ function RequestCard({
 // Dokumente
 // =========================================================================
 
-function statusBadge(status: DocumentExpiryStatus, validUntil: string | null) {
+function statusBadge(status: DocumentExpiryStatus) {
   if (status === "expired")
     return <Badge className="bg-red-600 text-white hover:bg-red-600">abgelaufen</Badge>;
   if (status === "expiring")
@@ -381,7 +381,6 @@ function statusBadge(status: DocumentExpiryStatus, validUntil: string | null) {
       kein Datum
     </Badge>
   );
-  void validUntil;
 }
 
 function DocumentsTab() {
@@ -552,7 +551,7 @@ function DocumentsTab() {
                     <TableCell>{fmtDate(d.validUntil)}</TableCell>
                     <TableCell>
                       <div className="flex flex-col gap-1">
-                        {statusBadge(status, d.validUntil)}
+                        {statusBadge(status)}
                         {d.verifiedAt && (
                           <span className="text-xs text-muted-foreground">
                             geprüft am {fmtDate(d.verifiedAt)}
