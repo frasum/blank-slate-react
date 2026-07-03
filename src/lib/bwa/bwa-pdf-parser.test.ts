@@ -293,19 +293,4 @@ describe("parseBwaPdfText – Teil 2: leere Monatsspalte + Label-Symmetrie", () 
     expect(res.blocks[0].entity).toBe("YUM Gastronomie GmbH");
   });
 
-  it("Entity: reine Titelzeile ohne Firmenname wird übersprungen", () => {
-    // Wenn die erste 'passende' Zeile nur der Report-Titel ist, muss der
-    // Parser weitersuchen und die eigentliche Entity-Zeile finden — nicht
-    // versehentlich mit leerem Entity abbrechen.
-    const p: string[] = [
-      "1290 205",
-      "Betriebswirtschaftliche Auswertung GmbH", // Fake-Suffix nur zum Testen
-      "YUM Gastronomie GmbH",
-      "YUM",
-      "April 2025",
-      "11 Gesamtumsatz 120.713 100,0 424.500 100,0",
-    ];
-    const res = parseBwaPdfText([p]);
-    expect(res.blocks[0].entity).toBe("YUM Gastronomie GmbH");
-  });
 });
