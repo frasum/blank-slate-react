@@ -1816,6 +1816,9 @@ function WeeklyPlan({
                       />
                       {row.displayName}
                     </TableCell>
+                    <TableCell className="text-right tabular-nums border-l">
+                      {shiftsByStaff.get(row.staffId) ?? 0}
+                    </TableCell>
                     {row.days.map((day, idx) => {
                       const dm = dayMeta[idx];
                       const cellBg = dm.outOfPeriod
