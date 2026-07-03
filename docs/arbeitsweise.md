@@ -1931,3 +1931,41 @@ Funktionen.
 `tsgo --noEmit` fehlerfrei; `parseGermanAmountToCents` nicht dupliziert
 (einmal in `bwa-pdf-parser.ts`, Bilanz-Parser importiert). RLS-Inventur
 unverändert (Bilanz-Tabellen kommen mit der Migration).
+
+**F4b-Fix — Parser-Geometrie (03.07.2026):** Erster echter Import ist an
+drei Struktur-Eigenschaften des ETL-ADHOGA-Drucks gescheitert, die die
+synthetische Fixture nicht abbildete. Nachgezogen:
+
+- **Rechtsbündige Spalten (stabile rechte Kante!):** Die Beträge werden
+  jetzt über `xEnd` gebandet (Konto-GJ im inneren Band, Positions- und
+  Summenzeilen im äußeren `gjRight`, VJ auf `vjRight`). `TextItem` trägt
+  jetzt die pdfjs-`width`, `LineToken` liefert `xEnd`. Vorher wurde die
+  linke Kante (`x`) verglichen; das zerriss die meisten Beträge im echten
+  Bericht, weil `x` mit der Zahlenlänge um bis zu 80 pt schwankt.
+- **Umgebrochene Konto-Labels + separate Innere-/Äußere-Betragszeilen:**
+  Ein Konto ohne Beträge bleibt „offen", Fortsetzungszeilen ohne Prefix
+  werden ans Label angehängt; die erste innere Betragszeile schließt es.
+  Danach kommt oft eine reine äußere Betragszeile, die die letzte
+  offene Position (Stack, LIFO) mit ihrem Wert füllt. Positionen ohne
+  jede gedruckte Summe (z. B. „B Eigenkapital") bekommen ihren Wert
+  bottom-up per Roll-up aus den direkten Kind-Positionen (VJ nur, wenn
+  alle Kinder VJ haben).
+- **Spalten-Anker aus der Jahres-Kopfzeile:** Pro Kontennachweis-Seite
+  werden `gjRight`/`vjRight` aus den beiden 4-stelligen Jahreszahlen
+  (fiscalYear/-1) abgeleitet; Fallback: rechte Kanten der beiden
+  „EUR"-Token. Die Kopfzeilen (Geschäftsjahr/Vorjahr, Jahreszeile,
+  EUR EUR) werden übersprungen und **NIE** als Konto/Position
+  klassifiziert (behebt „Konto 2024" im ersten E2E).
+
+**Lektion Fixture-Realismus:** Rechtsbündige Spalten, Label-Umbrüche
+und die Zwischensummen-Struktur (reine Betragszeilen im äußeren Band,
+benannte Zwischensummen ohne Prefix, mehrfach-Beträge auf
+„Übertrag"-Zeilen) des echten Drucks müssen in Parser-Fixtures
+abgebildet sein — die erste Fixture hat alle drei Eigenschaften
+verfehlt und den Fehler bis zum echten E2E verdeckt. Neu abgedeckt
+durch sechs Charakterisierungs-Tests (Anker-Findung inkl. Fallback,
+inneres/äußeres Band, offenes Konto mit Umbruch, Rollup GJ+VJ,
+benannte Zwischensumme, Übertrag). Nicht angefasst: `checkGuvStaffel`,
+`checkKontenSumForYear`, `checkAnlageAnchors`, `validateReplacePayload`
+— die Gate-Logik ist korrekt und bleibt unverändert; nur die
+Datenzulieferung wurde repariert.
