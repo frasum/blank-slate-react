@@ -781,7 +781,7 @@ function TimeSeriesCard({
                 />
               )}
               <Bar dataKey="umsatz" fill="hsl(var(--primary))" opacity={0.7} name="Umsatz" />
-              <Line
+              <DerivedLine
                 type="monotone"
                 dataKey="betrieb"
                 stroke="hsl(142 65% 40%)"
@@ -860,7 +860,7 @@ function QuoteBandsCard({
                   strokeDasharray="4 2"
                 />
               )}
-              <Line
+              <DerivedLine
                 type="monotone"
                 dataKey="wes"
                 stroke="hsl(215 90% 55%)"
@@ -868,7 +868,7 @@ function QuoteBandsCard({
                 dot={false}
                 name="WES-Quote"
               />
-              <Line
+              <DerivedLine
                 type="monotone"
                 dataKey="personal"
                 stroke="hsl(142 65% 40%)"
@@ -1339,11 +1339,11 @@ function BwaErfassungTab({ rows, loading }: { rows: BwaRow[]; loading: boolean }
             <div className="rounded-md border p-3 text-sm bg-muted/30">
               <div className="font-medium mb-2">Abgeleitete Werte</div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1 tabular-nums">
-                <Line label="Gesamtleistung" cents={derived.gesamtleistungCents} />
-                <Line label="Rohertrag I" cents={derived.rohertrag1Cents} />
-                <Line label="Rohertrag II" cents={derived.rohertrag2Cents} />
-                <Line label="Ergebnis op. Tätigkeit" cents={derived.ergebnisOpCents} />
-                <Line
+                <DerivedLine label="Gesamtleistung" cents={derived.gesamtleistungCents} />
+                <DerivedLine label="Rohertrag I" cents={derived.rohertrag1Cents} />
+                <DerivedLine label="Rohertrag II" cents={derived.rohertrag2Cents} />
+                <DerivedLine label="Ergebnis op. Tätigkeit" cents={derived.ergebnisOpCents} />
+                <DerivedLine
                   label="Betriebsergebnis (Soll)"
                   cents={derived.betriebsergebnisSollCents}
                 />
@@ -1446,7 +1446,7 @@ function FieldText({
   );
 }
 
-function Line({ label, cents }: { label: string; cents: number }) {
+function DerivedLine({ label, cents }: { label: string; cents: number }) {
   return (
     <div className="flex justify-between">
       <span className="text-muted-foreground">{label}</span>
