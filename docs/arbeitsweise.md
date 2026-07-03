@@ -1644,7 +1644,10 @@ automatisch auf `staff` angewendet (display_name-Mappings!) — Anzeige
 „manuell übernehmen" im Admin-Review.
 
 Dokumente (Pass, Visum, Arbeitserlaubnis, Gesundheitszeugnis) nach
-Payslip-Muster: privater Bucket `staff-documents`, DENY-ALL für Clients,
+Payslip-Muster: privater Bucket `staff-documents` — anfangs DENY-ALL für
+Clients; seit Migration `20260703112045` haben Clients READ (Owner über
+Pfadsegmente gegen `user_links`, Manager/Admin über `role_assignments`),
+Schreiben bleibt server-exklusiv —,
 Pfad-Guard mit Traversal-Tests, base64-Upload über Server-Fn (Mime-Whitelist
 JPG/PNG/PDF, 10 MB, Größe aus dekodierten Bytes), Signed URLs 60 s,
 `valid_until` für die Ablauf-Ampel (SP3), Sichtvermerk `verified_by/at`.
@@ -1725,7 +1728,12 @@ pures, getestetes Modul src/lib/dokumente/document-placeholders.ts (fehlende
 Daten ⇒ unresolved-Liste statt leerer Strings; heute injizierbar).
 Arbeitgeber-Stammdaten (Name/Adresse/Vertreter) in organization_settings.
 staff_documents.doc_type um 'contract' erweitert (unterschriebener Scan wird
-als normales Mitarbeiter-Dokument hochgeladen). Audit ohne Dokumentinhalte
+als normales Mitarbeiter-Dokument hochgeladen).
+(Restfehler: die V1-Migration erweiterte nur den DB-Check; der
+TS-Path-Guard `DOC_TYPES` kannte 'contract' nicht — Phantom-Zustand, in
+V2/§48 geschlossen. Lektion: DB-Check-Erweiterungen immer zusammen mit
+der Client-Whitelist ausliefern.)
+Audit ohne Dokumentinhalte
 (SV-Nr/IBAN gehören nicht ins Log-Meta). Offen: V2 UI (Template-Editor,
 Generierungs-Assistent im Stammblatt-Tab „Dokumente", Druckansicht,
 Scan-Upload-Verknüpfung).
@@ -1780,3 +1788,44 @@ glatt. Diagnose-Verlauf und Ergebnis:
    COCO-Projekt (`sessions.business_date`, `locations`, BIGINT cents).
    Ein `42P01 relation does not exist` ist das typische Symptom der
    falschen DB.
+
+## 48. V2 Dokumentengenerierung — UI + Konflikt-Auflösung (03.07.2026)
+
+Abgenommen bei HEAD `d29dab0` (tsc/eslint/prettier/vitest 1131 grün, keine
+Migration). UI-Welle über dem V1-Server-Layer (§46):
+
+- **Einstellungen:** Sektion „Arbeitgeber-Stammdaten" (Name/Adresse/
+  Vertreter → `organization_settings`), org-settings-Fn nach dem
+  Betriebsnummer-Muster erweitert.
+- **`/admin/dokumente` (Template-Verwaltung):** Liste je doc_type,
+  Editor mit Platzhalter-Referenz aus `PLACEHOLDER_CATALOG`
+  (Klick-Einfügen) und Live-Analyse — Platzhalter außerhalb des Katalogs
+  werden rot als „unbekannt — wird nie befüllt" markiert. Deaktivieren
+  statt Löschen (V1-Design, kein Delete).
+- **Stammblatt-Bereich „Dokumente"** (`DokumenteTab`, section-Muster):
+  Generierungs-Assistent mit Vorschau; **unresolved-Gate** — Speichern
+  ist bei fehlenden Platzhaltern blockiert, bis die Checkbox „Trotz
+  fehlender Angaben speichern" gesetzt ist. Dokumentenliste + Ansicht;
+  **Druckansicht client-seitig** über isolierten A4-Print-Stylesheet
+  (Serifen, `pre-wrap`, nur Dokumentinhalt — kein Server-PDF,
+  Cloudflare-konform).
+- **Konflikt-Auflösung (Lovable-Stopp, Option B):** Der V2-Prompt nahm
+  fälschlich einen bestehenden Admin-Upload-Flow an. Statt Verschieben:
+  (B1) `DOC_TYPES` additiv um `'contract'` erweitert + Guard-Tests in
+  beide Richtungen — schließt den §46-Phantom-Restfehler; (B2) neue
+  Server-Fn `adminUploadStaffDocument` exakt nach dem
+  `uploadMyDocument`-Muster: admin-Gate, MIME/Größen-Checks,
+  `sanitizeDocumentFileName` + `isStaffDocumentPathAllowed` vor jedem
+  Storage-Zugriff, org-geprüfter Ziel-Staff (staffId vom Client, nie
+  org-übergreifend), Waisen-Cleanup (Storage-remove bei Insert-Fehler),
+  `uploaded_by` = Admin, KEIN automatisches `verified_by` (Sichtvermerk
+  bleibt `verifyDocument`), Audit `staff_document.admin_upload` ohne
+  Inhalte. Wiederverwendbare Komponente `AdminDocumentUpload`, in dieser
+  Welle nur im Stammblatt eingebunden (Scan-Button, `doc_type:
+'contract'` vorbelegt); Einbindung in personal-antraege bewusst
+  vertagt.
+- **Akzeptierte Mini-Abweichung:** je 1 Zeile in `personal-antraege.tsx`
+  und `profil.tsx` (`contract: "Vertrag"` in den Label-Maps) — zwingende
+  Folge von B1, keine Funktionsänderung.
+- Offen: manueller E2E durch Frank (inkl. Owner-Read-Beleg: Admin-Upload
+  erscheint im `/profil` des MA).
