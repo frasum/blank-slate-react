@@ -297,7 +297,9 @@ function GenerationAssistent({
           )}
 
           <label className="block space-y-1">
-            <span className="text-xs font-medium text-muted-foreground">Titel (für die Ablage)</span>
+            <span className="text-xs font-medium text-muted-foreground">
+              Titel (für die Ablage)
+            </span>
             <input
               type="text"
               value={title}
@@ -393,9 +395,7 @@ function DocumentViewer({ id, onClose }: { id: string; onClose: () => void }) {
     >
       <div className="my-8 w-full max-w-3xl rounded-lg border border-border bg-card p-6 shadow-lg">
         <div className="flex items-start justify-between gap-4">
-          <h2 className="text-lg font-semibold text-foreground">
-            {q.data?.title ?? "Dokument"}
-          </h2>
+          <h2 className="text-lg font-semibold text-foreground">{q.data?.title ?? "Dokument"}</h2>
           <div className="flex items-center gap-2">
             <button
               type="button"

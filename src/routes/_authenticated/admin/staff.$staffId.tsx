@@ -123,9 +123,7 @@ function StaffDetailPage() {
       {tab === "pin" && <PinTab staffId={s.id} hasPin={s.hasPin} />}
       {tab === "account" && isAdmin && <AccountTab staffId={s.id} staffEmail={s.email} />}
       {tab === "permissions" && isAdmin && <PermissionsTab staffId={s.id} />}
-      {tab === "dokumente" && isAdmin && (
-        <DokumenteTab staffId={s.id} staffName={s.displayName} />
-      )}
+      {tab === "dokumente" && isAdmin && <DokumenteTab staffId={s.id} staffName={s.displayName} />}
       {tab === "lohn" && isAdmin && <PayslipsTab staffId={s.id} />}
     </div>
   );

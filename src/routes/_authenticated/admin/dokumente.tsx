@@ -118,10 +118,7 @@ function DokumenteAdminPage() {
                 ) : (
                   <ul className="divide-y divide-border rounded-md border border-border">
                     {items.map((t) => (
-                      <li
-                        key={t.id}
-                        className="flex items-center justify-between gap-3 px-4 py-3"
-                      >
+                      <li key={t.id} className="flex items-center justify-between gap-3 px-4 py-3">
                         <div className="min-w-0">
                           <p className="truncate text-sm font-medium text-foreground">{t.name}</p>
                           <p className="text-xs text-muted-foreground">
