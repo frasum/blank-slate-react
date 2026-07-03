@@ -34,12 +34,8 @@ export default defineTool({
   name: "get_bilanz_year",
   title: "Bilanzdaten für ein Jahr abrufen",
   description:
-    "Liest den Jahresabschluss (Aktiva, Passiva, GuV mit Positionen und Kontennachweis) für eine Organisation, eine Entity (z. B. 'YUM Gastronomie GmbH') und ein Geschäftsjahr. Beträge werden in Euro zurückgegeben.",
+    "Liest den Jahresabschluss (Aktiva, Passiva, GuV mit Positionen und Kontennachweis) für eine Entity (z. B. 'YUM Gastronomie GmbH') und ein Geschäftsjahr. Scope wird aus der Session des Aufrufers abgeleitet — nur Daten der eigenen Organisation, admin-only. Beträge werden in Euro zurückgegeben.",
   inputSchema: {
-    organizationId: z
-      .string()
-      .uuid()
-      .describe("UUID der Organisation (public.organizations.id)."),
     entity: z
       .string()
       .trim()
@@ -54,27 +50,80 @@ export default defineTool({
       .describe("Geschäftsjahr (vierstellig, z. B. 2024)."),
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async ({ organizationId, entity, fiscalYear }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  handler: async ({ entity, fiscalYear }, ctx) => {
+    // Auth-Gate: nur OAuth-Clients mit Supabase-User-Token.
+    if (!ctx.isAuthenticated()) {
+      return {
+        content: [{ type: "text", text: "Nicht authentifiziert." }],
+        isError: true,
+      };
+    }
+    const userId = ctx.getUserId();
+    const token = ctx.getToken();
+    if (!userId || !token) {
+      return {
+        content: [{ type: "text", text: "Kein gültiges Access-Token." }],
+        isError: true,
+      };
+    }
 
+    // User-scoped Supabase-Client (RLS greift als angemeldeter Nutzer).
+    const { createClient } = await import("@supabase/supabase-js");
+    const { loadAdminCaller } = await import("@/lib/admin/admin-context");
+    const { ForbiddenError } = await import("@/lib/admin/role-guard");
+
+    const SUPABASE_URL = process.env.SUPABASE_URL;
+    const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY;
+    if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+      return {
+        content: [
+          { type: "text", text: "Supabase-Konfiguration fehlt (URL/Key)." },
+        ],
+        isError: true,
+      };
+    }
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+      auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+    });
+
+    // Admin-Gate + Org-Scope aus user_links + role_assignments.
+    let caller;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      caller = await loadAdminCaller(supabase as any, userId, ["admin"]);
+    } catch (err) {
+      if (err instanceof ForbiddenError) {
+        return {
+          content: [{ type: "text", text: "Zugriff verweigert (nur Admin)." }],
+          isError: true,
+        };
+      }
+      throw err;
+    }
+
+    // Bilanz-Tabellen: RLS erlaubt admin-Lesen im eigenen Org-Scope;
+    // .eq("organization_id", caller.organizationId) macht den Scope
+    // zusätzlich explizit (Defense-in-Depth, falls RLS-Policy geweitet wird).
     const [posQ, kontenQ] = await Promise.all([
-      supabaseAdmin
+      supabase
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .from("bilanz_positions" as any)
         .select(
           "statement, code, parent_code, label, level, sort_order, betrag_cents, vorjahr_cents, source",
         )
-        .eq("organization_id", organizationId)
+        .eq("organization_id", caller.organizationId)
         .eq("entity", entity)
         .eq("fiscal_year", fiscalYear)
         .order("sort_order", { ascending: true }),
-      supabaseAdmin
+      supabase
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .from("bilanz_konten" as any)
         .select(
           "statement, position_code, konto_nr, label, betrag_cents, vorjahr_cents, sort_order",
         )
-        .eq("organization_id", organizationId)
+        .eq("organization_id", caller.organizationId)
         .eq("entity", entity)
         .eq("fiscal_year", fiscalYear)
         .order("sort_order", { ascending: true }),
