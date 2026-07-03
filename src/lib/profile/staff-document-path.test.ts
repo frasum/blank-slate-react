@@ -59,6 +59,16 @@ describe("isStaffDocumentPathAllowed", () => {
       isStaffDocumentPathAllowed(`${ORG_A}/${STAFF_1}/passport/sub/abc.pdf`, ORG_A, STAFF_1),
     ).toBe(false);
   });
+  it("erlaubt doc_type 'contract' (V1-Migration)", () => {
+    expect(
+      isStaffDocumentPathAllowed(`${ORG_A}/${STAFF_1}/contract/scan.pdf`, ORG_A, STAFF_1),
+    ).toBe(true);
+  });
+  it("weist weiterhin unbekannte doc_types wie 'xyz' ab", () => {
+    expect(isStaffDocumentPathAllowed(`${ORG_A}/${STAFF_1}/xyz/scan.pdf`, ORG_A, STAFF_1)).toBe(
+      false,
+    );
+  });
 });
 
 describe("sanitizeDocumentFileName", () => {
@@ -73,6 +83,12 @@ describe("sanitizeDocumentFileName", () => {
   it("lehnt Punkt-Start und Leere ab", () => {
     expect(sanitizeDocumentFileName("")).toBeNull();
     expect(sanitizeDocumentFileName(".env")).toBeNull();
+  });
+});
+
+describe("staffDocumentFolder mit 'contract'", () => {
+  it("baut Pfad für Vertragsdokumente korrekt", () => {
+    expect(staffDocumentFolder(ORG_A, STAFF_1, "contract")).toBe(`${ORG_A}/${STAFF_1}/contract`);
   });
 });
 
