@@ -193,10 +193,7 @@ function BwaPage() {
 
   const rows = listQ.data ?? [];
 
-  const entities = useMemo(
-    () => Array.from(new Set(rows.map((r) => r.entity))).sort(),
-    [rows],
-  );
+  const entities = useMemo(() => Array.from(new Set(rows.map((r) => r.entity))).sort(), [rows]);
   const costCenters = useMemo(
     () => Array.from(new Set(rows.map((r) => r.costCenter))).sort(),
     [rows],
@@ -363,8 +360,7 @@ function BwaPage() {
                   : "—";
               const beNeg = r.betriebsergebnisCents < 0;
               const detailOpen = !!expanded[r.id];
-              const hasDetail =
-                r.sachkostenDetail && Object.keys(r.sachkostenDetail).length > 0;
+              const hasDetail = r.sachkostenDetail && Object.keys(r.sachkostenDetail).length > 0;
               return (
                 <>
                   <TableRow key={r.id}>
@@ -402,9 +398,7 @@ function BwaPage() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() =>
-                            setExpanded((e) => ({ ...e, [r.id]: !e[r.id] }))
-                          }
+                          onClick={() => setExpanded((e) => ({ ...e, [r.id]: !e[r.id] }))}
                         >
                           {detailOpen ? "▲" : "▼"}
                         </Button>
@@ -412,11 +406,7 @@ function BwaPage() {
                       <Button size="sm" variant="outline" onClick={() => openEdit(r)}>
                         Bearbeiten
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => setDeleteId(r.id)}
-                      >
+                      <Button size="sm" variant="destructive" onClick={() => setDeleteId(r.id)}>
                         Löschen
                       </Button>
                     </TableCell>
@@ -430,9 +420,7 @@ function BwaPage() {
                             {Object.entries(r.sachkostenDetail!).map(([k, v]) => (
                               <div key={k} className="flex justify-between">
                                 <span className="text-muted-foreground">{k}</span>
-                                <span className="tabular-nums">
-                                  {fmtCents(Number(v))} €
-                                </span>
+                                <span className="tabular-nums">{fmtCents(Number(v))} €</span>
                               </div>
                             ))}
                           </div>
@@ -451,9 +439,7 @@ function BwaPage() {
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              {form.id ? "BWA-Monat bearbeiten" : "BWA-Monat erfassen"}
-            </DialogTitle>
+            <DialogTitle>{form.id ? "BWA-Monat bearbeiten" : "BWA-Monat erfassen"}</DialogTitle>
           </DialogHeader>
 
           <div className="grid grid-cols-2 gap-3">
@@ -476,9 +462,7 @@ function BwaPage() {
               <Input
                 type="month"
                 value={form.monthInput}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, monthInput: e.target.value }))
-                }
+                onChange={(e) => setForm((f) => ({ ...f, monthInput: e.target.value }))}
               />
             </div>
             <div />
@@ -555,10 +539,7 @@ function BwaPage() {
                 <Line label="Rohertrag I" cents={derived.rohertrag1Cents} />
                 <Line label="Rohertrag II" cents={derived.rohertrag2Cents} />
                 <Line label="Ergebnis op. Tätigkeit" cents={derived.ergebnisOpCents} />
-                <Line
-                  label="Betriebsergebnis (Soll)"
-                  cents={derived.betriebsergebnisSollCents}
-                />
+                <Line label="Betriebsergebnis (Soll)" cents={derived.betriebsergebnisSollCents} />
               </div>
             </div>
           )}
@@ -648,11 +629,7 @@ function FieldText({
   return (
     <div>
       <Label className="text-xs">{label}</Label>
-      <Input
-        list={listId}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      />
+      <Input list={listId} value={value} onChange={(e) => onChange(e.target.value)} />
       <datalist id={listId}>
         {suggestions.map((s) => (
           <option key={s} value={s} />
