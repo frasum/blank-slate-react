@@ -13,6 +13,7 @@ export type UebersichtCsvRow = {
   sundayHours: number | null;
   zuschlagCents: number | null;
   bruttoCents: number | null;
+  stBruttoAusweisCent: number | null;
   lstCent: number | null;
   soliCent: number | null;
   kistCent: number | null;
@@ -48,6 +49,7 @@ const HEADERS = [
   "sonntag_std",
   "zuschlag_cent",
   "brutto_cent",
+  "st_brutto_ausweis_cent",
   "lst_cent",
   "soli_cent",
   "kist_cent",
@@ -106,6 +108,7 @@ export function buildUebersichtCsv(
       fmtHoursZero(r.sundayHours),
       fmtIntZero(r.zuschlagCents),
       fmtIntZero(r.bruttoCents),
+      fmtIntZero(r.stBruttoAusweisCent),
       fmtIntZero(r.lstCent),
       fmtIntZero(r.soliCent),
       fmtIntZero(r.kistCent),
