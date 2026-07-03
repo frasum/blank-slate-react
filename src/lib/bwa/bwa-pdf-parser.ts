@@ -362,6 +362,7 @@ export function parseBwaPdfText(pages: string[][]): ParseResult {
         found: new Map(),
         sachkostenDetail: {},
         sawRows: new Set(),
+        assumedZero: new Set(),
       };
       wipMap.set(key, wip);
     }
