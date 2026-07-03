@@ -97,9 +97,7 @@ describe("cardDeductionFromTerminalRows — §33 auf Formularzeilen", () => {
     ).toBe(0);
   });
   it("Unparsebare Eingabe zählt als 0", () => {
-    expect(
-      cardDeductionFromTerminalRows([{ euro: "abc", isGl: false }], parseEuroToCents),
-    ).toBe(0);
+    expect(cardDeductionFromTerminalRows([{ euro: "abc", isGl: false }], parseEuroToCents)).toBe(0);
   });
   it("Leere Liste → 0", () => {
     expect(cardDeductionFromTerminalRows([], parseEuroToCents)).toBe(0);
