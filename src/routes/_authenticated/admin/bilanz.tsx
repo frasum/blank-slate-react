@@ -73,7 +73,6 @@ import {
   deriveBilanzKpis,
   findVjConsistencyMismatches,
   type BilanzPositionRow,
-  type Which,
 } from "@/lib/bwa/bilanz-kpis";
 
 export const Route = createFileRoute("/_authenticated/admin/bilanz")({
