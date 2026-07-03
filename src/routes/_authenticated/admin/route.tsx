@@ -68,11 +68,13 @@ const GROUPS: Group[] = [
       "/admin/lohnrechner",
       "/admin/lohn-verteilung",
       "/admin/urlaub",
+      "/admin/personal-antraege",
     ],
     sub: [
       { to: "/admin/staff", label: "Mitarbeiter" },
       { to: "/admin/dienstplan", label: "Dienstplan" },
       { to: "/admin/urlaub", label: "Urlaubsanträge" },
+      { to: "/admin/personal-antraege", label: "Stammdaten & Dokumente", roles: ["admin"] },
       { to: "/admin/zeit-uebersicht", label: "Arbeitszeiten" },
       { to: "/admin/lohnrechner", label: "Lohnrechner", roles: ["admin"] },
       { to: "/admin/lohn-verteilung", label: "Lohn PDF Import", roles: ["admin"] },
