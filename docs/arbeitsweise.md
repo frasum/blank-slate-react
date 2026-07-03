@@ -1546,3 +1546,37 @@ sofortige Nachzieh-Migration ein stiller Drift — der nächste DB-Neuaufbau
 aus den Migrationen stellt das Sicherheitsloch wieder her. Regel: Direkt-SQL
 an Policies/Schema IMMER noch am selben Tag als idempotente Migration
 committen; die pg_policies-Verify-Query gehört zum Abschluss beider Schritte.
+
+## 43. Welle SP — Self-Service Stammdaten & Dokumente (03.07.2026)
+
+Mitarbeiter pflegen Stammdaten im Portal. Zweistufiges Modell: Kontaktdaten
+(Adresse/Telefon/E-Mail) direkt editierbar mit Audit; alles Lohnrelevante
+(Name, Bank/IBAN, SV-Nr, Steuer-ID, Steuerklasse, Kirche/Konfession, Kinder,
+Krankenkasse, Geburtsdaten, Nationalität, Anrede) nur per Änderungsantrag mit
+Admin-Freigabe (`staff_data_change_requests`, EIN offener Antrag pro
+Mitarbeiter via partiellem Unique-Index). Freigabe re-validiert die Payload
+und schreibt nur `staff_personal_details`-Felder; Namensfelder werden NIE
+automatisch auf `staff` angewendet (display_name-Mappings!) — Anzeige
+„manuell übernehmen" im Admin-Review.
+
+Dokumente (Pass, Visum, Arbeitserlaubnis, Gesundheitszeugnis) nach
+Payslip-Muster: privater Bucket `staff-documents`, DENY-ALL für Clients,
+Pfad-Guard mit Traversal-Tests, base64-Upload über Server-Fn (Mime-Whitelist
+JPG/PNG/PDF, 10 MB, Größe aus dekodierten Bytes), Signed URLs 60 s,
+`valid_until` für die Ablauf-Ampel (SP3), Sichtvermerk `verified_by/at`.
+
+Datenschutz: Konfession als optionales Freitextfeld (Art.-9-Datum, nur
+Mitarbeiter selbst + Admin/Payroll); Audit-Meta bei Anträgen enthält nur
+Feldnamen, nie Werte. Feldkataloge (`SELF_VIEW`/`DIRECT_EDIT`/`REQUEST`)
+sind reine, getestete Module in `src/lib/profile/profile-fields.ts`.
+
+SP1 (Schema + Server-Layer) abgenommen 03.07., Migration `20260703084105` +
+Bucket live (Verifikation 1/2/0/1/1/2). Lektion: Bucket-Insert fehlte in der
+committeten Migration — Storage-Objekte gehören mit in die Vorab-SQL-Prüfung.
+Nachzieh-Versuch als Migration wurde vom Tool-Guard blockiert
+(`bucket_sql_blocked`); der Bucket bleibt via Storage-Tool angelegt, die
+Migrations-Datei entfällt daher bewusst. SP2 = Mitarbeiter-UI `/profil`
+(Kontaktdaten direkt, Änderungsantrag mit Vorvalidierung via
+`profile-fields.ts`, Antragsliste, Dokumenten-Upload/Ansicht). Offen: SP3
+Admin-Review (Anträge freigeben, Dokumenten-Übersicht mit Ablauf-Ampel,
+„manuell übernehmen"-Hinweis für Namensfelder).

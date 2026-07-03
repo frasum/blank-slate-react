@@ -6,6 +6,7 @@ import {
   ShoppingCart,
   LayoutDashboard,
   FileText,
+  UserRound,
   type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -29,6 +30,7 @@ export function usePortalNav(): { items: PortalNavItem[]; isLoading: boolean } {
     items.push({ to: "/zeit", label: "Mein COCO", icon: Clock });
     items.push({ to: "/zeit/abrechnung", label: "Abrechnung", icon: Receipt });
     items.push({ to: "/lohn", label: "Lohn", icon: FileText });
+    items.push({ to: "/profil", label: "Meine Daten", icon: UserRound });
   }
   if (hasEasyOrder) items.push({ to: "/easyorder", label: "Bestellung", icon: ShoppingCart });
   if (role === "admin" || role === "manager")
