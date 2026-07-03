@@ -309,4 +309,3 @@ describe("parseBwaPdfText – Teil 2: leere Monatsspalte + Label-Symmetrie", () 
     expect(res.blocks[0].entity).toBe("YUM Gastronomie GmbH");
   });
 });
-});
