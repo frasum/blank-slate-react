@@ -1584,10 +1584,30 @@ ungefähr gelesen), Zeitreihe mit Benchmark-Bändern (WES 28–32 %, Personal
   symmetrisch. Verifiziert am echten PDF: 12/12 Felder je KSt, Quersumme
   und Sachkosten-Detail innerhalb der 3-€-Toleranz (Rundung ganzer Euro
   je Zeile).
+  F3-E2E bestanden (03.07.): BWAKORE-01290-205-0426.pdf → beide KSt (YUM,
+  Spicery) April 2026 ohne fehlende Felder übernommen; Quersumme grün
+  (1-€-eurodata-Rundung innerhalb 3-€-Toleranz), Sachkosten-Detail
+  mitgespeichert. Hinweis-UX: „Überschreibt vorhandene Werte"-Banner erscheint
+  auch bei identischen Werten (rot, obwohl No-Op) — Kosmetik-Merkposten,
+  ebenso Button-Plural „Block/-öcke".
+
+  Lücken-Import Mai 2025 – März 2026 (03.07.): Der Historie-Import (s. o.)
+  reichte nur bis April 2025; mit dem ersten PDF-Upload (April 2026) zeigte
+  das Dashboard (12-neueste-Monate-Fenster) fast nur Leere — Historie war
+  NICHT gelöscht, nur außerhalb des Fensters. 22 Zeilen (11 Monate × 2 KSt)
+  aus der Entwicklungsübersicht (S. 7 + 13) desselben PDFs importiert:
+  X-Koordinaten-spaltengenau extrahiert (wichtig: „Speisen außer Haus"
+  existiert erst ab Jan 2026 — sparse Spalten!), Goldkontrolle April-Spalte ==
+  gespeicherte PDF-Blöcke exakt, alle Monatsspalten quersummen-konsistent,
+  ON CONFLICT DO NOTHING, source='import', Sachkosten-Detail „Übrige".
+  Verifiziert per CSV: beide KSt 36 Monate lückenlos (2023-05 – 2026-04),
+  35× import + 1× pdf. Zukunfts-Merkposten (optional): Parser könnte
+  Entwicklungsübersicht-Seiten automatisch mitlesen und Lücken selbst heilen.
   **M-BWA damit funktional komplett.** Monatlicher Ablauf: BWA-PDF vom
   Steuerberater in den Import-Tab laden → Review prüfen → übernehmen.
   TSB folgt als zweite entity, sobald die erste TSB-BWA vorliegt (Name +
   Kostenstellen klären — siehe Designentscheidungen oben).
+
 - Später optional: `bwa_plan` (Soll/Ist-Vergleich, Budget-Wasserfall);
   BWA-Umsatz vs. COCO-Kassenumsatz-Abgleich (M-Statistik hat die Zahlen).
 
