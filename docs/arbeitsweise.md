@@ -1297,3 +1297,72 @@ Zeitraum: 16.02.–01.07.2026 (YUM + Spicery).
   erst mit dem COCO-Echtbetrieb. Historie bleibt in tagesabrechnung nachschlagbar.
 - `time_entries` mit source='pool' sind vollständig abgeleitete Daten: bei einem
   Kassen-Reset immer mitlöschen; echte Stempel (clock/manual/import) nie anfassen.
+
+## 38. Kasse: Ein-Session-Garantie + Kellner-Session-Status (02.07.2026, abends)
+
+Direkt-Commits (Frank + Lovable, ohne Claude): Fortsetzung von §30/§31.
+
+- **Partieller Unique-Index `sessions_one_open_per_location`** (Migration
+  `20260702213152`): pro `(organization_id, location_id, business_date)` höchstens
+  EINE Session mit `status='open'`. Geschlossene/gesperrte Alt-Sessions unberührt.
+- **Kellner-Session-Lookup gefixt** (`cash.functions.ts`) und **Kellner-UI zeigt
+  Session-Status** (`zeit/abrechnung.tsx`): Kellner sehen vor der Abgabe, ob für
+  ihren Standort eine offene Session existiert.
+- Abgenommen im E1-Review-Lauf vom 03.07. (tsc/eslint/vitest grün über den
+  Gesamtbereich).
+
+## 39. M5 Welle E1 — Einheitenmodell Bestellung/Inventur (03.07.2026)
+
+Artikel haben jetzt getrennte **Bestelleinheit** (Kiste/Sack/kg …) und
+**Inventureinheit** (Flasche/kg/Liter …) mit Umrechnungsfaktor. Kernfall:
+Coca-Cola 18,90 €/Kiste, 1 Kiste = 24 Flaschen → Inventurwert rechnet mit
+78,75 Cent/Flasche (vorher fälschlich mit dem Kistenpreis).
+
+### Designentscheidungen
+
+- **Kein gespeicherter Normalpreis auf `articles`** — abgeleiteter Wert
+  (`price_cents / order_to_inventory_factor`), berechnet ausschließlich im reinen
+  Modul `src/lib/bestellung/unit-conversion.ts` (getestet, inkl.
+  Coca-Cola-Abnahmefall 93 Fl. → 7324 Cent). Persistiert wird der Normalpreis nur
+  in **Snapshots** (`order_items`, `inventory_items`) als `numeric(14,4)` **Cents**.
+- **Neue `articles`-Felder:** `order_unit`, `inventory_unit`,
+  `order_to_inventory_factor`, `quantity_step`, `allow_decimal_order_quantity`,
+  `min_order_quantity`, `target_stock_total`, `target_stock_bar` (Zielbestände =
+  reine Datenfelder, keine Automatik). `unit`/`packaging_unit` bleiben Legacy.
+- **Snapshots:** `order_items` +3 Felder (Inventureinheit, Faktor, Normalpreis;
+  `unit` trägt jetzt die Bestelleinheit — RPC `create_order_from_cart` befüllt
+  alles, Freitext-Positionen → NULL). `inventory_items` +5 Felder; abgeschlossene
+  Inventuren rendern aus Snapshots, nicht aus aktuellen Artikeldaten.
+- **FK-Härtung:** `inventory_items.article_id` von CASCADE auf **RESTRICT** —
+  Artikel-Löschung kann keine Inventurhistorie mehr wegwischen (Fehlermeldung
+  verweist auf Deaktivieren). Integritätsloch im Review gefunden.
+- **Read-only auf DB-Ebene:** RLS-Policy `inv_items_write_mgr` verlangt
+  `status='in_progress'` + Zeilen-Trigger `tg_inventory_items_assert_open`
+  (bindet auch service_role). Trigger blockt NUR `status='completed'` —
+  `v_status IS NULL` (Session per CASCADE bereits gelöscht) muss durchgehen,
+  sonst bricht `deleteInventorySession` (im ersten Wurf so passiert, korrigiert).
+- **UI:** Lagerbereiche heißen jetzt **Bar** / **Trockenlager** (nur Labels;
+  Spalten `storage_1`/`storage_2` unverändert). Inventurzeile:
+  Artikel | Inventureinheit | Bar | Trockenlager | Gesamt | Gesamtwert.
+  Katalog: „18,90 € / Kiste · 1 Kiste = 24 Flaschen · 0,7875 € / Flasche".
+  EasyOrder: Mengen-Buttons respektieren `min_order_quantity`/`quantity_step`.
+- **Bewusst NICHT gebaut:** Wareneingang, Lagerbewegungen, Bestandswirkung von
+  Bestellungen (Bestellungen bleiben reine Dokumente; Inventur = einzige gezählte
+  Bestandsquelle), Bestellvorschläge, Umlagerungs-Automatik, neue Order-Status.
+- **Vertagt → Welle E2:** echte Dezimal-Bestellmengen (`quantity integer → numeric`
+  in `cart_items`/`cart_draft_items`/`order_items` + RPC + Zod + EasyOrder +
+  E-Mail-Rendering). In E1 validiert `validateOrderQuantity` serverseitig
+  min/Raster, Mengen bleiben ganzzahlig.
+
+### Live-Status
+
+Migration `20260702233456` (+ Trigger-Korrektur) am 03.07. auf der COCO-DB
+ausgeführt; Verifikations-CSV: 8 articles-Spalten / 3 + 5 Snapshots / FK=RESTRICT /
+Trigger 1 / RPC-4arg 1 / 0 Altzeilen ohne Snapshot-Backfill.
+
+### Lektion
+
+Vorab-SQL-Skizzen aus Prompts sind NICHT die ausführbare Migration (Skizzen-§6 war
+Kommentar → RPC fehlte nach dem Skizzen-Lauf in der DB; Trigger-CREATE ohne
+DROP IF EXISTS brach den zweiten Lauf ab). Für die Live-DB immer die committete
+Migrationsdatei bzw. das von Claude gelieferte idempotente Ausführungs-SQL nehmen.
