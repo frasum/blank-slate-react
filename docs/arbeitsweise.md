@@ -212,11 +212,11 @@ Rekonstruiert per Kalibrierung gegen bereits validierte Bestands-Sessions (Refer
 | Aufräumen: Dead-Code, `makeAuditWriter` zentral, Typ-Single-Source `staff-domain.ts`                                                   | ✅                                                      |
 | Rolle „Planer" (P-1..P-3b: scoped Dienstplan-Zugang, Verwaltung, Login-Redirect; Multiblock verworfen)                                 | ✅                                                      |
 | M4 Stufe 3a — edlohn-Abgleich Härtung (5 Fixes, GM-Fälle 4–8)                                                                          | ✅ ABGENOMMEN 03.07.2026, HEAD 1a9f0f4, 1008 Tests grün |
-| M-BWA Welle F1 — Schema `bwa_monthly`, Quersummen-Kern, Server-Fns, Erfassung (§41)                                                    | ✅ (E2E durch Frank offen)                              |
+| M-BWA Welle F1 — Schema `bwa_monthly`, Quersummen-Kern, Server-Fns, Erfassung (§41)                                                    | ✅                                                      |
 | M-BWA Historie-Import Mai 23–Apr 25 (48 Zeilen, Ist=Soll verifiziert)                                                                  | ✅                                                      |
-| M-BWA Welle F2a — Dashboard: KPIs+YoY, Prime Cost, Wasserfall, Break-even (§41)                                                        | ✅ (E2E durch Frank offen)                              |
-| M-BWA Welle F2b — Vergleich-Tab, Sachkosten-Drilldown, Break-even-Sortier-Fix (§41)                                                    | ✅ (E2E durch Frank offen)                              |
-| M-BWA Welle F3 — PDF-Upload + eurodata-Parser mit Review-Screen                                                                        | ⏳ offen                                                |
+| M-BWA Welle F2a — Dashboard: KPIs+YoY, Prime Cost, Wasserfall, Break-even (§41)                                                        | ✅                                                      |
+| M-BWA Welle F2b — Vergleich-Tab, Sachkosten-Drilldown, Break-even-Sortier-Fix (§41)                                                    | ✅                                                      |
+| M-BWA Welle F3 — PDF-Upload + eurodata-Parser mit Review-Screen (§41)                                                                  | ✅                                                      |
 | Lohn-RLS-Härtung — SELECT manager+ auf lohn_absence_days/lohn_recurring_zeilen (§42)                                                   | ✅                                                      |
 | Welle SP1 — Self-Service Stammdaten & Dokumente: Schema + Server-Layer (§43)                                                           | ✅                                                      |
 | Welle SP2 — Mitarbeiter-UI `/profil` (Kontakt direkt, Anträge, Dokumente) (§43)                                                        | ✅ (SP3 Admin-Review offen)                             |
@@ -1521,8 +1521,11 @@ ungefähr gelesen), Zeitreihe mit Benchmark-Bändern (WES 28–32 %, Personal
 
 ### Offen / Auflagen
 
-- **E2E durch Frank** (F1: Quersummen-Ablehnung + Audit; F2a: Plausibilität
-  Gruppe/YUM, Prime-Cost-Schwelle).
+- ~~E2E durch Frank~~ **bestanden (03.07.2026):** Kern-Beweis über den
+  PDF-Import — echte BWA 04/2025 hochgeladen, der Duplikat-Vergleich im
+  Review zeigte für YUM + Spicery IDENTISCHE Werte zu den per SQL
+  importierten Monaten (Parser gegen den verifizierten Import bewiesen);
+  Übernahme durchgeführt, Quelle der Zeilen wechselte auf `pdf`.
 - ~~Auflage für F2b~~ **erledigt (F2b):** `computeBreakEven` sortiert intern
   defensiv absteigend (Kopie + `localeCompare` desc); Test verankert, dass
   asc/gemischt dasselbe Ergebnis liefern wie desc.
@@ -1541,9 +1544,26 @@ ungefähr gelesen), Zeitreihe mit Benchmark-Bändern (WES 28–32 %, Personal
   `sachkostenDetail` war im `BwaRow`-Typ bereits gemappt. Der Gruppe-
   Drilldown läuft bewusst über die Roh-Zeilen (`aggregateGroup` ignoriert
   das jsonb weiterhin).
-- Welle F3: PDF-Upload + eurodata-Parser mit Review-Screen; Upsert erst
-  nach Franks Bestätigung, nie blind. Bis dahin: monatliche BWA manuell
-  erfassen (~15 Felder × Kostenstelle, Quersummen-Gate fängt Tippfehler).
+- ~~Welle F3~~ **umgesetzt (03.07.2026, abgenommen bei HEAD `cc50cb3`,
+  vitest 1079 grün):** PDF wird NUR client-seitig geparst (pdfjs-dist nach
+  dem split-combined-Muster; kein Storage, keine Migration). Reines Modul
+  `bwa-pdf-parser.ts`: Mapping strikt über Zeilennummer PLUS
+  Label-Substring — passt das Label nicht, wird das Feld als
+  `missingFields` markiert statt still die nächstbeste Zahl zu nehmen
+  (Negativ-Fixture getestet); kanonischer Testfall = echter YUM April 2025,
+  besteht `validateBwaMonth`. Sachkosten-Detail (Hauptzeilen 30–46, ohne
+  „davon") wird mitgeparst und speist den F2b-Drilldown. Review-Screen mit
+  editierbaren Werten, Live-Quersummen (bwa-core), Duplikat-Vergleich
+  alt/neu; Übernahme NUR per Klick, `source: "pdf"`.
+  Verhaltens-Delta `upsertBwaMonth` (ehrlich benannt): `source` wird beim
+  Speichern gesetzt statt erhalten (`import` bleibt SQL-exklusiv, vom
+  Client nicht wählbar); `sachkostenDetail` wird nur geschrieben, wenn
+  explizit übergeben — der Erfassungs-Dialog plättet vorhandenes
+  PDF-Detail NICHT.
+  **M-BWA damit funktional komplett.** Monatlicher Ablauf: BWA-PDF vom
+  Steuerberater in den Import-Tab laden → Review prüfen → übernehmen.
+  TSB folgt als zweite entity, sobald die erste TSB-BWA vorliegt (Name +
+  Kostenstellen klären — siehe Designentscheidungen oben).
 - Später optional: `bwa_plan` (Soll/Ist-Vergleich, Budget-Wasserfall);
   BWA-Umsatz vs. COCO-Kassenumsatz-Abgleich (M-Statistik hat die Zahlen).
 
