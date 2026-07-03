@@ -325,6 +325,12 @@ function StaffListPage() {
         {staffQ.isLoading && <p className="text-sm text-muted-foreground">Lade…</p>}
         {staffQ.error && <p className="text-sm text-destructive">Fehler beim Laden.</p>}
 
+        {isAdmin && sofortAlert > 0 && (
+          <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
+            {sofortAlert} aktive/r Mitarbeiter mit offener Sofortmeldung (unvollständig oder noch nicht in sv.net gemeldet).
+          </div>
+        )}
+
         {/* Matrix */}
         {!staffQ.isLoading && !staffQ.error && (
           <Card className="overflow-hidden">
@@ -346,6 +352,9 @@ function StaffListPage() {
                     ))}
                     <TableHead className="min-w-[260px]">Skills</TableHead>
                     <TableHead className="min-w-[70px] text-center">PIN</TableHead>
+                    {isAdmin && (
+                      <TableHead className="min-w-[130px] text-center">Sofortmeldung</TableHead>
+                    )}
                     <TableHead className="min-w-[80px] text-right">Aktionen</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -357,6 +366,7 @@ function StaffListPage() {
                       locations={locations}
                       skills={skills}
                       isAdmin={isAdmin}
+                      sofortStatus={sofortBy.get(s.id) ?? null}
                       deptPending={deptMutation.isPending}
                       skillPending={skillMutation.isPending}
                       activePending={activeMutation.isPending}
@@ -370,7 +380,7 @@ function StaffListPage() {
                   {filtered.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={4 + locations.length}
+                        colSpan={(isAdmin ? 5 : 4) + locations.length}
                         className="py-8 text-center text-muted-foreground"
                       >
                         {data.length > 0 ? "Keine Treffer." : "Noch keine Mitarbeiter."}
