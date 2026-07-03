@@ -210,6 +210,7 @@ Rekonstruiert per Kalibrierung gegen bereits validierte Bestands-Sessions (Refer
 | M-BWA Historie-Import Mai 23–Apr 25 (48 Zeilen, Ist=Soll verifiziert)                                                                  | ✅                                                      |
 | M-BWA Welle F2a — Dashboard: KPIs+YoY, Prime Cost, Wasserfall, Break-even (§41)                                                        | ✅ (E2E durch Frank offen)                              |
 | M-BWA Welle F2b (Standortvergleich, Sachkosten-Drilldown) + F3 (PDF-Import)                                                            | ⏳ offen                                                |
+| Lohn-RLS-Härtung — SELECT manager+ auf lohn_absence_days/lohn_recurring_zeilen (§42)                                                   | ✅                                                      |
 
 **Juni-Kassenlücke geschlossen (29.06.2026):** YUM (16., 18.–25.) und Spicery (16., 18.–25., 28.) aus `tagesabrechnung` nachimportiert — 19 Sessions; das leere native YUM-28 durch Legacy-Daten ersetzt. `vectron_daily_total_cents` 19/19 gegen die Quelle verifiziert. Mapping siehe Abschnitt 5.
 
@@ -1525,3 +1526,23 @@ ungefähr gelesen), Zeitreihe mit Benchmark-Bändern (WES 28–32 %, Personal
   erfassen (~15 Felder × Kostenstelle, Quersummen-Gate fängt Tippfehler).
 - Später optional: `bwa_plan` (Soll/Ist-Vergleich, Budget-Wasserfall);
   BWA-Umsatz vs. COCO-Kassenumsatz-Abgleich (M-Statistik hat die Zahlen).
+
+## 42. Lohn-RLS-Härtung: SELECT manager+ auf lohn_absence_days / lohn_recurring_zeilen (03.07.2026)
+
+Finding: Beide Tabellen hatten SELECT „own-org für alle authenticated" —
+jeder MA mit Login konnte per PostgREST die wiederkehrenden Lohnarten
+(`betrag_cent`, Bezeichnung: Direktversicherung, Dienstrad …) und
+Urlaub/Krank-Tage ALLER Kollegen lesen. Fix: SELECT auf
+`has_min_permission('manager')` gehärtet — zuerst als Direkt-SQL auf der
+Live-DB (Emergency-Pfad), per pg_policies-CSV verifiziert, anschließend mit
+Migration `20260703083757_3f3abd12-6bd9-49b0-a15c-493d5e2bdc34.sql`
+idempotent im Repo nachgezogen (Repo = DB wieder synchron). Write-Policies
+waren bereits manager+. `staff_personal_details`/`staff_compensation` waren
+nicht betroffen (Permission-Muster `payroll.*.view` aus committeten
+Migrationen).
+
+**Lektion:** Ein Emergency-Fix per Direkt-SQL auf der Live-DB ist ohne
+sofortige Nachzieh-Migration ein stiller Drift — der nächste DB-Neuaufbau
+aus den Migrationen stellt das Sicherheitsloch wieder her. Regel: Direkt-SQL
+an Policies/Schema IMMER noch am selben Tag als idempotente Migration
+committen; die pg_policies-Verify-Query gehört zum Abschluss beider Schritte.
