@@ -18,7 +18,16 @@ import {
   validateChangeRequestPayload,
   type RequestField,
 } from "./profile-fields";
-import { isStaffDocumentPathAllowed, type StaffDocumentType } from "./staff-document-path";
+import {
+  ALLOWED_DOC_MIME,
+  DOC_TYPES,
+  MAX_DOC_SIZE_BYTES,
+  extensionForMime,
+  isStaffDocumentPathAllowed,
+  sanitizeDocumentFileName,
+  staffDocumentFolder,
+  type StaffDocumentType,
+} from "./staff-document-path";
 
 const BUCKET = "staff-documents";
 
@@ -421,6 +430,114 @@ export const deleteDocument = createServerFn({ method: "POST" })
               validUntil: doc.valid_until,
             },
           },
+        },
+      };
+    });
+  });
+
+// ── V2 Dokumentengenerierung — Admin-Upload eines Mitarbeiter-Dokuments ──
+// Muster wie uploadMyDocument (profile.functions.ts). Unterschiede:
+//   * Rolle admin statt staff; staffId kommt vom Client (Admin wählt MA)
+//     und wird org-geprüft, bevor irgendetwas Storage-seitiges passiert.
+//   * uploaded_by = caller.staffId (Admin), verified_by bleibt unberührt —
+//     der Sichtvermerk läuft weiter über verifyDocument (separater Schritt).
+//   * Bei DB-Insert-Fehler nach erfolgreichem Upload wird die Datei wieder
+//     entfernt, damit kein Waisen-Objekt im Bucket bleibt.
+
+function decodeBase64Length(b64: string): number {
+  const clean = b64.replace(/\s+/g, "");
+  if (!/^[A-Za-z0-9+/]*={0,2}$/.test(clean)) return -1;
+  const pad = clean.endsWith("==") ? 2 : clean.endsWith("=") ? 1 : 0;
+  return Math.floor((clean.length * 3) / 4) - pad;
+}
+
+const adminUploadSchema = z.object({
+  staffId: z.string().uuid(),
+  docType: z.enum(DOC_TYPES),
+  fileName: z.string().min(1),
+  contentBase64: z.string().min(1),
+  mimeType: z.string().min(1),
+  validUntil: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  note: z.string().max(1000).optional(),
+});
+
+export const adminUploadStaffDocument = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => adminUploadSchema.parse(input))
+  .handler(async ({ data, context }): Promise<{ id: string; path: string }> => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    const ext = extensionForMime(data.mimeType);
+    if (!ext) throw new Error("Dateityp nicht erlaubt (nur JPG/PNG/PDF).");
+    if (!ALLOWED_DOC_MIME[data.mimeType]) throw new Error("Dateityp nicht erlaubt.");
+    const size = decodeBase64Length(data.contentBase64);
+    if (size <= 0) throw new Error("Datei ist ungültig.");
+    if (size > MAX_DOC_SIZE_BYTES) throw new Error("Datei ist zu groß (max. 10 MB).");
+    const originalName = sanitizeDocumentFileName(data.fileName);
+    if (!originalName) throw new Error("Ungültiger Dateiname.");
+
+    return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+      // Ziel-Staff org-geprüft laden — staffId darf die Org nicht verlassen.
+      const { data: staff, error: sErr } = await supabaseAdmin
+        .from("staff")
+        .select("id")
+        .eq("id", data.staffId)
+        .eq("organization_id", caller.organizationId)
+        .maybeSingle();
+      if (sErr) throw new Error(sErr.message);
+      if (!staff) throw new ForbiddenError();
+
+      const folder = staffDocumentFolder(
+        caller.organizationId,
+        data.staffId,
+        data.docType as StaffDocumentType,
+      );
+      const uuid = crypto.randomUUID();
+      const path = `${folder}/${uuid}.${ext}`;
+      // Pfadgüte VOR jedem Storage-Zugriff prüfen (SP1-Muster, §36).
+      if (!isStaffDocumentPathAllowed(path, caller.organizationId, data.staffId)) {
+        throw new ForbiddenError();
+      }
+
+      const bytes = Uint8Array.from(atob(data.contentBase64.replace(/\s+/g, "")), (c) =>
+        c.charCodeAt(0),
+      );
+      const { error: upErr } = await supabaseAdmin.storage
+        .from(BUCKET)
+        .upload(path, bytes, { contentType: data.mimeType, upsert: false });
+      if (upErr) throw new Error(upErr.message);
+
+      const { data: inserted, error: insErr } = await supabaseAdmin
+        .from("staff_documents")
+        .insert({
+          organization_id: caller.organizationId,
+          staff_id: data.staffId,
+          doc_type: data.docType,
+          file_path: path,
+          original_filename: originalName,
+          mime_type: data.mimeType,
+          size_bytes: size,
+          valid_until: data.validUntil ?? null,
+          note: data.note ?? null,
+          uploaded_by: caller.staffId,
+        })
+        .select("id")
+        .single();
+      if (insErr) {
+        await supabaseAdmin.storage.from(BUCKET).remove([path]);
+        throw new Error(insErr.message);
+      }
+      return {
+        result: { id: inserted.id, path },
+        audit: {
+          action: "staff_document.admin_upload",
+          entity: "staff_documents",
+          entityId: inserted.id,
+          meta: { staffId: data.staffId, docType: data.docType, filename: originalName },
         },
       };
     });

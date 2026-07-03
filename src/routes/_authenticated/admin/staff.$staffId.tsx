@@ -28,6 +28,7 @@ import { TabButton } from "@/components/ui/nav-tab";
 import { PersonalDetailsTab } from "@/components/admin/PersonalDetailsTab";
 import { PermissionsTab } from "@/components/admin/PermissionsTab";
 import { SofortmeldungBanner } from "@/components/admin/SofortmeldungBanner";
+import { DokumenteTab } from "@/components/admin/DokumenteTab";
 import type { AppRole } from "@/lib/admin/role-guard";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -52,6 +53,7 @@ type Tab =
   | "pin"
   | "account"
   | "permissions"
+  | "dokumente"
   | "lohn";
 
 function StaffDetailPage() {
@@ -96,6 +98,7 @@ function StaffDetailPage() {
             ["pin", "PIN"],
             ...(isAdmin ? ([["account", "Login"]] as [Tab, string][]) : []),
             ...(isAdmin ? ([["permissions", "Rechte"]] as [Tab, string][]) : []),
+            ...(isAdmin ? ([["dokumente", "Dokumente"]] as [Tab, string][]) : []),
             ...(isAdmin ? ([["lohn", "Lohn"]] as [Tab, string][]) : []),
           ] as [Tab, string][]
         ).map(([k, label]) => (
@@ -120,6 +123,7 @@ function StaffDetailPage() {
       {tab === "pin" && <PinTab staffId={s.id} hasPin={s.hasPin} />}
       {tab === "account" && isAdmin && <AccountTab staffId={s.id} staffEmail={s.email} />}
       {tab === "permissions" && isAdmin && <PermissionsTab staffId={s.id} />}
+      {tab === "dokumente" && isAdmin && <DokumenteTab staffId={s.id} staffName={s.displayName} />}
       {tab === "lohn" && isAdmin && <PayslipsTab staffId={s.id} />}
     </div>
   );

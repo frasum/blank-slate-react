@@ -46,6 +46,7 @@ import { Route as AuthenticatedAdminKasseRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAdminImportZuordnungenRouteImport } from './routes/_authenticated/admin/import-zuordnungen'
 import { Route as AuthenticatedAdminImpersonateRouteImport } from './routes/_authenticated/admin/impersonate'
 import { Route as AuthenticatedAdminEinstellungenRouteImport } from './routes/_authenticated/admin/einstellungen'
+import { Route as AuthenticatedAdminDokumenteRouteImport } from './routes/_authenticated/admin/dokumente'
 import { Route as AuthenticatedAdminDienstplanRouteImport } from './routes/_authenticated/admin/dienstplan'
 import { Route as AuthenticatedAdminBwaRouteImport } from './routes/_authenticated/admin/bwa'
 import { Route as AuthenticatedAdminBestellungRouteImport } from './routes/_authenticated/admin/bestellung'
@@ -269,6 +270,12 @@ const AuthenticatedAdminEinstellungenRoute =
     path: '/einstellungen',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminDokumenteRoute =
+  AuthenticatedAdminDokumenteRouteImport.update({
+    id: '/dokumente',
+    path: '/dokumente',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminDienstplanRoute =
   AuthenticatedAdminDienstplanRouteImport.update({
     id: '/dienstplan',
@@ -379,6 +386,7 @@ export interface FileRoutesByFullPath {
   '/admin/bestellung': typeof AuthenticatedAdminBestellungRouteWithChildren
   '/admin/bwa': typeof AuthenticatedAdminBwaRoute
   '/admin/dienstplan': typeof AuthenticatedAdminDienstplanRoute
+  '/admin/dokumente': typeof AuthenticatedAdminDokumenteRoute
   '/admin/einstellungen': typeof AuthenticatedAdminEinstellungenRoute
   '/admin/impersonate': typeof AuthenticatedAdminImpersonateRoute
   '/admin/import-zuordnungen': typeof AuthenticatedAdminImportZuordnungenRoute
@@ -431,6 +439,7 @@ export interface FileRoutesByTo {
   '/admin/aufgaben': typeof AuthenticatedAdminAufgabenRoute
   '/admin/bwa': typeof AuthenticatedAdminBwaRoute
   '/admin/dienstplan': typeof AuthenticatedAdminDienstplanRoute
+  '/admin/dokumente': typeof AuthenticatedAdminDokumenteRoute
   '/admin/einstellungen': typeof AuthenticatedAdminEinstellungenRoute
   '/admin/impersonate': typeof AuthenticatedAdminImpersonateRoute
   '/admin/import-zuordnungen': typeof AuthenticatedAdminImportZuordnungenRoute
@@ -486,6 +495,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/bestellung': typeof AuthenticatedAdminBestellungRouteWithChildren
   '/_authenticated/admin/bwa': typeof AuthenticatedAdminBwaRoute
   '/_authenticated/admin/dienstplan': typeof AuthenticatedAdminDienstplanRoute
+  '/_authenticated/admin/dokumente': typeof AuthenticatedAdminDokumenteRoute
   '/_authenticated/admin/einstellungen': typeof AuthenticatedAdminEinstellungenRoute
   '/_authenticated/admin/impersonate': typeof AuthenticatedAdminImpersonateRoute
   '/_authenticated/admin/import-zuordnungen': typeof AuthenticatedAdminImportZuordnungenRoute
@@ -542,6 +552,7 @@ export interface FileRouteTypes {
     | '/admin/bestellung'
     | '/admin/bwa'
     | '/admin/dienstplan'
+    | '/admin/dokumente'
     | '/admin/einstellungen'
     | '/admin/impersonate'
     | '/admin/import-zuordnungen'
@@ -594,6 +605,7 @@ export interface FileRouteTypes {
     | '/admin/aufgaben'
     | '/admin/bwa'
     | '/admin/dienstplan'
+    | '/admin/dokumente'
     | '/admin/einstellungen'
     | '/admin/impersonate'
     | '/admin/import-zuordnungen'
@@ -648,6 +660,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/bestellung'
     | '/_authenticated/admin/bwa'
     | '/_authenticated/admin/dienstplan'
+    | '/_authenticated/admin/dokumente'
     | '/_authenticated/admin/einstellungen'
     | '/_authenticated/admin/impersonate'
     | '/_authenticated/admin/import-zuordnungen'
@@ -959,6 +972,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminEinstellungenRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/dokumente': {
+      id: '/_authenticated/admin/dokumente'
+      path: '/dokumente'
+      fullPath: '/admin/dokumente'
+      preLoaderRoute: typeof AuthenticatedAdminDokumenteRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/dienstplan': {
       id: '/_authenticated/admin/dienstplan'
       path: '/dienstplan'
@@ -1130,6 +1150,7 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminBestellungRoute: typeof AuthenticatedAdminBestellungRouteWithChildren
   AuthenticatedAdminBwaRoute: typeof AuthenticatedAdminBwaRoute
   AuthenticatedAdminDienstplanRoute: typeof AuthenticatedAdminDienstplanRoute
+  AuthenticatedAdminDokumenteRoute: typeof AuthenticatedAdminDokumenteRoute
   AuthenticatedAdminEinstellungenRoute: typeof AuthenticatedAdminEinstellungenRoute
   AuthenticatedAdminImpersonateRoute: typeof AuthenticatedAdminImpersonateRoute
   AuthenticatedAdminImportZuordnungenRoute: typeof AuthenticatedAdminImportZuordnungenRoute
@@ -1156,6 +1177,7 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
       AuthenticatedAdminBestellungRouteWithChildren,
     AuthenticatedAdminBwaRoute: AuthenticatedAdminBwaRoute,
     AuthenticatedAdminDienstplanRoute: AuthenticatedAdminDienstplanRoute,
+    AuthenticatedAdminDokumenteRoute: AuthenticatedAdminDokumenteRoute,
     AuthenticatedAdminEinstellungenRoute: AuthenticatedAdminEinstellungenRoute,
     AuthenticatedAdminImpersonateRoute: AuthenticatedAdminImpersonateRoute,
     AuthenticatedAdminImportZuordnungenRoute:

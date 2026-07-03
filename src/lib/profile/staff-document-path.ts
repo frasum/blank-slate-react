@@ -15,6 +15,7 @@ export const DOC_TYPES = [
   "visa",
   "work_permit",
   "health_certificate",
+  "contract",
   "other",
 ] as const;
 export type StaffDocumentType = (typeof DOC_TYPES)[number];
