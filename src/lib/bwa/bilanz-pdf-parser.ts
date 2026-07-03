@@ -479,8 +479,20 @@ export function parseBilanzPdf(pages: Token[][][]): ParsedBilanzYear {
       }
 
       if (kind === "other") {
-        if (s.openKonto && amounts.length === 0) {
+        if (s.openKonto) {
+          // F4b-Fix-4: gemischte Label-/Betragszeile (2281-Muster:
+          // "5b EStG -0,20 0,00"). Label-Rest immer anhaengen; wenn im
+          // inneren Band ein GJ-Wert liegt, Konto schliessen (VJ optional
+          // aus dem aeusseren VJ-Band). Ohne inneren GJ bleibt das Konto
+          // offen — schuetzt gegen Fehlgriff auf Positions-Summen.
           s.openKonto.labelParts.push(...nonAmount.map((t) => t.text));
+          if (amounts.length > 0) {
+            const kgj = innerRightmostGj(amounts, cols);
+            if (kgj !== null) {
+              const { vj: kvj } = outerAmounts(amounts, cols);
+              finalizeKonto(s, kgj, kvj);
+            }
+          }
         }
         continue;
       }
