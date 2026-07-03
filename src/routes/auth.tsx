@@ -26,13 +26,10 @@ function safeNext(raw: string | null | undefined): string {
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
-  validateSearch: (s: Record<string, unknown>) => ({
-    next: typeof s.next === "string" ? s.next : undefined,
-  }),
-  beforeLoad: async ({ search }) => {
+  beforeLoad: async ({ location }) => {
     const { data } = await supabase.auth.getSession();
     if (data.session?.user) {
-      const next = safeNext(search.next);
+      const next = safeNext(new URLSearchParams(location.search).get("next"));
       // href-Redirect erlaubt beliebige same-origin-Pfade (inkl. `/.lovable/...`).
       throw redirect({ href: next });
     }
@@ -50,12 +47,11 @@ function AuthPage() {
   const [tab, setTab] = useState<Tab>("password");
   const router = useRouter();
   const navigate = useNavigate();
-  const search = Route.useSearch();
 
   // Nach erfolgreichem Login redirect auf `next` (falls same-origin) oder "/".
   const onLoggedIn = async () => {
     await router.invalidate();
-    const next = safeNext(search.next);
+    const next = safeNext(new URLSearchParams(window.location.search).get("next"));
     if (next === "/") {
       await navigate({ to: "/" });
     } else {
