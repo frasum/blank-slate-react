@@ -118,6 +118,26 @@ function OrgSettingsPage() {
     },
   });
 
+  const agMutation = useMutation({
+    mutationFn: () =>
+      callSetArbeitgeber({
+        data: {
+          arbeitgeberName: agName.trim() || null,
+          arbeitgeberAdresse: agAdresse.trim() || null,
+          arbeitgeberVertreter: agVertreter.trim() || null,
+        },
+      }),
+    onSuccess: async () => {
+      setAgMsg("Gespeichert.");
+      setAgErr(null);
+      await queryClient.invalidateQueries({ queryKey: ["admin", "org-settings"] });
+    },
+    onError: (e: unknown) => {
+      setAgErr(e instanceof Error ? e.message : "Fehler.");
+      setAgMsg(null);
+    },
+  });
+
   if (settingsQ.isLoading) return <p className="text-sm text-muted-foreground">Lade…</p>;
   if (settingsQ.error)
     return <p className="text-sm text-destructive">Einstellungen konnten nicht geladen werden.</p>;
