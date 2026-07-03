@@ -1794,6 +1794,19 @@ glatt. Diagnose-Verlauf und Ergebnis:
    Ein `42P01 relation does not exist` ist das typische Symptom der
    falschen DB.
 
+**E2E-Bestätigungen (03./04.07.):** Der GL-Terminal-Filter im
+KONTROLLE-Block ist live verifiziert — Kasse Spicery zeigt −210,34 € /
+490,02 €, cent-identisch zur Legacy-Tagesabrechnung; die §33-Regel gilt
+damit nachweislich auf allen drei Rechenpfaden (Server-Aggregation, PDF,
+Live-KONTROLLE). Anschließend wurde der KONTROLLE-Block optisch an das
+Legacy-Summary-Layout angeglichen (Reihenfolge Fehlbetrag Vortag →
+Ausgaben → Tages-Bargeld → NEU „Differenz zum Wechselgeldbestand"
+[= Wechselgeld-Ist − Soll, reine Anzeige-Subtraktion] →
+Wechselgeldbestand; Golden-Master-Formeln unangetastet). Nebenbefund
+GIG: „fehlt in Kellnerabrechnung/Zeiterfassung" war kein Bug — die
+Mitarbeiterin hatte sich schlicht noch nie angemeldet (kein
+Shadow-User, keine Einträge).
+
 ## 48. V2 Dokumentengenerierung — UI + Konflikt-Auflösung (03.07.2026)
 
 Abgenommen bei HEAD `d29dab0` (tsc/eslint/prettier/vitest 1131 grün, keine
