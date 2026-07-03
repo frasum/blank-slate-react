@@ -455,7 +455,7 @@ function Header({ showKasseLink = false }: { showKasseLink?: boolean }) {
             search={{ locationId: undefined, businessDate: undefined }}
             className="text-muted-foreground hover:text-foreground"
           >
-            Zur Kassenübersicht
+            Tagesabrechnung
           </Link>
         )}
         <Link to="/zeit" className="text-muted-foreground hover:text-foreground">
