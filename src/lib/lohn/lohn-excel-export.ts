@@ -102,6 +102,7 @@ export async function buildLohnXlsx(d: LohnExportInput): Promise<Blob> {
   sectionHeader(s, r++, "Ergebnis");
   setKv(s, r++, "Gesamtbrutto", d.ergebnis.gesamtbruttoCent / 100, EUR);
   setKv(s, r++, "St-/SV-Brutto", d.ergebnis.stSvBruttoCent / 100, EUR);
+  setKv(s, r++, "St-Brutto (Ausweis)", d.ergebnis.stBruttoAusweisCent / 100, EUR);
   setKv(s, r++, "Lohnsteuer", d.ergebnis.lstCent / 100, EUR);
   setKv(s, r++, "Soli", d.ergebnis.soliCent / 100, EUR);
   setKv(s, r++, "Kirchensteuer", d.ergebnis.kistCent / 100, EUR);
