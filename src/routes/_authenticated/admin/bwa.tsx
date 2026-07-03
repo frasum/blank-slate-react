@@ -237,6 +237,26 @@ function BwaDashboardTab({ rows, loading }: { rows: BwaRow[]; loading: boolean }
 
   const be = useMemo(() => computeBreakEven(scopedByMonthDesc), [scopedByMonthDesc]);
 
+  // F2b: Roh-Zeilen der aktuellen Auswahl (für Sachkosten-Drilldown).
+  // Bei "Gruppe" alle Kostenstellen mitreichen — aggregateGroup verwirft
+  // sachkostenDetail bewusst, der Drilldown läuft auf den Roh-Zeilen.
+  const rawSelectionRows = useMemo(() => {
+    const base =
+      ccSel === GROUP_KEY ? entityRows : entityRows.filter((r) => r.costCenter === ccSel);
+    if (sigmaLast12) {
+      const last12Months = new Set(scopedByMonthDesc.slice(0, 12).map((r) => r.month));
+      return base.filter((r) => last12Months.has(r.month));
+    }
+    return base.filter((r) => r.month === effMonth);
+  }, [ccSel, entityRows, sigmaLast12, scopedByMonthDesc, effMonth]);
+
+  const sachSummary = useMemo(() => sumSachkostenDetail(rawSelectionRows), [rawSelectionRows]);
+  const totalSachkostenCents = useMemo(
+    () => rawSelectionRows.reduce((acc, r) => acc + r.sachkostenCents, 0),
+    [rawSelectionRows],
+  );
+  const periodLabel = sigmaLast12 ? "Σ letzte 12 Monate" : effMonth ? fmtMonth(effMonth) : "";
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -336,6 +356,11 @@ function BwaDashboardTab({ rows, loading }: { rows: BwaRow[]; loading: boolean }
             </div>
             <WaterfallTableCard row={currentRow} />
           </div>
+          <SachkostenDrilldownCard
+            summary={sachSummary}
+            totalSachkostenCents={totalSachkostenCents}
+            periodLabel={periodLabel}
+          />
           <TimeSeriesCard
             rows={scopedByMonthDesc}
             highlightedMonth={sigmaLast12 ? undefined : effMonth}
