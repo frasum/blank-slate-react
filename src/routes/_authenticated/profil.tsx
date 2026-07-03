@@ -63,6 +63,7 @@ const DOC_TYPE_LABEL: Record<StaffDocumentType, string> = {
   visa: "Visum",
   work_permit: "Arbeitserlaubnis",
   health_certificate: "Gesundheitszeugnis",
+  contract: "Vertrag",
   other: "Sonstiges",
 };
 
