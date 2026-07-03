@@ -305,6 +305,86 @@ export type Database = {
           },
         ]
       }
+      bwa_monthly: {
+        Row: {
+          abschreibung_cents: number
+          anlage_cents: number
+          betriebsergebnis_cents: number
+          cost_center: string
+          created_at: string
+          entity: string
+          getraenke_cents: number
+          id: string
+          month: string
+          organization_id: string
+          personal_cents: number
+          sachkosten_cents: number
+          sachkosten_detail: Json | null
+          sonst_ertraege_cents: number
+          sonstige_erloese_cents: number
+          source: string
+          speisen_ausser_haus_cents: number
+          speisen_haus_cents: number
+          umsatz_cents: number
+          updated_at: string
+          wareneinsatz_cents: number
+        }
+        Insert: {
+          abschreibung_cents?: number
+          anlage_cents?: number
+          betriebsergebnis_cents: number
+          cost_center: string
+          created_at?: string
+          entity: string
+          getraenke_cents?: number
+          id?: string
+          month: string
+          organization_id: string
+          personal_cents: number
+          sachkosten_cents: number
+          sachkosten_detail?: Json | null
+          sonst_ertraege_cents?: number
+          sonstige_erloese_cents?: number
+          source?: string
+          speisen_ausser_haus_cents?: number
+          speisen_haus_cents?: number
+          umsatz_cents: number
+          updated_at?: string
+          wareneinsatz_cents: number
+        }
+        Update: {
+          abschreibung_cents?: number
+          anlage_cents?: number
+          betriebsergebnis_cents?: number
+          cost_center?: string
+          created_at?: string
+          entity?: string
+          getraenke_cents?: number
+          id?: string
+          month?: string
+          organization_id?: string
+          personal_cents?: number
+          sachkosten_cents?: number
+          sachkosten_detail?: Json | null
+          sonst_ertraege_cents?: number
+          sonstige_erloese_cents?: number
+          source?: string
+          speisen_ausser_haus_cents?: number
+          speisen_haus_cents?: number
+          umsatz_cents?: number
+          updated_at?: string
+          wareneinsatz_cents?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bwa_monthly_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cart_draft_items: {
         Row: {
           article_id: string | null
