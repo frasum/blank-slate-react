@@ -247,6 +247,7 @@ export const berechneLohnUebersicht = createServerFn({ method: "GET" })
       sundayHours: number | null;
       zuschlagCents: number | null;
       bruttoCents: number | null;
+      stBruttoAusweisCent: number | null;
       lstCent: number | null;
       soliCent: number | null;
       kistCent: number | null;
@@ -296,6 +297,7 @@ export const berechneLohnUebersicht = createServerFn({ method: "GET" })
           sundayHours: r.buckets.sundayHours,
           zuschlagCents: r.zuschlagCents,
           bruttoCents: r.ergebnis.gesamtbruttoCent,
+          stBruttoAusweisCent: r.ergebnis.stBruttoAusweisCent,
           lstCent: r.ergebnis.lstCent,
           soliCent: r.ergebnis.soliCent,
           kistCent: r.ergebnis.kistCent,
@@ -328,6 +330,7 @@ export const berechneLohnUebersicht = createServerFn({ method: "GET" })
           sundayHours: null,
           zuschlagCents: null,
           bruttoCents: null,
+          stBruttoAusweisCent: null,
           lstCent: null,
           soliCent: null,
           kistCent: null,
