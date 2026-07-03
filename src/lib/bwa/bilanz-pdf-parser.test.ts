@@ -217,7 +217,9 @@ describe("parseBilanzPdf – Positivfall (YUM 2024, alle Gates erfuellt)", () =>
   });
 
   it("benannte Zwischensumme wird verworfen — kein Konto/Position dafuer", () => {
-    expect(res.konten.some((k) => k.label.includes("eingefordertes Kapital") && k.kontoNr !== "0820")).toBe(false);
+    expect(
+      res.konten.some((k) => k.label.includes("eingefordertes Kapital") && k.kontoNr !== "0820"),
+    ).toBe(false);
     // Keine Position ohne Prefix aufgetaucht (labels sind alle mit Prefix aus fixture).
   });
 
@@ -249,9 +251,7 @@ describe("parseBilanzPdf – Negativfaelle", () => {
   });
 
   it("vertauschte Bilanzsumme → Gate 2 (aktiva=passiva) faellt", () => {
-    const res = parseBilanzPdf(
-      buildFixturePages({ positionBII: "300,00", konto0800: "200,00" }),
-    );
+    const res = parseBilanzPdf(buildFixturePages({ positionBII: "300,00", konto0800: "200,00" }));
     const c = checkByName(res, "bilanzsumme_aktiva_eq_passiva")!;
     expect(c.ok).toBe(false);
   });

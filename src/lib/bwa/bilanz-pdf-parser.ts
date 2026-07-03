@@ -154,10 +154,7 @@ export function classifyPage(page: Token[][]): SectionKind {
 // Fallback: rechte Kanten der beiden "EUR"-Token.
 type ColumnAnchors = { gjRight: number; vjRight: number };
 
-export function findColumnAnchors(
-  page: Token[][],
-  fiscalYear: number,
-): ColumnAnchors | null {
+export function findColumnAnchors(page: Token[][], fiscalYear: number): ColumnAnchors | null {
   const wantGj = String(fiscalYear);
   const wantVj = String(fiscalYear - 1);
   for (const line of page) {
@@ -167,9 +164,7 @@ export function findColumnAnchors(
     if (gj && vj && vj.x > gj.x) return { gjRight: gj.xEnd, vjRight: vj.xEnd };
   }
   for (const line of page) {
-    const eurs = line
-      .filter((t) => /^EUR$/i.test(t.text))
-      .sort((a, b) => a.x - b.x);
+    const eurs = line.filter((t) => /^EUR$/i.test(t.text)).sort((a, b) => a.x - b.x);
     if (eurs.length >= 2) return { gjRight: eurs[0].xEnd, vjRight: eurs[1].xEnd };
   }
   return null;
@@ -216,8 +211,7 @@ function isHeaderSkip(line: Token[], fiscalYear: number): boolean {
   const wantVj = String(fiscalYear - 1);
   if (
     texts.length === 2 &&
-    ((texts[0] === wantGj && texts[1] === wantVj) ||
-      (texts[0] === wantVj && texts[1] === wantGj))
+    ((texts[0] === wantGj && texts[1] === wantVj) || (texts[0] === wantVj && texts[1] === wantGj))
   ) {
     return true;
   }
@@ -357,10 +351,7 @@ export function parseBilanzPdf(pages: Token[][][]): ParsedBilanzYear {
 
     const finalizeKonto = (gj: number, vj: number | null): void => {
       if (!openKonto) return;
-      const label = openKonto.labelParts
-        .join(" ")
-        .replace(/\s+/g, " ")
-        .trim();
+      const label = openKonto.labelParts.join(" ").replace(/\s+/g, " ").trim();
       if (!label) {
         warnings.push(`Konto ${openKonto.kontoNr}: leeres Label — übersprungen.`);
       } else {
@@ -378,9 +369,7 @@ export function parseBilanzPdf(pages: Token[][][]): ParsedBilanzYear {
     };
     const closeUnresolvedKonto = (): void => {
       if (openKonto) {
-        warnings.push(
-          `Konto ${openKonto.kontoNr}: kein GJ-Betrag gefunden — übersprungen.`,
-        );
+        warnings.push(`Konto ${openKonto.kontoNr}: kein GJ-Betrag gefunden — übersprungen.`);
         openKonto = null;
       }
     };
@@ -531,9 +520,7 @@ function rollupPositions(positions: ParsedBilanzPosition[]): void {
   for (const p of sorted) {
     if (isLeaf(p)) continue;
     if (p.betragCents !== 0) continue;
-    const kids = positions.filter(
-      (c) => c.statement === p.statement && c.parentCode === p.code,
-    );
+    const kids = positions.filter((c) => c.statement === p.statement && c.parentCode === p.code);
     if (kids.length === 0) continue;
     p.betragCents = kids.reduce((a, c) => a + c.betragCents, 0);
     if (p.vorjahrCents === null && kids.every((c) => c.vorjahrCents !== null)) {
