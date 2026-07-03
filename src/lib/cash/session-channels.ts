@@ -55,6 +55,19 @@ export function sumNonGlTerminalCents(rows: TerminalAmountRowWithGl[]): number {
   return sum;
 }
 
+/** §33: Kartenabzug aus Terminal-Formularzeilen — GL-Zeilen zählen NICHT. */
+export function cardDeductionFromTerminalRows(
+  rows: { euro: string; isGl: boolean }[],
+  parse: (s: string) => number | null,
+): number {
+  let sum = 0;
+  for (const r of rows) {
+    if (r.isGl) continue;
+    sum += parse(r.euro) ?? 0;
+  }
+  return sum;
+}
+
 export type ChannelTotalsByKind = Record<ChannelKind, number>;
 
 export type AggregatedChannels = {
