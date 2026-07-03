@@ -993,6 +993,7 @@ function ZeitUebersichtPage() {
               for (const e of weeklyData?.entries ?? []) m.set(e.id, e);
               return m;
             }, [weeklyData])}
+            shiftsByStaff={shiftsByStaff}
           />
         </TabsContent>
 
