@@ -98,9 +98,10 @@ describe("parseBwaPdfText – Kanonik YUM April 2025", () => {
     expect(b.values.umsatzCents).toBe(12071300);
     expect(b.values.getraenkeCents).toBe(2868400);
     expect(b.values.speisenHausCents).toBe(9089900);
-    // außer Haus fehlt (–)
-    expect(b.values.speisenAusserHausCents).toBeUndefined();
-    expect(b.missingFields).toContain("speisenAusserHausCents");
+    // außer Haus: Zeile ist da, Monatsspalte leer („–") → transparent 0.
+    expect(b.values.speisenAusserHausCents).toBe(0);
+    expect(b.missingFields).not.toContain("speisenAusserHausCents");
+    expect(res.warnings.some((w) => /Zeile 8.*als 0,00/i.test(w))).toBe(true);
     expect(b.values.sonstigeErloeseCents).toBe(113000);
     expect(b.values.sonstErtraegeCents).toBe(109400);
     expect(b.values.wareneinsatzCents).toBe(2580300);
@@ -115,13 +116,8 @@ describe("parseBwaPdfText – Kanonik YUM April 2025", () => {
     expect(b.sachkostenDetail["Leasing"]).toBe(120000);
     expect(Object.keys(b.sachkostenDetail)).not.toContain("- davon Miete");
 
-    // Fixture ist so gebaut, dass die Quersummen von bwa-core aufgehen —
-    // wir prüfen mit dem fehlenden Feld (außer Haus) durch 0 ersetzt.
-    const complete = {
-      speisenAusserHausCents: 0,
-      ...b.values,
-    };
-    const check = validateBwaMonth(complete as never);
+    // Fixture ist so gebaut, dass die Quersummen von bwa-core aufgehen.
+    const check = validateBwaMonth(b.values as BwaMonthInput);
     expect(check.ok).toBe(true);
   });
 
