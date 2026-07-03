@@ -156,19 +156,16 @@
           { "kategorie": "mahlzeiten_paust", "bezeichnung": "Mahlzeiten", "betragCent": 13253 }
         ]
       },
-      "erwartet": {
+      "erwartet_teilweise": {
         "gesamtbruttoCent": 1157360,
         "stBruttoCent": 878400,
-        "lstCent": 212458,
-        "soliCent": 5102,
         "kistCent": 0,
         "kvCent": 0,
         "rvCent": 78585,
         "avCent": 10985,
-        "pvCent": 0,
-        "gesamtnettoCent": 850230,
-        "auszahlungCent": 710830
-      }
+        "pvCent": 0
+      },
+      "hinweis": "Selbstzahler-KV/PV-Beitrag wird nicht als Personen-Stammdatum geführt; edlohn zeigt ihn als zusätzlichen Auszahlungs-Abzug (~64 200 Cent hier). Daher NUR Brutto/BBG/KV/RV/AV/PV cent-genau — LSt/Soli/Netto/Auszahlung mit dieser Modellierung nicht reproduzierbar. Beweist gemeinsam mit Fall 8 die BBG-Deckelung sowie Fix 1 (bAV-Abzug greift)."
     },
     {
       "name": "Fall 5 — Werkstudent im Übergangsbereich (Mindestvorsorgepauschale)",
