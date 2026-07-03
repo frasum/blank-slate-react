@@ -192,10 +192,14 @@ export type BreakEven = {
 
 /** Rollierender Break-even über bis zu 12 Monate. Fix-Block konservativ =
  *  Personal + Sachkosten + Anlage + Abschreibung; variabel = Wareneinsatz.
- *  USt-Faktor aus dem echten Erlös-Mix der übergebenen Monate. */
+ *  USt-Faktor aus dem echten Erlös-Mix der übergebenen Monate.
+ *
+ *  Sortierung des Inputs ist egal — intern wird absteigend nach `month`
+ *  sortiert; gerechnet werden die 12 NEUESTEN Monate. */
 export function computeBreakEven(rows: BwaRow[]): BreakEven | null {
   if (rows.length === 0) return null;
-  const last12 = rows.slice(0, 12);
+  const sorted = [...rows].sort((a, b) => b.month.localeCompare(a.month));
+  const last12 = sorted.slice(0, 12);
   const s = sumRows(last12);
   if (s.umsatzCents <= 0) return null;
   const v = s.wareneinsatzCents / s.umsatzCents;
@@ -254,4 +258,102 @@ export function findPrevMonth<T extends { month: string }>(
   const idx = sorted.findIndex((r) => r.month === month);
   if (idx <= 0) return undefined;
   return sorted[idx - 1];
+}
+
+// ============================================================================
+// F2b: Sachkosten-Drilldown + Standortvergleich
+// ============================================================================
+
+export type SachkostenDetailSummary = {
+  detail: Record<string, number>;
+  coveredSachkostenCents: number;
+  missingMonths: number;
+};
+
+/** Summiert `sachkostenDetail` label-weise über alle Zeilen. Zeilen ohne
+ *  Detail werden als `missingMonths` gezählt; `coveredSachkostenCents` ist
+ *  Σ `sachkostenCents` NUR der Zeilen MIT Detail (Abdeckungs-Hinweis). */
+export function sumSachkostenDetail(rows: BwaRow[]): SachkostenDetailSummary {
+  const detail: Record<string, number> = {};
+  let coveredSachkostenCents = 0;
+  let missingMonths = 0;
+  for (const r of rows) {
+    if (r.sachkostenDetail == null) {
+      missingMonths += 1;
+      continue;
+    }
+    coveredSachkostenCents += r.sachkostenCents;
+    for (const [k, v] of Object.entries(r.sachkostenDetail)) {
+      detail[k] = (detail[k] ?? 0) + v;
+    }
+  }
+  return { detail, coveredSachkostenCents, missingMonths };
+}
+
+export type CostCenterComparison = {
+  costCenter: string;
+  kpis: BwaKpis;
+  months: number;
+};
+
+export type CompareMetric = "personalQuote" | "wesQuote" | "primeCostQuote" | "betriebsQuote";
+
+export type CostCenterCompareResult = {
+  entries: CostCenterComparison[];
+  bestByMetric: Partial<Record<CompareMetric, string>>;
+  worstByMetric: Partial<Record<CompareMetric, string>>;
+};
+
+const COMPARE_METRICS: CompareMetric[] = [
+  "personalQuote",
+  "wesQuote",
+  "primeCostQuote",
+  "betriebsQuote",
+];
+
+/** Vergleicht die echten Kostenstellen (KEINE "Gruppe") einer entity über
+ *  die übergebenen Monate. `bestByMetric`/`worstByMetric` je Quote: bei
+ *  Quoten gilt niedriger = besser, außer `betriebsQuote` (höher = besser). */
+export function compareCostCenters(rows: BwaRow[], months: string[]): CostCenterCompareResult {
+  const monthSet = new Set(months);
+  const buckets = new Map<string, BwaRow[]>();
+  for (const r of rows) {
+    if (r.costCenter === "Gruppe") continue;
+    if (!monthSet.has(r.month)) continue;
+    const arr = buckets.get(r.costCenter);
+    if (arr) arr.push(r);
+    else buckets.set(r.costCenter, [r]);
+  }
+  const entries: CostCenterComparison[] = [];
+  for (const [costCenter, rs] of buckets) {
+    const s = sumRows(rs);
+    const synth: BwaRow = {
+      id: `cmp__${costCenter}`,
+      entity: rs[0].entity,
+      costCenter,
+      month: rs[0].month,
+      ...s,
+      sachkostenDetail: null,
+      source: "import",
+    };
+    entries.push({ costCenter, kpis: deriveKpis(synth), months: rs.length });
+  }
+  entries.sort((a, b) => a.costCenter.localeCompare(b.costCenter));
+
+  const bestByMetric: Partial<Record<CompareMetric, string>> = {};
+  const worstByMetric: Partial<Record<CompareMetric, string>> = {};
+  if (entries.length >= 2) {
+    for (const m of COMPARE_METRICS) {
+      const higherIsGood = m === "betriebsQuote";
+      let best = entries[0];
+      let worst = entries[0];
+      for (const e of entries) {
+        if (higherIsGood ? e.kpis[m] > best.kpis[m] : e.kpis[m] < best.kpis[m]) best = e;
+        if (higherIsGood ? e.kpis[m] < worst.kpis[m] : e.kpis[m] > worst.kpis[m]) worst = e;
+      }
+      bestByMetric[m] = best.costCenter;
+      worstByMetric[m] = worst.costCenter;
+    }
+  }
+  return { entries, bestByMetric, worstByMetric };
 }

@@ -3,12 +3,14 @@ import {
   aggregateGroup,
   buildWaterfall,
   computeBreakEven,
+  compareCostCenters,
   deltas,
   deriveKpis,
   findPrevMonth,
   findYoy,
   OPEN_DAYS_PER_MONTH,
   sumRows,
+  sumSachkostenDetail,
 } from "./bwa-analytics";
 import type { BwaRow } from "./bwa.functions";
 
@@ -159,6 +161,48 @@ describe("computeBreakEven", () => {
     const bad = row({ umsatzCents: 100_00, wareneinsatzCents: 200_00 });
     expect(computeBreakEven([bad])).toBeNull();
   });
+
+  it("F2b: Sortierung des Inputs egal — asc / gemischt liefert dasselbe Ergebnis wie desc", () => {
+    const mk = (m: string, u: number, w: number) =>
+      row({
+        month: m,
+        umsatzCents: u,
+        wareneinsatzCents: w,
+        personalCents: 10_000_00,
+        sachkostenCents: 2_000_00,
+      });
+    // 13 Monate — nur die 12 neuesten dürfen zählen.
+    const months = [
+      "2024-01-01",
+      "2024-02-01",
+      "2024-03-01",
+      "2024-04-01",
+      "2024-05-01",
+      "2024-06-01",
+      "2024-07-01",
+      "2024-08-01",
+      "2024-09-01",
+      "2024-10-01",
+      "2024-11-01",
+      "2024-12-01",
+      "2025-01-01",
+    ];
+    const rows = months.map((m, i) => mk(m, 50_000_00 + i * 100_00, 10_000_00));
+    const desc = [...rows].sort((a, b) => b.month.localeCompare(a.month));
+    const asc = [...rows].sort((a, b) => a.month.localeCompare(b.month));
+    const mixed = [
+      rows[5],
+      rows[0],
+      rows[12],
+      rows[3],
+      ...rows.slice(6, 12),
+      rows[1],
+      rows[2],
+      rows[4],
+    ];
+    expect(computeBreakEven(asc)).toEqual(computeBreakEven(desc));
+    expect(computeBreakEven(mixed)).toEqual(computeBreakEven(desc));
+  });
 });
 
 describe("sumRows / findYoy / findPrevMonth", () => {
@@ -185,5 +229,87 @@ describe("sumRows / findYoy / findPrevMonth", () => {
     expect(findPrevMonth(rows, "2025-04-01")?.month).toBe("2025-03-01");
     expect(findPrevMonth(rows, "2025-03-01")?.month).toBe("2025-01-01");
     expect(findPrevMonth(rows, "2025-01-01")).toBeUndefined();
+  });
+});
+
+describe("sumSachkostenDetail", () => {
+  it("summiert überlappende + disjunkte Labels; null-Zeilen zählen als missing", () => {
+    const rs = [
+      row({
+        month: "2025-03-01",
+        sachkostenCents: 1_000_00,
+        sachkostenDetail: { Energie: 400_00, Miete: 600_00 },
+      }),
+      row({
+        month: "2025-04-01",
+        sachkostenCents: 1_200_00,
+        sachkostenDetail: { Energie: 500_00, Reinigung: 700_00 },
+      }),
+      row({ month: "2025-05-01", sachkostenCents: 900_00, sachkostenDetail: null }),
+    ];
+    const s = sumSachkostenDetail(rs);
+    expect(s.detail).toEqual({ Energie: 900_00, Miete: 600_00, Reinigung: 700_00 });
+    expect(s.coveredSachkostenCents).toBe(2_200_00);
+    expect(s.missingMonths).toBe(1);
+  });
+
+  it("negative Beträge bleiben erhalten (z. B. Gutschrift Beratung)", () => {
+    const s = sumSachkostenDetail([
+      row({ sachkostenCents: 100_00, sachkostenDetail: { Beratung: -50_00 } }),
+    ]);
+    expect(s.detail.Beratung).toBe(-50_00);
+  });
+
+  it("leere Liste → alles Null/0", () => {
+    const s = sumSachkostenDetail([]);
+    expect(s.detail).toEqual({});
+    expect(s.coveredSachkostenCents).toBe(0);
+    expect(s.missingMonths).toBe(0);
+  });
+});
+
+describe("compareCostCenters", () => {
+  it("markiert YUM (schlechte Personalquote) rot, Spicery (bessere Prime Cost) grün", () => {
+    const rs = [
+      row({
+        entity: "YUM",
+        costCenter: "YUM",
+        month: "2025-04-01",
+        umsatzCents: 100_000_00,
+        wareneinsatzCents: 30_000_00,
+        personalCents: 45_000_00,
+        betriebsergebnisCents: 5_000_00,
+      }),
+      row({
+        entity: "YUM",
+        costCenter: "Spicery",
+        month: "2025-04-01",
+        umsatzCents: 100_000_00,
+        wareneinsatzCents: 28_000_00,
+        personalCents: 30_000_00,
+        betriebsergebnisCents: 20_000_00,
+      }),
+    ];
+    const c = compareCostCenters(rs, ["2025-04-01"]);
+    expect(c.entries).toHaveLength(2);
+    expect(c.worstByMetric.personalQuote).toBe("YUM");
+    expect(c.bestByMetric.personalQuote).toBe("Spicery");
+    expect(c.worstByMetric.primeCostQuote).toBe("YUM");
+    expect(c.bestByMetric.betriebsQuote).toBe("Spicery");
+  });
+
+  it("Einzelkostenstelle → keine Markierungen", () => {
+    const rs = [row({ costCenter: "Solo", umsatzCents: 100_00 })];
+    const c = compareCostCenters(rs, ["2025-04-01"]);
+    expect(c.entries).toHaveLength(1);
+    expect(c.bestByMetric).toEqual({});
+    expect(c.worstByMetric).toEqual({});
+  });
+
+  it("ignoriert virtuelle Kostenstelle 'Gruppe' und leere Liste", () => {
+    const rs = [row({ costCenter: "Gruppe", month: "2025-04-01" })];
+    const c = compareCostCenters(rs, ["2025-04-01"]);
+    expect(c.entries).toHaveLength(0);
+    expect(compareCostCenters([], []).entries).toHaveLength(0);
   });
 });
