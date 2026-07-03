@@ -76,9 +76,7 @@ export default defineTool({
     const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY;
     if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
       return {
-        content: [
-          { type: "text", text: "Supabase-Konfiguration fehlt (URL/Key)." },
-        ],
+        content: [{ type: "text", text: "Supabase-Konfiguration fehlt (URL/Key)." }],
         isError: true,
       };
     }

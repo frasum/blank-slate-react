@@ -18,8 +18,12 @@ type ConsentDetails = {
   redirect_to?: string | null;
 };
 type OAuthNamespace = {
-  getAuthorizationDetails: (id: string) => Promise<{ data: ConsentDetails | null; error: Error | null }>;
-  approveAuthorization: (id: string) => Promise<{ data: ConsentDetails | null; error: Error | null }>;
+  getAuthorizationDetails: (
+    id: string,
+  ) => Promise<{ data: ConsentDetails | null; error: Error | null }>;
+  approveAuthorization: (
+    id: string,
+  ) => Promise<{ data: ConsentDetails | null; error: Error | null }>;
   denyAuthorization: (id: string) => Promise<{ data: ConsentDetails | null; error: Error | null }>;
 };
 function oauthClient(): OAuthNamespace {
