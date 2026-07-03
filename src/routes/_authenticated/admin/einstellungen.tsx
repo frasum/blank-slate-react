@@ -93,8 +93,7 @@ function OrgSettingsPage() {
   });
 
   const bnMutation = useMutation({
-    mutationFn: () =>
-      callSetBn({ data: { betriebsnummer: betriebsnummer.trim() || null } }),
+    mutationFn: () => callSetBn({ data: { betriebsnummer: betriebsnummer.trim() || null } }),
     onSuccess: async () => {
       setBnMsg("Gespeichert.");
       setBnErr(null);
@@ -253,8 +252,8 @@ function OrgSettingsPage() {
         <div>
           <h2 className="text-base font-semibold text-foreground">Sofortmeldung</h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Betriebsnummer der Krankenkassen-Meldestelle. Erscheint im sv.net-Datenblock
-            beim Stammblatt jedes Mitarbeiters.
+            Betriebsnummer der Krankenkassen-Meldestelle. Erscheint im sv.net-Datenblock beim
+            Stammblatt jedes Mitarbeiters.
           </p>
         </div>
 

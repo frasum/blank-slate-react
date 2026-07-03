@@ -7,11 +7,7 @@
 // Geburtsort + Nationalität (so meldet man in sv.net Neueinstellungen,
 // deren SV-Nr noch nicht vergeben ist).
 
-export type SofortmeldungStatus =
-  | "nicht_erforderlich"
-  | "unvollstaendig"
-  | "bereit"
-  | "gemeldet";
+export type SofortmeldungStatus = "nicht_erforderlich" | "unvollstaendig" | "bereit" | "gemeldet";
 
 export type SofortmeldungStaff = {
   first_name: string | null;
@@ -50,18 +46,12 @@ export function sofortmeldungMissingFields(
   if (isBlank(staff.first_name)) missing.push("first_name");
   if (isBlank(staff.last_name)) missing.push("last_name");
   if (!details) {
-    return [
-      ...missing,
-      "date_of_birth",
-      "employment_start_date",
-      "social_security_number",
-    ];
+    return [...missing, "date_of_birth", "employment_start_date", "social_security_number"];
   }
   if (isBlank(details.date_of_birth)) missing.push("date_of_birth");
   if (isBlank(details.employment_start_date)) missing.push("employment_start_date");
   const hasSv = !isBlank(details.social_security_number);
-  const hasFallback =
-    !isBlank(details.place_of_birth) && !isBlank(details.nationality);
+  const hasFallback = !isBlank(details.place_of_birth) && !isBlank(details.nationality);
   if (!hasSv && !hasFallback) missing.push("social_security_number");
   return missing;
 }

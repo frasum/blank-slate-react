@@ -208,7 +208,8 @@ export const markSofortmeldungReported = createServerFn({ method: "POST" })
 
       if (existing?.reported_at) throw new Error("Bereits als gemeldet markiert.");
       const required = existing?.required ?? true;
-      if (!required) throw new Error("Für diesen Mitarbeiter ist keine Sofortmeldung erforderlich.");
+      if (!required)
+        throw new Error("Für diesen Mitarbeiter ist keine Sofortmeldung erforderlich.");
 
       const { data: details } = await supabaseAdmin
         .from("staff_personal_details")
@@ -222,25 +223,21 @@ export const markSofortmeldungReported = createServerFn({ method: "POST" })
         details ?? null,
       );
       if (missing.length > 0) {
-        throw new Error(
-          "Sofortmeldung ist unvollständig — bitte zuerst Daten ergänzen.",
-        );
+        throw new Error("Sofortmeldung ist unvollständig — bitte zuerst Daten ergänzen.");
       }
 
       const reportedAt = new Date().toISOString();
-      const { error: uErr } = await supabaseAdmin
-        .from("sofortmeldung")
-        .upsert(
-          {
-            organization_id: caller.organizationId,
-            staff_id: data.staffId,
-            required: true,
-            reported_at: reportedAt,
-            reported_by: caller.staffId,
-            note: data.note ?? null,
-          },
-          { onConflict: "staff_id" },
-        );
+      const { error: uErr } = await supabaseAdmin.from("sofortmeldung").upsert(
+        {
+          organization_id: caller.organizationId,
+          staff_id: data.staffId,
+          required: true,
+          reported_at: reportedAt,
+          reported_by: caller.staffId,
+          note: data.note ?? null,
+        },
+        { onConflict: "staff_id" },
+      );
       if (uErr) throw uErr;
 
       return {

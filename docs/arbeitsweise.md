@@ -1729,3 +1729,54 @@ als normales Mitarbeiter-Dokument hochgeladen). Audit ohne Dokumentinhalte
 (SV-Nr/IBAN gehören nicht ins Log-Meta). Offen: V2 UI (Template-Editor,
 Generierungs-Assistent im Stammblatt-Tab „Dokumente", Druckansicht,
 Scan-Upload-Verknüpfung).
+
+## 47. Fallstudie: POS-Differenz-Warnung 27,90 € (YUM, 02.07.2026) — Diagnose, Fix, Lektionen
+
+COCO zeigte am 02.07. für YUM eine POS-Differenz von +27,90 €
+(`settlement-warnings.ts`: `pos_diff = POS-Brutto − Σ Kellner −
+(Vectron-Takeaway + Souse)`); die tagesabrechnung war für denselben Tag
+glatt. Diagnose-Verlauf und Ergebnis:
+
+- **Ursache (per Legacy-DB bewiesen):** In COCO waren die Tagesbeträge von
+  Wolt und Vectron-Takeaway über Kreuz erfasst (Wolt 477,60 / TA 449,70
+  statt Wolt 449,70 / TA 477,60). Die Legacy-DB (`sessions.takeaway_total`
+  = 477,60, `wolt_revenue` = 449,70, `adjusted_pos_diff` = 0,00) war die
+  Referenz. Einmaliger Eingabefehler — die Kanal-Maske rendert dynamisch
+  aus `revenue_channels`, kein System-Bug.
+- **Fix:** Daten-SQL auf der COCO-DB (Absolutwerte statt Tausch-CASE —
+  dadurch idempotent), Rest-Check im selben Lauf: `pos_diff = 0` ✓.
+- **Formel-Verifikation über die Historie:** Bevor irgendetwas geändert
+  wurde, wurde die Warnformel über alle 271 importierten Sessions mit
+  Settlements getestet: aktuelle Formel (TA + Souse) trifft bei YUM an
+  132/135 Tagen exakt 0 (mittl. Abw. 16 €); die Gegen-Hypothese
+  (Wolt + Souse) wäre an >80 % der Tage falsch gewesen. Die Formel ist
+  korrekt und bleibt unverändert; Wolt (Drittplattform) ist nicht im
+  Vectron-Total enthalten.
+- **Legacy-Flag geklärt:** `restaurants.ordersmart_in_takeaway` steht in
+  der Legacy-DB für BEIDE Restaurants auf `false` (per CSV verifiziert).
+  COCOs feste Formel (Souse wird immer abgezogen) ist damit für beide
+  Standorte korrekt — das Flag wird bewusst NICHT nachgebaut. Sollte sich
+  das Legacy-Setting je ändern, muss COCO eine Kanal-Konfiguration
+  nachziehen.
+- **Beobachtung Spicery:** In der importierten Historie geht die
+  POS-Zerlegung bei Spicery nur an 76/136 Tagen exakt auf (mittl. Abw.
+  ~59 €) — echte historische Tages-Fehlbeträge (Abrechnungsdisziplin),
+  kein Systemfehler. Die Warnung macht genau das sichtbar.
+
+**Lektionen (verbindlich):**
+
+1. **Keine Formel- oder Datenkorrektur aus n=1.** Bei Soll/Ist-Abweichungen
+   zuerst die Rechenregel über die gesamte importierte Historie
+   verifizieren (Aggregat-Query: an wie vielen Tagen trifft welche
+   Variante exakt 0?). Im Fall hier hat genau diese Query zwei falsche
+   Fixes verhindert — erst einen Daten-Tausch auf Basis einer widerlegten
+   Ablesung, dann einen Formel-Umbau auf Basis eines einzelnen Tages.
+2. **Feld-Abgleiche nur gegen DB-Werte, nie gegen abgelesene UI-Werte.**
+   Die mündliche Ablesung „Wolt 477,60 / Takeaway 449,70 im Altsystem"
+   war vertauscht; erst der SQL-Export aus der Legacy-DB war belastbar.
+3. **Bei System-Vergleichen die Ziel-DB doppelt prüfen:** Legacy-Queries
+   gehören ins tagesabrechnung-Supabase-Projekt (`sessions.session_date`,
+   `restaurants`, `waiter_shifts`, Euro-Dezimalwerte), COCO-Queries ins
+   COCO-Projekt (`sessions.business_date`, `locations`, BIGINT cents).
+   Ein `42P01 relation does not exist` ist das typische Symptom der
+   falschen DB.
