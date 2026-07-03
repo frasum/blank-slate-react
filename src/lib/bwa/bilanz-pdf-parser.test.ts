@@ -363,14 +363,13 @@ describe("Gate 4 – Anlage-Anker vs. parsed Bilanz", () => {
   });
 
   it("Positivfall: Anker stimmen mit parsed Top-Level-Summen ueberein", () => {
-    // parseBilanzPdf laeuft auf der Kontennachweis-Fixture + Anlage-Seite
-    const kontennachweis = buildFixturePages();
-    const anlage = anlagePages("1.000,00", "1.000,00", "0,00");
-    const res = parseBilanzPdf([...kontennachweis, ...anlage[0] ? anlage : []]);
+    // Anlage-Summen == Σ Top-Level der buildFixturePages()-Aktiva/Passiva (je 1000,00 = 100000 cents).
+    const pages = [...buildFixturePages(), ...anlagePages("1.000,00", "1.000,00", "0,00")];
+    const res = parseBilanzPdf(pages);
     const cA = res.checks.find((c) => c.name === "anlage_summe_aktiva")!;
     const cP = res.checks.find((c) => c.name === "anlage_summe_passiva")!;
-    expect(cA?.ok).toBe(true);
-    expect(cP?.ok).toBe(true);
+    expect(cA.ok).toBe(true);
+    expect(cP.ok).toBe(true);
   });
 
   it("Negativ: Anlage-Summe Aktiva ≠ Σ Top-Level Aktiva", () => {
