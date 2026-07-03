@@ -2,7 +2,7 @@
 
 Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen Baublock konsultiert. Bewusst kurz gehalten — Architektur-Begründungen stehen im gruendungsdokument.md, nicht hier.
 
-Stand: 02.07.2026
+Stand: 03.07.2026
 
 ## 1. Rollenverteilung im Team
 
