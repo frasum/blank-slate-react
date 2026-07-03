@@ -203,7 +203,11 @@ export function computeBreakEven(rows: BwaRow[]): BreakEven | null {
   if (db <= 0) return null;
 
   const fix =
-    s.personalCents + s.sachkostenCents + s.anlageCents + s.abschreibungCents - s.sonstErtraegeCents;
+    s.personalCents +
+    s.sachkostenCents +
+    s.anlageCents +
+    s.abschreibungCents -
+    s.sonstErtraegeCents;
   const bePeriodCents = fix / db;
   const months = last12.length;
   const netMonthCents = bePeriodCents / months;

@@ -97,12 +97,8 @@ describe("buildWaterfall", () => {
     expect(last.kind).toBe("total");
     expect(last.signedCents).toBe(25_000_00);
 
-    const plus = steps
-      .filter((s) => s.kind === "plus")
-      .reduce((a, s) => a + s.signedCents, 0);
-    const minus = steps
-      .filter((s) => s.kind === "minus")
-      .reduce((a, s) => a + s.signedCents, 0);
+    const plus = steps.filter((s) => s.kind === "plus").reduce((a, s) => a + s.signedCents, 0);
+    const minus = steps.filter((s) => s.kind === "minus").reduce((a, s) => a + s.signedCents, 0);
     expect(plus + minus).toBe(25_000_00);
   });
 });

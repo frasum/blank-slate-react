@@ -120,10 +120,12 @@ function fmtMonthShort(iso: string): string {
 }
 
 function fmtPct(v: number, digits = 1): string {
-  return v.toLocaleString("de-DE", {
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-  }) + " %";
+  return (
+    v.toLocaleString("de-DE", {
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits,
+    }) + " %"
+  );
 }
 
 function BwaPage() {
@@ -167,10 +169,7 @@ function BwaPage() {
 // ============================================================================
 
 function BwaDashboardTab({ rows, loading }: { rows: BwaRow[]; loading: boolean }) {
-  const entities = useMemo(
-    () => Array.from(new Set(rows.map((r) => r.entity))).sort(),
-    [rows],
-  );
+  const entities = useMemo(() => Array.from(new Set(rows.map((r) => r.entity))).sort(), [rows]);
   const [entity, setEntity] = useState<string>("");
   const [ccSel, setCcSel] = useState<string>(GROUP_KEY);
   const [monthSel, setMonthSel] = useState<string>("");
@@ -179,10 +178,7 @@ function BwaDashboardTab({ rows, loading }: { rows: BwaRow[]; loading: boolean }
   // Default-Entity setzen sobald Daten da sind.
   const effEntity = entity || entities[0] || "";
 
-  const entityRows = useMemo(
-    () => rows.filter((r) => r.entity === effEntity),
-    [rows, effEntity],
-  );
+  const entityRows = useMemo(() => rows.filter((r) => r.entity === effEntity), [rows, effEntity]);
 
   const costCenters = useMemo(
     () => Array.from(new Set(entityRows.map((r) => r.costCenter))).sort(),
@@ -201,7 +197,8 @@ function BwaDashboardTab({ rows, loading }: { rows: BwaRow[]; loading: boolean }
   );
 
   const availableMonths = scopedByMonthDesc.map((r) => r.month);
-  const effMonth = monthSel && availableMonths.includes(monthSel) ? monthSel : availableMonths[0] ?? "";
+  const effMonth =
+    monthSel && availableMonths.includes(monthSel) ? monthSel : (availableMonths[0] ?? "");
 
   const currentRow = useMemo<BwaRow | null>(() => {
     if (sigmaLast12) {
@@ -245,9 +242,7 @@ function BwaDashboardTab({ rows, loading }: { rows: BwaRow[]; loading: boolean }
     return (
       <Card>
         <CardContent className="p-8 text-center space-y-3">
-          <p className="text-muted-foreground">
-            Noch keine BWA-Daten erfasst.
-          </p>
+          <p className="text-muted-foreground">Noch keine BWA-Daten erfasst.</p>
           <p className="text-sm text-muted-foreground">
             Wechsle auf den Tab „Erfassung", um den ersten Monat anzulegen.
           </p>
@@ -419,9 +414,7 @@ function KpiRow({
         label="Betriebsergebnis"
         value={`${fmtCents(row.betriebsergebnisCents)} €`}
         sub={`${fmtPct(k.betriebsQuote)} vom Umsatz`}
-        valueClass={
-          row.betriebsergebnisCents < 0 ? "text-destructive" : "text-emerald-600"
-        }
+        valueClass={row.betriebsergebnisCents < 0 ? "text-destructive" : "text-emerald-600"}
         deltaMonth={sigma ? null : deltas(row.betriebsergebnisCents, prev?.betriebsergebnisCents)}
         deltaYear={sigma ? null : deltas(row.betriebsergebnisCents, yoy?.betriebsergebnisCents)}
         higherIsGood
@@ -485,11 +478,8 @@ function DeltaLine({
   }
   const up = delta.absCents > 0;
   const good = higherIsGood ? up : !up;
-  const cls = delta.absCents === 0
-    ? "text-muted-foreground"
-    : good
-      ? "text-emerald-600"
-      : "text-destructive";
+  const cls =
+    delta.absCents === 0 ? "text-muted-foreground" : good ? "text-emerald-600" : "text-destructive";
   const Arrow = up ? ArrowUp : ArrowDown;
   return (
     <div className={`text-xs flex items-center gap-1 ${cls}`}>
@@ -533,9 +523,7 @@ function BreakEvenCard({ be }: { be: ReturnType<typeof computeBreakEven> }) {
         <div className="grid gap-4 md:grid-cols-4">
           <div>
             <div className="text-xs text-muted-foreground">BE pro Tag (netto)</div>
-            <div className="text-3xl font-semibold tabular-nums">
-              {fmtCents(be.netDayCents)} €
-            </div>
+            <div className="text-3xl font-semibold tabular-nums">{fmtCents(be.netDayCents)} €</div>
           </div>
           <div>
             <div className="text-xs text-muted-foreground">BE pro Tag (brutto)</div>
@@ -582,9 +570,9 @@ function BreakEvenCard({ be }: { be: ReturnType<typeof computeBreakEven> }) {
         </div>
 
         <p className="text-xs text-muted-foreground">
-          Annahmen: variabel = nur Wareneinsatz; fix = Personal + Sachkosten + Anlage +
-          Abschreibung (konservativ, flexibles Personal senkt den realen BE);{" "}
-          {OPEN_DAYS_PER_MONTH} Öffnungstage/Monat.
+          Annahmen: variabel = nur Wareneinsatz; fix = Personal + Sachkosten + Anlage + Abschreibung
+          (konservativ, flexibles Personal senkt den realen BE); {OPEN_DAYS_PER_MONTH}{" "}
+          Öffnungstage/Monat.
         </p>
       </CardContent>
     </Card>
@@ -725,13 +713,7 @@ function WaterfallTableCard({ row }: { row: BwaRow }) {
 // Zeitreihe + Quoten-Bänder
 // ---------------------------------------------------------------------------
 
-function TimeSeriesCard({
-  rows,
-  highlightedMonth,
-}: {
-  rows: BwaRow[];
-  highlightedMonth?: string;
-}) {
+function TimeSeriesCard({ rows, highlightedMonth }: { rows: BwaRow[]; highlightedMonth?: string }) {
   const data = useMemo(
     () =>
       [...rows]
@@ -797,13 +779,7 @@ function TimeSeriesCard({
   );
 }
 
-function QuoteBandsCard({
-  rows,
-  highlightedMonth,
-}: {
-  rows: BwaRow[];
-  highlightedMonth?: string;
-}) {
+function QuoteBandsCard({ rows, highlightedMonth }: { rows: BwaRow[]; highlightedMonth?: string }) {
   const data = useMemo(
     () =>
       [...rows]
@@ -1155,8 +1131,7 @@ function BwaErfassungTab({ rows, loading }: { rows: BwaRow[]; loading: boolean }
                   : "—";
               const beNeg = r.betriebsergebnisCents < 0;
               const detailOpen = !!expanded[r.id];
-              const hasDetail =
-                r.sachkostenDetail && Object.keys(r.sachkostenDetail).length > 0;
+              const hasDetail = r.sachkostenDetail && Object.keys(r.sachkostenDetail).length > 0;
               return (
                 <>
                   <TableRow key={r.id}>
@@ -1202,11 +1177,7 @@ function BwaErfassungTab({ rows, loading }: { rows: BwaRow[]; loading: boolean }
                       <Button size="sm" variant="outline" onClick={() => openEdit(r)}>
                         Bearbeiten
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => setDeleteId(r.id)}
-                      >
+                      <Button size="sm" variant="destructive" onClick={() => setDeleteId(r.id)}>
                         Löschen
                       </Button>
                     </TableCell>
@@ -1220,9 +1191,7 @@ function BwaErfassungTab({ rows, loading }: { rows: BwaRow[]; loading: boolean }
                             {Object.entries(r.sachkostenDetail!).map(([k, v]) => (
                               <div key={k} className="flex justify-between">
                                 <span className="text-muted-foreground">{k}</span>
-                                <span className="tabular-nums">
-                                  {fmtCents(Number(v))} €
-                                </span>
+                                <span className="tabular-nums">{fmtCents(Number(v))} €</span>
                               </div>
                             ))}
                           </div>
@@ -1241,9 +1210,7 @@ function BwaErfassungTab({ rows, loading }: { rows: BwaRow[]; loading: boolean }
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              {form.id ? "BWA-Monat bearbeiten" : "BWA-Monat erfassen"}
-            </DialogTitle>
+            <DialogTitle>{form.id ? "BWA-Monat bearbeiten" : "BWA-Monat erfassen"}</DialogTitle>
           </DialogHeader>
 
           <div className="grid grid-cols-2 gap-3">
