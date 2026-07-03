@@ -1,6 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card } from "@/components/ui/card";
-import { Clock, CalendarDays, Receipt, Heart, Plane, ListChecks, CalendarPlus } from "lucide-react";
+import {
+  Clock,
+  CalendarDays,
+  Receipt,
+  Heart,
+  Plane,
+  ListChecks,
+  CalendarPlus,
+  Hourglass,
+} from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/zeit/")({
   head: () => ({
@@ -16,6 +25,7 @@ type Tile = {
   to:
     | "/zeit/stempeln"
     | "/zeit/schichten"
+    | "/zeit/stunden"
     | "/zeit/abrechnung"
     | "/zeit/wuensche"
     | "/zeit/urlaub"
@@ -39,6 +49,12 @@ const TILES: Tile[] = [
     title: "Meine Schichten",
     description: "Geplante Schichten der kommenden Wochen.",
     Icon: CalendarDays,
+  },
+  {
+    to: "/zeit/stunden",
+    title: "Meine Stunden",
+    description: "Gearbeitete Schichten & Stundensumme der Abrechnungsperiode.",
+    Icon: Hourglass,
   },
   {
     to: "/zeit/abrechnung",
