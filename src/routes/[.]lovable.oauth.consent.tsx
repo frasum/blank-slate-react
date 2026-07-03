@@ -41,7 +41,9 @@ export const Route = createFileRoute("/.lovable/oauth/consent")({
     if (!search.authorization_id) throw new Error("Missing authorization_id");
     const { data } = await supabase.auth.getSession();
     const next = location.pathname + location.searchStr;
-    if (!data.session) throw redirect({ to: "/auth", search: { next } });
+    if (!data.session) {
+      throw redirect({ href: `/auth?next=${encodeURIComponent(next)}` });
+    }
   },
   loader: async ({ location }) => {
     const authorizationId = new URLSearchParams(location.search).get("authorization_id")!;
