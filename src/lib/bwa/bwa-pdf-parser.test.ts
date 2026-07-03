@@ -157,3 +157,81 @@ describe("parseBwaPdfText – Negativ-Fixture", () => {
     expect(res.blocks).toHaveLength(0);
   });
 });
+
+describe("parseBwaPdfText – eurodata-Realitätsfälle", () => {
+  it("erkennt Kostenstelle im eurodata-Kopf ohne Label", () => {
+    const res = parseBwaPdfText([makePage1("YUM"), makePage2("YUM")]);
+    expect(res.blocks).toHaveLength(1);
+    expect(res.blocks[0].costCenter).toBe("YUM");
+    expect(res.blocks[0].entity).toBe("YUM Gastronomie GmbH");
+  });
+
+  it("Regression Variante A: altes Layout mit expliziter Kostenstellen-Zeile", () => {
+    const p1 = [
+      "Betriebswirtschaftliche Auswertung",
+      "Alte GmbH",
+      "Kostenstelle: XYZ",
+      "April 2025",
+      "6 Getränke 28.684 23,8 100.000 24,0",
+      "11 Gesamtumsatz 120.713 100,0 424.500 100,0",
+    ];
+    const res = parseBwaPdfText([p1]);
+    expect(res.blocks).toHaveLength(1);
+    expect(res.blocks[0].costCenter).toBe("XYZ");
+  });
+
+  it("ignoriert Vorjahresvergleich-Seiten (6-Spalten-Layout)", () => {
+    const vjv: string[] = [
+      "1290 205",
+      "Vorjahresvergleich",
+      "YUM Gastronomie GmbH",
+      "YUM",
+      "April 2025",
+      "WES: KG3",
+      "Übertrag Vorseite",
+      // 6 Spalten — würde fälschlich Personalkosten überschreiben, wenn die
+      // Seite verarbeitet würde:
+      "27 Personalkosten 89.580 1.000 12,3 341.615 4.000 8,5",
+    ];
+    const res = parseBwaPdfText([makePage1("YUM"), makePage2("YUM"), vjv]);
+    expect(res.blocks).toHaveLength(1);
+    expect(res.blocks[0].values.personalCents).toBe(8212300);
+    expect(res.warnings.some((w) => /Vorjahresvergleich/i.test(w))).toBe(false);
+  });
+
+  it("ignoriert Jahresübersicht-Seiten", () => {
+    const jue: string[] = [
+      "1290 205",
+      "Jahresübersicht",
+      "YUM Gastronomie GmbH",
+      "YUM",
+      "April 2025",
+      "WES: KG3",
+      "6 Getränke 10.000 5,0 10.000 5,0",
+    ];
+    const res = parseBwaPdfText([jue]);
+    expect(res.blocks).toHaveLength(0);
+  });
+
+  it("BWA-Fortsetzungsseite mit vollem Kopf fließt in denselben Block", () => {
+    const res = parseBwaPdfText([makePage1("YUM"), makePage2("YUM")]);
+    expect(res.blocks).toHaveLength(1);
+    // Werte von Seite 1 (Umsatz) und Seite 2 (Betriebsergebnis) beide da:
+    expect(res.blocks[0].values.umsatzCents).toBe(12071300);
+    expect(res.blocks[0].values.betriebsergebnisCents).toBe(-845100);
+  });
+
+  it("parst Negativwert Betriebsergebnis", () => {
+    const p: string[] = [
+      "1290 205",
+      "Betriebswirtschaftliche Auswertung",
+      "YUM Gastronomie GmbH",
+      "YUM",
+      "April 2025",
+      "WES: KG3",
+      "52 Betriebsergebnis -1.737 -1,2 14.026 2,5",
+    ];
+    const res = parseBwaPdfText([p]);
+    expect(res.blocks[0].values.betriebsergebnisCents).toBe(-173700);
+  });
+});
