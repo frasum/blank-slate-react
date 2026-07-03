@@ -127,6 +127,7 @@ export function validateReplacePayload(
 
 type BilanzPositionRow = {
   id: string;
+  organization_id: string;
   entity: string;
   fiscal_year: number;
   statement: "aktiva" | "passiva" | "guv";
@@ -142,6 +143,7 @@ type BilanzPositionRow = {
 
 type BilanzKontoRow = {
   id: string;
+  organization_id: string;
   entity: string;
   fiscal_year: number;
   statement: "aktiva" | "passiva" | "guv";
@@ -158,13 +160,13 @@ type BilanzDb = {
     Tables: {
       bilanz_positions: {
         Row: BilanzPositionRow;
-        Insert: Omit<BilanzPositionRow, "id"> & { organization_id: string };
+        Insert: Omit<BilanzPositionRow, "id">;
         Update: Partial<BilanzPositionRow>;
         Relationships: [];
       };
       bilanz_konten: {
         Row: BilanzKontoRow;
-        Insert: Omit<BilanzKontoRow, "id"> & { organization_id: string };
+        Insert: Omit<BilanzKontoRow, "id">;
         Update: Partial<BilanzKontoRow>;
         Relationships: [];
       };
