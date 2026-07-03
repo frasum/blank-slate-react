@@ -1491,15 +1491,22 @@ function SachkostenDrilldownCard({
                 const pct = total !== 0 ? (cents / total) * 100 : 0;
                 const width = (Math.abs(cents) / maxAbs) * 100;
                 return (
-                  <div key={label} className="grid grid-cols-[minmax(9rem,14rem)_1fr_auto_auto] items-center gap-3 text-sm">
-                    <div className="truncate" title={label}>{label}</div>
+                  <div
+                    key={label}
+                    className="grid grid-cols-[minmax(9rem,14rem)_1fr_auto_auto] items-center gap-3 text-sm"
+                  >
+                    <div className="truncate" title={label}>
+                      {label}
+                    </div>
                     <div className="relative h-3 rounded bg-muted overflow-hidden">
                       <div
                         className={`h-full ${neg ? "bg-destructive" : "bg-primary"}`}
                         style={{ width: `${width}%` }}
                       />
                     </div>
-                    <div className={`tabular-nums text-right w-24 ${neg ? "text-destructive" : ""}`}>
+                    <div
+                      className={`tabular-nums text-right w-24 ${neg ? "text-destructive" : ""}`}
+                    >
                       {fmtCents(cents)} €
                     </div>
                     <div className="tabular-nums text-right w-16 text-muted-foreground text-xs">
@@ -1704,11 +1711,7 @@ function CompareTableImpl({ cmp }: { cmp: ReturnType<typeof compareCostCenters> 
                   const worst = r.markKey ? cmp.worstByMetric[r.markKey] : undefined;
                   const isBest = best === c.costCenter;
                   const isWorst = worst === c.costCenter;
-                  const bg = isBest
-                    ? "bg-emerald-500/10"
-                    : isWorst
-                      ? "bg-destructive/10"
-                      : "";
+                  const bg = isBest ? "bg-emerald-500/10" : isWorst ? "bg-destructive/10" : "";
                   const neg = r.negativeColorable && v < 0;
                   const cls = neg ? "text-destructive" : "";
                   return (
@@ -1742,7 +1745,10 @@ function SmallMultiplesGrid({
   const centers = cmp.entries.map((e) => e.costCenter);
 
   const seriesByCenter = useMemo(() => {
-    const map = new Map<string, { month: string; label: string; umsatz: number; betrieb: number }[]>();
+    const map = new Map<
+      string,
+      { month: string; label: string; umsatz: number; betrieb: number }[]
+    >();
     for (const cc of centers) {
       const arr = last12.map((m) => {
         const r = entityRows.find((row) => row.costCenter === cc && row.month === m);
@@ -1801,7 +1807,12 @@ function SmallMultiplesGrid({
                     <BarChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} />
                       <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={1} />
-                      <YAxis domain={umsatzDomain} tickFormatter={compactFmt} width={50} tick={{ fontSize: 10 }} />
+                      <YAxis
+                        domain={umsatzDomain}
+                        tickFormatter={compactFmt}
+                        width={50}
+                        tick={{ fontSize: 10 }}
+                      />
                       <Tooltip formatter={(v: number) => `${compactFmt(v)} €`} />
                       <Bar dataKey="umsatz" fill="hsl(var(--primary))" opacity={0.8} />
                     </BarChart>
@@ -1815,10 +1826,21 @@ function SmallMultiplesGrid({
                     <ComposedChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} />
                       <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={1} />
-                      <YAxis domain={betriebDomain} tickFormatter={compactFmt} width={50} tick={{ fontSize: 10 }} />
+                      <YAxis
+                        domain={betriebDomain}
+                        tickFormatter={compactFmt}
+                        width={50}
+                        tick={{ fontSize: 10 }}
+                      />
                       <Tooltip formatter={(v: number) => `${compactFmt(v)} €`} />
                       <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" />
-                      <Line type="monotone" dataKey="betrieb" stroke="hsl(142 65% 40%)" strokeWidth={2} dot={false} />
+                      <Line
+                        type="monotone"
+                        dataKey="betrieb"
+                        stroke="hsl(142 65% 40%)"
+                        strokeWidth={2}
+                        dot={false}
+                      />
                     </ComposedChart>
                   </ResponsiveContainer>
                 </div>

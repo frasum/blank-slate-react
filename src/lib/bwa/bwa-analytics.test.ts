@@ -190,7 +190,16 @@ describe("computeBreakEven", () => {
     const rows = months.map((m, i) => mk(m, 50_000_00 + i * 100_00, 10_000_00));
     const desc = [...rows].sort((a, b) => b.month.localeCompare(a.month));
     const asc = [...rows].sort((a, b) => a.month.localeCompare(b.month));
-    const mixed = [rows[5], rows[0], rows[12], rows[3], ...rows.slice(6, 12), rows[1], rows[2], rows[4]];
+    const mixed = [
+      rows[5],
+      rows[0],
+      rows[12],
+      rows[3],
+      ...rows.slice(6, 12),
+      rows[1],
+      rows[2],
+      rows[4],
+    ];
     expect(computeBreakEven(asc)).toEqual(computeBreakEven(desc));
     expect(computeBreakEven(mixed)).toEqual(computeBreakEven(desc));
   });

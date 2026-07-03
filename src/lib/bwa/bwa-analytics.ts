@@ -296,11 +296,7 @@ export type CostCenterComparison = {
   months: number;
 };
 
-export type CompareMetric =
-  | "personalQuote"
-  | "wesQuote"
-  | "primeCostQuote"
-  | "betriebsQuote";
+export type CompareMetric = "personalQuote" | "wesQuote" | "primeCostQuote" | "betriebsQuote";
 
 export type CostCenterCompareResult = {
   entries: CostCenterComparison[];
@@ -318,10 +314,7 @@ const COMPARE_METRICS: CompareMetric[] = [
 /** Vergleicht die echten Kostenstellen (KEINE "Gruppe") einer entity über
  *  die übergebenen Monate. `bestByMetric`/`worstByMetric` je Quote: bei
  *  Quoten gilt niedriger = besser, außer `betriebsQuote` (höher = besser). */
-export function compareCostCenters(
-  rows: BwaRow[],
-  months: string[],
-): CostCenterCompareResult {
+export function compareCostCenters(rows: BwaRow[], months: string[]): CostCenterCompareResult {
   const monthSet = new Set(months);
   const buckets = new Map<string, BwaRow[]>();
   for (const r of rows) {
