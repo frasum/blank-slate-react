@@ -459,7 +459,7 @@ function Header({ showKasseLink = false }: { showKasseLink?: boolean }) {
           </Link>
         )}
         <Link to="/zeit" className="text-muted-foreground hover:text-foreground">
-          Zur Stempeluhr
+          Mein COCO
         </Link>
       </div>
     </header>

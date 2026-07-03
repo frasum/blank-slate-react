@@ -50,7 +50,7 @@ function LohnPage() {
           to="/zeit"
           className="text-sm text-muted-foreground underline-offset-2 hover:underline"
         >
-          Zur Stempeluhr
+          Mein COCO
         </Link>
       </header>
 
