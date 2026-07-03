@@ -118,6 +118,14 @@ const GROUPS: Group[] = [
     sub: [{ to: "/admin/statistik", label: "Umsatz" }],
   },
   {
+    key: "bwa",
+    label: "BWA",
+    default: "/admin/bwa",
+    prefixes: ["/admin/bwa"],
+    sub: [{ to: "/admin/bwa", label: "Monatsauswertungen" }],
+    roles: ["admin"],
+  },
+  {
     key: "einstellungen",
     label: "Einstellungen",
     default: "/admin/einstellungen",
