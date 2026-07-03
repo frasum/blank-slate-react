@@ -1580,9 +1580,14 @@ JPG/PNG/PDF, 10 MB, Größe aus dekodierten Bytes), Signed URLs 60 s,
 `valid_until` für die Ablauf-Ampel (SP3), Sichtvermerk `verified_by/at`.
 
 Datenschutz: Konfession als optionales Freitextfeld (Art.-9-Datum, nur
-Mitarbeiter selbst + Admin/Payroll); Audit-Meta bei Anträgen enthält nur
-Feldnamen, nie Werte. Feldkataloge (`SELF_VIEW`/`DIRECT_EDIT`/`REQUEST`)
-sind reine, getestete Module in `src/lib/profile/profile-fields.ts`.
+Mitarbeiter selbst + Admin/Payroll). Audit-Verhalten zweistufig: bei
+Antrag-ERSTELLUNG enthält das Audit-Meta nur Feldnamen, nie Werte (sensible
+Daten). Bei der FREIGABE schreibt `profile-admin` bewusst den before/after-
+Diff der angewendeten Felder ins Audit-Meta — gewollte Nachvollziehbarkeit
+für den Fraud-kritischen Fall IBAN-Änderung (Konto-Umleitung); das
+Audit-Log ist nur für Admins sichtbar. Feldkataloge
+(`SELF_VIEW`/`DIRECT_EDIT`/`REQUEST`) sind reine, getestete Module in
+`src/lib/profile/profile-fields.ts`.
 
 SP1 (Schema + Server-Layer) abgenommen 03.07., Migration `20260703084105` +
 Bucket live (Verifikation 1/2/0/1/1/2). Lektion: Bucket-Insert fehlte in der
@@ -1594,3 +1599,9 @@ Migrations-Datei entfällt daher bewusst. SP2 = Mitarbeiter-UI `/profil`
 `profile-fields.ts`, Antragsliste, Dokumenten-Upload/Ansicht). Offen: SP3
 Admin-Review (Anträge freigeben, Dokumenten-Übersicht mit Ablauf-Ampel,
 „manuell übernehmen"-Hinweis für Namensfelder).
+
+**§3-Merkposten Konfession:** Die Spalte `konfession` ist bewusst NICHT an
+den Lohnrechner angebunden (KiSt läuft weiter über `church_tax_liable`).
+Falls sie je die Kirchensteuer speisen soll: Select-Liste in
+`computeLohnForStaff` UND `person-mapping` zwingend mitziehen
+(Phantom-Deploy-Falle, §3 / Aktivrente-Lektion).
