@@ -344,6 +344,34 @@ function ZeitUebersichtPage() {
     enabled: Boolean(effectiveLocationId),
   });
 
+  // Schichten (Periode) — standortübergreifend zählen: pro Standort Overview laden
+  // und Kalender-Tage pro Mitarbeiter zu einem Set mergen (mehrere Einsätze am
+  // selben Tag = 1 Schicht).
+  const shiftCountQueries = useQueries({
+    queries: locations.map((l) => ({
+      queryKey: ["time-overview", l.id, fromDate, toDate],
+      queryFn: () => fetchOverview({ data: { locationId: l.id, fromDate, toDate } }),
+      enabled: Boolean(l.id) && Boolean(fromDate) && Boolean(toDate),
+    })),
+  });
+  const shiftsByStaff = useMemo(() => {
+    const days = new Map<string, Set<string>>();
+    for (const q of shiftCountQueries) {
+      const entries = (q.data as { entries?: Entry[] } | undefined)?.entries ?? [];
+      for (const e of entries) {
+        let set = days.get(e.staffId);
+        if (!set) {
+          set = new Set<string>();
+          days.set(e.staffId, set);
+        }
+        set.add(e.businessDate);
+      }
+    }
+    const counts = new Map<string, number>();
+    for (const [staffId, set] of days) counts.set(staffId, set.size);
+    return counts;
+  }, [shiftCountQueries]);
+
   const notesQ = useQuery({
     queryKey: ["payroll-notes", effectiveLocationId, fromDate, toDate],
     queryFn: () =>
