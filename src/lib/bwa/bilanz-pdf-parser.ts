@@ -53,6 +53,31 @@ export type ParsedBilanzYear = {
   warnings: string[];
 };
 
+// Minimal-Formen, die die shared Gate-Funktionen brauchen — bewusst
+// strukturell (kein Import aus bilanz.functions.ts, damit der Server-Layer
+// diese Funktionen ohne Zyklus konsumieren kann).
+export type PositionLike = {
+  statement: string;
+  code: string;
+  level: number;
+  label: string;
+  betragCents: number;
+  vorjahrCents?: number | null;
+};
+
+export type KontoLike = {
+  statement: string;
+  positionCode: string;
+  betragCents: number;
+  vorjahrCents?: number | null;
+};
+
+export type AnlageAnchors = {
+  summeAktivaCents: number | null;
+  summePassivaCents: number | null;
+  bilanzgewinnCents: number | null;
+};
+
 // ---------------------------------------------------------------------------
 // Konstanten / kleine Helper
 // ---------------------------------------------------------------------------
@@ -99,7 +124,7 @@ type SectionKind =
   | { kind: "anlage-bilanz" | "anlage-guv" }
   | { kind: "other" };
 
-function classifyPage(page: Token[][]): SectionKind {
+export function classifyPage(page: Token[][]): SectionKind {
   const txt = pageText(page);
   const knwBilanz = /Kontennachweis\s+zur\s+Handelsbilanz/i.test(txt);
   const knwGuv = /Kontennachweis\s+zur\s+Gewinn-?\s*und\s*Verlustrechnung/i.test(txt);
