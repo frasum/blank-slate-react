@@ -84,12 +84,15 @@ export type AnlageAnchors = {
 
 // F4b: rechtsbuendige Spalten in der Druckrealitaet — Toleranz auf xEnd.
 const EDGE_TOL = 8;
-// Strikte Erkennung deutscher Betraege: 1-3 Ziffern, optional weitere
-// Dreiergruppen mit Tausenderpunkt, optional Nachkomma mit Komma.
-// Verhindert bewusst, dass Hierarchie-Prefixe wie "1." als Zahl gelten
-// (Regex-Bug frueher Iteration) und dass 4-stellige Kontonummern wie
-// "0300" faelschlich als Betrag klassifiziert werden.
-const AMOUNT_RE = /^-?\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?$/;
+// F4b-Fix-3: Dezimalkomma-Pflicht. ETL-ADHOGA druckt Betraege ausnahmslos
+// mit genau zwei Nachkommastellen. Nackte Ganzzahlen ("4", "12", "2024")
+// sind damit nie Betraege — das rettet Konten mit Paragraphen-Zahlen im
+// Label (§ 4 Nr. 12 UStG, § 4 Abs. 5b EStG), deren Label-Zahlen sonst als
+// GJ-Betrag gefressen wurden. 4-stellige Kontonummern und Konten-Ranges
+// ("0830-0838") sind strukturell nie mehr Betrags-Kandidaten. Einzige
+// Ausnahme bleibt die Jahres-Kopfzeilen-Erkennung (findColumnAnchors), die
+// ihr eigenes Muster nutzt.
+const AMOUNT_RE = /^-?\d{1,3}(?:\.\d{3})*,\d{2}$/;
 
 function isAmount(t: string): boolean {
   return AMOUNT_RE.test(t);
