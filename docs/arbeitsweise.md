@@ -209,8 +209,11 @@ Rekonstruiert per Kalibrierung gegen bereits validierte Bestands-Sessions (Refer
 | M-BWA Welle F1 — Schema `bwa_monthly`, Quersummen-Kern, Server-Fns, Erfassung (§41)                                                    | ✅ (E2E durch Frank offen)                              |
 | M-BWA Historie-Import Mai 23–Apr 25 (48 Zeilen, Ist=Soll verifiziert)                                                                  | ✅                                                      |
 | M-BWA Welle F2a — Dashboard: KPIs+YoY, Prime Cost, Wasserfall, Break-even (§41)                                                        | ✅ (E2E durch Frank offen)                              |
-| M-BWA Welle F2b (Standortvergleich, Sachkosten-Drilldown) + F3 (PDF-Import)                                                            | ⏳ offen                                                |
+| M-BWA Welle F2b — Vergleich-Tab, Sachkosten-Drilldown, Break-even-Sortier-Fix (§41)                                                    | ✅ (E2E durch Frank offen)                              |
+| M-BWA Welle F3 — PDF-Upload + eurodata-Parser mit Review-Screen                                                                        | ⏳ offen                                                |
 | Lohn-RLS-Härtung — SELECT manager+ auf lohn_absence_days/lohn_recurring_zeilen (§42)                                                   | ✅                                                      |
+| Welle SP1 — Self-Service Stammdaten & Dokumente: Schema + Server-Layer (§43)                                                           | ✅                                                      |
+| Welle SP2 — Mitarbeiter-UI `/profil` (Kontakt direkt, Anträge, Dokumente) (§43)                                                        | ✅ (SP3 Admin-Review offen)                             |
 
 **Juni-Kassenlücke geschlossen (29.06.2026):** YUM (16., 18.–25.) und Spicery (16., 18.–25., 28.) aus `tagesabrechnung` nachimportiert — 19 Sessions; das leere native YUM-28 durch Legacy-Daten ersetzt. `vectron_daily_total_cents` 19/19 gegen die Quelle verifiziert. Mapping siehe Abschnitt 5.
 
@@ -1514,13 +1517,24 @@ ungefähr gelesen), Zeitreihe mit Benchmark-Bändern (WES 28–32 %, Personal
 
 - **E2E durch Frank** (F1: Quersummen-Ablehnung + Audit; F2a: Plausibilität
   Gruppe/YUM, Prime-Cost-Schwelle).
-- **Auflage für F2b:** `computeBreakEven` verlässt sich still darauf, dass
-  der Aufrufer absteigend sortiert (`slice(0, 12)` = neueste 12; UI macht
-  es korrekt via `scopedByMonthDesc`). Vertrag steht weder im JSDoc noch in
-  einem Test — in F2b intern defensiv absteigend sortieren + Test
-  („gleiche Form ≠ gleicher Vertrag").
-- Welle F2b: Standortvergleich (Small Multiples) + Sachkosten-Drilldown
-  ins `sachkosten_detail`-jsonb.
+- ~~Auflage für F2b~~ **erledigt (F2b):** `computeBreakEven` sortiert intern
+  defensiv absteigend (Kopie + `localeCompare` desc); Test verankert, dass
+  asc/gemischt dasselbe Ergebnis liefern wie desc.
+- ~~Welle F2b~~ **umgesetzt (03.07.2026, abgenommen bei HEAD `5a55875`,
+  vitest 1062 grün):** Neue reine Funktionen `sumSachkostenDetail`
+  (label-weise Summe über Roh-Zeilen; `missingMonths` +
+  `coveredSachkostenCents` für den ehrlichen Abdeckungs-Hinweis — manuell
+  erfasste Monate haben kein Detail, das kommt erst mit F3) und
+  `compareCostCenters` (nur echte Kostenstellen, KEINE „Gruppe";
+  best/worst je Quote, bei `betriebsQuote` gilt höher = besser). UI:
+  Drilldown-Karte im Dashboard-Tab (Balkenliste absteigend, negative rot,
+  Abdeckungs-Hinweis); dritter Tab „Vergleich" mit Kennzahl-Tabelle
+  (beste Quote grün / schlechteste rot je Zeile) und Small Multiples je
+  Kostenstelle mit **gemeinsamen Y-Domains über alle Spalten** (sonst ist
+  der optische Vergleich wertlos). Kein Schema-/Server-Fn-Eingriff —
+  `sachkostenDetail` war im `BwaRow`-Typ bereits gemappt. Der Gruppe-
+  Drilldown läuft bewusst über die Roh-Zeilen (`aggregateGroup` ignoriert
+  das jsonb weiterhin).
 - Welle F3: PDF-Upload + eurodata-Parser mit Review-Screen; Upsert erst
   nach Franks Bestätigung, nie blind. Bis dahin: monatliche BWA manuell
   erfassen (~15 Felder × Kostenstelle, Quersummen-Gate fängt Tippfehler).
@@ -1566,9 +1580,14 @@ JPG/PNG/PDF, 10 MB, Größe aus dekodierten Bytes), Signed URLs 60 s,
 `valid_until` für die Ablauf-Ampel (SP3), Sichtvermerk `verified_by/at`.
 
 Datenschutz: Konfession als optionales Freitextfeld (Art.-9-Datum, nur
-Mitarbeiter selbst + Admin/Payroll); Audit-Meta bei Anträgen enthält nur
-Feldnamen, nie Werte. Feldkataloge (`SELF_VIEW`/`DIRECT_EDIT`/`REQUEST`)
-sind reine, getestete Module in `src/lib/profile/profile-fields.ts`.
+Mitarbeiter selbst + Admin/Payroll). Audit-Verhalten zweistufig: bei
+Antrag-ERSTELLUNG enthält das Audit-Meta nur Feldnamen, nie Werte (sensible
+Daten). Bei der FREIGABE schreibt `profile-admin` bewusst den before/after-
+Diff der angewendeten Felder ins Audit-Meta — gewollte Nachvollziehbarkeit
+für den Fraud-kritischen Fall IBAN-Änderung (Konto-Umleitung); das
+Audit-Log ist nur für Admins sichtbar. Feldkataloge
+(`SELF_VIEW`/`DIRECT_EDIT`/`REQUEST`) sind reine, getestete Module in
+`src/lib/profile/profile-fields.ts`.
 
 SP1 (Schema + Server-Layer) abgenommen 03.07., Migration `20260703084105` +
 Bucket live (Verifikation 1/2/0/1/1/2). Lektion: Bucket-Insert fehlte in der
@@ -1580,3 +1599,9 @@ Migrations-Datei entfällt daher bewusst. SP2 = Mitarbeiter-UI `/profil`
 `profile-fields.ts`, Antragsliste, Dokumenten-Upload/Ansicht). Offen: SP3
 Admin-Review (Anträge freigeben, Dokumenten-Übersicht mit Ablauf-Ampel,
 „manuell übernehmen"-Hinweis für Namensfelder).
+
+**§3-Merkposten Konfession:** Die Spalte `konfession` ist bewusst NICHT an
+den Lohnrechner angebunden (KiSt läuft weiter über `church_tax_liable`).
+Falls sie je die Kirchensteuer speisen soll: Select-Liste in
+`computeLohnForStaff` UND `person-mapping` zwingend mitziehen
+(Phantom-Deploy-Falle, §3 / Aktivrente-Lektion).
