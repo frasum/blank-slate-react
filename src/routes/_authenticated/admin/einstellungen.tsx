@@ -12,6 +12,7 @@ import { createFileRoute, useRouteContext } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getOrgSettings, updateOrgSettings } from "@/lib/admin/org-settings.functions";
+import { setBetriebsnummer } from "@/lib/sofortmeldung/sofortmeldung.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/einstellungen")({
   head: () => ({ meta: [{ title: "Einstellungen · Verwaltung" }] }),
@@ -36,6 +37,10 @@ function OrgSettingsPage() {
   const [kitchenManualOnly, setKitchenManualOnly] = useState(false);
   const [testModeEnabled, setTestModeEnabled] = useState(false);
   const [testModeEmail, setTestModeEmail] = useState("");
+  const [betriebsnummer, setBetriebsnummerLocal] = useState("");
+  const [bnMsg, setBnMsg] = useState<string | null>(null);
+  const [bnErr, setBnErr] = useState<string | null>(null);
+  const callSetBn = useServerFn(setBetriebsnummer);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -46,6 +51,7 @@ function OrgSettingsPage() {
     setKitchenManualOnly(settingsQ.data.kitchenManualOnly);
     setTestModeEnabled(settingsQ.data.testModeEnabled);
     setTestModeEmail(settingsQ.data.testModeEmail ?? "");
+    setBetriebsnummerLocal(settingsQ.data.betriebsnummer ?? "");
   }, [settingsQ.data]);
 
   const mutation = useMutation({
@@ -83,6 +89,20 @@ function OrgSettingsPage() {
     onError: (e: unknown) => {
       setErr(e instanceof Error ? e.message : "Fehler.");
       setMsg(null);
+    },
+  });
+
+  const bnMutation = useMutation({
+    mutationFn: () =>
+      callSetBn({ data: { betriebsnummer: betriebsnummer.trim() || null } }),
+    onSuccess: async () => {
+      setBnMsg("Gespeichert.");
+      setBnErr(null);
+      await queryClient.invalidateQueries({ queryKey: ["admin", "org-settings"] });
+    },
+    onError: (e: unknown) => {
+      setBnErr(e instanceof Error ? e.message : "Fehler.");
+      setBnMsg(null);
     },
   });
 
