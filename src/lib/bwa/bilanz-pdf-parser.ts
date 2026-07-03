@@ -133,13 +133,14 @@ function findColumnAnchors(page: Token[][]): ColumnAnchors | null {
 }
 
 function classifyAmountCol(x: number, cols: ColumnAnchors): "gj" | "vj" | null {
-  if (Math.abs(x - cols.vjX) <= COL_TOLERANCE + 40) {
-    // Vorjahr-Band: rechts vom Vorjahr-Anker (rechtsbuendige Zahlen liegen
-    // knapp links vom Header-x; grosszuegige Toleranz nach beiden Seiten).
-    if (x >= cols.vjX - COL_TOLERANCE * 4) return "vj";
-  }
-  if (x >= cols.gjX - COL_TOLERANCE * 4 && x < cols.vjX - COL_TOLERANCE) return "gj";
-  return null;
+  // Nearest-anchor mit grosszuegiger Toleranz. Deckt rechtsbuendige Zahlen
+  // (leicht links vom Header-Anker) und Ausrichtungs-Jitter zwischen den
+  // beiden Beleg-Blaettern (2022/2023/2024) ab.
+  const dGj = Math.abs(x - cols.gjX);
+  const dVj = Math.abs(x - cols.vjX);
+  const min = Math.min(dGj, dVj);
+  if (min > COL_TOLERANCE * 8) return null;
+  return dGj <= dVj ? "gj" : "vj";
 }
 
 // ---------------------------------------------------------------------------
