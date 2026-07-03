@@ -177,8 +177,8 @@ export function classifyRow(tokens: Token[], section: BilanzStatement | null): R
   if (nonAmount[0].text.toLowerCase() === "davon") return "davon";
   if (KONTO_RE.test(first)) return "konto";
   if (section === "guv" && GUV_RE.test(first)) return "position-guv";
-  if (LETTER_RE.test(first)) return "position-letter";
   if (ROMAN_RE.test(first)) return "position-roman";
+  if (LETTER_RE.test(first)) return "position-letter";
   if (ARABIC_RE.test(first)) return "position-arabic";
   if (BUCHSTABE_RE.test(first)) return "position-buchstabe";
   return "other";
