@@ -200,7 +200,9 @@ const DIRECT_VALIDATORS: Record<DirectEditField, FieldValidator> = {
   email: validateEmail,
 };
 
-export function validateDirectEditPayload(payload: Record<string, unknown>):
+export function validateDirectEditPayload(
+  payload: Record<string, unknown>,
+):
   | { ok: true; value: Partial<Record<DirectEditField, string>> }
   | { ok: false; errors: Record<string, string> } {
   const keys = Object.keys(payload);
@@ -221,7 +223,9 @@ export function validateDirectEditPayload(payload: Record<string, unknown>):
   return { ok: true, value };
 }
 
-export function validateChangeRequestPayload(payload: unknown):
+export function validateChangeRequestPayload(
+  payload: unknown,
+):
   | { ok: true; value: Partial<Record<RequestField, unknown>> }
   | { ok: false; errors: Record<string, string> } {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {

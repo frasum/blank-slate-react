@@ -18,10 +18,7 @@ import {
   validateChangeRequestPayload,
   type RequestField,
 } from "./profile-fields";
-import {
-  isStaffDocumentPathAllowed,
-  type StaffDocumentType,
-} from "./staff-document-path";
+import { isStaffDocumentPathAllowed, type StaffDocumentType } from "./staff-document-path";
 
 const BUCKET = "staff-documents";
 
@@ -90,7 +87,9 @@ export const listOpenChangeRequests = createServerFn({ method: "GET" })
       const staff = staffMap.get(r.staff_id as string);
       const details = detailsMap.get(r.staff_id as string) ?? {};
       const payload = (r.payload ?? {}) as Record<string, unknown>;
-      const { manualOnly } = splitApplicableFields(payload as Partial<Record<RequestField, unknown>>);
+      const { manualOnly } = splitApplicableFields(
+        payload as Partial<Record<RequestField, unknown>>,
+      );
       const manualKeys = new Set(Object.keys(manualOnly));
       const changes = Object.keys(payload).map((field) => ({
         field,

@@ -234,7 +234,10 @@ const uploadSchema = z.object({
   fileName: z.string().min(1),
   contentBase64: z.string().min(1),
   mimeType: z.string().min(1),
-  validUntil: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  validUntil: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
   note: z.string().max(1000).optional(),
 });
 

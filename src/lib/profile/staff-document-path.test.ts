@@ -13,32 +13,30 @@ const STAFF_2 = "22222222-2222-2222-2222-222222222222";
 
 describe("staffDocumentFolder", () => {
   it("baut den Pfad korrekt", () => {
-    expect(staffDocumentFolder(ORG_A, STAFF_1, "passport")).toBe(
-      `${ORG_A}/${STAFF_1}/passport`,
-    );
+    expect(staffDocumentFolder(ORG_A, STAFF_1, "passport")).toBe(`${ORG_A}/${STAFF_1}/passport`);
   });
 });
 
 describe("isStaffDocumentPathAllowed", () => {
   it("erlaubt gültigen Pfad", () => {
-    expect(
-      isStaffDocumentPathAllowed(`${ORG_A}/${STAFF_1}/passport/abc.pdf`, ORG_A, STAFF_1),
-    ).toBe(true);
+    expect(isStaffDocumentPathAllowed(`${ORG_A}/${STAFF_1}/passport/abc.pdf`, ORG_A, STAFF_1)).toBe(
+      true,
+    );
   });
   it("verbietet fremde staff_id", () => {
-    expect(
-      isStaffDocumentPathAllowed(`${ORG_A}/${STAFF_2}/passport/abc.pdf`, ORG_A, STAFF_1),
-    ).toBe(false);
+    expect(isStaffDocumentPathAllowed(`${ORG_A}/${STAFF_2}/passport/abc.pdf`, ORG_A, STAFF_1)).toBe(
+      false,
+    );
   });
   it("verbietet fremde org_id", () => {
-    expect(
-      isStaffDocumentPathAllowed(`${ORG_B}/${STAFF_1}/passport/abc.pdf`, ORG_A, STAFF_1),
-    ).toBe(false);
+    expect(isStaffDocumentPathAllowed(`${ORG_B}/${STAFF_1}/passport/abc.pdf`, ORG_A, STAFF_1)).toBe(
+      false,
+    );
   });
   it("verbietet .. und Backslash", () => {
-    expect(
-      isStaffDocumentPathAllowed(`${ORG_A}/${STAFF_1}/../x/abc.pdf`, ORG_A, STAFF_1),
-    ).toBe(false);
+    expect(isStaffDocumentPathAllowed(`${ORG_A}/${STAFF_1}/../x/abc.pdf`, ORG_A, STAFF_1)).toBe(
+      false,
+    );
     expect(
       isStaffDocumentPathAllowed(`${ORG_A}\\${STAFF_1}/passport/abc.pdf`, ORG_A, STAFF_1),
     ).toBe(false);
@@ -52,9 +50,9 @@ describe("isStaffDocumentPathAllowed", () => {
     ).toBe(false);
   });
   it("verbietet unbekannten doc_type", () => {
-    expect(
-      isStaffDocumentPathAllowed(`${ORG_A}/${STAFF_1}/secret/abc.pdf`, ORG_A, STAFF_1),
-    ).toBe(false);
+    expect(isStaffDocumentPathAllowed(`${ORG_A}/${STAFF_1}/secret/abc.pdf`, ORG_A, STAFF_1)).toBe(
+      false,
+    );
   });
   it("verbietet weiteres Unterverzeichnis nach doc_type", () => {
     expect(
