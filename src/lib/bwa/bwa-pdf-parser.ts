@@ -146,7 +146,14 @@ function extractDataRow(line: string): DataRow | null {
 }
 
 function normLabel(s: string): string {
-  return s.toLowerCase().replace(/\s+/g, " ").trim();
+  // Kollabiert Spaces UND Bindestrich-Spaces („KFZ - Kosten" ↔ „KFZ-Kosten"),
+  // damit der Vergleich mit den Konstanten in FIELD_MAP/SACHKOSTEN_DETAIL_ROWS
+  // symmetrisch ist (Aufrufer normalisiert auch die Konstante).
+  return s
+    .toLowerCase()
+    .replace(/\s*-\s*/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 // ---------------------------------------------------------------------------
