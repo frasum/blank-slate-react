@@ -146,7 +146,14 @@ function extractDataRow(line: string): DataRow | null {
 }
 
 function normLabel(s: string): string {
-  return s.toLowerCase().replace(/\s+/g, " ").trim();
+  // Kollabiert Spaces UND Bindestrich-Spaces („KFZ - Kosten" ↔ „KFZ-Kosten"),
+  // damit der Vergleich mit den Konstanten in FIELD_MAP/SACHKOSTEN_DETAIL_ROWS
+  // symmetrisch ist (Aufrufer normalisiert auch die Konstante).
+  return s
+    .toLowerCase()
+    .replace(/\s*-\s*/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 // ---------------------------------------------------------------------------
@@ -232,6 +239,8 @@ type WipBlock = {
   found: Map<keyof BwaMonthInput, number>;
   sachkostenDetail: Record<string, number>;
   sawRows: Set<number>;
+  /** Felder, die wir mangels Monatswert transparent als 0 übernommen haben. */
+  assumedZero: Set<keyof BwaMonthInput>;
 };
 
 function keyFor(b: WipBlock): string {
@@ -248,19 +257,34 @@ function processPageRows(lines: string[], wip: WipBlock, warnings: string[]): vo
     // Hauptfelder
     const field = FIELD_MAP.find((f) => f.row === row.rowNo);
     if (field) {
-      if (!normalized.includes(field.label)) {
+      if (!normalized.includes(normLabel(field.label))) {
         warnings.push(
           `Zeile ${row.rowNo}: erwartetes Label „${field.label}" nicht in „${row.label}" gefunden — Feld ${field.key} nicht übernommen.`,
         );
       } else if (row.monatCents !== null) {
         wip.found.set(field.key, row.monatCents);
+        wip.assumedZero.delete(field.key);
+      } else if (!wip.found.has(field.key)) {
+        // Label stimmt, Zeile ist da, aber die Monatsspalte fehlt (eurodata
+        // druckt bei „nichts gebucht" nur die kumulierten Werte, z. B.
+        // Abschreibung im April ohne AfA-Buchung). Fachlich = 0 für den
+        // Monat — transparent übernehmen statt das Feld als „fehlend" zu
+        // blockieren. Ein später gefundener echter Monatswert überschreibt
+        // die 0 wieder.
+        wip.found.set(field.key, 0);
+        if (!wip.assumedZero.has(field.key)) {
+          wip.assumedZero.add(field.key);
+          warnings.push(
+            `Zeile ${row.rowNo} (${field.key}): kein Monatswert im PDF — als 0,00 € übernommen (kumulierte Spalte vorhanden).`,
+          );
+        }
       }
     }
 
     // Sachkosten-Detail
     const detail = SACHKOSTEN_DETAIL_ROWS.find((d) => d.row === row.rowNo);
     if (detail) {
-      if (!normalized.includes(detail.label)) {
+      if (!normalized.includes(normLabel(detail.label))) {
         warnings.push(
           `Sachkosten-Zeile ${row.rowNo}: erwartetes Label „${detail.label}" nicht in „${row.label}" — nicht ins Detail übernommen.`,
         );
@@ -338,6 +362,7 @@ export function parseBwaPdfText(pages: string[][]): ParseResult {
         found: new Map(),
         sachkostenDetail: {},
         sawRows: new Set(),
+        assumedZero: new Set(),
       };
       wipMap.set(key, wip);
     }

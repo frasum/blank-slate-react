@@ -1573,6 +1573,17 @@ ungefähr gelesen), Zeitreihe mit Benchmark-Bändern (WES 28–32 %, Personal
   Realität", vgl. §39): Parser-Fixtures NIE synthetisch erfinden — Golden
   Master kommt aus dem echten Dokument, Beträge im Repo-Fixture
   verfremdet (§6: keine Geschäftsdaten im Repo).
+  F3-Fix Teil 2 (03.07.): (1) Zeilen-Assemblierung von exaktem Math.round
+  auf Toleranz-Clustering (±2,5 pt) umgestellt — eurodata setzt
+  Zeilennummern mit Baseline-Versatz, exaktes Runden zerriss „47" von
+  „Summe Sachkosten …" (pures Modul `src/lib/bwa/pdf-lines.ts`, getestet).
+  (2) Gesehene Zeile mit leerer Monatsspalte ⇒ 0 mit transparenter
+  Warnung (eurodata druckt dann nur kumulierte Werte; die 4-Token-Regel
+  in `extractDataRow` bleibt — kumulierte Werte nie als Monatswert raten).
+  (3) `normLabel` kollabiert Bindestrich-Spaces, Label-Vergleich
+  symmetrisch. Verifiziert am echten PDF: 12/12 Felder je KSt, Quersumme
+  und Sachkosten-Detail innerhalb der 3-€-Toleranz (Rundung ganzer Euro
+  je Zeile).
   **M-BWA damit funktional komplett.** Monatlicher Ablauf: BWA-PDF vom
   Steuerberater in den Import-Tab laden → Review prüfen → übernehmen.
   TSB folgt als zweite entity, sobald die erste TSB-BWA vorliegt (Name +
