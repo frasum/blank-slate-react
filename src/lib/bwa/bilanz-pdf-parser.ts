@@ -382,19 +382,19 @@ export function parseBilanzPdf(pages: Token[][][]): ParsedBilanzYear {
   const finalizeKonto = (s: SectionState, gj: number, vj: number | null): void => {
     if (!s.openKonto) return;
     const label = s.openKonto.labelParts.join(" ").replace(/\s+/g, " ").trim();
-      if (!label) {
+    if (!label) {
       warnings.push(`Konto ${s.openKonto.kontoNr}: leeres Label — übersprungen.`);
-      } else {
-        konten.push({
+    } else {
+      konten.push({
         statement: s.openKonto.statement,
         positionCode: s.openKonto.positionCode,
         kontoNr: s.openKonto.kontoNr,
-          label,
-          betragCents: gj,
-          vorjahrCents: vj,
+        label,
+        betragCents: gj,
+        vorjahrCents: vj,
         sortOrder: s.openKonto.sortOrder,
-        });
-      }
+      });
+    }
     s.openKonto = null;
   };
   const closeUnresolvedKonto = (s: SectionState): void => {
@@ -547,15 +547,11 @@ export function parseBilanzPdf(pages: Token[][][]): ParsedBilanzYear {
       const hasAktiva = pageHasStandaloneToken(page, /^aktiva$/i);
       const hasPassiva = pageHasStandaloneToken(page, /^passiva$/i);
       if (state.statement === "aktiva" && hasPassiva && !hasAktiva) {
-        warnings.push(
-          "Fortsetzungsseite: erwartet Aktiva, gefunden Passiva — Abschnitt wechselt.",
-        );
+        warnings.push("Fortsetzungsseite: erwartet Aktiva, gefunden Passiva — Abschnitt wechselt.");
         finalizeSection();
         state = newState("passiva");
       } else if (state.statement === "passiva" && hasAktiva && !hasPassiva) {
-        warnings.push(
-          "Fortsetzungsseite: erwartet Passiva, gefunden Aktiva — Abschnitt wechselt.",
-        );
+        warnings.push("Fortsetzungsseite: erwartet Passiva, gefunden Aktiva — Abschnitt wechselt.");
         finalizeSection();
         state = newState("aktiva");
       }
