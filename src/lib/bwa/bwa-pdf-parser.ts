@@ -235,8 +235,7 @@ function findCostCenter(lines: string[]): string | null {
   // Variante B (eurodata BWAKORE): KSt-Name als eigene Zeile ZWISCHEN
   // Entity-Zeile und Monats-Zeile. Kopf: [BeraterNr, Report-Typ, Entity, KSt, Monat, ...]
   const eIdx = lines.findIndex((l) =>
-    /([A-ZÄÖÜ][\w\s.&-]*\b(?:GmbH(?:\s*&\s*Co\.?\s*KG)?|AG|KG|UG|e\.K\.))/.test(l) &&
-    !isReportTitleLine(l.replace(/([A-ZÄÖÜ][\w\s.&-]*\b(?:GmbH(?:\s*&\s*Co\.?\s*KG)?|AG|KG|UG|e\.K\.))/, "$1")),
+    /([A-ZÄÖÜ][\w\s.&-]*\b(?:GmbH(?:\s*&\s*Co\.?\s*KG)?|AG|KG|UG|e\.K\.))/.test(l),
   );
   const mIdx = lines.findIndex((l) =>
     /\b(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+\d{4}\b/i.test(
