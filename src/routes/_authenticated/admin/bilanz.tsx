@@ -12,6 +12,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
+import { Fragment } from "react";
 import { toast } from "sonner";
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ArrowDown, ArrowUp, ChevronRight, ChevronDown, AlertTriangle } from "lucide-react";
@@ -538,8 +539,8 @@ function PositionTree({
           const open = expanded.has(p.code);
           const delta = fmtDeltaPct(p.betrag_cents, p.vorjahr_cents);
           return (
-            <>
-              <TableRow key={p.code} className={isTop ? "bg-muted/30" : undefined}>
+            <Fragment key={p.code}>
+              <TableRow className={isTop ? "bg-muted/30" : undefined}>
                 <TableCell style={{ paddingLeft: 12 + p.level * 20 }}>
                   <button
                     type="button"
@@ -591,7 +592,7 @@ function PositionTree({
                       <TableCell />
                     </TableRow>
                   ))}
-            </>
+            </Fragment>
           );
         })}
         <TableRow className="border-t-2 font-semibold bg-muted/40">
