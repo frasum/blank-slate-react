@@ -19,20 +19,62 @@ import {
 
 // ---- Kleine Token-Helper ---------------------------------------------------
 
-function T(text: string, x: number): Token {
-  return { text, x };
+// F4b: realistische Geometrie — rechtsbuendige Spalten (stabile rechte
+// Kante), inneres GJ-Band fuer Konten (xEnd ~ 373), aeusseres GJ-Band fuer
+// Positionen und Zwischensummen (xEnd ~ 452), VJ-Band (xEnd ~ 533). Linke
+// Kanten variieren bewusst mit der Textlaenge.
+const CHAR_W = 6;
+function T(text: string, x: number, w = text.length * CHAR_W): Token {
+  return { text, x, xEnd: x + w };
+}
+// Right-aligned token: bekannter xEnd, x = xEnd - textbreite.
+function rT(text: string, xEnd: number): Token {
+  const w = text.length * CHAR_W;
+  return { text, x: xEnd - w, xEnd };
 }
 function txt(...pieces: string[]): Token[] {
   return pieces.map((p, i) => T(p, 50 + i * 20));
 }
+// Kopfzeilen: Geschäftsjahr/Vorjahr-Titel + Jahres-Anker + EUR EUR.
+function headerRows(fy = 2024): Token[][] {
+  return [
+    [T("Geschäftsjahr", 380), T("Vorjahr", 480)],
+    [rT(String(fy), 453), rT(String(fy - 1), 533)],
+    [rT("EUR", 453), rT("EUR", 533)],
+  ];
+}
+// Positionszeile mit Inline-Beträgen (aeusseres Band).
 function pos(prefix: string, label: string, gj: string, vj: string): Token[] {
-  return [T(prefix, 50), T(label, 70), T(gj, 395), T(vj, 495)];
+  return [T(prefix, 68), T(label, 93), rT(gj, 452), rT(vj, 533)];
 }
+// Positionszeile OHNE Inline-Beträge (Rollup- oder Subtotal-Kandidat).
+function posNoAmt(prefix: string, label: string): Token[] {
+  return [T(prefix, 68), T(label, 93)];
+}
+// Konto mit Inline-Beträgen: inneres GJ-Band + aeusseres VJ-Band.
 function konto(nr: string, label: string, gj: string, vj: string): Token[] {
-  return [T(nr, 100), T(label, 140), T(gj, 395), T(vj, 495)];
+  return [T(nr, 93), T(label, 126), rT(gj, 373), rT(vj, 533)];
 }
-function header(): Token[] {
-  return [T("Geschäftsjahr", 400), T("Vorjahr", 500)];
+// Konto ohne Beträge (wird von Fortsetzungs-/Innere-Betragszeile geschlossen).
+function kontoNoAmt(nr: string, ...labelParts: string[]): Token[] {
+  return [T(nr, 93), ...labelParts.map((l, i) => T(l, 126 + i * 40))];
+}
+// Reine Betragszeile im inneren Band (schliesst offenes Konto).
+function innerAmtLine(gj: string, vj: string): Token[] {
+  return [rT(gj, 373), rT(vj, 533)];
+}
+// Reine Betragszeile im aeusseren Band (schliesst offene Position).
+function outerAmtLine(gj: string, vj: string): Token[] {
+  return [rT(gj, 452), rT(vj, 533)];
+}
+// Benannte Zwischensumme (Label + Beträge im aeusseren Band) — muss ignoriert
+// werden, weil kein Hierarchie-Prefix vorhanden ist.
+function namedIntermediate(label: string, gj: string, vj: string): Token[] {
+  return [T(label, 93), rT(gj, 452), rT(vj, 533)];
+}
+// Uebertrag-Zeile (3 Beträge — innerer GJ, aeusserer GJ, VJ) → verworfen.
+function carryLine(gj: string, vj: string): Token[] {
+  return [T("Übertrag", 50), rT(gj, 373), rT(gj, 452), rT(vj, 533)];
 }
 
 // ---- Fixture: YUM 2024 mit AKTUELL erfuellten Gates ------------------------
@@ -40,40 +82,57 @@ function header(): Token[] {
 function buildFixturePages(
   overrides: {
     konto0300?: string;
-    positionB?: string;
+    positionBII?: string;
     konto0800?: string;
     guv3?: string;
   } = {},
 ): Token[][][] {
   const doc = txt("YUM", "Gastronomie", "GmbH", "-", "Jahresabschluss", "zum", "31.12.2024");
 
+  // AKTIVA: A ohne Inline (Rollup), I mit Inline, zwei Konten je eigener
+  // Position; Uebertrag-Zeile am Ende. Summen: A = I = 500; 1.=300, 2.=200.
   const aktivaPage: Token[][] = [
     doc,
     txt("Kontennachweis", "zur", "Handelsbilanz", "zum", "31.12.2024"),
     txt("Aktiva"),
-    header(),
-    pos("A.", "Anlagevermögen", "1.000,00", "900,00"),
-    pos("I.", "Sachanlagen", "1.000,00", "900,00"),
-    pos("1.", "Grundstücke", "700,00", "600,00"),
-    konto("0300", "Grundstücke", overrides.konto0300 ?? "700,00", "600,00"),
-    pos("2.", "Anlagen", "300,00", "300,00"),
-    konto("0400", "Anlagen", "300,00", "300,00"),
-    [T("Übertrag", 50), T("1.000,00", 395), T("900,00", 495)],
+    ...headerRows(2024),
+    posNoAmt("A.", "Anlagevermögen"),
+    pos("I.", "Sachanlagen", "500,00", "450,00"),
+    pos("1.", "Grundstücke", "300,00", "270,00"),
+    konto("0300", "Grundstücke", overrides.konto0300 ?? "300,00", "270,00"),
+    pos("2.", "Anlagen", "200,00", "180,00"),
+    konto("0400", "Anlagen", "200,00", "180,00"),
+    carryLine("500,00", "450,00"),
   ];
 
+  // PASSIVA: B ohne Inline (Rollup), B.I ohne Inline (Rollup+Subtotal-Line),
+  // B.I.1 mit Konto 800 (Inline), B.I.2 mit Konto 820 (Label-Umbruch +
+  // Inner-Amt-Line + Outer-Amt-Line), benannte Zwischensumme (skip),
+  // B.II mit Konto 900 (Inline). Summen: B=500, B.I=300 (200+100), B.II=200.
   const passivaPage: Token[][] = [
     doc,
     txt("Kontennachweis", "zur", "Handelsbilanz", "zum", "31.12.2024"),
     txt("Passiva"),
-    header(),
-    pos("B.", "Eigenkapital", overrides.positionB ?? "1.000,00", "900,00"),
-    konto("0800", "Gezeichnetes Kapital", overrides.konto0800 ?? "1.000,00", "900,00"),
+    ...headerRows(2024),
+    posNoAmt("B.", "Eigenkapital"),
+    posNoAmt("I.", "Gezeichnetes Kapital"),
+    posNoAmt("1.", "Gezeichnetes Kapital"),
+    konto("0800", "Gezeichnetes Kapital", overrides.konto0800 ?? "200,00", "180,00"),
+    outerAmtLine("200,00", "180,00"),
+    posNoAmt("2.", "Nicht eingeforderte"),
+    kontoNoAmt("0820", "Ausstehende"),
+    [T("eingefordertes", 93), T("Kapital", 151)],
+    innerAmtLine("100,00", "90,00"),
+    outerAmtLine("100,00", "90,00"),
+    namedIntermediate("eingefordertes Kapital", "100,00", "90,00"),
+    pos("II.", "Bilanzgewinn", overrides.positionBII ?? "200,00", "180,00"),
+    konto("0900", "Bilanzgewinn", "200,00", "180,00"),
   ];
 
   const guvPage: Token[][] = [
     doc,
     txt("Kontennachweis", "zur", "Gewinn-", "und", "Verlustrechnung"),
-    header(),
+    ...headerRows(2024),
     pos("1.", "Umsatzerlöse", "5.000,00", "4.000,00"),
     konto("8400", "Erlöse", "5.000,00", "4.000,00"),
     pos("2.", "Materialaufwand", "-2.000,00", "-1.500,00"),
@@ -106,30 +165,75 @@ describe("parseBilanzPdf – Positivfall (YUM 2024, alle Gates erfuellt)", () =>
       "aktiva:A.I.1:2",
       "aktiva:A.I.2:2",
       "passiva:B:0",
+      "passiva:B.I:1",
+      "passiva:B.I.1:2",
+      "passiva:B.I.2:2",
+      "passiva:B.II:1",
       "guv:guv.1:0",
       "guv:guv.2:0",
       "guv:guv.3:0",
     ]);
   });
 
-  it("uebernimmt GJ- und VJ-Betraege korrekt (nearest-anchor)", () => {
+  it("uebernimmt Inline-Beträge korrekt (rechtsbuendig, aeusseres Band)", () => {
     const aI1 = res.positions.find((p) => p.code === "A.I.1")!;
-    expect(aI1.betragCents).toBe(70000);
-    expect(aI1.vorjahrCents).toBe(60000);
+    expect(aI1.betragCents).toBe(30000);
+    expect(aI1.vorjahrCents).toBe(27000);
     const guv2 = res.positions.find((p) => p.code === "guv.2")!;
     expect(guv2.betragCents).toBe(-200000);
   });
 
-  it("verknuepft Konten mit der jeweils uebergeordneten Position", () => {
+  it("verknuepft Konten mit der jeweils uebergeordneten Position (inneres Band)", () => {
     const k = res.konten.find((k) => k.kontoNr === "0300")!;
     expect(k.positionCode).toBe("A.I.1");
-    expect(k.betragCents).toBe(70000);
+    expect(k.betragCents).toBe(30000);
+    expect(k.vorjahrCents).toBe(27000);
+  });
+
+  it("Label-Umbruch: Konto 820 uebernimmt Fortsetzungs-Label und schliesst per Inner-Amt-Line", () => {
+    const k = res.konten.find((k) => k.kontoNr === "0820")!;
+    expect(k.label).toBe("Ausstehende eingefordertes Kapital");
+    expect(k.positionCode).toBe("B.I.2");
+    expect(k.betragCents).toBe(10000);
+    expect(k.vorjahrCents).toBe(9000);
+  });
+
+  it("Outer-Subtotal-Zeile setzt Betrag der zuletzt offenen Position", () => {
+    const bI2 = res.positions.find((p) => p.code === "B.I.2")!;
+    expect(bI2.betragCents).toBe(10000);
+    expect(bI2.vorjahrCents).toBe(9000);
+  });
+
+  it("Rollup: Nicht-Blatt-Positionen ohne Inline-Summe = Σ direkter Kinder (GJ + VJ)", () => {
+    const A = res.positions.find((p) => p.code === "A")!;
+    expect(A.betragCents).toBe(50000);
+    expect(A.vorjahrCents).toBe(45000);
+    const bI = res.positions.find((p) => p.code === "B.I")!;
+    expect(bI.betragCents).toBe(30000); // 200 + 100
+    expect(bI.vorjahrCents).toBe(27000); // 180 + 90
+    const B = res.positions.find((p) => p.code === "B")!;
+    expect(B.betragCents).toBe(50000); // B.I 300 + B.II 200
+    expect(B.vorjahrCents).toBe(45000); // 270 + 180
+  });
+
+  it("benannte Zwischensumme wird verworfen — kein Konto/Position dafuer", () => {
+    expect(
+      res.konten.some((k) => k.label.includes("eingefordertes Kapital") && k.kontoNr !== "0820"),
+    ).toBe(false);
+    // Keine Position ohne Prefix aufgetaucht (labels sind alle mit Prefix aus fixture).
+  });
+
+  it("Jahres-Kopfzeile wird NIE als Konto klassifiziert", () => {
+    expect(res.konten.some((k) => k.kontoNr === "2024" || k.kontoNr === "2023")).toBe(false);
   });
 
   it("alle Konsistenz-Gates ok", () => {
     expect(checkByName(res, "konten_sum:aktiva:A.I.1")?.ok).toBe(true);
     expect(checkByName(res, "konten_sum:aktiva:A.I.2")?.ok).toBe(true);
-    expect(checkByName(res, "konten_sum:passiva:B")?.ok).toBe(true);
+    expect(checkByName(res, "konten_sum:passiva:B.I.1")?.ok).toBe(true);
+    expect(checkByName(res, "konten_sum:passiva:B.I.2")?.ok).toBe(true);
+    expect(checkByName(res, "konten_sum:passiva:B.II")?.ok).toBe(true);
+    expect(checkByName(res, "konten_sum_vj:passiva:B.I.2")?.ok).toBe(true);
     expect(checkByName(res, "bilanzsumme_aktiva_eq_passiva")?.ok).toBe(true);
     expect(checkByName(res, "guv_staffel_summe")?.ok).toBe(true);
   });
@@ -139,15 +243,15 @@ describe("parseBilanzPdf – Positivfall (YUM 2024, alle Gates erfuellt)", () =>
 
 describe("parseBilanzPdf – Negativfaelle", () => {
   it("manipulierte Kontosumme → Gate 1 (konten_sum) faellt", () => {
-    const res = parseBilanzPdf(buildFixturePages({ konto0300: "800,00" }));
+    const res = parseBilanzPdf(buildFixturePages({ konto0300: "400,00" }));
     const c = checkByName(res, "konten_sum:aktiva:A.I.1")!;
     expect(c.ok).toBe(false);
-    expect(c.expectedCents).toBe(70000);
-    expect(c.actualCents).toBe(80000);
+    expect(c.expectedCents).toBe(30000);
+    expect(c.actualCents).toBe(40000);
   });
 
   it("vertauschte Bilanzsumme → Gate 2 (aktiva=passiva) faellt", () => {
-    const res = parseBilanzPdf(buildFixturePages({ positionB: "1.100,00", konto0800: "1.100,00" }));
+    const res = parseBilanzPdf(buildFixturePages({ positionBII: "300,00", konto0800: "200,00" }));
     const c = checkByName(res, "bilanzsumme_aktiva_eq_passiva")!;
     expect(c.ok).toBe(false);
   });
@@ -361,8 +465,8 @@ describe("Gate 4 – Anlage-Anker vs. parsed Bilanz", () => {
   });
 
   it("Positivfall: Anker stimmen mit parsed Top-Level-Summen ueberein", () => {
-    // Anlage-Summen == Σ Top-Level der buildFixturePages()-Aktiva/Passiva (je 1000,00 = 100000 cents).
-    const pages = [...buildFixturePages(), ...anlagePages("1.000,00", "1.000,00", "0,00")];
+    // Anlage-Summen == Σ Top-Level der buildFixturePages()-Aktiva/Passiva (je 500,00 = 50000 cents).
+    const pages = [...buildFixturePages(), ...anlagePages("500,00", "500,00", "0,00")];
     const res = parseBilanzPdf(pages);
     const cA = res.checks.find((c) => c.name === "anlage_summe_aktiva")!;
     const cP = res.checks.find((c) => c.name === "anlage_summe_passiva")!;

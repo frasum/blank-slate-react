@@ -859,7 +859,7 @@ function installPdfJsBrowserPolyfills(): void {
   }
 }
 
-type PdfTextItemLike = { str?: string; transform?: number[] };
+type PdfTextItemLike = { str?: string; transform?: number[]; width?: number };
 type PdfTextChunkLike = { items?: unknown[] };
 type PdfPageLike = {
   streamTextContent?: () => ReadableStream<PdfTextChunkLike>;
@@ -901,7 +901,12 @@ async function extractBilanzPagesFromPdf(file: File): Promise<Token[][][]> {
       if (!it || typeof it !== "object" || !("str" in it)) continue;
       const item = it as PdfTextItemLike;
       if (!item.str || !Array.isArray(item.transform)) continue;
-      textItems.push({ x: item.transform[4], y: item.transform[5], s: item.str });
+      textItems.push({
+        x: item.transform[4],
+        y: item.transform[5],
+        s: item.str,
+        w: typeof item.width === "number" ? item.width : 0,
+      });
     }
     pages.push(extractTokenLines(textItems));
   }

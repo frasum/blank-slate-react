@@ -5,14 +5,14 @@
 // Sachkosten …"), weil eurodata die Nummer mit ~0,5 pt Baseline-Versatz
 // setzt und die Rundungsgrenze dazwischen fällt. Fix: Toleranz-Clustering.
 
-export type TextItem = { x: number; y: number; s: string };
+export type TextItem = { x: number; y: number; s: string; w?: number };
 
 // F4b: fuer den Bilanz-Parser brauchen wir NICHT den geglaetteten Zeilentext
 // (den liefert clusterItemsToLines fuer die F3-BWA), sondern Token pro Zeile
 // MIT x-Koordinate — deterministische Spaltenzuordnung ueber x-Schwellen.
 // Diese Funktion nutzt dieselbe y-Toleranz-Clustering-Logik und laesst die
 // bestehende clusterItemsToLines-Signatur (F3) unveraendert.
-export type LineToken = { text: string; x: number };
+export type LineToken = { text: string; x: number; xEnd: number };
 
 /**
  * Toleranz für die y-Cluster-Bildung in PDF-Punkt. 2,5 pt deckt den
@@ -74,7 +74,7 @@ export function extractTokenLines(items: TextItem[]): LineToken[][] {
     .map((c) =>
       c
         .sort((a, b) => a.x - b.x)
-        .map((i) => ({ text: i.s.trim(), x: i.x }))
+        .map((i) => ({ text: i.s.trim(), x: i.x, xEnd: i.x + (i.w ?? 0) }))
         .filter((t) => t.text.length > 0),
     )
     .filter((line) => line.length > 0);
