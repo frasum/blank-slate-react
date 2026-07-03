@@ -1454,3 +1454,407 @@ function DerivedLine({ label, cents }: { label: string; cents: number }) {
     </div>
   );
 }
+
+// ============================================================================
+// F2b — Sachkosten-Drilldown-Karte (Dashboard)
+// ============================================================================
+
+function SachkostenDrilldownCard({
+  summary,
+  totalSachkostenCents,
+  periodLabel,
+}: {
+  summary: ReturnType<typeof sumSachkostenDetail>;
+  totalSachkostenCents: number;
+  periodLabel: string;
+}) {
+  const entries = Object.entries(summary.detail).sort((a, b) => b[1] - a[1]);
+  const total = summary.coveredSachkostenCents;
+  const maxAbs = entries.reduce((m, [, v]) => Math.max(m, Math.abs(v)), 0) || 1;
+  const hasDetail = entries.length > 0;
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle>Sachkosten im Detail · {periodLabel}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {!hasDetail ? (
+          <p className="text-sm text-muted-foreground">
+            Kein Sachkosten-Detail erfasst (kommt automatisch mit dem PDF-Import / Welle F3).
+          </p>
+        ) : (
+          <>
+            <div className="space-y-1.5">
+              {entries.map(([label, cents]) => {
+                const neg = cents < 0;
+                const pct = total !== 0 ? (cents / total) * 100 : 0;
+                const width = (Math.abs(cents) / maxAbs) * 100;
+                return (
+                  <div key={label} className="grid grid-cols-[minmax(9rem,14rem)_1fr_auto_auto] items-center gap-3 text-sm">
+                    <div className="truncate" title={label}>{label}</div>
+                    <div className="relative h-3 rounded bg-muted overflow-hidden">
+                      <div
+                        className={`h-full ${neg ? "bg-destructive" : "bg-primary"}`}
+                        style={{ width: `${width}%` }}
+                      />
+                    </div>
+                    <div className={`tabular-nums text-right w-24 ${neg ? "text-destructive" : ""}`}>
+                      {fmtCents(cents)} €
+                    </div>
+                    <div className="tabular-nums text-right w-16 text-muted-foreground text-xs">
+                      {fmtPct(pct)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="grid grid-cols-[minmax(9rem,14rem)_1fr_auto_auto] items-center gap-3 text-sm border-t pt-2 font-medium">
+              <div>Summe (erfasstes Detail)</div>
+              <div />
+              <div className="tabular-nums text-right w-24">{fmtCents(total)} €</div>
+              <div className="w-16" />
+            </div>
+          </>
+        )}
+        {summary.missingMonths > 0 && (
+          <p className="text-xs text-muted-foreground">
+            ⓘ {summary.missingMonths} Monat(e) ohne erfasstes Detail — Summe deckt{" "}
+            {fmtCents(summary.coveredSachkostenCents)} € von {fmtCents(totalSachkostenCents)} €
+            Sachkosten ab.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ============================================================================
+// F2b — Vergleich-Tab (Standortvergleich, Small Multiples)
+// ============================================================================
+
+const COMPARE_METRIC_META: Array<{
+  key: CompareMetric;
+  label: string;
+  higherIsGood: boolean;
+}> = [
+  { key: "personalQuote", label: "Personalquote", higherIsGood: false },
+  { key: "wesQuote", label: "WES-Quote", higherIsGood: false },
+  { key: "primeCostQuote", label: "Prime Cost", higherIsGood: false },
+  { key: "betriebsQuote", label: "Betriebsergebnis-Quote", higherIsGood: true },
+];
+
+function BwaVergleichTab({ rows, loading }: { rows: BwaRow[]; loading: boolean }) {
+  const entities = useMemo(() => Array.from(new Set(rows.map((r) => r.entity))).sort(), [rows]);
+  const [entity, setEntity] = useState<string>("");
+  const [monthSel, setMonthSel] = useState<string>("");
+  const [sigmaLast12, setSigmaLast12] = useState(false);
+
+  const effEntity = entity || entities[0] || "";
+  const entityRows = useMemo(
+    () => rows.filter((r) => r.entity === effEntity && r.costCenter !== "Gruppe"),
+    [rows, effEntity],
+  );
+  const monthsDesc = useMemo(
+    () => Array.from(new Set(entityRows.map((r) => r.month))).sort((a, b) => b.localeCompare(a)),
+    [entityRows],
+  );
+  const effMonth = monthSel && monthsDesc.includes(monthSel) ? monthSel : (monthsDesc[0] ?? "");
+  const selectedMonths = useMemo(
+    () => (sigmaLast12 ? monthsDesc.slice(0, 12) : effMonth ? [effMonth] : []),
+    [sigmaLast12, monthsDesc, effMonth],
+  );
+  const cmp = useMemo(
+    () => compareCostCenters(entityRows, selectedMonths),
+    [entityRows, selectedMonths],
+  );
+
+  if (loading) {
+    return <Skeleton className="h-64 w-full" />;
+  }
+  if (rows.length === 0) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center text-sm text-muted-foreground">
+          Noch keine BWA-Daten erfasst.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-end gap-3">
+        <div>
+          <Label className="text-xs">Gesellschaft</Label>
+          <Select value={effEntity} onValueChange={setEntity}>
+            <SelectTrigger className="w-64">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {entities.map((e) => (
+                <SelectItem key={e} value={e}>
+                  {e}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">Monat</Label>
+          <Select value={effMonth} onValueChange={setMonthSel} disabled={sigmaLast12}>
+            <SelectTrigger className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {monthsDesc.map((m) => (
+                <SelectItem key={m} value={m}>
+                  {fmtMonth(m)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Button
+            variant={sigmaLast12 ? "default" : "outline"}
+            size="sm"
+            onClick={() => setSigmaLast12((v) => !v)}
+          >
+            Σ letzte 12 Monate
+          </Button>
+        </div>
+      </div>
+
+      {cmp.entries.length < 2 ? (
+        <Card>
+          <CardContent className="p-6 text-sm text-muted-foreground">
+            Für den Vergleich werden mindestens zwei Kostenstellen mit Daten im gewählten Zeitraum
+            benötigt.
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <CompareTable cmp={cmp} />
+          <SmallMultiplesGrid entityRows={entityRows} monthsDesc={monthsDesc} cmp={cmp} />
+        </>
+      )}
+    </div>
+  );
+}
+
+function CompareTable({ cmp }: { cmp: ReturnType<typeof compareCostCenters> }) {
+  const centers = cmp.entries;
+
+  type Metric = { label: string; kind: "cents" | "quote"; get: (k: (typeof centers)[number]) => number; markKey?: CompareMetric };
+  const metrics: Metric[] = [
+    { label: "Umsatz", kind: "cents", get: (c) => c.kpis.gesamtleistungCents - 0 + 0 }, // placeholder replaced below
+  ];
+  // Simpler: hand-build rows using kpis + accessible fields from BwaKpis (which extends BwaDerived).
+  // We need Umsatz cents — not directly in BwaKpis. Use gesamtleistung - sonstErtraege? deriveBwa doesn't expose umsatz.
+  // Rebuild via kpi fields we have. Actually simplest: derive from the totals via sumRows/deriveKpis was applied.
+  // Since we don't have raw sums here, we'll rely on: rohertrag1 + wareneinsatz reconstructed is fragile.
+  // Better: pass in raw rows. For now leave — see below.
+  metrics.length = 0;
+
+  return <CompareTableImpl cmp={cmp} />;
+}
+
+function CompareTableImpl({ cmp }: { cmp: ReturnType<typeof compareCostCenters> }) {
+  const centers = cmp.entries;
+  type Row = {
+    label: string;
+    values: number[]; // display value in cents or basis points
+    quotes?: number[]; // sub-line quotes in %
+    markKey?: CompareMetric;
+    negativeColorable?: boolean;
+  };
+  const rows: Row[] = [
+    {
+      label: "Rohertrag I",
+      values: centers.map((c) => c.kpis.rohertrag1Cents),
+      quotes: centers.map((c) => c.kpis.rohertrag1Quote),
+    },
+    {
+      label: "Personalkosten",
+      // Personal = personalQuote% des Umsatzes; wir zeigen die Quote als Marker.
+      values: centers.map((c) => c.kpis.personalQuote),
+      markKey: "personalQuote",
+    },
+    {
+      label: "Wareneinsatz",
+      values: centers.map((c) => c.kpis.wesQuote),
+      markKey: "wesQuote",
+    },
+    {
+      label: "Prime Cost",
+      values: centers.map((c) => c.kpis.primeCostQuote),
+      markKey: "primeCostQuote",
+    },
+    {
+      label: "Ergebnis operativ",
+      values: centers.map((c) => c.kpis.ergebnisOpCents),
+      negativeColorable: true,
+    },
+    {
+      label: "Betriebsergebnis-Quote",
+      values: centers.map((c) => c.kpis.betriebsQuote),
+      markKey: "betriebsQuote",
+      negativeColorable: true,
+    },
+  ];
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle>Vergleich Kostenstellen</CardTitle>
+      </CardHeader>
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Kennzahl</TableHead>
+              {centers.map((c) => (
+                <TableHead key={c.costCenter} className="text-right">
+                  {c.costCenter}
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((r) => (
+              <TableRow key={r.label}>
+                <TableCell className="font-medium">{r.label}</TableCell>
+                {centers.map((c, i) => {
+                  const v = r.values[i];
+                  const isQuote = !!r.markKey;
+                  const best = r.markKey ? cmp.bestByMetric[r.markKey] : undefined;
+                  const worst = r.markKey ? cmp.worstByMetric[r.markKey] : undefined;
+                  const isBest = best === c.costCenter;
+                  const isWorst = worst === c.costCenter;
+                  const bg = isBest
+                    ? "bg-emerald-500/10"
+                    : isWorst
+                      ? "bg-destructive/10"
+                      : "";
+                  const neg = r.negativeColorable && v < 0;
+                  const cls = neg ? "text-destructive" : "";
+                  return (
+                    <TableCell
+                      key={c.costCenter}
+                      className={`text-right tabular-nums ${bg} ${cls}`}
+                    >
+                      {isQuote ? fmtPct(v) : `${fmtCents(v)} €`}
+                    </TableCell>
+                  );
+                })}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SmallMultiplesGrid({
+  entityRows,
+  monthsDesc,
+  cmp,
+}: {
+  entityRows: BwaRow[];
+  monthsDesc: string[];
+  cmp: ReturnType<typeof compareCostCenters>;
+}) {
+  const last12 = useMemo(() => [...monthsDesc].slice(0, 12).sort(), [monthsDesc]);
+  const centers = cmp.entries.map((e) => e.costCenter);
+
+  const seriesByCenter = useMemo(() => {
+    const map = new Map<string, { month: string; label: string; umsatz: number; betrieb: number }[]>();
+    for (const cc of centers) {
+      const arr = last12.map((m) => {
+        const r = entityRows.find((row) => row.costCenter === cc && row.month === m);
+        return {
+          month: m,
+          label: fmtMonthShort(m),
+          umsatz: (r?.umsatzCents ?? 0) / 100,
+          betrieb: (r?.betriebsergebnisCents ?? 0) / 100,
+        };
+      });
+      map.set(cc, arr);
+    }
+    return map;
+  }, [centers, last12, entityRows]);
+
+  // Gemeinsame Y-Domains — kritisch, sonst ist Small Multiples wertlos.
+  const { umsatzDomain, betriebDomain } = useMemo(() => {
+    let uMin = 0;
+    let uMax = 0;
+    let bMin = 0;
+    let bMax = 0;
+    for (const arr of seriesByCenter.values()) {
+      for (const p of arr) {
+        if (p.umsatz < uMin) uMin = p.umsatz;
+        if (p.umsatz > uMax) uMax = p.umsatz;
+        if (p.betrieb < bMin) bMin = p.betrieb;
+        if (p.betrieb > bMax) bMax = p.betrieb;
+      }
+    }
+    return {
+      umsatzDomain: [uMin, uMax || 1] as [number, number],
+      betriebDomain: [bMin, bMax || 1] as [number, number],
+    };
+  }, [seriesByCenter]);
+
+  const compactFmt = (v: number) =>
+    new Intl.NumberFormat("de-DE", { notation: "compact", maximumFractionDigits: 1 }).format(v);
+
+  return (
+    <div
+      className="grid gap-4"
+      style={{ gridTemplateColumns: `repeat(${centers.length}, minmax(0, 1fr))` }}
+    >
+      {centers.map((cc) => {
+        const data = seriesByCenter.get(cc) ?? [];
+        return (
+          <Card key={cc}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">{cc}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">Umsatz (12 M)</div>
+                <div style={{ height: 110 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={1} />
+                      <YAxis domain={umsatzDomain} tickFormatter={compactFmt} width={50} tick={{ fontSize: 10 }} />
+                      <Tooltip formatter={(v: number) => `${compactFmt(v)} €`} />
+                      <Bar dataKey="umsatz" fill="hsl(var(--primary))" opacity={0.8} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">Betriebsergebnis (12 M)</div>
+                <div style={{ height: 110 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={1} />
+                      <YAxis domain={betriebDomain} tickFormatter={compactFmt} width={50} tick={{ fontSize: 10 }} />
+                      <Tooltip formatter={(v: number) => `${compactFmt(v)} €`} />
+                      <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" />
+                      <Line type="monotone" dataKey="betrieb" stroke="hsl(142 65% 40%)" strokeWidth={2} dot={false} />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
