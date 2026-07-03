@@ -171,7 +171,12 @@ function realisticStaffelPayload(): ReplaceBilanzPayload {
   // 11. Jahresueberschuss = 3500 (= 4000 + (-500))
   // 12. Gewinnvortrag 200
   // 13. Bilanzgewinn = 3700 (= 3500 + 200)
-  const guv: Array<{ code: string; label: string; betragCents: number; vorjahrCents: number | null }> = [
+  const guv: Array<{
+    code: string;
+    label: string;
+    betragCents: number;
+    vorjahrCents: number | null;
+  }> = [
     { code: "guv.1", label: "Umsatzerlöse", betragCents: 10000, vorjahrCents: 9000 },
     { code: "guv.2", label: "Materialaufwand", betragCents: -6000, vorjahrCents: -5000 },
     { code: "guv.9", label: "Ergebnis nach Steuern", betragCents: 4000, vorjahrCents: 4000 },

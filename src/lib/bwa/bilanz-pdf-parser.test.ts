@@ -189,9 +189,7 @@ describe("classifyRow", () => {
 // ---------------------------------------------------------------------------
 
 describe("checkGuvStaffel (shared, staffelbewusst)", () => {
-  function mkGuv(
-    overrides: Partial<Record<"ens" | "jues" | "bilg", number>> = {},
-  ): PositionLike[] {
+  function mkGuv(overrides: Partial<Record<"ens" | "jues" | "bilg", number>> = {}): PositionLike[] {
     // 1..8 operative Σ = 4000; 9 Ergebnis n. St. = 4000; 10 Sonst. Steuern -500;
     // 11 Jahresueberschuss = 3500; 12 Vortrag +200; 13 Bilanzgewinn = 3700.
     return [

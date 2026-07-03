@@ -425,7 +425,8 @@ function isLeafPosition(pos: ParsedBilanzPosition, allCodes: Set<string>): boole
 // Label-Anker fuer die staffelbewusste GuV-Konsistenzpruefung.
 // Regex bewusst tolerant (Umlaut/Bindestrich/Klammerzusatz), aber wortgenau.
 const LBL_ERGEBNIS_NACH_STEUERN = /ergebnis\s+nach\s+steuern/i;
-const LBL_JAHRESUEBERSCHUSS = /jahres(ü|ue)bersch(uss|üsse)|jahres(ü|ue)berschuss.*fehlbetrag|jahresfehlbetrag/i;
+const LBL_JAHRESUEBERSCHUSS =
+  /jahres(ü|ue)bersch(uss|üsse)|jahres(ü|ue)berschuss.*fehlbetrag|jahresfehlbetrag/i;
 const LBL_VORTRAG = /(gewinn|verlust)vortrag/i;
 const LBL_BILANZGEWINN = /bilanzgewinn|bilanzverlust/i;
 
@@ -482,10 +483,7 @@ export function checkKontenSumForYear(
 // → Fallback auf die alte "letzter Posten = Σ Rest"-Regel. Fehlt ein Teil
 // der Anker → Warnung, aber wir liefern trotzdem die Segmentchecks fuer
 // die vorhandenen Anker.
-export function checkGuvStaffel(
-  guvTopLevel: PositionLike[],
-  warnings?: string[],
-): BilanzCheck[] {
+export function checkGuvStaffel(guvTopLevel: PositionLike[], warnings?: string[]): BilanzCheck[] {
   if (guvTopLevel.length === 0) return [];
 
   const iEns = guvTopLevel.findIndex((p) => LBL_ERGEBNIS_NACH_STEUERN.test(p.label));
@@ -608,7 +606,9 @@ export function checkAnlageAnchors(
 ): BilanzCheck[] {
   const checks: BilanzCheck[] = [];
   const topSum = (stmt: string) =>
-    positions.filter((p) => p.statement === stmt && p.level === 0).reduce((a, p) => a + p.betragCents, 0);
+    positions
+      .filter((p) => p.statement === stmt && p.level === 0)
+      .reduce((a, p) => a + p.betragCents, 0);
 
   if (anchors.summeAktivaCents !== null) {
     const actual = topSum("aktiva");
@@ -632,7 +632,7 @@ export function checkAnlageAnchors(
     // Bilanzgewinn aus dem parsed GuV-Staffel-Endposten (Anker LBL_BILANZGEWINN).
     const guv = positions.filter((p) => p.statement === "guv" && p.level === 0);
     const bilg = guv.find((p) => LBL_BILANZGEWINN.test(p.label));
-    const actual = bilg ? bilg.betragCents : guv[guv.length - 1]?.betragCents ?? 0;
+    const actual = bilg ? bilg.betragCents : (guv[guv.length - 1]?.betragCents ?? 0);
     checks.push({
       name: "anlage_bilanzgewinn",
       expectedCents: anchors.bilanzgewinnCents,

@@ -96,12 +96,16 @@ export function validateReplacePayload(payload: ReplaceBilanzPayload): {
 
   for (const c of checkKontenSumForYear(positionsShared, kontenShared, "gj")) {
     if (!c.ok) {
-      errors.push(`Gate 1 GJ (${c.name}): Konten-Σ ${c.actualCents} ≠ Position ${c.expectedCents}.`);
+      errors.push(
+        `Gate 1 GJ (${c.name}): Konten-Σ ${c.actualCents} ≠ Position ${c.expectedCents}.`,
+      );
     }
   }
   for (const c of checkKontenSumForYear(positionsShared, kontenShared, "vj")) {
     if (!c.ok) {
-      errors.push(`Gate 1 VJ (${c.name}): Konten-Σ ${c.actualCents} ≠ Position ${c.expectedCents}.`);
+      errors.push(
+        `Gate 1 VJ (${c.name}): Konten-Σ ${c.actualCents} ≠ Position ${c.expectedCents}.`,
+      );
     }
   }
 
