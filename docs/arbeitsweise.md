@@ -2,7 +2,7 @@
 
 Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen Baublock konsultiert. Bewusst kurz gehalten — Architektur-Begründungen stehen im gruendungsdokument.md, nicht hier.
 
-Stand: 03.07.2026
+Stand: 04.07.2026
 
 ## 1. Rollenverteilung im Team
 
@@ -50,6 +50,15 @@ Erst wenn ESLint 0 Fehler und alle Tests grün sind → ABGENOMMEN.
   gehören in `docs/seed-storage.sql` (Ops-Seed, bei DB-Neuaufbau manuell nach
   den Migrationen ausführen). `storage.objects`-Policies sind davon nicht
   betroffen und bleiben reguläre Migrationen.
+- **Lovable-Diskrepanz-Meldungen: erst SHA-Beweis, dann glauben.** Zweimal
+  am 03.07. meldete Lovable „Prompt kollidiert mit Code-Realität" bzw.
+  behauptete „mein Workspace ist identisch mit origin/HEAD (Revert)" —
+  beide Male war die Sandbox desynchron und origin unversehrt (frischer
+  Clone mit Zeitstempel als Beweis). Regel: Bei jeder Diskrepanz-Meldung
+  zuerst `git rev-parse HEAD` des Workspace UND von origin verlangen;
+  Claude verifiziert parallel per frischem Clone. Bis zur Klärung darf
+  Lovable NICHTS committen (Push aus alter Sandbox wischt neuere Commits
+  weg — E1-Muster). Origin ist die Wahrheit, nie die Workspace-Aussage.
 
 ## 4. Stammdaten-Referenz (COCO Produktion)
 
@@ -1794,6 +1803,19 @@ glatt. Diagnose-Verlauf und Ergebnis:
    Ein `42P01 relation does not exist` ist das typische Symptom der
    falschen DB.
 
+**E2E-Bestätigungen (03./04.07.):** Der GL-Terminal-Filter im
+KONTROLLE-Block ist live verifiziert — Kasse Spicery zeigt −210,34 € /
+490,02 €, cent-identisch zur Legacy-Tagesabrechnung; die §33-Regel gilt
+damit nachweislich auf allen drei Rechenpfaden (Server-Aggregation, PDF,
+Live-KONTROLLE). Anschließend wurde der KONTROLLE-Block optisch an das
+Legacy-Summary-Layout angeglichen (Reihenfolge Fehlbetrag Vortag →
+Ausgaben → Tages-Bargeld → NEU „Differenz zum Wechselgeldbestand"
+[= Wechselgeld-Ist − Soll, reine Anzeige-Subtraktion] →
+Wechselgeldbestand; Golden-Master-Formeln unangetastet). Nebenbefund
+GIG: „fehlt in Kellnerabrechnung/Zeiterfassung" war kein Bug — die
+Mitarbeiterin hatte sich schlicht noch nie angemeldet (kein
+Shadow-User, keine Einträge).
+
 ## 48. V2 Dokumentengenerierung — UI + Konflikt-Auflösung (03.07.2026)
 
 Abgenommen bei HEAD `d29dab0` (tsc/eslint/prettier/vitest 1131 grün, keine
@@ -2027,3 +2049,27 @@ fasst: Gate-Funktionen, Anker-/Band-Logik, Seitenfortsetzung aus Fix-2,
 (Positionsende = nächster Positions-Header, nicht erste Summenzeile).
 Beträge haben im ETL-ADHOGA-Druck immer zwei Nachkommastellen — nackte
 Ganzzahlen sind Label-Bestandteile (§-Zitate!), nie Beträge.
+
+## 50. Fallstudie: „Forbidden" auf /profil unter Impersonation — fehlende Default-Rolle (04.07.2026)
+
+**Symptom:** „Vorschau als ANDI" → alle Portal-Tabs funktionieren, nur
+„Meine Daten" wirft „Fehler beim Laden: Forbidden".
+
+**Beweiskette:** (1) Impersonation wirkt bis in die RLS — Migration
+`20260617230538` definiert `current_staff_id()` effective-aware (bei
+aktiver Vorschau gilt die Zielperson als Identität); die Browser-Session
+bleibt die des Admins, `startImpersonation` schreibt nur die
+Overlay-Zeile. (2) `/profil` ist die einzige Portal-Seite auf
+`loadAdminCaller(…, "staff")` — der verlangt zwingend eine
+`role_assignments`-Zeile (`role = null` ⇒ ForbiddenError). Die übrigen
+Portal-Tabs laufen über `loadStaffCaller`, der KEINE Rolle prüft.
+(3) ANDI hatte keine Rollen-Zuweisung ⇒ Forbidden. Derselbe Fehler
+träfe sie auch beim echten PIN-Login.
+
+**Wurzel (systemisch, OFFEN):** `createStaff` vergibt keine Default-Rolle
+— jeder neue Mitarbeiter ohne manuell gesetzten Rechte-Tab läuft in
+dieses Loch. Sofort-Fix pro Person: Stammblatt → Rechte → Rolle `staff`.
+Geplanter Fix (Prompt wartet auf GO): `createStaff` schreibt die Rolle
+`staff` im selben runGuarded-Block mit (+ Backfill-SQL für Bestands-
+Mitarbeiter ohne Zeile). Bis dahin gehört „Rolle zuweisen" verbindlich
+in Schritt 2 des Onboarding-Runbooks.
