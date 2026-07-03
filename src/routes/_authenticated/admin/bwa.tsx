@@ -191,8 +191,13 @@ function BwaPage() {
  */
 async function extractBwaPagesFromPdf(file: File): Promise<string[][]> {
   const data = await file.arrayBuffer();
-  const pdfjsLib = await import("pdfjs-dist");
-  const workerMod = await import("pdfjs-dist/build/pdf.worker.min.mjs?url");
+  // Legacy-Build: Safari (WebKit) unterstützt kein async-iterator auf
+  // ReadableStream, was pdfjs v6 im Haupt-Build intern nutzt. Der
+  // legacy-Build ist genau dafür da und läuft in allen Browsern.
+  const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const workerMod = await import(
+    "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url"
+  );
   pdfjsLib.GlobalWorkerOptions.workerSrc = workerMod.default;
   const pdf = await pdfjsLib.getDocument({ data }).promise;
   const pages: string[][] = [];
