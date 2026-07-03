@@ -191,7 +191,7 @@ function BwaPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
-  const rows = listQ.data ?? [];
+  const rows = useMemo(() => listQ.data ?? [], [listQ.data]);
 
   const entities = useMemo(() => Array.from(new Set(rows.map((r) => r.entity))).sort(), [rows]);
   const costCenters = useMemo(
