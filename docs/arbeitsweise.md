@@ -1546,7 +1546,9 @@ ungefähr gelesen), Zeitreihe mit Benchmark-Bändern (WES 28–32 %, Personal
   das jsonb weiterhin).
 - ~~Welle F3~~ **umgesetzt (03.07.2026, abgenommen bei HEAD `cc50cb3`,
   vitest 1079 grün):** PDF wird NUR client-seitig geparst (pdfjs-dist nach
-  dem split-combined-Muster; kein Storage, keine Migration). Reines Modul
+  dem split-combined-Muster, **legacy-Build** für Safari-Kompat — der
+  Haupt-Build v6 nutzt `for await` auf `ReadableStream`, was WebKit nicht
+  kennt; kein Storage, keine Migration). Reines Modul
   `bwa-pdf-parser.ts`: Mapping strikt über Zeilennummer PLUS
   Label-Substring — passt das Label nicht, wird das Feld als
   `missingFields` markiert statt still die nächstbeste Zahl zu nehmen
