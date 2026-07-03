@@ -18,6 +18,13 @@ const monthRegex = /^\d{4}-\d{2}-\d{2}$/;
 const cents = z.number().int().finite();
 const centsNonNeg = z.number().int().nonnegative().finite();
 
+// `source` steuert, aus welcher Quelle der Monat kommt. "import" ist
+// SQL-Importen vorbehalten und darf nicht vom Client gesetzt werden.
+const sourceEnum = z.enum(["manual", "pdf"]).default("manual");
+
+// Sachkosten-Detail (F3): flaches Objekt Kategorie -> Cent-Betrag (int).
+const sachkostenDetailSchema = z.record(z.string().min(1).max(200), z.number().int().finite());
+
 const upsertInput = z.object({
   id: z.string().uuid().optional(),
   entity: z.string().trim().min(1).max(120),
@@ -38,6 +45,8 @@ const upsertInput = z.object({
   anlageCents: cents,
   abschreibungCents: cents,
   betriebsergebnisCents: cents,
+  source: sourceEnum,
+  sachkostenDetail: sachkostenDetailSchema.optional(),
 });
 
 export type BwaRow = {
@@ -182,12 +191,16 @@ export const upsertBwaMonth = createServerFn({ method: "POST" })
       anlage_cents: data.anlageCents,
       abschreibung_cents: data.abschreibungCents,
       betriebsergebnis_cents: data.betriebsergebnisCents,
-      source: existing?.source ?? "manual",
-    };
+      source: data.source,
+      // F3: Detail nur setzen, wenn vom Aufrufer explizit übergeben —
+      // der Erfassungs-Dialog schickt keins und soll bestehendes Detail
+      // NICHT plätten (das wird durch das Weglassen erreicht).
+      ...(data.sachkostenDetail !== undefined ? { sachkosten_detail: data.sachkostenDetail } : {}),
+    } as Record<string, unknown>;
 
     const { data: saved, error: upErr } = await supabaseAdmin
       .from("bwa_monthly")
-      .upsert(payload, {
+      .upsert(payload as never, {
         onConflict: "organization_id,entity,cost_center,month",
       })
       .select(SELECT_COLS)
@@ -205,6 +218,9 @@ export const upsertBwaMonth = createServerFn({ method: "POST" })
         month: row.month,
         betriebsergebnis_cents: row.betriebsergebnisCents,
         was_update: !!existing,
+        source: data.source,
+        prev_source: existing?.source ?? null,
+        with_detail: data.sachkostenDetail !== undefined,
       },
     });
 
