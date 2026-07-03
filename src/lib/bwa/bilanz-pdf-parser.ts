@@ -281,33 +281,54 @@ export function parseBilanzPdf(pages: Token[][][]): ParsedBilanzYear {
       if (kind === "subtotal") continue; // Positionen tragen bereits ihre Beträge.
 
       const { gj, vj } = extractAmounts(line, cols);
+      const nonAmount = line.filter((t) => !isAmount(t.text));
+      const firstText = nonAmount[0]?.text ?? "";
+
+      const pushPosition = (level: number): void => {
+        const code = makeCode(path);
+        const label = labelFrom(line, 1);
+        currentPositionCode = code;
+        if (!label) {
+          warnings.push(`Position ${code}: leeres Label — nur als Kontext übernommen.`);
+          return;
+        }
+        positions.push({
+          statement,
+          code,
+          parentCode: parentOf(path),
+          label,
+          level,
+          sortOrder: sortSeq++,
+          betragCents: gj ?? 0,
+          vorjahrCents: vj,
+        });
+      };
 
       if (kind === "position-letter") {
-        const m = LETTER_RE.exec(line.filter((t) => !isAmount(t.text))[0].text)!;
+        const m = LETTER_RE.exec(firstText)!;
         path.letter = m[1];
         path.roman = path.arabic = path.buchstabe = null;
-        pushPosition("letter", 0);
+        pushPosition(0);
       } else if (kind === "position-roman") {
-        const m = ROMAN_RE.exec(line.filter((t) => !isAmount(t.text))[0].text)!;
+        const m = ROMAN_RE.exec(firstText)!;
         path.roman = m[1];
         path.arabic = path.buchstabe = null;
-        pushPosition("roman", 1);
+        pushPosition(1);
       } else if (kind === "position-arabic") {
-        const m = ARABIC_RE.exec(line.filter((t) => !isAmount(t.text))[0].text)!;
+        const m = ARABIC_RE.exec(firstText)!;
         path.arabic = m[1];
         path.buchstabe = null;
-        pushPosition("arabic", 2);
+        pushPosition(2);
       } else if (kind === "position-buchstabe") {
-        const m = BUCHSTABE_RE.exec(line.filter((t) => !isAmount(t.text))[0].text)!;
+        const m = BUCHSTABE_RE.exec(firstText)!;
         path.buchstabe = m[1];
-        pushPosition("buchstabe", 3);
+        pushPosition(3);
       } else if (kind === "position-guv") {
-        const m = GUV_RE.exec(line.filter((t) => !isAmount(t.text))[0].text)!;
+        const m = GUV_RE.exec(firstText)!;
         path.letter = `guv.${m[1]}`;
         path.roman = path.arabic = path.buchstabe = null;
-        pushPosition("guv", 0);
+        pushPosition(0);
       } else if (kind === "konto") {
-        const nonAmount = line.filter((t) => !isAmount(t.text));
         const kontoNr = nonAmount[0].text;
         const label = labelFrom(line, 1);
         if (!label) {
@@ -330,27 +351,6 @@ export function parseBilanzPdf(pages: Token[][][]): ParsedBilanzYear {
           betragCents: gj,
           vorjahrCents: vj,
           sortOrder: kontoSeq++,
-        });
-      }
-
-      function pushPosition(_which: string, level: number): void {
-        const code = makeCode(path);
-        const label = labelFrom(line, 1);
-        if (!label) {
-          warnings.push(`Position ${code}: leeres Label — als Kontext übernommen, kein Positions-Eintrag.`);
-          currentPositionCode = code;
-          return;
-        }
-        currentPositionCode = code;
-        positions.push({
-          statement,
-          code,
-          parentCode: parentOf(path),
-          label,
-          level,
-          sortOrder: sortSeq++,
-          betragCents: gj ?? 0,
-          vorjahrCents: vj,
         });
       }
     }
