@@ -106,6 +106,14 @@ const GROUPS: Group[] = [
     sub: [{ to: "/admin/aufgaben", label: "Kanban-Board" }],
   },
   {
+    key: "dokumente",
+    label: "Dokumente",
+    default: "/admin/dokumente",
+    prefixes: ["/admin/dokumente"],
+    sub: [{ to: "/admin/dokumente", label: "Vorlagen" }],
+    roles: ["admin"],
+  },
+  {
     key: "stammdaten",
     label: "Stammdaten",
     default: "/admin/locations",
