@@ -87,15 +87,19 @@ function LohnRechnerPage() {
   const [mode, setMode] = useState<Mode>("simple");
   const [staffId, setStaffId] = useState<string>("");
 
-  // Default = neueste Periode (listPeriods sortiert start_date desc).
+  // Default = aktuelle Periode (die, in der heute liegt); Fallback: neueste
+  // vergangene Periode; letzter Fallback: erste (neueste) aus der Liste.
   useEffect(() => {
     if (periodId) return;
-    const first = periodsQ.data?.[0];
-    if (first) {
-      setPeriodId(first.id);
-      setFromDate(first.startDate);
-      setToDate(first.endDate);
-    }
+    const list = periodsQ.data;
+    if (!list || list.length === 0) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const current = list.find((p) => p.startDate <= today && today <= p.endDate);
+    const pastLatest = list.find((p) => p.endDate <= today);
+    const chosen = current ?? pastLatest ?? list[0];
+    setPeriodId(chosen.id);
+    setFromDate(chosen.startDate);
+    setToDate(chosen.endDate);
   }, [periodsQ.data, periodId]);
 
   function onPeriodChange(id: string) {
