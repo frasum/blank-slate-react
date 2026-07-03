@@ -92,6 +92,13 @@ export interface PersonenParameter {
   istPkv: boolean;
   /** Monatl. PKV-Basis-KV/PV-Beitrag in Cent. */
   pkvBasisBeitragMonatCent: number;
+  /**
+   * Werkstudentenprivileg: KV/PV/AV-frei, RV-pflichtig.
+   * LSt-Berechnung mit Mindestvorsorgepauschale (PAP `PKV=1`, `PKPV=0`) —
+   * NICHT an `kvFrei` koppeln, freiwillig gesetzlich Versicherte sind
+   * ebenfalls `kvFrei`, brauchen aber die volle Vorsorgepauschale.
+   */
+  istWerkstudent?: boolean;
 }
 
 /** Vollständige Eingabe für eine Monatsabrechnung. */
@@ -108,6 +115,13 @@ export interface LohnErgebnis {
    * Aus Rückwärtskompatibilität zusätzlich als `stSvBruttoCent` gespiegelt.
    */
   stBruttoCent: number;
+  /**
+   * Ausgewiesenes St-Brutto (nach Abzug eines monatlichen LSt-Freibetrags,
+   * gekappt bei 0). Nur für Anzeige/Export gegen edlohn — die LSt-Berechnung
+   * nutzt weiterhin `stBruttoCent` als RE4 für den PAP. Ohne Freibetrag
+   * identisch mit `stBruttoCent`.
+   */
+  stBruttoAusweisCent: number;
   /** Sozialversicherungs-Brutto (Bemessungsgrundlage SV). */
   svBruttoCent: number;
   /** @deprecated identisch mit `stBruttoCent`. */
