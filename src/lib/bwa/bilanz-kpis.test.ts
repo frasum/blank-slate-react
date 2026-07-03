@@ -34,14 +34,7 @@ const FIXTURE: BilanzPositionRow[] = [
   P("aktiva", "A", 0, "Anlagevermögen", 40000000, 39000000),
   P("aktiva", "B", 0, "Umlaufvermögen", 42290094, 40000000),
   P("aktiva", "B.IV.1", 2, "Kassenbestand", 500000, 400000),
-  P(
-    "aktiva",
-    "B.IV.2",
-    2,
-    "Guthaben bei Kreditinstituten",
-    21041891,
-    20000000,
-  ),
+  P("aktiva", "B.IV.2", 2, "Guthaben bei Kreditinstituten", 21041891, 20000000),
   P("passiva", "A", 0, "Eigenkapital", 50000000, 48000000),
   P("passiva", "B", 0, "Rückstellungen", 32290094, 31000000),
   P("guv", "guv.14", 0, "Jahresüberschuss", 2000000, 1500000),
@@ -132,18 +125,14 @@ describe("findVjConsistencyMismatches", () => {
   });
 
   it("ignoriert Position, die im Vorjahr fehlt", () => {
-    const y2023_ohne: BilanzPositionRow[] = [
-      P("passiva", "A", 0, "Eigenkapital", 600, 500),
-    ];
+    const y2023_ohne: BilanzPositionRow[] = [P("passiva", "A", 0, "Eigenkapital", 600, 500)];
     // Nur Anlagevermoegen in 2024 hat Vorjahr; 2023 hat es nicht → ignoriert.
     const m = findVjConsistencyMismatches(y2024, y2023_ohne);
     expect(m).toEqual([]);
   });
 
   it("ignoriert Position ohne VJ-Wert im spaeteren Bericht", () => {
-    const y2024_ohneVj: BilanzPositionRow[] = [
-      P("aktiva", "A", 0, "Anlagevermögen", 500, null),
-    ];
+    const y2024_ohneVj: BilanzPositionRow[] = [P("aktiva", "A", 0, "Anlagevermögen", 500, null)];
     expect(findVjConsistencyMismatches(y2024_ohneVj, y2023_abweichend)).toEqual([]);
   });
 });

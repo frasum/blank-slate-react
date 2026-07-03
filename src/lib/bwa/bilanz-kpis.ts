@@ -27,10 +27,7 @@ function value(pos: BilanzPositionRow, which: Which): number | null {
   return which === "gj" ? pos.betrag_cents : pos.vorjahr_cents;
 }
 
-export function bilanzsummeCents(
-  positions: BilanzPositionRow[],
-  which: Which,
-): number | null {
+export function bilanzsummeCents(positions: BilanzPositionRow[], which: Which): number | null {
   const top = positions.filter((p) => p.statement === "aktiva" && p.level === 0);
   if (top.length === 0) return null;
   let sum = 0;
@@ -42,10 +39,7 @@ export function bilanzsummeCents(
   return sum;
 }
 
-export function eigenkapitalCents(
-  positions: BilanzPositionRow[],
-  which: Which,
-): number | null {
+export function eigenkapitalCents(positions: BilanzPositionRow[], which: Which): number | null {
   const anchor = positions.find(
     (p) => p.statement === "passiva" && p.level === 0 && LBL_EIGENKAPITAL.test(p.label),
   );
@@ -53,26 +47,18 @@ export function eigenkapitalCents(
   return value(anchor, which);
 }
 
-export function eigenkapitalquote(
-  positions: BilanzPositionRow[],
-  which: Which,
-): number | null {
+export function eigenkapitalquote(positions: BilanzPositionRow[], which: Which): number | null {
   const ek = eigenkapitalCents(positions, which);
   const bs = bilanzsummeCents(positions, which);
   if (ek === null || bs === null || bs === 0) return null;
   return ek / bs;
 }
 
-export function liquideMittelCents(
-  positions: BilanzPositionRow[],
-  which: Which,
-): number | null {
+export function liquideMittelCents(positions: BilanzPositionRow[], which: Which): number | null {
   // Anker: irgendeine Aktiva-Position (Level beliebig) mit Label
   // „Kassenbestand …" oder „Guthaben bei Kreditinstituten". Mehrere
   // Treffer → Summe (typisch: Kassenbestand + Bankguthaben, separat).
-  const hits = positions.filter(
-    (p) => p.statement === "aktiva" && LBL_KASSENBESTAND.test(p.label),
-  );
+  const hits = positions.filter((p) => p.statement === "aktiva" && LBL_KASSENBESTAND.test(p.label));
   if (hits.length === 0) return null;
   let sum = 0;
   for (const p of hits) {
@@ -108,10 +94,7 @@ function wrap(cents: number | null): BilanzKpiValue {
   return { cents, missing: cents === null };
 }
 
-export function deriveBilanzKpis(
-  positions: BilanzPositionRow[],
-  which: Which,
-): BilanzKpis {
+export function deriveBilanzKpis(positions: BilanzPositionRow[], which: Which): BilanzKpis {
   return {
     bilanzsumme: wrap(bilanzsummeCents(positions, which)),
     eigenkapital: wrap(eigenkapitalCents(positions, which)),

@@ -217,8 +217,8 @@ Rekonstruiert per Kalibrierung gegen bereits validierte Bestands-Sessions (Refer
 | M-BWA Welle F2a — Dashboard: KPIs+YoY, Prime Cost, Wasserfall, Break-even (§41)                                                        | ✅                                                      |
 | M-BWA Welle F2b — Vergleich-Tab, Sachkosten-Drilldown, Break-even-Sortier-Fix (§41)                                                    | ✅                                                      |
 | M-BWA Welle F3 — PDF-Upload + eurodata-Parser mit Review-Screen (§41)                                                                  | ✅                                                      |
-| M-BWA Welle F4a — Jahresabschluss-Parser + Server-Layer inkl. Gate-Härtung (§49)                                                       | ✅                                                       |
-| M-BWA Welle F4b — Jahresabschluss-UI (Upload, Drill-Down, KPIs, Mehrjahres) + Migrations-Nachzug F4a (§49)                              | ✅                                                       |
+| M-BWA Welle F4a — Jahresabschluss-Parser + Server-Layer inkl. Gate-Härtung (§49)                                                       | ✅                                                      |
+| M-BWA Welle F4b — Jahresabschluss-UI (Upload, Drill-Down, KPIs, Mehrjahres) + Migrations-Nachzug F4a (§49)                             | ✅                                                      |
 | Lohn-RLS-Härtung — SELECT manager+ auf lohn_absence_days/lohn_recurring_zeilen (§42)                                                   | ✅                                                      |
 | Welle SP1 — Self-Service Stammdaten & Dokumente: Schema + Server-Layer (§43)                                                           | ✅                                                      |
 | Welle SP2 — Mitarbeiter-UI `/profil` (Kontakt direkt, Anträge, Dokumente) (§43)                                                        | ✅ (SP3 Admin-Review offen)                             |

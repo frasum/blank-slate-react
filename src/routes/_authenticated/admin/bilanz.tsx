@@ -13,15 +13,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import {
-  Bar,
-  BarChart,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ArrowDown, ArrowUp, ChevronRight, ChevronDown, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -103,7 +95,10 @@ function fmtPct(v: number | null, digits = 1): string {
   );
 }
 
-function fmtDeltaPct(cur: number | null, prev: number | null): {
+function fmtDeltaPct(
+  cur: number | null,
+  prev: number | null,
+): {
   text: string;
   up: boolean;
   neutral: boolean;
@@ -289,8 +284,7 @@ function YearView({ years, loading }: { years: YearRef[]; loading: boolean }) {
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() =>
-                effYear !== null &&
-                deleteMut.mutate({ entity: effEntity, fiscalYear: effYear })
+                effYear !== null && deleteMut.mutate({ entity: effEntity, fiscalYear: effYear })
               }
             >
               Löschen
@@ -520,10 +514,9 @@ function PositionTree({
   const topLevelSum = sorted.filter((p) => p.level === 0).reduce((a, p) => a + p.betrag_cents, 0);
   const topLevelSumVj = sorted
     .filter((p) => p.level === 0)
-    .reduce<number | null>(
-      (a, p) => (a === null || p.vorjahr_cents === null ? null : a + p.vorjahr_cents),
-      0,
-    );
+    .reduce<
+      number | null
+    >((a, p) => (a === null || p.vorjahr_cents === null ? null : a + p.vorjahr_cents), 0);
 
   return (
     <Table>
@@ -635,15 +628,21 @@ function GuvWaterfall({ positions }: { positions: BilanzPositionRow[] }) {
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={steps}>
-              <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-15} textAnchor="end" height={70} />
+              <XAxis
+                dataKey="name"
+                tick={{ fontSize: 10 }}
+                angle={-15}
+                textAnchor="end"
+                height={70}
+              />
               <YAxis
-                tickFormatter={(v: number) =>
-                  v.toLocaleString("de-DE", { notation: "compact" })
-                }
+                tickFormatter={(v: number) => v.toLocaleString("de-DE", { notation: "compact" })}
                 tick={{ fontSize: 10 }}
               />
               <Tooltip
-                formatter={(v: number) => `${v.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`}
+                formatter={(v: number) =>
+                  `${v.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
+                }
               />
               <Bar dataKey="value">
                 {steps.map((s, i) => (
@@ -700,13 +699,21 @@ function MultiYearView({ years, loading }: { years: YearRef[]; loading: boolean 
   const results = dataQ.data ?? [];
   // Zusammenfuehren: Top-Level-Positionen, Zeilen je (statement, code).
   const rowKey = (p: BilanzPositionRow) => `${p.statement}::${p.code}`;
-  const rowLabels = new Map<string, { statement: string; code: string; label: string; sort: number }>();
+  const rowLabels = new Map<
+    string,
+    { statement: string; code: string; label: string; sort: number }
+  >();
   for (const r of results) {
     for (const p of r.data.positions) {
       if (p.level !== 0) continue;
       const k = rowKey(p);
       if (!rowLabels.has(k))
-        rowLabels.set(k, { statement: p.statement, code: p.code, label: p.label, sort: p.sort_order });
+        rowLabels.set(k, {
+          statement: p.statement,
+          code: p.code,
+          label: p.label,
+          sort: p.sort_order,
+        });
     }
   }
   const orderedRows = Array.from(rowLabels.values()).sort(
