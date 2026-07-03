@@ -16,7 +16,7 @@ type Card = {
 
 const CARDS: Card[] = [
   { to: "/admin/staff", title: "Mitarbeiter", items: "Mitarbeiter, Dienstplan, Arbeitszeiten" },
-  { to: "/admin/kasse", title: "Kasse", items: "Tagesabschlüsse, Saldo" },
+  { to: "/admin/kasse", title: "Tagesabrechnung", items: "Tagesabschlüsse, Saldo" },
   {
     to: "/admin/bestellung",
     title: "Bestellung/Inventur",
