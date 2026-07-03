@@ -528,6 +528,7 @@ describe("parseBilanzPdf – Seitenumbruch innerhalb eines Abschnitts", () => {
     carryLine("300,00", "270,00"),
     [T("Anlagen", 126)],
     innerAmtLine("200,00", "180,00"),
+    outerAmtLine("200,00", "180,00"),
     outerAmtLine("500,00", "450,00"),
     txt("Erläuterung", "zu", "den", "wesentlichen", "Posten", "2"),
   ];
