@@ -130,8 +130,8 @@ function ProfilPage() {
       <header>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Meine Daten</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Kontaktdaten kannst du direkt ändern. Lohnrelevante Daten laufen über einen Antrag,
-          den ein Administrator freigibt.
+          Kontaktdaten kannst du direkt ändern. Lohnrelevante Daten laufen über einen Antrag, den
+          ein Administrator freigibt.
         </p>
       </header>
 
@@ -176,9 +176,7 @@ function PersonCard({ profile }: { profile: MyProfile }) {
         <Field label="Nachname" value={profile.staff.lastName} />
         <Field label="Spitzname" value={profile.staff.displayName} />
       </dl>
-      <p className="text-xs text-muted-foreground">
-        Namensänderungen kannst du unten beantragen.
-      </p>
+      <p className="text-xs text-muted-foreground">Namensänderungen kannst du unten beantragen.</p>
     </Card>
   );
 }
@@ -212,8 +210,7 @@ function ContactCard({ profile, onSaved }: { profile: MyProfile; onSaved: () => 
   const [saving, setSaving] = useState(false);
   const call = useServerFn(updateMyContact);
 
-  const dirty =
-    address !== initialAddress || phone !== initialPhone || email !== initialEmail;
+  const dirty = address !== initialAddress || phone !== initialPhone || email !== initialEmail;
 
   async function save() {
     const payload: Record<string, string> = {};
@@ -373,7 +370,10 @@ function PayrollDataCard({
                 <Field
                   key={f.key}
                   label={f.label}
-                  value={(profile.details as Record<string, string | number | boolean | null>)[f.key] ?? null}
+                  value={
+                    (profile.details as Record<string, string | number | boolean | null>)[f.key] ??
+                    null
+                  }
                 />
               ))}
             </dl>
@@ -446,8 +446,7 @@ function RequestDialog({
   const initial = useMemo(() => initialForm(profile), [profile]);
   const [form, setForm] = useState<FormState>(initial);
   const [church, setChurch] = useState<boolean>(
-    profile.details.church_tax_liable === true ||
-      profile.details.church_tax_liable === "true",
+    profile.details.church_tax_liable === true || profile.details.church_tax_liable === "true",
   );
   const [note, setNote] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -481,8 +480,7 @@ function RequestDialog({
       }
     }
     const initialChurch =
-      profile.details.church_tax_liable === true ||
-      profile.details.church_tax_liable === "true";
+      profile.details.church_tax_liable === true || profile.details.church_tax_liable === "true";
     if (church !== initialChurch) payload.church_tax_liable = church;
     return payload;
   }
@@ -672,9 +670,7 @@ function MyRequestsCard({ q }: { q: ReturnType<typeof useQuery<MyChangeRequest[]
                 {r.fields.map((f) => REQUEST_FIELD_LABEL[f] ?? f).join(", ") || "—"}
               </p>
               {r.reviewNote && (
-                <p className="text-xs text-muted-foreground">
-                  Anmerkung Admin: {r.reviewNote}
-                </p>
+                <p className="text-xs text-muted-foreground">Anmerkung Admin: {r.reviewNote}</p>
               )}
             </li>
           ))}
@@ -779,9 +775,7 @@ function DocumentsCard({
                     <span className="text-sm font-medium text-foreground">
                       {DOC_TYPE_LABEL[d.docType]}
                     </span>
-                    {d.verifiedAt && (
-                      <Badge className="bg-emerald-600 text-white">geprüft</Badge>
-                    )}
+                    {d.verifiedAt && <Badge className="bg-emerald-600 text-white">geprüft</Badge>}
                     {expired && <Badge variant="destructive">abgelaufen</Badge>}
                   </div>
                   <p className="truncate text-xs text-muted-foreground">
@@ -802,7 +796,10 @@ function DocumentsCard({
         <div className="space-y-3">
           <div>
             <Label>Typ</Label>
-            <Select value={docType || undefined} onValueChange={(v) => setDocType(v as StaffDocumentType)}>
+            <Select
+              value={docType || undefined}
+              onValueChange={(v) => setDocType(v as StaffDocumentType)}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Bitte wählen" />
               </SelectTrigger>
