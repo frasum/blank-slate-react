@@ -628,7 +628,16 @@ describe("parseBilanzPdf – F4b-Fix-3: gestapelte Teilsummen und Label-Zahlen",
       ...headerRows(2024),
       pos("1.", "Umsatzerlöse", "1.000,00", "900,00"),
       // Kontonummer + Label-Teil 1 inkl. nackter "4" und "12".
-      [T("8105", 93), T("Steuerfreie", 126), T("Umsätze", 175), T("§", 220), T("4", 235), T("Nr.", 245), T("12", 275), T("UStG", 290)],
+      [
+        T("8105", 93),
+        T("Steuerfreie", 126),
+        T("Umsätze", 175),
+        T("§", 220),
+        T("4", 235),
+        T("Nr.", 245),
+        T("12", 275),
+        T("UStG", 290),
+      ],
       // Fortsetzungs-Label (ohne Betraege), dann Innerband-Betragszeile.
       [T("(Vermietung)", 126)],
       innerAmtLine("1.000,00", "900,00"),
