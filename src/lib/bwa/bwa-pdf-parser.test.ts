@@ -276,4 +276,21 @@ describe("parseBwaPdfText – Teil 2: leere Monatsspalte + Label-Symmetrie", () 
     const res = parseBwaPdfText([p]);
     expect(res.blocks[0].sachkostenDetail["Restaurant- und Hotelbedarf"]).toBe(759300);
   });
+
+  it("Entity: Report-Titel und Firmenname in einer Zeile → Titel wird gestrippt", () => {
+    // Reales Layout einer eurodata-Variante: „Betriebswirtschaftliche
+    // Auswertung" klebt direkt am Firmennamen auf derselben Zeile.
+    const p: string[] = [
+      "1290 205",
+      "Betriebswirtschaftliche Auswertung YUM Gastronomie GmbH",
+      "YUM",
+      "April 2025",
+      "WES: KG3",
+      "11 Gesamtumsatz 120.713 100,0 424.500 100,0",
+    ];
+    const res = parseBwaPdfText([p]);
+    expect(res.blocks).toHaveLength(1);
+    expect(res.blocks[0].entity).toBe("YUM Gastronomie GmbH");
+  });
+
 });

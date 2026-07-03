@@ -192,10 +192,33 @@ function findMonth(lines: string[]): string | null {
 function findEntity(lines: string[]): string | null {
   for (const l of lines) {
     const m = l.match(/([A-ZÄÖÜ][\w\s.&-]*\b(?:GmbH(?:\s*&\s*Co\.?\s*KG)?|AG|KG|UG|e\.K\.))/);
-    if (m) return m[1].replace(/\s+/g, " ").trim();
+    if (!m) continue;
+    const cleaned = stripReportTitlePrefix(m[1]).replace(/\s+/g, " ").trim();
+    // Nach dem Prefix-Strip kann eine reine Titelzeile leer bleiben — dann
+    // ist diese Zeile keine Entity-Zeile, weitersuchen.
+    if (!cleaned) continue;
+    return cleaned;
   }
   return null;
 }
+
+// Manche PDFs (eurodata-Varianten) kleben Report-Titel und Firmenname in eine
+// einzige Zeile, z. B. „Betriebswirtschaftliche Auswertung YUM Gastronomie
+// GmbH". Der Entity-Regex würde dann den Titel mit als Firmenname
+// übernehmen — wir strippen bekannte Titel-Präfixe defensiv weg.
+const REPORT_TITLE_PREFIXES = [
+  /^Betriebswirtschaftliche\s+Auswertung\s+/i,
+  /^Kurzfristige\s+Erfolgsrechnung\s+/i,
+  /^Bewegungsbilanz\s+/i,
+  /^Summen-\s*und\s+Saldenliste\s+/i,
+];
+
+function stripReportTitlePrefix(s: string): string {
+  let out = s;
+  for (const rx of REPORT_TITLE_PREFIXES) out = out.replace(rx, "");
+  return out;
+}
+
 
 function findCostCenter(lines: string[]): string | null {
   // Variante A (Legacy/andere Layouts): explizites Label.
