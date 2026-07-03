@@ -27,6 +27,7 @@ import {
 import { TabButton } from "@/components/ui/nav-tab";
 import { PersonalDetailsTab } from "@/components/admin/PersonalDetailsTab";
 import { PermissionsTab } from "@/components/admin/PermissionsTab";
+import { SofortmeldungBanner } from "@/components/admin/SofortmeldungBanner";
 import type { AppRole } from "@/lib/admin/role-guard";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -104,7 +105,12 @@ function StaffDetailPage() {
         ))}
       </div>
 
-      {tab === "basics" && <BasicsTab staff={s} />}
+      {tab === "basics" && (
+        <div className="space-y-4">
+          {isAdmin && <SofortmeldungBanner staffId={s.id} />}
+          <BasicsTab staff={s} />
+        </div>
+      )}
       {tab === "locations" && <LocationsTab staffId={s.id} current={s.locationIds} />}
       {tab === "skills" && <SkillsTab staffId={s.id} isAdmin={isAdmin} />}
       {tab === "personal" && showPersonal && (

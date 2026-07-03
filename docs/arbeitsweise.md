@@ -1675,3 +1675,19 @@ Summen im getesteten puren Modul `src/lib/time/my-period-hours.ts`
 Admin-Zeitübersicht; offene Einträge zählen nicht in Summen). Keine
 Migration, keine Schreibpfade. Ergänzt „Meine Schichten" (Plan) um die
 Ist-Sicht.
+
+## 45. SM1 Sofortmeldung-Cockpit (§28a SGB IV) (03.07.2026)
+
+Melde-Cockpit, KEINE elektronische Meldung (nur ITSG-zertifizierte Software
+darf melden — die Meldung selbst läuft in sv.net/Lohnbüro). COCO prüft
+Vollständigkeit (SV-Nr ODER Geburtsort+Nationalität als Alternative), zeigt
+den sv.net-Datenblock kopierfertig und dokumentiert die erfolgte Meldung
+(reported_at/by, Audit). Status wird BERECHNET (nicht_erforderlich /
+unvollstaendig / bereit / gemeldet) aus required + missingFields + reported_at
+— pures Modul src/lib/sofortmeldung/sofortmeldung-rules.ts, getestet.
+Tabelle `sofortmeldung` (DENY-ALL, staff_id UNIQUE), Betriebsnummer in
+organization_settings. Fachliche Vorlage tagesabrechnung; bewusst NICHT
+übernommen: eigene Log-Tabelle (zentrales audit_log), gespeicherter Status,
+USING(true)-Policies. Banner im Stammblatt + Badge-Spalte in der
+Mitarbeiterliste. Onboarding-Reihenfolge: Mitarbeiter füllt /profil aus →
+Antrag freigeben → Sofortmeldung „bereit" → sv.net → „gemeldet" markieren.
