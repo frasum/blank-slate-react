@@ -156,55 +156,57 @@ Rekonstruiert per Kalibrierung gegen bereits validierte Bestands-Sessions (Refer
 
 ## 6. Aktueller Modul-Status (29.06.2026)
 
-| Modul                                                                                                                                  | Status   |
-| -------------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| B3 Kasse + B4 Trinkgeld + B5 Tresor                                                                                                    | ✅       |
-| B6 Zeitübersicht (Wochenplan/Zusammenfassung/Buchhaltung/Perioden)                                                                     | ✅       |
-| B7 Perioden (26.–25.) + Import Jan–Sep 2026                                                                                            | ✅       |
-| B8 Lohnbüro-Rolle (payroll)                                                                                                            | ✅       |
-| D1 Dienstplan-Datenmodell + Grid                                                                                                       | ✅       |
-| D2a–e Dienstplan editierbar, Realtime, Service-Symbole, Cross-Booking                                                                  | ✅       |
-| D-8 Eine Einteilung/MA/Tag (Pre-Check + UI-Lock, kein DB-Constraint)                                                                   | ✅       |
-| Dienstplan-Migration (Re-Import 17.06.: 3764 · Delta-Nachimport 29.06.: +114 → 3873, inkl. Jul–Sep-Planung + GIG-Service)              | ✅       |
-| D3 Display — Token, Auto-Refresh, Einstellungen (Rotation/Bereiche/Header/Legende/Nachricht/QR), Bereichs-Freigabe, Geburtstags-Banner | ✅       |
-| M4 Lohn — Rechen-Kern (Stufe 1/3): PAP 2026 + SV, edlohn-cent-getestet                                                                 | ✅       |
-| M4 Lohn — SFN-Geld + Perioden-Aggregation + Verdrahtung (Stufe 2a–c)                                                                   | ✅       |
-| M4 Lohn — Lohnrechner-UI + Excel-Export (`/admin/lohnrechner`)                                                                         | ✅       |
-| M4 Lohn — Perioden-Übersicht (Liste aller aktiven MA je Periode, Klick → Detail)                                                       | ✅       |
-| M4 Lohn — Lohnrechner-Übersicht CSV-Export (edlohn-Abgleichs-Datensatz)                                                                | ✅       |
-| M4 Lohn — Sachbezug + Mahlzeiten als automatische Lohnarten                                                                            | ✅       |
-| M4 Lohn — Soll-Std/Tag-Feld (Vertrags-Soll je MA)                                                                                      | ✅       |
-| M4 Lohn — Urlaub/Krank ins Brutto (`lohn_absence_days`, Tage = Vorgabe)                                                                | ✅       |
-| Provision (wochenbasiert)                                                                                                              | ⏳ offen |
-| Geofencing-Stempeln (UI clockIn nur am Standort, distinct-Location)                                                                    | ✅       |
-| PIN-Login via Vorname/Nickname                                                                                                         | ✅       |
-| Hub & Meine Schichten (`/zeit/schichten`, `/zeit/stempeln`)                                                                            | ✅       |
-| M-Statistik — Umsatz (S-1/S-2: reine Fn + Server-Fn, Kalendermonat, doppelzählungsfrei)                                                | ✅       |
-| M-Statistik — Trinkgeld (S-7: Tagesreihe + Totals + perStaff, Reuse computeSessionTipPoolCore)                                         | ✅       |
-| M-Statistik — Personalquote (S-8: Basis-Brutto B2, gültigkeitsdatierter hourly_rate)                                                   | ✅       |
-| M-Statistik — UI (Tabs, KPI/Chart, Trinkgeld, Personalquote, Standortvergleich, PDF, freier Zeitraum)                                  | ✅       |
-| Inventur-Session an DB gebunden                                                                                                        | ✅       |
-| Self-Service Welle B — Freier-Tag-Wunsch (`/zeit/wuensche`)                                                                            | ✅       |
-| Self-Service Welle C — Urlaubsanträge + Genehmigung (`/zeit/urlaub`, `/admin/urlaub`)                                                  | ✅       |
-| Kasse — Vier-Zeilen-Bargeldblock + Soll-Wechselgeld je Standort                                                                        | ✅       |
-| Kasse — Abgleichs-Warnungen (POS-/Terminal-Differenz, `payment_terminals.is_gl`)                                                       | ✅       |
-| Trinkgeld-Pool — Küche manuell, Plan-Snapshot, GL-Sicht, Teilnahme-Override (§21)                                                      | ✅       |
-| Impersonation („Anmelden als") + granularer Rechte-Tab + Passwort-Flows (ändern/zurücksetzen)                                          | ✅       |
-| M4 — Payroll-Policies erweitert (`m4-payroll-permissions.db.test`)                                                                     | ✅       |
-| Buchhaltung §3b-Block (`/admin/zeit-uebersicht`, payroll-Tab) inkl. Feiertags-Fix                                                      | ✅       |
-| Interne Verbesserungen: `@/lib/format`, DE-Lokalisierung, Skeletons, Identity-Roundtrip                                                | ✅       |
-| Refactor: `kasse.tsx` aufgeteilt (2189 → 860 Z., `src/components/cash/*`)                                                              | ✅       |
-| Auto-Ausstempeln: verschluckter DB-Fehler in `submitWaiterSettlementCore` gefixt (`if (linkErr) throw`)                                | ✅       |
-| PIN-/Passwort-Login gegen PostgREST-Filter-Injection gehärtet (Allowlist `validatePinLoginName`)                                       | ✅       |
-| `parseEuroToCents` zentralisiert (eine Impl. in `@/lib/format`; Bestellung-Magnitude-Korrektur)                                        | ✅       |
-| Artikel-Suche (`listArticles`) gegen PostgREST-`.or()`-Injection gehärtet (`sanitizeArticleSearchTerm`)                                | ✅       |
-| jspdf/pdfjs lazy-geladen (#3-Rest: keine statischen PDF-Imports mehr)                                                                  | ✅       |
-| Security-Header / CSP (Report-Only) auf HTML-Responses (`withSecurityHeaders` in `server.ts`)                                          | ✅       |
-| Mitarbeiter-Matrix (Stammblatt-Umbau: Standort-Dept-Pills, Skill-Eligibility, Index-Redesign)                                          | ✅       |
-| payroll = Büro (Index-Sperre + Dienstplan-Ausschluss, keine 4. Abteilung)                                                              | ✅       |
-| Wochenplan → Abrechnungsperioden (26.–25., gemeinsamer Periodenbegriff im Zeit-Screen)                                                 | ✅       |
-| Aufräumen: Dead-Code, `makeAuditWriter` zentral, Typ-Single-Source `staff-domain.ts`                                                   | ✅       |
-| Rolle „Planer" (P-1..P-3b: scoped Dienstplan-Zugang, Verwaltung, Login-Redirect; Multiblock verworfen)                                 | ✅       |
+| Modul                                                                                                                                  | Status                                                        |
+| -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| B3 Kasse + B4 Trinkgeld + B5 Tresor                                                                                                    | ✅                                                            |
+| B6 Zeitübersicht (Wochenplan/Zusammenfassung/Buchhaltung/Perioden)                                                                     | ✅                                                            |
+| B7 Perioden (26.–25.) + Import Jan–Sep 2026                                                                                            | ✅                                                            |
+| B8 Lohnbüro-Rolle (payroll)                                                                                                            | ✅                                                            |
+| D1 Dienstplan-Datenmodell + Grid                                                                                                       | ✅                                                            |
+| D2a–e Dienstplan editierbar, Realtime, Service-Symbole, Cross-Booking                                                                  | ✅                                                            |
+| D-8 Eine Einteilung/MA/Tag (Pre-Check + UI-Lock, kein DB-Constraint)                                                                   | ✅                                                            |
+| Dienstplan-Migration (Re-Import 17.06.: 3764 · Delta-Nachimport 29.06.: +114 → 3873, inkl. Jul–Sep-Planung + GIG-Service)              | ✅                                                            |
+| D3 Display — Token, Auto-Refresh, Einstellungen (Rotation/Bereiche/Header/Legende/Nachricht/QR), Bereichs-Freigabe, Geburtstags-Banner | ✅                                                            |
+| M4 Lohn — Rechen-Kern (Stufe 1/3): PAP 2026 + SV, edlohn-cent-getestet                                                                 | ✅                                                            |
+| M4 Lohn — SFN-Geld + Perioden-Aggregation + Verdrahtung (Stufe 2a–c)                                                                   | ✅                                                            |
+| M4 Lohn — Lohnrechner-UI + Excel-Export (`/admin/lohnrechner`)                                                                         | ✅                                                            |
+| M4 Lohn — Perioden-Übersicht (Liste aller aktiven MA je Periode, Klick → Detail)                                                       | ✅                                                            |
+| M4 Lohn — Lohnrechner-Übersicht CSV-Export (edlohn-Abgleichs-Datensatz)                                                                | ✅                                                            |
+| M4 Lohn — Sachbezug + Mahlzeiten als automatische Lohnarten                                                                            | ✅                                                            |
+| M4 Lohn — Soll-Std/Tag-Feld (Vertrags-Soll je MA)                                                                                      | ✅                                                            |
+| M4 Lohn — Urlaub/Krank ins Brutto (`lohn_absence_days`, Tage = Vorgabe)                                                                | ✅                                                            |
+| Provision (wochenbasiert)                                                                                                              | ⏳ offen                                                      |
+| Geofencing-Stempeln (UI clockIn nur am Standort, distinct-Location)                                                                    | ✅                                                            |
+| PIN-Login via Vorname/Nickname                                                                                                         | ✅                                                            |
+| Hub & Meine Schichten (`/zeit/schichten`, `/zeit/stempeln`)                                                                            | ✅                                                            |
+| M-Statistik — Umsatz (S-1/S-2: reine Fn + Server-Fn, Kalendermonat, doppelzählungsfrei)                                                | ✅                                                            |
+| M-Statistik — Trinkgeld (S-7: Tagesreihe + Totals + perStaff, Reuse computeSessionTipPoolCore)                                         | ✅                                                            |
+| M-Statistik — Personalquote (S-8: Basis-Brutto B2, gültigkeitsdatierter hourly_rate)                                                   | ✅                                                            |
+| M-Statistik — UI (Tabs, KPI/Chart, Trinkgeld, Personalquote, Standortvergleich, PDF, freier Zeitraum)                                  | ✅                                                            |
+| Inventur-Session an DB gebunden                                                                                                        | ✅                                                            |
+| Self-Service Welle B — Freier-Tag-Wunsch (`/zeit/wuensche`)                                                                            | ✅                                                            |
+| Self-Service Welle C — Urlaubsanträge + Genehmigung (`/zeit/urlaub`, `/admin/urlaub`)                                                  | ✅                                                            |
+| Kasse — Vier-Zeilen-Bargeldblock + Soll-Wechselgeld je Standort                                                                        | ✅                                                            |
+| Kasse — Abgleichs-Warnungen (POS-/Terminal-Differenz, `payment_terminals.is_gl`)                                                       | ✅                                                            |
+| Trinkgeld-Pool — Küche manuell, Plan-Snapshot, GL-Sicht, Teilnahme-Override (§21)                                                      | ✅                                                            |
+| Impersonation („Anmelden als") + granularer Rechte-Tab + Passwort-Flows (ändern/zurücksetzen)                                          | ✅                                                            |
+| M4 — Payroll-Policies erweitert (`m4-payroll-permissions.db.test`)                                                                     | ✅                                                            |
+| Buchhaltung §3b-Block (`/admin/zeit-uebersicht`, payroll-Tab) inkl. Feiertags-Fix                                                      | ✅                                                            |
+| Interne Verbesserungen: `@/lib/format`, DE-Lokalisierung, Skeletons, Identity-Roundtrip                                                | ✅                                                            |
+| Refactor: `kasse.tsx` aufgeteilt (2189 → 860 Z., `src/components/cash/*`)                                                              | ✅                                                            |
+| Auto-Ausstempeln: verschluckter DB-Fehler in `submitWaiterSettlementCore` gefixt (`if (linkErr) throw`)                                | ✅                                                            |
+| PIN-/Passwort-Login gegen PostgREST-Filter-Injection gehärtet (Allowlist `validatePinLoginName`)                                       | ✅                                                            |
+| `parseEuroToCents` zentralisiert (eine Impl. in `@/lib/format`; Bestellung-Magnitude-Korrektur)                                        | ✅                                                            |
+| Artikel-Suche (`listArticles`) gegen PostgREST-`.or()`-Injection gehärtet (`sanitizeArticleSearchTerm`)                                | ✅                                                            |
+| jspdf/pdfjs lazy-geladen (#3-Rest: keine statischen PDF-Imports mehr)                                                                  | ✅                                                            |
+| Security-Header / CSP (Report-Only) auf HTML-Responses (`withSecurityHeaders` in `server.ts`)                                          | ✅                                                            |
+| Mitarbeiter-Matrix (Stammblatt-Umbau: Standort-Dept-Pills, Skill-Eligibility, Index-Redesign)                                          | ✅                                                            |
+| payroll = Büro (Index-Sperre + Dienstplan-Ausschluss, keine 4. Abteilung)                                                              | ✅                                                            |
+| Wochenplan → Abrechnungsperioden (26.–25., gemeinsamer Periodenbegriff im Zeit-Screen)                                                 | ✅                                                            |
+| Aufräumen: Dead-Code, `makeAuditWriter` zentral, Typ-Single-Source `staff-domain.ts`                                                   | ✅                                                            |
+| Rolle „Planer" (P-1..P-3b: scoped Dienstplan-Zugang, Verwaltung, Login-Redirect; Multiblock verworfen)                                 | ✅                                                            |
+| M4 Stufe 3a — edlohn-Abgleich Härtung (5 Fixes, GM-Fälle 4–8)                                                                          | ✅ ABGENOMMEN 03.07.2026, HEAD 1a9f0f4, 1008 Tests grün       |
+| BWA-Modul (`bwa_monthly`, `/admin/bwa`, manuelle Erfassung + Import)                                                                   | ✅ gebaut (Direkt-Session), Gates grün; E2E durch Frank offen |
 
 **Juni-Kassenlücke geschlossen (29.06.2026):** YUM (16., 18.–25.) und Spicery (16., 18.–25., 28.) aus `tagesabrechnung` nachimportiert — 19 Sessions; das leere native YUM-28 durch Legacy-Daten ersetzt. `vectron_daily_total_cents` 19/19 gegen die Quelle verifiziert. Mapping siehe Abschnitt 5.
 
@@ -1426,3 +1428,13 @@ dokumentiert offen. Jede Änderung ist durch einen echten edlohn-Fall belegt
 4/5/6/8 vollassert, 7 als Teilassert pv/rv/av wegen offenem KV-Punkt). Der
 Test-Loop nutzt `toMatchObject` — additive Ergebnis-Felder (z. B.
 `stBruttoAusweisCent`) brechen die Altfälle damit nicht.
+
+### Abnahme 03.07.2026
+
+Erneuter Vollvergleich gegen alle 166 edlohn-Abrechnungen nach den Fixes:
+118 cent-exakt (vorher 95). Verbleibend ausschließlich: KV-AN-Rundung ±1 Cent
+(40, offener Befund — Rundungsverfahren beim Lohnbüro erfragen), PKV-Fälle (4,
+`pkv_basis_beitrag_monat_cent` pflegen), 1× KiSt ±1 Cent (gleiche Rundungs-
+familie), 3× sonstige Bezüge (dokumentiert nicht unterstützt). Offene
+Stammdaten-Aktionen: `ist_werkstudent = true` für den betroffenen
+Werkstudenten setzen; PKV-Basisbeitrag für den PKV-Mitarbeiter pflegen.
