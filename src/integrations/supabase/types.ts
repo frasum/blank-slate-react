@@ -305,6 +305,121 @@ export type Database = {
           },
         ]
       }
+      bilanz_konten: {
+        Row: {
+          betrag_cents: number
+          created_at: string
+          entity: string
+          fiscal_year: number
+          id: string
+          konto_nr: string
+          label: string
+          organization_id: string
+          position_code: string
+          sort_order: number
+          statement: string
+          vorjahr_cents: number | null
+        }
+        Insert: {
+          betrag_cents: number
+          created_at?: string
+          entity: string
+          fiscal_year: number
+          id?: string
+          konto_nr: string
+          label: string
+          organization_id: string
+          position_code: string
+          sort_order: number
+          statement: string
+          vorjahr_cents?: number | null
+        }
+        Update: {
+          betrag_cents?: number
+          created_at?: string
+          entity?: string
+          fiscal_year?: number
+          id?: string
+          konto_nr?: string
+          label?: string
+          organization_id?: string
+          position_code?: string
+          sort_order?: number
+          statement?: string
+          vorjahr_cents?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bilanz_konten_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bilanz_positions: {
+        Row: {
+          betrag_cents: number
+          code: string
+          created_at: string
+          entity: string
+          fiscal_year: number
+          id: string
+          label: string
+          level: number
+          organization_id: string
+          parent_code: string | null
+          sort_order: number
+          source: string
+          statement: string
+          updated_at: string
+          vorjahr_cents: number | null
+        }
+        Insert: {
+          betrag_cents: number
+          code: string
+          created_at?: string
+          entity: string
+          fiscal_year: number
+          id?: string
+          label: string
+          level: number
+          organization_id: string
+          parent_code?: string | null
+          sort_order: number
+          source?: string
+          statement: string
+          updated_at?: string
+          vorjahr_cents?: number | null
+        }
+        Update: {
+          betrag_cents?: number
+          code?: string
+          created_at?: string
+          entity?: string
+          fiscal_year?: number
+          id?: string
+          label?: string
+          level?: number
+          organization_id?: string
+          parent_code?: string | null
+          sort_order?: number
+          source?: string
+          statement?: string
+          updated_at?: string
+          vorjahr_cents?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bilanz_positions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bwa_monthly: {
         Row: {
           abschreibung_cents: number
@@ -4213,6 +4328,16 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      replace_bilanz_year: {
+        Args: {
+          p_entity: string
+          p_fiscal_year: number
+          p_konten: Json
+          p_organization_id: string
+          p_positions: Json
+        }
+        Returns: undefined
       }
       replace_staff_locations: {
         Args: {
