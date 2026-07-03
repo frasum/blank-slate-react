@@ -1616,10 +1616,6 @@ Falls sie je die Kirchensteuer speisen soll: Select-Liste in
 (Admin-Review `/admin/personal-antraege`: Antrags-Freigabe mit Ist/Neu-
 Vergleich und „manuell übernehmen"-Hinweis für Namensfelder; Dokumenten-
 Übersicht mit Ablauf-Ampel rot/gelb 60 Tage/grün, Sichtvermerk, Fehlend-
-Liste Gesundheitszeugnis) abgenommen. Welle SP damit komplett. Bucket-
-Migrationsdatei im SP3-Commit erneut versucht — **weiterhin blockiert**
-(`bucket_sql_blocked` beim Migrations-Tool UND File-Guard beim direkten
-`supabase/migrations/`-Schreiben). Ehrlichkeitsregel: der Anker fehlt im
-Repo, der Bucket ist live via Storage-Tool angelegt; ein DB-Neuaufbau aus
-den Migrationen bräuchte den Bucket manuell (dokumentiert hier als Betriebs-
-Anweisung, bis die Guards einen Weg zulassen).
+Liste Gesundheitszeugnis) abgenommen. Welle SP damit komplett.
+Bucket-Verankerung im Repo: NICHT als Migration (Guard-Block, siehe §3),
+sondern in docs/seed-storage.sql (beide Buckets, idempotent).
