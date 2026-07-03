@@ -1,0 +1,253 @@
+// Reines Analytics-Modul für Modul M-BWA (Welle F2a).
+//
+// Ausschließlich pure Funktionen auf `BwaRow`-Zeilen aus `bwa.functions.ts`.
+// Keine Netzaufrufe, keine React-Hooks, keine DB-Zugriffe.
+//
+// - `aggregateGroup(rows)`: fasst mehrere Kostenstellen einer entity/Monat-
+//   Kombination elementweise zur virtuellen Kostenstelle "Gruppe" zusammen.
+// - `sumRows(rows)`: elementweise Summe beliebig vieler Monate (Σ-Ansicht).
+// - `deriveKpis(row)`: nutzt `deriveBwa` und ergänzt Quoten in Prozent.
+// - `deltas(cur, prev)`: absolute und prozentuale Abweichung (oder null).
+// - `buildWaterfall(row)`: GuV-Brücke mit Stacked-Bar-Sockel für Recharts.
+// - `computeBreakEven(rows)`: rollierender Break-even inkl. echter USt-Mix-
+//   Hochrechnung; bei ungültigem DB → null.
+
+import { deriveBwa, type BwaDerived } from "./bwa-core";
+import type { BwaRow } from "./bwa.functions";
+
+/** Kalendarische Öffnungstage-Näherung. Kommentar: BWA-Kostenstellen sind
+ *  aktuell nicht auf `locations` gemappt, daher konservativ 30 Tage/Monat. */
+export const OPEN_DAYS_PER_MONTH = 30;
+
+/** USt-Sätze (deutsche Gastronomie): 19 % Regel-, 7 % ermäßigt (Außer-Haus). */
+export const VAT_STANDARD = 0.19;
+export const VAT_REDUCED = 0.07;
+
+const CENT_KEYS = [
+  "umsatzCents",
+  "getraenkeCents",
+  "speisenHausCents",
+  "speisenAusserHausCents",
+  "sonstigeErloeseCents",
+  "sonstErtraegeCents",
+  "wareneinsatzCents",
+  "personalCents",
+  "sachkostenCents",
+  "anlageCents",
+  "abschreibungCents",
+  "betriebsergebnisCents",
+] as const satisfies readonly (keyof BwaRow)[];
+
+type CentKey = (typeof CENT_KEYS)[number];
+
+function emptyCents(): Record<CentKey, number> {
+  const o = {} as Record<CentKey, number>;
+  for (const k of CENT_KEYS) o[k] = 0;
+  return o;
+}
+
+/** Fasst alle Kostenstellen derselben `entity` + `month` zur virtuellen
+ *  Kostenstelle "Gruppe" zusammen. `sachkosten_detail` wird bewusst ignoriert
+ *  (F2b — Drilldown). Rückgabe ist ebenfalls `BwaRow`-kompatibel. */
+export function aggregateGroup(rows: BwaRow[]): BwaRow[] {
+  const buckets = new Map<string, BwaRow[]>();
+  for (const r of rows) {
+    const key = `${r.entity}__${r.month}`;
+    const arr = buckets.get(key);
+    if (arr) arr.push(r);
+    else buckets.set(key, [r]);
+  }
+  const out: BwaRow[] = [];
+  for (const [key, rs] of buckets) {
+    const [entity, month] = key.split("__");
+    const sum = emptyCents();
+    for (const r of rs) for (const k of CENT_KEYS) sum[k] += r[k];
+    out.push({
+      id: `group__${entity}__${month}`,
+      entity,
+      costCenter: "Gruppe",
+      month,
+      ...sum,
+      sachkostenDetail: null,
+      source: "import",
+    });
+  }
+  return out;
+}
+
+/** Elementweise Summe beliebig vieler Monatszeilen (nur Cent-Felder). */
+export function sumRows(rows: BwaRow[]): Record<CentKey, number> {
+  const s = emptyCents();
+  for (const r of rows) for (const k of CENT_KEYS) s[k] += r[k];
+  return s;
+}
+
+export type BwaKpis = BwaDerived & {
+  personalQuote: number;
+  wesQuote: number;
+  primeCostQuote: number;
+  rohertrag1Quote: number;
+  betriebsQuote: number;
+};
+
+function pct(part: number, whole: number): number {
+  if (whole === 0) return 0;
+  return (part / whole) * 100;
+}
+
+export function deriveKpis(row: BwaRow): BwaKpis {
+  const d = deriveBwa(row);
+  return {
+    ...d,
+    personalQuote: pct(row.personalCents, row.umsatzCents),
+    wesQuote: pct(row.wareneinsatzCents, row.umsatzCents),
+    primeCostQuote: pct(row.wareneinsatzCents + row.personalCents, row.umsatzCents),
+    rohertrag1Quote: pct(d.rohertrag1Cents, row.umsatzCents),
+    betriebsQuote: pct(row.betriebsergebnisCents, row.umsatzCents),
+  };
+}
+
+export type Delta = { absCents: number; pct: number | null };
+
+/** Abweichung `cur - prev`; `pct` ist `null` bei prev==0. Ist `prev` selbst
+ *  nicht vorhanden, gibt die Funktion `null` zurück (Aufrufer entscheidet). */
+export function deltas(cur: number, prev: number | undefined): Delta | null {
+  if (prev === undefined) return null;
+  const absCents = cur - prev;
+  const pctVal = prev === 0 ? null : (absCents / Math.abs(prev)) * 100;
+  return { absCents, pct: pctVal };
+}
+
+export type WaterfallKind = "plus" | "minus" | "subtotal" | "total";
+export type WaterfallStep = {
+  label: string;
+  valueCents: number; // Höhe des sichtbaren Balkens (immer >= 0)
+  signedCents: number; // Original mit Vorzeichen (für Tabelle)
+  kind: WaterfallKind;
+  baseCents: number; // unsichtbarer Sockel für die Stacked-Bar-Technik
+};
+
+/** GuV-Brücke: Umsatz → +SonstErtr → −WES → RE I → −Personal → RE II →
+ *  −Sachkosten → Ergebnis op. → −Anlage → −AfA → Betriebsergebnis.
+ *  Für einen Recharts Stacked-Bar-Wasserfall: `base` (transparent) + `value`
+ *  (sichtbar). Zwischen-/Endsummen starten bei 0 und tragen den vollen
+ *  Positiv-/Negativwert. */
+export function buildWaterfall(row: BwaRow): WaterfallStep[] {
+  const d = deriveBwa(row);
+  const steps: WaterfallStep[] = [];
+  let running = 0;
+
+  const add = (label: string, signed: number, kind: WaterfallKind) => {
+    if (kind === "subtotal" || kind === "total") {
+      steps.push({
+        label,
+        valueCents: Math.abs(signed),
+        signedCents: signed,
+        kind,
+        baseCents: 0,
+      });
+      running = signed;
+      return;
+    }
+    const next = running + signed;
+    // Sockel = min(running, next), Balken-Höhe = |signed|
+    const base = Math.min(running, next);
+    steps.push({
+      label,
+      valueCents: Math.abs(signed),
+      signedCents: signed,
+      kind,
+      baseCents: base,
+    });
+    running = next;
+  };
+
+  add("Umsatz", row.umsatzCents, "plus");
+  add("Sonst. Erträge", row.sonstErtraegeCents, "plus");
+  add("Wareneinsatz", -row.wareneinsatzCents, "minus");
+  add("Rohertrag I", d.rohertrag1Cents, "subtotal");
+  add("Personal", -row.personalCents, "minus");
+  add("Rohertrag II", d.rohertrag2Cents, "subtotal");
+  add("Sachkosten", -row.sachkostenCents, "minus");
+  add("Ergebnis op.", d.ergebnisOpCents, "subtotal");
+  add("Anlage", -row.anlageCents, "minus");
+  add("Abschreibung", -row.abschreibungCents, "minus");
+  add("Betriebsergebnis", row.betriebsergebnisCents, "total");
+
+  return steps;
+}
+
+export type BreakEven = {
+  v: number; // variabler Kostenanteil (WES/Umsatz)
+  db: number; // Deckungsbeitragsquote (1 - v)
+  factor: number; // Brutto-Faktor aus tatsächlichem USt-Mix
+  months: number;
+  netMonthCents: number;
+  netDayCents: number;
+  grossMonthCents: number;
+  grossDayCents: number;
+  actualDayCents: number;
+  marginOfSafety: number; // (ΣUmsatz - bePeriod) / ΣUmsatz
+};
+
+/** Rollierender Break-even über bis zu 12 Monate. Fix-Block konservativ =
+ *  Personal + Sachkosten + Anlage + Abschreibung; variabel = Wareneinsatz.
+ *  USt-Faktor aus dem echten Erlös-Mix der übergebenen Monate. */
+export function computeBreakEven(rows: BwaRow[]): BreakEven | null {
+  if (rows.length === 0) return null;
+  const last12 = rows.slice(0, 12);
+  const s = sumRows(last12);
+  if (s.umsatzCents <= 0) return null;
+  const v = s.wareneinsatzCents / s.umsatzCents;
+  const db = 1 - v;
+  if (db <= 0) return null;
+
+  const fix =
+    s.personalCents + s.sachkostenCents + s.anlageCents + s.abschreibungCents - s.sonstErtraegeCents;
+  const bePeriodCents = fix / db;
+  const months = last12.length;
+  const netMonthCents = bePeriodCents / months;
+  const netDayCents = netMonthCents / OPEN_DAYS_PER_MONTH;
+
+  const rev19 = s.getraenkeCents + s.sonstigeErloeseCents + s.speisenHausCents;
+  const rev7 = s.speisenAusserHausCents;
+  const vat = rev19 * VAT_STANDARD + rev7 * VAT_REDUCED;
+  const factor = (s.umsatzCents + vat) / s.umsatzCents;
+
+  const grossMonthCents = netMonthCents * factor;
+  const grossDayCents = netDayCents * factor;
+
+  const actualDayCents = s.umsatzCents / months / OPEN_DAYS_PER_MONTH;
+  const marginOfSafety = (s.umsatzCents - bePeriodCents) / s.umsatzCents;
+
+  return {
+    v,
+    db,
+    factor,
+    months,
+    netMonthCents: Math.round(netMonthCents),
+    netDayCents: Math.round(netDayCents),
+    grossMonthCents: Math.round(grossMonthCents),
+    grossDayCents: Math.round(grossDayCents),
+    actualDayCents: Math.round(actualDayCents),
+    marginOfSafety,
+  };
+}
+
+/** Findet zu einem ISO-Monat (YYYY-MM-01) den Vorjahresmonat im Bestand. */
+export function findYoy<T extends { month: string }>(rows: T[], month: string): T | undefined {
+  const y = Number(month.slice(0, 4));
+  const prevMonth = `${y - 1}${month.slice(4)}`;
+  return rows.find((r) => r.month === prevMonth);
+}
+
+/** Findet den vorherigen Monatserfassungspunkt (chronologisch direkt davor). */
+export function findPrevMonth<T extends { month: string }>(
+  rows: T[],
+  month: string,
+): T | undefined {
+  const sorted = [...rows].sort((a, b) => a.month.localeCompare(b.month));
+  const idx = sorted.findIndex((r) => r.month === month);
+  if (idx <= 0) return undefined;
+  return sorted[idx - 1];
+}
