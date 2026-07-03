@@ -48,7 +48,7 @@ export function SessionFieldsCard({
   sessionId: string;
   overview: Overview;
   channels: { id: string; label: string; kind: string; isActive: boolean }[];
-  terminals: { id: string; label: string; isActive: boolean }[];
+  terminals: { id: string; label: string; isActive: boolean; isGl: boolean }[];
   writable: boolean;
   onSave: (data: UpdatePayload) => Promise<unknown>;
   expenses: Array<{ id: string; description: string | null; amountCents: number }>;
@@ -69,13 +69,14 @@ export function SessionFieldsCard({
   previousDeficitSourceDate: string | null;
 }) {
   type Row = { id: string; euro: string };
+  type TerminalRow = Row & { isGl: boolean };
   const initialChannels: Row[] = channels.map((c) => {
     const found = overview.channelAmounts.find((a) => a.channelId === c.id);
     return { id: c.id, euro: ((found?.amountCents ?? 0) / 100).toFixed(2) };
   });
-  const initialTerminals: Row[] = terminals.map((t) => {
+  const initialTerminals: TerminalRow[] = terminals.map((t) => {
     const found = overview.terminalAmounts.find((a) => a.terminalId === t.id);
-    return { id: t.id, euro: ((found?.amountCents ?? 0) / 100).toFixed(2) };
+    return { id: t.id, euro: ((found?.amountCents ?? 0) / 100).toFixed(2), isGl: t.isGl };
   });
 
   const sess = overview.session!;
@@ -110,7 +111,7 @@ export function SessionFieldsCard({
   };
 
   const [chRows, setChRows] = useState<Row[]>(initialChannels);
-  const [tmRows, setTmRows] = useState<Row[]>(initialTerminals);
+  const [tmRows, setTmRows] = useState<TerminalRow[]>(initialTerminals);
   const [misc, setMisc] = useState<Misc>(initialMisc);
   const [saving, setSaving] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);

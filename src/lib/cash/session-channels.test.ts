@@ -3,7 +3,9 @@ import {
   aggregateChannelAmounts,
   buildDayInputFromAggregation,
   sumNonGlTerminalCents,
+  cardDeductionFromTerminalRows,
 } from "./session-channels";
+import { parseEuroToCents } from "@/lib/cash/kasse-helpers";
 
 describe("aggregateChannelAmounts — kind-basierte Aggregation", () => {
   it("Summiert je kind und liefert cardTotal aus Terminals", () => {
@@ -68,5 +70,36 @@ describe("sumNonGlTerminalCents — GL-Terminals dürfen Bargeld nicht mindern",
     expect(() => sumNonGlTerminalCents([{ amountCents: 1.5, isGl: false }])).toThrow(
       /integer cents/,
     );
+  });
+});
+
+describe("cardDeductionFromTerminalRows — §33 auf Formularzeilen", () => {
+  it("Summiert nur nicht-GL-Zeilen (T1 + T2 + GL 27,80 → 605164)", () => {
+    const sum = cardDeductionFromTerminalRows(
+      [
+        { euro: "6051,64", isGl: false },
+        { euro: "0", isGl: false },
+        { euro: "27,80", isGl: true },
+      ],
+      parseEuroToCents,
+    );
+    expect(sum).toBe(605164);
+  });
+  it("Nur GL-Zeilen → 0", () => {
+    expect(
+      cardDeductionFromTerminalRows(
+        [
+          { euro: "10,00", isGl: true },
+          { euro: "5,00", isGl: true },
+        ],
+        parseEuroToCents,
+      ),
+    ).toBe(0);
+  });
+  it("Unparsebare Eingabe zählt als 0", () => {
+    expect(cardDeductionFromTerminalRows([{ euro: "abc", isGl: false }], parseEuroToCents)).toBe(0);
+  });
+  it("Leere Liste → 0", () => {
+    expect(cardDeductionFromTerminalRows([], parseEuroToCents)).toBe(0);
   });
 });
