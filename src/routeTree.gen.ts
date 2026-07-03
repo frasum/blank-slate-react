@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as DisplayLocationIdRouteImport } from './routes/display.$locationId'
+import { Route as AuthenticatedProfilRouteImport } from './routes/_authenticated/profil'
 import { Route as AuthenticatedPasswortAendernRouteImport } from './routes/_authenticated/passwort-aendern'
 import { Route as AuthenticatedLohnRouteImport } from './routes/_authenticated/lohn'
 import { Route as AuthenticatedEasyorderRouteImport } from './routes/_authenticated/easyorder'
@@ -88,6 +89,11 @@ const DisplayLocationIdRoute = DisplayLocationIdRouteImport.update({
   id: '/display/$locationId',
   path: '/display/$locationId',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedProfilRoute = AuthenticatedProfilRouteImport.update({
+  id: '/profil',
+  path: '/profil',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedPasswortAendernRoute =
   AuthenticatedPasswortAendernRouteImport.update({
@@ -353,6 +359,7 @@ export interface FileRoutesByFullPath {
   '/easyorder': typeof AuthenticatedEasyorderRoute
   '/lohn': typeof AuthenticatedLohnRoute
   '/passwort-aendern': typeof AuthenticatedPasswortAendernRoute
+  '/profil': typeof AuthenticatedProfilRoute
   '/display/$locationId': typeof DisplayLocationIdRoute
   '/admin/aufgaben': typeof AuthenticatedAdminAufgabenRoute
   '/admin/bestellung': typeof AuthenticatedAdminBestellungRouteWithChildren
@@ -402,6 +409,7 @@ export interface FileRoutesByTo {
   '/easyorder': typeof AuthenticatedEasyorderRoute
   '/lohn': typeof AuthenticatedLohnRoute
   '/passwort-aendern': typeof AuthenticatedPasswortAendernRoute
+  '/profil': typeof AuthenticatedProfilRoute
   '/display/$locationId': typeof DisplayLocationIdRoute
   '/': typeof AuthenticatedIndexRoute
   '/admin/aufgaben': typeof AuthenticatedAdminAufgabenRoute
@@ -453,6 +461,7 @@ export interface FileRoutesById {
   '/_authenticated/easyorder': typeof AuthenticatedEasyorderRoute
   '/_authenticated/lohn': typeof AuthenticatedLohnRoute
   '/_authenticated/passwort-aendern': typeof AuthenticatedPasswortAendernRoute
+  '/_authenticated/profil': typeof AuthenticatedProfilRoute
   '/display/$locationId': typeof DisplayLocationIdRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/admin/aufgaben': typeof AuthenticatedAdminAufgabenRoute
@@ -507,6 +516,7 @@ export interface FileRouteTypes {
     | '/easyorder'
     | '/lohn'
     | '/passwort-aendern'
+    | '/profil'
     | '/display/$locationId'
     | '/admin/aufgaben'
     | '/admin/bestellung'
@@ -556,6 +566,7 @@ export interface FileRouteTypes {
     | '/easyorder'
     | '/lohn'
     | '/passwort-aendern'
+    | '/profil'
     | '/display/$locationId'
     | '/'
     | '/admin/aufgaben'
@@ -606,6 +617,7 @@ export interface FileRouteTypes {
     | '/_authenticated/easyorder'
     | '/_authenticated/lohn'
     | '/_authenticated/passwort-aendern'
+    | '/_authenticated/profil'
     | '/display/$locationId'
     | '/_authenticated/'
     | '/_authenticated/admin/aufgaben'
@@ -703,6 +715,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/display/$locationId'
       preLoaderRoute: typeof DisplayLocationIdRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/profil': {
+      id: '/_authenticated/profil'
+      path: '/profil'
+      fullPath: '/profil'
+      preLoaderRoute: typeof AuthenticatedProfilRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/passwort-aendern': {
       id: '/_authenticated/passwort-aendern'
@@ -1128,6 +1147,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedEasyorderRoute: typeof AuthenticatedEasyorderRoute
   AuthenticatedLohnRoute: typeof AuthenticatedLohnRoute
   AuthenticatedPasswortAendernRoute: typeof AuthenticatedPasswortAendernRoute
+  AuthenticatedProfilRoute: typeof AuthenticatedProfilRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedZeitAbrechnungRoute: typeof AuthenticatedZeitAbrechnungRoute
   AuthenticatedZeitAufgabenRoute: typeof AuthenticatedZeitAufgabenRoute
@@ -1144,6 +1164,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedEasyorderRoute: AuthenticatedEasyorderRoute,
   AuthenticatedLohnRoute: AuthenticatedLohnRoute,
   AuthenticatedPasswortAendernRoute: AuthenticatedPasswortAendernRoute,
+  AuthenticatedProfilRoute: AuthenticatedProfilRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedZeitAbrechnungRoute: AuthenticatedZeitAbrechnungRoute,
   AuthenticatedZeitAufgabenRoute: AuthenticatedZeitAufgabenRoute,
