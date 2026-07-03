@@ -338,6 +338,7 @@ export const getMyEasyOrderContext = createServerFn({ method: "GET" })
       "manager",
       "staff",
       "planer",
+      "payroll",
     ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     return getMyEasyOrderContextCore(supabaseAdmin, caller);
