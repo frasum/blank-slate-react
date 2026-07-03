@@ -9,10 +9,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { runGuarded } from "@/lib/admin/admin-call";
 import { makeAuditWriter } from "@/lib/admin/audit";
-import {
-  computeInventoryLineValueCents,
-  normalizedPriceCents,
-} from "./unit-conversion";
+import { computeInventoryLineValueCents, normalizedPriceCents } from "./unit-conversion";
 
 async function recomputeSessionTotal(sessionId: string, organizationId: string): Promise<number> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -150,9 +147,7 @@ export const getInventorySession = createServerFn({ method: "GET" })
 
     const { data: articleUnits, error: auErr } = await supabaseAdmin
       .from("articles")
-      .select(
-        "id, order_unit, inventory_unit, order_to_inventory_factor",
-      )
+      .select("id, order_unit, inventory_unit, order_to_inventory_factor")
       .eq("organization_id", caller.organizationId);
     if (auErr) throw auErr;
     const unitsById = new Map<
@@ -261,9 +256,7 @@ export const upsertInventoryItem = createServerFn({ method: "POST" })
 
       const { data: article, error: aErr } = await supabaseAdmin
         .from("articles")
-        .select(
-          "id, name, price_cents, order_unit, inventory_unit, order_to_inventory_factor",
-        )
+        .select("id, name, price_cents, order_unit, inventory_unit, order_to_inventory_factor")
         .eq("id", data.articleId)
         .eq("organization_id", caller.organizationId)
         .maybeSingle();
@@ -290,8 +283,8 @@ export const upsertInventoryItem = createServerFn({ method: "POST" })
           unit_price_cents: unitPrice,
           line_value_cents: lineValue,
           article_name_snapshot: article.name,
-          inventory_unit_snapshot: article.inventory_unit ?? article.name,
-          order_unit_snapshot: article.order_unit ?? article.name,
+          inventory_unit_snapshot: article.inventory_unit ?? "Stk",
+          order_unit_snapshot: article.order_unit ?? "Stk",
           order_to_inventory_factor_snapshot: factor,
           normalized_price_per_inventory_unit_cents: normalized,
         },

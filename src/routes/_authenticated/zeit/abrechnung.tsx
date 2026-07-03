@@ -174,13 +174,7 @@ function AbrechnungPage() {
     );
   }
 
-  const {
-    session,
-    settlement,
-    businessDate,
-    staffId: myStaffId,
-    myPoolShareCents,
-  } = myQ.data;
+  const { session, settlement, businessDate, staffId: myStaffId, myPoolShareCents } = myQ.data;
   const otherLocationSessionsCount =
     (myQ.data as { otherLocationSessionsCount?: number }).otherLocationSessionsCount ?? 0;
   const hasStaffLocations =
@@ -222,8 +216,7 @@ function AbrechnungPage() {
     );
   }
 
-  const sessionLocationName =
-    (session as { locationName?: string | null }).locationName ?? null;
+  const sessionLocationName = (session as { locationName?: string | null }).locationName ?? null;
 
   // Bereits abgegeben → read-only Ansicht.
   if (settlement) {

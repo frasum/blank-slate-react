@@ -77,7 +77,10 @@ DECLARE v_status text;
 BEGIN
   SELECT status INTO v_status FROM public.inventory_sessions
    WHERE id = COALESCE(NEW.session_id, OLD.session_id);
-  IF v_status IS DISTINCT FROM 'in_progress' THEN
+  -- Nur 'completed' blockt. NULL = Session existiert nicht (mehr) — das ist der
+  -- CASCADE-Delete-Pfad von deleteInventorySession (admin) und muss durchgehen;
+  -- ein INSERT mit erfundener session_id scheitert danach ohnehin am FK.
+  IF v_status = 'completed' THEN
     RAISE EXCEPTION 'Inventur ist abgeschlossen.';
   END IF;
   RETURN COALESCE(NEW, OLD);
