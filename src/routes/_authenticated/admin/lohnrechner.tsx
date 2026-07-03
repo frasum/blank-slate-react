@@ -407,6 +407,7 @@ function LohnRechnerPage() {
             <div className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2 lg:grid-cols-3">
               <KV k="Gesamtbrutto" v={eur(result.ergebnis.gesamtbruttoCent)} />
               <KV k="St-/SV-Brutto" v={eur(result.ergebnis.stSvBruttoCent)} />
+              <KV k="St-Brutto (Ausweis)" v={eur(result.ergebnis.stBruttoAusweisCent)} />
               <KV k="Lohnsteuer" v={eur(result.ergebnis.lstCent)} />
               <KV k="Soli" v={eur(result.ergebnis.soliCent)} />
               <KV k="Kirchensteuer" v={eur(result.ergebnis.kistCent)} />

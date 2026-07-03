@@ -64,7 +64,21 @@ export const UEBERGANGSBEREICH_2026 = {
   UG_CENT: 60300,
   /** Obergrenze 2000 € in Cent. */
   OG_CENT: 200000,
+  /**
+   * Amtlicher Faktor F 2026 (Übergangsbereich).
+   * Quelle: Geringfügigkeits-Richtlinien 2026. Wird für die Berechnung der
+   * beitragspflichtigen Gesamt-Einnahme (BE_G) im Midijob-Bereich benötigt —
+   * insbesondere für den PV-Kinderlosen-Zuschlag, den der AN allein trägt.
+   */
+  FAKTOR_F: 0.6603,
 } as const;
+
+/**
+ * Minijob: Mindestbemessungsgrundlage RV in Cent (§163 Abs. 8 SGB VI).
+ * Bei RV-Pflicht im Minijob wird der Gesamtbeitrag auf `max(AE, 175 €)`
+ * berechnet; der AG trägt 15 % vom tatsächlichen AE, der AN die Differenz.
+ */
+export const MINIJOB_RV_MINDEST_CENT = 17500;
 
 /**
  * Standard-Lohnzahlungszeitraum (LZZ) des PAP: 2 = Monat.

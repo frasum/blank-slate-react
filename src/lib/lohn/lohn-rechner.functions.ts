@@ -14,21 +14,17 @@ import { assertPermission } from "@/lib/admin/admin-call";
 import { aggregateSfnPeriod } from "./lohn-period.functions";
 import { staffDetailsToPerson } from "./person-mapping";
 import { berechneLohn } from "./lohn-core";
-import type { Beschaeftigungsart, Entgeltzeile, Kategorie } from "./types";
+import type { Entgeltzeile, Kategorie } from "./types";
 import { buildFixedZeilen } from "./fixed-zeilen";
 import { computeUrlaubKrankDiagnose } from "./urlaub-krank-diagnose";
 import { buildUrlaubKrankZeilen } from "./urlaub-krank-zeilen";
+import { zeitlohnKategorie } from "./kategorie";
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
-/**
- * Liefert die Kategorie für die Zeitlohn-Zeile abhängig von der
- * Beschäftigungsart. Minijobber müssen als `aushilfe_paust` gebucht werden,
- * damit `svBeitraegeMinijob` den RV-Eigenanteil korrekt aufstockt.
- */
-export function zeitlohnKategorie(b: Beschaeftigungsart): "aushilfe_paust" | "zeitlohn" {
-  return b === "minijob" ? "aushilfe_paust" : "zeitlohn";
-}
+// Re-Export für Bestandsimporte (z. B. zeitlohn-kategorie.test.ts) —
+// die Implementierung liegt jetzt in `./kategorie` (zirkelfrei).
+export { zeitlohnKategorie };
 
 /**
  * Geteilter Rechen-Kern: Aggregat → Personenparameter → Entgeltzeilen → Lohn.
@@ -56,7 +52,7 @@ async function computeLohnForStaff(
   const { data: details, error: detErr } = await supabaseAdmin
     .from("staff_personal_details")
     .select(
-      "tax_class, child_tax_allowances, kk_zusatzbeitrag, church_tax_liable, children_count, has_parent_status, is_minijob, date_of_birth, meal_allowance, sachbezug_monthly_cents, soll_hours_per_day, rv_frei, av_frei, lst_freibetrag_monat_cent, is_midijob, kv_frei, pv_frei, is_pkv, pkv_basis_beitrag_monat_cent",
+      "tax_class, child_tax_allowances, kk_zusatzbeitrag, church_tax_liable, children_count, has_parent_status, is_minijob, date_of_birth, meal_allowance, sachbezug_monthly_cents, soll_hours_per_day, rv_frei, av_frei, lst_freibetrag_monat_cent, is_midijob, kv_frei, pv_frei, is_pkv, pkv_basis_beitrag_monat_cent, ist_werkstudent",
     )
     .eq("staff_id", args.staffId)
     .maybeSingle();
@@ -99,6 +95,7 @@ async function computeLohnForStaff(
     sollHoursPerDay: Number(details.soll_hours_per_day ?? 8),
     hourlyRateCents: sfn.hourlyRateCents,
     sfnTagCent: diagnose.avgSfnTagCent,
+    beschaeftigung: person.beschaeftigung,
   });
 
   const { data: recurring, error: recErr } = await supabaseAdmin
@@ -250,6 +247,7 @@ export const berechneLohnUebersicht = createServerFn({ method: "GET" })
       sundayHours: number | null;
       zuschlagCents: number | null;
       bruttoCents: number | null;
+      stBruttoAusweisCent: number | null;
       lstCent: number | null;
       soliCent: number | null;
       kistCent: number | null;
@@ -299,6 +297,7 @@ export const berechneLohnUebersicht = createServerFn({ method: "GET" })
           sundayHours: r.buckets.sundayHours,
           zuschlagCents: r.zuschlagCents,
           bruttoCents: r.ergebnis.gesamtbruttoCent,
+          stBruttoAusweisCent: r.ergebnis.stBruttoAusweisCent,
           lstCent: r.ergebnis.lstCent,
           soliCent: r.ergebnis.soliCent,
           kistCent: r.ergebnis.kistCent,
@@ -331,6 +330,7 @@ export const berechneLohnUebersicht = createServerFn({ method: "GET" })
           sundayHours: null,
           zuschlagCents: null,
           bruttoCents: null,
+          stBruttoAusweisCent: null,
           lstCent: null,
           soliCent: null,
           kistCent: null,

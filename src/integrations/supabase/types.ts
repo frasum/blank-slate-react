@@ -2923,6 +2923,7 @@ export type Database = {
           is_minijob: boolean | null
           is_pkv: boolean
           is_sv_exempt: boolean | null
+          ist_werkstudent: boolean
           job_title: string | null
           kk_zusatzbeitrag: number | null
           kv_frei: boolean
@@ -2970,6 +2971,7 @@ export type Database = {
           is_minijob?: boolean | null
           is_pkv?: boolean
           is_sv_exempt?: boolean | null
+          ist_werkstudent?: boolean
           job_title?: string | null
           kk_zusatzbeitrag?: number | null
           kv_frei?: boolean
@@ -3017,6 +3019,7 @@ export type Database = {
           is_minijob?: boolean | null
           is_pkv?: boolean
           is_sv_exempt?: boolean | null
+          ist_werkstudent?: boolean
           job_title?: string | null
           kk_zusatzbeitrag?: number | null
           kv_frei?: boolean

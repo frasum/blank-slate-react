@@ -126,6 +126,191 @@
         "gesamtnettoCent": 335322,
         "auszahlungCent": 322096
       }
+    },
+    {
+      "name": "Fall 4 — bAV + BBG-Deckelung + freiwillig KV (Selbstzahler)",
+      "eingabe": {
+        "person": {
+          "steuerklasse": 1,
+          "zkf": 0,
+          "kvzProzent": 0,
+          "kirchensteuerBayern": false,
+          "kinderzahl": 0,
+          "elterneigenschaft": false,
+          "pvKinderlosZuschlag": true,
+          "beschaeftigung": "normal",
+          "kvFrei": true,
+          "pvFrei": true
+        },
+        "zeilen": [
+          { "kategorie": "zeitlohn", "bezeichnung": "Zeitlohn", "betragCent": 878400 },
+          { "kategorie": "zuschlag_frei", "bezeichnung": "SFN", "betragCent": 203760 },
+          { "kategorie": "bav_frei", "bezeichnung": "Direktvers stsv-frei", "betragCent": 33800 },
+          { "kategorie": "bav_sv", "bezeichnung": "Direktvers stfr-svpfl", "betragCent": 2200 },
+          {
+            "kategorie": "bav_sv",
+            "bezeichnung": "Direktvers stfr-svpfl 2",
+            "betragCent": 20947
+          },
+          { "kategorie": "sachbezug_frei", "bezeichnung": "Sachbezug", "betragCent": 5000 },
+          { "kategorie": "mahlzeiten_paust", "bezeichnung": "Mahlzeiten", "betragCent": 13253 }
+        ]
+      },
+      "erwartet_teilweise": {
+        "gesamtbruttoCent": 1157360,
+        "stBruttoCent": 878400,
+        "kistCent": 0,
+        "kvCent": 0,
+        "rvCent": 78585,
+        "avCent": 10985,
+        "pvCent": 0
+      },
+      "hinweis": "Selbstzahler-KV/PV-Beitrag wird nicht als Personen-Stammdatum geführt; edlohn zeigt ihn als zusätzlichen Auszahlungs-Abzug (~64 200 Cent hier). Daher NUR Brutto/BBG/KV/RV/AV/PV cent-genau — LSt/Soli/Netto/Auszahlung mit dieser Modellierung nicht reproduzierbar. Beweist gemeinsam mit Fall 8 die BBG-Deckelung sowie Fix 1 (bAV-Abzug greift)."
+    },
+    {
+      "name": "Fall 5 — Werkstudent im Übergangsbereich (Mindestvorsorgepauschale)",
+      "eingabe": {
+        "person": {
+          "steuerklasse": 1,
+          "zkf": 0,
+          "kvzProzent": 0,
+          "kirchensteuerBayern": false,
+          "kinderzahl": 0,
+          "elterneigenschaft": false,
+          "pvKinderlosZuschlag": true,
+          "beschaeftigung": "normal",
+          "istMidijob": true,
+          "istWerkstudent": true,
+          "kvFrei": true,
+          "pvFrei": true,
+          "avFrei": true
+        },
+        "zeilen": [
+          { "kategorie": "zeitlohn", "bezeichnung": "Zeitlohn", "betragCent": 161350 },
+          { "kategorie": "zuschlag_frei", "bezeichnung": "SFN", "betragCent": 32200 },
+          { "kategorie": "sachbezug_frei", "bezeichnung": "Sachbezug", "betragCent": 5000 },
+          { "kategorie": "mahlzeiten_paust", "bezeichnung": "Mahlzeiten", "betragCent": 6855 }
+        ]
+      },
+      "erwartet": {
+        "gesamtbruttoCent": 205405,
+        "stBruttoCent": 161350,
+        "lstCent": 5791,
+        "soliCent": 0,
+        "kistCent": 0,
+        "kvCent": 0,
+        "rvCent": 13454,
+        "avCent": 0,
+        "pvCent": 0,
+        "gesamtnettoCent": 186160,
+        "auszahlungCent": 174305
+      }
+    },
+    {
+      "name": "Fall 6 — Minijob unter RV-Mindestbemessung 175 EUR",
+      "eingabe": {
+        "person": {
+          "steuerklasse": 1,
+          "zkf": 0,
+          "kvzProzent": 0,
+          "kirchensteuerBayern": false,
+          "kinderzahl": 0,
+          "elterneigenschaft": false,
+          "pvKinderlosZuschlag": false,
+          "beschaeftigung": "minijob"
+        },
+        "zeilen": [
+          {
+            "kategorie": "aushilfe_paust",
+            "bezeichnung": "Aushilfe-Zeitlohn",
+            "betragCent": 11550
+          },
+          { "kategorie": "zuschlag_frei", "bezeichnung": "SFN", "betragCent": 1138 },
+          { "kategorie": "sachbezug_frei", "bezeichnung": "Sachbezug", "betragCent": 5000 },
+          { "kategorie": "mahlzeiten_paust", "bezeichnung": "Mahlzeiten", "betragCent": 457 }
+        ]
+      },
+      "erwartet": {
+        "gesamtbruttoCent": 18145,
+        "stBruttoCent": 0,
+        "lstCent": 0,
+        "soliCent": 0,
+        "kistCent": 0,
+        "kvCent": 0,
+        "rvCent": 1522,
+        "avCent": 0,
+        "pvCent": 0,
+        "gesamtnettoCent": 16623,
+        "auszahlungCent": 11166
+      }
+    },
+    {
+      "name": "Fall 7 — Midijob, kinderlos: PV-Zuschlag auf BE-Gesamt",
+      "eingabe": {
+        "person": {
+          "steuerklasse": 1,
+          "zkf": 0,
+          "kvzProzent": 2.79,
+          "kirchensteuerBayern": false,
+          "kinderzahl": 0,
+          "elterneigenschaft": false,
+          "pvKinderlosZuschlag": true,
+          "beschaeftigung": "normal",
+          "istMidijob": true
+        },
+        "zeilen": [
+          { "kategorie": "zeitlohn", "bezeichnung": "Zeitlohn", "betragCent": 164850 },
+          { "kategorie": "zuschlag_frei", "bezeichnung": "SFN", "betragCent": 30188 },
+          { "kategorie": "sachbezug_frei", "bezeichnung": "Sachbezug", "betragCent": 5000 },
+          { "kategorie": "mahlzeiten_paust", "bezeichnung": "Mahlzeiten", "betragCent": 6855 }
+        ]
+      },
+      "erwartet_teilweise": { "pvCent": 3652, "rvCent": 13920, "avCent": 1946 },
+      "hinweis": "kvzProzent 2.79 ist rekonstruiert; KV kann ±1 Cent abweichen (siehe Doku-Abschnitt Rundungsmechanik). Deshalb hier NUR pv/rv/av asserten — als eigener Testblock, nicht über den Standard-GM-Loop."
+    },
+    {
+      "name": "Fall 8 — Aktivrente: LSt 0 via Freibetrag, St-Brutto-Ausweis gemindert",
+      "eingabe": {
+        "person": {
+          "steuerklasse": 1,
+          "zkf": 0,
+          "kvzProzent": 2.69,
+          "kirchensteuerBayern": false,
+          "kinderzahl": 0,
+          "elterneigenschaft": false,
+          "pvKinderlosZuschlag": false,
+          "beschaeftigung": "normal",
+          "rvFrei": false,
+          "avFrei": true,
+          "lstFreibetragMonatCent": 200000
+        },
+        "zeilen": [
+          { "kategorie": "zeitlohn", "bezeichnung": "Zeitlohn", "betragCent": 113750 },
+          { "kategorie": "zeitlohn", "bezeichnung": "Urlaubsstunden", "betragCent": 147000 },
+          {
+            "kategorie": "zeitlohn",
+            "bezeichnung": "Zuschlag Urlaubsentgelt (3M-Durchschn.)",
+            "betragCent": 19530
+          },
+          { "kategorie": "zuschlag_frei", "bezeichnung": "SFN", "betragCent": 10938 },
+          { "kategorie": "sachbezug_frei", "bezeichnung": "Sachbezug", "betragCent": 5000 },
+          { "kategorie": "mahlzeiten_paust", "bezeichnung": "Mahlzeiten", "betragCent": 4570 }
+        ]
+      },
+      "erwartet": {
+        "gesamtbruttoCent": 300788,
+        "stBruttoCent": 280280,
+        "stBruttoAusweisCent": 80280,
+        "lstCent": 0,
+        "soliCent": 0,
+        "kistCent": 0,
+        "kvCent": 24230,
+        "rvCent": 26066,
+        "avCent": 0,
+        "pvCent": 5045,
+        "gesamtnettoCent": 245447,
+        "auszahlungCent": 235877
+      }
     }
   ]
 }
