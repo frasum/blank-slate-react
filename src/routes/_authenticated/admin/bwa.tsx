@@ -152,11 +152,16 @@ function BwaPage() {
       <Tabs defaultValue="dashboard" className="space-y-4">
         <TabsList>
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+          <TabsTrigger value="vergleich">Vergleich</TabsTrigger>
           <TabsTrigger value="erfassung">Erfassung</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard" className="space-y-6">
           <BwaDashboardTab rows={rows} loading={listQ.isLoading} />
+        </TabsContent>
+
+        <TabsContent value="vergleich" className="space-y-6">
+          <BwaVergleichTab rows={rows} loading={listQ.isLoading} />
         </TabsContent>
 
         <TabsContent value="erfassung" className="space-y-6">
