@@ -108,6 +108,35 @@ function pageText(page: Token[][]): string {
 // ---------------------------------------------------------------------------
 
 const HEADER_RE = /(.+?)\s+-\s+Jahresabschluss\s+zum\s+31\.12\.(\d{4})/i;
+const FOOTER_RE = /erl(ä|ae)uterung\s+zu\s+den\s+wesentlichen\s+posten/i;
+
+// F4b-Fix-2: Zeilen, die auf jeder Seite auftauchen und niemals als
+// Position/Konto klassifiziert werden duerfen (zusaetzlich zu isHeaderSkip,
+// der die Spaltenkopfzeilen abfaengt). Wird auch auf der ersten Seite eines
+// Abschnitts angewandt — die Muster sind dort ohnehin irrelevant.
+function isContinuationSkip(line: Token[]): boolean {
+  if (line.length === 0) return true;
+  const flat = line
+    .map((t) => t.text)
+    .join(" ")
+    .trim();
+  if (!flat) return true;
+  if (HEADER_RE.test(flat)) return true;
+  if (FOOTER_RE.test(flat)) return true;
+  const nonAmount = line.filter((t) => !isAmount(t.text));
+  if (nonAmount.length === 1 && /^(aktiva|passiva)$/i.test(nonAmount[0].text)) return true;
+  // Anker-Zeile des Kontennachweises selbst: nie als Zeile mit Inhalt.
+  if (/kontennachweis\s+zur\s+(handelsbilanz|gewinn)/i.test(flat)) return true;
+  return false;
+}
+
+function pageHasStandaloneToken(page: Token[][], re: RegExp): boolean {
+  for (const line of page) {
+    const nonAmount = line.filter((t) => !isAmount(t.text));
+    if (nonAmount.length === 1 && re.test(nonAmount[0].text)) return true;
+  }
+  return false;
+}
 
 function findEntityAndYear(pages: Token[][][]): { entity: string; year: number } | null {
   for (const p of pages) {
