@@ -1619,3 +1619,15 @@ Vergleich und „manuell übernehmen"-Hinweis für Namensfelder; Dokumenten-
 Liste Gesundheitszeugnis) abgenommen. Welle SP damit komplett.
 Bucket-Verankerung im Repo: NICHT als Migration (Guard-Block, siehe §3),
 sondern in docs/seed-storage.sql (beide Buckets, idempotent).
+
+## 44. Z1 „Meine Stunden" — Ist-Zeiten-Self-Service (03.07.2026)
+
+Mitarbeiter sehen unter /zeit/stunden ihre gearbeiteten Schichten der
+Abrechnungsperiode (26.–25., Navigation in frühere Perioden): pro Tag
+Start/Ende/Pause/Netto, Periodensumme. Reines Lese-Feature: neue Server-Fn
+`getMyPeriodEntries` (staff_id aus Caller, Perioden aus `periods`-Tabelle),
+Summen im getesteten puren Modul `src/lib/time/my-period-hours.ts`
+(Netto = grossMinutesBetween − break_minutes, identisch zur
+Admin-Zeitübersicht; offene Einträge zählen nicht in Summen). Keine
+Migration, keine Schreibpfade. Ergänzt „Meine Schichten" (Plan) um die
+Ist-Sicht.
