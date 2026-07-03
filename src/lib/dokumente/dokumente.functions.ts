@@ -41,7 +41,7 @@ export type GeneratedDocumentRow = {
 
 export type GeneratedDocumentFull = GeneratedDocumentRow & {
   content: string;
-  metadata: Record<string, unknown>;
+  metadata: { unresolved?: string[] };
 };
 
 export type DocumentPreview = {
@@ -138,12 +138,24 @@ export const updateTemplate = createServerFn({ method: "POST" })
       if (eErr) throw eErr;
       if (!existing) throw new Error("Template nicht gefunden.");
 
-      const patch: Record<string, unknown> = {};
+      const patch: {
+        name?: string;
+        content?: string;
+        is_active?: boolean;
+      } = {};
       if (data.name !== undefined) patch.name = data.name;
       if (data.content !== undefined) patch.content = data.content;
       if (data.isActive !== undefined) patch.is_active = data.isActive;
       if (Object.keys(patch).length === 0) {
-        return { result: { ok: true as const } };
+        return {
+          result: { ok: true as const },
+          audit: {
+            action: "document_template.updated",
+            entity: "document_template",
+            entityId: data.id,
+            meta: { name: existing.name, changed: [] as string[] },
+          },
+        };
       }
 
       const { error: uErr } = await supabaseAdmin
@@ -417,7 +429,7 @@ export const getGeneratedDocument = createServerFn({ method: "POST" })
       docType: row.doc_type,
       title: row.title,
       content: row.content,
-      metadata: (row.metadata as Record<string, unknown>) ?? {},
+      metadata: (row.metadata as { unresolved?: string[] }) ?? {},
       createdAt: row.created_at,
       createdByName,
     };
