@@ -11,7 +11,11 @@ import { useEffect, useState } from "react";
 import { createFileRoute, useRouteContext } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getOrgSettings, updateOrgSettings } from "@/lib/admin/org-settings.functions";
+import {
+  getOrgSettings,
+  setArbeitgeberStammdaten,
+  updateOrgSettings,
+} from "@/lib/admin/org-settings.functions";
 import { setBetriebsnummer } from "@/lib/sofortmeldung/sofortmeldung.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/einstellungen")({
@@ -41,6 +45,12 @@ function OrgSettingsPage() {
   const [bnMsg, setBnMsg] = useState<string | null>(null);
   const [bnErr, setBnErr] = useState<string | null>(null);
   const callSetBn = useServerFn(setBetriebsnummer);
+  const [agName, setAgName] = useState("");
+  const [agAdresse, setAgAdresse] = useState("");
+  const [agVertreter, setAgVertreter] = useState("");
+  const [agMsg, setAgMsg] = useState<string | null>(null);
+  const [agErr, setAgErr] = useState<string | null>(null);
+  const callSetArbeitgeber = useServerFn(setArbeitgeberStammdaten);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -52,6 +62,9 @@ function OrgSettingsPage() {
     setTestModeEnabled(settingsQ.data.testModeEnabled);
     setTestModeEmail(settingsQ.data.testModeEmail ?? "");
     setBetriebsnummerLocal(settingsQ.data.betriebsnummer ?? "");
+    setAgName(settingsQ.data.arbeitgeberName ?? "");
+    setAgAdresse(settingsQ.data.arbeitgeberAdresse ?? "");
+    setAgVertreter(settingsQ.data.arbeitgeberVertreter ?? "");
   }, [settingsQ.data]);
 
   const mutation = useMutation({
