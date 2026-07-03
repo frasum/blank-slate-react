@@ -191,13 +191,24 @@ function findEntity(lines: string[]): string | null {
 }
 
 function findCostCenter(lines: string[]): string | null {
+  // Variante A (Legacy/andere Layouts): explizites Label.
   for (const l of lines) {
     const m = l.match(/Kostenstelle\s*[:-]?\s*(.+?)\s*$/i);
-    if (m) {
-      // Häufig folgt hinter dem Namen noch eine Nummer — nur den Namen davor
-      // behalten. Wir nehmen defensiv den bereinigten Rest.
-      return m[1].replace(/\s{2,}.*$/, "").trim();
-    }
+    if (m) return m[1].replace(/\s{2,}.*$/, "").trim();
+  }
+  // Variante B (eurodata BWAKORE): KSt-Name als eigene Zeile ZWISCHEN
+  // Entity-Zeile und Monats-Zeile. Kopf: [BeraterNr, Report-Typ, Entity, KSt, Monat, ...]
+  const eIdx = lines.findIndex((l) =>
+    /([A-ZÄÖÜ][\w\s.&-]*\b(?:GmbH(?:\s*&\s*Co\.?\s*KG)?|AG|KG|UG|e\.K\.))/.test(l),
+  );
+  const mIdx = lines.findIndex((l) =>
+    /\b(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+\d{4}\b/i.test(
+      l,
+    ),
+  );
+  if (eIdx >= 0 && mIdx === eIdx + 2) {
+    const cand = lines[eIdx + 1].trim();
+    if (cand && cand.length <= 60) return cand;
   }
   return null;
 }
@@ -288,9 +299,14 @@ export function parseBwaPdfText(pages: string[][]): ParseResult {
 
   for (let i = 0; i < pages.length; i++) {
     const lines = pages[i];
-    if (!isBwaPage(lines) && !isContinuationPage(lines)) continue;
+    // NUR echte BWA-Seiten verarbeiten. Beim eurodata-BWAKORE-Layout tragen
+    // auch Übertrag-/Fortsetzungsseiten den vollen Kopf inkl.
+    // „Betriebswirtschaftliche Auswertung" — andere Auswertungen
+    // (Vorjahresvergleich, Jahresübersicht, Saldenliste) haben ihn nicht und
+    // dürfen NIE einfließen (falsche Spaltenbedeutung, z. B. Jan-Wert zuerst).
+    if (!isBwaPage(lines)) continue;
 
-    const isCont = isContinuationPage(lines) && !isBwaPage(lines);
+    const isCont = isContinuationPage(lines);
 
     let entity = findEntity(lines);
     let costCenter = findCostCenter(lines);

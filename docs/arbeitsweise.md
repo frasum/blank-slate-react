@@ -1562,6 +1562,17 @@ ungefähr gelesen), Zeitreihe mit Benchmark-Bändern (WES 28–32 %, Personal
   Client nicht wählbar); `sachkostenDetail` wird nur geschrieben, wenn
   explizit übergeben — der Erfassungs-Dialog plättet vorhandenes
   PDF-Detail NICHT.
+  F3-Parser-Fix (03.07.): eurodata-BWAKORE schreibt die Kostenstelle OHNE
+  Label als eigene Zeile zwischen Entity und Monat (Kopf: BeraterNr /
+  Report-Typ / Entity / KSt / Monat); `findCostCenter` positionsbasiert
+  erweitert (Label-Variante als Fallback erhalten). Seiten-Gate hart auf
+  `isBwaPage` — Übertrag-Seiten von Vorjahresvergleich/Jahresübersicht
+  flossen sonst ein (Jahresübersicht hätte Januar-Werte geliefert).
+  Verifiziert gegen das echte PDF BWAKORE-01290-205-0426 (17 Seiten,
+  2 KSt: YUM + Spicery, 0 Warnungen). Lektion (Familie „Vorab-Skizze ≠
+  Realität", vgl. §39): Parser-Fixtures NIE synthetisch erfinden — Golden
+  Master kommt aus dem echten Dokument, Beträge im Repo-Fixture
+  verfremdet (§6: keine Geschäftsdaten im Repo).
   **M-BWA damit funktional komplett.** Monatlicher Ablauf: BWA-PDF vom
   Steuerberater in den Import-Tab laden → Review prüfen → übernehmen.
   TSB folgt als zweite entity, sobald die erste TSB-BWA vorliegt (Name +
