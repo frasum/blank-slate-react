@@ -321,6 +321,73 @@ function OrgSettingsPage() {
           </button>
         )}
       </section>
+
+      <section className="space-y-4 rounded-lg border border-border bg-card p-5">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">Arbeitgeber-Stammdaten</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Werden in Dokumenten (Arbeitsverträge, Bescheinigungen) über die Platzhalter{" "}
+            <code>{"{{arbeitgeber_name}}"}</code>, <code>{"{{arbeitgeber_adresse}}"}</code> und{" "}
+            <code>{"{{arbeitgeber_vertreter}}"}</code> verwendet.
+          </p>
+        </div>
+
+        <label className="block space-y-1">
+          <span className="text-xs font-medium text-muted-foreground">Firmenname</span>
+          <input
+            type="text"
+            value={agName}
+            onChange={(e) => setAgName(e.target.value)}
+            disabled={!canEdit}
+            placeholder="z. B. Musterbetrieb GmbH"
+            className="w-full max-w-md rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-60"
+          />
+        </label>
+
+        <label className="block space-y-1">
+          <span className="text-xs font-medium text-muted-foreground">Anschrift</span>
+          <textarea
+            value={agAdresse}
+            onChange={(e) => setAgAdresse(e.target.value)}
+            disabled={!canEdit}
+            rows={3}
+            placeholder={"Straße Nr.\nPLZ Ort"}
+            className="w-full max-w-md rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-60"
+          />
+        </label>
+
+        <label className="block space-y-1">
+          <span className="text-xs font-medium text-muted-foreground">
+            Vertretungsberechtigte Person
+          </span>
+          <input
+            type="text"
+            value={agVertreter}
+            onChange={(e) => setAgVertreter(e.target.value)}
+            disabled={!canEdit}
+            placeholder="Vor- und Nachname"
+            className="w-full max-w-md rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-60"
+          />
+        </label>
+
+        {agMsg && <p className="text-xs text-muted-foreground">{agMsg}</p>}
+        {agErr && <p className="text-xs text-destructive">{agErr}</p>}
+
+        {canEdit && (
+          <button
+            type="button"
+            disabled={agMutation.isPending}
+            onClick={() => {
+              setAgMsg(null);
+              setAgErr(null);
+              agMutation.mutate();
+            }}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
+            {agMutation.isPending ? "Speichern…" : "Speichern"}
+          </button>
+        )}
+      </section>
     </div>
   );
 }
