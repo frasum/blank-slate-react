@@ -1691,3 +1691,21 @@ organization_settings. Fachliche Vorlage tagesabrechnung; bewusst NICHT
 USING(true)-Policies. Banner im Stammblatt + Badge-Spalte in der
 Mitarbeiterliste. Onboarding-Reihenfolge: Mitarbeiter füllt /profil aus →
 Antrag freigeben → Sofortmeldung „bereit" → sv.net → „gemeldet" markieren.
+
+## 46. V1 Dokumentengenerierung — Server-Layer (03.07.2026)
+
+M4-Restposten aus thaitime portiert, bewusst vereinfacht: EIN Template-Modell
+(Volltext mit {{platzhaltern}}, mehrere benannte Templates je Typ) statt des
+thaitime-Textbaustein-Systems; keine Signaturen, kein Mailversand, keine
+Server-PDF-Erzeugung (Druck client-seitig in V2, Cloudflare-kompatibel).
+Tabellen document_templates + generated_documents (beide DENY-ALL; der
+gespeicherte TEXT ist das Dokument der Wahrheit, template_id ON DELETE SET
+NULL, Templates werden deaktiviert statt gelöscht). Platzhalter-Engine als
+pures, getestetes Modul src/lib/dokumente/document-placeholders.ts (fehlende
+Daten ⇒ unresolved-Liste statt leerer Strings; heute injizierbar).
+Arbeitgeber-Stammdaten (Name/Adresse/Vertreter) in organization_settings.
+staff_documents.doc_type um 'contract' erweitert (unterschriebener Scan wird
+als normales Mitarbeiter-Dokument hochgeladen). Audit ohne Dokumentinhalte
+(SV-Nr/IBAN gehören nicht ins Log-Meta). Offen: V2 UI (Template-Editor,
+Generierungs-Assistent im Stammblatt-Tab „Dokumente", Druckansicht,
+Scan-Upload-Verknüpfung).

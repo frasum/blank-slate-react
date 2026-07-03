@@ -1,0 +1,183 @@
+// V1 Dokumentengenerierung — pure Platzhalter-Engine.
+//
+// Kein I/O, kein `new Date()` im Kern: `today` wird injiziert (Testbarkeit).
+// Fehlende / leere Datenfelder werden NICHT als leerer String eingesetzt,
+// sondern lassen den Platzhalter im Text sichtbar (und listen ihn als
+// unresolved). Cents → "13,50 €"; Datum "1995-03-07" → "07.03.1995".
+
+export type PlaceholderKey =
+  | "vorname"
+  | "nachname"
+  | "anrede"
+  | "geburtsdatum"
+  | "geburtsort"
+  | "nationalitaet"
+  | "adresse"
+  | "sv_nummer"
+  | "steuer_id"
+  | "steuerklasse"
+  | "krankenkasse"
+  | "eintrittsdatum"
+  | "iban"
+  | "stundenlohn"
+  | "wochenstunden"
+  | "monatsstunden"
+  | "arbeitgeber_name"
+  | "arbeitgeber_adresse"
+  | "arbeitgeber_vertreter"
+  | "standort"
+  | "heute";
+
+export const PLACEHOLDER_CATALOG = [
+  { key: "vorname", label: "Vorname", description: "Vorname des Mitarbeiters" },
+  { key: "nachname", label: "Nachname", description: "Nachname des Mitarbeiters" },
+  { key: "anrede", label: "Anrede", description: "Anrede (Herr/Frau)" },
+  { key: "geburtsdatum", label: "Geburtsdatum", description: "Geburtsdatum, dd.MM.yyyy" },
+  { key: "geburtsort", label: "Geburtsort", description: "Geburtsort" },
+  { key: "nationalitaet", label: "Nationalität", description: "Nationalität" },
+  { key: "adresse", label: "Adresse", description: "Wohnadresse des Mitarbeiters" },
+  { key: "sv_nummer", label: "SV-Nummer", description: "Sozialversicherungsnummer" },
+  { key: "steuer_id", label: "Steuer-ID", description: "Steuer-Identifikationsnummer" },
+  { key: "steuerklasse", label: "Steuerklasse", description: "Lohnsteuerklasse" },
+  { key: "krankenkasse", label: "Krankenkasse", description: "Gesetzliche Krankenkasse" },
+  { key: "eintrittsdatum", label: "Eintrittsdatum", description: "Beschäftigungsbeginn, dd.MM.yyyy" },
+  { key: "iban", label: "IBAN", description: "IBAN des Mitarbeiters" },
+  { key: "stundenlohn", label: "Stundenlohn", description: "Brutto-Stundenlohn, z. B. 13,50 €" },
+  { key: "wochenstunden", label: "Wochenstunden", description: "Vereinbarte Wochenstunden" },
+  { key: "monatsstunden", label: "Monatsstunden", description: "Vereinbarte Monatsstunden" },
+  { key: "arbeitgeber_name", label: "Arbeitgeber", description: "Firmenname des Arbeitgebers" },
+  { key: "arbeitgeber_adresse", label: "Arbeitgeber-Adresse", description: "Anschrift des Arbeitgebers" },
+  { key: "arbeitgeber_vertreter", label: "Vertreter", description: "Vertretungsberechtigte Person" },
+  { key: "standort", label: "Standort", description: "Name des Haupt-Standorts (falls eindeutig)" },
+  { key: "heute", label: "Heutiges Datum", description: "Aktuelles Datum, dd.MM.yyyy" },
+] as const satisfies ReadonlyArray<{ key: PlaceholderKey; label: string; description: string }>;
+
+function formatDateDe(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  // Erwartet "YYYY-MM-DD" (oder ISO-Datetime) — nur die ersten 10 Zeichen zählen.
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  if (!m) return null;
+  return `${m[3]}.${m[2]}.${m[1]}`;
+}
+
+function formatEuroFromCents(cents: number | null | undefined): string | null {
+  if (cents === null || cents === undefined || Number.isNaN(cents)) return null;
+  const euros = cents / 100;
+  return (
+    euros.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €"
+  );
+}
+
+function nonEmpty(v: string | null | undefined): string | null {
+  if (v === null || v === undefined) return null;
+  const t = v.trim();
+  return t.length > 0 ? t : null;
+}
+
+export type PlaceholderInput = {
+  staff: {
+    first_name: string | null;
+    last_name: string | null;
+  };
+  details: {
+    salutation?: string | null;
+    date_of_birth?: string | null;
+    place_of_birth?: string | null;
+    nationality?: string | null;
+    address?: string | null;
+    social_security_number?: string | null;
+    tax_id?: string | null;
+    tax_class?: string | null;
+    health_insurance?: string | null;
+    employment_start_date?: string | null;
+    iban?: string | null;
+  } | null;
+  compensation: {
+    hourly_wage_cents?: number | null;
+    contracted_hours_per_month?: number | null;
+  } | null;
+  organization: {
+    arbeitgeber_name?: string | null;
+    arbeitgeber_adresse?: string | null;
+    arbeitgeber_vertreter?: string | null;
+  } | null;
+  location: { name?: string | null } | null;
+  today: string; // ISO YYYY-MM-DD; injiziert vom Aufrufer
+};
+
+export function buildPlaceholderData(input: PlaceholderInput): Record<string, string> {
+  const out: Partial<Record<PlaceholderKey, string>> = {};
+  const put = (k: PlaceholderKey, v: string | null) => {
+    if (v !== null) out[k] = v;
+  };
+
+  put("vorname", nonEmpty(input.staff.first_name));
+  put("nachname", nonEmpty(input.staff.last_name));
+
+  const d = input.details;
+  put("anrede", nonEmpty(d?.salutation));
+  put("geburtsdatum", formatDateDe(d?.date_of_birth ?? null));
+  put("geburtsort", nonEmpty(d?.place_of_birth));
+  put("nationalitaet", nonEmpty(d?.nationality));
+  put("adresse", nonEmpty(d?.address));
+  put("sv_nummer", nonEmpty(d?.social_security_number));
+  put("steuer_id", nonEmpty(d?.tax_id));
+  put("steuerklasse", nonEmpty(d?.tax_class));
+  put("krankenkasse", nonEmpty(d?.health_insurance));
+  put("eintrittsdatum", formatDateDe(d?.employment_start_date ?? null));
+  put("iban", nonEmpty(d?.iban));
+
+  const c = input.compensation;
+  put("stundenlohn", formatEuroFromCents(c?.hourly_wage_cents ?? null));
+  const monthly = c?.contracted_hours_per_month ?? null;
+  if (monthly !== null && monthly !== undefined && !Number.isNaN(monthly)) {
+    out.monatsstunden = String(monthly);
+    // Konvention: Wochenstunden = Monatsstunden / 4,33 (gerundet auf 0,5).
+    const weekly = Math.round((monthly / 4.33) * 2) / 2;
+    out.wochenstunden = weekly.toLocaleString("de-DE");
+  }
+
+  const org = input.organization;
+  put("arbeitgeber_name", nonEmpty(org?.arbeitgeber_name));
+  put("arbeitgeber_adresse", nonEmpty(org?.arbeitgeber_adresse));
+  put("arbeitgeber_vertreter", nonEmpty(org?.arbeitgeber_vertreter));
+
+  put("standort", nonEmpty(input.location?.name));
+  put("heute", formatDateDe(input.today));
+
+  return out as Record<string, string>;
+}
+
+const PLACEHOLDER_RE = /\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/g;
+
+export function fillTemplate(
+  content: string,
+  data: Record<string, string>,
+): { text: string; unresolved: string[] } {
+  const unresolvedOrder: string[] = [];
+  const seen = new Set<string>();
+  const text = content.replace(PLACEHOLDER_RE, (match, key: string) => {
+    if (Object.prototype.hasOwnProperty.call(data, key)) {
+      return data[key];
+    }
+    if (!seen.has(key)) {
+      seen.add(key);
+      unresolvedOrder.push(key);
+    }
+    return match;
+  });
+  return { text, unresolved: unresolvedOrder };
+}
+
+export function listPlaceholdersInTemplate(content: string): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const m of content.matchAll(PLACEHOLDER_RE)) {
+    const key = m[1];
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push(key);
+    }
+  }
+  return out;
+}

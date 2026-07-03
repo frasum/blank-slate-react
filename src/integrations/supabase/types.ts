@@ -780,6 +780,115 @@ export type Database = {
           },
         ]
       }
+      document_templates: {
+        Row: {
+          content: string
+          created_at: string
+          doc_type: string
+          id: string
+          is_active: boolean
+          name: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          doc_type: string
+          id?: string
+          is_active?: boolean
+          name: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          doc_type?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_templates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      generated_documents: {
+        Row: {
+          content: string
+          created_at: string
+          created_by: string
+          doc_type: string
+          id: string
+          metadata: Json
+          organization_id: string
+          staff_id: string
+          template_id: string | null
+          title: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          created_by: string
+          doc_type: string
+          id?: string
+          metadata?: Json
+          organization_id: string
+          staff_id: string
+          template_id?: string | null
+          title: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          created_by?: string
+          doc_type?: string
+          id?: string
+          metadata?: Json
+          organization_id?: string
+          staff_id?: string
+          template_id?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generated_documents_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generated_documents_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generated_documents_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generated_documents_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "document_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       import_runs: {
         Row: {
           counters: Json
@@ -1411,6 +1520,9 @@ export type Database = {
       }
       organization_settings: {
         Row: {
+          arbeitgeber_adresse: string | null
+          arbeitgeber_name: string | null
+          arbeitgeber_vertreter: string | null
           betriebsnummer: string | null
           created_at: string
           kitchen_manual_only: boolean
@@ -1425,6 +1537,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          arbeitgeber_adresse?: string | null
+          arbeitgeber_name?: string | null
+          arbeitgeber_vertreter?: string | null
           betriebsnummer?: string | null
           created_at?: string
           kitchen_manual_only?: boolean
@@ -1439,6 +1554,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          arbeitgeber_adresse?: string | null
+          arbeitgeber_name?: string | null
+          arbeitgeber_vertreter?: string | null
           betriebsnummer?: string | null
           created_at?: string
           kitchen_manual_only?: boolean
