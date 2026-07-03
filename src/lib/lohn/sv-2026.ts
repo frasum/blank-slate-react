@@ -104,9 +104,7 @@ export function svBeitraege(e: SvEingabe): SvErgebnis {
       grundsatz -= abschlaege * SV_SAETZE_2026.PV_KIND_ABSCHLAG_PP;
     }
     const zuschlagPP = e.person.pvKinderlosZuschlag ? SV_SAETZE_2026.PV_KINDERLOS_ZUSCHLAG_PP : 0;
-    pvCent = roundCent(
-      (bemessungKvPv * grundsatz) / 100 + (bemessungGesamt * zuschlagPP) / 100,
-    );
+    pvCent = roundCent((bemessungKvPv * grundsatz) / 100 + (bemessungGesamt * zuschlagPP) / 100);
   } else {
     pvCent = roundCent((bemessungKvPv * pvSatz) / 100);
   }

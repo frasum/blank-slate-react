@@ -1366,3 +1366,63 @@ Vorab-SQL-Skizzen aus Prompts sind NICHT die ausführbare Migration (Skizzen-§6
 Kommentar → RPC fehlte nach dem Skizzen-Lauf in der DB; Trigger-CREATE ohne
 DROP IF EXISTS brach den zweiten Lauf ab). Für die Live-DB immer die committete
 Migrationsdatei bzw. das von Claude gelieferte idempotente Ausführungs-SQL nehmen.
+
+## 40. M4 Stufe 3a — edlohn-Abgleich Härtung (03.07.2026)
+
+Maschineller Vergleich von 166 edlohn-Entgeltabrechnungen (Feb–Mai 2026) gegen
+`berechneLohn` (edlohn-eigene Entgeltzeilen als Input, Cent-Diff auf
+LSt/Soli/KiSt/KV/RV/AV/PV/Netto/Auszahlung). Ergebnis: 95 cent-exakt, Rest in
+sechs klar identifizierten Klassen — fünf davon jetzt gefixt, eine sauber
+dokumentiert offen. Jede Änderung ist durch einen echten edlohn-Fall belegt
+(Golden Master `edlohn-faelle.json`, Fälle 4–8).
+
+### Fixes
+
+1. **bAV-Beiträge im Auszahlungs-Abzug** (`lohn-core.ts`, Schritt F): `bav_frei`
+   - `bav_sv` werden nach dem Netto ebenfalls abgezogen — edlohn bucht die
+     Direktversicherung ins Gesamtbrutto (steuerfrei) und zieht sie später als
+     „Beitrag / Direktvers − mtl" wieder ab. Vorher lief die Auszahlung real
+     ~569 €/Monat zu hoch (belegt: Fall 4).
+2. **Minijob-RV-Mindestbemessung 175 €/Monat** (`svBeitraegeMinijob`, §163 Abs. 8
+   SGB VI): Gesamtbeitrag (18,6 %) auf `max(AE, 175 €)`, AG-Pauschale (15 %)
+   weiterhin auf tatsächlichem AE — der AN trägt die Differenz. Guard: AE = 0
+   → RV bleibt 0 (nicht auf 175 € hochziehen). Belegt: Fall 6 (AE 115,50 € →
+   RV 1522 = edlohn).
+3. **Minijob-Invariante**: `berechneLohn` wirft, wenn eine Minijob-Person eine
+   `zeitlohn`- oder `einmalbezug`-Zeile bekommt — sonst liefen die Beträge
+   still an der Minijob-SV vorbei. `buildUrlaubKrankZeilen` nimmt jetzt die
+   Beschäftigungsart und bucht Urlaub/Krank bei Minijob als `aushilfe_paust`.
+4. **Midijob PV-Kinderlosen-Zuschlag auf BE-Gesamt** (`sv-2026.ts`): der
+   Grundanteil (1,8 % ± Kind-Abschläge) bleibt auf der reduzierten AN-Basis
+   (BE_AN), der Kinderlosen-Zuschlag (0,6 PP) läuft aber auf der beitrags-
+   pflichtigen Gesamt-Einnahme BE_G (Formel mit Faktor F 0,6603). EINE
+   Rundung am Ende. Belegt: Fall 7 (AE 1.648,50 € → PV 3652 = edlohn).
+5. **Werkstudenten mit Mindestvorsorgepauschale**: neues Personen-Flag
+   `istWerkstudent` (DB-Spalte `staff_personal_details.ist_werkstudent`) →
+   PAP mit `PKV=1`, `PKPV=0`. NICHT an `kvFrei` gekoppelt (freiwillig
+   gesetzlich Versicherte sind ebenfalls kvFrei, bekommen aber die volle
+   Vorsorgepauschale — belegt an echten Payslips). Belegt: Fall 5 (LSt 5791).
+6. **Aktivrente — St-Brutto-Ausweis um Freibetrag mindern**: neues Ausgabe-
+   Feld `stBruttoAusweisCent = max(0, stBruttoCent − lstFreibetragMonatCent)`
+   für CSV-/Excel-Export und Lohnrechner-UI. `stBruttoCent` bleibt unverändert
+   (RE4 für den PAP; LSt-Rechnung wirkt weiterhin über LZZFREIB). Belegt:
+   Fall 8 (Ausweis 80.280 Cent bei 200.000 Cent Freibetrag).
+
+### Offen (kein Blindfix)
+
+- **KV-AN-Rundung**: in ~38 Abrechnungen weicht die KV genau ±1 Cent von
+  edlohn ab; das edlohn-Rundungsverfahren ist nicht eindeutig rekonstruiert
+  (Differenzmethode Gesamt − AG löst nur einen Teil der Fälle). Beim
+  Lohnbüro / in der edlohn-Doku klären, bevor ein Fix eingebaut wird.
+- **Sonstige Bezüge** (Tantieme, Urlaubsabgeltung) und **PKV-Vorsorge-
+  pauschale** (PKPV-Beitrag als Personen-Stammdatum pflegen) bleiben
+  unsupported. Für PKV-Fälle liefert der PAP heute die Mindestvorsorge-
+  pauschale, solange `pkvBasisBeitragMonatCent = 0` — bei realen PKV-
+  Mitarbeitern zuerst den Beitrag pflegen.
+
+### Golden Master
+
+`golden-master/edlohn-faelle.json` enthält jetzt 8 Fälle (1–3 unverändert,
+4/5/6/8 vollassert, 7 als Teilassert pv/rv/av wegen offenem KV-Punkt). Der
+Test-Loop nutzt `toMatchObject` — additive Ergebnis-Felder (z. B.
+`stBruttoAusweisCent`) brechen die Altfälle damit nicht.
