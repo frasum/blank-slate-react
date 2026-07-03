@@ -1969,3 +1969,31 @@ benannte Zwischensumme, Übertrag). Nicht angefasst: `checkGuvStaffel`,
 `checkKontenSumForYear`, `checkAnlageAnchors`, `validateReplacePayload`
 — die Gate-Logik ist korrekt und bleibt unverändert; nur die
 Datenzulieferung wurde repariert.
+
+**F4b-Fix-2 — Abschnitte über Seitengrenzen (03.07.2026):** Zweiter
+E2E-Befund an allen drei echten Berichten (2022–2024): Der Anker
+„Kontennachweis zur Handelsbilanz/GuV" steht nur auf der **ersten Seite**
+eines Abschnitts. Fortsetzungsseiten tragen nur Entity-Kopfzeile,
+Spaltenkopf (ggf. „Aktiva"/„Passiva", Jahreszahlen, „EUR EUR"),
+„Übertrag"-Zeile und dann die restlichen Konten/Positionen. Vorher wurden
+alle Seiten ohne Anker verworfen — Aktiva verlor Seite 2 inkl.
+Bankkonten und „Summe Aktiva", die GuV brach nach Posten 3 ab, und Konten
+mit umgebrochenem Label über die Seitengrenze verloren ihre Beträge.
+Nachgezogen: Der Parser führt einen `currentSection`-Zustand über die
+Seitenschleife; eine Seite ohne Anker, aber mit Spaltenkopf ist
+Fortsetzungsseite (offener Konto- und Positions-Stack überleben den
+Umbruch). Anlage-/andere Anker oder eine Seite ohne Spaltenkopf beenden
+den Abschnitt. Entity-Kopfzeile, Fußzeile („Erläuterung zu den
+wesentlichen Posten"), einzelnes „Aktiva"/„Passiva" und die Anker-Zeile
+selbst werden nie als Konto/Position klassifiziert. Widerspricht das
+Statement-Label der Folgeseite dem aktiven Abschnitt → Warnung und Label
+gewinnt. Neu abgedeckt durch fünf Charakterisierungstests (offenes Konto
+über die Seitengrenze, Übertrag beider Seiten ignoriert, Positions-Summe
+der Folgeseite trifft die richtige offene Position, Folgeseite ohne
+Spaltenkopf beendet den Abschnitt, widersprüchliches Statement-Label
+erzeugt Warnung + Wechsel). Nicht angefasst: Gate-Funktionen,
+`findAnlageAnchors`, Banding/Anker-Ableitung, `validateReplacePayload`,
+`bilanz.functions.ts`, Schema/Migration.
+
+**Lektion:** Abschnitte laufen über Seitengrenzen; der Anker steht nur
+auf der ersten Seite — Fortsetzungsseiten erkennt man am Spaltenkopf.
