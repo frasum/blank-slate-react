@@ -1605,3 +1605,15 @@ den Lohnrechner angebunden (KiSt läuft weiter über `church_tax_liable`).
 Falls sie je die Kirchensteuer speisen soll: Select-Liste in
 `computeLohnForStaff` UND `person-mapping` zwingend mitziehen
 (Phantom-Deploy-Falle, §3 / Aktivrente-Lektion).
+
+**SP3 abgenommen (03.07.2026):** SP2 (Mitarbeiter-UI `/profil`) und SP3
+(Admin-Review `/admin/personal-antraege`: Antrags-Freigabe mit Ist/Neu-
+Vergleich und „manuell übernehmen"-Hinweis für Namensfelder; Dokumenten-
+Übersicht mit Ablauf-Ampel rot/gelb 60 Tage/grün, Sichtvermerk, Fehlend-
+Liste Gesundheitszeugnis) abgenommen. Welle SP damit komplett. Bucket-
+Migrationsdatei im SP3-Commit erneut versucht — **weiterhin blockiert**
+(`bucket_sql_blocked` beim Migrations-Tool UND File-Guard beim direkten
+`supabase/migrations/`-Schreiben). Ehrlichkeitsregel: der Anker fehlt im
+Repo, der Bucket ist live via Storage-Tool angelegt; ein DB-Neuaufbau aus
+den Migrationen bräuchte den Bucket manuell (dokumentiert hier als Betriebs-
+Anweisung, bis die Guards einen Weg zulassen).
