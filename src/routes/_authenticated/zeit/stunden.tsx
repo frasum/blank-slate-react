@@ -86,8 +86,7 @@ function MyHoursPage() {
             <>
               <div className="text-sm font-medium">
                 {monthLabelFromEnd(query.data.period.endDate)} ·{" "}
-                {formatDdMm(query.data.period.startDate)}–
-                {formatDdMm(query.data.period.endDate)}
+                {formatDdMm(query.data.period.startDate)}–{formatDdMm(query.data.period.endDate)}
               </div>
               {query.data.period.isCurrent && (
                 <Badge variant="secondary" className="mt-1">

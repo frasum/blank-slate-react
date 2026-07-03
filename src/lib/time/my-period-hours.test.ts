@@ -18,14 +18,10 @@ function entry(overrides: Partial<EntryInput> & Pick<EntryInput, "businessDate">
 
 describe("entryNetMinutes", () => {
   it("10:00–18:30 mit 30 Pause = 480 Netto", () => {
-    expect(
-      entryNetMinutes(entry({ businessDate: "2026-06-26" })),
-    ).toBe(480);
+    expect(entryNetMinutes(entry({ businessDate: "2026-06-26" }))).toBe(480);
   });
   it("offener Eintrag = null", () => {
-    expect(
-      entryNetMinutes(entry({ businessDate: "2026-06-26", endedAt: null })),
-    ).toBeNull();
+    expect(entryNetMinutes(entry({ businessDate: "2026-06-26", endedAt: null }))).toBeNull();
   });
   it("klemmt negative Netto (Pause > Brutto) auf 0", () => {
     expect(

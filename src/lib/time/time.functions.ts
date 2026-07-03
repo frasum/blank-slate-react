@@ -139,9 +139,7 @@ export const listMyEntries = createServerFn({ method: "GET" })
 export const getMyPeriodEntries = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
-    z
-      .object({ periodOffset: z.number().int().min(-24).max(0).optional() })
-      .parse(input ?? {}),
+    z.object({ periodOffset: z.number().int().min(-24).max(0).optional() }).parse(input ?? {}),
   )
   .handler(async ({ data, context }) => {
     const caller = await loadStaffCaller(context.supabase, context.userId);
