@@ -108,6 +108,35 @@ function pageText(page: Token[][]): string {
 // ---------------------------------------------------------------------------
 
 const HEADER_RE = /(.+?)\s+-\s+Jahresabschluss\s+zum\s+31\.12\.(\d{4})/i;
+const FOOTER_RE = /erl(ä|ae)uterung\s+zu\s+den\s+wesentlichen\s+posten/i;
+
+// F4b-Fix-2: Zeilen, die auf jeder Seite auftauchen und niemals als
+// Position/Konto klassifiziert werden duerfen (zusaetzlich zu isHeaderSkip,
+// der die Spaltenkopfzeilen abfaengt). Wird auch auf der ersten Seite eines
+// Abschnitts angewandt — die Muster sind dort ohnehin irrelevant.
+function isContinuationSkip(line: Token[]): boolean {
+  if (line.length === 0) return true;
+  const flat = line
+    .map((t) => t.text)
+    .join(" ")
+    .trim();
+  if (!flat) return true;
+  if (HEADER_RE.test(flat)) return true;
+  if (FOOTER_RE.test(flat)) return true;
+  const nonAmount = line.filter((t) => !isAmount(t.text));
+  if (nonAmount.length === 1 && /^(aktiva|passiva)$/i.test(nonAmount[0].text)) return true;
+  // Anker-Zeile des Kontennachweises selbst: nie als Zeile mit Inhalt.
+  if (/kontennachweis\s+zur\s+(handelsbilanz|gewinn)/i.test(flat)) return true;
+  return false;
+}
+
+function pageHasStandaloneToken(page: Token[][], re: RegExp): boolean {
+  for (const line of page) {
+    const nonAmount = line.filter((t) => !isAmount(t.text));
+    if (nonAmount.length === 1 && re.test(nonAmount[0].text)) return true;
+  }
+  return false;
+}
 
 function findEntityAndYear(pages: Token[][][]): { entity: string; year: number } | null {
   for (const p of pages) {
@@ -325,57 +354,66 @@ export function parseBilanzPdf(pages: Token[][][]): ParsedBilanzYear {
   let sortSeq = 0;
   let kontoSeq = 0;
 
-  for (const page of pages) {
-    const section = classifyPage(page);
-    if (section.kind !== "kontennachweis") continue;
-    const statement = section.statement;
-    const cols = findColumnAnchors(page, header.year);
-    if (!cols) {
-      warnings.push(
-        `Seite (${statement}): Spalten-Anker (Jahreszahlen/EUR) nicht gefunden — übersprungen.`,
-      );
-      continue;
+  type OpenKonto = {
+    statement: BilanzStatement;
+    positionCode: string;
+    kontoNr: string;
+    labelParts: string[];
+    sortOrder: number;
+  };
+  type SectionState = {
+    statement: BilanzStatement;
+    path: Path;
+    currentPositionCode: string | null;
+    openKonto: OpenKonto | null;
+    awaitingPositions: ParsedBilanzPosition[];
+  };
+
+  const newState = (statement: BilanzStatement): SectionState => ({
+    statement,
+    path: { letter: null, roman: null, arabic: null, buchstabe: null },
+    currentPositionCode: null,
+    openKonto: null,
+    awaitingPositions: [],
+  });
+
+  let state: SectionState | null = null;
+
+  const finalizeKonto = (s: SectionState, gj: number, vj: number | null): void => {
+    if (!s.openKonto) return;
+    const label = s.openKonto.labelParts.join(" ").replace(/\s+/g, " ").trim();
+    if (!label) {
+      warnings.push(`Konto ${s.openKonto.kontoNr}: leeres Label — übersprungen.`);
+    } else {
+      konten.push({
+        statement: s.openKonto.statement,
+        positionCode: s.openKonto.positionCode,
+        kontoNr: s.openKonto.kontoNr,
+        label,
+        betragCents: gj,
+        vorjahrCents: vj,
+        sortOrder: s.openKonto.sortOrder,
+      });
     }
+    s.openKonto = null;
+  };
+  const closeUnresolvedKonto = (s: SectionState): void => {
+    if (s.openKonto) {
+      warnings.push(`Konto ${s.openKonto.kontoNr}: kein GJ-Betrag gefunden — übersprungen.`);
+      s.openKonto = null;
+    }
+  };
+  const finalizeSection = (): void => {
+    if (!state) return;
+    closeUnresolvedKonto(state);
+    state = null;
+  };
 
-    const path: Path = { letter: null, roman: null, arabic: null, buchstabe: null };
-    let currentPositionCode: string | null = null;
-    type OpenKonto = {
-      statement: BilanzStatement;
-      positionCode: string;
-      kontoNr: string;
-      labelParts: string[];
-      sortOrder: number;
-    };
-    let openKonto: OpenKonto | null = null;
-    const awaitingPositions: ParsedBilanzPosition[] = [];
-
-    const finalizeKonto = (gj: number, vj: number | null): void => {
-      if (!openKonto) return;
-      const label = openKonto.labelParts.join(" ").replace(/\s+/g, " ").trim();
-      if (!label) {
-        warnings.push(`Konto ${openKonto.kontoNr}: leeres Label — übersprungen.`);
-      } else {
-        konten.push({
-          statement: openKonto.statement,
-          positionCode: openKonto.positionCode,
-          kontoNr: openKonto.kontoNr,
-          label,
-          betragCents: gj,
-          vorjahrCents: vj,
-          sortOrder: openKonto.sortOrder,
-        });
-      }
-      openKonto = null;
-    };
-    const closeUnresolvedKonto = (): void => {
-      if (openKonto) {
-        warnings.push(`Konto ${openKonto.kontoNr}: kein GJ-Betrag gefunden — übersprungen.`);
-        openKonto = null;
-      }
-    };
-
+  const parsePage = (page: Token[][], cols: ColumnAnchors, s: SectionState): void => {
+    const statement = s.statement;
     for (const line of page) {
       if (isHeaderSkip(line, header.year)) continue;
+      if (isContinuationSkip(line)) continue;
       const kind = classifyRow(line, statement);
       if (kind === "carry" || kind === "davon" || kind === "empty") continue;
 
@@ -383,30 +421,26 @@ export function parseBilanzPdf(pages: Token[][][]): ParsedBilanzYear {
       const amounts = line.filter((t) => isAmount(t.text));
 
       if (kind === "subtotal") {
-        // Reine Betragszeile — aeusseres Band schliesst offene Position,
-        // inneres Band schliesst offenes Konto.
         const { gj: ogj, vj: ovj } = outerAmounts(amounts, cols);
         if (ogj !== null) {
-          const pos = awaitingPositions.pop();
+          const pos = s.awaitingPositions.pop();
           if (pos) {
             pos.betragCents = ogj;
             if (pos.vorjahrCents === null && ovj !== null) pos.vorjahrCents = ovj;
           }
           continue;
         }
-        if (openKonto) {
+        if (s.openKonto) {
           const kgj = innerRightmostGj(amounts, cols);
           const kvj = ovj;
-          if (kgj !== null) finalizeKonto(kgj, kvj);
+          if (kgj !== null) finalizeKonto(s, kgj, kvj);
         }
         continue;
       }
 
       if (kind === "other") {
-        // Label-Fortsetzung eines offenen Kontos (nur wenn KEINE Zahlen dabei;
-        // benannte Zwischensummen sind "other" mit Zahlen und werden verworfen).
-        if (openKonto && amounts.length === 0) {
-          openKonto.labelParts.push(...nonAmount.map((t) => t.text));
+        if (s.openKonto && amounts.length === 0) {
+          s.openKonto.labelParts.push(...nonAmount.map((t) => t.text));
         }
         continue;
       }
@@ -415,9 +449,9 @@ export function parseBilanzPdf(pages: Token[][][]): ParsedBilanzYear {
       const firstText = nonAmount[0]?.text ?? "";
 
       const pushPosition = (level: number): void => {
-        const code = makeCode(path);
+        const code = makeCode(s.path);
         const label = labelFrom(line, 1);
-        currentPositionCode = code;
+        s.currentPositionCode = code;
         if (!label) {
           warnings.push(`Position ${code}: leeres Label — nur als Kontext übernommen.`);
           return;
@@ -425,7 +459,7 @@ export function parseBilanzPdf(pages: Token[][][]): ParsedBilanzYear {
         const p: ParsedBilanzPosition = {
           statement,
           code,
-          parentCode: parentOf(path),
+          parentCode: parentOf(s.path),
           label,
           level,
           sortOrder: sortSeq++,
@@ -433,60 +467,102 @@ export function parseBilanzPdf(pages: Token[][][]): ParsedBilanzYear {
           vorjahrCents: vj,
         };
         positions.push(p);
-        if (gj === null) awaitingPositions.push(p);
+        if (gj === null) s.awaitingPositions.push(p);
       };
 
       if (kind === "position-letter") {
-        closeUnresolvedKonto();
+        closeUnresolvedKonto(s);
         const m = LETTER_RE.exec(firstText)!;
-        path.letter = m[1];
-        path.roman = path.arabic = path.buchstabe = null;
+        s.path.letter = m[1];
+        s.path.roman = s.path.arabic = s.path.buchstabe = null;
         pushPosition(0);
       } else if (kind === "position-roman") {
-        closeUnresolvedKonto();
+        closeUnresolvedKonto(s);
         const m = ROMAN_RE.exec(firstText)!;
-        path.roman = m[1];
-        path.arabic = path.buchstabe = null;
+        s.path.roman = m[1];
+        s.path.arabic = s.path.buchstabe = null;
         pushPosition(1);
       } else if (kind === "position-arabic") {
-        closeUnresolvedKonto();
+        closeUnresolvedKonto(s);
         const m = ARABIC_RE.exec(firstText)!;
-        path.arabic = m[1];
-        path.buchstabe = null;
+        s.path.arabic = m[1];
+        s.path.buchstabe = null;
         pushPosition(2);
       } else if (kind === "position-buchstabe") {
-        closeUnresolvedKonto();
+        closeUnresolvedKonto(s);
         const m = BUCHSTABE_RE.exec(firstText)!;
-        path.buchstabe = m[1];
+        s.path.buchstabe = m[1];
         pushPosition(3);
       } else if (kind === "position-guv") {
-        closeUnresolvedKonto();
+        closeUnresolvedKonto(s);
         const m = GUV_RE.exec(firstText)!;
-        path.letter = `guv.${m[1]}`;
-        path.roman = path.arabic = path.buchstabe = null;
+        s.path.letter = `guv.${m[1]}`;
+        s.path.roman = s.path.arabic = s.path.buchstabe = null;
         pushPosition(0);
       } else if (kind === "konto") {
-        closeUnresolvedKonto();
+        closeUnresolvedKonto(s);
         const kontoNr = nonAmount[0].text;
-        if (!currentPositionCode) {
+        if (!s.currentPositionCode) {
           warnings.push(`Konto ${kontoNr}: keine übergeordnete Position bekannt — übersprungen.`);
           continue;
         }
         const labelTokens = nonAmount.slice(1).map((t) => t.text);
-        openKonto = {
+        s.openKonto = {
           statement,
-          positionCode: currentPositionCode,
+          positionCode: s.currentPositionCode,
           kontoNr,
           labelParts: labelTokens,
           sortOrder: kontoSeq++,
         };
-        // Falls Konto-Zeile bereits Beträge im inneren Band hat → sofort schliessen.
         const kgj = innerRightmostGj(amounts, cols);
-        if (kgj !== null) finalizeKonto(kgj, vj);
+        if (kgj !== null) finalizeKonto(s, kgj, vj);
       }
     }
-    closeUnresolvedKonto();
+  };
+
+  // F4b-Fix-2: Seitenschleife mit persistentem Abschnitts-Zustand.
+  // Kontennachweis-Anker startet/wechselt Abschnitt; Fortsetzungsseite
+  // (kein Anker, aber Spaltenkopf vorhanden) fuehrt denselben Abschnitt
+  // weiter; Anlage-/andere Anker oder Seite ohne Spaltenkopf beenden ihn.
+  for (const page of pages) {
+    const section = classifyPage(page);
+    const cols = findColumnAnchors(page, header.year);
+
+    if (section.kind === "kontennachweis") {
+      if (state && state.statement !== section.statement) finalizeSection();
+      if (!state) state = newState(section.statement);
+      if (!cols) {
+        warnings.push(
+          `Seite (${section.statement}): Spalten-Anker (Jahreszahlen/EUR) nicht gefunden — übersprungen.`,
+        );
+        continue;
+      }
+      parsePage(page, cols, state);
+      continue;
+    }
+
+    // Fortsetzungsseite: aktiver Abschnitt + Spaltenkopf, kein Anker.
+    if (section.kind === "other" && state && cols) {
+      // Widersprechendes Statement-Label auf der Folgeseite → Label gewinnt.
+      const hasAktiva = pageHasStandaloneToken(page, /^aktiva$/i);
+      const hasPassiva = pageHasStandaloneToken(page, /^passiva$/i);
+      if (state.statement === "aktiva" && hasPassiva && !hasAktiva) {
+        warnings.push("Fortsetzungsseite: erwartet Aktiva, gefunden Passiva — Abschnitt wechselt.");
+        finalizeSection();
+        state = newState("passiva");
+      } else if (state.statement === "passiva" && hasAktiva && !hasPassiva) {
+        warnings.push("Fortsetzungsseite: erwartet Passiva, gefunden Aktiva — Abschnitt wechselt.");
+        finalizeSection();
+        state = newState("aktiva");
+      }
+      parsePage(page, cols, state);
+      continue;
+    }
+
+    // Anlage-Anker, andere Anker oder Seite ohne Spaltenkopf → Abschnitt beenden.
+    finalizeSection();
   }
+  finalizeSection();
 
   rollupPositions(positions);
 

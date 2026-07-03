@@ -492,3 +492,93 @@ describe("Gate 4 – Anlage-Anker vs. parsed Bilanz", () => {
     expect(checks).toEqual([]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// F4b-Fix-2: Abschnitte laufen ueber Seitengrenzen; Anker steht nur auf der
+// ersten Seite. Fortsetzungsseiten erkennt der Parser am Spaltenkopf.
+// ---------------------------------------------------------------------------
+
+describe("parseBilanzPdf – Seitenumbruch innerhalb eines Abschnitts", () => {
+  const doc = txt("YUM", "Gastronomie", "GmbH", "-", "Jahresabschluss", "zum", "31.12.2024");
+
+  // Seite 1: Aktiva-Anker, Position I mit Konto 0300 (Inline) + Konto 0400
+  // OHNE Label-Fortsetzung: nur Nummer + Teil-Label; Beträge kommen erst auf
+  // Seite 2 (offenes Konto ueberlebt den Seitenumbruch).
+  const aktivaP1: Token[][] = [
+    doc,
+    txt("Kontennachweis", "zur", "Handelsbilanz", "zum", "31.12.2024"),
+    txt("Aktiva"),
+    ...headerRows(2024),
+    posNoAmt("A.", "Anlagevermögen"),
+    posNoAmt("I.", "Sachanlagen"),
+    pos("1.", "Grundstücke", "300,00", "270,00"),
+    konto("0300", "Grundstücke", "300,00", "270,00"),
+    posNoAmt("2.", "Anlagen"),
+    kontoNoAmt("0400", "Technische"),
+    carryLine("300,00", "270,00"),
+  ];
+
+  // Seite 2: KEIN Anker, ABER Entity-Kopfzeile + Spaltenkopf + Übertrag +
+  // Label-Fortsetzung des offenen Kontos + Innere-Betragszeile + Positions-
+  // Summe (aeusseres Band) fuer Position I. Fußzeile am Schluss.
+  const aktivaP2: Token[][] = [
+    doc,
+    txt("Aktiva"),
+    ...headerRows(2024),
+    carryLine("300,00", "270,00"),
+    [T("Anlagen", 126)],
+    innerAmtLine("200,00", "180,00"),
+    outerAmtLine("200,00", "180,00"),
+    outerAmtLine("500,00", "450,00"),
+    txt("Erläuterung", "zu", "den", "wesentlichen", "Posten", "2"),
+  ];
+
+  it("offenes Konto ueber Seitengrenze: Label + Betrag werden auf Seite 2 vervollstaendigt", () => {
+    const res = parseBilanzPdf([aktivaP1, aktivaP2]);
+    const k = res.konten.find((k) => k.kontoNr === "0400")!;
+    expect(k.label).toBe("Technische Anlagen");
+    expect(k.betragCents).toBe(20000);
+    expect(k.vorjahrCents).toBe(18000);
+    expect(k.positionCode).toBe("A.I.2");
+  });
+
+  it("Übertrag-Zeilen auf beiden Seiten werden ignoriert", () => {
+    const res = parseBilanzPdf([aktivaP1, aktivaP2]);
+    expect(res.konten.some((k) => k.label.toLowerCase().includes("übertrag"))).toBe(false);
+    expect(res.positions.some((p) => p.label.toLowerCase().includes("übertrag"))).toBe(false);
+  });
+
+  it("Positions-Summenzeile auf Seite 2 wird der offenen Position I zugeordnet", () => {
+    const res = parseBilanzPdf([aktivaP1, aktivaP2]);
+    const posI = res.positions.find((p) => p.code === "A.I")!;
+    expect(posI.betragCents).toBe(50000);
+    expect(posI.vorjahrCents).toBe(45000);
+  });
+
+  it("Folgeseite OHNE Spaltenkopf beendet den Abschnitt (Konto wird nicht befuellt)", () => {
+    // Seite 2 ohne Jahres-Kopfzeile UND ohne EUR-Fallback → kein cols → Abschnittsende.
+    const seite2Bad: Token[][] = [
+      doc,
+      innerAmtLine("200,00", "180,00"),
+      outerAmtLine("500,00", "450,00"),
+    ];
+    const res = parseBilanzPdf([aktivaP1, seite2Bad]);
+    expect(res.konten.some((k) => k.kontoNr === "0400" && k.betragCents === 20000)).toBe(false);
+    expect(res.warnings.some((w) => w.includes("0400"))).toBe(true);
+  });
+
+  it("Widersprechendes Statement-Label auf Folgeseite → Warnung + Label gewinnt", () => {
+    // Seite 2 traegt "Passiva" statt "Aktiva" — Abschnitt muss wechseln.
+    const passivaFollowup: Token[][] = [
+      doc,
+      txt("Passiva"),
+      ...headerRows(2024),
+      posNoAmt("B.", "Eigenkapital"),
+      pos("I.", "Gezeichnet", "100,00", "90,00"),
+      konto("0800", "Gezeichnet", "100,00", "90,00"),
+    ];
+    const res = parseBilanzPdf([aktivaP1, passivaFollowup]);
+    expect(res.warnings.some((w) => /widerspricht|wechselt/i.test(w))).toBe(true);
+    expect(res.positions.some((p) => p.statement === "passiva" && p.code === "B")).toBe(true);
+  });
+});
