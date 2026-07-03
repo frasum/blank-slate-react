@@ -79,6 +79,7 @@ import {
 } from "@/lib/bwa/bwa.functions";
 import { deriveBwa, validateBwaMonth, type BwaMonthInput } from "@/lib/bwa/bwa-core";
 import { parseBwaPdfText, type ParsedBwaBlock } from "@/lib/bwa/bwa-pdf-parser";
+import { clusterItemsToLines, type TextItem } from "@/lib/bwa/pdf-lines";
 import {
   aggregateGroup,
   buildWaterfall,
@@ -258,33 +259,14 @@ async function extractBwaPagesFromPdf(file: File): Promise<string[][]> {
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const items = await readPdfTextItems(page);
-    const rowMap = new Map<number, { x: number; s: string }[]>();
+    const textItems: TextItem[] = [];
     for (const it of items) {
       if (!it || typeof it !== "object" || !("str" in it)) continue;
       const item = it as PdfTextItemLike;
       if (!item.str || !Array.isArray(item.transform)) continue;
-      const y = Math.round(item.transform[5]);
-      const x = item.transform[4];
-      let arr = rowMap.get(y);
-      if (!arr) {
-        arr = [];
-        rowMap.set(y, arr);
-      }
-      arr.push({ x, s: item.str });
+      textItems.push({ x: item.transform[4], y: item.transform[5], s: item.str });
     }
-    const ys = Array.from(rowMap.keys()).sort((a, b) => b - a);
-    const lines = ys
-      .map((y) =>
-        rowMap
-          .get(y)!
-          .sort((a, b) => a.x - b.x)
-          .map((c) => c.s)
-          .join(" ")
-          .replace(/\s+/g, " ")
-          .trim(),
-      )
-      .filter((l) => l.length > 0);
-    pages.push(lines);
+    pages.push(clusterItemsToLines(textItems));
   }
   return pages;
 }
