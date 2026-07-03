@@ -2764,6 +2764,147 @@ export type Database = {
           },
         ]
       }
+      staff_data_change_requests: {
+        Row: {
+          created_at: string
+          id: string
+          note: string | null
+          organization_id: string
+          payload: Json
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          staff_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          organization_id: string
+          payload: Json
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          staff_id: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          organization_id?: string
+          payload?: Json
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          staff_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_data_change_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_data_change_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_data_change_requests_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_documents: {
+        Row: {
+          created_at: string
+          doc_type: string
+          file_path: string
+          id: string
+          mime_type: string
+          note: string | null
+          organization_id: string
+          original_filename: string
+          size_bytes: number
+          staff_id: string
+          uploaded_by: string
+          valid_until: string | null
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          doc_type: string
+          file_path: string
+          id?: string
+          mime_type: string
+          note?: string | null
+          organization_id: string
+          original_filename: string
+          size_bytes: number
+          staff_id: string
+          uploaded_by: string
+          valid_until?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          doc_type?: string
+          file_path?: string
+          id?: string
+          mime_type?: string
+          note?: string | null
+          organization_id?: string
+          original_filename?: string
+          size_bytes?: number
+          staff_id?: string
+          uploaded_by?: string
+          valid_until?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_documents_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_documents_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_documents_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_easyorder_access: {
         Row: {
           can_add_free_items: boolean
@@ -3006,6 +3147,7 @@ export type Database = {
           ist_werkstudent: boolean
           job_title: string | null
           kk_zusatzbeitrag: number | null
+          konfession: string | null
           kv_frei: boolean
           lst_freibetrag_monat_cent: number
           meal_allowance: boolean
@@ -3054,6 +3196,7 @@ export type Database = {
           ist_werkstudent?: boolean
           job_title?: string | null
           kk_zusatzbeitrag?: number | null
+          konfession?: string | null
           kv_frei?: boolean
           lst_freibetrag_monat_cent?: number
           meal_allowance?: boolean
@@ -3102,6 +3245,7 @@ export type Database = {
           ist_werkstudent?: boolean
           job_title?: string | null
           kk_zusatzbeitrag?: number | null
+          konfession?: string | null
           kv_frei?: boolean
           lst_freibetrag_monat_cent?: number
           meal_allowance?: boolean
