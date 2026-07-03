@@ -1428,3 +1428,13 @@ dokumentiert offen. Jede Änderung ist durch einen echten edlohn-Fall belegt
 4/5/6/8 vollassert, 7 als Teilassert pv/rv/av wegen offenem KV-Punkt). Der
 Test-Loop nutzt `toMatchObject` — additive Ergebnis-Felder (z. B.
 `stBruttoAusweisCent`) brechen die Altfälle damit nicht.
+
+### Abnahme 03.07.2026
+
+Erneuter Vollvergleich gegen alle 166 edlohn-Abrechnungen nach den Fixes:
+118 cent-exakt (vorher 95). Verbleibend ausschließlich: KV-AN-Rundung ±1 Cent
+(40, offener Befund — Rundungsverfahren beim Lohnbüro erfragen), PKV-Fälle (4,
+`pkv_basis_beitrag_monat_cent` pflegen), 1× KiSt ±1 Cent (gleiche Rundungs-
+familie), 3× sonstige Bezüge (dokumentiert nicht unterstützt). Offene
+Stammdaten-Aktionen: `ist_werkstudent = true` für den betroffenen
+Werkstudenten setzen; PKV-Basisbeitrag für den PKV-Mitarbeiter pflegen.
