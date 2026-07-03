@@ -79,6 +79,25 @@ type LocationRow = Awaited<ReturnType<typeof listLocations>>[number];
 
 type DeptFilter = "all" | "service" | "kitchen";
 
+const SOFORT_LABEL: Record<SofortmeldungStatus, string> = {
+  nicht_erforderlich: "—",
+  unvollstaendig: "unvollständig",
+  bereit: "bereit",
+  gemeldet: "gemeldet",
+};
+
+function SofortmeldungBadge({ status }: { status: SofortmeldungStatus }) {
+  const cls =
+    status === "gemeldet"
+      ? "bg-sky-600 text-white"
+      : status === "bereit"
+        ? "bg-emerald-600 text-white"
+        : status === "unvollstaendig"
+          ? "bg-destructive text-destructive-foreground"
+          : "bg-muted text-muted-foreground";
+  return <Badge className={cls}>{SOFORT_LABEL[status]}</Badge>;
+}
+
 function StaffListPage() {
   const { identity } = useRouteContext({ from: "/_authenticated/admin" });
   const isAdmin = identity.role === "admin";
