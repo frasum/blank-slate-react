@@ -6,19 +6,7 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  {
-    ignores: [
-      "dist",
-      ".output",
-      ".vinxi",
-      "src/integrations/supabase/types.ts",
-      // AUTO-GENERATED von @lovable.dev/mcp-js — Plugin schreibt bei jedem
-      // Build neu; Formatierung/Details sind Sache des Plugins.
-      "src/routes/mcp.ts",
-      "src/routes/**/*.mcp*/**",
-      "src/routes/**/*.well-known*/oauth-protected-resource.ts",
-    ],
-  },
+  { ignores: ["dist", ".output", ".vinxi", "src/integrations/supabase/types.ts"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],

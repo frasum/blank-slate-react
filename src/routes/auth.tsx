@@ -16,23 +16,11 @@ import { validatePin } from "@/lib/auth/auth-flows.functions";
 import { BrandLockup } from "@/components/brand-lockup";
 import cocoLogoLight from "@/assets/coco-logo-light.png.asset.json";
 
-// Sichere Verwendung des `next`-Parameters: nur same-origin-Pfade,
-// keine protokoll-relativen URLs (`//evil.com`). Verhindert Open-Redirect
-// und deckt insbesondere die OAuth-Consent-Rückkehr ab.
-function safeNext(raw: string | null | undefined): string {
-  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/";
-  return raw;
-}
-
 export const Route = createFileRoute("/auth")({
   ssr: false,
-  beforeLoad: async ({ location }) => {
+  beforeLoad: async () => {
     const { data } = await supabase.auth.getSession();
-    if (data.session?.user) {
-      const next = safeNext(new URLSearchParams(location.search).get("next"));
-      // href-Redirect erlaubt beliebige same-origin-Pfade (inkl. `/.lovable/...`).
-      throw redirect({ href: next });
-    }
+    if (data.session?.user) throw redirect({ to: "/" });
   },
   head: () => ({
     meta: [{ title: "Anmelden · COCO" }, { name: "robots", content: "noindex" }],
@@ -48,16 +36,10 @@ function AuthPage() {
   const router = useRouter();
   const navigate = useNavigate();
 
-  // Nach erfolgreichem Login redirect auf `next` (falls same-origin) oder "/".
+  // Nach erfolgreichem Login redirect auf "/".
   const onLoggedIn = async () => {
     await router.invalidate();
-    const next = safeNext(new URLSearchParams(window.location.search).get("next"));
-    if (next === "/") {
-      await navigate({ to: "/" });
-    } else {
-      // Beliebige same-origin-Ziele (inkl. Consent-Route mit Suchparametern).
-      window.location.assign(next);
-    }
+    await navigate({ to: "/" });
   };
 
   return (
