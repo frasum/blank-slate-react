@@ -175,9 +175,7 @@ function RequestsTab() {
           reviewNote: note.trim() ? note.trim() : undefined,
         },
       });
-      toast.success(
-        decideOn.decision === "approved" ? "Antrag freigegeben." : "Antrag abgelehnt.",
-      );
+      toast.success(decideOn.decision === "approved" ? "Antrag freigegeben." : "Antrag abgelehnt.");
       setDecideOn(null);
       setNote("");
       await qc.invalidateQueries({ queryKey: ["admin", "profile-requests"] });
@@ -198,9 +196,7 @@ function RequestsTab() {
 
   const rows = q.data ?? [];
   if (rows.length === 0)
-    return (
-      <Card className="p-6 text-sm text-muted-foreground">Keine offenen Anträge.</Card>
-    );
+    return <Card className="p-6 text-sm text-muted-foreground">Keine offenen Anträge.</Card>;
 
   return (
     <>
@@ -260,11 +256,7 @@ function RequestsTab() {
               onClick={submit}
               disabled={busy}
             >
-              {busy
-                ? "…"
-                : decideOn?.decision === "approved"
-                  ? "Freigeben"
-                  : "Ablehnen"}
+              {busy ? "…" : decideOn?.decision === "approved" ? "Freigeben" : "Ablehnen"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -369,13 +361,9 @@ function statusBadge(status: DocumentExpiryStatus) {
   if (status === "expired")
     return <Badge className="bg-red-600 text-white hover:bg-red-600">abgelaufen</Badge>;
   if (status === "expiring")
-    return (
-      <Badge className="bg-amber-500 text-white hover:bg-amber-500">läuft bald ab</Badge>
-    );
+    return <Badge className="bg-amber-500 text-white hover:bg-amber-500">läuft bald ab</Badge>;
   if (status === "ok")
-    return (
-      <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">gültig</Badge>
-    );
+    return <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">gültig</Badge>;
   return (
     <Badge variant="outline" className="text-muted-foreground">
       kein Datum
