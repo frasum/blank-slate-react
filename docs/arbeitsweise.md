@@ -1183,6 +1183,8 @@ Ferner: Auth-Redirect-Flow direkt in Lovable gefixt (`f8d41ad`).
 
 **Lektion:** Der Parallelbetrieb gegen die Legacy-Referenz ist der wirksamste Abgleich — Cent-Differenzen dort sofort ausermitteln, nicht wegerklären.
 
+**Nachzug 03.07.:** Dritter Pfad gefunden (Live-Differenz 27,80 € Spicery) — der client-seitige KONTROLLE-Block der Kassen-Eingabeseite (`CashSummaryBlock` via `SessionFieldsCard`) summierte ALLE Terminal-Formularzeilen inkl. GL; der `isGl`-Marker fehlte schon im Props-Typ. Fix: `cardDeductionFromTerminalRows` (pure, getestet) + `isGl` durch die Props-Kette. Server-Pfade (PDF/Verlauf/Tresor) waren korrekt — reiner Anzeige-Fehler, DB-Daten sauber. **Lektion:** Eine Geld-Regel hat so viele Fix-Stellen, wie es Rechenpfade gibt — bei Regel-Fixes IMMER alle Aufrufer der Größe suchen (grep nach dem Feldnamen), nicht nur die gemeldete Stelle.
+
 ## 34. Code-Audit Phase 1: toter Code & Dependencies (02.07.2026)
 
 Werkzeuggestütztes Audit (knip 5, Entry-korrigiert für TanStack Start; npm audit; grep-Inventuren) über 431 Dateien / ~76k Zeilen. Gesamtbild: sehr sauber (0 `console.log`, 2 dokumentierte TODOs, keine Rollback-Reste).
