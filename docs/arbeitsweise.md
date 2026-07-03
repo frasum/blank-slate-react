@@ -209,8 +209,11 @@ Rekonstruiert per Kalibrierung gegen bereits validierte Bestands-Sessions (Refer
 | M-BWA Welle F1 — Schema `bwa_monthly`, Quersummen-Kern, Server-Fns, Erfassung (§41)                                                    | ✅ (E2E durch Frank offen)                              |
 | M-BWA Historie-Import Mai 23–Apr 25 (48 Zeilen, Ist=Soll verifiziert)                                                                  | ✅                                                      |
 | M-BWA Welle F2a — Dashboard: KPIs+YoY, Prime Cost, Wasserfall, Break-even (§41)                                                        | ✅ (E2E durch Frank offen)                              |
-| M-BWA Welle F2b (Standortvergleich, Sachkosten-Drilldown) + F3 (PDF-Import)                                                            | ⏳ offen                                                |
+| M-BWA Welle F2b — Vergleich-Tab, Sachkosten-Drilldown, Break-even-Sortier-Fix (§41)                                                    | ✅ (E2E durch Frank offen)                              |
+| M-BWA Welle F3 — PDF-Upload + eurodata-Parser mit Review-Screen                                                                        | ⏳ offen                                                |
 | Lohn-RLS-Härtung — SELECT manager+ auf lohn_absence_days/lohn_recurring_zeilen (§42)                                                   | ✅                                                      |
+| Welle SP1 — Self-Service Stammdaten & Dokumente: Schema + Server-Layer (§43)                                                           | ✅                                                      |
+| Welle SP2 — Mitarbeiter-UI `/profil` (Kontakt direkt, Anträge, Dokumente) (§43)                                                        | ✅ (SP3 Admin-Review offen)                             |
 
 **Juni-Kassenlücke geschlossen (29.06.2026):** YUM (16., 18.–25.) und Spicery (16., 18.–25., 28.) aus `tagesabrechnung` nachimportiert — 19 Sessions; das leere native YUM-28 durch Legacy-Daten ersetzt. `vectron_daily_total_cents` 19/19 gegen die Quelle verifiziert. Mapping siehe Abschnitt 5.
 
