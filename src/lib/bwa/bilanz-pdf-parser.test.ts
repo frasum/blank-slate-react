@@ -696,4 +696,44 @@ describe("parseBilanzPdf – F4b-Fix-3: gestapelte Teilsummen und Label-Zahlen",
     const posA = res.positions.find((p) => p.code === "A")!;
     expect(posA.betragCents).toBe(50000);
   });
+
+  it("F4b-Fix-4: 2281-Muster mit Label-Rest + GJ + VJ auf DERSELBEN Zeile schliesst Konto", () => {
+    const guvPage: Token[][] = [
+      doc,
+      txt("Kontennachweis", "zur", "Gewinn-", "und", "Verlustrechnung"),
+      ...headerRows(2024),
+      pos("9.", "Sonstige Steuern", "-0,20", "0,00"),
+      [T("2281", 93), T("Gewerbesteuernachzahlungen", 126)],
+      [T("nach", 126), T("§", 160), T("4", 175), T("Abs.", 185)],
+      // Letzte Zeile: Label-Rest + GJ (inneres Band) + VJ (VJ-Band).
+      [T("5b", 126), T("EStG", 160), rT("-0,20", 373), rT("0,00", 533)],
+    ];
+    const res = parseBilanzPdf([guvPage]);
+    const k = res.konten.find((k) => k.kontoNr === "2281")!;
+    expect(k.betragCents).toBe(-20);
+    expect(k.vorjahrCents).toBe(0);
+    expect(k.label).toContain("5b");
+    expect(k.label).toContain("EStG");
+    expect(res.warnings.some((w) => /2281.*kein GJ-Betrag/.test(w))).toBe(false);
+  });
+
+  it("F4b-Fix-4 Gegenprobe: gemischte Zeile mit Betrag NUR im aeusseren GJ-Band laesst Konto offen", () => {
+    // Konto wird nicht faelschlich auf einer Positions-Summenzeile
+    // geschlossen — ohne inneren GJ bleibt es offen, Label wird nur
+    // ergaenzt.
+    const guvPage: Token[][] = [
+      doc,
+      txt("Kontennachweis", "zur", "Gewinn-", "und", "Verlustrechnung"),
+      ...headerRows(2024),
+      pos("9.", "Sonstige Steuern", "-0,20", "0,00"),
+      [T("2281", 93), T("Gewerbesteuernachzahlungen", 126)],
+      // Nur AEUSSERES GJ-Band + VJ — kein inneres GJ:
+      [T("nach", 126), T("§", 160), rT("-0,20", 452), rT("0,00", 533)],
+    ];
+    const res = parseBilanzPdf([guvPage]);
+    // Konto wurde NICHT finalisiert (kein Konto 2281 in konten):
+    expect(res.konten.some((k) => k.kontoNr === "2281")).toBe(false);
+    // Warnung: kein GJ-Betrag gefunden.
+    expect(res.warnings.some((w) => /2281.*kein GJ-Betrag/.test(w))).toBe(true);
+  });
 });
