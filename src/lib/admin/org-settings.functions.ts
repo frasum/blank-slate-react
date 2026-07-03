@@ -23,6 +23,9 @@ export type OrgSettings = {
   testModeEnabled: boolean;
   testModeEmail: string | null;
   betriebsnummer: string | null;
+  arbeitgeberName: string | null;
+  arbeitgeberAdresse: string | null;
+  arbeitgeberVertreter: string | null;
 };
 
 const updateSchema = z
@@ -57,7 +60,7 @@ export const getOrgSettings = createServerFn({ method: "GET" })
     const { data, error } = await supabaseAdmin
       .from("organization_settings")
       .select(
-        "kitchen_tip_rate, tip_pool_min_hours, kitchen_manual_only, test_mode_enabled, test_mode_email, betriebsnummer",
+        "kitchen_tip_rate, tip_pool_min_hours, kitchen_manual_only, test_mode_enabled, test_mode_email, betriebsnummer, arbeitgeber_name, arbeitgeber_adresse, arbeitgeber_vertreter",
       )
       .eq("organization_id", caller.organizationId)
       .maybeSingle();
@@ -69,6 +72,9 @@ export const getOrgSettings = createServerFn({ method: "GET" })
       testModeEnabled: Boolean(data?.test_mode_enabled ?? false),
       testModeEmail: data?.test_mode_email ?? null,
       betriebsnummer: data?.betriebsnummer ?? null,
+      arbeitgeberName: data?.arbeitgeber_name ?? null,
+      arbeitgeberAdresse: data?.arbeitgeber_adresse ?? null,
+      arbeitgeberVertreter: data?.arbeitgeber_vertreter ?? null,
     };
   });
 
