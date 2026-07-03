@@ -95,6 +95,23 @@ function StaffListPage() {
     queryFn: () => listLocations(),
     enabled: isAdmin,
   });
+  const sofortQ = useQuery({
+    queryKey: ["admin", "sofortmeldung-overview"],
+    queryFn: () => getSofortmeldungOverview(),
+    enabled: isAdmin,
+  });
+  const sofortBy = useMemo(() => {
+    const m = new Map<string, SofortmeldungStatus>();
+    for (const r of sofortQ.data ?? []) m.set(r.staffId, r.status);
+    return m;
+  }, [sofortQ.data]);
+  const sofortAlert = useMemo(
+    () =>
+      (sofortQ.data ?? []).filter(
+        (r) => r.status === "unvollstaendig" || r.status === "bereit",
+      ).length,
+    [sofortQ.data],
+  );
 
   const [showInactive, setShowInactive] = useState(false);
   const [search, setSearch] = useState("");
