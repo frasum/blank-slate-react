@@ -1584,6 +1584,7 @@ function WeeklyPlan({
   onCreateInline,
   periodStart,
   periodEnd,
+  shiftsByStaff,
 }: {
   input: WeeklyExportInput | null;
   isLoading: boolean;
@@ -1595,6 +1596,7 @@ function WeeklyPlan({
   onCreateInline: (staffId: string, iso: string, from: string, to: string) => void;
   periodStart?: string;
   periodEnd?: string;
+  shiftsByStaff: Map<string, number>;
 }) {
   // Header-Tagesmeta (Wochentag-Label + Feiertags-Hint)
   const dayMeta = weekDays.map((d) => {
@@ -1610,8 +1612,8 @@ function WeeklyPlan({
     };
   });
 
-  // Spalten: Mitarbeiter + 7×2 (Anfang/Ende) + 6 Summen
-  const totalCols = 1 + 14 + 6;
+  // Spalten: Mitarbeiter + Schichten + 7×2 (Anfang/Ende) + 6 Summen
+  const totalCols = 1 + 1 + 14 + 6;
 
   const groups = input?.rowsByDept ?? [];
   const anyRows = groups.some((g) => g.rows.length > 0);
@@ -1700,6 +1702,13 @@ function WeeklyPlan({
           <TableRow>
             <TableHead rowSpan={2} className="w-[140px] min-w-[140px] align-bottom">
               Mitarbeiter
+            </TableHead>
+            <TableHead
+              rowSpan={2}
+              className="text-right align-bottom border-l whitespace-nowrap"
+              title="Schichten in der gewählten Abrechnungsperiode (standortübergreifend, 1 Tag = 1 Schicht)"
+            >
+              Schichten
             </TableHead>
             {dayMeta.map((dm) => (
               <TableHead
