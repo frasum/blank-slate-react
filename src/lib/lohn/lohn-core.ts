@@ -98,8 +98,12 @@ export function berechneLohn(eingabe: LohnEingabe): LohnErgebnis {
       // koppeln — freiwillig gesetzlich Versicherte sind ebenfalls kvFrei,
       // brauchen aber die volle Vorsorgepauschale.
       pkv: person.istPkv || !!person.istWerkstudent,
-      krvKeinRv: person.istPkv && person.rvFrei,
-      alvKeinAv: person.istPkv && person.avFrei,
+      // Werkstudent ist RV-pflichtig (rvFrei bleibt false) und AV-frei
+      // (avFrei=true). Damit die PAP-Vorsorgepauschale die AV nicht doppelt
+      // ansetzt, muss `ALV=1` auch für Werkstudenten greifen, sobald sie
+      // avFrei gemeldet sind. Für RV bleibt der Zweig regulär in der Basis.
+      krvKeinRv: (person.istPkv || !!person.istWerkstudent) && person.rvFrei,
+      alvKeinAv: (person.istPkv || !!person.istWerkstudent) && person.avFrei,
       pkpvCent: person.istWerkstudent ? 0 : person.pkvBasisBeitragMonatCent,
     });
     lstCent = papErgebnis.lstlzzCent;
