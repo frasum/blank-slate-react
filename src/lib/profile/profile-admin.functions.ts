@@ -82,7 +82,7 @@ export const listOpenChangeRequests = createServerFn({ method: "GET" })
       });
     }
     const detailsMap = new Map<string, Record<string, unknown>>();
-    for (const d of (detailsRes.data ?? []) as Record<string, unknown>[]) {
+    for (const d of (detailsRes.data ?? []) as unknown as Record<string, unknown>[]) {
       detailsMap.set(d.staff_id as string, d);
     }
 
@@ -178,7 +178,7 @@ export const decideChangeRequest = createServerFn({ method: "POST" })
             }
             const { error: upErr } = await supabaseAdmin
               .from("staff_personal_details")
-              .upsert(upsertRow, { onConflict: "staff_id" });
+              .upsert(upsertRow as never, { onConflict: "staff_id" });
             if (upErr) throw new Error(upErr.message);
 
             const { error: statusErr } = await supabaseAdmin
