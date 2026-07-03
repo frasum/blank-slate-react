@@ -3,7 +3,11 @@
   "sdk_version": "0.20.0",
   "path": "/mcp",
   "auth": {
-    "type": "none"
+    "type": "oauth",
+    "issuer": "https://gyvblrdhutztbkoynnrq.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
   },
   "mcp": {
     "server": {
@@ -40,7 +44,7 @@
       {
         "name": "get_bilanz_year",
         "title": "Bilanzdaten für ein Jahr abrufen",
-        "description": "Liest den Jahresabschluss (Aktiva, Passiva, GuV mit Positionen und Kontennachweis) für eine Organisation, eine Entity (z. B. 'YUM Gastronomie GmbH') und ein Geschäftsjahr. Beträge werden in Euro zurückgegeben.",
+        "description": "Liest den Jahresabschluss (Aktiva, Passiva, GuV mit Positionen und Kontennachweis) für eine Entity (z. B. 'YUM Gastronomie GmbH') und ein Geschäftsjahr. Scope wird aus der Session des Aufrufers abgeleitet — nur Daten der eigenen Organisation, admin-only. Beträge werden in Euro zurückgegeben.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -50,12 +54,6 @@
           "$schema": "http://json-schema.org/draft-07/schema#",
           "type": "object",
           "properties": {
-            "organizationId": {
-              "type": "string",
-              "format": "uuid",
-              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-              "description": "UUID der Organisation (public.organizations.id)."
-            },
             "entity": {
               "type": "string",
               "minLength": 1,
@@ -70,7 +68,6 @@
             }
           },
           "required": [
-            "organizationId",
             "entity",
             "fiscalYear"
           ]
