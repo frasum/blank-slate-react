@@ -1,7 +1,7 @@
 // Tests für bwa-pdf-parser.
-// Fixtures sind synthetische Zeilen (string[] pro Seite) im dokumentierten
-// eurodata-Format: „<Nr> <Label> <Monat> <%> <kumuliert> <%>". So bleibt der
-// Parser ohne pdfjs testbar.
+// Fixtures spiegeln das ECHTE eurodata-BWAKORE-Kopflayout: BeraterNr /
+// Report-Typ / Entity / KSt (Label-los) / Monat / WES. Beträge sind frei
+// erfunden (§6: keine Geschäftsdaten im Repo), Zahlformat aber real.
 
 import { describe, expect, it } from "vitest";
 import { parseBwaPdfText, parseGermanAmountToCents } from "./bwa-pdf-parser";
@@ -36,14 +36,20 @@ describe("parseGermanAmountToCents", () => {
 
 // --- Fixture -------------------------------------------------------------
 
+const REAL_HEADER = (kst: string, report = "Betriebswirtschaftliche Auswertung", monat = "April 2025"): string[] => [
+  "1290 205",
+  report,
+  "YUM Gastronomie GmbH",
+  kst,
+  monat,
+  "WES: KG3",
+];
+
 function makePage1(kst = "YUM", monat = "April 2025"): string[] {
   // Seite mit Kopf + Zeilen 1-28. Wertespalten je Zeile:
   //   Monatswert  %  Kumuliert  %
   return [
-    "Betriebswirtschaftliche Auswertung",
-    "YUM Gastronomie GmbH",
-    `Kostenstelle: ${kst}`,
-    monat,
+    ...REAL_HEADER(kst, "Betriebswirtschaftliche Auswertung", monat),
     // Bewusst irrelevante Zeilen für Robustheit:
     "Bezeichnung Monat % Kumuliert %",
     "6 Getränke 28.684 23,8 100.000 24,0",
@@ -59,10 +65,8 @@ function makePage1(kst = "YUM", monat = "April 2025"): string[] {
 
 function makePage2(kst = "YUM", monat = "April 2025"): string[] {
   return [
+    ...REAL_HEADER(kst, "Betriebswirtschaftliche Auswertung", monat),
     "Übertrag Vorseite",
-    "YUM Gastronomie GmbH",
-    `Kostenstelle: ${kst}`,
-    monat,
     "30 Betriebsbedingte Raumkosten 3.500 2,9 14.000 3,3",
     "31 - davon Miete 3.000 2,5 12.000 2,8",
     "34 Restaurant- und Hotelbedarf 2.100 1,7 8.000 1,9",
