@@ -1646,10 +1646,11 @@ automatisch auf `staff` angewendet (display_name-Mappings!) — Anzeige
 „manuell übernehmen" im Admin-Review.
 
 Dokumente (Pass, Visum, Arbeitserlaubnis, Gesundheitszeugnis) nach
-Payslip-Muster: privater Bucket `staff-documents` — anfangs DENY-ALL für
-Clients; seit Migration `20260703112045` haben Clients READ (Owner über
-Pfadsegmente gegen `user_links`, Manager/Admin über `role_assignments`),
-Schreiben bleibt server-exklusiv —,
+Payslip-Muster: privater Bucket `staff-documents` — DENY-ALL für Clients
+(Zugriff nur über Server-Functions mit Signed URLs; die zwischenzeitlichen
+READ-Policies aus Migration `20260703112045` wurden nach Security-Review per
+Rückbau-Migration entfernt, Entscheidung Frank 03.07.: ungenutzt +
+Manager-Read war Rechteausweitung über den admin-only Server-Layer) —,
 Pfad-Guard mit Traversal-Tests, base64-Upload über Server-Fn (Mime-Whitelist
 JPG/PNG/PDF, 10 MB, Größe aus dekodierten Bytes), Signed URLs 60 s,
 `valid_until` für die Ablauf-Ampel (SP3), Sichtvermerk `verified_by/at`.
