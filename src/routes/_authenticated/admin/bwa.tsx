@@ -217,12 +217,39 @@ function installPdfJsBrowserPolyfills(): void {
   }
 }
 
+type PdfTextItemLike = { str?: string; transform?: number[] };
+type PdfTextChunkLike = { items?: unknown[] };
+type PdfPageLike = {
+  streamTextContent?: () => ReadableStream<PdfTextChunkLike>;
+  getTextContent: () => Promise<{ items: unknown[] }>;
+};
+
+async function readPdfTextItems(page: PdfPageLike): Promise<unknown[]> {
+  if (typeof page.streamTextContent === "function") {
+    const reader = page.streamTextContent().getReader();
+    const items: unknown[] = [];
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (Array.isArray(value?.items)) items.push(...value.items);
+      }
+    } finally {
+      reader.releaseLock();
+    }
+    return items;
+  }
+
+  const content = await page.getTextContent();
+  return content.items;
+}
+
 async function extractBwaPagesFromPdf(file: File): Promise<string[][]> {
   installPdfJsBrowserPolyfills();
   const data = await file.arrayBuffer();
-  // Legacy-Build: Safari (WebKit) unterstützt kein async-iterator auf
-  // ReadableStream, was pdfjs v6 im Haupt-Build intern nutzt. Der
-  // legacy-Build ist genau dafür da und läuft in allen Browsern.
+  // Legacy-Build plus eigener Stream-Reader: Safari/WebKit unterstützt in der
+  // Preview kein async-iterator auf ReadableStream, pdfjs v6 nutzt ihn aber in
+  // page.getTextContent(). Daher lesen wir streamTextContent() unten manuell.
   const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const workerMod = await import("pdfjs-dist/legacy/build/pdf.worker.min.mjs?url");
   pdfjsLib.GlobalWorkerOptions.workerSrc = workerMod.default;
@@ -230,12 +257,12 @@ async function extractBwaPagesFromPdf(file: File): Promise<string[][]> {
   const pages: string[][] = [];
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
+    const items = await readPdfTextItems(page);
     const rowMap = new Map<number, { x: number; s: string }[]>();
-    for (const it of content.items) {
-      if (!("str" in it)) continue;
-      const item = it as { str: string; transform: number[] };
-      if (!item.str) continue;
+    for (const it of items) {
+      if (!it || typeof it !== "object" || !("str" in it)) continue;
+      const item = it as PdfTextItemLike;
+      if (!item.str || !Array.isArray(item.transform)) continue;
       const y = Math.round(item.transform[5]);
       const x = item.transform[4];
       let arr = rowMap.get(y);
