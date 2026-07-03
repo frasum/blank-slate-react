@@ -12,7 +12,7 @@
 
 import { parseGermanAmountToCents } from "./bwa-pdf-parser";
 
-export type Token = { text: string; x: number };
+export type Token = { text: string; x: number; xEnd: number };
 
 export type BilanzStatement = "aktiva" | "passiva" | "guv";
 
@@ -82,7 +82,8 @@ export type AnlageAnchors = {
 // Konstanten / kleine Helper
 // ---------------------------------------------------------------------------
 
-const COL_TOLERANCE = 8; // pt Toleranz um die Spalten-x
+// F4b: rechtsbuendige Spalten in der Druckrealitaet — Toleranz auf xEnd.
+const EDGE_TOL = 8;
 // Strikte Erkennung deutscher Betraege: 1-3 Ziffern, optional weitere
 // Dreiergruppen mit Tausenderpunkt, optional Nachkomma mit Komma.
 // Verhindert bewusst, dass Hierarchie-Prefixe wie "1." als Zahl gelten
@@ -147,30 +148,80 @@ export function classifyPage(page: Token[][]): SectionKind {
 // Spalten-x aus dem "Geschäftsjahr / Vorjahr" Kopf ableiten
 // ---------------------------------------------------------------------------
 
-type ColumnAnchors = { gjX: number; vjX: number };
+// F4b: rechte Kanten der aeusseren Spalten (Positions-/Summenzeilen: gjRight,
+// Vorjahr: vjRight). Konto-GJ liegt im inneren Band (deutlich links von
+// gjRight). Anker werden je Seite aus der Jahres-Kopfzeile abgeleitet;
+// Fallback: rechte Kanten der beiden "EUR"-Token.
+type ColumnAnchors = { gjRight: number; vjRight: number };
 
-function findColumnAnchors(page: Token[][]): ColumnAnchors | null {
+export function findColumnAnchors(
+  page: Token[][],
+  fiscalYear: number,
+): ColumnAnchors | null {
+  const wantGj = String(fiscalYear);
+  const wantVj = String(fiscalYear - 1);
   for (const line of page) {
-    let gjX: number | null = null;
-    let vjX: number | null = null;
-    for (const t of line) {
-      if (gjX === null && /^Gesch(ä|ae)ftsjahr$/i.test(t.text)) gjX = t.x;
-      else if (vjX === null && /^Vorjahr$/i.test(t.text)) vjX = t.x;
-    }
-    if (gjX !== null && vjX !== null && vjX > gjX) return { gjX, vjX };
+    if (line.length < 2) continue;
+    const gj = line.find((t) => t.text === wantGj);
+    const vj = line.find((t) => t.text === wantVj);
+    if (gj && vj && vj.x > gj.x) return { gjRight: gj.xEnd, vjRight: vj.xEnd };
+  }
+  for (const line of page) {
+    const eurs = line
+      .filter((t) => /^EUR$/i.test(t.text))
+      .sort((a, b) => a.x - b.x);
+    if (eurs.length >= 2) return { gjRight: eurs[0].xEnd, vjRight: eurs[1].xEnd };
   }
   return null;
 }
 
-function classifyAmountCol(x: number, cols: ColumnAnchors): "gj" | "vj" | null {
-  // Nearest-anchor mit grosszuegiger Toleranz. Deckt rechtsbuendige Zahlen
-  // (leicht links vom Header-Anker) und Ausrichtungs-Jitter zwischen den
-  // beiden Beleg-Blaettern (2022/2023/2024) ab.
-  const dGj = Math.abs(x - cols.gjX);
-  const dVj = Math.abs(x - cols.vjX);
-  const min = Math.min(dGj, dVj);
-  if (min > COL_TOLERANCE * 8) return null;
-  return dGj <= dVj ? "gj" : "vj";
+function bandOf(xEnd: number, cols: ColumnAnchors): "gj" | "vj" | null {
+  if (Math.abs(xEnd - cols.vjRight) <= EDGE_TOL) return "vj";
+  if (Math.abs(xEnd - cols.gjRight) <= EDGE_TOL) return "gj";
+  return null;
+}
+
+function outerAmounts(
+  amounts: Token[],
+  cols: ColumnAnchors,
+): { gj: number | null; vj: number | null } {
+  let gj: number | null = null;
+  let vj: number | null = null;
+  for (const t of amounts) {
+    const b = bandOf(t.xEnd, cols);
+    if (b === "gj" && gj === null) gj = parseGermanAmountToCents(t.text);
+    else if (b === "vj" && vj === null) vj = parseGermanAmountToCents(t.text);
+  }
+  return { gj, vj };
+}
+
+function innerRightmostGj(amounts: Token[], cols: ColumnAnchors): number | null {
+  const inner = amounts.filter(
+    (t) => bandOf(t.xEnd, cols) === null && t.xEnd < cols.gjRight - EDGE_TOL,
+  );
+  if (inner.length === 0) return null;
+  const rightmost = inner.reduce((a, b) => (b.xEnd > a.xEnd ? b : a));
+  return parseGermanAmountToCents(rightmost.text);
+}
+
+function isHeaderSkip(line: Token[], fiscalYear: number): boolean {
+  if (line.length === 0) return true;
+  const texts = line.map((t) => t.text);
+  const hasGj = texts.some((t) => /^Gesch(ä|ae)ftsjahr$/i.test(t));
+  const hasVj = texts.some((t) => /^Vorjahr$/i.test(t));
+  if (hasGj && hasVj) return true;
+  const eurs = texts.filter((t) => /^EUR$/i.test(t));
+  if (eurs.length >= 2 && eurs.length === texts.length) return true;
+  const wantGj = String(fiscalYear);
+  const wantVj = String(fiscalYear - 1);
+  if (
+    texts.length === 2 &&
+    ((texts[0] === wantGj && texts[1] === wantVj) ||
+      (texts[0] === wantVj && texts[1] === wantGj))
+  ) {
+    return true;
+  }
+  return false;
 }
 
 // ---------------------------------------------------------------------------
@@ -220,21 +271,6 @@ export function classifyRow(tokens: Token[], section: BilanzStatement | null): R
 // ---------------------------------------------------------------------------
 // Betrags-Extraktion (GJ + VJ) via Spalten-x
 // ---------------------------------------------------------------------------
-
-function extractAmounts(
-  tokens: Token[],
-  cols: ColumnAnchors,
-): { gj: number | null; vj: number | null } {
-  let gj: number | null = null;
-  let vj: number | null = null;
-  for (const t of tokens) {
-    if (!isAmount(t.text)) continue;
-    const col = classifyAmountCol(t.x, cols);
-    if (col === "gj" && gj === null) gj = parseGermanAmountToCents(t.text);
-    else if (col === "vj" && vj === null) vj = parseGermanAmountToCents(t.text);
-  }
-  return { gj, vj };
-}
 
 function labelFrom(tokens: Token[], dropFirst: number): string {
   return tokens
@@ -299,24 +335,94 @@ export function parseBilanzPdf(pages: Token[][][]): ParsedBilanzYear {
     const section = classifyPage(page);
     if (section.kind !== "kontennachweis") continue;
     const statement = section.statement;
-    const cols = findColumnAnchors(page);
+    const cols = findColumnAnchors(page, header.year);
     if (!cols) {
       warnings.push(
-        `Seite (${statement}): Spaltenkopf 'Geschäftsjahr / Vorjahr' nicht gefunden — übersprungen.`,
+        `Seite (${statement}): Spalten-Anker (Jahreszahlen/EUR) nicht gefunden — übersprungen.`,
       );
       continue;
     }
 
     const path: Path = { letter: null, roman: null, arabic: null, buchstabe: null };
     let currentPositionCode: string | null = null;
+    type OpenKonto = {
+      statement: BilanzStatement;
+      positionCode: string;
+      kontoNr: string;
+      labelParts: string[];
+      sortOrder: number;
+    };
+    let openKonto: OpenKonto | null = null;
+    const awaitingPositions: ParsedBilanzPosition[] = [];
+
+    const finalizeKonto = (gj: number, vj: number | null): void => {
+      if (!openKonto) return;
+      const label = openKonto.labelParts
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (!label) {
+        warnings.push(`Konto ${openKonto.kontoNr}: leeres Label — übersprungen.`);
+      } else {
+        konten.push({
+          statement: openKonto.statement,
+          positionCode: openKonto.positionCode,
+          kontoNr: openKonto.kontoNr,
+          label,
+          betragCents: gj,
+          vorjahrCents: vj,
+          sortOrder: openKonto.sortOrder,
+        });
+      }
+      openKonto = null;
+    };
+    const closeUnresolvedKonto = (): void => {
+      if (openKonto) {
+        warnings.push(
+          `Konto ${openKonto.kontoNr}: kein GJ-Betrag gefunden — übersprungen.`,
+        );
+        openKonto = null;
+      }
+    };
 
     for (const line of page) {
+      if (isHeaderSkip(line, header.year)) continue;
       const kind = classifyRow(line, statement);
-      if (kind === "carry" || kind === "davon" || kind === "empty" || kind === "other") continue;
-      if (kind === "subtotal") continue; // Positionen tragen bereits ihre Beträge.
+      if (kind === "carry" || kind === "davon" || kind === "empty") continue;
 
-      const { gj, vj } = extractAmounts(line, cols);
       const nonAmount = line.filter((t) => !isAmount(t.text));
+      const amounts = line.filter((t) => isAmount(t.text));
+
+      if (kind === "subtotal") {
+        // Reine Betragszeile — aeusseres Band schliesst offene Position,
+        // inneres Band schliesst offenes Konto.
+        const { gj: ogj, vj: ovj } = outerAmounts(amounts, cols);
+        if (ogj !== null) {
+          const pos = awaitingPositions.pop();
+          if (pos) {
+            pos.betragCents = ogj;
+            if (pos.vorjahrCents === null && ovj !== null) pos.vorjahrCents = ovj;
+          }
+          continue;
+        }
+        if (openKonto) {
+          const kgj = innerRightmostGj(amounts, cols);
+          const kvj = ovj;
+          if (kgj !== null) finalizeKonto(kgj, kvj);
+        }
+        continue;
+      }
+
+      if (kind === "other") {
+        // Label-Fortsetzung eines offenen Kontos (nur wenn KEINE Zahlen dabei;
+        // benannte Zwischensummen sind "other" mit Zahlen und werden verworfen).
+        if (openKonto && amounts.length === 0) {
+          openKonto.labelParts.push(...nonAmount.map((t) => t.text));
+        }
+        continue;
+      }
+
+      const { gj, vj } = outerAmounts(amounts, cols);
       const firstText = nonAmount[0]?.text ?? "";
 
       const pushPosition = (level: number): void => {
@@ -327,7 +433,7 @@ export function parseBilanzPdf(pages: Token[][][]): ParsedBilanzYear {
           warnings.push(`Position ${code}: leeres Label — nur als Kontext übernommen.`);
           return;
         }
-        positions.push({
+        const p: ParsedBilanzPosition = {
           statement,
           code,
           parentCode: parentOf(path),
@@ -336,62 +442,64 @@ export function parseBilanzPdf(pages: Token[][][]): ParsedBilanzYear {
           sortOrder: sortSeq++,
           betragCents: gj ?? 0,
           vorjahrCents: vj,
-        });
+        };
+        positions.push(p);
+        if (gj === null) awaitingPositions.push(p);
       };
 
       if (kind === "position-letter") {
+        closeUnresolvedKonto();
         const m = LETTER_RE.exec(firstText)!;
         path.letter = m[1];
         path.roman = path.arabic = path.buchstabe = null;
         pushPosition(0);
       } else if (kind === "position-roman") {
+        closeUnresolvedKonto();
         const m = ROMAN_RE.exec(firstText)!;
         path.roman = m[1];
         path.arabic = path.buchstabe = null;
         pushPosition(1);
       } else if (kind === "position-arabic") {
+        closeUnresolvedKonto();
         const m = ARABIC_RE.exec(firstText)!;
         path.arabic = m[1];
         path.buchstabe = null;
         pushPosition(2);
       } else if (kind === "position-buchstabe") {
+        closeUnresolvedKonto();
         const m = BUCHSTABE_RE.exec(firstText)!;
         path.buchstabe = m[1];
         pushPosition(3);
       } else if (kind === "position-guv") {
+        closeUnresolvedKonto();
         const m = GUV_RE.exec(firstText)!;
         path.letter = `guv.${m[1]}`;
         path.roman = path.arabic = path.buchstabe = null;
         pushPosition(0);
       } else if (kind === "konto") {
+        closeUnresolvedKonto();
         const kontoNr = nonAmount[0].text;
-        const label = labelFrom(line, 1);
-        if (!label) {
-          warnings.push(`Konto ${kontoNr}: leeres Label — übersprungen.`);
-          continue;
-        }
-        if (gj === null) {
-          warnings.push(
-            `Konto ${kontoNr} (${label}): kein GJ-Betrag in der Geschäftsjahr-Spalte — übersprungen.`,
-          );
-          continue;
-        }
         if (!currentPositionCode) {
           warnings.push(`Konto ${kontoNr}: keine übergeordnete Position bekannt — übersprungen.`);
           continue;
         }
-        konten.push({
+        const labelTokens = nonAmount.slice(1).map((t) => t.text);
+        openKonto = {
           statement,
           positionCode: currentPositionCode,
           kontoNr,
-          label,
-          betragCents: gj,
-          vorjahrCents: vj,
+          labelParts: labelTokens,
           sortOrder: kontoSeq++,
-        });
+        };
+        // Falls Konto-Zeile bereits Beträge im inneren Band hat → sofort schliessen.
+        const kgj = innerRightmostGj(amounts, cols);
+        if (kgj !== null) finalizeKonto(kgj, vj);
       }
     }
+    closeUnresolvedKonto();
   }
+
+  rollupPositions(positions);
 
   const anlageAnchors = findAnlageAnchors(pages);
   const checks = computeChecks(positions, konten, warnings, anlageAnchors);
@@ -404,6 +512,34 @@ export function parseBilanzPdf(pages: Token[][][]): ParsedBilanzYear {
     checks,
     warnings,
   };
+}
+
+// F4b: Roll-up fuer Nicht-Blatt-Positionen ohne gedruckte Summe.
+// Blatt = keine andere Position hat den eigenen Code als Prefix.
+// VJ nur, wenn ALLE direkten Kinder einen VJ-Wert haben.
+function rollupPositions(positions: ParsedBilanzPosition[]): void {
+  const codes = new Set(positions.map((p) => p.code + "::" + p.statement));
+  const isLeaf = (p: ParsedBilanzPosition): boolean => {
+    for (const key of codes) {
+      const [c, s] = key.split("::");
+      if (s !== p.statement) continue;
+      if (c !== p.code && c.startsWith(p.code + ".")) return false;
+    }
+    return true;
+  };
+  const sorted = [...positions].sort((a, b) => b.level - a.level);
+  for (const p of sorted) {
+    if (isLeaf(p)) continue;
+    if (p.betragCents !== 0) continue;
+    const kids = positions.filter(
+      (c) => c.statement === p.statement && c.parentCode === p.code,
+    );
+    if (kids.length === 0) continue;
+    p.betragCents = kids.reduce((a, c) => a + c.betragCents, 0);
+    if (p.vorjahrCents === null && kids.every((c) => c.vorjahrCents !== null)) {
+      p.vorjahrCents = kids.reduce((a, c) => a + (c.vorjahrCents ?? 0), 0);
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------

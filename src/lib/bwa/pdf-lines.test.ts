@@ -63,12 +63,12 @@ describe("extractTokenLines", () => {
     ]);
     expect(lines).toEqual([
       [
-        { text: "A.", x: 100 },
-        { text: "1.000,00", x: 300 },
+        { text: "A.", x: 100, xEnd: 100 },
+        { text: "1.000,00", x: 300, xEnd: 300 },
       ],
       [
-        { text: "I.", x: 100 },
-        { text: "700,00", x: 300 },
+        { text: "I.", x: 100, xEnd: 100 },
+        { text: "700,00", x: 300, xEnd: 300 },
       ],
     ]);
   });
@@ -80,8 +80,8 @@ describe("extractTokenLines", () => {
     ]);
     expect(lines).toEqual([
       [
-        { text: "47", x: 20 },
-        { text: "Summe", x: 60 },
+        { text: "47", x: 20, xEnd: 20 },
+        { text: "Summe", x: 60, xEnd: 60 },
       ],
     ]);
   });
@@ -92,6 +92,6 @@ describe("extractTokenLines", () => {
       { x: 40, y: 300, s: "Text" },
       { x: 20, y: 280, s: "" },
     ]);
-    expect(lines).toEqual([[{ text: "Text", x: 40 }]]);
+    expect(lines).toEqual([[{ text: "Text", x: 40, xEnd: 40 }]]);
   });
 });
