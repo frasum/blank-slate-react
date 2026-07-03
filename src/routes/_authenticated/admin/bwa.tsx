@@ -1533,17 +1533,6 @@ function SachkostenDrilldownCard({
 // F2b — Vergleich-Tab (Standortvergleich, Small Multiples)
 // ============================================================================
 
-const COMPARE_METRIC_META: Array<{
-  key: CompareMetric;
-  label: string;
-  higherIsGood: boolean;
-}> = [
-  { key: "personalQuote", label: "Personalquote", higherIsGood: false },
-  { key: "wesQuote", label: "WES-Quote", higherIsGood: false },
-  { key: "primeCostQuote", label: "Prime Cost", higherIsGood: false },
-  { key: "betriebsQuote", label: "Betriebsergebnis-Quote", higherIsGood: true },
-];
-
 function BwaVergleichTab({ rows, loading }: { rows: BwaRow[]; loading: boolean }) {
   const entities = useMemo(() => Array.from(new Set(rows.map((r) => r.entity))).sort(), [rows]);
   const [entity, setEntity] = useState<string>("");
@@ -1635,29 +1624,12 @@ function BwaVergleichTab({ rows, loading }: { rows: BwaRow[]; loading: boolean }
         </Card>
       ) : (
         <>
-          <CompareTable cmp={cmp} />
+          <CompareTableImpl cmp={cmp} />
           <SmallMultiplesGrid entityRows={entityRows} monthsDesc={monthsDesc} cmp={cmp} />
         </>
       )}
     </div>
   );
-}
-
-function CompareTable({ cmp }: { cmp: ReturnType<typeof compareCostCenters> }) {
-  const centers = cmp.entries;
-
-  type Metric = { label: string; kind: "cents" | "quote"; get: (k: (typeof centers)[number]) => number; markKey?: CompareMetric };
-  const metrics: Metric[] = [
-    { label: "Umsatz", kind: "cents", get: (c) => c.kpis.gesamtleistungCents - 0 + 0 }, // placeholder replaced below
-  ];
-  // Simpler: hand-build rows using kpis + accessible fields from BwaKpis (which extends BwaDerived).
-  // We need Umsatz cents — not directly in BwaKpis. Use gesamtleistung - sonstErtraege? deriveBwa doesn't expose umsatz.
-  // Rebuild via kpi fields we have. Actually simplest: derive from the totals via sumRows/deriveKpis was applied.
-  // Since we don't have raw sums here, we'll rely on: rohertrag1 + wareneinsatz reconstructed is fragile.
-  // Better: pass in raw rows. For now leave — see below.
-  metrics.length = 0;
-
-  return <CompareTableImpl cmp={cmp} />;
 }
 
 function CompareTableImpl({ cmp }: { cmp: ReturnType<typeof compareCostCenters> }) {
