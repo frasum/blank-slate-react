@@ -1655,6 +1655,10 @@ export type Database = {
           order_email_reply_to: string | null
           organization_id: string
           telegram_bot_username: string | null
+          telegram_report_enabled: boolean
+          telegram_report_flags: Json
+          telegram_report_hour: number
+          telegram_report_last_sent: string | null
           test_mode_email: string | null
           test_mode_enabled: boolean
           time_locked_through_date: string | null
@@ -1673,6 +1677,10 @@ export type Database = {
           order_email_reply_to?: string | null
           organization_id: string
           telegram_bot_username?: string | null
+          telegram_report_enabled?: boolean
+          telegram_report_flags?: Json
+          telegram_report_hour?: number
+          telegram_report_last_sent?: string | null
           test_mode_email?: string | null
           test_mode_enabled?: boolean
           time_locked_through_date?: string | null
@@ -1691,6 +1699,10 @@ export type Database = {
           order_email_reply_to?: string | null
           organization_id?: string
           telegram_bot_username?: string | null
+          telegram_report_enabled?: boolean
+          telegram_report_flags?: Json
+          telegram_report_hour?: number
+          telegram_report_last_sent?: string | null
           test_mode_email?: string | null
           test_mode_enabled?: boolean
           time_locked_through_date?: string | null
@@ -3691,6 +3703,7 @@ export type Database = {
           link_token: string
           linked_at: string | null
           organization_id: string
+          receives_daily_report: boolean
           staff_id: string
           telegram_chat_id: number | null
           telegram_username: string | null
@@ -3702,6 +3715,7 @@ export type Database = {
           link_token: string
           linked_at?: string | null
           organization_id: string
+          receives_daily_report?: boolean
           staff_id: string
           telegram_chat_id?: number | null
           telegram_username?: string | null
@@ -3713,6 +3727,7 @@ export type Database = {
           link_token?: string
           linked_at?: string | null
           organization_id?: string
+          receives_daily_report?: boolean
           staff_id?: string
           telegram_chat_id?: number | null
           telegram_username?: string | null
