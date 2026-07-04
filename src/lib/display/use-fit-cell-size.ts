@@ -4,6 +4,7 @@ const LEFT_NAME = 96;
 const RIGHT_NAME = 80;
 const SUM_COL = 48;
 const MIN_CELL = 28;
+const SUM_COLS_TOTAL = SUM_COL * 2;
 
 export interface FitCellSizeResult {
   cellSize: number;
@@ -32,13 +33,13 @@ export function useFitCellSize(
     const calc = () => {
       const w = el.clientWidth;
       // Try with right name column first
-      let avail = w - LEFT_NAME - RIGHT_NAME - SUM_COL;
+      let avail = w - LEFT_NAME - RIGHT_NAME - SUM_COLS_TOTAL;
       let cell = Math.max(MIN_CELL, Math.floor(avail / daysCount));
-      const showRight = LEFT_NAME + RIGHT_NAME + SUM_COL + cell * daysCount <= w;
+      const showRight = LEFT_NAME + RIGHT_NAME + SUM_COLS_TOTAL + cell * daysCount <= w;
 
       if (!showRight) {
         // Drop right name column to gain space
-        avail = w - LEFT_NAME - SUM_COL;
+        avail = w - LEFT_NAME - SUM_COLS_TOTAL;
         cell = Math.max(MIN_CELL, Math.floor(avail / daysCount));
       }
 
