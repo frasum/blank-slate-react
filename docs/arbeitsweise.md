@@ -321,8 +321,10 @@ Rekonstruiert per Kalibrierung gegen bereits validierte Bestands-Sessions (Refer
     **UP2 (04.07.) — Politur:** Dichte-Streifen getrennt je Bereich (Küche/Service, je Block), Zebra über volle Zeile inkl. Name, Namen mittig, Urlaubs-Balken emerald-grün, KÜCHE/SERVICE als abgesetzte Karten; Monats-Raster einmal oben als gemeinsame Referenz. Reines UI — Modul/Server-Fn unverändert.
 
     **Urlaubszählung — drei Sichten (Klärung 04.07.):** Planung (Anträge, Jahresplaner, Dienstplan-U) zählt KALENDERTAGE der Abwesenheit; der Lohn (`urlaub-krank-diagnose`) schränkt U/K auf die regulären Arbeits-Wochentage aus dem 13-Wochen-Muster ein (individuell, nicht pauschal Mo–Fr); das Urlaubskonto (Anspruch/genommen/Rest) führt edlohn in ARBEITSTAGEN — COCO bucht bei Genehmigung bewusst NICHTS ab (keine zweite Kontowahrheit). Offen (Frank entscheidet): UP3-Anzeige „Kalendertage · vsl. Urlaubstage" auf der Antragskarte.
+
   - **UA1 (04.07.2026): Stempel-Warnung + Urlaub in „Meine Schichten" & Kalender-Abo.** `clockIn` prüft vor dem Insert die eigene `roster_absence`-Zeile am `business_date` (Typ `urlaub`/`krank`); ohne `confirmAbsence: true` → Fehler-Code `ABSENCE_TODAY:<typ>`, **kein** `time_entry`, **kein** Audit (B2a-Muster). Mit Bestätigung landet der Typ als `meta.absenceOverride: { type }` im `time_entry.clock_in`-Audit — Beleg für die Lohn-Frage „Urlaubstag + Arbeitsstunden". UI `/zeit/stempeln` fängt den Code ab und zeigt „Trotzdem einstempeln"-Dialog. Reine Regel `src/lib/time/absence-warn.ts` mit Tests (Urlaub/Krank/keine/bestätigt). „Meine Schichten" (`/zeit/schichten`) zeigt zusätzlich eine gedämpfte Abwesenheits-Sektion (aufeinanderfolgende Tage per `mergeAbsenceRanges` zu einer Zeile gemerged, Icons 🏖/🤒) via neuer read-only Server-Fn `getMyAbsences({from,to})`. ICS-Feed (`/api/public/calendar/$token.ics`) bekommt für jeden gemergten Urlaubs-/Krank-Block ein ganztägiges Event: `DTSTART;VALUE=DATE` = Startdatum, `DTEND;VALUE=DATE` = **Folgetag** des letzten Tags (RFC 5545: exklusiv), stabile UID `absence-<type>-<staffId>-<startdate>@coco`. Neue ICS-Tests: Einzeltag mit DTEND=+1, Mehrtages-Wrap (12.12.2026–24.01.2027 → DTEND `20270125`), Ganztags ohne Ende weiterhin ohne DTEND. `clockOut`, Auto-Ausstempeln, Pool-Writeback, Wasserlinie und Schicht-Events im ICS unverändert. Keine Migration.
   - **Offen — Welle D:** Payslips einsehen (edlohn-PDF-Split, Dry-Run, Personalnummer je edlohn-Mandant).
+
 - **Geofencing-Stempeln (M1) + Distinct-Fix:** UI-`clockIn` ist server-seitig geofence-gegated (`src/lib/geo/`). `locations` hat `latitude`/`longitude`/`geofence_radius_m` (Default 100 m). `clockIn` verlangt **genau einen distinkten** Standort in `staff_locations` (`pickSingleLocation` in `src/lib/time/resolve-location.ts` zählt distinkte `location_id`, **nicht Zeilen** — behebt, dass ein MA mit zwei Bereichs-Zeilen an EINEM Standort fälschlich blockiert wurde) **und** hinterlegte Koordinaten — sonst sprechende deutsche Ablehnung, kein Eintrag. Manager-Korrekturen geofence-frei. **Voraussetzung Live:** alle Standorte brauchen GPS + Radius, sonst kein Stempeln. Google-Maps-Browser-Key per HTTP-Referrer restringieren (er liegt browser-öffentlich im Repo).
 - **PIN-Login via Vorname/Nickname:** `validatePin` matcht `first_name` ODER `display_name` (exakt, case-insensitive), der PIN disambiguiert pro Kandidat, `staffId` aus dem server-seitigen Match (nie Client). Mehrdeutigkeit (zwei Gleichnamige mit gleichem PIN) → Ablehnung, **kein** Fremd-Login. Shadow-Session unverändert.
 - **Kasse — Vier-Zeilen-Bargeldblock:** `/admin/kasse` zeigt Tages-Bargeld / Differenz zum Wechselgeld / in den Tresor / Wechselgeldbestand-Input. Soll-Wechselgeld als `locations.cash_balance_target_cents` (`bigint NULL`, Migration `20260617184811`); Resolver `COALESCE(location, organizations.cash_balance_target_cents)`. Reine Summen-Funktion `cash-summary.ts` (`computeSummaryRows`). DayInput-Bau aus `pdfExport.ts` in geteilten Helper `session-day-input.ts` (`sessionToDayInput`) extrahiert — **eine Wahrheit** für PDF + UI; `grossRevenueCents` aus `vectron_daily_total_cents`. Golden-Master-Cash-Tests bleiben grün (verhaltensgleich).
@@ -2554,3 +2556,20 @@ lesend.
   Datei. Wer `resolveActiveImpersonation` außerhalb von `loadStaffCaller` /
   `loadAdminCaller` / `me.functions` (UI-Banner) einbaut, öffnet exakt
   diese Lücken-Klasse wieder.
+
+## Tagesabschluss 04.07.2026
+
+Abgenommen bei HEAD `93b40898` (tsc/eslint 0/0, prettier sauber, vitest 1303
+grün). Heute gelandet: Pool-Writeback-Fix (§51), Zeitübersicht-Welle,
+Provision P1+P2 (§52), Telegram TG1+TG2+Cron (§53), Urlaubs- und
+Stammdaten-Import (§54), Batch-Schichtzeiten BZ1, Zeit-Vollimport-Abschluss
+(§10), Display D4, BWA F5, Schichttausch TA1–TA4 (§55), Verkaufsartikel VA1,
+Task-Fotos AF1 (§56), Mitarbeiterliste MA1, Jahresplaner UP1+UP2,
+Stempel-Warnung + Urlaubs-Sicht UA1, Vorschau-Identität IMP1/IMP1b (§58).
+
+Offen: Franks E2Es (Vorschau als ANN, Jahresplaner, Stempel-Warnung,
+ICS-Urlaub, Schichttausch-Volltest, BZ1 Peter, Provision, Verkaufsartikel,
+D4-Display, Telegram-Cron 05.07. 07:05); Entscheidungen (A/B negative
+Urlaubs-Überträge, UP3 ja/nein, „Meine Stunden"-Deltas); Nachlieferungen
+(TSB-PaySlips, Spicery/TSB-Verkaufsartikel); geparkt (BZ2, Welle B,
+MCP-Wiedereinführung, MailerSend-DNS).
