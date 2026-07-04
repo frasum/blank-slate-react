@@ -2,7 +2,7 @@
 
 Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen Baublock konsultiert. Bewusst kurz gehalten — Architektur-Begründungen stehen im gruendungsdokument.md, nicht hier.
 
-Stand: 04.07.2026 (Tagesabschluss, HEAD 93b40898)
+Stand: 05.07.2026 (TP-GL)
 
 ## 1. Rollenverteilung im Team
 
@@ -915,7 +915,19 @@ Verifizierter Stand HEAD `c9c35f1` (tsc 0, eslint 0, vitest 911, prettier sauber
 
 - GL wird beim Snapshot mit angelegt: `department='gl'`, `shift_start/end=null`, `hours_minutes=0` (**keine** Standardzeit). Eigene Card-Sektion „Geschäftsleitung — Arbeitszeit (keine Trinkgeld-Beteiligung)", erfassbar, **ohne** Anteil-Spalte.
 - **Doppelte Geld-Sicherheit:** (a) `computeTipPool` schließt über `staffDepartments` alles außer kitchen/service aus; (b) GL liegt in getrennter Anzeige-Liste (`glEntries`). `session_tip_pool_entries` trägt damit bewusst auch Nicht-Trinkgeld-Arbeitszeit.
-- Bereichs-Priorität bei Mehrfach-Einteilung: **kitchen > service > gl** (eine Zeile je MA; Mehrfach-Einteilung bleibt architektonisch erlaubt, D-3/D-6 unverändert).
+- Bereichs-Priorität bei Mehrfach-Einteilung: **gl (Ausschluss) > kitchen > service** (eine Zeile je MA; Mehrfach-Einteilung bleibt architektonisch erlaubt, D-3/D-6 unverändert). Siehe **TP-GL**.
+
+**TP-GL (05.07.):** GL-Schicht am Tag schließt vom Trinkgeldpool aus —
+Snapshot-Priorität geändert auf gl (Ausschluss) > kitchen > service
+(vorher kitchen > service > gl; Fund: LAM/Spicery mit Service+GL landete
+im Service-Pool). Manuelles Hinzufügen warnt bei GL-Schicht, Manager kann
+bewusst übersteuern.
+
+**Betriebs-Notiz Pool-Snapshot (04.07., WIT):** Pool-Zeilen sind ein
+Session-Snapshot — nachträgliches Entfernen von Dienstplan-Schichten
+wirkt erst ab der nächsten Session („Aus Dienstplan ergänzen" fügt nur
+hinzu). Ausgeschiedene Mitarbeiter ggf. manuell aus dem Pool nehmen;
+im konkreten Fall unschädlich (0,00 h ⇒ kein Anteil).
 
 ### 21d. Teilnahme-Übersteuerung pro Session
 
