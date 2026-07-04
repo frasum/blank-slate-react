@@ -421,12 +421,14 @@ export function SessionFieldsCard({
                 disabled={!writable}
                 onChange={(v) => setMisc({ ...misc, vouchersRedeemed: v })}
               />
-              <ExcelInputRow
-                label="Finedine-Gutscheine"
-                value={misc.finedineVouchers}
-                disabled={!writable}
-                onChange={(v) => setMisc({ ...misc, finedineVouchers: v })}
-              />
+              {locationName !== "YUM" && (
+                <ExcelInputRow
+                  label="Finedine-Gutscheine"
+                  value={misc.finedineVouchers}
+                  disabled={!writable}
+                  onChange={(v) => setMisc({ ...misc, finedineVouchers: v })}
+                />
+              )}
               <ExcelInputRow
                 label="Einladung (Abzug)"
                 value={misc.einladung}
