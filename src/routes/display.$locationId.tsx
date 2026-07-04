@@ -9,6 +9,7 @@ import { serviceMarker } from "@/lib/roster/service-marker";
 import { abbr, pillStyle } from "@/lib/roster/pill-style";
 import { cn } from "@/lib/utils";
 import { useFitCellSize } from "@/lib/display/use-fit-cell-size";
+import { periodRangeLabel } from "@/lib/display/period-split";
 
 type DisplayCell = {
   k: "shift" | "urlaub" | "krank" | "wish" | "available" | "empty";
@@ -19,7 +20,8 @@ type DisplayRow = {
   staffId: string;
   staffName: string;
   cells: DisplayCell[];
-  shiftCount: number;
+  shiftCountCurrent: number;
+  shiftCountNext: number;
 };
 type DisplayBlock = {
   area: "kitchen" | "service";
@@ -41,6 +43,10 @@ type DisplayPayload = {
   showFooter: boolean;
   customMessage: string | null;
   birthdays: string[];
+  currentPeriodLabel: string;
+  nextPeriodLabel: string;
+  currentPeriodEnd: string;
+  nextPeriodEnd: string;
 };
 
 const searchSchema = z.object({ token: z.string().min(1).max(256).optional() });
@@ -174,7 +180,7 @@ function DisplayPage() {
       <main className="space-y-4 p-3">
         {data.blocks.map((block, idx) => (
           <div key={block.area} className="space-y-4">
-            <BlockTable block={block} days={data.days} />
+            <BlockTable block={block} days={data.days} payload={data} />
             {data.customMessage && idx < data.blocks.length - 1 && (
               <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 px-6 py-3 text-center text-base text-amber-200">
                 {data.customMessage}
