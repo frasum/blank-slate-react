@@ -1851,7 +1851,6 @@ function WeeklyPlan({
                   </TableCell>
                 </TableRow>
                 {grp.rows.map((row) => (
-                  ((): React.ReactNode => null)() ??
                   <TableRow key={row.staffId}>
                     <TableCell className="relative pl-3 font-medium">
                       <span
