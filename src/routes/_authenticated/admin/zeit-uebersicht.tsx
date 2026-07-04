@@ -548,14 +548,12 @@ function ZeitUebersichtPage() {
   };
   const sfnByStaff = useMemo(() => {
     const m = new Map<string, SfnAgg>();
-    const addOne = (
-      s: {
-        staffId: string;
-        simple: SfnAgg["simple"];
-        extended: SfnAgg["extended"];
-        zuschlagCents: number;
-      },
-    ) => {
+    const addOne = (s: {
+      staffId: string;
+      simple: SfnAgg["simple"];
+      extended: SfnAgg["extended"];
+      zuschlagCents: number;
+    }) => {
       const prev = m.get(s.staffId);
       if (!prev) {
         m.set(s.staffId, {
