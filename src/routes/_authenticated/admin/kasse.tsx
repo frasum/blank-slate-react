@@ -540,6 +540,7 @@ function KassePage() {
             terminals={terminalsQ.data ?? []}
             writable={writable}
             cashBalanceTargetCents={cashBalanceTargetResolvedCents}
+            locationName={currentLocation?.name}
             kpiSlot={(() => {
               const sess = ovQ.data.session;
               if (!sess) return null;

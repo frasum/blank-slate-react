@@ -44,6 +44,7 @@ export function SessionFieldsCard({
   kpiSlot,
   previousDeficitCents,
   previousDeficitSourceDate,
+  locationName,
 }: {
   sessionId: string;
   overview: Overview;
@@ -67,6 +68,7 @@ export function SessionFieldsCard({
   kpiSlot?: React.ReactNode;
   previousDeficitCents: number;
   previousDeficitSourceDate: string | null;
+  locationName?: string;
 }) {
   type Row = { id: string; euro: string };
   type TerminalRow = Row & { isGl: boolean };
@@ -419,12 +421,14 @@ export function SessionFieldsCard({
                 disabled={!writable}
                 onChange={(v) => setMisc({ ...misc, vouchersRedeemed: v })}
               />
-              <ExcelInputRow
-                label="Finedine-Gutscheine"
-                value={misc.finedineVouchers}
-                disabled={!writable}
-                onChange={(v) => setMisc({ ...misc, finedineVouchers: v })}
-              />
+              {locationName !== "YUM" && (
+                <ExcelInputRow
+                  label="Finedine-Gutscheine"
+                  value={misc.finedineVouchers}
+                  disabled={!writable}
+                  onChange={(v) => setMisc({ ...misc, finedineVouchers: v })}
+                />
+              )}
               <ExcelInputRow
                 label="Einladung (Abzug)"
                 value={misc.einladung}
