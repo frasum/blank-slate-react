@@ -2336,6 +2336,60 @@ export type Database = {
           },
         ]
       }
+      sales_articles: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          location_id: string
+          name: string
+          organization_id: string
+          price_cents: number | null
+          product_group: number | null
+          takeaway_price_cents: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          location_id: string
+          name: string
+          organization_id: string
+          price_cents?: number | null
+          product_group?: number | null
+          takeaway_price_cents?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          location_id?: string
+          name?: string
+          organization_id?: string
+          price_cents?: number | null
+          product_group?: number | null
+          takeaway_price_cents?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_articles_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_articles_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       session_advances: {
         Row: {
           amount_cents: number
