@@ -80,7 +80,9 @@ const EUR_FMT = new Intl.NumberFormat("de-DE", {
 });
 
 export function fmtCents(cents: number): string {
-  return EUR_FMT.format((cents ?? 0) / 100);
+  // Intl fügt in de-DE ein NBSP (U+00A0) zwischen Zahl und € ein.
+  // Für Telegram-Text auf normale Leerzeichen normalisieren.
+  return EUR_FMT.format((cents ?? 0) / 100).replace(/\u00A0/g, " ");
 }
 
 const TIME_FMT = new Intl.DateTimeFormat("de-DE", {
