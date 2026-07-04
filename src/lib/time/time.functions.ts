@@ -24,12 +24,11 @@ import { assertPermission } from "@/lib/admin/admin-call";
 import { arbzgMinimumBreak, isArbzgShort, grossMinutesBetween } from "./break-rules";
 import { assertWithinFence } from "@/lib/geo/server-check";
 import { absenceTodayError, shouldWarnAbsenceClockIn, type AbsenceType } from "./absence-warn";
-import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/integrations/supabase/types";
 import { assertRealIdentity } from "@/lib/admin/impersonation";
 // IMP1b — loadStaffCaller/StaffCaller wohnen zentral in admin/staff-context.
 // Re-Export für bestehende Importpfade (Backwards-Kompatibilität).
-export { loadStaffCaller, type StaffCaller } from "@/lib/admin/staff-context";
+import { loadStaffCaller, type StaffCaller } from "@/lib/admin/staff-context";
+export { loadStaffCaller, type StaffCaller };
 
 export async function loadOpenEntry(
   staffId: string,
@@ -323,7 +322,7 @@ export const clockOut = createServerFn({ method: "POST" })
  * `{ triggered_by: 'settlement', settlement_id, arbzg_default: true }`).
  */
 export async function performClockOut(
-  caller: Caller,
+  caller: StaffCaller,
   breakMinutes: number,
   extraMeta: Record<string, unknown> = {},
   geoFix?: { latitude: number; longitude: number; accuracyM: number },
