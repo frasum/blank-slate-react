@@ -459,10 +459,8 @@ function StaffMatrixRow({
   sofortStatus,
   deptPending,
   skillPending,
-  activePending,
   onToggleDept,
   onToggleSkill,
-  onToggleActive,
 }: {
   staff: StaffRow;
   locations: LocationRow[];
@@ -471,7 +469,6 @@ function StaffMatrixRow({
   sofortStatus: SofortmeldungStatus | null;
   deptPending: boolean;
   skillPending: boolean;
-  activePending: boolean;
   onToggleDept: (
     staffId: string,
     locationId: string,
@@ -479,7 +476,6 @@ function StaffMatrixRow({
     active: boolean,
   ) => void;
   onToggleSkill: (staffId: string, skillId: string, has: boolean, currentIds: string[]) => void;
-  onToggleActive: (staffId: string, isActive: boolean) => void;
 }) {
   const heldSkills = useMemo(
     () =>
@@ -505,18 +501,21 @@ function StaffMatrixRow({
     <TableRow className={cn("group", !staff.isActive && "opacity-50")}>
       {/* Name (sticky) */}
       <TableCell className="sticky left-0 z-10 bg-background group-hover:bg-muted/50">
-        <Link
-          to="/admin/staff/$staffId"
-          params={{ staffId: staff.id }}
-          className="font-medium text-foreground hover:underline"
-        >
-          {staff.displayName}
-          {formatTenure(staff.employmentStartDate) && (
-            <span className="ml-1 font-normal text-muted-foreground">
-              ({formatTenure(staff.employmentStartDate)})
-            </span>
-          )}
-        </Link>
+        <div className="flex items-center gap-1.5">
+          {isAdmin && sofortStatus && <SofortmeldungDot staffId={staff.id} status={sofortStatus} />}
+          <Link
+            to="/admin/staff/$staffId"
+            params={{ staffId: staff.id }}
+            className="font-medium text-foreground hover:underline"
+          >
+            {staff.displayName}
+            {formatTenure(staff.employmentStartDate) && (
+              <span className="ml-1 font-normal text-muted-foreground">
+                ({formatTenure(staff.employmentStartDate)})
+              </span>
+            )}
+          </Link>
+        </div>
         <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
           <span className="truncate">
             {[staff.firstName, staff.lastName].filter(Boolean).join(" ") || "—"}
@@ -654,48 +653,6 @@ function StaffMatrixRow({
             {staff.skillIds.length > 0 ? `${staff.skillIds.length} Skills` : "—"}
           </span>
         )}
-      </TableCell>
-
-      {/* PIN */}
-      <TableCell className="text-center text-muted-foreground">
-        {staff.hasPin ? "gesetzt" : "—"}
-      </TableCell>
-
-      {isAdmin && (
-        <TableCell className="text-center">
-          {sofortStatus ? <SofortmeldungBadge status={sofortStatus} /> : "—"}
-        </TableCell>
-      )}
-
-      {/* Aktionen */}
-      <TableCell className="text-right">
-        {isAdmin ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                disabled={activePending}
-                onClick={() => onToggleActive(staff.id, !staff.isActive)}
-                className={cn(
-                  "inline-flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50",
-                  "opacity-0 group-hover:opacity-100",
-                )}
-                aria-label={staff.isActive ? "Deaktivieren" : "Reaktivieren"}
-              >
-                {staff.isActive ? (
-                  <UserMinus className="h-4 w-4" />
-                ) : (
-                  <UserCheck className="h-4 w-4" />
-                )}
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p className="text-xs">
-                {staff.isActive ? "Mitarbeiter deaktivieren" : "Mitarbeiter reaktivieren"}
-              </p>
-            </TooltipContent>
-          </Tooltip>
-        ) : null}
       </TableCell>
     </TableRow>
   );
