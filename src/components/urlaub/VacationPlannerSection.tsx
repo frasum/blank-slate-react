@@ -16,7 +16,12 @@ import {
   getVacationPlanner,
   type VacationPlannerResult,
 } from "@/lib/roster/vacation-planner.functions";
-import { dayOfYearPct, monthOffsets, type AbsenceRange } from "@/lib/roster/vacation-planner";
+import {
+  dailyVacationCounts,
+  dayOfYearPct,
+  monthOffsets,
+  type AbsenceRange,
+} from "@/lib/roster/vacation-planner";
 import { cn } from "@/lib/utils";
 
 const MONTH_LETTERS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
@@ -142,9 +147,8 @@ function PlannerBoard({
   year: number;
 }) {
   return (
-    <Card className="space-y-2 p-3">
+    <div className="space-y-3">
       <MonthHeader months={months} />
-      <DensityStrip counts={data.dailyCounts} year={year} todayPct={todayPct} />
       <PlannerBlock
         title="Küche"
         rows={data.kitchen}
@@ -159,7 +163,7 @@ function PlannerBoard({
         year={year}
         todayPct={todayPct}
       />
-    </Card>
+    </div>
   );
 }
 
@@ -186,16 +190,18 @@ function DensityStrip({
   counts,
   year,
   todayPct,
+  label,
 }: {
   counts: Record<string, number>;
   year: number;
   todayPct: number | null;
+  label: string;
 }) {
   const entries = Object.entries(counts);
   return (
     <div className="flex items-center gap-2">
       <div className="w-28 shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground">
-        Dichte
+        {label}
       </div>
       <div className="relative h-4 flex-1 rounded-sm border border-gray-200 bg-gray-50 overflow-hidden">
         <MonthGridLines year={year} />
@@ -238,24 +244,58 @@ function PlannerBlock({
   year: number;
   todayPct: number | null;
 }) {
+  const densityCounts = useMemo(() => {
+    const map = new Map<string, { start: string; end: string }[]>();
+    for (const r of rows) {
+      map.set(
+        r.staffId,
+        r.ranges.map((rg) => ({ start: rg.start, end: rg.end })),
+      );
+    }
+    const counts = dailyVacationCounts(map, year);
+    const out: Record<string, number> = {};
+    for (const [k, v] of counts) out[k] = v;
+    return out;
+  }, [rows, year]);
+
   return (
-    <div className="space-y-0.5">
-      <div className="pt-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-        {title}
+    <Card className="overflow-hidden p-0">
+      <div className="flex items-center justify-between border-b bg-muted/50 px-3 py-1.5">
+        <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          {title}
+        </div>
+        <div className="text-[10px] tabular-nums text-muted-foreground">
+          {rows.length} {rows.length === 1 ? "Mitarbeiter" : "Mitarbeiter"}
+        </div>
       </div>
-      {rows.length === 0 ? (
-        <div className="py-2 text-xs text-muted-foreground">
-          Keine Mitarbeiter in diesem Bereich.
-        </div>
-      ) : rows.every((r) => r.ranges.length === 0) ? (
-        <div className="py-2 text-xs text-muted-foreground">
-          Keine genehmigten Urlaube in {year}.
-        </div>
-      ) : null}
-      {rows.map((r) => (
-        <StaffRow key={r.staffId} row={r} months={months} year={year} todayPct={todayPct} />
-      ))}
-    </div>
+      <div className="space-y-0.5 p-2">
+        <DensityStrip
+          counts={densityCounts}
+          year={year}
+          todayPct={todayPct}
+          label={`Dichte ${title}`}
+        />
+        {rows.length === 0 ? (
+          <div className="py-2 text-xs text-muted-foreground">
+            Keine Mitarbeiter in diesem Bereich.
+          </div>
+        ) : rows.every((r) => r.ranges.length === 0) ? (
+          <div className="py-2 text-xs text-muted-foreground">
+            Keine genehmigten Urlaube in {year}.
+          </div>
+        ) : null}
+        {rows.map((r, i) => (
+          <StaffRow
+            key={r.staffId}
+            row={r}
+            months={months}
+            year={year}
+            todayPct={todayPct}
+            zebra={i % 2 === 1}
+          />
+        ))}
+      </div>
+    </Card>
   );
 }
 
@@ -264,18 +304,28 @@ function StaffRow({
   months,
   year,
   todayPct,
+  zebra,
 }: {
   row: PlannerData["kitchen"][number];
   months: { month: number; leftPct: number }[];
   year: number;
   todayPct: number | null;
+  zebra: boolean;
 }) {
   return (
-    <div className="flex items-center gap-2">
-      <div className="w-28 shrink-0 truncate text-xs" title={row.displayName}>
-        {row.displayName}
+    <div
+      className={cn(
+        "flex items-stretch gap-2 rounded-sm",
+        zebra ? "bg-muted/40" : "bg-transparent",
+      )}
+    >
+      <div
+        className="flex w-28 shrink-0 items-center justify-center truncate px-1 text-xs"
+        title={row.displayName}
+      >
+        <span className="truncate">{row.displayName}</span>
       </div>
-      <div className="relative h-5 flex-1 rounded-sm bg-gray-50">
+      <div className="relative my-0.5 h-5 flex-1 rounded-sm">
         <MonthGridLines year={year} months={months} />
         {row.ranges.map((rg, i) => {
           const geo = rangeGeometry(rg, year);
@@ -285,7 +335,7 @@ function StaffRow({
                 <div
                   className={cn(
                     "absolute top-0.5 bottom-0.5 rounded",
-                    "bg-primary/80 hover:bg-primary",
+                    "bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400",
                   )}
                   style={{ left: `${geo.leftPct}%`, width: `${geo.widthPct}%` }}
                 />
