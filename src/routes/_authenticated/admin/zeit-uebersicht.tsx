@@ -2146,9 +2146,9 @@ function WeeklyPlan({
                               inputMode="numeric"
                               maxLength={5}
                               value={val}
-                              autoFocus
                               disabled={pending}
                               data-edit-key={cellKey(row.staffId, day.iso)}
+                              ref={inputRef}
                               onChange={(ev) =>
                                 setEdit({
                                   ...edit,
@@ -2158,15 +2158,64 @@ function WeeklyPlan({
                               onKeyDown={(ev) => {
                                 if (ev.key === "Enter") {
                                   ev.preventDefault();
-                                  commit(edit);
-                                  setEdit(null);
-                                } else if (ev.key === "Escape") {
+                                  if (commit(edit)) setEdit(null);
+                                  return;
+                                }
+                                if (ev.key === "Escape") {
                                   ev.preventDefault();
+                                  navigatingRef.current = true;
                                   setEdit(null);
+                                  return;
+                                }
+                                const rIdx = flatRows.findIndex(
+                                  (r) => r.staffId === edit.staffId,
+                                );
+                                const dIdx = dayMeta.findIndex((d) => d.iso === edit.iso);
+                                if (rIdx < 0 || dIdx < 0) return;
+                                if (ev.key === "Tab") {
+                                  ev.preventDefault();
+                                  const t = findNextRow(rIdx, dIdx, ev.shiftKey ? -1 : 1);
+                                  if (t)
+                                    navigateTo(
+                                      edit,
+                                      flatRows[t.rowIdx].staffId,
+                                      dayMeta[t.dayIdx].iso,
+                                      edit.field,
+                                    );
+                                  return;
+                                }
+                                if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
+                                  ev.preventDefault();
+                                  const t = findNextRow(rIdx, dIdx, ev.key === "ArrowDown" ? 1 : -1);
+                                  if (t)
+                                    navigateTo(
+                                      edit,
+                                      flatRows[t.rowIdx].staffId,
+                                      dayMeta[t.dayIdx].iso,
+                                      edit.field,
+                                    );
+                                  return;
+                                }
+                                if (ev.key === "ArrowRight" || ev.key === "ArrowLeft") {
+                                  ev.preventDefault();
+                                  const t = findNextField(
+                                    rIdx,
+                                    dIdx,
+                                    edit.field,
+                                    ev.key === "ArrowRight" ? 1 : -1,
+                                  );
+                                  if (t)
+                                    navigateTo(
+                                      edit,
+                                      flatRows[t.rowIdx].staffId,
+                                      dayMeta[t.dayIdx].iso,
+                                      t.field,
+                                    );
+                                  return;
                                 }
                               }}
                               onBlur={(ev) => handleBlur(ev, edit)}
-                              className={`w-[58px] h-6 px-1 text-center font-mono text-sm rounded border border-primary/50 bg-background ${pending ? "opacity-60" : ""}`}
+                              className={`w-[58px] h-6 px-1 text-center tabular-nums text-sm rounded border border-primary/50 bg-background ${pending ? "opacity-60" : ""}`}
                             />
                           );
                         }
@@ -2195,13 +2244,13 @@ function WeeklyPlan({
                         <Fragment key={day.iso}>
                           <TableCell
                             onClick={() => handleCellClick("from")}
-                            className={`w-[62px] min-w-[62px] border-l px-1 py-1 text-center align-middle font-mono text-sm ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
+                            className={`w-[62px] min-w-[62px] border-l px-1 py-1 text-center align-middle tabular-nums text-sm ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
                           >
                             {renderShift("from")}
                           </TableCell>
                           <TableCell
                             onClick={() => handleCellClick("to")}
-                            className={`w-[62px] min-w-[62px] px-1 py-1 text-center align-middle font-mono text-sm ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
+                            className={`w-[62px] min-w-[62px] px-1 py-1 text-center align-middle tabular-nums text-sm ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
                           >
                             {renderShift("to")}
                           </TableCell>
