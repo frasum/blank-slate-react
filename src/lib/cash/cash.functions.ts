@@ -1906,6 +1906,25 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
     } else {
       // Best-effort: nicht werfen, damit die Abgabe nicht kippt.
       console.error("[pool-time-writeback] failed", err);
+      // §51: Best-effort-Catches müssen eine auffindbare Spur hinterlassen —
+      // sonst scheitert die Rückschreibung tagelang unsichtbar (Live-Fall 30.06.–03.07.).
+      try {
+        await writeAuditLog({
+          organizationId: caller.organizationId,
+          actorUserId: caller.userId,
+          actorStaffId: caller.staffId,
+          action: "pool_time.writeback_failed",
+          entity: "session",
+          entityId: session.id,
+          meta: {
+            sessionId: session.id,
+            businessDate,
+            error: String(err).slice(0, 300),
+          },
+        });
+      } catch (auditErr) {
+        console.error("[pool-time-writeback] audit failed", auditErr);
+      }
     }
   }
   void poolWritebackSkippedLocked;
