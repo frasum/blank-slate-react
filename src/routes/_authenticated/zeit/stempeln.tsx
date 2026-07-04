@@ -20,6 +20,7 @@ import { clockIn, clockOut, getMyOpenEntry, listMyEntries } from "@/lib/time/tim
 import { getCurrentPosition, GpsError } from "@/lib/geo/client";
 import { formatShortDate } from "@/lib/format-date";
 import { parseAbsenceTodayError, type AbsenceType } from "@/lib/time/absence-warn";
+import { useIsPreview, PREVIEW_DISABLED_TOOLTIP } from "@/hooks/use-is-preview";
 
 export const Route = createFileRoute("/_authenticated/zeit/stempeln")({
   head: () => ({
@@ -48,6 +49,7 @@ function formatTime(iso: string): string {
 
 function ZeitPage() {
   const qc = useQueryClient();
+  const isPreview = useIsPreview();
   const fetchOpen = useServerFn(getMyOpenEntry);
   const fetchList = useServerFn(listMyEntries);
   const doClockIn = useServerFn(clockIn);
@@ -140,7 +142,8 @@ function ZeitPage() {
               size="lg"
               variant="destructive"
               className="w-full"
-              disabled={outMut.isPending}
+              disabled={outMut.isPending || isPreview}
+              title={isPreview ? PREVIEW_DISABLED_TOOLTIP : undefined}
               onClick={openBreakDialog}
             >
               {outMut.isPending ? "Wird gestempelt…" : "Ausstempeln"}
@@ -152,7 +155,8 @@ function ZeitPage() {
             <Button
               size="lg"
               className="w-full"
-              disabled={inMut.isPending}
+              disabled={inMut.isPending || isPreview}
+              title={isPreview ? PREVIEW_DISABLED_TOOLTIP : undefined}
               onClick={() => inMut.mutate(undefined)}
             >
               {inMut.isPending ? "Wird gestempelt…" : "Einstempeln"}
