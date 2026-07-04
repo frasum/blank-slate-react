@@ -2885,6 +2885,39 @@ export type Database = {
           },
         ]
       }
+      shift_swap_declines: {
+        Row: {
+          created_at: string
+          request_id: string
+          staff_id: string
+        }
+        Insert: {
+          created_at?: string
+          request_id: string
+          staff_id: string
+        }
+        Update: {
+          created_at?: string
+          request_id?: string
+          staff_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_swap_declines_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "shift_swap_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_swap_declines_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shift_swap_requests: {
         Row: {
           created_at: string
