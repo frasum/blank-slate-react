@@ -339,9 +339,11 @@ function StatistikPage() {
       </div>
 
       <Card className="p-3">
-        <div className="flex flex-wrap items-end gap-4">
+        <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
           <div className="space-y-1">
-            <Label>Ansicht</Label>
+            <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Ansicht
+            </Label>
             <div className="inline-flex h-10 items-center rounded-md border border-input p-0.5">
               <Button
                 type="button"
@@ -363,22 +365,33 @@ function StatistikPage() {
           </div>
           {mode === "month" ? (
             <div className="space-y-1">
-              <Label>Monat</Label>
-              <MonthNav value={month} onChange={setMonth} />
-              {statsQ.data?.coverage?.isPartial && month === currentMonth() ? (
-                <div className="text-xs text-muted-foreground">
-                  · unvollständig (Stand{" "}
-                  {statsQ.data.coverage.lastDataDay
-                    ? statsQ.data.coverage.lastDataDay.slice(8, 10) + "."
-                    : "—"}
-                  )
-                </div>
-              ) : null}
+              <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Monat
+              </Label>
+              <div className="flex h-10 items-center gap-2">
+                <MonthNav value={month} onChange={setMonth} />
+                {statsQ.data?.coverage?.isPartial && month === currentMonth() ? (
+                  <span
+                    className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 text-xs text-amber-700"
+                    title="Der laufende Monat enthält erst Daten bis zum letzten Abrechnungstag."
+                  >
+                    unvollständig · Stand{" "}
+                    {statsQ.data.coverage.lastDataDay
+                      ? statsQ.data.coverage.lastDataDay.slice(8, 10) + "."
+                      : "—"}
+                  </span>
+                ) : null}
+              </div>
             </div>
           ) : (
             <>
               <div className="space-y-1">
-                <Label htmlFor="stat-from">Von</Label>
+                <Label
+                  htmlFor="stat-from"
+                  className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
+                >
+                  Von
+                </Label>
                 <Input
                   id="stat-from"
                   type="date"
@@ -389,24 +402,33 @@ function StatistikPage() {
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="stat-to">Bis</Label>
+                <Label
+                  htmlFor="stat-to"
+                  className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
+                >
+                  Bis
+                </Label>
                 <Input
                   id="stat-to"
                   type="date"
                   value={endDate}
                   min={startDate || undefined}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="h-10 w-[160px]"
+                  className={`h-10 w-[160px] ${rangeInvalid ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                  aria-invalid={rangeInvalid || undefined}
+                  title={rangeInvalid ? "Bis muss ≥ Von sein." : undefined}
                 />
-                {rangeInvalid ? (
-                  <div className="text-xs text-destructive">Bis muss ≥ Von sein.</div>
-                ) : null}
               </div>
             </>
           )}
           <div className="space-y-1">
-            <Label htmlFor="stat-loc">Standort</Label>
-            <div id="stat-loc">
+            <Label
+              htmlFor="stat-loc"
+              className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
+            >
+              Standort
+            </Label>
+            <div id="stat-loc" className="flex h-10 items-center">
               <LocationPills
                 locations={locations}
                 value={locationFilter}
@@ -419,7 +441,7 @@ function StatistikPage() {
           <Button
             type="button"
             variant="outline"
-            className="ml-auto"
+            className="ml-auto h-10"
             onClick={handleExport}
             disabled={exportDisabled}
           >
