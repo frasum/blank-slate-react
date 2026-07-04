@@ -2162,3 +2162,19 @@ Provision ist standort-scoped. Status: ✅ (E2E Frank ausstehend).
 summiert/konkateniert); Wochenplan-Layout final: Anf./Ende nebeneinander,
 gleiche Tages-Spalten, Namens-Spalten 68px gespiegelt, S/U/K-Gruppe
 konsistent in allen drei Tabs, Tastatur-Navigation beim Inline-Edit.
+
+## 53. Telegram-Verknüpfung (Bot + Webhook) (04.07.2026)
+
+Infrastruktur für Telegram-Benachrichtigungen (Direktarbeit, Security-Review
+bestanden): Öffentliche Webhook-Route `/api/public/telegram/webhook`
+verifiziert Telegrams `X-Telegram-Bot-Api-Secret-Token` per timingSafeEqual
+(401 sonst) und verarbeitet AUSSCHLIESSLICH `/start <token>` zur
+Konto-Verknüpfung — alle anderen Updates werden ignoriert. Bot-Token nur als
+Env-Secret (TELEGRAM_API_KEY via Lovable-Connector), NIE in der DB.
+Verknüpfungs-Token: CSPRNG (randomBytes(32) base64url) mit Ablauf;
+Self-Service in /profil (Deep-Link), Verwaltung in den Einstellungen.
+Tabelle `staff_telegram_links`: Self-Service-Policies (eigenen Link
+lesen/löschen) + Admin-Übersicht — bewusster, eng gescopter Client-Zugriff
+(Chat-ID/Username, geringe Sensibilität), Webhook schreibt via service_role.
+Noch KEIN Versand-Pfad — Berichte (z. B. Tages-Summary) sind ein eigener
+Folge-Baustein mit Design-Schritt (was wird an wen gesendet, Opt-in).
