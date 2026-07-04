@@ -2313,4 +2313,21 @@ KEIN `onConflict`-Ziel für PostgREST-Upserts — der Konflikt wird als
 `assertShiftDateUnlocked` gerufen — für gesperrte Perioden gibt es keine
 Tausch-Anfragen.
 
-**Status:** TA1 ✅ / TA2 offen.
+**TA2 (04.07.2026) — Manager-Genehmigung & Vollzug:** `decideSwapRequest`
+(`manager+`) re-validiert im Genehmigungsmoment (Status `peer_accepted`,
+beide Schichten liegen in der Zukunft, Perioden-Sperren beider Schichten,
+Slot-Konflikte) und ruft den atomaren Vollzug via RPC
+`execute_shift_swap` (SECURITY DEFINER, `EXECUTE` nur `service_role`) auf.
+Der Unique-Index auf `roster_shifts (staff_id, location_id, shift_date, area)`
+macht einen Halbtausch unmöglich — bei Kollision rollt die gesamte Transaktion
+zurück, die Anfrage bleibt `peer_accepted`. Ablehnung setzt Status +
+`decided_at/by` und hängt den Grund als „Ablehnung: …" an `note` an, ohne
+den Dienstplan zu berühren. Roter Punkt via `getReviewPendingCounts.swapPending`
+(zählt `peer_accepted` der Org, refetch 60 s). Telegram-Ping best-effort
+beim `acceptSwapRequest`-Erfolg an alle `staff_telegram_links` mit
+`receives_swap_alerts = true`; Fehler werden als `audit_log`-Eintrag
+`swap.alert_failed` festgehalten (§51), kippen aber die Annahme NICHT.
+Genehmigungs-UI liegt in `/admin/personal-antraege` unter dem Reiter
+„Schichttausch" (peer_accepted-Karten oben, offene informativ darunter).
+
+**Status:** TA1 ✅ / TA2 ✅ (E2E Frank ausstehend).
