@@ -1110,6 +1110,35 @@ export const decideSwapRequest = createServerFn({ method: "POST" })
         });
       }
 
+      // TA4 — Abwesenheits-Re-Validierung: zwischen Peer-Annahme und
+      // Manager-Genehmigung kann Urlaub/Krank genehmigt worden sein.
+      if (reqRow.peer_staff_id) {
+        const peerAbsent = await hasAbsenceOnDate(
+          supabaseAdmin,
+          caller.organizationId,
+          reqRow.peer_staff_id,
+          reqShift.shift_date,
+        );
+        if (peerAbsent) {
+          throw new Error(
+            `Der Kollege ist am ${fmtDeDate(reqShift.shift_date)} abwesend (Urlaub/Krank) — Tausch kann nicht genehmigt werden.`,
+          );
+        }
+      }
+      if (peerShift) {
+        const requesterAbsent = await hasAbsenceOnDate(
+          supabaseAdmin,
+          caller.organizationId,
+          reqRow.requester_staff_id,
+          peerShift.shift_date,
+        );
+        if (requesterAbsent) {
+          throw new Error(
+            `Der Anfragende ist am ${fmtDeDate(peerShift.shift_date)} abwesend (Urlaub/Krank) — Tausch kann nicht genehmigt werden.`,
+          );
+        }
+      }
+
       // Atomarer Vollzug via RPC (SECURITY DEFINER, service_role).
       const { error: rpcErr } = await supabaseAdmin.rpc("execute_shift_swap", {
         p_request_id: reqRow.id,
