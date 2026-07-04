@@ -2355,17 +2355,18 @@ Genehmigungs-UI liegt in `/admin/personal-antraege` unter dem Reiter
 **TA3 (04.07.2026) — Portal-UI konsolidiert:** Der komplette
 Tausch-Lebenszyklus liegt jetzt in `/zeit/schichten`. Reihenfolge
 mobile-first: (1) „Tauschanfragen an dich" ganz oben, nur sichtbar wenn
+
 > 0, mit Zähler-Badge und Übernehmen/Ablehnen (inkl. optionalem
-Gegentausch); (2) eigene Schichtenliste mit „Zum Tausch anbieten" bzw.
-Status-Badge; (3) einklappbare Sektion „Meine Tauschanfragen" mit
-Status, Ablehnungs-Fortschritt „N von M" und Stornieren. Die Karten
-wurden nach `src/components/tausch/SwapRequestCards.tsx` extrahiert
-(`OpenRequestCard`, `MyRequestCard`) — Server-Fn-Aufrufe, Dialoge und
-Regeln unverändert. Hub-Karte „Schichttausch" in `/zeit` entfernt;
-`/zeit/tausch` bleibt als `beforeLoad`-Redirect auf `/zeit/schichten`
-für Lesezeichen. Auf der Hub-Karte „Meine Schichten" sitzt ein
-Zähler-Badge (offene Anfragen an mich via `listOpenSwapsForMe`, Fehler
-= Badge weglassen — Hub darf nie blockieren).
+> Gegentausch); (2) eigene Schichtenliste mit „Zum Tausch anbieten" bzw.
+> Status-Badge; (3) einklappbare Sektion „Meine Tauschanfragen" mit
+> Status, Ablehnungs-Fortschritt „N von M" und Stornieren. Die Karten
+> wurden nach `src/components/tausch/SwapRequestCards.tsx` extrahiert
+> (`OpenRequestCard`, `MyRequestCard`) — Server-Fn-Aufrufe, Dialoge und
+> Regeln unverändert. Hub-Karte „Schichttausch" in `/zeit` entfernt;
+> `/zeit/tausch` bleibt als `beforeLoad`-Redirect auf `/zeit/schichten`
+> für Lesezeichen. Auf der Hub-Karte „Meine Schichten" sitzt ein
+> Zähler-Badge (offene Anfragen an mich via `listOpenSwapsForMe`, Fehler
+> = Badge weglassen — Hub darf nie blockieren).
 
 ## §VA1 — Verkaufsartikel (POS) (Stand: 04.07.2026)
 
