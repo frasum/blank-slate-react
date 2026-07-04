@@ -133,24 +133,33 @@ const GROUPS: Group[] = [
     key: "einstellungen",
     label: "Einstellungen",
     default: "/admin/einstellungen",
-    prefixes: ["/admin/einstellungen"],
-    sub: [{ to: "/admin/einstellungen", label: "Organisation" }],
-    roles: ["admin"],
-  },
-  {
-    key: "system",
-    label: "System",
-    default: "/admin/migration",
-    prefixes: ["/admin/migration", "/admin/import-zuordnungen", "/admin/lohn-verteilung"],
+    prefixes: [
+      "/admin/einstellungen",
+      "/admin/migration",
+      "/admin/import-zuordnungen",
+      "/admin/lohn-verteilung",
+    ],
     sub: [
-      { to: "/admin/migration", label: "Migration" },
-      { to: "/admin/import-zuordnungen", label: "Zuordnungen" },
-      { to: "/admin/lohn-verteilung", label: "Lohn PDF Import" },
+      { to: "/admin/einstellungen", label: "Allgemein" },
+      { to: "/admin/einstellungen/easyorder-verwaltung", label: "EasyOrder-Verwaltung" },
+      { to: "/admin/migration", label: "System" },
     ],
     roles: ["admin"],
-    muted: true,
   },
 ];
+
+// System-Unterseiten (früher eigene Top-Level-Gruppe „System") sind jetzt
+// unter Einstellungen einsortiert. Für die tertiäre Navigation innerhalb
+// von „System" halten wir die Liste hier lokal.
+const SYSTEM_SUB: { to: string; label: string }[] = [
+  { to: "/admin/migration", label: "Migration" },
+  { to: "/admin/import-zuordnungen", label: "Zuordnungen" },
+  { to: "/admin/lohn-verteilung", label: "Lohn PDF Import" },
+];
+
+function isSystemPath(pathname: string): boolean {
+  return SYSTEM_SUB.some((s) => pathname === s.to || pathname.startsWith(s.to + "/"));
+}
 
 function matchPrefix(pathname: string, prefixes: string[]): boolean {
   return prefixes.some((p) => pathname === p || pathname.startsWith(p + "/"));
@@ -260,6 +269,11 @@ function AdminLayout() {
                     .filter((s) => !s.roles || s.roles.includes(role))
                     .map((s) => {
                       const active = pathname === s.to || pathname.startsWith(s.to + "/");
+                      const activeWithSystem =
+                        active ||
+                        (s.to === "/admin/migration" &&
+                          isSystemPath(pathname) &&
+                          !pathname.startsWith("/admin/migration"));
                       const showDot =
                         (s.to === "/admin/personal-antraege" && pendingReview > 0) ||
                         (s.to === "/admin/urlaub" && pendingLeave > 0);
@@ -267,7 +281,7 @@ function AdminLayout() {
                         <Link
                           key={s.to}
                           to={s.to}
-                          className={tabClass(active)}
+                          className={tabClass(activeWithSystem)}
                           aria-label={showDot ? `${s.label} (offene Vorgänge)` : undefined}
                         >
                           {s.label}
@@ -280,6 +294,18 @@ function AdminLayout() {
                         </Link>
                       );
                     })}
+                </nav>
+              )}
+              {isSystemPath(pathname) && (
+                <nav className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border/60 pt-2 text-xs">
+                  {SYSTEM_SUB.map((s) => {
+                    const active = pathname === s.to || pathname.startsWith(s.to + "/");
+                    return (
+                      <Link key={s.to} to={s.to} className={tabClass(active)}>
+                        {s.label}
+                      </Link>
+                    );
+                  })}
                 </nav>
               )}
             </>
