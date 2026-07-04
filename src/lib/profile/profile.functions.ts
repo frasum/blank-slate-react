@@ -7,6 +7,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
+import { assertRealIdentity } from "@/lib/admin/impersonation";
 import { runGuarded } from "@/lib/admin/admin-call";
 import { makeAuditWriter } from "@/lib/admin/audit";
 import { ForbiddenError } from "@/lib/admin/role-guard";
@@ -101,6 +102,7 @@ export const updateMyContact = createServerFn({ method: "POST" })
   .inputValidator((input) => contactSchema.parse(input))
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "staff");
+    assertRealIdentity(caller);
     const cleaned: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(data)) {
       if (v !== undefined) cleaned[k] = v;
@@ -155,6 +157,7 @@ export const submitChangeRequest = createServerFn({ method: "POST" })
   .inputValidator((input) => submitSchema.parse(input))
   .handler(async ({ data, context }): Promise<{ id: string }> => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "staff");
+    assertRealIdentity(caller);
     const validation = validateChangeRequestPayload(data.payload);
     if (!validation.ok) {
       throw new Error(Object.values(validation.errors).join(" "));
@@ -254,6 +257,7 @@ export const uploadMyDocument = createServerFn({ method: "POST" })
   .inputValidator((input) => uploadSchema.parse(input))
   .handler(async ({ data, context }): Promise<{ id: string; path: string }> => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "staff");
+    assertRealIdentity(caller);
     const ext = extensionForMime(data.mimeType);
     if (!ext) throw new Error("Dateityp nicht erlaubt (nur JPG/PNG/PDF).");
     if (!ALLOWED_DOC_MIME[data.mimeType]) throw new Error("Dateityp nicht erlaubt.");
