@@ -61,7 +61,7 @@ function VerkaufsartikelPage() {
     queryKey: ["locations"],
     queryFn: () => listLocations(),
   });
-  const locations = locationsQ.data ?? [];
+  const locations = useMemo(() => locationsQ.data ?? [], [locationsQ.data]);
 
   const [locationId, setLocationId] = useState<string>("");
   useEffect(() => {
@@ -73,7 +73,7 @@ function VerkaufsartikelPage() {
     queryFn: () => callList({ data: { locationId } }),
     enabled: !!locationId,
   });
-  const rows = articlesQ.data ?? [];
+  const rows = useMemo(() => articlesQ.data ?? [], [articlesQ.data]);
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["sales-articles", locationId] });
 
