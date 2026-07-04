@@ -95,7 +95,7 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
           if (/^\/start(?:@[\w_]+)?\s*$/.test(text.trim())) {
             await replyToChat(
               chatId,
-              "Um diesen Chat mit deinem COCO-Konto zu verknüpfen, öffne bitte im Mitarbeiter-Portal „Meine Daten" → „Telegram verknüpfen".",
+              'Um diesen Chat mit deinem COCO-Konto zu verknüpfen, öffne bitte im Mitarbeiter-Portal "Meine Daten" → "Telegram verknüpfen".',
             );
           }
           return Response.json({ ok: true, ignored: "no-token" });
