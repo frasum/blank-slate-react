@@ -19,7 +19,6 @@ import {
 import {
   dayOfYearPct,
   monthOffsets,
-  yearDayCount,
   type AbsenceRange,
 } from "@/lib/roster/vacation-planner";
 import { cn } from "@/lib/utils";
