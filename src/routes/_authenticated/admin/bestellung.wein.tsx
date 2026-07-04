@@ -144,7 +144,11 @@ function WeinPage() {
   };
   const [batchOpen, setBatchOpen] = useState(false);
   const [batchRunning, setBatchRunning] = useState(false);
-  const [batchProgress, setBatchProgress] = useState<{ done: number; total: number; current: string } | null>(null);
+  const [batchProgress, setBatchProgress] = useState<{
+    done: number;
+    total: number;
+    current: string;
+  } | null>(null);
   const [batchResults, setBatchResults] = useState<Map<string, BatchEntry>>(new Map());
   const [batchApplying, setBatchApplying] = useState(false);
   const [batchApplyMsg, setBatchApplyMsg] = useState<string | null>(null);
@@ -302,13 +306,17 @@ function WeinPage() {
             imageUrl: w.image_url ?? "",
             sortOrder: w.sort_order ?? 0,
             grapeVariety: entry.selected.grapeVariety ? s.grapeVariety : (w.grape_variety ?? ""),
-            originCountry: entry.selected.originCountry ? s.originCountry : (w.origin_country ?? ""),
+            originCountry: entry.selected.originCountry
+              ? s.originCountry
+              : (w.origin_country ?? ""),
             foodPairings: entry.selected.foodPairings ? s.foodPairings : (w.food_pairings ?? ""),
             specialAttributes: entry.selected.specialAttributes
-              ? (s.specialAttributes.length > 0 ? s.specialAttributes : null)
-              : (Array.isArray(w.special_attributes) && w.special_attributes.length > 0
-                  ? w.special_attributes
-                  : null),
+              ? s.specialAttributes.length > 0
+                ? s.specialAttributes
+                : null
+              : Array.isArray(w.special_attributes) && w.special_attributes.length > 0
+                ? w.special_attributes
+                : null,
             locationIds: (w.locationIds ?? []).length > 0 ? w.locationIds : [],
           },
         });
@@ -386,8 +394,8 @@ function WeinPage() {
         {batchOpen && (
           <div className="space-y-3 border-t border-border p-4">
             <p className="text-xs text-muted-foreground">
-              Läuft nacheinander alle Weine durch (~1 s Pause pro Aufruf). Vorschläge werden
-              nicht automatisch gespeichert — Felder mit Konflikt sind standardmäßig nicht angehakt.
+              Läuft nacheinander alle Weine durch (~1 s Pause pro Aufruf). Vorschläge werden nicht
+              automatisch gespeichert — Felder mit Konflikt sind standardmäßig nicht angehakt.
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <button
@@ -583,9 +591,7 @@ function WineForm(props: {
         foodPairings: p.foodPairings.trim() || result.foodPairings,
         description: p.description.trim() || result.description,
         specialAttributes:
-          p.specialAttributes.length > 0
-            ? p.specialAttributes
-            : result.specialAttributes,
+          p.specialAttributes.length > 0 ? p.specialAttributes : result.specialAttributes,
       }));
       const filled = [
         result.grapeVariety && "Rebsorte",
@@ -795,7 +801,8 @@ function BatchEntryCard(props: {
       {s && (
         <div className="mt-2 space-y-1.5 text-xs">
           {BATCH_FIELDS.map((f) => {
-            const cur = f === "specialAttributes" ? c.specialAttributes.join(", ") : (c[f] as string);
+            const cur =
+              f === "specialAttributes" ? c.specialAttributes.join(", ") : (c[f] as string);
             const sug =
               f === "specialAttributes" ? s.specialAttributes.join(", ") : (s[f] as string);
             if (!sug.trim() && !cur.trim()) return null;

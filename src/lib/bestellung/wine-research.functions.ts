@@ -36,9 +36,9 @@ type GeminiChatResponse = {
   error?: { message?: string };
 };
 
-async function firecrawlSearch(query: string): Promise<
-  Array<{ url: string; title: string; markdown: string }>
-> {
+async function firecrawlSearch(
+  query: string,
+): Promise<Array<{ url: string; title: string; markdown: string }>> {
   const key = process.env.FIRECRAWL_API_KEY;
   if (!key) throw new Error("Firecrawl-Connector ist nicht verbunden.");
   const response = await fetch("https://api.firecrawl.dev/v2/search", {
