@@ -1,33 +1,21 @@
 // Self-Service für Kalender-Abo-Tokens. Der Klartext-Token verlässt den
 // Server NUR in der Antwort von `getOrCreateMyCalendarToken` — nie im
-// audit_log oder in Folgereads. staffId wird immer aus auth.uid via
-// user_links abgeleitet, nie vom Client.
+// audit_log oder in Folgereads. staffId wird immer über loadStaffCaller
+// (auth.uid → user_links, IMP1-vorschau-bewusst) abgeleitet, nie vom Client.
+// Alle Mutationen tragen assertRealIdentity als erste Zeile (Vorschau =
+// schreibgeschützt).
 
 import { createServerFn } from "@tanstack/react-start";
-import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { generateBadgeToken } from "@/lib/admin/token-generator";
-
-type CallerLink = { staffId: string; organizationId: string };
-
-async function loadCallerLink(
-  supabase: SupabaseClient<Database>,
-  userId: string,
-): Promise<CallerLink> {
-  const { data, error } = await supabase
-    .from("user_links")
-    .select("staff_id, organization_id")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (error || !data) throw new Error("Kein Mitarbeiterprofil.");
-  return { staffId: data.staff_id, organizationId: data.organization_id };
-}
+import { loadStaffCaller } from "@/lib/time/time.functions";
+import { assertRealIdentity } from "@/lib/admin/impersonation";
 
 export const getOrCreateMyCalendarToken = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const caller = await loadCallerLink(context.supabase, context.userId);
+    const caller = await loadStaffCaller(context.supabase, context.userId);
+    assertRealIdentity(caller);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: existing, error: exErr } = await supabaseAdmin
@@ -64,7 +52,8 @@ export const getOrCreateMyCalendarToken = createServerFn({ method: "POST" })
 export const revokeMyCalendarToken = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const caller = await loadCallerLink(context.supabase, context.userId);
+    const caller = await loadStaffCaller(context.supabase, context.userId);
+    assertRealIdentity(caller);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("access_tokens")

@@ -2,7 +2,7 @@
 
 Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen Baublock konsultiert. Bewusst kurz gehalten — Architektur-Begründungen stehen im gruendungsdokument.md, nicht hier.
 
-Stand: 04.07.2026 (IMP1)
+Stand: 04.07.2026 (IMP1b)
 
 ## 1. Rollenverteilung im Team
 
@@ -2500,3 +2500,37 @@ Portal-Seiten die Daten des Admins statt der Zielperson.
   (echte Identität erlaubt, Vorschau verweigert) ab. Bestehende DB-Tests
   wurden auf das erweiterte `Caller`-Objekt (`impersonatedBy: null`)
   angepasst.
+
+## §58 IMP1b — Auflösung zentral, Guards vervollständigt (04.07.2026)
+
+IMP1 wurde ursprünglich dezentral nachgezogen — die Auflösung saß in
+`loadStaffCaller`, aber mehrere Module hingen noch am alten
+`loadAdminCaller`, der die Vorschau nicht kannte. Folge: EasyOrder-Kachel,
+„Meine Daten"/Änderungsanträge/Dokumente, Task-Fotos und Kalender-Token
+liefen weiter als Admin — die Vorschau war weder korrekt noch strikt
+lesend.
+
+- **Zentrale Auflösung, ein Ort.** `loadAdminCaller`
+  (`src/lib/admin/admin-context.ts`) ist jetzt genauso vorschau-bewusst wie
+  `loadStaffCaller`: bei aktiver Impersonation wird auf die Ziel-`staff_id`
+  gewechselt, `impersonatedBy` gesetzt, und der Role-Lookup läuft über
+  `supabaseAdmin` (die RLS auf `role_assignments` würde ihn sonst über
+  `_effective_user_id` auf das Vorschau-Ziel umleiten und die Rolle des
+  echten Admins ausblenden — genau der Bug, der die EasyOrder-Kachel unter
+  Vorschau verschwinden ließ). Guards analog `loadStaffCaller`
+  (Org-Bindung, Admin-Re-Validierung).
+- **Guards vervollständigt.** `assertRealIdentity(caller)` als ERSTE
+  Zeile in `placeEasyOrder` (EasyOrder), `updateMyContact`,
+  `submitChangeRequest`, `uploadMyDocument` (Profil),
+  `getOrCreateMyCalendarToken`, `revokeMyCalendarToken` (Kalender-Token —
+  zusätzlich von einem eigenen `loadCallerLink` auf `loadStaffCaller`
+  umgestellt) sowie `uploadTaskPhoto`, `deleteTaskPhoto` (Task-Fotos).
+  Lese-Fns bleiben ungeguarded.
+- **Signatur.** `assertRealIdentity` akzeptiert jetzt
+  `impersonatedBy?: string | null`, damit sowohl `StaffCaller` (Feld
+  required) als auch `AdminCaller` (Feld optional aus Rückwärts-Kompat mit
+  Tests) ohne Cast passen.
+- **Lektion.** Querschnitts-Identität gehört in den Caller, nicht in jede
+  Datei. Wer `resolveActiveImpersonation` außerhalb von `loadStaffCaller` /
+  `loadAdminCaller` / `me.functions` (UI-Banner) einbaut, öffnet exakt
+  diese Lücken-Klasse wieder.
