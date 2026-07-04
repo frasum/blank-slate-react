@@ -60,6 +60,7 @@ Erst wenn ESLint 0 Fehler und alle Tests grün sind → ABGENOMMEN.
   | `staff-documents` | false  | SP-Dokumente (Ausweise, Nachweise)          |
   | `payslips`        | false  | PaySlip-PDFs (Welle D, depriorisiert)       |
   | `task-photos`     | false  | AF1 Aufgaben-Fotos (signierte URLs, 60 min) |
+
 - **Lovable-Diskrepanz-Meldungen: erst SHA-Beweis, dann glauben.** Zweimal
   am 03.07. meldete Lovable „Prompt kollidiert mit Code-Realität" bzw.
   behauptete „mein Workspace ist identisch mit origin/HEAD (Revert)" —
