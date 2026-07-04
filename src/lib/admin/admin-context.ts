@@ -18,8 +18,8 @@ export type AdminCaller = {
   organizationId: string;
   role: AppRole;
   // IMP1: Bei aktiver Admin-Vorschau ist staffId/role die des Ziel-Mitarbeiters;
-  // impersonatedBy hält dann die staff_id des echten Admins. Sonst null.
-  impersonatedBy: string | null;
+  // impersonatedBy hält dann die staff_id des echten Admins. Sonst null/undefined.
+  impersonatedBy?: string | null;
 };
 
 export async function loadAdminCaller(
