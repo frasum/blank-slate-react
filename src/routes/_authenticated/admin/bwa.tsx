@@ -753,6 +753,30 @@ function BwaDashboardTab({ rows, loading }: { rows: BwaRow[]; loading: boolean }
     [sigmaLast12, effMonth, scopedRows],
   );
 
+  // F5: Vorperioden-Aggregat (Monate 13–24) für den Σ12-Vergleich.
+  const prev12 = useMemo<{
+    row: BwaRow | undefined;
+    coverage: number;
+    label: string;
+  }>(() => {
+    if (!sigmaLast12) return { row: undefined, coverage: 0, label: "" };
+    const window = scopedByMonthDesc.slice(12, 24);
+    if (window.length === 0) return { row: undefined, coverage: 0, label: "" };
+    const s = sumRows(window);
+    const row: BwaRow = {
+      id: "sigma12-prev",
+      entity: effEntity,
+      costCenter: ccSel === GROUP_KEY ? "Gruppe" : ccSel,
+      month: window[0].month,
+      ...s,
+      sachkostenDetail: null,
+      source: "import",
+    };
+    // window ist absteigend sortiert: [0]=neuester, [last]=ältester.
+    const label = `${fmtMonth(window[window.length - 1].month)} – ${fmtMonth(window[0].month)}`;
+    return { row, coverage: window.length, label };
+  }, [sigmaLast12, scopedByMonthDesc, effEntity, ccSel]);
+
   const be = useMemo(() => computeBreakEven(scopedByMonthDesc), [scopedByMonthDesc]);
 
   // F2b: Roh-Zeilen der aktuellen Auswahl (für Sachkosten-Drilldown).
@@ -866,7 +890,15 @@ function BwaDashboardTab({ rows, loading }: { rows: BwaRow[]; loading: boolean }
         </Card>
       ) : (
         <>
-          <KpiRow row={currentRow} prev={prevMonthRow} yoy={yoyRow} sigma={sigmaLast12} />
+          <KpiRow
+            row={currentRow}
+            prev={prevMonthRow}
+            yoy={yoyRow}
+            sigma={sigmaLast12}
+            prev12={prev12.row}
+            prev12Label={prev12.label}
+            prev12Coverage={prev12.coverage}
+          />
           <BreakEvenCard be={be} />
           <div className="grid gap-6 xl:grid-cols-3">
             <div className="xl:col-span-2">
@@ -902,15 +934,22 @@ function KpiRow({
   prev,
   yoy,
   sigma,
+  prev12,
+  prev12Label,
+  prev12Coverage,
 }: {
   row: BwaRow;
   prev: BwaRow | undefined;
   yoy: BwaRow | undefined;
   sigma: boolean;
+  prev12: BwaRow | undefined;
+  prev12Label: string;
+  prev12Coverage: number;
 }) {
   const k = deriveKpis(row);
   const prevK = prev ? deriveKpis(prev) : undefined;
   const yoyK = yoy ? deriveKpis(yoy) : undefined;
+  const prev12K = prev12 ? deriveKpis(prev12) : undefined;
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
@@ -919,6 +958,10 @@ function KpiRow({
         value={`${fmtCents(row.umsatzCents)} €`}
         deltaMonth={sigma ? null : deltas(row.umsatzCents, prev?.umsatzCents)}
         deltaYear={sigma ? null : deltas(row.umsatzCents, yoy?.umsatzCents)}
+        sigma={sigma}
+        sigmaDelta={sigma ? deltas(row.umsatzCents, prev12?.umsatzCents) : null}
+        sigmaLabel={prev12Label}
+        sigmaCoverage={prev12Coverage}
         higherIsGood
       />
       <KpiCard
@@ -927,6 +970,10 @@ function KpiRow({
         sub={`${fmtPct(k.rohertrag1Quote)} vom Umsatz`}
         deltaMonth={sigma ? null : deltas(k.rohertrag1Cents, prevK?.rohertrag1Cents)}
         deltaYear={sigma ? null : deltas(k.rohertrag1Cents, yoyK?.rohertrag1Cents)}
+        sigma={sigma}
+        sigmaDelta={sigma ? deltas(k.rohertrag1Cents, prev12K?.rohertrag1Cents) : null}
+        sigmaLabel={prev12Label}
+        sigmaCoverage={prev12Coverage}
         higherIsGood
       />
       <KpiCard
@@ -936,6 +983,10 @@ function KpiRow({
         warn={k.personalQuote > 40}
         deltaMonth={sigma ? null : deltas(row.personalCents, prev?.personalCents)}
         deltaYear={sigma ? null : deltas(row.personalCents, yoy?.personalCents)}
+        sigma={sigma}
+        sigmaDelta={sigma ? deltas(row.personalCents, prev12?.personalCents) : null}
+        sigmaLabel={prev12Label}
+        sigmaCoverage={prev12Coverage}
         higherIsGood={false}
       />
       <KpiCard
@@ -959,6 +1010,17 @@ function KpiRow({
                 yoy ? yoy.wareneinsatzCents + yoy.personalCents : undefined,
               )
         }
+        sigma={sigma}
+        sigmaDelta={
+          sigma
+            ? deltas(
+                row.wareneinsatzCents + row.personalCents,
+                prev12 ? prev12.wareneinsatzCents + prev12.personalCents : undefined,
+              )
+            : null
+        }
+        sigmaLabel={prev12Label}
+        sigmaCoverage={prev12Coverage}
         higherIsGood={false}
       />
       <KpiCard
@@ -968,6 +1030,10 @@ function KpiRow({
         valueClass={row.betriebsergebnisCents < 0 ? "text-destructive" : "text-emerald-600"}
         deltaMonth={sigma ? null : deltas(row.betriebsergebnisCents, prev?.betriebsergebnisCents)}
         deltaYear={sigma ? null : deltas(row.betriebsergebnisCents, yoy?.betriebsergebnisCents)}
+        sigma={sigma}
+        sigmaDelta={sigma ? deltas(row.betriebsergebnisCents, prev12?.betriebsergebnisCents) : null}
+        sigmaLabel={prev12Label}
+        sigmaCoverage={prev12Coverage}
         higherIsGood
       />
     </div>
@@ -983,6 +1049,10 @@ function KpiCard({
   deltaMonth,
   deltaYear,
   higherIsGood,
+  sigma,
+  sigmaDelta,
+  sigmaLabel,
+  sigmaCoverage,
 }: {
   label: string;
   value: string;
@@ -992,6 +1062,10 @@ function KpiCard({
   deltaMonth: Delta | null;
   deltaYear: Delta | null;
   higherIsGood: boolean;
+  sigma?: boolean;
+  sigmaDelta?: Delta | null;
+  sigmaLabel?: string;
+  sigmaCoverage?: number;
 }) {
   return (
     <Card>
@@ -1008,8 +1082,23 @@ function KpiCard({
             {sub}
           </div>
         )}
-        <DeltaLine label="Vormonat" delta={deltaMonth} higherIsGood={higherIsGood} />
-        <DeltaLine label="Vorjahr" delta={deltaYear} higherIsGood={higherIsGood} />
+        {sigma ? (
+          <DeltaLine
+            label={sigmaLabel ? `Vorperiode (${sigmaLabel})` : "Vorperiode"}
+            delta={sigmaDelta ?? null}
+            higherIsGood={higherIsGood}
+            suffix={
+              sigmaCoverage !== undefined && sigmaCoverage > 0 && sigmaCoverage < 12
+                ? ` (nur ${sigmaCoverage} Monate Daten)`
+                : undefined
+            }
+          />
+        ) : (
+          <>
+            <DeltaLine label="Vormonat" delta={deltaMonth} higherIsGood={higherIsGood} />
+            <DeltaLine label="Vorjahr" delta={deltaYear} higherIsGood={higherIsGood} />
+          </>
+        )}
       </CardContent>
     </Card>
   );
@@ -1019,13 +1108,19 @@ function DeltaLine({
   label,
   delta,
   higherIsGood,
+  suffix,
 }: {
   label: string;
   delta: Delta | null;
   higherIsGood: boolean;
+  suffix?: string;
 }) {
   if (!delta) {
-    return <div className="text-xs text-muted-foreground">{label}: —</div>;
+    return (
+      <div className="text-xs text-muted-foreground">
+        {label}: —{suffix && <span className="opacity-70">{suffix}</span>}
+      </div>
+    );
   }
   const up = delta.absCents > 0;
   const good = higherIsGood ? up : !up;
@@ -1037,6 +1132,7 @@ function DeltaLine({
       {delta.absCents !== 0 && <Arrow className="h-3 w-3" />}
       <span>
         {label}: {delta.pct === null ? "—" : fmtPct(delta.pct)}
+        {suffix && <span className="opacity-70">{suffix}</span>}
       </span>
     </div>
   );
