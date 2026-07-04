@@ -5,10 +5,7 @@
 // vergleicht das Ergebnis mit dem Bildschirm-Pfad (`cardDeductionFromTerminalRows`).
 
 import { describe, expect, it } from "vitest";
-import {
-  cardDeductionFromTerminalRows,
-  sumNonGlTerminalCents,
-} from "@/lib/cash/session-channels";
+import { cardDeductionFromTerminalRows, sumNonGlTerminalCents } from "@/lib/cash/session-channels";
 import { parseEuroToCents } from "@/lib/cash/kasse-helpers";
 
 function telegramLikeCardTotal(
