@@ -69,12 +69,26 @@ function WeinPage() {
   const callCreate = useServerFn(createArticle);
   const callUpdate = useServerFn(updateArticle);
   const callToggle = useServerFn(setArticleActive);
+  const callBatchResearch = useServerFn(researchWineById);
 
   const [search, setSearch] = useState("");
   const [showInactive, setShowInactive] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+
+  // Welle 3-B — Batch-Recherche State (siehe .lovable/plan.md).
+  type BatchEntry = {
+    item: WineResearchBatchItem;
+    selected: Record<BatchField, boolean>;
+  };
+  const [batchOpen, setBatchOpen] = useState(false);
+  const [batchRunning, setBatchRunning] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<{ done: number; total: number; current: string } | null>(null);
+  const [batchResults, setBatchResults] = useState<Map<string, BatchEntry>>(new Map());
+  const [batchApplying, setBatchApplying] = useState(false);
+  const [batchApplyMsg, setBatchApplyMsg] = useState<string | null>(null);
+  const cancelRef = useRef(false);
 
   const suppliersQ = useQuery({
     queryKey: ["bestellung", "suppliers", { includeInactive: true }],
@@ -168,6 +182,108 @@ function WeinPage() {
     });
   }, [winesQ.data, search]);
 
+  const startBatch = async () => {
+    const wines = winesQ.data ?? [];
+    if (wines.length === 0) return;
+    cancelRef.current = false;
+    setBatchRunning(true);
+    setBatchApplyMsg(null);
+    setBatchResults(new Map());
+    setBatchProgress({ done: 0, total: wines.length, current: wines[0]?.name ?? "" });
+    for (let i = 0; i < wines.length; i++) {
+      if (cancelRef.current) break;
+      const w = wines[i];
+      setBatchProgress({ done: i, total: wines.length, current: w.name });
+      try {
+        const item = await callBatchResearch({ data: { articleId: w.id } });
+        setBatchResults((prev) => {
+          const next = new Map(prev);
+          next.set(item.articleId, { item, selected: defaultSelection(item) });
+          return next;
+        });
+      } catch (e) {
+        // Auth/Owner-Fehler: schleife nicht weiterlaufen lassen.
+        setBatchApplyMsg(e instanceof Error ? e.message : "Recherche abgebrochen.");
+        break;
+      }
+      // sanftes Ratelimit
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    setBatchProgress((p) => (p ? { ...p, done: p.total, current: "" } : null));
+    setBatchRunning(false);
+  };
+
+  const applyBatch = async () => {
+    setBatchApplying(true);
+    setBatchApplyMsg(null);
+    const entries = Array.from(batchResults.values());
+    const winesById = new Map((winesQ.data ?? []).map((w) => [w.id, w] as const));
+    let updated = 0;
+    let failed = 0;
+    for (const entry of entries) {
+      const s = entry.item.suggestion;
+      if (!s) continue;
+      const w = winesById.get(entry.item.articleId);
+      if (!w) continue;
+      const anySelected = BATCH_FIELDS.some((f) => entry.selected[f]);
+      if (!anySelected) continue;
+      try {
+        await callUpdate({
+          data: {
+            articleId: w.id,
+            supplierId: w.supplier_id,
+            name: w.name,
+            sku: w.sku ?? "",
+            description: entry.selected.description ? s.description : (w.description ?? ""),
+            category: "Wein",
+            unit: w.unit ?? "Fl",
+            priceCents: w.price_cents,
+            packagingUnit: w.packaging_unit ?? null,
+            imageUrl: w.image_url ?? "",
+            sortOrder: w.sort_order ?? 0,
+            grapeVariety: entry.selected.grapeVariety ? s.grapeVariety : (w.grape_variety ?? ""),
+            originCountry: entry.selected.originCountry ? s.originCountry : (w.origin_country ?? ""),
+            foodPairings: entry.selected.foodPairings ? s.foodPairings : (w.food_pairings ?? ""),
+            specialAttributes: entry.selected.specialAttributes
+              ? (s.specialAttributes.length > 0 ? s.specialAttributes : null)
+              : (Array.isArray(w.special_attributes) && w.special_attributes.length > 0
+                  ? w.special_attributes
+                  : null),
+            locationIds: (w.locationIds ?? []).length > 0 ? w.locationIds : [],
+          },
+        });
+        updated++;
+      } catch {
+        failed++;
+      }
+    }
+    setBatchApplying(false);
+    setBatchApplyMsg(
+      `Übernahme fertig: ${updated} aktualisiert${failed > 0 ? `, ${failed} fehlgeschlagen` : ""}.`,
+    );
+    refresh();
+  };
+
+  const toggleBatchField = (articleId: string, field: BatchField) => {
+    setBatchResults((prev) => {
+      const next = new Map(prev);
+      const entry = next.get(articleId);
+      if (!entry) return prev;
+      next.set(articleId, {
+        ...entry,
+        selected: { ...entry.selected, [field]: !entry.selected[field] },
+      });
+      return next;
+    });
+  };
+
+  const totalWines = (winesQ.data ?? []).length;
+  const batchEntries = Array.from(batchResults.values());
+  const selectedCount = batchEntries.reduce(
+    (n, e) => n + (BATCH_FIELDS.some((f) => e.selected[f]) ? 1 : 0),
+    0,
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-2">
@@ -197,6 +313,77 @@ function WeinPage() {
       </div>
 
       {msg && <p className="text-sm text-destructive">{msg}</p>}
+
+      <div className="rounded-md border border-border bg-card">
+        <button
+          type="button"
+          onClick={() => setBatchOpen((v) => !v)}
+          className="flex w-full items-center justify-between px-4 py-2 text-left text-sm font-medium"
+        >
+          <span>KI-Recherche für alle Weine</span>
+          <span className="text-xs text-muted-foreground">{batchOpen ? "▲" : "▼"}</span>
+        </button>
+        {batchOpen && (
+          <div className="space-y-3 border-t border-border p-4">
+            <p className="text-xs text-muted-foreground">
+              Läuft nacheinander alle Weine durch (~1 s Pause pro Aufruf). Vorschläge werden
+              nicht automatisch gespeichert — Felder mit Konflikt sind standardmäßig nicht angehakt.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={startBatch}
+                disabled={batchRunning || totalWines === 0}
+                className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+              >
+                🔎 Alle Weine recherchieren ({totalWines})
+              </button>
+              {batchRunning && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    cancelRef.current = true;
+                  }}
+                  className="rounded-md border border-input bg-background px-3 py-1.5 text-xs hover:bg-accent"
+                >
+                  Abbrechen
+                </button>
+              )}
+              {batchProgress && (
+                <span className="text-xs text-muted-foreground">
+                  {batchProgress.done} / {batchProgress.total}
+                  {batchProgress.current ? ` — aktuell: ${batchProgress.current}` : ""}
+                </span>
+              )}
+            </div>
+            {batchApplyMsg && <p className="text-xs text-muted-foreground">{batchApplyMsg}</p>}
+            {batchEntries.length > 0 && (
+              <div className="space-y-3">
+                {batchEntries.map((entry) => (
+                  <BatchEntryCard
+                    key={entry.item.articleId}
+                    entry={entry}
+                    onToggle={(f) => toggleBatchField(entry.item.articleId, f)}
+                  />
+                ))}
+                <div className="flex items-center justify-end gap-2 border-t border-border pt-3">
+                  <span className="text-xs text-muted-foreground">
+                    {selectedCount} von {batchEntries.length} Weinen mit Auswahl
+                  </span>
+                  <button
+                    type="button"
+                    onClick={applyBatch}
+                    disabled={batchApplying || selectedCount === 0}
+                    className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                  >
+                    {batchApplying ? "Übernehme …" : "Alle ausgewählten Vorschläge übernehmen"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {createOpen && (
         <WineForm
