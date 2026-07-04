@@ -1977,9 +1977,7 @@ function WeeklyPlan({
             <TableHead
               rowSpan={2}
               className="w-[68px] min-w-[68px] px-1 align-middle text-center text-xs"
-            >
-              Mitarbeiter
-            </TableHead>
+            />
             {dayMeta.map((dm) => (
               <TableHead
                 key={dm.iso}
@@ -2005,9 +2003,7 @@ function WeeklyPlan({
             <TableHead
               rowSpan={2}
               className="w-[68px] min-w-[68px] px-1 align-middle border-l text-center text-xs"
-            >
-              Mitarbeiter
-            </TableHead>
+            />
             <TableHead
               rowSpan={2}
               className="px-1 text-right text-xs align-middle whitespace-nowrap"
@@ -2212,7 +2208,7 @@ function WeeklyPlan({
                                 }
                               }}
                               onBlur={(ev) => handleBlur(ev, edit)}
-                              className={`w-[58px] h-6 px-1 text-center tabular-nums text-sm rounded border border-primary/50 bg-background ${pending ? "opacity-60" : ""}`}
+                              className={`block w-full h-6 min-w-0 px-0 text-center tabular-nums text-sm rounded border border-primary/50 bg-background box-border ${pending ? "opacity-60" : ""}`}
                             />
                           );
                         }
