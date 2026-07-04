@@ -320,16 +320,16 @@ export function PersonalDetailsTab({ staffId, canEdit, canEditVacation }: Props)
               mayEditVacation &&
               !editing &&
               !vacEditing && (
-              <button
-                type="button"
-                onClick={startVacEdit}
-                title="Urlaubswerte bearbeiten"
-                aria-label="Urlaubswerte bearbeiten"
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </button>
-            )}
+                <button
+                  type="button"
+                  onClick={startVacEdit}
+                  title="Urlaubswerte bearbeiten"
+                  aria-label="Urlaubswerte bearbeiten"
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              )}
           </legend>
           <div className="space-y-2">
             {sec.rows.map((row) => {
@@ -340,10 +340,7 @@ export function PersonalDetailsTab({ staffId, canEdit, canEditVacation }: Props)
               if (!editing && vacEditing && isVacKey) {
                 const vk = row.key as VacationKey;
                 return (
-                  <label
-                    key={row.key}
-                    className="flex items-center justify-between gap-3 text-sm"
-                  >
+                  <label key={row.key} className="flex items-center justify-between gap-3 text-sm">
                     <span className="text-muted-foreground">{row.label}</span>
                     <input
                       type="number"
