@@ -708,10 +708,7 @@ export const declineSwapRequest = createServerFn({ method: "POST" })
       caller.staffId,
       shift.shiftDate,
     );
-    if (
-      !peer ||
-      !eligiblePeerFilter({ peer, shift, hasAbsenceOnShiftDate: peerHasAbsence })
-    ) {
+    if (!peer || !eligiblePeerFilter({ peer, shift, hasAbsenceOnShiftDate: peerHasAbsence })) {
       throw new Error("Du bist für diese Anfrage nicht berechtigt.");
     }
 
