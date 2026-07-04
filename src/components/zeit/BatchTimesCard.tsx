@@ -116,6 +116,13 @@ export function BatchTimesCard({
   });
 
   const [hidden, setHidden] = useState<Record<string, string[]>>(() => loadHidden());
+
+  // SSR-safe: initializer läuft serverseitig ohne window und liefert {}.
+  // Nach dem Mount aus localStorage nachladen, damit ausgeblendete Personen
+  // beim Seitenwechsel/Reload erhalten bleiben.
+  useEffect(() => {
+    setHidden(loadHidden());
+  }, []);
   const [selected, setSelected] = useState<Record<Mode, string[]>>({
     override: [],
     create_weekdays: [],
