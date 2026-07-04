@@ -1747,8 +1747,9 @@ function WeeklyPlan({
     };
   });
 
-  // Spalten: Mitarbeiter (links) + 7×2 (Anfang/Ende) + Mitarbeiter (rechts) + 4 Zeit-Summen + U + K + S
-  const totalCols = 1 + 14 + 1 + 4 + 2 + 1;
+  // Spalten: Mitarbeiter (links) + 7 Tage (Anfang oben / Ende unten gestapelt)
+  // + Mitarbeiter (rechts) + 4 Zeit-Summen + U + K + S
+  const totalCols = 1 + 7 + 1 + 4 + 2 + 1;
 
   const groups = input?.rowsByDept ?? [];
   const anyRows = groups.some((g) => g.rows.length > 0);
@@ -1835,14 +1836,14 @@ function WeeklyPlan({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead rowSpan={2} className="w-[140px] min-w-[140px] align-bottom text-center">
+            <TableHead className="w-[110px] min-w-[110px] align-bottom text-center">
               Mitarbeiter
             </TableHead>
             {dayMeta.map((dm) => (
               <TableHead
                 key={dm.iso}
-                colSpan={2}
-                className={`text-center whitespace-nowrap border-l ${
+                title="oben Anfang, unten Ende"
+                className={`w-[64px] min-w-[64px] text-center whitespace-nowrap border-l ${
                   dm.outOfPeriod
                     ? "bg-muted/40 text-muted-foreground/60"
                     : dm.isHol
@@ -1860,77 +1861,39 @@ function WeeklyPlan({
                 )}
               </TableHead>
             ))}
-            <TableHead
-              rowSpan={2}
-              className="w-[140px] min-w-[140px] align-bottom border-l text-center"
-            >
+            <TableHead className="w-[110px] min-w-[110px] align-bottom border-l text-center">
               Mitarbeiter
             </TableHead>
-            <TableHead rowSpan={2} className="text-right align-bottom whitespace-nowrap">
+            <TableHead className="px-2 text-right text-xs align-bottom whitespace-nowrap">
               Ges
             </TableHead>
-            <TableHead rowSpan={2} className="text-right align-bottom whitespace-nowrap">
+            <TableHead className="px-2 text-right text-xs align-bottom whitespace-nowrap">
               20–24
             </TableHead>
-            <TableHead rowSpan={2} className="text-right align-bottom whitespace-nowrap">
+            <TableHead className="px-2 text-right text-xs align-bottom whitespace-nowrap">
               24–x
             </TableHead>
-            <TableHead rowSpan={2} className="text-right align-bottom whitespace-nowrap">
+            <TableHead className="px-2 text-right text-xs align-bottom whitespace-nowrap">
               So/Fei
             </TableHead>
             <TableHead
-              rowSpan={2}
-              className="text-right align-bottom"
+              className="px-2 text-right text-xs align-bottom"
               title="Urlaubstage in der Abrechnungsperiode"
             >
               U
             </TableHead>
             <TableHead
-              rowSpan={2}
-              className="text-right align-bottom"
+              className="px-2 text-right text-xs align-bottom"
               title="Kranktage in der Abrechnungsperiode"
             >
               K
             </TableHead>
             <TableHead
-              rowSpan={2}
-              className="text-right align-bottom whitespace-nowrap"
+              className="px-2 text-right text-xs align-bottom whitespace-nowrap"
               title="Schichten in der Abrechnungsperiode"
             >
               S
             </TableHead>
-          </TableRow>
-          <TableRow>
-            {dayMeta.map((dm) => (
-              <Fragment key={`sub-${dm.iso}`}>
-                <TableHead
-                  className={`w-[64px] min-w-[64px] text-center text-[10px] font-normal text-muted-foreground border-l ${
-                    dm.outOfPeriod
-                      ? "bg-muted/40 text-muted-foreground/60"
-                      : dm.isHol
-                        ? "bg-yellow-50"
-                        : dm.isSun
-                          ? "bg-gray-100"
-                          : ""
-                  }`}
-                >
-                  Anf.
-                </TableHead>
-                <TableHead
-                  className={`w-[64px] min-w-[64px] text-center text-[10px] font-normal text-muted-foreground ${
-                    dm.outOfPeriod
-                      ? "bg-muted/40 text-muted-foreground/60"
-                      : dm.isHol
-                        ? "bg-yellow-50"
-                        : dm.isSun
-                          ? "bg-gray-100"
-                          : ""
-                  }`}
-                >
-                  Ende
-                </TableHead>
-              </Fragment>
-            ))}
           </TableRow>
         </TableHeader>
         <TableBody>
