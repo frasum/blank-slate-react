@@ -117,15 +117,15 @@ describe("eligiblePeerFilter", () => {
     ).toBe(false);
   });
   it("TA4: verbietet Peer mit roster_absence am Schicht-Tag (Urlaub/Krank)", () => {
-    expect(
-      eligiblePeerFilter({ peer: peer(), shift: shift(), hasAbsenceOnShiftDate: true }),
-    ).toBe(false);
+    expect(eligiblePeerFilter({ peer: peer(), shift: shift(), hasAbsenceOnShiftDate: true })).toBe(
+      false,
+    );
   });
   it("TA4: Urlaub an ANDEREM Tag ⇒ weiterhin berechtigt", () => {
     // Der Aufrufer feedet nur den Wert für shift.shiftDate; anderer Urlaub → false.
-    expect(
-      eligiblePeerFilter({ peer: peer(), shift: shift(), hasAbsenceOnShiftDate: false }),
-    ).toBe(true);
+    expect(eligiblePeerFilter({ peer: peer(), shift: shift(), hasAbsenceOnShiftDate: false })).toBe(
+      true,
+    );
   });
 });
 

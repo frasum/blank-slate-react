@@ -37,9 +37,7 @@ export async function resolveActiveImpersonation(
 export const PREVIEW_READ_ONLY_MESSAGE =
   "Die Vorschau ist schreibgeschützt — Aktion nicht möglich.";
 
-export function assertRealIdentity(caller: {
-  impersonatedBy?: string | null;
-}): void {
+export function assertRealIdentity(caller: { impersonatedBy?: string | null }): void {
   if (caller.impersonatedBy) {
     throw new Error(PREVIEW_READ_ONLY_MESSAGE);
   }
