@@ -5,9 +5,11 @@
 // dieses Gate ist nur UX, nicht die Sicherheitsbarriere.
 
 import { createFileRoute, Link, Outlet, redirect, useRouterState } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { tabClass } from "@/components/ui/nav-tab";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyIdentity } from "@/lib/auth/me.functions";
+import { getReviewPendingCounts } from "@/lib/profile/profile-admin.functions";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: async ({ context, location }) => {
@@ -169,6 +171,16 @@ function AdminLayout() {
   const showSub = activeGroup && activeGroup.sub.length > 0;
   const primaryGroups = visibleGroups.filter((g) => !g.muted);
   const systemGroups = visibleGroups.filter((g) => g.muted);
+  const reviewCountsQ = useQuery({
+    queryKey: ["admin", "review-pending-counts"],
+    queryFn: () => getReviewPendingCounts(),
+    enabled: role === "admin",
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
+    staleTime: 30_000,
+  });
+  const pendingReview =
+    (reviewCountsQ.data?.pendingRequests ?? 0) + (reviewCountsQ.data?.pendingDocuments ?? 0);
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
@@ -234,9 +246,22 @@ function AdminLayout() {
                     .filter((s) => !s.roles || s.roles.includes(role))
                     .map((s) => {
                       const active = pathname === s.to || pathname.startsWith(s.to + "/");
+                      const showDot =
+                        s.to === "/admin/personal-antraege" && pendingReview > 0;
                       return (
-                        <Link key={s.to} to={s.to} className={tabClass(active)}>
+                        <Link
+                          key={s.to}
+                          to={s.to}
+                          className={tabClass(active)}
+                          aria-label={showDot ? `${s.label} (offene Vorgänge)` : undefined}
+                        >
                           {s.label}
+                          {showDot && (
+                            <span
+                              className="ml-1.5 inline-block h-2 w-2 rounded-full bg-destructive align-middle"
+                              aria-hidden
+                            />
+                          )}
                         </Link>
                       );
                     })}
