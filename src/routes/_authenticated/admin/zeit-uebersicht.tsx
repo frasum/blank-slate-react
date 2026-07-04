@@ -2045,6 +2045,9 @@ function WeeklyPlan({
                     <TableCell className="px-1.5 text-xs text-right tabular-nums">
                       {fmtDec(row.totals.sunHol)}
                     </TableCell>
+                    <TableCell className="px-1.5 text-xs text-right tabular-nums">
+                      {shiftsByStaff.get(row.staffId) ?? 0}
+                    </TableCell>
                     {(() => {
                       const abs = absencesByStaff.get(row.staffId);
                       const u = abs?.urlaubDays ?? 0;
@@ -2064,9 +2067,6 @@ function WeeklyPlan({
                         </>
                       );
                     })()}
-                    <TableCell className="px-1.5 text-xs text-right tabular-nums">
-                      {shiftsByStaff.get(row.staffId) ?? 0}
-                    </TableCell>
                   </TableRow>
                 ))}
               </Fragment>
