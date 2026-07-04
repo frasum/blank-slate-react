@@ -561,7 +561,16 @@ export const acceptSwapRequest = createServerFn({ method: "POST" })
       caller.staffId,
       reqShift,
     );
-    if (!peer || !eligiblePeerFilter({ peer, shift: reqShift })) {
+    const peerHasAbsence = await hasAbsenceOnDate(
+      supabaseAdmin,
+      caller.organizationId,
+      caller.staffId,
+      reqShift.shiftDate,
+    );
+    if (
+      !peer ||
+      !eligiblePeerFilter({ peer, shift: reqShift, hasAbsenceOnShiftDate: peerHasAbsence })
+    ) {
       throw new Error("Du bist für diese Anfrage nicht (mehr) berechtigt.");
     }
 
@@ -572,6 +581,12 @@ export const acceptSwapRequest = createServerFn({ method: "POST" })
         throw new Error("Gegentausch-Schicht gehört dir nicht.");
       }
       const counterActive = await hasActiveRequestForShift(supabaseAdmin, counter.id);
+      const requesterAbsent = await hasAbsenceOnDate(
+        supabaseAdmin,
+        caller.organizationId,
+        reqShiftRow.staff_id,
+        counter.shift_date,
+      );
       const ok = canAcceptCounterShift({
         counterShift: {
           id: counter.id,
@@ -584,8 +599,14 @@ export const acceptSwapRequest = createServerFn({ method: "POST" })
         requestShift: reqShift,
         peerStaffId: caller.staffId,
         todayIso: todayIso(),
+        requesterHasAbsenceOnCounterDate: requesterAbsent,
       });
       if (!ok) {
+        if (requesterAbsent) {
+          throw new Error(
+            "Der Anfragende ist an diesem Tag abwesend (Urlaub/Krank) — Gegentausch nicht möglich.",
+          );
+        }
         throw new Error("Diese Gegentausch-Schicht passt nicht (Bereich, Standort oder Datum).");
       }
       counterShiftId = counter.id;
