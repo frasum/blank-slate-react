@@ -7,10 +7,7 @@
 // sicher.
 
 import { describe, expect, it } from "vitest";
-import {
-  cardDeductionFromTerminalRows,
-  sumNonGlTerminalCents,
-} from "./session-channels";
+import { cardDeductionFromTerminalRows, sumNonGlTerminalCents } from "./session-channels";
 import { parseEuroToCents } from "./kasse-helpers";
 import type { PdfExportData } from "./pdfExport";
 
