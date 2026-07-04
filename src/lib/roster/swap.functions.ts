@@ -718,3 +718,359 @@ export const listMyCandidateCounterShifts = createServerFn({ method: "GET" })
       .filter((r) => !blocked.has(r.id))
       .map((r) => ({ id: r.id, shiftDate: r.shift_date }));
   });
+
+// ---------------------------------------------------------------------------
+// TA2 — Telegram-Ping Helper (best-effort, siehe §51)
+// ---------------------------------------------------------------------------
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function fmtDeDate(iso: string): string {
+  const [y, m, d] = iso.split("-");
+  return `${d}.${m}.${y?.slice(2) ?? ""}`;
+}
+
+function areaLabel(a: SwapArea): string {
+  return a === "kitchen" ? "Küche" : a === "service" ? "Service" : "GL";
+}
+
+async function notifyManagersOfPeerAccepted(
+  admin: SupabaseClient<Database>,
+  params: { organizationId: string; requestId: string },
+): Promise<void> {
+  const { data: req, error: reqErr } = await admin
+    .from("shift_swap_requests")
+    .select(
+      "id, note, requester:staff!shift_swap_requests_requester_staff_id_fkey(display_name), peer:staff!shift_swap_requests_peer_staff_id_fkey(display_name), req_shift:roster_shifts!shift_swap_requests_shift_id_fkey(shift_date, area, location:locations(name)), peer_shift:roster_shifts!shift_swap_requests_peer_shift_id_fkey(shift_date, area, location:locations(name))",
+    )
+    .eq("id", params.requestId)
+    .maybeSingle();
+  if (reqErr) throw reqErr;
+  if (!req) return;
+  const r = req as unknown as {
+    requester: { display_name: string } | null;
+    peer: { display_name: string } | null;
+    req_shift: {
+      shift_date: string;
+      area: SwapArea;
+      location: { name: string } | null;
+    } | null;
+    peer_shift: {
+      shift_date: string;
+      area: SwapArea;
+      location: { name: string } | null;
+    } | null;
+  };
+  if (!r.req_shift) return;
+  const aName = escapeHtml(r.requester?.display_name ?? "Kollege");
+  const bName = escapeHtml(r.peer?.display_name ?? "Kollege");
+  const line1 = `🔁 Tauschanfrage wartet auf Freigabe: <b>${aName}</b> → <b>${bName}</b>, ${escapeHtml(areaLabel(r.req_shift.area))} ${escapeHtml(fmtDeDate(r.req_shift.shift_date))} (${escapeHtml(r.req_shift.location?.name ?? "—")})`;
+  const line2 = r.peer_shift
+    ? `\nGegentausch: ${escapeHtml(areaLabel(r.peer_shift.area))} ${escapeHtml(fmtDeDate(r.peer_shift.shift_date))} (${escapeHtml(r.peer_shift.location?.name ?? "—")})`
+    : "";
+  const text = line1 + line2;
+
+  const { data: rows, error } = await admin
+    .from("staff_telegram_links")
+    .select("staff_id")
+    .eq("organization_id", params.organizationId)
+    .eq("receives_swap_alerts", true)
+    .not("linked_at", "is", null);
+  if (error) throw error;
+  const staffIds = (rows ?? []).map((x) => x.staff_id as string);
+  for (const staffId of staffIds) {
+    await sendTelegramToStaff({ staffId, text });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// TA2 — listPendingSwaps (Manager+): peer_accepted + open (informativ)
+// ---------------------------------------------------------------------------
+
+export type PendingSwapRow = {
+  id: string;
+  status: "open" | "peer_accepted";
+  createdAt: string;
+  respondedAt: string | null;
+  note: string | null;
+  declineCount: number;
+  requester: { staffId: string; name: string };
+  peer: { staffId: string; name: string } | null;
+  requesterShift: {
+    id: string;
+    shiftDate: string;
+    area: SwapArea;
+    locationId: string;
+    locationName: string;
+    skillLabel: string | null;
+  };
+  peerShift: {
+    id: string;
+    shiftDate: string;
+    area: SwapArea;
+    locationId: string;
+    locationName: string;
+    skillLabel: string | null;
+  } | null;
+};
+
+export const listPendingSwaps = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<PendingSwapRow[]> => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin
+      .from("shift_swap_requests")
+      .select(
+        "id, status, note, created_at, responded_at, requester:staff!shift_swap_requests_requester_staff_id_fkey(id, display_name), peer:staff!shift_swap_requests_peer_staff_id_fkey(id, display_name), req_shift:roster_shifts!shift_swap_requests_shift_id_fkey(id, shift_date, area, location_id, locations(name), skills(name)), peer_shift:roster_shifts!shift_swap_requests_peer_shift_id_fkey(id, shift_date, area, location_id, locations(name), skills(name))",
+      )
+      .eq("organization_id", caller.organizationId)
+      .in("status", ["peer_accepted", "open"])
+      .order("status", { ascending: true }) // 'open' < 'peer_accepted' alphabetisch
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    const raw = (rows ?? []) as unknown as Array<{
+      id: string;
+      status: "open" | "peer_accepted";
+      note: string | null;
+      created_at: string;
+      responded_at: string | null;
+      requester: { id: string; display_name: string } | null;
+      peer: { id: string; display_name: string } | null;
+      req_shift: {
+        id: string;
+        shift_date: string;
+        area: SwapArea;
+        location_id: string;
+        locations: { name: string } | null;
+        skills: { name: string } | null;
+      } | null;
+      peer_shift: {
+        id: string;
+        shift_date: string;
+        area: SwapArea;
+        location_id: string;
+        locations: { name: string } | null;
+        skills: { name: string } | null;
+      } | null;
+    }>;
+
+    const ids = raw.map((r) => r.id);
+    const declineByRequest = new Map<string, number>();
+    if (ids.length > 0) {
+      const { data: decl, error: dErr } = await supabaseAdmin
+        .from("shift_swap_declines")
+        .select("request_id")
+        .in("request_id", ids);
+      if (dErr) throw dErr;
+      for (const d of decl ?? []) {
+        const k = d.request_id as string;
+        declineByRequest.set(k, (declineByRequest.get(k) ?? 0) + 1);
+      }
+    }
+
+    // peer_accepted zuerst, danach open — unabhängig von der DB-Sortierung.
+    const sorted = [...raw].sort((a, b) => {
+      if (a.status !== b.status) return a.status === "peer_accepted" ? -1 : 1;
+      return a.created_at < b.created_at ? 1 : -1;
+    });
+
+    return sorted
+      .filter((r) => r.req_shift && r.requester)
+      .map((r) => ({
+        id: r.id,
+        status: r.status,
+        note: r.note,
+        createdAt: r.created_at,
+        respondedAt: r.responded_at,
+        declineCount: declineByRequest.get(r.id) ?? 0,
+        requester: { staffId: r.requester!.id, name: r.requester!.display_name },
+        peer: r.peer ? { staffId: r.peer.id, name: r.peer.display_name } : null,
+        requesterShift: {
+          id: r.req_shift!.id,
+          shiftDate: r.req_shift!.shift_date,
+          area: r.req_shift!.area,
+          locationId: r.req_shift!.location_id,
+          locationName: r.req_shift!.locations?.name ?? "—",
+          skillLabel: r.req_shift!.skills?.name ?? null,
+        },
+        peerShift: r.peer_shift
+          ? {
+              id: r.peer_shift.id,
+              shiftDate: r.peer_shift.shift_date,
+              area: r.peer_shift.area,
+              locationId: r.peer_shift.location_id,
+              locationName: r.peer_shift.locations?.name ?? "—",
+              skillLabel: r.peer_shift.skills?.name ?? null,
+            }
+          : null,
+      }));
+  });
+
+// ---------------------------------------------------------------------------
+// TA2 — decideSwapRequest (Manager+): approve → RPC-Vollzug, reject → Status
+// ---------------------------------------------------------------------------
+
+async function assertNoConflictingShift(
+  admin: SupabaseClient<Database>,
+  organizationId: string,
+  params: { staffId: string; locationId: string; area: SwapArea; shiftDate: string; excludeShiftId: string },
+): Promise<void> {
+  const { data, error } = await admin
+    .from("roster_shifts")
+    .select("id")
+    .eq("organization_id", organizationId)
+    .eq("staff_id", params.staffId)
+    .eq("location_id", params.locationId)
+    .eq("area", params.area)
+    .eq("shift_date", params.shiftDate)
+    .neq("id", params.excludeShiftId);
+  if (error) throw error;
+  if ((data ?? []).length > 0) {
+    throw new Error(
+      `Slot-Konflikt: Kollege hat am ${fmtDeDate(params.shiftDate)} bereits eine Schicht (${areaLabel(params.area)}).`,
+    );
+  }
+}
+
+export const decideSwapRequest = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        requestId: z.string().uuid(),
+        decision: z.enum(["approved", "rejected"]),
+        note: z.string().trim().max(500).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+      const { data: reqRow, error } = await supabaseAdmin
+        .from("shift_swap_requests")
+        .select(
+          "id, status, shift_id, peer_shift_id, requester_staff_id, peer_staff_id, note, organization_id",
+        )
+        .eq("id", data.requestId)
+        .eq("organization_id", caller.organizationId)
+        .maybeSingle();
+      if (error) throw error;
+      if (!reqRow) throw new Error("Anfrage nicht gefunden.");
+      if (reqRow.status !== "peer_accepted") {
+        throw new Error("Anfrage wartet nicht auf Freigabe.");
+      }
+
+      if (data.decision === "rejected") {
+        const nextNote = data.note
+          ? `${reqRow.note ? reqRow.note + "\n" : ""}Ablehnung: ${data.note}`
+          : reqRow.note;
+        const { error: uErr } = await supabaseAdmin
+          .from("shift_swap_requests")
+          .update({
+            status: "rejected",
+            decided_at: new Date().toISOString(),
+            decided_by: caller.userId,
+            note: nextNote,
+          })
+          .eq("id", reqRow.id)
+          .eq("status", "peer_accepted");
+        if (uErr) throw uErr;
+        return {
+          result: { ok: true as const, decision: "rejected" as const },
+          audit: {
+            action: "swap.rejected",
+            entity: "shift_swap_request",
+            entityId: reqRow.id,
+            meta: {
+              requesterStaffId: reqRow.requester_staff_id,
+              peerStaffId: reqRow.peer_staff_id,
+              shiftId: reqRow.shift_id,
+              peerShiftId: reqRow.peer_shift_id,
+            },
+          },
+        };
+      }
+
+      // approved — Re-Validierung im Genehmigungsmoment.
+      const reqShift = await loadShift(supabaseAdmin, caller.organizationId, reqRow.shift_id);
+      const today = todayIso();
+      if (reqShift.shift_date <= today) {
+        throw new Error("Die Schicht liegt nicht mehr in der Zukunft.");
+      }
+      await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, reqShift.shift_date);
+
+      let peerShift: ShiftRow | null = null;
+      if (reqRow.peer_shift_id) {
+        peerShift = await loadShift(
+          supabaseAdmin,
+          caller.organizationId,
+          reqRow.peer_shift_id,
+        );
+        if (peerShift.shift_date <= today) {
+          throw new Error("Die Gegenschicht liegt nicht mehr in der Zukunft.");
+        }
+        await assertShiftDateUnlocked(
+          supabaseAdmin,
+          caller.organizationId,
+          peerShift.shift_date,
+        );
+      }
+
+      // Slot-Konflikt-Check: Peer bekommt reqShift → darf am gleichen Slot keine
+      // andere Schicht haben. Umgekehrt bei Gegentausch.
+      if (reqRow.peer_staff_id) {
+        await assertNoConflictingShift(supabaseAdmin, caller.organizationId, {
+          staffId: reqRow.peer_staff_id,
+          locationId: reqShift.location_id,
+          area: reqShift.area,
+          shiftDate: reqShift.shift_date,
+          excludeShiftId: reqShift.id,
+        });
+      }
+      if (peerShift) {
+        await assertNoConflictingShift(supabaseAdmin, caller.organizationId, {
+          staffId: reqRow.requester_staff_id,
+          locationId: peerShift.location_id,
+          area: peerShift.area,
+          shiftDate: peerShift.shift_date,
+          excludeShiftId: peerShift.id,
+        });
+      }
+
+      // Atomarer Vollzug via RPC (SECURITY DEFINER, service_role).
+      const { error: rpcErr } = await supabaseAdmin.rpc("execute_shift_swap", {
+        p_request_id: reqRow.id,
+        p_decided_by: caller.userId,
+      });
+      if (rpcErr) {
+        throw new Error(`Vollzug fehlgeschlagen: ${rpcErr.message}`);
+      }
+
+      return {
+        result: { ok: true as const, decision: "approved" as const },
+        audit: {
+          action: "swap.approved",
+          entity: "shift_swap_request",
+          entityId: reqRow.id,
+          meta: {
+            requesterStaffId: reqRow.requester_staff_id,
+            peerStaffId: reqRow.peer_staff_id,
+            shiftId: reqRow.shift_id,
+            shiftDate: reqShift.shift_date,
+            peerShiftId: reqRow.peer_shift_id,
+            peerShiftDate: peerShift?.shift_date ?? null,
+          },
+        },
+      };
+    });
+  });
