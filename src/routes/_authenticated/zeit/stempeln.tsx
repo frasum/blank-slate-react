@@ -153,7 +153,7 @@ function ZeitPage() {
               size="lg"
               className="w-full"
               disabled={inMut.isPending}
-              onClick={() => inMut.mutate()}
+              onClick={() => inMut.mutate(undefined)}
             >
               {inMut.isPending ? "Wird gestempelt…" : "Einstempeln"}
             </Button>
