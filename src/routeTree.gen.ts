@@ -45,7 +45,6 @@ import { Route as AuthenticatedAdminKasseSaldoRouteImport } from './routes/_auth
 import { Route as AuthenticatedAdminKasseRouteImport } from './routes/_authenticated/admin/kasse'
 import { Route as AuthenticatedAdminImportZuordnungenRouteImport } from './routes/_authenticated/admin/import-zuordnungen'
 import { Route as AuthenticatedAdminImpersonateRouteImport } from './routes/_authenticated/admin/impersonate'
-import { Route as AuthenticatedAdminEinstellungenRouteImport } from './routes/_authenticated/admin/einstellungen'
 import { Route as AuthenticatedAdminDokumenteRouteImport } from './routes/_authenticated/admin/dokumente'
 import { Route as AuthenticatedAdminDienstplanRouteImport } from './routes/_authenticated/admin/dienstplan'
 import { Route as AuthenticatedAdminBwaRouteImport } from './routes/_authenticated/admin/bwa'
@@ -53,6 +52,7 @@ import { Route as AuthenticatedAdminBilanzRouteImport } from './routes/_authenti
 import { Route as AuthenticatedAdminBestellungRouteImport } from './routes/_authenticated/admin/bestellung'
 import { Route as AuthenticatedAdminAufgabenRouteImport } from './routes/_authenticated/admin/aufgaben'
 import { Route as AuthenticatedAdminStaffIndexRouteImport } from './routes/_authenticated/admin/staff.index'
+import { Route as AuthenticatedAdminEinstellungenIndexRouteImport } from './routes/_authenticated/admin/einstellungen.index'
 import { Route as AuthenticatedAdminBestellungIndexRouteImport } from './routes/_authenticated/admin/bestellung.index'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
 import { Route as ApiPublicTelegramDailyReportRouteImport } from './routes/api/public/telegram/daily-report'
@@ -60,11 +60,11 @@ import { Route as ApiPublicDisplayLocationIdRouteImport } from './routes/api/pub
 import { Route as ApiPublicCalendarTokenRouteImport } from './routes/api/public/calendar.$token'
 import { Route as AuthenticatedAdminStaffNewRouteImport } from './routes/_authenticated/admin/staff.new'
 import { Route as AuthenticatedAdminStaffStaffIdRouteImport } from './routes/_authenticated/admin/staff.$staffId'
+import { Route as AuthenticatedAdminEinstellungenEasyorderVerwaltungRouteImport } from './routes/_authenticated/admin/einstellungen.easyorder-verwaltung'
 import { Route as AuthenticatedAdminBestellungWeinQuizRouteImport } from './routes/_authenticated/admin/bestellung.wein-quiz'
 import { Route as AuthenticatedAdminBestellungWeinRouteImport } from './routes/_authenticated/admin/bestellung.wein'
 import { Route as AuthenticatedAdminBestellungLieferantenRouteImport } from './routes/_authenticated/admin/bestellung.lieferanten'
 import { Route as AuthenticatedAdminBestellungInventurRouteImport } from './routes/_authenticated/admin/bestellung.inventur'
-import { Route as AuthenticatedAdminBestellungEasyorderVerwaltungRouteImport } from './routes/_authenticated/admin/bestellung.easyorder-verwaltung'
 import { Route as AuthenticatedAdminBestellungBestellungenRouteImport } from './routes/_authenticated/admin/bestellung.bestellungen'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -266,12 +266,6 @@ const AuthenticatedAdminImpersonateRoute =
     path: '/impersonate',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
-const AuthenticatedAdminEinstellungenRoute =
-  AuthenticatedAdminEinstellungenRouteImport.update({
-    id: '/einstellungen',
-    path: '/einstellungen',
-    getParentRoute: () => AuthenticatedAdminRouteRoute,
-  } as any)
 const AuthenticatedAdminDokumenteRoute =
   AuthenticatedAdminDokumenteRouteImport.update({
     id: '/dokumente',
@@ -312,6 +306,12 @@ const AuthenticatedAdminStaffIndexRoute =
     id: '/',
     path: '/',
     getParentRoute: () => AuthenticatedAdminStaffRoute,
+  } as any)
+const AuthenticatedAdminEinstellungenIndexRoute =
+  AuthenticatedAdminEinstellungenIndexRouteImport.update({
+    id: '/einstellungen/',
+    path: '/einstellungen/',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
 const AuthenticatedAdminBestellungIndexRoute =
   AuthenticatedAdminBestellungIndexRouteImport.update({
@@ -354,6 +354,12 @@ const AuthenticatedAdminStaffStaffIdRoute =
     path: '/$staffId',
     getParentRoute: () => AuthenticatedAdminStaffRoute,
   } as any)
+const AuthenticatedAdminEinstellungenEasyorderVerwaltungRoute =
+  AuthenticatedAdminEinstellungenEasyorderVerwaltungRouteImport.update({
+    id: '/einstellungen/easyorder-verwaltung',
+    path: '/einstellungen/easyorder-verwaltung',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminBestellungWeinQuizRoute =
   AuthenticatedAdminBestellungWeinQuizRouteImport.update({
     id: '/wein-quiz',
@@ -376,12 +382,6 @@ const AuthenticatedAdminBestellungInventurRoute =
   AuthenticatedAdminBestellungInventurRouteImport.update({
     id: '/inventur',
     path: '/inventur',
-    getParentRoute: () => AuthenticatedAdminBestellungRoute,
-  } as any)
-const AuthenticatedAdminBestellungEasyorderVerwaltungRoute =
-  AuthenticatedAdminBestellungEasyorderVerwaltungRouteImport.update({
-    id: '/easyorder-verwaltung',
-    path: '/easyorder-verwaltung',
     getParentRoute: () => AuthenticatedAdminBestellungRoute,
   } as any)
 const AuthenticatedAdminBestellungBestellungenRoute =
@@ -408,7 +408,6 @@ export interface FileRoutesByFullPath {
   '/admin/bwa': typeof AuthenticatedAdminBwaRoute
   '/admin/dienstplan': typeof AuthenticatedAdminDienstplanRoute
   '/admin/dokumente': typeof AuthenticatedAdminDokumenteRoute
-  '/admin/einstellungen': typeof AuthenticatedAdminEinstellungenRoute
   '/admin/impersonate': typeof AuthenticatedAdminImpersonateRoute
   '/admin/import-zuordnungen': typeof AuthenticatedAdminImportZuordnungenRoute
   '/admin/kasse': typeof AuthenticatedAdminKasseRoute
@@ -435,11 +434,11 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/zeit/': typeof AuthenticatedZeitIndexRoute
   '/admin/bestellung/bestellungen': typeof AuthenticatedAdminBestellungBestellungenRoute
-  '/admin/bestellung/easyorder-verwaltung': typeof AuthenticatedAdminBestellungEasyorderVerwaltungRoute
   '/admin/bestellung/inventur': typeof AuthenticatedAdminBestellungInventurRoute
   '/admin/bestellung/lieferanten': typeof AuthenticatedAdminBestellungLieferantenRoute
   '/admin/bestellung/wein': typeof AuthenticatedAdminBestellungWeinRoute
   '/admin/bestellung/wein-quiz': typeof AuthenticatedAdminBestellungWeinQuizRoute
+  '/admin/einstellungen/easyorder-verwaltung': typeof AuthenticatedAdminEinstellungenEasyorderVerwaltungRoute
   '/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
   '/admin/staff/new': typeof AuthenticatedAdminStaffNewRoute
   '/api/public/calendar/$token': typeof ApiPublicCalendarTokenRoute
@@ -447,6 +446,7 @@ export interface FileRoutesByFullPath {
   '/api/public/telegram/daily-report': typeof ApiPublicTelegramDailyReportRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/admin/bestellung/': typeof AuthenticatedAdminBestellungIndexRoute
+  '/admin/einstellungen/': typeof AuthenticatedAdminEinstellungenIndexRoute
   '/admin/staff/': typeof AuthenticatedAdminStaffIndexRoute
 }
 export interface FileRoutesByTo {
@@ -464,7 +464,6 @@ export interface FileRoutesByTo {
   '/admin/bwa': typeof AuthenticatedAdminBwaRoute
   '/admin/dienstplan': typeof AuthenticatedAdminDienstplanRoute
   '/admin/dokumente': typeof AuthenticatedAdminDokumenteRoute
-  '/admin/einstellungen': typeof AuthenticatedAdminEinstellungenRoute
   '/admin/impersonate': typeof AuthenticatedAdminImpersonateRoute
   '/admin/import-zuordnungen': typeof AuthenticatedAdminImportZuordnungenRoute
   '/admin/kasse': typeof AuthenticatedAdminKasseRoute
@@ -490,11 +489,11 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/zeit': typeof AuthenticatedZeitIndexRoute
   '/admin/bestellung/bestellungen': typeof AuthenticatedAdminBestellungBestellungenRoute
-  '/admin/bestellung/easyorder-verwaltung': typeof AuthenticatedAdminBestellungEasyorderVerwaltungRoute
   '/admin/bestellung/inventur': typeof AuthenticatedAdminBestellungInventurRoute
   '/admin/bestellung/lieferanten': typeof AuthenticatedAdminBestellungLieferantenRoute
   '/admin/bestellung/wein': typeof AuthenticatedAdminBestellungWeinRoute
   '/admin/bestellung/wein-quiz': typeof AuthenticatedAdminBestellungWeinQuizRoute
+  '/admin/einstellungen/easyorder-verwaltung': typeof AuthenticatedAdminEinstellungenEasyorderVerwaltungRoute
   '/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
   '/admin/staff/new': typeof AuthenticatedAdminStaffNewRoute
   '/api/public/calendar/$token': typeof ApiPublicCalendarTokenRoute
@@ -502,6 +501,7 @@ export interface FileRoutesByTo {
   '/api/public/telegram/daily-report': typeof ApiPublicTelegramDailyReportRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/admin/bestellung': typeof AuthenticatedAdminBestellungIndexRoute
+  '/admin/einstellungen': typeof AuthenticatedAdminEinstellungenIndexRoute
   '/admin/staff': typeof AuthenticatedAdminStaffIndexRoute
 }
 export interface FileRoutesById {
@@ -523,7 +523,6 @@ export interface FileRoutesById {
   '/_authenticated/admin/bwa': typeof AuthenticatedAdminBwaRoute
   '/_authenticated/admin/dienstplan': typeof AuthenticatedAdminDienstplanRoute
   '/_authenticated/admin/dokumente': typeof AuthenticatedAdminDokumenteRoute
-  '/_authenticated/admin/einstellungen': typeof AuthenticatedAdminEinstellungenRoute
   '/_authenticated/admin/impersonate': typeof AuthenticatedAdminImpersonateRoute
   '/_authenticated/admin/import-zuordnungen': typeof AuthenticatedAdminImportZuordnungenRoute
   '/_authenticated/admin/kasse': typeof AuthenticatedAdminKasseRoute
@@ -550,11 +549,11 @@ export interface FileRoutesById {
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/zeit/': typeof AuthenticatedZeitIndexRoute
   '/_authenticated/admin/bestellung/bestellungen': typeof AuthenticatedAdminBestellungBestellungenRoute
-  '/_authenticated/admin/bestellung/easyorder-verwaltung': typeof AuthenticatedAdminBestellungEasyorderVerwaltungRoute
   '/_authenticated/admin/bestellung/inventur': typeof AuthenticatedAdminBestellungInventurRoute
   '/_authenticated/admin/bestellung/lieferanten': typeof AuthenticatedAdminBestellungLieferantenRoute
   '/_authenticated/admin/bestellung/wein': typeof AuthenticatedAdminBestellungWeinRoute
   '/_authenticated/admin/bestellung/wein-quiz': typeof AuthenticatedAdminBestellungWeinQuizRoute
+  '/_authenticated/admin/einstellungen/easyorder-verwaltung': typeof AuthenticatedAdminEinstellungenEasyorderVerwaltungRoute
   '/_authenticated/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
   '/_authenticated/admin/staff/new': typeof AuthenticatedAdminStaffNewRoute
   '/api/public/calendar/$token': typeof ApiPublicCalendarTokenRoute
@@ -562,6 +561,7 @@ export interface FileRoutesById {
   '/api/public/telegram/daily-report': typeof ApiPublicTelegramDailyReportRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/_authenticated/admin/bestellung/': typeof AuthenticatedAdminBestellungIndexRoute
+  '/_authenticated/admin/einstellungen/': typeof AuthenticatedAdminEinstellungenIndexRoute
   '/_authenticated/admin/staff/': typeof AuthenticatedAdminStaffIndexRoute
 }
 export interface FileRouteTypes {
@@ -583,7 +583,6 @@ export interface FileRouteTypes {
     | '/admin/bwa'
     | '/admin/dienstplan'
     | '/admin/dokumente'
-    | '/admin/einstellungen'
     | '/admin/impersonate'
     | '/admin/import-zuordnungen'
     | '/admin/kasse'
@@ -610,11 +609,11 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/zeit/'
     | '/admin/bestellung/bestellungen'
-    | '/admin/bestellung/easyorder-verwaltung'
     | '/admin/bestellung/inventur'
     | '/admin/bestellung/lieferanten'
     | '/admin/bestellung/wein'
     | '/admin/bestellung/wein-quiz'
+    | '/admin/einstellungen/easyorder-verwaltung'
     | '/admin/staff/$staffId'
     | '/admin/staff/new'
     | '/api/public/calendar/$token'
@@ -622,6 +621,7 @@ export interface FileRouteTypes {
     | '/api/public/telegram/daily-report'
     | '/api/public/telegram/webhook'
     | '/admin/bestellung/'
+    | '/admin/einstellungen/'
     | '/admin/staff/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -639,7 +639,6 @@ export interface FileRouteTypes {
     | '/admin/bwa'
     | '/admin/dienstplan'
     | '/admin/dokumente'
-    | '/admin/einstellungen'
     | '/admin/impersonate'
     | '/admin/import-zuordnungen'
     | '/admin/kasse'
@@ -665,11 +664,11 @@ export interface FileRouteTypes {
     | '/admin'
     | '/zeit'
     | '/admin/bestellung/bestellungen'
-    | '/admin/bestellung/easyorder-verwaltung'
     | '/admin/bestellung/inventur'
     | '/admin/bestellung/lieferanten'
     | '/admin/bestellung/wein'
     | '/admin/bestellung/wein-quiz'
+    | '/admin/einstellungen/easyorder-verwaltung'
     | '/admin/staff/$staffId'
     | '/admin/staff/new'
     | '/api/public/calendar/$token'
@@ -677,6 +676,7 @@ export interface FileRouteTypes {
     | '/api/public/telegram/daily-report'
     | '/api/public/telegram/webhook'
     | '/admin/bestellung'
+    | '/admin/einstellungen'
     | '/admin/staff'
   id:
     | '__root__'
@@ -697,7 +697,6 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/bwa'
     | '/_authenticated/admin/dienstplan'
     | '/_authenticated/admin/dokumente'
-    | '/_authenticated/admin/einstellungen'
     | '/_authenticated/admin/impersonate'
     | '/_authenticated/admin/import-zuordnungen'
     | '/_authenticated/admin/kasse'
@@ -724,11 +723,11 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/'
     | '/_authenticated/zeit/'
     | '/_authenticated/admin/bestellung/bestellungen'
-    | '/_authenticated/admin/bestellung/easyorder-verwaltung'
     | '/_authenticated/admin/bestellung/inventur'
     | '/_authenticated/admin/bestellung/lieferanten'
     | '/_authenticated/admin/bestellung/wein'
     | '/_authenticated/admin/bestellung/wein-quiz'
+    | '/_authenticated/admin/einstellungen/easyorder-verwaltung'
     | '/_authenticated/admin/staff/$staffId'
     | '/_authenticated/admin/staff/new'
     | '/api/public/calendar/$token'
@@ -736,6 +735,7 @@ export interface FileRouteTypes {
     | '/api/public/telegram/daily-report'
     | '/api/public/telegram/webhook'
     | '/_authenticated/admin/bestellung/'
+    | '/_authenticated/admin/einstellungen/'
     | '/_authenticated/admin/staff/'
   fileRoutesById: FileRoutesById
 }
@@ -1005,13 +1005,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminImpersonateRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
-    '/_authenticated/admin/einstellungen': {
-      id: '/_authenticated/admin/einstellungen'
-      path: '/einstellungen'
-      fullPath: '/admin/einstellungen'
-      preLoaderRoute: typeof AuthenticatedAdminEinstellungenRouteImport
-      parentRoute: typeof AuthenticatedAdminRouteRoute
-    }
     '/_authenticated/admin/dokumente': {
       id: '/_authenticated/admin/dokumente'
       path: '/dokumente'
@@ -1060,6 +1053,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/staff/'
       preLoaderRoute: typeof AuthenticatedAdminStaffIndexRouteImport
       parentRoute: typeof AuthenticatedAdminStaffRoute
+    }
+    '/_authenticated/admin/einstellungen/': {
+      id: '/_authenticated/admin/einstellungen/'
+      path: '/einstellungen'
+      fullPath: '/admin/einstellungen/'
+      preLoaderRoute: typeof AuthenticatedAdminEinstellungenIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
     }
     '/_authenticated/admin/bestellung/': {
       id: '/_authenticated/admin/bestellung/'
@@ -1110,6 +1110,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminStaffStaffIdRouteImport
       parentRoute: typeof AuthenticatedAdminStaffRoute
     }
+    '/_authenticated/admin/einstellungen/easyorder-verwaltung': {
+      id: '/_authenticated/admin/einstellungen/easyorder-verwaltung'
+      path: '/einstellungen/easyorder-verwaltung'
+      fullPath: '/admin/einstellungen/easyorder-verwaltung'
+      preLoaderRoute: typeof AuthenticatedAdminEinstellungenEasyorderVerwaltungRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/bestellung/wein-quiz': {
       id: '/_authenticated/admin/bestellung/wein-quiz'
       path: '/wein-quiz'
@@ -1138,13 +1145,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminBestellungInventurRouteImport
       parentRoute: typeof AuthenticatedAdminBestellungRoute
     }
-    '/_authenticated/admin/bestellung/easyorder-verwaltung': {
-      id: '/_authenticated/admin/bestellung/easyorder-verwaltung'
-      path: '/easyorder-verwaltung'
-      fullPath: '/admin/bestellung/easyorder-verwaltung'
-      preLoaderRoute: typeof AuthenticatedAdminBestellungEasyorderVerwaltungRouteImport
-      parentRoute: typeof AuthenticatedAdminBestellungRoute
-    }
     '/_authenticated/admin/bestellung/bestellungen': {
       id: '/_authenticated/admin/bestellung/bestellungen'
       path: '/bestellungen'
@@ -1157,7 +1157,6 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedAdminBestellungRouteChildren {
   AuthenticatedAdminBestellungBestellungenRoute: typeof AuthenticatedAdminBestellungBestellungenRoute
-  AuthenticatedAdminBestellungEasyorderVerwaltungRoute: typeof AuthenticatedAdminBestellungEasyorderVerwaltungRoute
   AuthenticatedAdminBestellungInventurRoute: typeof AuthenticatedAdminBestellungInventurRoute
   AuthenticatedAdminBestellungLieferantenRoute: typeof AuthenticatedAdminBestellungLieferantenRoute
   AuthenticatedAdminBestellungWeinRoute: typeof AuthenticatedAdminBestellungWeinRoute
@@ -1169,8 +1168,6 @@ const AuthenticatedAdminBestellungRouteChildren: AuthenticatedAdminBestellungRou
   {
     AuthenticatedAdminBestellungBestellungenRoute:
       AuthenticatedAdminBestellungBestellungenRoute,
-    AuthenticatedAdminBestellungEasyorderVerwaltungRoute:
-      AuthenticatedAdminBestellungEasyorderVerwaltungRoute,
     AuthenticatedAdminBestellungInventurRoute:
       AuthenticatedAdminBestellungInventurRoute,
     AuthenticatedAdminBestellungLieferantenRoute:
@@ -1213,7 +1210,6 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminBwaRoute: typeof AuthenticatedAdminBwaRoute
   AuthenticatedAdminDienstplanRoute: typeof AuthenticatedAdminDienstplanRoute
   AuthenticatedAdminDokumenteRoute: typeof AuthenticatedAdminDokumenteRoute
-  AuthenticatedAdminEinstellungenRoute: typeof AuthenticatedAdminEinstellungenRoute
   AuthenticatedAdminImpersonateRoute: typeof AuthenticatedAdminImpersonateRoute
   AuthenticatedAdminImportZuordnungenRoute: typeof AuthenticatedAdminImportZuordnungenRoute
   AuthenticatedAdminKasseRoute: typeof AuthenticatedAdminKasseRoute
@@ -1229,6 +1225,8 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminUrlaubRoute: typeof AuthenticatedAdminUrlaubRoute
   AuthenticatedAdminZeitUebersichtRoute: typeof AuthenticatedAdminZeitUebersichtRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
+  AuthenticatedAdminEinstellungenEasyorderVerwaltungRoute: typeof AuthenticatedAdminEinstellungenEasyorderVerwaltungRoute
+  AuthenticatedAdminEinstellungenIndexRoute: typeof AuthenticatedAdminEinstellungenIndexRoute
 }
 
 const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren =
@@ -1240,7 +1238,6 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
     AuthenticatedAdminBwaRoute: AuthenticatedAdminBwaRoute,
     AuthenticatedAdminDienstplanRoute: AuthenticatedAdminDienstplanRoute,
     AuthenticatedAdminDokumenteRoute: AuthenticatedAdminDokumenteRoute,
-    AuthenticatedAdminEinstellungenRoute: AuthenticatedAdminEinstellungenRoute,
     AuthenticatedAdminImpersonateRoute: AuthenticatedAdminImpersonateRoute,
     AuthenticatedAdminImportZuordnungenRoute:
       AuthenticatedAdminImportZuordnungenRoute,
@@ -1261,6 +1258,10 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
     AuthenticatedAdminZeitUebersichtRoute:
       AuthenticatedAdminZeitUebersichtRoute,
     AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
+    AuthenticatedAdminEinstellungenEasyorderVerwaltungRoute:
+      AuthenticatedAdminEinstellungenEasyorderVerwaltungRoute,
+    AuthenticatedAdminEinstellungenIndexRoute:
+      AuthenticatedAdminEinstellungenIndexRoute,
   }
 
 const AuthenticatedAdminRouteRouteWithChildren =

@@ -27,7 +27,7 @@ import {
   sendTestReport,
 } from "@/lib/telegram/telegram-report.functions";
 
-export const Route = createFileRoute("/_authenticated/admin/einstellungen")({
+export const Route = createFileRoute("/_authenticated/admin/einstellungen/")({
   head: () => ({ meta: [{ title: "Einstellungen · Verwaltung" }] }),
   component: OrgSettingsPage,
 });
