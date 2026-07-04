@@ -193,9 +193,7 @@ function VerkaufsartikelPage() {
               {filtered.map((row) => (
                 <TableRow key={row.id} className={row.isActive ? "" : "opacity-60"}>
                   <TableCell className="font-medium">{row.name}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {row.productGroup ?? "—"}
-                  </TableCell>
+                  <TableCell className="text-muted-foreground">{row.productGroup ?? "—"}</TableCell>
                   <TableCell>
                     <PriceCell
                       article={row}
@@ -237,9 +235,7 @@ function VerkaufsartikelPage() {
         <AddArticleDialog
           submitting={createMut.isPending}
           onClose={() => setAddOpen(false)}
-          onSubmit={(input) =>
-            createMut.mutate({ data: { ...input, locationId } })
-          }
+          onSubmit={(input) => createMut.mutate({ data: { ...input, locationId } })}
         />
       )}
     </div>
