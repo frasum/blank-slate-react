@@ -190,7 +190,7 @@ Rekonstruiert per Kalibrierung gegen bereits validierte Bestands-Sessions (Refer
 | M4 Lohn — Sachbezug + Mahlzeiten als automatische Lohnarten                                                                            | ✅                                                      |
 | M4 Lohn — Soll-Std/Tag-Feld (Vertrags-Soll je MA)                                                                                      | ✅                                                      |
 | M4 Lohn — Urlaub/Krank ins Brutto (`lohn_absence_days`, Tage = Vorgabe)                                                                | ✅                                                      |
-| Provision (wochenbasiert)                                                                                                              | 🔄 P1 Server gebaut, P2 UI offen                        |
+| Provision (wochenbasiert)                                                                                                              | ✅ P1 Server + P2 UI (E2E-Freigabe Frank ausstehend)    |
 | Geofencing-Stempeln (UI clockIn nur am Standort, distinct-Location)                                                                    | ✅                                                      |
 | PIN-Login via Vorname/Nickname                                                                                                         | ✅                                                      |
 | Hub & Meine Schichten (`/zeit/schichten`, `/zeit/stempeln`)                                                                            | ✅                                                      |
@@ -2150,3 +2150,15 @@ Lohnrechner ein — die Übergabe ans Lohnbüro ist P2- bzw. Folge-Thema.
 Offen: **P2 UI** — Provision-Tab in der Zeitübersicht (Liste + Pool +
 Erklärungs-Panel mit Tages-Drilldown), Einstellungs-Dialog pro Standort
 (Schalter, Mindestumsatz, Satz).
+
+P2 UI (04.07.): Provision-Tab mit Perioden-Pool, Verteilungs-Tabelle,
+Tages-Drilldown (dayBreakdown macht die Formel an echten Zahlen
+nachvollziehbar), Einstellungs-Dialog (aktiv/min/pct, admin-only) und
+statischem Erklärungs-Panel. Bei „Alle Standorte" bewusst kein Merge —
+Provision ist standort-scoped. Status: ✅ (E2E Frank ausstehend).
+
+04.07.: Alle-Standorte-Merge für Zusammenfassung/Buchhaltung
+(Client-Merge nach Wochenplan-Muster, sfn/notes je Standort
+summiert/konkateniert); Wochenplan-Layout final: Anf./Ende nebeneinander,
+gleiche Tages-Spalten, Namens-Spalten 68px gespiegelt, S/U/K-Gruppe
+konsistent in allen drei Tabs, Tastatur-Navigation beim Inline-Edit.
