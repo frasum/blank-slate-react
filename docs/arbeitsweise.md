@@ -2178,3 +2178,23 @@ lesen/löschen) + Admin-Übersicht — bewusster, eng gescopter Client-Zugriff
 (Chat-ID/Username, geringe Sensibilität), Webhook schreibt via service_role.
 Noch KEIN Versand-Pfad — Berichte (z. B. Tages-Summary) sind ein eigener
 Folge-Baustein mit Design-Schritt (was wird an wen gesendet, Opt-in).
+
+TG2 Tagesbericht (04.07.): Versand an angehakte verknüpfte Konten
+(`staff_telegram_links.receives_daily_report`) statt fester Chat-ID.
+Trigger: pg_cron ruft STÜNDLICH die Route `/api/public/telegram/daily-report`
+(Prompt nannte `/api/internal/…` — Pfad bewusst unter `/api/public/`
+abgelegt, weil auf TanStack Start nur dieser Prefix ohne Lovable-Auth-Wall
+zuverlässig extern erreichbar ist; abgesichert wird ausschließlich per
+`X-Cron-Secret`, timing-safe gegen `process.env.TELEGRAM_CRON_SECRET`;
+503 wenn Env fehlt). Der Endpoint gated selbst — Berlin-Stunde ==
+`telegram_report_hour` UND `telegram_report_last_sent` < heute → DST-fest
+und idempotent. Inhalt aus denselben Helfern wie das Tages-PDF
+(`sessionToDayInput` / `computeDailyCash` / `computeWechselgeld`);
+pures Modul `src/lib/telegram/telegram-report.ts` (HTML `parse_mode`,
+`escapeHtml` für alle dynamischen Strings, Vitest deckt Escaping/Flags/
+Ausschluss/„Keine Daten"/Snapshot ab). Empfänger-Fehler einzeln
+`try/catch` — ein toter Chat blockiert die anderen nicht. Audit
+`telegram.report_sent` speichert nur Zähler + Datum, KEINE Berichts­inhalte.
+Testbericht-Button in den Einstellungen umgeht das Gate ohne
+`last_sent` zu setzen. pg_cron-Einrichtung: Frank-SQL (Ops, keine
+Migration).
