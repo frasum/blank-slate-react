@@ -17,6 +17,7 @@ import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller, type AdminCaller } from "@/lib/admin/admin-context";
+import { assertRealIdentity } from "@/lib/admin/impersonation";
 import { writeAuditLog } from "@/lib/admin/audit";
 import { hasMinRole } from "@/lib/admin/role-guard";
 import { assertWithinFence } from "@/lib/geo/server-check";
