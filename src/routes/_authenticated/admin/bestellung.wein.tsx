@@ -13,6 +13,7 @@ import {
   updateArticle,
 } from "@/lib/bestellung/articles.functions";
 import { listSuppliers } from "@/lib/bestellung/suppliers.functions";
+import { researchWine } from "@/lib/bestellung/wine-research.functions";
 import { parseEuroToCents } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/admin/bestellung/wein")({
@@ -308,6 +309,51 @@ function WineForm(props: {
 }) {
   const [d, setD] = useState<WineDraft>(props.initial);
   const set = <K extends keyof WineDraft>(k: K, v: WineDraft[K]) => setD((p) => ({ ...p, [k]: v }));
+  const [researching, setResearching] = useState(false);
+  const [researchMsg, setResearchMsg] = useState<string | null>(null);
+  const callResearch = useServerFn(researchWine);
+
+  const runResearch = async () => {
+    if (!d.name.trim() || d.name.trim().length < 2) {
+      setResearchMsg("Bitte zuerst den Weinnamen eintragen.");
+      return;
+    }
+    setResearching(true);
+    setResearchMsg(null);
+    try {
+      const hintsParts = [d.originCountry, d.grapeVariety].filter((s) => s.trim());
+      const result = await callResearch({
+        data: { name: d.name.trim(), hints: hintsParts.join(" ") },
+      });
+      setD((p) => ({
+        ...p,
+        grapeVariety: p.grapeVariety.trim() || result.grapeVariety,
+        originCountry: p.originCountry.trim() || result.originCountry,
+        foodPairings: p.foodPairings.trim() || result.foodPairings,
+        description: p.description.trim() || result.description,
+        specialAttributes:
+          p.specialAttributes.length > 0
+            ? p.specialAttributes
+            : result.specialAttributes,
+      }));
+      const filled = [
+        result.grapeVariety && "Rebsorte",
+        result.originCountry && "Herkunft",
+        result.foodPairings && "Speisenempfehlungen",
+        result.description && "Beschreibung",
+        result.specialAttributes.length > 0 && "Merkmale",
+      ].filter(Boolean);
+      setResearchMsg(
+        filled.length > 0
+          ? `Vorschlag übernommen (${filled.join(", ")}). Bitte prüfen — Quellen: ${result.sources.length}`
+          : "KI konnte nichts belegen. Bitte manuell ergänzen.",
+      );
+    } catch (e) {
+      setResearchMsg(e instanceof Error ? e.message : "Recherche fehlgeschlagen.");
+    } finally {
+      setResearching(false);
+    }
+  };
 
   const toggleAttr = (attr: string) => {
     setD((p) => ({
@@ -373,6 +419,20 @@ function WineForm(props: {
         <legend className="px-1 text-xs uppercase tracking-wide text-muted-foreground">
           Wein-Details
         </legend>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-muted-foreground">
+            Leere Felder per KI-Recherche vorschlagen (füllt nur Leeres, überschreibt nichts).
+          </p>
+          <button
+            type="button"
+            onClick={runResearch}
+            disabled={researching}
+            className="rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium hover:bg-accent disabled:opacity-60"
+          >
+            {researching ? "Recherchiert …" : "🔎 KI-Recherche"}
+          </button>
+        </div>
+        {researchMsg && <p className="text-xs text-muted-foreground">{researchMsg}</p>}
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <Field label="Rebsorte">
             <input
