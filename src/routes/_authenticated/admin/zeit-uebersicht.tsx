@@ -266,7 +266,6 @@ function ZeitUebersichtPage() {
     () => Array.from({ length: 7 }, (_, i) => addDays(weekStartDate, i)),
     [weekStartDate],
   );
-  const { week: currentWeekNo } = isoWeek(weekStartDate);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [activeTab, setActiveTab] = useState<string>("weekly");
   // Buchhaltung-Tab: §3b-Toggle + eigene Suche.
