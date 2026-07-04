@@ -229,13 +229,23 @@ function DisplayPage() {
   );
 }
 
-function BlockTable({ block, days }: { block: DisplayBlock; days: string[] }) {
+function BlockTable({
+  block,
+  days,
+  payload,
+}: {
+  block: DisplayBlock;
+  days: string[];
+  payload: DisplayPayload;
+}) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { cellSize, leftNameWidth, rightNameWidth, sumColWidth, showRightName } = useFitCellSize(
     containerRef,
     days.length,
   );
-  const tableWidth = leftNameWidth + cellSize * days.length + rightNameWidth + sumColWidth;
+  const tableWidth = leftNameWidth + cellSize * days.length + rightNameWidth + sumColWidth * 2;
+  const curRange = periodRangeLabel(payload.currentPeriodEnd);
+  const nxtRange = periodRangeLabel(payload.nextPeriodEnd);
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40">
       <header className="border-b border-slate-800 bg-slate-900/60 px-3 py-2">
@@ -252,6 +262,7 @@ function BlockTable({ block, days }: { block: DisplayBlock; days: string[] }) {
               <col key={iso} style={{ width: `${cellSize}px` }} />
             ))}
             {showRightName && <col style={{ width: `${rightNameWidth}px` }} />}
+            <col style={{ width: `${sumColWidth}px` }} />
             <col style={{ width: `${sumColWidth}px` }} />
           </colgroup>
           <thead>
@@ -292,13 +303,23 @@ function BlockTable({ block, days }: { block: DisplayBlock; days: string[] }) {
               {showRightName && (
                 <th
                   className="sticky z-20 border-b border-slate-800 bg-slate-900 px-2 py-1 text-center font-medium text-slate-300"
-                  style={{ right: sumColWidth }}
+                  style={{ right: sumColWidth * 2 }}
                 >
                   Mitarbeiter
                 </th>
               )}
-              <th className="sticky right-0 z-20 border-b border-slate-800 bg-slate-900 px-2 py-1 text-center font-medium text-slate-300">
-                Σ
+              <th
+                className="sticky z-20 border-b border-slate-800 bg-slate-900 px-1 py-1 text-center font-semibold text-slate-200 truncate"
+                style={{ right: sumColWidth }}
+                title={`Abrechnungsperiode ${curRange}`}
+              >
+                {payload.currentPeriodLabel}
+              </th>
+              <th
+                className="sticky right-0 z-20 border-b border-slate-800 bg-slate-900 px-1 py-1 text-center font-medium text-slate-400 truncate"
+                title={`Abrechnungsperiode ${nxtRange}`}
+              >
+                {payload.nextPeriodLabel}
               </th>
             </tr>
           </thead>
@@ -306,7 +327,7 @@ function BlockTable({ block, days }: { block: DisplayBlock; days: string[] }) {
             {block.rows.length === 0 && (
               <tr>
                 <td
-                  colSpan={days.length + (showRightName ? 3 : 2)}
+                  colSpan={days.length + (showRightName ? 4 : 3)}
                   className="px-4 py-6 text-center text-slate-500"
                 >
                   Keine Mitarbeiter für diesen Bereich.
@@ -333,13 +354,19 @@ function BlockTable({ block, days }: { block: DisplayBlock; days: string[] }) {
                 {showRightName && (
                   <td
                     className="sticky z-10 truncate border-b border-slate-800/60 bg-slate-950 px-2 py-0.5 text-center text-xs font-medium text-slate-100 group-even/row:bg-slate-900"
-                    style={{ right: sumColWidth }}
+                    style={{ right: sumColWidth * 2 }}
                   >
                     {row.staffName}
                   </td>
                 )}
-                <td className="sticky right-0 z-10 border-b border-slate-800/60 bg-slate-950 px-2 py-0.5 text-center text-xs font-semibold tabular-nums text-slate-100 group-even/row:bg-slate-900">
-                  {row.shiftCount}
+                <td
+                  className="sticky z-10 border-b border-slate-800/60 bg-slate-950 px-2 py-0.5 text-center text-xs font-semibold tabular-nums text-slate-100 group-even/row:bg-slate-900"
+                  style={{ right: sumColWidth }}
+                >
+                  {row.shiftCountCurrent}
+                </td>
+                <td className="sticky right-0 z-10 border-b border-slate-800/60 bg-slate-950 px-2 py-0.5 text-center text-xs tabular-nums text-slate-400 group-even/row:bg-slate-900">
+                  {row.shiftCountNext}
                 </td>
               </tr>
             ))}
