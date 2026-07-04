@@ -73,6 +73,24 @@ function formatDayHeader(dateStr: string): string {
   });
 }
 
+function formatShortRange(start: string, end: string): string {
+  const opts: Intl.DateTimeFormatOptions = {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  };
+  const s = new Date(`${start}T00:00:00`).toLocaleDateString("de-DE", opts);
+  if (start === end) return s;
+  const e = new Date(`${end}T00:00:00`).toLocaleDateString("de-DE", opts);
+  return `${s} – ${e}`;
+}
+
+function absenceLabel(r: MyAbsenceRange): string {
+  const icon = r.type === "urlaub" ? "🏖" : "🤒";
+  const word = r.type === "urlaub" ? "Urlaub" : "Krank";
+  return `${icon} ${word} ${formatShortRange(r.start, r.end)}`;
+}
+
 function MyShiftsPage() {
   const [range, setRange] = useState<RangeKey>("month");
   const fetchShifts = useServerFn(getMyShifts);
