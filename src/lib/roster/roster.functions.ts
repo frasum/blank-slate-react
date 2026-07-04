@@ -10,6 +10,7 @@ import { runWithPermission, assertPermission } from "@/lib/admin/admin-call";
 import { makeAuditWriter } from "@/lib/admin/audit";
 import { loadStaffCaller } from "@/lib/time/time.functions";
 import type { MyShiftRow } from "@/lib/roster/my-shifts";
+import { mergeAbsenceRanges, type AbsenceRange } from "@/lib/roster/vacation-planner";
 
 const READ_ROLES = ["manager", "admin", "payroll", "staff", "planer"] as const;
 const WRITE_ROLES = ["manager", "admin", "planer"] as const;
