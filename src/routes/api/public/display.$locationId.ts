@@ -6,6 +6,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Buffer } from "node:buffer";
 import { timingSafeEqual } from "node:crypto";
 import { resolveCellKind } from "@/lib/display/cell";
+import { currentPeriodEnd, nextPeriodEnd, periodLabel } from "@/lib/display/period-split";
 
 type DisplayCell = {
   k: "shift" | "urlaub" | "krank" | "wish" | "available" | "empty";
@@ -16,7 +17,8 @@ type DisplayRow = {
   staffId: string;
   staffName: string;
   cells: DisplayCell[];
-  shiftCount: number;
+  shiftCountCurrent: number;
+  shiftCountNext: number;
 };
 type DisplayBlock = {
   area: "kitchen" | "service";
@@ -37,6 +39,10 @@ type DisplayPayload = {
   showFooter: boolean;
   customMessage: string | null;
   birthdays: string[];
+  currentPeriodLabel: string;
+  nextPeriodLabel: string;
+  currentPeriodEnd: string;
+  nextPeriodEnd: string;
 };
 
 function jsonError(status: number, error: string) {
@@ -128,6 +134,10 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
         const days = rollingDays(today, 31);
         const windowStart = days[0];
         const windowEnd = days[days.length - 1];
+        const curEnd = currentPeriodEnd(today);
+        const nxtEnd = nextPeriodEnd(curEnd);
+        const curLabel = periodLabel(curEnd);
+        const nxtLabel = periodLabel(nxtEnd);
 
         // Geburtstage des aktiven Teams am Standort (Tag+Monat == heute).
         const todayMmDd = today.slice(5); // "MM-DD"
@@ -332,12 +342,19 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
               }
               return { k, skill, color };
             });
-            const shiftCount = cells.reduce((n, c) => n + (c.k === "shift" ? 1 : 0), 0);
+            let shiftCountCurrent = 0;
+            let shiftCountNext = 0;
+            for (let i = 0; i < cells.length; i++) {
+              if (cells[i].k !== "shift") continue;
+              if (days[i] <= curEnd) shiftCountCurrent += 1;
+              else shiftCountNext += 1;
+            }
             return {
               staffId: entry.staffId,
               staffName: entry.staffName,
               cells,
-              shiftCount,
+              shiftCountCurrent,
+              shiftCountNext,
             };
           });
           blocks.push({ area, title, rows, dayCounts });
@@ -356,6 +373,10 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
           showFooter: s.show_footer,
           customMessage: s.custom_message,
           birthdays,
+          currentPeriodLabel: curLabel,
+          nextPeriodLabel: nxtLabel,
+          currentPeriodEnd: curEnd,
+          nextPeriodEnd: nxtEnd,
         };
 
         return new Response(JSON.stringify(payload), {
