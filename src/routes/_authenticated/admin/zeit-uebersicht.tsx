@@ -1893,6 +1893,85 @@ function WeeklyPlan({
     );
   };
 
+  // Flache Liste aller sichtbaren Mitarbeiter-Zeilen (für Tab/Pfeil-Navigation).
+  const flatRows = useMemo(() => groups.flatMap((g) => g.rows), [groups]);
+  const rowIndexOf = (staffId: string) => flatRows.findIndex((r) => r.staffId === staffId);
+  const dayIndexOf = (iso: string) => dayMeta.findIndex((d) => d.iso === iso);
+
+  const isCellEditable = (
+    row: (typeof flatRows)[number] | undefined,
+    dayIdx: number,
+  ): boolean => {
+    if (!row || !isAdmin) return false;
+    const dm = dayMeta[dayIdx];
+    if (!dm || dm.outOfPeriod) return false;
+    const day = row.days[dayIdx];
+    if (!day || day.shifts.length > 1) return false;
+    return true;
+  };
+
+  // Nächste editierbare Zelle in einer der beiden Richtungen.
+  const findNextRow = (
+    rowIdx: number,
+    dayIdx: number,
+    dir: 1 | -1,
+  ): { rowIdx: number; dayIdx: number } | null => {
+    let r = rowIdx + dir;
+    while (r >= 0 && r < flatRows.length) {
+      if (isCellEditable(flatRows[r], dayIdx)) return { rowIdx: r, dayIdx };
+      r += dir;
+    }
+    return null;
+  };
+
+  // Nächste editierbare Zelle in Leserichtung über Tag/Feld-Grenzen hinweg.
+  const findNextField = (
+    rowIdx: number,
+    dayIdx: number,
+    field: "from" | "to",
+    dir: 1 | -1,
+  ): { rowIdx: number; dayIdx: number; field: "from" | "to" } | null => {
+    let d = dayIdx;
+    let f: "from" | "to" = field;
+    for (let guard = 0; guard < 20; guard++) {
+      if (dir === 1) {
+        if (f === "from") f = "to";
+        else {
+          f = "from";
+          d += 1;
+        }
+      } else {
+        if (f === "to") f = "from";
+        else {
+          f = "to";
+          d -= 1;
+        }
+      }
+      if (d < 0 || d >= dayMeta.length) return null;
+      if (isCellEditable(flatRows[rowIdx], d)) return { rowIdx, dayIdx: d, field: f };
+    }
+    return null;
+  };
+
+  // Wechselt die aktive Edit-Zelle. Committed die aktuelle, wenn wir das Feld/die Zelle verlassen.
+  const navigateTo = (
+    current: EditState,
+    nextStaffId: string,
+    nextIso: string,
+    nextField: "from" | "to",
+  ) => {
+    const sameCell = nextStaffId === current.staffId && nextIso === current.iso;
+    if (!sameCell) {
+      if (!commit(current)) return; // ungültig → abbrechen, Zelle bleibt offen
+    }
+    navigatingRef.current = true;
+    if (sameCell) {
+      setEdit({ ...current, field: nextField });
+    } else {
+      startEdit(nextStaffId, nextIso, nextField);
+    }
+  };
+
   return (
     <Card className="overflow-x-auto">
       <Table>
