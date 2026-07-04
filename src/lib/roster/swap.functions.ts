@@ -15,7 +15,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadStaffCaller } from "@/lib/time/time.functions";
+import { loadAdminCaller } from "@/lib/admin/admin-context";
+import { runGuarded } from "@/lib/admin/admin-call";
+import { makeAuditWriter } from "@/lib/admin/audit";
 import { writeAuditLog } from "@/lib/admin/audit";
+import { sendTelegramToStaff } from "@/lib/telegram/telegram.functions";
 import {
   canAcceptCounterShift,
   canOfferShift,
