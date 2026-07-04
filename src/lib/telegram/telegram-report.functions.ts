@@ -16,6 +16,7 @@ export type TelegramReportRecipient = {
   telegramUsername: string | null;
   linkedAt: string | null;
   receivesDailyReport: boolean;
+  receivesSwapAlerts: boolean;
 };
 
 export type TelegramReportSettings = {
@@ -68,7 +69,7 @@ export const getTelegramReportSettings = createServerFn({ method: "GET" })
       supabaseAdmin
         .from("staff_telegram_links")
         .select(
-          "staff_id, telegram_username, linked_at, receives_daily_report, staff:staff(display_name)",
+          "staff_id, telegram_username, linked_at, receives_daily_report, receives_swap_alerts, staff:staff(display_name)",
         )
         .eq("organization_id", caller.organizationId)
         .not("linked_at", "is", null)
@@ -107,6 +108,7 @@ export const getTelegramReportSettings = createServerFn({ method: "GET" })
         telegramUsername: (r.telegram_username as string | null) ?? null,
         linkedAt: (r.linked_at as string | null) ?? null,
         receivesDailyReport: Boolean(r.receives_daily_report),
+        receivesSwapAlerts: Boolean(r.receives_swap_alerts),
       })),
     };
   });
