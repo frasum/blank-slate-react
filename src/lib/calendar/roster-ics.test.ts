@@ -120,4 +120,54 @@ describe("buildRosterIcs", () => {
     });
     expect(ics).toContain("UID:roster-shift-42@coco");
   });
+
+  it("Ganztags-Einzeltag mit DTEND (exklusiv = Folgetag)", () => {
+    const ics = buildRosterIcs({
+      calendarName: "x",
+      now,
+      events: [
+        {
+          uid: "absence-urlaub-s-2026-07-01@coco",
+          summary: "Urlaub",
+          location: "",
+          allDay: true,
+          date: "2026-07-01",
+          endDateExclusive: "2026-07-02",
+        },
+      ],
+    });
+    expect(ics).toContain("DTSTART;VALUE=DATE:20260701");
+    expect(ics).toContain("DTEND;VALUE=DATE:20260702");
+  });
+
+  it("Ganztags-Mehrtages-Event: DTEND ist Folgetag des letzten Tags", () => {
+    // 12.12.2026 – 24.01.2027 → DTEND = 25.01.2027
+    const ics = buildRosterIcs({
+      calendarName: "x",
+      now,
+      events: [
+        {
+          uid: "absence-urlaub-s-2026-12-12@coco",
+          summary: "Urlaub",
+          location: "",
+          allDay: true,
+          date: "2026-12-12",
+          endDateExclusive: "2027-01-25",
+        },
+      ],
+    });
+    expect(ics).toContain("DTSTART;VALUE=DATE:20261212");
+    expect(ics).toContain("DTEND;VALUE=DATE:20270125");
+  });
+
+  it("Ganztags ohne endDateExclusive weiterhin ohne DTEND", () => {
+    const ics = buildRosterIcs({
+      calendarName: "x",
+      now,
+      events: [
+        { uid: "x@coco", summary: "GL", location: "L", allDay: true, date: "2026-07-01" },
+      ],
+    });
+    expect(ics).not.toContain("DTEND");
+  });
 });
