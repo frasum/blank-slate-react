@@ -921,7 +921,13 @@ export const listPendingSwaps = createServerFn({ method: "GET" })
 async function assertNoConflictingShift(
   admin: SupabaseClient<Database>,
   organizationId: string,
-  params: { staffId: string; locationId: string; area: SwapArea; shiftDate: string; excludeShiftId: string },
+  params: {
+    staffId: string;
+    locationId: string;
+    area: SwapArea;
+    shiftDate: string;
+    excludeShiftId: string;
+  },
 ): Promise<void> {
   const { data, error } = await admin
     .from("roster_shifts")
@@ -1012,19 +1018,11 @@ export const decideSwapRequest = createServerFn({ method: "POST" })
 
       let peerShift: ShiftRow | null = null;
       if (reqRow.peer_shift_id) {
-        peerShift = await loadShift(
-          supabaseAdmin,
-          caller.organizationId,
-          reqRow.peer_shift_id,
-        );
+        peerShift = await loadShift(supabaseAdmin, caller.organizationId, reqRow.peer_shift_id);
         if (peerShift.shift_date <= today) {
           throw new Error("Die Gegenschicht liegt nicht mehr in der Zukunft.");
         }
-        await assertShiftDateUnlocked(
-          supabaseAdmin,
-          caller.organizationId,
-          peerShift.shift_date,
-        );
+        await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, peerShift.shift_date);
       }
 
       // Slot-Konflikt-Check: Peer bekommt reqShift → darf am gleichen Slot keine

@@ -862,7 +862,11 @@ function SwapCard({
         <div className="space-y-1">
           <div className="text-sm font-semibold text-foreground">
             {row.requester.name}
-            {row.peer ? <> → {row.peer.name}</> : <span className="text-muted-foreground"> (noch keine Übernahme)</span>}
+            {row.peer ? (
+              <> → {row.peer.name}</>
+            ) : (
+              <span className="text-muted-foreground"> (noch keine Übernahme)</span>
+            )}
           </div>
           <div className="text-xs text-muted-foreground">
             Anfrage vom {fmtDateTime(row.createdAt)}
