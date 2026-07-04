@@ -413,6 +413,13 @@ export function PersonalDetailsTab({ staffId, canEdit, canEditVacation }: Props)
                 </div>
               );
             })}
+            {sec.title === "Beschäftigung & Urlaub" && !editing && !vacEditing && form && (
+              <RestUrlaubRow
+                contractual={form.vacation_days_contractual}
+                previousYear={form.vacation_days_previous_year}
+                taken={form.vacation_days_taken}
+              />
+            )}
           </div>
           {sec.title === "Beschäftigung & Urlaub" && vacEditing && (
             <div className="space-y-2 pt-1">
@@ -662,5 +669,58 @@ function CompensationSection({ staffId }: { staffId: string }) {
 
       {msg && <p className="text-sm text-muted-foreground">{msg}</p>}
     </fieldset>
+  );
+}
+
+// Berechnete Anzeige „Resturlaub = Vertraglich + Vorjahr − Genommen".
+// Rein clientseitig, ohne DB-Änderung — sobald eines der drei Felder fehlt,
+// wird nichts angezeigt (unvollständige Stammdaten ⇒ keine falsche Zahl).
+function RestUrlaubRow({
+  contractual,
+  previousYear,
+  taken,
+}: {
+  contractual: string | boolean | null;
+  previousYear: string | boolean | null;
+  taken: string | boolean | null;
+}) {
+  const toNum = (v: string | boolean | null): number | null => {
+    if (typeof v !== "string" || v.trim() === "") return null;
+    const n = Number(v.replace(",", "."));
+    return Number.isFinite(n) ? n : null;
+  };
+  const c = toNum(contractual);
+  const p = toNum(previousYear);
+  const t = toNum(taken);
+  if (c === null || t === null) {
+    return (
+      <div className="mt-1 flex items-baseline justify-between gap-3 border-t border-dashed border-border/60 pt-2 text-sm">
+        <span className="text-muted-foreground">Resturlaub (berechnet)</span>
+        <span className="text-muted-foreground italic">
+          erst nach Pflege von „Vertraglich" und „Genommen"
+        </span>
+      </div>
+    );
+  }
+  const rest = c + (p ?? 0) - t;
+  const fmt = (n: number) =>
+    Number.isInteger(n) ? String(n) : n.toLocaleString("de-DE", { maximumFractionDigits: 1 });
+  return (
+    <div className="mt-1 space-y-0.5 border-t border-dashed border-border/60 pt-2">
+      <div className="flex items-baseline justify-between gap-3 text-sm">
+        <span className="text-muted-foreground">Resturlaub (berechnet)</span>
+        <span
+          className={`font-medium tabular-nums ${rest < 0 ? "text-destructive" : "text-foreground"}`}
+        >
+          {fmt(rest)} Tage
+        </span>
+      </div>
+      <div className="flex items-baseline justify-between gap-3 text-xs text-muted-foreground">
+        <span></span>
+        <span className="tabular-nums">
+          {fmt(c)} + {fmt(p ?? 0)} − {fmt(t)}
+        </span>
+      </div>
+    </div>
   );
 }
