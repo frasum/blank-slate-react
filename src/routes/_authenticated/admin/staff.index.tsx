@@ -36,6 +36,22 @@ import { Search, UserCheck, UserMinus, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AppRole } from "@/lib/admin/role-guard";
 
+function formatTenure(startDate: string | null | undefined): string | null {
+  if (!startDate) return null;
+  const start = new Date(startDate);
+  if (Number.isNaN(start.getTime())) return null;
+  const now = new Date();
+  let years = now.getFullYear() - start.getFullYear();
+  let months = now.getMonth() - start.getMonth();
+  if (now.getDate() < start.getDate()) months -= 1;
+  if (months < 0) {
+    years -= 1;
+    months += 12;
+  }
+  if (years < 0) return null;
+  return `${years}-${months}`;
+}
+
 export const Route = createFileRoute("/_authenticated/admin/staff/")({
   head: () => ({ meta: [{ title: "Mitarbeiter · Verwaltung" }] }),
   component: StaffListPage,
