@@ -18,6 +18,8 @@ import { runGuarded } from "@/lib/admin/admin-call";
 import { makeAuditWriter } from "@/lib/admin/audit";
 import type { Database } from "@/integrations/supabase/types";
 
+type SalesArticleUpdate = Database["public"]["Tables"]["sales_articles"]["Update"];
+
 type Admin = SupabaseClient<Database>;
 
 export type SalesArticle = {
@@ -210,7 +212,7 @@ export const updateSalesArticle = createServerFn({ method: "POST" })
         throw new Error("Verkaufsartikel gehört nicht zur aktiven Organisation.");
       }
 
-      const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      const patch: SalesArticleUpdate = { updated_at: new Date().toISOString() };
       const changed: Record<string, { before: unknown; after: unknown }> = {};
       if (data.priceCents !== undefined && data.priceCents !== before.price_cents) {
         patch.price_cents = data.priceCents;
