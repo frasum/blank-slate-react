@@ -93,6 +93,29 @@ async function hasActiveRequestForShift(
   return !!data;
 }
 
+/**
+ * TA4 — Prüft, ob ein Mitarbeiter an einem konkreten Datum eine roster_absence
+ * (Urlaub oder Krank) hat. Wird von der Berechtigten-Regel und der TA2-
+ * Re-Validierung genutzt, damit Abwesende nicht in einen Tausch geraten.
+ */
+async function hasAbsenceOnDate(
+  admin: SupabaseClient<Database>,
+  organizationId: string,
+  staffId: string,
+  isoDate: string,
+): Promise<boolean> {
+  const { data, error } = await admin
+    .from("roster_absence")
+    .select("staff_id")
+    .eq("organization_id", organizationId)
+    .eq("staff_id", staffId)
+    .eq("absence_date", isoDate)
+    .in("type", ["urlaub", "krank"])
+    .maybeSingle();
+  if (error) throw error;
+  return !!data;
+}
+
 async function loadPeerForShift(
   admin: SupabaseClient<Database>,
   organizationId: string,
