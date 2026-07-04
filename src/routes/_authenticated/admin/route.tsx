@@ -269,6 +269,11 @@ function AdminLayout() {
                     .filter((s) => !s.roles || s.roles.includes(role))
                     .map((s) => {
                       const active = pathname === s.to || pathname.startsWith(s.to + "/");
+                      const activeWithSystem =
+                        active ||
+                        (s.to === "/admin/migration" &&
+                          isSystemPath(pathname) &&
+                          !pathname.startsWith("/admin/migration"));
                       const showDot =
                         (s.to === "/admin/personal-antraege" && pendingReview > 0) ||
                         (s.to === "/admin/urlaub" && pendingLeave > 0);
@@ -276,7 +281,7 @@ function AdminLayout() {
                         <Link
                           key={s.to}
                           to={s.to}
-                          className={tabClass(active)}
+                          className={tabClass(activeWithSystem)}
                           aria-label={showDot ? `${s.label} (offene Vorgänge)` : undefined}
                         >
                           {s.label}
@@ -289,6 +294,18 @@ function AdminLayout() {
                         </Link>
                       );
                     })}
+                </nav>
+              )}
+              {isSystemPath(pathname) && (
+                <nav className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border/60 pt-2 text-xs">
+                  {SYSTEM_SUB.map((s) => {
+                    const active = pathname === s.to || pathname.startsWith(s.to + "/");
+                    return (
+                      <Link key={s.to} to={s.to} className={tabClass(active)}>
+                        {s.label}
+                      </Link>
+                    );
+                  })}
                 </nav>
               )}
             </>
