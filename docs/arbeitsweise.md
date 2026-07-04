@@ -2073,3 +2073,33 @@ Geplanter Fix (Prompt wartet auf GO): `createStaff` schreibt die Rolle
 `staff` im selben runGuarded-Block mit (+ Backfill-SQL für Bestands-
 Mitarbeiter ohne Zeile). Bis dahin gehört „Rolle zuweisen" verbindlich
 in Schritt 2 des Onboarding-Runbooks.
+
+## 51. Fallstudie: Pool-Zeit-Rückschreibung 100 % still tot — partielle Indizes vs. PostgREST-Upsert (04.07.2026)
+
+**Symptom:** Kellner-Abgaben liefen (Service-Pool-Endzeiten wurden gesetzt),
+aber KEIN Pool-Teilnehmer bekam time_entries — Arbeitszeiten-Tab leer,
+seit Einführung der Rückschreibung am 30.06. Diagnose-CSV 03.07.: 19 Pool-
+Zeilen mit (fast) vollständigen Zeiten, Tag ungesperrt, 0 Zeiteinträge.
+
+**Root Cause:** `upsert(..., { onConflict: "organization_id,import_key" })`
+gegen zwei PARTIELLE Unique-Indizes (WHERE source='import' bzw. 'pool') —
+PostgREST kann partielle Indizes nicht als Konfliktziel inferieren →
+42P10 bei jedem Aufruf, vom Best-effort-Catch still geschluckt.
+
+**Fix:** Ein VOLLER Unique-Index auf (organization_id, import_key) ersetzt
+beide (NULLs kollidieren nie → gefahrlos für clock/manual; Key-Präfixe
+disjunkt). Alt-Tage seit 30.06. per Heilungs-SQL nachgezogen (repliziert
+resolvePoolTimeEntrySync inkl. Mitternachts-Wrap und Europe/Berlin;
+Vorrangregel und Unvollständig-Regel respektiert). Catches schreiben jetzt
+Audit-Einträge (pool_time.writeback_failed / sync_failed).
+
+**Pflicht-Regeln daraus:**
+- PostgREST-`onConflict` verlangt einen VOLLEN Unique-Index/Constraint auf
+  exakt den Spalten — partielle Indizes sind damit unvereinbar und
+  scheitern zur Laufzeit (42P10), nicht beim Deploy.
+- Best-effort-Catches müssen IMMER eine auffindbare Spur hinterlassen
+  (audit_log), nie nur console.error — vier Tage unsichtbares Scheitern
+  waren die Folge.
+- Offene Pool-Zeiten (kein shift_end, z. B. keine Abgabe erfolgt) erzeugen
+  bewusst KEINEN Eintrag — Nachpflege in der Kassen-Pool-Zeile löst den
+  Sync sofort aus.
