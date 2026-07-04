@@ -1733,7 +1733,7 @@ function WeeklyPlan({
   // + Mitarbeiter (rechts) + 4 Zeit-Summen + S + U + K
   const totalCols = 1 + 7 * 2 + 1 + 4 + 3;
 
-  const groups = input?.rowsByDept ?? [];
+  const groups = useMemo(() => input?.rowsByDept ?? [], [input?.rowsByDept]);
   const anyRows = groups.some((g) => g.rows.length > 0);
 
   // Hilfsfunktion: aus staffId + ISO → die echten WeeklyEntry-Objekte
@@ -1757,6 +1757,9 @@ function WeeklyPlan({
     origTo: string;
   };
   const [edit, setEdit] = useState<EditState | null>(null);
+  const editStaffId = edit?.staffId;
+  const editIso = edit?.iso;
+  const editField = edit?.field;
   const inputRef = useRef<HTMLInputElement | null>(null);
   const navigatingRef = useRef(false);
   const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -1764,12 +1767,12 @@ function WeeklyPlan({
   // Fokus + Selektion nur, wenn eine NEUE Zielzelle aktiv wird
   // (nicht bei jedem Tastenanschlag → kein Cursor-Flackern).
   useEffect(() => {
-    if (!edit) return;
+    if (!editStaffId) return;
     const el = inputRef.current;
     if (!el) return;
     el.focus();
     el.select();
-  }, [edit?.staffId, edit?.iso, edit?.field]);
+  }, [editStaffId, editIso, editField]);
 
   // Akzeptiert freie Ziffern-Eingaben und normalisiert zu HH:MM.
   // Beispiele: "1530" → "15:30", "930" → "09:30", "9" → "09:00",
@@ -1872,10 +1875,7 @@ function WeeklyPlan({
 
   // Flache Liste aller sichtbaren Mitarbeiter-Zeilen (für Tab/Pfeil-Navigation).
   const flatRows = useMemo(() => groups.flatMap((g) => g.rows), [groups]);
-  const isCellEditable = (
-    row: (typeof flatRows)[number] | undefined,
-    dayIdx: number,
-  ): boolean => {
+  const isCellEditable = (row: (typeof flatRows)[number] | undefined, dayIdx: number): boolean => {
     if (!row || !isAdmin) return false;
     const dm = dayMeta[dayIdx];
     if (!dm || dm.outOfPeriod) return false;
@@ -2137,9 +2137,7 @@ function WeeklyPlan({
                                   setEdit(null);
                                   return;
                                 }
-                                const rIdx = flatRows.findIndex(
-                                  (r) => r.staffId === edit.staffId,
-                                );
+                                const rIdx = flatRows.findIndex((r) => r.staffId === edit.staffId);
                                 const dIdx = dayMeta.findIndex((d) => d.iso === edit.iso);
                                 if (rIdx < 0 || dIdx < 0) return;
                                 if (ev.key === "Tab") {
@@ -2156,7 +2154,11 @@ function WeeklyPlan({
                                 }
                                 if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
                                   ev.preventDefault();
-                                  const t = findNextRow(rIdx, dIdx, ev.key === "ArrowDown" ? 1 : -1);
+                                  const t = findNextRow(
+                                    rIdx,
+                                    dIdx,
+                                    ev.key === "ArrowDown" ? 1 : -1,
+                                  );
                                   if (t)
                                     navigateTo(
                                       edit,

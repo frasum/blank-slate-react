@@ -246,8 +246,7 @@ function AdminLayout() {
                     .filter((s) => !s.roles || s.roles.includes(role))
                     .map((s) => {
                       const active = pathname === s.to || pathname.startsWith(s.to + "/");
-                      const showDot =
-                        s.to === "/admin/personal-antraege" && pendingReview > 0;
+                      const showDot = s.to === "/admin/personal-antraege" && pendingReview > 0;
                       return (
                         <Link
                           key={s.to}
