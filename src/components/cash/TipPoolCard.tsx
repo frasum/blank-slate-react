@@ -352,14 +352,14 @@ export function TipPoolCard({
       </div>
 
       {glEntries.length > 0 && (
-        <Card>
+        <Card className="opacity-80">
           <div className="border-b px-4 py-3 text-sm font-medium">
-            Geschäftsleitung — Arbeitszeit{" "}
+            Geschäftsleitung — GL, nicht poolbeteiligt{" "}
             <span className="text-xs font-normal text-muted-foreground">
-              (keine Trinkgeld-Beteiligung)
+              (Arbeitszeit-Anker; keine Trinkgeld-Beteiligung)
             </span>
           </div>
-          <Table>
+          <Table className="text-muted-foreground">
             <TableHeader>
               <TableRow>
                 <TableHead>Mitarbeiter</TableHead>
