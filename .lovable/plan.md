@@ -1,32 +1,43 @@
 ## Ziel
 
-Beim Klick in eine Zeitzelle im Wochenplan sollen reine Ziffern-Eingaben (z. B. `1530`) automatisch als `15:30` erkannt werden — der Doppelpunkt muss nicht mehr getippt werden. Zeiten wie jetzt bleiben ebenfalls erlaubt (`15:30`, `9:5`), und valide `HH:MM`-Werte laufen weiter unverändert durch.
+Zeit-Zellen im Wochenplan sollen sich wie eine Tabellen-Tastatur bedienen lassen: Klick markiert den Wert (Overtype), Tab/Pfeile navigieren zur nächsten Zelle, das Feld dort ist wieder markiert. Der bekannte „blinkende Cursor" (Fokus-Ping-Pong) darf nicht wiederkommen. Zahlen bekommen die gleiche Optik wie in Zusammenfassung/Buchhaltung.
 
 ## Änderungen (nur `WeeklyPlan` in `src/routes/_authenticated/admin/zeit-uebersicht.tsx`)
 
-1. **Input-Typ wechseln**: Das inline-Edit-Feld für Uhrzeiten von `<input type="time">` auf `<input type="text" inputMode="numeric">` umstellen. Das native Zeitfeld ignoriert freie Ziffern-Eingaben — genau das ist der Grund, warum `1530` heute nicht funktioniert.
+### 1. Font der Zeiten angleichen
 
-2. **Normalisierer beim Commit** (kleine Hilfsfunktion `parseHHMM(raw)` im gleichen Modul):
-   - Leerraum trimmen, `.` und `-` als Trenner akzeptieren, dann bei Bedarf zu `HH:MM` zusammenbauen.
-   - Reine Ziffern:
-     - `4` Stellen → `HHMM` (z. B. `1530` → `15:30`, `0905` → `09:05`)
-     - `3` Stellen → `HMM` (z. B. `930` → `09:30`)
-     - `1`–`2` Stellen → volle Stunde (z. B. `9` → `09:00`, `15` → `15:00`)
-   - Mit Trenner: `9:5` → `09:05`, `15:3` → `15:03` (Minuten links aufgefüllt).
-   - Bereichsprüfung `HH ∈ 00–23`, `MM ∈ 00–59`. Ungültig → wie bisher `toast.error("Ungültige Uhrzeit.")`, `edit` bleibt offen.
+- Zellen `TableCell` und Input: `font-mono text-sm` → `tabular-nums text-sm` (identisch zu Zusammenfassung/Buchhaltung — System-Font, Ziffern gleichbreit).
+- Alles andere (Padding, Breite `w-[62px]`, Höhe `h-6`) bleibt.
 
-3. **Anzeige während des Tippens** unverändert lassen (roher String im State), damit die Eingabe flüssig bleibt. Normalisierung passiert genau einmal beim Enter/Blur in `commit(...)`, bevor gegen `HHMM` geprüft und an `onUpdateInline` / `onCreateInline` übergeben wird.
+### 2. Klick markiert den Wert (kein blinkender Cursor)
 
-4. **Kein Layout-Umbau**: Feldbreite (`w-[58px]`), Höhe (`h-6`), Font (`font-mono text-sm`), Klick-/Marker-/Sperr-Logik, `handleBlur`, `data-edit-key`, `+`/`×`-Marker — alles bleibt wie in Feinschliff 4/5.
+- `autoFocus` durch einen **Ref-basierten Fokus** ersetzen: `useRef<HTMLInputElement>(null)`; in einem einzigen `useEffect([edit?.staffId, edit?.iso, edit?.field])` genau dann `ref.current?.focus()` **und** `ref.current?.select()` aufrufen, wenn ein neues Edit-Target aktiv wird.
+- Das State-Objekt `EditState` bekommt keine zusätzliche Rerender-Quelle; der Effect hängt nur an der Ziel-Zelle (nicht am `from`/`to`-Text), damit jeder Tastenanschlag NICHT re-fokussiert. Genau das war die Ursache des Cursor-Flackerns in der früheren Version.
+- Beim erneuten Klick in dieselbe Zelle (anderes Feld) läuft der Effect erneut → Wert wird wieder markiert.
 
-## Nicht anfassen
+### 3. Navigation mit Tab und Pfeiltasten
 
-- Datenfluss (`onUpdateInline`, `onCreateInline`, `buildIsoFromLocal`, Mitternachtsüberlauf).
-- Wochenplan-Layout, S/U/K-Ordnung, Zusammenfassung, Buchhaltung, Exporte.
-- Andere Zeitfelder außerhalb der Wochenplan-Inline-Edit (z. B. Perioden-Dialoge).
+In `onKeyDown` zusätzlich zu Enter/Escape:
+
+- **Tab / Shift+Tab**: nächste bzw. vorherige Zeile (Mitarbeiter darunter/darüber), **gleicher Tag, gleiches Feld** (`from`/`to`). Am Ende der Gruppe in die nächste Abteilung überspringen; am Tabellenrand: Commit + Fokus verlassen. `ev.preventDefault()`, damit der Browser-Tab nicht die Tabelle verlässt.
+- **ArrowUp / ArrowDown**: identisch zu Shift+Tab / Tab (Zeile hoch/runter).
+- **ArrowLeft / ArrowRight**: vorheriges/nächstes Feld in Leserichtung — `from → to → from(nächster Tag) → to → …`; über Tages- und Zeilenränder hinweg.
+- Vor jedem Sprung: `commit(edit)` (nur wenn valide oder unverändert; ungültig → Toast wie bisher, Sprung findet nicht statt).
+- Nach dem Sprung: `startEdit(nextStaffId, nextIso, nextField)` — der Effect aus (2) fokussiert und markiert.
+- Übersprungen werden: Zellen außerhalb der Periode (`dm.outOfPeriod`), Zellen mit mehreren Schichten (`multi`, aktuell nicht editierbar), gesperrte Zeilen. Bei Sackgasse endet die Navigation still.
+
+### 4. Reihenfolge für die Navigation
+
+Reihenfolge wird aus den bereits gerenderten Daten abgeleitet: flach über alle Gruppen (`groups.flatMap(g => g.rows)`) für die Zeilen-Achse, `weekDays` für die Tages-Achse. Kein zusätzlicher State, kein neuer Datenfluss.
+
+### 5. Nicht anfassen
+
+- Datenfluss (`onUpdateInline`, `onCreateInline`, `parseHHMM`, Mitternachtsüberlauf).
+- Layout, Spaltenbreiten, S/U/K-Ordnung, Marker, Sperren.
+- Zusammenfassung, Buchhaltung, Exporte.
 - Keine Migration, kein SQL.
 
 ## Erfolgs-Gate
 
-- `npx tsc --noEmit` 0; ESLint 0; Prettier sauber; Vitest grün.
-- Manueller E2E (Frank): Zelle anklicken → `1530` tippen → Enter → speichert `15:30`. `930` → `09:30`. `15:3` → `15:03`. `abc` → Toast „Ungültige Uhrzeit.", Feld bleibt offen. Vorhandene Zeiten lassen sich weiter komfortabel überschreiben.
+- `tsc` 0, ESLint 0, Prettier sauber, Vitest grün.
+- Manueller E2E (Frank): Zelle anklicken → Wert ist selektiert, `1530` überschreibt sofort. Tab springt in die nächste Zeile (gleicher Tag), Wert dort selektiert. Pfeil-links/rechts wechselt zwischen Anf. und Ende, Pfeil hoch/runter zwischen Zeilen. Kein Cursor-Flackern beim Tippen. Zahlen-Optik identisch zu Zusammenfassung.

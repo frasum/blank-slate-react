@@ -3,7 +3,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -1780,7 +1780,19 @@ function WeeklyPlan({
     origTo: string;
   };
   const [edit, setEdit] = useState<EditState | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const navigatingRef = useRef(false);
   const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+  // Fokus + Selektion nur, wenn eine NEUE Zielzelle aktiv wird
+  // (nicht bei jedem Tastenanschlag → kein Cursor-Flackern).
+  useEffect(() => {
+    if (!edit) return;
+    const el = inputRef.current;
+    if (!el) return;
+    el.focus();
+    el.select();
+  }, [edit?.staffId, edit?.iso, edit?.field]);
 
   // Akzeptiert freie Ziffern-Eingaben und normalisiert zu HH:MM.
   // Beispiele: "1530" → "15:30", "930" → "09:30", "9" → "09:00",
@@ -1851,22 +1863,110 @@ function WeeklyPlan({
     const to = parseHHMM(e.to);
     if (!from || !to) {
       toast.error("Ungültige Uhrzeit.");
-      return;
+      return false;
     }
     if (e.existingId) {
-      if (from === e.origFrom && to === e.origTo) return;
+      if (from === e.origFrom && to === e.origTo) return true;
       onUpdateInline(e.existingId, e.iso, from, to);
     } else {
       onCreateInline(e.staffId, e.iso, from, to);
     }
+    return true;
   };
 
   const handleBlur = (ev: React.FocusEvent<HTMLInputElement>, current: EditState) => {
+    if (navigatingRef.current) {
+      navigatingRef.current = false;
+      return;
+    }
     const next = ev.relatedTarget as HTMLElement | null;
     const nextKey = next?.getAttribute?.("data-edit-key");
     if (nextKey === cellKey(current.staffId, current.iso)) return;
     commit(current);
-    setEdit(null);
+    setEdit((cur) =>
+      cur &&
+      cur.staffId === current.staffId &&
+      cur.iso === current.iso &&
+      cur.field === current.field
+        ? null
+        : cur,
+    );
+  };
+
+  // Flache Liste aller sichtbaren Mitarbeiter-Zeilen (für Tab/Pfeil-Navigation).
+  const flatRows = useMemo(() => groups.flatMap((g) => g.rows), [groups]);
+  const isCellEditable = (
+    row: (typeof flatRows)[number] | undefined,
+    dayIdx: number,
+  ): boolean => {
+    if (!row || !isAdmin) return false;
+    const dm = dayMeta[dayIdx];
+    if (!dm || dm.outOfPeriod) return false;
+    const day = row.days[dayIdx];
+    if (!day || day.shifts.length > 1) return false;
+    return true;
+  };
+
+  // Nächste editierbare Zelle in einer der beiden Richtungen.
+  const findNextRow = (
+    rowIdx: number,
+    dayIdx: number,
+    dir: 1 | -1,
+  ): { rowIdx: number; dayIdx: number } | null => {
+    let r = rowIdx + dir;
+    while (r >= 0 && r < flatRows.length) {
+      if (isCellEditable(flatRows[r], dayIdx)) return { rowIdx: r, dayIdx };
+      r += dir;
+    }
+    return null;
+  };
+
+  // Nächste editierbare Zelle in Leserichtung über Tag/Feld-Grenzen hinweg.
+  const findNextField = (
+    rowIdx: number,
+    dayIdx: number,
+    field: "from" | "to",
+    dir: 1 | -1,
+  ): { rowIdx: number; dayIdx: number; field: "from" | "to" } | null => {
+    let d = dayIdx;
+    let f: "from" | "to" = field;
+    for (let guard = 0; guard < 20; guard++) {
+      if (dir === 1) {
+        if (f === "from") f = "to";
+        else {
+          f = "from";
+          d += 1;
+        }
+      } else {
+        if (f === "to") f = "from";
+        else {
+          f = "to";
+          d -= 1;
+        }
+      }
+      if (d < 0 || d >= dayMeta.length) return null;
+      if (isCellEditable(flatRows[rowIdx], d)) return { rowIdx, dayIdx: d, field: f };
+    }
+    return null;
+  };
+
+  // Wechselt die aktive Edit-Zelle. Committed die aktuelle, wenn wir das Feld/die Zelle verlassen.
+  const navigateTo = (
+    current: EditState,
+    nextStaffId: string,
+    nextIso: string,
+    nextField: "from" | "to",
+  ) => {
+    const sameCell = nextStaffId === current.staffId && nextIso === current.iso;
+    if (!sameCell) {
+      if (!commit(current)) return; // ungültig → abbrechen, Zelle bleibt offen
+    }
+    navigatingRef.current = true;
+    if (sameCell) {
+      setEdit({ ...current, field: nextField });
+    } else {
+      startEdit(nextStaffId, nextIso, nextField);
+    }
   };
 
   return (
@@ -2043,9 +2143,9 @@ function WeeklyPlan({
                               inputMode="numeric"
                               maxLength={5}
                               value={val}
-                              autoFocus
                               disabled={pending}
                               data-edit-key={cellKey(row.staffId, day.iso)}
+                              ref={inputRef}
                               onChange={(ev) =>
                                 setEdit({
                                   ...edit,
@@ -2055,15 +2155,64 @@ function WeeklyPlan({
                               onKeyDown={(ev) => {
                                 if (ev.key === "Enter") {
                                   ev.preventDefault();
-                                  commit(edit);
-                                  setEdit(null);
-                                } else if (ev.key === "Escape") {
+                                  if (commit(edit)) setEdit(null);
+                                  return;
+                                }
+                                if (ev.key === "Escape") {
                                   ev.preventDefault();
+                                  navigatingRef.current = true;
                                   setEdit(null);
+                                  return;
+                                }
+                                const rIdx = flatRows.findIndex(
+                                  (r) => r.staffId === edit.staffId,
+                                );
+                                const dIdx = dayMeta.findIndex((d) => d.iso === edit.iso);
+                                if (rIdx < 0 || dIdx < 0) return;
+                                if (ev.key === "Tab") {
+                                  ev.preventDefault();
+                                  const t = findNextRow(rIdx, dIdx, ev.shiftKey ? -1 : 1);
+                                  if (t)
+                                    navigateTo(
+                                      edit,
+                                      flatRows[t.rowIdx].staffId,
+                                      dayMeta[t.dayIdx].iso,
+                                      edit.field,
+                                    );
+                                  return;
+                                }
+                                if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
+                                  ev.preventDefault();
+                                  const t = findNextRow(rIdx, dIdx, ev.key === "ArrowDown" ? 1 : -1);
+                                  if (t)
+                                    navigateTo(
+                                      edit,
+                                      flatRows[t.rowIdx].staffId,
+                                      dayMeta[t.dayIdx].iso,
+                                      edit.field,
+                                    );
+                                  return;
+                                }
+                                if (ev.key === "ArrowRight" || ev.key === "ArrowLeft") {
+                                  ev.preventDefault();
+                                  const t = findNextField(
+                                    rIdx,
+                                    dIdx,
+                                    edit.field,
+                                    ev.key === "ArrowRight" ? 1 : -1,
+                                  );
+                                  if (t)
+                                    navigateTo(
+                                      edit,
+                                      flatRows[t.rowIdx].staffId,
+                                      dayMeta[t.dayIdx].iso,
+                                      t.field,
+                                    );
+                                  return;
                                 }
                               }}
                               onBlur={(ev) => handleBlur(ev, edit)}
-                              className={`w-[58px] h-6 px-1 text-center font-mono text-sm rounded border border-primary/50 bg-background ${pending ? "opacity-60" : ""}`}
+                              className={`w-[58px] h-6 px-1 text-center tabular-nums text-sm rounded border border-primary/50 bg-background ${pending ? "opacity-60" : ""}`}
                             />
                           );
                         }
@@ -2092,13 +2241,13 @@ function WeeklyPlan({
                         <Fragment key={day.iso}>
                           <TableCell
                             onClick={() => handleCellClick("from")}
-                            className={`w-[62px] min-w-[62px] border-l px-1 py-1 text-center align-middle font-mono text-sm ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
+                            className={`w-[62px] min-w-[62px] border-l px-1 py-1 text-center align-middle tabular-nums text-sm ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
                           >
                             {renderShift("from")}
                           </TableCell>
                           <TableCell
                             onClick={() => handleCellClick("to")}
-                            className={`w-[62px] min-w-[62px] px-1 py-1 text-center align-middle font-mono text-sm ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
+                            className={`w-[62px] min-w-[62px] px-1 py-1 text-center align-middle tabular-nums text-sm ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
                           >
                             {renderShift("to")}
                           </TableCell>
