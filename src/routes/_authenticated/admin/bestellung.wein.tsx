@@ -13,6 +13,7 @@ import {
   updateArticle,
 } from "@/lib/bestellung/articles.functions";
 import { listSuppliers } from "@/lib/bestellung/suppliers.functions";
+import { listLocations } from "@/lib/admin/locations.functions";
 import {
   researchWine,
   researchWineById,
@@ -162,6 +163,15 @@ function WeinPage() {
     queryFn: () => listSuppliers({ data: { includeInactive: true } }),
   });
 
+  const locationsQ = useQuery({
+    queryKey: ["admin", "locations"],
+    queryFn: () => listLocations(),
+  });
+  const allLocationIds = useMemo(
+    () => (locationsQ.data ?? []).map((l) => l.id),
+    [locationsQ.data],
+  );
+
   const winesQ = useQuery({
     queryKey: ["bestellung", "wines", { search, includeInactive: showInactive }],
     queryFn: () =>
@@ -185,11 +195,16 @@ function WeinPage() {
     qc.invalidateQueries({ queryKey: ["bestellung", "articles"] });
   };
 
-  const buildPayload = (d: WineDraft) => {
+  const buildPayload = (d: WineDraft, existingLocationIds?: string[]) => {
     const cents = parseEuroToCents(d.priceEuro);
     if (cents == null) throw new Error("Preis ungültig.");
     if (!d.supplierId) throw new Error("Lieferant wählen.");
     if (!d.name.trim()) throw new Error("Name fehlt.");
+    const locIds =
+      existingLocationIds && existingLocationIds.length > 0
+        ? existingLocationIds
+        : allLocationIds;
+    if (locIds.length === 0) throw new Error("Keine Standorte verfügbar.");
     return {
       supplierId: d.supplierId,
       name: d.name,
@@ -205,6 +220,7 @@ function WeinPage() {
       originCountry: d.originCountry,
       foodPairings: d.foodPairings,
       specialAttributes: d.specialAttributes.length > 0 ? d.specialAttributes : null,
+      locationIds: locIds,
     };
   };
 
@@ -220,7 +236,15 @@ function WeinPage() {
 
   const updateMut = useMutation({
     mutationFn: (input: { id: string; draft: WineDraft }) =>
-      callUpdate({ data: { ...buildPayload(input.draft), articleId: input.id } }),
+      callUpdate({
+        data: {
+          ...buildPayload(
+            input.draft,
+            (winesQ.data ?? []).find((w) => w.id === input.id)?.locationIds ?? [],
+          ),
+          articleId: input.id,
+        },
+      }),
     onSuccess: () => {
       setEditingId(null);
       setMsg(null);
@@ -328,7 +352,8 @@ function WeinPage() {
               : Array.isArray(w.special_attributes) && w.special_attributes.length > 0
                 ? w.special_attributes
                 : null,
-            locationIds: (w.locationIds ?? []).length > 0 ? w.locationIds : [],
+            locationIds:
+              (w.locationIds ?? []).length > 0 ? w.locationIds : allLocationIds,
           },
         });
         updated++;
