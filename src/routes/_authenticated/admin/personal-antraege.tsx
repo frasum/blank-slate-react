@@ -50,6 +50,11 @@ import {
 import { listStaff } from "@/lib/admin/staff.functions";
 import { DOC_TYPES, type StaffDocumentType } from "@/lib/profile/staff-document-path";
 import { documentExpiryStatus, type DocumentExpiryStatus } from "@/lib/profile/document-expiry";
+import {
+  listPendingSwaps,
+  decideSwapRequest,
+  type PendingSwapRow,
+} from "@/lib/roster/swap.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/personal-antraege")({
   beforeLoad: ({ context }) => {
