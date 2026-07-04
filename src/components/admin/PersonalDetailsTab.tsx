@@ -183,6 +183,15 @@ export function PersonalDetailsTab({ staffId, canEdit }: Props) {
     onSuccess: async () => {
       setVacMsg("Gespeichert.");
       setVacEditing(false);
+      setForm((prev) => {
+        if (!prev) return prev;
+        const next = { ...prev };
+        for (const k of VACATION_KEYS) {
+          const raw = vacForm[k].trim();
+          next[k] = raw === "" ? null : raw;
+        }
+        return next;
+      });
       await queryClient.invalidateQueries({
         queryKey: ["admin", "staff", staffId, "personal-details"],
       });
