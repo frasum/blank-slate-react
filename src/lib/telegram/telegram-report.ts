@@ -34,6 +34,7 @@ export type ReportKitchen = {
   name: string;
   shiftStart: string | null;
   shiftEnd: string | null;
+  minutes?: number | null;
 };
 
 export type ReportKontrolle = {
@@ -175,11 +176,17 @@ function renderLocation(loc: ReportLocationInput, flags: ReportFlags): string {
     lines.push("");
     lines.push("<b>Küche</b>");
     for (const k of loc.kitchen) {
-      const span =
-        k.shiftStart || k.shiftEnd
-          ? ` (${fmtBerlinTime(k.shiftStart)}–${fmtBerlinTime(k.shiftEnd)})`
-          : "";
-      lines.push(`• ${escapeHtml(k.name)}${span}`);
+      const parts: string[] = [];
+      if (k.shiftStart || k.shiftEnd) {
+        parts.push(`${fmtBerlinTime(k.shiftStart)}–${fmtBerlinTime(k.shiftEnd)}`);
+      }
+      if (typeof k.minutes === "number" && k.minutes > 0) {
+        const h = Math.floor(k.minutes / 60);
+        const m = k.minutes % 60;
+        parts.push(m === 0 ? `${h}h` : `${h}h ${m}min`);
+      }
+      const suffix = parts.length > 0 ? ` (${parts.join(", ")})` : "";
+      lines.push(`• ${escapeHtml(k.name)}${suffix}`);
     }
   }
 
