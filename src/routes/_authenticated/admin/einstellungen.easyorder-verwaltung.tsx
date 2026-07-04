@@ -48,7 +48,7 @@ import {
 } from "@/components/ui/table";
 
 export const Route = createFileRoute("/_authenticated/admin/einstellungen/easyorder-verwaltung")({
-  head: () => ({ meta: [{ title: "EasyOrder-Verwaltung · Bestellung" }] }),
+  head: () => ({ meta: [{ title: "EasyOrder-Verwaltung · Einstellungen" }] }),
   component: EasyOrderAdminPage,
 });
 
