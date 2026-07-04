@@ -450,7 +450,7 @@ function ZeitUebersichtPage() {
     shiftDates: Set<string>;
   };
   const staffAggs = useMemo(() => {
-    const entries: Entry[] = overviewQ.data?.entries ?? [];
+    const entries: Entry[] = overviewEntries;
     const map = new Map<string, StaffAgg>();
     for (const e of entries) {
       let agg = map.get(e.staffId);
@@ -474,7 +474,7 @@ function ZeitUebersichtPage() {
     return Array.from(map.values()).sort((a, b) =>
       a.displayName.localeCompare(b.displayName, "de"),
     );
-  }, [overviewQ.data]);
+  }, [overviewEntries]);
 
   const byDept = useMemo(() => {
     const m = new Map<Department, StaffAgg[]>();
@@ -489,11 +489,37 @@ function ZeitUebersichtPage() {
 
   const notesByStaff = useMemo(() => {
     const m = new Map<string, { vorschuss: number; besonderheiten: string }>();
-    for (const n of notesQ.data ?? []) {
-      m.set(n.staffId, { vorschuss: n.vorschuss, besonderheiten: n.besonderheiten });
+    if (isAllLocations) {
+      // Pro Standort mergen: Vorschüsse summieren, Besonderheiten mit Standort-
+      // Präfix konkatenieren (z. B. "spicery: … · YUM: …").
+      for (let i = 0; i < notesAllQueries.length; i++) {
+        const loc = locations[i];
+        const data = notesAllQueries[i]?.data as
+          | Array<{ staffId: string; vorschuss: number; besonderheiten: string }>
+          | undefined;
+        if (!loc || !data) continue;
+        for (const n of data) {
+          const prev = m.get(n.staffId);
+          const noteText = n.besonderheiten?.trim() ? `${loc.name}: ${n.besonderheiten}` : "";
+          const merged = prev
+            ? {
+                vorschuss: prev.vorschuss + n.vorschuss,
+                besonderheiten:
+                  prev.besonderheiten && noteText
+                    ? `${prev.besonderheiten} · ${noteText}`
+                    : prev.besonderheiten || noteText,
+              }
+            : { vorschuss: n.vorschuss, besonderheiten: noteText };
+          m.set(n.staffId, merged);
+        }
+      }
+    } else {
+      for (const n of notesQ.data ?? []) {
+        m.set(n.staffId, { vorschuss: n.vorschuss, besonderheiten: n.besonderheiten });
+      }
     }
     return m;
-  }, [notesQ.data]);
+  }, [isAllLocations, notesQ.data, notesAllQueries, locations]);
 
   const advanceCentsByStaff = useMemo(() => {
     const m = new Map<string, number>();
@@ -522,15 +548,43 @@ function ZeitUebersichtPage() {
   };
   const sfnByStaff = useMemo(() => {
     const m = new Map<string, SfnAgg>();
-    for (const s of sfnQ.data?.sfn ?? []) {
-      m.set(s.staffId, {
-        simple: s.simple,
-        extended: s.extended,
-        zuschlagCents: s.zuschlagCents,
-      });
+    const addOne = (
+      s: {
+        staffId: string;
+        simple: SfnAgg["simple"];
+        extended: SfnAgg["extended"];
+        zuschlagCents: number;
+      },
+    ) => {
+      const prev = m.get(s.staffId);
+      if (!prev) {
+        m.set(s.staffId, {
+          simple: { ...s.simple },
+          extended: { ...s.extended },
+          zuschlagCents: s.zuschlagCents,
+        });
+        return;
+      }
+      prev.simple.night25Hours += s.simple.night25Hours;
+      prev.simple.night40Hours += s.simple.night40Hours;
+      prev.simple.sundayHours += s.simple.sundayHours;
+      prev.extended.night25Hours += s.extended.night25Hours;
+      prev.extended.night40Hours += s.extended.night40Hours;
+      prev.extended.sundayHours += s.extended.sundayHours;
+      prev.extended.holidayHours += s.extended.holidayHours;
+      prev.extended.holiday150Hours += s.extended.holiday150Hours;
+      prev.zuschlagCents += s.zuschlagCents;
+    };
+    if (isAllLocations) {
+      for (const q of sfnAllQueries) {
+        const data = q.data as { sfn?: Array<Parameters<typeof addOne>[0]> } | undefined;
+        for (const s of data?.sfn ?? []) addOne(s);
+      }
+    } else {
+      for (const s of sfnQ.data?.sfn ?? []) addOne(s);
     }
     return m;
-  }, [sfnQ.data]);
+  }, [isAllLocations, sfnQ.data, sfnAllQueries]);
 
   const upsertMut = useMutation({
     mutationFn: (vars: { staffId: string; vorschuss: number; besonderheiten: string | null }) =>
