@@ -23,6 +23,7 @@ import {
   getTelegramReportSettings,
   updateTelegramReportSettings,
   setDailyReportRecipient,
+  setSwapAlertsRecipient,
   sendTestReport,
 } from "@/lib/telegram/telegram-report.functions";
 
