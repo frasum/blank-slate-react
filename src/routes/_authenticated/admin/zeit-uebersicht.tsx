@@ -64,6 +64,7 @@ import {
 import { FileDown, FileSpreadsheet, Search } from "lucide-react";
 import { ProvisionTab } from "@/components/lohn/ProvisionTab";
 import { LohnrechnerPanel } from "@/components/lohn/LohnrechnerPanel";
+import { BatchTimesCard } from "@/components/zeit/BatchTimesCard";
 
 export const Route = createFileRoute("/_authenticated/admin/zeit-uebersicht")({
   head: () => ({ meta: [{ title: "Arbeitszeiten" }] }),
