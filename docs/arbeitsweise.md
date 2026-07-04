@@ -2331,3 +2331,40 @@ Genehmigungs-UI liegt in `/admin/personal-antraege` unter dem Reiter
 „Schichttausch" (peer_accepted-Karten oben, offene informativ darunter).
 
 **Status:** TA1 ✅ / TA2 ✅ (E2E Frank ausstehend).
+
+## §VA1 — Verkaufsartikel (POS) (Stand: 04.07.2026)
+
+**Zweck.** Standort-scope Liste der POS-Verkaufsartikel mit Verkaufs- und
+Mitnahmepreis als **Auswertungs-Basis** für spätere Vectron-Umsatzabgleiche.
+Bewusst getrennt von `articles` (Einkauf ≠ Verkauf).
+
+**Schema.** Neue Tabelle `public.sales_articles` mit
+`organization_id`, `location_id`, `name`, `product_group` (Vectron-WG-Nr.),
+`price_cents`, `takeaway_price_cents`, `is_active`. Preise sind **nullable**
+(NULL = POS-Technik ohne festen Preis: Modifikator, Sammel-PLU, Rabatt) und
+per CHECK auf `>= 0` gebunden. **Voller** Unique-Index auf
+`(location_id, name)` als Idempotenz-Anker für den Import (§51-tauglich für
+`onConflict`). **Kein Delete-Pfad** — Artikel bleiben als Anker bestehen und
+werden ausschließlich über `is_active = false` deaktiviert.
+
+**Zugriff.** RLS aktiv, **DENY-ALL** — keine Client-Policies. Reads und
+Writes ausschließlich über `src/lib/bestellung/sales-articles.functions.ts`
+(`loadAdminCaller("manager")` + `supabaseAdmin`). Schreibaktionen laufen
+durch `runGuarded` + Audit (`sales_article.created` / `sales_article.updated`
+mit `before/after` der geänderten Felder). `location_id` wird vor jedem
+Schreib-/Lesezugriff gegen die Org des Aufrufers validiert.
+
+**UI.** Neuer Tab „Verkaufsartikel" im Bestellung-Bereich
+(`/admin/bestellung/verkaufsartikel`). Standort-Pills (**kein „Alle"** —
+Artikel sind standort-scope), Suche, Warengruppen-Filter, Toggle „inaktive
+anzeigen". Tabelle mit inline editierbaren Preisspalten (Euro-Eingabe,
+Komma/Punkt tolerant, intern Cents; Enter speichert, Escape verwirft) und
+Aktiv-Switch. Preis NULL wird als gedämpfter „—" gezeigt. Handpflege für
+Nachzügler über Dialog „Artikel anlegen".
+
+**Import.** Frank importiert per SQL aus Vectron-Exporten
+(`ON CONFLICT (location_id, name) DO UPDATE`), YUM zuerst (261 Artikel),
+Spicery/TSB folgen. Import läuft direkt über die Datenbank, nicht über
+die UI.
+
+**Status:** VA1 ✅ Schema + UI (Import Frank ausstehend).
