@@ -910,8 +910,8 @@ function TelegramCard() {
       <div>
         <h2 className="text-base font-semibold text-foreground">Telegram-Benachrichtigungen</h2>
         <p className="text-xs text-muted-foreground">
-          Verknüpfe deinen persönlichen Telegram-Chat, um Push-Nachrichten aus COCO zu erhalten
-          (z. B. Freigaben, wichtige Hinweise).
+          Verknüpfe deinen persönlichen Telegram-Chat, um Push-Nachrichten aus COCO zu erhalten (z.
+          B. Freigaben, wichtige Hinweise).
         </p>
       </div>
 
@@ -926,9 +926,7 @@ function TelegramCard() {
                 <span className="text-muted-foreground"> · @{linkQ.data.telegramUsername}</span>
               ) : null}
             </div>
-            <div className="text-xs text-muted-foreground">
-              seit {fmtDate(linkQ.data.linkedAt)}
-            </div>
+            <div className="text-xs text-muted-foreground">seit {fmtDate(linkQ.data.linkedAt)}</div>
           </div>
           <Button type="button" variant="outline" size="sm" onClick={onUnlink} disabled={busy}>
             Trennen
@@ -968,11 +966,7 @@ function TelegramCard() {
               verknüpfen kannst.
             </p>
           ) : null}
-          <Button
-            type="button"
-            onClick={onStart}
-            disabled={busy || !linkQ.data?.botUsername}
-          >
+          <Button type="button" onClick={onStart} disabled={busy || !linkQ.data?.botUsername}>
             Mit Telegram verknüpfen
           </Button>
         </div>

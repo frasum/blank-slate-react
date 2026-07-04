@@ -212,7 +212,10 @@ const telegramBotSchema = z.object({
     .string()
     .trim()
     .max(64)
-    .regex(/^[A-Za-z][A-Za-z0-9_]{3,63}$/, "Ungültiger Bot-Username (nur A-Z, a-z, 0-9, _; 4–64 Zeichen).")
+    .regex(
+      /^[A-Za-z][A-Za-z0-9_]{3,63}$/,
+      "Ungültiger Bot-Username (nur A-Z, a-z, 0-9, _; 4–64 Zeichen).",
+    )
     .nullable()
     .or(z.literal("").transform(() => null)),
 });

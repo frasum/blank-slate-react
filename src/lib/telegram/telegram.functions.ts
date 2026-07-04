@@ -120,20 +120,18 @@ export const startTelegramLink = createServerFn({ method: "POST" })
         throw new Error("Telegram ist bereits verknüpft. Zuerst trennen.");
       }
 
-      const { error } = await supabaseAdmin
-        .from("staff_telegram_links")
-        .upsert(
-          {
-            organization_id: caller.organizationId,
-            staff_id: caller.staffId,
-            link_token: token,
-            token_expires_at: expiresAt,
-            telegram_chat_id: null,
-            telegram_username: null,
-            linked_at: null,
-          },
-          { onConflict: "staff_id" },
-        );
+      const { error } = await supabaseAdmin.from("staff_telegram_links").upsert(
+        {
+          organization_id: caller.organizationId,
+          staff_id: caller.staffId,
+          link_token: token,
+          token_expires_at: expiresAt,
+          telegram_chat_id: null,
+          telegram_username: null,
+          linked_at: null,
+        },
+        { onConflict: "staff_id" },
+      );
       if (error) throw new Error(error.message);
 
       const { data: settings, error: sErr } = await supabaseAdmin
