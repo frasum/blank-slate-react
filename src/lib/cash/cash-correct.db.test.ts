@@ -31,6 +31,7 @@ describe.skipIf(!dbTestsEnabled)("correctWaiterSettlementCore (DB)", () => {
       staffId: waiter.staffId,
       organizationId: org.orgId,
       isActive: true,
+      impersonatedBy: null,
     };
   }
   function m(): AdminCaller {
