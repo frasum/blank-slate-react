@@ -2265,3 +2265,52 @@ Felder, nicht nur das Zielfeld — die erste Plausibilitätsprüfung testete
 nur „genommen < 0" und übersah sechs negative Vorjahres-Werte; aufgeflogen
 durch Zufalls-Review. Dieselbe Sorgfalt wie bei Geld-Importen gilt für
 jede Zahlenspalte.
+
+## 55. Schichttausch TA1 — Zustandsmaschine, DENY-ALL-RLS, kein Auto-Vollzug (04.07.2026)
+
+Mitarbeiter können ihre eigenen zukünftigen `roster_shifts` zum Tausch
+anbieten. Berechtigte Kollegen (gleicher Standort + gleicher Arbeitsbereich,
+kein Tageskonflikt) sehen die Anfrage im Portal und können sie **annehmen**
+oder **ablehnen**. Der Dienstplan ändert sich in TA1 NIE automatisch — der
+Vollzug (Umschreibung von `roster_shifts.staff_id`) ist Aufgabe der
+Manager-Genehmigung (TA2).
+
+**Zustandsmaschine `shift_swap_requests.status`:**
+
+```
+open ──accept──▶ peer_accepted ──approve──▶ approved
+  │                    │
+  │                    └──reject──▶ rejected
+  │
+  └──cancel (nur Anfragender) ──▶ cancelled
+```
+
+Ablehnungen einzelner Kollegen leben in einer **separaten Tabelle**
+`shift_swap_declines (request_id, staff_id)` und **ändern den Status
+NICHT**. Auch wenn alle Berechtigten ablehnen, bleibt der Request `open` —
+der Anfragende entscheidet selbst über Stornieren. Eine ANNAHME kann der
+Kollege in TA1 nicht zurückziehen (nur der Anfragende storniert, der
+Manager lehnt in TA2 ab). Eine ABLEHNUNG ist endgültig für diesen Request.
+
+**Berechtigten-Regel (`eligiblePeerFilter` in `swap-rules.ts`):** aktiv,
+nicht der Anfragende, hat `staff_locations`-Zeile mit
+`(location_id, department) == (shift.location_id, shift.area)`, hat an
+`shift_date` an genau diesem Scope KEINE eigene Schicht.
+
+**RLS/Zugriff:** Beide Tabellen sind **DENY-ALL** für Clients — keine
+Policies, alle Zugriffe laufen server-seitig über `supabaseAdmin` NACH
+`loadStaffCaller` und expliziter Berechtigungsprüfung. `staffId` kommt
+IMMER aus `auth.uid` → `user_links` und nie vom Client.
+
+**Partieller Unique-Index:**
+`shift_swap_requests_active_shift ON (shift_id) WHERE status IN ('open','peer_accepted')`
+verhindert zwei aktive Anfragen pro Schicht. §51-Anmerkung: der Index ist
+KEIN `onConflict`-Ziel für PostgREST-Upserts — der Konflikt wird als
+`INSERT`-Fehler oben abgefangen und zusätzlich server-seitig per
+`hasActiveRequestForShift`-Precheck erkannt.
+
+**Perioden-Sperren:** Beim Anlegen einer Anfrage wird
+`assertShiftDateUnlocked` gerufen — für gesperrte Perioden gibt es keine
+Tausch-Anfragen.
+
+**Status:** TA1 ✅ / TA2 offen.

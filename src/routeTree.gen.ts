@@ -24,6 +24,7 @@ import { Route as AuthenticatedZeitIndexRouteImport } from './routes/_authentica
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedZeitWuenscheRouteImport } from './routes/_authenticated/zeit/wuensche'
 import { Route as AuthenticatedZeitUrlaubRouteImport } from './routes/_authenticated/zeit/urlaub'
+import { Route as AuthenticatedZeitTauschRouteImport } from './routes/_authenticated/zeit/tausch'
 import { Route as AuthenticatedZeitStundenRouteImport } from './routes/_authenticated/zeit/stunden'
 import { Route as AuthenticatedZeitStempelnRouteImport } from './routes/_authenticated/zeit/stempeln'
 import { Route as AuthenticatedZeitSchichtenRouteImport } from './routes/_authenticated/zeit/schichten'
@@ -140,6 +141,11 @@ const AuthenticatedZeitWuenscheRoute =
 const AuthenticatedZeitUrlaubRoute = AuthenticatedZeitUrlaubRouteImport.update({
   id: '/zeit/urlaub',
   path: '/zeit/urlaub',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedZeitTauschRoute = AuthenticatedZeitTauschRouteImport.update({
+  id: '/zeit/tausch',
+  path: '/zeit/tausch',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedZeitStundenRoute =
@@ -423,6 +429,7 @@ export interface FileRoutesByFullPath {
   '/zeit/schichten': typeof AuthenticatedZeitSchichtenRoute
   '/zeit/stempeln': typeof AuthenticatedZeitStempelnRoute
   '/zeit/stunden': typeof AuthenticatedZeitStundenRoute
+  '/zeit/tausch': typeof AuthenticatedZeitTauschRoute
   '/zeit/urlaub': typeof AuthenticatedZeitUrlaubRoute
   '/zeit/wuensche': typeof AuthenticatedZeitWuenscheRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
@@ -477,6 +484,7 @@ export interface FileRoutesByTo {
   '/zeit/schichten': typeof AuthenticatedZeitSchichtenRoute
   '/zeit/stempeln': typeof AuthenticatedZeitStempelnRoute
   '/zeit/stunden': typeof AuthenticatedZeitStundenRoute
+  '/zeit/tausch': typeof AuthenticatedZeitTauschRoute
   '/zeit/urlaub': typeof AuthenticatedZeitUrlaubRoute
   '/zeit/wuensche': typeof AuthenticatedZeitWuenscheRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
@@ -536,6 +544,7 @@ export interface FileRoutesById {
   '/_authenticated/zeit/schichten': typeof AuthenticatedZeitSchichtenRoute
   '/_authenticated/zeit/stempeln': typeof AuthenticatedZeitStempelnRoute
   '/_authenticated/zeit/stunden': typeof AuthenticatedZeitStundenRoute
+  '/_authenticated/zeit/tausch': typeof AuthenticatedZeitTauschRoute
   '/_authenticated/zeit/urlaub': typeof AuthenticatedZeitUrlaubRoute
   '/_authenticated/zeit/wuensche': typeof AuthenticatedZeitWuenscheRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
@@ -595,6 +604,7 @@ export interface FileRouteTypes {
     | '/zeit/schichten'
     | '/zeit/stempeln'
     | '/zeit/stunden'
+    | '/zeit/tausch'
     | '/zeit/urlaub'
     | '/zeit/wuensche'
     | '/admin/'
@@ -649,6 +659,7 @@ export interface FileRouteTypes {
     | '/zeit/schichten'
     | '/zeit/stempeln'
     | '/zeit/stunden'
+    | '/zeit/tausch'
     | '/zeit/urlaub'
     | '/zeit/wuensche'
     | '/admin'
@@ -707,6 +718,7 @@ export interface FileRouteTypes {
     | '/_authenticated/zeit/schichten'
     | '/_authenticated/zeit/stempeln'
     | '/_authenticated/zeit/stunden'
+    | '/_authenticated/zeit/tausch'
     | '/_authenticated/zeit/urlaub'
     | '/_authenticated/zeit/wuensche'
     | '/_authenticated/admin/'
@@ -844,6 +856,13 @@ declare module '@tanstack/react-router' {
       path: '/zeit/urlaub'
       fullPath: '/zeit/urlaub'
       preLoaderRoute: typeof AuthenticatedZeitUrlaubRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/zeit/tausch': {
+      id: '/_authenticated/zeit/tausch'
+      path: '/zeit/tausch'
+      fullPath: '/zeit/tausch'
+      preLoaderRoute: typeof AuthenticatedZeitTauschRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/zeit/stunden': {
@@ -1262,6 +1281,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedZeitSchichtenRoute: typeof AuthenticatedZeitSchichtenRoute
   AuthenticatedZeitStempelnRoute: typeof AuthenticatedZeitStempelnRoute
   AuthenticatedZeitStundenRoute: typeof AuthenticatedZeitStundenRoute
+  AuthenticatedZeitTauschRoute: typeof AuthenticatedZeitTauschRoute
   AuthenticatedZeitUrlaubRoute: typeof AuthenticatedZeitUrlaubRoute
   AuthenticatedZeitWuenscheRoute: typeof AuthenticatedZeitWuenscheRoute
   AuthenticatedZeitIndexRoute: typeof AuthenticatedZeitIndexRoute
@@ -1280,6 +1300,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedZeitSchichtenRoute: AuthenticatedZeitSchichtenRoute,
   AuthenticatedZeitStempelnRoute: AuthenticatedZeitStempelnRoute,
   AuthenticatedZeitStundenRoute: AuthenticatedZeitStundenRoute,
+  AuthenticatedZeitTauschRoute: AuthenticatedZeitTauschRoute,
   AuthenticatedZeitUrlaubRoute: AuthenticatedZeitUrlaubRoute,
   AuthenticatedZeitWuenscheRoute: AuthenticatedZeitWuenscheRoute,
   AuthenticatedZeitIndexRoute: AuthenticatedZeitIndexRoute,

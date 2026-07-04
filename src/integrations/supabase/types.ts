@@ -2885,6 +2885,127 @@ export type Database = {
           },
         ]
       }
+      shift_swap_declines: {
+        Row: {
+          created_at: string
+          request_id: string
+          staff_id: string
+        }
+        Insert: {
+          created_at?: string
+          request_id: string
+          staff_id: string
+        }
+        Update: {
+          created_at?: string
+          request_id?: string
+          staff_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_swap_declines_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "shift_swap_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_swap_declines_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shift_swap_requests: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          id: string
+          note: string | null
+          organization_id: string
+          peer_shift_id: string | null
+          peer_staff_id: string | null
+          requester_staff_id: string
+          responded_at: string | null
+          shift_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          note?: string | null
+          organization_id: string
+          peer_shift_id?: string | null
+          peer_staff_id?: string | null
+          requester_staff_id: string
+          responded_at?: string | null
+          shift_id: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          note?: string | null
+          organization_id?: string
+          peer_shift_id?: string | null
+          peer_staff_id?: string | null
+          requester_staff_id?: string
+          responded_at?: string | null
+          shift_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_swap_requests_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_swap_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_swap_requests_peer_shift_id_fkey"
+            columns: ["peer_shift_id"]
+            isOneToOne: false
+            referencedRelation: "roster_shifts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_swap_requests_peer_staff_id_fkey"
+            columns: ["peer_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_swap_requests_requester_staff_id_fkey"
+            columns: ["requester_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_swap_requests_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "roster_shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       skills: {
         Row: {
           category: Database["public"]["Enums"]["skill_category"]
