@@ -431,7 +431,6 @@ function WeinPage() {
                   Abbrechen
                 </button>
               )}
-              <BatchStatusBadge status={batchStatus} />
             </div>
             {batchProgress && (
               <div className="space-y-1">
