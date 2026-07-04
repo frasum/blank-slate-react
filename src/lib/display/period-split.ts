@@ -59,11 +59,9 @@ export function periodLabel(endIso: string): string {
  * Vollständiger Bereich als "DD.MM.–DD.MM." (für title-Tooltip).
  */
 export function periodRangeLabel(endIso: string): string {
-  const { y, m } = parseIso(endIso);
-  const py = m === 1 ? y - 1 : y;
+  const { m } = parseIso(endIso);
   const pm = m === 1 ? 12 : m - 1;
-  const startDay = 26;
-  return `${pad2(startDay)}.${pad2(pm)}.–25.${pad2(m)}.`;
+  return `26.${pad2(pm)}.–25.${pad2(m)}.`;
 }
 
 /**
