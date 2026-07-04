@@ -1609,9 +1609,6 @@ function PayrollRow({
       <TableCell className="py-1.5 text-right tabular-nums font-medium">
         {fmtHm(row.totalHours)}
       </TableCell>
-      <TableCell className="py-1.5 text-right tabular-nums text-muted-foreground">
-        {row.shifts}
-      </TableCell>
       <TableCell className="py-1.5 text-right">{numCell(row.evening)}</TableCell>
       <TableCell className="py-1.5 text-right">{numCell(row.night)}</TableCell>
       {!is3b && <TableCell className="py-1.5 text-right">{numCell(row.sunHol)}</TableCell>}
@@ -1622,6 +1619,9 @@ function PayrollRow({
           <TableCell className="py-1.5 text-right">{numCell(row.feiertag150)}</TableCell>
         </>
       )}
+      <TableCell className="py-1.5 text-right tabular-nums text-muted-foreground">
+        {row.shifts}
+      </TableCell>
       <TableCell
         className={`py-1.5 text-right tabular-nums ${
           row.urlaubDays > 0 ? "font-medium" : "text-muted-foreground/50"
