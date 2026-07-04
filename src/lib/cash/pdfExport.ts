@@ -8,6 +8,7 @@ import type { RowInput } from "jspdf-autotable";
 import { computeDailyCash, type DayInput } from "./cash-ledger";
 import { computeWechselgeld } from "./cash-summary";
 import { sessionToDayInput } from "./session-day-input";
+import { sumNonGlTerminalCents } from "./session-channels";
 
 type Cents = number;
 
@@ -19,6 +20,10 @@ export interface PdfChannel {
 export interface PdfTerminal {
   id: string;
   label: string;
+  /** §33: GL-Terminals (Guthaben-/Kreditkarten-Kontrollposten) mindern das
+   *  Bargeld NICHT. Muss aus payment_terminals.is_gl gespeist werden — sonst
+   *  weicht die Karten-Summe im PDF vom Bildschirm ab (Bug KGL-2 04.07.). */
+  isGl: boolean;
 }
 
 export interface PdfSession {
@@ -188,7 +193,16 @@ export async function generateDailySummaryPdf(data: PdfExportData): Promise<{
   // POS-Umsatz kommt aus dem Session-Feld vectron_daily_total_cents
   // (NICHT aus den Channels — YUM/Spicery hat keinen pos-Channel).
   const posTotal = Number(sess.vectron_daily_total_cents ?? 0);
-  const cardTerminalTotal = data.terminalAmounts.reduce((a, b) => a + b.amountCents, 0);
+  // §33 (KGL-2): GL-Terminals sind Kontrollposten und dürfen den Kartenabzug
+  // NICHT erhöhen. Join Terminal-Beträge ↔ Terminals (isGl) und Summe über
+  // die zentrale Regel `sumNonGlTerminalCents` — identisch zum Bildschirm-
+  // Pfad (`cardDeductionFromTerminalRows` in CashSummaryBlock).
+  const terminalGlById = new Map(data.terminals.map((t) => [t.id, t.isGl]));
+  const terminalRowsWithGl = data.terminalAmounts.map((a) => ({
+    amountCents: a.amountCents,
+    isGl: terminalGlById.get(a.terminalId) ?? false,
+  }));
+  const cardTerminalTotal = sumNonGlTerminalCents(terminalRowsWithGl);
   const sumOpen = active.reduce((a, s) => a + s.open_invoices_cents, 0);
   const sumHilf = active.reduce((a, s) => a + s.hilf_mahl_cents, 0);
   const sumAdvances = data.advances.reduce((a, b) => a + b.amountCents, 0);
