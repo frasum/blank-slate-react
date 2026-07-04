@@ -1529,7 +1529,6 @@ function PayrollTab({
                 <TableCell className="py-1.5 text-right tabular-nums">
                   {fmtHm(totals.totalHours)}
                 </TableCell>
-                <TableCell className="py-1.5 text-right tabular-nums">{totals.shifts}</TableCell>
                 <TableCell className="py-1.5 text-right tabular-nums">
                   {fmtDec(totals.evening)}
                 </TableCell>
@@ -1554,6 +1553,7 @@ function PayrollTab({
                     </TableCell>
                   </>
                 )}
+                <TableCell className="py-1.5 text-right tabular-nums">{totals.shifts}</TableCell>
                 <TableCell className="py-1.5 text-right tabular-nums">
                   {totals.urlaubDays > 0 ? totals.urlaubDays : "–"}
                 </TableCell>
