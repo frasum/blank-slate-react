@@ -401,6 +401,7 @@ export const placeEasyOrder = createServerFn({ method: "POST" })
       "staff",
       "planer",
     ]);
+    assertRealIdentity(caller);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const result = await placeEasyOrderCore(supabaseAdmin, caller, data);
     await writeAuditLog({
