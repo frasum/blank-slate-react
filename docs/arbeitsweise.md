@@ -50,6 +50,16 @@ Erst wenn ESLint 0 Fehler und alle Tests grün sind → ABGENOMMEN.
   gehören in `docs/seed-storage.sql` (Ops-Seed, bei DB-Neuaufbau manuell nach
   den Migrationen ausführen). `storage.objects`-Policies sind davon nicht
   betroffen und bleiben reguläre Migrationen.
+- **Storage-Buckets sind nicht migrationsfähig** (Plattform-Blockade
+  `bucket_sql_blocked`): Anlage/Änderung nur über das Lovable-Storage-Tool,
+  niemals per SQL-Migration beauftragen. Repo-Parität ersetzt dieses Inventar
+  (bei jedem neuen Bucket hier nachtragen, `public`-Flag ist Pflichtangabe):
+
+  | Bucket            | public | Zweck                                       |
+  | ----------------- | ------ | ------------------------------------------- |
+  | `staff-documents` | false  | SP-Dokumente (Ausweise, Nachweise)          |
+  | `payslips`        | false  | PaySlip-PDFs (Welle D, depriorisiert)       |
+  | `task-photos`     | false  | AF1 Aufgaben-Fotos (signierte URLs, 60 min) |
 - **Lovable-Diskrepanz-Meldungen: erst SHA-Beweis, dann glauben.** Zweimal
   am 03.07. meldete Lovable „Prompt kollidiert mit Code-Realität" bzw.
   behauptete „mein Workspace ist identisch mit origin/HEAD (Revert)" —
