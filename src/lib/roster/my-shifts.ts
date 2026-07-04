@@ -3,7 +3,9 @@
 // Reihenfolge.
 
 export type MyShiftRow = {
+  id: string;
   shift_date: string;
+  locationId: string;
   locationName: string;
   area: "kitchen" | "service" | "gl";
   skillCode: string | null;
