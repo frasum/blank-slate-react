@@ -84,7 +84,6 @@ export function VacationPlannerSection() {
   });
 
   const months = useMemo(() => monthOffsets(year), [year]);
-  const totalDays = yearDayCount(year);
   const today = todayIso();
   const todayInYear = today.startsWith(`${year}-`);
   const todayPct = todayInYear ? (dayOfYearPct(today, year).leftPct as number) : null;
@@ -138,7 +137,6 @@ export function VacationPlannerSection() {
         <PlannerBoard
           data={plannerQuery.data}
           months={months}
-          totalDays={totalDays}
           todayPct={todayPct}
           year={year}
         />
@@ -152,20 +150,18 @@ type PlannerData = VacationPlannerResult;
 function PlannerBoard({
   data,
   months,
-  totalDays,
   todayPct,
   year,
 }: {
   data: PlannerData;
   months: { month: number; leftPct: number }[];
-  totalDays: number;
   todayPct: number | null;
   year: number;
 }) {
   return (
     <Card className="space-y-2 p-3">
       <MonthHeader months={months} />
-      <DensityStrip counts={data.dailyCounts} year={year} totalDays={totalDays} todayPct={todayPct} />
+      <DensityStrip counts={data.dailyCounts} year={year} todayPct={todayPct} />
       <PlannerBlock
         title="Küche"
         rows={data.kitchen}
@@ -206,12 +202,10 @@ function MonthHeader({ months }: { months: { month: number; leftPct: number }[] 
 function DensityStrip({
   counts,
   year,
-  totalDays,
   todayPct,
 }: {
   counts: Record<string, number>;
   year: number;
-  totalDays: number;
   todayPct: number | null;
 }) {
   const entries = Object.entries(counts);
@@ -242,7 +236,7 @@ function DensityStrip({
             </Tooltip>
           );
         })}
-        {todayPct !== null ? <TodayLine leftPct={todayPct} totalDays={totalDays} /> : null}
+        {todayPct !== null ? <TodayLine leftPct={todayPct} /> : null}
       </div>
     </div>
   );
@@ -349,7 +343,7 @@ function MonthGridLines({
   );
 }
 
-function TodayLine({ leftPct }: { leftPct: number; totalDays?: number }) {
+function TodayLine({ leftPct }: { leftPct: number }) {
   return (
     <div
       className="pointer-events-none absolute top-0 bottom-0 w-px bg-amber-500/80"
