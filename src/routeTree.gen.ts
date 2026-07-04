@@ -45,6 +45,7 @@ import { Route as AuthenticatedAdminKasseSaldoRouteImport } from './routes/_auth
 import { Route as AuthenticatedAdminKasseRouteImport } from './routes/_authenticated/admin/kasse'
 import { Route as AuthenticatedAdminImportZuordnungenRouteImport } from './routes/_authenticated/admin/import-zuordnungen'
 import { Route as AuthenticatedAdminImpersonateRouteImport } from './routes/_authenticated/admin/impersonate'
+import { Route as AuthenticatedAdminEinstellungenRouteImport } from './routes/_authenticated/admin/einstellungen'
 import { Route as AuthenticatedAdminDokumenteRouteImport } from './routes/_authenticated/admin/dokumente'
 import { Route as AuthenticatedAdminDienstplanRouteImport } from './routes/_authenticated/admin/dienstplan'
 import { Route as AuthenticatedAdminBwaRouteImport } from './routes/_authenticated/admin/bwa'
@@ -266,6 +267,12 @@ const AuthenticatedAdminImpersonateRoute =
     path: '/impersonate',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminEinstellungenRoute =
+  AuthenticatedAdminEinstellungenRouteImport.update({
+    id: '/einstellungen',
+    path: '/einstellungen',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminDokumenteRoute =
   AuthenticatedAdminDokumenteRouteImport.update({
     id: '/dokumente',
@@ -309,9 +316,9 @@ const AuthenticatedAdminStaffIndexRoute =
   } as any)
 const AuthenticatedAdminEinstellungenIndexRoute =
   AuthenticatedAdminEinstellungenIndexRouteImport.update({
-    id: '/einstellungen/',
-    path: '/einstellungen/',
-    getParentRoute: () => AuthenticatedAdminRouteRoute,
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAdminEinstellungenRoute,
   } as any)
 const AuthenticatedAdminBestellungIndexRoute =
   AuthenticatedAdminBestellungIndexRouteImport.update({
@@ -356,9 +363,9 @@ const AuthenticatedAdminStaffStaffIdRoute =
   } as any)
 const AuthenticatedAdminEinstellungenEasyorderVerwaltungRoute =
   AuthenticatedAdminEinstellungenEasyorderVerwaltungRouteImport.update({
-    id: '/einstellungen/easyorder-verwaltung',
-    path: '/einstellungen/easyorder-verwaltung',
-    getParentRoute: () => AuthenticatedAdminRouteRoute,
+    id: '/easyorder-verwaltung',
+    path: '/easyorder-verwaltung',
+    getParentRoute: () => AuthenticatedAdminEinstellungenRoute,
   } as any)
 const AuthenticatedAdminBestellungWeinQuizRoute =
   AuthenticatedAdminBestellungWeinQuizRouteImport.update({
@@ -408,6 +415,7 @@ export interface FileRoutesByFullPath {
   '/admin/bwa': typeof AuthenticatedAdminBwaRoute
   '/admin/dienstplan': typeof AuthenticatedAdminDienstplanRoute
   '/admin/dokumente': typeof AuthenticatedAdminDokumenteRoute
+  '/admin/einstellungen': typeof AuthenticatedAdminEinstellungenRouteWithChildren
   '/admin/impersonate': typeof AuthenticatedAdminImpersonateRoute
   '/admin/import-zuordnungen': typeof AuthenticatedAdminImportZuordnungenRoute
   '/admin/kasse': typeof AuthenticatedAdminKasseRoute
@@ -523,6 +531,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/bwa': typeof AuthenticatedAdminBwaRoute
   '/_authenticated/admin/dienstplan': typeof AuthenticatedAdminDienstplanRoute
   '/_authenticated/admin/dokumente': typeof AuthenticatedAdminDokumenteRoute
+  '/_authenticated/admin/einstellungen': typeof AuthenticatedAdminEinstellungenRouteWithChildren
   '/_authenticated/admin/impersonate': typeof AuthenticatedAdminImpersonateRoute
   '/_authenticated/admin/import-zuordnungen': typeof AuthenticatedAdminImportZuordnungenRoute
   '/_authenticated/admin/kasse': typeof AuthenticatedAdminKasseRoute
@@ -583,6 +592,7 @@ export interface FileRouteTypes {
     | '/admin/bwa'
     | '/admin/dienstplan'
     | '/admin/dokumente'
+    | '/admin/einstellungen'
     | '/admin/impersonate'
     | '/admin/import-zuordnungen'
     | '/admin/kasse'
@@ -697,6 +707,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/bwa'
     | '/_authenticated/admin/dienstplan'
     | '/_authenticated/admin/dokumente'
+    | '/_authenticated/admin/einstellungen'
     | '/_authenticated/admin/impersonate'
     | '/_authenticated/admin/import-zuordnungen'
     | '/_authenticated/admin/kasse'
@@ -1005,6 +1016,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminImpersonateRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/einstellungen': {
+      id: '/_authenticated/admin/einstellungen'
+      path: '/einstellungen'
+      fullPath: '/admin/einstellungen'
+      preLoaderRoute: typeof AuthenticatedAdminEinstellungenRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/dokumente': {
       id: '/_authenticated/admin/dokumente'
       path: '/dokumente'
@@ -1056,10 +1074,10 @@ declare module '@tanstack/react-router' {
     }
     '/_authenticated/admin/einstellungen/': {
       id: '/_authenticated/admin/einstellungen/'
-      path: '/einstellungen'
+      path: '/'
       fullPath: '/admin/einstellungen/'
       preLoaderRoute: typeof AuthenticatedAdminEinstellungenIndexRouteImport
-      parentRoute: typeof AuthenticatedAdminRouteRoute
+      parentRoute: typeof AuthenticatedAdminEinstellungenRoute
     }
     '/_authenticated/admin/bestellung/': {
       id: '/_authenticated/admin/bestellung/'
@@ -1112,10 +1130,10 @@ declare module '@tanstack/react-router' {
     }
     '/_authenticated/admin/einstellungen/easyorder-verwaltung': {
       id: '/_authenticated/admin/einstellungen/easyorder-verwaltung'
-      path: '/einstellungen/easyorder-verwaltung'
+      path: '/easyorder-verwaltung'
       fullPath: '/admin/einstellungen/easyorder-verwaltung'
       preLoaderRoute: typeof AuthenticatedAdminEinstellungenEasyorderVerwaltungRouteImport
-      parentRoute: typeof AuthenticatedAdminRouteRoute
+      parentRoute: typeof AuthenticatedAdminEinstellungenRoute
     }
     '/_authenticated/admin/bestellung/wein-quiz': {
       id: '/_authenticated/admin/bestellung/wein-quiz'
@@ -1185,6 +1203,24 @@ const AuthenticatedAdminBestellungRouteWithChildren =
     AuthenticatedAdminBestellungRouteChildren,
   )
 
+interface AuthenticatedAdminEinstellungenRouteChildren {
+  AuthenticatedAdminEinstellungenEasyorderVerwaltungRoute: typeof AuthenticatedAdminEinstellungenEasyorderVerwaltungRoute
+  AuthenticatedAdminEinstellungenIndexRoute: typeof AuthenticatedAdminEinstellungenIndexRoute
+}
+
+const AuthenticatedAdminEinstellungenRouteChildren: AuthenticatedAdminEinstellungenRouteChildren =
+  {
+    AuthenticatedAdminEinstellungenEasyorderVerwaltungRoute:
+      AuthenticatedAdminEinstellungenEasyorderVerwaltungRoute,
+    AuthenticatedAdminEinstellungenIndexRoute:
+      AuthenticatedAdminEinstellungenIndexRoute,
+  }
+
+const AuthenticatedAdminEinstellungenRouteWithChildren =
+  AuthenticatedAdminEinstellungenRoute._addFileChildren(
+    AuthenticatedAdminEinstellungenRouteChildren,
+  )
+
 interface AuthenticatedAdminStaffRouteChildren {
   AuthenticatedAdminStaffStaffIdRoute: typeof AuthenticatedAdminStaffStaffIdRoute
   AuthenticatedAdminStaffNewRoute: typeof AuthenticatedAdminStaffNewRoute
@@ -1210,6 +1246,7 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminBwaRoute: typeof AuthenticatedAdminBwaRoute
   AuthenticatedAdminDienstplanRoute: typeof AuthenticatedAdminDienstplanRoute
   AuthenticatedAdminDokumenteRoute: typeof AuthenticatedAdminDokumenteRoute
+  AuthenticatedAdminEinstellungenRoute: typeof AuthenticatedAdminEinstellungenRouteWithChildren
   AuthenticatedAdminImpersonateRoute: typeof AuthenticatedAdminImpersonateRoute
   AuthenticatedAdminImportZuordnungenRoute: typeof AuthenticatedAdminImportZuordnungenRoute
   AuthenticatedAdminKasseRoute: typeof AuthenticatedAdminKasseRoute
@@ -1225,8 +1262,6 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminUrlaubRoute: typeof AuthenticatedAdminUrlaubRoute
   AuthenticatedAdminZeitUebersichtRoute: typeof AuthenticatedAdminZeitUebersichtRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
-  AuthenticatedAdminEinstellungenEasyorderVerwaltungRoute: typeof AuthenticatedAdminEinstellungenEasyorderVerwaltungRoute
-  AuthenticatedAdminEinstellungenIndexRoute: typeof AuthenticatedAdminEinstellungenIndexRoute
 }
 
 const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren =
@@ -1238,6 +1273,8 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
     AuthenticatedAdminBwaRoute: AuthenticatedAdminBwaRoute,
     AuthenticatedAdminDienstplanRoute: AuthenticatedAdminDienstplanRoute,
     AuthenticatedAdminDokumenteRoute: AuthenticatedAdminDokumenteRoute,
+    AuthenticatedAdminEinstellungenRoute:
+      AuthenticatedAdminEinstellungenRouteWithChildren,
     AuthenticatedAdminImpersonateRoute: AuthenticatedAdminImpersonateRoute,
     AuthenticatedAdminImportZuordnungenRoute:
       AuthenticatedAdminImportZuordnungenRoute,
@@ -1258,10 +1295,6 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
     AuthenticatedAdminZeitUebersichtRoute:
       AuthenticatedAdminZeitUebersichtRoute,
     AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
-    AuthenticatedAdminEinstellungenEasyorderVerwaltungRoute:
-      AuthenticatedAdminEinstellungenEasyorderVerwaltungRoute,
-    AuthenticatedAdminEinstellungenIndexRoute:
-      AuthenticatedAdminEinstellungenIndexRoute,
   }
 
 const AuthenticatedAdminRouteRouteWithChildren =
