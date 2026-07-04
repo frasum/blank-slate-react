@@ -533,8 +533,7 @@ function TelegramDailyReportSection({ canEdit }: { canEdit: boolean }) {
   });
 
   const recipientMut = useMutation({
-    mutationFn: (v: { staffId: string; receives: boolean }) =>
-      callToggleRecipient({ data: v }),
+    mutationFn: (v: { staffId: string; receives: boolean }) => callToggleRecipient({ data: v }),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["admin", "telegram-report-settings"] }),
     onError: (e: unknown) => setErr(e instanceof Error ? e.message : "Fehler."),
@@ -573,9 +572,9 @@ function TelegramDailyReportSection({ canEdit }: { canEdit: boolean }) {
       <div>
         <h2 className="text-base font-semibold text-foreground">Telegram-Tagesbericht</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Automatischer Tagesbericht des Vortags an ausgewählte verknüpfte Telegram-Konten. Der
-          Cron prüft stündlich — gesendet wird zur eingestellten Stunde (Europe/Berlin), höchstens
-          einmal pro Tag.
+          Automatischer Tagesbericht des Vortags an ausgewählte verknüpfte Telegram-Konten. Der Cron
+          prüft stündlich — gesendet wird zur eingestellten Stunde (Europe/Berlin), höchstens einmal
+          pro Tag.
         </p>
       </div>
 
@@ -637,9 +636,7 @@ function TelegramDailyReportSection({ canEdit }: { canEdit: boolean }) {
 
       {locations.length > 0 && (
         <div className="space-y-2">
-          <span className="text-xs font-medium text-muted-foreground">
-            Standorte ausschließen
-          </span>
+          <span className="text-xs font-medium text-muted-foreground">Standorte ausschließen</span>
           <div className="flex flex-wrap gap-2">
             {locations.map((l) => {
               const isExcluded = excluded.includes(l.id);

@@ -34,9 +34,8 @@ export const Route = createFileRoute("/api/public/telegram/daily-report")({
           return new Response("Unauthorized", { status: 401 });
         }
 
-        const { listOrgsWithReportEnabled, runDailyReportForOrg } = await import(
-          "@/lib/telegram/telegram-report.server"
-        );
+        const { listOrgsWithReportEnabled, runDailyReportForOrg } =
+          await import("@/lib/telegram/telegram-report.server");
         const orgIds = await listOrgsWithReportEnabled();
         const results = [];
         for (const organizationId of orgIds) {

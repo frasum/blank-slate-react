@@ -21,7 +21,10 @@ import {
 } from "./telegram-report";
 
 export type OrgReportResult =
-  | { organizationId: string; skipped: "disabled" | "wrong-hour" | "already-sent" | "no-recipients" }
+  | {
+      organizationId: string;
+      skipped: "disabled" | "wrong-hour" | "already-sent" | "no-recipients";
+    }
   | {
       organizationId: string;
       businessDate: string;
@@ -179,7 +182,9 @@ async function loadReportInputForOrg(
     // Küchen-Einträge (Namen + Schichtzeiten). Nur teilnehmende Zeilen.
     const { data: kitchen } = await supabaseAdmin
       .from("session_tip_pool_entries")
-      .select("staff_id, shift_start, shift_end, participates, department, staff:staff(display_name)")
+      .select(
+        "staff_id, shift_start, shift_end, participates, department, staff:staff(display_name)",
+      )
       .eq("organization_id", organizationId)
       .eq("session_id", sess.id)
       .eq("department", "kitchen");
