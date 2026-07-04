@@ -2,7 +2,7 @@
 
 Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen Baublock konsultiert. Bewusst kurz gehalten — Architektur-Begründungen stehen im gruendungsdokument.md, nicht hier.
 
-Stand: 04.07.2026 (IMP1b)
+Stand: 04.07.2026 (TA4)
 
 ## 1. Rollenverteilung im Team
 
@@ -2336,6 +2336,15 @@ Manager lehnt in TA2 ab). Eine ABLEHNUNG ist endgültig für diesen Request.
 nicht der Anfragende, hat `staff_locations`-Zeile mit
 `(location_id, department) == (shift.location_id, shift.area)`, hat an
 `shift_date` an genau diesem Scope KEINE eigene Schicht.
+
+**TA4 (Datum):** Berechtigten-Regel (`eligiblePeerFilter`) und Gegentausch-
+Regel (`canAcceptCounterShift`) sowie die Genehmigungs-Re-Validierung in
+`decideSwapRequest` prüfen zusätzlich `roster_absence` (Typ `urlaub` oder
+`krank`) an Ziel- und Gegentausch-Datum — Abwesende sind nicht
+tauschberechtigt, und ein zwischen Peer-Annahme und Manager-Genehmigung
+eingetragener Urlaub verhindert den Vollzug mit klarer Meldung
+(„… ist an diesem Tag abwesend"). Der Request bleibt in diesem Fall
+`peer_accepted`.
 
 **RLS/Zugriff:** Beide Tabellen sind **DENY-ALL** für Clients — keine
 Policies, alle Zugriffe laufen server-seitig über `supabaseAdmin` NACH

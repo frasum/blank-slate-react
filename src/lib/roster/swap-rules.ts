@@ -51,9 +51,14 @@ export function canOfferShift(input: {
  *  - Aktiv.
  *  - Hat eine (location, area)-Scope-Zeile, die zur Schicht passt.
  *  - Hat an genau diesem Datum keine eigene Schicht in (location, area).
+ *  - Hat an genau diesem Datum keine roster_absence (Urlaub/Krank).
  */
-export function eligiblePeerFilter(input: { peer: SwapPeer; shift: SwapShift }): boolean {
-  const { peer, shift } = input;
+export function eligiblePeerFilter(input: {
+  peer: SwapPeer;
+  shift: SwapShift;
+  hasAbsenceOnShiftDate: boolean;
+}): boolean {
+  const { peer, shift, hasAbsenceOnShiftDate } = input;
   if (!peer.isActive) return false;
   if (peer.staffId === shift.staffId) return false;
   const hasScope = peer.scopes.some(
@@ -61,6 +66,7 @@ export function eligiblePeerFilter(input: { peer: SwapPeer; shift: SwapShift }):
   );
   if (!hasScope) return false;
   if (peer.shiftDatesAtScope.has(shift.shiftDate)) return false;
+  if (hasAbsenceOnShiftDate) return false;
   return true;
 }
 
@@ -76,12 +82,15 @@ export function canAcceptCounterShift(input: {
   requestShift: SwapShift;
   peerStaffId: string;
   todayIso: string;
+  requesterHasAbsenceOnCounterDate: boolean;
 }): boolean {
-  const { counterShift, requestShift, peerStaffId, todayIso } = input;
+  const { counterShift, requestShift, peerStaffId, todayIso, requesterHasAbsenceOnCounterDate } =
+    input;
   if (counterShift.staffId !== peerStaffId) return false;
   if (counterShift.locationId !== requestShift.locationId) return false;
   if (counterShift.area !== requestShift.area) return false;
   if (!isFutureDate(counterShift.shiftDate, todayIso)) return false;
   if (counterShift.hasActiveRequest) return false;
+  if (requesterHasAbsenceOnCounterDate) return false;
   return true;
 }

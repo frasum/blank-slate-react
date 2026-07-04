@@ -58,21 +58,34 @@ describe("canOfferShift", () => {
 
 describe("eligiblePeerFilter", () => {
   it("Standard: passt", () => {
-    expect(eligiblePeerFilter({ peer: peer(), shift: shift() })).toBe(true);
-  });
-  it("verbietet den Anfragenden selbst", () => {
-    expect(eligiblePeerFilter({ peer: peer({ staffId: "requester" }), shift: shift() })).toBe(
-      false,
+    expect(eligiblePeerFilter({ peer: peer(), shift: shift(), hasAbsenceOnShiftDate: false })).toBe(
+      true,
     );
   });
+  it("verbietet den Anfragenden selbst", () => {
+    expect(
+      eligiblePeerFilter({
+        peer: peer({ staffId: "requester" }),
+        shift: shift(),
+        hasAbsenceOnShiftDate: false,
+      }),
+    ).toBe(false);
+  });
   it("verbietet inaktive Kollegen", () => {
-    expect(eligiblePeerFilter({ peer: peer({ isActive: false }), shift: shift() })).toBe(false);
+    expect(
+      eligiblePeerFilter({
+        peer: peer({ isActive: false }),
+        shift: shift(),
+        hasAbsenceOnShiftDate: false,
+      }),
+    ).toBe(false);
   });
   it("verbietet fremden Standort", () => {
     expect(
       eligiblePeerFilter({
         peer: peer({ scopes: [{ locationId: "L2", area: "service" }] }),
         shift: shift(),
+        hasAbsenceOnShiftDate: false,
       }),
     ).toBe(false);
   });
@@ -81,6 +94,7 @@ describe("eligiblePeerFilter", () => {
       eligiblePeerFilter({
         peer: peer({ scopes: [{ locationId: "L1", area: "kitchen" }] }),
         shift: shift(),
+        hasAbsenceOnShiftDate: false,
       }),
     ).toBe(false);
   });
@@ -89,6 +103,7 @@ describe("eligiblePeerFilter", () => {
       eligiblePeerFilter({
         peer: peer({ scopes: [{ locationId: "L1", area: "gl" }] }),
         shift: shift({ area: "gl" as SwapArea }),
+        hasAbsenceOnShiftDate: false,
       }),
     ).toBe(true);
   });
@@ -97,8 +112,20 @@ describe("eligiblePeerFilter", () => {
       eligiblePeerFilter({
         peer: peer({ shiftDatesAtScope: new Set([TOMORROW]) }),
         shift: shift(),
+        hasAbsenceOnShiftDate: false,
       }),
     ).toBe(false);
+  });
+  it("TA4: verbietet Peer mit roster_absence am Schicht-Tag (Urlaub/Krank)", () => {
+    expect(
+      eligiblePeerFilter({ peer: peer(), shift: shift(), hasAbsenceOnShiftDate: true }),
+    ).toBe(false);
+  });
+  it("TA4: Urlaub an ANDEREM Tag ⇒ weiterhin berechtigt", () => {
+    // Der Aufrufer feedet nur den Wert für shift.shiftDate; anderer Urlaub → false.
+    expect(
+      eligiblePeerFilter({ peer: peer(), shift: shift(), hasAbsenceOnShiftDate: false }),
+    ).toBe(true);
   });
 });
 
@@ -118,6 +145,7 @@ describe("canAcceptCounterShift", () => {
         requestShift: req,
         peerStaffId: "peer-1",
         todayIso: TODAY,
+        requesterHasAbsenceOnCounterDate: false,
       }),
     ).toBe(true);
   });
@@ -135,6 +163,7 @@ describe("canAcceptCounterShift", () => {
         requestShift: req,
         peerStaffId: "peer-1",
         todayIso: TODAY,
+        requesterHasAbsenceOnCounterDate: false,
       }),
     ).toBe(false);
   });
@@ -152,6 +181,7 @@ describe("canAcceptCounterShift", () => {
         requestShift: req,
         peerStaffId: "peer-1",
         todayIso: TODAY,
+        requesterHasAbsenceOnCounterDate: false,
       }),
     ).toBe(false);
   });
@@ -169,6 +199,7 @@ describe("canAcceptCounterShift", () => {
         requestShift: req,
         peerStaffId: "peer-1",
         todayIso: TODAY,
+        requesterHasAbsenceOnCounterDate: false,
       }),
     ).toBe(false);
   });
@@ -186,6 +217,25 @@ describe("canAcceptCounterShift", () => {
         requestShift: req,
         peerStaffId: "peer-1",
         todayIso: TODAY,
+        requesterHasAbsenceOnCounterDate: false,
+      }),
+    ).toBe(false);
+  });
+  it("TA4: verbietet Gegentausch, wenn Anfragender am Gegentausch-Datum abwesend ist", () => {
+    expect(
+      canAcceptCounterShift({
+        counterShift: {
+          id: "c",
+          staffId: "peer-1",
+          locationId: "L1",
+          area: "service",
+          shiftDate: TOMORROW,
+          hasActiveRequest: false,
+        },
+        requestShift: req,
+        peerStaffId: "peer-1",
+        todayIso: TODAY,
+        requesterHasAbsenceOnCounterDate: true,
       }),
     ).toBe(false);
   });

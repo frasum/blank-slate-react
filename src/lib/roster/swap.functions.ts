@@ -93,6 +93,29 @@ async function hasActiveRequestForShift(
   return !!data;
 }
 
+/**
+ * TA4 — Prüft, ob ein Mitarbeiter an einem konkreten Datum eine roster_absence
+ * (Urlaub oder Krank) hat. Wird von der Berechtigten-Regel und der TA2-
+ * Re-Validierung genutzt, damit Abwesende nicht in einen Tausch geraten.
+ */
+async function hasAbsenceOnDate(
+  admin: SupabaseClient<Database>,
+  organizationId: string,
+  staffId: string,
+  isoDate: string,
+): Promise<boolean> {
+  const { data, error } = await admin
+    .from("roster_absence")
+    .select("staff_id")
+    .eq("organization_id", organizationId)
+    .eq("staff_id", staffId)
+    .eq("date", isoDate)
+    .in("type", ["urlaub", "krank"])
+    .maybeSingle();
+  if (error) throw error;
+  return !!data;
+}
+
 async function loadPeerForShift(
   admin: SupabaseClient<Database>,
   organizationId: string,
@@ -455,7 +478,13 @@ export const listOpenSwapsForMe = createServerFn({ method: "GET" })
         shift,
       );
       if (!peer) continue;
-      if (!eligiblePeerFilter({ peer, shift })) continue;
+      const peerHasAbsence = await hasAbsenceOnDate(
+        supabaseAdmin,
+        caller.organizationId,
+        caller.staffId,
+        shift.shiftDate,
+      );
+      if (!eligiblePeerFilter({ peer, shift, hasAbsenceOnShiftDate: peerHasAbsence })) continue;
       out.push({
         id: c.id,
         shiftId: rs.id,
@@ -532,7 +561,16 @@ export const acceptSwapRequest = createServerFn({ method: "POST" })
       caller.staffId,
       reqShift,
     );
-    if (!peer || !eligiblePeerFilter({ peer, shift: reqShift })) {
+    const peerHasAbsence = await hasAbsenceOnDate(
+      supabaseAdmin,
+      caller.organizationId,
+      caller.staffId,
+      reqShift.shiftDate,
+    );
+    if (
+      !peer ||
+      !eligiblePeerFilter({ peer, shift: reqShift, hasAbsenceOnShiftDate: peerHasAbsence })
+    ) {
       throw new Error("Du bist für diese Anfrage nicht (mehr) berechtigt.");
     }
 
@@ -543,6 +581,12 @@ export const acceptSwapRequest = createServerFn({ method: "POST" })
         throw new Error("Gegentausch-Schicht gehört dir nicht.");
       }
       const counterActive = await hasActiveRequestForShift(supabaseAdmin, counter.id);
+      const requesterAbsent = await hasAbsenceOnDate(
+        supabaseAdmin,
+        caller.organizationId,
+        reqShiftRow.staff_id,
+        counter.shift_date,
+      );
       const ok = canAcceptCounterShift({
         counterShift: {
           id: counter.id,
@@ -555,8 +599,14 @@ export const acceptSwapRequest = createServerFn({ method: "POST" })
         requestShift: reqShift,
         peerStaffId: caller.staffId,
         todayIso: todayIso(),
+        requesterHasAbsenceOnCounterDate: requesterAbsent,
       });
       if (!ok) {
+        if (requesterAbsent) {
+          throw new Error(
+            "Der Anfragende ist an diesem Tag abwesend (Urlaub/Krank) — Gegentausch nicht möglich.",
+          );
+        }
         throw new Error("Diese Gegentausch-Schicht passt nicht (Bereich, Standort oder Datum).");
       }
       counterShiftId = counter.id;
@@ -652,7 +702,16 @@ export const declineSwapRequest = createServerFn({ method: "POST" })
       caller.staffId,
       shift,
     );
-    if (!peer || !eligiblePeerFilter({ peer, shift })) {
+    const peerHasAbsence = await hasAbsenceOnDate(
+      supabaseAdmin,
+      caller.organizationId,
+      caller.staffId,
+      shift.shiftDate,
+    );
+    if (
+      !peer ||
+      !eligiblePeerFilter({ peer, shift, hasAbsenceOnShiftDate: peerHasAbsence })
+    ) {
       throw new Error("Du bist für diese Anfrage nicht berechtigt.");
     }
 
@@ -1049,6 +1108,35 @@ export const decideSwapRequest = createServerFn({ method: "POST" })
           shiftDate: peerShift.shift_date,
           excludeShiftId: peerShift.id,
         });
+      }
+
+      // TA4 — Abwesenheits-Re-Validierung: zwischen Peer-Annahme und
+      // Manager-Genehmigung kann Urlaub/Krank genehmigt worden sein.
+      if (reqRow.peer_staff_id) {
+        const peerAbsent = await hasAbsenceOnDate(
+          supabaseAdmin,
+          caller.organizationId,
+          reqRow.peer_staff_id,
+          reqShift.shift_date,
+        );
+        if (peerAbsent) {
+          throw new Error(
+            `Der Kollege ist am ${fmtDeDate(reqShift.shift_date)} abwesend (Urlaub/Krank) — Tausch kann nicht genehmigt werden.`,
+          );
+        }
+      }
+      if (peerShift) {
+        const requesterAbsent = await hasAbsenceOnDate(
+          supabaseAdmin,
+          caller.organizationId,
+          reqRow.requester_staff_id,
+          peerShift.shift_date,
+        );
+        if (requesterAbsent) {
+          throw new Error(
+            `Der Anfragende ist am ${fmtDeDate(peerShift.shift_date)} abwesend (Urlaub/Krank) — Tausch kann nicht genehmigt werden.`,
+          );
+        }
       }
 
       // Atomarer Vollzug via RPC (SECURITY DEFINER, service_role).
