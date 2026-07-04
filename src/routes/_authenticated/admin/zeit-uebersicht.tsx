@@ -1767,10 +1767,7 @@ function WeeklyPlan({
                 )}
               </TableHead>
             ))}
-            <TableHead
-              rowSpan={2}
-              className="w-[140px] min-w-[140px] align-bottom border-l"
-            >
+            <TableHead rowSpan={2} className="w-[140px] min-w-[140px] align-bottom border-l">
               Mitarbeiter
             </TableHead>
             <TableHead rowSpan={2} className="text-right align-bottom">
