@@ -71,14 +71,15 @@ describe("resolveBatchDay", () => {
     ).toEqual({ action: "update", entryId: "e1" });
   });
   it("create_weekdays: Samstag → skip not-weekday", () => {
-    expect(
-      resolveBatchDay({ ...base, dateIso: "2026-01-03", mode: "create_weekdays" }),
-    ).toEqual({ action: "skip", reason: "not-weekday" });
+    expect(resolveBatchDay({ ...base, dateIso: "2026-01-03", mode: "create_weekdays" })).toEqual({
+      action: "skip",
+      reason: "not-weekday",
+    });
   });
   it("create_weekdays: Fremd-Standort → skip", () => {
-    expect(
-      resolveBatchDay({ ...base, mode: "create_weekdays", otherLocationEntry: true }),
-    ).toEqual({ action: "skip", reason: "other-location" });
+    expect(resolveBatchDay({ ...base, mode: "create_weekdays", otherLocationEntry: true })).toEqual(
+      { action: "skip", reason: "other-location" },
+    );
   });
   it("create_weekdays: leer → create", () => {
     expect(resolveBatchDay({ ...base, mode: "create_weekdays" })).toEqual({ action: "create" });
@@ -93,9 +94,9 @@ describe("resolveBatchDay", () => {
     ).toEqual({ action: "update", entryId: "e2" });
   });
   it("create_daily: Sonntag → create (nicht not-weekday)", () => {
-    expect(
-      resolveBatchDay({ ...base, dateIso: "2026-01-04", mode: "create_daily" }),
-    ).toEqual({ action: "create" });
+    expect(resolveBatchDay({ ...base, dateIso: "2026-01-04", mode: "create_daily" })).toEqual({
+      action: "create",
+    });
   });
 });
 

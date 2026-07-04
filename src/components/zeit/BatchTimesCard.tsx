@@ -13,11 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Dialog,
   DialogContent,
@@ -231,10 +227,7 @@ export function BatchTimesCard({
     <Card className="p-4">
       <Collapsible>
         <CollapsibleTrigger asChild>
-          <button
-            type="button"
-            className="flex w-full items-center justify-between text-left"
-          >
+          <button type="button" className="flex w-full items-center justify-between text-left">
             <div>
               <h2 className="text-lg font-semibold">Schichtzeiten anpassen (Admin)</h2>
               <p className="text-sm text-muted-foreground">
@@ -281,9 +274,7 @@ export function BatchTimesCard({
           <div className="grid gap-4 lg:grid-cols-3">
             {SECTIONS.map((section) => {
               const hiddenIds = hidden[section.mode] ?? [];
-              const visibleRows = filtered.filter(
-                (r) => showHidden || !hiddenIds.includes(r.id),
-              );
+              const visibleRows = filtered.filter((r) => showHidden || !hiddenIds.includes(r.id));
               const visibleIds = visibleRows.map((r) => r.id);
               const sel = selected[section.mode];
               return (
