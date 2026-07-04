@@ -1777,6 +1777,13 @@ mit Feld-Tooltip via `getSofortmeldungDetail`, gelb = bereit/ungemeldet).
 Bestand wurde per SQL als gemeldet markiert (Altsystem-Meldungen, §28a greift
 nur bei Einstellung).
 
+**Bestands-Setzung (04.07.):** Alle aktiven Bestands-Mitarbeiter per SQL als
+gemeldet markiert (Altsystem-Meldungen, §28a greift bei Einstellung; Vermerk in
+note, Melder = perso 1). Bewusste Ausnahme: GIG SERVICE (Narisara Asasana)
+bleibt offen bis Daten/Meldung komplett. Verifiziert: 39 gemeldet / 1 offen.
+Direktarbeit danach: reported_at des Bestands auf das jeweilige EINTRITTSDATUM
+gesetzt (statt Setzungs-Zeitpunkt) — historisch ehrlichere Abbildung.
+
 ## 46. V1 Dokumentengenerierung — Server-Layer (03.07.2026)
 
 M4-Restposten aus thaitime portiert, bewusst vereinfacht: EIN Template-Modell
