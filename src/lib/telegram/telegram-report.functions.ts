@@ -187,6 +187,41 @@ export const setDailyReportRecipient = createServerFn({ method: "POST" })
     });
   });
 
+// TA2 — Empfänger für Schichttausch-Pings pflegen (analog Tagesbericht).
+export const setSwapAlertsRecipient = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({ staffId: z.string().uuid(), receives: z.boolean() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: existing, error: findErr } = await supabaseAdmin
+        .from("staff_telegram_links")
+        .select("id")
+        .eq("organization_id", caller.organizationId)
+        .eq("staff_id", data.staffId)
+        .maybeSingle();
+      if (findErr) throw findErr;
+      if (!existing) throw new Error("Kein verknüpftes Telegram-Konto für diesen Mitarbeiter.");
+      const { error } = await supabaseAdmin
+        .from("staff_telegram_links")
+        .update({ receives_swap_alerts: data.receives })
+        .eq("id", existing.id);
+      if (error) throw error;
+      return {
+        result: { ok: true as const },
+        audit: {
+          action: "telegram.swap_alerts_recipient_changed",
+          entity: "staff_telegram_links",
+          entityId: existing.id as string,
+          meta: { staffId: data.staffId, receives: data.receives },
+        },
+      };
+    });
+  });
+
 export const sendTestReport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
