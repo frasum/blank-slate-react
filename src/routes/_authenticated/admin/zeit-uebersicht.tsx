@@ -1115,7 +1115,9 @@ function ZeitUebersichtPage() {
                     </TableHead>
                   ))}
                   <TableHead className="text-right">Gesamt</TableHead>
-                  <TableHead className="text-right">Schichten</TableHead>
+                  <TableHead className="text-right" title="Schichten in der Abrechnungsperiode">
+                    S
+                  </TableHead>
                   <TableHead className="text-right">U</TableHead>
                   <TableHead className="text-right">K</TableHead>
                 </TableRow>
@@ -1415,9 +1417,6 @@ function PayrollTab({
               <TableHead className="h-9 text-xs uppercase tracking-wider text-muted-foreground text-right w-24">
                 Gesamt
               </TableHead>
-              <TableHead className="h-9 text-xs uppercase tracking-wider text-muted-foreground text-right w-20">
-                Schichten
-              </TableHead>
               <TableHead
                 className="h-9 text-xs uppercase tracking-wider text-muted-foreground text-right w-20"
                 title="Abendstunden 20–24 Uhr"
@@ -1460,6 +1459,12 @@ function PayrollTab({
                   </TableHead>
                 </>
               )}
+              <TableHead
+                className="h-9 text-xs uppercase tracking-wider text-muted-foreground text-right w-16"
+                title="Schichten in der Abrechnungsperiode"
+              >
+                S
+              </TableHead>
               <TableHead className="h-9 text-xs uppercase tracking-wider text-muted-foreground text-right w-12">
                 U
               </TableHead>
@@ -1521,7 +1526,6 @@ function PayrollTab({
                 <TableCell className="py-1.5 text-right tabular-nums">
                   {fmtHm(totals.totalHours)}
                 </TableCell>
-                <TableCell className="py-1.5 text-right tabular-nums">{totals.shifts}</TableCell>
                 <TableCell className="py-1.5 text-right tabular-nums">
                   {fmtDec(totals.evening)}
                 </TableCell>
@@ -1546,6 +1550,7 @@ function PayrollTab({
                     </TableCell>
                   </>
                 )}
+                <TableCell className="py-1.5 text-right tabular-nums">{totals.shifts}</TableCell>
                 <TableCell className="py-1.5 text-right tabular-nums">
                   {totals.urlaubDays > 0 ? totals.urlaubDays : "–"}
                 </TableCell>
@@ -1601,9 +1606,6 @@ function PayrollRow({
       <TableCell className="py-1.5 text-right tabular-nums font-medium">
         {fmtHm(row.totalHours)}
       </TableCell>
-      <TableCell className="py-1.5 text-right tabular-nums text-muted-foreground">
-        {row.shifts}
-      </TableCell>
       <TableCell className="py-1.5 text-right">{numCell(row.evening)}</TableCell>
       <TableCell className="py-1.5 text-right">{numCell(row.night)}</TableCell>
       {!is3b && <TableCell className="py-1.5 text-right">{numCell(row.sunHol)}</TableCell>}
@@ -1614,6 +1616,9 @@ function PayrollRow({
           <TableCell className="py-1.5 text-right">{numCell(row.feiertag150)}</TableCell>
         </>
       )}
+      <TableCell className="py-1.5 text-right tabular-nums text-muted-foreground">
+        {row.shifts}
+      </TableCell>
       <TableCell
         className={`py-1.5 text-right tabular-nums ${
           row.urlaubDays > 0 ? "font-medium" : "text-muted-foreground/50"
@@ -1878,6 +1883,12 @@ function WeeklyPlan({
             </TableHead>
             <TableHead
               className="px-1.5 text-right text-xs align-bottom whitespace-nowrap"
+              title="Schichten in der Abrechnungsperiode"
+            >
+              S
+            </TableHead>
+            <TableHead
+              className="px-1.5 text-right text-xs align-bottom whitespace-nowrap"
               title="Urlaubstage in der Abrechnungsperiode"
             >
               U
@@ -1887,12 +1898,6 @@ function WeeklyPlan({
               title="Kranktage in der Abrechnungsperiode"
             >
               K
-            </TableHead>
-            <TableHead
-              className="px-1.5 text-right text-xs align-bottom whitespace-nowrap"
-              title="Schichten in der Abrechnungsperiode"
-            >
-              S
             </TableHead>
           </TableRow>
         </TableHeader>
@@ -2037,6 +2042,9 @@ function WeeklyPlan({
                     <TableCell className="px-1.5 text-xs text-right tabular-nums">
                       {fmtDec(row.totals.sunHol)}
                     </TableCell>
+                    <TableCell className="px-1.5 text-xs text-right tabular-nums">
+                      {shiftsByStaff.get(row.staffId) ?? 0}
+                    </TableCell>
                     {(() => {
                       const abs = absencesByStaff.get(row.staffId);
                       const u = abs?.urlaubDays ?? 0;
@@ -2056,9 +2064,6 @@ function WeeklyPlan({
                         </>
                       );
                     })()}
-                    <TableCell className="px-1.5 text-xs text-right tabular-nums">
-                      {shiftsByStaff.get(row.staffId) ?? 0}
-                    </TableCell>
                   </TableRow>
                 ))}
               </Fragment>
