@@ -178,6 +178,9 @@ function AdminLayout() {
   });
   const pendingReview =
     (reviewCountsQ.data?.pendingRequests ?? 0) + (reviewCountsQ.data?.pendingDocuments ?? 0);
+  const pendingLeave = reviewCountsQ.data?.pendingLeaveRequests ?? 0;
+  const groupNeedsDot = (key: string): boolean =>
+    key === "personal" && (pendingReview > 0 || pendingLeave > 0);
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
@@ -215,9 +218,21 @@ function AdminLayout() {
               <nav className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border/60 text-sm">
                 {primaryGroups.map((g) => {
                   const active = activeGroup?.key === g.key;
+                  const showDot = groupNeedsDot(g.key);
                   return (
-                    <Link key={g.key} to={g.default} className={tabClass(active)}>
+                    <Link
+                      key={g.key}
+                      to={g.default}
+                      className={tabClass(active)}
+                      aria-label={showDot ? `${g.label} (offene Vorgänge)` : undefined}
+                    >
                       {g.label}
+                      {showDot && (
+                        <span
+                          className="ml-1.5 inline-block h-2 w-2 rounded-full bg-destructive align-middle"
+                          aria-hidden
+                        />
+                      )}
                     </Link>
                   );
                 })}
@@ -243,7 +258,9 @@ function AdminLayout() {
                     .filter((s) => !s.roles || s.roles.includes(role))
                     .map((s) => {
                       const active = pathname === s.to || pathname.startsWith(s.to + "/");
-                      const showDot = s.to === "/admin/personal-antraege" && pendingReview > 0;
+                      const showDot =
+                        (s.to === "/admin/personal-antraege" && pendingReview > 0) ||
+                        (s.to === "/admin/urlaub" && pendingLeave > 0);
                       return (
                         <Link
                           key={s.to}
