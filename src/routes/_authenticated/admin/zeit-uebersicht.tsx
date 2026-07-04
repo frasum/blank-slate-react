@@ -1742,7 +1742,7 @@ function WeeklyPlan({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead rowSpan={2} className="w-[140px] min-w-[140px] align-bottom">
+            <TableHead rowSpan={2} className="w-[140px] min-w-[140px] align-bottom text-center">
               Mitarbeiter
             </TableHead>
             {dayMeta.map((dm) => (
@@ -1767,19 +1767,22 @@ function WeeklyPlan({
                 )}
               </TableHead>
             ))}
-            <TableHead rowSpan={2} className="w-[140px] min-w-[140px] align-bottom border-l">
+            <TableHead
+              rowSpan={2}
+              className="w-[140px] min-w-[140px] align-bottom border-l text-center"
+            >
               Mitarbeiter
             </TableHead>
-            <TableHead rowSpan={2} className="text-right align-bottom">
+            <TableHead rowSpan={2} className="text-right align-bottom whitespace-nowrap">
               Ges
             </TableHead>
-            <TableHead rowSpan={2} className="text-right align-bottom">
+            <TableHead rowSpan={2} className="text-right align-bottom whitespace-nowrap">
               20–24
             </TableHead>
-            <TableHead rowSpan={2} className="text-right align-bottom">
+            <TableHead rowSpan={2} className="text-right align-bottom whitespace-nowrap">
               24–x
             </TableHead>
-            <TableHead rowSpan={2} className="text-right align-bottom">
+            <TableHead rowSpan={2} className="text-right align-bottom whitespace-nowrap">
               So/Fei
             </TableHead>
             <TableHead
@@ -1808,7 +1811,7 @@ function WeeklyPlan({
             {dayMeta.map((dm) => (
               <Fragment key={`sub-${dm.iso}`}>
                 <TableHead
-                  className={`text-center text-[10px] font-normal text-muted-foreground border-l ${
+                  className={`w-[64px] min-w-[64px] text-center text-[10px] font-normal text-muted-foreground border-l ${
                     dm.outOfPeriod
                       ? "bg-muted/40 text-muted-foreground/60"
                       : dm.isHol
@@ -1821,7 +1824,7 @@ function WeeklyPlan({
                   Anf.
                 </TableHead>
                 <TableHead
-                  className={`text-center text-[10px] font-normal text-muted-foreground ${
+                  className={`w-[64px] min-w-[64px] text-center text-[10px] font-normal text-muted-foreground ${
                     dm.outOfPeriod
                       ? "bg-muted/40 text-muted-foreground/60"
                       : dm.isHol
@@ -1863,7 +1866,7 @@ function WeeklyPlan({
                 </TableRow>
                 {grp.rows.map((row) => (
                   <TableRow key={row.staffId}>
-                    <TableCell className="relative pl-3 font-medium align-middle">
+                    <TableCell className="relative px-3 font-medium align-middle text-center">
                       <span
                         className={`absolute left-0 top-0 bottom-0 w-[2px] ${DEPT_BAR[row.department]}`}
                       />
@@ -1954,7 +1957,7 @@ function WeeklyPlan({
                         </Fragment>
                       );
                     })}
-                    <TableCell className="font-medium align-middle border-l">
+                    <TableCell className="font-medium align-middle border-l text-center">
                       {row.displayName}
                     </TableCell>
                     <TableCell className="text-right tabular-nums font-medium">
