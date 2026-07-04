@@ -206,6 +206,7 @@ function RequestsTab() {
       setDecideOn(null);
       setNote("");
       await qc.invalidateQueries({ queryKey: ["admin", "profile-requests"] });
+      await qc.invalidateQueries({ queryKey: ["admin", "review-pending-counts"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Aktion fehlgeschlagen.");
     } finally {
@@ -459,6 +460,7 @@ function DocumentsTab() {
       await verifyFn({ data: { documentId: id } });
       toast.success("Dokument als geprüft markiert.");
       await qc.invalidateQueries({ queryKey: ["admin", "profile-documents"] });
+      await qc.invalidateQueries({ queryKey: ["admin", "review-pending-counts"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Aktion fehlgeschlagen.");
     } finally {
@@ -474,6 +476,7 @@ function DocumentsTab() {
       toast.success("Dokument gelöscht.");
       setDeleteTarget(null);
       await qc.invalidateQueries({ queryKey: ["admin", "profile-documents"] });
+      await qc.invalidateQueries({ queryKey: ["admin", "review-pending-counts"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Löschen fehlgeschlagen.");
     } finally {
