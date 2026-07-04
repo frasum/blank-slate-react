@@ -167,10 +167,7 @@ function WeinPage() {
     queryKey: ["admin", "locations"],
     queryFn: () => listLocations(),
   });
-  const allLocationIds = useMemo(
-    () => (locationsQ.data ?? []).map((l) => l.id),
-    [locationsQ.data],
-  );
+  const allLocationIds = useMemo(() => (locationsQ.data ?? []).map((l) => l.id), [locationsQ.data]);
 
   const winesQ = useQuery({
     queryKey: ["bestellung", "wines", { search, includeInactive: showInactive }],
@@ -201,9 +198,7 @@ function WeinPage() {
     if (!d.supplierId) throw new Error("Lieferant wählen.");
     if (!d.name.trim()) throw new Error("Name fehlt.");
     const locIds =
-      existingLocationIds && existingLocationIds.length > 0
-        ? existingLocationIds
-        : allLocationIds;
+      existingLocationIds && existingLocationIds.length > 0 ? existingLocationIds : allLocationIds;
     if (locIds.length === 0) throw new Error("Keine Standorte verfügbar.");
     return {
       supplierId: d.supplierId,
@@ -306,9 +301,12 @@ function WeinPage() {
         const s = item.suggestion;
         const applySelected: Record<BatchField, boolean> = s
           ? {
-              grapeVariety: !!s.grapeVariety.trim() && !sameStr(w.grape_variety ?? "", s.grapeVariety),
-              originCountry: !!s.originCountry.trim() && !sameStr(w.origin_country ?? "", s.originCountry),
-              foodPairings: !!s.foodPairings.trim() && !sameStr(w.food_pairings ?? "", s.foodPairings),
+              grapeVariety:
+                !!s.grapeVariety.trim() && !sameStr(w.grape_variety ?? "", s.grapeVariety),
+              originCountry:
+                !!s.originCountry.trim() && !sameStr(w.origin_country ?? "", s.originCountry),
+              foodPairings:
+                !!s.foodPairings.trim() && !sameStr(w.food_pairings ?? "", s.foodPairings),
               description: !!s.description.trim() && !sameStr(w.description ?? "", s.description),
               specialAttributes:
                 s.specialAttributes.length > 0 &&
@@ -339,15 +337,11 @@ function WeinPage() {
                 packagingUnit: w.packaging_unit ?? null,
                 imageUrl: w.image_url ?? "",
                 sortOrder: w.sort_order ?? 0,
-                grapeVariety: applySelected.grapeVariety
-                  ? s.grapeVariety
-                  : (w.grape_variety ?? ""),
+                grapeVariety: applySelected.grapeVariety ? s.grapeVariety : (w.grape_variety ?? ""),
                 originCountry: applySelected.originCountry
                   ? s.originCountry
                   : (w.origin_country ?? ""),
-                foodPairings: applySelected.foodPairings
-                  ? s.foodPairings
-                  : (w.food_pairings ?? ""),
+                foodPairings: applySelected.foodPairings ? s.foodPairings : (w.food_pairings ?? ""),
                 specialAttributes: applySelected.specialAttributes
                   ? s.specialAttributes.length > 0
                     ? s.specialAttributes
@@ -355,8 +349,7 @@ function WeinPage() {
                   : Array.isArray(w.special_attributes) && w.special_attributes.length > 0
                     ? (w.special_attributes as string[])
                     : null,
-                locationIds:
-                  (w.locationIds ?? []).length > 0 ? w.locationIds : allLocationIds,
+                locationIds: (w.locationIds ?? []).length > 0 ? w.locationIds : allLocationIds,
               },
             });
             autoApplied++;
@@ -442,8 +435,7 @@ function WeinPage() {
               : Array.isArray(w.special_attributes) && w.special_attributes.length > 0
                 ? w.special_attributes
                 : null,
-            locationIds:
-              (w.locationIds ?? []).length > 0 ? w.locationIds : allLocationIds,
+            locationIds: (w.locationIds ?? []).length > 0 ? w.locationIds : allLocationIds,
           },
         });
         updated++;

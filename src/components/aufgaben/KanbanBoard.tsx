@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import {
   BOARD_COLUMNS,
@@ -21,6 +23,7 @@ import { TaskDetailDialog } from "./TaskDetailDialog";
 import { Button } from "@/components/ui/button";
 import { CategoryBadge } from "./CategoryBadge";
 import type { StaffOption } from "@/lib/aufgaben/filter-staff-by-category";
+import { countTaskPhotos } from "@/lib/aufgaben/task-photos.functions";
 
 type Props = {
   locationId: string;
@@ -47,6 +50,14 @@ export function KanbanBoard({
   const setStatus = useSetTaskStatus(locationId);
   const claim = useClaimTask(locationId);
   useTasksRealtime(locationId);
+  const countFn = useServerFn(countTaskPhotos);
+  const taskIds = useMemo(() => (tasksQ.data ?? []).map((t) => t.id), [tasksQ.data]);
+  const countsQ = useQuery({
+    queryKey: ["task-photos", "counts", locationId, taskIds.length, taskIds.join(",")],
+    enabled: taskIds.length > 0,
+    queryFn: () => countFn({ data: { taskIds } }),
+  });
+  const photoCounts = countsQ.data ?? {};
   const [createOpen, setCreateOpen] = useState(false);
   const [openTask, setOpenTask] = useState<Task | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<Set<TaskCategory>>(new Set());
@@ -174,6 +185,7 @@ export function KanbanBoard({
                 canClaim={canClaimCard}
                 onClaim={(t) => claim.mutate({ taskId: t.id })}
                 claimPendingId={claim.isPending ? (claim.variables?.taskId ?? null) : null}
+                photoCounts={photoCounts}
               />
             ))}
           </div>

@@ -2404,3 +2404,31 @@ Spicery/TSB folgen. Import läuft direkt über die Datenbank, nicht über
 die UI.
 
 **Status:** VA1 ✅ Schema + UI (Import Frank ausstehend).
+
+## §56 AF1 — Task-Fotos (04.07.2026)
+
+Aufgaben (`tasks`) unterstützen Foto-Anhänge (Kamera am Handy oder Datei-
+Upload) für Melde-Zwecke („Spülmaschine E3") und Erledigt-Nachweise.
+
+- Privater Bucket `task-photos` (DENY-ALL, keine Client-Storage-Policies).
+  Auslieferung nur über signierte URLs (60 min) aus Server-Fn.
+- Tabelle `public.task_photos` (organization_id, task_id, storage_path,
+  mime_type, size_bytes, uploaded_by_staff_id). RLS aktiv, keine Policies —
+  Zugriff ausschließlich serverseitig über `supabaseAdmin`.
+- Server-Fn (`src/lib/aufgaben/task-photos.functions.ts`):
+  `uploadTaskPhoto`, `listTaskPhotos`, `deleteTaskPhoto`, `countTaskPhotos`.
+  Sichtbarkeit an Task-RLS gekoppelt (Aufrufer muss die Aufgabe lesen dürfen).
+- Limits: max. 10 Fotos pro Aufgabe, ≤ 8 MB pro Bild (nach Kompression),
+  MIME ∈ {jpeg, png, webp}.
+- Client-Kompression vor Upload: Canvas, längste Kante 1600 px, JPEG 0.8;
+  Fallback Original bei nicht dekodierbarem Bild (sofern ≤ 8 MB).
+- Löschen: Uploader ODER `manager+`. Storage-Objekt und Zeile werden
+  gemeinsam entfernt; bei Insert-Fehler wird das Storage-Objekt zurück-
+  gerollt (Muster `uploadMyDocument`).
+- Audit: `task.photo_uploaded` (meta: photoId, sizeBytes) und
+  `task.photo_deleted` (meta: photoId, storage_path). Kein Bildinhalt im
+  Audit.
+- UI: Wiederverwendbare Komponente `TaskPhotoStrip` (im `TaskDetailDialog`),
+  eingebunden im Portal (`/zeit/aufgaben`) und in der Admin-Ansicht
+  (`/admin/aufgaben`). Foto-Anzahl-Badge (`📷 N`) auf `KanbanCard` aus
+  `countTaskPhotos`-Batch-Query.
