@@ -18,6 +18,13 @@ import {
   setTelegramBotUsername,
 } from "@/lib/admin/org-settings.functions";
 import { setBetriebsnummer } from "@/lib/sofortmeldung/sofortmeldung.functions";
+import { listLocations } from "@/lib/admin/locations.functions";
+import {
+  getTelegramReportSettings,
+  updateTelegramReportSettings,
+  setDailyReportRecipient,
+  sendTestReport,
+} from "@/lib/telegram/telegram-report.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/einstellungen")({
   head: () => ({ meta: [{ title: "Einstellungen · Verwaltung" }] }),
@@ -454,6 +461,16 @@ function OrgSettingsPage() {
     </div>
   );
 }
+
+// ==================================================================
+// Telegram-Tagesbericht (TG2)
+// ==================================================================
+// Separater Abschnitt statt tiefer verschachtelter Einstellungs-UI.
+// Der eigentliche Versand läuft über den geschützten Cron-Endpoint
+// /api/public/telegram/daily-report; hier nur konfigurieren + Test.
+
+// (Die Section wird unten IN das return-Div gerendert — daher der Umbau)
+
 
 function parseLocaleNumber(input: string): number {
   const normalized = input.trim().replace(/\s/g, "").replace(",", ".");
