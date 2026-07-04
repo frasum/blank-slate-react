@@ -1752,9 +1752,9 @@ function WeeklyPlan({
     };
   });
 
-  // Spalten: Mitarbeiter (links) + 7 Tage (Anfang oben / Ende unten gestapelt)
-  // + Mitarbeiter (rechts) + 4 Zeit-Summen + U + K + S
-  const totalCols = 1 + 7 + 1 + 4 + 2 + 1;
+  // Spalten: Mitarbeiter (links) + 7 Tage × (Anf. | Ende)
+  // + Mitarbeiter (rechts) + 4 Zeit-Summen + S + U + K
+  const totalCols = 1 + 7 * 2 + 1 + 4 + 3;
 
   const groups = input?.rowsByDept ?? [];
   const anyRows = groups.some((g) => g.rows.length > 0);
@@ -1841,14 +1841,17 @@ function WeeklyPlan({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[92px] min-w-[92px] align-bottom text-center text-sm">
+            <TableHead
+              rowSpan={2}
+              className="w-[84px] min-w-[84px] align-middle text-center text-sm"
+            >
               Mitarbeiter
             </TableHead>
             {dayMeta.map((dm) => (
               <TableHead
                 key={dm.iso}
-                title="oben Anfang, unten Ende"
-                className={`w-[88px] min-w-[88px] text-center whitespace-nowrap border-l ${
+                colSpan={2}
+                className={`text-center whitespace-nowrap border-l ${
                   dm.outOfPeriod
                     ? "bg-muted/40 text-muted-foreground/60"
                     : dm.isHol
@@ -1866,39 +1869,82 @@ function WeeklyPlan({
                 )}
               </TableHead>
             ))}
-            <TableHead className="w-[92px] min-w-[92px] align-bottom border-l text-center text-sm">
+            <TableHead
+              rowSpan={2}
+              className="w-[84px] min-w-[84px] align-middle border-l text-center text-sm"
+            >
               Mitarbeiter
             </TableHead>
-            <TableHead className="px-1.5 text-right text-xs align-bottom whitespace-nowrap">
+            <TableHead
+              rowSpan={2}
+              className="px-1 text-right text-xs align-middle whitespace-nowrap"
+            >
               Ges
             </TableHead>
-            <TableHead className="px-1.5 text-right text-xs align-bottom whitespace-nowrap">
+            <TableHead
+              rowSpan={2}
+              className="px-1 text-right text-xs align-middle whitespace-nowrap"
+            >
               20–24
             </TableHead>
-            <TableHead className="px-1.5 text-right text-xs align-bottom whitespace-nowrap">
+            <TableHead
+              rowSpan={2}
+              className="px-1 text-right text-xs align-middle whitespace-nowrap"
+            >
               24–x
             </TableHead>
-            <TableHead className="px-1.5 text-right text-xs align-bottom whitespace-nowrap">
+            <TableHead
+              rowSpan={2}
+              className="px-1 text-right text-xs align-middle whitespace-nowrap"
+            >
               So/Fei
             </TableHead>
             <TableHead
-              className="px-1.5 text-right text-xs align-bottom whitespace-nowrap"
+              rowSpan={2}
+              className="px-1 text-right text-xs align-middle whitespace-nowrap"
               title="Schichten in der Abrechnungsperiode"
             >
               S
             </TableHead>
             <TableHead
-              className="px-1.5 text-right text-xs align-bottom whitespace-nowrap"
+              rowSpan={2}
+              className="px-1 text-right text-xs align-middle whitespace-nowrap"
               title="Urlaubstage in der Abrechnungsperiode"
             >
               U
             </TableHead>
             <TableHead
-              className="px-1.5 text-right text-xs align-bottom whitespace-nowrap"
+              rowSpan={2}
+              className="px-1 text-right text-xs align-middle whitespace-nowrap"
               title="Kranktage in der Abrechnungsperiode"
             >
               K
             </TableHead>
+          </TableRow>
+          <TableRow>
+            {dayMeta.map((dm) => {
+              const bg = dm.outOfPeriod
+                ? "bg-muted/40 text-muted-foreground/60"
+                : dm.isHol
+                  ? "bg-yellow-50"
+                  : dm.isSun
+                    ? "bg-gray-100"
+                    : "";
+              return (
+                <Fragment key={`sub-${dm.iso}`}>
+                  <TableHead
+                    className={`w-[62px] min-w-[62px] border-l text-center text-[11px] font-normal ${bg}`}
+                  >
+                    Anf.
+                  </TableHead>
+                  <TableHead
+                    className={`w-[62px] min-w-[62px] text-center text-[11px] font-normal ${bg}`}
+                  >
+                    Ende
+                  </TableHead>
+                </Fragment>
+              );
+            })}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -1927,7 +1973,7 @@ function WeeklyPlan({
                 </TableRow>
                 {grp.rows.map((row) => (
                   <TableRow key={row.staffId}>
-                    <TableCell className="relative px-2 font-medium align-middle text-center text-sm w-[92px] min-w-[92px] max-w-[92px]">
+                    <TableCell className="relative px-2 font-medium align-middle text-center text-sm w-[84px] min-w-[84px] max-w-[84px]">
                       <span
                         className={`absolute left-0 top-0 bottom-0 w-[2px] ${DEPT_BAR[row.department]}`}
                       />
@@ -1956,13 +2002,13 @@ function WeeklyPlan({
                         startEdit(row.staffId, day.iso, which);
                       };
                       const renderShift = (which: "from" | "to") => {
-                        if (isEditingCell) {
+                        if (isEditingCell && edit.field === which) {
                           const val = which === "from" ? edit.from : edit.to;
                           return (
                             <input
                               type="time"
                               value={val}
-                              autoFocus={edit.field === which}
+                              autoFocus
                               disabled={pending}
                               data-edit-key={cellKey(row.staffId, day.iso)}
                               onChange={(ev) =>
@@ -1982,9 +2028,13 @@ function WeeklyPlan({
                                 }
                               }}
                               onBlur={(ev) => handleBlur(ev, edit)}
-                              className={`w-[80px] h-6 px-1 text-center font-mono text-sm rounded border border-primary/50 bg-background ${pending ? "opacity-60" : ""}`}
+                              className={`w-[58px] h-6 px-1 text-center font-mono text-sm rounded border border-primary/50 bg-background ${pending ? "opacity-60" : ""}`}
                             />
                           );
+                        }
+                        if (isEditingCell) {
+                          const val = which === "from" ? edit.from : edit.to;
+                          return <span className="tabular-nums">{val}</span>;
                         }
                         if (empty) {
                           if (day.crossLocation && which === "from" && !dm.outOfPeriod)
@@ -2004,45 +2054,40 @@ function WeeklyPlan({
                         );
                       };
                       return (
-                        <TableCell
-                          key={day.iso}
-                          className={`w-[88px] min-w-[88px] border-l p-0 text-center align-middle font-mono text-sm ${cellBg}`}
-                        >
-                          <div className="flex flex-col">
-                            <div
-                              onClick={() => handleCellClick("from")}
-                              className={`px-1 py-1 border-b border-border/40 ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
-                            >
-                              {renderShift("from")}
-                            </div>
-                            <div
-                              onClick={() => handleCellClick("to")}
-                              className={`px-1 py-1 ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
-                            >
-                              {renderShift("to")}
-                            </div>
-                          </div>
-                        </TableCell>
+                        <Fragment key={day.iso}>
+                          <TableCell
+                            onClick={() => handleCellClick("from")}
+                            className={`w-[62px] min-w-[62px] border-l px-1 py-1 text-center align-middle font-mono text-sm ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
+                          >
+                            {renderShift("from")}
+                          </TableCell>
+                          <TableCell
+                            onClick={() => handleCellClick("to")}
+                            className={`w-[62px] min-w-[62px] px-1 py-1 text-center align-middle font-mono text-sm ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
+                          >
+                            {renderShift("to")}
+                          </TableCell>
+                        </Fragment>
                       );
                     })}
-                    <TableCell className="font-medium align-middle border-l text-center text-sm px-2 w-[92px] min-w-[92px] max-w-[92px]">
+                    <TableCell className="font-medium align-middle border-l text-center text-sm px-2 w-[84px] min-w-[84px] max-w-[84px]">
                       <span className="block truncate" title={row.displayName}>
                         {row.displayName}
                       </span>
                     </TableCell>
-                    <TableCell className="px-1.5 text-xs text-right tabular-nums font-medium">
+                    <TableCell className="px-1 text-xs text-right tabular-nums font-medium">
                       {fmtDec(row.totals.total)}
                     </TableCell>
-                    <TableCell className="px-1.5 text-xs text-right tabular-nums">
+                    <TableCell className="px-1 text-xs text-right tabular-nums">
                       {fmtDec(row.totals.evening)}
                     </TableCell>
-                    <TableCell className="px-1.5 text-xs text-right tabular-nums">
+                    <TableCell className="px-1 text-xs text-right tabular-nums">
                       {fmtDec(row.totals.night)}
                     </TableCell>
-                    <TableCell className="px-1.5 text-xs text-right tabular-nums">
+                    <TableCell className="px-1 text-xs text-right tabular-nums">
                       {fmtDec(row.totals.sunHol)}
                     </TableCell>
-                    <TableCell className="px-1.5 text-xs text-right tabular-nums">
+                    <TableCell className="px-1 text-xs text-right tabular-nums">
                       {shiftsByStaff.get(row.staffId) ?? 0}
                     </TableCell>
                     {(() => {
@@ -2052,12 +2097,12 @@ function WeeklyPlan({
                       return (
                         <>
                           <TableCell
-                            className={`px-1.5 text-xs text-right tabular-nums ${u > 0 ? "" : "text-muted-foreground/50"}`}
+                            className={`px-1 text-xs text-right tabular-nums ${u > 0 ? "" : "text-muted-foreground/50"}`}
                           >
                             {u > 0 ? u : "–"}
                           </TableCell>
                           <TableCell
-                            className={`px-1.5 text-xs text-right tabular-nums ${k > 0 ? "" : "text-muted-foreground/50"}`}
+                            className={`px-1 text-xs text-right tabular-nums ${k > 0 ? "" : "text-muted-foreground/50"}`}
                           >
                             {k > 0 ? k : "–"}
                           </TableCell>
