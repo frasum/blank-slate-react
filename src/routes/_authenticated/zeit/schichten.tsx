@@ -192,6 +192,24 @@ function MyShiftsPage() {
         </Button>
       </div>
 
+      {(absencesQuery.data ?? []).length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+            Abwesenheiten
+          </h2>
+          <Card className="divide-y">
+            {(absencesQuery.data ?? []).map((a) => (
+              <div
+                key={`${a.type}-${a.start}`}
+                className="px-4 py-3 text-sm text-muted-foreground"
+              >
+                {absenceLabel(a)}
+              </div>
+            ))}
+          </Card>
+        </section>
+      )}
+
       {query.isLoading ? (
         <Card className="p-6 text-sm text-muted-foreground">Lade…</Card>
       ) : query.isError ? (
