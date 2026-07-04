@@ -12,6 +12,7 @@ import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { runWithPermission, assertPermission } from "@/lib/admin/admin-call";
 import { writeAuditLog, makeAuditWriter } from "@/lib/admin/audit";
 import { loadStaffCaller } from "@/lib/time/time.functions";
+import { assertRealIdentity } from "@/lib/admin/impersonation";
 import {
   canCancelLeave,
   canDecideLeave,
@@ -53,6 +54,7 @@ export const requestLeave = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadStaffCaller(context.supabase, context.userId);
+    assertRealIdentity(caller);
     await assertPermission(context.supabase, "roster.leave.request_self", null);
     if (!isValidLeaveRange(data.start_date, data.end_date)) {
       throw new Error("Bis-Datum muss am Von-Datum oder danach liegen.");
@@ -137,6 +139,7 @@ export const cancelMyLeaveRequest = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const caller = await loadStaffCaller(context.supabase, context.userId);
+    assertRealIdentity(caller);
     await assertPermission(context.supabase, "roster.leave.request_self", null);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
