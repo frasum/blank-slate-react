@@ -30,6 +30,7 @@ describe.skipIf(!dbTestsEnabled)("submitWaiterSettlementCore (DB)", () => {
       staffId: waiter.staffId,
       organizationId: org.orgId,
       isActive: true,
+      impersonatedBy: null,
     };
   }
 

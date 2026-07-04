@@ -54,6 +54,7 @@ describe.skipIf(!dbTestsEnabled)("cash read endpoints (DB) — B3c-1a", () => {
       staffId: waiter.staffId,
       organizationId: org.orgId,
       isActive: true,
+      impersonatedBy: null,
     };
   }
 

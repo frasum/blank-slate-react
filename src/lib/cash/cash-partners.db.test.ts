@@ -18,6 +18,7 @@ describe.skipIf(!dbTestsEnabled)("settlement_partners (DB)", () => {
       staffId: u.staffId,
       organizationId: org.orgId,
       isActive: true,
+      impersonatedBy: null,
     };
   }
 

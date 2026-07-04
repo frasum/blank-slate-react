@@ -2,7 +2,7 @@
 
 Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen Baublock konsultiert. Bewusst kurz gehalten — Architektur-Begründungen stehen im gruendungsdokument.md, nicht hier.
 
-Stand: 04.07.2026 (UA1)
+Stand: 04.07.2026 (IMP1)
 
 ## 1. Rollenverteilung im Team
 
@@ -2459,3 +2459,44 @@ SQL-Migration zur Bucket-Anlage ist in diesem Stack plattformseitig blockiert
 (`bucket_sql_blocked`): Buckets entstehen ausschließlich über das
 Lovable-Storage-Tool und sind daher grundsätzlich nicht migrationsfähig.
 Repo-Parität für Buckets = das Inventar in §3, nicht eine Migrationsdatei.
+
+## §57 IMP1 — Vorschau-Identität: impersonation-bewusster Staff-Caller, strikt lesend (04.07.2026)
+
+Vor IMP1 respektierten nur `me.functions` (UI-Banner) die aktive
+Admin-Vorschau (`admin_impersonations`). `loadStaffCaller` löste weiterhin
+den Admin selbst auf — Folge: unter „Vorschau als ANN" zeigten alle
+Portal-Seiten die Daten des Admins statt der Zielperson.
+
+- **Zentrale Auflösung.** Neue Datei `src/lib/admin/impersonation.ts` mit
+  `resolveActiveImpersonation(supabase, adminUserId)` — genau EINE
+  Aktiv-Logik, genutzt von `getMyIdentity` (UI-Banner) UND `loadStaffCaller`
+  (Portal). `loadStaffCaller` (in `src/lib/time/time.functions.ts`) löst
+  nach dem `user_links`-Lookup die aktive Vorschau auf und wechselt bei
+  Treffer auf die Ziel-Person. Guards (Defense in Depth): Ziel-Staff
+  existiert, ist in DERSELBEN Organisation wie der Admin, und der reale
+  Aufrufer hat admin-Rolle (per `supabaseAdmin` re-validiert — RLS würde
+  die Rollenprüfung sonst über `_effective_user_id` auf die Zielperson
+  umleiten). Der `Caller`/`StaffCaller`-Typ trägt neu
+  `impersonatedBy: string | null` (= `staff_id` des echten Admins bei
+  Vorschau, sonst `null`). Damit zeigen ALLE lesenden Staff-Fns
+  automatisch die Ziel-Person — ein Fix, überall wirksam.
+- **Vorschau ist schreibgeschützt.** Zentraler Guard
+  `assertRealIdentity(caller)` wirft
+  „Die Vorschau ist schreibgeschützt — Aktion nicht möglich." und wird als
+  ERSTE Zeile in jeder mutierenden Staff-Caller-Function aufgerufen:
+  `clockIn`, `clockOut`, `createSwapRequest`, `cancelSwapRequest`,
+  `acceptSwapRequest`, `declineSwapRequest`, `requestLeave`,
+  `cancelMyLeaveRequest`, `createDayOffWish`, `deleteDayOffWish`,
+  `submitWaiterSettlement`. Lesende Fns bleiben ungeguarded. Die
+  Verweigerung schreibt KEINEN `audit_log`-Eintrag (B2a-Muster).
+- **Nicht angetastet.** `loadAdminCaller` (Admin-Seiten arbeiten NIE
+  impersoniert), `admin_impersonations`-Schema, Start/Stop-Fns und Banner.
+- **UI.** Neuer Hook `useIsPreview()` (aus `identity.impersonation.active`).
+  `/zeit/stempeln` deaktiviert Ein-/Ausstempeln-Buttons in der Vorschau mit
+  Tooltip „In der Vorschau deaktiviert". Weitere Portal-Buttons zeigen
+  bei Auslösung die Server-Fehlermeldung als Toast — die eigentliche
+  Sicherung sitzt serverseitig.
+- **Tests.** `src/lib/admin/impersonation.test.ts` deckt `assertRealIdentity`
+  (echte Identität erlaubt, Vorschau verweigert) ab. Bestehende DB-Tests
+  wurden auf das erweiterte `Caller`-Objekt (`impersonatedBy: null`)
+  angepasst.

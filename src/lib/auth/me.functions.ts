@@ -4,6 +4,7 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { resolveActiveImpersonation } from "@/lib/admin/impersonation";
 
 export type Identity = {
   staffId: string | null;
@@ -22,14 +23,10 @@ export type Identity = {
 export const getMyIdentity = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<Identity> => {
-    // Aktive Impersonation des AUFRUFENDEN Admins (geht über auth.uid()
-    // direkt, nicht über die effektiven Helfer).
-    const { data: imp } = await context.supabase
-      .from("admin_impersonations")
-      .select("target_staff_id, started_at")
-      .eq("admin_user_id", context.userId)
-      .is("ended_at", null)
-      .maybeSingle();
+    // Aktive Impersonation des AUFRUFENDEN Admins — geteilte Logik mit
+    // loadStaffCaller (IMP1), damit UI-Banner und Portal-Fns dieselbe
+    // Vorschau-Auflösung nutzen.
+    const imp = await resolveActiveImpersonation(context.supabase, context.userId);
 
     const { data: link, error: linkErr } = await context.supabase
       .from("user_links")
@@ -50,7 +47,7 @@ export const getMyIdentity = createServerFn({ method: "GET" })
     // Effektive Identität: bei Impersonation zeigt sie auf den Ziel-Mitarbeiter
     // (Helfer current_staff_id/current_role lösen das automatisch auf), sonst
     // auf den eingeloggten Mitarbeiter. So spiegelt das UI die effektive Rolle.
-    const effectiveStaffId = imp?.target_staff_id ?? link.staff_id;
+    const effectiveStaffId = imp?.targetStaffId ?? link.staff_id;
 
     const { data: role } = await context.supabase
       .from("role_assignments")
@@ -81,9 +78,9 @@ export const getMyIdentity = createServerFn({ method: "GET" })
       impersonation: imp
         ? {
             active: true,
-            asStaffId: imp.target_staff_id,
+            asStaffId: imp.targetStaffId,
             asDisplayName: displayName,
-            since: imp.started_at,
+            since: imp.startedAt,
           }
         : { active: false, asStaffId: null, asDisplayName: null, since: null },
     };

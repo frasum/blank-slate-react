@@ -39,6 +39,7 @@ describe.skipIf(!dbTestsEnabled)("cash lock — Session-Sperre + Wasserlinie (DB
       staffId: waiter.staffId,
       organizationId: org.orgId,
       isActive: true,
+      impersonatedBy: null,
     };
   }
   function mgr(): AdminCaller {

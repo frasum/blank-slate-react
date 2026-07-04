@@ -23,6 +23,7 @@ describe.skipIf(!dbTestsEnabled)("Pool-Zeit-Rückschreibung (DB)", () => {
       staffId: waiter.staffId,
       organizationId: org.orgId,
       isActive: true,
+      impersonatedBy: null,
     };
   }
 

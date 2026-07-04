@@ -26,12 +26,16 @@ import { assertWithinFence } from "@/lib/geo/server-check";
 import { absenceTodayError, shouldWarnAbsenceClockIn, type AbsenceType } from "./absence-warn";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { assertRealIdentity, resolveActiveImpersonation } from "@/lib/admin/impersonation";
 
 type Caller = {
   userId: string;
   staffId: string;
   organizationId: string;
   isActive: boolean;
+  // IMP1: Bei aktiver Admin-Vorschau ist staffId die des Ziel-Mitarbeiters;
+  // impersonatedBy hält dann die staff_id des echten Admins. Sonst null.
+  impersonatedBy: string | null;
 };
 
 export type StaffCaller = Caller;
@@ -49,18 +53,51 @@ export async function loadStaffCaller(
     throw new Error("Kein Mitarbeiter-Profil verknüpft.");
   }
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  // IMP1: Aktive Vorschau des echten Admins auflösen. Guards (Defense in Depth):
+  //   1. Ziel-Staff muss existieren.
+  //   2. Ziel-Staff muss in DERSELBEN Organisation liegen wie der Admin.
+  //   3. Der reale Aufrufer muss admin-Rolle haben (auch wenn Start bereits
+  //      admin-gated ist — hier re-validiert).
+  const imp = await resolveActiveImpersonation(supabase, userId);
+  let effectiveStaffId = link.staff_id as string;
+  const organizationId = link.organization_id as string;
+  let impersonatedBy: string | null = null;
+  if (imp) {
+    const { data: adminRole } = await supabaseAdmin
+      .from("role_assignments")
+      .select("role")
+      .eq("staff_id", link.staff_id)
+      .eq("organization_id", link.organization_id)
+      .maybeSingle();
+    if ((adminRole?.role as string | undefined) !== "admin") {
+      throw new Error("Vorschau nicht erlaubt (Aufrufer ist kein Admin).");
+    }
+    const { data: target } = await supabaseAdmin
+      .from("staff")
+      .select("id, organization_id")
+      .eq("id", imp.targetStaffId)
+      .maybeSingle();
+    if (!target || target.organization_id !== link.organization_id) {
+      throw new Error("Vorschau-Ziel ist nicht in derselben Organisation.");
+    }
+    effectiveStaffId = imp.targetStaffId;
+    impersonatedBy = link.staff_id as string;
+  }
+
   const { data: staff, error: staffErr } = await supabaseAdmin
     .from("staff")
     .select("is_active")
-    .eq("id", link.staff_id)
-    .eq("organization_id", link.organization_id)
+    .eq("id", effectiveStaffId)
+    .eq("organization_id", organizationId)
     .maybeSingle();
   if (staffErr || !staff) throw new Error("Mitarbeiter nicht gefunden.");
   return {
     userId,
-    staffId: link.staff_id,
-    organizationId: link.organization_id,
+    staffId: effectiveStaffId,
+    organizationId,
     isActive: staff.is_active,
+    impersonatedBy,
   };
 }
 
@@ -223,6 +260,7 @@ export const clockIn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadStaffCaller(context.supabase, context.userId);
+    assertRealIdentity(caller);
     const open = await loadOpenEntry(caller.staffId);
     const decision = canClockIn({ staffIsActive: caller.isActive, openEntry: open });
     if (!decision.ok) throw new Error(denialMessage(decision.reason));
@@ -324,6 +362,7 @@ export const clockOut = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadStaffCaller(context.supabase, context.userId);
+    assertRealIdentity(caller);
     // Rechte-Check pro Standort, falls offener Eintrag mit Location existiert.
     const open = await loadOpenEntry(caller.staffId);
     await assertPermission(context.supabase, "time.entry.clock", open?.locationId ?? null);
