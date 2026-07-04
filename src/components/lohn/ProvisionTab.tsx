@@ -7,7 +7,7 @@
 // Bei „Alle Standorte" bewusst KEIN Merge — Einstellungen und Pools sind
 // standort-scoped.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -131,6 +131,16 @@ function ProvisionTabInner({
 
   const data: ProvisionOverviewResult | undefined = overviewQ.data;
 
+  const enabledData = data && data.enabled ? data : null;
+  const searchLower = search.trim().toLowerCase();
+  const rowsSorted = useMemo(() => {
+    if (!enabledData) return [] as ProvisionOverviewRow[];
+    const filtered = searchLower
+      ? enabledData.rows.filter((r) => r.displayName.toLowerCase().includes(searchLower))
+      : enabledData.rows;
+    return [...filtered].sort((a, b) => b.provisionCents - a.provisionCents);
+  }, [enabledData, searchLower]);
+
   if (overviewQ.isLoading) {
     return <Card className="p-6 text-sm text-muted-foreground">Lade Provisions-Daten…</Card>;
   }
@@ -172,15 +182,7 @@ function ProvisionTabInner({
     );
   }
 
-  const { settings, poolCents, dayBreakdown, rows } = data;
-
-  const searchLower = search.trim().toLowerCase();
-  const rowsSorted = useMemo(() => {
-    const filtered = searchLower
-      ? rows.filter((r) => r.displayName.toLowerCase().includes(searchLower))
-      : rows;
-    return [...filtered].sort((a, b) => b.provisionCents - a.provisionCents);
-  }, [rows, searchLower]);
+  const { settings, poolCents, dayBreakdown } = data;
 
   const rowsSum = rowsSorted.reduce((acc, r) => acc + r.provisionCents, 0);
   const daySum = dayBreakdown.reduce((acc, d) => acc + d.dayPoolCents, 0);
@@ -448,22 +450,19 @@ function SettingsDialog(props: SettingsDialogProps) {
   const [minErr, setMinErr] = useState<string | null>(null);
   const [pctErr, setPctErr] = useState<string | null>(null);
 
-  // Reset when dialog opens.
-  const [openKey, setOpenKey] = useState(open);
-  if (open !== openKey) {
-    setOpenKey(open);
-    if (open) {
-      setEnabled(initialEnabled);
-      setMinStr(
-        initialMinRevenueCents
-          ? (initialMinRevenueCents / 100).toString().replace(".", ",")
-          : "",
-      );
-      setPctStr(initialPct ? initialPct.toString().replace(".", ",") : "");
-      setMinErr(null);
-      setPctErr(null);
-    }
-  }
+  // Reset Formularwerte, wenn der Dialog frisch geöffnet wird.
+  useEffect(() => {
+    if (!open) return;
+    setEnabled(initialEnabled);
+    setMinStr(
+      initialMinRevenueCents
+        ? (initialMinRevenueCents / 100).toString().replace(".", ",")
+        : "",
+    );
+    setPctStr(initialPct ? initialPct.toString().replace(".", ",") : "");
+    setMinErr(null);
+    setPctErr(null);
+  }, [open, initialEnabled, initialMinRevenueCents, initialPct]);
 
   const saveMut = useMutation({
     mutationFn: (input: {
