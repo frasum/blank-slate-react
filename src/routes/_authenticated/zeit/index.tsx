@@ -9,7 +9,6 @@ import {
   ListChecks,
   CalendarPlus,
   Hourglass,
-  ArrowLeftRight,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/zeit/")({
@@ -31,7 +30,6 @@ type Tile = {
     | "/zeit/wuensche"
     | "/zeit/urlaub"
     | "/zeit/aufgaben"
-    | "/zeit/tausch"
     | "/zeit/kalender";
   title: string;
   description: string;
@@ -76,12 +74,6 @@ const TILES: Tile[] = [
     title: "Urlaub beantragen",
     description: "Antrag stellen, Status verfolgen.",
     Icon: Plane,
-  },
-  {
-    to: "/zeit/tausch",
-    title: "Schichttausch",
-    description: "Eigene Schichten anbieten, Kollegen-Anfragen übernehmen.",
-    Icon: ArrowLeftRight,
   },
   {
     to: "/zeit/aufgaben",
