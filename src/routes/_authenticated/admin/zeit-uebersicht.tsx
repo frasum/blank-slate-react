@@ -994,6 +994,7 @@ function ZeitUebersichtPage() {
               return m;
             }, [weeklyData])}
             shiftsByStaff={shiftsByStaff}
+            absencesByStaff={absencesByStaff}
           />
         </TabsContent>
 
