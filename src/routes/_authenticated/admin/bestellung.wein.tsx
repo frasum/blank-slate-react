@@ -13,7 +13,11 @@ import {
   updateArticle,
 } from "@/lib/bestellung/articles.functions";
 import { listSuppliers } from "@/lib/bestellung/suppliers.functions";
-import { researchWine } from "@/lib/bestellung/wine-research.functions";
+import {
+  researchWine,
+  researchWineById,
+  type WineResearchBatchItem,
+} from "@/lib/bestellung/wine-research.functions";
 import { parseEuroToCents } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/admin/bestellung/wein")({
