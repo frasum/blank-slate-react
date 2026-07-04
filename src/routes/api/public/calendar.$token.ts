@@ -9,6 +9,7 @@ import { Buffer } from "node:buffer";
 import { timingSafeEqual } from "node:crypto";
 import { buildRosterIcs, type RosterIcsEvent } from "@/lib/calendar/roster-ics";
 import { poolLocalTimeToIso } from "@/lib/cash/pool-time-writeback";
+import { mergeAbsenceRanges } from "@/lib/roster/vacation-planner";
 
 function notFound(): Response {
   return new Response("Not found", {
@@ -141,6 +142,40 @@ export const Route = createFileRoute("/api/public/calendar/$token")({
             });
           } else {
             events.push({ uid, summary, location, allDay: true, date: s.shift_date });
+          }
+        }
+
+        // UA1 — Abwesenheiten (Urlaub/Krank) als ganztägige Events.
+        // Aufeinanderfolgende Tage pro Typ zu einem mehrtägigen Event
+        // gemerged; DTEND;VALUE=DATE ist EXKLUSIV (Folgetag des letzten Tags).
+        const { data: absences, error: absErr } = await supabaseAdmin
+          .from("roster_absence")
+          .select("date, type")
+          .eq("organization_id", orgId)
+          .eq("staff_id", staffId)
+          .in("type", ["urlaub", "krank"])
+          .gte("date", windowStart)
+          .lte("date", windowEnd);
+        if (absErr) return notFound();
+        const byType = new Map<"urlaub" | "krank", string[]>();
+        for (const a of absences ?? []) {
+          const t = a.type as "urlaub" | "krank";
+          const arr = byType.get(t) ?? [];
+          arr.push(a.date as string);
+          byType.set(t, arr);
+        }
+        for (const [type, dates] of byType) {
+          const summary = type === "urlaub" ? "Urlaub" : "Krank";
+          for (const range of mergeAbsenceRanges(dates)) {
+            const endExclusive = shiftIso(range.end, 1);
+            events.push({
+              uid: `absence-${type}-${staffId}-${range.start}@coco`,
+              summary,
+              location: "",
+              allDay: true,
+              date: range.start,
+              endDateExclusive: endExclusive,
+            });
           }
         }
 
