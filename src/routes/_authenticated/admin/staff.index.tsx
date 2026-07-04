@@ -414,11 +414,6 @@ function StaffListPage() {
                       </TableHead>
                     ))}
                     <TableHead className="min-w-[260px]">Skills</TableHead>
-                    <TableHead className="min-w-[70px] text-center">PIN</TableHead>
-                    {isAdmin && (
-                      <TableHead className="min-w-[130px] text-center">Sofortmeldung</TableHead>
-                    )}
-                    <TableHead className="min-w-[80px] text-right">Aktionen</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -432,18 +427,14 @@ function StaffListPage() {
                       sofortStatus={sofortBy.get(s.id) ?? null}
                       deptPending={deptMutation.isPending}
                       skillPending={skillMutation.isPending}
-                      activePending={activeMutation.isPending}
                       onToggleDept={toggleDept}
                       onToggleSkill={toggleSkill}
-                      onToggleActive={(staffId, isActive) =>
-                        activeMutation.mutate({ staffId, isActive })
-                      }
                     />
                   ))}
                   {filtered.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={(isAdmin ? 5 : 4) + locations.length}
+                        colSpan={3 + locations.length}
                         className="py-8 text-center text-muted-foreground"
                       >
                         {data.length > 0 ? "Keine Treffer." : "Noch keine Mitarbeiter."}
