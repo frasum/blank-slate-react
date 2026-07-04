@@ -44,6 +44,7 @@ export function SessionFieldsCard({
   kpiSlot,
   previousDeficitCents,
   previousDeficitSourceDate,
+  locationName,
 }: {
   sessionId: string;
   overview: Overview;
@@ -67,6 +68,7 @@ export function SessionFieldsCard({
   kpiSlot?: React.ReactNode;
   previousDeficitCents: number;
   previousDeficitSourceDate: string | null;
+  locationName?: string;
 }) {
   type Row = { id: string; euro: string };
   type TerminalRow = Row & { isGl: boolean };
