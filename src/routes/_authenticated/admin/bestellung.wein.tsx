@@ -152,6 +152,9 @@ function WeinPage() {
   const [batchResults, setBatchResults] = useState<Map<string, BatchEntry>>(new Map());
   const [batchApplying, setBatchApplying] = useState(false);
   const [batchApplyMsg, setBatchApplyMsg] = useState<string | null>(null);
+  // Status der Batch-Recherche selbst (Läuft/Abgebrochen/Fertig/Fehlgeschlagen).
+  type BatchStatus = "idle" | "running" | "cancelled" | "done" | "failed";
+  const [batchStatus, setBatchStatus] = useState<BatchStatus>("idle");
   const cancelRef = useRef(false);
 
   const suppliersQ = useQuery({
@@ -251,11 +254,17 @@ function WeinPage() {
     if (wines.length === 0) return;
     cancelRef.current = false;
     setBatchRunning(true);
+    setBatchStatus("running");
     setBatchApplyMsg(null);
     setBatchResults(new Map());
     setBatchProgress({ done: 0, total: wines.length, current: wines[0]?.name ?? "" });
+    let aborted = false;
+    let hardFail: string | null = null;
     for (let i = 0; i < wines.length; i++) {
-      if (cancelRef.current) break;
+      if (cancelRef.current) {
+        aborted = true;
+        break;
+      }
       const w = wines[i];
       setBatchProgress({ done: i, total: wines.length, current: w.name });
       try {
@@ -267,7 +276,8 @@ function WeinPage() {
         });
       } catch (e) {
         // Auth/Owner-Fehler: schleife nicht weiterlaufen lassen.
-        setBatchApplyMsg(e instanceof Error ? e.message : "Recherche abgebrochen.");
+        hardFail = e instanceof Error ? e.message : "Recherche abgebrochen.";
+        setBatchApplyMsg(hardFail);
         break;
       }
       // sanftes Ratelimit
@@ -275,6 +285,7 @@ function WeinPage() {
     }
     setBatchProgress((p) => (p ? { ...p, done: p.total, current: "" } : null));
     setBatchRunning(false);
+    setBatchStatus(hardFail ? "failed" : aborted ? "cancelled" : "done");
   };
 
   const applyBatch = async () => {
