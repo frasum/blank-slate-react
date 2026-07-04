@@ -11,7 +11,10 @@ import {
 } from "@/lib/admin/staff.functions";
 import { assignStaffSkills, listSkills, type SkillCategory } from "@/lib/admin/skills.functions";
 import { listLocations } from "@/lib/admin/locations.functions";
-import { getSofortmeldungOverview } from "@/lib/sofortmeldung/sofortmeldung.functions";
+import {
+  getSofortmeldungOverview,
+  getSofortmeldungDetail,
+} from "@/lib/sofortmeldung/sofortmeldung.functions";
 import type { SofortmeldungStatus } from "@/lib/sofortmeldung/sofortmeldung-rules";
 import {
   distinctDepartments,
@@ -32,7 +35,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Search, UserCheck, UserMinus, Users } from "lucide-react";
+import { Search, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AppRole } from "@/lib/admin/role-guard";
 
