@@ -1,4 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { Card } from "@/components/ui/card";
 import {
   Clock,
@@ -9,8 +11,8 @@ import {
   ListChecks,
   CalendarPlus,
   Hourglass,
-  ArrowLeftRight,
 } from "lucide-react";
+import { listOpenSwapsForMe } from "@/lib/roster/swap.functions";
 
 export const Route = createFileRoute("/_authenticated/zeit/")({
   head: () => ({
@@ -31,8 +33,7 @@ type Tile = {
     | "/zeit/wuensche"
     | "/zeit/urlaub"
     | "/zeit/aufgaben"
-    | "/zeit/kalender"
-    | "/zeit/tausch";
+    | "/zeit/kalender";
   title: string;
   description: string;
   Icon: typeof Clock;
@@ -49,7 +50,8 @@ const TILES: Tile[] = [
   {
     to: "/zeit/schichten",
     title: "Meine Schichten",
-    description: "Geplante Schichten der kommenden Wochen.",
+    description:
+      "Geplante Schichten der kommenden Wochen — zum Tausch anbieten, Anfragen von Kollegen annehmen.",
     Icon: CalendarDays,
   },
   {
@@ -78,12 +80,6 @@ const TILES: Tile[] = [
     Icon: Plane,
   },
   {
-    to: "/zeit/tausch",
-    title: "Schichttausch",
-    description: "Eigene Schichten anbieten, Anfragen von Kollegen annehmen oder ablehnen.",
-    Icon: ArrowLeftRight,
-  },
-  {
     to: "/zeit/aufgaben",
     title: "Aufgaben",
     description: "Offene Aufgaben deiner Standorte – übernehmen und erledigen.",
@@ -98,6 +94,13 @@ const TILES: Tile[] = [
 ];
 
 function ZeitHub() {
+  const fetchOpen = useServerFn(listOpenSwapsForMe);
+  const openSwapsQuery = useQuery({
+    queryKey: ["swaps-open-for-me"],
+    queryFn: () => fetchOpen(),
+  });
+  const openSwapsCount = openSwapsQuery.isError ? 0 : (openSwapsQuery.data?.length ?? 0);
+
   return (
     <main className="mx-auto max-w-xl space-y-6 px-4 py-8">
       <header className="space-y-1">
@@ -114,8 +117,15 @@ function ZeitHub() {
                   aria-hidden
                 />
               </div>
-              <div className="space-y-0.5">
-                <div className="font-medium">{title}</div>
+              <div className="flex-1 space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{title}</span>
+                  {to === "/zeit/schichten" && openSwapsCount > 0 && (
+                    <span className="inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-primary px-2 py-0.5 text-[11px] font-semibold text-primary-foreground">
+                      {openSwapsCount}
+                    </span>
+                  )}
+                </div>
                 <div className="text-sm text-muted-foreground">{description}</div>
               </div>
             </Card>
