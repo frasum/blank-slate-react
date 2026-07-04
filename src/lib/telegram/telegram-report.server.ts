@@ -266,7 +266,7 @@ export async function runDailyReportForOrg(params: {
   }
 
   const businessDate = yesterdayISO(todayBerlin);
-  const flags = parseFlags(settings.telegram_report_flags);
+  const flags = parseFlags(settings?.telegram_report_flags);
   const reportInput = await loadReportInputForOrg(organizationId, businessDate);
   const text = buildDailyReport(reportInput, flags);
 
