@@ -292,7 +292,7 @@ export const getReviewPendingCounts = createServerFn({ method: "GET" })
         .from("leave_requests")
         .select("id", { count: "exact", head: true })
         .eq("organization_id", caller.organizationId)
-        .eq("status", "pending"),
+        .eq("status", "offen"),
       supabaseAdmin
         .from("shift_swap_requests")
         .select("id", { count: "exact", head: true })
