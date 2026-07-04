@@ -2199,7 +2199,6 @@ Testbericht-Button in den Einstellungen umgeht das Gate ohne
 `last_sent` zu setzen. pg_cron-Einrichtung: Frank-SQL (Ops, keine
 Migration).
 
-
 BZ1 Batch-Schichtzeiten (04.07.): Portierung des Legacy-`ShiftTimeOverride`
 als Admin-Card auf `/admin/zeit-uebersicht`. Drei Modi (`override`,
 `create_weekdays`, `create_daily`) — für Gehalts-/GL-Personal, das nicht
