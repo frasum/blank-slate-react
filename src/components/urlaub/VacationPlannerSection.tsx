@@ -16,11 +16,7 @@ import {
   getVacationPlanner,
   type VacationPlannerResult,
 } from "@/lib/roster/vacation-planner.functions";
-import {
-  dayOfYearPct,
-  monthOffsets,
-  type AbsenceRange,
-} from "@/lib/roster/vacation-planner";
+import { dayOfYearPct, monthOffsets, type AbsenceRange } from "@/lib/roster/vacation-planner";
 import { cn } from "@/lib/utils";
 
 const MONTH_LETTERS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
@@ -40,10 +36,7 @@ function todayIso(): string {
   ).padStart(2, "0")}`;
 }
 
-function rangeGeometry(
-  r: AbsenceRange,
-  year: number,
-): { leftPct: number; widthPct: number } {
+function rangeGeometry(r: AbsenceRange, year: number): { leftPct: number; widthPct: number } {
   const start = dayOfYearPct(r.start, year);
   const end = dayOfYearPct(r.end, year);
   return { leftPct: start.leftPct, widthPct: end.leftPct + end.widthPct - start.leftPct };
@@ -100,9 +93,7 @@ export function VacationPlannerSection() {
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <div className="min-w-16 px-3 text-center text-sm font-semibold tabular-nums">
-            {year}
-          </div>
+          <div className="min-w-16 px-3 text-center text-sm font-semibold tabular-nums">{year}</div>
           <button
             type="button"
             className="h-9 w-9 rounded-full border border-gray-300 bg-white text-gray-700 hover:opacity-80 flex items-center justify-center"
@@ -129,16 +120,9 @@ export function VacationPlannerSection() {
       ) : plannerQuery.isLoading ? (
         <Card className="p-6 text-sm text-muted-foreground">Lade Planer…</Card>
       ) : plannerQuery.isError ? (
-        <Card className="p-6 text-sm text-destructive">
-          Konnte Jahresplaner nicht laden.
-        </Card>
+        <Card className="p-6 text-sm text-destructive">Konnte Jahresplaner nicht laden.</Card>
       ) : plannerQuery.data ? (
-        <PlannerBoard
-          data={plannerQuery.data}
-          months={months}
-          todayPct={todayPct}
-          year={year}
-        />
+        <PlannerBoard data={plannerQuery.data} months={months} todayPct={todayPct} year={year} />
       ) : null}
     </section>
   );

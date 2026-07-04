@@ -6,11 +6,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
-import {
-  dailyVacationCounts,
-  mergeAbsenceRanges,
-  type AbsenceRange,
-} from "./vacation-planner";
+import { dailyVacationCounts, mergeAbsenceRanges, type AbsenceRange } from "./vacation-planner";
 
 const READ_ROLES = ["manager", "admin"] as const;
 

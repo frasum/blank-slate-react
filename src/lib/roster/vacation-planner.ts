@@ -29,10 +29,7 @@ export function dayOfYearIndex(iso: string): number {
   return Math.round((cur - start) / 86_400_000);
 }
 
-export function dayOfYearPct(
-  dateIso: string,
-  year: number,
-): { leftPct: number; widthPct: number } {
+export function dayOfYearPct(dateIso: string, year: number): { leftPct: number; widthPct: number } {
   const total = yearDayCount(year);
   const idx = dayOfYearIndex(dateIso);
   return { leftPct: (idx / total) * 100, widthPct: (1 / total) * 100 };
