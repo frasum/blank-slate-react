@@ -383,6 +383,14 @@ function ProvisionTabInner({
         </Card>
       </Collapsible>
 
+      {/* Rechenweg — Schritt für Schritt mit echten Zahlen der Periode */}
+      <RechenwegPanel
+        settings={settings}
+        dayBreakdown={dayBreakdown}
+        poolCents={poolCents}
+        rows={rowsSorted}
+      />
+
       {isAdmin && (
         <SettingsDialog
           open={settingsOpen}
