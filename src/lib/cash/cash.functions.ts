@@ -2886,6 +2886,25 @@ export async function upsertSessionTipPoolEntryCore(
       }
     } catch (err) {
       console.error("[pool-time-sync] failed", err);
+      // §51: sichtbare Spur, ohne die Korrektur zu kippen.
+      try {
+        await writeAuditLog({
+          organizationId: caller.organizationId,
+          actorUserId: caller.userId,
+          actorStaffId: caller.staffId,
+          action: "pool_time.sync_failed",
+          entity: "session_tip_pool_entry",
+          entityId: session.id,
+          meta: {
+            sessionId: session.id,
+            businessDate: session.business_date,
+            staffId: data.staffId,
+            error: String(err).slice(0, 300),
+          },
+        });
+      } catch (auditErr) {
+        console.error("[pool-time-sync] audit failed", auditErr);
+      }
     }
 
     return {
