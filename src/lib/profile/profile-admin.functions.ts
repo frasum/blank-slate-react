@@ -265,6 +265,36 @@ export const decideChangeRequest = createServerFn({ method: "POST" })
     },
   );
 
+export type ReviewPendingCounts = {
+  pendingRequests: number;
+  pendingDocuments: number;
+};
+
+export const getReviewPendingCounts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<ReviewPendingCounts> => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [reqRes, docRes] = await Promise.all([
+      supabaseAdmin
+        .from("staff_data_change_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", caller.organizationId)
+        .eq("status", "pending"),
+      supabaseAdmin
+        .from("staff_documents")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", caller.organizationId)
+        .is("verified_at", null),
+    ]);
+    if (reqRes.error) throw new Error(reqRes.error.message);
+    if (docRes.error) throw new Error(docRes.error.message);
+    return {
+      pendingRequests: reqRes.count ?? 0,
+      pendingDocuments: docRes.count ?? 0,
+    };
+  });
+
 export type AdminDocument = {
   id: string;
   staffId: string;
