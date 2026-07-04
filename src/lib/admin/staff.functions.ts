@@ -70,6 +70,18 @@ export const listStaff = createServerFn({ method: "GET" })
       .eq("organization_id", caller.organizationId)
       .order("display_name");
     if (error) throw error;
+    const staffIds = (data ?? []).map((s) => s.id);
+    const startDates = new Map<string, string | null>();
+    if (staffIds.length > 0) {
+      const { data: details, error: dErr } = await supabaseAdmin
+        .from("staff_personal_details")
+        .select("staff_id, employment_start_date")
+        .in("staff_id", staffIds);
+      if (dErr) throw dErr;
+      for (const d of details ?? []) {
+        startDates.set(d.staff_id as string, (d.employment_start_date as string | null) ?? null);
+      }
+    }
     return (data ?? []).map((s) => {
       const ra = s.role_assignments as { role: AppRole }[] | null;
       const role = ra && ra.length > 0 ? ra[0].role : null;
@@ -112,6 +124,7 @@ export const listStaff = createServerFn({ method: "GET" })
         skillCategories,
         skillIds,
         hasPin: s.staff_pins !== null,
+        employmentStartDate: startDates.get(s.id) ?? null,
       };
     });
   });
