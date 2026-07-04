@@ -1866,14 +1866,11 @@ function WeeklyPlan({
                 </TableRow>
                 {grp.rows.map((row) => (
                   <TableRow key={row.staffId}>
-                    <TableCell className="relative pl-3 font-medium">
+                    <TableCell className="relative pl-3 font-medium align-middle">
                       <span
                         className={`absolute left-0 top-0 bottom-0 w-[2px] ${DEPT_BAR[row.department]}`}
                       />
                       {row.displayName}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums border-l">
-                      {shiftsByStaff.get(row.staffId) ?? 0}
                     </TableCell>
                     {row.days.map((day, idx) => {
                       const dm = dayMeta[idx];
@@ -1960,7 +1957,10 @@ function WeeklyPlan({
                         </Fragment>
                       );
                     })}
-                    <TableCell className="text-right tabular-nums font-medium border-l">
+                    <TableCell className="font-medium align-middle border-l">
+                      {row.displayName}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums font-medium">
                       {fmtDec(row.totals.total)}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
@@ -1991,6 +1991,9 @@ function WeeklyPlan({
                         </>
                       );
                     })()}
+                    <TableCell className="text-right tabular-nums">
+                      {shiftsByStaff.get(row.staffId) ?? 0}
+                    </TableCell>
                   </TableRow>
                 ))}
               </Fragment>
