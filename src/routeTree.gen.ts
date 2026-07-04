@@ -54,6 +54,7 @@ import { Route as AuthenticatedAdminAufgabenRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminStaffIndexRouteImport } from './routes/_authenticated/admin/staff.index'
 import { Route as AuthenticatedAdminBestellungIndexRouteImport } from './routes/_authenticated/admin/bestellung.index'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
+import { Route as ApiPublicTelegramDailyReportRouteImport } from './routes/api/public/telegram/daily-report'
 import { Route as ApiPublicDisplayLocationIdRouteImport } from './routes/api/public/display.$locationId'
 import { Route as ApiPublicCalendarTokenRouteImport } from './routes/api/public/calendar.$token'
 import { Route as AuthenticatedAdminStaffNewRouteImport } from './routes/_authenticated/admin/staff.new'
@@ -318,6 +319,12 @@ const ApiPublicTelegramWebhookRoute =
     path: '/api/public/telegram/webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicTelegramDailyReportRoute =
+  ApiPublicTelegramDailyReportRouteImport.update({
+    id: '/api/public/telegram/daily-report',
+    path: '/api/public/telegram/daily-report',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicDisplayLocationIdRoute =
   ApiPublicDisplayLocationIdRouteImport.update({
     id: '/api/public/display/$locationId',
@@ -430,6 +437,7 @@ export interface FileRoutesByFullPath {
   '/admin/staff/new': typeof AuthenticatedAdminStaffNewRoute
   '/api/public/calendar/$token': typeof ApiPublicCalendarTokenRoute
   '/api/public/display/$locationId': typeof ApiPublicDisplayLocationIdRoute
+  '/api/public/telegram/daily-report': typeof ApiPublicTelegramDailyReportRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/admin/bestellung/': typeof AuthenticatedAdminBestellungIndexRoute
   '/admin/staff/': typeof AuthenticatedAdminStaffIndexRoute
@@ -483,6 +491,7 @@ export interface FileRoutesByTo {
   '/admin/staff/new': typeof AuthenticatedAdminStaffNewRoute
   '/api/public/calendar/$token': typeof ApiPublicCalendarTokenRoute
   '/api/public/display/$locationId': typeof ApiPublicDisplayLocationIdRoute
+  '/api/public/telegram/daily-report': typeof ApiPublicTelegramDailyReportRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/admin/bestellung': typeof AuthenticatedAdminBestellungIndexRoute
   '/admin/staff': typeof AuthenticatedAdminStaffIndexRoute
@@ -541,6 +550,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/staff/new': typeof AuthenticatedAdminStaffNewRoute
   '/api/public/calendar/$token': typeof ApiPublicCalendarTokenRoute
   '/api/public/display/$locationId': typeof ApiPublicDisplayLocationIdRoute
+  '/api/public/telegram/daily-report': typeof ApiPublicTelegramDailyReportRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/_authenticated/admin/bestellung/': typeof AuthenticatedAdminBestellungIndexRoute
   '/_authenticated/admin/staff/': typeof AuthenticatedAdminStaffIndexRoute
@@ -599,6 +609,7 @@ export interface FileRouteTypes {
     | '/admin/staff/new'
     | '/api/public/calendar/$token'
     | '/api/public/display/$locationId'
+    | '/api/public/telegram/daily-report'
     | '/api/public/telegram/webhook'
     | '/admin/bestellung/'
     | '/admin/staff/'
@@ -652,6 +663,7 @@ export interface FileRouteTypes {
     | '/admin/staff/new'
     | '/api/public/calendar/$token'
     | '/api/public/display/$locationId'
+    | '/api/public/telegram/daily-report'
     | '/api/public/telegram/webhook'
     | '/admin/bestellung'
     | '/admin/staff'
@@ -709,6 +721,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/staff/new'
     | '/api/public/calendar/$token'
     | '/api/public/display/$locationId'
+    | '/api/public/telegram/daily-report'
     | '/api/public/telegram/webhook'
     | '/_authenticated/admin/bestellung/'
     | '/_authenticated/admin/staff/'
@@ -722,6 +735,7 @@ export interface RootRouteChildren {
   DisplayLocationIdRoute: typeof DisplayLocationIdRoute
   ApiPublicCalendarTokenRoute: typeof ApiPublicCalendarTokenRoute
   ApiPublicDisplayLocationIdRoute: typeof ApiPublicDisplayLocationIdRoute
+  ApiPublicTelegramDailyReportRoute: typeof ApiPublicTelegramDailyReportRoute
   ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
 }
 
@@ -1042,6 +1056,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicTelegramWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/telegram/daily-report': {
+      id: '/api/public/telegram/daily-report'
+      path: '/api/public/telegram/daily-report'
+      fullPath: '/api/public/telegram/daily-report'
+      preLoaderRoute: typeof ApiPublicTelegramDailyReportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/display/$locationId': {
       id: '/api/public/display/$locationId'
       path: '/api/public/display/$locationId'
@@ -1275,6 +1296,7 @@ const rootRouteChildren: RootRouteChildren = {
   DisplayLocationIdRoute: DisplayLocationIdRoute,
   ApiPublicCalendarTokenRoute: ApiPublicCalendarTokenRoute,
   ApiPublicDisplayLocationIdRoute: ApiPublicDisplayLocationIdRoute,
+  ApiPublicTelegramDailyReportRoute: ApiPublicTelegramDailyReportRoute,
   ApiPublicTelegramWebhookRoute: ApiPublicTelegramWebhookRoute,
 }
 export const routeTree = rootRouteImport
