@@ -152,6 +152,9 @@ function WeinPage() {
   const [batchResults, setBatchResults] = useState<Map<string, BatchEntry>>(new Map());
   const [batchApplying, setBatchApplying] = useState(false);
   const [batchApplyMsg, setBatchApplyMsg] = useState<string | null>(null);
+  // Status der Batch-Recherche selbst (Läuft/Abgebrochen/Fertig/Fehlgeschlagen).
+  type BatchStatus = "idle" | "running" | "cancelled" | "done" | "failed";
+  const [batchStatus, setBatchStatus] = useState<BatchStatus>("idle");
   const cancelRef = useRef(false);
 
   const suppliersQ = useQuery({
@@ -251,11 +254,17 @@ function WeinPage() {
     if (wines.length === 0) return;
     cancelRef.current = false;
     setBatchRunning(true);
+    setBatchStatus("running");
     setBatchApplyMsg(null);
     setBatchResults(new Map());
     setBatchProgress({ done: 0, total: wines.length, current: wines[0]?.name ?? "" });
+    let aborted = false;
+    let hardFail: string | null = null;
     for (let i = 0; i < wines.length; i++) {
-      if (cancelRef.current) break;
+      if (cancelRef.current) {
+        aborted = true;
+        break;
+      }
       const w = wines[i];
       setBatchProgress({ done: i, total: wines.length, current: w.name });
       try {
@@ -267,7 +276,8 @@ function WeinPage() {
         });
       } catch (e) {
         // Auth/Owner-Fehler: schleife nicht weiterlaufen lassen.
-        setBatchApplyMsg(e instanceof Error ? e.message : "Recherche abgebrochen.");
+        hardFail = e instanceof Error ? e.message : "Recherche abgebrochen.";
+        setBatchApplyMsg(hardFail);
         break;
       }
       // sanftes Ratelimit
@@ -275,6 +285,7 @@ function WeinPage() {
     }
     setBatchProgress((p) => (p ? { ...p, done: p.total, current: "" } : null));
     setBatchRunning(false);
+    setBatchStatus(hardFail ? "failed" : aborted ? "cancelled" : "done");
   };
 
   const applyBatch = async () => {
@@ -388,7 +399,10 @@ function WeinPage() {
           onClick={() => setBatchOpen((v) => !v)}
           className="flex w-full items-center justify-between px-4 py-2 text-left text-sm font-medium"
         >
-          <span>KI-Recherche für alle Weine</span>
+          <span className="flex items-center gap-2">
+            KI-Recherche für alle Weine
+            <BatchStatusBadge status={batchStatus} />
+          </span>
           <span className="text-xs text-muted-foreground">{batchOpen ? "▲" : "▼"}</span>
         </button>
         {batchOpen && (
@@ -417,13 +431,40 @@ function WeinPage() {
                   Abbrechen
                 </button>
               )}
-              {batchProgress && (
-                <span className="text-xs text-muted-foreground">
-                  {batchProgress.done} / {batchProgress.total}
-                  {batchProgress.current ? ` — aktuell: ${batchProgress.current}` : ""}
-                </span>
-              )}
             </div>
+            {batchProgress && (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>
+                    {batchProgress.done} / {batchProgress.total}
+                    {batchProgress.current ? ` — aktuell: ${batchProgress.current}` : ""}
+                  </span>
+                  <span>
+                    {batchProgress.total > 0
+                      ? Math.round((batchProgress.done / batchProgress.total) * 100)
+                      : 0}
+                    %
+                  </span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className={
+                      batchStatus === "failed"
+                        ? "h-full bg-destructive transition-[width] duration-300"
+                        : batchStatus === "cancelled"
+                          ? "h-full bg-muted-foreground/60 transition-[width] duration-300"
+                          : "h-full bg-primary transition-[width] duration-300"
+                    }
+                    style={{
+                      width:
+                        batchProgress.total > 0
+                          ? `${Math.min(100, Math.round((batchProgress.done / batchProgress.total) * 100))}%`
+                          : "0%",
+                    }}
+                  />
+                </div>
+              </div>
+            )}
             {batchApplyMsg && <p className="text-xs text-muted-foreground">{batchApplyMsg}</p>}
             {batchEntries.length > 0 && (
               <div className="space-y-3">
@@ -784,6 +825,32 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 const inputCls =
   "mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring";
 const selectCls = inputCls;
+
+function BatchStatusBadge(props: { status: "idle" | "running" | "cancelled" | "done" | "failed" }) {
+  const map: Record<typeof props.status, { label: string; cls: string; dot?: boolean }> = {
+    idle: { label: "Bereit", cls: "bg-muted text-muted-foreground" },
+    running: {
+      label: "Läuft",
+      cls: "bg-primary/15 text-primary",
+      dot: true,
+    },
+    done: {
+      label: "Abgeschlossen",
+      cls: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+    },
+    cancelled: { label: "Abgebrochen", cls: "bg-muted text-muted-foreground" },
+    failed: { label: "Fehlgeschlagen", cls: "bg-destructive/15 text-destructive" },
+  };
+  const { label, cls, dot } = map[props.status];
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${cls}`}
+    >
+      {dot && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" aria-hidden />}
+      {label}
+    </span>
+  );
+}
 
 function BatchEntryCard(props: {
   entry: { item: WineResearchBatchItem; selected: Record<BatchField, boolean> };
