@@ -585,6 +585,25 @@ export const acceptSwapRequest = createServerFn({ method: "POST" })
       entityId: reqRow.id,
       meta: { counterShiftId },
     });
+
+    // TA2 — Manager per Telegram anpingen. Best-effort (§51): Fehler landen im
+    // audit_log (swap.alert_failed), kippen aber die Annahme NICHT.
+    try {
+      await notifyManagersOfPeerAccepted(supabaseAdmin, {
+        organizationId: caller.organizationId,
+        requestId: reqRow.id,
+      });
+    } catch (err) {
+      await writeAuditLog({
+        organizationId: caller.organizationId,
+        actorUserId: caller.userId,
+        actorStaffId: caller.staffId,
+        action: "swap.alert_failed",
+        entity: "shift_swap_request",
+        entityId: reqRow.id,
+        meta: { message: err instanceof Error ? err.message : String(err) },
+      });
+    }
     return { ok: true };
   });
 
