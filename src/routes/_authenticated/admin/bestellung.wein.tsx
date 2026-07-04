@@ -399,7 +399,10 @@ function WeinPage() {
           onClick={() => setBatchOpen((v) => !v)}
           className="flex w-full items-center justify-between px-4 py-2 text-left text-sm font-medium"
         >
-          <span>KI-Recherche für alle Weine</span>
+          <span className="flex items-center gap-2">
+            KI-Recherche für alle Weine
+            <BatchStatusBadge status={batchStatus} />
+          </span>
           <span className="text-xs text-muted-foreground">{batchOpen ? "▲" : "▼"}</span>
         </button>
         {batchOpen && (
@@ -428,13 +431,41 @@ function WeinPage() {
                   Abbrechen
                 </button>
               )}
-              {batchProgress && (
-                <span className="text-xs text-muted-foreground">
-                  {batchProgress.done} / {batchProgress.total}
-                  {batchProgress.current ? ` — aktuell: ${batchProgress.current}` : ""}
-                </span>
-              )}
+              <BatchStatusBadge status={batchStatus} />
             </div>
+            {batchProgress && (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>
+                    {batchProgress.done} / {batchProgress.total}
+                    {batchProgress.current ? ` — aktuell: ${batchProgress.current}` : ""}
+                  </span>
+                  <span>
+                    {batchProgress.total > 0
+                      ? Math.round((batchProgress.done / batchProgress.total) * 100)
+                      : 0}
+                    %
+                  </span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className={
+                      batchStatus === "failed"
+                        ? "h-full bg-destructive transition-[width] duration-300"
+                        : batchStatus === "cancelled"
+                          ? "h-full bg-muted-foreground/60 transition-[width] duration-300"
+                          : "h-full bg-primary transition-[width] duration-300"
+                    }
+                    style={{
+                      width:
+                        batchProgress.total > 0
+                          ? `${Math.min(100, Math.round((batchProgress.done / batchProgress.total) * 100))}%`
+                          : "0%",
+                    }}
+                  />
+                </div>
+              </div>
+            )}
             {batchApplyMsg && <p className="text-xs text-muted-foreground">{batchApplyMsg}</p>}
             {batchEntries.length > 0 && (
               <div className="space-y-3">
