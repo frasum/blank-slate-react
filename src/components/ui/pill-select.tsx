@@ -70,6 +70,7 @@ export function PillSelect<T extends string>({
             onKeyDown={(e) => onKeyDown(e, idx)}
             className={[
               "rounded-full border font-medium transition-colors",
+              "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
               pad,
               active
                 ? "border-primary bg-primary text-primary-foreground shadow-sm"
