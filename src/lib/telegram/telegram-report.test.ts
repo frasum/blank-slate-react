@@ -25,7 +25,11 @@ const baseLocation = {
     { name: "Bo", posSalesCents: 45000, submittedAt: "2026-07-03T22:05:00+02:00" },
   ],
   kitchen: [
-    { name: "Chen", shiftStart: "2026-07-03T15:00:00+02:00", shiftEnd: "2026-07-03T23:00:00+02:00" },
+    {
+      name: "Chen",
+      shiftStart: "2026-07-03T15:00:00+02:00",
+      shiftEnd: "2026-07-03T23:00:00+02:00",
+    },
   ],
   notes: "Klimaanlage laut, Techniker Mittwoch.",
 };

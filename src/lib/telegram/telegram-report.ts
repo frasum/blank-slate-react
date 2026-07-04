@@ -67,10 +67,7 @@ export type ReportInput = {
 // ---------------------------------------------------------------
 
 export function escapeHtml(input: string): string {
-  return input
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
+  return input.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
 
 const EUR_FMT = new Intl.NumberFormat("de-DE", {
@@ -145,9 +142,7 @@ function renderLocation(loc: ReportLocationInput, flags: ReportFlags): string {
   }
   if (flags.gaeste && (loc.guestCount ?? 0) > 0) {
     const avg = (loc.vectronCents ?? 0) / (loc.guestCount ?? 1);
-    lines.push(
-      `Gäste: ${loc.guestCount} (⌀ ${escapeHtml(fmtCents(Math.round(avg)))})`,
-    );
+    lines.push(`Gäste: ${loc.guestCount} (⌀ ${escapeHtml(fmtCents(Math.round(avg)))})`);
   }
 
   if (flags.kontrolle && loc.kontrolle) {

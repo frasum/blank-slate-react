@@ -87,7 +87,9 @@ export const getTelegramReportSettings = createServerFn({ method: "GET" })
       kueche: rawFlags.kueche !== false,
       notizen: rawFlags.notizen !== false,
       excludedLocationIds: Array.isArray(rawFlags.excludedLocationIds)
-        ? (rawFlags.excludedLocationIds as unknown[]).filter((v): v is string => typeof v === "string")
+        ? (rawFlags.excludedLocationIds as unknown[]).filter(
+            (v): v is string => typeof v === "string",
+          )
         : [],
     };
 
