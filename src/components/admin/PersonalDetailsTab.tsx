@@ -316,7 +316,10 @@ export function PersonalDetailsTab({ staffId, canEdit, canEditVacation }: Props)
         <fieldset key={sec.title} className="space-y-3 rounded-md border border-border p-4">
           <legend className="flex items-center gap-2 px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             <span>{sec.title}</span>
-            {sec.title === "Beschäftigung & Urlaub" && canEdit && !editing && !vacEditing && (
+            {sec.title === "Beschäftigung & Urlaub" &&
+              mayEditVacation &&
+              !editing &&
+              !vacEditing && (
               <button
                 type="button"
                 onClick={startVacEdit}
