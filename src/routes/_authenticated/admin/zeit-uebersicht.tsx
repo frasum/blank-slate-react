@@ -1742,7 +1742,7 @@ function WeeklyPlan({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead rowSpan={2} className="w-[140px] min-w-[140px] align-bottom">
+            <TableHead rowSpan={2} className="w-[140px] min-w-[140px] align-bottom text-center">
               Mitarbeiter
             </TableHead>
             {dayMeta.map((dm) => (
@@ -1767,19 +1767,22 @@ function WeeklyPlan({
                 )}
               </TableHead>
             ))}
-            <TableHead rowSpan={2} className="w-[140px] min-w-[140px] align-bottom border-l">
+            <TableHead
+              rowSpan={2}
+              className="w-[140px] min-w-[140px] align-bottom border-l text-center"
+            >
               Mitarbeiter
             </TableHead>
-            <TableHead rowSpan={2} className="text-right align-bottom">
+            <TableHead rowSpan={2} className="text-right align-bottom whitespace-nowrap">
               Ges
             </TableHead>
-            <TableHead rowSpan={2} className="text-right align-bottom">
+            <TableHead rowSpan={2} className="text-right align-bottom whitespace-nowrap">
               20–24
             </TableHead>
-            <TableHead rowSpan={2} className="text-right align-bottom">
+            <TableHead rowSpan={2} className="text-right align-bottom whitespace-nowrap">
               24–x
             </TableHead>
-            <TableHead rowSpan={2} className="text-right align-bottom">
+            <TableHead rowSpan={2} className="text-right align-bottom whitespace-nowrap">
               So/Fei
             </TableHead>
             <TableHead
