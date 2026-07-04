@@ -185,7 +185,7 @@ function StaffListPage() {
     [sofortQ.data],
   );
 
-  const [showInactive, setShowInactive] = useState(false);
+  const [activeGroup, setActiveGroup] = useState<"active" | "inactive">("active");
   const [search, setSearch] = useState("");
   const [deptTab, setDeptTab] = useState<DeptFilter>("all");
 
@@ -195,19 +195,23 @@ function StaffListPage() {
 
   const activeCount = useMemo(() => data.filter((s) => s.isActive).length, [data]);
   const inactiveCount = useMemo(() => data.filter((s) => !s.isActive).length, [data]);
+  const groupData = useMemo(
+    () => data.filter((s) => (activeGroup === "active" ? s.isActive : !s.isActive)),
+    [data, activeGroup],
+  );
+  const groupTotal = groupData.length;
   const serviceCount = useMemo(
-    () => data.filter((s) => s.isActive && s.departments.includes("service")).length,
-    [data],
+    () => groupData.filter((s) => s.departments.includes("service")).length,
+    [groupData],
   );
   const kitchenCount = useMemo(
-    () => data.filter((s) => s.isActive && s.departments.includes("kitchen")).length,
-    [data],
+    () => groupData.filter((s) => s.departments.includes("kitchen")).length,
+    [groupData],
   );
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return data
-      .filter((s) => showInactive || s.isActive)
+    return groupData
       .filter((s) => {
         if (deptTab === "all") return true;
         return s.departments.includes(deptTab);
@@ -220,12 +224,12 @@ function StaffListPage() {
       })
       .slice()
       .sort((a, b) => a.displayName.localeCompare(b.displayName));
-  }, [data, showInactive, deptTab, search]);
+  }, [groupData, deptTab, search]);
 
   // --- Server-Function calls (Logik unverändert) ---
   const callSetDept = useServerFn(setStaffLocationDepartment);
   const callAssignSkills = useServerFn(assignStaffSkills);
-  const callSetActive = useServerFn(setStaffActive);
+  // setStaffActive-Aufruf bleibt im Stammblatt; hier nur Listen-UI.
 
   const deptMutation = useMutation({
     mutationFn: (v: {
