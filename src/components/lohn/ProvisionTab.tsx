@@ -34,11 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, Search, Settings } from "lucide-react";
 import { fmtCents, parseEuroToCents } from "@/lib/format";
 import {
@@ -82,8 +78,7 @@ type Props = {
 };
 
 export function ProvisionTab(props: Props) {
-  const { locationId, locationLabel, isAllLocations, periodStart, periodEnd, isAdmin } =
-    props;
+  const { locationId, locationLabel, isAllLocations, periodStart, periodEnd, isAdmin } = props;
 
   if (isAllLocations) {
     return (
@@ -120,8 +115,7 @@ function ProvisionTabInner({
 
   const overviewQ = useQuery({
     queryKey: ["provision-overview", locationId, periodStart, periodEnd],
-    queryFn: () =>
-      fetchOverview({ data: { locationId, periodStart, periodEnd } }),
+    queryFn: () => fetchOverview({ data: { locationId, periodStart, periodEnd } }),
     enabled: Boolean(locationId) && Boolean(periodStart) && Boolean(periodEnd),
   });
 
@@ -199,9 +193,7 @@ function ProvisionTabInner({
             <div className="text-2xl font-semibold tabular-nums">{fmtEuro(poolCents)}</div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Badge variant="secondary">
-              min {fmtEuro(settings.minRevenueCents)} / Kellner·Tag
-            </Badge>
+            <Badge variant="secondary">min {fmtEuro(settings.minRevenueCents)} / Kellner·Tag</Badge>
             <Badge variant="secondary">{fmtPct(settings.pct)} %</Badge>
           </div>
           {isAdmin && (
@@ -253,9 +245,7 @@ function ProvisionTabInner({
             {rowsSorted.map((r: ProvisionOverviewRow) => (
               <TableRow key={r.staffId}>
                 <TableCell>{r.displayName}</TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {fmtHours(r.minutes)}
-                </TableCell>
+                <TableCell className="text-right tabular-nums">{fmtHours(r.minutes)}</TableCell>
                 <TableCell className="text-right tabular-nums font-medium">
                   {fmtEuro(r.provisionCents)}
                 </TableCell>
@@ -305,10 +295,7 @@ function ProvisionTabInner({
                 <TableBody>
                   {dayBreakdown.length === 0 && (
                     <TableRow>
-                      <TableCell
-                        colSpan={6}
-                        className="text-center text-muted-foreground py-6"
-                      >
+                      <TableCell colSpan={6} className="text-center text-muted-foreground py-6">
                         Keine Abrechnungen im Zeitraum.
                       </TableCell>
                     </TableRow>
@@ -321,12 +308,8 @@ function ProvisionTabInner({
                         key={d.businessDate}
                         className={zero ? "text-muted-foreground" : undefined}
                       >
-                        <TableCell className="tabular-nums">
-                          {fmtDDMM(d.businessDate)}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {d.waiterCount}
-                        </TableCell>
+                        <TableCell className="tabular-nums">{fmtDDMM(d.businessDate)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{d.waiterCount}</TableCell>
                         <TableCell className="text-right tabular-nums">
                           {fmtEuro(d.revenueCents)}
                         </TableCell>
@@ -378,22 +361,22 @@ function ProvisionTabInner({
           <CollapsibleContent>
             <div className="border-t p-4 text-sm leading-relaxed space-y-3">
               <p>
-                <strong>Pro Geschäftstag:</strong> Alle Kellner mit Abrechnung zählen —
-                inklusive eingetragener Zweit-/Zusatzkellner; Geschäftsleitung zählt nie
-                mit. Der Tagesumsatz ist die Summe der POS-Umsätze dieser Abrechnungen.
-                Nur wenn <code>Tagesumsatz ÷ Kellnerzahl ≥ {fmtEuro(settings.minRevenueCents)}</code>,
+                <strong>Pro Geschäftstag:</strong> Alle Kellner mit Abrechnung zählen — inklusive
+                eingetragener Zweit-/Zusatzkellner; Geschäftsleitung zählt nie mit. Der Tagesumsatz
+                ist die Summe der POS-Umsätze dieser Abrechnungen. Nur wenn{" "}
+                <code>Tagesumsatz ÷ Kellnerzahl ≥ {fmtEuro(settings.minRevenueCents)}</code>,
                 entsteht Provision:{" "}
                 <strong>
-                  Tages-Pool = (Tagesumsatz − {fmtEuro(settings.minRevenueCents)} ×
-                  Kellnerzahl) × {fmtPct(settings.pct)} %
+                  Tages-Pool = (Tagesumsatz − {fmtEuro(settings.minRevenueCents)} × Kellnerzahl) ×{" "}
+                  {fmtPct(settings.pct)} %
                 </strong>
                 .
               </p>
               <p>
-                <strong>Verteilung:</strong> Alle Tages-Pools der Periode werden addiert
-                und nach den Service-Stunden der Periode verteilt (aus der Zeiterfassung):{" "}
-                <code>Pool ÷ Gesamtstunden × eigene Stunden</code> — centgenau, die Summe
-                der Auszahlungen entspricht exakt dem Pool.
+                <strong>Verteilung:</strong> Alle Tages-Pools der Periode werden addiert und nach
+                den Service-Stunden der Periode verteilt (aus der Zeiterfassung):{" "}
+                <code>Pool ÷ Gesamtstunden × eigene Stunden</code> — centgenau, die Summe der
+                Auszahlungen entspricht exakt dem Pool.
               </p>
             </div>
           </CollapsibleContent>
@@ -455,9 +438,7 @@ function SettingsDialog(props: SettingsDialogProps) {
     if (!open) return;
     setEnabled(initialEnabled);
     setMinStr(
-      initialMinRevenueCents
-        ? (initialMinRevenueCents / 100).toString().replace(".", ",")
-        : "",
+      initialMinRevenueCents ? (initialMinRevenueCents / 100).toString().replace(".", ",") : "",
     );
     setPctStr(initialPct ? initialPct.toString().replace(".", ",") : "");
     setMinErr(null);
@@ -508,8 +489,7 @@ function SettingsDialog(props: SettingsDialogProps) {
         <DialogHeader>
           <DialogTitle>Provisions-Einstellungen</DialogTitle>
           <DialogDescription>
-            Standort: <strong>{locationLabel || "—"}</strong>. Änderungen werden
-            protokolliert.
+            Standort: <strong>{locationLabel || "—"}</strong>. Änderungen werden protokolliert.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">

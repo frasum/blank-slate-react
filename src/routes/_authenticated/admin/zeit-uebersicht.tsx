@@ -908,9 +908,7 @@ function ZeitUebersichtPage() {
           <TabsTrigger value="provision">Provision</TabsTrigger>
         </TabsList>
 
-        {(activeTab === "summary" ||
-          activeTab === "payroll" ||
-          activeTab === "provision") && (
+        {(activeTab === "summary" || activeTab === "payroll" || activeTab === "provision") && (
           <Card className="my-3 p-3">
             <div className="flex flex-wrap items-end gap-3">
               <div className="space-y-1">
@@ -1080,9 +1078,7 @@ function ZeitUebersichtPage() {
         <TabsContent value="provision">
           <ProvisionTab
             locationId={effectiveLocationId}
-            locationLabel={
-              locations.find((l) => l.id === effectiveLocationId)?.name ?? ""
-            }
+            locationLabel={locations.find((l) => l.id === effectiveLocationId)?.name ?? ""}
             isAllLocations={isAllLocations}
             periodStart={fromDate}
             periodEnd={toDate}
