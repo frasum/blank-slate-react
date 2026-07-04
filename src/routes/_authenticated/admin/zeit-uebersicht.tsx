@@ -1123,7 +1123,7 @@ function ZeitUebersichtPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {overviewQ.isLoading && (
+                {overviewLoading && (
                   <TableRow>
                     <TableCell
                       colSpan={5 + weekCols.length}
@@ -1133,7 +1133,7 @@ function ZeitUebersichtPage() {
                     </TableCell>
                   </TableRow>
                 )}
-                {!overviewQ.isLoading && staffAggs.length === 0 && (
+                {!overviewLoading && staffAggs.length === 0 && (
                   <TableRow>
                     <TableCell
                       colSpan={5 + weekCols.length}
