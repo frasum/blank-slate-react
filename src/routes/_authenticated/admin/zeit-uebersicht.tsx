@@ -1886,6 +1886,12 @@ function WeeklyPlan({
             </TableHead>
             <TableHead
               className="px-1.5 text-right text-xs align-bottom whitespace-nowrap"
+              title="Schichten in der Abrechnungsperiode"
+            >
+              S
+            </TableHead>
+            <TableHead
+              className="px-1.5 text-right text-xs align-bottom whitespace-nowrap"
               title="Urlaubstage in der Abrechnungsperiode"
             >
               U
@@ -1895,12 +1901,6 @@ function WeeklyPlan({
               title="Kranktage in der Abrechnungsperiode"
             >
               K
-            </TableHead>
-            <TableHead
-              className="px-1.5 text-right text-xs align-bottom whitespace-nowrap"
-              title="Schichten in der Abrechnungsperiode"
-            >
-              S
             </TableHead>
           </TableRow>
         </TableHeader>
