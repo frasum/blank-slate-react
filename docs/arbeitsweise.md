@@ -2094,6 +2094,7 @@ Vorrangregel und Unvollständig-Regel respektiert). Catches schreiben jetzt
 Audit-Einträge (pool_time.writeback_failed / sync_failed).
 
 **Pflicht-Regeln daraus:**
+
 - PostgREST-`onConflict` verlangt einen VOLLEN Unique-Index/Constraint auf
   exakt den Spalten — partielle Indizes sind damit unvereinbar und
   scheitern zur Laufzeit (42P10), nicht beim Deploy.
