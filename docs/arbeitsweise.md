@@ -2266,6 +2266,26 @@ nur „genommen < 0" und übersah sechs negative Vorjahres-Werte; aufgeflogen
 durch Zufalls-Review. Dieselbe Sorgfalt wie bei Geld-Importen gilt für
 jede Zahlenspalte.
 
+### Stammdaten-Voll-Import (04.07.2026, abends)
+
+Zweiter Lauf über dieselben PaySlips: 39 Personen, importiert wurden
+(NUR-NULL-Regel, Join `perso_nr`) Geburtsdatum, SV-Nummer, Steuer-ID,
+Steuerklasse (arabisch→römisch I–VI gemappt!), Kinderfreibeträge,
+Elterneigenschaft, Krankenkasse (edlohn kürzt lange Namen mit „…" —
+trailing dots gestrippt, zweizeilige Namen zusammengeführt) +
+KK-Zusatzbeitrag, Eintrittsdatum, Anrede, Adresse, IBAN (Mod-97-validiert,
+kompakt normalisiert) + Bank + Kontoinhaber. Verifiziert:
+geb/steuer_id/stkl/eintritt/adresse 39/39, sv 37, kk 38, iban 37.
+
+**Bewusst NICHT importiert:** `is_midijob`, `kv/rv/av/pv_frei`,
+`lst_freibetrag` — NOT-NULL-Felder (nie NULL, Nur-Lücken-Regel greift
+nicht) und von der M4-Lohnprüfung bereits cent-genau gegen dieselben
+PaySlips auditiert. Konfession (alle „--"), Geburtsort/Nationalität
+(nicht im PaySlip), Austritte (keine im Dokument). VALUES-Import-Lektion:
+untypisierte VALUES-Spalten brechen bei `COALESCE(date, text)` — immer
+explizite `::casts` je Feld. TSB (eigene Entität): PaySlips folgen,
+gleicher Lauf.
+
 ## 55. Schichttausch TA1 — Zustandsmaschine, DENY-ALL-RLS, kein Auto-Vollzug (04.07.2026)
 
 Mitarbeiter können ihre eigenen zukünftigen `roster_shifts` zum Tausch
