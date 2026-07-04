@@ -500,6 +500,30 @@ Wasserlinie (`organization_settings.time_locked_through_date`) steht auf 25.06. 
 
 - **Importer setzt `location_id` jetzt beim Import** (erledigt): optionale CSV-Spalte `restaurant` → `resolveLocationId()` (rein, case-insensitiv, getrimmt; `null` bei Miss) gegen die `locations`-Namens-Map der Org. Neuer Zähler `importedWithoutLocation` macht NULL-Location-Zeilen im Dry-Run/Commit sichtbar (Badge „X ohne Standort" im Migrations-UI). **Voraussetzung:** der Export liefert die 16. Spalte `restaurant` pro Schicht (s. Prozedur). Der frühere manuelle location_id-Backfill ist nur noch **Fallback**, falls versehentlich ein alter 15-Spalten-Export ohne `restaurant` benutzt wurde (dann zeigt der Dry-Run `importedWithoutLocation > 0`).
 
+### Vollständigkeits-Abschluss (04.07.2026)
+
+**Jan+Feb 2026 waren bereits importiert** (früherer, hier zuvor nicht
+dokumentierter Lauf) — heute zeilengenau verifiziert: COCO source='import'
+umfasst 26.12.2025–25.06.2026 mit 4019 Zeilen = Quelle aller sechs Perioden
+(4085) minus 66 legitime Leer-/Abwesenheits-Zeilen (Jan 1, Feb 65).
+Stunden-Abgleich: 2026-01 = 648 Zeilen/5345,00 h, 2026-02 = 677/5450,50 h —
+exakt Quelle. Die Legacy-Historie beginnt am 26.12.2025; davor existiert
+nichts.
+
+**Lücken-Schluss 26.–29.06.2026:** Zwischen Import-Ende (25.06.) und
+Pool-Writeback-Start (30.06., §51) fehlten vier Tage. Per §10-Prozedur
+geschlossen (Export 16 Spalten, /admin/migration, Run-ID 40865e29-…):
+gelesen 76 / importiert 75 / übersprungen 1 (invalid_time = Abwesenheit
+28.06. ohne Zeiten). Verifiziert pro Tag: 20/156,77 · 19/156,68 · 17/133,83
+· 19/153,25 = 75 Einträge / 600,53 h (Quelle 600,49 — Rundungsrauschen).
+Der Importer zog die Zeit-Wasserlinie automatisch auf den 29.06. nach.
+
+**Neue harte Regel:** Die Import-Obergrenze ist der Pool-Writeback-Start
+(30.06.2026). Ab diesem Datum erfasst COCO selbst (clock/pool/manual) —
+ein zt_shifts-Import darüber hinaus wäre Doppelzählung im Lohn und ist
+VERBOTEN. Die Legacy-Zeiterfassung ist damit Archiv; die COCO-Zeit-Historie
+ist lückenlos vom 26.12.2025 bis heute.
+
 ## 11. Modul M4 — edlohn-Cent-Abgleich Juni 2026 (26.06.2026)
 
 COCO-Lohnrechner cent-genau gegen die offizielle edlohn-Abrechnung Juni 2026 (Mandant 09290/205, 39 MA) abgeglichen. Methode: CSV-Export `/admin/lohnrechner` (simple) ↔ edlohn-Referenz, Diff je Spalte. Standard-Kohorte deckungsgleich (Rest <0,3 % Rundungsrauschen — COCO rundet SFN/Stunden minimal niedrig, immateriell). Sonderfälle als „Hebel" abgearbeitet.
