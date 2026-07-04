@@ -2442,3 +2442,10 @@ Upload) für Melde-Zwecke („Spülmaschine E3") und Erledigt-Nachweise.
   eingebunden im Portal (`/zeit/aufgaben`) und in der Admin-Ansicht
   (`/admin/aufgaben`). Foto-Anzahl-Badge (`📷 N`) auf `KanbanCard` aus
   `countTaskPhotos`-Batch-Query.
+
+**Bucket-Nachzug (04.07., Konflikt-Meldung Lovable):** Der Bucket `task-photos`
+existiert live und ist `public: No` — Sicherheits-Gate erfüllt. Eine
+SQL-Migration zur Bucket-Anlage ist in diesem Stack plattformseitig blockiert
+(`bucket_sql_blocked`): Buckets entstehen ausschließlich über das
+Lovable-Storage-Tool und sind daher grundsätzlich nicht migrationsfähig.
+Repo-Parität für Buckets = das Inventar in §3, nicht eine Migrationsdatei.
