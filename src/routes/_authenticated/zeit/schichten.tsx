@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { getMyShifts } from "@/lib/roster/roster.functions";
+import { getMyShifts, getMyAbsences, type MyAbsenceRange } from "@/lib/roster/roster.functions";
 import { groupMyShiftsByDate } from "@/lib/roster/my-shifts";
 import {
   createSwapRequest,
@@ -76,6 +76,7 @@ function formatDayHeader(dateStr: string): string {
 function MyShiftsPage() {
   const [range, setRange] = useState<RangeKey>("month");
   const fetchShifts = useServerFn(getMyShifts);
+  const fetchAbsences = useServerFn(getMyAbsences);
   const fetchSwaps = useServerFn(listMySwapRequests);
   const fetchOpen = useServerFn(listOpenSwapsForMe);
   const createSwap = useServerFn(createSwapRequest);
@@ -85,6 +86,10 @@ function MyShiftsPage() {
   const query = useQuery({
     queryKey: ["my-shifts", from, to],
     queryFn: () => fetchShifts({ data: { from, to } }),
+  });
+  const absencesQuery = useQuery({
+    queryKey: ["my-absences", from, to],
+    queryFn: () => fetchAbsences({ data: { from, to } }),
   });
   const swapsQuery = useQuery({
     queryKey: ["my-swap-requests"],
