@@ -710,6 +710,18 @@ function TelegramDailyReportSection({ canEdit }: { canEdit: boolean }) {
                   />
                   erhält Tagesbericht
                 </label>
+                <label className="flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={r.receivesSwapAlerts}
+                    disabled={!canEdit || swapAlertsMut.isPending}
+                    onChange={(e) =>
+                      swapAlertsMut.mutate({ staffId: r.staffId, receives: e.target.checked })
+                    }
+                    className="h-4 w-4"
+                  />
+                  erhält Tausch-Benachrichtigungen
+                </label>
               </li>
             ))}
           </ul>
