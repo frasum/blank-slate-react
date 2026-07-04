@@ -1420,9 +1420,6 @@ function PayrollTab({
               <TableHead className="h-9 text-xs uppercase tracking-wider text-muted-foreground text-right w-24">
                 Gesamt
               </TableHead>
-              <TableHead className="h-9 text-xs uppercase tracking-wider text-muted-foreground text-right w-20">
-                Schichten
-              </TableHead>
               <TableHead
                 className="h-9 text-xs uppercase tracking-wider text-muted-foreground text-right w-20"
                 title="Abendstunden 20–24 Uhr"
@@ -1465,6 +1462,12 @@ function PayrollTab({
                   </TableHead>
                 </>
               )}
+              <TableHead
+                className="h-9 text-xs uppercase tracking-wider text-muted-foreground text-right w-16"
+                title="Schichten in der Abrechnungsperiode"
+              >
+                S
+              </TableHead>
               <TableHead className="h-9 text-xs uppercase tracking-wider text-muted-foreground text-right w-12">
                 U
               </TableHead>
