@@ -109,7 +109,7 @@ async function hasAbsenceOnDate(
     .select("staff_id")
     .eq("organization_id", organizationId)
     .eq("staff_id", staffId)
-    .eq("absence_date", isoDate)
+    .eq("date", isoDate)
     .in("type", ["urlaub", "krank"])
     .maybeSingle();
   if (error) throw error;
