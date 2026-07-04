@@ -11,6 +11,7 @@ import { getCashOverviewCore, getPreviousOperativeDeficitCore } from "@/lib/cash
 import { computeDailyCash, type DayInput } from "@/lib/cash/cash-ledger";
 import { computeWechselgeld } from "@/lib/cash/cash-summary";
 import { sessionToDayInput } from "@/lib/cash/session-day-input";
+import { sumNonGlTerminalCents } from "@/lib/cash/session-channels";
 import { sendTelegramToStaff } from "./telegram.functions";
 import {
   buildDailyReport,
@@ -120,9 +121,25 @@ async function loadReportInputForOrg(
     const sess = ov.session;
     const active = ov.settlements.filter((s) => s.status !== "superseded");
 
-    // Bargeld-Berechnung identisch zum PDF (dayInput baut sich aus Session
-    // + Satelliten). Card-Total kommt aus den Terminal-Beträgen.
-    const cardTerminalTotal = ov.terminalAmounts.reduce((a, b) => a + b.amountCents, 0);
+    // Bargeld-Berechnung identisch zum PDF/Bildschirm (§33): GL-Terminal-Zeilen
+    // (Kredit Karten GL) zählen NICHT zum Kartenabzug — sie sind Kontrollposten
+    // und dürfen das Tages-Bargeld nicht mindern. Wir joinen die Terminal-
+    // Beträge daher mit `payment_terminals.is_gl` und summieren via der einen
+    // §33-Implementierung `sumNonGlTerminalCents` (Referenz: pdfExport, KGL-2).
+    const { data: terminalsMeta } = await supabaseAdmin
+      .from("payment_terminals")
+      .select("id, is_gl")
+      .eq("organization_id", organizationId)
+      .eq("location_id", l.id);
+    const isGlById = new Map<string, boolean>(
+      (terminalsMeta ?? []).map((t) => [t.id as string, Boolean(t.is_gl)]),
+    );
+    const cardTerminalTotal = sumNonGlTerminalCents(
+      ov.terminalAmounts.map((a) => ({
+        amountCents: a.amountCents,
+        isGl: isGlById.get(a.terminalId) ?? false,
+      })),
+    );
     const channelTotals = ov.channelAmounts.reduce(
       (acc, ca) => {
         acc[ca.channelId] = (acc[ca.channelId] ?? 0) + ca.amountCents;
