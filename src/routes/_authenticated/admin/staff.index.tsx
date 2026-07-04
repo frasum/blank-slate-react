@@ -5,7 +5,6 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   listStaff,
-  setStaffActive,
   setStaffRole,
   setStaffLocationDepartment,
 } from "@/lib/admin/staff.functions";
@@ -306,16 +305,6 @@ function StaffListPage() {
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ["admin", "staff"] });
     },
-  });
-
-  const activeMutation = useMutation({
-    mutationFn: (v: { staffId: string; isActive: boolean }) =>
-      callSetActive({ data: { staffId: v.staffId, isActive: v.isActive } }),
-    onSuccess: async (_r, v) => {
-      toast.success(v.isActive ? "Mitarbeiter aktiviert." : "Mitarbeiter deaktiviert.");
-      await queryClient.invalidateQueries({ queryKey: ["admin", "staff"] });
-    },
-    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Fehler."),
   });
 
   function toggleDept(
