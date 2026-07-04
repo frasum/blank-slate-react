@@ -32,6 +32,7 @@ import {
   useUpdateTask,
 } from "@/lib/aufgaben/tasks.queries";
 import { filterStaffByCategory, type StaffOption } from "@/lib/aufgaben/filter-staff-by-category";
+import { TaskPhotoStrip } from "./TaskPhotoStrip";
 
 type Props = {
   task: Task | null;
@@ -211,6 +212,13 @@ export function TaskDetailDialog({
               </div>
             </div>
             {err ? <p className="text-sm text-destructive">{err}</p> : null}
+            <div className="rounded-md border border-border bg-muted/20 p-3">
+              <TaskPhotoStrip
+                taskId={task.id}
+                currentStaffId={currentStaffId}
+                canManage={canManage}
+              />
+            </div>
           </div>
         ) : (
           <div className="grid gap-3">
@@ -274,6 +282,13 @@ export function TaskDetailDialog({
               </p>
             )}
             {err ? <p className="text-sm text-destructive">{err}</p> : null}
+            <div className="rounded-md border border-border bg-muted/20 p-3">
+              <TaskPhotoStrip
+                taskId={task.id}
+                currentStaffId={currentStaffId}
+                canManage={canManage}
+              />
+            </div>
           </div>
         )}
         <DialogFooter className="flex sm:justify-between">
