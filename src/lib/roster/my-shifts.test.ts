@@ -3,6 +3,7 @@ import { groupMyShiftsByDate, type MyShiftRow } from "./my-shifts";
 
 function row(date: string, area: MyShiftRow["area"] = "service", loc = "Hauptlokal"): MyShiftRow {
   return {
+    shiftId: `${date}-${area}-${loc}`,
     shift_date: date,
     locationName: loc,
     area,

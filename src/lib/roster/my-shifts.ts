@@ -3,6 +3,7 @@
 // Reihenfolge.
 
 export type MyShiftRow = {
+  shiftId: string;
   shift_date: string;
   locationName: string;
   area: "kitchen" | "service" | "gl";
