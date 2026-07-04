@@ -133,24 +133,33 @@ const GROUPS: Group[] = [
     key: "einstellungen",
     label: "Einstellungen",
     default: "/admin/einstellungen",
-    prefixes: ["/admin/einstellungen"],
-    sub: [{ to: "/admin/einstellungen", label: "Organisation" }],
-    roles: ["admin"],
-  },
-  {
-    key: "system",
-    label: "System",
-    default: "/admin/migration",
-    prefixes: ["/admin/migration", "/admin/import-zuordnungen", "/admin/lohn-verteilung"],
+    prefixes: [
+      "/admin/einstellungen",
+      "/admin/migration",
+      "/admin/import-zuordnungen",
+      "/admin/lohn-verteilung",
+    ],
     sub: [
-      { to: "/admin/migration", label: "Migration" },
-      { to: "/admin/import-zuordnungen", label: "Zuordnungen" },
-      { to: "/admin/lohn-verteilung", label: "Lohn PDF Import" },
+      { to: "/admin/einstellungen", label: "Allgemein" },
+      { to: "/admin/einstellungen/easyorder-verwaltung", label: "EasyOrder-Verwaltung" },
+      { to: "/admin/migration", label: "System" },
     ],
     roles: ["admin"],
-    muted: true,
   },
 ];
+
+// System-Unterseiten (früher eigene Top-Level-Gruppe „System") sind jetzt
+// unter Einstellungen einsortiert. Für die tertiäre Navigation innerhalb
+// von „System" halten wir die Liste hier lokal.
+const SYSTEM_SUB: { to: string; label: string }[] = [
+  { to: "/admin/migration", label: "Migration" },
+  { to: "/admin/import-zuordnungen", label: "Zuordnungen" },
+  { to: "/admin/lohn-verteilung", label: "Lohn PDF Import" },
+];
+
+function isSystemPath(pathname: string): boolean {
+  return SYSTEM_SUB.some((s) => pathname === s.to || pathname.startsWith(s.to + "/"));
+}
 
 function matchPrefix(pathname: string, prefixes: string[]): boolean {
   return prefixes.some((p) => pathname === p || pathname.startsWith(p + "/"));
