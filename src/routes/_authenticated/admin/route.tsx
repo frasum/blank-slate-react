@@ -67,7 +67,6 @@ const GROUPS: Group[] = [
       "/admin/staff",
       "/admin/dienstplan",
       "/admin/zeit-uebersicht",
-      "/admin/lohn-verteilung",
       "/admin/urlaub",
       "/admin/personal-antraege",
     ],
@@ -77,7 +76,6 @@ const GROUPS: Group[] = [
       { to: "/admin/urlaub", label: "Urlaubsanträge" },
       { to: "/admin/personal-antraege", label: "Stammdaten & Dokumente", roles: ["admin"] },
       { to: "/admin/zeit-uebersicht", label: "Arbeitszeiten" },
-      { to: "/admin/lohn-verteilung", label: "Lohn PDF Import", roles: ["admin"] },
     ],
   },
   {
@@ -143,10 +141,11 @@ const GROUPS: Group[] = [
     key: "system",
     label: "System",
     default: "/admin/migration",
-    prefixes: ["/admin/migration", "/admin/import-zuordnungen"],
+    prefixes: ["/admin/migration", "/admin/import-zuordnungen", "/admin/lohn-verteilung"],
     sub: [
       { to: "/admin/migration", label: "Migration" },
       { to: "/admin/import-zuordnungen", label: "Zuordnungen" },
+      { to: "/admin/lohn-verteilung", label: "Lohn PDF Import" },
     ],
     roles: ["admin"],
     muted: true,
