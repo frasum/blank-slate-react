@@ -237,12 +237,11 @@ export async function runDailyReportForOrg(params: {
     .maybeSingle();
   if (sErr) throw sErr;
 
-  if (!settings?.telegram_report_enabled) {
-    return { organizationId, skipped: "disabled" };
-  }
-
   const todayBerlin = berlinDateISO(now);
   if (!skipGate) {
+    if (!settings?.telegram_report_enabled) {
+      return { organizationId, skipped: "disabled" };
+    }
     const hourNow = berlinHour(now);
     const wantedHour = Number(settings.telegram_report_hour ?? 7);
     if (hourNow !== wantedHour) {
