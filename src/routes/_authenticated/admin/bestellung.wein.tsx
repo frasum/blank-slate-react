@@ -826,13 +826,8 @@ const inputCls =
   "mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring";
 const selectCls = inputCls;
 
-function BatchStatusBadge(props: {
-  status: "idle" | "running" | "cancelled" | "done" | "failed";
-}) {
-  const map: Record<
-    typeof props.status,
-    { label: string; cls: string; dot?: boolean }
-  > = {
+function BatchStatusBadge(props: { status: "idle" | "running" | "cancelled" | "done" | "failed" }) {
+  const map: Record<typeof props.status, { label: string; cls: string; dot?: boolean }> = {
     idle: { label: "Bereit", cls: "bg-muted text-muted-foreground" },
     running: {
       label: "Läuft",
@@ -851,9 +846,7 @@ function BatchStatusBadge(props: {
     <span
       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${cls}`}
     >
-      {dot && (
-        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" aria-hidden />
-      )}
+      {dot && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" aria-hidden />}
       {label}
     </span>
   );
