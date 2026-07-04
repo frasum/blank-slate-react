@@ -63,6 +63,7 @@ import {
 } from "@/lib/time/buchhaltung-export";
 import { FileDown, FileSpreadsheet, Search } from "lucide-react";
 import { ProvisionTab } from "@/components/lohn/ProvisionTab";
+import { LohnrechnerPanel } from "@/components/lohn/LohnrechnerPanel";
 
 export const Route = createFileRoute("/_authenticated/admin/zeit-uebersicht")({
   head: () => ({ meta: [{ title: "Arbeitszeiten" }] }),
@@ -904,7 +905,7 @@ function ZeitUebersichtPage() {
           <TabsTrigger value="summary">Zusammenfassung</TabsTrigger>
           <TabsTrigger value="payroll">Buchhaltung</TabsTrigger>
           <TabsTrigger value="periods">Perioden</TabsTrigger>
-          <TabsTrigger value="brutto-netto">Brutto/Netto</TabsTrigger>
+          <TabsTrigger value="lohnrechner">Lohnrechner</TabsTrigger>
           <TabsTrigger value="provision">Provision</TabsTrigger>
         </TabsList>
 
@@ -1069,10 +1070,8 @@ function ZeitUebersichtPage() {
           />
         </TabsContent>
 
-        <TabsContent value="brutto-netto">
-          <Card className="p-6 text-sm text-muted-foreground">
-            Brutto/Netto-Auswertung wird im nächsten Schritt umgesetzt.
-          </Card>
+        <TabsContent value="lohnrechner">
+          <LohnrechnerPanel />
         </TabsContent>
 
         <TabsContent value="provision">
