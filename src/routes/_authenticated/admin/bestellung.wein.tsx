@@ -2,7 +2,7 @@
 // Nutzt dieselben Server-Mutations wie der Artikel-Tab, nur mit gesetzter
 // Kategorie und den Wein-Zusatzfeldern.
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -26,6 +26,66 @@ export const Route = createFileRoute("/_authenticated/admin/bestellung/wein")({
 });
 
 const SPECIAL_ATTRS = ["Bio", "Vegan", "Biodynamisch", "Demeter", "Alte Reben"] as const;
+
+const BATCH_FIELDS = [
+  "grapeVariety",
+  "originCountry",
+  "foodPairings",
+  "description",
+  "specialAttributes",
+] as const;
+type BatchField = (typeof BATCH_FIELDS)[number];
+
+const FIELD_LABEL: Record<BatchField, string> = {
+  grapeVariety: "Rebsorte",
+  originCountry: "Herkunft",
+  foodPairings: "Speisen",
+  description: "Beschreibung",
+  specialAttributes: "Merkmale",
+};
+
+function sameStr(a: string, b: string): boolean {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+function sameAttrs(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const sa = [...a].sort();
+  const sb = [...b].sort();
+  return sa.every((v, i) => v === sb[i]);
+}
+
+function defaultSelection(item: WineResearchBatchItem): Record<BatchField, boolean> {
+  const s = item.suggestion;
+  const c = item.current;
+  const pickText = (cur: string, sug: string) => {
+    if (!sug.trim()) return false; // nichts vorzuschlagen
+    if (!cur.trim()) return true; // leer → default an
+    if (sameStr(cur, sug)) return false; // identisch → nichts zu tun
+    return false; // Konflikt → aus, Frank muss aktiv wählen
+  };
+  const pickAttrs = (cur: string[], sug: string[]) => {
+    if (sug.length === 0) return false;
+    if (cur.length === 0) return true;
+    if (sameAttrs(cur, sug)) return false;
+    return false;
+  };
+  if (!s) {
+    return {
+      grapeVariety: false,
+      originCountry: false,
+      foodPairings: false,
+      description: false,
+      specialAttributes: false,
+    };
+  }
+  return {
+    grapeVariety: pickText(c.grapeVariety, s.grapeVariety),
+    originCountry: pickText(c.originCountry, s.originCountry),
+    foodPairings: pickText(c.foodPairings, s.foodPairings),
+    description: pickText(c.description, s.description),
+    specialAttributes: pickAttrs(c.specialAttributes, s.specialAttributes),
+  };
+}
 
 type WineDraft = {
   id?: string;
