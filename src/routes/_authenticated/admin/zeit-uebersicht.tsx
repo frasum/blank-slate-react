@@ -1843,7 +1843,7 @@ function WeeklyPlan({
           <TableRow>
             <TableHead
               rowSpan={2}
-              className="w-[84px] min-w-[84px] align-middle text-center text-sm"
+              className="w-[68px] min-w-[68px] px-1 align-middle text-center text-xs"
             >
               Mitarbeiter
             </TableHead>
@@ -1871,7 +1871,7 @@ function WeeklyPlan({
             ))}
             <TableHead
               rowSpan={2}
-              className="w-[84px] min-w-[84px] align-middle border-l text-center text-sm"
+              className="w-[68px] min-w-[68px] px-1 align-middle border-l text-center text-xs"
             >
               Mitarbeiter
             </TableHead>
@@ -1897,7 +1897,7 @@ function WeeklyPlan({
               rowSpan={2}
               className="px-1 text-right text-xs align-middle whitespace-nowrap"
             >
-              So/Fei
+              <span title="Sonntag/Feiertag">SF</span>
             </TableHead>
             <TableHead
               rowSpan={2}
@@ -1973,7 +1973,7 @@ function WeeklyPlan({
                 </TableRow>
                 {grp.rows.map((row) => (
                   <TableRow key={row.staffId}>
-                    <TableCell className="relative px-2 font-medium align-middle text-center text-sm w-[84px] min-w-[84px] max-w-[84px]">
+                    <TableCell className="relative px-1 font-medium align-middle text-center text-xs w-[68px] min-w-[68px] max-w-[68px]">
                       <span
                         className={`absolute left-0 top-0 bottom-0 w-[2px] ${DEPT_BAR[row.department]}`}
                       />
@@ -2070,7 +2070,7 @@ function WeeklyPlan({
                         </Fragment>
                       );
                     })}
-                    <TableCell className="font-medium align-middle border-l text-center text-sm px-2 w-[84px] min-w-[84px] max-w-[84px]">
+                    <TableCell className="font-medium align-middle border-l text-center text-xs px-1 w-[68px] min-w-[68px] max-w-[68px]">
                       <span className="block truncate" title={row.displayName}>
                         {row.displayName}
                       </span>
