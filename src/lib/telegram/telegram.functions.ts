@@ -50,8 +50,27 @@ function deepLinkFor(botUsername: string | null, token: string): string | null {
 export const getMyTelegramLink = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<MyTelegramLinkStatus> => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "staff");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Effektive Identität — bei aktiver Impersonation zeigt sie auf das Ziel,
+    // sonst auf den eingeloggten Nutzer (vgl. getMyIdentity).
+    const { data: imp } = await supabaseAdmin
+      .from("admin_impersonations")
+      .select("target_staff_id, organization_id")
+      .eq("admin_user_id", context.userId)
+      .is("ended_at", null)
+      .maybeSingle();
+    const { data: link } = await supabaseAdmin
+      .from("user_links")
+      .select("staff_id, organization_id")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (!link) throw new Error("Kein Mitarbeiter-Konto verknüpft.");
+    const caller = {
+      staffId: (imp?.target_staff_id as string | undefined) ?? (link.staff_id as string),
+      organizationId:
+        (imp?.organization_id as string | undefined) ?? (link.organization_id as string),
+    };
 
     const [linkRes, settingsRes] = await Promise.all([
       supabaseAdmin
