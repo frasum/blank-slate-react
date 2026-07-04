@@ -488,6 +488,7 @@ export const acceptSwapRequest = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadStaffCaller(context.supabase, context.userId);
+    assertRealIdentity(caller);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: reqRow, error } = await supabaseAdmin
@@ -619,6 +620,7 @@ export const declineSwapRequest = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ requestId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const caller = await loadStaffCaller(context.supabase, context.userId);
+    assertRealIdentity(caller);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: reqRow, error } = await supabaseAdmin
