@@ -1,91 +1,29 @@
-## Telegram-Anbindung Variante B (pro Mitarbeiter)
+## Ziel
+Freiwilliges Telegram-Onboarding für Mitarbeiter: dezenter Hinweis-Banner nach Login, solange kein Telegram-Chat verknüpft ist. Kein Zwang, keine Ausblend-Option — Banner verschwindet automatisch, sobald verknüpft.
 
-Ziel: Jeder Mitarbeiter kann seinen persönlichen Telegram-Chat mit seinem Staff-Account verknüpfen; später können Server-Funktionen gezielt an einzelne Staff-IDs pushen (Freigabe-Benachrichtigungen etc.).
+## Umfang
+- **Neue Komponente** `src/components/telegram/TelegramLinkBanner.tsx`
+  - Nutzt bestehende Server-Fn `getMyTelegramLink()` via `useQuery` (Key: `["profile","telegram-link"]`, gleicher Key wie in `TelegramCard`, damit Invalidierung nach Verknüpfen den Banner sofort verschwinden lässt).
+  - Rendert nur, wenn `status === "unlinked"` **oder** `status === "pending"` mit sichtbarem Hinweis „warte auf ‚Start' in Telegram".
+  - Rendert **nichts** bei `status === "linked"`, während Loading, bei Fehler, und wenn `botUsername` fehlt (Bot nicht konfiguriert → kein sinnloser Banner).
+  - Layout: schmale Leiste, `bg-muted/60 border-b`, Icon + Text + Primär-Button „Jetzt verknüpfen" (Link zu `/profil#telegram`) + sekundärer Text-Link „Später".
+  - „Später" ist rein visuell (kein Persist) — Banner erscheint beim nächsten Login wieder, entsprechend der gewählten Option „Freiwillig, immer erinnern". Klick auf „Später" blendet den Banner nur für die aktuelle Session per lokalem `useState` aus (kein localStorage).
+- **Einbindung** in `src/routes/_authenticated/route.tsx` (Layout aller eingeloggten Seiten) direkt oberhalb des `<Outlet />`, damit der Banner auf jeder Mitarbeiter-Seite genau einmal erscheint. Kein Rendern in Admin-Only-Bereichen? — Doch, Admins sind auch Mitarbeiter mit Telegram-Möglichkeit; also wirklich global unter `_authenticated`.
+- **Anker in `/profil`**: `id="telegram"` auf der `TelegramCard`-Section ergänzen, damit der Deep-Link `/profil#telegram` sauber scrollt.
 
----
+## Nicht enthalten (bewusst)
+- Kein DB-Feld für „Nicht mehr fragen" (User hat „immer erinnern" gewählt).
+- Kein neuer Onboarding-Dialog, keine eigene Onboarding-Route.
+- Keine Änderung an Server-Fns, Webhook, Policies, Migrations.
+- Keine Änderung am `TelegramCard`-Verhalten selbst (Verknüpfen/Trennen bleibt wie bisher).
 
-### 1. Schema (Migration)
+## Technische Details
+- Query wird schon in `TelegramCard` gehalten; bei zwei Consumern (Banner + Card auf /profil) cached React-Query korrekt — kein doppelter Request.
+- SSR-sicher: `getMyTelegramLink` ist auth-geschützt, wird von `_authenticated` Layout genutzt → OK (Layout ist im geschützten Subtree).
+- Keine neuen Packages, keine Änderungen an TanStack-Struktur.
 
-**Tabelle `staff_telegram_links`** (append-only pro Staff):
-
-| Spalte              | Typ            | Zweck                                                           |
-| ------------------- | -------------- | --------------------------------------------------------------- |
-| `id`                | uuid pk        |                                                                 |
-| `organization_id`   | uuid not null  | Mandant                                                         |
-| `staff_id`          | uuid unique    | 1:1 Staff ↔ Chat (später auf n:1 erweiterbar)                   |
-| `telegram_chat_id`  | bigint         | von Telegram gelieferte Chat-ID (leer bis Verknüpfung fertig)   |
-| `telegram_username` | text           | @handle, nur zur Anzeige                                        |
-| `link_token`        | text unique    | 32 Byte Base64URL, wird beim /start eingelöst                   |
-| `token_expires_at`  | timestamptz    | 15 min gültig                                                   |
-| `linked_at`         | timestamptz    | gesetzt, wenn Verknüpfung erfolgreich                           |
-| `created_at`        | timestamptz    |                                                                 |
-
-RLS:
-- Staff darf eigene Zeile (`staff_id = current_staff_id()`) lesen/löschen.
-- Admin: alles (via `is_admin()`).
-- INSERT/UPDATE nur über Server-Funktion (service role) — kein direkter Client-Write.
-- GRANTs: `SELECT, DELETE ON authenticated`; `ALL ON service_role`.
-
-**Bot-Username** als Org-Setting hinterlegen (für Deep-Link `https://t.me/<botname>?start=<token>`):
-- neue Spalte `telegram_bot_username text` in `organization_settings`. Wert wird einmalig über Admin-UI gesetzt (bekannt aus BotFather, z. B. `coco_platform_bot`).
-
----
-
-### 2. Server-Funktionen (`src/lib/telegram/telegram.functions.ts`)
-
-- **`startTelegramLink()`** — auth, ermittelt eigenen `staff_id`, generiert `link_token` (32 Byte, `crypto.randomBytes`), speichert (upsert per staff_id, alte Zeile wird ersetzt). Liefert `{ token, deepLink, expiresAt }`.
-- **`unlinkTelegram()`** — auth, löscht eigene Zeile.
-- **`getMyTelegramLink()`** — auth, liest eigenen Status (`linked | pending | none`, Chat-Handle wenn verlinkt).
-- **`sendTelegramToStaff({ staffId, text })`** — nur intern/admin, ruft Gateway `POST /sendMessage`. Kein direkter Frontend-Call — wird von künftigen Server-Funktionen (Freigabe-Benachrichtigung etc.) genutzt.
-
-Alle nutzen `requireSupabaseAuth`; `sendTelegramToStaff` prüft zusätzlich `has_role('admin')` bzw. wird nur aus anderen Server-Funktionen aufgerufen. `TELEGRAM_API_KEY` und `LOVABLE_API_KEY` werden nur im Handler-Body gelesen.
-
----
-
-### 3. Webhook-Route
-
-**Datei: `src/routes/api/public/telegram/webhook.ts`**
-
-- POST-Handler, verifiziert `X-Telegram-Bot-Api-Secret-Token` via `sha256('telegram-webhook:' + TELEGRAM_API_KEY)` (base64url) — gleicher Trick wie im Knowledge-File, kein zusätzliches Secret nötig.
-- Parst `update.message.text`, erwartet `/start <token>`.
-- Bei Match: findet `staff_telegram_links` per Token (nicht abgelaufen), setzt `telegram_chat_id`, `telegram_username`, `linked_at = now()`, `token_expires_at = null`.
-- Sendet Bestätigungsnachricht („✅ Verknüpft mit <Vorname>") zurück über Gateway.
-- Idempotent per `update_id` (nur logisch: doppelte /start mit demselben Token sind ein no-op).
-- Alle anderen Message-Typen: 200 OK, ignoriert (kein Chatbot).
-- Load `supabaseAdmin` per `await import(...)` innerhalb des Handlers.
-
-**Webhook registrieren:** einmalig per curl aus dem Sandbox (macht der Agent) mit URL
-`https://project--a9a57e34-6bcd-4c59-9526-a8d67e2c7859-dev.lovable.app/api/public/telegram/webhook`
-(stabile Dev-URL) und `allowed_updates: ["message"]`.
-
----
-
-### 4. UI
-
-**Neuer Bereich im Staff-Profil** (eigenes Profil des Mitarbeiters, unter „Persönlich" oder „Benachrichtigungen"):
-
-- Status „Telegram: nicht verknüpft" + Button **„Mit Telegram verknüpfen"**
-  → ruft `startTelegramLink`, öffnet `deepLink` in neuem Tab, zeigt „Bitte im geöffneten Telegram-Chat auf ‚Start' tippen. Läuft in 15 min ab."
-- Nach Verknüpfung: „Telegram: @handle verknüpft am tt.mm.jjjj" + Button „Trennen".
-- Polling per `useQuery` alle 5 s, solange Status `pending`, damit UI nach /start automatisch umspringt.
-
-**Admin-Setting**: kleines Feld im bestehenden `organization_settings`-Bereich für den Bot-Username (Textfeld, einmalig pflegen).
-
----
-
-### 5. Nicht in diesem Schritt
-
-- Versand-Trigger für Freigabe-Benachrichtigungen (kommt separat).
-- Nachrichten empfangen/parsen jenseits von `/start` (der Bot ist reines Push-Ziel).
-- Multi-Chat pro Staff.
-
----
-
-### Technische Details
-
-- Bibliotheken: keine neuen npm-Deps; `crypto` (Node built-in) reicht.
-- Env-Variablen: `TELEGRAM_API_KEY` (Connector, da), `LOVABLE_API_KEY` (da), `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` (da).
-- Neue Secrets: keine.
-- Tests: Charakterisierungstest für Token-Verifikation (base64url SHA256) und für den `/start <token>`-Parser.
-
-Bitte bestätige, dann setze ich das in einer Migration + Code-Änderung um.
+## Erfolgs-Gate
+- Auf jeder Seite unter `/` (nach Login) erscheint der Banner, solange nicht verknüpft.
+- Nach erfolgreicher Verknüpfung (Klick „Verknüpfen" in Card → Start in Telegram → Webhook setzt `linked_at`) verschwindet Banner beim nächsten Query-Refetch/Invalidate.
+- Klick auf Banner-Button springt zu `/profil#telegram` und scrollt zur Karte.
+- `tsc`, Build grün, keine Migration.

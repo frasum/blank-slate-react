@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getMyIdentity } from "@/lib/auth/me.functions";
 import { ImpersonationBanner } from "@/components/impersonation-banner";
 import { PortalShell } from "@/components/portal/PortalShell";
+import { TelegramLinkBanner } from "@/components/telegram/TelegramLinkBanner";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -42,6 +43,7 @@ function AuthenticatedLayout() {
   return (
     <>
       <ImpersonationBanner />
+      <TelegramLinkBanner />
       {inAdmin ? (
         <Outlet />
       ) : (
