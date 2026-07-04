@@ -3,11 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import {
-  listStaff,
-  setStaffRole,
-  setStaffLocationDepartment,
-} from "@/lib/admin/staff.functions";
+import { listStaff, setStaffRole, setStaffLocationDepartment } from "@/lib/admin/staff.functions";
 import { assignStaffSkills, listSkills, type SkillCategory } from "@/lib/admin/skills.functions";
 import { listLocations } from "@/lib/admin/locations.functions";
 import {
@@ -97,13 +93,7 @@ type LocationRow = Awaited<ReturnType<typeof listLocations>>[number];
 
 type DeptFilter = "all" | "service" | "kitchen";
 
-function SofortmeldungDot({
-  staffId,
-  status,
-}: {
-  staffId: string;
-  status: SofortmeldungStatus;
-}) {
+function SofortmeldungDot({ staffId, status }: { staffId: string; status: SofortmeldungStatus }) {
   const [open, setOpen] = useState(false);
   const callDetail = useServerFn(getSofortmeldungDetail);
   const enabled = open && status === "unvollstaendig";
@@ -114,8 +104,7 @@ function SofortmeldungDot({
     staleTime: 30_000,
   });
   if (status !== "unvollstaendig" && status !== "bereit") return null;
-  const dotCls =
-    status === "unvollstaendig" ? "bg-destructive" : "bg-amber-500 dark:bg-amber-400";
+  const dotCls = status === "unvollstaendig" ? "bg-destructive" : "bg-amber-500 dark:bg-amber-400";
   const label =
     status === "unvollstaendig"
       ? "Sofortmeldung unvollständig"
