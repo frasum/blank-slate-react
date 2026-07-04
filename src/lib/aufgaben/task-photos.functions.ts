@@ -81,6 +81,7 @@ export const uploadTaskPhoto = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }): Promise<{ id: string; path: string }> => {
     const caller = await loadAdminCaller(context.supabase, context.userId, ALLOWED_ALL);
+    assertRealIdentity(caller);
     const ext = ALLOWED_MIME[data.mimeType];
     if (!ext) throw new Error("Dateityp nicht erlaubt (nur JPG, PNG oder WEBP).");
     const size = decodeBase64Length(data.base64);
@@ -173,6 +174,7 @@ export const deleteTaskPhoto = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ photoId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
     const caller = await loadAdminCaller(context.supabase, context.userId, ALLOWED_ALL);
+    assertRealIdentity(caller);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: photo, error } = await supabaseAdmin
       .from("task_photos")
