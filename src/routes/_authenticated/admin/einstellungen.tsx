@@ -23,6 +23,7 @@ import {
   getTelegramReportSettings,
   updateTelegramReportSettings,
   setDailyReportRecipient,
+  setSwapAlertsRecipient,
   sendTestReport,
 } from "@/lib/telegram/telegram-report.functions";
 
@@ -472,6 +473,7 @@ function TelegramDailyReportSection({ canEdit }: { canEdit: boolean }) {
   const queryClient = useQueryClient();
   const callUpdate = useServerFn(updateTelegramReportSettings);
   const callToggleRecipient = useServerFn(setDailyReportRecipient);
+  const callToggleSwapAlerts = useServerFn(setSwapAlertsRecipient);
   const callTest = useServerFn(sendTestReport);
 
   const settingsQ = useQuery({
@@ -534,6 +536,13 @@ function TelegramDailyReportSection({ canEdit }: { canEdit: boolean }) {
 
   const recipientMut = useMutation({
     mutationFn: (v: { staffId: string; receives: boolean }) => callToggleRecipient({ data: v }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["admin", "telegram-report-settings"] }),
+    onError: (e: unknown) => setErr(e instanceof Error ? e.message : "Fehler."),
+  });
+
+  const swapAlertsMut = useMutation({
+    mutationFn: (v: { staffId: string; receives: boolean }) => callToggleSwapAlerts({ data: v }),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["admin", "telegram-report-settings"] }),
     onError: (e: unknown) => setErr(e instanceof Error ? e.message : "Fehler."),
@@ -700,6 +709,18 @@ function TelegramDailyReportSection({ canEdit }: { canEdit: boolean }) {
                     className="h-4 w-4"
                   />
                   erhält Tagesbericht
+                </label>
+                <label className="flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={r.receivesSwapAlerts}
+                    disabled={!canEdit || swapAlertsMut.isPending}
+                    onChange={(e) =>
+                      swapAlertsMut.mutate({ staffId: r.staffId, receives: e.target.checked })
+                    }
+                    className="h-4 w-4"
+                  />
+                  erhält Tausch-Benachrichtigungen
                 </label>
               </li>
             ))}

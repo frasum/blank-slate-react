@@ -269,6 +269,7 @@ export type ReviewPendingCounts = {
   pendingRequests: number;
   pendingDocuments: number;
   pendingLeaveRequests: number;
+  swapPending: number;
 };
 
 export const getReviewPendingCounts = createServerFn({ method: "GET" })
@@ -276,7 +277,7 @@ export const getReviewPendingCounts = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<ReviewPendingCounts> => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const [reqRes, docRes, leaveRes] = await Promise.all([
+    const [reqRes, docRes, leaveRes, swapRes] = await Promise.all([
       supabaseAdmin
         .from("staff_data_change_requests")
         .select("id", { count: "exact", head: true })
@@ -292,14 +293,21 @@ export const getReviewPendingCounts = createServerFn({ method: "GET" })
         .select("id", { count: "exact", head: true })
         .eq("organization_id", caller.organizationId)
         .eq("status", "pending"),
+      supabaseAdmin
+        .from("shift_swap_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", caller.organizationId)
+        .eq("status", "peer_accepted"),
     ]);
     if (reqRes.error) throw new Error(reqRes.error.message);
     if (docRes.error) throw new Error(docRes.error.message);
     if (leaveRes.error) throw new Error(leaveRes.error.message);
+    if (swapRes.error) throw new Error(swapRes.error.message);
     return {
       pendingRequests: reqRes.count ?? 0,
       pendingDocuments: docRes.count ?? 0,
       pendingLeaveRequests: leaveRes.count ?? 0,
+      swapPending: swapRes.count ?? 0,
     };
   });
 

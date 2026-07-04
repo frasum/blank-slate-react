@@ -3837,6 +3837,7 @@ export type Database = {
           linked_at: string | null
           organization_id: string
           receives_daily_report: boolean
+          receives_swap_alerts: boolean
           staff_id: string
           telegram_chat_id: number | null
           telegram_username: string | null
@@ -3849,6 +3850,7 @@ export type Database = {
           linked_at?: string | null
           organization_id: string
           receives_daily_report?: boolean
+          receives_swap_alerts?: boolean
           staff_id: string
           telegram_chat_id?: number | null
           telegram_username?: string | null
@@ -3861,6 +3863,7 @@ export type Database = {
           linked_at?: string | null
           organization_id?: string
           receives_daily_report?: boolean
+          receives_swap_alerts?: boolean
           staff_id?: string
           telegram_chat_id?: number | null
           telegram_username?: string | null
@@ -4455,6 +4458,10 @@ export type Database = {
         Returns: Database["public"]["Enums"]["app_role"]
       }
       current_staff_id: { Args: never; Returns: string }
+      execute_shift_swap: {
+        Args: { p_decided_by: string; p_request_id: string }
+        Returns: undefined
+      }
       generate_order_number: { Args: never; Returns: string }
       has_min_permission: {
         Args: { _min: Database["public"]["Enums"]["app_role"] }
