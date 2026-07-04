@@ -963,36 +963,13 @@ function ZeitUebersichtPage() {
                   </option>
                 ))}
               </select>
-              <div className="inline-flex rounded-md border border-input bg-background p-1">
-                {locations.map((l) => {
-                  const active = (locationFilter || locations[0]?.id) === l.id && !isAllLocations;
-                  return (
-                    <button
-                      key={l.id}
-                      type="button"
-                      onClick={() => setLocationFilter(l.id)}
-                      className={`h-7 rounded px-3 text-sm transition ${
-                        active
-                          ? "bg-primary text-primary-foreground"
-                          : "text-foreground hover:bg-muted"
-                      }`}
-                    >
-                      {l.name}
-                    </button>
-                  );
-                })}
-                <button
-                  type="button"
-                  onClick={() => setLocationFilter("all")}
-                  className={`h-7 rounded px-3 text-sm transition ${
-                    isAllLocations
-                      ? "bg-primary text-primary-foreground"
-                      : "text-foreground hover:bg-muted"
-                  }`}
-                >
-                  Alle
-                </button>
-              </div>
+              <LocationPills
+                locations={locations}
+                value={isAllLocations ? "all" : locationFilter || locations[0]?.id || ""}
+                onChange={setLocationFilter}
+                includeAll
+                allValue="all"
+              />
               <div className="ml-auto flex items-center gap-2">
                 <Button variant="outline" size="sm" onClick={handleExportPdf}>
                   <FileDown className="mr-1 h-4 w-4" /> PDF
