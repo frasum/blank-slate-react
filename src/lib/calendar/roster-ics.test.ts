@@ -164,9 +164,7 @@ describe("buildRosterIcs", () => {
     const ics = buildRosterIcs({
       calendarName: "x",
       now,
-      events: [
-        { uid: "x@coco", summary: "GL", location: "L", allDay: true, date: "2026-07-01" },
-      ],
+      events: [{ uid: "x@coco", summary: "GL", location: "L", allDay: true, date: "2026-07-01" }],
     });
     expect(ics).not.toContain("DTEND");
   });

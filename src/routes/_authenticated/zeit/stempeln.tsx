@@ -208,7 +208,9 @@ function ZeitPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {absenceWarn === "krank" ? "Du bist heute krankgemeldet." : "Du hast heute Urlaub eingetragen."}
+              {absenceWarn === "krank"
+                ? "Du bist heute krankgemeldet."
+                : "Du hast heute Urlaub eingetragen."}
             </DialogTitle>
             <DialogDescription>
               Trotzdem einstempeln? Die bewusste Entscheidung wird im Audit-Log dokumentiert.

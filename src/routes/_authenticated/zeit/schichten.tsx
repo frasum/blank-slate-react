@@ -199,10 +199,7 @@ function MyShiftsPage() {
           </h2>
           <Card className="divide-y">
             {(absencesQuery.data ?? []).map((a) => (
-              <div
-                key={`${a.type}-${a.start}`}
-                className="px-4 py-3 text-sm text-muted-foreground"
-              >
+              <div key={`${a.type}-${a.start}`} className="px-4 py-3 text-sm text-muted-foreground">
                 {absenceLabel(a)}
               </div>
             ))}
