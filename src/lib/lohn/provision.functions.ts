@@ -62,9 +62,7 @@ async function loadLocationSettings(
 } | null> {
   const { data, error } = await supabase
     .from("locations")
-    .select(
-      "organization_id, commission_enabled, commission_min_revenue_cents, commission_pct",
-    )
+    .select("organization_id, commission_enabled, commission_min_revenue_cents, commission_pct")
     .eq("id", locationId)
     .maybeSingle();
   if (error) throw error;
@@ -89,11 +87,7 @@ export const getProvisionOverview = createServerFn({ method: "POST" })
     ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const loc = await loadLocationSettings(
-      supabaseAdmin,
-      caller.organizationId,
-      data.locationId,
-    );
+    const loc = await loadLocationSettings(supabaseAdmin, caller.organizationId, data.locationId);
     if (!loc) throw new Error("Standort nicht in deiner Organisation.");
     if (!loc.enabled) return { enabled: false };
 
@@ -264,9 +258,7 @@ export const updateCommissionSettings = createServerFn({ method: "POST" })
 
       const { data: before, error: beforeErr } = await supabaseAdmin
         .from("locations")
-        .select(
-          "organization_id, commission_enabled, commission_min_revenue_cents, commission_pct",
-        )
+        .select("organization_id, commission_enabled, commission_min_revenue_cents, commission_pct")
         .eq("id", data.locationId)
         .maybeSingle();
       if (beforeErr) throw beforeErr;

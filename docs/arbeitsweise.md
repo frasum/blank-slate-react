@@ -2136,7 +2136,7 @@ Server-Fns:
 - `getProvisionOverview({ locationId, periodStart, periodEnd })` — reine
   Leseoperation, gated auf `manager | admin | payroll`. Kurzschluss bei
   deaktiviertem Standort. Rückgabe: `{ enabled, settings, poolCents,
-  dayBreakdown[], rows[] }` — der `dayBreakdown` ist die Grundlage für
+dayBreakdown[], rows[] }` — der `dayBreakdown` ist die Grundlage für
   Franks „detailliert beschrieben"-Anforderung im P2-UI (Drilldown pro
   Tag: Umsatz, Kellnerzahl, Schwelle, Tages-Pool).
 - `updateCommissionSettings({ locationId, enabled, minRevenueCents, pct })`

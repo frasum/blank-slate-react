@@ -1872,10 +1872,7 @@ function WeeklyPlan({
 
   // Flache Liste aller sichtbaren Mitarbeiter-Zeilen (für Tab/Pfeil-Navigation).
   const flatRows = useMemo(() => groups.flatMap((g) => g.rows), [groups]);
-  const isCellEditable = (
-    row: (typeof flatRows)[number] | undefined,
-    dayIdx: number,
-  ): boolean => {
+  const isCellEditable = (row: (typeof flatRows)[number] | undefined, dayIdx: number): boolean => {
     if (!row || !isAdmin) return false;
     const dm = dayMeta[dayIdx];
     if (!dm || dm.outOfPeriod) return false;
@@ -2137,9 +2134,7 @@ function WeeklyPlan({
                                   setEdit(null);
                                   return;
                                 }
-                                const rIdx = flatRows.findIndex(
-                                  (r) => r.staffId === edit.staffId,
-                                );
+                                const rIdx = flatRows.findIndex((r) => r.staffId === edit.staffId);
                                 const dIdx = dayMeta.findIndex((d) => d.iso === edit.iso);
                                 if (rIdx < 0 || dIdx < 0) return;
                                 if (ev.key === "Tab") {
@@ -2156,7 +2151,11 @@ function WeeklyPlan({
                                 }
                                 if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
                                   ev.preventDefault();
-                                  const t = findNextRow(rIdx, dIdx, ev.key === "ArrowDown" ? 1 : -1);
+                                  const t = findNextRow(
+                                    rIdx,
+                                    dIdx,
+                                    ev.key === "ArrowDown" ? 1 : -1,
+                                  );
                                   if (t)
                                     navigateTo(
                                       edit,
