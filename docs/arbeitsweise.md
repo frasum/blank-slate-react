@@ -2243,3 +2243,25 @@ EIN Aggregat-Eintrag pro Lauf (`time_entry.batch_times`, meta enthält
 (`time_entry.batch_times.changes`, ~200 Vorher-Bilder je Chunk, gemeinsame
 `runId`) — überschriebene Zeiten sind aus dem append-only Log
 rekonstruierbar, ohne den Audit-Trail bei großen Läufen zu fluten.
+
+## 54. Urlaubs-Stammdaten aus edlohn-PaySlips + Vorzeichen-Lektion (04.07.2026)
+
+Aus dem Sammel-PDF „Entgeltabrechnungen YUM Gastronomie GmbH 06/2026"
+(65 Seiten, 39 Personen) wurden die Urlaubsfelder für 36 Mitarbeiter in
+`staff_personal_details` importiert (Join strikt über `staff.perso_nr`,
+COALESCE-only-NULL — gepflegte Werte unantastbar). Semantik an Real-Fällen
+verifiziert: genommen = (akt Jahr + Vorjahr) − Restanspruch, Stichtag
+30.06.2026. Verifikation: 36/36 gematcht und gefüllt, 0 ohne Zuordnung.
+
+**Sonderfälle:** 6 Personen mit NEGATIVEM Vorjahres-Übertrag (Urlaub
+überzogen: perso 4, 11, 253, 320, 334, 504) — `previous_year` bewusst NULL
+gelassen (App-Schema erwartet ≥ 0; Entscheidung Frank offen: Schema
+erweitern vs. 0 mit Vermerk). 3 Personen ohne Urlaub-Block im PaySlip
+(12, 20, 317). `vacation_days_contractual` steht in keinem PaySlip und
+bleibt Handpflege. TSB ist eine eigene Entität — PaySlips folgen separat.
+
+**Lektion (Import-Disziplin):** Vorzeichen-Audit auf ALLE extrahierten
+Felder, nicht nur das Zielfeld — die erste Plausibilitätsprüfung testete
+nur „genommen < 0" und übersah sechs negative Vorjahres-Werte; aufgeflogen
+durch Zufalls-Review. Dieselbe Sorgfalt wie bei Geld-Importen gilt für
+jede Zahlenspalte.
