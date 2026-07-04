@@ -6,8 +6,11 @@
 // Plan-Änderungen wirken NICHT mehr.
 //
 // Regeln:
-//   * Bereichs-Priorität pro Mitarbeiter: kitchen > service > gl.
-//     Mehrfacheinteilung ergibt also genau eine Zeile.
+//   * Bereichs-Priorität pro Mitarbeiter: gl (Ausschluss) > kitchen > service.
+//     Wer an dem Tag IRGENDEINE gl-Schicht hat, wird als gl geschnappschusst
+//     (Franks Hausregel TP-GL: GL-Schicht dominiert und schließt vom
+//     Trinkgeldpool aus). Ohne gl-Schicht gilt kitchen > service.
+//     Mehrfacheinteilung ergibt so genau eine Zeile.
 //   * Küche/Service: shift_start/shift_end aus
 //     location_department_defaults; hours_minutes via kitchenShiftMinutes.
 //     Fehlt das Default oder ist es unvollständig → null/null/0.
@@ -40,10 +43,11 @@ export type SnapshotEntry = {
   hoursMinutes: number;
 };
 
+// gl dominiert (Ausschluss), sonst kitchen > service.
 const PRIORITY: Record<StaffDepartment, number> = {
-  kitchen: 3,
-  service: 2,
-  gl: 1,
+  gl: 3,
+  kitchen: 2,
+  service: 1,
 };
 
 export function buildRosterPoolSnapshot(input: {

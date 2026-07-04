@@ -47,7 +47,7 @@ describe("buildRosterPoolSnapshot", () => {
     ]);
   });
 
-  it("Priorität kitchen > service > gl pro Mitarbeiter, genau eine Zeile", () => {
+  it("Priorität gl (Ausschluss) > kitchen > service pro Mitarbeiter, genau eine Zeile", () => {
     const res = buildRosterPoolSnapshot({
       rosterShifts: [
         { staffId: "x", area: "service" },
@@ -60,8 +60,34 @@ describe("buildRosterPoolSnapshot", () => {
     });
     const byStaff = new Map(res.map((r) => [r.staffId, r.department]));
     expect(res).toHaveLength(2);
-    expect(byStaff.get("x")).toBe("kitchen");
-    expect(byStaff.get("y")).toBe("service");
+    expect(byStaff.get("x")).toBe("gl");
+    expect(byStaff.get("y")).toBe("gl");
+  });
+
+  it("TP-GL: service + gl am selben Tag ⇒ gl (nicht poolbeteiligt)", () => {
+    const res = buildRosterPoolSnapshot({
+      rosterShifts: [
+        { staffId: "lam", area: "service" },
+        { staffId: "lam", area: "gl" },
+      ],
+      defaultsByArea: defaults,
+    });
+    expect(res).toEqual([
+      { staffId: "lam", department: "gl", shiftStart: null, shiftEnd: null, hoursMinutes: 0 },
+    ]);
+  });
+
+  it("TP-GL: kitchen + gl am selben Tag ⇒ gl", () => {
+    const res = buildRosterPoolSnapshot({
+      rosterShifts: [
+        { staffId: "k", area: "kitchen" },
+        { staffId: "k", area: "gl" },
+      ],
+      defaultsByArea: defaults,
+    });
+    expect(res).toEqual([
+      { staffId: "k", department: "gl", shiftStart: null, shiftEnd: null, hoursMinutes: 0 },
+    ]);
   });
 
   it("fehlendes Küchen-Default → 0 Stunden, null/null", () => {

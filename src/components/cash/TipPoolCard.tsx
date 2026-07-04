@@ -107,6 +107,19 @@ export function TipPoolCard({
   const upsertMut = useMutation({
     mutationFn: () => {
       if (!draft.staffId) throw new Error("Bitte einen Mitarbeiter wählen.");
+      // TP-GL: Wer heute eine GL-Schicht hat, ist laut Hausregel nicht
+      // poolbeteiligt. Manuelles Hinzufügen fragt zur Sicherheit nach;
+      // bewusstes Übersteuern durch Manager bleibt möglich (Audit läuft).
+      const hasGlToday =
+        draft.department !== "gl" &&
+        (poolQ.data?.glEntries ?? []).some((g) => g.staffId === draft.staffId);
+      if (hasGlToday) {
+        const name = poolQ.data?.staffNames[draft.staffId] ?? draft.staffId;
+        const ok = window.confirm(
+          `${name} hat heute eine GL-Schicht — laut Hausregel nicht poolbeteiligt. Trotzdem hinzufügen?`,
+        );
+        if (!ok) throw new Error("Abgebrochen.");
+      }
       // Von/Bis ist primärer Eingabepfad für service und gl, und für
       // Küche, wenn der Standortmodus „Küche manuell" aktiv ist.
       const useShift =
@@ -339,14 +352,14 @@ export function TipPoolCard({
       </div>
 
       {glEntries.length > 0 && (
-        <Card>
+        <Card className="opacity-80">
           <div className="border-b px-4 py-3 text-sm font-medium">
-            Geschäftsleitung — Arbeitszeit{" "}
+            Geschäftsleitung — GL, nicht poolbeteiligt{" "}
             <span className="text-xs font-normal text-muted-foreground">
-              (keine Trinkgeld-Beteiligung)
+              (Arbeitszeit-Anker; keine Trinkgeld-Beteiligung)
             </span>
           </div>
-          <Table>
+          <Table className="text-muted-foreground">
             <TableHeader>
               <TableRow>
                 <TableHead>Mitarbeiter</TableHead>
