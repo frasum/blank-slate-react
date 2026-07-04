@@ -1,11 +1,25 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getMyShifts } from "@/lib/roster/roster.functions";
 import { groupMyShiftsByDate } from "@/lib/roster/my-shifts";
+import {
+  createSwapRequest,
+  listMySwapRequests,
+  type MySwapRequestRow,
+} from "@/lib/roster/swap.functions";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/zeit/schichten")({
   head: () => ({
@@ -60,11 +74,44 @@ function formatDayHeader(dateStr: string): string {
 function MyShiftsPage() {
   const [range, setRange] = useState<RangeKey>("month");
   const fetchShifts = useServerFn(getMyShifts);
+  const fetchSwaps = useServerFn(listMySwapRequests);
+  const createSwap = useServerFn(createSwapRequest);
+  const qc = useQueryClient();
   const { from, to } = useMemo(() => computeRange(range), [range]);
 
   const query = useQuery({
     queryKey: ["my-shifts", from, to],
     queryFn: () => fetchShifts({ data: { from, to } }),
+  });
+  const swapsQuery = useQuery({
+    queryKey: ["my-swap-requests"],
+    queryFn: () => fetchSwaps(),
+  });
+  const swapByShift = useMemo(() => {
+    const map = new Map<string, MySwapRequestRow>();
+    for (const r of swapsQuery.data ?? []) {
+      if (r.status === "open" || r.status === "peer_accepted") {
+        map.set(r.shiftId, r);
+      }
+    }
+    return map;
+  }, [swapsQuery.data]);
+
+  const [offerShiftId, setOfferShiftId] = useState<string | null>(null);
+  const [note, setNote] = useState("");
+  const todayIso = new Date().toISOString().slice(0, 10);
+
+  const createMutation = useMutation({
+    mutationFn: (input: { shiftId: string; note?: string }) => createSwap({ data: input }),
+    onSuccess: () => {
+      toast.success("Schicht wurde zum Tausch angeboten.");
+      setOfferShiftId(null);
+      setNote("");
+      qc.invalidateQueries({ queryKey: ["my-swap-requests"] });
+    },
+    onError: (err: unknown) => {
+      toast.error(err instanceof Error ? err.message : "Anfrage fehlgeschlagen.");
+    },
   });
 
   const days = useMemo(() => groupMyShiftsByDate(query.data ?? []), [query.data]);
@@ -113,8 +160,11 @@ function MyShiftsPage() {
                 {formatDayHeader(day.date)}
               </h2>
               <Card className="divide-y">
-                {day.shifts.map((s, i) => (
-                  <div key={`${day.date}-${i}`} className="space-y-1 px-4 py-3 text-sm">
+                {day.shifts.map((s) => {
+                  const swap = swapByShift.get(s.id);
+                  const isFuture = s.shift_date > todayIso;
+                  return (
+                  <div key={s.id} className="space-y-2 px-4 py-3 text-sm">
                     <div className="flex items-center justify-between">
                       <div className="font-medium">{s.locationName}</div>
                       <div className="text-xs text-muted-foreground">{AREA_LABEL[s.area]}</div>
@@ -123,13 +173,83 @@ function MyShiftsPage() {
                       <div className="text-xs text-muted-foreground">{s.skillLabel}</div>
                     )}
                     {s.notes && <div className="text-xs text-muted-foreground">{s.notes}</div>}
+                    {swap ? (
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-900">
+                          {swap.status === "open"
+                            ? "Tausch angefragt"
+                            : "Kollege gefunden — wartet auf Freigabe"}
+                        </span>
+                        <Link
+                          to="/zeit/tausch"
+                          className="text-xs text-muted-foreground hover:text-foreground"
+                        >
+                          Details
+                        </Link>
+                      </div>
+                    ) : isFuture ? (
+                      <div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs"
+                          onClick={() => {
+                            setOfferShiftId(s.id);
+                            setNote("");
+                          }}
+                        >
+                          Zum Tausch anbieten
+                        </Button>
+                      </div>
+                    ) : null}
                   </div>
-                ))}
+                  );
+                })}
               </Card>
             </section>
           ))}
         </div>
       )}
+
+      <Dialog open={offerShiftId !== null} onOpenChange={(o) => !o && setOfferShiftId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Schicht zum Tausch anbieten</DialogTitle>
+            <DialogDescription>
+              Berechtigte Kollegen sehen deine Anfrage und können sie übernehmen oder ablehnen. Der
+              Dienstplan ändert sich erst nach Freigabe durch die Betriebsleitung.
+            </DialogDescription>
+          </DialogHeader>
+          <label className="block space-y-1 text-sm">
+            <span className="text-muted-foreground">Notiz (optional)</span>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              maxLength={500}
+              rows={3}
+              className="w-full rounded-md border bg-background p-2 text-sm"
+              placeholder="z. B. Grund oder Wunschtausch"
+            />
+          </label>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOfferShiftId(null)}>
+              Abbrechen
+            </Button>
+            <Button
+              disabled={createMutation.isPending}
+              onClick={() =>
+                offerShiftId &&
+                createMutation.mutate({
+                  shiftId: offerShiftId,
+                  note: note.trim() ? note.trim() : undefined,
+                })
+              }
+            >
+              Anbieten
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
