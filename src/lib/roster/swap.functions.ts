@@ -478,7 +478,13 @@ export const listOpenSwapsForMe = createServerFn({ method: "GET" })
         shift,
       );
       if (!peer) continue;
-      if (!eligiblePeerFilter({ peer, shift })) continue;
+      const peerHasAbsence = await hasAbsenceOnDate(
+        supabaseAdmin,
+        caller.organizationId,
+        caller.staffId,
+        shift.shiftDate,
+      );
+      if (!eligiblePeerFilter({ peer, shift, hasAbsenceOnShiftDate: peerHasAbsence })) continue;
       out.push({
         id: c.id,
         shiftId: rs.id,
