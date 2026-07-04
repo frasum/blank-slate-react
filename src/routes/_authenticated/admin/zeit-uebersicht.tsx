@@ -62,6 +62,7 @@ import {
   type BuchhaltungMode,
 } from "@/lib/time/buchhaltung-export";
 import { FileDown, FileSpreadsheet, Search } from "lucide-react";
+import { ProvisionTab } from "@/components/lohn/ProvisionTab";
 
 export const Route = createFileRoute("/_authenticated/admin/zeit-uebersicht")({
   head: () => ({ meta: [{ title: "Arbeitszeiten" }] }),
@@ -907,7 +908,7 @@ function ZeitUebersichtPage() {
           <TabsTrigger value="provision">Provision</TabsTrigger>
         </TabsList>
 
-        {(activeTab === "summary" || activeTab === "payroll") && (
+        {(activeTab === "summary" || activeTab === "payroll" || activeTab === "provision") && (
           <Card className="my-3 p-3">
             <div className="flex flex-wrap items-end gap-3">
               <div className="space-y-1">
@@ -1075,9 +1076,14 @@ function ZeitUebersichtPage() {
         </TabsContent>
 
         <TabsContent value="provision">
-          <Card className="p-6 text-sm text-muted-foreground">
-            Provisions-Auswertung wird im nächsten Schritt umgesetzt.
-          </Card>
+          <ProvisionTab
+            locationId={effectiveLocationId}
+            locationLabel={locations.find((l) => l.id === effectiveLocationId)?.name ?? ""}
+            isAllLocations={isAllLocations}
+            periodStart={fromDate}
+            periodEnd={toDate}
+            isAdmin={isAdmin}
+          />
         </TabsContent>
 
         <TabsContent value="summary">
