@@ -13,7 +13,7 @@ import {
 } from "@/lib/admin/personal-details.schema";
 import { getStaffCompensation, upsertStaffCompensation } from "@/lib/admin/compensation.functions";
 
-type Props = { staffId: string; canEdit: boolean };
+type Props = { staffId: string; canEdit: boolean; canEditVacation?: boolean };
 
 type FormState = Record<keyof PersonalDetailsFields, string | boolean | null>;
 
@@ -117,7 +117,8 @@ function formatDuration(startIso: string, endIso: string | null): string {
   return `${y}, ${m}`;
 }
 
-export function PersonalDetailsTab({ staffId, canEdit }: Props) {
+export function PersonalDetailsTab({ staffId, canEdit, canEditVacation }: Props) {
+  const mayEditVacation = canEditVacation ?? canEdit;
   const queryClient = useQueryClient();
   const fetchFn = useServerFn(getStaffPersonalDetails);
   const saveFn = useServerFn(upsertStaffPersonalDetails);
@@ -315,7 +316,10 @@ export function PersonalDetailsTab({ staffId, canEdit }: Props) {
         <fieldset key={sec.title} className="space-y-3 rounded-md border border-border p-4">
           <legend className="flex items-center gap-2 px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             <span>{sec.title}</span>
-            {sec.title === "Beschäftigung & Urlaub" && canEdit && !editing && !vacEditing && (
+            {sec.title === "Beschäftigung & Urlaub" &&
+              mayEditVacation &&
+              !editing &&
+              !vacEditing && (
               <button
                 type="button"
                 onClick={startVacEdit}
