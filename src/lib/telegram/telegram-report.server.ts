@@ -237,12 +237,11 @@ export async function runDailyReportForOrg(params: {
     .maybeSingle();
   if (sErr) throw sErr;
 
-  if (!settings?.telegram_report_enabled) {
-    return { organizationId, skipped: "disabled" };
-  }
-
   const todayBerlin = berlinDateISO(now);
   if (!skipGate) {
+    if (!settings?.telegram_report_enabled) {
+      return { organizationId, skipped: "disabled" };
+    }
     const hourNow = berlinHour(now);
     const wantedHour = Number(settings.telegram_report_hour ?? 7);
     if (hourNow !== wantedHour) {
@@ -267,7 +266,7 @@ export async function runDailyReportForOrg(params: {
   }
 
   const businessDate = yesterdayISO(todayBerlin);
-  const flags = parseFlags(settings.telegram_report_flags);
+  const flags = parseFlags(settings?.telegram_report_flags);
   const reportInput = await loadReportInputForOrg(organizationId, businessDate);
   const text = buildDailyReport(reportInput, flags);
 
