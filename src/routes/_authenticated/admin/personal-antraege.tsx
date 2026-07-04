@@ -120,6 +120,17 @@ function fmtDateTime(iso: string | null | undefined): string {
 }
 
 function PersonalAntraegePage() {
+  const qc = useQueryClient();
+  const requestsQ = useQuery({
+    queryKey: ["admin", "profile-requests"],
+    queryFn: () => listOpenChangeRequests(),
+  });
+  const docsQ = useQuery({
+    queryKey: ["admin", "profile-documents"],
+    queryFn: () => listAllDocuments({ data: {} }),
+  });
+  const pendingRequests = (requestsQ.data ?? []).length;
+  const pendingDocuments = (docsQ.data ?? []).filter((d) => d.verifiedAt === null).length;
   return (
     <div className="space-y-6">
       <header>
@@ -132,8 +143,24 @@ function PersonalAntraegePage() {
       </header>
       <Tabs defaultValue="requests" className="w-full">
         <TabsList>
-          <TabsTrigger value="requests">Anträge</TabsTrigger>
-          <TabsTrigger value="documents">Dokumente</TabsTrigger>
+          <TabsTrigger value="requests">
+            Anträge
+            {pendingRequests > 0 && (
+              <span
+                className="ml-1.5 inline-block h-2 w-2 rounded-full bg-destructive align-middle"
+                aria-label={`${pendingRequests} offene Anträge`}
+              />
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="documents">
+            Dokumente
+            {pendingDocuments > 0 && (
+              <span
+                className="ml-1.5 inline-block h-2 w-2 rounded-full bg-destructive align-middle"
+                aria-label={`${pendingDocuments} ungeprüfte Dokumente`}
+              />
+            )}
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="requests" className="mt-4">
           <RequestsTab />
