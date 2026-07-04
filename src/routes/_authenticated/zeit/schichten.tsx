@@ -9,6 +9,7 @@ import { groupMyShiftsByDate } from "@/lib/roster/my-shifts";
 import {
   createSwapRequest,
   listMySwapRequests,
+  listOpenSwapsForMe,
   type MySwapRequestRow,
 } from "@/lib/roster/swap.functions";
 import {
@@ -20,6 +21,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { MyRequestCard, OpenRequestCard } from "@/components/tausch/SwapRequestCards";
 
 export const Route = createFileRoute("/_authenticated/zeit/schichten")({
   head: () => ({
@@ -75,6 +77,7 @@ function MyShiftsPage() {
   const [range, setRange] = useState<RangeKey>("month");
   const fetchShifts = useServerFn(getMyShifts);
   const fetchSwaps = useServerFn(listMySwapRequests);
+  const fetchOpen = useServerFn(listOpenSwapsForMe);
   const createSwap = useServerFn(createSwapRequest);
   const qc = useQueryClient();
   const { from, to } = useMemo(() => computeRange(range), [range]);
@@ -87,6 +90,10 @@ function MyShiftsPage() {
     queryKey: ["my-swap-requests"],
     queryFn: () => fetchSwaps(),
   });
+  const openQuery = useQuery({
+    queryKey: ["swaps-open-for-me"],
+    queryFn: () => fetchOpen(),
+  });
   const swapByShift = useMemo(() => {
     const map = new Map<string, MySwapRequestRow>();
     for (const r of swapsQuery.data ?? []) {
@@ -96,6 +103,10 @@ function MyShiftsPage() {
     }
     return map;
   }, [swapsQuery.data]);
+
+  const openRequests = openQuery.data ?? [];
+  const myRequests = swapsQuery.data ?? [];
+  const [myOpen, setMyOpen] = useState(false);
 
   const [offerShiftId, setOfferShiftId] = useState<string | null>(null);
   const [note, setNote] = useState("");
@@ -124,6 +135,22 @@ function MyShiftsPage() {
           Zurück
         </Link>
       </header>
+
+      {openRequests.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="flex items-center gap-2 text-sm font-medium uppercase tracking-wide text-muted-foreground">
+            Tauschanfragen an dich
+            <span className="inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-primary px-2 py-0.5 text-[11px] font-semibold text-primary-foreground">
+              {openRequests.length}
+            </span>
+          </h2>
+          <div className="space-y-2">
+            {openRequests.map((r) => (
+              <OpenRequestCard key={r.id} row={r} />
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="flex gap-2">
         <Button
@@ -180,12 +207,6 @@ function MyShiftsPage() {
                               ? "Tausch angefragt"
                               : "Kollege gefunden — wartet auf Freigabe"}
                           </span>
-                          <Link
-                            to="/zeit/tausch"
-                            className="text-xs text-muted-foreground hover:text-foreground"
-                          >
-                            Details
-                          </Link>
                         </div>
                       ) : isFuture ? (
                         <div>
@@ -209,6 +230,27 @@ function MyShiftsPage() {
             </section>
           ))}
         </div>
+      )}
+
+      {myRequests.length > 0 && (
+        <section className="space-y-2">
+          <button
+            type="button"
+            onClick={() => setMyOpen((v) => !v)}
+            className="flex w-full items-center justify-between text-left text-sm font-medium uppercase tracking-wide text-muted-foreground hover:text-foreground"
+            aria-expanded={myOpen}
+          >
+            <span>Meine Tauschanfragen ({myRequests.length})</span>
+            <span aria-hidden>{myOpen ? "▾" : "▸"}</span>
+          </button>
+          {myOpen && (
+            <div className="space-y-2">
+              {myRequests.map((r) => (
+                <MyRequestCard key={r.id} row={r} />
+              ))}
+            </div>
+          )}
+        </section>
       )}
 
       <Dialog open={offerShiftId !== null} onOpenChange={(o) => !o && setOfferShiftId(null)}>
