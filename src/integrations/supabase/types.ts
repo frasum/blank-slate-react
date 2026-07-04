@@ -1654,6 +1654,7 @@ export type Database = {
           order_email_bcc: string | null
           order_email_reply_to: string | null
           organization_id: string
+          telegram_bot_username: string | null
           test_mode_email: string | null
           test_mode_enabled: boolean
           time_locked_through_date: string | null
@@ -1671,6 +1672,7 @@ export type Database = {
           order_email_bcc?: string | null
           order_email_reply_to?: string | null
           organization_id: string
+          telegram_bot_username?: string | null
           test_mode_email?: string | null
           test_mode_enabled?: boolean
           time_locked_through_date?: string | null
@@ -1688,6 +1690,7 @@ export type Database = {
           order_email_bcc?: string | null
           order_email_reply_to?: string | null
           organization_id?: string
+          telegram_bot_username?: string | null
           test_mode_email?: string | null
           test_mode_enabled?: boolean
           time_locked_through_date?: string | null
@@ -3676,6 +3679,57 @@ export type Database = {
             foreignKeyName: "staff_skills_staff_id_fkey"
             columns: ["staff_id"]
             isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_telegram_links: {
+        Row: {
+          created_at: string
+          id: string
+          link_token: string
+          linked_at: string | null
+          organization_id: string
+          staff_id: string
+          telegram_chat_id: number | null
+          telegram_username: string | null
+          token_expires_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          link_token: string
+          linked_at?: string | null
+          organization_id: string
+          staff_id: string
+          telegram_chat_id?: number | null
+          telegram_username?: string | null
+          token_expires_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          link_token?: string
+          linked_at?: string | null
+          organization_id?: string
+          staff_id?: string
+          telegram_chat_id?: number | null
+          telegram_username?: string | null
+          token_expires_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_telegram_links_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_telegram_links_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: true
             referencedRelation: "staff"
             referencedColumns: ["id"]
           },

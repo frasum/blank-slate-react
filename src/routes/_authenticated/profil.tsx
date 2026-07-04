@@ -42,6 +42,11 @@ import {
   type MyDocument,
 } from "@/lib/profile/profile.functions";
 import {
+  getMyTelegramLink,
+  startTelegramLink,
+  unlinkTelegram,
+} from "@/lib/telegram/telegram.functions";
+import {
   validateIban,
   validateSvNumber,
   validateTaxId,
@@ -162,6 +167,7 @@ function ProfilPage() {
             q={docsQ}
             onChanged={() => qc.invalidateQueries({ queryKey: ["profile", "documents"] })}
           />
+          <TelegramCard />
         </>
       )}
     </div>
@@ -851,6 +857,120 @@ function DocumentsCard({
           </div>
         </div>
       </div>
+    </Card>
+  );
+}
+
+function TelegramCard() {
+  const qc = useQueryClient();
+  const linkQ = useQuery({
+    queryKey: ["profile", "telegram-link"],
+    queryFn: () => getMyTelegramLink(),
+    // Solange „pending", alle 5 s pollen, damit die UI nach /start automatisch umschaltet.
+    refetchInterval: (q) => (q.state.data?.status === "pending" ? 5000 : false),
+  });
+  const callStart = useServerFn(startTelegramLink);
+  const callUnlink = useServerFn(unlinkTelegram);
+  const [busy, setBusy] = useState(false);
+
+  async function onStart() {
+    setBusy(true);
+    try {
+      const res = await callStart({ data: undefined });
+      if (!res.botUsername) {
+        toast.error("Bot-Handle fehlt. Ein Admin muss ihn unter Einstellungen hinterlegen.");
+      } else if (res.deepLink) {
+        window.open(res.deepLink, "_blank", "noopener,noreferrer");
+        toast.success("Telegram öffnet sich — dort auf ‚Start' tippen.");
+      }
+      await qc.invalidateQueries({ queryKey: ["profile", "telegram-link"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Verknüpfung fehlgeschlagen.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onUnlink() {
+    if (!confirm("Telegram-Verknüpfung wirklich trennen?")) return;
+    setBusy(true);
+    try {
+      await callUnlink({ data: undefined });
+      toast.success("Telegram getrennt.");
+      await qc.invalidateQueries({ queryKey: ["profile", "telegram-link"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Trennen fehlgeschlagen.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card className="space-y-3 p-4">
+      <div>
+        <h2 className="text-base font-semibold text-foreground">Telegram-Benachrichtigungen</h2>
+        <p className="text-xs text-muted-foreground">
+          Verknüpfe deinen persönlichen Telegram-Chat, um Push-Nachrichten aus COCO zu erhalten (z.
+          B. Freigaben, wichtige Hinweise).
+        </p>
+      </div>
+
+      {linkQ.isLoading ? (
+        <p className="text-sm text-muted-foreground">Lade…</p>
+      ) : linkQ.data?.status === "linked" ? (
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-sm">
+            <div className="text-foreground">
+              Verknüpft
+              {linkQ.data.telegramUsername ? (
+                <span className="text-muted-foreground"> · @{linkQ.data.telegramUsername}</span>
+              ) : null}
+            </div>
+            <div className="text-xs text-muted-foreground">seit {fmtDate(linkQ.data.linkedAt)}</div>
+          </div>
+          <Button type="button" variant="outline" size="sm" onClick={onUnlink} disabled={busy}>
+            Trennen
+          </Button>
+        </div>
+      ) : linkQ.data?.status === "pending" ? (
+        <div className="space-y-2">
+          <p className="text-sm text-foreground">
+            Bitte im geöffneten Telegram-Chat auf <strong>Start</strong> tippen. Die Verknüpfung
+            läuft bis {new Date(linkQ.data.expiresAt).toLocaleTimeString("de-DE")} Uhr.
+          </p>
+          {linkQ.data.deepLink ? (
+            <a
+              href={linkQ.data.deepLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-primary underline underline-offset-2"
+            >
+              Telegram erneut öffnen
+            </a>
+          ) : (
+            <p className="text-xs text-destructive">
+              Bot-Handle fehlt — ein Admin muss ihn unter Einstellungen eintragen.
+            </p>
+          )}
+          <div>
+            <Button type="button" variant="ghost" size="sm" onClick={onStart} disabled={busy}>
+              Neu starten
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div>
+          {linkQ.data && !linkQ.data.botUsername ? (
+            <p className="mb-2 text-xs text-destructive">
+              Bot-Handle fehlt — ein Admin muss ihn unter Einstellungen eintragen, bevor du
+              verknüpfen kannst.
+            </p>
+          ) : null}
+          <Button type="button" onClick={onStart} disabled={busy || !linkQ.data?.botUsername}>
+            Mit Telegram verknüpfen
+          </Button>
+        </div>
+      )}
     </Card>
   );
 }

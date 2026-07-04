@@ -26,6 +26,7 @@ export type OrgSettings = {
   arbeitgeberName: string | null;
   arbeitgeberAdresse: string | null;
   arbeitgeberVertreter: string | null;
+  telegramBotUsername: string | null;
 };
 
 const updateSchema = z
@@ -60,7 +61,7 @@ export const getOrgSettings = createServerFn({ method: "GET" })
     const { data, error } = await supabaseAdmin
       .from("organization_settings")
       .select(
-        "kitchen_tip_rate, tip_pool_min_hours, kitchen_manual_only, test_mode_enabled, test_mode_email, betriebsnummer, arbeitgeber_name, arbeitgeber_adresse, arbeitgeber_vertreter",
+        "kitchen_tip_rate, tip_pool_min_hours, kitchen_manual_only, test_mode_enabled, test_mode_email, betriebsnummer, arbeitgeber_name, arbeitgeber_adresse, arbeitgeber_vertreter, telegram_bot_username",
       )
       .eq("organization_id", caller.organizationId)
       .maybeSingle();
@@ -75,6 +76,7 @@ export const getOrgSettings = createServerFn({ method: "GET" })
       arbeitgeberName: data?.arbeitgeber_name ?? null,
       arbeitgeberAdresse: data?.arbeitgeber_adresse ?? null,
       arbeitgeberVertreter: data?.arbeitgeber_vertreter ?? null,
+      telegramBotUsername: data?.telegram_bot_username ?? null,
     };
   });
 
@@ -195,6 +197,62 @@ export const setArbeitgeberStammdaten = createServerFn({ method: "POST" })
               hasAdresse: !!data.arbeitgeberAdresse,
               hasVertreter: !!data.arbeitgeberVertreter,
             },
+          },
+        };
+      },
+    );
+  });
+
+// Telegram-Bot-Username (nur der öffentliche @handle, kein Token).
+// Wird für den Deep-Link https://t.me/<username>?start=<token> gebraucht.
+// Der Bot-Token selbst liegt im Connector-Secret TELEGRAM_API_KEY.
+
+const telegramBotSchema = z.object({
+  telegramBotUsername: z
+    .string()
+    .trim()
+    .max(64)
+    .regex(
+      /^[A-Za-z][A-Za-z0-9_]{3,63}$/,
+      "Ungültiger Bot-Username (nur A-Z, a-z, 0-9, _; 4–64 Zeichen).",
+    )
+    .nullable()
+    .or(z.literal("").transform(() => null)),
+});
+
+export const setTelegramBotUsername = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => telegramBotSchema.parse(i))
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    return runGuarded(
+      caller.role,
+      "admin",
+      async (entry) => {
+        await writeAuditLog({
+          organizationId: caller.organizationId,
+          actorUserId: caller.userId,
+          actorStaffId: caller.staffId,
+          action: entry.action,
+          entity: entry.entity,
+          entityId: entry.entityId ?? null,
+          meta: entry.meta,
+        });
+      },
+      async () => {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { error } = await supabaseAdmin
+          .from("organization_settings")
+          .update({ telegram_bot_username: data.telegramBotUsername })
+          .eq("organization_id", caller.organizationId);
+        if (error) throw error;
+        return {
+          result: { ok: true as const },
+          audit: {
+            action: "settings.telegram_bot_changed",
+            entity: "organization_settings",
+            entityId: caller.organizationId,
+            meta: { hasBotUsername: !!data.telegramBotUsername },
           },
         };
       },

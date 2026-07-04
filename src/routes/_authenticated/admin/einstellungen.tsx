@@ -15,6 +15,7 @@ import {
   getOrgSettings,
   setArbeitgeberStammdaten,
   updateOrgSettings,
+  setTelegramBotUsername,
 } from "@/lib/admin/org-settings.functions";
 import { setBetriebsnummer } from "@/lib/sofortmeldung/sofortmeldung.functions";
 
@@ -51,6 +52,10 @@ function OrgSettingsPage() {
   const [agMsg, setAgMsg] = useState<string | null>(null);
   const [agErr, setAgErr] = useState<string | null>(null);
   const callSetArbeitgeber = useServerFn(setArbeitgeberStammdaten);
+  const [tgBot, setTgBot] = useState("");
+  const [tgMsg, setTgMsg] = useState<string | null>(null);
+  const [tgErr, setTgErr] = useState<string | null>(null);
+  const callSetTgBot = useServerFn(setTelegramBotUsername);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -65,6 +70,7 @@ function OrgSettingsPage() {
     setAgName(settingsQ.data.arbeitgeberName ?? "");
     setAgAdresse(settingsQ.data.arbeitgeberAdresse ?? "");
     setAgVertreter(settingsQ.data.arbeitgeberVertreter ?? "");
+    setTgBot(settingsQ.data.telegramBotUsername ?? "");
   }, [settingsQ.data]);
 
   const mutation = useMutation({
@@ -135,6 +141,22 @@ function OrgSettingsPage() {
     onError: (e: unknown) => {
       setAgErr(e instanceof Error ? e.message : "Fehler.");
       setAgMsg(null);
+    },
+  });
+
+  const tgMutation = useMutation({
+    mutationFn: () =>
+      callSetTgBot({
+        data: { telegramBotUsername: tgBot.trim().replace(/^@/, "") || null },
+      }),
+    onSuccess: async () => {
+      setTgMsg("Gespeichert.");
+      setTgErr(null);
+      await queryClient.invalidateQueries({ queryKey: ["admin", "org-settings"] });
+    },
+    onError: (e: unknown) => {
+      setTgErr(e instanceof Error ? e.message : "Fehler.");
+      setTgMsg(null);
     },
   });
 
@@ -385,6 +407,47 @@ function OrgSettingsPage() {
             className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
             {agMutation.isPending ? "Speichern…" : "Speichern"}
+          </button>
+        )}
+      </section>
+
+      <section className="space-y-4 rounded-lg border border-border bg-card p-5">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">Telegram-Bot</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Öffentlicher @-Handle des BotFather-Bots (z.&nbsp;B. <code>coco_platform_bot</code>).
+            Wird für den Verknüpfungs-Deep-Link in „Meine Daten" gebraucht. Der Bot-Token selbst
+            liegt sicher als Connector-Secret und wird hier nicht eingegeben.
+          </p>
+        </div>
+
+        <label className="block space-y-1">
+          <span className="text-xs font-medium text-muted-foreground">Bot-Username</span>
+          <input
+            type="text"
+            value={tgBot}
+            onChange={(e) => setTgBot(e.target.value)}
+            disabled={!canEdit}
+            placeholder="z. B. coco_platform_bot"
+            className="w-full max-w-md rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-60"
+          />
+        </label>
+
+        {tgMsg && <p className="text-xs text-muted-foreground">{tgMsg}</p>}
+        {tgErr && <p className="text-xs text-destructive">{tgErr}</p>}
+
+        {canEdit && (
+          <button
+            type="button"
+            disabled={tgMutation.isPending}
+            onClick={() => {
+              setTgMsg(null);
+              setTgErr(null);
+              tgMutation.mutate();
+            }}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
+            {tgMutation.isPending ? "Speichern…" : "Speichern"}
           </button>
         )}
       </section>
