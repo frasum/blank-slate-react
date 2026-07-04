@@ -320,16 +320,16 @@ export function PersonalDetailsTab({ staffId, canEdit, canEditVacation }: Props)
               mayEditVacation &&
               !editing &&
               !vacEditing && (
-              <button
-                type="button"
-                onClick={startVacEdit}
-                title="Urlaubswerte bearbeiten"
-                aria-label="Urlaubswerte bearbeiten"
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </button>
-            )}
+                <button
+                  type="button"
+                  onClick={startVacEdit}
+                  title="Urlaubswerte bearbeiten"
+                  aria-label="Urlaubswerte bearbeiten"
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              )}
           </legend>
           <div className="space-y-2">
             {sec.rows.map((row) => {
@@ -340,10 +340,7 @@ export function PersonalDetailsTab({ staffId, canEdit, canEditVacation }: Props)
               if (!editing && vacEditing && isVacKey) {
                 const vk = row.key as VacationKey;
                 return (
-                  <label
-                    key={row.key}
-                    className="flex items-center justify-between gap-3 text-sm"
-                  >
+                  <label key={row.key} className="flex items-center justify-between gap-3 text-sm">
                     <span className="text-muted-foreground">{row.label}</span>
                     <input
                       type="number"
@@ -416,6 +413,7 @@ export function PersonalDetailsTab({ staffId, canEdit, canEditVacation }: Props)
             {sec.title === "Beschäftigung & Urlaub" && !editing && !vacEditing && form && (
               <RestUrlaubRow
                 contractual={form.vacation_days_contractual}
+                currentYear={form.vacation_days_current_year}
                 previousYear={form.vacation_days_previous_year}
                 taken={form.vacation_days_taken}
               />
@@ -672,15 +670,20 @@ function CompensationSection({ staffId }: { staffId: string }) {
   );
 }
 
-// Berechnete Anzeige „Resturlaub = Vertraglich + Vorjahr − Genommen".
-// Rein clientseitig, ohne DB-Änderung — sobald eines der drei Felder fehlt,
-// wird nichts angezeigt (unvollständige Stammdaten ⇒ keine falsche Zahl).
+// Berechnete Anzeige „Resturlaub = akt. Jahr + Vorjahr − Genommen" (§54).
+// Rechenbasis ist vacation_days_current_year (maßgeblicher, ggf. anteiliger
+// Jahresanspruch). vacation_days_contractual ist Referenz-Stammdatum und
+// wird nur als Fallback für rein handgepflegte Alt-Fälle herangezogen —
+// PaySlip-Importe füllen contractual nicht (§54, an Real-PaySlips verifiziert).
+// Rein clientseitig, ohne DB-Änderung.
 function RestUrlaubRow({
   contractual,
+  currentYear,
   previousYear,
   taken,
 }: {
   contractual: string | boolean | null;
+  currentYear: string | boolean | null;
   previousYear: string | boolean | null;
   taken: string | boolean | null;
 }) {
@@ -689,20 +692,23 @@ function RestUrlaubRow({
     const n = Number(v.replace(",", "."));
     return Number.isFinite(n) ? n : null;
   };
-  const c = toNum(contractual);
+  const cy = toNum(currentYear);
+  const contract = toNum(contractual);
   const p = toNum(previousYear);
   const t = toNum(taken);
-  if (c === null || t === null) {
+  const base = cy ?? contract;
+  const fallback = cy === null && contract !== null;
+  if (base === null || t === null) {
     return (
       <div className="mt-1 flex items-baseline justify-between gap-3 border-t border-dashed border-border/60 pt-2 text-sm">
         <span className="text-muted-foreground">Resturlaub (berechnet)</span>
         <span className="text-muted-foreground italic">
-          erst nach Pflege von „Vertraglich" und „Genommen"
+          erst nach Pflege von „Akt. Jahr" (oder „Vertraglich") und „Genommen"
         </span>
       </div>
     );
   }
-  const rest = c + (p ?? 0) - t;
+  const rest = base + (p ?? 0) - t;
   const fmt = (n: number) =>
     Number.isInteger(n) ? String(n) : n.toLocaleString("de-DE", { maximumFractionDigits: 1 });
   return (
@@ -716,9 +722,9 @@ function RestUrlaubRow({
         </span>
       </div>
       <div className="flex items-baseline justify-between gap-3 text-xs text-muted-foreground">
-        <span></span>
+        <span>{fallback ? "(Basis: Vertragswert)" : ""}</span>
         <span className="tabular-nums">
-          {fmt(c)} + {fmt(p ?? 0)} − {fmt(t)}
+          {fmt(base)} + {fmt(p ?? 0)} − {fmt(t)}
         </span>
       </div>
     </div>

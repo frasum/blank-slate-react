@@ -432,9 +432,7 @@ type RechenwegProps = {
 
 function RechenwegPanel({ settings, dayBreakdown, poolCents, rows }: RechenwegProps) {
   const activeDays = dayBreakdown.filter((d) => d.dayPoolCents > 0);
-  const belowThresholdDays = dayBreakdown.filter(
-    (d) => d.dayPoolCents === 0 && d.waiterCount > 0,
-  );
+  const belowThresholdDays = dayBreakdown.filter((d) => d.dayPoolCents === 0 && d.waiterCount > 0);
   const totalMinutes = rows.reduce((acc, r) => acc + Math.max(0, r.minutes), 0);
   const workingRows = rows.filter((r) => r.minutes > 0);
   const pctLabel = fmtPct(settings.pct);
@@ -463,8 +461,7 @@ function RechenwegPanel({ settings, dayBreakdown, poolCents, rows }: RechenwegPr
                   <span className="text-foreground tabular-nums">{minLabel}</span>
                 </li>
                 <li>
-                  Provisionssatz:{" "}
-                  <span className="text-foreground tabular-nums">{pctLabel} %</span>
+                  Provisionssatz: <span className="text-foreground tabular-nums">{pctLabel} %</span>
                 </li>
                 <li>Geschäftsleitung zählt weder in Umsatz noch in Kellnerzahl.</li>
               </ul>
@@ -490,7 +487,10 @@ function RechenwegPanel({ settings, dayBreakdown, poolCents, rows }: RechenwegPr
                         <code className="text-xs">
                           ({fmtEuro(d.revenueCents)} − {minLabel} × {d.waiterCount}) × {pctLabel} %
                         </code>{" "}
-                        = <code className="text-xs">{fmtEuro(over)} × {pctLabel} %</code>{" "}
+                        ={" "}
+                        <code className="text-xs">
+                          {fmtEuro(over)} × {pctLabel} %
+                        </code>{" "}
                         = <strong>{fmtEuro(d.dayPoolCents)}</strong>
                       </li>
                     );
@@ -499,9 +499,8 @@ function RechenwegPanel({ settings, dayBreakdown, poolCents, rows }: RechenwegPr
               )}
               {belowThresholdDays.length > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  {belowThresholdDays.length}{" "}
-                  {belowThresholdDays.length === 1 ? "Tag" : "Tage"} unterhalb der Schwelle — kein
-                  Beitrag.
+                  {belowThresholdDays.length} {belowThresholdDays.length === 1 ? "Tag" : "Tage"}{" "}
+                  unterhalb der Schwelle — kein Beitrag.
                 </p>
               )}
             </section>
@@ -549,9 +548,7 @@ function RechenwegPanel({ settings, dayBreakdown, poolCents, rows }: RechenwegPr
                       return (
                         <li key={r.staffId} className="tabular-nums">
                           <span className="font-medium">{r.displayName}</span>{" "}
-                          <span className="text-muted-foreground">
-                            ({fmtHours(r.minutes)}):
-                          </span>{" "}
+                          <span className="text-muted-foreground">({fmtHours(r.minutes)}):</span>{" "}
                           <code className="text-xs">
                             {fmtEuro(poolCents)} × {r.minutes} ÷ {totalMinutes}
                           </code>{" "}
