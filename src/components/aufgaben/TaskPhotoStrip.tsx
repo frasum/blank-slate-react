@@ -48,9 +48,7 @@ function stripDataUrlPrefix(dataUrl: string): string {
   return i >= 0 ? dataUrl.slice(i + 1) : dataUrl;
 }
 
-async function compressImage(
-  file: File,
-): Promise<{ base64: string; mimeType: string } | null> {
+async function compressImage(file: File): Promise<{ base64: string; mimeType: string } | null> {
   try {
     const url = URL.createObjectURL(file);
     const img = await new Promise<HTMLImageElement>((resolve, reject) => {
@@ -137,9 +135,7 @@ export function TaskPhotoStrip({ taskId, currentStaffId, canManage }: Props) {
       <div className="flex items-center justify-between">
         <div className="text-xs font-medium text-muted-foreground">📷 Fotos ({countLabel})</div>
         <div className="flex items-center gap-2">
-          {busy > 0 ? (
-            <span className="text-xs text-muted-foreground">Lade {busy}…</span>
-          ) : null}
+          {busy > 0 ? <span className="text-xs text-muted-foreground">Lade {busy}…</span> : null}
           <Button
             type="button"
             size="sm"
