@@ -418,6 +418,165 @@ type SettingsDialogProps = {
   onSaved: () => void;
 };
 
+// ---------------------------------------------------------------------------
+// Rechenweg-Panel: baut die Berechnung Schritt für Schritt aus den Live-Daten
+// der Periode nach. Kein neuer Server-Trip — nutzt Werte, die die Overview-
+// Query ohnehin liefert (settings, dayBreakdown, poolCents, verteilte Zeilen).
+
+type RechenwegProps = {
+  settings: { minRevenueCents: number; pct: number };
+  dayBreakdown: ProvisionDayBreakdown[];
+  poolCents: number;
+  rows: ProvisionOverviewRow[];
+};
+
+function RechenwegPanel({ settings, dayBreakdown, poolCents, rows }: RechenwegProps) {
+  const activeDays = dayBreakdown.filter((d) => d.dayPoolCents > 0);
+  const belowThresholdDays = dayBreakdown.filter(
+    (d) => d.dayPoolCents === 0 && d.waiterCount > 0,
+  );
+  const totalMinutes = rows.reduce((acc, r) => acc + Math.max(0, r.minutes), 0);
+  const workingRows = rows.filter((r) => r.minutes > 0);
+  const pctLabel = fmtPct(settings.pct);
+  const minLabel = fmtEuro(settings.minRevenueCents);
+
+  return (
+    <Collapsible>
+      <Card>
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 p-3 text-left text-sm font-medium hover:bg-muted/50"
+          >
+            <ChevronDown className="h-4 w-4 transition-transform data-[state=open]:rotate-180" />
+            Rechenweg (Schritt für Schritt)
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="border-t p-4 text-sm leading-relaxed space-y-5">
+            {/* Schritt 1 — Parameter */}
+            <section className="space-y-1">
+              <div className="font-medium">1. Parameter dieses Standorts</div>
+              <ul className="list-disc pl-5 text-muted-foreground space-y-0.5">
+                <li>
+                  Mindestumsatz je Kellner·Tag:{" "}
+                  <span className="text-foreground tabular-nums">{minLabel}</span>
+                </li>
+                <li>
+                  Provisionssatz:{" "}
+                  <span className="text-foreground tabular-nums">{pctLabel} %</span>
+                </li>
+                <li>Geschäftsleitung zählt weder in Umsatz noch in Kellnerzahl.</li>
+              </ul>
+            </section>
+
+            {/* Schritt 2 — Tages-Pools */}
+            <section className="space-y-2">
+              <div className="font-medium">2. Tages-Pools der Periode</div>
+              {activeDays.length === 0 ? (
+                <p className="text-muted-foreground">
+                  Kein Tag hat die Schwelle überschritten — Perioden-Pool = 0 €.
+                </p>
+              ) : (
+                <ul className="space-y-1">
+                  {activeDays.map((d) => {
+                    const over = d.revenueCents - d.thresholdCents;
+                    return (
+                      <li key={d.businessDate} className="tabular-nums">
+                        <span className="font-medium">{fmtDDMM(d.businessDate)}</span>{" "}
+                        <span className="text-muted-foreground">
+                          ({d.waiterCount} Kellner, Umsatz {fmtEuro(d.revenueCents)}):
+                        </span>{" "}
+                        <code className="text-xs">
+                          ({fmtEuro(d.revenueCents)} − {minLabel} × {d.waiterCount}) × {pctLabel} %
+                        </code>{" "}
+                        = <code className="text-xs">{fmtEuro(over)} × {pctLabel} %</code>{" "}
+                        = <strong>{fmtEuro(d.dayPoolCents)}</strong>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              {belowThresholdDays.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {belowThresholdDays.length}{" "}
+                  {belowThresholdDays.length === 1 ? "Tag" : "Tage"} unterhalb der Schwelle — kein
+                  Beitrag.
+                </p>
+              )}
+            </section>
+
+            {/* Schritt 3 — Perioden-Pool */}
+            <section className="space-y-1">
+              <div className="font-medium">3. Perioden-Pool = Σ Tages-Pools</div>
+              <p className="tabular-nums">
+                {activeDays.length > 0 ? (
+                  <>
+                    {activeDays.map((d, i) => (
+                      <span key={d.businessDate}>
+                        {i > 0 && " + "}
+                        {fmtEuro(d.dayPoolCents)}
+                      </span>
+                    ))}
+                    {" = "}
+                  </>
+                ) : null}
+                <strong>{fmtEuro(poolCents)}</strong>
+              </p>
+            </section>
+
+            {/* Schritt 4 — Verteilung */}
+            <section className="space-y-2">
+              <div className="font-medium">4. Verteilung nach Service-Stunden</div>
+              {poolCents === 0 || totalMinutes === 0 ? (
+                <p className="text-muted-foreground">
+                  {poolCents === 0
+                    ? "Kein Pool zu verteilen."
+                    : "Keine Service-Stunden im Zeitraum — nichts zu verteilen."}
+                </p>
+              ) : (
+                <>
+                  <p className="tabular-nums">
+                    Gesamtstunden: <strong>{fmtHours(totalMinutes)}</strong> — Formel je
+                    Mitarbeiter:{" "}
+                    <code className="text-xs">
+                      {fmtEuro(poolCents)} × eigene Minuten ÷ {totalMinutes} Minuten
+                    </code>
+                  </p>
+                  <ul className="space-y-0.5">
+                    {workingRows.map((r) => {
+                      const exactCents = (poolCents * r.minutes) / totalMinutes;
+                      return (
+                        <li key={r.staffId} className="tabular-nums">
+                          <span className="font-medium">{r.displayName}</span>{" "}
+                          <span className="text-muted-foreground">
+                            ({fmtHours(r.minutes)}):
+                          </span>{" "}
+                          <code className="text-xs">
+                            {fmtEuro(poolCents)} × {r.minutes} ÷ {totalMinutes}
+                          </code>{" "}
+                          ≈ <span>{fmtEuro(Math.round(exactCents))}</span> →{" "}
+                          <strong>{fmtEuro(r.provisionCents)}</strong>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <p className="text-xs text-muted-foreground">
+                    Feinschliff: Rundungsdifferenzen (Σ Cent-Reste) werden mit der Largest-
+                    Remainder-Methode auf die Mitarbeiter mit dem größten Nachkomma-Rest verteilt,
+                    bei Gleichstand deterministisch nach interner ID. Dadurch entspricht die Summe
+                    der Auszahlungen exakt dem Perioden-Pool.
+                  </p>
+                </>
+              )}
+            </section>
+          </div>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
+  );
+}
+
 function SettingsDialog(props: SettingsDialogProps) {
   const {
     open,
