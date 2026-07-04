@@ -1922,11 +1922,13 @@ function WeeklyPlan({
                 </TableRow>
                 {grp.rows.map((row) => (
                   <TableRow key={row.staffId}>
-                    <TableCell className="relative px-3 font-medium align-middle text-center">
+                    <TableCell className="relative px-2 font-medium align-middle text-center w-[110px] min-w-[110px] max-w-[110px]">
                       <span
                         className={`absolute left-0 top-0 bottom-0 w-[2px] ${DEPT_BAR[row.department]}`}
                       />
-                      {row.displayName}
+                      <span className="block truncate" title={row.displayName}>
+                        {row.displayName}
+                      </span>
                     </TableCell>
                     {row.days.map((day, idx) => {
                       const dm = dayMeta[idx];
@@ -1975,7 +1977,7 @@ function WeeklyPlan({
                                 }
                               }}
                               onBlur={(ev) => handleBlur(ev, edit)}
-                              className={`w-[64px] h-6 px-1 text-center font-mono text-sm rounded border border-primary/50 bg-background ${pending ? "opacity-60" : ""}`}
+                              className={`w-[60px] h-5 px-0.5 text-center font-mono text-xs rounded border border-primary/50 bg-background ${pending ? "opacity-60" : ""}`}
                             />
                           );
                         }
@@ -1989,7 +1991,7 @@ function WeeklyPlan({
                         return (
                           <div className="flex flex-col divide-y divide-border/60">
                             {day.shifts.map((s, i) => (
-                              <span key={i} className="py-0.5 tabular-nums">
+                              <span key={i} className="tabular-nums">
                                 {s[which]}
                               </span>
                             ))}
@@ -1997,35 +1999,42 @@ function WeeklyPlan({
                         );
                       };
                       return (
-                        <Fragment key={day.iso}>
-                          <TableCell
-                            onClick={() => handleCellClick("from")}
-                            className={`border-l p-1 text-center align-middle font-mono text-sm ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
-                          >
-                            {renderShift("from")}
-                          </TableCell>
-                          <TableCell
-                            onClick={() => handleCellClick("to")}
-                            className={`p-1 text-center align-middle font-mono text-sm ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
-                          >
-                            {renderShift("to")}
-                          </TableCell>
-                        </Fragment>
+                        <TableCell
+                          key={day.iso}
+                          className={`w-[64px] min-w-[64px] border-l p-0 text-center align-middle font-mono text-xs ${cellBg}`}
+                        >
+                          <div className="flex flex-col">
+                            <div
+                              onClick={() => handleCellClick("from")}
+                              className={`px-1 py-0.5 border-b border-border/40 ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
+                            >
+                              {renderShift("from")}
+                            </div>
+                            <div
+                              onClick={() => handleCellClick("to")}
+                              className={`px-1 py-0.5 ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
+                            >
+                              {renderShift("to")}
+                            </div>
+                          </div>
+                        </TableCell>
                       );
                     })}
-                    <TableCell className="font-medium align-middle border-l text-center">
-                      {row.displayName}
+                    <TableCell className="font-medium align-middle border-l text-center px-2 w-[110px] min-w-[110px] max-w-[110px]">
+                      <span className="block truncate" title={row.displayName}>
+                        {row.displayName}
+                      </span>
                     </TableCell>
-                    <TableCell className="text-right tabular-nums font-medium">
+                    <TableCell className="px-2 text-xs text-right tabular-nums font-medium">
                       {fmtDec(row.totals.total)}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
+                    <TableCell className="px-2 text-xs text-right tabular-nums">
                       {fmtDec(row.totals.evening)}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
+                    <TableCell className="px-2 text-xs text-right tabular-nums">
                       {fmtDec(row.totals.night)}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
+                    <TableCell className="px-2 text-xs text-right tabular-nums">
                       {fmtDec(row.totals.sunHol)}
                     </TableCell>
                     {(() => {
@@ -2035,19 +2044,19 @@ function WeeklyPlan({
                       return (
                         <>
                           <TableCell
-                            className={`text-right tabular-nums ${u > 0 ? "" : "text-muted-foreground/50"}`}
+                            className={`px-2 text-xs text-right tabular-nums ${u > 0 ? "" : "text-muted-foreground/50"}`}
                           >
                             {u > 0 ? u : "–"}
                           </TableCell>
                           <TableCell
-                            className={`text-right tabular-nums ${k > 0 ? "" : "text-muted-foreground/50"}`}
+                            className={`px-2 text-xs text-right tabular-nums ${k > 0 ? "" : "text-muted-foreground/50"}`}
                           >
                             {k > 0 ? k : "–"}
                           </TableCell>
                         </>
                       );
                     })()}
-                    <TableCell className="text-right tabular-nums">
+                    <TableCell className="px-2 text-xs text-right tabular-nums">
                       {shiftsByStaff.get(row.staffId) ?? 0}
                     </TableCell>
                   </TableRow>
