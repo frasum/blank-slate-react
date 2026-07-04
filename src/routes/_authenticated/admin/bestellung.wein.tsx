@@ -284,6 +284,8 @@ function WeinPage() {
     setBatchProgress({ done: 0, total: wines.length, current: wines[0]?.name ?? "" });
     let aborted = false;
     let hardFail: string | null = null;
+    let autoApplied = 0;
+    let autoFailed = 0;
     for (let i = 0; i < wines.length; i++) {
       if (cancelRef.current) {
         aborted = true;
@@ -293,11 +295,93 @@ function WeinPage() {
       setBatchProgress({ done: i, total: wines.length, current: w.name });
       try {
         const item = await callBatchResearch({ data: { articleId: w.id } });
+        const selected = defaultSelection(item);
         setBatchResults((prev) => {
           const next = new Map(prev);
-          next.set(item.articleId, { item, selected: defaultSelection(item) });
+          next.set(item.articleId, { item, selected });
           return next;
         });
+        // Sofort übernehmen: alle vorschlagbaren Felder (nicht leer, nicht identisch),
+        // damit Frank am Ende nur noch das Ergebnis sieht.
+        const s = item.suggestion;
+        const applySelected: Record<BatchField, boolean> = s
+          ? {
+              grapeVariety: !!s.grapeVariety.trim() && !sameStr(w.grape_variety ?? "", s.grapeVariety),
+              originCountry: !!s.originCountry.trim() && !sameStr(w.origin_country ?? "", s.originCountry),
+              foodPairings: !!s.foodPairings.trim() && !sameStr(w.food_pairings ?? "", s.foodPairings),
+              description: !!s.description.trim() && !sameStr(w.description ?? "", s.description),
+              specialAttributes:
+                s.specialAttributes.length > 0 &&
+                !sameAttrs(
+                  Array.isArray(w.special_attributes) ? (w.special_attributes as string[]) : [],
+                  s.specialAttributes,
+                ),
+            }
+          : {
+              grapeVariety: false,
+              originCountry: false,
+              foodPairings: false,
+              description: false,
+              specialAttributes: false,
+            };
+        if (s && BATCH_FIELDS.some((f) => applySelected[f])) {
+          try {
+            await callUpdate({
+              data: {
+                articleId: w.id,
+                supplierId: w.supplier_id,
+                name: w.name,
+                sku: w.sku ?? "",
+                description: applySelected.description ? s.description : (w.description ?? ""),
+                category: "Wein",
+                unit: w.unit ?? "Fl",
+                priceCents: w.price_cents,
+                packagingUnit: w.packaging_unit ?? null,
+                imageUrl: w.image_url ?? "",
+                sortOrder: w.sort_order ?? 0,
+                grapeVariety: applySelected.grapeVariety
+                  ? s.grapeVariety
+                  : (w.grape_variety ?? ""),
+                originCountry: applySelected.originCountry
+                  ? s.originCountry
+                  : (w.origin_country ?? ""),
+                foodPairings: applySelected.foodPairings
+                  ? s.foodPairings
+                  : (w.food_pairings ?? ""),
+                specialAttributes: applySelected.specialAttributes
+                  ? s.specialAttributes.length > 0
+                    ? s.specialAttributes
+                    : null
+                  : Array.isArray(w.special_attributes) && w.special_attributes.length > 0
+                    ? (w.special_attributes as string[])
+                    : null,
+                locationIds:
+                  (w.locationIds ?? []).length > 0 ? w.locationIds : allLocationIds,
+              },
+            });
+            autoApplied++;
+            // Selektion nach Übernahme abhaken, damit UI Klarheit hat.
+            setBatchResults((prev) => {
+              const next = new Map(prev);
+              const cur = next.get(item.articleId);
+              if (cur) {
+                next.set(item.articleId, {
+                  ...cur,
+                  selected: {
+                    grapeVariety: false,
+                    originCountry: false,
+                    foodPairings: false,
+                    description: false,
+                    specialAttributes: false,
+                  },
+                });
+              }
+              return next;
+            });
+          } catch {
+            autoFailed++;
+          }
+        }
       } catch (e) {
         // Auth/Owner-Fehler: schleife nicht weiterlaufen lassen.
         hardFail = e instanceof Error ? e.message : "Recherche abgebrochen.";
@@ -310,6 +394,12 @@ function WeinPage() {
     setBatchProgress((p) => (p ? { ...p, done: p.total, current: "" } : null));
     setBatchRunning(false);
     setBatchStatus(hardFail ? "failed" : aborted ? "cancelled" : "done");
+    if (!hardFail && (autoApplied > 0 || autoFailed > 0)) {
+      setBatchApplyMsg(
+        `Automatisch übernommen: ${autoApplied}${autoFailed > 0 ? `, ${autoFailed} fehlgeschlagen` : ""}.`,
+      );
+      refresh();
+    }
   };
 
   const applyBatch = async () => {
