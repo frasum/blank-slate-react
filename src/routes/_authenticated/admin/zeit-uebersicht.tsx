@@ -266,7 +266,6 @@ function ZeitUebersichtPage() {
     () => Array.from({ length: 7 }, (_, i) => addDays(weekStartDate, i)),
     [weekStartDate],
   );
-  const { week: currentWeekNo } = isoWeek(weekStartDate);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [activeTab, setActiveTab] = useState<string>("weekly");
   // Buchhaltung-Tab: §3b-Toggle + eigene Suche.
@@ -1027,10 +1026,6 @@ function ZeitUebersichtPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
-            </div>
-            <div className="text-xs text-muted-foreground tabular-nums">
-              KW {currentWeekNo} · {ddmm(weekDays[0])}–{ddmm(weekDays[6])}
-              {weekDays[6].getUTCFullYear()}
             </div>
           </Card>
           <WeeklyPlan
