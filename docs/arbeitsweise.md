@@ -190,7 +190,7 @@ Rekonstruiert per Kalibrierung gegen bereits validierte Bestands-Sessions (Refer
 | M4 Lohn — Sachbezug + Mahlzeiten als automatische Lohnarten                                                                            | ✅                                                      |
 | M4 Lohn — Soll-Std/Tag-Feld (Vertrags-Soll je MA)                                                                                      | ✅                                                      |
 | M4 Lohn — Urlaub/Krank ins Brutto (`lohn_absence_days`, Tage = Vorgabe)                                                                | ✅                                                      |
-| Provision (wochenbasiert)                                                                                                              | ⏳ offen                                                |
+| Provision (wochenbasiert)                                                                                                              | 🔄 P1 Server gebaut, P2 UI offen                        |
 | Geofencing-Stempeln (UI clockIn nur am Standort, distinct-Location)                                                                    | ✅                                                      |
 | PIN-Login via Vorname/Nickname                                                                                                         | ✅                                                      |
 | Hub & Meine Schichten (`/zeit/schichten`, `/zeit/stempeln`)                                                                            | ✅                                                      |
