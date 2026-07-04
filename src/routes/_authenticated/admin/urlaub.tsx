@@ -20,6 +20,7 @@ import {
   listLeaveRequests,
   type LeaveRequestRow,
 } from "@/lib/roster/leave.functions";
+import { VacationPlannerSection } from "@/components/urlaub/VacationPlannerSection";
 
 type Filter = "offen" | "genehmigt" | "abgelehnt" | "alle";
 
@@ -223,6 +224,8 @@ function AdminUrlaubPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <VacationPlannerSection />
     </div>
   );
 }
