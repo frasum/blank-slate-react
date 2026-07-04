@@ -9,6 +9,7 @@ import { runWithPermission, assertPermission } from "@/lib/admin/admin-call";
 // assertPermission wird unten in createDayOffWish/deleteDayOffWish verwendet.
 import { makeAuditWriter } from "@/lib/admin/audit";
 import { loadStaffCaller } from "@/lib/time/time.functions";
+import { assertRealIdentity } from "@/lib/admin/impersonation";
 import type { MyShiftRow } from "@/lib/roster/my-shifts";
 import { mergeAbsenceRanges, type AbsenceRange } from "@/lib/roster/vacation-planner";
 
@@ -1207,6 +1208,7 @@ export const createDayOffWish = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadStaffCaller(context.supabase, context.userId);
+    assertRealIdentity(caller);
     await assertPermission(context.supabase, "roster.wish.create_self", null);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.from("day_off_wishes").upsert(
@@ -1332,6 +1334,7 @@ export const deleteDayOffWish = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadStaffCaller(context.supabase, context.userId);
+    assertRealIdentity(caller);
     await assertPermission(context.supabase, "roster.wish.create_self", null);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
