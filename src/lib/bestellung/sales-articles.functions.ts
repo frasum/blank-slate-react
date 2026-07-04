@@ -68,8 +68,7 @@ function mapRow(row: {
     name: row.name,
     productGroup: row.product_group,
     priceCents: row.price_cents === null ? null : Number(row.price_cents),
-    takeawayPriceCents:
-      row.takeaway_price_cents === null ? null : Number(row.takeaway_price_cents),
+    takeawayPriceCents: row.takeaway_price_cents === null ? null : Number(row.takeaway_price_cents),
     isActive: row.is_active,
     updatedAt: row.updated_at,
   };
@@ -105,13 +104,7 @@ export const listSalesArticles = createServerFn({ method: "POST" })
 // Create
 // ---------------------------------------------------------------------------
 
-const priceField = z
-  .number()
-  .int()
-  .min(0)
-  .max(1_000_000_00)
-  .nullable()
-  .optional();
+const priceField = z.number().int().min(0).max(1_000_000_00).nullable().optional();
 
 const CreateInput = z.object({
   locationId: z.string().uuid(),

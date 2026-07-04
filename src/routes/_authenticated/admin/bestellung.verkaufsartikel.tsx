@@ -61,7 +61,7 @@ function VerkaufsartikelPage() {
     queryKey: ["locations"],
     queryFn: () => listLocations(),
   });
-  const locations = locationsQ.data ?? [];
+  const locations = useMemo(() => locationsQ.data ?? [], [locationsQ.data]);
 
   const [locationId, setLocationId] = useState<string>("");
   useEffect(() => {
@@ -73,7 +73,7 @@ function VerkaufsartikelPage() {
     queryFn: () => callList({ data: { locationId } }),
     enabled: !!locationId,
   });
-  const rows = articlesQ.data ?? [];
+  const rows = useMemo(() => articlesQ.data ?? [], [articlesQ.data]);
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["sales-articles", locationId] });
 
@@ -193,9 +193,7 @@ function VerkaufsartikelPage() {
               {filtered.map((row) => (
                 <TableRow key={row.id} className={row.isActive ? "" : "opacity-60"}>
                   <TableCell className="font-medium">{row.name}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {row.productGroup ?? "—"}
-                  </TableCell>
+                  <TableCell className="text-muted-foreground">{row.productGroup ?? "—"}</TableCell>
                   <TableCell>
                     <PriceCell
                       article={row}
@@ -237,9 +235,7 @@ function VerkaufsartikelPage() {
         <AddArticleDialog
           submitting={createMut.isPending}
           onClose={() => setAddOpen(false)}
-          onSubmit={(input) =>
-            createMut.mutate({ data: { ...input, locationId } })
-          }
+          onSubmit={(input) => createMut.mutate({ data: { ...input, locationId } })}
         />
       )}
     </div>
