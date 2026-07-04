@@ -16,7 +16,7 @@ export const parseStartCommand = (text: string | undefined | null): string | nul
   if (!text) return null;
   const trimmed = text.trim();
   // Telegram Deep-Link liefert exakt „/start <payload>".
-  const m = /^\/start(?:@[\w_]+)?\s+([A-Za-z0-9_\-]{16,128})\s*$/.exec(trimmed);
+  const m = /^\/start(?:@[\w_]+)?\s+([A-Za-z0-9_-]{16,128})\s*$/.exec(trimmed);
   return m ? m[1] : null;
 };
 
