@@ -98,23 +98,58 @@ type LocationRow = Awaited<ReturnType<typeof listLocations>>[number];
 
 type DeptFilter = "all" | "service" | "kitchen";
 
-const SOFORT_LABEL: Record<SofortmeldungStatus, string> = {
-  nicht_erforderlich: "—",
-  unvollstaendig: "unvollständig",
-  bereit: "bereit",
-  gemeldet: "gemeldet",
-};
-
-function SofortmeldungBadge({ status }: { status: SofortmeldungStatus }) {
-  const cls =
-    status === "gemeldet"
-      ? "bg-sky-600 text-white"
-      : status === "bereit"
-        ? "bg-emerald-600 text-white"
-        : status === "unvollstaendig"
-          ? "bg-destructive text-destructive-foreground"
-          : "bg-muted text-muted-foreground";
-  return <Badge className={cls}>{SOFORT_LABEL[status]}</Badge>;
+function SofortmeldungDot({
+  staffId,
+  status,
+}: {
+  staffId: string;
+  status: SofortmeldungStatus;
+}) {
+  const [open, setOpen] = useState(false);
+  const callDetail = useServerFn(getSofortmeldungDetail);
+  const enabled = open && status === "unvollstaendig";
+  const detailQ = useQuery({
+    queryKey: ["admin", "sofortmeldung-detail", staffId],
+    queryFn: () => callDetail({ data: { staffId } }),
+    enabled,
+    staleTime: 30_000,
+  });
+  if (status !== "unvollstaendig" && status !== "bereit") return null;
+  const dotCls =
+    status === "unvollstaendig" ? "bg-destructive" : "bg-amber-500 dark:bg-amber-400";
+  const label =
+    status === "unvollstaendig"
+      ? "Sofortmeldung unvollständig"
+      : "Sofortmeldung noch nicht gemeldet";
+  return (
+    <Tooltip open={open} onOpenChange={setOpen}>
+      <TooltipTrigger asChild>
+        <span
+          role="img"
+          aria-label={label}
+          className={cn("inline-block h-2 w-2 flex-shrink-0 rounded-full", dotCls)}
+        />
+      </TooltipTrigger>
+      <TooltipContent>
+        {status === "bereit" ? (
+          <p className="text-xs">Sofortmeldung noch nicht gemeldet</p>
+        ) : detailQ.isLoading ? (
+          <p className="text-xs">Lade…</p>
+        ) : detailQ.data && detailQ.data.missingFields.length > 0 ? (
+          <div className="text-xs">
+            <p className="mb-1 font-medium">Fehlende Pflichtfelder:</p>
+            <ul className="list-disc pl-4">
+              {detailQ.data.missingFields.map((f) => (
+                <li key={f.key}>{f.label}</li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <p className="text-xs">Pflichtfelder fehlen</p>
+        )}
+      </TooltipContent>
+    </Tooltip>
+  );
 }
 
 function StaffListPage() {
