@@ -476,6 +476,11 @@ function StaffMatrixRow({
           className="font-medium text-foreground hover:underline"
         >
           {staff.displayName}
+          {formatTenure(staff.employmentStartDate) && (
+            <span className="ml-1 font-normal text-muted-foreground">
+              ({formatTenure(staff.employmentStartDate)})
+            </span>
+          )}
         </Link>
         <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
           <span className="truncate">
