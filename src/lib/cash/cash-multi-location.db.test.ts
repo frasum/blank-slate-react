@@ -36,7 +36,13 @@ describe.skipIf(!dbTestsEnabled)("cash multi-location (DB)", () => {
   let sessionB: string;
 
   function staffCaller(u: SeededUser): StaffCaller {
-    return { userId: u.userId, staffId: u.staffId, organizationId: org.orgId, isActive: true, impersonatedBy: null };
+    return {
+      userId: u.userId,
+      staffId: u.staffId,
+      organizationId: org.orgId,
+      isActive: true,
+      impersonatedBy: null,
+    };
   }
   function adminCaller(): AdminCaller {
     return {
