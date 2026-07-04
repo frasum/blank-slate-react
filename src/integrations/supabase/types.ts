@@ -4005,6 +4005,61 @@ export type Database = {
           },
         ]
       }
+      task_photos: {
+        Row: {
+          created_at: string
+          id: string
+          mime_type: string
+          organization_id: string
+          size_bytes: number
+          storage_path: string
+          task_id: string
+          uploaded_by_staff_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mime_type: string
+          organization_id: string
+          size_bytes: number
+          storage_path: string
+          task_id: string
+          uploaded_by_staff_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mime_type?: string
+          organization_id?: string
+          size_bytes?: number
+          storage_path?: string
+          task_id?: string
+          uploaded_by_staff_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_photos_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_photos_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_photos_uploaded_by_staff_id_fkey"
+            columns: ["uploaded_by_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           archived_at: string | null
