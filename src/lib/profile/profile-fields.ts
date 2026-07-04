@@ -279,6 +279,15 @@ export function normalizeRequestValue(field: RequestField, value: unknown): unkn
     return value.replace(/\s+/g, "").toUpperCase();
   }
   if (field === "tax_id" && typeof value === "string") return value.replace(/\s+/g, "");
-  if (field === "tax_class") return Number(value);
+  if (field === "tax_class") {
+    const n =
+      typeof value === "number"
+        ? value
+        : typeof value === "string"
+          ? Number(value)
+          : NaN;
+    const roman = ["I", "II", "III", "IV", "V", "VI"];
+    return Number.isInteger(n) && n >= 1 && n <= 6 ? roman[n - 1] : null;
+  }
   return value;
 }
