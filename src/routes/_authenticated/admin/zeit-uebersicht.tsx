@@ -1958,8 +1958,25 @@ function WeeklyPlan({
                     <TableCell className="text-right tabular-nums">
                       {fmtDec(row.totals.sunHol)}
                     </TableCell>
-                    <TableCell className="text-right text-muted-foreground">–</TableCell>
-                    <TableCell className="text-right text-muted-foreground">–</TableCell>
+                    {(() => {
+                      const abs = absencesByStaff.get(row.staffId);
+                      const u = abs?.urlaubDays ?? 0;
+                      const k = abs?.krankDays ?? 0;
+                      return (
+                        <>
+                          <TableCell
+                            className={`text-right tabular-nums ${u > 0 ? "" : "text-muted-foreground/50"}`}
+                          >
+                            {u > 0 ? u : "–"}
+                          </TableCell>
+                          <TableCell
+                            className={`text-right tabular-nums ${k > 0 ? "" : "text-muted-foreground/50"}`}
+                          >
+                            {k > 0 ? k : "–"}
+                          </TableCell>
+                        </>
+                      );
+                    })()}
                   </TableRow>
                 ))}
               </Fragment>
