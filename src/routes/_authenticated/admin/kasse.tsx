@@ -366,7 +366,11 @@ function KassePage() {
       label: c.label,
       kind: c.kind,
     }));
-    const terminals = (terminalsQ.data ?? []).map((t) => ({ id: t.id, label: t.label }));
+    const terminals = (terminalsQ.data ?? []).map((t) => ({
+      id: t.id,
+      label: t.label,
+      isGl: t.isGl,
+    }));
     const staffById = new Map((staffQ.data ?? []).map((s) => [s.id, s.displayName]));
     const locationName =
       (locationsQ.data ?? []).find((l) => l.id === locationId)?.name ?? undefined;
