@@ -753,6 +753,30 @@ function BwaDashboardTab({ rows, loading }: { rows: BwaRow[]; loading: boolean }
     [sigmaLast12, effMonth, scopedRows],
   );
 
+  // F5: Vorperioden-Aggregat (Monate 13–24) für den Σ12-Vergleich.
+  const prev12 = useMemo<{
+    row: BwaRow | undefined;
+    coverage: number;
+    label: string;
+  }>(() => {
+    if (!sigmaLast12) return { row: undefined, coverage: 0, label: "" };
+    const window = scopedByMonthDesc.slice(12, 24);
+    if (window.length === 0) return { row: undefined, coverage: 0, label: "" };
+    const s = sumRows(window);
+    const row: BwaRow = {
+      id: "sigma12-prev",
+      entity: effEntity,
+      costCenter: ccSel === GROUP_KEY ? "Gruppe" : ccSel,
+      month: window[0].month,
+      ...s,
+      sachkostenDetail: null,
+      source: "import",
+    };
+    // window ist absteigend sortiert: [0]=neuester, [last]=ältester.
+    const label = `${fmtMonth(window[window.length - 1].month)} – ${fmtMonth(window[0].month)}`;
+    return { row, coverage: window.length, label };
+  }, [sigmaLast12, scopedByMonthDesc, effEntity, ccSel]);
+
   const be = useMemo(() => computeBreakEven(scopedByMonthDesc), [scopedByMonthDesc]);
 
   // F2b: Roh-Zeilen der aktuellen Auswahl (für Sachkosten-Drilldown).
@@ -866,7 +890,15 @@ function BwaDashboardTab({ rows, loading }: { rows: BwaRow[]; loading: boolean }
         </Card>
       ) : (
         <>
-          <KpiRow row={currentRow} prev={prevMonthRow} yoy={yoyRow} sigma={sigmaLast12} />
+          <KpiRow
+            row={currentRow}
+            prev={prevMonthRow}
+            yoy={yoyRow}
+            sigma={sigmaLast12}
+            prev12={prev12.row}
+            prev12Label={prev12.label}
+            prev12Coverage={prev12.coverage}
+          />
           <BreakEvenCard be={be} />
           <div className="grid gap-6 xl:grid-cols-3">
             <div className="xl:col-span-2">
