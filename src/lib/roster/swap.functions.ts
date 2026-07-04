@@ -136,11 +136,7 @@ export const createSwapRequest = createServerFn({ method: "POST" })
     });
     if (!rule.ok) throw new Error(rule.reason);
 
-    await assertShiftDateUnlocked(
-      supabaseAdmin,
-      caller.organizationId,
-      shift.shift_date as string,
-    );
+    await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, shift.shift_date as string);
 
     const noteTrim = data.note?.trim();
     const { data: row, error } = await supabaseAdmin

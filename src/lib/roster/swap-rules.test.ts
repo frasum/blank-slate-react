@@ -34,9 +34,9 @@ function peer(overrides: Partial<SwapPeerShape> = {}): SwapPeerShape {
 
 describe("canOfferShift", () => {
   it("erlaubt zukünftige Schicht ohne aktive Anfrage", () => {
-    expect(canOfferShift({ shiftDate: FUTURE, todayIso: TODAY, hasActiveRequest: false })).toEqual(
-      { ok: true },
-    );
+    expect(canOfferShift({ shiftDate: FUTURE, todayIso: TODAY, hasActiveRequest: false })).toEqual({
+      ok: true,
+    });
   });
   it("lehnt Vergangenheit ab", () => {
     const r = canOfferShift({ shiftDate: PAST, todayIso: TODAY, hasActiveRequest: false });

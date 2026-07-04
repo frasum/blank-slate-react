@@ -38,10 +38,7 @@ export function canOfferShift(input: {
   return { ok: true };
 }
 
-export function eligiblePeerFilter(input: {
-  peer: SwapPeerShape;
-  shift: SwapShiftShape;
-}): boolean {
+export function eligiblePeerFilter(input: { peer: SwapPeerShape; shift: SwapShiftShape }): boolean {
   const { peer, shift } = input;
   if (!peer.isActive) return false;
   if (peer.staffId === shift.staffId) return false;
