@@ -1,8 +1,8 @@
-// Admin-UI für die Brutto/Netto-Vorschau (2c). Zustandslos: ruft nur
+// Admin-UI für die Brutto/Netto-Vorschau (2c) als eingebetteter Tab-Panel
+// innerhalb der Arbeitszeiten-Übersicht. Zustandslos: ruft nur
 // `berechneLohnFuerMitarbeiter` (read-only) und zeigt Zeilen, Person und
 // Ergebnis tabellarisch an, damit Frank Zeile für Zeile gegen edlohn vergleichen kann.
 
-import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
@@ -36,15 +36,6 @@ import { FileSpreadsheet, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-export const Route = createFileRoute("/_authenticated/admin/lohnrechner")({
-  beforeLoad: ({ context }) => {
-    const role = (context as { identity?: { role?: string } }).identity?.role;
-    if (role !== "admin") throw redirect({ to: "/admin" });
-  },
-  head: () => ({ meta: [{ title: "Lohnrechner (Vorschau)" }] }),
-  component: LohnRechnerPage,
-});
-
 type Mode = "simple" | "extended";
 
 function eur(cents: number | undefined | null): string {
@@ -73,7 +64,7 @@ function defaultFromTo(): { from: string; to: string } {
   return { from: iso(first), to: iso(last) };
 }
 
-function LohnRechnerPage() {
+export function LohnrechnerPanel() {
   const def = useMemo(defaultFromTo, []);
   const periodsCallFn = useServerFn(listPeriods);
   const periodsQ = useQuery({
