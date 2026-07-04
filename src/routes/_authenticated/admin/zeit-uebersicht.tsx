@@ -1625,6 +1625,7 @@ function WeeklyPlan({
   periodStart,
   periodEnd,
   shiftsByStaff,
+  absencesByStaff,
 }: {
   input: WeeklyExportInput | null;
   isLoading: boolean;
@@ -1637,6 +1638,7 @@ function WeeklyPlan({
   periodStart?: string;
   periodEnd?: string;
   shiftsByStaff: Map<string, number>;
+  absencesByStaff: Map<string, { krankDays: number; urlaubDays: number }>;
 }) {
   // Header-Tagesmeta (Wochentag-Label + Feiertags-Hint)
   const dayMeta = weekDays.map((d) => {
