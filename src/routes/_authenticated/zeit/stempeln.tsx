@@ -19,6 +19,7 @@ import { arbzgMinimumBreak } from "@/lib/time/break-rules";
 import { clockIn, clockOut, getMyOpenEntry, listMyEntries } from "@/lib/time/time.functions";
 import { getCurrentPosition, GpsError } from "@/lib/geo/client";
 import { formatShortDate } from "@/lib/format-date";
+import { parseAbsenceTodayError, type AbsenceType } from "@/lib/time/absence-warn";
 
 export const Route = createFileRoute("/_authenticated/zeit/stempeln")({
   head: () => ({
@@ -68,15 +69,23 @@ function ZeitPage() {
   }, []);
 
   const inMut = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (confirmAbsence?: boolean) => {
       const fix = await getCurrentPosition();
-      return doClockIn({ data: fix });
+      return doClockIn({ data: { ...fix, ...(confirmAbsence ? { confirmAbsence: true } : {}) } });
     },
     onSuccess: () => {
       toast.success("Eingestempelt.");
+      setAbsenceWarn(null);
       void qc.invalidateQueries({ queryKey: ["time"] });
     },
-    onError: (e: Error) => toast.error(formatGpsErr(e)),
+    onError: (e: Error) => {
+      const type = parseAbsenceTodayError(e.message);
+      if (type) {
+        setAbsenceWarn(type);
+        return;
+      }
+      toast.error(formatGpsErr(e));
+    },
   });
   const outMut = useMutation({
     mutationFn: async (breakMinutes: number) => {
@@ -98,6 +107,7 @@ function ZeitPage() {
 
   const [breakDialogOpen, setBreakDialogOpen] = useState(false);
   const [breakInput, setBreakInput] = useState<string>("0");
+  const [absenceWarn, setAbsenceWarn] = useState<AbsenceType | null>(null);
 
   function openBreakDialog() {
     setBreakInput(String(recommendedBreak));
@@ -189,6 +199,27 @@ function ZeitPage() {
               onClick={() => outMut.mutate(parsedBreak)}
             >
               {outMut.isPending ? "Wird gestempelt…" : "Ausstempeln"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={absenceWarn !== null} onOpenChange={(o) => !o && setAbsenceWarn(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {absenceWarn === "krank" ? "Du bist heute krankgemeldet." : "Du hast heute Urlaub eingetragen."}
+            </DialogTitle>
+            <DialogDescription>
+              Trotzdem einstempeln? Die bewusste Entscheidung wird im Audit-Log dokumentiert.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAbsenceWarn(null)}>
+              Abbrechen
+            </Button>
+            <Button disabled={inMut.isPending} onClick={() => inMut.mutate(true)}>
+              {inMut.isPending ? "Wird gestempelt…" : "Trotzdem einstempeln"}
             </Button>
           </DialogFooter>
         </DialogContent>
