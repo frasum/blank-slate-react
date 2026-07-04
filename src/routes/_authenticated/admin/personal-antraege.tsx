@@ -120,7 +120,6 @@ function fmtDateTime(iso: string | null | undefined): string {
 }
 
 function PersonalAntraegePage() {
-  const qc = useQueryClient();
   const requestsQ = useQuery({
     queryKey: ["admin", "profile-requests"],
     queryFn: () => listOpenChangeRequests(),
