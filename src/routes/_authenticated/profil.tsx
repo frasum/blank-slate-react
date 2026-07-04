@@ -42,6 +42,11 @@ import {
   type MyDocument,
 } from "@/lib/profile/profile.functions";
 import {
+  getMyTelegramLink,
+  startTelegramLink,
+  unlinkTelegram,
+} from "@/lib/telegram/telegram.functions";
+import {
   validateIban,
   validateSvNumber,
   validateTaxId,
@@ -162,6 +167,7 @@ function ProfilPage() {
             q={docsQ}
             onChanged={() => qc.invalidateQueries({ queryKey: ["profile", "documents"] })}
           />
+          <TelegramCard />
         </>
       )}
     </div>
