@@ -1780,7 +1780,19 @@ function WeeklyPlan({
     origTo: string;
   };
   const [edit, setEdit] = useState<EditState | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const navigatingRef = useRef(false);
   const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+  // Fokus + Selektion nur, wenn eine NEUE Zielzelle aktiv wird
+  // (nicht bei jedem Tastenanschlag → kein Cursor-Flackern).
+  useEffect(() => {
+    if (!edit) return;
+    const el = inputRef.current;
+    if (!el) return;
+    el.focus();
+    el.select();
+  }, [edit?.staffId, edit?.iso, edit?.field]);
 
   // Akzeptiert freie Ziffern-Eingaben und normalisiert zu HH:MM.
   // Beispiele: "1530" → "15:30", "930" → "09:30", "9" → "09:00",
@@ -1851,22 +1863,34 @@ function WeeklyPlan({
     const to = parseHHMM(e.to);
     if (!from || !to) {
       toast.error("Ungültige Uhrzeit.");
-      return;
+      return false;
     }
     if (e.existingId) {
-      if (from === e.origFrom && to === e.origTo) return;
+      if (from === e.origFrom && to === e.origTo) return true;
       onUpdateInline(e.existingId, e.iso, from, to);
     } else {
       onCreateInline(e.staffId, e.iso, from, to);
     }
+    return true;
   };
 
   const handleBlur = (ev: React.FocusEvent<HTMLInputElement>, current: EditState) => {
+    if (navigatingRef.current) {
+      navigatingRef.current = false;
+      return;
+    }
     const next = ev.relatedTarget as HTMLElement | null;
     const nextKey = next?.getAttribute?.("data-edit-key");
     if (nextKey === cellKey(current.staffId, current.iso)) return;
     commit(current);
-    setEdit(null);
+    setEdit((cur) =>
+      cur &&
+      cur.staffId === current.staffId &&
+      cur.iso === current.iso &&
+      cur.field === current.field
+        ? null
+        : cur,
+    );
   };
 
   return (
