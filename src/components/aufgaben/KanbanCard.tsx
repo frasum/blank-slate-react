@@ -12,6 +12,7 @@ type Props = {
   canClaim?: boolean;
   onClaim?: (task: Task) => void;
   claimPending?: boolean;
+  photoCount?: number;
 };
 
 function formatDue(due: string | null): string | null {
@@ -33,6 +34,7 @@ export function KanbanCard({
   canClaim = false,
   onClaim,
   claimPending = false,
+  photoCount = 0,
 }: Props) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
@@ -64,7 +66,10 @@ export function KanbanCard({
         ) : null}
         <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
           <span>{assigneeName ?? (task.assignee_staff_id ? "—" : "unzugewiesen")}</span>
-          {due ? <span>{due}</span> : null}
+          <span className="flex items-center gap-2">
+            {photoCount > 0 ? <span title="Fotos">📷 {photoCount}</span> : null}
+            {due ? <span>{due}</span> : null}
+          </span>
         </div>
       </button>
       {canClaim && onClaim ? (
