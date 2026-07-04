@@ -95,7 +95,8 @@ export const listSalesArticles = createServerFn({ method: "POST" })
       )
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId)
-      .order("name");
+      .order("product_group", { ascending: true, nullsFirst: false })
+      .order("name", { ascending: true });
     if (error) throw new Error(error.message);
     return (rows ?? []).map(mapRow);
   });
