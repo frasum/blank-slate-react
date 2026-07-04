@@ -2198,3 +2198,24 @@ Ausschluss/„Keine Daten"/Snapshot ab). Empfänger-Fehler einzeln
 Testbericht-Button in den Einstellungen umgeht das Gate ohne
 `last_sent` zu setzen. pg_cron-Einrichtung: Frank-SQL (Ops, keine
 Migration).
+
+BZ1 Batch-Schichtzeiten (04.07.): Portierung des Legacy-`ShiftTimeOverride`
+als Admin-Card auf `/admin/zeit-uebersicht`. Drei Modi (`override`,
+`create_weekdays`, `create_daily`) — für Gehalts-/GL-Personal, das nicht
+stempelt. Standardzeiten je Werktag (17:00–01:00) und Sonn-/Feiertag
+(15:00–02:00) sind konfigurierbar in `organization_settings`
+(`batch_weekday_start/end`, `batch_sunhol_start/end`) und werden per
+Admin-Dialog gepflegt. Sonn-/Feiertagsentscheidung nutzt die kanonische
+Quelle `isBavarianHoliday` aus `shift-hours.ts` (1. Mai unter der Woche
+bekommt so die sunhol-Zeiten). Skip-Semantik im reinen Modul
+`src/lib/time/batch-times.ts`: `locked` (Wasserlinie — Batch bricht NIE
+hart ab, sondern zählt Skips), `absence` (`roster_absence`), `other-location`
+(Eintrag am selben Tag an einem Fremd-Standort), `no-entry` (override-Modus
+ohne bestehende Schicht — erzeugt bewusst NICHTS), `not-weekday`
+(create_weekdays Sa/So). Mitternachts-Wrap (17→01 landet am Folgetag) über
+`batchTimestamps`; Pausen kommen aus `arbzgMinimumBreak`. Audit-Strategie:
+EIN Aggregat-Eintrag pro Lauf (`time_entry.batch_times`, meta enthält
+`runId`, Modus, Periode, Zähler, `createdEntryIds`) plus separate Chunks
+(`time_entry.batch_times.changes`, ~200 Vorher-Bilder je Chunk, gemeinsame
+`runId`) — überschriebene Zeiten sind aus dem append-only Log
+rekonstruierbar, ohne den Audit-Trail bei großen Läufen zu fluten.

@@ -1647,6 +1647,10 @@ export type Database = {
           arbeitgeber_adresse: string | null
           arbeitgeber_name: string | null
           arbeitgeber_vertreter: string | null
+          batch_sunhol_end: string
+          batch_sunhol_start: string
+          batch_weekday_end: string
+          batch_weekday_start: string
           betriebsnummer: string | null
           created_at: string
           kitchen_manual_only: boolean
@@ -1669,6 +1673,10 @@ export type Database = {
           arbeitgeber_adresse?: string | null
           arbeitgeber_name?: string | null
           arbeitgeber_vertreter?: string | null
+          batch_sunhol_end?: string
+          batch_sunhol_start?: string
+          batch_weekday_end?: string
+          batch_weekday_start?: string
           betriebsnummer?: string | null
           created_at?: string
           kitchen_manual_only?: boolean
@@ -1691,6 +1699,10 @@ export type Database = {
           arbeitgeber_adresse?: string | null
           arbeitgeber_name?: string | null
           arbeitgeber_vertreter?: string | null
+          batch_sunhol_end?: string
+          batch_sunhol_start?: string
+          batch_weekday_end?: string
+          batch_weekday_start?: string
           betriebsnummer?: string | null
           created_at?: string
           kitchen_manual_only?: boolean
