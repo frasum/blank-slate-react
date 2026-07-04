@@ -15,6 +15,7 @@ import {
   getOrgSettings,
   setArbeitgeberStammdaten,
   updateOrgSettings,
+  setTelegramBotUsername,
 } from "@/lib/admin/org-settings.functions";
 import { setBetriebsnummer } from "@/lib/sofortmeldung/sofortmeldung.functions";
 
@@ -51,6 +52,10 @@ function OrgSettingsPage() {
   const [agMsg, setAgMsg] = useState<string | null>(null);
   const [agErr, setAgErr] = useState<string | null>(null);
   const callSetArbeitgeber = useServerFn(setArbeitgeberStammdaten);
+  const [tgBot, setTgBot] = useState("");
+  const [tgMsg, setTgMsg] = useState<string | null>(null);
+  const [tgErr, setTgErr] = useState<string | null>(null);
+  const callSetTgBot = useServerFn(setTelegramBotUsername);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -65,6 +70,7 @@ function OrgSettingsPage() {
     setAgName(settingsQ.data.arbeitgeberName ?? "");
     setAgAdresse(settingsQ.data.arbeitgeberAdresse ?? "");
     setAgVertreter(settingsQ.data.arbeitgeberVertreter ?? "");
+    setTgBot(settingsQ.data.telegramBotUsername ?? "");
   }, [settingsQ.data]);
 
   const mutation = useMutation({
@@ -135,6 +141,22 @@ function OrgSettingsPage() {
     onError: (e: unknown) => {
       setAgErr(e instanceof Error ? e.message : "Fehler.");
       setAgMsg(null);
+    },
+  });
+
+  const tgMutation = useMutation({
+    mutationFn: () =>
+      callSetTgBot({
+        data: { telegramBotUsername: tgBot.trim().replace(/^@/, "") || null },
+      }),
+    onSuccess: async () => {
+      setTgMsg("Gespeichert.");
+      setTgErr(null);
+      await queryClient.invalidateQueries({ queryKey: ["admin", "org-settings"] });
+    },
+    onError: (e: unknown) => {
+      setTgErr(e instanceof Error ? e.message : "Fehler.");
+      setTgMsg(null);
     },
   });
 
