@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { Pencil } from "lucide-react";
 import {
   getStaffPersonalDetails,
   upsertStaffPersonalDetails,
@@ -15,6 +16,14 @@ import { getStaffCompensation, upsertStaffCompensation } from "@/lib/admin/compe
 type Props = { staffId: string; canEdit: boolean };
 
 type FormState = Record<keyof PersonalDetailsFields, string | boolean | null>;
+
+const VACATION_KEYS = [
+  "vacation_days_contractual",
+  "vacation_days_previous_year",
+  "vacation_days_current_year",
+  "vacation_days_taken",
+] as const;
+type VacationKey = (typeof VACATION_KEYS)[number];
 
 const SENSITIVE: ReadonlyArray<keyof PersonalDetailsFields> = [
   "iban",
@@ -122,6 +131,14 @@ export function PersonalDetailsTab({ staffId, canEdit }: Props) {
   const [form, setForm] = useState<FormState | null>(null);
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [msg, setMsg] = useState<string | null>(null);
+  const [vacEditing, setVacEditing] = useState(false);
+  const [vacForm, setVacForm] = useState<Record<VacationKey, string>>({
+    vacation_days_contractual: "",
+    vacation_days_previous_year: "",
+    vacation_days_current_year: "",
+    vacation_days_taken: "",
+  });
+  const [vacMsg, setVacMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (detailsQ.data && form === null) {
@@ -146,6 +163,58 @@ export function PersonalDetailsTab({ staffId, canEdit }: Props) {
     },
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler beim Speichern."),
   });
+
+  const vacMutation = useMutation({
+    mutationFn: () => {
+      const patch: Record<string, unknown> = {};
+      for (const k of VACATION_KEYS) {
+        const raw = vacForm[k].trim();
+        if (raw === "") {
+          patch[k] = null;
+          continue;
+        }
+        const n = Number(raw.replace(",", "."));
+        if (!Number.isFinite(n)) throw new Error(`${k}: Zahl erwartet`);
+        patch[k] = n;
+      }
+      personalDetailsSchema.parse(patch);
+      return saveFn({ data: { staffId, fields: patch } });
+    },
+    onSuccess: async () => {
+      setVacMsg("Gespeichert.");
+      setVacEditing(false);
+      setForm((prev) => {
+        if (!prev) return prev;
+        const next = { ...prev };
+        for (const k of VACATION_KEYS) {
+          const raw = vacForm[k].trim();
+          next[k] = raw === "" ? null : raw;
+        }
+        return next;
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["admin", "staff", staffId, "personal-details"],
+      });
+    },
+    onError: (e: unknown) => setVacMsg(e instanceof Error ? e.message : "Fehler beim Speichern."),
+  });
+
+  const startVacEdit = () => {
+    if (!form) return;
+    const seed: Record<VacationKey, string> = {
+      vacation_days_contractual: "",
+      vacation_days_previous_year: "",
+      vacation_days_current_year: "",
+      vacation_days_taken: "",
+    };
+    for (const k of VACATION_KEYS) {
+      const v = form[k];
+      seed[k] = typeof v === "string" ? v : "";
+    }
+    setVacForm(seed);
+    setVacMsg(null);
+    setVacEditing(true);
+  };
 
   const sections = useMemo(
     () =>
@@ -244,14 +313,45 @@ export function PersonalDetailsTab({ staffId, canEdit }: Props) {
 
       {sections.map((sec) => (
         <fieldset key={sec.title} className="space-y-3 rounded-md border border-border p-4">
-          <legend className="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {sec.title}
+          <legend className="flex items-center gap-2 px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <span>{sec.title}</span>
+            {sec.title === "Beschäftigung & Urlaub" && canEdit && !editing && !vacEditing && (
+              <button
+                type="button"
+                onClick={startVacEdit}
+                title="Urlaubswerte bearbeiten"
+                aria-label="Urlaubswerte bearbeiten"
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+            )}
           </legend>
           <div className="space-y-2">
             {sec.rows.map((row) => {
               const k = row.key as keyof PersonalDetailsFields;
               const isSensitive = SENSITIVE.includes(k);
               const rawVal = form?.[k] ?? null;
+              const isVacKey = (VACATION_KEYS as readonly string[]).includes(row.key);
+              if (!editing && vacEditing && isVacKey) {
+                const vk = row.key as VacationKey;
+                return (
+                  <label
+                    key={row.key}
+                    className="flex items-center justify-between gap-3 text-sm"
+                  >
+                    <span className="text-muted-foreground">{row.label}</span>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      value={vacForm[vk]}
+                      onChange={(e) => setVacForm({ ...vacForm, [vk]: e.target.value })}
+                      className="w-32 rounded-md border border-input bg-background px-2 py-1 text-sm text-right"
+                    />
+                  </label>
+                );
+              }
               if (editing && form) {
                 return (
                   <FieldEditor
@@ -310,6 +410,31 @@ export function PersonalDetailsTab({ staffId, canEdit }: Props) {
               );
             })}
           </div>
+          {sec.title === "Beschäftigung & Urlaub" && vacEditing && (
+            <div className="space-y-2 pt-1">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => vacMutation.mutate()}
+                  disabled={vacMutation.isPending}
+                  className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                >
+                  {vacMutation.isPending ? "Speichern…" : "Speichern"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVacEditing(false);
+                    setVacMsg(null);
+                  }}
+                  className="rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium text-foreground hover:bg-accent"
+                >
+                  Abbrechen
+                </button>
+              </div>
+              {vacMsg && <p className="text-xs text-muted-foreground">{vacMsg}</p>}
+            </div>
+          )}
         </fieldset>
       ))}
 
