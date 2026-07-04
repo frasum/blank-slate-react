@@ -62,6 +62,7 @@ function StaffDetailPage() {
   const { identity } = useRouteContext({ from: "/_authenticated/admin" });
   const showPersonal = identity.role === "admin" || identity.role === "payroll";
   const canEditPersonal = identity.role === "admin";
+  const canEditVacation = identity.role === "admin" || identity.role === "payroll";
   const isAdmin = identity.role === "admin";
 
   const staffQ = useQuery({
@@ -117,7 +118,11 @@ function StaffDetailPage() {
       {tab === "locations" && <LocationsTab staffId={s.id} current={s.locationIds} />}
       {tab === "skills" && <SkillsTab staffId={s.id} isAdmin={isAdmin} />}
       {tab === "personal" && showPersonal && (
-        <PersonalDetailsTab staffId={s.id} canEdit={canEditPersonal} />
+        <PersonalDetailsTab
+          staffId={s.id}
+          canEdit={canEditPersonal}
+          canEditVacation={canEditVacation}
+        />
       )}
       {tab === "role" && <RoleTab staff={s} />}
       {tab === "pin" && <PinTab staffId={s.id} hasPin={s.hasPin} />}
