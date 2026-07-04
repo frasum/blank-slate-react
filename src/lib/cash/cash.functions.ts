@@ -14,6 +14,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller, type AdminCaller } from "@/lib/admin/admin-context";
 import { loadStaffCaller, performClockOut, type StaffCaller } from "@/lib/time/time.functions";
+import { assertRealIdentity } from "@/lib/admin/impersonation";
 import { runGuarded } from "@/lib/admin/admin-call";
 import { writeAuditLog, makeAuditWriter } from "@/lib/admin/audit";
 import { arbzgMinimumBreak, grossMinutesBetween } from "@/lib/time/break-rules";
@@ -1621,6 +1622,7 @@ export const submitWaiterSettlement = createServerFn({ method: "POST" })
   .inputValidator((input) => settlementInputSchema.parse(input))
   .handler(async ({ data, context }) => {
     const caller = await loadStaffCaller(context.supabase, context.userId);
+    assertRealIdentity(caller);
     return submitWaiterSettlementCore(caller, data);
   });
 
