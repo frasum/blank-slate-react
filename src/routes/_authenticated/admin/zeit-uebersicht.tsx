@@ -905,7 +905,7 @@ function ZeitUebersichtPage() {
           <TabsTrigger value="summary">Zusammenfassung</TabsTrigger>
           <TabsTrigger value="payroll">Buchhaltung</TabsTrigger>
           <TabsTrigger value="periods">Perioden</TabsTrigger>
-          <TabsTrigger value="lohnrechner">Lohnrechner</TabsTrigger>
+          <TabsTrigger value="lohnrechner">Brutto/Netto</TabsTrigger>
           <TabsTrigger value="provision">Provision</TabsTrigger>
         </TabsList>
 
