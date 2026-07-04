@@ -34,6 +34,7 @@ export type ReportKitchen = {
   name: string;
   shiftStart: string | null;
   shiftEnd: string | null;
+  minutes?: number | null;
 };
 
 export type ReportKontrolle = {
