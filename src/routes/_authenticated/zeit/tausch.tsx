@@ -144,8 +144,7 @@ function OpenRequestCard({ row }: { row: OpenSwapRow }) {
   };
 
   const acceptMut = useMutation({
-    mutationFn: (input: { requestId: string; counterShiftId?: string }) =>
-      accept({ data: input }),
+    mutationFn: (input: { requestId: string; counterShiftId?: string }) => accept({ data: input }),
     onSuccess: () => {
       toast.success("Übernommen — wartet auf Freigabe.");
       setAcceptOpen(false);

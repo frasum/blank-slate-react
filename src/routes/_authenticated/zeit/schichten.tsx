@@ -164,45 +164,45 @@ function MyShiftsPage() {
                   const swap = swapByShift.get(s.id);
                   const isFuture = s.shift_date > todayIso;
                   return (
-                  <div key={s.id} className="space-y-2 px-4 py-3 text-sm">
-                    <div className="flex items-center justify-between">
-                      <div className="font-medium">{s.locationName}</div>
-                      <div className="text-xs text-muted-foreground">{AREA_LABEL[s.area]}</div>
+                    <div key={s.id} className="space-y-2 px-4 py-3 text-sm">
+                      <div className="flex items-center justify-between">
+                        <div className="font-medium">{s.locationName}</div>
+                        <div className="text-xs text-muted-foreground">{AREA_LABEL[s.area]}</div>
+                      </div>
+                      {s.skillLabel && (
+                        <div className="text-xs text-muted-foreground">{s.skillLabel}</div>
+                      )}
+                      {s.notes && <div className="text-xs text-muted-foreground">{s.notes}</div>}
+                      {swap ? (
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-900">
+                            {swap.status === "open"
+                              ? "Tausch angefragt"
+                              : "Kollege gefunden — wartet auf Freigabe"}
+                          </span>
+                          <Link
+                            to="/zeit/tausch"
+                            className="text-xs text-muted-foreground hover:text-foreground"
+                          >
+                            Details
+                          </Link>
+                        </div>
+                      ) : isFuture ? (
+                        <div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs"
+                            onClick={() => {
+                              setOfferShiftId(s.id);
+                              setNote("");
+                            }}
+                          >
+                            Zum Tausch anbieten
+                          </Button>
+                        </div>
+                      ) : null}
                     </div>
-                    {s.skillLabel && (
-                      <div className="text-xs text-muted-foreground">{s.skillLabel}</div>
-                    )}
-                    {s.notes && <div className="text-xs text-muted-foreground">{s.notes}</div>}
-                    {swap ? (
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-900">
-                          {swap.status === "open"
-                            ? "Tausch angefragt"
-                            : "Kollege gefunden — wartet auf Freigabe"}
-                        </span>
-                        <Link
-                          to="/zeit/tausch"
-                          className="text-xs text-muted-foreground hover:text-foreground"
-                        >
-                          Details
-                        </Link>
-                      </div>
-                    ) : isFuture ? (
-                      <div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-xs"
-                          onClick={() => {
-                            setOfferShiftId(s.id);
-                            setNote("");
-                          }}
-                        >
-                          Zum Tausch anbieten
-                        </Button>
-                      </div>
-                    ) : null}
-                  </div>
                   );
                 })}
               </Card>

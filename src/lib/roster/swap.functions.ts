@@ -147,9 +147,7 @@ async function eligiblePeerStaffIds(
   if (scopeErr) throw scopeErr;
   const candidateIds = Array.from(
     new Set(
-      (scopeRows ?? [])
-        .map((r) => r.staff_id as string)
-        .filter((id) => id !== shift.staffId),
+      (scopeRows ?? []).map((r) => r.staff_id as string).filter((id) => id !== shift.staffId),
     ),
   );
   if (candidateIds.length === 0) return [];
