@@ -1654,8 +1654,8 @@ function WeeklyPlan({
     };
   });
 
-  // Spalten: Mitarbeiter + Schichten + 7×2 (Anfang/Ende) + 6 Summen
-  const totalCols = 1 + 1 + 14 + 6;
+  // Spalten: Mitarbeiter (links) + 7×2 (Anfang/Ende) + Mitarbeiter (rechts) + 4 Zeit-Summen + U + K + S
+  const totalCols = 1 + 14 + 1 + 4 + 2 + 1;
 
   const groups = input?.rowsByDept ?? [];
   const anyRows = groups.some((g) => g.rows.length > 0);
@@ -1745,13 +1745,6 @@ function WeeklyPlan({
             <TableHead rowSpan={2} className="w-[140px] min-w-[140px] align-bottom">
               Mitarbeiter
             </TableHead>
-            <TableHead
-              rowSpan={2}
-              className="text-right align-bottom border-l whitespace-nowrap"
-              title="Schichten in der gewählten Abrechnungsperiode (standortübergreifend, 1 Tag = 1 Schicht)"
-            >
-              Schichten
-            </TableHead>
             {dayMeta.map((dm) => (
               <TableHead
                 key={dm.iso}
@@ -1774,7 +1767,13 @@ function WeeklyPlan({
                 )}
               </TableHead>
             ))}
-            <TableHead rowSpan={2} className="text-right align-bottom border-l">
+            <TableHead
+              rowSpan={2}
+              className="w-[140px] min-w-[140px] align-bottom border-l"
+            >
+              Mitarbeiter
+            </TableHead>
+            <TableHead rowSpan={2} className="text-right align-bottom">
               Ges
             </TableHead>
             <TableHead rowSpan={2} className="text-right align-bottom">
@@ -1799,6 +1798,13 @@ function WeeklyPlan({
               title="Kranktage in der Abrechnungsperiode"
             >
               K
+            </TableHead>
+            <TableHead
+              rowSpan={2}
+              className="text-right align-bottom whitespace-nowrap"
+              title="Schichten in der Abrechnungsperiode"
+            >
+              S
             </TableHead>
           </TableRow>
           <TableRow>
