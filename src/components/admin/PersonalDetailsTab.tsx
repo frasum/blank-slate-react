@@ -413,6 +413,13 @@ export function PersonalDetailsTab({ staffId, canEdit, canEditVacation }: Props)
                 </div>
               );
             })}
+            {sec.title === "Beschäftigung & Urlaub" && !editing && !vacEditing && form && (
+              <RestUrlaubRow
+                contractual={form.vacation_days_contractual}
+                previousYear={form.vacation_days_previous_year}
+                taken={form.vacation_days_taken}
+              />
+            )}
           </div>
           {sec.title === "Beschäftigung & Urlaub" && vacEditing && (
             <div className="space-y-2 pt-1">
