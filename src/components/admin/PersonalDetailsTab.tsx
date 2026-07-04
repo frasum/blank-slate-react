@@ -416,6 +416,7 @@ export function PersonalDetailsTab({ staffId, canEdit, canEditVacation }: Props)
             {sec.title === "Beschäftigung & Urlaub" && !editing && !vacEditing && form && (
               <RestUrlaubRow
                 contractual={form.vacation_days_contractual}
+                currentYear={form.vacation_days_current_year}
                 previousYear={form.vacation_days_previous_year}
                 taken={form.vacation_days_taken}
               />
