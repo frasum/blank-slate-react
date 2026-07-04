@@ -54,7 +54,7 @@ export function buildRosterPoolSnapshot(input: {
   rosterShifts: RosterShiftInput[];
   defaultsByArea: DefaultsByArea;
 }): SnapshotEntry[] {
-  // Pro Mitarbeiter höchste Priorität (kitchen > service > gl) gewinnt.
+  // Pro Mitarbeiter: gl dominiert (Ausschluss); sonst gewinnt kitchen > service.
   const winner = new Map<string, StaffDepartment>();
   for (const s of input.rosterShifts) {
     const prev = winner.get(s.staffId);
