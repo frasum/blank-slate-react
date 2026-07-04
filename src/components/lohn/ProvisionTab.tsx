@@ -35,7 +35,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, Search, Settings } from "lucide-react";
+import { ChevronDown, HelpCircle, Search, Settings } from "lucide-react";
 import { fmtCents, parseEuroToCents } from "@/lib/format";
 import {
   getProvisionOverview,
@@ -111,6 +111,7 @@ function ProvisionTabInner({
   const qc = useQueryClient();
   const fetchOverview = useServerFn(getProvisionOverview);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [search, setSearch] = useState("");
 
   const overviewQ = useQuery({
@@ -207,6 +208,14 @@ function ProvisionTabInner({
               <Settings className="mr-1 h-4 w-4" /> Einstellungen
             </Button>
           )}
+          <Button
+            size="sm"
+            variant="ghost"
+            className={isAdmin ? undefined : "ml-auto"}
+            onClick={() => setHelpOpen(true)}
+          >
+            <HelpCircle className="mr-1 h-4 w-4" /> Wie wird das berechnet?
+          </Button>
         </div>
       </Card>
 
@@ -395,7 +404,77 @@ function ProvisionTabInner({
           onSaved={invalidate}
         />
       )}
+      <HelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
     </div>
+  );
+}
+
+function HelpDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Wie wird die Provision berechnet?</DialogTitle>
+          <DialogDescription>
+            Kurzform sichtbar im Panel unten. Für den vollen Kontext siehe folgende Quellen —
+            Formel, Sonderfälle und Code der Wahrheit.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 text-sm">
+          <div>
+            <div className="font-medium mb-1">Dokumentation (docs/arbeitsweise.md)</div>
+            <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
+              <li>
+                <code>§52</code> — Provision P1 (Server-Layer, Formel, Audit)
+              </li>
+              <li>
+                <code>§52 P2 UI</code> — Verteilung, Pool, Standort-Scope
+              </li>
+              <li>
+                <code>§357</code> — Kurzformel:{" "}
+                <code>Σ max(0, (Umsatz − minRevenue × Kellnerzahl) × %)</code>
+              </li>
+            </ul>
+          </div>
+          <div>
+            <div className="font-medium mb-1">Code (Quelle der Wahrheit)</div>
+            <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
+              <li>
+                <code>src/lib/lohn/provision-calc.ts</code> — reines Rechenmodul
+              </li>
+              <li>
+                <code>src/lib/lohn/provision-calc.test.ts</code> — Referenzfälle
+              </li>
+              <li>
+                <code>src/lib/lohn/provision.functions.ts</code> — Server-Fns
+                (<code>getProvisionOverview</code>, <code>updateCommissionSettings</code>)
+              </li>
+              <li>
+                <code>src/components/lohn/ProvisionTab.tsx</code> — dieses UI
+              </li>
+            </ul>
+          </div>
+          <div>
+            <div className="font-medium mb-1">Einordnung</div>
+            <p className="text-muted-foreground">
+              <code>docs/gruendungsdokument.md</code> (Modul „Zeit-Rest") — Provision ist
+              wochen-/tagesbasiert und fließt <strong>nicht</strong> automatisch in M4 Lohn.
+            </p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Schließen
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
