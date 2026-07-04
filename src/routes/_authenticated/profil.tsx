@@ -167,7 +167,9 @@ function ProfilPage() {
             q={docsQ}
             onChanged={() => qc.invalidateQueries({ queryKey: ["profile", "documents"] })}
           />
-          <TelegramCard />
+          <div id="telegram" className="scroll-mt-24">
+            <TelegramCard />
+          </div>
         </>
       )}
     </div>
