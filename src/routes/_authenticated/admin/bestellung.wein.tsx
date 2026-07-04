@@ -778,3 +778,79 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 const inputCls =
   "mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring";
 const selectCls = inputCls;
+
+function BatchEntryCard(props: {
+  entry: { item: WineResearchBatchItem; selected: Record<BatchField, boolean> };
+  onToggle: (field: BatchField) => void;
+}) {
+  const { item, selected } = props.entry;
+  const s = item.suggestion;
+  const c = item.current;
+  return (
+    <div className="rounded-md border border-border bg-background p-3">
+      <div className="flex items-start justify-between gap-2">
+        <h4 className="text-sm font-semibold text-foreground">{item.name}</h4>
+        {item.error && <span className="text-xs text-destructive">{item.error}</span>}
+      </div>
+      {s && (
+        <div className="mt-2 space-y-1.5 text-xs">
+          {BATCH_FIELDS.map((f) => {
+            const cur = f === "specialAttributes" ? c.specialAttributes.join(", ") : (c[f] as string);
+            const sug =
+              f === "specialAttributes" ? s.specialAttributes.join(", ") : (s[f] as string);
+            if (!sug.trim() && !cur.trim()) return null;
+            const identical = sug.trim() !== "" && sameStr(cur, sug);
+            return (
+              <label key={f} className="flex gap-2">
+                <input
+                  type="checkbox"
+                  checked={selected[f]}
+                  onChange={() => props.onToggle(f)}
+                  disabled={!sug.trim() || identical}
+                  className="mt-0.5"
+                />
+                <div className="flex-1">
+                  <div className="font-medium text-muted-foreground">{FIELD_LABEL[f]}</div>
+                  <div className="grid grid-cols-1 gap-1 md:grid-cols-2">
+                    <div className="rounded bg-muted/40 px-2 py-1">
+                      <span className="text-[10px] uppercase text-muted-foreground">Aktuell</span>
+                      <div className="text-foreground">{cur || "—"}</div>
+                    </div>
+                    <div
+                      className={
+                        identical
+                          ? "rounded bg-muted/40 px-2 py-1"
+                          : "rounded bg-primary/10 px-2 py-1"
+                      }
+                    >
+                      <span className="text-[10px] uppercase text-muted-foreground">Vorschlag</span>
+                      <div className="text-foreground">{sug || "—"}</div>
+                    </div>
+                  </div>
+                </div>
+              </label>
+            );
+          })}
+          {s.sources.length > 0 && (
+            <div className="pt-1 text-[10px] text-muted-foreground">
+              Quellen:{" "}
+              {s.sources.map((u, i) => (
+                <span key={u}>
+                  {i > 0 && ", "}
+                  <a
+                    href={u}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline hover:text-foreground"
+                  >
+                    [{i + 1}]
+                  </a>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
