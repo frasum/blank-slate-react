@@ -1,43 +1,45 @@
 ## Ziel
 
-Zeit-Zellen im Wochenplan sollen sich wie eine Tabellen-Tastatur bedienen lassen: Klick markiert den Wert (Overtype), Tab/Pfeile navigieren zur nächsten Zelle, das Feld dort ist wieder markiert. Der bekannte „blinkende Cursor" (Fokus-Ping-Pong) darf nicht wiederkommen. Zahlen bekommen die gleiche Optik wie in Zusammenfassung/Buchhaltung.
+Roter Punkt (Badge) im Admin-Header bei „Stammdaten & Dokumente" (Unter-Nav in „Mitarbeiter"), sobald etwas zum Freigeben ansteht. Zusätzlich je ein roter Punkt auf den Tabs „Anträge" und „Dokumente" innerhalb der Seite, damit sofort erkennbar ist, wo die offenen Vorgänge liegen.
 
-## Änderungen (nur `WeeklyPlan` in `src/routes/_authenticated/admin/zeit-uebersicht.tsx`)
+Telegram-Benachrichtigung ist ausdrücklich **nicht Teil** dieses Schritts (folgt später, wenn Frank den Bot einrichtet).
 
-### 1. Font der Zeiten angleichen
+## Was zählt als „zum Freigeben"
 
-- Zellen `TableCell` und Input: `font-mono text-sm` → `tabular-nums text-sm` (identisch zu Zusammenfassung/Buchhaltung — System-Font, Ziffern gleichbreit).
-- Alles andere (Padding, Breite `w-[62px]`, Höhe `h-6`) bleibt.
+- **Anträge:** offene Stammdaten-Änderungsanträge (`staff_data_change_requests.status = 'pending'`) — bereits durch `listOpenChangeRequests()` abgedeckt.
+- **Dokumente:** hochgeladene Personaldokumente ohne Prüfung (`staff_documents.verified_at IS NULL`) — bereits durch `listAllDocuments()` abrufbar, dort per Filter auf `verifiedAt === null` reduzierbar.
 
-### 2. Klick markiert den Wert (kein blinkender Cursor)
+Beides ist Admin-only, passt also zur bestehenden Sichtbarkeit des Menüpunkts.
 
-- `autoFocus` durch einen **Ref-basierten Fokus** ersetzen: `useRef<HTMLInputElement>(null)`; in einem einzigen `useEffect([edit?.staffId, edit?.iso, edit?.field])` genau dann `ref.current?.focus()` **und** `ref.current?.select()` aufrufen, wenn ein neues Edit-Target aktiv wird.
-- Das State-Objekt `EditState` bekommt keine zusätzliche Rerender-Quelle; der Effect hängt nur an der Ziel-Zelle (nicht am `from`/`to`-Text), damit jeder Tastenanschlag NICHT re-fokussiert. Genau das war die Ursache des Cursor-Flackerns in der früheren Version.
-- Beim erneuten Klick in dieselbe Zelle (anderes Feld) läuft der Effect erneut → Wert wird wieder markiert.
+## Umsetzung
 
-### 3. Navigation mit Tab und Pfeiltasten
+1. **Neue Server-Fn `getReviewPendingCounts`** in `src/lib/profile/profile-admin.functions.ts`:
+   - admin-only (bestehende `assertAdmin`-Logik der Datei nutzen),
+   - liefert `{ pendingRequests: number; pendingDocuments: number }` per zwei schlanken `count`-Queries — kein Nachladen der vollständigen Listen.
 
-In `onKeyDown` zusätzlich zu Enter/Escape:
+2. **Query-Hook im Admin-Layout** (`src/routes/_authenticated/admin/route.tsx`):
+   - nur laden, wenn `role === 'admin'`,
+   - `refetchInterval` ~60 s + `refetchOnWindowFocus`,
+   - Ergebnis an die Sub-Nav-Renderung durchreichen.
 
-- **Tab / Shift+Tab**: nächste bzw. vorherige Zeile (Mitarbeiter darunter/darüber), **gleicher Tag, gleiches Feld** (`from`/`to`). Am Ende der Gruppe in die nächste Abteilung überspringen; am Tabellenrand: Commit + Fokus verlassen. `ev.preventDefault()`, damit der Browser-Tab nicht die Tabelle verlässt.
-- **ArrowUp / ArrowDown**: identisch zu Shift+Tab / Tab (Zeile hoch/runter).
-- **ArrowLeft / ArrowRight**: vorheriges/nächstes Feld in Leserichtung — `from → to → from(nächster Tag) → to → …`; über Tages- und Zeilenränder hinweg.
-- Vor jedem Sprung: `commit(edit)` (nur wenn valide oder unverändert; ungültig → Toast wie bisher, Sprung findet nicht statt).
-- Nach dem Sprung: `startEdit(nextStaffId, nextIso, nextField)` — der Effect aus (2) fokussiert und markiert.
-- Übersprungen werden: Zellen außerhalb der Periode (`dm.outOfPeriod`), Zellen mit mehreren Schichten (`multi`, aktuell nicht editierbar), gesperrte Zeilen. Bei Sackgasse endet die Navigation still.
+3. **Roter Punkt in der Sub-Nav**:
+   - Kleines `<span className="ml-1 inline-block h-2 w-2 rounded-full bg-destructive" aria-hidden />` neben dem Label „Stammdaten & Dokumente", wenn `pendingRequests + pendingDocuments > 0`.
+   - `aria-label` des Links um „(offene Vorgänge)" ergänzen, damit Screenreader es ansagen.
+   - Rendering nur, wenn Sub-Item auch sichtbar ist (unverändertes Rolle-Gate).
 
-### 4. Reihenfolge für die Navigation
+4. **Rote Punkte auf den Tab-Triggern** in `personal-antraege.tsx`:
+   - dieselbe Server-Fn direkt in der Seite abfragen (oder aus den vorhandenen Queries `q.data.length` bzw. gefilterte Dokument-Liste ableiten — kein Extra-Roundtrip nötig),
+   - Punkt neben „Anträge" wenn offene Anträge > 0,
+   - Punkt neben „Dokumente" wenn ungeprüfte Uploads > 0.
 
-Reihenfolge wird aus den bereits gerenderten Daten abgeleitet: flach über alle Gruppen (`groups.flatMap(g => g.rows)`) für die Zeilen-Achse, `weekDays` für die Tages-Achse. Kein zusätzlicher State, kein neuer Datenfluss.
+5. **Cache-Invalidierung**: nach erfolgreichem `decideChangeRequest`, `verifyDocument`, `deleteDocument` zusätzlich `queryClient.invalidateQueries({ queryKey: ["admin", "review-pending-counts"] })` — damit der Punkt verschwindet, sobald die letzte offene Sache erledigt ist.
 
-### 5. Nicht anfassen
+## Bewusst NICHT enthalten
 
-- Datenfluss (`onUpdateInline`, `onCreateInline`, `parseHHMM`, Mitternachtsüberlauf).
-- Layout, Spaltenbreiten, S/U/K-Ordnung, Marker, Sperren.
-- Zusammenfassung, Buchhaltung, Exporte.
-- Keine Migration, kein SQL.
+- Telegram-Anbindung: kommt in einem separaten Schritt, sobald Bot-Token/Chat-ID stehen (Connector `telegram`, Server-Fn beim Eintreffen neuer Anträge/Uploads).
+- Punkte bei anderen Modulen (Aufgaben, Urlaub, Bestellung) — dieser Auftrag betrifft nur Stammdaten & Dokumente.
+- Zahl im Badge: Frank hat explizit einen „kleinen roten Punkt" gewünscht, keine Zählpille.
 
-## Erfolgs-Gate
+## Bestätigung erbeten
 
-- `tsc` 0, ESLint 0, Prettier sauber, Vitest grün.
-- Manueller E2E (Frank): Zelle anklicken → Wert ist selektiert, `1530` überschreibt sofort. Tab springt in die nächste Zeile (gleicher Tag), Wert dort selektiert. Pfeil-links/rechts wechselt zwischen Anf. und Ende, Pfeil hoch/runter zwischen Zeilen. Kein Cursor-Flackern beim Tippen. Zahlen-Optik identisch zu Zusammenfassung.
+Sub-Nav trägt den Text „**Stammdaten & Dokumente**" (unter „Mitarbeiter"). Es gibt daneben eine gleichnamige Oberkategorie „Stammdaten" (nur Standorte). Ich setze den Punkt **nur** an „Stammdaten & Dokumente", weil nur dort etwas freizugeben ist — bitte kurz bestätigen, ob das so passt oder ob zusätzlich der Menüpunkt „Stammdaten" markiert werden soll.
