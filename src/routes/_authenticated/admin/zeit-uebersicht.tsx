@@ -1115,7 +1115,12 @@ function ZeitUebersichtPage() {
                     </TableHead>
                   ))}
                   <TableHead className="text-right">Gesamt</TableHead>
-                  <TableHead className="text-right">Schichten</TableHead>
+                  <TableHead
+                    className="text-right"
+                    title="Schichten in der Abrechnungsperiode"
+                  >
+                    S
+                  </TableHead>
                   <TableHead className="text-right">U</TableHead>
                   <TableHead className="text-right">K</TableHead>
                 </TableRow>
