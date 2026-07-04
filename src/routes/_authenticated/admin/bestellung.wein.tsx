@@ -236,7 +236,15 @@ function WeinPage() {
 
   const updateMut = useMutation({
     mutationFn: (input: { id: string; draft: WineDraft }) =>
-      callUpdate({ data: { ...buildPayload(input.draft), articleId: input.id } }),
+      callUpdate({
+        data: {
+          ...buildPayload(
+            input.draft,
+            (winesQ.data ?? []).find((w) => w.id === input.id)?.locationIds ?? [],
+          ),
+          articleId: input.id,
+        },
+      }),
     onSuccess: () => {
       setEditingId(null);
       setMsg(null);
@@ -344,7 +352,8 @@ function WeinPage() {
               : Array.isArray(w.special_attributes) && w.special_attributes.length > 0
                 ? w.special_attributes
                 : null,
-            locationIds: (w.locationIds ?? []).length > 0 ? w.locationIds : [],
+            locationIds:
+              (w.locationIds ?? []).length > 0 ? w.locationIds : allLocationIds,
           },
         });
         updated++;
