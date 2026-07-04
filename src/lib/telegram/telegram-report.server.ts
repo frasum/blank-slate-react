@@ -186,12 +186,53 @@ async function loadReportInputForOrg(
     const kitchenList = (kitchen ?? [])
       .filter((r) => r.participates !== false)
       .map((r) => ({
+        staffId: r.staff_id as string,
         name:
           (r.staff as { display_name?: string } | null)?.display_name ??
           String(r.staff_id).slice(0, 8),
         shiftStart: (r.shift_start as string | null) ?? null,
         shiftEnd: (r.shift_end as string | null) ?? null,
+        minutes: null as number | null,
       }));
+
+    // Fallback: echte Stempel aus time_entries laden (Küche mit Uhr).
+    const missingStaffIds = kitchenList
+      .filter((k) => !k.shiftStart || !k.shiftEnd)
+      .map((k) => k.staffId);
+    if (missingStaffIds.length > 0) {
+      const { data: teRows } = await supabaseAdmin
+        .from("time_entries")
+        .select("staff_id, started_at, ended_at, break_minutes")
+        .eq("organization_id", organizationId)
+        .eq("business_date", businessDate)
+        .in("staff_id", missingStaffIds)
+        .in("source", ["clock", "manual", "import"]);
+      const byStaff = new Map<string, { start: Date | null; end: Date | null; breakMin: number }>();
+      for (const r of teRows ?? []) {
+        const staffId = r.staff_id as string;
+        const start = r.started_at ? new Date(r.started_at as string) : null;
+        const end = r.ended_at ? new Date(r.ended_at as string) : null;
+        const bm = Number(r.break_minutes ?? 0);
+        const cur = byStaff.get(staffId) ?? { start: null, end: null, breakMin: 0 };
+        if (start && (!cur.start || start < cur.start)) cur.start = start;
+        if (end && (!cur.end || end > cur.end)) cur.end = end;
+        cur.breakMin += bm;
+        byStaff.set(staffId, cur);
+      }
+      for (const k of kitchenList) {
+        const agg = byStaff.get(k.staffId);
+        if (!agg) continue;
+        if (!k.shiftStart && agg.start) k.shiftStart = agg.start.toISOString();
+        if (!k.shiftEnd && agg.end) k.shiftEnd = agg.end.toISOString();
+        if (agg.start && agg.end) {
+          const min = Math.max(
+            0,
+            Math.round((agg.end.getTime() - agg.start.getTime()) / 60000) - agg.breakMin,
+          );
+          k.minutes = min;
+        }
+      }
+    }
 
     locationInputs.push({
       locationId: l.id,
