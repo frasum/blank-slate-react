@@ -1028,10 +1028,6 @@ function ZeitUebersichtPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <div className="text-xs text-muted-foreground tabular-nums">
-              KW {currentWeekNo} · {ddmm(weekDays[0])}–{ddmm(weekDays[6])}
-              {weekDays[6].getUTCFullYear()}
-            </div>
           </Card>
           <WeeklyPlan
             input={weeklyExportInput}
