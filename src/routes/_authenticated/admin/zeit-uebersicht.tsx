@@ -1871,7 +1871,7 @@ function WeeklyPlan({
                           );
                         }
                         if (empty) {
-                          if (day.crossLocation && which === "from")
+                          if (day.crossLocation && which === "from" && !dm.outOfPeriod)
                             return <span className="text-muted-foreground">×</span>;
                           if (editable && which === "from")
                             return <span className="text-muted-foreground/40">+</span>;
