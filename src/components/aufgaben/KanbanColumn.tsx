@@ -12,6 +12,7 @@ type Props = {
   canClaim?: (task: Task) => boolean;
   onClaim?: (task: Task) => void;
   claimPendingId?: string | null;
+  photoCounts?: Record<string, number>;
 };
 
 export function KanbanColumn({
@@ -23,6 +24,7 @@ export function KanbanColumn({
   canClaim,
   onClaim,
   claimPendingId,
+  photoCounts,
 }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: `col:${status}`, data: { status } });
   return (
@@ -55,6 +57,7 @@ export function KanbanColumn({
               canClaim={canClaim ? canClaim(t) : false}
               onClaim={onClaim}
               claimPending={claimPendingId === t.id}
+              photoCount={photoCounts?.[t.id] ?? 0}
             />
           ))
         )}
