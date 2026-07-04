@@ -1895,9 +1895,6 @@ function WeeklyPlan({
 
   // Flache Liste aller sichtbaren Mitarbeiter-Zeilen (für Tab/Pfeil-Navigation).
   const flatRows = useMemo(() => groups.flatMap((g) => g.rows), [groups]);
-  const rowIndexOf = (staffId: string) => flatRows.findIndex((r) => r.staffId === staffId);
-  const dayIndexOf = (iso: string) => dayMeta.findIndex((d) => d.iso === iso);
-
   const isCellEditable = (
     row: (typeof flatRows)[number] | undefined,
     dayIdx: number,
