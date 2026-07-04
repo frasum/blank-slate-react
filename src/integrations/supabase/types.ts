@@ -1303,6 +1303,9 @@ export type Database = {
         Row: {
           cash_balance_target_cents: number | null
           city: string | null
+          commission_enabled: boolean
+          commission_min_revenue_cents: number
+          commission_pct: number
           contact_name: string | null
           contact_phone: string | null
           created_at: string
@@ -1324,6 +1327,9 @@ export type Database = {
         Insert: {
           cash_balance_target_cents?: number | null
           city?: string | null
+          commission_enabled?: boolean
+          commission_min_revenue_cents?: number
+          commission_pct?: number
           contact_name?: string | null
           contact_phone?: string | null
           created_at?: string
@@ -1345,6 +1351,9 @@ export type Database = {
         Update: {
           cash_balance_target_cents?: number | null
           city?: string | null
+          commission_enabled?: boolean
+          commission_min_revenue_cents?: number
+          commission_pct?: number
           contact_name?: string | null
           contact_phone?: string | null
           created_at?: string
