@@ -1764,6 +1764,13 @@ USING(true)-Policies. Banner im Stammblatt + Badge-Spalte in der
 Mitarbeiterliste. Onboarding-Reihenfolge: Mitarbeiter füllt /profil aus →
 Antrag freigeben → Sofortmeldung „bereit" → sv.net → „gemeldet" markieren.
 
+**MA1 (04.07.):** Mitarbeiter-Liste entschlackt — Aktiv/Inaktiv-Umschalter
+(Standard: Aktive), PIN- und Aktionen-Spalte entfernt (beides im Stammblatt),
+Sofortmeldung-Spalte ersetzt durch Status-Punkt am Namen (rot = unvollständig
+mit Feld-Tooltip via `getSofortmeldungDetail`, gelb = bereit/ungemeldet).
+Bestand wurde per SQL als gemeldet markiert (Altsystem-Meldungen, §28a greift
+nur bei Einstellung).
+
 ## 46. V1 Dokumentengenerierung — Server-Layer (03.07.2026)
 
 M4-Restposten aus thaitime portiert, bewusst vereinfacht: EIN Template-Modell

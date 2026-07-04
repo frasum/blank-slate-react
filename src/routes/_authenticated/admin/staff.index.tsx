@@ -3,15 +3,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import {
-  listStaff,
-  setStaffActive,
-  setStaffRole,
-  setStaffLocationDepartment,
-} from "@/lib/admin/staff.functions";
+import { listStaff, setStaffRole, setStaffLocationDepartment } from "@/lib/admin/staff.functions";
 import { assignStaffSkills, listSkills, type SkillCategory } from "@/lib/admin/skills.functions";
 import { listLocations } from "@/lib/admin/locations.functions";
-import { getSofortmeldungOverview } from "@/lib/sofortmeldung/sofortmeldung.functions";
+import {
+  getSofortmeldungOverview,
+  getSofortmeldungDetail,
+} from "@/lib/sofortmeldung/sofortmeldung.functions";
 import type { SofortmeldungStatus } from "@/lib/sofortmeldung/sofortmeldung-rules";
 import {
   distinctDepartments,
@@ -32,7 +30,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Search, UserCheck, UserMinus, Users } from "lucide-react";
+import { Search, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AppRole } from "@/lib/admin/role-guard";
 
@@ -95,23 +93,51 @@ type LocationRow = Awaited<ReturnType<typeof listLocations>>[number];
 
 type DeptFilter = "all" | "service" | "kitchen";
 
-const SOFORT_LABEL: Record<SofortmeldungStatus, string> = {
-  nicht_erforderlich: "—",
-  unvollstaendig: "unvollständig",
-  bereit: "bereit",
-  gemeldet: "gemeldet",
-};
-
-function SofortmeldungBadge({ status }: { status: SofortmeldungStatus }) {
-  const cls =
-    status === "gemeldet"
-      ? "bg-sky-600 text-white"
-      : status === "bereit"
-        ? "bg-emerald-600 text-white"
-        : status === "unvollstaendig"
-          ? "bg-destructive text-destructive-foreground"
-          : "bg-muted text-muted-foreground";
-  return <Badge className={cls}>{SOFORT_LABEL[status]}</Badge>;
+function SofortmeldungDot({ staffId, status }: { staffId: string; status: SofortmeldungStatus }) {
+  const [open, setOpen] = useState(false);
+  const callDetail = useServerFn(getSofortmeldungDetail);
+  const enabled = open && status === "unvollstaendig";
+  const detailQ = useQuery({
+    queryKey: ["admin", "sofortmeldung-detail", staffId],
+    queryFn: () => callDetail({ data: { staffId } }),
+    enabled,
+    staleTime: 30_000,
+  });
+  if (status !== "unvollstaendig" && status !== "bereit") return null;
+  const dotCls = status === "unvollstaendig" ? "bg-destructive" : "bg-amber-500 dark:bg-amber-400";
+  const label =
+    status === "unvollstaendig"
+      ? "Sofortmeldung unvollständig"
+      : "Sofortmeldung noch nicht gemeldet";
+  return (
+    <Tooltip open={open} onOpenChange={setOpen}>
+      <TooltipTrigger asChild>
+        <span
+          role="img"
+          aria-label={label}
+          className={cn("inline-block h-2 w-2 flex-shrink-0 rounded-full", dotCls)}
+        />
+      </TooltipTrigger>
+      <TooltipContent>
+        {status === "bereit" ? (
+          <p className="text-xs">Sofortmeldung noch nicht gemeldet</p>
+        ) : detailQ.isLoading ? (
+          <p className="text-xs">Lade…</p>
+        ) : detailQ.data && detailQ.data.missingFields.length > 0 ? (
+          <div className="text-xs">
+            <p className="mb-1 font-medium">Fehlende Pflichtfelder:</p>
+            <ul className="list-disc pl-4">
+              {detailQ.data.missingFields.map((f) => (
+                <li key={f.key}>{f.label}</li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <p className="text-xs">Pflichtfelder fehlen</p>
+        )}
+      </TooltipContent>
+    </Tooltip>
+  );
 }
 
 function StaffListPage() {
@@ -147,7 +173,7 @@ function StaffListPage() {
     [sofortQ.data],
   );
 
-  const [showInactive, setShowInactive] = useState(false);
+  const [activeGroup, setActiveGroup] = useState<"active" | "inactive">("active");
   const [search, setSearch] = useState("");
   const [deptTab, setDeptTab] = useState<DeptFilter>("all");
 
@@ -157,19 +183,23 @@ function StaffListPage() {
 
   const activeCount = useMemo(() => data.filter((s) => s.isActive).length, [data]);
   const inactiveCount = useMemo(() => data.filter((s) => !s.isActive).length, [data]);
+  const groupData = useMemo(
+    () => data.filter((s) => (activeGroup === "active" ? s.isActive : !s.isActive)),
+    [data, activeGroup],
+  );
+  const groupTotal = groupData.length;
   const serviceCount = useMemo(
-    () => data.filter((s) => s.isActive && s.departments.includes("service")).length,
-    [data],
+    () => groupData.filter((s) => s.departments.includes("service")).length,
+    [groupData],
   );
   const kitchenCount = useMemo(
-    () => data.filter((s) => s.isActive && s.departments.includes("kitchen")).length,
-    [data],
+    () => groupData.filter((s) => s.departments.includes("kitchen")).length,
+    [groupData],
   );
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return data
-      .filter((s) => showInactive || s.isActive)
+    return groupData
       .filter((s) => {
         if (deptTab === "all") return true;
         return s.departments.includes(deptTab);
@@ -182,12 +212,12 @@ function StaffListPage() {
       })
       .slice()
       .sort((a, b) => a.displayName.localeCompare(b.displayName));
-  }, [data, showInactive, deptTab, search]);
+  }, [groupData, deptTab, search]);
 
   // --- Server-Function calls (Logik unverändert) ---
   const callSetDept = useServerFn(setStaffLocationDepartment);
   const callAssignSkills = useServerFn(assignStaffSkills);
-  const callSetActive = useServerFn(setStaffActive);
+  // setStaffActive-Aufruf bleibt im Stammblatt; hier nur Listen-UI.
 
   const deptMutation = useMutation({
     mutationFn: (v: {
@@ -266,16 +296,6 @@ function StaffListPage() {
     },
   });
 
-  const activeMutation = useMutation({
-    mutationFn: (v: { staffId: string; isActive: boolean }) =>
-      callSetActive({ data: { staffId: v.staffId, isActive: v.isActive } }),
-    onSuccess: async (_r, v) => {
-      toast.success(v.isActive ? "Mitarbeiter aktiviert." : "Mitarbeiter deaktiviert.");
-      await queryClient.invalidateQueries({ queryKey: ["admin", "staff"] });
-    },
-    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Fehler."),
-  });
-
   function toggleDept(
     staffId: string,
     locationId: string,
@@ -334,25 +354,22 @@ function StaffListPage() {
             />
           </div>
           <div className="flex items-center gap-3">
+            <Tabs
+              value={activeGroup}
+              onValueChange={(v) => setActiveGroup(v as "active" | "inactive")}
+            >
+              <TabsList>
+                <TabsTrigger value="active">Aktive ({activeCount})</TabsTrigger>
+                <TabsTrigger value="inactive">Inaktive ({inactiveCount})</TabsTrigger>
+              </TabsList>
+            </Tabs>
             <Tabs value={deptTab} onValueChange={(v) => setDeptTab(v as DeptFilter)}>
               <TabsList>
-                <TabsTrigger value="all">Alle ({activeCount})</TabsTrigger>
+                <TabsTrigger value="all">Alle ({groupTotal})</TabsTrigger>
                 <TabsTrigger value="service">Service ({serviceCount})</TabsTrigger>
                 <TabsTrigger value="kitchen">Küche ({kitchenCount})</TabsTrigger>
               </TabsList>
             </Tabs>
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-input"
-                checked={showInactive}
-                onChange={(e) => setShowInactive(e.target.checked)}
-              />
-              Inaktive
-              {inactiveCount > 0 && (
-                <span className="text-xs text-muted-foreground">({inactiveCount})</span>
-              )}
-            </label>
           </div>
         </div>
 
@@ -386,11 +403,6 @@ function StaffListPage() {
                       </TableHead>
                     ))}
                     <TableHead className="min-w-[260px]">Skills</TableHead>
-                    <TableHead className="min-w-[70px] text-center">PIN</TableHead>
-                    {isAdmin && (
-                      <TableHead className="min-w-[130px] text-center">Sofortmeldung</TableHead>
-                    )}
-                    <TableHead className="min-w-[80px] text-right">Aktionen</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -404,18 +416,14 @@ function StaffListPage() {
                       sofortStatus={sofortBy.get(s.id) ?? null}
                       deptPending={deptMutation.isPending}
                       skillPending={skillMutation.isPending}
-                      activePending={activeMutation.isPending}
                       onToggleDept={toggleDept}
                       onToggleSkill={toggleSkill}
-                      onToggleActive={(staffId, isActive) =>
-                        activeMutation.mutate({ staffId, isActive })
-                      }
                     />
                   ))}
                   {filtered.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={(isAdmin ? 5 : 4) + locations.length}
+                        colSpan={3 + locations.length}
                         className="py-8 text-center text-muted-foreground"
                       >
                         {data.length > 0 ? "Keine Treffer." : "Noch keine Mitarbeiter."}
@@ -440,10 +448,8 @@ function StaffMatrixRow({
   sofortStatus,
   deptPending,
   skillPending,
-  activePending,
   onToggleDept,
   onToggleSkill,
-  onToggleActive,
 }: {
   staff: StaffRow;
   locations: LocationRow[];
@@ -452,7 +458,6 @@ function StaffMatrixRow({
   sofortStatus: SofortmeldungStatus | null;
   deptPending: boolean;
   skillPending: boolean;
-  activePending: boolean;
   onToggleDept: (
     staffId: string,
     locationId: string,
@@ -460,7 +465,6 @@ function StaffMatrixRow({
     active: boolean,
   ) => void;
   onToggleSkill: (staffId: string, skillId: string, has: boolean, currentIds: string[]) => void;
-  onToggleActive: (staffId: string, isActive: boolean) => void;
 }) {
   const heldSkills = useMemo(
     () =>
@@ -486,18 +490,21 @@ function StaffMatrixRow({
     <TableRow className={cn("group", !staff.isActive && "opacity-50")}>
       {/* Name (sticky) */}
       <TableCell className="sticky left-0 z-10 bg-background group-hover:bg-muted/50">
-        <Link
-          to="/admin/staff/$staffId"
-          params={{ staffId: staff.id }}
-          className="font-medium text-foreground hover:underline"
-        >
-          {staff.displayName}
-          {formatTenure(staff.employmentStartDate) && (
-            <span className="ml-1 font-normal text-muted-foreground">
-              ({formatTenure(staff.employmentStartDate)})
-            </span>
-          )}
-        </Link>
+        <div className="flex items-center gap-1.5">
+          {isAdmin && sofortStatus && <SofortmeldungDot staffId={staff.id} status={sofortStatus} />}
+          <Link
+            to="/admin/staff/$staffId"
+            params={{ staffId: staff.id }}
+            className="font-medium text-foreground hover:underline"
+          >
+            {staff.displayName}
+            {formatTenure(staff.employmentStartDate) && (
+              <span className="ml-1 font-normal text-muted-foreground">
+                ({formatTenure(staff.employmentStartDate)})
+              </span>
+            )}
+          </Link>
+        </div>
         <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
           <span className="truncate">
             {[staff.firstName, staff.lastName].filter(Boolean).join(" ") || "—"}
@@ -635,48 +642,6 @@ function StaffMatrixRow({
             {staff.skillIds.length > 0 ? `${staff.skillIds.length} Skills` : "—"}
           </span>
         )}
-      </TableCell>
-
-      {/* PIN */}
-      <TableCell className="text-center text-muted-foreground">
-        {staff.hasPin ? "gesetzt" : "—"}
-      </TableCell>
-
-      {isAdmin && (
-        <TableCell className="text-center">
-          {sofortStatus ? <SofortmeldungBadge status={sofortStatus} /> : "—"}
-        </TableCell>
-      )}
-
-      {/* Aktionen */}
-      <TableCell className="text-right">
-        {isAdmin ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                disabled={activePending}
-                onClick={() => onToggleActive(staff.id, !staff.isActive)}
-                className={cn(
-                  "inline-flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50",
-                  "opacity-0 group-hover:opacity-100",
-                )}
-                aria-label={staff.isActive ? "Deaktivieren" : "Reaktivieren"}
-              >
-                {staff.isActive ? (
-                  <UserMinus className="h-4 w-4" />
-                ) : (
-                  <UserCheck className="h-4 w-4" />
-                )}
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p className="text-xs">
-                {staff.isActive ? "Mitarbeiter deaktivieren" : "Mitarbeiter reaktivieren"}
-              </p>
-            </TooltipContent>
-          </Tooltip>
-        ) : null}
       </TableCell>
     </TableRow>
   );
