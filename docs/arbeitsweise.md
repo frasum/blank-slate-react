@@ -2104,3 +2104,49 @@ Audit-Einträge (pool_time.writeback_failed / sync_failed).
 - Offene Pool-Zeiten (kein shift_end, z. B. keine Abgabe erfolgt) erzeugen
   bewusst KEINEN Eintrag — Nachpflege in der Kassen-Pool-Zeile löst den
   Sync sofort aus.
+
+## 52. Provision P1 — Server-Layer (04.07.2026)
+
+Portierung der Legacy-Commission (`useCommissionData` aus tagesabrechnung)
+mit drei Neuerungen: (1) an-/abschaltbar pro Standort
+(`locations.commission_enabled`, Default AUS — `enabled=false` beendet die
+Server-Fn VOR jeder Rechnung, also auch vor jedem Datenzugriff), (2)
+Einstellungen pro Standort (Mindestumsatz je Kellner/Tag in CENTS, Satz in
+%), (3) Rechnung in BIGINT cents mit centgenauer
+Largest-Remainder-Verteilung (Legacy verlor Rundungscents an Floats).
+
+Formel unverändert zur Legacy: pro Tag Kellner-Set aus Abrechnungen +
+Partnern (GL immer ausgeschlossen, sowohl als Haupt- als auch als
+Partner-Kellner), Schwelle `revenue / waiterCount ≥ minRevenueCents`,
+Tages-Pool = `round((revenue − min × waiterCount) × pct / 100)`,
+Verteilung nach Service-Minuten des Zeitraums aus `time_entries`
+(Auto-Ausstempeln + Pool-Writeback stellen sicher, dass praktisch immer
+ein `time_entry` existiert — der frühere Legacy-Fallback auf
+Abrechnungs-Zeiteinträge ist damit nicht mehr nötig).
+
+Pures Modul `src/lib/lohn/provision-calc.ts` ist zeitraum-agnostisch
+(Periode UND Woche möglich), getestet inkl. Legacy-Kanonik (1 Tag, 2
+Kellner, 3.400 € / min 1.200 € / 5 % ⇒ Pool 5.000 Cents),
+Schwellen-Grenzfall, Partner-Kopfzahl, GL-Ausschluss (Haupt und Partner),
+Largest-Remainder-Summen-Invariante (Pool 10.001 auf 3 Kellner ⇒ Σ =
+10.001, deterministische Tie-Break-Reihenfolge nach `staffId`).
+
+Server-Fns:
+
+- `getProvisionOverview({ locationId, periodStart, periodEnd })` — reine
+  Leseoperation, gated auf `manager | admin | payroll`. Kurzschluss bei
+  deaktiviertem Standort. Rückgabe: `{ enabled, settings, poolCents,
+  dayBreakdown[], rows[] }` — der `dayBreakdown` ist die Grundlage für
+  Franks „detailliert beschrieben"-Anforderung im P2-UI (Drilldown pro
+  Tag: Umsatz, Kellnerzahl, Schwelle, Tages-Pool).
+- `updateCommissionSettings({ locationId, enabled, minRevenueCents, pct })`
+  — admin-only, `runGuarded` + Audit-Eintrag
+  `provision.settings_changed` mit `before/after` der drei Werte (keine
+  sensiblen Daten).
+
+M4 bleibt bewusst getrennt: Provision fließt NICHT automatisch in den
+Lohnrechner ein — die Übergabe ans Lohnbüro ist P2- bzw. Folge-Thema.
+
+Offen: **P2 UI** — Provision-Tab in der Zeitübersicht (Liste + Pool +
+Erklärungs-Panel mit Tages-Drilldown), Einstellungs-Dialog pro Standort
+(Schalter, Mindestumsatz, Satz).
