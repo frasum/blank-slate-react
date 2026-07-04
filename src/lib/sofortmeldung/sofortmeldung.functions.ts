@@ -226,11 +226,7 @@ export const markSofortmeldungReported = createServerFn({ method: "POST" })
         throw new Error("Sofortmeldung ist unvollständig — bitte zuerst Daten ergänzen.");
       }
 
-      // Altsystem-Parität: Meldedatum = Eintrittsdatum (nicht "jetzt").
-      // employment_start_date ist nach missing-Check garantiert vorhanden.
-      const startDate = details?.employment_start_date;
-      if (!startDate) throw new Error("Eintrittsdatum fehlt.");
-      const reportedAt = new Date(`${startDate}T00:00:00Z`).toISOString();
+      const reportedAt = new Date().toISOString();
       const { error: uErr } = await supabaseAdmin.from("sofortmeldung").upsert(
         {
           organization_id: caller.organizationId,
