@@ -12,7 +12,10 @@ import { Card } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { LocationPills } from "@/components/shared/LocationPills";
 import { listLocations } from "@/lib/admin/locations.functions";
-import { getVacationPlanner } from "@/lib/roster/vacation-planner.functions";
+import {
+  getVacationPlanner,
+  type VacationPlannerResult,
+} from "@/lib/roster/vacation-planner.functions";
 import {
   dayOfYearPct,
   monthOffsets,
@@ -144,6 +147,8 @@ export function VacationPlannerSection() {
   );
 }
 
+type PlannerData = VacationPlannerResult;
+
 function PlannerBoard({
   data,
   months,
@@ -151,7 +156,7 @@ function PlannerBoard({
   todayPct,
   year,
 }: {
-  data: NonNullable<ReturnType<typeof usePlannerData>>;
+  data: PlannerData;
   months: { month: number; leftPct: number }[];
   totalDays: number;
   todayPct: number | null;
@@ -177,12 +182,6 @@ function PlannerBoard({
       />
     </Card>
   );
-}
-
-// Typ-Helfer für PlannerBoard-Prop
-type PlannerData = Awaited<ReturnType<typeof getVacationPlanner>>;
-function usePlannerData(): PlannerData | undefined {
-  return undefined;
 }
 
 function MonthHeader({ months }: { months: { month: number; leftPct: number }[] }) {
