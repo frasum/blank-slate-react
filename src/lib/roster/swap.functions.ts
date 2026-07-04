@@ -303,7 +303,7 @@ export const listMySwapRequests = createServerFn({ method: "GET" })
     const { data: reqs, error } = await supabaseAdmin
       .from("shift_swap_requests")
       .select(
-        "id, shift_id, status, note, created_at, peer_staff_id, roster_shifts:shift_id(id, staff_id, shift_date, area, location_id, locations(name)), peer:peer_staff_id(display_name)",
+        "id, shift_id, status, note, created_at, peer_staff_id, roster_shifts:roster_shifts!shift_swap_requests_shift_id_fkey(id, staff_id, shift_date, area, location_id, locations(name)), peer:staff!shift_swap_requests_peer_staff_id_fkey(display_name)",
       )
       .eq("organization_id", caller.organizationId)
       .eq("requester_staff_id", caller.staffId)
@@ -393,7 +393,7 @@ export const listOpenSwapsForMe = createServerFn({ method: "GET" })
     const { data: reqs, error } = await supabaseAdmin
       .from("shift_swap_requests")
       .select(
-        "id, shift_id, note, created_at, requester_staff_id, roster_shifts:shift_id(id, staff_id, shift_date, area, location_id, locations(name), skills(name)), requester:requester_staff_id(display_name)",
+        "id, shift_id, note, created_at, requester_staff_id, roster_shifts:roster_shifts!shift_swap_requests_shift_id_fkey(id, staff_id, shift_date, area, location_id, locations(name), skills(name)), requester:staff!shift_swap_requests_requester_staff_id_fkey(display_name)",
       )
       .eq("organization_id", caller.organizationId)
       .eq("status", "open")
