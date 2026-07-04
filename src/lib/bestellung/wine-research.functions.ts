@@ -36,9 +36,9 @@ type GeminiChatResponse = {
   error?: { message?: string };
 };
 
-async function firecrawlSearch(query: string): Promise<
-  Array<{ url: string; title: string; markdown: string }>
-> {
+async function firecrawlSearch(
+  query: string,
+): Promise<Array<{ url: string; title: string; markdown: string }>> {
   const key = process.env.FIRECRAWL_API_KEY;
   if (!key) throw new Error("Firecrawl-Connector ist nicht verbunden.");
   const response = await fetch("https://api.firecrawl.dev/v2/search", {
@@ -174,10 +174,75 @@ export const researchWine = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<WineResearchSuggestion> => {
     // Manager+ — dieselbe Schwelle wie Artikelpflege.
     await loadAdminCaller(context.supabase, context.userId, "manager");
-    const query = `${data.name} Wein Rebsorte Herkunft ${data.hints}`.trim();
-    const sources = await firecrawlSearch(query);
-    if (sources.length === 0) {
-      throw new Error("Keine belastbaren Web-Treffer gefunden. Namen präzisieren?");
+    return runResearchPipeline(data.name, data.hints);
+  });
+
+async function runResearchPipeline(name: string, hints: string): Promise<WineResearchSuggestion> {
+  const query = `${name} Wein Rebsorte Herkunft ${hints}`.trim();
+  const sources = await firecrawlSearch(query);
+  if (sources.length === 0) {
+    throw new Error("Keine belastbaren Web-Treffer gefunden. Namen präzisieren?");
+  }
+  return extractWithGemini(name, hints, sources);
+}
+
+// Welle 3-B — Batch-Recherche. Lädt Artikel selbst, gibt aktuelle Werte +
+// Vorschlag zurück (Diff-Ansicht im UI). Fehler wird als Feld zurückgegeben,
+// damit die Batch-Schleife weiterläuft — nie throw hier, außer bei
+// Auth/Owner-Fehlern.
+export type WineCurrentValues = {
+  grapeVariety: string;
+  originCountry: string;
+  foodPairings: string;
+  description: string;
+  specialAttributes: string[];
+};
+
+export type WineResearchBatchItem = {
+  articleId: string;
+  name: string;
+  current: WineCurrentValues;
+  suggestion: WineResearchSuggestion | null;
+  error: string | null;
+};
+
+export const researchWineById = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ articleId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }): Promise<WineResearchBatchItem> => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row, error } = await supabaseAdmin
+      .from("articles")
+      .select(
+        "id, name, description, grape_variety, origin_country, food_pairings, special_attributes",
+      )
+      .eq("id", data.articleId)
+      .eq("organization_id", caller.organizationId)
+      .eq("category", "Wein")
+      .maybeSingle();
+    if (error) throw error;
+    if (!row) throw new Error("Wein nicht gefunden.");
+    const current: WineCurrentValues = {
+      grapeVariety: row.grape_variety ?? "",
+      originCountry: row.origin_country ?? "",
+      foodPairings: row.food_pairings ?? "",
+      description: row.description ?? "",
+      specialAttributes: Array.isArray(row.special_attributes)
+        ? (row.special_attributes as string[])
+        : [],
+    };
+    const hints = [current.originCountry, current.grapeVariety].filter((s) => s.trim()).join(" ");
+    try {
+      const suggestion = await runResearchPipeline(row.name, hints);
+      return { articleId: row.id, name: row.name, current, suggestion, error: null };
+    } catch (e) {
+      return {
+        articleId: row.id,
+        name: row.name,
+        current,
+        suggestion: null,
+        error: e instanceof Error ? e.message : "Recherche fehlgeschlagen.",
+      };
     }
-    return extractWithGemini(data.name, data.hints, sources);
   });

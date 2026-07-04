@@ -2,7 +2,7 @@
 // Nutzt dieselben Server-Mutations wie der Artikel-Tab, nur mit gesetzter
 // Kategorie und den Wein-Zusatzfeldern.
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -13,7 +13,11 @@ import {
   updateArticle,
 } from "@/lib/bestellung/articles.functions";
 import { listSuppliers } from "@/lib/bestellung/suppliers.functions";
-import { researchWine } from "@/lib/bestellung/wine-research.functions";
+import {
+  researchWine,
+  researchWineById,
+  type WineResearchBatchItem,
+} from "@/lib/bestellung/wine-research.functions";
 import { parseEuroToCents } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/admin/bestellung/wein")({
@@ -22,6 +26,66 @@ export const Route = createFileRoute("/_authenticated/admin/bestellung/wein")({
 });
 
 const SPECIAL_ATTRS = ["Bio", "Vegan", "Biodynamisch", "Demeter", "Alte Reben"] as const;
+
+const BATCH_FIELDS = [
+  "grapeVariety",
+  "originCountry",
+  "foodPairings",
+  "description",
+  "specialAttributes",
+] as const;
+type BatchField = (typeof BATCH_FIELDS)[number];
+
+const FIELD_LABEL: Record<BatchField, string> = {
+  grapeVariety: "Rebsorte",
+  originCountry: "Herkunft",
+  foodPairings: "Speisen",
+  description: "Beschreibung",
+  specialAttributes: "Merkmale",
+};
+
+function sameStr(a: string, b: string): boolean {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+function sameAttrs(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const sa = [...a].sort();
+  const sb = [...b].sort();
+  return sa.every((v, i) => v === sb[i]);
+}
+
+function defaultSelection(item: WineResearchBatchItem): Record<BatchField, boolean> {
+  const s = item.suggestion;
+  const c = item.current;
+  const pickText = (cur: string, sug: string) => {
+    if (!sug.trim()) return false; // nichts vorzuschlagen
+    if (!cur.trim()) return true; // leer → default an
+    if (sameStr(cur, sug)) return false; // identisch → nichts zu tun
+    return false; // Konflikt → aus, Frank muss aktiv wählen
+  };
+  const pickAttrs = (cur: string[], sug: string[]) => {
+    if (sug.length === 0) return false;
+    if (cur.length === 0) return true;
+    if (sameAttrs(cur, sug)) return false;
+    return false;
+  };
+  if (!s) {
+    return {
+      grapeVariety: false,
+      originCountry: false,
+      foodPairings: false,
+      description: false,
+      specialAttributes: false,
+    };
+  }
+  return {
+    grapeVariety: pickText(c.grapeVariety, s.grapeVariety),
+    originCountry: pickText(c.originCountry, s.originCountry),
+    foodPairings: pickText(c.foodPairings, s.foodPairings),
+    description: pickText(c.description, s.description),
+    specialAttributes: pickAttrs(c.specialAttributes, s.specialAttributes),
+  };
+}
 
 type WineDraft = {
   id?: string;
@@ -65,12 +129,30 @@ function WeinPage() {
   const callCreate = useServerFn(createArticle);
   const callUpdate = useServerFn(updateArticle);
   const callToggle = useServerFn(setArticleActive);
+  const callBatchResearch = useServerFn(researchWineById);
 
   const [search, setSearch] = useState("");
   const [showInactive, setShowInactive] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+
+  // Welle 3-B — Batch-Recherche State (siehe .lovable/plan.md).
+  type BatchEntry = {
+    item: WineResearchBatchItem;
+    selected: Record<BatchField, boolean>;
+  };
+  const [batchOpen, setBatchOpen] = useState(false);
+  const [batchRunning, setBatchRunning] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<{
+    done: number;
+    total: number;
+    current: string;
+  } | null>(null);
+  const [batchResults, setBatchResults] = useState<Map<string, BatchEntry>>(new Map());
+  const [batchApplying, setBatchApplying] = useState(false);
+  const [batchApplyMsg, setBatchApplyMsg] = useState<string | null>(null);
+  const cancelRef = useRef(false);
 
   const suppliersQ = useQuery({
     queryKey: ["bestellung", "suppliers", { includeInactive: true }],
@@ -164,6 +246,112 @@ function WeinPage() {
     });
   }, [winesQ.data, search]);
 
+  const startBatch = async () => {
+    const wines = winesQ.data ?? [];
+    if (wines.length === 0) return;
+    cancelRef.current = false;
+    setBatchRunning(true);
+    setBatchApplyMsg(null);
+    setBatchResults(new Map());
+    setBatchProgress({ done: 0, total: wines.length, current: wines[0]?.name ?? "" });
+    for (let i = 0; i < wines.length; i++) {
+      if (cancelRef.current) break;
+      const w = wines[i];
+      setBatchProgress({ done: i, total: wines.length, current: w.name });
+      try {
+        const item = await callBatchResearch({ data: { articleId: w.id } });
+        setBatchResults((prev) => {
+          const next = new Map(prev);
+          next.set(item.articleId, { item, selected: defaultSelection(item) });
+          return next;
+        });
+      } catch (e) {
+        // Auth/Owner-Fehler: schleife nicht weiterlaufen lassen.
+        setBatchApplyMsg(e instanceof Error ? e.message : "Recherche abgebrochen.");
+        break;
+      }
+      // sanftes Ratelimit
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    setBatchProgress((p) => (p ? { ...p, done: p.total, current: "" } : null));
+    setBatchRunning(false);
+  };
+
+  const applyBatch = async () => {
+    setBatchApplying(true);
+    setBatchApplyMsg(null);
+    const entries = Array.from(batchResults.values());
+    const winesById = new Map((winesQ.data ?? []).map((w) => [w.id, w] as const));
+    let updated = 0;
+    let failed = 0;
+    for (const entry of entries) {
+      const s = entry.item.suggestion;
+      if (!s) continue;
+      const w = winesById.get(entry.item.articleId);
+      if (!w) continue;
+      const anySelected = BATCH_FIELDS.some((f) => entry.selected[f]);
+      if (!anySelected) continue;
+      try {
+        await callUpdate({
+          data: {
+            articleId: w.id,
+            supplierId: w.supplier_id,
+            name: w.name,
+            sku: w.sku ?? "",
+            description: entry.selected.description ? s.description : (w.description ?? ""),
+            category: "Wein",
+            unit: w.unit ?? "Fl",
+            priceCents: w.price_cents,
+            packagingUnit: w.packaging_unit ?? null,
+            imageUrl: w.image_url ?? "",
+            sortOrder: w.sort_order ?? 0,
+            grapeVariety: entry.selected.grapeVariety ? s.grapeVariety : (w.grape_variety ?? ""),
+            originCountry: entry.selected.originCountry
+              ? s.originCountry
+              : (w.origin_country ?? ""),
+            foodPairings: entry.selected.foodPairings ? s.foodPairings : (w.food_pairings ?? ""),
+            specialAttributes: entry.selected.specialAttributes
+              ? s.specialAttributes.length > 0
+                ? s.specialAttributes
+                : null
+              : Array.isArray(w.special_attributes) && w.special_attributes.length > 0
+                ? w.special_attributes
+                : null,
+            locationIds: (w.locationIds ?? []).length > 0 ? w.locationIds : [],
+          },
+        });
+        updated++;
+      } catch {
+        failed++;
+      }
+    }
+    setBatchApplying(false);
+    setBatchApplyMsg(
+      `Übernahme fertig: ${updated} aktualisiert${failed > 0 ? `, ${failed} fehlgeschlagen` : ""}.`,
+    );
+    refresh();
+  };
+
+  const toggleBatchField = (articleId: string, field: BatchField) => {
+    setBatchResults((prev) => {
+      const next = new Map(prev);
+      const entry = next.get(articleId);
+      if (!entry) return prev;
+      next.set(articleId, {
+        ...entry,
+        selected: { ...entry.selected, [field]: !entry.selected[field] },
+      });
+      return next;
+    });
+  };
+
+  const totalWines = (winesQ.data ?? []).length;
+  const batchEntries = Array.from(batchResults.values());
+  const selectedCount = batchEntries.reduce(
+    (n, e) => n + (BATCH_FIELDS.some((f) => e.selected[f]) ? 1 : 0),
+    0,
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-2">
@@ -193,6 +381,77 @@ function WeinPage() {
       </div>
 
       {msg && <p className="text-sm text-destructive">{msg}</p>}
+
+      <div className="rounded-md border border-border bg-card">
+        <button
+          type="button"
+          onClick={() => setBatchOpen((v) => !v)}
+          className="flex w-full items-center justify-between px-4 py-2 text-left text-sm font-medium"
+        >
+          <span>KI-Recherche für alle Weine</span>
+          <span className="text-xs text-muted-foreground">{batchOpen ? "▲" : "▼"}</span>
+        </button>
+        {batchOpen && (
+          <div className="space-y-3 border-t border-border p-4">
+            <p className="text-xs text-muted-foreground">
+              Läuft nacheinander alle Weine durch (~1 s Pause pro Aufruf). Vorschläge werden nicht
+              automatisch gespeichert — Felder mit Konflikt sind standardmäßig nicht angehakt.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={startBatch}
+                disabled={batchRunning || totalWines === 0}
+                className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+              >
+                🔎 Alle Weine recherchieren ({totalWines})
+              </button>
+              {batchRunning && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    cancelRef.current = true;
+                  }}
+                  className="rounded-md border border-input bg-background px-3 py-1.5 text-xs hover:bg-accent"
+                >
+                  Abbrechen
+                </button>
+              )}
+              {batchProgress && (
+                <span className="text-xs text-muted-foreground">
+                  {batchProgress.done} / {batchProgress.total}
+                  {batchProgress.current ? ` — aktuell: ${batchProgress.current}` : ""}
+                </span>
+              )}
+            </div>
+            {batchApplyMsg && <p className="text-xs text-muted-foreground">{batchApplyMsg}</p>}
+            {batchEntries.length > 0 && (
+              <div className="space-y-3">
+                {batchEntries.map((entry) => (
+                  <BatchEntryCard
+                    key={entry.item.articleId}
+                    entry={entry}
+                    onToggle={(f) => toggleBatchField(entry.item.articleId, f)}
+                  />
+                ))}
+                <div className="flex items-center justify-end gap-2 border-t border-border pt-3">
+                  <span className="text-xs text-muted-foreground">
+                    {selectedCount} von {batchEntries.length} Weinen mit Auswahl
+                  </span>
+                  <button
+                    type="button"
+                    onClick={applyBatch}
+                    disabled={batchApplying || selectedCount === 0}
+                    className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                  >
+                    {batchApplying ? "Übernehme …" : "Alle ausgewählten Vorschläge übernehmen"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {createOpen && (
         <WineForm
@@ -332,9 +591,7 @@ function WineForm(props: {
         foodPairings: p.foodPairings.trim() || result.foodPairings,
         description: p.description.trim() || result.description,
         specialAttributes:
-          p.specialAttributes.length > 0
-            ? p.specialAttributes
-            : result.specialAttributes,
+          p.specialAttributes.length > 0 ? p.specialAttributes : result.specialAttributes,
       }));
       const filled = [
         result.grapeVariety && "Rebsorte",
@@ -527,3 +784,80 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 const inputCls =
   "mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring";
 const selectCls = inputCls;
+
+function BatchEntryCard(props: {
+  entry: { item: WineResearchBatchItem; selected: Record<BatchField, boolean> };
+  onToggle: (field: BatchField) => void;
+}) {
+  const { item, selected } = props.entry;
+  const s = item.suggestion;
+  const c = item.current;
+  return (
+    <div className="rounded-md border border-border bg-background p-3">
+      <div className="flex items-start justify-between gap-2">
+        <h4 className="text-sm font-semibold text-foreground">{item.name}</h4>
+        {item.error && <span className="text-xs text-destructive">{item.error}</span>}
+      </div>
+      {s && (
+        <div className="mt-2 space-y-1.5 text-xs">
+          {BATCH_FIELDS.map((f) => {
+            const cur =
+              f === "specialAttributes" ? c.specialAttributes.join(", ") : (c[f] as string);
+            const sug =
+              f === "specialAttributes" ? s.specialAttributes.join(", ") : (s[f] as string);
+            if (!sug.trim() && !cur.trim()) return null;
+            const identical = sug.trim() !== "" && sameStr(cur, sug);
+            return (
+              <label key={f} className="flex gap-2">
+                <input
+                  type="checkbox"
+                  checked={selected[f]}
+                  onChange={() => props.onToggle(f)}
+                  disabled={!sug.trim() || identical}
+                  className="mt-0.5"
+                />
+                <div className="flex-1">
+                  <div className="font-medium text-muted-foreground">{FIELD_LABEL[f]}</div>
+                  <div className="grid grid-cols-1 gap-1 md:grid-cols-2">
+                    <div className="rounded bg-muted/40 px-2 py-1">
+                      <span className="text-[10px] uppercase text-muted-foreground">Aktuell</span>
+                      <div className="text-foreground">{cur || "—"}</div>
+                    </div>
+                    <div
+                      className={
+                        identical
+                          ? "rounded bg-muted/40 px-2 py-1"
+                          : "rounded bg-primary/10 px-2 py-1"
+                      }
+                    >
+                      <span className="text-[10px] uppercase text-muted-foreground">Vorschlag</span>
+                      <div className="text-foreground">{sug || "—"}</div>
+                    </div>
+                  </div>
+                </div>
+              </label>
+            );
+          })}
+          {s.sources.length > 0 && (
+            <div className="pt-1 text-[10px] text-muted-foreground">
+              Quellen:{" "}
+              {s.sources.map((u, i) => (
+                <span key={u}>
+                  {i > 0 && ", "}
+                  <a
+                    href={u}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline hover:text-foreground"
+                  >
+                    [{i + 1}]
+                  </a>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
