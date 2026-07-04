@@ -1733,7 +1733,7 @@ function WeeklyPlan({
   // + Mitarbeiter (rechts) + 4 Zeit-Summen + S + U + K
   const totalCols = 1 + 7 * 2 + 1 + 4 + 3;
 
-  const groups = input?.rowsByDept ?? [];
+  const groups = useMemo(() => input?.rowsByDept ?? [], [input?.rowsByDept]);
   const anyRows = groups.some((g) => g.rows.length > 0);
 
   // Hilfsfunktion: aus staffId + ISO → die echten WeeklyEntry-Objekte
@@ -1757,6 +1757,9 @@ function WeeklyPlan({
     origTo: string;
   };
   const [edit, setEdit] = useState<EditState | null>(null);
+  const editStaffId = edit?.staffId;
+  const editIso = edit?.iso;
+  const editField = edit?.field;
   const inputRef = useRef<HTMLInputElement | null>(null);
   const navigatingRef = useRef(false);
   const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -1764,12 +1767,12 @@ function WeeklyPlan({
   // Fokus + Selektion nur, wenn eine NEUE Zielzelle aktiv wird
   // (nicht bei jedem Tastenanschlag → kein Cursor-Flackern).
   useEffect(() => {
-    if (!edit) return;
+    if (!editStaffId) return;
     const el = inputRef.current;
     if (!el) return;
     el.focus();
     el.select();
-  }, [edit?.staffId, edit?.iso, edit?.field]);
+  }, [editStaffId, editIso, editField]);
 
   // Akzeptiert freie Ziffern-Eingaben und normalisiert zu HH:MM.
   // Beispiele: "1530" → "15:30", "930" → "09:30", "9" → "09:00",
