@@ -1782,6 +1782,37 @@ function WeeklyPlan({
   const [edit, setEdit] = useState<EditState | null>(null);
   const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 
+  // Akzeptiert freie Ziffern-Eingaben und normalisiert zu HH:MM.
+  // Beispiele: "1530" → "15:30", "930" → "09:30", "9" → "09:00",
+  // "15:3" → "15:03", "15.30" → "15:30". Ungültig → null.
+  const parseHHMM = (raw: string): string | null => {
+    const s = raw.trim().replace(/[.\-\s]/g, ":");
+    let h: string;
+    let m: string;
+    if (s.includes(":")) {
+      const [hp, mp = ""] = s.split(":");
+      if (!/^\d{1,2}$/.test(hp) || !/^\d{1,2}$/.test(mp)) return null;
+      h = hp.padStart(2, "0");
+      m = mp.padStart(2, "0");
+    } else {
+      if (!/^\d+$/.test(s)) return null;
+      if (s.length <= 2) {
+        h = s.padStart(2, "0");
+        m = "00";
+      } else if (s.length === 3) {
+        h = s.slice(0, 1).padStart(2, "0");
+        m = s.slice(1);
+      } else if (s.length === 4) {
+        h = s.slice(0, 2);
+        m = s.slice(2);
+      } else {
+        return null;
+      }
+    }
+    const out = `${h}:${m}`;
+    return HHMM.test(out) ? out : null;
+  };
+
   const startEdit = (staffId: string, iso: string, field: "from" | "to") => {
     if (!isAdmin) return;
     const found = findEntries(staffId, iso);
@@ -1816,15 +1847,17 @@ function WeeklyPlan({
   const cellKey = (staffId: string, iso: string) => `${staffId}|${iso}`;
 
   const commit = (e: EditState) => {
-    if (!HHMM.test(e.from) || !HHMM.test(e.to)) {
+    const from = parseHHMM(e.from);
+    const to = parseHHMM(e.to);
+    if (!from || !to) {
       toast.error("Ungültige Uhrzeit.");
       return;
     }
     if (e.existingId) {
-      if (e.from === e.origFrom && e.to === e.origTo) return;
-      onUpdateInline(e.existingId, e.iso, e.from, e.to);
+      if (from === e.origFrom && to === e.origTo) return;
+      onUpdateInline(e.existingId, e.iso, from, to);
     } else {
-      onCreateInline(e.staffId, e.iso, e.from, e.to);
+      onCreateInline(e.staffId, e.iso, from, to);
     }
   };
 
@@ -2006,7 +2039,9 @@ function WeeklyPlan({
                           const val = which === "from" ? edit.from : edit.to;
                           return (
                             <input
-                              type="time"
+                              type="text"
+                              inputMode="numeric"
+                              maxLength={5}
                               value={val}
                               autoFocus
                               disabled={pending}
