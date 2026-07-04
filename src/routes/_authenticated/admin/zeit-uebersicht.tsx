@@ -1053,12 +1053,17 @@ function ZeitUebersichtPage() {
                   const deptWeek = new Map<string, number>();
                   let deptTotal = 0;
                   let deptShifts = 0;
+                  let deptUrlaub = 0;
+                  let deptKrank = 0;
                   for (const s of list) {
                     for (const [k, v] of s.perWeek) {
                       deptWeek.set(k, (deptWeek.get(k) ?? 0) + v);
                     }
                     deptTotal += s.totalHours;
                     deptShifts += s.shiftDates.size;
+                    const abs = absencesByStaff.get(s.staffId);
+                    deptUrlaub += abs?.urlaubDays ?? 0;
+                    deptKrank += abs?.krankDays ?? 0;
                   }
                   return (
                     <Fragment key={`grp-${dept}`}>
@@ -1070,7 +1075,11 @@ function ZeitUebersichtPage() {
                           {DEPT_LABEL[dept]}
                         </TableCell>
                       </TableRow>
-                      {list.map((s) => (
+                      {list.map((s) => {
+                        const abs = absencesByStaff.get(s.staffId);
+                        const u = abs?.urlaubDays ?? 0;
+                        const k = abs?.krankDays ?? 0;
+                        return (
                         <TableRow key={s.staffId}>
                           <TableCell>{s.displayName}</TableCell>
                           {weekCols.map((w) => (
@@ -1084,10 +1093,19 @@ function ZeitUebersichtPage() {
                           <TableCell className="text-right tabular-nums">
                             {s.shiftDates.size}
                           </TableCell>
-                          <TableCell className="text-right text-muted-foreground">–</TableCell>
-                          <TableCell className="text-right text-muted-foreground">–</TableCell>
+                          <TableCell
+                            className={`text-right tabular-nums ${u > 0 ? "" : "text-muted-foreground/50"}`}
+                          >
+                            {u > 0 ? u : "–"}
+                          </TableCell>
+                          <TableCell
+                            className={`text-right tabular-nums ${k > 0 ? "" : "text-muted-foreground/50"}`}
+                          >
+                            {k > 0 ? k : "–"}
+                          </TableCell>
                         </TableRow>
-                      ))}
+                        );
+                      })}
                       <TableRow className={`${DEPT_BG[dept]} font-medium`}>
                         <TableCell>Summe {DEPT_LABEL[dept]}</TableCell>
                         {weekCols.map((w) => (
@@ -1099,8 +1117,16 @@ function ZeitUebersichtPage() {
                           {fmtHm(deptTotal)}
                         </TableCell>
                         <TableCell className="text-right tabular-nums">{deptShifts}</TableCell>
-                        <TableCell className="text-right text-muted-foreground">–</TableCell>
-                        <TableCell className="text-right text-muted-foreground">–</TableCell>
+                        <TableCell
+                          className={`text-right tabular-nums ${deptUrlaub > 0 ? "" : "text-muted-foreground/50"}`}
+                        >
+                          {deptUrlaub > 0 ? deptUrlaub : "–"}
+                        </TableCell>
+                        <TableCell
+                          className={`text-right tabular-nums ${deptKrank > 0 ? "" : "text-muted-foreground/50"}`}
+                        >
+                          {deptKrank > 0 ? deptKrank : "–"}
+                        </TableCell>
                       </TableRow>
                     </Fragment>
                   );
@@ -1110,12 +1136,17 @@ function ZeitUebersichtPage() {
                     const totWeek = new Map<string, number>();
                     let tot = 0;
                     let totShifts = 0;
+                    let totUrlaub = 0;
+                    let totKrank = 0;
                     for (const s of staffAggs) {
                       for (const [k, v] of s.perWeek) {
                         totWeek.set(k, (totWeek.get(k) ?? 0) + v);
                       }
                       tot += s.totalHours;
                       totShifts += s.shiftDates.size;
+                      const abs = absencesByStaff.get(s.staffId);
+                      totUrlaub += abs?.urlaubDays ?? 0;
+                      totKrank += abs?.krankDays ?? 0;
                     }
                     return (
                       <TableRow className="bg-muted font-semibold">
@@ -1127,8 +1158,16 @@ function ZeitUebersichtPage() {
                         ))}
                         <TableCell className="text-right tabular-nums">{fmtHm(tot)}</TableCell>
                         <TableCell className="text-right tabular-nums">{totShifts}</TableCell>
-                        <TableCell className="text-right text-muted-foreground">–</TableCell>
-                        <TableCell className="text-right text-muted-foreground">–</TableCell>
+                        <TableCell
+                          className={`text-right tabular-nums ${totUrlaub > 0 ? "" : "text-muted-foreground/50"}`}
+                        >
+                          {totUrlaub > 0 ? totUrlaub : "–"}
+                        </TableCell>
+                        <TableCell
+                          className={`text-right tabular-nums ${totKrank > 0 ? "" : "text-muted-foreground/50"}`}
+                        >
+                          {totKrank > 0 ? totKrank : "–"}
+                        </TableCell>
                       </TableRow>
                     );
                   })()}
