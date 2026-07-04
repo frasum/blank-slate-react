@@ -10,6 +10,7 @@ import { runWithPermission, assertPermission } from "@/lib/admin/admin-call";
 import { makeAuditWriter } from "@/lib/admin/audit";
 import { loadStaffCaller } from "@/lib/time/time.functions";
 import type { MyShiftRow } from "@/lib/roster/my-shifts";
+import { mergeAbsenceRanges, type AbsenceRange } from "@/lib/roster/vacation-planner";
 
 const READ_ROLES = ["manager", "admin", "payroll", "staff", "planer"] as const;
 const WRITE_ROLES = ["manager", "admin", "planer"] as const;
@@ -212,6 +213,50 @@ export const getMyShifts = createServerFn({ method: "GET" })
         notes: (r.notes as string | null) ?? null,
       };
     });
+  });
+
+// UA1 — Self-Service: eigene Abwesenheits-Ranges im Zeitfenster.
+// Read-only, expandierte roster_absence-Zeilen werden pro Typ zu
+// aufeinanderfolgenden Balken zusammengefasst.
+export type MyAbsenceRange = AbsenceRange & { type: "urlaub" | "krank" };
+
+export const getMyAbsences = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }): Promise<MyAbsenceRange[]> => {
+    const caller = await loadStaffCaller(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin
+      .from("roster_absence")
+      .select("date, type")
+      .eq("organization_id", caller.organizationId)
+      .eq("staff_id", caller.staffId)
+      .in("type", ["urlaub", "krank"])
+      .gte("date", data.from)
+      .lte("date", data.to);
+    if (error) throw error;
+    const byType = new Map<"urlaub" | "krank", string[]>();
+    for (const r of rows ?? []) {
+      const t = r.type as "urlaub" | "krank";
+      const arr = byType.get(t) ?? [];
+      arr.push(r.date as string);
+      byType.set(t, arr);
+    }
+    const result: MyAbsenceRange[] = [];
+    for (const [type, dates] of byType) {
+      for (const range of mergeAbsenceRanges(dates)) {
+        result.push({ ...range, type });
+      }
+    }
+    result.sort((a, b) => a.start.localeCompare(b.start));
+    return result;
   });
 
 export const listSkills = createServerFn({ method: "GET" })

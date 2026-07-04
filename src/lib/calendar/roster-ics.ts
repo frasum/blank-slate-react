@@ -13,6 +13,9 @@ export type RosterIcsEvent =
       location: string;
       allDay: true;
       date: string; // YYYY-MM-DD
+      // Optional: exklusives Ende für mehrtägige Ganztags-Events.
+      // Erwartet YYYY-MM-DD des Tages NACH dem letzten Tag (RFC 5545).
+      endDateExclusive?: string;
     }
   | {
       uid: string;
@@ -69,6 +72,9 @@ export function buildRosterIcs(input: BuildRosterIcsInput): string {
     lines.push(`DTSTAMP:${dtstamp}`);
     if (ev.allDay) {
       lines.push(`DTSTART;VALUE=DATE:${dateBasic(ev.date)}`);
+      if (ev.endDateExclusive) {
+        lines.push(`DTEND;VALUE=DATE:${dateBasic(ev.endDateExclusive)}`);
+      }
     } else {
       lines.push(`DTSTART:${utcBasicFromIso(ev.startIso)}`);
       lines.push(`DTEND:${utcBasicFromIso(ev.endIso)}`);

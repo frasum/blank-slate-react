@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { getMyShifts } from "@/lib/roster/roster.functions";
+import { getMyShifts, getMyAbsences, type MyAbsenceRange } from "@/lib/roster/roster.functions";
 import { groupMyShiftsByDate } from "@/lib/roster/my-shifts";
 import {
   createSwapRequest,
@@ -73,9 +73,28 @@ function formatDayHeader(dateStr: string): string {
   });
 }
 
+function formatShortRange(start: string, end: string): string {
+  const opts: Intl.DateTimeFormatOptions = {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  };
+  const s = new Date(`${start}T00:00:00`).toLocaleDateString("de-DE", opts);
+  if (start === end) return s;
+  const e = new Date(`${end}T00:00:00`).toLocaleDateString("de-DE", opts);
+  return `${s} – ${e}`;
+}
+
+function absenceLabel(r: MyAbsenceRange): string {
+  const icon = r.type === "urlaub" ? "🏖" : "🤒";
+  const word = r.type === "urlaub" ? "Urlaub" : "Krank";
+  return `${icon} ${word} ${formatShortRange(r.start, r.end)}`;
+}
+
 function MyShiftsPage() {
   const [range, setRange] = useState<RangeKey>("month");
   const fetchShifts = useServerFn(getMyShifts);
+  const fetchAbsences = useServerFn(getMyAbsences);
   const fetchSwaps = useServerFn(listMySwapRequests);
   const fetchOpen = useServerFn(listOpenSwapsForMe);
   const createSwap = useServerFn(createSwapRequest);
@@ -85,6 +104,10 @@ function MyShiftsPage() {
   const query = useQuery({
     queryKey: ["my-shifts", from, to],
     queryFn: () => fetchShifts({ data: { from, to } }),
+  });
+  const absencesQuery = useQuery({
+    queryKey: ["my-absences", from, to],
+    queryFn: () => fetchAbsences({ data: { from, to } }),
   });
   const swapsQuery = useQuery({
     queryKey: ["my-swap-requests"],
@@ -168,6 +191,21 @@ function MyShiftsPage() {
           Diese Woche
         </Button>
       </div>
+
+      {(absencesQuery.data ?? []).length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+            Abwesenheiten
+          </h2>
+          <Card className="divide-y">
+            {(absencesQuery.data ?? []).map((a) => (
+              <div key={`${a.type}-${a.start}`} className="px-4 py-3 text-sm text-muted-foreground">
+                {absenceLabel(a)}
+              </div>
+            ))}
+          </Card>
+        </section>
+      )}
 
       {query.isLoading ? (
         <Card className="p-6 text-sm text-muted-foreground">Lade…</Card>

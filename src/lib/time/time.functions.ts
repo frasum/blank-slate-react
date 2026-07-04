@@ -23,6 +23,7 @@ import { writeAuditLog } from "@/lib/admin/audit";
 import { assertPermission } from "@/lib/admin/admin-call";
 import { arbzgMinimumBreak, isArbzgShort, grossMinutesBetween } from "./break-rules";
 import { assertWithinFence } from "@/lib/geo/server-check";
+import { absenceTodayError, shouldWarnAbsenceClockIn, type AbsenceType } from "./absence-warn";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -217,7 +218,9 @@ const GeoFixSchema = z.object({
 
 export const clockIn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => GeoFixSchema.parse(input))
+  .inputValidator((input) =>
+    GeoFixSchema.extend({ confirmAbsence: z.boolean().optional() }).parse(input),
+  )
   .handler(async ({ data, context }) => {
     const caller = await loadStaffCaller(context.supabase, context.userId);
     const open = await loadOpenEntry(caller.staffId);
@@ -237,6 +240,32 @@ export const clockIn = createServerFn({ method: "POST" })
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+    // UA1 — Abwesenheits-Warnung am heutigen business_date.
+    // Verweigerung schreibt KEINEN time_entry und KEINEN Audit-Eintrag
+    // (B2a-Muster). Bestätigt der Aufrufer explizit, landet der Typ als
+    // absenceOverride im clock_in-Audit-meta.
+    const businessDate = businessDateOf(now);
+    const { data: absenceRows, error: absenceErr } = await supabaseAdmin
+      .from("roster_absence")
+      .select("type")
+      .eq("organization_id", caller.organizationId)
+      .eq("staff_id", caller.staffId)
+      .eq("date", businessDate)
+      .in("type", ["urlaub", "krank"])
+      .limit(1);
+    if (absenceErr) throw absenceErr;
+    const absenceType: AbsenceType | null =
+      (absenceRows?.[0]?.type as AbsenceType | undefined) ?? null;
+    const warn = shouldWarnAbsenceClockIn({
+      absenceToday: absenceType,
+      confirmed: data.confirmAbsence === true,
+    });
+    if ("warn" in warn && warn.warn) {
+      throw new Error(absenceTodayError(warn.type));
+    }
+    const absenceOverride: AbsenceType | null =
+      "override" in warn && warn.override ? warn.type : null;
+
     const geo = await assertWithinFence({
       admin: supabaseAdmin,
       organizationId: caller.organizationId,
@@ -251,7 +280,7 @@ export const clockIn = createServerFn({ method: "POST" })
         staff_id: caller.staffId,
         location_id: locationId,
         started_at: now.toISOString(),
-        business_date: businessDateOf(now),
+        business_date: businessDate,
         source: "clock",
       })
       .select("id, started_at")
@@ -274,6 +303,7 @@ export const clockIn = createServerFn({ method: "POST" })
           accuracyM: data.accuracyM,
           distanceM: geo.decision.ok ? geo.decision.distanceM : null,
         },
+        ...(absenceOverride ? { absenceOverride: { type: absenceOverride } } : {}),
       },
     });
 
