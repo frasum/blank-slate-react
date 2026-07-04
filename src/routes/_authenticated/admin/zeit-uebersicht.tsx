@@ -1786,10 +1786,18 @@ function WeeklyPlan({
             <TableHead rowSpan={2} className="text-right align-bottom">
               So/Fei
             </TableHead>
-            <TableHead rowSpan={2} className="text-right align-bottom">
+            <TableHead
+              rowSpan={2}
+              className="text-right align-bottom"
+              title="Urlaubstage in der Abrechnungsperiode"
+            >
               U
             </TableHead>
-            <TableHead rowSpan={2} className="text-right align-bottom">
+            <TableHead
+              rowSpan={2}
+              className="text-right align-bottom"
+              title="Kranktage in der Abrechnungsperiode"
+            >
               K
             </TableHead>
           </TableRow>
