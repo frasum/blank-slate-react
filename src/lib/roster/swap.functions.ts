@@ -953,7 +953,8 @@ export const decideSwapRequest = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
-    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+    type DecideResult = { ok: true; decision: "approved" | "rejected" };
+    return runGuarded<DecideResult>(caller.role, "manager", makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
       const { data: reqRow, error } = await supabaseAdmin
