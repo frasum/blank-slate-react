@@ -341,7 +341,7 @@ function ZeitUebersichtPage() {
   const overviewQ = useQuery({
     queryKey: ["time-overview", effectiveLocationId, fromDate, toDate],
     queryFn: () => fetchOverview({ data: { locationId: effectiveLocationId, fromDate, toDate } }),
-    enabled: Boolean(effectiveLocationId),
+    enabled: Boolean(effectiveLocationId) && !isAllLocations,
   });
 
   // Schichten (Periode) — standortübergreifend zählen: pro Standort Overview laden
@@ -372,13 +372,44 @@ function ZeitUebersichtPage() {
     return counts;
   }, [shiftCountQueries]);
 
+  // Bei "Alle Standorte": Overview aus den bereits pro Standort geladenen
+  // shiftCountQueries mergen (jeder time_entry hat genau einen Standort → keine
+  // Duplikate). Bei Bereichs-Konflikt eines Mitarbeiters (z. B. an Standort A
+  // Küche, an B Service) gewinnt in staffAggs unten das ERSTE Vorkommen in der
+  // festen `locations`-Reihenfolge — die Person erscheint einmal mit der Summe.
+  const overviewEntries = useMemo<Entry[]>(() => {
+    if (isAllLocations) {
+      const out: Entry[] = [];
+      for (const q of shiftCountQueries) {
+        const entries = (q.data as { entries?: Entry[] } | undefined)?.entries ?? [];
+        out.push(...entries);
+      }
+      return out;
+    }
+    return overviewQ.data?.entries ?? [];
+  }, [isAllLocations, shiftCountQueries, overviewQ.data]);
+  const overviewLoading = isAllLocations
+    ? shiftCountQueries.some((q) => q.isLoading)
+    : overviewQ.isLoading;
+
   const notesQ = useQuery({
     queryKey: ["payroll-notes", effectiveLocationId, fromDate, toDate],
     queryFn: () =>
       fetchNotes({
         data: { locationId: effectiveLocationId, periodStart: fromDate, periodEnd: toDate },
       }),
-    enabled: Boolean(effectiveLocationId),
+    enabled: Boolean(effectiveLocationId) && !isAllLocations,
+  });
+  // Bei "Alle Standorte": Notes je Standort parallel laden.
+  const notesAllQueries = useQueries({
+    queries: isAllLocations
+      ? locations.map((l) => ({
+          queryKey: ["payroll-notes", l.id, fromDate, toDate],
+          queryFn: () =>
+            fetchNotes({ data: { locationId: l.id, periodStart: fromDate, periodEnd: toDate } }),
+          enabled: Boolean(l.id) && Boolean(fromDate) && Boolean(toDate),
+        }))
+      : [],
   });
 
   const advancesQ = useQuery({
@@ -394,7 +425,17 @@ function ZeitUebersichtPage() {
   const sfnQ = useQuery({
     queryKey: ["payroll-sfn", effectiveLocationId, fromDate, toDate],
     queryFn: () => fetchSfn({ data: { locationId: effectiveLocationId, fromDate, toDate } }),
-    enabled: Boolean(effectiveLocationId),
+    enabled: Boolean(effectiveLocationId) && !isAllLocations,
+  });
+  // Bei "Alle Standorte": SFN je Standort parallel laden.
+  const sfnAllQueries = useQueries({
+    queries: isAllLocations
+      ? locations.map((l) => ({
+          queryKey: ["payroll-sfn", l.id, fromDate, toDate],
+          queryFn: () => fetchSfn({ data: { locationId: l.id, fromDate, toDate } }),
+          enabled: Boolean(l.id) && Boolean(fromDate) && Boolean(toDate),
+        }))
+      : [],
   });
 
   const weekCols = useMemo(() => buildWeekColumns(fromDate, toDate), [fromDate, toDate]);
