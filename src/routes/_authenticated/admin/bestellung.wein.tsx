@@ -826,6 +826,39 @@ const inputCls =
   "mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring";
 const selectCls = inputCls;
 
+function BatchStatusBadge(props: {
+  status: "idle" | "running" | "cancelled" | "done" | "failed";
+}) {
+  const map: Record<
+    typeof props.status,
+    { label: string; cls: string; dot?: boolean }
+  > = {
+    idle: { label: "Bereit", cls: "bg-muted text-muted-foreground" },
+    running: {
+      label: "Läuft",
+      cls: "bg-primary/15 text-primary",
+      dot: true,
+    },
+    done: {
+      label: "Abgeschlossen",
+      cls: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+    },
+    cancelled: { label: "Abgebrochen", cls: "bg-muted text-muted-foreground" },
+    failed: { label: "Fehlgeschlagen", cls: "bg-destructive/15 text-destructive" },
+  };
+  const { label, cls, dot } = map[props.status];
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${cls}`}
+    >
+      {dot && (
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" aria-hidden />
+      )}
+      {label}
+    </span>
+  );
+}
+
 function BatchEntryCard(props: {
   entry: { item: WineResearchBatchItem; selected: Record<BatchField, boolean> };
   onToggle: (field: BatchField) => void;
