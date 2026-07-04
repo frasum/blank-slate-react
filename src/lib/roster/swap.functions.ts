@@ -16,6 +16,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadStaffCaller } from "@/lib/time/time.functions";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
+import { assertRealIdentity } from "@/lib/admin/impersonation";
 import { runGuarded } from "@/lib/admin/admin-call";
 import { makeAuditWriter } from "@/lib/admin/audit";
 import { writeAuditLog } from "@/lib/admin/audit";
@@ -194,6 +195,7 @@ export const createSwapRequest = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const caller = await loadStaffCaller(context.supabase, context.userId);
+    assertRealIdentity(caller);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const shift = await loadShift(supabaseAdmin, caller.organizationId, data.shiftId);
     if (shift.staff_id !== caller.staffId) {
@@ -248,6 +250,7 @@ export const cancelSwapRequest = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ requestId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const caller = await loadStaffCaller(context.supabase, context.userId);
+    assertRealIdentity(caller);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: req, error } = await supabaseAdmin
       .from("shift_swap_requests")
