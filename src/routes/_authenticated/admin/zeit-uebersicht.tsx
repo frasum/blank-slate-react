@@ -980,7 +980,17 @@ function ZeitUebersichtPage() {
                 </Button>
               </div>
             </div>
-            {/* Zeile 2: Wochen-Chips */}
+            {/* Zeile 2: Suche */}
+            <div className="relative max-w-xs">
+              <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Mitarbeiter suchen…"
+                className="h-9 pl-8"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            {/* Zeile 3: Wochen-Chips */}
             <div className="flex flex-wrap items-center gap-2">
               {periodWeeks.map((c) => {
                 const active = c.start === weekStart;
@@ -1016,16 +1026,6 @@ function ZeitUebersichtPage() {
               >
                 Heute
               </button>
-            </div>
-            {/* Zeile 3: Suche */}
-            <div className="relative max-w-xs">
-              <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Mitarbeiter suchen…"
-                className="h-9 pl-8"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
             </div>
           </Card>
           <WeeklyPlan
