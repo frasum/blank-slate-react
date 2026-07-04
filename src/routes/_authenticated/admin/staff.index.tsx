@@ -365,25 +365,22 @@ function StaffListPage() {
             />
           </div>
           <div className="flex items-center gap-3">
+            <Tabs
+              value={activeGroup}
+              onValueChange={(v) => setActiveGroup(v as "active" | "inactive")}
+            >
+              <TabsList>
+                <TabsTrigger value="active">Aktive ({activeCount})</TabsTrigger>
+                <TabsTrigger value="inactive">Inaktive ({inactiveCount})</TabsTrigger>
+              </TabsList>
+            </Tabs>
             <Tabs value={deptTab} onValueChange={(v) => setDeptTab(v as DeptFilter)}>
               <TabsList>
-                <TabsTrigger value="all">Alle ({activeCount})</TabsTrigger>
+                <TabsTrigger value="all">Alle ({groupTotal})</TabsTrigger>
                 <TabsTrigger value="service">Service ({serviceCount})</TabsTrigger>
                 <TabsTrigger value="kitchen">Küche ({kitchenCount})</TabsTrigger>
               </TabsList>
             </Tabs>
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-input"
-                checked={showInactive}
-                onChange={(e) => setShowInactive(e.target.checked)}
-              />
-              Inaktive
-              {inactiveCount > 0 && (
-                <span className="text-xs text-muted-foreground">({inactiveCount})</span>
-              )}
-            </label>
           </div>
         </div>
 
