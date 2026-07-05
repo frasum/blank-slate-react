@@ -2154,202 +2154,204 @@ function WeeklyPlan({
                       ? `Zeiten dieser Person werden unter ${DEPT_HEADER_LABEL[primaryDeptLabel]} erfasst.`
                       : undefined;
                   return (
-                  <TableRow key={`${row.staffId}:${row.department}`}>
-                    <TableCell className="relative px-1 font-medium align-middle text-center text-xs w-[68px] min-w-[68px] max-w-[68px]">
-                      <span
-                        className={`absolute left-0 top-0 bottom-0 w-[2px] ${DEPT_BAR[row.department]}`}
-                      />
-                      <span
-                        className={`block truncate ${row.isPrimary === false ? "text-muted-foreground/70 italic" : ""}`}
-                        title={secondaryTitle ?? row.displayName}
-                      >
-                        {row.displayName}
-                      </span>
-                    </TableCell>
-                    {row.days.map((day, idx) => {
-                      const dm = dayMeta[idx];
-                      const cellBg = dm.outOfPeriod
-                        ? "bg-muted/40"
-                        : dm.isHol
-                          ? "bg-yellow-50"
-                          : dm.isSun
-                            ? "bg-gray-50"
-                            : "";
-                      const empty = day.shifts.length === 0;
-                      const clickable = isAdmin && !dm.outOfPeriod && row.isPrimary !== false;
-                      const multi = day.shifts.length > 1;
-                      const isEditingCell =
-                        edit !== null && edit.staffId === row.staffId && edit.iso === day.iso;
-                      const editable = clickable && !multi;
-                      const handleCellClick = (which: "from" | "to") => {
-                        if (!editable) return;
-                        if (isEditingCell) return;
-                        startEdit(row.staffId, day.iso, which);
-                      };
-                      const renderShift = (which: "from" | "to") => {
-                        if (isEditingCell && edit.field === which) {
-                          const val = which === "from" ? edit.from : edit.to;
+                    <TableRow key={`${row.staffId}:${row.department}`}>
+                      <TableCell className="relative px-1 font-medium align-middle text-center text-xs w-[68px] min-w-[68px] max-w-[68px]">
+                        <span
+                          className={`absolute left-0 top-0 bottom-0 w-[2px] ${DEPT_BAR[row.department]}`}
+                        />
+                        <span
+                          className={`block truncate ${row.isPrimary === false ? "text-muted-foreground/70 italic" : ""}`}
+                          title={secondaryTitle ?? row.displayName}
+                        >
+                          {row.displayName}
+                        </span>
+                      </TableCell>
+                      {row.days.map((day, idx) => {
+                        const dm = dayMeta[idx];
+                        const cellBg = dm.outOfPeriod
+                          ? "bg-muted/40"
+                          : dm.isHol
+                            ? "bg-yellow-50"
+                            : dm.isSun
+                              ? "bg-gray-50"
+                              : "";
+                        const empty = day.shifts.length === 0;
+                        const clickable = isAdmin && !dm.outOfPeriod && row.isPrimary !== false;
+                        const multi = day.shifts.length > 1;
+                        const isEditingCell =
+                          edit !== null && edit.staffId === row.staffId && edit.iso === day.iso;
+                        const editable = clickable && !multi;
+                        const handleCellClick = (which: "from" | "to") => {
+                          if (!editable) return;
+                          if (isEditingCell) return;
+                          startEdit(row.staffId, day.iso, which);
+                        };
+                        const renderShift = (which: "from" | "to") => {
+                          if (isEditingCell && edit.field === which) {
+                            const val = which === "from" ? edit.from : edit.to;
+                            return (
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                maxLength={5}
+                                value={val}
+                                disabled={pending}
+                                data-edit-key={cellKey(row.staffId, day.iso)}
+                                ref={inputRef}
+                                onChange={(ev) =>
+                                  setEdit({
+                                    ...edit,
+                                    [which]: ev.target.value,
+                                  } as EditState)
+                                }
+                                onKeyDown={(ev) => {
+                                  if (ev.key === "Enter") {
+                                    ev.preventDefault();
+                                    if (commit(edit)) setEdit(null);
+                                    return;
+                                  }
+                                  if (ev.key === "Escape") {
+                                    ev.preventDefault();
+                                    navigatingRef.current = true;
+                                    setEdit(null);
+                                    return;
+                                  }
+                                  const rIdx = flatRows.findIndex(
+                                    (r) => r.staffId === edit.staffId,
+                                  );
+                                  const dIdx = dayMeta.findIndex((d) => d.iso === edit.iso);
+                                  if (rIdx < 0 || dIdx < 0) return;
+                                  if (ev.key === "Tab") {
+                                    ev.preventDefault();
+                                    const t = findNextRow(rIdx, dIdx, ev.shiftKey ? -1 : 1);
+                                    if (t)
+                                      navigateTo(
+                                        edit,
+                                        flatRows[t.rowIdx].staffId,
+                                        dayMeta[t.dayIdx].iso,
+                                        edit.field,
+                                      );
+                                    return;
+                                  }
+                                  if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
+                                    ev.preventDefault();
+                                    const t = findNextRow(
+                                      rIdx,
+                                      dIdx,
+                                      ev.key === "ArrowDown" ? 1 : -1,
+                                    );
+                                    if (t)
+                                      navigateTo(
+                                        edit,
+                                        flatRows[t.rowIdx].staffId,
+                                        dayMeta[t.dayIdx].iso,
+                                        edit.field,
+                                      );
+                                    return;
+                                  }
+                                  if (ev.key === "ArrowRight" || ev.key === "ArrowLeft") {
+                                    ev.preventDefault();
+                                    const t = findNextField(
+                                      rIdx,
+                                      dIdx,
+                                      edit.field,
+                                      ev.key === "ArrowRight" ? 1 : -1,
+                                    );
+                                    if (t)
+                                      navigateTo(
+                                        edit,
+                                        flatRows[t.rowIdx].staffId,
+                                        dayMeta[t.dayIdx].iso,
+                                        t.field,
+                                      );
+                                    return;
+                                  }
+                                }}
+                                onBlur={(ev) => handleBlur(ev, edit)}
+                                className={`block w-full h-6 min-w-0 px-0 text-center tabular-nums text-sm rounded border border-primary/50 bg-background box-border ${pending ? "opacity-60" : ""}`}
+                              />
+                            );
+                          }
+                          if (isEditingCell) {
+                            const val = which === "from" ? edit.from : edit.to;
+                            return <span className="tabular-nums">{val}</span>;
+                          }
+                          if (empty) {
+                            if (day.crossLocation && which === "from" && !dm.outOfPeriod)
+                              return <span className="text-muted-foreground">×</span>;
+                            if (editable && which === "from")
+                              return <span className="text-muted-foreground/40">+</span>;
+                            return "";
+                          }
                           return (
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              maxLength={5}
-                              value={val}
-                              disabled={pending}
-                              data-edit-key={cellKey(row.staffId, day.iso)}
-                              ref={inputRef}
-                              onChange={(ev) =>
-                                setEdit({
-                                  ...edit,
-                                  [which]: ev.target.value,
-                                } as EditState)
-                              }
-                              onKeyDown={(ev) => {
-                                if (ev.key === "Enter") {
-                                  ev.preventDefault();
-                                  if (commit(edit)) setEdit(null);
-                                  return;
-                                }
-                                if (ev.key === "Escape") {
-                                  ev.preventDefault();
-                                  navigatingRef.current = true;
-                                  setEdit(null);
-                                  return;
-                                }
-                                const rIdx = flatRows.findIndex((r) => r.staffId === edit.staffId);
-                                const dIdx = dayMeta.findIndex((d) => d.iso === edit.iso);
-                                if (rIdx < 0 || dIdx < 0) return;
-                                if (ev.key === "Tab") {
-                                  ev.preventDefault();
-                                  const t = findNextRow(rIdx, dIdx, ev.shiftKey ? -1 : 1);
-                                  if (t)
-                                    navigateTo(
-                                      edit,
-                                      flatRows[t.rowIdx].staffId,
-                                      dayMeta[t.dayIdx].iso,
-                                      edit.field,
-                                    );
-                                  return;
-                                }
-                                if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
-                                  ev.preventDefault();
-                                  const t = findNextRow(
-                                    rIdx,
-                                    dIdx,
-                                    ev.key === "ArrowDown" ? 1 : -1,
-                                  );
-                                  if (t)
-                                    navigateTo(
-                                      edit,
-                                      flatRows[t.rowIdx].staffId,
-                                      dayMeta[t.dayIdx].iso,
-                                      edit.field,
-                                    );
-                                  return;
-                                }
-                                if (ev.key === "ArrowRight" || ev.key === "ArrowLeft") {
-                                  ev.preventDefault();
-                                  const t = findNextField(
-                                    rIdx,
-                                    dIdx,
-                                    edit.field,
-                                    ev.key === "ArrowRight" ? 1 : -1,
-                                  );
-                                  if (t)
-                                    navigateTo(
-                                      edit,
-                                      flatRows[t.rowIdx].staffId,
-                                      dayMeta[t.dayIdx].iso,
-                                      t.field,
-                                    );
-                                  return;
-                                }
-                              }}
-                              onBlur={(ev) => handleBlur(ev, edit)}
-                              className={`block w-full h-6 min-w-0 px-0 text-center tabular-nums text-sm rounded border border-primary/50 bg-background box-border ${pending ? "opacity-60" : ""}`}
-                            />
+                            <div className="flex flex-col divide-y divide-border/60">
+                              {day.shifts.map((s, i) => (
+                                <span key={i} className="tabular-nums">
+                                  {s[which]}
+                                </span>
+                              ))}
+                            </div>
                           );
-                        }
-                        if (isEditingCell) {
-                          const val = which === "from" ? edit.from : edit.to;
-                          return <span className="tabular-nums">{val}</span>;
-                        }
-                        if (empty) {
-                          if (day.crossLocation && which === "from" && !dm.outOfPeriod)
-                            return <span className="text-muted-foreground">×</span>;
-                          if (editable && which === "from")
-                            return <span className="text-muted-foreground/40">+</span>;
-                          return "";
-                        }
+                        };
                         return (
-                          <div className="flex flex-col divide-y divide-border/60">
-                            {day.shifts.map((s, i) => (
-                              <span key={i} className="tabular-nums">
-                                {s[which]}
-                              </span>
-                            ))}
-                          </div>
+                          <Fragment key={day.iso}>
+                            <TableCell
+                              onClick={() => handleCellClick("from")}
+                              title={secondaryTitle}
+                              className={`w-[62px] min-w-[62px] border-l px-1 py-1 text-center align-middle tabular-nums text-sm ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
+                            >
+                              {renderShift("from")}
+                            </TableCell>
+                            <TableCell
+                              onClick={() => handleCellClick("to")}
+                              title={secondaryTitle}
+                              className={`w-[62px] min-w-[62px] px-1 py-1 text-center align-middle tabular-nums text-sm ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
+                            >
+                              {renderShift("to")}
+                            </TableCell>
+                          </Fragment>
                         );
-                      };
-                      return (
-                        <Fragment key={day.iso}>
-                          <TableCell
-                            onClick={() => handleCellClick("from")}
-                            title={secondaryTitle}
-                            className={`w-[62px] min-w-[62px] border-l px-1 py-1 text-center align-middle tabular-nums text-sm ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
-                          >
-                            {renderShift("from")}
-                          </TableCell>
-                          <TableCell
-                            onClick={() => handleCellClick("to")}
-                            title={secondaryTitle}
-                            className={`w-[62px] min-w-[62px] px-1 py-1 text-center align-middle tabular-nums text-sm ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
-                          >
-                            {renderShift("to")}
-                          </TableCell>
-                        </Fragment>
-                      );
-                    })}
-                    <TableCell className="font-medium align-middle border-l text-center text-xs px-1 w-[68px] min-w-[68px] max-w-[68px]">
-                      <span className="block truncate" title={row.displayName}>
-                        {row.displayName}
-                      </span>
-                    </TableCell>
-                    <TableCell className="px-1 text-xs text-right tabular-nums font-medium">
-                      {fmtDec(row.totals.total)}
-                    </TableCell>
-                    <TableCell className="px-1 text-xs text-right tabular-nums">
-                      {fmtDec(row.totals.evening)}
-                    </TableCell>
-                    <TableCell className="px-1 text-xs text-right tabular-nums">
-                      {fmtDec(row.totals.night)}
-                    </TableCell>
-                    <TableCell className="px-1 text-xs text-right tabular-nums">
-                      {fmtDec(row.totals.sunHol)}
-                    </TableCell>
-                    <TableCell className="px-1 text-xs text-right tabular-nums">
-                      {shiftsByStaff.get(row.staffId) ?? 0}
-                    </TableCell>
-                    {(() => {
-                      const abs = absencesByStaff.get(row.staffId);
-                      const u = abs?.urlaubDays ?? 0;
-                      const k = abs?.krankDays ?? 0;
-                      return (
-                        <>
-                          <TableCell
-                            className={`px-1 text-xs text-right tabular-nums ${u > 0 ? "" : "text-muted-foreground/50"}`}
-                          >
-                            {u > 0 ? u : "–"}
-                          </TableCell>
-                          <TableCell
-                            className={`px-1 text-xs text-right tabular-nums ${k > 0 ? "" : "text-muted-foreground/50"}`}
-                          >
-                            {k > 0 ? k : "–"}
-                          </TableCell>
-                        </>
-                      );
-                    })()}
-                  </TableRow>
+                      })}
+                      <TableCell className="font-medium align-middle border-l text-center text-xs px-1 w-[68px] min-w-[68px] max-w-[68px]">
+                        <span className="block truncate" title={row.displayName}>
+                          {row.displayName}
+                        </span>
+                      </TableCell>
+                      <TableCell className="px-1 text-xs text-right tabular-nums font-medium">
+                        {fmtDec(row.totals.total)}
+                      </TableCell>
+                      <TableCell className="px-1 text-xs text-right tabular-nums">
+                        {fmtDec(row.totals.evening)}
+                      </TableCell>
+                      <TableCell className="px-1 text-xs text-right tabular-nums">
+                        {fmtDec(row.totals.night)}
+                      </TableCell>
+                      <TableCell className="px-1 text-xs text-right tabular-nums">
+                        {fmtDec(row.totals.sunHol)}
+                      </TableCell>
+                      <TableCell className="px-1 text-xs text-right tabular-nums">
+                        {shiftsByStaff.get(row.staffId) ?? 0}
+                      </TableCell>
+                      {(() => {
+                        const abs = absencesByStaff.get(row.staffId);
+                        const u = abs?.urlaubDays ?? 0;
+                        const k = abs?.krankDays ?? 0;
+                        return (
+                          <>
+                            <TableCell
+                              className={`px-1 text-xs text-right tabular-nums ${u > 0 ? "" : "text-muted-foreground/50"}`}
+                            >
+                              {u > 0 ? u : "–"}
+                            </TableCell>
+                            <TableCell
+                              className={`px-1 text-xs text-right tabular-nums ${k > 0 ? "" : "text-muted-foreground/50"}`}
+                            >
+                              {k > 0 ? k : "–"}
+                            </TableCell>
+                          </>
+                        );
+                      })()}
+                    </TableRow>
                   );
                 })}
               </Fragment>
