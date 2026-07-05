@@ -50,11 +50,6 @@ import {
 import { listStaff } from "@/lib/admin/staff.functions";
 import { DOC_TYPES, type StaffDocumentType } from "@/lib/profile/staff-document-path";
 import { documentExpiryStatus, type DocumentExpiryStatus } from "@/lib/profile/document-expiry";
-import {
-  listPendingSwaps,
-  decideSwapRequest,
-  type PendingSwapRow,
-} from "@/lib/roster/swap.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/personal-antraege")({
   beforeLoad: ({ context }) => {
@@ -133,13 +128,8 @@ function PersonalAntraegePage() {
     queryKey: ["admin", "profile-documents"],
     queryFn: () => listAllDocuments({ data: {} }),
   });
-  const swapsQ = useQuery({
-    queryKey: ["admin", "swap-requests"],
-    queryFn: () => listPendingSwaps(),
-  });
   const pendingRequests = (requestsQ.data ?? []).length;
   const pendingDocuments = (docsQ.data ?? []).filter((d) => d.verifiedAt === null).length;
-  const pendingSwaps = (swapsQ.data ?? []).filter((r) => r.status === "peer_accepted").length;
   return (
     <div className="space-y-6">
       <header>
@@ -170,24 +160,12 @@ function PersonalAntraegePage() {
               />
             )}
           </TabsTrigger>
-          <TabsTrigger value="swaps">
-            Schichttausch
-            {pendingSwaps > 0 && (
-              <span
-                className="ml-1.5 inline-block h-2 w-2 rounded-full bg-destructive align-middle"
-                aria-label={`${pendingSwaps} Tauschanfragen warten`}
-              />
-            )}
-          </TabsTrigger>
         </TabsList>
         <TabsContent value="requests" className="mt-4">
           <RequestsTab />
         </TabsContent>
         <TabsContent value="documents" className="mt-4">
           <DocumentsTab />
-        </TabsContent>
-        <TabsContent value="swaps" className="mt-4">
-          <SwapsTab />
         </TabsContent>
       </Tabs>
     </div>
