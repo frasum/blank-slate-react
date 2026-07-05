@@ -55,6 +55,7 @@ import { Route as AuthenticatedAdminDienstplanRouteImport } from './routes/_auth
 import { Route as AuthenticatedAdminBwaRouteImport } from './routes/_authenticated/admin/bwa'
 import { Route as AuthenticatedAdminBilanzRouteImport } from './routes/_authenticated/admin/bilanz'
 import { Route as AuthenticatedAdminBestellungRouteImport } from './routes/_authenticated/admin/bestellung'
+import { Route as AuthenticatedAdminAufgabenDisplayRouteImport } from './routes/_authenticated/admin/aufgaben-display'
 import { Route as AuthenticatedAdminAufgabenRouteImport } from './routes/_authenticated/admin/aufgaben'
 import { Route as AuthenticatedAdminStaffIndexRouteImport } from './routes/_authenticated/admin/staff.index'
 import { Route as AuthenticatedAdminEinstellungenIndexRouteImport } from './routes/_authenticated/admin/einstellungen.index'
@@ -327,6 +328,12 @@ const AuthenticatedAdminBestellungRoute =
     path: '/bestellung',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminAufgabenDisplayRoute =
+  AuthenticatedAdminAufgabenDisplayRouteImport.update({
+    id: '/aufgaben-display',
+    path: '/aufgaben-display',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminAufgabenRoute =
   AuthenticatedAdminAufgabenRouteImport.update({
     id: '/aufgaben',
@@ -423,6 +430,7 @@ export interface FileRoutesByFullPath {
   '/profil': typeof AuthenticatedProfilRoute
   '/display/$locationId': typeof DisplayLocationIdRoute
   '/admin/aufgaben': typeof AuthenticatedAdminAufgabenRoute
+  '/admin/aufgaben-display': typeof AuthenticatedAdminAufgabenDisplayRoute
   '/admin/bestellung': typeof AuthenticatedAdminBestellungRouteWithChildren
   '/admin/bilanz': typeof AuthenticatedAdminBilanzRoute
   '/admin/bwa': typeof AuthenticatedAdminBwaRoute
@@ -483,6 +491,7 @@ export interface FileRoutesByTo {
   '/display/$locationId': typeof DisplayLocationIdRoute
   '/': typeof AuthenticatedIndexRoute
   '/admin/aufgaben': typeof AuthenticatedAdminAufgabenRoute
+  '/admin/aufgaben-display': typeof AuthenticatedAdminAufgabenDisplayRoute
   '/admin/bilanz': typeof AuthenticatedAdminBilanzRoute
   '/admin/bwa': typeof AuthenticatedAdminBwaRoute
   '/admin/dienstplan': typeof AuthenticatedAdminDienstplanRoute
@@ -543,6 +552,7 @@ export interface FileRoutesById {
   '/display/$locationId': typeof DisplayLocationIdRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/admin/aufgaben': typeof AuthenticatedAdminAufgabenRoute
+  '/_authenticated/admin/aufgaben-display': typeof AuthenticatedAdminAufgabenDisplayRoute
   '/_authenticated/admin/bestellung': typeof AuthenticatedAdminBestellungRouteWithChildren
   '/_authenticated/admin/bilanz': typeof AuthenticatedAdminBilanzRoute
   '/_authenticated/admin/bwa': typeof AuthenticatedAdminBwaRoute
@@ -606,6 +616,7 @@ export interface FileRouteTypes {
     | '/profil'
     | '/display/$locationId'
     | '/admin/aufgaben'
+    | '/admin/aufgaben-display'
     | '/admin/bestellung'
     | '/admin/bilanz'
     | '/admin/bwa'
@@ -666,6 +677,7 @@ export interface FileRouteTypes {
     | '/display/$locationId'
     | '/'
     | '/admin/aufgaben'
+    | '/admin/aufgaben-display'
     | '/admin/bilanz'
     | '/admin/bwa'
     | '/admin/dienstplan'
@@ -725,6 +737,7 @@ export interface FileRouteTypes {
     | '/display/$locationId'
     | '/_authenticated/'
     | '/_authenticated/admin/aufgaben'
+    | '/_authenticated/admin/aufgaben-display'
     | '/_authenticated/admin/bestellung'
     | '/_authenticated/admin/bilanz'
     | '/_authenticated/admin/bwa'
@@ -1111,6 +1124,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminBestellungRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/aufgaben-display': {
+      id: '/_authenticated/admin/aufgaben-display'
+      path: '/aufgaben-display'
+      fullPath: '/admin/aufgaben-display'
+      preLoaderRoute: typeof AuthenticatedAdminAufgabenDisplayRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/aufgaben': {
       id: '/_authenticated/admin/aufgaben'
       path: '/aufgaben'
@@ -1274,6 +1294,7 @@ const AuthenticatedAdminStaffRouteWithChildren =
 
 interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminAufgabenRoute: typeof AuthenticatedAdminAufgabenRoute
+  AuthenticatedAdminAufgabenDisplayRoute: typeof AuthenticatedAdminAufgabenDisplayRoute
   AuthenticatedAdminBestellungRoute: typeof AuthenticatedAdminBestellungRouteWithChildren
   AuthenticatedAdminBilanzRoute: typeof AuthenticatedAdminBilanzRoute
   AuthenticatedAdminBwaRoute: typeof AuthenticatedAdminBwaRoute
@@ -1304,6 +1325,8 @@ interface AuthenticatedAdminRouteRouteChildren {
 const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren =
   {
     AuthenticatedAdminAufgabenRoute: AuthenticatedAdminAufgabenRoute,
+    AuthenticatedAdminAufgabenDisplayRoute:
+      AuthenticatedAdminAufgabenDisplayRoute,
     AuthenticatedAdminBestellungRoute:
       AuthenticatedAdminBestellungRouteWithChildren,
     AuthenticatedAdminBilanzRoute: AuthenticatedAdminBilanzRoute,
