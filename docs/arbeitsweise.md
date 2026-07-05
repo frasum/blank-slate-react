@@ -2612,6 +2612,31 @@ Der Vectron-Vollexport liefert je Artikel die drei Ebenen **Hauptgruppe**
 - VA1-Grundsätze unverändert: DENY-ALL, kein Delete-Pfad (Deaktivieren
   statt Löschen), Unique `(location_id, name)`.
 
+### VA2-Importe beider Häuser (05.07.2026)
+
+**Spicery:** Vectron-Vollexport (5 Dateien: artikel/hauptgruppe/kategorie/
+untergruppe; yuntergruppe war ein identisches Duplikat) → 397 eindeutige
+Artikel mit voller Hierarchie (135 Küche / 258 Getränke; 9 Sammel-PLU-Zeilen
+verlustfrei dedupliziert, 30 Leer-Slots ausgeschlossen). Verifiziert.
+
+**Fehl-Import + verlustfreier Rollback (Lektion):** Der Spicery-Export lief
+zunächst versehentlich gegen YUM (Bestand deaktiviert, 397 fremde Artikel
+upsertet). Rollback in einem Lauf: heutige Neu-Inserts per created_at
+gelöscht, Bestand reaktiviert, Original-Werte aus der VA1-Quelldatei
+re-upsertet (heilte auch die vom Upsert überschriebenen Namens-Überlapper).
+Bit-genau verifiziert gegen den Freitags-Stand (261/10/34/32).
+**Regel daraus: Import-SQLs tragen den Ziel-STANDORT prominent im Dateinamen
+UND in der ersten Kopfzeile** (zusätzlich zur Ziel-DB).
+
+**YUM:** eigener Vollexport (Mappe1/yum_2/yum_3/yum_4) → 294 eindeutige
+Artikel (82 Küche / 172 Getränke / 35 Infotexte; 1982 Kassen-Slots, 1 Dublette,
+1 Artikel ohne WG mit NULL-Hierarchie). deaktivierte_altartikel = 0: alle 261
+VA1-Artikel namensgleich aktualisiert, 33 neu. YUMs Hierarchie ist anders
+geschnitten als Spicerys (eigene Hauptgruppen wie Infotexte/Liefergebühr) —
+bestätigt die Denormalisierungs-Entscheidung (Vectron-Wahrheit je Standort).
+
+**Offen:** TSB-Export beim Aufsetzen des Standorts (Pipeline steht).
+
 ## §56 AF1 — Task-Fotos (04.07.2026)
 
 Aufgaben (`tasks`) unterstützen Foto-Anhänge (Kamera am Handy oder Datei-
