@@ -31,6 +31,11 @@ export type SalesArticle = {
   takeawayPriceCents: number | null;
   isActive: boolean;
   updatedAt: string;
+  warengruppe: string | null;
+  untergruppe: string | null;
+  untergruppeNr: number | null;
+  hauptgruppe: string | null;
+  hauptgruppeNr: number | null;
 };
 
 // ---------------------------------------------------------------------------
@@ -62,6 +67,11 @@ function mapRow(row: {
   takeaway_price_cents: number | null;
   is_active: boolean;
   updated_at: string;
+  warengruppe: string | null;
+  untergruppe: string | null;
+  untergruppe_nr: number | null;
+  hauptgruppe: string | null;
+  hauptgruppe_nr: number | null;
 }): SalesArticle {
   return {
     id: row.id,
@@ -72,6 +82,11 @@ function mapRow(row: {
     takeawayPriceCents: row.takeaway_price_cents === null ? null : Number(row.takeaway_price_cents),
     isActive: row.is_active,
     updatedAt: row.updated_at,
+    warengruppe: row.warengruppe,
+    untergruppe: row.untergruppe,
+    untergruppeNr: row.untergruppe_nr === null ? null : Number(row.untergruppe_nr),
+    hauptgruppe: row.hauptgruppe,
+    hauptgruppeNr: row.hauptgruppe_nr === null ? null : Number(row.hauptgruppe_nr),
   };
 }
 
@@ -91,10 +106,12 @@ export const listSalesArticles = createServerFn({ method: "POST" })
     const { data: rows, error } = await supabaseAdmin
       .from("sales_articles")
       .select(
-        "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at",
+        "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr",
       )
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId)
+      .order("hauptgruppe_nr", { ascending: true, nullsFirst: false })
+      .order("untergruppe_nr", { ascending: true, nullsFirst: false })
       .order("product_group", { ascending: true, nullsFirst: false })
       .order("name", { ascending: true });
     if (error) throw new Error(error.message);
@@ -113,6 +130,11 @@ const CreateInput = z.object({
   productGroup: z.number().int().nullable().optional(),
   priceCents: priceField,
   takeawayPriceCents: priceField,
+  warengruppe: z.string().trim().max(200).nullable().optional(),
+  untergruppe: z.string().trim().max(200).nullable().optional(),
+  untergruppeNr: z.number().int().nullable().optional(),
+  hauptgruppe: z.string().trim().max(200).nullable().optional(),
+  hauptgruppeNr: z.number().int().nullable().optional(),
 });
 
 export const createSalesArticle = createServerFn({ method: "POST" })
@@ -131,12 +153,17 @@ export const createSalesArticle = createServerFn({ method: "POST" })
         price_cents: data.priceCents ?? null,
         takeaway_price_cents: data.takeawayPriceCents ?? null,
         is_active: true,
+        warengruppe: data.warengruppe ?? null,
+        untergruppe: data.untergruppe ?? null,
+        untergruppe_nr: data.untergruppeNr ?? null,
+        hauptgruppe: data.hauptgruppe ?? null,
+        hauptgruppe_nr: data.hauptgruppeNr ?? null,
       };
       const { data: row, error } = await supabaseAdmin
         .from("sales_articles")
         .insert(insert)
         .select(
-          "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at",
+          "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr",
         )
         .single();
       if (error) {
@@ -177,13 +204,23 @@ const UpdateInput = z
     takeawayPriceCents: priceField,
     productGroup: z.number().int().nullable().optional(),
     isActive: z.boolean().optional(),
+    warengruppe: z.string().trim().max(200).nullable().optional(),
+    untergruppe: z.string().trim().max(200).nullable().optional(),
+    untergruppeNr: z.number().int().nullable().optional(),
+    hauptgruppe: z.string().trim().max(200).nullable().optional(),
+    hauptgruppeNr: z.number().int().nullable().optional(),
   })
   .refine(
     (v) =>
       v.priceCents !== undefined ||
       v.takeawayPriceCents !== undefined ||
       v.productGroup !== undefined ||
-      v.isActive !== undefined,
+      v.isActive !== undefined ||
+      v.warengruppe !== undefined ||
+      v.untergruppe !== undefined ||
+      v.untergruppeNr !== undefined ||
+      v.hauptgruppe !== undefined ||
+      v.hauptgruppeNr !== undefined,
     { message: "Keine Änderungen übergeben." },
   );
 
@@ -197,7 +234,7 @@ export const updateSalesArticle = createServerFn({ method: "POST" })
       const { data: before, error: beforeErr } = await supabaseAdmin
         .from("sales_articles")
         .select(
-          "id, organization_id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at",
+          "id, organization_id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr",
         )
         .eq("id", data.id)
         .maybeSingle();
@@ -231,6 +268,26 @@ export const updateSalesArticle = createServerFn({ method: "POST" })
         patch.is_active = data.isActive;
         changed.isActive = { before: before.is_active, after: data.isActive };
       }
+      if (data.warengruppe !== undefined && data.warengruppe !== before.warengruppe) {
+        patch.warengruppe = data.warengruppe;
+        changed.warengruppe = { before: before.warengruppe, after: data.warengruppe };
+      }
+      if (data.untergruppe !== undefined && data.untergruppe !== before.untergruppe) {
+        patch.untergruppe = data.untergruppe;
+        changed.untergruppe = { before: before.untergruppe, after: data.untergruppe };
+      }
+      if (data.untergruppeNr !== undefined && data.untergruppeNr !== before.untergruppe_nr) {
+        patch.untergruppe_nr = data.untergruppeNr;
+        changed.untergruppeNr = { before: before.untergruppe_nr, after: data.untergruppeNr };
+      }
+      if (data.hauptgruppe !== undefined && data.hauptgruppe !== before.hauptgruppe) {
+        patch.hauptgruppe = data.hauptgruppe;
+        changed.hauptgruppe = { before: before.hauptgruppe, after: data.hauptgruppe };
+      }
+      if (data.hauptgruppeNr !== undefined && data.hauptgruppeNr !== before.hauptgruppe_nr) {
+        patch.hauptgruppe_nr = data.hauptgruppeNr;
+        changed.hauptgruppeNr = { before: before.hauptgruppe_nr, after: data.hauptgruppeNr };
+      }
 
       // Nichts geändert? Bestehende Zeile zurückgeben, KEIN Audit-Eintrag.
       if (Object.keys(changed).length === 0) {
@@ -251,7 +308,7 @@ export const updateSalesArticle = createServerFn({ method: "POST" })
         .eq("id", data.id)
         .eq("organization_id", caller.organizationId)
         .select(
-          "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at",
+          "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr",
         )
         .single();
       if (error) throw new Error(error.message);
