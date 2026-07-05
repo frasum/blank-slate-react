@@ -61,6 +61,9 @@ export interface PdfExportData {
   session: PdfSession;
   locationName?: string;
   createdByName?: string | null;
+  /** DR2: Namen der Personen, die an diesem Tag im Dienstplan-Bereich GL
+   *  (Geschäftsleitung) am Standort eingeplant waren. */
+  managerOnDutyNames?: string[];
   channels: PdfChannel[];
   channelAmounts: { channelId: string; amountCents: Cents }[];
   terminals: PdfTerminal[];
