@@ -2991,3 +2991,43 @@ werden. Ergebnis: PII (inkl. Jahrgang) floss unnötig durch geteilte Reader.
 
 Lektion: **Neue Felder in geteilten Readern immer gegen die Guard-Stufe
 des Readers prüfen — nicht gegen die Seite, für die man sie gerade baut.**
+
+### §PV1 — POS-Verkaufsstatistik (05.07.)
+
+Neuer Bereich unter **Bestellung → POS-Verkauf**. Zeigt die von Frank aus
+Vectron exportierten „Artikel-Berichte" je Standort in zwei Perioden
+(`d365` = letzte 365 Tage · `alltime` = Gesamt seit Aufzeichnung) mit den
+drei VA2-Gruppenebenen als Filter.
+
+- **Tabelle `sales_article_stats`** — Spalten `location_id`, `period`,
+  `nummer` (Vectron-PLU), `name`, `verkauf_count` (int, kann negativ sein
+  bei Storno-/Rabatt-PLUs), `umsatz_cents` (bigint), `report_date`.
+  Unique `(location_id, period, nummer)`, Index
+  `(organization_id, location_id, period)`. **Kein FK** auf
+  `sales_articles`, weil die Gesamt-Berichte historische/deaktivierte
+  Artikel enthalten. **DENY-ALL** Policy (weder anon noch authenticated
+  dürfen direkt lesen/schreiben).
+- **Import = Frank-SQL** (Replace je Standort × Periode, mit
+  Vectron-Fußzeilen-Kontrollsumme). Kein Upload-UI in dieser Welle.
+- **Server-Fn `listSalesStats`** (`manager+`, org-scoped, location gegen
+  Org validiert): lädt Stats + Verkaufsartikel des Standorts parallel und
+  reichert per weichem Namens-Join (`enrichSalesStats`, siehe
+  `src/lib/bestellung/sales-stats.ts`) die Gruppen an. Zeilen ohne
+  Treffer landen im Bucket „Ohne Zuordnung" und werden in
+  `unmatchedCount` gezählt.
+- **UI**: Standort-Pillen, Perioden-Tabs, Freitext-Suche (Nummer oder
+  Name), Gruppen-Filter (geteilte Komponente `SalesGroupFilter` — siehe
+  Refactor unten) mit Zusatz-Option „Ohne Zuordnung" auf Hauptgruppen-
+  Ebene, sortierbare Tabelle (Default Umsatz absteigend), Summenzeile
+  über die aktuelle Filterung, Stichtags-Badge und klickbares Hinweis-
+  Badge bei `unmatchedCount > 0`.
+- **Refactor**: die kaskadierende Gruppen-Filter-Logik aus VA1 wurde in
+  `src/components/bestellung/SalesGroupFilter.tsx` + reines Modul
+  `src/lib/bestellung/sales-group-filter.ts` (mit Tests) extrahiert. VA1
+  nutzt dieselbe Komponente — Verhalten identisch (Options-Ableitung,
+  Reset-Effekte, `__all__`-Sentinel bleiben 1:1).
+
+**Merkposten**: `sales_articles` hat aktuell keine Vectron-Nummer. Falls
+der Namens-Join in der Praxis zu viele „Ohne Zuordnung" liefert, wäre
+`vectron_nr` an `sales_articles` eine eigene kleine Folge-Welle
+(harter Join per PLU statt weichem Namens-Match).

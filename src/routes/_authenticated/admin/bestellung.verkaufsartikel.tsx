@@ -30,13 +30,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Table,
   TableBody,
   TableCell,
@@ -46,6 +39,8 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { EkZuordnungTab } from "@/components/verkaufsartikel/EkZuordnungTab";
+import { SalesGroupFilter } from "@/components/bestellung/SalesGroupFilter";
+import { ALL, matchesHaupt, matchesUnter, matchesWg } from "@/lib/bestellung/sales-group-filter";
 
 export const Route = createFileRoute("/_authenticated/admin/bestellung/verkaufsartikel")({
   head: () => ({ meta: [{ title: "Verkaufsartikel · Bestellung" }] }),
@@ -83,83 +78,26 @@ function VerkaufsartikelPage() {
   const invalidate = () => qc.invalidateQueries({ queryKey: ["sales-articles", locationId] });
 
   const [search, setSearch] = useState("");
-  const [haupt, setHaupt] = useState<string>("__all__");
-  const [unter, setUnter] = useState<string>("__all__");
-  const [wg, setWg] = useState<string>("__all__");
+  const [haupt, setHaupt] = useState<string>(ALL);
+  const [unter, setUnter] = useState<string>(ALL);
+  const [wg, setWg] = useState<string>(ALL);
   const [showInactive, setShowInactive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [editRow, setEditRow] = useState<SalesArticle | null>(null);
   const [subtab, setSubtab] = useState<"liste" | "ek">("liste");
 
-  // Kaskadierende Optionen
-  const hauptOptions = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const r of rows) {
-      const key = r.hauptgruppe ?? (r.hauptgruppeNr !== null ? `#${r.hauptgruppeNr}` : "");
-      if (key) m.set(key, r.hauptgruppe ?? `Hauptgruppe ${r.hauptgruppeNr}`);
-    }
-    return Array.from(m.entries())
-      .map(([value, label]) => ({ value, label }))
-      .sort((a, b) => a.label.localeCompare(b.label));
-  }, [rows]);
-
-  const rowsAfterHaupt = useMemo(() => {
-    if (haupt === "__all__") return rows;
-    return rows.filter(
-      (r) => (r.hauptgruppe ?? (r.hauptgruppeNr !== null ? `#${r.hauptgruppeNr}` : "")) === haupt,
-    );
-  }, [rows, haupt]);
-
-  const unterOptions = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const r of rowsAfterHaupt) {
-      const key = r.untergruppe ?? (r.untergruppeNr !== null ? `#${r.untergruppeNr}` : "");
-      if (key) m.set(key, r.untergruppe ?? `Untergruppe ${r.untergruppeNr}`);
-    }
-    return Array.from(m.entries())
-      .map(([value, label]) => ({ value, label }))
-      .sort((a, b) => a.label.localeCompare(b.label));
-  }, [rowsAfterHaupt]);
-
-  const rowsAfterUnter = useMemo(() => {
-    if (unter === "__all__") return rowsAfterHaupt;
-    return rowsAfterHaupt.filter(
-      (r) => (r.untergruppe ?? (r.untergruppeNr !== null ? `#${r.untergruppeNr}` : "")) === unter,
-    );
-  }, [rowsAfterHaupt, unter]);
-
-  const wgOptions = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const r of rowsAfterUnter) {
-      const key = r.warengruppe ?? (r.productGroup !== null ? `#${r.productGroup}` : "");
-      if (key) m.set(key, r.warengruppe ?? `WG ${r.productGroup}`);
-    }
-    return Array.from(m.entries())
-      .map(([value, label]) => ({ value, label }))
-      .sort((a, b) => a.label.localeCompare(b.label));
-  }, [rowsAfterUnter]);
-
-  // Reset Unter-/Warengruppe wenn Parent-Filter wegfällt
-  useEffect(() => {
-    if (unter !== "__all__" && !unterOptions.some((o) => o.value === unter)) setUnter("__all__");
-  }, [unter, unterOptions]);
-  useEffect(() => {
-    if (wg !== "__all__" && !wgOptions.some((o) => o.value === wg)) setWg("__all__");
-  }, [wg, wgOptions]);
-
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return rowsAfterUnter.filter((r) => {
+    return rows.filter((r) => {
       if (!showInactive && !r.isActive) return false;
-      if (wg !== "__all__") {
-        const key = r.warengruppe ?? (r.productGroup !== null ? `#${r.productGroup}` : "");
-        if (key !== wg) return false;
-      }
+      if (haupt !== ALL && !matchesHaupt(r, haupt)) return false;
+      if (unter !== ALL && !matchesUnter(r, unter)) return false;
+      if (wg !== ALL && !matchesWg(r, wg)) return false;
       if (q && !r.name.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [rowsAfterUnter, search, wg, showInactive]);
+  }, [rows, search, haupt, unter, wg, showInactive]);
 
   const activeCount = rows.filter((r) => r.isActive).length;
 
@@ -224,45 +162,15 @@ function VerkaufsartikelPage() {
               placeholder="Suche nach Name…"
               className="w-64 rounded-md border border-input bg-background px-3 py-2 text-sm"
             />
-            <Select value={haupt} onValueChange={setHaupt}>
-              <SelectTrigger className="w-44">
-                <SelectValue placeholder="Hauptgruppe" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">Alle Hauptgruppen</SelectItem>
-                {hauptOptions.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={unter} onValueChange={setUnter}>
-              <SelectTrigger className="w-44">
-                <SelectValue placeholder="Untergruppe" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">Alle Untergruppen</SelectItem>
-                {unterOptions.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={wg} onValueChange={setWg}>
-              <SelectTrigger className="w-44">
-                <SelectValue placeholder="Warengruppe" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">Alle Warengruppen</SelectItem>
-                {wgOptions.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SalesGroupFilter
+              rows={rows}
+              haupt={haupt}
+              setHaupt={setHaupt}
+              unter={unter}
+              setUnter={setUnter}
+              wg={wg}
+              setWg={setWg}
+            />
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
               <Switch checked={showInactive} onCheckedChange={setShowInactive} />
               Inaktive anzeigen
