@@ -477,37 +477,37 @@ function KassePage() {
             <DateSelector date={businessDate} onDateChange={setBusinessDate} />
           </div>
           {underWaterline && <Badge variant="destructive">≤ {lockedThrough} gesperrt</Badge>}
-          {ovQ.data?.session && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExportPdf}
-                className="gap-2"
-                title={
-                  (ovQ.data.session.guest_count ?? 0) <= 0
-                    ? "Gästeanzahl fehlt – bitte zuerst eintragen und speichern"
-                    : "PDF für Archiv/E-Mail"
-                }
-              >
-                <Download className="h-4 w-4" />
-                PDF Export
-              </Button>
-              <Button
-                onClick={handlePrintClick}
-                className="gap-2"
-                title={
-                  (ovQ.data.session.guest_count ?? 0) <= 0
-                    ? "Gästeanzahl fehlt – bitte zuerst eintragen und speichern"
-                    : "Öffnet den System-Druckdialog"
-                }
-              >
-                <Printer className="h-4 w-4" />
-                Tagesabrechnung drucken
-              </Button>
-            </>
-          )}
         </div>
+        {ovQ.data?.session && (
+          <div className="ml-auto flex items-end gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportPdf}
+              className="gap-2"
+              title={
+                (ovQ.data.session.guest_count ?? 0) <= 0
+                  ? "Gästeanzahl fehlt – bitte zuerst eintragen und speichern"
+                  : "PDF für Archiv/E-Mail"
+              }
+            >
+              <Download className="h-4 w-4" />
+              PDF Export
+            </Button>
+            <Button
+              onClick={handlePrintClick}
+              className="gap-2"
+              title={
+                (ovQ.data.session.guest_count ?? 0) <= 0
+                  ? "Gästeanzahl fehlt – bitte zuerst eintragen und speichern"
+                  : "Öffnet den System-Druckdialog"
+              }
+            >
+              <Printer className="h-4 w-4" />
+              Tagesabrechnung drucken
+            </Button>
+          </div>
+        )}
       </div>
 
       {ovQ.isLoading && <KassePageSkeleton />}
