@@ -620,12 +620,13 @@ function StaffMatrixRow({
                         !eligible && has && "opacity-70",
                       )}
                       style={
-                        color
-                          ? has
-                            ? { backgroundColor: color, borderColor: color, color: "#fff" }
-                            : { borderColor: color, color }
+                        color && has
+                          ? { backgroundColor: color, borderColor: color, color: "#fff" }
                           : undefined
                       }
+                      data-inactive={!has || undefined}
+                      // Inaktive Skills bewusst neutral-grau: bessere Übersicht,
+                      // die Farbe signalisiert nur „aktiv/zugewiesen".
                     >
                       {skill.name}
                     </button>
