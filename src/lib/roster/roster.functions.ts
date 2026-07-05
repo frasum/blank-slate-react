@@ -379,10 +379,7 @@ export const getStaffForRoster = createServerFn({ method: "GET" })
     const bdayByStaff = new Map<string, string | null>();
     for (const r of dobRows ?? []) {
       const dob = (r.date_of_birth as string | null) ?? null;
-      bdayByStaff.set(
-        r.staff_id as string,
-        dob && dob.length >= 10 ? dob.slice(5, 10) : null,
-      );
+      bdayByStaff.set(r.staff_id as string, dob && dob.length >= 10 ? dob.slice(5, 10) : null);
     }
 
     return visibleRows
