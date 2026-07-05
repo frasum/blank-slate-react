@@ -24,6 +24,7 @@ import {
 async function assertLocationInOrg(locationId: string, organizationId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
+    // ST1: bewusst ungefiltert — Daten-Zugriff (assertLocationInOrg by id).
     .from("locations")
     .select("id")
     .eq("id", locationId)
