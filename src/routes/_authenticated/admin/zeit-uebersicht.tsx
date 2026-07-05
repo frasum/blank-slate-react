@@ -2634,7 +2634,7 @@ function ReassignPopover({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="mt-0.5 text-[10px] text-muted-foreground hover:text-foreground underline decoration-dotted opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+          className="absolute bottom-0 right-0.5 text-[10px] leading-none text-muted-foreground hover:text-foreground underline decoration-dotted opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
           title="Einträge einer Abteilung zuordnen"
           disabled={pending}
         >
