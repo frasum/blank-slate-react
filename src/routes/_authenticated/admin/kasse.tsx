@@ -9,10 +9,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Download, FileText, Printer, X } from "lucide-react";
+import { Check, Download, FileText, Lock, Printer, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { todayIso } from "@/lib/format";
 import { KassePageSkeleton } from "@/components/ui/page-skeletons";
 import {
@@ -333,6 +335,10 @@ function KassePage() {
   });
   const [reopenConfirm, setReopenConfirm] = useState(false);
 
+  // KAB1: Kopplungs-Dialog „Drucken + Finalisieren"
+  const [printCouple, setPrintCouple] = useState<{ lockAfter: boolean } | null>(null);
+  const [printCoupleBusy, setPrintCoupleBusy] = useState(false);
+
   // -------------------- Wasserlinie (Admin) --------------------
   const [cashLockDate, setCashLockDate] = useState<string>("");
   const [cashLockReason, setCashLockReason] = useState<string>("");
@@ -401,6 +407,49 @@ function KassePage() {
       toast.error((e as Error).message);
     }
   }
+
+  // KAB1: Klick auf „Tagesabrechnung drucken" – Status-bewusst
+  function handlePrintClick() {
+    if (sessionStatus === "open") {
+      // Kopplung: Finalisieren-Dialog vorschalten (Admin-Checkbox: danach sperren)
+      setPrintCouple({ lockAfter: false });
+      return;
+    }
+    // finalized/locked: direkt drucken (kein Statuswechsel)
+    handlePrint();
+  }
+
+  async function runPrintCouple(mode: "finalize_print" | "print_only") {
+    const data = buildSummaryDataOrNull();
+    if (!data) {
+      setPrintCouple(null);
+      return;
+    }
+    setPrintCoupleBusy(true);
+    try {
+      if (mode === "finalize_print") {
+        // Reihenfolge strikt: erst Finalisieren, dann Druck.
+        if (!sessionId) throw new Error("Keine Session");
+        await callFinalize({ data: { sessionId } });
+        toast.success("Tag finalisiert.");
+        const shouldLock = isAdmin && printCouple?.lockAfter === true;
+        printDailySummary(data);
+        if (shouldLock) {
+          await callLock({ data: { sessionId } });
+          toast.success("Session gesperrt.");
+        }
+        void invalidate();
+      } else {
+        printDailySummary(data);
+      }
+      setPrintCouple(null);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setPrintCoupleBusy(false);
+    }
+  }
+
   function closePdfPreview() {
     setPdfPreview(null);
   }
@@ -444,7 +493,7 @@ function KassePage() {
                 PDF Export
               </Button>
               <Button
-                onClick={handlePrint}
+                onClick={handlePrintClick}
                 className="gap-2"
                 title={
                   (ovQ.data.session.guest_count ?? 0) <= 0
@@ -593,7 +642,7 @@ function KassePage() {
             })()}
             onSave={(data) =>
               callUpdate({ data: { sessionId: sessionId!, ...data } }).then(() => {
-                toast.success("Session gespeichert.");
+                // KAB1: Kein Toast – Feedback zeigt der Auto-Save-Status im Card-Footer.
                 void invalidate();
               })
             }
@@ -651,31 +700,71 @@ function KassePage() {
             staffList={staffQ.data ?? []}
           />
 
-          <Card className="flex flex-wrap gap-3 p-4">
-            <Button
-              disabled={!writable || finalizeMut.isPending}
-              onClick={() => setFinalizeConfirm(true)}
-            >
-              Tag finalisieren
-            </Button>
-            {isAdmin && (
-              <Button
-                variant="destructive"
-                disabled={isLocked || lockMut.isPending}
-                onClick={() => setLockConfirm(true)}
-              >
-                Session sperren
-              </Button>
-            )}
-            {isAdmin && sessionStatus === "finalized" && !underWaterline && (
-              <Button
-                variant="outline"
-                disabled={reopenMut.isPending}
-                onClick={() => setReopenConfirm(true)}
-              >
-                Session wieder öffnen
-              </Button>
-            )}
+          <Card className="flex flex-wrap items-center justify-between gap-4 p-4">
+            {/* KAB1: kleiner Status-Stepper zur Orientierung */}
+            <StatusStepper status={sessionStatus} />
+            <div className="flex flex-wrap items-center gap-3">
+              {sessionStatus === "locked" && (
+                <Badge variant="secondary" className="gap-1">
+                  <Lock className="h-3.5 w-3.5" />
+                  Gesperrt
+                  {(ovQ.data.session as { locked_at?: string | null }).locked_at && (
+                    <span className="ml-1 text-xs opacity-70">
+                      ·{" "}
+                      {new Date(
+                        (ovQ.data.session as { locked_at?: string | null }).locked_at as string,
+                      ).toLocaleString("de-DE", {
+                        dateStyle: "short",
+                        timeStyle: "short",
+                      })}
+                    </span>
+                  )}
+                </Badge>
+              )}
+
+              {sessionStatus === "open" && (
+                <Button
+                  disabled={!writable || finalizeMut.isPending}
+                  onClick={() => setFinalizeConfirm(true)}
+                >
+                  Tag finalisieren
+                </Button>
+              )}
+
+              {sessionStatus === "finalized" &&
+                (isAdmin ? (
+                  <Button
+                    variant="destructive"
+                    disabled={isLocked || lockMut.isPending}
+                    onClick={() => setLockConfirm(true)}
+                  >
+                    Session sperren
+                  </Button>
+                ) : (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span>
+                          <Button variant="destructive" disabled>
+                            Session sperren
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>Sperren: nur Admin</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ))}
+
+              {isAdmin && sessionStatus === "finalized" && !underWaterline && (
+                <Button
+                  variant="outline"
+                  disabled={reopenMut.isPending}
+                  onClick={() => setReopenConfirm(true)}
+                >
+                  Session wieder öffnen
+                </Button>
+              )}
+            </div>
           </Card>
         </>
       )}
@@ -1050,6 +1139,96 @@ function KassePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* KAB1: Kopplungs-Dialog „Drucken + Finalisieren" (nur bei Session-Status open) */}
+      <Dialog open={printCouple !== null} onOpenChange={(o) => !o && setPrintCouple(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Tag finalisieren &amp; drucken?</DialogTitle>
+            <DialogDescription>
+              Finalisieren sperrt weitere Kellner-Abgaben; Manager-Korrekturen bleiben bis zur
+              Admin-Sperre möglich.
+            </DialogDescription>
+          </DialogHeader>
+          {isAdmin && printCouple && (
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={printCouple.lockAfter}
+                onCheckedChange={(v) => setPrintCouple({ lockAfter: v === true })}
+              />
+              <span>danach Session sperren</span>
+            </label>
+          )}
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              disabled={printCoupleBusy}
+              onClick={() => runPrintCouple("print_only")}
+              className="gap-2"
+            >
+              <Printer className="h-4 w-4" />
+              Nur drucken
+            </Button>
+            <Button
+              disabled={printCoupleBusy}
+              onClick={() => runPrintCouple("finalize_print")}
+              className="gap-2"
+            >
+              <Check className="h-4 w-4" />
+              {printCoupleBusy ? "Wird ausgeführt…" : "Finalisieren & drucken"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+  );
+}
+
+// KAB1: Kleiner Status-Stepper – Offen → Finalisiert → Gesperrt
+function StatusStepper({ status }: { status: string | null }) {
+  const steps = [
+    { key: "open", label: "Offen" },
+    { key: "finalized", label: "Finalisiert" },
+    { key: "locked", label: "Gesperrt" },
+  ] as const;
+  const activeIdx = Math.max(
+    0,
+    steps.findIndex((s) => s.key === status),
+  );
+  return (
+    <ol className="flex items-center gap-2 text-xs">
+      {steps.map((s, i) => {
+        const isCurrent = i === activeIdx;
+        const isDone = i < activeIdx;
+        return (
+          <li key={s.key} className="flex items-center gap-2">
+            <span
+              className={
+                "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 " +
+                (isCurrent
+                  ? "bg-primary text-primary-foreground font-medium"
+                  : isDone
+                    ? "bg-muted text-foreground"
+                    : "bg-muted/40 text-muted-foreground")
+              }
+            >
+              {isDone ? <Check className="h-3 w-3" /> : i + 1}
+            </span>
+            <span
+              className={
+                isCurrent
+                  ? "font-medium text-foreground"
+                  : isDone
+                    ? "text-foreground"
+                    : "text-muted-foreground"
+              }
+            >
+              {s.label}
+            </span>
+            {i < steps.length - 1 && <span className="text-muted-foreground">→</span>}
+          </li>
+        );
+      })}
+    </ol>
   );
 }
