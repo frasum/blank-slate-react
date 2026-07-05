@@ -6,8 +6,6 @@ import { listStaff } from "@/lib/admin/staff.functions";
 import { KanbanBoard } from "@/components/aufgaben/KanbanBoard";
 import { LocationPills } from "@/components/shared/LocationPills";
 import type { StaffOption } from "@/lib/aufgaben/filter-staff-by-category";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { RemindersAdmin } from "@/components/aufgaben/RemindersAdmin";
 
 export const Route = createFileRoute("/_authenticated/admin/aufgaben")({
   head: () => ({ meta: [{ title: "Aufgaben · Verwaltung" }] }),
@@ -59,20 +57,8 @@ function AufgabenPage() {
         <span className="text-xs font-medium text-muted-foreground">Standort:</span>
         <LocationPills locations={locsQ.data ?? []} value={locationId} onChange={setLocationId} />
       </div>
-
       {locationId ? (
-        <Tabs defaultValue="board">
-          <TabsList>
-            <TabsTrigger value="board">Board</TabsTrigger>
-            <TabsTrigger value="display">Aufgaben-Display</TabsTrigger>
-          </TabsList>
-          <TabsContent value="board" className="mt-4">
-            <KanbanBoard locationId={locationId} staff={staffForLocation} canCreate={canCreate} />
-          </TabsContent>
-          <TabsContent value="display" className="mt-4">
-            <RemindersAdmin locationId={locationId} />
-          </TabsContent>
-        </Tabs>
+        <KanbanBoard locationId={locationId} staff={staffForLocation} canCreate={canCreate} />
       ) : (
         <p className="text-sm text-muted-foreground">Bitte einen Standort wählen.</p>
       )}
