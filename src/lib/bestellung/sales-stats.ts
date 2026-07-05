@@ -38,23 +38,52 @@ export type EnrichedStatRow = SalesStatRow & {
   hauptgruppeNr: number | null;
   /** true, wenn kein sales_articles-Treffer über Namens-Match gefunden. */
   unmatched: boolean;
+  /** true, wenn Gruppen aus einem manuellen Override stammen (Vorrang vor Namens-Match). */
+  overridden: boolean;
 };
 
 export function normalizeName(input: string): string {
   return input.trim().toLocaleLowerCase("de").replace(/\s+/g, " ");
 }
 
+export type PosGroupOverride = {
+  nummer: number;
+  warengruppe: string | null;
+  productGroup: number | null;
+  untergruppe: string | null;
+  untergruppeNr: number | null;
+  hauptgruppe: string | null;
+  hauptgruppeNr: number | null;
+};
+
 export function enrichSalesStats(
   stats: readonly SalesStatRow[],
   articles: readonly SalesArticleForJoin[],
+  overrides: readonly PosGroupOverride[] = [],
 ): { rows: EnrichedStatRow[]; unmatchedCount: number } {
   const byName = new Map<string, SalesArticleForJoin>();
   for (const a of articles) {
     const key = normalizeName(a.name);
     if (!byName.has(key)) byName.set(key, a);
   }
+  const overrideByNummer = new Map<number, PosGroupOverride>();
+  for (const o of overrides) overrideByNummer.set(o.nummer, o);
   let unmatchedCount = 0;
   const rows = stats.map((s): EnrichedStatRow => {
+    const override = overrideByNummer.get(s.nummer);
+    if (override) {
+      return {
+        ...s,
+        warengruppe: override.warengruppe,
+        productGroup: override.productGroup,
+        untergruppe: override.untergruppe,
+        untergruppeNr: override.untergruppeNr,
+        hauptgruppe: override.hauptgruppe,
+        hauptgruppeNr: override.hauptgruppeNr,
+        unmatched: false,
+        overridden: true,
+      };
+    }
     const match = byName.get(normalizeName(s.name));
     if (!match) unmatchedCount += 1;
     return {
@@ -66,6 +95,7 @@ export function enrichSalesStats(
       hauptgruppe: match?.hauptgruppe ?? null,
       hauptgruppeNr: match?.hauptgruppeNr ?? null,
       unmatched: !match,
+      overridden: false,
     };
   });
   return { rows, unmatchedCount };
