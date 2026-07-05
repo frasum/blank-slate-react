@@ -498,7 +498,7 @@ function KassePage() {
                 PDF Export
               </Button>
               <Button
-                onClick={handlePrint}
+                onClick={handlePrintClick}
                 className="gap-2"
                 title={
                   (ovQ.data.session.guest_count ?? 0) <= 0
