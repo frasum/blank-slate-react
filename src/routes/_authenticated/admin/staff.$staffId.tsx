@@ -358,9 +358,7 @@ function SkillChip({
   const isWhite = (skill.color ?? "").toLowerCase() === "#ffffff";
   // Inaktive Skills bewusst neutral-grau (einheitlich mit staff.index.tsx):
   // Farbe signalisiert ausschließlich „aktiv/zugewiesen".
-  const textStyle: React.CSSProperties = active
-    ? { color: isWhite ? "#0a0a0a" : "#ffffff" }
-    : {};
+  const textStyle: React.CSSProperties = active ? { color: isWhite ? "#0a0a0a" : "#ffffff" } : {};
   const borderColor = active ? (skill.color ?? undefined) : undefined;
 
   return (
