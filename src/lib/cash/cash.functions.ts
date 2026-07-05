@@ -486,6 +486,7 @@ export async function getCashOverviewCore(
       createdAt: r.created_at,
     })),
     cashLockedThroughDate: await loadLocationCashLock(caller.organizationId, session.location_id),
+    managerOnDutyNames,
   };
 }
 
