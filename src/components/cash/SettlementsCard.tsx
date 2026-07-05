@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import { fmtCents } from "@/lib/format";
 import type { Overview, SettlementRow } from "@/lib/cash/kasse-types";
+import { computeTipTotalCents } from "@/lib/cash/tip-pool";
 
 export function SettlementsCard({
   data,
@@ -63,8 +64,18 @@ export function SettlementsCard({
               (r as { kassiert_brutto_cents?: number | string | null }).kassiert_brutto_cents ??
                 r.pos_sales_cents,
             );
-            const diff = Number(r.differenz_cents);
-            const tipTotal = Number(r.kitchen_tip_cents) + Math.max(0, diff);
+            // Tip pro Kellner = Pool-Formel (Spicery-Abrechnung, kanonisch):
+            //   card + cashHandedIn + open − kassiertBrutto − hilfMahl
+            const tipTotal = computeTipTotalCents([
+              {
+                cardTotalCents: Number(r.card_total_cents),
+                cashHandedInCents: Number(r.cash_handed_in_cents),
+                posSalesCents: pos,
+                openInvoicesCents: Number(r.open_invoices_cents),
+                hilfMahlCents: Number(r.hilf_mahl_cents),
+                kassiertBruttoCents: kassiertBrutto,
+              },
+            ]);
             const tipPct = pos > 0 ? (tipTotal / pos) * 100 : null;
             return (
               <TableRow key={r.id} className={superseded ? "opacity-50" : ""}>

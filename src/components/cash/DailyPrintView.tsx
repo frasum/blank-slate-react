@@ -297,11 +297,22 @@ export function renderDailyPrintHtml(data: PdfExportData): string {
 
     const sumPos = active.reduce((a, s) => a + s.pos_sales_cents, 0);
     const sumKitchenTip = active.reduce((a, s) => a + s.kitchen_tip_cents, 0);
-    const sumDiff = active.reduce((a, s) => a + s.differenz_cents, 0);
-    const sumTipAll = sumKitchenTip + Math.max(0, sumDiff);
+    // Tip = Pool-Formel (Spicery-Abrechnung): card + cash + open − kassiertBrutto − hilfMahl.
+    const sumTipAll = active.reduce(
+      (a, s) =>
+        a +
+        s.card_total_cents +
+        s.cash_handed_in_cents +
+        s.open_invoices_cents -
+        (((s as unknown as { kassiert_brutto_cents?: number }).kassiert_brutto_cents ??
+          s.pos_sales_cents) as number) -
+        s.hilf_mahl_cents,
+      0,
+    );
+    const sumServicePool = Math.max(0, sumTipAll - sumKitchenTip);
     const tipPercent = sumPos > 0 ? (sumTipAll / sumPos) * 100 : 0;
     rightParts.push(
-      `<p style="font-size:9pt;margin:2mm 0 0;">Mitarbeiter-Pool: ${fmtEur(Math.max(0, sumDiff))} · Küchen-Pool: ${fmtEur(sumKitchenTip)}</p>`,
+      `<p style="font-size:9pt;margin:2mm 0 0;">Mitarbeiter-Pool: ${fmtEur(sumServicePool)} · Küchen-Pool: ${fmtEur(sumKitchenTip)}</p>`,
       `<p style="font-size:9pt;margin:1mm 0 0;font-weight:700;">Ø Trinkgeld: ${fmtEur(sumTipAll)} von ${fmtEur(sumPos)} Umsatz = ${tipPercent.toFixed(1).replace(".", ",")}%</p>`,
       `</section>`,
     );

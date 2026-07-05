@@ -48,6 +48,7 @@ export interface PdfSettlement {
   hilf_mahl_cents: Cents;
   open_invoices_cents: Cents;
   cash_handed_in_cents: Cents;
+  kassiert_brutto_cents?: Cents;
   differenz_cents: Cents;
   kitchen_tip_cents: Cents;
   submitted_at?: string | null;
@@ -411,8 +412,18 @@ export async function generateDailySummaryPdf(data: PdfExportData): Promise<{
 
     const sumPos = active.reduce((a, s) => a + s.pos_sales_cents, 0);
     const sumKitchenTip = active.reduce((a, s) => a + s.kitchen_tip_cents, 0);
-    const sumDiff = active.reduce((a, s) => a + s.differenz_cents, 0);
-    const sumTipAll = sumKitchenTip + Math.max(0, sumDiff);
+    // Tip = Pool-Formel (Spicery-Abrechnung): card + cash + open − kassiertBrutto − hilfMahl.
+    const sumTipAll = active.reduce(
+      (a, s) =>
+        a +
+        s.card_total_cents +
+        s.cash_handed_in_cents +
+        s.open_invoices_cents -
+        (s.kassiert_brutto_cents ?? s.pos_sales_cents) -
+        s.hilf_mahl_cents,
+      0,
+    );
+    const sumServicePool = Math.max(0, sumTipAll - sumKitchenTip);
     const tipPercent = sumPos > 0 ? (sumTipAll / sumPos) * 100 : 0;
 
     rightEndY += 4;
@@ -420,7 +431,7 @@ export async function generateDailySummaryPdf(data: PdfExportData): Promise<{
     doc.setFont("helvetica", "normal");
     doc.setTextColor(0);
     doc.text(
-      `Mitarbeiter-Pool: ${fmtEur(Math.max(0, sumDiff))}  ·  Küchen-Pool: ${fmtEur(sumKitchenTip)}`,
+      `Mitarbeiter-Pool: ${fmtEur(sumServicePool)}  ·  Küchen-Pool: ${fmtEur(sumKitchenTip)}`,
       rightX + 2,
       rightEndY,
     );
