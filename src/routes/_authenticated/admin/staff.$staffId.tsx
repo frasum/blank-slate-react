@@ -31,6 +31,7 @@ import { SofortmeldungBanner } from "@/components/admin/SofortmeldungBanner";
 import { DokumenteTab } from "@/components/admin/DokumenteTab";
 import type { AppRole } from "@/lib/admin/role-guard";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import {
   deletePayslip,
   getPayslipSignedUrl,
