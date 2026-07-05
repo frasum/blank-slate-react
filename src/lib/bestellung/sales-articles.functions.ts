@@ -106,7 +106,7 @@ export const listSalesArticles = createServerFn({ method: "POST" })
     const { data: rows, error } = await supabaseAdmin
       .from("sales_articles")
       .select(
-        "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at",
+        "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr",
       )
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId)
@@ -151,7 +151,7 @@ export const createSalesArticle = createServerFn({ method: "POST" })
         .from("sales_articles")
         .insert(insert)
         .select(
-          "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at",
+          "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr",
         )
         .single();
       if (error) {
@@ -212,7 +212,7 @@ export const updateSalesArticle = createServerFn({ method: "POST" })
       const { data: before, error: beforeErr } = await supabaseAdmin
         .from("sales_articles")
         .select(
-          "id, organization_id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at",
+          "id, organization_id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr",
         )
         .eq("id", data.id)
         .maybeSingle();
@@ -266,7 +266,7 @@ export const updateSalesArticle = createServerFn({ method: "POST" })
         .eq("id", data.id)
         .eq("organization_id", caller.organizationId)
         .select(
-          "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at",
+          "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr",
         )
         .single();
       if (error) throw new Error(error.message);
