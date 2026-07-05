@@ -654,6 +654,18 @@ function ZeitUebersichtPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  // Z3 — alle Abteilungen der Person am Standort, gebündelt für Grid + Popover.
+  const staffDeptsByStaff = useMemo(() => {
+    const m = new Map<string, Department[]>();
+    for (const s of weeklyData?.assignedStaff ?? []) {
+      const arr = m.get(s.staffId) ?? [];
+      const from = s.staffDepts ?? [s.department];
+      for (const d of from) if (!arr.includes(d)) arr.push(d);
+      m.set(s.staffId, arr);
+    }
+    return m;
+  }, [weeklyData]);
   const createShiftMut = useMutation({
     mutationFn: (vars: {
       staffId: string;
