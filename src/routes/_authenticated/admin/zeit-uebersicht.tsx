@@ -2174,13 +2174,14 @@ function WeeklyPlan({
                   </TableCell>
                 </TableRow>
                 {grp.rows.map((row) => {
-                  const primaryDeptLabel =
-                    grp.rows.find((r) => r.staffId === row.staffId && r.isPrimary !== false)
-                      ?.department ?? row.department;
-                  const secondaryTitle =
-                    row.isPrimary === false
-                      ? `Zeiten dieser Person werden unter ${DEPT_HEADER_LABEL[primaryDeptLabel]} erfasst.`
-                      : undefined;
+                  // Z3 — Warnung, wenn ein Eintrag eine Abteilung trägt, die
+                  // der Person am Standort nicht (mehr) zugeordnet ist. Er
+                  // erscheint dann auf der Primär-Zeile.
+                  const mismatchedTitle = (
+                    row as { mismatched?: boolean }
+                  ).mismatched
+                    ? "Achtung: mindestens ein Eintrag trägt eine Abteilung, die der Person am Standort nicht zugeordnet ist — er wird hier auf der Primär-Zeile angezeigt."
+                    : undefined;
                   return (
                     <TableRow key={`${row.staffId}:${row.department}`}>
                       <TableCell className="relative px-1 font-medium align-middle text-center text-xs w-[68px] min-w-[68px] max-w-[68px]">
@@ -2189,9 +2190,12 @@ function WeeklyPlan({
                         />
                         <span
                           className={`block truncate ${row.isPrimary === false ? "text-muted-foreground/70 italic" : ""}`}
-                          title={secondaryTitle ?? row.displayName}
+                          title={mismatchedTitle ?? row.displayName}
                         >
                           {row.displayName}
+                          {mismatchedTitle ? (
+                            <span className="ml-0.5 text-amber-600">⚠</span>
+                          ) : null}
                         </span>
                       </TableCell>
                       {row.days.map((day, idx) => {
@@ -2204,7 +2208,9 @@ function WeeklyPlan({
                               ? "bg-gray-50"
                               : "";
                         const empty = day.shifts.length === 0;
-                        const clickable = isAdmin && !dm.outOfPeriod && row.isPrimary !== false;
+                        // Z3 — alle Zeilen sind editierbar; das Grid attribuiert
+                        // Einträge über entryRowDepartment.
+                        const clickable = isAdmin && !dm.outOfPeriod;
                         const multi = day.shifts.length > 1;
                         const isEditingCell =
                           edit !== null && edit.staffId === row.staffId && edit.iso === day.iso;
@@ -2212,7 +2218,7 @@ function WeeklyPlan({
                         const handleCellClick = (which: "from" | "to") => {
                           if (!editable) return;
                           if (isEditingCell) return;
-                          startEdit(row.staffId, day.iso, which);
+                          startEdit(row.staffId, day.iso, which, row.department);
                         };
                         const renderShift = (which: "from" | "to") => {
                           if (isEditingCell && edit.field === which) {
