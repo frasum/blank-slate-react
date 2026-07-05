@@ -14,12 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { todayIso } from "@/lib/format";
 import { KassePageSkeleton } from "@/components/ui/page-skeletons";
 import {
@@ -1159,9 +1154,7 @@ function KassePage() {
             <label className="flex items-center gap-2 text-sm">
               <Checkbox
                 checked={printCouple.lockAfter}
-                onCheckedChange={(v) =>
-                  setPrintCouple({ lockAfter: v === true })
-                }
+                onCheckedChange={(v) => setPrintCouple({ lockAfter: v === true })}
               />
               <span>danach Session sperren</span>
             </label>
