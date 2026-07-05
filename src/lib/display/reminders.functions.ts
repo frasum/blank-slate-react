@@ -100,7 +100,7 @@ const createSchema = z
     },
     {
       message:
-        ""bis muss nach ab liegen \u2014 oder (\u00fcber Mitternacht) h\u00f6chstens 03:00 sein.",
+        "\"bis\" muss nach \"ab\" liegen — oder (über Mitternacht) höchstens 03:00 sein.",
       path: ["untilTime"],
     },
   );
@@ -122,7 +122,7 @@ const updateSchema = z
     },
     {
       message:
-        ""bis muss nach ab liegen \u2014 oder (\u00fcber Mitternacht) h\u00f6chstens 03:00 sein.",
+        "\"bis\" muss nach \"ab\" liegen — oder (über Mitternacht) höchstens 03:00 sein.",
       path: ["untilTime"],
     },
   );
