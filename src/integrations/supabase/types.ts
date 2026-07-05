@@ -843,6 +843,7 @@ export type Database = {
           organization_id: string
           sort_order: number
           title: string
+          until_time: string
           updated_at: string
           weekday: number
         }
@@ -859,6 +860,7 @@ export type Database = {
           organization_id: string
           sort_order?: number
           title: string
+          until_time?: string
           updated_at?: string
           weekday: number
         }
@@ -875,6 +877,7 @@ export type Database = {
           organization_id?: string
           sort_order?: number
           title?: string
+          until_time?: string
           updated_at?: string
           weekday?: number
         }
