@@ -65,6 +65,9 @@ function formatEurFromCents(cents: number | null): string {
 
 function PosVerkaufPage() {
   const callList = useServerFn(listSalesStats);
+  const callSet = useServerFn(setSalesStatsGroupOverride);
+  const callClear = useServerFn(clearSalesStatsGroupOverride);
+  const queryClient = useQueryClient();
 
   const locationsQ = useQuery({
     queryKey: ["locations"],
@@ -83,6 +86,21 @@ function PosVerkaufPage() {
     queryKey: ["sales-stats", locationId, period],
     queryFn: () => callList({ data: { locationId, period } }),
     enabled: !!locationId,
+  });
+
+  const setOverrideMut = useMutation({
+    mutationFn: (input: { nummer: number; warengruppeKey: string }) =>
+      callSet({ data: { locationId, nummer: input.nummer, warengruppeKey: input.warengruppeKey } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sales-stats", locationId] });
+    },
+  });
+  const clearOverrideMut = useMutation({
+    mutationFn: (input: { nummer: number }) =>
+      callClear({ data: { locationId, nummer: input.nummer } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sales-stats", locationId] });
+    },
   });
 
   const [search, setSearch] = useState("");
