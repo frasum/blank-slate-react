@@ -65,7 +65,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export const Route = createFileRoute("/_authenticated/admin/bestellung/pos-verkauf")({
+export const Route = createFileRoute("/_authenticated/admin/pos-verkauf")({
   head: () => ({ meta: [{ title: "POS-Verkauf · Bestellung" }] }),
   component: PosVerkaufPage,
 });
