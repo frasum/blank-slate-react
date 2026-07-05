@@ -208,12 +208,7 @@ export const setLocationActive = createServerFn({ method: "POST" })
         .maybeSingle();
       if (loadErr) throw loadErr;
       if (!loc) throw new Error("Standort nicht gefunden.");
-      if (Boolean(loc.is_active) === data.isActive) {
-        return {
-          result: { ok: true as const, changed: false },
-          audit: null,
-        };
-      }
+      const alreadyInState = Boolean(loc.is_active) === data.isActive;
       const { error } = await supabaseAdmin
         .from("locations")
         .update({ is_active: data.isActive })
@@ -221,7 +216,7 @@ export const setLocationActive = createServerFn({ method: "POST" })
         .eq("organization_id", caller.organizationId);
       if (error) throw error;
       return {
-        result: { ok: true as const, changed: true },
+        result: { ok: true as const, changed: !alreadyInState },
         audit: {
           action: data.isActive ? "location.activated" : "location.deactivated",
           entity: "location",
