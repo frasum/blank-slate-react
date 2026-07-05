@@ -937,32 +937,7 @@ function KassePage() {
         </DialogContent>
       </Dialog>
 
-      {/* --- Finalize/Lock-Confirms --- */}
-      <Dialog open={finalizeConfirm} onOpenChange={setFinalizeConfirm}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Tag finalisieren?</DialogTitle>
-            <DialogDescription>
-              Sperrt das Erfassen weiterer Kellner-Abrechnungen und Satelliten. Korrekturen durch
-              Manager bleiben möglich, bis ein Admin die Session sperrt.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setFinalizeConfirm(false)}>
-              Abbrechen
-            </Button>
-            <Button
-              disabled={finalizeMut.isPending}
-              onClick={() =>
-                finalizeMut.mutate(undefined, { onSuccess: () => setFinalizeConfirm(false) })
-              }
-            >
-              Finalisieren
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
+      {/* --- Sperr-/Entsperr-Dialoge (Admin) --- */}
       <Dialog open={lockConfirm} onOpenChange={setLockConfirm}>
         <DialogContent>
           <DialogHeader>
@@ -981,32 +956,6 @@ function KassePage() {
               onClick={() => lockMut.mutate(undefined, { onSuccess: () => setLockConfirm(false) })}
             >
               Sperren
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={reopenConfirm} onOpenChange={setReopenConfirm}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Session wieder öffnen?</DialogTitle>
-            <DialogDescription>
-              Setzt den Status von „finalisiert" zurück auf „offen", sodass Kellner-Abrechnungen und
-              Satelliten für diesen Geschäftstag erneut bearbeitet werden können. Nur möglich,
-              solange die Session nicht gesperrt und nicht unter der Wasserlinie liegt.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setReopenConfirm(false)}>
-              Abbrechen
-            </Button>
-            <Button
-              disabled={reopenMut.isPending}
-              onClick={() =>
-                reopenMut.mutate(undefined, { onSuccess: () => setReopenConfirm(false) })
-              }
-            >
-              Wieder öffnen
             </Button>
           </DialogFooter>
         </DialogContent>
