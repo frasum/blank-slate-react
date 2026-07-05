@@ -42,20 +42,32 @@ const skillsByStaff = new Map<string, string[]>([
 
 describe("filterWeeklyRows", () => {
   it("gibt bei 'Alle/Alle/leer' alle nicht-leeren Sektionen zurück", () => {
-    const out = filterWeeklyRows(rowsByDept, { dept: "all", skillId: "all", query: "" }, skillsByStaff);
+    const out = filterWeeklyRows(
+      rowsByDept,
+      { dept: "all", skillId: "all", query: "" },
+      skillsByStaff,
+    );
     expect(out.map((g) => g.dept)).toEqual(["kitchen", "service", "gl"]);
     expect(out[0].rows).toHaveLength(3);
   });
 
   it("filtert nur den Bereich (Küche)", () => {
-    const out = filterWeeklyRows(rowsByDept, { dept: "kitchen", skillId: "all", query: "" }, skillsByStaff);
+    const out = filterWeeklyRows(
+      rowsByDept,
+      { dept: "kitchen", skillId: "all", query: "" },
+      skillsByStaff,
+    );
     expect(out).toHaveLength(1);
     expect(out[0].dept).toBe("kitchen");
     expect(out[0].rows.map((r) => r.staffId)).toEqual(["s1", "s2", "s3"]);
   });
 
   it("filtert nur den Skill (CO) — Sektionen ohne Träger verschwinden", () => {
-    const out = filterWeeklyRows(rowsByDept, { dept: "all", skillId: "co", query: "" }, skillsByStaff);
+    const out = filterWeeklyRows(
+      rowsByDept,
+      { dept: "all", skillId: "co", query: "" },
+      skillsByStaff,
+    );
     // GL hat nur s1 (CO) → bleibt; Service hat s2 (CO) → bleibt.
     expect(out.map((g) => g.dept)).toEqual(["kitchen", "service", "gl"]);
     expect(out.find((g) => g.dept === "kitchen")!.rows.map((r) => r.staffId)).toEqual(["s1", "s2"]);
@@ -64,7 +76,11 @@ describe("filterWeeklyRows", () => {
   });
 
   it("kombiniert Bereich + Skill per UND", () => {
-    const out = filterWeeklyRows(rowsByDept, { dept: "service", skillId: "co", query: "" }, skillsByStaff);
+    const out = filterWeeklyRows(
+      rowsByDept,
+      { dept: "service", skillId: "co", query: "" },
+      skillsByStaff,
+    );
     expect(out).toHaveLength(1);
     expect(out[0].rows.map((r) => r.staffId)).toEqual(["s2"]);
   });

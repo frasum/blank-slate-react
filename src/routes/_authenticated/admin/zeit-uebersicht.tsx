@@ -2328,10 +2328,7 @@ function WeeklyPlan({
                         <span
                           className={`absolute left-0 top-0 bottom-0 w-[2px] ${DEPT_BAR[row.department]}`}
                         />
-                        <span
-                          className="block truncate"
-                          title={mismatchedTitle ?? row.displayName}
-                        >
+                        <span className="block truncate" title={mismatchedTitle ?? row.displayName}>
                           {row.displayName}
                           {mismatchedTitle ? (
                             <span className="ml-0.5 text-amber-600">⚠</span>
