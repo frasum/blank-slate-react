@@ -3031,3 +3031,53 @@ drei VA2-Gruppenebenen als Filter.
 der Namens-Join in der Praxis zu viele „Ohne Zuordnung" liefert, wäre
 `vectron_nr` an `sales_articles` eine eigene kleine Folge-Welle
 (harter Join per PLU statt weichem Namens-Match).
+
+### §PV2 — POS-Verkauf: XLSX-Upload mit Review-Screen (05.07.)
+
+Selbstbedienungs-Import für Frank nach dem Bilanz-Muster. Der bisherige
+SQL-Weg (`INSERT ... ON CONFLICT`) bleibt als dokumentierter Alternativ-
+/Reparaturweg bestehen — die vier verifizierten Erst-Importe stammen von
+dort und dienen weiterhin als Cent-genauer Regressionsanker.
+
+- **Parser** `src/lib/bestellung/pos-report-parser.ts` — headless,
+  exceljs-frei. Eingabe: bereits extrahierte Zellen
+  (`Array<Array<string|number|null>>`). Erkennt die 4-Spalten- und die
+  6-Spalten-Variante des Vectron-Berichts **über die Kopfzeile**
+  („Verkauf"/„€"), nicht per Positionsraten. Klammer-Strip für
+  `[deaktivierte]` Namen. Fußzeile (`Nummer='*'`, `Name='Alle (Artikel)'`)
+  → Kontrollsumme. Namenlose PLU-Zeilen wandern nach `skipped` und werden
+  in die Kontrollsumme miteingerechnet — Warnung + Nachvollziehbarkeit
+  ohne Import der Vectron-Interna. Checks (`footer_stueck`,
+  `footer_umsatz`, `nummer_unique`) blockieren das Speichern; fehlt die
+  Fußzeile, gehen die footer-Checks bewusst auf `ok: false` (kein stiller
+  Skip — Vectron-Exporte haben sie immer).
+- **RPC** `public.replace_pos_sales_stats(org, location, period,
+  report_date, rows jsonb)` — `SECURITY DEFINER`, `search_path=''`,
+  `EXECUTE` nur für `service_role`. Löscht atomar alle Zeilen für
+  (Standort × Periode) und importiert die geprüften neu (BIGINT cents).
+- **Server-Fn** `replacePosSalesStats` in `sales-stats.functions.ts` —
+  `loadAdminCaller("admin")` (Import = Datenhoheit, enger als das
+  `manager+`-Lesen), `assertLocationInOrg`, Zod-Schema (Periode,
+  Nicht-Zukunftsdatum, nicht-leere Zeilen, nicht-leere Namen). Der
+  Client sendet als `footer` die um `Σ skipped` bereinigten Sollwerte;
+  serverseitig gilt **strikte Gleichheit** (`Σ rows == footer`). Bei
+  Mismatch: Ablehnung ohne Audit. Bei Erfolg: `audit_log`
+  `pos_sales.replaced` mit
+  `{ locationId, period, reportDate, rowCount, sumVerkauf, sumCents }`.
+- **UI** — Button „XLSX importieren…" oben rechts im POS-Verkauf-
+  Bereich, **nur für Admins sichtbar** (UX-Gate; Sicherheit hängt am
+  Server, nicht am Button). Dialog: Periode + Stichtag (Default: aktuelle
+  Ansicht bzw. heute), Datei-Upload, exceljs client-seitig, Review mit
+  Summen-Karten, Checks-Tabelle (Soll/Ist, OK/Fehler), skipped-Warnliste,
+  Warnungen als aufklappbares Detail. „Speichern" nur bei allen Checks
+  grün; danach Toast mit Zeilen/Summen und `invalidateQueries` für die
+  aktuelle Liste.
+- **Nicht angefasst**: Schema von `sales_article_stats`, `listSalesStats`,
+  `enrichSalesStats`, `SalesGroupFilter`, VA1–VA3, EKZ1, Kasse, Lohn,
+  Zeit, Bilanz. Geld bleibt BIGINT cents, kein `localStorage`, keine
+  Edge Functions — der Upload läuft rein client-seitig + TanStack-
+  Server-Fn.
+- **Erfolgsbeleg**: eine der vier Erst-Import-Dateien erneut hochladen
+  (gleicher Standort/Periode) → alle Checks grün, Summenzeile
+  unverändert (Idempotenz gegen den verifizierten Erst-Import), Audit-
+  Eintrag `pos_sales.replaced` vorhanden.
