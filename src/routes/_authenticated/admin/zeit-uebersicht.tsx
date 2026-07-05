@@ -1122,6 +1122,16 @@ function ZeitUebersichtPage() {
                 department,
               });
             }}
+            onReassign={(id, department) => {
+              const entry = weeklyData?.entries.find((e) => e.id === id);
+              if (!entry) return;
+              setShiftMut.mutate({
+                id,
+                startedAt: entry.startedAt,
+                endedAt: entry.endedAt,
+                department,
+              });
+            }}
             entriesById={useMemo(() => {
               const m = new Map<string, WeeklyEntry>();
               for (const e of weeklyData?.entries ?? []) m.set(e.id, e);
