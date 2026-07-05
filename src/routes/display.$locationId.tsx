@@ -15,7 +15,6 @@ import {
   nowBerlinParts,
   sortReminders,
   type Reminder,
-  type ReminderColor,
 } from "@/lib/display/reminders";
 import { businessDateOf } from "@/lib/business-date";
 
