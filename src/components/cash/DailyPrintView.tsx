@@ -199,9 +199,10 @@ export function renderDailyPrintHtml(data: PdfExportData): string {
     : esc(fmtDateLong(sess.business_date));
 
   const now = new Date();
-  const nowStr = `${String(now.getDate()).padStart(2, "0")}.${String(
-    now.getMonth() + 1,
-  ).padStart(2, "0")}.${now.getFullYear()} ${String(now.getHours()).padStart(2, "0")}:${String(
+  const nowStr = `${String(now.getDate()).padStart(2, "0")}.${String(now.getMonth() + 1).padStart(
+    2,
+    "0",
+  )}.${now.getFullYear()} ${String(now.getHours()).padStart(2, "0")}:${String(
     now.getMinutes(),
   ).padStart(2, "0")}`;
 
@@ -335,9 +336,7 @@ export function renderDailyPrintHtml(data: PdfExportData): string {
   }
 
   if (sess.notes && sess.notes.trim().length > 0) {
-    rightParts.push(
-      `<section class="notes"><h4>Notizen</h4><p>${esc(sess.notes)}</p></section>`,
-    );
+    rightParts.push(`<section class="notes"><h4>Notizen</h4><p>${esc(sess.notes)}</p></section>`);
   }
 
   // Vorschussquittungen (je ein Blatt) – identisch zum PDF
