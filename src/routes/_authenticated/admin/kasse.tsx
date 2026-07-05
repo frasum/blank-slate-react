@@ -339,13 +339,7 @@ function KassePage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // -------------------- PDF Export --------------------
-  const [pdfPreview, setPdfPreview] = useState<{
-    doc: jsPDF;
-    blob: Blob;
-    fileName: string;
-  } | null>(null);
-  // DR1: gemeinsamer Daten-Builder für PDF & HTML-Druckansicht (eine Zahlen-
+  // DR1: gemeinsamer Daten-Builder für die HTML-Druckansicht (eine Zahlen-
   // Wahrheit – keine zweite Karten-/Bargeld-Berechnung).
   function buildSummaryDataOrNull() {
     const ov = ovQ.data;
@@ -373,17 +367,6 @@ function KassePage() {
     });
   }
 
-  async function handleExportPdf() {
-    const data = buildSummaryDataOrNull();
-    if (!data) return;
-    try {
-      const out = await generateDailySummaryPdf(data);
-      setPdfPreview(out);
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
-  }
-
   function handlePrint() {
     const data = buildSummaryDataOrNull();
     if (!data) return;
@@ -394,51 +377,35 @@ function KassePage() {
     }
   }
 
-  // KAB1: Klick auf „Tagesabrechnung drucken" – Status-bewusst
-  function handlePrintClick() {
-    if (sessionStatus === "open") {
-      // Kopplung: Finalisieren-Dialog vorschalten (Admin-Checkbox: danach sperren)
-      // Admin: nach dem Druck automatisch sperren (Checkbox ausgeblendet, Default AN).
-      setPrintCouple({ lockAfter: isAdmin });
+  // KAB2: EIN Knopf. Bei `open` immer Finalisieren → Druck (→ Admin auto-lock),
+  // bei `finalized`/`locked` nur Druck. Strikte Reihenfolge: schlägt Finalize
+  // fehl, wird NICHT gedruckt (bestehende Kopplung).
+  async function handlePrintClick() {
+    if (sessionStatus !== "open") {
+      handlePrint();
       return;
     }
-    // finalized/locked: direkt drucken (kein Statuswechsel)
-    handlePrint();
-  }
-
-  async function runPrintCouple(mode: "finalize_print" | "print_only") {
     const data = buildSummaryDataOrNull();
-    if (!data) {
-      setPrintCouple(null);
+    if (!data) return;
+    if (!sessionId) {
+      toast.error("Keine Session");
       return;
     }
-    setPrintCoupleBusy(true);
+    setPrintBusy(true);
     try {
-      if (mode === "finalize_print") {
-        // Reihenfolge strikt: erst Finalisieren, dann Druck.
-        if (!sessionId) throw new Error("Keine Session");
-        await callFinalize({ data: { sessionId } });
-        toast.success("Tag finalisiert.");
-        const shouldLock = isAdmin && printCouple?.lockAfter === true;
-        printDailySummary(data);
-        if (shouldLock) {
-          await callLock({ data: { sessionId } });
-          toast.success("Session gesperrt.");
-        }
-        void invalidate();
-      } else {
-        printDailySummary(data);
+      await callFinalize({ data: { sessionId } });
+      toast.success("Tag finalisiert.");
+      printDailySummary(data);
+      if (isAdmin) {
+        await callLock({ data: { sessionId } });
+        toast.success("Session gesperrt.");
       }
-      setPrintCouple(null);
+      void invalidate();
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
-      setPrintCoupleBusy(false);
+      setPrintBusy(false);
     }
-  }
-
-  function closePdfPreview() {
-    setPdfPreview(null);
   }
 
   return (
