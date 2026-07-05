@@ -200,6 +200,7 @@ function DensityStrip({
   const entries = Object.entries(counts);
   return (
     <div className="flex items-center gap-2">
+      <div className="w-28 shrink-0" />
       <div
         className="relative h-4 flex-1 rounded-sm border border-gray-200 bg-gray-50 overflow-hidden"
         aria-label={label}
