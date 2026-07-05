@@ -2,7 +2,7 @@
 
 Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen Baublock konsultiert. Bewusst kurz gehalten — Architektur-Begründungen stehen im gruendungsdokument.md, nicht hier.
 
-Stand: 05.07.2026 (Tagesabschluss, HEAD 96bf974d)
+Stand: 05.07.2026 (VA2)
 
 **PL1-Fix Urlaub-Sichtbarkeit (05.07.2026):** In
 `permission_role_defaults` war `roster.leave.view_all` als Default für
@@ -18,6 +18,10 @@ Standort irgendeinen Bereich frei hat, sieht er dort BEIDE Blöcke
 (Küche + Service) — bewusst, weil die Balken-Übersicht die
 Kollisionen zwischen Bereichen zeigen muss. Schichttausch war schon
 korrekt bereichs-scoped (kein planer-Default für `roster.swap.view_pending`).
+
+**Nachschärfung 05.07.:** `roster.leave.view_all` aus den
+`planer`-Rollen-Defaults entfernt (Migration) — Sicht ausschließlich über
+gescopte Overrides.
 
 **BB1 (05.07.2026):** Buchhaltungs-Spalte „Besonderheiten" =
 **Auto-Teil** (live aus `roster_absence`, `formatAbsenceNote` in
