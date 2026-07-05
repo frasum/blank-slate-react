@@ -7,6 +7,8 @@ import { Buffer } from "node:buffer";
 import { timingSafeEqual } from "node:crypto";
 import { resolveCellKind } from "@/lib/display/cell";
 import { currentPeriodEnd, nextPeriodEnd, periodLabel } from "@/lib/display/period-split";
+import type { ReminderColor } from "@/lib/display/reminders";
+import { businessDateOf } from "@/lib/business-date";
 
 type DisplayCell = {
   k: "shift" | "urlaub" | "krank" | "wish" | "available" | "empty";
@@ -26,6 +28,17 @@ type DisplayBlock = {
   rows: DisplayRow[];
   dayCounts: number[];
 };
+type DisplayReminder = {
+  id: string;
+  title: string;
+  emoji: string | null;
+  color: ReminderColor;
+  weekday: number;
+  intervalWeeks: 1 | 2;
+  anchorDate: string | null;
+  fromTime: string;
+  sortOrder: number;
+};
 type DisplayPayload = {
   location: { id: string; name: string };
   generatedAt: string;
@@ -43,6 +56,7 @@ type DisplayPayload = {
   nextPeriodLabel: string;
   currentPeriodEnd: string;
   nextPeriodEnd: string;
+  reminders: DisplayReminder[];
 };
 
 function jsonError(status: number, error: string) {
