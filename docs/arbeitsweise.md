@@ -2881,3 +2881,28 @@ in `SettlementsCard`/`DailyPrintView`/`pdfExport` ersetzt) und auf
 wieder genau eine Implementierung. Neues Feld `kassiert_brutto_cents` mit
 `pos_sales`-Fallback im `PdfExportData`-Pfad. Blockierender Gleichheits-Test
 `src/lib/cash/pdfExport-tip.test.ts` verhindert Rückfall auf Inline-Reduce.
+
+## 2026-07-05 — EKZ1: EK-Zuordnungs-Werkbank (Verkaufsartikel → Einkaufsartikel)
+
+Verknüpfung `sales_articles → articles` mit Portions-/Gebinde-ml gespeichert
+(Quelle der Wahrheit), `ek_price_cents` als bewusst materialisierter Cache
+(analog Pool-Snapshots). Neue Felder: `ek_source_article_id`, `ek_portion_ml`,
+`ek_source_volume_ml`, `ek_match_ignored` — mit DB-CHECKs (beide ml gemeinsam
+oder gemeinsam leer; Portion ≤ Gebinde; ignored ⊕ Verknüpfung).
+
+Server-Fns (admin-only, `runGuarded` + Audit):
+`searchPurchaseArticlesForEk`, `linkSalesArticleEk`, `unlinkSalesArticleEk`,
+`setEkMatchIgnored`, `recalcAllLinkedEk`. Rechenweg lebt im pur getesteten
+`src/lib/bestellung/ek-linking.ts` (`computeEkFromLink` = `price × portion /
+source`, kaufmännisch gerundet); `recalcAllLinkedEk` zieht bei
+Preisänderungen alles verknüpfte auf einen Knopfdruck nach.
+
+UI: neuer Unter-Reiter „EK-Zuordnung" auf der Verkaufsartikel-Seite
+(admin-only). Arbeitsansicht mit Status-Filter (Offen/Verknüpft/Manueller
+EK/Ignorieren), Getränke-Vorfilter, Typeahead-Dialog mit Portions-Chips
+(4 cl · 5 cl · 0,1–0,5 l · 1:1) + eigener ml-Eingabe und Live-Vorschau
+inkl. Marge. Ignorieren-Flag ist Übergangsweg für Aufschläge/Hausmixe, bis
+die Rezept-Welle nachzieht (1-Zutat-Spezialfall = jetziger Stand).
+
+Bestehende EK-Werte (35 automatisch + 306 Vectron-Import) bleiben als
+„Manueller EK" bis zur Zuordnung — nichts gelöscht.
