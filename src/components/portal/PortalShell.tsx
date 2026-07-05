@@ -48,7 +48,10 @@ export function PortalShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   return (
-    <div className="min-h-screen bg-background">
+    <div
+      className="min-h-screen transition-colors duration-300"
+      style={{ background: "var(--loc-page, var(--background))" }}
+    >
       {/* Desktop Top-Bar */}
       <header className="sticky top-0 z-30 hidden border-b border-border bg-card sm:flex">
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-4 py-2">
