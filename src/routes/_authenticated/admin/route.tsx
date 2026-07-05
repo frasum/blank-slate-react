@@ -10,6 +10,7 @@ import { tabClass } from "@/components/ui/nav-tab";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyIdentity } from "@/lib/auth/me.functions";
 import { getReviewPendingCounts } from "@/lib/profile/profile-admin.functions";
+import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: async ({ context, location }) => {
@@ -214,9 +215,12 @@ function AdminLayout() {
                 Verwaltung
               </Link>
             </div>
-            <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
-              ← Zurück
-            </Link>
+            <div className="flex items-center gap-4">
+              <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
+                ← Zurück
+              </Link>
+              <SignOutLink />
+            </div>
           </div>
           {isPayroll ? (
             <nav className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border/60 pb-0 text-sm">
