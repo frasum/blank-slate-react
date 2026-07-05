@@ -705,13 +705,17 @@ function ZeitUebersichtPage() {
       isPrimary: boolean;
       byDate: Map<string, WeeklyEntry[]>;
       totals: { total: number; evening: number; night: number; sunHol: number };
+      mismatched: boolean;
     };
     const rowKey = (staffId: string, dept: Department) => `${staffId}:${dept}`;
     const rowMap = new Map<string, AccRow>();
-    // Z2 — Grundmenge: EINE Zeile pro (Mitarbeiter, Zuordnung). Mehrfach-
-    // zugeordnete Mitarbeiter (z. B. kitchen + gl) erscheinen in JEDER
-    // Sektion. isPrimary markiert die Zeile, auf der die Stunden auflaufen.
+    // Z2/Z3 — Grundmenge: EINE Zeile pro (Mitarbeiter, Zuordnung). Alle
+    // Zeilen sind ab Z3 voll editierbar; isPrimary bleibt nur für die
+    // NULL-Attribution (Fallback auf Primär-Zeile) relevant.
+    const staffDeptsByStaff = new Map<string, Department[]>();
     for (const s of data.assignedStaff ?? []) {
+      const arr = staffDeptsByStaff.get(s.staffId) ?? s.staffDepts ?? [];
+      staffDeptsByStaff.set(s.staffId, arr);
       const key = rowKey(s.staffId, s.department);
       if (rowMap.has(key)) continue;
       rowMap.set(key, {
@@ -721,6 +725,7 @@ function ZeitUebersichtPage() {
         isPrimary: s.isPrimary ?? true,
         byDate: new Map(),
         totals: { total: 0, evening: 0, night: 0, sunHol: 0 },
+        mismatched: false,
       });
     }
     for (const e of data.entries) {
@@ -728,21 +733,28 @@ function ZeitUebersichtPage() {
       // periode (Mo–So-Woche kann an Periodengrenzen überlappen) werden
       // weder in byDate noch in die Wochensummen aufgenommen.
       if (e.businessDate < fromDate || e.businessDate > toDate) continue;
-      // Der Server liefert e.department bereits als Primär-Abteilung —
-      // Stunden landen daher immer auf der Primär-Zeile.
-      const key = rowKey(e.staffId, e.department);
+      // Z3 — Attribution zentral über entryRowDepartment:
+      //   - department != null & ∈ staffDepts → eigene Zeile
+      //   - NULL → Primär-Zeile
+      //   - department gesetzt, aber nicht mehr zugeordnet → Primär-Zeile
+      //     + `mismatched` (Tooltip-Warnung)
+      const staffDepts = staffDeptsByStaff.get(e.staffId) ?? [e.department];
+      const attr = entryRowDepartment(e.rawDepartment ?? null, staffDepts);
+      const key = rowKey(e.staffId, attr.department);
       let r = rowMap.get(key);
       if (!r) {
         r = {
           staffId: e.staffId,
           displayName: e.displayName,
-          department: e.department,
+          department: attr.department,
           isPrimary: true,
           byDate: new Map(),
           totals: { total: 0, evening: 0, night: 0, sunHol: 0 },
+          mismatched: false,
         };
         rowMap.set(key, r);
       }
+      if (attr.mismatched) r.mismatched = true;
       const arr = r.byDate.get(e.businessDate) ?? [];
       arr.push(e);
       r.byDate.set(e.businessDate, arr);
