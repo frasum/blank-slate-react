@@ -11,6 +11,9 @@ import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { runGuarded } from "@/lib/admin/admin-call";
 import { makeAuditWriter } from "@/lib/admin/audit";
 import { computeEkFromLink } from "./ek-linking";
+import type { Database } from "@/integrations/supabase/types";
+
+type SalesArticleUpdate = Database["public"]["Tables"]["sales_articles"]["Update"];
 
 export type PurchaseArticleHit = {
   id: string;
@@ -199,7 +202,7 @@ export const unlinkSalesArticleEk = createServerFn({ method: "POST" })
         throw new Error("Verkaufsartikel gehört nicht zur aktiven Organisation.");
       }
 
-      const patch: Record<string, unknown> = {
+      const patch: SalesArticleUpdate = {
         ek_source_article_id: null,
         ek_portion_ml: null,
         ek_source_volume_ml: null,
