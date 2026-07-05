@@ -104,11 +104,18 @@ function LocationsPage() {
   } | null>(null);
 
   const locationsQ = useQuery({
-    queryKey: ["admin", "locations"],
-    // Standort-Admin-Seite zeigt auch deaktivierte Standorte (gedämpft).
+    // ST1b: Eigener Query-Key, weil diese Seite bewusst auch deaktivierte
+    // Standorte lädt (`includeInactive: true`). Der Default-Key
+    // `["admin", "locations"]` wird von Auswahl-Oberflächen genutzt und muss
+    // gefiltert bleiben — sonst würden inaktive Standorte per Cache-Kollision
+    // in Pills/Dropdowns auftauchen (Ursache des TSB-Bugs).
+    queryKey: ["admin", "locations", "with-inactive"],
     queryFn: () => listLocations({ data: { includeInactive: true } }),
   });
 
+  // Prefix-Invalidierung: trifft sowohl `["admin","locations","with-inactive"]`
+  // (diese Seite) als auch `["admin","locations"]` (alle Auswahl-Oberflächen),
+  // damit Aktivieren/Deaktivieren überall sofort greift.
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["admin", "locations"] });
 
   const createMut = useMutation({
