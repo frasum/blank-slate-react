@@ -46,9 +46,15 @@ export const Route = createFileRoute("/_authenticated/admin")({
     ) {
       throw redirect({ to: "/" });
     }
-    // Lohnbüro darf NUR die Arbeitszeiten sehen.
-    if (identity.role === "payroll" && location.pathname !== "/admin/zeit-uebersicht") {
-      throw redirect({ to: "/admin/zeit-uebersicht" });
+    // Lohnbüro darf Arbeitszeiten UND die Personalverwaltung (SD1 —
+    // Personaldaten/Urlaubs-Stammdaten der Detailseite) sehen.
+    if (identity.role === "payroll") {
+      const p = location.pathname;
+      const payrollAllowed =
+        p === "/admin/zeit-uebersicht" || p === "/admin/staff" || p.startsWith("/admin/staff/");
+      if (!payrollAllowed) {
+        throw redirect({ to: "/admin/zeit-uebersicht" });
+      }
     }
     // PL1 — Planer darf Dienstplan UND Urlaubsantrag/Schichttausch sehen.
     if (
@@ -89,7 +95,9 @@ const GROUPS: Group[] = [
       "/admin/personal-antraege",
     ],
     sub: [
-      { to: "/admin/staff", label: "Mitarbeiter" },
+      // SD1 — „Mitarbeiter" nur für admin (Manager haben keinen Zutritt mehr;
+      // payroll erreicht die Seite über die eigene Tab-Leiste).
+      { to: "/admin/staff", label: "Mitarbeiter", roles: ["admin"] },
       { to: "/admin/dienstplan", label: "Dienstplan" },
       { to: "/admin/urlaub", label: "Urlaubsantrag / Schichttausch" },
       { to: "/admin/personal-antraege", label: "Stammdaten & Dokumente", roles: ["admin"] },
