@@ -503,6 +503,11 @@ function StaffMatrixRow({
                 ({formatTenure(staff.employmentStartDate)})
               </span>
             )}
+            {computeAgeYears(staff.dateOfBirth) !== null && (
+              <span className="ml-1 font-normal text-muted-foreground">
+                ({computeAgeYears(staff.dateOfBirth)})
+              </span>
+            )}
           </Link>
         </div>
         <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
