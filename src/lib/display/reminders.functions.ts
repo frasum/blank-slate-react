@@ -77,7 +77,10 @@ const baseShape = {
     .nullable()
     .optional(),
   fromTime: z.string().regex(/^\d{2}:\d{2}$/),
-  untilTime: z.string().regex(/^\d{2}:\d{2}$/).default("01:00"),
+  untilTime: z
+    .string()
+    .regex(/^\d{2}:\d{2}$/)
+    .default("01:00"),
   isActive: z.boolean().optional(),
   sortOrder: z.number().int().min(0).max(9999).optional(),
 };
@@ -99,8 +102,7 @@ const createSchema = z
       return until > from;
     },
     {
-      message:
-        "\"bis\" muss nach \"ab\" liegen — oder (über Mitternacht) höchstens 03:00 sein.",
+      message: '"bis" muss nach "ab" liegen — oder (über Mitternacht) höchstens 03:00 sein.',
       path: ["untilTime"],
     },
   );
@@ -121,8 +123,7 @@ const updateSchema = z
       return until > from;
     },
     {
-      message:
-        "\"bis\" muss nach \"ab\" liegen — oder (über Mitternacht) höchstens 03:00 sein.",
+      message: '"bis" muss nach "ab" liegen — oder (über Mitternacht) höchstens 03:00 sein.',
       path: ["untilTime"],
     },
   );
