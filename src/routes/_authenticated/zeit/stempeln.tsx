@@ -22,6 +22,7 @@ import { formatShortDate } from "@/lib/format-date";
 import { parseAbsenceTodayError, type AbsenceType } from "@/lib/time/absence-warn";
 import { useIsPreview, PREVIEW_DISABLED_TOOLTIP } from "@/hooks/use-is-preview";
 import { useAuth } from "@/hooks/use-auth";
+import { isSumitr } from "@/lib/auth/special-cases";
 
 export const Route = createFileRoute("/_authenticated/zeit/stempeln")({
   head: () => ({
@@ -52,9 +53,9 @@ function ZeitPage() {
   const qc = useQueryClient();
   const isPreview = useIsPreview();
   const { identity, signOut } = useAuth();
-  // Sonderfall Sumitr: dieser Mitarbeiter nutzt nur die Stempel-Seite und
-  // braucht dort einen direkten Abmelde-Button statt „Zurück".
-  const isSumitr = (identity?.displayName ?? "").trim().toLowerCase().startsWith("sumitr");
+  // Sonderfall Sumitr (siehe lib/auth/special-cases): direkter „Abmelden"-
+  // Button statt „Zurück", weil dieser Mitarbeiter nur die Stempel-Seite nutzt.
+  const showSignOut = isSumitr(identity);
   const fetchOpen = useServerFn(getMyOpenEntry);
   const fetchList = useServerFn(listMyEntries);
   const doClockIn = useServerFn(clockIn);
@@ -129,7 +130,7 @@ function ZeitPage() {
     <main className="mx-auto max-w-xl space-y-6 px-4 py-8">
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Zeiterfassung</h1>
-        {isSumitr ? (
+        {showSignOut ? (
           <Button
             variant="outline"
             size="sm"
