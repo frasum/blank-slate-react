@@ -44,6 +44,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { EkZuordnungTab } from "@/components/verkaufsartikel/EkZuordnungTab";
 
 export const Route = createFileRoute("/_authenticated/admin/bestellung/verkaufsartikel")({
   head: () => ({ meta: [{ title: "Verkaufsartikel · Bestellung" }] }),
@@ -88,6 +90,7 @@ function VerkaufsartikelPage() {
   const [error, setError] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [editRow, setEditRow] = useState<SalesArticle | null>(null);
+  const [subtab, setSubtab] = useState<"liste" | "ek">("liste");
 
   // Kaskadierende Optionen
   const hauptOptions = useMemo(() => {
