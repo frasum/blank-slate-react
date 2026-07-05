@@ -2331,14 +2331,14 @@ function WeeklyPlan({
                           <Fragment key={day.iso}>
                             <TableCell
                               onClick={() => handleCellClick("from")}
-                              title={secondaryTitle}
+                              title={mismatchedTitle}
                               className={`w-[62px] min-w-[62px] border-l px-1 py-1 text-center align-middle tabular-nums text-sm ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
                             >
                               {renderShift("from")}
                             </TableCell>
                             <TableCell
                               onClick={() => handleCellClick("to")}
-                              title={secondaryTitle}
+                              title={mismatchedTitle}
                               className={`w-[62px] min-w-[62px] px-1 py-1 text-center align-middle tabular-nums text-sm ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
                             >
                               {renderShift("to")}
