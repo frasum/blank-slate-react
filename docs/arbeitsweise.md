@@ -3368,3 +3368,56 @@ Upload durch Frank ist damit freigegeben.
 Korb-1-Aufräumen (Inaktive + Viktoria-Regel, per Rest-Check-CSV
 belegt) sowie **SD1/SD1b** abgeschlossen — Details siehe die eigenen
 Berechtigungs-Notizen; hier nur als Referenz-Einzeiler.
+
+## §DP1 — Display-Erinnerungen (wiederkehrende Warnbanner)
+
+Auf dem öffentlichen Standort-Display (`display.$locationId`) erscheinen
+farbige, sanft pulsierende Warnbanner (z. B. „🗑️ Biotonne rausstellen",
+„🧺 Wäsche in den Aufzug stellen"). Sie werden je Standort verwaltet, sind
+rein anzeigend — kein Quittieren, kein Workflow (v1).
+
+### Datenmodell — `public.display_reminders`
+
+- Titel, Emoji (optional), Farbe (`grau|braun|blau|gruen|gelb|orange|rot|violett`).
+- Wochentag (0=Montag … 6=Sonntag, ISO).
+- Rhythmus `interval_weeks` ∈ {1, 2}; bei 2 ist `anchor_date` Pflicht
+  (definiert die Parität, geprüft über `(businessDate − anchorDate) mod 14 = 0`).
+- `from_time` (Berlin-Wandzeit), `is_active`, `sort_order`.
+- RLS: DENY-ALL. Zugriffe nur über Server-Fns
+  (`src/lib/display/reminders.functions.ts`), Muster analog `sales_article_stats`.
+
+### Aktivierungs-Logik — `src/lib/display/reminders.ts`
+
+Reines Modul, getestet, ohne DB/React — läuft server- wie clientseitig.
+
+- `remindersForBusinessDate(list, businessDate)` — Vorfilter auf Wochentag
+  und Parität, ohne Uhrzeit-Check.
+- `isReminderActive(r, nowBerlin, businessDate)` — zusätzlich Uhrzeit-Gate.
+  Wichtig: als Zeitpunkt-Vergleich, nicht als naive Uhrzeit — nach Mitternacht
+  ist 00:30 des Folgekalendertags weiterhin ≥ 20:00 des Geschäftstags
+  (3-Uhr-Cutoff-Semantik wie überall).
+- `nowBerlinParts(now)` — Berlin-Wandzeit-Parts für den Client.
+
+Server (`api/public/display.$locationId`) schickt **alle heutigen** Reminder
+(auch noch nicht fällige), damit der Client ohne Refetch pünktlich zur
+`from_time` einblenden kann. Client re-evaluiert im 30-Sekunden-Tick.
+
+### Verwaltung
+
+`admin/aufgaben` bekam eine Tab-Leiste: **„Board"** (Kanban, unverändert)
+und **„Aufgaben-Display"** (Reminder-CRUD). Der Standort-Umschalter der
+Seite gilt für beide Tabs. Rechte: `manager`+`admin` der eigenen Organisation.
+Audit-Actions: `display_reminder.created|updated|deleted`.
+
+### Bewusst NICHT in v1
+
+- Kein Quittieren am Display (bräuchte einen Token-Schreibpfad — eigene Welle).
+- Kein Ablauf-Feld; Banner endet mit dem Geschäftstag.
+- Kein localStorage/keine Edge Functions.
+
+### Modul-Status
+
+- `src/lib/display/reminders.ts` — pure Logik, 11 Tests grün.
+- `src/lib/display/reminders.functions.ts` — Server-Fns (list/create/update/delete).
+- `src/components/aufgaben/RemindersAdmin.tsx` — Verwaltungs-UI im Tab.
+- `src/routes/display.$locationId.tsx` — `ReminderStack` mit `animate-pulse`.

@@ -829,6 +829,72 @@ export type Database = {
           },
         ]
       }
+      display_reminders: {
+        Row: {
+          anchor_date: string | null
+          color: string
+          created_at: string
+          emoji: string | null
+          from_time: string
+          id: string
+          interval_weeks: number
+          is_active: boolean
+          location_id: string
+          organization_id: string
+          sort_order: number
+          title: string
+          updated_at: string
+          weekday: number
+        }
+        Insert: {
+          anchor_date?: string | null
+          color: string
+          created_at?: string
+          emoji?: string | null
+          from_time: string
+          id?: string
+          interval_weeks?: number
+          is_active?: boolean
+          location_id: string
+          organization_id: string
+          sort_order?: number
+          title: string
+          updated_at?: string
+          weekday: number
+        }
+        Update: {
+          anchor_date?: string | null
+          color?: string
+          created_at?: string
+          emoji?: string | null
+          from_time?: string
+          id?: string
+          interval_weeks?: number
+          is_active?: boolean
+          location_id?: string
+          organization_id?: string
+          sort_order?: number
+          title?: string
+          updated_at?: string
+          weekday?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "display_reminders_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "display_reminders_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       display_settings: {
         Row: {
           created_at: string

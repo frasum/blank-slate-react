@@ -7,6 +7,12 @@ import { Buffer } from "node:buffer";
 import { timingSafeEqual } from "node:crypto";
 import { resolveCellKind } from "@/lib/display/cell";
 import { currentPeriodEnd, nextPeriodEnd, periodLabel } from "@/lib/display/period-split";
+import {
+  remindersForBusinessDate,
+  type Reminder,
+  type ReminderColor,
+} from "@/lib/display/reminders";
+import { businessDateOf } from "@/lib/business-date";
 
 type DisplayCell = {
   k: "shift" | "urlaub" | "krank" | "wish" | "available" | "empty";
@@ -26,6 +32,17 @@ type DisplayBlock = {
   rows: DisplayRow[];
   dayCounts: number[];
 };
+type DisplayReminder = {
+  id: string;
+  title: string;
+  emoji: string | null;
+  color: ReminderColor;
+  weekday: number;
+  intervalWeeks: 1 | 2;
+  anchorDate: string | null;
+  fromTime: string;
+  sortOrder: number;
+};
 type DisplayPayload = {
   location: { id: string; name: string };
   generatedAt: string;
@@ -43,6 +60,7 @@ type DisplayPayload = {
   nextPeriodLabel: string;
   currentPeriodEnd: string;
   nextPeriodEnd: string;
+  reminders: DisplayReminder[];
 };
 
 function jsonError(status: number, error: string) {
@@ -132,6 +150,7 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
         if (locErr || !location) return jsonError(404, "Filiale nicht gefunden.");
 
         const today = todayIso();
+        const businessDate = businessDateOf(new Date());
         const days = rollingDays(today, 31);
         const windowStart = days[0];
         const windowEnd = days[days.length - 1];
@@ -139,6 +158,54 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
         const nxtEnd = nextPeriodEnd(curEnd);
         const curLabel = periodLabel(curEnd);
         const nxtLabel = periodLabel(nxtEnd);
+
+        // Reminders des heutigen Geschäftstags — Client entscheidet über
+        // Fälligkeit anhand fromTime (isReminderActive in reminders.ts).
+        const { data: reminderRows } = await supabaseAdmin
+          .from("display_reminders" as never)
+          .select(
+            "id, title, emoji, color, weekday, interval_weeks, anchor_date, from_time, sort_order",
+          )
+          .eq("organization_id", s.organization_id)
+          .eq("location_id", locationId)
+          .eq("is_active", true);
+        const reminderList: Reminder[] = (
+          (reminderRows ?? []) as Array<{
+            id: string;
+            title: string;
+            emoji: string | null;
+            color: string;
+            weekday: number;
+            interval_weeks: number;
+            anchor_date: string | null;
+            from_time: string;
+            sort_order: number;
+          }>
+        ).map((r) => ({
+          id: r.id,
+          title: r.title,
+          emoji: r.emoji,
+          color: r.color as ReminderColor,
+          weekday: r.weekday,
+          intervalWeeks: (r.interval_weeks === 2 ? 2 : 1) as 1 | 2,
+          anchorDate: r.anchor_date,
+          fromTime: (r.from_time ?? "").slice(0, 5),
+          sortOrder: r.sort_order,
+        }));
+        const todaysReminders: DisplayReminder[] = remindersForBusinessDate(
+          reminderList,
+          businessDate,
+        ).map((r) => ({
+          id: r.id,
+          title: r.title,
+          emoji: r.emoji,
+          color: r.color,
+          weekday: r.weekday,
+          intervalWeeks: r.intervalWeeks,
+          anchorDate: r.anchorDate,
+          fromTime: r.fromTime,
+          sortOrder: r.sortOrder,
+        }));
 
         // Geburtstage des aktiven Teams am Standort (Tag+Monat == heute).
         const todayMmDd = today.slice(5); // "MM-DD"
@@ -378,6 +445,7 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
           nextPeriodLabel: nxtLabel,
           currentPeriodEnd: curEnd,
           nextPeriodEnd: nxtEnd,
+          reminders: todaysReminders,
         };
 
         return new Response(JSON.stringify(payload), {
