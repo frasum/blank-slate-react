@@ -61,7 +61,7 @@ import {
   type BuchhaltungExportRow,
   type BuchhaltungMode,
 } from "@/lib/time/buchhaltung-export";
-import { FileDown, FileSpreadsheet, Search } from "lucide-react";
+import { CalendarDays, FileDown, FileSpreadsheet, Search } from "lucide-react";
 import { ProvisionTab } from "@/components/lohn/ProvisionTab";
 import { LohnrechnerPanel } from "@/components/lohn/LohnrechnerPanel";
 import { BatchTimesCard } from "@/components/zeit/BatchTimesCard";
