@@ -60,22 +60,25 @@ async function assertLocationInOrg(
   if (!data) throw new Error("Standort gehört nicht zur aktiven Organisation.");
 }
 
-function mapRow(row: {
-  id: string;
-  location_id: string;
-  name: string;
-  product_group: number | null;
-  price_cents: number | null;
-  takeaway_price_cents: number | null;
-  is_active: boolean;
-  updated_at: string;
-  warengruppe: string | null;
-  untergruppe: string | null;
-  untergruppe_nr: number | null;
-  hauptgruppe: string | null;
-  hauptgruppe_nr: number | null;
-  ek_price_cents?: number | null;
-}, opts: { includeEk: boolean }): SalesArticle {
+function mapRow(
+  row: {
+    id: string;
+    location_id: string;
+    name: string;
+    product_group: number | null;
+    price_cents: number | null;
+    takeaway_price_cents: number | null;
+    is_active: boolean;
+    updated_at: string;
+    warengruppe: string | null;
+    untergruppe: string | null;
+    untergruppe_nr: number | null;
+    hauptgruppe: string | null;
+    hauptgruppe_nr: number | null;
+    ek_price_cents?: number | null;
+  },
+  opts: { includeEk: boolean },
+): SalesArticle {
   return {
     id: row.id,
     locationId: row.location_id,

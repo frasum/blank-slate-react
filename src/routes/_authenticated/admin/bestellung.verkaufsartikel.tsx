@@ -625,9 +625,7 @@ function AddArticleDialog(props: {
           </div>
           {props.isAdmin && (
             <label className="block space-y-1">
-              <span className="text-xs font-medium text-muted-foreground">
-                EK (€) — nur Admin
-              </span>
+              <span className="text-xs font-medium text-muted-foreground">EK (€) — nur Admin</span>
               <input
                 value={ek}
                 onChange={(e) => setEk(e.target.value)}
@@ -755,9 +753,7 @@ function EditGroupsDialog(props: {
           />
           {props.isAdmin && (
             <label className="block space-y-1">
-              <span className="text-xs font-medium text-muted-foreground">
-                EK (€) — nur Admin
-              </span>
+              <span className="text-xs font-medium text-muted-foreground">EK (€) — nur Admin</span>
               <input
                 value={ek}
                 onChange={(e) => setEk(e.target.value)}
