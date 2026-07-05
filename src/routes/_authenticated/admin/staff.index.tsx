@@ -33,6 +33,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Search, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AppRole } from "@/lib/admin/role-guard";
+import { computeAgeYears } from "@/lib/profile/age";
 
 function formatTenure(startDate: string | null | undefined): string | null {
   if (!startDate) return null;
