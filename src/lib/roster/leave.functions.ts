@@ -262,18 +262,18 @@ export const listLeaveRequests = createServerFn({ method: "GET" })
     return (rows ?? [])
       .filter((r) => inScope.has(r.staff_id as string))
       .map((r) => ({
-      id: r.id as string,
-      staffId: r.staff_id as string,
-      staffName: (r.staff as { display_name: string } | null)?.display_name ?? null,
-      startDate: r.start_date as string,
-      endDate: r.end_date as string,
-      reason: (r.reason as string | null) ?? null,
-      status: r.status as LeaveStatus,
-      decisionNote: (r.decision_note as string | null) ?? null,
-      decidedAt: (r.decided_at as string | null) ?? null,
-      createdAt: r.created_at as string,
-      days: countLeaveDays(r.start_date as string, r.end_date as string),
-    }));
+        id: r.id as string,
+        staffId: r.staff_id as string,
+        staffName: (r.staff as { display_name: string } | null)?.display_name ?? null,
+        startDate: r.start_date as string,
+        endDate: r.end_date as string,
+        reason: (r.reason as string | null) ?? null,
+        status: r.status as LeaveStatus,
+        decisionNote: (r.decision_note as string | null) ?? null,
+        decidedAt: (r.decided_at as string | null) ?? null,
+        createdAt: r.created_at as string,
+        days: countLeaveDays(r.start_date as string, r.end_date as string),
+      }));
   });
 
 export const decideLeaveRequest = createServerFn({ method: "POST" })

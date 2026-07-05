@@ -226,10 +226,7 @@ function AdminLayout() {
             </nav>
           ) : isPlaner ? (
             <nav className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border/60 pb-0 text-sm">
-              <Link
-                to="/admin/dienstplan"
-                className={tabClass(pathname === "/admin/dienstplan")}
-              >
+              <Link to="/admin/dienstplan" className={tabClass(pathname === "/admin/dienstplan")}>
                 Dienstplan
               </Link>
               <Link

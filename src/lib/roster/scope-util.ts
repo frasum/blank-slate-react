@@ -33,9 +33,7 @@ export function canEditScope(
 
 // PL1 — Aufgelöster Scope: `all=true` heißt „darf alle Standorte × Bereiche"
 // (admin/manager mit Default), sonst die konkret freigegebenen Kombinationen.
-export type ResolvedScope =
-  | { all: true }
-  | { all: false; combos: RosterScope[] };
+export type ResolvedScope = { all: true } | { all: false; combos: RosterScope[] };
 
 /**
  * Löst den effektiven Scope des aktuellen Aufrufers für ein gegebenes Recht

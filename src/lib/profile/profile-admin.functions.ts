@@ -315,9 +315,7 @@ export const getReviewPendingCounts = createServerFn({ method: "GET" })
         .eq("status", "offen"),
       supabaseAdmin
         .from("shift_swap_requests")
-        .select(
-          "id, req_shift:roster_shifts!shift_swap_requests_shift_id_fkey(location_id, area)",
-        )
+        .select("id, req_shift:roster_shifts!shift_swap_requests_shift_id_fkey(location_id, area)")
         .eq("organization_id", caller.organizationId)
         .eq("status", "peer_accepted"),
     ]);
@@ -345,9 +343,7 @@ export const getReviewPendingCounts = createServerFn({ method: "GET" })
 
     let leaveCount = (leaveRes.data ?? []).length;
     if (!leaveScope.all) {
-      const staffIds = Array.from(
-        new Set((leaveRes.data ?? []).map((r) => r.staff_id as string)),
-      );
+      const staffIds = Array.from(new Set((leaveRes.data ?? []).map((r) => r.staff_id as string)));
       if (staffIds.length === 0 || leaveScope.combos.length === 0) {
         leaveCount = 0;
       } else {
@@ -356,9 +352,7 @@ export const getReviewPendingCounts = createServerFn({ method: "GET" })
           .select("staff_id, location_id, department")
           .eq("organization_id", caller.organizationId)
           .in("staff_id", staffIds);
-        const comboSet = new Set(
-          leaveScope.combos.map((c) => `${c.locationId}::${c.area}`),
-        );
+        const comboSet = new Set(leaveScope.combos.map((c) => `${c.locationId}::${c.area}`));
         const inScope = new Set<string>();
         for (const row of sl ?? []) {
           const dept = row.department as string;
@@ -367,20 +361,15 @@ export const getReviewPendingCounts = createServerFn({ method: "GET" })
             inScope.add(row.staff_id as string);
           }
         }
-        leaveCount = (leaveRes.data ?? []).filter((r) =>
-          inScope.has(r.staff_id as string),
-        ).length;
+        leaveCount = (leaveRes.data ?? []).filter((r) => inScope.has(r.staff_id as string)).length;
       }
     }
 
     let swapCount = (swapRes.data ?? []).length;
     if (!swapScope.all) {
-      const comboSet = new Set(
-        swapScope.combos.map((c) => `${c.locationId}::${c.area}`),
-      );
+      const comboSet = new Set(swapScope.combos.map((c) => `${c.locationId}::${c.area}`));
       swapCount = (swapRes.data ?? []).filter((r) => {
-        const rs = (r as { req_shift: { location_id: string; area: string } | null })
-          .req_shift;
+        const rs = (r as { req_shift: { location_id: string; area: string } | null }).req_shift;
         if (!rs || (rs.area !== "kitchen" && rs.area !== "service")) return false;
         return comboSet.has(`${rs.location_id}::${rs.area}`);
       }).length;
