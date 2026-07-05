@@ -2936,3 +2936,32 @@ Buchhaltungs-Export, Perioden und Lohnrechner bleiben bei einer Zeile pro
 Person (Primär-Abteilung) — Summen führen niemanden doppelt. Eine echte
 Abteilungs-Dimension auf `time_entries` (z. B. GL-Stunden trennen) wäre
 eine eigene Welle.
+
+## SD1 — Personalverwaltung admin/payroll-only (05.07.)
+
+Auslöser: Manager-Sichtbarkeits-Review. Personalverwaltung (`/admin/staff`
+Liste + Detailseite) war seit B1c für Admin UND Manager sichtbar; der
+Personaldaten-/Lohn-Tab und `getStaffPersonalDetails` waren bereits sauber
+auf admin/payroll begrenzt (kein Datenleck) — Kontaktdaten (E-Mail,
+Telefon) und PIN aber flossen über `listStaff`/`getStaff` an Manager.
+
+Neuregelung: Personalverwaltung ist admin + payroll. Konkret:
+
+- Route-Gate: `/admin/staff` + `/admin/staff/$staffId` erlauben nur admin
+  und payroll (Layout-Redirect). Manager erhalten die bestehende
+  „kein Zugriff"-Behandlung, die Nav-Kachel „Mitarbeiter" ist für sie
+  ausgeblendet. Payroll erreicht die Seiten über die eigene Tab-Leiste;
+  die bestehende Tab-Logik (`showPersonal`, `canEditVacation`) bleibt
+  unverändert.
+- Server-Guards: `getStaff` → `["admin", "payroll"]`.
+  `setStaffParticipatesInPool` → `"admin"` (einzige Verwendung sitzt in
+  der Personalverwaltung).
+- `listStaff` bleibt `manager`-lesbar (Konsumenten: Zeit-, EasyOrder-,
+  Aufgaben-, Wein-Quiz-, Personal-Anträge-, Kasse-, Migrations-Seiten),
+  liefert aber KEINE `email`/`phone`-Felder mehr. Kontaktdaten der Staff-
+  Seiten laufen ausschließlich über `getStaff`. Regressionsschutz:
+  `staff-list-shape.test.ts` prüft das Rückgabe-Shape auf Typebene.
+- Suche im Staff-Grid greift entsprechend nur noch auf Anzeigename +
+  Vor-/Nachname (E-Mail-Suche entfällt bewusst).
+
+Ersetzt die B1c-Ursprungsentscheidung „Admin/Manager" formal.

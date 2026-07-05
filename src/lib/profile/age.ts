@@ -15,11 +15,7 @@ export function computeAgeYears(
   const d = Number(m[3]);
   // Kalenderplausibilität via Round-Trip.
   const probe = new Date(Date.UTC(y, mo - 1, d));
-  if (
-    probe.getUTCFullYear() !== y ||
-    probe.getUTCMonth() !== mo - 1 ||
-    probe.getUTCDate() !== d
-  ) {
+  if (probe.getUTCFullYear() !== y || probe.getUTCMonth() !== mo - 1 || probe.getUTCDate() !== d) {
     return null;
   }
   const ty = today.getFullYear();

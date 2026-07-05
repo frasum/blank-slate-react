@@ -66,7 +66,10 @@ export const listStaff = createServerFn({ method: "GET" })
     const { data, error } = await supabaseAdmin
       .from("staff")
       .select(
-        "id, first_name, last_name, display_name, email, phone, is_active, role_assignments(role), staff_locations(location_id, department), staff_skills(skill_id, skills(category)), staff_pins(id)",
+        // SD1 — email/phone bewusst NICHT im Select: listStaff ist manager-lesbar,
+        // Kontaktdaten sind Personalverwaltung (admin/payroll) und werden über
+        // getStaff bereitgestellt.
+        "id, first_name, last_name, display_name, is_active, role_assignments(role), staff_locations(location_id, department), staff_skills(skill_id, skills(category)), staff_pins(id)",
       )
       .eq("organization_id", caller.organizationId)
       .order("display_name");
@@ -117,8 +120,6 @@ export const listStaff = createServerFn({ method: "GET" })
         firstName: s.first_name,
         lastName: s.last_name,
         displayName: s.display_name,
-        email: s.email,
-        phone: s.phone,
         isActive: s.is_active,
         role,
         locationIds: Array.from(new Set(locations)),
@@ -228,7 +229,8 @@ export const getStaff = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({ staffId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    // SD1 — Personalverwaltung admin/payroll-only (Manager haben keinen Zutritt).
+    const caller = await loadAdminCaller(context.supabase, context.userId, ["admin", "payroll"]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: staff, error } = await supabaseAdmin
       .from("staff")
@@ -438,8 +440,9 @@ export const setStaffParticipatesInPool = createServerFn({ method: "POST" })
     z.object({ staffId: z.string().uuid(), participates: z.boolean() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
-    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+    // SD1 — Einzig-Verwendung ist die Personalverwaltung; admin-only.
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { error } = await supabaseAdmin
         .from("staff")
