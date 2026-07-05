@@ -48,11 +48,7 @@ const roster: RosterByStaff = new Map([
 
 describe("filterWeeklyRows", () => {
   it("Alle/Alle liefert die volle Grundmenge (auch Nicht-Eingeplante wie MO)", () => {
-    const out = filterWeeklyRows(
-      rowsByDept,
-      { dept: "all", skillId: "all", query: "" },
-      roster,
-    );
+    const out = filterWeeklyRows(rowsByDept, { dept: "all", skillId: "all", query: "" }, roster);
     expect(out.map((g) => g.dept)).toEqual(["kitchen", "service", "gl"]);
     expect(out.find((g) => g.dept === "kitchen")!.rows.map((r) => r.staffId)).toEqual([
       "s1",
@@ -145,11 +141,7 @@ describe("filterWeeklyRows", () => {
   });
 
   it("liefert eine leere Liste, wenn niemand die Kombi erfüllt", () => {
-    const out = filterWeeklyRows(
-      rowsByDept,
-      { dept: "gl", skillId: "spuelen", query: "" },
-      roster,
-    );
+    const out = filterWeeklyRows(rowsByDept, { dept: "gl", skillId: "spuelen", query: "" }, roster);
     expect(out).toEqual([]);
   });
 });

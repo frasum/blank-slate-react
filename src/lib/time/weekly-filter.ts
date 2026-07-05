@@ -26,10 +26,7 @@ export type WeeklyFilter = {
 };
 
 /** Aggregierte Wochen-Schichten je Mitarbeiter (aus `roster_shifts`). */
-export type RosterByStaff = Map<
-  string,
-  { areas: WeeklyDepartment[]; skillIds: string[] }
->;
+export type RosterByStaff = Map<string, { areas: WeeklyDepartment[]; skillIds: string[] }>;
 
 export function filterWeeklyRows(
   rowsByDept: WeeklyExportInput["rowsByDept"],

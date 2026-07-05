@@ -3197,8 +3197,8 @@ könnte.
 
 - **Datenpfad:** `getWeeklyTimeEntries` liefert zusätzlich
   `rosterByStaff: Record<string, { areas: Department[]; skillIds:
-  string[] }>` — ein `roster_shifts`-Select für `(location_id,
-  shift_date ∈ [weekStart..weekEnd])`, distinct je Staff aggregiert.
+string[] }>` — ein `roster_shifts`-Select für `(location_id,
+shift_date ∈ [weekStart..weekEnd])`, distinct je Staff aggregiert.
   Bei „Alle Standorte" merged der bestehende Client-Merge die
   `rosterByStaff`-Buckets (Union je Person über alle Standorte).
   `assignedStaff.skillIds` (Stammdaten) bleibt im Response-Shape für
