@@ -530,9 +530,13 @@ function ZeitUebersichtPage() {
   }, [advancesQ.data]);
 
   const absencesByStaff = useMemo(() => {
-    const m = new Map<string, { krankDays: number; urlaubDays: number }>();
+    const m = new Map<string, { krankDays: number; urlaubDays: number; absenceNote: string }>();
     for (const a of absencesQ.data ?? []) {
-      m.set(a.staffId, { krankDays: a.krankDays, urlaubDays: a.urlaubDays });
+      m.set(a.staffId, {
+        krankDays: a.krankDays,
+        urlaubDays: a.urlaubDays,
+        absenceNote: a.absenceNote ?? "",
+      });
     }
     return m;
   }, [absencesQ.data]);
