@@ -132,6 +132,32 @@ eingebettete PDFs unzuverlässig druckt (Leerseiten-Bug bei Frank/Mac);
 browserseitig nicht möglich — Minimum ist der Systemdialog. Der PDF-Export
 bleibt als Zweitfunktion erhalten.
 
+**KAB2 (05.07.2026 abends):** Nach dem aktiven Praxistag wurde der
+Tagesabrechnungs-Einstieg auf **einen Knopf** reduziert. Weg sind: der
+Status-Stepper Offen → Finalisiert → Gesperrt, der Button „Tag
+finalisieren" samt Dialog, der Kopplungs-Dialog „Finalisieren &
+drucken?" (inkl. der Sekundärfunktion „Nur drucken") und der Button
+„PDF Export" (der Bau-Pfad `generateDailySummaryPdf`/`PdfCanvasPreview`
+bleibt im Repo — der Typ `PdfExportData` wird von `DailyPrintView` und
+den Tests importiert; nur der UI-Einstieg entfällt). „Session wieder
+öffnen" (finalized → open) ist ebenfalls raus. **„Tagesabrechnung
+drucken"** ist der einzige Ausgabe-Weg: bei Status `open` läuft ohne
+Rückfrage direkt der `finalize_print`-Pfad — strikt erst
+`finalizeSession`, dann Druck, für Admins anschließend `lockSession`
+(vormals verstecktes Default-Verhalten); bei `finalized`/`locked` wird
+wie bisher direkt gedruckt (kein Statuswechsel). Bewusste Konsequenz:
+**Zwischen-Ausdrucke eines offenen Tages gibt es nicht mehr — Drucken
+finalisiert immer.** Als schlanke Sicherheitsventile stehen rechts
+neben dem Druck-Button ein dezentes Status-Badge („Offen" /
+„Finalisiert" / „Gesperrt 🔒 · locked_at") und admin-only die kleinen
+Buttons „Session sperren" (nur bei `finalized`) sowie „Session
+entsperren" (nur bei `locked`, ruft `unlockSession`, Wasserlinie bleibt
+bewusst unverändert — Warntext im Dialog). Die Server-Fns
+(`finalizeSession`, `lockSession`, `unlockSession`) und
+`assertCashWritable` sind unverändert; nur der UI-Einstieg wurde
+umgebaut. Der Druck-Fehlerpfad bleibt erhalten: schlägt
+`finalizeSession` fehl, wird NICHT gedruckt.
+
 ## 1. Rollenverteilung im Team
 
 Drei Rollen, klar getrennt:
