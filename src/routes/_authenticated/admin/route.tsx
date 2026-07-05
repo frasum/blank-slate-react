@@ -86,7 +86,7 @@ const GROUPS: Group[] = [
   {
     key: "personal",
     label: "Mitarbeiter",
-    default: "/admin/staff",
+    default: "/admin/zeit-uebersicht",
     prefixes: [
       "/admin/dienstplan",
       "/admin/zeit-uebersicht",
