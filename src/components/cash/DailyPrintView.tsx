@@ -280,7 +280,7 @@ export function renderDailyPrintHtml(data: PdfExportData): string {
     );
   }
   leftRows.push(
-    `<div class="box"><span>Differenz zum Wechselgeldbestand</span><span>${fmtEur(
+    `<div class="box"><span>Differenz zum Wechselgeldbestand</span><span>${fmtEurSigned(
       wechselgeldbestandCents - cashTarget,
     )}</span></div>`,
   );
