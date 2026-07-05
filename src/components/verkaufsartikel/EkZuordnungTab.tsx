@@ -122,15 +122,13 @@ export function EkZuordnungTab({ locationId }: { locationId: string }) {
   });
 
   const ignoreMut = useMutation({
-    mutationFn: (vars: { salesArticleId: string; ignored: boolean }) =>
-      callIgnore({ data: vars }),
+    mutationFn: (vars: { salesArticleId: string; ignored: boolean }) => callIgnore({ data: vars }),
     onSuccess: () => invalidate(),
     onError: (e: Error) => setError(e.message),
   });
 
   const unlinkMut = useMutation({
-    mutationFn: (vars: { salesArticleId: string; clearEk: boolean }) =>
-      callUnlink({ data: vars }),
+    mutationFn: (vars: { salesArticleId: string; clearEk: boolean }) => callUnlink({ data: vars }),
     onSuccess: () => invalidate(),
     onError: (e: Error) => setError(e.message),
   });
@@ -141,15 +139,11 @@ export function EkZuordnungTab({ locationId }: { locationId: string }) {
         <div>
           <h2 className="text-lg font-semibold text-foreground">EK-Zuordnung</h2>
           <p className="text-sm text-muted-foreground">
-            Verkaufsartikel mit dem passenden Einkaufsartikel + Portion/Gebinde verknüpfen. Der
-            EK „lebt" damit: bei Preisänderung neu rechnen mit „EKs neu berechnen".
+            Verkaufsartikel mit dem passenden Einkaufsartikel + Portion/Gebinde verknüpfen. Der EK
+            „lebt" damit: bei Preisänderung neu rechnen mit „EKs neu berechnen".
           </p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => recalcMut.mutate()}
-          disabled={recalcMut.isPending}
-        >
+        <Button variant="outline" onClick={() => recalcMut.mutate()} disabled={recalcMut.isPending}>
           {recalcMut.isPending ? "Rechnet …" : "EKs neu berechnen"}
         </Button>
       </div>
@@ -228,8 +222,7 @@ export function EkZuordnungTab({ locationId }: { locationId: string }) {
                   <TableRow key={r.id}>
                     <TableCell className="font-medium">{r.name}</TableCell>
                     <TableCell className="text-muted-foreground">
-                      {r.untergruppe ??
-                        (r.untergruppeNr !== null ? `#${r.untergruppeNr}` : "—")}
+                      {r.untergruppe ?? (r.untergruppeNr !== null ? `#${r.untergruppeNr}` : "—")}
                     </TableCell>
                     <TableCell className="text-right font-mono">
                       {r.priceCents === null ? "—" : fmtCents(r.priceCents)}
@@ -248,9 +241,7 @@ export function EkZuordnungTab({ locationId }: { locationId: string }) {
                       )}
                       {st === "manuell" && <Badge variant="outline">manuell</Badge>}
                       {st === "ignoriert" && <Badge variant="outline">ignoriert</Badge>}
-                      {st === "offen" && (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
+                      {st === "offen" && <span className="text-xs text-muted-foreground">—</span>}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="inline-flex gap-2">
@@ -293,9 +284,7 @@ export function EkZuordnungTab({ locationId }: { locationId: string }) {
                             }
                             disabled={r.ekSourceArticleId !== null}
                             title={
-                              r.ekSourceArticleId !== null
-                                ? "Erst Verknüpfung lösen"
-                                : undefined
+                              r.ekSourceArticleId !== null ? "Erst Verknüpfung lösen" : undefined
                             }
                           >
                             Ignorieren
@@ -351,7 +340,9 @@ function LinkDialog({
   });
   const [picked, setPicked] = useState<PurchaseArticleHit | null>(null);
   const [sourceVolumeMl, setSourceVolumeMl] = useState<number | null>(null);
-  const [portionMl, setPortionMl] = useState<number | null>(() => parsePortionMlFromName(sales.name));
+  const [portionMl, setPortionMl] = useState<number | null>(() =>
+    parsePortionMlFromName(sales.name),
+  );
   const [oneToOne, setOneToOne] = useState<boolean>(false);
   const [customMl, setCustomMl] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
@@ -420,8 +411,8 @@ function LinkDialog({
         <DialogHeader>
           <DialogTitle>EK zuordnen: {sales.name}</DialogTitle>
           <DialogDescription>
-            Einkaufsartikel + Portion/Gebinde speichern — EK wird daraus berechnet und
-            aktualisiert sich bei „EKs neu berechnen" von selbst.
+            Einkaufsartikel + Portion/Gebinde speichern — EK wird daraus berechnet und aktualisiert
+            sich bei „EKs neu berechnen" von selbst.
           </DialogDescription>
         </DialogHeader>
 
@@ -539,12 +530,11 @@ function LinkDialog({
                 {preview?.ok ? (
                   <>
                     <div>
-                      EK ={" "}
-                      {picked.priceCents !== null ? fmtCents(picked.priceCents) : "—"}
+                      EK = {picked.priceCents !== null ? fmtCents(picked.priceCents) : "—"}
                       {oneToOne
                         ? " (1:1 Flasche)"
-                        : ` × ${portionMl} ml / ${sourceVolumeMl} ml`}{" "}
-                      = <strong>{fmtCents(preview.ekCents)}</strong>
+                        : ` × ${portionMl} ml / ${sourceVolumeMl} ml`} ={" "}
+                      <strong>{fmtCents(preview.ekCents)}</strong>
                     </div>
                     {vkCents !== null && (
                       <div className="text-xs text-muted-foreground">

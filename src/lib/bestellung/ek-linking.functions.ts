@@ -36,9 +36,16 @@ const SearchInput = z.object({
 
 // Getränke-Kategorien werden zuerst sortiert — Zuordnungsfall ist überwiegend
 // Barbereich (Wein/Spirituosen/Bier/AF).
-const BEVERAGE_CATEGORIES = new Set(
-  ["Wein", "Spirituosen", "Bier", "AF-Getränke", "Alkoholfrei", "Softdrinks", "Kaffee", "Tee"],
-);
+const BEVERAGE_CATEGORIES = new Set([
+  "Wein",
+  "Spirituosen",
+  "Bier",
+  "AF-Getränke",
+  "Alkoholfrei",
+  "Softdrinks",
+  "Kaffee",
+  "Tee",
+]);
 
 export const searchPurchaseArticlesForEk = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -320,9 +327,10 @@ export const recalcAllLinkedEk = createServerFn({ method: "POST" })
       for (const row of linked ?? []) {
         checked += 1;
         const src = row.articles as { price_cents: number | null } | null;
-        const srcPrice = src?.price_cents === null || src?.price_cents === undefined
-          ? null
-          : Number(src.price_cents);
+        const srcPrice =
+          src?.price_cents === null || src?.price_cents === undefined
+            ? null
+            : Number(src.price_cents);
         if (srcPrice === null || srcPrice <= 0) continue; // Preis weg → still liegen lassen.
         const calc = computeEkFromLink({
           sourcePriceCents: srcPrice,

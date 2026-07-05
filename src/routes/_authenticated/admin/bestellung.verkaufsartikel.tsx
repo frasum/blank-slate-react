@@ -215,195 +215,196 @@ function VerkaufsartikelPage() {
       )}
 
       {(!isAdmin || subtab === "liste") && (
-      <>
-      <div className="flex flex-wrap items-center gap-2">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Suche nach Name…"
-          className="w-64 rounded-md border border-input bg-background px-3 py-2 text-sm"
-        />
-        <Select value={haupt} onValueChange={setHaupt}>
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="Hauptgruppe" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all__">Alle Hauptgruppen</SelectItem>
-            {hauptOptions.map((o) => (
-              <SelectItem key={o.value} value={o.value}>
-                {o.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={unter} onValueChange={setUnter}>
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="Untergruppe" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all__">Alle Untergruppen</SelectItem>
-            {unterOptions.map((o) => (
-              <SelectItem key={o.value} value={o.value}>
-                {o.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={wg} onValueChange={setWg}>
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="Warengruppe" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all__">Alle Warengruppen</SelectItem>
-            {wgOptions.map((o) => (
-              <SelectItem key={o.value} value={o.value}>
-                {o.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <label className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Switch checked={showInactive} onCheckedChange={setShowInactive} />
-          Inaktive anzeigen
-        </label>
-      </div>
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Suche nach Name…"
+              className="w-64 rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+            <Select value={haupt} onValueChange={setHaupt}>
+              <SelectTrigger className="w-44">
+                <SelectValue placeholder="Hauptgruppe" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Alle Hauptgruppen</SelectItem>
+                {hauptOptions.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={unter} onValueChange={setUnter}>
+              <SelectTrigger className="w-44">
+                <SelectValue placeholder="Untergruppe" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Alle Untergruppen</SelectItem>
+                {unterOptions.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={wg} onValueChange={setWg}>
+              <SelectTrigger className="w-44">
+                <SelectValue placeholder="Warengruppe" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Alle Warengruppen</SelectItem>
+                {wgOptions.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Switch checked={showInactive} onCheckedChange={setShowInactive} />
+              Inaktive anzeigen
+            </label>
+          </div>
 
-      {error && (
-        <Alert variant="destructive">
-          <AlertTitle>Fehler</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
+          {error && (
+            <Alert variant="destructive">
+              <AlertTitle>Fehler</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
 
-      {articlesQ.isLoading ? (
-        <p className="text-sm text-muted-foreground">Lädt …</p>
-      ) : filtered.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Keine Artikel gefunden.</p>
-      ) : (
-        <div className="rounded-md border border-border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead className="w-32">Hauptgruppe</TableHead>
-                <TableHead className="w-32">Untergruppe</TableHead>
-                <TableHead className="w-32">Warengruppe</TableHead>
-                <TableHead className="w-36">Preis</TableHead>
-                <TableHead className="w-36">Mitnahme</TableHead>
-                {isAdmin && <TableHead className="w-32">EK</TableHead>}
-                <TableHead className="w-28 text-right">Aktiv</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((row) => (
-                <TableRow key={row.id} className={row.isActive ? "" : "opacity-60"}>
-                  <TableCell className="font-medium">
-                    <button
-                      type="button"
-                      onClick={() => setEditRow(row)}
-                      className="text-left hover:underline focus:outline-none focus:ring-1 focus:ring-ring rounded"
-                    >
-                      {row.name}
-                    </button>
-                  </TableCell>
-                  <TableCell
-                    className="text-muted-foreground"
-                    title={row.hauptgruppeNr !== null ? `Nr. ${row.hauptgruppeNr}` : undefined}
-                  >
-                    {row.hauptgruppe ??
-                      (row.hauptgruppeNr !== null ? `#${row.hauptgruppeNr}` : "—")}
-                  </TableCell>
-                  <TableCell
-                    className="text-muted-foreground"
-                    title={row.untergruppeNr !== null ? `Nr. ${row.untergruppeNr}` : undefined}
-                  >
-                    {row.untergruppe ??
-                      (row.untergruppeNr !== null ? `#${row.untergruppeNr}` : "—")}
-                  </TableCell>
-                  <TableCell
-                    className="text-muted-foreground"
-                    title={row.productGroup !== null ? `Nr. ${row.productGroup}` : undefined}
-                  >
-                    {row.warengruppe ?? (row.productGroup !== null ? `#${row.productGroup}` : "—")}
-                  </TableCell>
-                  <TableCell>
-                    <PriceCell
-                      article={row}
-                      field="priceCents"
-                      onSave={(cents) =>
-                        updateMut.mutate({ data: { id: row.id, priceCents: cents } })
-                      }
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <PriceCell
-                      article={row}
-                      field="takeawayPriceCents"
-                      onSave={(cents) =>
-                        updateMut.mutate({ data: { id: row.id, takeawayPriceCents: cents } })
-                      }
-                    />
-                  </TableCell>
-                  {isAdmin && (
-                    <TableCell
-                      title={
-                        row.ekPriceCents !== null && row.priceCents !== null
-                          ? `Marge: ${formatEuro(row.priceCents - row.ekPriceCents)}`
-                          : undefined
-                      }
-                    >
-                      <PriceCell
-                        article={row}
-                        field="ekPriceCents"
-                        onSave={(cents) =>
-                          updateMut.mutate({ data: { id: row.id, ekPriceCents: cents } })
-                        }
-                      />
-                    </TableCell>
-                  )}
-                  <TableCell className="text-right">
-                    <Switch
-                      checked={row.isActive}
-                      onCheckedChange={(v) =>
-                        updateMut.mutate({ data: { id: row.id, isActive: v } })
-                      }
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+          {articlesQ.isLoading ? (
+            <p className="text-sm text-muted-foreground">Lädt …</p>
+          ) : filtered.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Keine Artikel gefunden.</p>
+          ) : (
+            <div className="rounded-md border border-border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead className="w-32">Hauptgruppe</TableHead>
+                    <TableHead className="w-32">Untergruppe</TableHead>
+                    <TableHead className="w-32">Warengruppe</TableHead>
+                    <TableHead className="w-36">Preis</TableHead>
+                    <TableHead className="w-36">Mitnahme</TableHead>
+                    {isAdmin && <TableHead className="w-32">EK</TableHead>}
+                    <TableHead className="w-28 text-right">Aktiv</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((row) => (
+                    <TableRow key={row.id} className={row.isActive ? "" : "opacity-60"}>
+                      <TableCell className="font-medium">
+                        <button
+                          type="button"
+                          onClick={() => setEditRow(row)}
+                          className="text-left hover:underline focus:outline-none focus:ring-1 focus:ring-ring rounded"
+                        >
+                          {row.name}
+                        </button>
+                      </TableCell>
+                      <TableCell
+                        className="text-muted-foreground"
+                        title={row.hauptgruppeNr !== null ? `Nr. ${row.hauptgruppeNr}` : undefined}
+                      >
+                        {row.hauptgruppe ??
+                          (row.hauptgruppeNr !== null ? `#${row.hauptgruppeNr}` : "—")}
+                      </TableCell>
+                      <TableCell
+                        className="text-muted-foreground"
+                        title={row.untergruppeNr !== null ? `Nr. ${row.untergruppeNr}` : undefined}
+                      >
+                        {row.untergruppe ??
+                          (row.untergruppeNr !== null ? `#${row.untergruppeNr}` : "—")}
+                      </TableCell>
+                      <TableCell
+                        className="text-muted-foreground"
+                        title={row.productGroup !== null ? `Nr. ${row.productGroup}` : undefined}
+                      >
+                        {row.warengruppe ??
+                          (row.productGroup !== null ? `#${row.productGroup}` : "—")}
+                      </TableCell>
+                      <TableCell>
+                        <PriceCell
+                          article={row}
+                          field="priceCents"
+                          onSave={(cents) =>
+                            updateMut.mutate({ data: { id: row.id, priceCents: cents } })
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <PriceCell
+                          article={row}
+                          field="takeawayPriceCents"
+                          onSave={(cents) =>
+                            updateMut.mutate({ data: { id: row.id, takeawayPriceCents: cents } })
+                          }
+                        />
+                      </TableCell>
+                      {isAdmin && (
+                        <TableCell
+                          title={
+                            row.ekPriceCents !== null && row.priceCents !== null
+                              ? `Marge: ${formatEuro(row.priceCents - row.ekPriceCents)}`
+                              : undefined
+                          }
+                        >
+                          <PriceCell
+                            article={row}
+                            field="ekPriceCents"
+                            onSave={(cents) =>
+                              updateMut.mutate({ data: { id: row.id, ekPriceCents: cents } })
+                            }
+                          />
+                        </TableCell>
+                      )}
+                      <TableCell className="text-right">
+                        <Switch
+                          checked={row.isActive}
+                          onCheckedChange={(v) =>
+                            updateMut.mutate({ data: { id: row.id, isActive: v } })
+                          }
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
 
-      <p className="text-xs text-muted-foreground">
-        {rows.length} Artikel · {activeCount} aktiv
-      </p>
+          <p className="text-xs text-muted-foreground">
+            {rows.length} Artikel · {activeCount} aktiv
+          </p>
 
-      {addOpen && (
-        <AddArticleDialog
-          isAdmin={isAdmin}
-          submitting={createMut.isPending}
-          onClose={() => setAddOpen(false)}
-          onSubmit={(input) => createMut.mutate({ data: { ...input, locationId } })}
-        />
-      )}
-      {editRow && (
-        <EditGroupsDialog
-          isAdmin={isAdmin}
-          article={editRow}
-          submitting={updateMut.isPending}
-          onClose={() => setEditRow(null)}
-          onSubmit={(patch) => {
-            updateMut.mutate(
-              { data: { id: editRow.id, ...patch } },
-              { onSuccess: () => setEditRow(null) },
-            );
-          }}
-        />
-      )}
-      </>
+          {addOpen && (
+            <AddArticleDialog
+              isAdmin={isAdmin}
+              submitting={createMut.isPending}
+              onClose={() => setAddOpen(false)}
+              onSubmit={(input) => createMut.mutate({ data: { ...input, locationId } })}
+            />
+          )}
+          {editRow && (
+            <EditGroupsDialog
+              isAdmin={isAdmin}
+              article={editRow}
+              submitting={updateMut.isPending}
+              onClose={() => setEditRow(null)}
+              onSubmit={(patch) => {
+                updateMut.mutate(
+                  { data: { id: editRow.id, ...patch } },
+                  { onSuccess: () => setEditRow(null) },
+                );
+              }}
+            />
+          )}
+        </>
       )}
     </div>
   );

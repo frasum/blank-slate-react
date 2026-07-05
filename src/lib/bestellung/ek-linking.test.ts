@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  computeEkFromLink,
-  parsePortionMlFromName,
-  parseVolumeMlFromName,
-} from "./ek-linking";
+import { computeEkFromLink, parsePortionMlFromName, parseVolumeMlFromName } from "./ek-linking";
 
 describe("computeEkFromLink", () => {
   it("4 cl aus 1,0-l-Flasche zu 15,20 € → 0,61 € (gerundet)", () => {
@@ -68,8 +64,9 @@ describe("computeEkFromLink", () => {
   });
 
   it("Negative oder nicht-integer Preise → Fehler", () => {
-    expect(computeEkFromLink({ sourcePriceCents: -1, portionMl: null, sourceVolumeMl: null }).ok)
-      .toBe(false);
+    expect(
+      computeEkFromLink({ sourcePriceCents: -1, portionMl: null, sourceVolumeMl: null }).ok,
+    ).toBe(false);
     expect(
       computeEkFromLink({ sourcePriceCents: 1.5, portionMl: null, sourceVolumeMl: null }).ok,
     ).toBe(false);
