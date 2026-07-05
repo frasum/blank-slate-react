@@ -2,7 +2,19 @@
 
 Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen Baublock konsultiert. Bewusst kurz gehalten — Architektur-Begründungen stehen im gruendungsdokument.md, nicht hier.
 
-Stand: 05.07.2026 (TP-GL)
+Stand: 05.07.2026 (DR1)
+
+**DR1 (05.07.2026):** Auf `admin/kasse` gibt es zusätzlich zum bisherigen
+„PDF Export" (Archiv/Mail) den primären Button **„Tagesabrechnung
+drucken"**. Ein-Klick-Druck: die Seite baut aus dem gemeinsamen
+`buildDailySummaryData(...)`-Objekt (dieselbe Datenquelle wie das PDF —
+eine Zahlen-Wahrheit, KGL-Lektion) eine HTML-Druckansicht
+(`renderDailyPrintHtml`) und öffnet den System-Druckdialog via unsicht­bares
+`srcdoc`-iframe (`printDailySummary`). HTML statt PDF-iframe, weil Safari
+eingebettete PDFs unzuverlässig druckt (Leerseiten-Bug bei Frank/Mac);
+`window.open` wird bewusst vermieden (Popup-Blocker). Stilles Drucken ist
+browserseitig nicht möglich — Minimum ist der Systemdialog. Der PDF-Export
+bleibt als Zweitfunktion erhalten.
 
 ## 1. Rollenverteilung im Team
 
