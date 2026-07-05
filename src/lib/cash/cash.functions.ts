@@ -347,6 +347,7 @@ export async function getCashOverviewCore(
     cardRes,
     bankRes,
     transferRes,
+    managerRes,
   ] = await Promise.all([
     supabaseAdmin
       .from("waiter_settlements")
@@ -396,7 +397,26 @@ export async function getCashOverviewCore(
       .eq("organization_id", caller.organizationId)
       .eq("session_id", session.id)
       .order("created_at", { ascending: true }),
+    // Manager on duty: eingeplante Personen im Bereich GL für diesen Tag
+    // an diesem Standort (Dienstplan). Wird im Tagesbericht-Ausdruck angezeigt.
+    supabaseAdmin
+      .from("roster_shifts")
+      .select("staff_id, staff:staff!roster_shifts_staff_id_fkey(display_name)")
+      .eq("organization_id", caller.organizationId)
+      .eq("location_id", session.location_id)
+      .eq("shift_date", session.business_date)
+      .eq("area", "gl"),
   ]);
+
+  const managerNameSet = new Set<string>();
+  for (const r of (managerRes.data ?? []) as Array<{
+    staff_id: string;
+    staff: { display_name: string } | null;
+  }>) {
+    const name = r.staff?.display_name?.trim();
+    if (name) managerNameSet.add(name);
+  }
+  const managerOnDutyNames = Array.from(managerNameSet).sort((a, b) => a.localeCompare(b, "de"));
 
   return {
     businessDate,
