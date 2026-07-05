@@ -94,7 +94,9 @@ export type RosterStaffRow = {
   displayName: string;
   department: "kitchen" | "service";
   skillIds: string[];
-  dateOfBirth: string | null;
+  // SD1b — Nur Monat-Tag (MM-DD) für den Geburtstags-Marker.
+  // Jahrgang bleibt server-seitig; Marker vergleicht MM-DD gegen ISO-Datum.
+  birthdayMonthDay: string | null;
 };
 
 export type RosterCrossBooking = {
@@ -374,9 +376,13 @@ export const getStaffForRoster = createServerFn({ method: "GET" })
       .eq("organization_id", caller.organizationId)
       .in("staff_id", staffIds.length > 0 ? staffIds : ["00000000-0000-0000-0000-000000000000"]);
     if (dErr) throw dErr;
-    const dobByStaff = new Map<string, string | null>();
+    const bdayByStaff = new Map<string, string | null>();
     for (const r of dobRows ?? []) {
-      dobByStaff.set(r.staff_id as string, (r.date_of_birth as string | null) ?? null);
+      const dob = (r.date_of_birth as string | null) ?? null;
+      bdayByStaff.set(
+        r.staff_id as string,
+        dob && dob.length >= 10 ? dob.slice(5, 10) : null,
+      );
     }
 
     return visibleRows
@@ -392,7 +398,7 @@ export const getStaffForRoster = createServerFn({ method: "GET" })
             ? ("kitchen" as const)
             : ("service" as const),
         skillIds: skillsByStaff.get(r.staff_id as string) ?? [],
-        dateOfBirth: dobByStaff.get(r.staff_id as string) ?? null,
+        birthdayMonthDay: bdayByStaff.get(r.staff_id as string) ?? null,
       }))
       .filter((row, idx, arr) => {
         // Dedupe auf (staffId, mappedArea): gl+service desselben Mitarbeiters → 1 Service-Zeile
