@@ -15,6 +15,12 @@ type Props<T extends string> = {
   ariaLabel: string;
   size?: "sm" | "md";
   className?: string;
+  /**
+   * TH1 — aktiviert das Standort-Farbthema für die aktive Pille (nur
+   * LocationPills setzt dies). Ohne die Prop ändert sich das Aussehen
+   * aller anderen PillSelect-Verwendungen nicht.
+   */
+  themed?: boolean;
 };
 
 export function PillSelect<T extends string>({
@@ -24,6 +30,7 @@ export function PillSelect<T extends string>({
   ariaLabel,
   size = "md",
   className,
+  themed = false,
 }: Props<T>) {
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
 
@@ -56,6 +63,7 @@ export function PillSelect<T extends string>({
     >
       {options.map((opt, idx) => {
         const active = opt.value === value;
+        const themedActive = themed && active;
         return (
           <button
             key={opt.value}
@@ -76,6 +84,15 @@ export function PillSelect<T extends string>({
                 ? "border-primary bg-primary text-primary-foreground shadow-sm"
                 : "border-border bg-card text-foreground hover:bg-muted",
             ].join(" ")}
+            style={
+              themedActive
+                ? {
+                    background: "var(--loc-accent, var(--primary))",
+                    color: "var(--loc-accent-fg, var(--primary-foreground))",
+                    borderColor: "var(--loc-accent, var(--primary))",
+                  }
+                : undefined
+            }
           >
             {opt.label}
           </button>

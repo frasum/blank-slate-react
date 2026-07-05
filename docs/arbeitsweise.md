@@ -4,6 +4,10 @@ Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen B
 
 Stand: 05.07.2026 (VA3)
 
+TH1 — Standort-Farbthema: LocationThemeProvider im _authenticated-Layout hält den themeKey (spicery/yum/neutral).
+LocationPills melden die Auswahl per useLocationThemeSync; Mapping: Name enthält „spicery" → spicery, „yum" → yum, sonst neutral (auch TSB/„Alle"/leer).
+PillSelect färbt nur mit themed-Prop (setzt LocationPills); alle anderen PillSelect-Verwendungen bleiben unverändert. Druck ignoriert das Theme (@media print).
+
 NAV1 — Personal-Anträge umbenannt (früher „Stammdaten & Dokumente"), Dokument-Vorlagen in den Mitarbeiter-Bereich verschoben.
 Top-Tab „Dokumente" entfällt; /admin/dokumente bleibt unverändert erreichbar.
 

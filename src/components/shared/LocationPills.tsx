@@ -3,6 +3,7 @@
 // `allValue` konfigurierbar (Default "__all__"), damit bestehende Sentinels
 // (z. B. "all" in zeit-uebersicht) ohne Umbau weiterlaufen.
 import { PillSelect, type PillSelectOption } from "@/components/ui/pill-select";
+import { useLocationThemeSync } from "@/lib/location-theme/context";
 
 type Props = {
   locations: { id: string; name: string }[];
@@ -27,6 +28,9 @@ export function LocationPills({
   className,
   ariaLabel = "Standort",
 }: Props) {
+  // TH1 — meldet die aktuelle Standort-Auswahl an den Theme-Kontext.
+  // „Alle"/leer → neutral (kein Match in der Locations-Liste).
+  useLocationThemeSync(locations, value);
   const options: PillSelectOption<string>[] = locations.map((l) => ({
     value: l.id,
     label: l.name,
@@ -41,6 +45,7 @@ export function LocationPills({
       ariaLabel={ariaLabel}
       size={size}
       className={className}
+      themed
     />
   );
 }

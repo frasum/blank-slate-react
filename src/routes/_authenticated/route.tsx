@@ -11,6 +11,7 @@ import { getMyIdentity } from "@/lib/auth/me.functions";
 import { ImpersonationBanner } from "@/components/impersonation-banner";
 import { PortalShell } from "@/components/portal/PortalShell";
 import { TelegramLinkBanner } from "@/components/telegram/TelegramLinkBanner";
+import { LocationThemeProvider, useLocationTheme } from "@/lib/location-theme/context";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -41,7 +42,20 @@ function AuthenticatedLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const inAdmin = pathname === "/admin" || pathname.startsWith("/admin/");
   return (
-    <>
+    <LocationThemeProvider>
+      <ThemedShell inAdmin={inAdmin} />
+    </LocationThemeProvider>
+  );
+}
+
+function ThemedShell({ inAdmin }: { inAdmin: boolean }) {
+  const themeKey = useLocationTheme();
+  return (
+    <div
+      data-loc-theme={themeKey}
+      className="min-h-screen transition-colors duration-300"
+      style={{ background: "var(--loc-page, transparent)" }}
+    >
       <ImpersonationBanner />
       <TelegramLinkBanner />
       {inAdmin ? (
@@ -51,6 +65,6 @@ function AuthenticatedLayout() {
           <Outlet />
         </PortalShell>
       )}
-    </>
+    </div>
   );
 }

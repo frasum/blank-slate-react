@@ -225,7 +225,10 @@ function AdminLayout() {
   const groupNeedsDot = (key: string): boolean =>
     key === "personal" && (pendingReview > 0 || pendingLeave > 0 || pendingSwaps > 0);
   return (
-    <div className="min-h-screen bg-background">
+    <div
+      className="min-h-screen transition-colors duration-300"
+      style={{ background: "var(--loc-page, var(--background))" }}
+    >
       <header className="border-b border-border bg-card">
         <div className="mx-auto max-w-7xl px-6 pt-3">
           <div className="flex items-center justify-between pb-2">
