@@ -111,12 +111,11 @@ export const listSalesArticles = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     await assertLocationInOrg(supabaseAdmin, caller.organizationId, data.locationId);
     const includeEk = caller.role === "admin";
-    const cols = includeEk
-      ? "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr, ek_price_cents"
-      : "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr";
     const { data: rows, error } = await supabaseAdmin
       .from("sales_articles")
-      .select(cols)
+      .select(
+        "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr, ek_price_cents",
+      )
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId)
       .order("hauptgruppe_nr", { ascending: true, nullsFirst: false })
