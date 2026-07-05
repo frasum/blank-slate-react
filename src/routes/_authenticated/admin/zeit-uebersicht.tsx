@@ -1729,6 +1729,8 @@ type WeeklyData = {
     department: Department;
     isActive: boolean;
     isPrimary?: boolean;
+    // Z3 — alle Abteilungen der Person am Standort (Attribution im Grid).
+    staffDepts?: Department[];
   }[];
 };
 
