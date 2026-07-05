@@ -259,7 +259,6 @@ export const listAbsencesByStaff = createServerFn({ method: "GET" })
       .gte("date", data.periodStart)
       .lte("date", data.periodEnd);
     if (error) throw error;
-    const { formatAbsenceNote } = await import("@/lib/time/absence-note");
     type Entry = {
       krankDays: number;
       urlaubDays: number;
