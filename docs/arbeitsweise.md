@@ -2637,6 +2637,15 @@ bestätigt die Denormalisierungs-Entscheidung (Vectron-Wahrheit je Standort).
 
 **Offen:** TSB-Export beim Aufsetzen des Standorts (Pipeline steht).
 
+### VA3 — Einkaufspreis (05.07.2026)
+
+`ek_price_cents` (BIGINT Cents, nullable, `CHECK >= 0`) an `sales_articles`;
+Auslieferung server-seitig admin-only (Margen-Wissen — Manager sehen das
+Feld weder in der Liste noch im Netzwerk-Response, Update-Pfad ignoriert
+`ekPriceCents` schweigend für Nicht-Admins). Werte kommen per Frank-SQL aus
+den Vectron-Exporten (Spicery 209, YUM 98). **Marge** wird nur abgeleitet
+(Admin-Tooltip am EK: `preis − EK`, wenn beide vorhanden) — nie gespeichert.
+
 ## §56 AF1 — Task-Fotos (04.07.2026)
 
 Aufgaben (`tasks`) unterstützen Foto-Anhänge (Kamera am Handy oder Datei-
