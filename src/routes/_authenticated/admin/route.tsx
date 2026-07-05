@@ -12,6 +12,19 @@ import { getMyIdentity } from "@/lib/auth/me.functions";
 import { getReviewPendingCounts } from "@/lib/profile/profile-admin.functions";
 import { useAuth } from "@/hooks/use-auth";
 
+function SignOutLink() {
+  const { signOut } = useAuth();
+  return (
+    <button
+      type="button"
+      onClick={() => void signOut()}
+      className="text-sm text-muted-foreground hover:text-foreground"
+    >
+      Abmelden
+    </button>
+  );
+}
+
 export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: async ({ context, location }) => {
     // Session-Check rein lokal (kein /auth/v1/user-Roundtrip); getMyIdentity()
