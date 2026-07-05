@@ -467,12 +467,22 @@ function AddArticleDialog(props: {
     productGroup: number | null;
     priceCents: number | null;
     takeawayPriceCents: number | null;
+    warengruppe: string | null;
+    untergruppe: string | null;
+    untergruppeNr: number | null;
+    hauptgruppe: string | null;
+    hauptgruppeNr: number | null;
   }) => void;
 }) {
   const [name, setName] = useState("");
   const [productGroup, setProductGroup] = useState("");
   const [price, setPrice] = useState("");
   const [takeaway, setTakeaway] = useState("");
+  const [warengruppe, setWarengruppe] = useState("");
+  const [untergruppe, setUntergruppe] = useState("");
+  const [untergruppeNr, setUntergruppeNr] = useState("");
+  const [hauptgruppe, setHauptgruppe] = useState("");
+  const [hauptgruppeNr, setHauptgruppeNr] = useState("");
   const [localErr, setLocalErr] = useState<string | null>(null);
 
   const submit = () => {
@@ -491,6 +501,20 @@ function AddArticleDialog(props: {
       }
       productGroupParsed = n;
     }
+    const parseIntOrNull = (raw: string, label: string): number | null | "invalid" => {
+      const t = raw.trim();
+      if (t === "") return null;
+      const n = Number(t);
+      if (!Number.isInteger(n)) {
+        setLocalErr(`${label} muss eine Zahl sein.`);
+        return "invalid";
+      }
+      return n;
+    };
+    const untergruppeNrParsed = parseIntOrNull(untergruppeNr, "Untergruppe Nr.");
+    if (untergruppeNrParsed === "invalid") return;
+    const hauptgruppeNrParsed = parseIntOrNull(hauptgruppeNr, "Hauptgruppe Nr.");
+    if (hauptgruppeNrParsed === "invalid") return;
     const priceCents = parseEuroInputToCents(price);
     if (priceCents === "invalid") {
       setLocalErr("Preis: nur Zahlen und Komma (max. 2 Nachkommastellen).");
@@ -507,6 +531,11 @@ function AddArticleDialog(props: {
       productGroup: productGroupParsed,
       priceCents,
       takeawayPriceCents: takeawayCents,
+      warengruppe: warengruppe.trim() || null,
+      untergruppe: untergruppe.trim() || null,
+      untergruppeNr: untergruppeNrParsed,
+      hauptgruppe: hauptgruppe.trim() || null,
+      hauptgruppeNr: hauptgruppeNrParsed,
     });
   };
 
@@ -529,16 +558,20 @@ function AddArticleDialog(props: {
               placeholder="z. B. Mangosaft"
             />
           </label>
-          <label className="block space-y-1">
-            <span className="text-xs font-medium text-muted-foreground">Warengruppe (Nr.)</span>
-            <input
-              value={productGroup}
-              onChange={(e) => setProductGroup(e.target.value)}
-              inputMode="numeric"
-              className="w-full rounded border border-input bg-background px-3 py-2 text-sm"
-              placeholder="optional"
-            />
-          </label>
+          <HierarchyFieldset
+            hauptgruppe={hauptgruppe}
+            setHauptgruppe={setHauptgruppe}
+            hauptgruppeNr={hauptgruppeNr}
+            setHauptgruppeNr={setHauptgruppeNr}
+            untergruppe={untergruppe}
+            setUntergruppe={setUntergruppe}
+            untergruppeNr={untergruppeNr}
+            setUntergruppeNr={setUntergruppeNr}
+            warengruppe={warengruppe}
+            setWarengruppe={setWarengruppe}
+            productGroup={productGroup}
+            setProductGroup={setProductGroup}
+          />
           <div className="grid grid-cols-2 gap-3">
             <label className="block space-y-1">
               <span className="text-xs font-medium text-muted-foreground">Preis (€)</span>
@@ -573,5 +606,190 @@ function AddArticleDialog(props: {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Dialog: Hierarchie bearbeiten
+// ---------------------------------------------------------------------------
+
+type GroupsPatch = {
+  warengruppe: string | null;
+  untergruppe: string | null;
+  untergruppeNr: number | null;
+  hauptgruppe: string | null;
+  hauptgruppeNr: number | null;
+  productGroup: number | null;
+};
+
+function EditGroupsDialog(props: {
+  article: SalesArticle;
+  submitting: boolean;
+  onClose: () => void;
+  onSubmit: (patch: GroupsPatch) => void;
+}) {
+  const a = props.article;
+  const [hauptgruppe, setHauptgruppe] = useState(a.hauptgruppe ?? "");
+  const [hauptgruppeNr, setHauptgruppeNr] = useState(
+    a.hauptgruppeNr === null ? "" : String(a.hauptgruppeNr),
+  );
+  const [untergruppe, setUntergruppe] = useState(a.untergruppe ?? "");
+  const [untergruppeNr, setUntergruppeNr] = useState(
+    a.untergruppeNr === null ? "" : String(a.untergruppeNr),
+  );
+  const [warengruppe, setWarengruppe] = useState(a.warengruppe ?? "");
+  const [productGroup, setProductGroup] = useState(
+    a.productGroup === null ? "" : String(a.productGroup),
+  );
+  const [localErr, setLocalErr] = useState<string | null>(null);
+
+  const submit = () => {
+    const parseInt = (raw: string, label: string): number | null | "invalid" => {
+      const t = raw.trim();
+      if (t === "") return null;
+      const n = Number(t);
+      if (!Number.isInteger(n)) {
+        setLocalErr(`${label} muss eine Zahl sein.`);
+        return "invalid";
+      }
+      return n;
+    };
+    const pg = parseInt(productGroup, "Warengruppe Nr.");
+    if (pg === "invalid") return;
+    const un = parseInt(untergruppeNr, "Untergruppe Nr.");
+    if (un === "invalid") return;
+    const hn = parseInt(hauptgruppeNr, "Hauptgruppe Nr.");
+    if (hn === "invalid") return;
+    setLocalErr(null);
+    props.onSubmit({
+      hauptgruppe: hauptgruppe.trim() || null,
+      hauptgruppeNr: hn,
+      untergruppe: untergruppe.trim() || null,
+      untergruppeNr: un,
+      warengruppe: warengruppe.trim() || null,
+      productGroup: pg,
+    });
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && props.onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Hierarchie bearbeiten — {a.name}</DialogTitle>
+          <DialogDescription>
+            Quelle Vectron — wird beim Re-Import überschrieben.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          <HierarchyFieldset
+            hauptgruppe={hauptgruppe}
+            setHauptgruppe={setHauptgruppe}
+            hauptgruppeNr={hauptgruppeNr}
+            setHauptgruppeNr={setHauptgruppeNr}
+            untergruppe={untergruppe}
+            setUntergruppe={setUntergruppe}
+            untergruppeNr={untergruppeNr}
+            setUntergruppeNr={setUntergruppeNr}
+            warengruppe={warengruppe}
+            setWarengruppe={setWarengruppe}
+            productGroup={productGroup}
+            setProductGroup={setProductGroup}
+          />
+          {localErr && <p className="text-xs text-destructive">{localErr}</p>}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={props.onClose}>
+            Abbrechen
+          </Button>
+          <Button disabled={props.submitting} onClick={submit}>
+            {props.submitting ? "Speichern…" : "Speichern"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function HierarchyFieldset(props: {
+  hauptgruppe: string;
+  setHauptgruppe: (v: string) => void;
+  hauptgruppeNr: string;
+  setHauptgruppeNr: (v: string) => void;
+  untergruppe: string;
+  setUntergruppe: (v: string) => void;
+  untergruppeNr: string;
+  setUntergruppeNr: (v: string) => void;
+  warengruppe: string;
+  setWarengruppe: (v: string) => void;
+  productGroup: string;
+  setProductGroup: (v: string) => void;
+}) {
+  const inputCls =
+    "w-full rounded border border-input bg-background px-3 py-2 text-sm";
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-muted-foreground">
+        Quelle Vectron — wird beim Re-Import überschrieben.
+      </p>
+      <div className="grid grid-cols-[1fr_5rem] gap-2">
+        <label className="block space-y-1">
+          <span className="text-xs font-medium text-muted-foreground">Hauptgruppe</span>
+          <input
+            value={props.hauptgruppe}
+            onChange={(e) => props.setHauptgruppe(e.target.value)}
+            className={inputCls}
+            placeholder="z. B. Küche"
+          />
+        </label>
+        <label className="block space-y-1">
+          <span className="text-xs font-medium text-muted-foreground">Nr.</span>
+          <input
+            value={props.hauptgruppeNr}
+            onChange={(e) => props.setHauptgruppeNr(e.target.value)}
+            inputMode="numeric"
+            className={inputCls}
+            placeholder="5"
+          />
+        </label>
+        <label className="block space-y-1">
+          <span className="text-xs font-medium text-muted-foreground">Untergruppe</span>
+          <input
+            value={props.untergruppe}
+            onChange={(e) => props.setUntergruppe(e.target.value)}
+            className={inputCls}
+            placeholder="z. B. Vorspeisen"
+          />
+        </label>
+        <label className="block space-y-1">
+          <span className="text-xs font-medium text-muted-foreground">Nr.</span>
+          <input
+            value={props.untergruppeNr}
+            onChange={(e) => props.setUntergruppeNr(e.target.value)}
+            inputMode="numeric"
+            className={inputCls}
+            placeholder="12"
+          />
+        </label>
+        <label className="block space-y-1">
+          <span className="text-xs font-medium text-muted-foreground">Warengruppe</span>
+          <input
+            value={props.warengruppe}
+            onChange={(e) => props.setWarengruppe(e.target.value)}
+            className={inputCls}
+            placeholder="z. B. Appetizer"
+          />
+        </label>
+        <label className="block space-y-1">
+          <span className="text-xs font-medium text-muted-foreground">Nr.</span>
+          <input
+            value={props.productGroup}
+            onChange={(e) => props.setProductGroup(e.target.value)}
+            inputMode="numeric"
+            className={inputCls}
+            placeholder="43"
+          />
+        </label>
+      </div>
+    </div>
   );
 }
