@@ -1,6 +1,6 @@
-// PV1 — POS-Verkauf: Artikel-Verkaufsstatistik je Standort (letzte 365 Tage
-// & Gesamt) mit kaskadierendem Gruppen-Filter aus VA2. Kein Upload-UI — der
-// Import läuft weiterhin per Frank-SQL (Replace je Standort × Periode).
+// PV1/PV2 — POS-Verkauf: Artikel-Verkaufsstatistik je Standort (letzte 365
+// Tage & Gesamt) mit kaskadierendem Gruppen-Filter aus VA2, manueller
+// WG-Zuordnung (PV1) und XLSX-Upload mit Review-Screen (PV2, admin-only).
 
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
@@ -9,6 +9,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   clearSalesStatsGroupOverride,
   listSalesStats,
+  replacePosSalesStats,
   setSalesStatsGroupOverride,
 } from "@/lib/bestellung/sales-stats.functions";
 import { listLocations } from "@/lib/admin/locations.functions";
@@ -23,6 +24,14 @@ import {
   UNMATCHED,
 } from "@/lib/bestellung/sales-group-filter";
 import { averagePriceCents, type EnrichedStatRow } from "@/lib/bestellung/sales-stats";
+import {
+  allChecksOk,
+  footerForServer,
+  parsePosReport,
+  type ParsedPosReport,
+} from "@/lib/bestellung/pos-report-parser";
+import { useAuth } from "@/hooks/use-auth";
+import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -41,6 +50,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/_authenticated/admin/bestellung/pos-verkauf")({
   head: () => ({ meta: [{ title: "POS-Verkauf · Bestellung" }] }),
