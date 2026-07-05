@@ -343,6 +343,7 @@ function ZeitUebersichtPage() {
         entries: [],
         crossLocationDates: {},
         assignedStaff: [],
+        rosterByStaff: {},
       };
       for (const q of allLocationQueries) {
         const d = q.data as WeeklyData | undefined;
@@ -358,6 +359,15 @@ function ZeitUebersichtPage() {
           ) {
             merged.assignedStaff!.push(s);
           }
+        }
+        // Z4b — rosterByStaff über alle Standorte mergen (Union je Person
+        // über areas/skillIds), damit „Alle Standorte" alle geplanten
+        // Bereiche/Skills der Woche berücksichtigt.
+        for (const [sid, bucket] of Object.entries(d.rosterByStaff ?? {})) {
+          const cur = merged.rosterByStaff![sid] ?? { areas: [], skillIds: [] };
+          for (const a of bucket.areas) if (!cur.areas.includes(a)) cur.areas.push(a);
+          for (const s of bucket.skillIds) if (!cur.skillIds.includes(s)) cur.skillIds.push(s);
+          merged.rosterByStaff![sid] = cur;
         }
       }
       return merged;
