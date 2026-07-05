@@ -43,6 +43,70 @@ function buildPrimaryDeptMap(
   return out;
 }
 
+// Z3 — Alle Abteilungs-Zuordnungen je Mitarbeiter (für die
+// Zeilen-Attribution im Wochenplan-Grid).
+function buildStaffDeptsMap(
+  rows: ReadonlyArray<{ staff_id: string; department: string }>,
+): Map<string, Department[]> {
+  const byStaff = new Map<string, Department[]>();
+  for (const r of rows) {
+    const dept = r.department as Department;
+    const arr = byStaff.get(r.staff_id) ?? [];
+    if (!arr.includes(dept)) arr.push(dept);
+    byStaff.set(r.staff_id, arr);
+  }
+  return byStaff;
+}
+
+// Z3 — Prüft, ob eine Abteilung der Person am Standort zugeordnet ist.
+// Wird server-seitig VOR Insert/Update aufgerufen (Client nicht vertrauen).
+async function assertStaffDeptAssignment(
+  supabaseAdmin: {
+    from: (t: string) => {
+      select: (s: string) => {
+        eq: (
+          c: string,
+          v: string,
+        ) => {
+          eq: (
+            c: string,
+            v: string,
+          ) => {
+            eq: (
+              c: string,
+              v: string,
+            ) => {
+              eq: (
+                c: string,
+                v: string,
+              ) => { maybeSingle: () => Promise<{ data: unknown; error: unknown }> };
+            };
+          };
+        };
+      };
+    };
+  },
+  organizationId: string,
+  staffId: string,
+  locationId: string,
+  department: Department,
+): Promise<void> {
+  const { data, error } = await supabaseAdmin
+    .from("staff_locations")
+    .select("staff_id")
+    .eq("organization_id", organizationId)
+    .eq("staff_id", staffId)
+    .eq("location_id", locationId)
+    .eq("department", department)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) {
+    throw new Error(
+      `Abteilung „${department}" ist der Person am Standort nicht zugeordnet.`,
+    );
+  }
+}
+
 // =========================================================================
 // B6 — Arbeitszeitübersicht (Zusammenfassung + Buchhaltung)
 // =========================================================================
