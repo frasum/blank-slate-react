@@ -1971,9 +1971,8 @@ function WeeklyPlan({
   const flatRows = useMemo(() => groups.flatMap((g) => g.rows), [groups]);
   const isCellEditable = (row: (typeof flatRows)[number] | undefined, dayIdx: number): boolean => {
     if (!row || !isAdmin) return false;
-    // Z2: „+" nur auf der Primär-Zeile — sonst würde ein neu angelegter Entry
-    // nach dem Refetch in der Primär-Sektion auftauchen.
-    if (row.isPrimary === false) return false;
+    // Z3 — alle Zeilen editierbar. Neu erstellte Einträge tragen die
+    // Abteilung ihrer Zeile und bleiben nach dem Refetch dort.
     const dm = dayMeta[dayIdx];
     if (!dm || dm.outOfPeriod) return false;
     const day = row.days[dayIdx];
