@@ -15,9 +15,7 @@ export const PosRowSchema = z.object({
 });
 export type PosRow = z.infer<typeof PosRowSchema>;
 
-const isoDate = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Datum im Format YYYY-MM-DD erwartet.");
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Datum im Format YYYY-MM-DD erwartet.");
 
 function todayIsoBerlin(): string {
   // Europe/Berlin-Datum (die App arbeitet konsistent in dieser Zone; siehe

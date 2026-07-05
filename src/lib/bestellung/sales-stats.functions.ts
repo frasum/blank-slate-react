@@ -24,10 +24,7 @@ import {
   type SalesArticleForJoin,
   type SalesStatRow,
 } from "./sales-stats";
-import {
-  ReplacePosSalesStatsInput,
-  checkRowsAgainstFooter,
-} from "./pos-report-server";
+import { ReplacePosSalesStatsInput, checkRowsAgainstFooter } from "./pos-report-server";
 
 type Admin = SupabaseClient<Database>;
 

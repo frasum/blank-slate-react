@@ -3052,7 +3052,7 @@ dort und dienen weiterhin als Cent-genauer Regressionsanker.
   Fußzeile, gehen die footer-Checks bewusst auf `ok: false` (kein stiller
   Skip — Vectron-Exporte haben sie immer).
 - **RPC** `public.replace_pos_sales_stats(org, location, period,
-  report_date, rows jsonb)` — `SECURITY DEFINER`, `search_path=''`,
+report_date, rows jsonb)` — `SECURITY DEFINER`, `search_path=''`,
   `EXECUTE` nur für `service_role`. Löscht atomar alle Zeilen für
   (Standort × Periode) und importiert die geprüften neu (BIGINT cents).
 - **Server-Fn** `replacePosSalesStats` in `sales-stats.functions.ts` —

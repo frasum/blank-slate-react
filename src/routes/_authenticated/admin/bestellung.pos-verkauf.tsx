@@ -625,9 +625,7 @@ function PosImportDialog({
               />
               <SummaryCard
                 label="Σ Umsatz"
-                value={eurFmt.format(
-                  parsed.rows.reduce((s, r) => s + r.umsatzCents, 0) / 100,
-                )}
+                value={eurFmt.format(parsed.rows.reduce((s, r) => s + r.umsatzCents, 0) / 100)}
               />
             </div>
 
