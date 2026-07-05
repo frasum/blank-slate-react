@@ -54,6 +54,8 @@ type PriceField = "priceCents" | "takeawayPriceCents";
 
 function VerkaufsartikelPage() {
   const qc = useQueryClient();
+  const { identity } = useAuth();
+  const isAdmin = identity?.role === "admin";
   const callList = useServerFn(listSalesArticles);
   const callUpdate = useServerFn(updateSalesArticle);
   const callCreate = useServerFn(createSalesArticle);
@@ -271,6 +273,7 @@ function VerkaufsartikelPage() {
                 <TableHead className="w-32">Warengruppe</TableHead>
                 <TableHead className="w-36">Preis</TableHead>
                 <TableHead className="w-36">Mitnahme</TableHead>
+                {isAdmin && <TableHead className="w-32">EK</TableHead>}
                 <TableHead className="w-28 text-right">Aktiv</TableHead>
                 <TableHead className="w-20 text-right">Bearb.</TableHead>
               </TableRow>
@@ -317,6 +320,18 @@ function VerkaufsartikelPage() {
                       }
                     />
                   </TableCell>
+                  {isAdmin && (
+                    <TableCell
+                      className="text-muted-foreground"
+                      title={
+                        row.ekPriceCents !== null && row.priceCents !== null
+                          ? `Marge: ${formatEuro(row.priceCents - row.ekPriceCents)}`
+                          : undefined
+                      }
+                    >
+                      {row.ekPriceCents === null ? "—" : formatEuro(row.ekPriceCents)}
+                    </TableCell>
+                  )}
                   <TableCell className="text-right">
                     <Switch
                       checked={row.isActive}
@@ -343,6 +358,7 @@ function VerkaufsartikelPage() {
 
       {addOpen && (
         <AddArticleDialog
+          isAdmin={isAdmin}
           submitting={createMut.isPending}
           onClose={() => setAddOpen(false)}
           onSubmit={(input) => createMut.mutate({ data: { ...input, locationId } })}
@@ -350,6 +366,7 @@ function VerkaufsartikelPage() {
       )}
       {editRow && (
         <EditGroupsDialog
+          isAdmin={isAdmin}
           article={editRow}
           submitting={updateMut.isPending}
           onClose={() => setEditRow(null)}
