@@ -1633,6 +1633,15 @@ function PayrollRow({
         {vorschussLabel ?? "–"}
       </TableCell>
       <TableCell className="py-1.5">
+        {row.absenceNote ? (
+          <div
+            className="mb-1 flex items-start gap-1 text-xs text-muted-foreground"
+            title="Automatisch aus Urlaub/Krank — Korrekturen dort vornehmen."
+          >
+            <CalendarDays className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
+            <span className="leading-tight">{row.absenceNote}</span>
+          </div>
+        ) : null}
         <Textarea
           rows={1}
           placeholder="–"
