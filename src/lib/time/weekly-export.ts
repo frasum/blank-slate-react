@@ -14,6 +14,8 @@ export type WeeklyExportRow = {
   staffId: string;
   displayName: string;
   department: "kitchen" | "service" | "gl";
+  /** Z2: false = Sekundär-Zeile (weitere Zuordnung derselben Person). */
+  isPrimary?: boolean;
   days: WeeklyExportDay[]; // genau 7 Einträge
   totals: {
     total: number;

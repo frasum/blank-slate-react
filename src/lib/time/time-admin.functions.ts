@@ -21,6 +21,27 @@ import { timeEntryToSfnRow } from "@/lib/lohn/time-entry-sfn";
 import { formatAbsenceNote } from "./absence-note";
 import type { SfnShiftRow } from "@/lib/lohn/sfn-geld/types";
 import { computeStaffSfn } from "@/lib/lohn/compute-staff-sfn";
+import { primaryDepartment, type Department } from "./primary-department";
+
+// Reduziert staff_locations-Zeilen (eine pro Zuordnung) auf eine deterministische
+// Primär-Abteilung je staff_id (Priorität kitchen > service > gl). Wird von
+// getTimeOverview UND getWeeklyTimeEntries genutzt — keine Last-write-wins-Falle.
+function buildPrimaryDeptMap(
+  rows: ReadonlyArray<{ staff_id: string; department: string }>,
+): Map<string, Department> {
+  const byStaff = new Map<string, Department[]>();
+  for (const r of rows) {
+    const dept = r.department as Department;
+    const arr = byStaff.get(r.staff_id) ?? [];
+    arr.push(dept);
+    byStaff.set(r.staff_id, arr);
+  }
+  const out = new Map<string, Department>();
+  for (const [staffId, depts] of byStaff) {
+    out.set(staffId, primaryDepartment(depts));
+  }
+  return out;
+}
 
 // =========================================================================
 // B6 — Arbeitszeitübersicht (Zusammenfassung + Buchhaltung)
@@ -62,10 +83,7 @@ export const getTimeOverview = createServerFn({ method: "GET" })
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId);
     if (deptErr) throw deptErr;
-    const deptByStaff = new Map<string, "kitchen" | "service" | "gl">();
-    for (const d of deptRows ?? []) {
-      deptByStaff.set(d.staff_id, d.department as "kitchen" | "service" | "gl");
-    }
+    const deptByStaff = buildPrimaryDeptMap(deptRows ?? []);
 
     const entries = (rows ?? []).map((r) => {
       const started = new Date(r.started_at).getTime();
@@ -397,22 +415,26 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId);
     if (deptErr) throw deptErr;
-    const deptByStaff = new Map<string, "kitchen" | "service" | "gl">();
-    for (const d of deptRows ?? []) {
-      deptByStaff.set(d.staff_id, d.department as "kitchen" | "service" | "gl");
-    }
+    // Primär-Abteilung je Mitarbeiter (Priorität kitchen > service > gl) —
+    // entries.department wird darauf gemappt, damit alle Stunden einer
+    // Person deterministisch auf EINER Zeile auflaufen (time_entries hat
+    // keine Abteilungs-Dimension).
+    const deptByStaff = buildPrimaryDeptMap(deptRows ?? []);
 
-    // Alle dem Standort zugeordneten Mitarbeiter (auch ohne Stunden) —
-    // damit die Wochenansicht die Roster-Grundmenge zeigt, nicht nur
-    // die, die real gestempelt haben. Inaktive werden ausgeblendet.
+    // Z2: Alle dem Standort zugeordneten (aktiven) Mitarbeiter — EINE Zeile
+    // pro Zuordnung, damit Mehrfach-Zuordnungen (z. B. kitchen + gl) im
+    // Wochenplan-Grid in JEDER Sektion erscheinen. isPrimary markiert die
+    // Zeile, auf der die tatsächlichen Stunden aufsummiert werden.
     const assignedStaff = (deptRows ?? [])
       .map((d) => {
         const s = d.staff as { display_name: string; is_active: boolean } | null;
+        const dept = d.department as Department;
         return {
           staffId: d.staff_id as string,
           displayName: s?.display_name ?? "—",
-          department: d.department as "kitchen" | "service" | "gl",
+          department: dept,
           isActive: s?.is_active ?? true,
+          isPrimary: deptByStaff.get(d.staff_id as string) === dept,
         };
       })
       .filter((s) => s.isActive);
