@@ -3129,6 +3129,32 @@ report_date, rows jsonb)` — `SECURITY DEFINER`, `search_path=''`,
   (`group-hover:opacity-100`). Die Zeile bleibt ruhig, die Funktion ist
   einen Hover entfernt.
 
+## §Z4 — Wochenplan-Filter: Bereich + Skill (nur Anzeige)
+
+- Über der Wochen-Chip-Zeile stehen zwei zusätzliche Filter neben dem
+  Suchfeld: eine Pill-Gruppe **„Alle · Küche · Service · GL"** und ein
+  kompaktes **Skill-Dropdown** (Optionen aus `listSkills`, nach Kategorie
+  gruppiert, mit Skill-Farbe als Punkt vor dem Namen). Alle drei Filter
+  (Bereich, Skill, Suche) kombinieren per **UND**; Default je Filter
+  ist „Alle". State lebt nur im Component (kein `localStorage`).
+- Der Filter ist rein anzeige-seitig: er wirkt nur auf das Wochenplan-
+  Grid. `entryRowDepartment`/Attribution, Server-Schreibpfade,
+  Zusammenfassung, Buchhaltung, Perioden, Brutto/Netto und Provision
+  bleiben ungefiltert. Die **XLSX/PDF-Exporte des Wochenplans folgen
+  dem Bereich-/Skill-Filter bewusst NICHT** — sie exportieren weiterhin
+  alle Bereiche/Skills, damit ein Export nie ein stilles Teil-Ergebnis
+  wird (Suche wirkt wie bisher auch auf den Export).
+- Sektionen ohne verbleibende Zeilen werden im gefilterten Grid
+  ausgeblendet; ohne Filter zeigt der Wochenplan wie zuvor alle drei
+  Bereiche.
+- Datenpfad: `getWeeklyTimeEntries` liefert je `assignedStaff`-Zeile
+  zusätzlich `skillIds: string[]` (Join `staff_skills`, org-gescoped).
+  Die reine Filterlogik ist in `src/lib/time/weekly-filter.ts`
+  (`filterWeeklyRows(rows, {dept, skillId, query}, skillsByStaff)`)
+  ausgelagert und mit den Fällen „nur Bereich", „nur Skill", „Skill +
+  Bereich", „Suche zusätzlich", „Mitarbeiter ohne Skills" und „leeres
+  Ergebnis" getestet.
+
 ## §49 — Lektion: zod 4 UUID-Validierung
 
 - `z.string().uuid()` prüft in zod 4 die Versions- und Varianten-Bits
