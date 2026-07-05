@@ -7,7 +7,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import {
+  DndContext,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
 import { Card } from "@/components/ui/card";
 import { parseIso, todayIso } from "@/lib/format";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -439,7 +446,13 @@ function AdminManagerDienstplan() {
     }
   }
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  // iPad + Apple Pencil: PointerSensor unterdrückt Pen-Klicks via
+  // pointerdown.preventDefault(); getrennte Mouse-/Touch-Sensoren umgehen das
+  // (Safari emuliert Pencil als Maus).
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+  );
 
   async function handleDragEnd(e: DragEndEvent) {
     if (!canEdit || periodLocked) return;

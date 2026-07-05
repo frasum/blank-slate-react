@@ -159,4 +159,16 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
   }
+
+  /*
+   * iPad + Apple Pencil (Dienstplan): Ohne `touch-action: manipulation`
+   * verzögert/verschluckt Safari Pen-Klicks auf Buttons (Scribble-Erkennung
+   * + 300ms-Doppeltipp-Zoom). `manipulation` schaltet den Zoom-Delay ab und
+   * gibt Klick/Tap sofort an die App.
+   */
+  button,
+  [role="button"],
+  a {
+    touch-action: manipulation;
+  }
 }

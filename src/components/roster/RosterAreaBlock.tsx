@@ -7,7 +7,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import {
+  DndContext,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -318,7 +325,16 @@ export function RosterAreaBlock({
     }
   }
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  // iPad + Apple Pencil: `PointerSensor` ruft auf pointerdown `preventDefault()`
+  // auf und unterdrückt damit den nachfolgenden Klick bei pointerType="pen"
+  // (Safari liefert Pen-Klicks nicht als synthetischen Mouse-Click nach).
+  // Getrennte Mouse-/Touch-Sensoren: Safari emuliert Pencil als Maus → Klick
+  // und Drag funktionieren, Finger nutzt Touch mit Delay/Toleranz gegen
+  // versehentliche Drags beim Scrollen.
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+  );
 
   async function handleDragEnd(e: DragEndEvent) {
     if (!canEdit || periodLocked) return;
