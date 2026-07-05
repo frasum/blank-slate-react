@@ -185,22 +185,30 @@ function DisplayPage() {
         </div>
       )}
 
-      <ReminderStack reminders={data.reminders ?? []} now={now} />
-
       <main className="space-y-4 p-3">
         {data.blocks.map((block, idx) => (
           <div key={block.area} className="space-y-4">
             <BlockTable block={block} days={data.days} payload={data} />
-            {data.customMessage && idx < data.blocks.length - 1 && (
-              <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 px-6 py-3 text-center text-base text-amber-200">
-                {data.customMessage}
+            {idx < data.blocks.length - 1 && (
+              <div className="space-y-2">
+                <ReminderStack reminders={data.reminders ?? []} now={now} />
+                {data.customMessage && (
+                  <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 px-6 py-3 text-center text-base text-amber-200">
+                    {data.customMessage}
+                  </div>
+                )}
               </div>
             )}
           </div>
         ))}
-        {data.customMessage && data.blocks.length <= 1 && (
-          <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 px-6 py-3 text-center text-base text-amber-200">
-            {data.customMessage}
+        {data.blocks.length <= 1 && (
+          <div className="space-y-2">
+            <ReminderStack reminders={data.reminders ?? []} now={now} />
+            {data.customMessage && (
+              <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 px-6 py-3 text-center text-base text-amber-200">
+                {data.customMessage}
+              </div>
+            )}
           </div>
         )}
         {data.blocks.length === 0 && (
@@ -456,14 +464,14 @@ function ReminderStack({ reminders, now }: { reminders: Reminder[]; now: Date })
   const due = sortReminders(reminders.filter((r) => isReminderActive(r, nowB, businessDate)));
   if (due.length === 0) return null;
   return (
-    <div className="space-y-2 px-3 pt-3">
+    <div className="space-y-2">
       {due.map((r) => {
         const s = REMINDER_STYLE[r.color] ?? REMINDER_STYLE.grau;
         return (
           <div
             key={r.id}
             className={cn(
-              "flex items-center justify-center gap-3 rounded-2xl border px-6 py-3 text-center shadow-lg animate-pulse",
+              "flex items-center justify-center gap-3 rounded-2xl border px-6 py-3 text-center shadow-lg animate-reminder-blink",
               s.bg,
               s.text,
               s.border,
