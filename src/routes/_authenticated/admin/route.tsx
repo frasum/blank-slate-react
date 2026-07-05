@@ -73,7 +73,7 @@ const GROUPS: Group[] = [
     sub: [
       { to: "/admin/staff", label: "Mitarbeiter" },
       { to: "/admin/dienstplan", label: "Dienstplan" },
-      { to: "/admin/urlaub", label: "Urlaubsanträge" },
+      { to: "/admin/urlaub", label: "Urlaubsantrag / Schichttausch" },
       { to: "/admin/personal-antraege", label: "Stammdaten & Dokumente", roles: ["admin"] },
       { to: "/admin/zeit-uebersicht", label: "Arbeitszeiten" },
     ],
@@ -187,11 +187,11 @@ function AdminLayout() {
   });
   const pendingReview =
     (reviewCountsQ.data?.pendingRequests ?? 0) +
-    (reviewCountsQ.data?.pendingDocuments ?? 0) +
-    (reviewCountsQ.data?.swapPending ?? 0);
+    (reviewCountsQ.data?.pendingDocuments ?? 0);
+  const pendingSwaps = reviewCountsQ.data?.swapPending ?? 0;
   const pendingLeave = reviewCountsQ.data?.pendingLeaveRequests ?? 0;
   const groupNeedsDot = (key: string): boolean =>
-    key === "personal" && (pendingReview > 0 || pendingLeave > 0);
+    key === "personal" && (pendingReview > 0 || pendingLeave > 0 || pendingSwaps > 0);
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
@@ -276,7 +276,7 @@ function AdminLayout() {
                           !pathname.startsWith("/admin/migration"));
                       const showDot =
                         (s.to === "/admin/personal-antraege" && pendingReview > 0) ||
-                        (s.to === "/admin/urlaub" && pendingLeave > 0);
+                        (s.to === "/admin/urlaub" && (pendingLeave > 0 || pendingSwaps > 0));
                       return (
                         <Link
                           key={s.to}
