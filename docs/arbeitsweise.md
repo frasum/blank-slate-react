@@ -2906,3 +2906,33 @@ die Rezept-Welle nachzieht (1-Zutat-Spezialfall = jetziger Stand).
 
 Bestehende EK-Werte (35 automatisch + 306 Vectron-Import) bleiben als
 „Manueller EK" bis zur Zuordnung — nichts gelöscht.
+
+## §Z2 — Wochenplan zeigt Mitarbeiter je Zuordnung (Analogie zu D-3)
+
+Ein Mitarbeiter erscheint im Wochenplan-Grid der Zeitübersicht in JEDER
+Sektion, der er am Standort zugeordnet ist — auch mit 0,00 Stunden. Damit
+verschwinden Mehrfach-Zuordnungen (z. B. kitchen + gl) nicht mehr aus der
+Sichtbarkeit.
+
+`time_entries` hat bewusst KEINE Abteilungs-Dimension: die Stunden einer
+Person laufen deshalb immer auf einer einzigen Zeile auf. Die Regel:
+
+- Primär-Abteilung = deterministische Priorität **kitchen > service > gl**
+  über alle staff_locations-Zuordnungen der Person am Standort. Zentral in
+  `src/lib/time/primary-department.ts` (`primaryDepartment`). Beide
+  Aufbauten in `getTimeOverview` und `getWeeklyTimeEntries` sammeln erst
+  alle Abteilungen je Staff und leiten dann die Primär-Abteilung ab —
+  kein Last-write-wins mehr.
+- Alle time_entries laufen auf der Primär-Zeile auf (Server setzt
+  `entry.department = primär`).
+- Sekundär-Zeilen (weitere Zuordnungen, z. B. GL bei Küchen-Primärkräften)
+  erscheinen im Grid mit 0,00 und deaktivierten „+"-Zellen; Tooltip weist
+  auf die Primär-Sektion hin. Verhindert die Verwirrung, dass ein auf der
+  Sekundär-Zeile angelegter Eintrag nach dem Refetch in der Primär-Zeile
+  auftaucht.
+
+Scope: NUR das Wochenplan-Grid zeigt Mehrfach-Zeilen. Zusammenfassung,
+Buchhaltungs-Export, Perioden und Lohnrechner bleiben bei einer Zeile pro
+Person (Primär-Abteilung) — Summen führen niemanden doppelt. Eine echte
+Abteilungs-Dimension auf `time_entries` (z. B. GL-Stunden trennen) wäre
+eine eigene Welle.
