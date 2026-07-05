@@ -3145,3 +3145,41 @@ report_date, rows jsonb)` — `SECURITY DEFINER`, `search_path=''`,
   (`absolute bottom-0 right-0.5`), damit er beim Hover keine
   Zeilenhöhe reserviert — alle Wochenplan-Zeilen bleiben gleich hoch,
   auch bei Personen mit Mehrfach-Zuordnung.
+
+## §PV3 — POS-Stundenbericht (Vectron „Stunden-Bericht (lang)")
+
+- Neuer Tab **„Stundenbericht"** im POS-Verkauf-Bereich (Standort-
+  umschalter + Perioden-Tabs wie §PV1). Umschaltung Umsatz ↔ Buchungen,
+  Balkendiagramm 0–23 Uhr mit hervorgehobener Peak-Stunde, Tabelle mit
+  Anteil und Ø/Buchung, Summenzeile reproduziert die Fußzeilen-Werte.
+- **Schema** `public.pos_hourly_stats` (org × loc × period × hour) mit
+  BIGINT `wert_cents` und `report_date`; `%Wert` wird **nie gespeichert**
+  (derived value) — Anzeige-Anteil und Ø/Buchung sind reine
+  Anzeige-Ableitungen (siehe `hourShare` / `avgPerBookingCents`). RLS
+  aktiv, DENY-ALL-Policy, EXECUTE der RPC nur `service_role` — exakt das
+  §PV1/§PV2-Muster.
+- **RPC** `public.replace_pos_hourly_stats(org, location, period,
+  report_date, rows jsonb)` — atomarer Replace je (Standort × Periode).
+- **Parser** `pos-hourly-parser.ts` headless (Zeilen-Arrays, exceljs nur
+  in der UI). Trimmt führende Leerzeichen bei einstelligen Stunden,
+  leere Anzahl/Wert-Zellen = 0, negative Werte (Storno) durchgereicht,
+  Füllzeile „-" wird übersprungen. Fußzeile beginnt mit „Alle (Zeit"
+  und liefert Kontrollsummen (`footer_anzahl`, `footer_wert`);
+  fehlt sie, sind die Footer-Checks bewusst `ok=false`. Zusätzlich
+  `hour_valid` (0–23, keine Duplikate). Warnung (nicht blockierend):
+  je Stunde |%-Wert Datei − berechneter Anteil| > 0,15 pp.
+- **Server-Fns** in `pos-hourly.functions.ts`: `listPosHourlyStats`
+  (manager, org-scoped, `assertLocationInOrg`), `replacePosHourlyStats`
+  (admin, Zod incl. `hour ∈ [0..23]` + eindeutig, Nicht-Zukunftsdatum,
+  strikte Fußzeilen-Gleichheit; Mismatch → Fehler ohne Audit). Erfolgs-
+  Audit `pos_hourly.replaced` mit `{ locationId, period, reportDate,
+  hourCount, sumAnzahl, sumCents }`.
+- **Import-UI** wie §PV2: Standort/Periode/Stichtag, Datei → Parser →
+  Review mit Summen-Karten & Checks-Tabelle, „Speichern" nur bei
+  grünen Checks; danach Toast + `invalidateQueries`.
+- **d365 vs. alltime**: aktuelle Frank-Exporte sind Gesamt-Aufzeichnung
+  → als `alltime` importieren; `d365` ist für spätere 365-Tage-Exporte
+  reserviert (Symmetrie zu §PV1).
+- **Nicht angefasst**: `sales_article_stats`, PV1/PV2-Parser & UI, WG-
+  Overrides, Z3, Kasse, Lohn, Bilanz. Geld BIGINT cents. Kein
+  `localStorage`, keine Edge Functions.
