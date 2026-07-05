@@ -46,9 +46,16 @@ import { RosterGrid } from "@/components/roster/RosterGrid";
 import { PaintToolbar, type PaintSelection } from "@/components/roster/PaintToolbar";
 import { SkillFilterChips } from "@/components/roster/SkillFilterChips";
 import { PeriodNav } from "@/components/roster/PeriodNav";
+import { PlanerRosterView } from "@/components/roster/PlanerRosterView";
 
 export const Route = createFileRoute("/_authenticated/admin/dienstplan")({
   head: () => ({ meta: [{ title: "Dienstplan" }] }),
+  validateSearch: (search: Record<string, unknown>) => ({
+    bereich:
+      search.bereich === "service" || search.bereich === "kueche"
+        ? (search.bereich as "kueche" | "service")
+        : ("kueche" as const),
+  }),
   component: DienstplanPage,
 });
 
@@ -73,6 +80,18 @@ function daysBetween(fromIso: string, toIso: string): string[] {
   return out;
 }
 function DienstplanPage() {
+  // DP-A1 — Weiche über die Rolle. Nur `planer` erhält die neue Bereichs-
+  // Ansicht (stapelt Standorte, Tabs pro Bereich). Alle übrigen Rollen sehen
+  // die bestehende Seite unverändert.
+  const { identity } = Route.useRouteContext();
+  const { bereich } = Route.useSearch();
+  if (identity.role === "planer") {
+    return <PlanerRosterView bereich={bereich} />;
+  }
+  return <AdminManagerDienstplan />;
+}
+
+function AdminManagerDienstplan() {
   const today = todayIso();
   const qc = useQueryClient();
 
