@@ -3137,3 +3137,7 @@ report_date, rows jsonb)` — `SECURITY DEFINER`, `search_path=''`,
   und lassen `safeParse` scheitern. Fixtures müssen RFC-4122-konform
   sein, z. B. `"11111111-1111-4111-8111-111111111111"` (Version 4,
   Varianten-Bit `8`).
+- Seit Z3 gibt es **keine optische Unterscheidung** mehr zwischen
+  Primär- und Sekundär-Zeilen (kein Grau, kein Kursiv). Alle Zeilen
+  sind gleichwertig editierbar; `isPrimary` bleibt intern nur für die
+  NULL-Attribution relevant.
