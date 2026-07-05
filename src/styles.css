@@ -172,3 +172,32 @@
     touch-action: manipulation;
   }
 }
+
+/*
+ * TH1 — Standort-Farbthema
+ * Wird per data-loc-theme auf dem Authenticated-Root gesetzt. Variablen
+ * greifen via var(--loc-page)/var(--loc-accent) mit Fallback auf die
+ * bestehenden Tokens; ohne data-loc-theme (öffentliches Display,
+ * Druck-Ansichten) ändert sich nichts.
+ */
+[data-loc-theme="spicery"] {
+  --loc-accent: #facc15;
+  --loc-accent-fg: #111111;
+  --loc-page: #fef9e7;
+}
+[data-loc-theme="yum"] {
+  --loc-accent: #f08a7a;
+  --loc-accent-fg: #111111;
+  --loc-page: #fbeeea;
+}
+[data-loc-theme="neutral"] {
+  /* keine Overrides — Fallbacks in var(..., default) greifen */
+}
+
+@media print {
+  [data-loc-theme] {
+    --loc-accent: initial;
+    --loc-accent-fg: initial;
+    --loc-page: initial;
+  }
+}
