@@ -336,6 +336,24 @@ function KassePage() {
   });
   const [reopenConfirm, setReopenConfirm] = useState(false);
 
+  // „Session entsperren" (Admin) — setzt eine gesperrte Session zurück
+  // auf offen, damit ein irrtümlich gesperrter Tag noch einmal
+  // bearbeitet werden kann. Die Standort-Wasserlinie (cash_locks) bleibt
+  // bewusst unverändert (monoton) — der Warnhinweis im Dialog macht das
+  // transparent, wenn der Tag unter/auf der Wasserlinie liegt.
+  const unlockMut = useMutation({
+    mutationFn: () => {
+      if (!sessionId) throw new Error("Keine Session");
+      return callUnlock({ data: { sessionId } });
+    },
+    onSuccess: () => {
+      toast.success("Session entsperrt.");
+      void invalidate();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const [unlockConfirm, setUnlockConfirm] = useState(false);
+
   // KAB1: Kopplungs-Dialog „Drucken + Finalisieren"
   const [printCouple, setPrintCouple] = useState<{ lockAfter: boolean } | null>(null);
   // KAB1: „danach Session sperren" ist Standard-AN für Admins, aber UI-verborgen.
