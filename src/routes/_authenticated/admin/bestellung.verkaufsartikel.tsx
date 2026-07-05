@@ -548,12 +548,18 @@ function AddArticleDialog(props: {
       setLocalErr("Mitnahme: nur Zahlen und Komma (max. 2 Nachkommastellen).");
       return;
     }
+    const ekCents = props.isAdmin ? parseEuroInputToCents(ek) : null;
+    if (ekCents === "invalid") {
+      setLocalErr("EK: nur Zahlen und Komma (max. 2 Nachkommastellen).");
+      return;
+    }
     setLocalErr(null);
     props.onSubmit({
       name: trimmed,
       productGroup: productGroupParsed,
       priceCents,
       takeawayPriceCents: takeawayCents,
+      ekPriceCents: ekCents,
       warengruppe: warengruppe.trim() || null,
       untergruppe: untergruppe.trim() || null,
       untergruppeNr: untergruppeNrParsed,
@@ -617,6 +623,20 @@ function AddArticleDialog(props: {
               />
             </label>
           </div>
+          {props.isAdmin && (
+            <label className="block space-y-1">
+              <span className="text-xs font-medium text-muted-foreground">
+                EK (€) — nur Admin
+              </span>
+              <input
+                value={ek}
+                onChange={(e) => setEk(e.target.value)}
+                inputMode="decimal"
+                className="w-full rounded border border-input bg-background px-3 py-2 text-sm"
+                placeholder="optional"
+              />
+            </label>
+          )}
           {localErr && <p className="text-xs text-destructive">{localErr}</p>}
         </div>
         <DialogFooter>
