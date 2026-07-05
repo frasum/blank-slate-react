@@ -1803,7 +1803,13 @@ function WeeklyPlan({
   entriesById: Map<string, WeeklyEntry>;
   pending: boolean;
   onUpdateInline: (id: string, iso: string, from: string, to: string) => void;
-  onCreateInline: (staffId: string, iso: string, from: string, to: string) => void;
+  onCreateInline: (
+    staffId: string,
+    iso: string,
+    from: string,
+    to: string,
+    department: Department,
+  ) => void;
   periodStart?: string;
   periodEnd?: string;
   shiftsByStaff: Map<string, number>;
@@ -1849,6 +1855,9 @@ function WeeklyPlan({
     existingId: string | null;
     origFrom: string;
     origTo: string;
+    // Z3 — Abteilung der Zeile (für Create-Pfad; Updates lassen die Spalte
+    // unverändert, damit ein Time-Edit keinen Umhänge-Effekt hat).
+    department: Department;
   };
   const [edit, setEdit] = useState<EditState | null>(null);
   const editStaffId = edit?.staffId;
@@ -1899,7 +1908,12 @@ function WeeklyPlan({
     return HHMM.test(out) ? out : null;
   };
 
-  const startEdit = (staffId: string, iso: string, field: "from" | "to") => {
+  const startEdit = (
+    staffId: string,
+    iso: string,
+    field: "from" | "to",
+    department: Department,
+  ) => {
     if (!isAdmin) return;
     const found = findEntries(staffId, iso);
     if (found.length > 1) return;
@@ -1915,6 +1929,7 @@ function WeeklyPlan({
         existingId: found[0].id,
         origFrom: f,
         origTo: t,
+        department,
       });
     } else {
       setEdit({
@@ -1926,6 +1941,7 @@ function WeeklyPlan({
         existingId: null,
         origFrom: "",
         origTo: "",
+        department,
       });
     }
   };
@@ -1943,7 +1959,7 @@ function WeeklyPlan({
       if (from === e.origFrom && to === e.origTo) return true;
       onUpdateInline(e.existingId, e.iso, from, to);
     } else {
-      onCreateInline(e.staffId, e.iso, from, to);
+      onCreateInline(e.staffId, e.iso, from, to, e.department);
     }
     return true;
   };
