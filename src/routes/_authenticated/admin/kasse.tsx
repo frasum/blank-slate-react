@@ -1150,15 +1150,6 @@ function KassePage() {
               Admin-Sperre möglich.
             </DialogDescription>
           </DialogHeader>
-          {isAdmin && printCouple && (
-            <label className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={printCouple.lockAfter}
-                onCheckedChange={(v) => setPrintCouple({ lockAfter: v === true })}
-              />
-              <span>danach Session sperren</span>
-            </label>
-          )}
           <DialogFooter className="gap-2">
             <Button
               variant="outline"
