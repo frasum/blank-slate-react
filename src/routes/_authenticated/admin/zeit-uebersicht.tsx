@@ -1200,7 +1200,7 @@ function ZeitUebersichtPage() {
             </div>
           </Card>
           <WeeklyPlan
-            input={weeklyExportInput}
+            input={weeklyDisplayInput}
             isLoading={weeklyLoading}
             weekDays={weekDays}
             periodStart={fromDate}
