@@ -153,15 +153,21 @@ const GROUPS: Group[] = [
       "/admin/statistik",
       "/admin/bwa",
       "/admin/bilanz",
-      "/admin/pos-verkauf",
-      "/admin/pos-stundenbericht",
     ],
     sub: [
       { to: "/admin/statistik", label: "Statistik" },
-      { to: "/admin/pos-verkauf", label: "POS-Verkauf – Artikel" },
-      { to: "/admin/pos-stundenbericht", label: "POS-Verkauf – Stundenbericht" },
       { to: "/admin/bwa", label: "BWA", roles: ["admin"] },
       { to: "/admin/bilanz", label: "Jahresabschluss", roles: ["admin"] },
+    ],
+  },
+  {
+    key: "pos",
+    label: "POS-Verkauf",
+    default: "/admin/pos-verkauf",
+    prefixes: ["/admin/pos-verkauf", "/admin/pos-stundenbericht"],
+    sub: [
+      { to: "/admin/pos-verkauf", label: "Artikel" },
+      { to: "/admin/pos-stundenbericht", label: "Stundenbericht" },
     ],
   },
   {
