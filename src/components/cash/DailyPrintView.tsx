@@ -14,6 +14,7 @@ import { computeDailyCash, type DayInput } from "@/lib/cash/cash-ledger";
 import { computeWechselgeld } from "@/lib/cash/cash-summary";
 import { sessionToDayInput } from "@/lib/cash/session-day-input";
 import { sumNonGlTerminalCents } from "@/lib/cash/session-channels";
+import { computeTipTotalCents } from "@/lib/cash/tip-pool";
 import type { PdfExportData } from "@/lib/cash/pdfExport";
 
 function esc(v: string): string {
@@ -297,17 +298,18 @@ export function renderDailyPrintHtml(data: PdfExportData): string {
 
     const sumPos = active.reduce((a, s) => a + s.pos_sales_cents, 0);
     const sumKitchenTip = active.reduce((a, s) => a + s.kitchen_tip_cents, 0);
-    // Tip = Pool-Formel (Spicery-Abrechnung): card + cash + open − kassiertBrutto − hilfMahl.
-    const sumTipAll = active.reduce(
-      (a, s) =>
-        a +
-        s.card_total_cents +
-        s.cash_handed_in_cents +
-        s.open_invoices_cents -
-        (((s as unknown as { kassiert_brutto_cents?: number }).kassiert_brutto_cents ??
-          s.pos_sales_cents) as number) -
-        s.hilf_mahl_cents,
-      0,
+    // Tip = Pool-Formel (Spicery-Abrechnung): kanonisch in computeTipTotalCents.
+    const sumTipAll = computeTipTotalCents(
+      active.map((s) => ({
+        cardTotalCents: s.card_total_cents,
+        cashHandedInCents: s.cash_handed_in_cents,
+        posSalesCents: s.pos_sales_cents,
+        openInvoicesCents: s.open_invoices_cents,
+        hilfMahlCents: s.hilf_mahl_cents,
+        kassiertBruttoCents:
+          (s as unknown as { kassiert_brutto_cents?: number }).kassiert_brutto_cents ??
+          s.pos_sales_cents,
+      })),
     );
     const sumServicePool = Math.max(0, sumTipAll - sumKitchenTip);
     const tipPercent = sumPos > 0 ? (sumTipAll / sumPos) * 100 : 0;
