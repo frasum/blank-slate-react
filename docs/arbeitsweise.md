@@ -2,7 +2,7 @@
 
 Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen Baublock konsultiert. Bewusst kurz gehalten — Architektur-Begründungen stehen im gruendungsdokument.md, nicht hier.
 
-Stand: 05.07.2026 (VA2)
+Stand: 05.07.2026 (VA3)
 
 **PL1-Fix Urlaub-Sichtbarkeit (05.07.2026):** In
 `permission_role_defaults` war `roster.leave.view_all` als Default für
