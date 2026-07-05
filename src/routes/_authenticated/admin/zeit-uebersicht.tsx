@@ -746,6 +746,7 @@ function ZeitUebersichtPage() {
       staffId: r.staffId,
       displayName: r.displayName,
       department: r.department,
+      isPrimary: r.isPrimary,
       days: days.map((d) => {
         const dayEntries = r.byDate.get(d.iso) ?? [];
         return {
