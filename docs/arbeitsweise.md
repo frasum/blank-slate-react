@@ -4,6 +4,9 @@ Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen B
 
 Stand: 05.07.2026 (VA3)
 
+NAV1 — Personal-Anträge umbenannt (früher „Stammdaten & Dokumente"), Dokument-Vorlagen in den Mitarbeiter-Bereich verschoben.
+Top-Tab „Dokumente" entfällt; /admin/dokumente bleibt unverändert erreichbar.
+
 **PL1-Fix Urlaub-Sichtbarkeit (05.07.2026):** In
 `permission_role_defaults` war `roster.leave.view_all` als Default für
 die Rolle `planer` hinterlegt — `resolvePlanerScope` erhielt dadurch bei
