@@ -186,8 +186,7 @@ function AdminLayout() {
     staleTime: 30_000,
   });
   const pendingReview =
-    (reviewCountsQ.data?.pendingRequests ?? 0) +
-    (reviewCountsQ.data?.pendingDocuments ?? 0);
+    (reviewCountsQ.data?.pendingRequests ?? 0) + (reviewCountsQ.data?.pendingDocuments ?? 0);
   const pendingSwaps = reviewCountsQ.data?.swapPending ?? 0;
   const pendingLeave = reviewCountsQ.data?.pendingLeaveRequests ?? 0;
   const groupNeedsDot = (key: string): boolean =>
