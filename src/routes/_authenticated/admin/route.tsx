@@ -132,10 +132,9 @@ const GROUPS: Group[] = [
   {
     key: "stammdaten",
     label: "Stammdaten",
-    default: "/admin/locations",
-    prefixes: ["/admin/locations", "/admin/verkaufsartikel", "/admin/wein", "/admin/staff"],
+    default: "/admin/verkaufsartikel",
+    prefixes: ["/admin/verkaufsartikel", "/admin/wein", "/admin/staff"],
     sub: [
-      { to: "/admin/locations", label: "Standorte" },
       { to: "/admin/verkaufsartikel", label: "Verkaufsartikel" },
       { to: "/admin/wein", label: "Wein" },
       // SD1 — „Mitarbeiter" nur für admin (Manager haben keinen Zutritt mehr;
@@ -164,10 +163,12 @@ const GROUPS: Group[] = [
       "/admin/migration",
       "/admin/import-zuordnungen",
       "/admin/lohn-verteilung",
+      "/admin/locations",
     ],
     sub: [
       { to: "/admin/einstellungen", label: "Allgemein" },
       { to: "/admin/einstellungen/easyorder-verwaltung", label: "EasyOrder-Verwaltung" },
+      { to: "/admin/locations", label: "Standorte" },
       { to: "/admin/migration", label: "System" },
     ],
     roles: ["admin"],
