@@ -315,10 +315,7 @@ function StaffRow({
 }) {
   return (
     <div
-      className={cn(
-        "flex items-stretch gap-2 rounded-sm",
-        zebra ? "bg-muted" : "bg-background",
-      )}
+      className={cn("flex items-stretch gap-2 rounded-sm", zebra ? "bg-muted" : "bg-background")}
     >
       <div
         className="flex w-28 shrink-0 items-center justify-center truncate px-1 text-xs"

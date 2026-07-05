@@ -109,9 +109,7 @@ function AdminUrlaubPage() {
   return (
     <div className="space-y-6">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Urlaubsanträge & Schichttausch
-        </h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Urlaubsanträge & Schichttausch</h1>
         <p className="text-sm text-muted-foreground">
           Offene Urlaubsanträge und Schichttausch-Freigaben an einem Ort.
         </p>
@@ -133,122 +131,127 @@ function AdminUrlaubPage() {
 
         <TabsContent value="urlaub" className="mt-4 space-y-6">
           <div className="flex flex-wrap gap-2">
-        {FILTERS.map((f) => (
-          <Button
-            key={f.key}
-            type="button"
-            size="sm"
-            variant={filter === f.key ? "default" : "outline"}
-            onClick={() => setFilter(f.key)}
-          >
-            {f.label}
-          </Button>
-        ))}
+            {FILTERS.map((f) => (
+              <Button
+                key={f.key}
+                type="button"
+                size="sm"
+                variant={filter === f.key ? "default" : "outline"}
+                onClick={() => setFilter(f.key)}
+              >
+                {f.label}
+              </Button>
+            ))}
           </div>
 
-      {query.isLoading ? (
-        <Card className="p-6 text-sm text-muted-foreground">Lade…</Card>
-      ) : rows.length === 0 ? (
-        <Card className="p-6 text-sm text-muted-foreground">Keine Anträge mit diesem Status.</Card>
-      ) : (
-        <Card className="divide-y">
-          {rows.map((r) => (
-            <div key={r.id} className="flex flex-wrap items-start justify-between gap-3 px-4 py-3">
-              <div className="space-y-1">
-                <div className="text-sm font-medium">
-                  {r.staffName ?? "—"}{" "}
-                  <span className="text-xs text-muted-foreground">
-                    · eingereicht {formatDate(r.createdAt.slice(0, 10))}
-                  </span>
+          {query.isLoading ? (
+            <Card className="p-6 text-sm text-muted-foreground">Lade…</Card>
+          ) : rows.length === 0 ? (
+            <Card className="p-6 text-sm text-muted-foreground">
+              Keine Anträge mit diesem Status.
+            </Card>
+          ) : (
+            <Card className="divide-y">
+              {rows.map((r) => (
+                <div
+                  key={r.id}
+                  className="flex flex-wrap items-start justify-between gap-3 px-4 py-3"
+                >
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium">
+                      {r.staffName ?? "—"}{" "}
+                      <span className="text-xs text-muted-foreground">
+                        · eingereicht {formatDate(r.createdAt.slice(0, 10))}
+                      </span>
+                    </div>
+                    <div className="text-sm">
+                      {formatDate(r.startDate)} – {formatDate(r.endDate)}{" "}
+                      <span className="text-xs text-muted-foreground">
+                        ({r.days} {r.days === 1 ? "Tag" : "Tage"})
+                      </span>
+                    </div>
+                    <div>{statusBadge(r.status)}</div>
+                    {r.reason ? (
+                      <div className="text-xs text-muted-foreground">Grund: {r.reason}</div>
+                    ) : null}
+                    {r.decisionNote ? (
+                      <div className="text-xs text-muted-foreground">Notiz: {r.decisionNote}</div>
+                    ) : null}
+                  </div>
+                  {r.status === "offen" ? (
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={busy}
+                        onClick={() => handleApprove(r.id)}
+                      >
+                        Genehmigen
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={busy}
+                        onClick={() => {
+                          setRejectId(r.id);
+                          setRejectNote("");
+                        }}
+                      >
+                        Ablehnen
+                      </Button>
+                    </div>
+                  ) : null}
                 </div>
-                <div className="text-sm">
-                  {formatDate(r.startDate)} – {formatDate(r.endDate)}{" "}
-                  <span className="text-xs text-muted-foreground">
-                    ({r.days} {r.days === 1 ? "Tag" : "Tage"})
-                  </span>
-                </div>
-                <div>{statusBadge(r.status)}</div>
-                {r.reason ? (
-                  <div className="text-xs text-muted-foreground">Grund: {r.reason}</div>
-                ) : null}
-                {r.decisionNote ? (
-                  <div className="text-xs text-muted-foreground">Notiz: {r.decisionNote}</div>
-                ) : null}
-              </div>
-              {r.status === "offen" ? (
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled={busy}
-                    onClick={() => handleApprove(r.id)}
-                  >
-                    Genehmigen
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={busy}
-                    onClick={() => {
-                      setRejectId(r.id);
-                      setRejectNote("");
-                    }}
-                  >
-                    Ablehnen
-                  </Button>
-                </div>
-              ) : null}
-            </div>
-          ))}
-        </Card>
-      )}
+              ))}
+            </Card>
+          )}
 
-      <Dialog
-        open={rejectId !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setRejectId(null);
-            setRejectNote("");
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Antrag ablehnen</DialogTitle>
-            <DialogDescription>
-              Bitte begründe die Ablehnung (mindestens 3 Zeichen).
-            </DialogDescription>
-          </DialogHeader>
-          <Textarea
-            value={rejectNote}
-            onChange={(e) => setRejectNote(e.target.value)}
-            rows={3}
-            maxLength={500}
-            placeholder="Begründung"
-          />
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
+          <Dialog
+            open={rejectId !== null}
+            onOpenChange={(open) => {
+              if (!open) {
                 setRejectId(null);
                 setRejectNote("");
-              }}
-            >
-              Abbrechen
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              disabled={busy || rejectNote.trim().length < 3}
-              onClick={handleReject}
-            >
-              Ablehnen
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              }
+            }}
+          >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Antrag ablehnen</DialogTitle>
+                <DialogDescription>
+                  Bitte begründe die Ablehnung (mindestens 3 Zeichen).
+                </DialogDescription>
+              </DialogHeader>
+              <Textarea
+                value={rejectNote}
+                onChange={(e) => setRejectNote(e.target.value)}
+                rows={3}
+                maxLength={500}
+                placeholder="Begründung"
+              />
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setRejectId(null);
+                    setRejectNote("");
+                  }}
+                >
+                  Abbrechen
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={busy || rejectNote.trim().length < 3}
+                  onClick={handleReject}
+                >
+                  Ablehnen
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           <VacationPlannerSection />
         </TabsContent>
