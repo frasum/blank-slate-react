@@ -53,6 +53,7 @@ import { Route as AuthenticatedAdminBilanzRouteImport } from './routes/_authenti
 import { Route as AuthenticatedAdminBestellungRouteImport } from './routes/_authenticated/admin/bestellung'
 import { Route as AuthenticatedAdminAufgabenRouteImport } from './routes/_authenticated/admin/aufgaben'
 import { Route as AuthenticatedAdminStaffIndexRouteImport } from './routes/_authenticated/admin/staff.index'
+import { Route as AuthenticatedAdminEinstellungenIndexRouteImport } from './routes/_authenticated/admin/einstellungen.index'
 import { Route as AuthenticatedAdminBestellungIndexRouteImport } from './routes/_authenticated/admin/bestellung.index'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
 import { Route as ApiPublicTelegramDailyReportRouteImport } from './routes/api/public/telegram/daily-report'
@@ -314,6 +315,12 @@ const AuthenticatedAdminStaffIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedAdminStaffRoute,
   } as any)
+const AuthenticatedAdminEinstellungenIndexRoute =
+  AuthenticatedAdminEinstellungenIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAdminEinstellungenRoute,
+  } as any)
 const AuthenticatedAdminBestellungIndexRoute =
   AuthenticatedAdminBestellungIndexRouteImport.update({
     id: '/',
@@ -455,6 +462,7 @@ export interface FileRoutesByFullPath {
   '/api/public/telegram/daily-report': typeof ApiPublicTelegramDailyReportRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/admin/bestellung/': typeof AuthenticatedAdminBestellungIndexRoute
+  '/admin/einstellungen/': typeof AuthenticatedAdminEinstellungenIndexRoute
   '/admin/staff/': typeof AuthenticatedAdminStaffIndexRoute
 }
 export interface FileRoutesByTo {
@@ -472,7 +480,6 @@ export interface FileRoutesByTo {
   '/admin/bwa': typeof AuthenticatedAdminBwaRoute
   '/admin/dienstplan': typeof AuthenticatedAdminDienstplanRoute
   '/admin/dokumente': typeof AuthenticatedAdminDokumenteRoute
-  '/admin/einstellungen': typeof AuthenticatedAdminEinstellungenRouteWithChildren
   '/admin/impersonate': typeof AuthenticatedAdminImpersonateRoute
   '/admin/import-zuordnungen': typeof AuthenticatedAdminImportZuordnungenRoute
   '/admin/kasse': typeof AuthenticatedAdminKasseRoute
@@ -511,6 +518,7 @@ export interface FileRoutesByTo {
   '/api/public/telegram/daily-report': typeof ApiPublicTelegramDailyReportRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/admin/bestellung': typeof AuthenticatedAdminBestellungIndexRoute
+  '/admin/einstellungen': typeof AuthenticatedAdminEinstellungenIndexRoute
   '/admin/staff': typeof AuthenticatedAdminStaffIndexRoute
 }
 export interface FileRoutesById {
@@ -572,6 +580,7 @@ export interface FileRoutesById {
   '/api/public/telegram/daily-report': typeof ApiPublicTelegramDailyReportRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/_authenticated/admin/bestellung/': typeof AuthenticatedAdminBestellungIndexRoute
+  '/_authenticated/admin/einstellungen/': typeof AuthenticatedAdminEinstellungenIndexRoute
   '/_authenticated/admin/staff/': typeof AuthenticatedAdminStaffIndexRoute
 }
 export interface FileRouteTypes {
@@ -633,6 +642,7 @@ export interface FileRouteTypes {
     | '/api/public/telegram/daily-report'
     | '/api/public/telegram/webhook'
     | '/admin/bestellung/'
+    | '/admin/einstellungen/'
     | '/admin/staff/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -650,7 +660,6 @@ export interface FileRouteTypes {
     | '/admin/bwa'
     | '/admin/dienstplan'
     | '/admin/dokumente'
-    | '/admin/einstellungen'
     | '/admin/impersonate'
     | '/admin/import-zuordnungen'
     | '/admin/kasse'
@@ -689,6 +698,7 @@ export interface FileRouteTypes {
     | '/api/public/telegram/daily-report'
     | '/api/public/telegram/webhook'
     | '/admin/bestellung'
+    | '/admin/einstellungen'
     | '/admin/staff'
   id:
     | '__root__'
@@ -749,6 +759,7 @@ export interface FileRouteTypes {
     | '/api/public/telegram/daily-report'
     | '/api/public/telegram/webhook'
     | '/_authenticated/admin/bestellung/'
+    | '/_authenticated/admin/einstellungen/'
     | '/_authenticated/admin/staff/'
   fileRoutesById: FileRoutesById
 }
@@ -1074,6 +1085,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminStaffIndexRouteImport
       parentRoute: typeof AuthenticatedAdminStaffRoute
     }
+    '/_authenticated/admin/einstellungen/': {
+      id: '/_authenticated/admin/einstellungen/'
+      path: '/'
+      fullPath: '/admin/einstellungen/'
+      preLoaderRoute: typeof AuthenticatedAdminEinstellungenIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminEinstellungenRoute
+    }
     '/_authenticated/admin/bestellung/': {
       id: '/_authenticated/admin/bestellung/'
       path: '/'
@@ -1210,12 +1228,15 @@ const AuthenticatedAdminBestellungRouteWithChildren =
 
 interface AuthenticatedAdminEinstellungenRouteChildren {
   AuthenticatedAdminEinstellungenEasyorderVerwaltungRoute: typeof AuthenticatedAdminEinstellungenEasyorderVerwaltungRoute
+  AuthenticatedAdminEinstellungenIndexRoute: typeof AuthenticatedAdminEinstellungenIndexRoute
 }
 
 const AuthenticatedAdminEinstellungenRouteChildren: AuthenticatedAdminEinstellungenRouteChildren =
   {
     AuthenticatedAdminEinstellungenEasyorderVerwaltungRoute:
       AuthenticatedAdminEinstellungenEasyorderVerwaltungRoute,
+    AuthenticatedAdminEinstellungenIndexRoute:
+      AuthenticatedAdminEinstellungenIndexRoute,
   }
 
 const AuthenticatedAdminEinstellungenRouteWithChildren =
