@@ -13,7 +13,6 @@ import { Check, Download, FileText, Lock, Printer, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { todayIso } from "@/lib/format";
 import { KassePageSkeleton } from "@/components/ui/page-skeletons";
@@ -337,6 +336,7 @@ function KassePage() {
 
   // KAB1: Kopplungs-Dialog „Drucken + Finalisieren"
   const [printCouple, setPrintCouple] = useState<{ lockAfter: boolean } | null>(null);
+  // KAB1: „danach Session sperren" ist Standard-AN für Admins, aber UI-verborgen.
   const [printCoupleBusy, setPrintCoupleBusy] = useState(false);
 
   // -------------------- Wasserlinie (Admin) --------------------
@@ -412,7 +412,8 @@ function KassePage() {
   function handlePrintClick() {
     if (sessionStatus === "open") {
       // Kopplung: Finalisieren-Dialog vorschalten (Admin-Checkbox: danach sperren)
-      setPrintCouple({ lockAfter: false });
+      // Admin: nach dem Druck automatisch sperren (Checkbox ausgeblendet, Default AN).
+      setPrintCouple({ lockAfter: isAdmin });
       return;
     }
     // finalized/locked: direkt drucken (kein Statuswechsel)
@@ -1150,15 +1151,6 @@ function KassePage() {
               Admin-Sperre möglich.
             </DialogDescription>
           </DialogHeader>
-          {isAdmin && printCouple && (
-            <label className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={printCouple.lockAfter}
-                onCheckedChange={(v) => setPrintCouple({ lockAfter: v === true })}
-              />
-              <span>danach Session sperren</span>
-            </label>
-          )}
           <DialogFooter className="gap-2">
             <Button
               variant="outline"
