@@ -113,26 +113,22 @@ export function PlanerRosterView({ bereich }: Props) {
   // Blöcke gereicht.
   const crossQ = useQuery({
     queryKey: ["roster-cross-bookings", windowStart, windowEnd],
-    queryFn: () =>
-      getStaffCrossBookings({ data: { fromDate: windowStart!, toDate: windowEnd! } }),
+    queryFn: () => getStaffCrossBookings({ data: { fromDate: windowStart!, toDate: windowEnd! } }),
     enabled: !!windowStart && !!windowEnd,
   });
   const availabilityQ = useQuery({
     queryKey: ["roster-availability", windowStart, windowEnd],
-    queryFn: () =>
-      getAvailability({ data: { fromDate: windowStart!, toDate: windowEnd! } }),
+    queryFn: () => getAvailability({ data: { fromDate: windowStart!, toDate: windowEnd! } }),
     enabled: !!windowStart && !!windowEnd,
   });
   const absenceQ = useQuery({
     queryKey: ["roster-absence", windowStart, windowEnd],
-    queryFn: () =>
-      getAbsences({ data: { fromDate: windowStart!, toDate: windowEnd! } }),
+    queryFn: () => getAbsences({ data: { fromDate: windowStart!, toDate: windowEnd! } }),
     enabled: !!windowStart && !!windowEnd,
   });
   const wishesQ = useQuery({
     queryKey: ["day-off-wishes", windowStart, windowEnd],
-    queryFn: () =>
-      getDayOffWishes({ data: { fromDate: windowStart!, toDate: windowEnd! } }),
+    queryFn: () => getDayOffWishes({ data: { fromDate: windowStart!, toDate: windowEnd! } }),
     enabled: !!windowStart && !!windowEnd,
   });
 
@@ -209,9 +205,7 @@ export function PlanerRosterView({ bereich }: Props) {
                 currentPeriodId={effectivePeriod.id}
                 halfOffset={halfOffset}
                 hasTodayJump={(() => {
-                  const tp = periods.find(
-                    (p) => p.startDate <= today && today <= p.endDate,
-                  );
+                  const tp = periods.find((p) => p.startDate <= today && today <= p.endDate);
                   if (!tp) return false;
                   return halfOffset || tp.id !== effectivePeriod.id;
                 })()}

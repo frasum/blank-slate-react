@@ -7,13 +7,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import {
-  DndContext,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from "@dnd-kit/core";
+import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -100,8 +94,7 @@ export function RosterAreaBlock({
   });
   const releaseQ = useQuery({
     queryKey: ["roster-release", locationId, period?.id],
-    queryFn: () =>
-      getRosterRelease({ data: { locationId, periodId: period!.id } }),
+    queryFn: () => getRosterRelease({ data: { locationId, periodId: period!.id } }),
     enabled: !!period,
   });
   const released = area === "kitchen" ? releaseQ.data?.kitchen : releaseQ.data?.service;
