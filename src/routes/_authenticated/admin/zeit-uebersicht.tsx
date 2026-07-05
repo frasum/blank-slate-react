@@ -1822,6 +1822,7 @@ function WeeklyPlan({
   onUpdateInline,
   onCreateInline,
   onReassign,
+  staffDeptsByStaff,
   periodStart,
   periodEnd,
   shiftsByStaff,
