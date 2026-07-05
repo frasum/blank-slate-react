@@ -38,6 +38,12 @@ export type SalesArticle = {
   hauptgruppeNr: number | null;
   /** Einkaufspreis in Cent. Server-seitig nur für admin gefüllt, sonst null. */
   ekPriceCents: number | null;
+  /** EKZ1 — Verknüpfungs-Felder. Nur admin gefüllt. */
+  ekSourceArticleId: string | null;
+  ekSourceArticleName: string | null;
+  ekPortionMl: number | null;
+  ekSourceVolumeMl: number | null;
+  ekMatchIgnored: boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -76,6 +82,11 @@ function mapRow(
     hauptgruppe: string | null;
     hauptgruppe_nr: number | null;
     ek_price_cents?: number | null;
+    ek_source_article_id?: string | null;
+    ek_portion_ml?: number | null;
+    ek_source_volume_ml?: number | null;
+    ek_match_ignored?: boolean | null;
+    articles?: { name: string | null } | null;
   },
   opts: { includeEk: boolean },
 ): SalesArticle {
@@ -97,6 +108,17 @@ function mapRow(
       !opts.includeEk || row.ek_price_cents === null || row.ek_price_cents === undefined
         ? null
         : Number(row.ek_price_cents),
+    ekSourceArticleId: opts.includeEk ? (row.ek_source_article_id ?? null) : null,
+    ekSourceArticleName: opts.includeEk ? (row.articles?.name ?? null) : null,
+    ekPortionMl:
+      opts.includeEk && row.ek_portion_ml !== null && row.ek_portion_ml !== undefined
+        ? Number(row.ek_portion_ml)
+        : null,
+    ekSourceVolumeMl:
+      opts.includeEk && row.ek_source_volume_ml !== null && row.ek_source_volume_ml !== undefined
+        ? Number(row.ek_source_volume_ml)
+        : null,
+    ekMatchIgnored: opts.includeEk ? Boolean(row.ek_match_ignored) : false,
   };
 }
 
