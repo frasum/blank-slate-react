@@ -290,20 +290,7 @@ function KassePage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // -------------------- Footer-Aktionen --------------------
-  const finalizeMut = useMutation({
-    mutationFn: () => {
-      if (!sessionId) throw new Error("Keine Session");
-      return callFinalize({ data: { sessionId } });
-    },
-    onSuccess: () => {
-      toast.success("Tag finalisiert.");
-      void invalidate();
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-  const [finalizeConfirm, setFinalizeConfirm] = useState(false);
-
+  // -------------------- Admin-Sicherheitsventile --------------------
   const lockMut = useMutation({
     mutationFn: () => {
       if (!sessionId) throw new Error("Keine Session");
@@ -316,19 +303,6 @@ function KassePage() {
     onError: (e: Error) => toast.error(e.message),
   });
   const [lockConfirm, setLockConfirm] = useState(false);
-
-  const reopenMut = useMutation({
-    mutationFn: () => {
-      if (!sessionId) throw new Error("Keine Session");
-      return callReopen({ data: { sessionId } });
-    },
-    onSuccess: () => {
-      toast.success("Session wieder geöffnet.");
-      void invalidate();
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-  const [reopenConfirm, setReopenConfirm] = useState(false);
 
   // „Session entsperren" (Admin) — setzt eine gesperrte Session zurück
   // auf offen, damit ein irrtümlich gesperrter Tag noch einmal
@@ -348,10 +322,8 @@ function KassePage() {
   });
   const [unlockConfirm, setUnlockConfirm] = useState(false);
 
-  // KAB1: Kopplungs-Dialog „Drucken + Finalisieren"
-  const [printCouple, setPrintCouple] = useState<{ lockAfter: boolean } | null>(null);
-  // KAB1: „danach Session sperren" ist Standard-AN für Admins, aber UI-verborgen.
-  const [printCoupleBusy, setPrintCoupleBusy] = useState(false);
+  // KAB2: Ein-Knopf-Druckfluss – „Drucken = Finalisieren".
+  const [printBusy, setPrintBusy] = useState(false);
 
   // -------------------- Wasserlinie (Admin) --------------------
   const [cashLockDate, setCashLockDate] = useState<string>("");
