@@ -2,7 +2,28 @@
 
 Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen Baublock konsultiert. Bewusst kurz gehalten — Architektur-Begründungen stehen im gruendungsdokument.md, nicht hier.
 
-Stand: 05.07.2026 (DR1)
+Stand: 05.07.2026 (KAB1)
+
+**KAB1 (05.07.2026):** UI der Tagesabrechnung konsolidiert — der manuelle
+Button „Session speichern" ist entfernt (Auto-Save deckt denselben Payload
+ab, verifiziert: `handleSave` und Auto-Save-Effekt in `SessionFieldsCard`
+rufen dasselbe `build()` → `onSave(payload)`). Feedback zeigt jetzt der
+Status-Text im Card-Footer („Automatisch gespeichert · HH:MM",
+„Speichert…", bei Fehler „Speichern fehlgeschlagen — erneut versuchen"
+mit Retry-Link); der zuvor pro Auto-Save gefeuerte Toast entfällt.
+Finalisieren und Sperren sind ein EIN kontextueller Status-Button
+(Beschriftung folgt `session.status`: `open` → „Tag finalisieren",
+`finalized` → „Session sperren" (für Manager disabled + Tooltip
+„Sperren: nur Admin"), `locked` → Badge „Gesperrt 🔒" mit `locked_at`).
+Ein kleiner Status-Stepper Offen → Finalisiert → Gesperrt zeigt den
+Fortschritt. Die BESTEHENDEN Dialoge und die Status-Maschine
+(`finalizeSession`, `lockSession`, `assertCashWritable`) sind
+unverändert. Der DR1-Druck-Button ist zusätzlich statusbewusst: bei
+`open` öffnet er den Kopplungs-Dialog „Tag finalisieren & drucken?"
+(primär „Finalisieren & drucken" → strikt erst `finalizeSession`, dann
+Druck; sekundär „Nur drucken" für Zwischen-Ausdrucke; Admin-Checkbox
+„danach Session sperren" ruft nach erfolgreichem Druck-Aufruf
+`lockSession`); bei `finalized`/`locked` druckt er direkt.
 
 **DR1 (05.07.2026):** Auf `admin/kasse` gibt es zusätzlich zum bisherigen
 „PDF Export" (Archiv/Mail) den primären Button **„Tagesabrechnung
