@@ -74,7 +74,8 @@ function mapRow(row: {
   untergruppe_nr: number | null;
   hauptgruppe: string | null;
   hauptgruppe_nr: number | null;
-}): SalesArticle {
+  ek_price_cents?: number | null;
+}, opts: { includeEk: boolean }): SalesArticle {
   return {
     id: row.id,
     locationId: row.location_id,
@@ -89,6 +90,10 @@ function mapRow(row: {
     untergruppeNr: row.untergruppe_nr === null ? null : Number(row.untergruppe_nr),
     hauptgruppe: row.hauptgruppe,
     hauptgruppeNr: row.hauptgruppe_nr === null ? null : Number(row.hauptgruppe_nr),
+    ekPriceCents:
+      !opts.includeEk || row.ek_price_cents === null || row.ek_price_cents === undefined
+        ? null
+        : Number(row.ek_price_cents),
   };
 }
 
