@@ -267,8 +267,7 @@ function LocationsPage() {
             <>
               <p>
                 Löschen ist nur möglich, wenn <strong>keine Mitarbeiter mehr zugeordnet</strong>{" "}
-                sind (Server-Regel — Referenz-Prüfung bleibt unverändert die eigentliche
-                Sicherung).
+                sind (Server-Regel — Referenz-Prüfung bleibt unverändert die eigentliche Sicherung).
               </p>
               <p className="text-muted-foreground">
                 Tipp: Zum Ausblenden reicht <em>Deaktivieren</em> — der Standort verschwindet aus
