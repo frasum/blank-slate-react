@@ -1,5 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { allowedLocations, canEditScope, type RosterScope } from "./scope-util";
+import {
+  allowedLocations,
+  canEditScope,
+  resolvePlanerScope,
+  scopeIncludes,
+  type RosterScope,
+} from "./scope-util";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
+import type { AppPermission } from "@/lib/admin/permissions-catalog";
 
 const L1 = "11111111-1111-1111-1111-111111111111";
 const L2 = "22222222-2222-2222-2222-222222222222";
@@ -39,5 +48,73 @@ describe("canEditScope", () => {
   });
   it("locationId=null → false", () => {
     expect(canEditScope(scopes, null, "kitchen")).toBe(false);
+  });
+});
+
+// PL1 — Fakes für resolvePlanerScope. Der Helfer nutzt nur zwei APIs:
+// supabase.rpc('has_permission', …) und supabaseAdmin.from('locations').select().eq()
+
+type RpcCall = { _perm: AppPermission; _location?: string; _area?: string };
+
+function makeSupabase(rules: (call: RpcCall) => boolean): SupabaseClient<Database> {
+  return {
+    rpc: async (_fn: string, args: RpcCall) => ({ data: rules(args), error: null }),
+  } as unknown as SupabaseClient<Database>;
+}
+
+function makeAdmin(locIds: string[]): SupabaseClient<Database> {
+  return {
+    from: (_table: string) => ({
+      select: () => ({
+        eq: async () => ({ data: locIds.map((id) => ({ id })), error: null }),
+      }),
+    }),
+  } as unknown as SupabaseClient<Database>;
+}
+
+const ORG = "org-1";
+
+describe("resolvePlanerScope", () => {
+  it("manager (globales Default) → { all: true }", async () => {
+    const supabase = makeSupabase(() => true); // has_permission liefert immer true
+    const admin = makeAdmin([L1, L2]);
+    const scope = await resolvePlanerScope(supabase, admin, ORG, "roster.leave.view_all");
+    expect(scope).toEqual({ all: true });
+  });
+
+  it("planer mit einem allow-Override → nur diese Kombi", async () => {
+    const supabase = makeSupabase((c) => {
+      if (!c._location) return false; // kein Default
+      return c._location === L1 && c._area === "kitchen";
+    });
+    const admin = makeAdmin([L1, L2]);
+    const scope = await resolvePlanerScope(supabase, admin, ORG, "roster.leave.view_all");
+    expect(scope).toEqual({
+      all: false,
+      combos: [{ locationId: L1, area: "kitchen" }],
+    });
+  });
+
+  it("planer ohne jede Freigabe → leere combos", async () => {
+    const supabase = makeSupabase(() => false);
+    const admin = makeAdmin([L1, L2]);
+    const scope = await resolvePlanerScope(supabase, admin, ORG, "roster.leave.view_all");
+    expect(scope).toEqual({ all: false, combos: [] });
+  });
+});
+
+describe("scopeIncludes", () => {
+  it("all=true → immer true", () => {
+    expect(scopeIncludes({ all: true }, L1, "kitchen")).toBe(true);
+    expect(scopeIncludes({ all: true }, L2, "service")).toBe(true);
+  });
+  it("all=false → nur Treffer in combos", () => {
+    const scope = {
+      all: false as const,
+      combos: [{ locationId: L1, area: "kitchen" as const }],
+    };
+    expect(scopeIncludes(scope, L1, "kitchen")).toBe(true);
+    expect(scopeIncludes(scope, L1, "service")).toBe(false);
+    expect(scopeIncludes(scope, L2, "kitchen")).toBe(false);
   });
 });

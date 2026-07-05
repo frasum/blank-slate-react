@@ -2692,3 +2692,49 @@ sind **Berlin-Wandzeit-Strings** aus `<input type="time">`, keine Timestamps —
 neue Konsumenten müssen das reine `HH:MM`-Format akzeptieren, bevor sie ein
 `Date`-Parsing versuchen. Tests in `telegram-report.test.ts` blockierend
 (HH:MM, HH:MM:SS, ISO, null, Küchen-Zeile).
+
+## §26.PL1 — Planer-Scope auf Urlaub, Schichttausch, Jahresplaner (05.07.)
+
+Die planer-Seitenrolle hat jetzt im gleichen (Standort, Bereich)-Scope, in
+dem sie bereits Dienstpläne schreibt (`permission_overrides` mit
+`location_id + area`), zusätzlich:
+
+- Urlaubsanträge sehen (`roster.leave.view_all`) und entscheiden
+  (`roster.leave.decide`).
+- Schichttausch-Anfragen sehen (`roster.swap.view_pending` — **neuer
+  Enum-Wert**) und entscheiden (`roster.swap.decide` — **neuer Enum-Wert**).
+- Jahresplaner (`getVacationPlanner`) für seine Standorte, reduziert auf
+  seine Bereichs-Blöcke.
+
+**Gemeinsamer Helfer** `resolvePlanerScope(supabase, admin, orgId, perm)` in
+`src/lib/roster/scope-util.ts` — parametrisiert das frühere Muster aus
+`getMyRosterScopes` auf beliebige Rechte. Rückgabe: `{ all: true }` für
+admin/manager (globales `has_permission`-true via `permission_role_defaults`)
+oder `{ all: false, combos: [...] }` für planer. `getMyRosterScopes` ruft
+diesen Helfer jetzt selbst auf; Verhalten unverändert.
+
+**Scope-Anker:**
+- Urlaubsantrag: der Antragsteller muss eine `staff_locations`-Zeile mit
+  einer freigegebenen `(location, department)`-Kombination haben.
+- Schichttausch: die Schicht des Anfragenden (`roster_shifts.location_id +
+  area`) muss in der Kombi-Liste liegen.
+- Jahresplaner: gewählter Standort muss im Scope liegen; nur der
+  freigegebene Bereichs-Block wird zurückgegeben.
+
+**Rechte-Vergabe:** die vier Schlüssel sind im Katalog jetzt `scopable=true`;
+`PermissionsTab` kann sie mit Standort und Bereich freigeben. Manager und
+Admin bleiben unverändert über `permission_role_defaults` (globaler Scope);
+planer bekommt KEINEN Default.
+
+**UI/Nav:** Planer sieht neben `/admin/dienstplan` jetzt auch
+`/admin/urlaub`. Die roten Badge-Zähler (`getReviewPendingCounts`) sind für
+manager/planer freigegeben; für planer server-seitig auf Scope reduziert.
+Die Personal-Daten-/Dokumenten-Zähler bleiben Admin-only.
+
+**Nicht angefasst:** `role-guard.ts` (planer bleibt RANK 0), Dienstplan-
+Verhalten, TA4-Regeln, `execute_shift_swap`- und `approve_leave_request`-
+RPCs, Portal-Seiten der Mitarbeiter, `permission_overrides`-Schema.
+
+Tests: `scope-util.test.ts` deckt `resolvePlanerScope` (all, allow, leer) und
+`scopeIncludes` ab; bestehende `roster-scope-p2.db.test.ts` bleibt
+Charakterisierung für den Dienstplan.

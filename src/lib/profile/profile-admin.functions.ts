@@ -11,6 +11,7 @@ import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { runGuarded } from "@/lib/admin/admin-call";
 import { makeAuditWriter } from "@/lib/admin/audit";
 import { ForbiddenError } from "@/lib/admin/role-guard";
+import { resolvePlanerScope } from "@/lib/roster/scope-util";
 import {
   SELF_VIEW_FIELDS,
   normalizeRequestValue,
@@ -275,39 +276,110 @@ export type ReviewPendingCounts = {
 export const getReviewPendingCounts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<ReviewPendingCounts> => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    // PL1 — für die Badge-Zähler zusätzlich manager und planer zulassen.
+    // pendingRequests/pendingDocuments (Personaldaten & Dokumente) bleiben
+    // Admin-only und werden für andere Rollen als 0 gemeldet.
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "admin",
+      "manager",
+      "planer",
+    ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const [reqRes, docRes, leaveRes, swapRes] = await Promise.all([
-      supabaseAdmin
-        .from("staff_data_change_requests")
-        .select("id", { count: "exact", head: true })
-        .eq("organization_id", caller.organizationId)
-        .eq("status", "pending"),
-      supabaseAdmin
-        .from("staff_documents")
-        .select("id", { count: "exact", head: true })
-        .eq("organization_id", caller.organizationId)
-        .is("verified_at", null),
+
+    // Personal-/Dokumenten-Zähler: nur Admin.
+    const adminOnlyPromises =
+      caller.role === "admin"
+        ? Promise.all([
+            supabaseAdmin
+              .from("staff_data_change_requests")
+              .select("id", { count: "exact", head: true })
+              .eq("organization_id", caller.organizationId)
+              .eq("status", "pending"),
+            supabaseAdmin
+              .from("staff_documents")
+              .select("id", { count: "exact", head: true })
+              .eq("organization_id", caller.organizationId)
+              .is("verified_at", null),
+          ])
+        : Promise.resolve([
+            { count: 0, error: null } as { count: number | null; error: null },
+            { count: 0, error: null } as { count: number | null; error: null },
+          ]);
+
+    const [adminOnly, leaveRes, swapRes] = await Promise.all([
+      adminOnlyPromises,
       supabaseAdmin
         .from("leave_requests")
-        .select("id", { count: "exact", head: true })
+        .select("id, staff_id")
         .eq("organization_id", caller.organizationId)
         .eq("status", "offen"),
       supabaseAdmin
         .from("shift_swap_requests")
-        .select("id", { count: "exact", head: true })
+        .select("id, req_shift:roster_shifts!shift_swap_requests_shift_id_fkey(location_id, area)")
         .eq("organization_id", caller.organizationId)
         .eq("status", "peer_accepted"),
     ]);
+    const [reqRes, docRes] = adminOnly;
     if (reqRes.error) throw new Error(reqRes.error.message);
     if (docRes.error) throw new Error(docRes.error.message);
     if (leaveRes.error) throw new Error(leaveRes.error.message);
     if (swapRes.error) throw new Error(swapRes.error.message);
+
+    // PL1 — Scope-Filter für Leave/Swap (admin/manager: all=true ⇒ Zählung unverändert).
+    const [leaveScope, swapScope] = await Promise.all([
+      resolvePlanerScope(
+        context.supabase,
+        supabaseAdmin,
+        caller.organizationId,
+        "roster.leave.view_all",
+      ),
+      resolvePlanerScope(
+        context.supabase,
+        supabaseAdmin,
+        caller.organizationId,
+        "roster.swap.view_pending",
+      ),
+    ]);
+
+    let leaveCount = (leaveRes.data ?? []).length;
+    if (!leaveScope.all) {
+      const staffIds = Array.from(new Set((leaveRes.data ?? []).map((r) => r.staff_id as string)));
+      if (staffIds.length === 0 || leaveScope.combos.length === 0) {
+        leaveCount = 0;
+      } else {
+        const { data: sl } = await supabaseAdmin
+          .from("staff_locations")
+          .select("staff_id, location_id, department")
+          .eq("organization_id", caller.organizationId)
+          .in("staff_id", staffIds);
+        const comboSet = new Set(leaveScope.combos.map((c) => `${c.locationId}::${c.area}`));
+        const inScope = new Set<string>();
+        for (const row of sl ?? []) {
+          const dept = row.department as string;
+          if (dept !== "kitchen" && dept !== "service") continue;
+          if (comboSet.has(`${row.location_id as string}::${dept}`)) {
+            inScope.add(row.staff_id as string);
+          }
+        }
+        leaveCount = (leaveRes.data ?? []).filter((r) => inScope.has(r.staff_id as string)).length;
+      }
+    }
+
+    let swapCount = (swapRes.data ?? []).length;
+    if (!swapScope.all) {
+      const comboSet = new Set(swapScope.combos.map((c) => `${c.locationId}::${c.area}`));
+      swapCount = (swapRes.data ?? []).filter((r) => {
+        const rs = (r as { req_shift: { location_id: string; area: string } | null }).req_shift;
+        if (!rs || (rs.area !== "kitchen" && rs.area !== "service")) return false;
+        return comboSet.has(`${rs.location_id}::${rs.area}`);
+      }).length;
+    }
+
     return {
       pendingRequests: reqRes.count ?? 0,
       pendingDocuments: docRes.count ?? 0,
-      pendingLeaveRequests: leaveRes.count ?? 0,
-      swapPending: swapRes.count ?? 0,
+      pendingLeaveRequests: leaveCount,
+      swapPending: swapCount,
     };
   });
 

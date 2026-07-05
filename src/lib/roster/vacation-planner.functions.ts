@@ -6,9 +6,14 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
+import { assertPermission } from "@/lib/admin/admin-call";
+import { ForbiddenError } from "@/lib/admin/role-guard";
+import { resolvePlanerScope, scopeIncludes } from "./scope-util";
 import { dailyVacationCounts, mergeAbsenceRanges, type AbsenceRange } from "./vacation-planner";
 
-const READ_ROLES = ["manager", "admin"] as const;
+// PL1 — planer zusätzlich zugelassen; Rechte-Check via has_permission und
+// Bereichs-Blöcke werden auf den Scope reduziert.
+const READ_ROLES = ["manager", "admin", "planer"] as const;
 
 export type VacationPlannerStaff = {
   staffId: string;
@@ -36,7 +41,22 @@ export const getVacationPlanner = createServerFn({ method: "GET" })
   )
   .handler(async ({ data, context }): Promise<VacationPlannerResult> => {
     const caller = await loadAdminCaller(context.supabase, context.userId, READ_ROLES);
+    await assertPermission(context.supabase, "roster.leave.view_all", null);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // PL1 — Scope auflösen. Planer ohne Freigabe für diesen Standort ⇒ Forbidden.
+    const scope = await resolvePlanerScope(
+      context.supabase,
+      supabaseAdmin,
+      caller.organizationId,
+      "roster.leave.view_all",
+    );
+    if (!scope.all) {
+      const locationInScope = scope.combos.some((c) => c.locationId === data.locationId);
+      if (!locationInScope) {
+        throw new ForbiddenError("Standort liegt außerhalb deines Bereichs.");
+      }
+    }
 
     const { data: sl, error: slErr } = await supabaseAdmin
       .from("staff_locations")
@@ -52,6 +72,8 @@ export const getVacationPlanner = createServerFn({ method: "GET" })
       if (!s || s.is_active === false) continue;
       const dept = r.department as "kitchen" | "service" | "gl";
       const mapped: Row["department"] = dept === "kitchen" ? "kitchen" : "service";
+      // PL1 — für planer nur den freigegebenen Bereichs-Block je Standort zurückgeben.
+      if (!scopeIncludes(scope, data.locationId, mapped)) continue;
       const key = `${s.id}::${mapped}`;
       if (!seen.has(key)) {
         seen.set(key, { staffId: s.id, displayName: s.display_name, department: mapped });

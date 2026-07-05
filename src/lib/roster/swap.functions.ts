@@ -17,9 +17,11 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadStaffCaller } from "@/lib/time/time.functions";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { assertRealIdentity } from "@/lib/admin/impersonation";
-import { runGuarded } from "@/lib/admin/admin-call";
+import { runWithPermission, assertPermission } from "@/lib/admin/admin-call";
 import { makeAuditWriter } from "@/lib/admin/audit";
 import { writeAuditLog } from "@/lib/admin/audit";
+import { ForbiddenError } from "@/lib/admin/role-guard";
+import { resolvePlanerScope, scopeIncludes } from "./scope-util";
 import { sendTelegramToStaff } from "@/lib/telegram/telegram.functions";
 import {
   canAcceptCounterShift,
@@ -885,7 +887,13 @@ export type PendingSwapRow = {
 export const listPendingSwaps = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<PendingSwapRow[]> => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    // PL1 — planer zusätzlich zugelassen; Rechte-Check via has_permission.
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "manager",
+      "admin",
+      "planer",
+    ]);
+    await assertPermission(context.supabase, "roster.swap.view_pending", null);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: rows, error } = await supabaseAdmin
       .from("shift_swap_requests")
@@ -943,7 +951,26 @@ export const listPendingSwaps = createServerFn({ method: "GET" })
       return a.created_at < b.created_at ? 1 : -1;
     });
 
+    // PL1 — Scope-Filter über die Schicht des Anfragenden (locationId + area).
+    const scope = await resolvePlanerScope(
+      context.supabase,
+      supabaseAdmin,
+      caller.organizationId,
+      "roster.swap.view_pending",
+    );
+    const inScope = (row: (typeof sorted)[number]) => {
+      const rs = row.req_shift;
+      if (!rs) return false;
+      if (rs.area !== "kitchen" && rs.area !== "service") {
+        // GL-Schichten fallen ausserhalb der Bereichs-Freigaben; für admin/manager
+        // liefert scopeIncludes bei all=true trotzdem true.
+        return scope.all;
+      }
+      return scopeIncludes(scope, rs.location_id, rs.area);
+    };
+
     return sorted
+      .filter(inScope)
       .filter((r) => r.req_shift && r.requester)
       .map((r) => ({
         id: r.id,
@@ -1019,147 +1046,178 @@ export const decideSwapRequest = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "manager",
+      "admin",
+      "planer",
+    ]);
     type DecideResult = { ok: true; decision: "approved" | "rejected" };
-    return runGuarded<DecideResult>(caller.role, "manager", makeAuditWriter(caller), async () => {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    return runWithPermission<DecideResult>(
+      context.supabase,
+      "roster.swap.decide",
+      null,
+      makeAuditWriter(caller),
+      async () => {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-      const { data: reqRow, error } = await supabaseAdmin
-        .from("shift_swap_requests")
-        .select(
-          "id, status, shift_id, peer_shift_id, requester_staff_id, peer_staff_id, note, organization_id",
-        )
-        .eq("id", data.requestId)
-        .eq("organization_id", caller.organizationId)
-        .maybeSingle();
-      if (error) throw error;
-      if (!reqRow) throw new Error("Anfrage nicht gefunden.");
-      if (reqRow.status !== "peer_accepted") {
-        throw new Error("Anfrage wartet nicht auf Freigabe.");
-      }
-
-      if (data.decision === "rejected") {
-        const nextNote = data.note
-          ? `${reqRow.note ? reqRow.note + "\n" : ""}Ablehnung: ${data.note}`
-          : reqRow.note;
-        const { error: uErr } = await supabaseAdmin
+        const { data: reqRow, error } = await supabaseAdmin
           .from("shift_swap_requests")
-          .update({
-            status: "rejected",
-            decided_at: new Date().toISOString(),
-            decided_by: caller.userId,
-            note: nextNote,
-          })
-          .eq("id", reqRow.id)
-          .eq("status", "peer_accepted");
-        if (uErr) throw uErr;
+          .select(
+            "id, status, shift_id, peer_shift_id, requester_staff_id, peer_staff_id, note, organization_id",
+          )
+          .eq("id", data.requestId)
+          .eq("organization_id", caller.organizationId)
+          .maybeSingle();
+        if (error) throw error;
+        if (!reqRow) throw new Error("Anfrage nicht gefunden.");
+        if (reqRow.status !== "peer_accepted") {
+          throw new Error("Anfrage wartet nicht auf Freigabe.");
+        }
+
+        // PL1 — Scope-Validierung der Anfragenden-Schicht VOR jeder Schreibaktion.
+        const scope = await resolvePlanerScope(
+          context.supabase,
+          supabaseAdmin,
+          caller.organizationId,
+          "roster.swap.decide",
+        );
+        if (!scope.all) {
+          const reqShiftForScope = await loadShift(
+            supabaseAdmin,
+            caller.organizationId,
+            reqRow.shift_id,
+          );
+          if (reqShiftForScope.area !== "kitchen" && reqShiftForScope.area !== "service") {
+            throw new ForbiddenError("Anfrage liegt außerhalb deines Bereichs.");
+          }
+          if (!scopeIncludes(scope, reqShiftForScope.location_id, reqShiftForScope.area)) {
+            throw new ForbiddenError("Anfrage liegt außerhalb deines Bereichs.");
+          }
+        }
+
+        if (data.decision === "rejected") {
+          const nextNote = data.note
+            ? `${reqRow.note ? reqRow.note + "\n" : ""}Ablehnung: ${data.note}`
+            : reqRow.note;
+          const { error: uErr } = await supabaseAdmin
+            .from("shift_swap_requests")
+            .update({
+              status: "rejected",
+              decided_at: new Date().toISOString(),
+              decided_by: caller.userId,
+              note: nextNote,
+            })
+            .eq("id", reqRow.id)
+            .eq("status", "peer_accepted");
+          if (uErr) throw uErr;
+          return {
+            result: { ok: true as const, decision: "rejected" as const },
+            audit: {
+              action: "swap.rejected",
+              entity: "shift_swap_request",
+              entityId: reqRow.id,
+              meta: {
+                requesterStaffId: reqRow.requester_staff_id,
+                peerStaffId: reqRow.peer_staff_id,
+                shiftId: reqRow.shift_id,
+                peerShiftId: reqRow.peer_shift_id,
+              },
+            },
+          };
+        }
+
+        // approved — Re-Validierung im Genehmigungsmoment.
+        const reqShift = await loadShift(supabaseAdmin, caller.organizationId, reqRow.shift_id);
+        const today = todayIso();
+        if (reqShift.shift_date <= today) {
+          throw new Error("Die Schicht liegt nicht mehr in der Zukunft.");
+        }
+        await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, reqShift.shift_date);
+
+        let peerShift: ShiftRow | null = null;
+        if (reqRow.peer_shift_id) {
+          peerShift = await loadShift(supabaseAdmin, caller.organizationId, reqRow.peer_shift_id);
+          if (peerShift.shift_date <= today) {
+            throw new Error("Die Gegenschicht liegt nicht mehr in der Zukunft.");
+          }
+          await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, peerShift.shift_date);
+        }
+
+        // Slot-Konflikt-Check: Peer bekommt reqShift → darf am gleichen Slot keine
+        // andere Schicht haben. Umgekehrt bei Gegentausch.
+        if (reqRow.peer_staff_id) {
+          await assertNoConflictingShift(supabaseAdmin, caller.organizationId, {
+            staffId: reqRow.peer_staff_id,
+            locationId: reqShift.location_id,
+            area: reqShift.area,
+            shiftDate: reqShift.shift_date,
+            excludeShiftId: reqShift.id,
+          });
+        }
+        if (peerShift) {
+          await assertNoConflictingShift(supabaseAdmin, caller.organizationId, {
+            staffId: reqRow.requester_staff_id,
+            locationId: peerShift.location_id,
+            area: peerShift.area,
+            shiftDate: peerShift.shift_date,
+            excludeShiftId: peerShift.id,
+          });
+        }
+
+        // TA4 — Abwesenheits-Re-Validierung: zwischen Peer-Annahme und
+        // Manager-Genehmigung kann Urlaub/Krank genehmigt worden sein.
+        if (reqRow.peer_staff_id) {
+          const peerAbsent = await hasAbsenceOnDate(
+            supabaseAdmin,
+            caller.organizationId,
+            reqRow.peer_staff_id,
+            reqShift.shift_date,
+          );
+          if (peerAbsent) {
+            throw new Error(
+              `Der Kollege ist am ${fmtDeDate(reqShift.shift_date)} abwesend (Urlaub/Krank) — Tausch kann nicht genehmigt werden.`,
+            );
+          }
+        }
+        if (peerShift) {
+          const requesterAbsent = await hasAbsenceOnDate(
+            supabaseAdmin,
+            caller.organizationId,
+            reqRow.requester_staff_id,
+            peerShift.shift_date,
+          );
+          if (requesterAbsent) {
+            throw new Error(
+              `Der Anfragende ist am ${fmtDeDate(peerShift.shift_date)} abwesend (Urlaub/Krank) — Tausch kann nicht genehmigt werden.`,
+            );
+          }
+        }
+
+        // Atomarer Vollzug via RPC (SECURITY DEFINER, service_role).
+        const { error: rpcErr } = await supabaseAdmin.rpc("execute_shift_swap", {
+          p_request_id: reqRow.id,
+          p_decided_by: caller.userId,
+        });
+        if (rpcErr) {
+          throw new Error(`Vollzug fehlgeschlagen: ${rpcErr.message}`);
+        }
+
         return {
-          result: { ok: true as const, decision: "rejected" as const },
+          result: { ok: true as const, decision: "approved" as const },
           audit: {
-            action: "swap.rejected",
+            action: "swap.approved",
             entity: "shift_swap_request",
             entityId: reqRow.id,
             meta: {
               requesterStaffId: reqRow.requester_staff_id,
               peerStaffId: reqRow.peer_staff_id,
               shiftId: reqRow.shift_id,
+              shiftDate: reqShift.shift_date,
               peerShiftId: reqRow.peer_shift_id,
+              peerShiftDate: peerShift?.shift_date ?? null,
             },
           },
         };
-      }
-
-      // approved — Re-Validierung im Genehmigungsmoment.
-      const reqShift = await loadShift(supabaseAdmin, caller.organizationId, reqRow.shift_id);
-      const today = todayIso();
-      if (reqShift.shift_date <= today) {
-        throw new Error("Die Schicht liegt nicht mehr in der Zukunft.");
-      }
-      await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, reqShift.shift_date);
-
-      let peerShift: ShiftRow | null = null;
-      if (reqRow.peer_shift_id) {
-        peerShift = await loadShift(supabaseAdmin, caller.organizationId, reqRow.peer_shift_id);
-        if (peerShift.shift_date <= today) {
-          throw new Error("Die Gegenschicht liegt nicht mehr in der Zukunft.");
-        }
-        await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, peerShift.shift_date);
-      }
-
-      // Slot-Konflikt-Check: Peer bekommt reqShift → darf am gleichen Slot keine
-      // andere Schicht haben. Umgekehrt bei Gegentausch.
-      if (reqRow.peer_staff_id) {
-        await assertNoConflictingShift(supabaseAdmin, caller.organizationId, {
-          staffId: reqRow.peer_staff_id,
-          locationId: reqShift.location_id,
-          area: reqShift.area,
-          shiftDate: reqShift.shift_date,
-          excludeShiftId: reqShift.id,
-        });
-      }
-      if (peerShift) {
-        await assertNoConflictingShift(supabaseAdmin, caller.organizationId, {
-          staffId: reqRow.requester_staff_id,
-          locationId: peerShift.location_id,
-          area: peerShift.area,
-          shiftDate: peerShift.shift_date,
-          excludeShiftId: peerShift.id,
-        });
-      }
-
-      // TA4 — Abwesenheits-Re-Validierung: zwischen Peer-Annahme und
-      // Manager-Genehmigung kann Urlaub/Krank genehmigt worden sein.
-      if (reqRow.peer_staff_id) {
-        const peerAbsent = await hasAbsenceOnDate(
-          supabaseAdmin,
-          caller.organizationId,
-          reqRow.peer_staff_id,
-          reqShift.shift_date,
-        );
-        if (peerAbsent) {
-          throw new Error(
-            `Der Kollege ist am ${fmtDeDate(reqShift.shift_date)} abwesend (Urlaub/Krank) — Tausch kann nicht genehmigt werden.`,
-          );
-        }
-      }
-      if (peerShift) {
-        const requesterAbsent = await hasAbsenceOnDate(
-          supabaseAdmin,
-          caller.organizationId,
-          reqRow.requester_staff_id,
-          peerShift.shift_date,
-        );
-        if (requesterAbsent) {
-          throw new Error(
-            `Der Anfragende ist am ${fmtDeDate(peerShift.shift_date)} abwesend (Urlaub/Krank) — Tausch kann nicht genehmigt werden.`,
-          );
-        }
-      }
-
-      // Atomarer Vollzug via RPC (SECURITY DEFINER, service_role).
-      const { error: rpcErr } = await supabaseAdmin.rpc("execute_shift_swap", {
-        p_request_id: reqRow.id,
-        p_decided_by: caller.userId,
-      });
-      if (rpcErr) {
-        throw new Error(`Vollzug fehlgeschlagen: ${rpcErr.message}`);
-      }
-
-      return {
-        result: { ok: true as const, decision: "approved" as const },
-        audit: {
-          action: "swap.approved",
-          entity: "shift_swap_request",
-          entityId: reqRow.id,
-          meta: {
-            requesterStaffId: reqRow.requester_staff_id,
-            peerStaffId: reqRow.peer_staff_id,
-            shiftId: reqRow.shift_id,
-            shiftDate: reqShift.shift_date,
-            peerShiftId: reqRow.peer_shift_id,
-            peerShiftDate: peerShift?.shift_date ?? null,
-          },
-        },
-      };
-    });
+      },
+    );
   });

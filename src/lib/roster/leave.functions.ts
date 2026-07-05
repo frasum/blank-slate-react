@@ -13,6 +13,8 @@ import { runWithPermission, assertPermission } from "@/lib/admin/admin-call";
 import { writeAuditLog, makeAuditWriter } from "@/lib/admin/audit";
 import { loadStaffCaller } from "@/lib/time/time.functions";
 import { assertRealIdentity } from "@/lib/admin/impersonation";
+import { ForbiddenError } from "@/lib/admin/role-guard";
+import { resolvePlanerScope, type ResolvedScope } from "./scope-util";
 import {
   canCancelLeave,
   canDecideLeave,
@@ -21,7 +23,44 @@ import {
   type LeaveStatus,
 } from "./leave-requests";
 
-const WRITE_ROLES = ["manager", "admin"] as const;
+// PL1 — planer wird als Rollen-Whitelist zugelassen; feingranulare Rechte-
+// Prüfung übernimmt weiterhin has_permission (roster.leave.view_all/decide),
+// Scope-Filter darüber hinaus resolvePlanerScope + staff_locations.
+const WRITE_ROLES = ["manager", "admin", "planer"] as const;
+
+/**
+ * PL1 — filtert eine Menge Antragsteller-`staffIds` auf jene, die im Scope
+ * des Aufrufers liegen. Scope-Anker: der Antragsteller hat mindestens EINE
+ * staff_locations-Zeile mit einer freigegebenen (location, department)-
+ * Kombination. `all=true` ⇒ Menge unverändert.
+ */
+async function filterStaffIdsToScope(
+  supabaseAdmin: import("@supabase/supabase-js").SupabaseClient<
+    import("@/integrations/supabase/types").Database
+  >,
+  organizationId: string,
+  staffIds: string[],
+  scope: ResolvedScope,
+): Promise<Set<string>> {
+  if (scope.all) return new Set(staffIds);
+  if (staffIds.length === 0 || scope.combos.length === 0) return new Set();
+  const { data, error } = await supabaseAdmin
+    .from("staff_locations")
+    .select("staff_id, location_id, department")
+    .eq("organization_id", organizationId)
+    .in("staff_id", staffIds);
+  if (error) throw error;
+  const comboSet = new Set(scope.combos.map((c) => `${c.locationId}::${c.area}`));
+  const inScope = new Set<string>();
+  for (const row of data ?? []) {
+    const dept = row.department as string;
+    if (dept !== "kitchen" && dept !== "service") continue;
+    if (comboSet.has(`${row.location_id as string}::${dept}`)) {
+      inScope.add(row.staff_id as string);
+    }
+  }
+  return inScope;
+}
 
 export type LeaveRequestRow = {
   id: string;
@@ -206,19 +245,35 @@ export const listLeaveRequests = createServerFn({ method: "GET" })
     if (status !== "alle") q = q.eq("status", status);
     const { data: rows, error } = await q;
     if (error) throw error;
-    return (rows ?? []).map((r) => ({
-      id: r.id as string,
-      staffId: r.staff_id as string,
-      staffName: (r.staff as { display_name: string } | null)?.display_name ?? null,
-      startDate: r.start_date as string,
-      endDate: r.end_date as string,
-      reason: (r.reason as string | null) ?? null,
-      status: r.status as LeaveStatus,
-      decisionNote: (r.decision_note as string | null) ?? null,
-      decidedAt: (r.decided_at as string | null) ?? null,
-      createdAt: r.created_at as string,
-      days: countLeaveDays(r.start_date as string, r.end_date as string),
-    }));
+    // PL1 — Scope-Filter (admin/manager: all=true ⇒ Ergebnis unverändert).
+    const scope = await resolvePlanerScope(
+      context.supabase,
+      supabaseAdmin,
+      caller.organizationId,
+      "roster.leave.view_all",
+    );
+    const staffIds = Array.from(new Set((rows ?? []).map((r) => r.staff_id as string)));
+    const inScope = await filterStaffIdsToScope(
+      supabaseAdmin,
+      caller.organizationId,
+      staffIds,
+      scope,
+    );
+    return (rows ?? [])
+      .filter((r) => inScope.has(r.staff_id as string))
+      .map((r) => ({
+        id: r.id as string,
+        staffId: r.staff_id as string,
+        staffName: (r.staff as { display_name: string } | null)?.display_name ?? null,
+        startDate: r.start_date as string,
+        endDate: r.end_date as string,
+        reason: (r.reason as string | null) ?? null,
+        status: r.status as LeaveStatus,
+        decisionNote: (r.decision_note as string | null) ?? null,
+        decidedAt: (r.decided_at as string | null) ?? null,
+        createdAt: r.created_at as string,
+        days: countLeaveDays(r.start_date as string, r.end_date as string),
+      }));
   });
 
 export const decideLeaveRequest = createServerFn({ method: "POST" })
@@ -249,6 +304,22 @@ export const decideLeaveRequest = createServerFn({ method: "POST" })
         if (snapErr) throw snapErr;
         if (!snap || snap.organization_id !== caller.organizationId) {
           throw new Error("Antrag nicht gefunden.");
+        }
+        // PL1 — Scope-Validierung des Antragstellers VOR jeder Schreibaktion.
+        const scope = await resolvePlanerScope(
+          context.supabase,
+          supabaseAdmin,
+          caller.organizationId,
+          "roster.leave.decide",
+        );
+        const inScope = await filterStaffIdsToScope(
+          supabaseAdmin,
+          caller.organizationId,
+          [snap.staff_id as string],
+          scope,
+        );
+        if (!inScope.has(snap.staff_id as string)) {
+          throw new ForbiddenError("Antrag liegt außerhalb deines Bereichs.");
         }
         if (!canDecideLeave(snap.status as LeaveStatus)) {
           throw new Error("Antrag wurde bereits entschieden.");

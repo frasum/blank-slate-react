@@ -36,8 +36,12 @@ export const Route = createFileRoute("/_authenticated/admin")({
     if (identity.role === "payroll" && location.pathname !== "/admin/zeit-uebersicht") {
       throw redirect({ to: "/admin/zeit-uebersicht" });
     }
-    // Planer darf NUR den Dienstplan sehen.
-    if (identity.role === "planer" && location.pathname !== "/admin/dienstplan") {
+    // PL1 — Planer darf Dienstplan UND Urlaubsantrag/Schichttausch sehen.
+    if (
+      identity.role === "planer" &&
+      location.pathname !== "/admin/dienstplan" &&
+      location.pathname !== "/admin/urlaub"
+    ) {
       throw redirect({ to: "/admin/dienstplan" });
     }
     return { identity };
@@ -180,7 +184,10 @@ function AdminLayout() {
   const reviewCountsQ = useQuery({
     queryKey: ["admin", "review-pending-counts"],
     queryFn: () => getReviewPendingCounts(),
-    enabled: role === "admin",
+    // PL1 — planer/manager sehen die Badge-Zähler ebenfalls (server-seitig
+    // auf ihren Scope gefiltert). staff-Antrags-/Dokumenten-Zähler bleiben
+    // Admin-only (0 für andere Rollen).
+    enabled: role === "admin" || role === "manager" || role === "planer",
     refetchInterval: 60_000,
     refetchOnWindowFocus: true,
     staleTime: 30_000,
@@ -219,8 +226,25 @@ function AdminLayout() {
             </nav>
           ) : isPlaner ? (
             <nav className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border/60 pb-0 text-sm">
-              <Link to="/admin/dienstplan" className={tabClass(true)}>
+              <Link to="/admin/dienstplan" className={tabClass(pathname === "/admin/dienstplan")}>
                 Dienstplan
+              </Link>
+              <Link
+                to="/admin/urlaub"
+                className={tabClass(pathname === "/admin/urlaub")}
+                aria-label={
+                  pendingLeave + pendingSwaps > 0
+                    ? "Urlaubsantrag / Schichttausch (offene Vorgänge)"
+                    : undefined
+                }
+              >
+                Urlaubsantrag / Schichttausch
+                {pendingLeave + pendingSwaps > 0 && (
+                  <span
+                    className="ml-1.5 inline-block h-2 w-2 rounded-full bg-destructive align-middle"
+                    aria-hidden
+                  />
+                )}
               </Link>
             </nav>
           ) : (

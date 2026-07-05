@@ -12,6 +12,7 @@ import { loadStaffCaller } from "@/lib/time/time.functions";
 import { assertRealIdentity } from "@/lib/admin/impersonation";
 import type { MyShiftRow } from "@/lib/roster/my-shifts";
 import { mergeAbsenceRanges, type AbsenceRange } from "@/lib/roster/vacation-planner";
+import { resolvePlanerScope } from "@/lib/roster/scope-util";
 
 const READ_ROLES = ["manager", "admin", "payroll", "staff", "planer"] as const;
 const WRITE_ROLES = ["manager", "admin", "planer"] as const;
@@ -294,27 +295,28 @@ export const getMyRosterScopes = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<RosterScopeRow[]> => {
     const caller = await loadAdminCaller(context.supabase, context.userId, READ_ROLES);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: locs, error } = await supabaseAdmin
-      // ST1: bewusst ungefiltert — Daten-Zugriff (Dienstplan-Defaults für alle bestehenden Standorte).
-      .from("locations")
-      .select("id")
-      .eq("organization_id", caller.organizationId);
-    if (error) throw error;
-    const areas = ["kitchen", "service"] as const;
-    const combos = (locs ?? []).flatMap((l) =>
-      areas.map((a) => ({ locationId: l.id as string, area: a })),
+    // PL1 — gemeinsamer Helfer. Verhalten unverändert: admin/manager erhalten
+    // via has_permission(_perm=…, _location=null) globales true und damit alle
+    // Kombinationen; planer erhält nur seine Freigaben.
+    const scope = await resolvePlanerScope(
+      context.supabase,
+      supabaseAdmin,
+      caller.organizationId,
+      "roster.shift.manage",
     );
-    const checks = await Promise.all(
-      combos.map(async (c) => {
-        const { data: allowed } = await context.supabase.rpc("has_permission", {
-          _perm: "roster.shift.manage",
-          _location: c.locationId,
-          _area: c.area,
-        });
-        return allowed === true ? c : null;
-      }),
-    );
-    return checks.filter((x): x is RosterScopeRow => x !== null);
+    if (scope.all) {
+      const { data: locs, error } = await supabaseAdmin
+        // ST1: bewusst ungefiltert — Daten-Zugriff (Dienstplan-Defaults für alle bestehenden Standorte).
+        .from("locations")
+        .select("id")
+        .eq("organization_id", caller.organizationId);
+      if (error) throw error;
+      const areas: RosterScopeRow["area"][] = ["kitchen", "service"];
+      return (locs ?? []).flatMap((l) =>
+        areas.map((a) => ({ locationId: l.id as string, area: a })),
+      );
+    }
+    return scope.combos;
   });
 
 export const getStaffForRoster = createServerFn({ method: "GET" })
