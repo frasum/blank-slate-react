@@ -83,10 +83,7 @@ export const getTimeOverview = createServerFn({ method: "GET" })
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId);
     if (deptErr) throw deptErr;
-    const deptByStaff = new Map<string, "kitchen" | "service" | "gl">();
-    for (const d of deptRows ?? []) {
-      deptByStaff.set(d.staff_id, d.department as "kitchen" | "service" | "gl");
-    }
+    const deptByStaff = buildPrimaryDeptMap(deptRows ?? []);
 
     const entries = (rows ?? []).map((r) => {
       const started = new Date(r.started_at).getTime();
