@@ -49,6 +49,7 @@ import {
   removeSessionSatellite,
   reopenSession,
   setCashLock,
+  unlockSession,
   updateSession,
 } from "@/lib/cash/cash.functions";
 import { generateDailySummaryPdf } from "@/lib/cash/pdfExport";
