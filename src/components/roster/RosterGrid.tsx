@@ -375,8 +375,8 @@ export function RosterGrid({
                         : null;
                       const isLocked = lockEntry !== null;
                       const isBirthday =
-                        row.dateOfBirth != null &&
-                        row.dateOfBirth.slice(5, 10) === iso.slice(5, 10);
+                        row.birthdayMonthDay != null &&
+                        row.birthdayMonthDay === iso.slice(5, 10);
                       return (
                         <DropCell
                           key={iso}
