@@ -467,7 +467,11 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
     const deptByStaff = buildPrimaryDeptMap(deptRows ?? []);
     const staffDeptsByStaff = buildStaffDeptsMap(deptRows ?? []);
 
-    // Z4 — Skill-IDs pro Mitarbeiter (Wochenplan-Filter im Client).
+    // Z4 — Skill-IDs pro Mitarbeiter (Stammdaten). Wird für den Wochenplan-
+    // Filter NICHT mehr verwendet (Z4b: dienstplan-basiert, siehe unten),
+    // bleibt aber im Response-Shape, weil `assignedStaff.skillIds` als
+    // stabile Kennzeichnung an anderen Stellen (Grid-Anzeige, spätere
+    // Konsumenten) zugesichert ist.
     const staffIds = Array.from(new Set((deptRows ?? []).map((d) => d.staff_id as string)));
     const skillsByStaff = new Map<string, string[]>();
     if (staffIds.length > 0) {
@@ -483,6 +487,29 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
         arr.push(r.skill_id as string);
         skillsByStaff.set(sid, arr);
       }
+    }
+
+    // Z4b — Dienstplan-Realität der Woche je Mitarbeiter (aus roster_shifts):
+    // Wochenplan-Filter matcht Bereich/Skill gegen tatsächlich geplante
+    // Schichten am gewählten Standort in [weekStart..weekEnd]. Schichten mit
+    // skill_id=null zählen für den Bereichs-Filter (area), nicht für Skill.
+    const rosterByStaff: Record<string, { areas: Department[]; skillIds: string[] }> = {};
+    const { data: rosterRows, error: rosterErr } = await supabaseAdmin
+      .from("roster_shifts")
+      .select("staff_id, area, skill_id")
+      .eq("organization_id", caller.organizationId)
+      .eq("location_id", data.locationId)
+      .gte("shift_date", data.weekStart)
+      .lte("shift_date", weekEnd);
+    if (rosterErr) throw rosterErr;
+    for (const r of rosterRows ?? []) {
+      const sid = r.staff_id as string;
+      const area = r.area as Department | null;
+      const skillId = r.skill_id as string | null;
+      const bucket = rosterByStaff[sid] ?? { areas: [], skillIds: [] };
+      if (area && !bucket.areas.includes(area)) bucket.areas.push(area);
+      if (skillId && !bucket.skillIds.includes(skillId)) bucket.skillIds.push(skillId);
+      rosterByStaff[sid] = bucket;
     }
 
     // Z2: Alle dem Standort zugeordneten (aktiven) Mitarbeiter — EINE Zeile
@@ -536,6 +563,7 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
       })),
       crossLocationDates,
       assignedStaff,
+      rosterByStaff,
     };
   });
 

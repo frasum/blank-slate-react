@@ -343,6 +343,7 @@ function ZeitUebersichtPage() {
         entries: [],
         crossLocationDates: {},
         assignedStaff: [],
+        rosterByStaff: {},
       };
       for (const q of allLocationQueries) {
         const d = q.data as WeeklyData | undefined;
@@ -358,6 +359,15 @@ function ZeitUebersichtPage() {
           ) {
             merged.assignedStaff!.push(s);
           }
+        }
+        // Z4b — rosterByStaff über alle Standorte mergen (Union je Person
+        // über areas/skillIds), damit „Alle Standorte" alle geplanten
+        // Bereiche/Skills der Woche berücksichtigt.
+        for (const [sid, bucket] of Object.entries(d.rosterByStaff ?? {})) {
+          const cur = merged.rosterByStaff![sid] ?? { areas: [], skillIds: [] };
+          for (const a of bucket.areas) if (!cur.areas.includes(a)) cur.areas.push(a);
+          for (const s of bucket.skillIds) if (!cur.skillIds.includes(s)) cur.skillIds.push(s);
+          merged.rosterByStaff![sid] = cur;
         }
       }
       return merged;
@@ -669,17 +679,20 @@ function ZeitUebersichtPage() {
     return m;
   }, [weeklyData]);
 
-  // Z4 — Skills-Stammdaten für den Filter.
+  // Z4 — Skills-Stammdaten nur noch für die Filter-UI (Kategorisierung/Anzeige).
+  // Das Matching selbst passiert seit Z4b gegen die Dienstplan-Realität der Woche.
   const skillsQ = useQuery({
     queryKey: ["skills-list"],
     queryFn: () => fetchSkills(),
   });
   const skills = useMemo(() => skillsQ.data ?? [], [skillsQ.data]);
-  const skillsByStaffFilter = useMemo(() => {
-    const m = new Map<string, string[]>();
-    for (const s of weeklyData?.assignedStaff ?? []) {
-      if (m.has(s.staffId)) continue;
-      m.set(s.staffId, s.skillIds ?? []);
+
+  // Z4b — Dienstplan-Realität der angezeigten Woche je Mitarbeiter
+  // (aus roster_shifts). Filtergrundlage für Bereich und Skill.
+  const rosterByStaffMap = useMemo(() => {
+    const m = new Map<string, { areas: Department[]; skillIds: string[] }>();
+    for (const [sid, bucket] of Object.entries(weeklyData?.rosterByStaff ?? {})) {
+      m.set(sid, { areas: [...bucket.areas], skillIds: [...bucket.skillIds] });
     }
     return m;
   }, [weeklyData]);
@@ -887,10 +900,10 @@ function ZeitUebersichtPage() {
       rowsByDept: filterWeeklyRows(
         weeklyExportInput.rowsByDept,
         { dept: deptFilter, skillId: skillFilter, query: "" },
-        skillsByStaffFilter,
+        rosterByStaffMap,
       ),
     };
-  }, [weeklyExportInput, deptFilter, skillFilter, skillsByStaffFilter]);
+  }, [weeklyExportInput, deptFilter, skillFilter, rosterByStaffMap]);
 
   // ============ Buchhaltung-Aggregation (Render + Export) ============
   const payrollRowsByStaff = useMemo(() => {
@@ -1160,6 +1173,14 @@ function ZeitUebersichtPage() {
                   </SelectContent>
                 </Select>
               </label>
+              {(deptFilter !== "all" || skillFilter !== "all") && (
+                <span
+                  className="text-xs text-muted-foreground"
+                  title="Bereich- und Skill-Filter matchen die Dienstplan-Realität der angezeigten Woche (roster_shifts), nicht die Skill-Stammdaten."
+                >
+                  Zeigt nur in dieser Woche entsprechend Eingeplante
+                </span>
+              )}
             </div>
             {/* Zeile 3: Wochen-Chips */}
             <div className="flex flex-wrap items-center gap-2">
@@ -1866,6 +1887,8 @@ type WeeklyData = {
     // Z4 — Skill-IDs der Person (Wochenplan-Skill-Filter).
     skillIds?: string[];
   }[];
+  // Z4b — Dienstplan-Realität der Woche je Mitarbeiter (aus roster_shifts).
+  rosterByStaff?: Record<string, { areas: Department[]; skillIds: string[] }>;
 };
 
 function fmtDec(n: number): string {
