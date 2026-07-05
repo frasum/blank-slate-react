@@ -3242,3 +3242,60 @@ hourCount, sumAnzahl, sumCents }`.
 - **Nicht angefasst**: `sales_article_stats`, PV1/PV2-Parser & UI, WG-
   Overrides, Z3, Kasse, Lohn, Bilanz. Geld BIGINT cents. Kein
   `localStorage`, keine Edge Functions.
+
+## Tagesabschluss 05.07.2026 (abends)
+
+**Verifizierter Stand:** HEAD `20c5e875`, 1422 Tests grün, 05.07.2026
+abends — `tsc --noEmit` 0 Fehler, `eslint src/ --max-warnings=5`,
+`prettier --check .` sauber, `vitest run` komplett grün.
+
+### Abgenommen in einem Paket bei HEAD `20c5e875`
+
+- **§Z3** — Abteilungs-Dimension auf `time_entries`, Wochenplan-Zeilen
+  voll editierbar, inkl. Nachtrag zur „umhängen"-Popover-Sichtbarkeit
+  (Trigger nur bei Mehrfach-Zuordnung).
+- **§Z3-Optik-Fixes (zwei Nachträge)** — Grau-/Kursiv-Optik der
+  Sekundär-Zeilen entfernt und „umhängen"-Trigger als **Overlay** in
+  der Namenszelle (`absolute bottom-0 right-0.5`), damit alle
+  Wochenplan-Zeilen unabhängig von der Zahl der Abteilungs-
+  Zuordnungen gleich hoch bleiben.
+- **§Z4** — Wochenplan-Filter Bereich + Skill (nur Anzeige;
+  Buchhaltungs-Tab und Wochenplan-Export bewusst ungefiltert über
+  `weeklyExportInput`).
+- **§PV1a** — POS-WG-Überschreibung (`sales_pos_group_overrides`,
+  DENY-ALL, manager-Server-Fn, Override vor Namens-Join).
+- **§PV2** — POS-Verkauf-XLSX-Upload mit Review-Screen und striktem
+  Fußzeilen-Gate.
+- **§PV3** — POS-Stundenbericht (Chart+Tabelle, Upload nach PV2-
+  Muster).
+- **zod-4-UUID-Testfix** — Fixture-UUIDs in
+  `pos-report-server.test.ts` auf RFC-4122-konforme Werte gezogen
+  (Schema-Code unverändert; nur die Fixture war ungültig).
+
+### Real-Datei-Validierung PV3 (durch Claude)
+
+Beide Vectron-Stundenberichte laufen **cent-exakt** durch
+`parsePosHourly` — alle Gates grün, null Warnungen:
+
+- Spicery (`spicery_h.xlsx`, `alltime`): **101.283 Buchungen /
+  9.817.288,78 €**, Peak 19:00 (~32 %).
+- YUM (`yum_h.xlsx`, `alltime`): **97.695 Buchungen /
+  8.383.044,04 €**, Peak 19:00 (~29 %).
+
+Upload durch Frank ist damit freigegeben.
+
+### Offene E2E-Punkte (Frank)
+
+- **§PV3** — Stundenbericht-Uploads beider `_h`-Dateien im UI.
+- **§Z3** — Praxis-Check: GL-Eintrag bleibt auf GL (GERARD-Beispiel
+  bereits erfolgreich).
+- **§Z4** — Filter-Rundgang (Pill „Küche" + Skill „CO", Suche,
+  Reset auf „Alle"/„Alle").
+- **Optional §PV2** — Idempotenz-Reupload (Replace je Standort ×
+  Periode).
+
+### Berechtigungs-Kapitel des Tages
+
+Korb-1-Aufräumen (Inaktive + Viktoria-Regel, per Rest-Check-CSV
+belegt) sowie **SD1/SD1b** abgeschlossen — Details siehe die eigenen
+Berechtigungs-Notizen; hier nur als Referenz-Einzeiler.
