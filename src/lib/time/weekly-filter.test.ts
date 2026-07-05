@@ -47,7 +47,7 @@ const roster: RosterByStaff = new Map([
 ]);
 
 describe("filterWeeklyRows", () => {
-  it(`Alle/Alle liefert die volle Grundmenge (auch Nicht-Eingeplante wie MO)", () => {
+  it("Alle/Alle liefert die volle Grundmenge (auch Nicht-Eingeplante wie MO)", () => {
     const out = filterWeeklyRows(
       rowsByDept,
       { dept: "all", skillId: "all", query: "" },
