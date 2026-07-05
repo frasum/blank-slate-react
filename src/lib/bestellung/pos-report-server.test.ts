@@ -9,7 +9,8 @@ const validRow: PosRow = { nummer: 1, name: "Espresso", verkaufCount: 5, umsatzC
 
 describe("ReplacePosSalesStatsInput", () => {
   const base = {
-    locationId: "11111111-1111-1111-1111-111111111111",
+    // zod 4 validiert Versions-/Varianten-Bits — Dummy muss RFC-4122-konform sein.
+    locationId: "11111111-1111-4111-8111-111111111111",
     period: "d365" as const,
     reportDate: "2026-01-01",
     rows: [validRow],
