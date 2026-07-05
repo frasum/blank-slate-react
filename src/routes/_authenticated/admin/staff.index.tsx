@@ -476,6 +476,8 @@ function StaffMatrixRow({
   skillPending,
   onToggleDept,
   onToggleSkill,
+  employmentStartDate,
+  dateOfBirth,
 }: {
   staff: StaffRow;
   locations: LocationRow[];
@@ -491,6 +493,8 @@ function StaffMatrixRow({
     active: boolean,
   ) => void;
   onToggleSkill: (staffId: string, skillId: string, has: boolean, currentIds: string[]) => void;
+  employmentStartDate: string | null;
+  dateOfBirth: string | null;
 }) {
   const heldSkills = useMemo(
     () =>
@@ -524,14 +528,14 @@ function StaffMatrixRow({
             className="font-medium text-foreground hover:underline"
           >
             {staff.displayName}
-            {formatTenure(staff.employmentStartDate) && (
+            {formatTenure(employmentStartDate) && (
               <span className="ml-1 font-normal text-muted-foreground">
-                ({formatTenure(staff.employmentStartDate)})
+                ({formatTenure(employmentStartDate)})
               </span>
             )}
-            {computeAgeYears(staff.dateOfBirth) !== null && (
+            {computeAgeYears(dateOfBirth) !== null && (
               <span className="ml-1 font-normal text-muted-foreground">
-                ({computeAgeYears(staff.dateOfBirth)})
+                ({computeAgeYears(dateOfBirth)})
               </span>
             )}
           </Link>
