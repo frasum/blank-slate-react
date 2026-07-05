@@ -4,6 +4,13 @@ Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen B
 
 Stand: 05.07.2026 (ST1)
 
+**Stempel-Seite Abmelden (05.07.2026):** `/zeit/stempeln` zeigt neben
+dem „Zurück"-Link zusätzlich einen dezenten „Abmelden"-Button für alle
+Nutzer (Generalisierung des Sumitr-Sonderfalls vom 05.07. —
+Personen-Hardcodes sind unerwünscht, Bedürfnisse werden generisch
+gelöst). `src/lib/auth/special-cases.ts` und der `isSumitr`-Helfer
+sind entsprechend entfallen.
+
 **EIN1 (05.07.2026):** Einstellungen/Allgemein in vier Unter-Tabs
 gegliedert (Trinkgeldpool · Bestellungen · Sofortmeldung & Arbeitgeber
 · Telegram), Tab-Wahl im URL-Param `?tab=…` (Reload/Verlinkung halten
@@ -2714,10 +2721,11 @@ oder `{ all: false, combos: [...] }` für planer. `getMyRosterScopes` ruft
 diesen Helfer jetzt selbst auf; Verhalten unverändert.
 
 **Scope-Anker:**
+
 - Urlaubsantrag: der Antragsteller muss eine `staff_locations`-Zeile mit
   einer freigegebenen `(location, department)`-Kombination haben.
 - Schichttausch: die Schicht des Anfragenden (`roster_shifts.location_id +
-  area`) muss in der Kombi-Liste liegen.
+area`) muss in der Kombi-Liste liegen.
 - Jahresplaner: gewählter Standort muss im Scope liegen; nur der
   freigegebene Bereichs-Block wird zurückgegeben.
 
