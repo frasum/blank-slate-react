@@ -10,6 +10,14 @@ import { abbr, pillStyle } from "@/lib/roster/pill-style";
 import { cn } from "@/lib/utils";
 import { useFitCellSize } from "@/lib/display/use-fit-cell-size";
 import { periodRangeLabel } from "@/lib/display/period-split";
+import {
+  isReminderActive,
+  nowBerlinParts,
+  sortReminders,
+  type Reminder,
+  type ReminderColor,
+} from "@/lib/display/reminders";
+import { businessDateOf } from "@/lib/business-date";
 
 type DisplayCell = {
   k: "shift" | "urlaub" | "krank" | "wish" | "available" | "empty";
@@ -47,6 +55,7 @@ type DisplayPayload = {
   nextPeriodLabel: string;
   currentPeriodEnd: string;
   nextPeriodEnd: string;
+  reminders: Reminder[];
 };
 
 const searchSchema = z.object({ token: z.string().min(1).max(256).optional() });
@@ -176,6 +185,8 @@ function DisplayPage() {
           </p>
         </div>
       )}
+
+      <ReminderStack reminders={data.reminders ?? []} now={now} />
 
       <main className="space-y-4 p-3">
         {data.blocks.map((block, idx) => (
