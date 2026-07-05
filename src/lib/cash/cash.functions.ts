@@ -335,6 +335,7 @@ export async function getCashOverviewCore(
         createdAt: string;
       }>,
       cashLockedThroughDate: null as string | null,
+      managerOnDutyNames: [] as string[],
     };
   }
 
