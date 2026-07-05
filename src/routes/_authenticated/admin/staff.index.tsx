@@ -208,8 +208,11 @@ function StaffListPage() {
       .filter((s) => {
         if (!q) return true;
         const name = s.displayName?.toLowerCase() ?? "";
-        const email = s.email?.toLowerCase() ?? "";
-        return name.includes(q) || email.includes(q);
+        const first = s.firstName?.toLowerCase() ?? "";
+        const last = s.lastName?.toLowerCase() ?? "";
+        // SD1 — Kontaktdaten (email/phone) sind nicht mehr Teil von listStaff;
+        // Suche greift auf Anzeigename + Vor-/Nachname.
+        return name.includes(q) || first.includes(q) || last.includes(q);
       })
       .slice()
       .sort((a, b) => a.displayName.localeCompare(b.displayName));
