@@ -1793,6 +1793,8 @@ type WeeklyData = {
     isPrimary?: boolean;
     // Z3 — alle Abteilungen der Person am Standort (Attribution im Grid).
     staffDepts?: Department[];
+    // Z4 — Skill-IDs der Person (Wochenplan-Skill-Filter).
+    skillIds?: string[];
   }[];
 };
 
