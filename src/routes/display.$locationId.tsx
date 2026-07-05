@@ -96,7 +96,8 @@ function DisplayPage() {
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 30 * 1000);
+    // DP1b: 1-s-Takt, damit der 15/15-Vollbild-Wechsel exakt greift.
+    const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
 
@@ -177,6 +178,23 @@ function DisplayPage() {
         </header>
       )}
 
+      {(() => {
+        const nowB = nowBerlinParts(now);
+        const bd = businessDateOf(now);
+        const due = sortReminders(
+          (data.reminders ?? []).filter((r) => isReminderActive(r, nowB, bd)),
+        );
+        // Deterministischer 15/15-Takt aus der Uhrzeit — synchron über
+        // mehrere Displays, keine Sprünge bei Refresh/Remount.
+        const secondsSinceMidnight =
+          now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+        const phaseA = Math.floor(secondsSinceMidnight / 15) % 2 === 0;
+        if (due.length > 0 && phaseA) {
+          return <ReminderFullscreen reminders={due} />;
+        }
+        return null;
+      })()}
+
       {data.birthdays.length > 0 && (
         <div className="border-b border-amber-400/40 bg-gradient-to-r from-amber-500/20 via-yellow-400/20 to-amber-500/20 px-6 py-3 text-center">
           <p className="text-xl font-semibold tracking-tight text-amber-100">
@@ -189,26 +207,16 @@ function DisplayPage() {
         {data.blocks.map((block, idx) => (
           <div key={block.area} className="space-y-4">
             <BlockTable block={block} days={data.days} payload={data} />
-            {idx < data.blocks.length - 1 && (
-              <div className="space-y-2">
-                <ReminderStack reminders={data.reminders ?? []} now={now} />
-                {data.customMessage && (
-                  <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 px-6 py-3 text-center text-base text-amber-200">
-                    {data.customMessage}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        ))}
-        {data.blocks.length <= 1 && (
-          <div className="space-y-2">
-            <ReminderStack reminders={data.reminders ?? []} now={now} />
-            {data.customMessage && (
+            {data.customMessage && idx < data.blocks.length - 1 && (
               <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 px-6 py-3 text-center text-base text-amber-200">
                 {data.customMessage}
               </div>
             )}
+          </div>
+        ))}
+        {data.customMessage && data.blocks.length <= 1 && (
+          <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 px-6 py-3 text-center text-base text-amber-200">
+            {data.customMessage}
           </div>
         )}
         {data.blocks.length === 0 && (
@@ -444,8 +452,9 @@ function CellView({ cell, area }: { cell: DisplayCell; area: "kitchen" | "servic
   return <span className="text-slate-600">−</span>;
 }
 
-// DP1: Farb-Palette für die Warnbanner. Kräftige Töne mit gutem Kontrast
-// für die Display-Distanz. Sanftes Pulsieren via Tailwind animate-pulse.
+// DP1b: Farb-Palette für die Vollbild-Warnungen. Kräftige Töne mit gutem
+// Kontrast für Display-Distanz. Die Aufmerksamkeit kommt aus dem 15/15-
+// Wechsel Vollbild ↔ Plan — kein Blinken auf Einzel-Elementen mehr.
 const REMINDER_STYLE: Record<Reminder["color"], { bg: string; text: string; border: string }> = {
   grau: { bg: "bg-slate-600", text: "text-slate-50", border: "border-slate-400/60" },
   braun: { bg: "bg-amber-900", text: "text-amber-50", border: "border-amber-700/70" },
@@ -457,29 +466,51 @@ const REMINDER_STYLE: Record<Reminder["color"], { bg: string; text: string; bord
   violett: { bg: "bg-violet-700", text: "text-violet-50", border: "border-violet-400/60" },
 };
 
-function ReminderStack({ reminders, now }: { reminders: Reminder[]; now: Date }) {
-  if (!reminders || reminders.length === 0) return null;
-  const nowB = nowBerlinParts(now);
-  const businessDate = businessDateOf(now);
-  const due = sortReminders(reminders.filter((r) => isReminderActive(r, nowB, businessDate)));
-  if (due.length === 0) return null;
+/**
+ * DP1b: Vollbild-Overlay während Phase A des 15/15-Wechsels.
+ * Hintergrund in der Farbe der ersten fälligen Erinnerung, alle weiteren
+ * darunter als große Karten in ihrer eigenen Farbe.
+ */
+function ReminderFullscreen({ reminders }: { reminders: Reminder[] }) {
+  const first = reminders[0];
+  const base = REMINDER_STYLE[first.color] ?? REMINDER_STYLE.grau;
   return (
-    <div className="space-y-2">
-      {due.map((r) => {
+    <div
+      className={cn(
+        "fixed inset-0 z-50 flex flex-col items-center justify-center gap-8 p-10",
+        base.bg,
+        base.text,
+      )}
+      role="alert"
+      aria-live="assertive"
+    >
+      {reminders.map((r, i) => {
         const s = REMINDER_STYLE[r.color] ?? REMINDER_STYLE.grau;
+        const isPrimary = i === 0;
         return (
           <div
             key={r.id}
             className={cn(
-              "flex items-center justify-center gap-3 rounded-2xl border px-6 py-3 text-center shadow-lg animate-reminder-blink",
-              s.bg,
-              s.text,
-              s.border,
+              "flex w-full max-w-5xl flex-col items-center justify-center gap-4 rounded-3xl px-10 py-8 text-center shadow-2xl",
+              !isPrimary && cn("border-4", s.bg, s.text, s.border),
             )}
-            role="alert"
           >
-            {r.emoji && <span className="text-3xl leading-none">{r.emoji}</span>}
-            <span className="text-2xl font-semibold tracking-tight">{r.title}</span>
+            {r.emoji && (
+              <span
+                className={cn("leading-none", isPrimary ? "text-[14rem]" : "text-8xl")}
+                aria-hidden
+              >
+                {r.emoji}
+              </span>
+            )}
+            <span
+              className={cn(
+                "font-black uppercase tracking-tight",
+                isPrimary ? "text-7xl md:text-8xl" : "text-4xl md:text-5xl",
+              )}
+            >
+              {r.title}
+            </span>
           </div>
         );
       })}

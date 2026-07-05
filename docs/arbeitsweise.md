@@ -3382,7 +3382,10 @@ rein anzeigend — kein Quittieren, kein Workflow (v1).
 - Wochentag (0=Montag … 6=Sonntag, ISO).
 - Rhythmus `interval_weeks` ∈ {1, 2}; bei 2 ist `anchor_date` Pflicht
   (definiert die Parität, geprüft über `(businessDate − anchorDate) mod 14 = 0`).
-- `from_time` (Berlin-Wandzeit), `is_active`, `sort_order`.
+- `from_time`, `until_time` (Berlin-Wandzeit), `is_active`, `sort_order`.
+  DP1b: `until_time <= from_time` bedeutet Ende über Mitternacht in den
+  frühen Morgen desselben Geschäftstags (Cutoff 03:00 — serverseitig per Zod
+  validiert).
 - RLS: DENY-ALL. Zugriffe nur über Server-Fns
   (`src/lib/display/reminders.functions.ts`), Muster analog `sales_article_stats`.
 
@@ -3395,12 +3398,27 @@ Reines Modul, getestet, ohne DB/React — läuft server- wie clientseitig.
 - `isReminderActive(r, nowBerlin, businessDate)` — zusätzlich Uhrzeit-Gate.
   Wichtig: als Zeitpunkt-Vergleich, nicht als naive Uhrzeit — nach Mitternacht
   ist 00:30 des Folgekalendertags weiterhin ≥ 20:00 des Geschäftstags
-  (3-Uhr-Cutoff-Semantik wie überall).
+  (3-Uhr-Cutoff-Semantik wie überall). Fenster ist halb-offen
+  `[from_time, until_time)`; bei `until_time <= from_time` rutscht das
+  Ende einen Kalendertag weiter (gleicher Geschäftstag).
 - `nowBerlinParts(now)` — Berlin-Wandzeit-Parts für den Client.
 
 Server (`api/public/display.$locationId`) schickt **alle heutigen** Reminder
 (auch noch nicht fällige), damit der Client ohne Refetch pünktlich zur
-`from_time` einblenden kann. Client re-evaluiert im 30-Sekunden-Tick.
+`from_time` einblenden kann. Client re-evaluiert im 1-Sekunden-Tick (nötig
+für den 15/15-Vollbild-Wechsel).
+
+### DP1b — Vollbild-Wechsel 15/15
+
+Sobald mindestens eine Erinnerung fällig ist, blendet das Display abwechselnd
+**Phase A** (15 s Vollbild-Warnung, Tonnenfarbe, riesiges Emoji + Titel;
+mehrere fällige Reminder erscheinen gestapelt) und **Phase B** (15 s normale
+Dienstplan-Ansicht) ein. Der Phasen-Takt wird **deterministisch** aus der
+Uhrzeit abgeleitet (`floor(sekundenSeitMitternacht / 15) % 2`), nicht aus
+Component-Mount-Timern — mehrere Displays laufen synchron, Refreshes erzeugen
+kein Springen. Der frühere Mittel-Balken mit `animate-pulse` bzw. das
+separate `animate-reminder-blink` entfallen ersatzlos; die Aufmerksamkeit
+kommt aus dem Vollbild-Wechsel.
 
 ### Verwaltung
 

@@ -65,6 +65,7 @@ type FormState = {
   intervalWeeks: 1 | 2;
   anchorDate: string;
   fromTime: string;
+  untilTime: string;
   isActive: boolean;
   sortOrder: number;
 };
@@ -79,6 +80,7 @@ function emptyForm(): FormState {
     intervalWeeks: 1,
     anchorDate: "",
     fromTime: "20:00",
+    untilTime: "01:00",
     isActive: true,
     sortOrder: 0,
   };
@@ -110,6 +112,7 @@ export function RemindersAdmin({ locationId }: { locationId: string }) {
           intervalWeeks: form.intervalWeeks,
           anchorDate: form.intervalWeeks === 2 ? form.anchorDate : null,
           fromTime: form.fromTime,
+          untilTime: form.untilTime,
           isActive: form.isActive,
           sortOrder: form.sortOrder,
         },
@@ -136,6 +139,7 @@ export function RemindersAdmin({ locationId }: { locationId: string }) {
           intervalWeeks: form.intervalWeeks,
           anchorDate: form.intervalWeeks === 2 ? form.anchorDate : null,
           fromTime: form.fromTime,
+          untilTime: form.untilTime,
           isActive: form.isActive,
           sortOrder: form.sortOrder,
         },
@@ -171,6 +175,7 @@ export function RemindersAdmin({ locationId }: { locationId: string }) {
           intervalWeeks: r.intervalWeeks,
           anchorDate: r.anchorDate,
           fromTime: r.fromTime,
+          untilTime: r.untilTime,
           isActive: !r.isActive,
           sortOrder: r.sortOrder,
         },
@@ -189,6 +194,7 @@ export function RemindersAdmin({ locationId }: { locationId: string }) {
       intervalWeeks: r.intervalWeeks,
       anchorDate: r.anchorDate ?? "",
       fromTime: r.fromTime,
+      untilTime: r.untilTime,
       isActive: r.isActive,
       sortOrder: r.sortOrder,
     });
@@ -339,6 +345,18 @@ export function RemindersAdmin({ locationId }: { locationId: string }) {
               />
             </div>
             <div>
+              <Label htmlFor="rem-until">Bis (Uhrzeit)</Label>
+              <Input
+                id="rem-until"
+                type="time"
+                value={form.untilTime}
+                onChange={(e) => setForm({ ...form, untilTime: e.target.value })}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Über Mitternacht = früher Morgen desselben Geschäftstags, spätestens 03:00.
+              </p>
+            </div>
+            <div>
               <Label htmlFor="rem-order">Sortierung</Label>
               <Input
                 id="rem-order"
@@ -393,7 +411,7 @@ export function RemindersAdmin({ locationId }: { locationId: string }) {
                     {r.title}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {WEEKDAYS[r.weekday]} · ab {r.fromTime} ·{" "}
+                    {WEEKDAYS[r.weekday]} · {r.fromTime}–{r.untilTime} ·{" "}
                     {r.intervalWeeks === 2
                       ? `alle 2 Wochen (Anker ${r.anchorDate ?? "—"})`
                       : "wöchentlich"}

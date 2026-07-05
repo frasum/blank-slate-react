@@ -35,6 +35,7 @@ type DbRow = {
   interval_weeks: number;
   anchor_date: string | null;
   from_time: string;
+  until_time: string;
   is_active: boolean;
   sort_order: number;
 };
@@ -52,6 +53,7 @@ function mapRow(row: DbRow): AdminReminder {
     intervalWeeks: (row.interval_weeks === 2 ? 2 : 1) as 1 | 2,
     anchorDate: row.anchor_date,
     fromTime: (row.from_time ?? "").slice(0, 5),
+    untilTime: (row.until_time ?? "01:00").slice(0, 5),
     sortOrder: row.sort_order,
     isActive: row.is_active,
   };
@@ -75,6 +77,10 @@ const baseShape = {
     .nullable()
     .optional(),
   fromTime: z.string().regex(/^\d{2}:\d{2}$/),
+  untilTime: z
+    .string()
+    .regex(/^\d{2}:\d{2}$/)
+    .default("01:00"),
   isActive: z.boolean().optional(),
   sortOrder: z.number().int().min(0).max(9999).optional(),
 };
@@ -84,14 +90,43 @@ const createSchema = z
   .refine((v) => v.intervalWeeks === 1 || !!v.anchorDate, {
     message: "Ankerdatum ist bei 14-tägigem Rhythmus erforderlich.",
     path: ["anchorDate"],
-  });
+  })
+  .refine(
+    (v) => {
+      const [fh, fm] = v.fromTime.split(":").map(Number);
+      const [uh, um] = v.untilTime.split(":").map(Number);
+      const from = fh * 60 + fm;
+      const until = uh * 60 + um;
+      // Über-Mitternacht-Fall: until <= from → until darf höchstens 03:00 sein.
+      if (until <= from) return until <= 180;
+      return until > from;
+    },
+    {
+      message: '"bis" muss nach "ab" liegen — oder (über Mitternacht) höchstens 03:00 sein.',
+      path: ["untilTime"],
+    },
+  );
 
 const updateSchema = z
   .object({ id: z.string().uuid(), ...baseShape })
   .refine((v) => v.intervalWeeks === 1 || !!v.anchorDate, {
     message: "Ankerdatum ist bei 14-tägigem Rhythmus erforderlich.",
     path: ["anchorDate"],
-  });
+  })
+  .refine(
+    (v) => {
+      const [fh, fm] = v.fromTime.split(":").map(Number);
+      const [uh, um] = v.untilTime.split(":").map(Number);
+      const from = fh * 60 + fm;
+      const until = uh * 60 + um;
+      if (until <= from) return until <= 180;
+      return until > from;
+    },
+    {
+      message: '"bis" muss nach "ab" liegen — oder (über Mitternacht) höchstens 03:00 sein.',
+      path: ["untilTime"],
+    },
+  );
 
 export const listDisplayReminders = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -129,6 +164,7 @@ export const createDisplayReminder = createServerFn({ method: "POST" })
         interval_weeks: data.intervalWeeks,
         anchor_date: data.anchorDate ?? null,
         from_time: data.fromTime,
+        until_time: data.untilTime,
         is_active: data.isActive ?? true,
         sort_order: data.sortOrder ?? 0,
       };
@@ -166,6 +202,7 @@ export const updateDisplayReminder = createServerFn({ method: "POST" })
         interval_weeks: data.intervalWeeks,
         anchor_date: data.anchorDate ?? null,
         from_time: data.fromTime,
+        until_time: data.untilTime,
         is_active: data.isActive ?? true,
         sort_order: data.sortOrder ?? 0,
       };
