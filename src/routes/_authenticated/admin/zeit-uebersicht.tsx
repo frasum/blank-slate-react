@@ -2234,6 +2234,14 @@ function WeeklyPlan({
                             <span className="ml-0.5 text-amber-600">⚠</span>
                           ) : null}
                         </span>
+                        {isAdmin ? (
+                          <ReassignPopover
+                            row={row}
+                            entriesById={entriesById}
+                            onReassign={onReassign}
+                            pending={pending}
+                          />
+                        ) : null}
                       </TableCell>
                       {row.days.map((day, idx) => {
                         const dm = dayMeta[idx];
