@@ -49,6 +49,7 @@ import {
   removeSessionSatellite,
   reopenSession,
   setCashLock,
+  unlockSession,
   updateSession,
 } from "@/lib/cash/cash.functions";
 import { generateDailySummaryPdf } from "@/lib/cash/pdfExport";
@@ -122,6 +123,7 @@ function KassePage() {
   const callFinalize = useServerFn(finalizeSession);
   const callLock = useServerFn(lockSession);
   const callReopen = useServerFn(reopenSession);
+  const callUnlock = useServerFn(unlockSession);
   const callCorrect = useServerFn(correctWaiterSettlement);
   const callAdminCreate = useServerFn(adminCreateWaiterSettlement);
   const callCashLock = useServerFn(setCashLock);
@@ -333,6 +335,24 @@ function KassePage() {
     onError: (e: Error) => toast.error(e.message),
   });
   const [reopenConfirm, setReopenConfirm] = useState(false);
+
+  // „Session entsperren" (Admin) — setzt eine gesperrte Session zurück
+  // auf offen, damit ein irrtümlich gesperrter Tag noch einmal
+  // bearbeitet werden kann. Die Standort-Wasserlinie (cash_locks) bleibt
+  // bewusst unverändert (monoton) — der Warnhinweis im Dialog macht das
+  // transparent, wenn der Tag unter/auf der Wasserlinie liegt.
+  const unlockMut = useMutation({
+    mutationFn: () => {
+      if (!sessionId) throw new Error("Keine Session");
+      return callUnlock({ data: { sessionId } });
+    },
+    onSuccess: () => {
+      toast.success("Session entsperrt.");
+      void invalidate();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const [unlockConfirm, setUnlockConfirm] = useState(false);
 
   // KAB1: Kopplungs-Dialog „Drucken + Finalisieren"
   const [printCouple, setPrintCouple] = useState<{ lockAfter: boolean } | null>(null);
@@ -721,6 +741,16 @@ function KassePage() {
                     </span>
                   )}
                 </Badge>
+              )}
+
+              {isAdmin && sessionStatus === "locked" && (
+                <Button
+                  variant="outline"
+                  disabled={unlockMut.isPending}
+                  onClick={() => setUnlockConfirm(true)}
+                >
+                  Session entsperren
+                </Button>
               )}
 
               {sessionStatus === "open" && (
@@ -1136,6 +1166,39 @@ function KassePage() {
               }
             >
               Wieder öffnen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={unlockConfirm} onOpenChange={setUnlockConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Session entsperren?</DialogTitle>
+            <DialogDescription>
+              Hebt die harte Sperre auf und setzt den Status zurück auf „offen", damit Korrekturen
+              und Kellner-Abrechnungen für diesen Geschäftstag wieder möglich sind.
+              {underWaterline && (
+                <>
+                  {" "}
+                  <strong>Achtung:</strong> Dieser Geschäftstag liegt unter der Standort-Wasserlinie
+                  ({lockedThrough}). Der Session-Status wird zwar geändert, Schreibversuche werden
+                  aber weiter von der Wasserlinie geblockt, bis du diese getrennt zurückfährst.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUnlockConfirm(false)}>
+              Abbrechen
+            </Button>
+            <Button
+              disabled={unlockMut.isPending}
+              onClick={() =>
+                unlockMut.mutate(undefined, { onSuccess: () => setUnlockConfirm(false) })
+              }
+            >
+              Entsperren
             </Button>
           </DialogFooter>
         </DialogContent>

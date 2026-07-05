@@ -1266,6 +1266,53 @@ export const lockSession = createServerFn({ method: "POST" })
     return lockSessionCore(caller, data);
   });
 
+// Admin-only: eine bereits gesperrte Session wieder entsperren und auf
+// "open" zurücksetzen, damit ein irrtümlich gesperrter Tag noch einmal
+// bearbeitet werden kann. Absichtlich OHNE Wasserlinien-Prüfung — die
+// Standort-Wasserlinie (cash_locks) ist bewusst monoton und blockt
+// Schreibversuche unabhängig vom Session-Status. Wenn der Tag also unter
+// oder auf der Wasserlinie liegt, muss die Wasserlinie separat vom Admin
+// zurückgefahren werden; hier wird nur der Session-Status geändert. Die
+// UI zeigt in dem Fall eine Warnung im Bestätigungsdialog.
+export const unlockSession = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ sessionId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    return unlockSessionCore(caller, data);
+  });
+
+export async function unlockSessionCore(caller: AdminCaller, data: { sessionId: string }) {
+  return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
+    const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
+    if (session.status !== "locked") {
+      throw new Error("Nur gesperrte Sessions können entsperrt werden.");
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("sessions")
+      .update({
+        status: "open",
+        locked_at: null,
+        locked_by: null,
+        finalized_at: null,
+        finalized_by: null,
+      })
+      .eq("id", session.id)
+      .eq("organization_id", caller.organizationId);
+    if (error) throw error;
+    return {
+      result: { ok: true as const },
+      audit: {
+        action: "cash.session.unlocked",
+        entity: "session",
+        entityId: session.id,
+        meta: { businessDate: session.business_date },
+      },
+    };
+  });
+}
+
 // Admin-only: eine bereits finalisierte Session wieder auf "open" setzen,
 // damit ein Vortag nachträglich bearbeitet werden kann. Bei `locked` oder
 // unterhalb der Wasserlinie bleibt die Session gesperrt.
