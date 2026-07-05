@@ -143,7 +143,7 @@ export function TelegramTagesberichtSection({ canEdit }: { canEdit: boolean }) {
         Tagesbericht aktiv
       </label>
 
-      <label className="block space-y-1">
+      <label className="flex flex-col gap-1">
         <span className="text-xs font-medium text-muted-foreground">
           Uhrzeit (0–23, Europe/Berlin)
         </span>

@@ -44,7 +44,7 @@ export function TrinkgeldpoolSection({
       </div>
 
       <form className="space-y-4" onSubmit={onSubmit}>
-        <label className="block space-y-1">
+        <label className="flex flex-col gap-1">
           <span className="text-xs font-medium text-muted-foreground">
             Küchen-Trinkgeldsatz (% vom Service-Bruttoumsatz)
           </span>
@@ -59,7 +59,7 @@ export function TrinkgeldpoolSection({
           <span className="ml-2 text-xs text-muted-foreground">z. B. 2,00 = 2 %</span>
         </label>
 
-        <label className="block space-y-1">
+        <label className="flex flex-col gap-1">
           <span className="text-xs font-medium text-muted-foreground">
             Mindeststunden pro Geschäftstag für Trinkgeldpool
           </span>
