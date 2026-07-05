@@ -2234,7 +2234,7 @@ function WeeklyPlan({
                           className={`absolute left-0 top-0 bottom-0 w-[2px] ${DEPT_BAR[row.department]}`}
                         />
                         <span
-                          className={`block truncate ${row.isPrimary === false ? "text-muted-foreground/70 italic" : ""}`}
+                          className="block truncate"
                           title={mismatchedTitle ?? row.displayName}
                         >
                           {row.displayName}
