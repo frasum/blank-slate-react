@@ -113,7 +113,7 @@ export function parsePosReport(raw: readonly Row[]): ParsedPosReport {
       footer: null,
       skipped: [],
       warnings: [
-        "Kopfzeile mit den Spalten „Nummer", „Name" und „Verkauf" wurde nicht gefunden.",
+        'Kopfzeile mit den Spalten "Nummer", "Name" und "Verkauf" wurde nicht gefunden.',
       ],
       checks: [
         { name: "footer_stueck", expected: 0, actual: 0, ok: false },
@@ -203,7 +203,7 @@ export function parsePosReport(raw: readonly Row[]): ParsedPosReport {
     });
   } else {
     warnings.push(
-      "Fußzeile („Alle (Artikel)") fehlt — Kontrollsumme kann nicht geprüft werden.",
+      'Fußzeile ("Alle (Artikel)") fehlt — Kontrollsumme kann nicht geprüft werden.',
     );
     checks.push({
       name: "footer_stueck",
