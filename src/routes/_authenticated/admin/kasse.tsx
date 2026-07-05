@@ -710,36 +710,6 @@ function KassePage() {
         </Card>
       )}
 
-      {/* --- PDF-Vorschau --- */}
-      <Dialog open={pdfPreview !== null} onOpenChange={(o) => !o && closePdfPreview()}>
-        <DialogContent className="flex h-[85vh] max-w-5xl flex-col p-0">
-          <DialogHeader className="border-b px-6 py-4">
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              {pdfPreview?.fileName ?? "PDF Vorschau"}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="min-h-0 flex-1 p-2">
-            {pdfPreview && <PdfCanvasPreview blob={pdfPreview.blob} />}
-          </div>
-          <DialogFooter className="gap-2 border-t px-6 py-4">
-            <Button variant="outline" onClick={closePdfPreview}>
-              <X className="mr-2 h-4 w-4" />
-              Schließen
-            </Button>
-            <Button
-              onClick={() => {
-                if (!pdfPreview) return;
-                pdfPreview.doc.save(pdfPreview.fileName);
-              }}
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Herunterladen
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* --- Korrektur-Dialog --- */}
       <Dialog open={correct !== null} onOpenChange={(o) => !o && setCorrect(null)}>
         <DialogContent>
