@@ -74,20 +74,6 @@ export const listStaff = createServerFn({ method: "GET" })
       .eq("organization_id", caller.organizationId)
       .order("display_name");
     if (error) throw error;
-    const staffIds = (data ?? []).map((s) => s.id);
-    const startDates = new Map<string, string | null>();
-    const birthDates = new Map<string, string | null>();
-    if (staffIds.length > 0) {
-      const { data: details, error: dErr } = await supabaseAdmin
-        .from("staff_personal_details")
-        .select("staff_id, employment_start_date, date_of_birth")
-        .in("staff_id", staffIds);
-      if (dErr) throw dErr;
-      for (const d of details ?? []) {
-        startDates.set(d.staff_id as string, (d.employment_start_date as string | null) ?? null);
-        birthDates.set(d.staff_id as string, (d.date_of_birth as string | null) ?? null);
-      }
-    }
     return (data ?? []).map((s) => {
       const ra = s.role_assignments as { role: AppRole }[] | null;
       const role = ra && ra.length > 0 ? ra[0].role : null;
@@ -128,10 +114,29 @@ export const listStaff = createServerFn({ method: "GET" })
         skillCategories,
         skillIds,
         hasPin: s.staff_pins !== null,
-        employmentStartDate: startDates.get(s.id) ?? null,
-        dateOfBirth: birthDates.get(s.id) ?? null,
       };
     });
+  });
+
+// SD1b — Separater Reader für Tenure/Alter in der Staff-Verwaltung.
+// Manager-lesbare Reader dürfen weder Geburts- noch Eintrittsdatum liefern
+// (Datensparsamkeit + PII-Minimierung). Deshalb hier ein eigener Endpoint
+// mit admin/payroll-Guard.
+export const listStaffPersonalSummary = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, ["admin", "payroll"]);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin
+      .from("staff_personal_details")
+      .select("staff_id, employment_start_date, date_of_birth")
+      .eq("organization_id", caller.organizationId);
+    if (error) throw error;
+    return (data ?? []).map((r) => ({
+      staffId: r.staff_id as string,
+      employmentStartDate: (r.employment_start_date as string | null) ?? null,
+      dateOfBirth: (r.date_of_birth as string | null) ?? null,
+    }));
   });
 
 export const setStaffLocationDepartment = createServerFn({ method: "POST" })
