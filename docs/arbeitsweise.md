@@ -2,7 +2,7 @@
 
 Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen Baublock konsultiert. Bewusst kurz gehalten — Architektur-Begründungen stehen im gruendungsdokument.md, nicht hier.
 
-Stand: 05.07.2026 (Tagesabschluss, HEAD 96bf974d)
+Stand: 05.07.2026 (VA2)
 
 **PL1-Fix Urlaub-Sichtbarkeit (05.07.2026):** In
 `permission_role_defaults` war `roster.leave.view_all` als Default für
@@ -18,6 +18,10 @@ Standort irgendeinen Bereich frei hat, sieht er dort BEIDE Blöcke
 (Küche + Service) — bewusst, weil die Balken-Übersicht die
 Kollisionen zwischen Bereichen zeigen muss. Schichttausch war schon
 korrekt bereichs-scoped (kein planer-Default für `roster.swap.view_pending`).
+
+**Nachschärfung 05.07.:** `roster.leave.view_all` aus den
+`planer`-Rollen-Defaults entfernt (Migration) — Sicht ausschließlich über
+gescopte Overrides.
 
 **BB1 (05.07.2026):** Buchhaltungs-Spalte „Besonderheiten" =
 **Auto-Teil** (live aus `roster_absence`, `formatAbsenceNote` in
@@ -2607,6 +2611,31 @@ Der Vectron-Vollexport liefert je Artikel die drei Ebenen **Hauptgruppe**
   Hinweis „Quelle Vectron — wird beim Re-Import überschrieben".
 - VA1-Grundsätze unverändert: DENY-ALL, kein Delete-Pfad (Deaktivieren
   statt Löschen), Unique `(location_id, name)`.
+
+### VA2-Importe beider Häuser (05.07.2026)
+
+**Spicery:** Vectron-Vollexport (5 Dateien: artikel/hauptgruppe/kategorie/
+untergruppe; yuntergruppe war ein identisches Duplikat) → 397 eindeutige
+Artikel mit voller Hierarchie (135 Küche / 258 Getränke; 9 Sammel-PLU-Zeilen
+verlustfrei dedupliziert, 30 Leer-Slots ausgeschlossen). Verifiziert.
+
+**Fehl-Import + verlustfreier Rollback (Lektion):** Der Spicery-Export lief
+zunächst versehentlich gegen YUM (Bestand deaktiviert, 397 fremde Artikel
+upsertet). Rollback in einem Lauf: heutige Neu-Inserts per created_at
+gelöscht, Bestand reaktiviert, Original-Werte aus der VA1-Quelldatei
+re-upsertet (heilte auch die vom Upsert überschriebenen Namens-Überlapper).
+Bit-genau verifiziert gegen den Freitags-Stand (261/10/34/32).
+**Regel daraus: Import-SQLs tragen den Ziel-STANDORT prominent im Dateinamen
+UND in der ersten Kopfzeile** (zusätzlich zur Ziel-DB).
+
+**YUM:** eigener Vollexport (Mappe1/yum_2/yum_3/yum_4) → 294 eindeutige
+Artikel (82 Küche / 172 Getränke / 35 Infotexte; 1982 Kassen-Slots, 1 Dublette,
+1 Artikel ohne WG mit NULL-Hierarchie). deaktivierte_altartikel = 0: alle 261
+VA1-Artikel namensgleich aktualisiert, 33 neu. YUMs Hierarchie ist anders
+geschnitten als Spicerys (eigene Hauptgruppen wie Infotexte/Liefergebühr) —
+bestätigt die Denormalisierungs-Entscheidung (Vectron-Wahrheit je Standort).
+
+**Offen:** TSB-Export beim Aufsetzen des Standorts (Pipeline steht).
 
 ## §56 AF1 — Task-Fotos (04.07.2026)
 
