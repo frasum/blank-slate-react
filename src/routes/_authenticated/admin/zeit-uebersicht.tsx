@@ -66,6 +66,9 @@ import { ProvisionTab } from "@/components/lohn/ProvisionTab";
 import { LohnrechnerPanel } from "@/components/lohn/LohnrechnerPanel";
 import { BatchTimesCard } from "@/components/zeit/BatchTimesCard";
 import { entryRowDepartment } from "@/lib/time/primary-department";
+import { filterWeeklyRows } from "@/lib/time/weekly-filter";
+import { listSkills, type SkillCategory } from "@/lib/admin/skills.functions";
+import { PillSelect } from "@/components/ui/pill-select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
@@ -226,6 +229,7 @@ function ZeitUebersichtPage() {
   const fetchLocations = useServerFn(listLocations);
   const fetchOverview = useServerFn(getTimeOverview);
   const fetchWeekly = useServerFn(getWeeklyTimeEntries);
+  const fetchSkills = useServerFn(listSkills);
   const fetchNotes = useServerFn(listPayrollNotes);
   const fetchAdvances = useServerFn(listAdvancesByStaff);
   const fetchAbsences = useServerFn(listAbsencesByStaff);
@@ -277,6 +281,9 @@ function ZeitUebersichtPage() {
     [weekStartDate],
   );
   const [searchQuery, setSearchQuery] = useState<string>("");
+  // Z4 — Wochenplan-Filter (nur Anzeige, nicht Export/Buchhaltung).
+  const [deptFilter, setDeptFilter] = useState<Department | "all">("all");
+  const [skillFilter, setSkillFilter] = useState<string>("all");
   const [activeTab, setActiveTab] = useState<string>("weekly");
   // Buchhaltung-Tab: §3b-Toggle + eigene Suche.
   const [payrollMode, setPayrollMode] = useState<BuchhaltungMode>("simple");
@@ -661,6 +668,22 @@ function ZeitUebersichtPage() {
     }
     return m;
   }, [weeklyData]);
+
+  // Z4 — Skills-Stammdaten für den Filter.
+  const skillsQ = useQuery({
+    queryKey: ["skills-list"],
+    queryFn: () => fetchSkills(),
+  });
+  const skills = useMemo(() => skillsQ.data ?? [], [skillsQ.data]);
+  const skillsByStaffFilter = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const s of weeklyData?.assignedStaff ?? []) {
+      if (m.has(s.staffId)) continue;
+      m.set(s.staffId, s.skillIds ?? []);
+    }
+    return m;
+  }, [weeklyData]);
+
   const createShiftMut = useMutation({
     mutationFn: (vars: {
       staffId: string;
