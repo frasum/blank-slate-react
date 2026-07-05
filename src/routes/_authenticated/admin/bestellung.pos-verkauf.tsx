@@ -12,6 +12,8 @@ import {
   replacePosSalesStats,
   setSalesStatsGroupOverride,
 } from "@/lib/bestellung/sales-stats.functions";
+import { listPosHourlyStats, replacePosHourlyStats } from "@/lib/bestellung/pos-hourly.functions";
+import { PosHourlyView } from "@/components/bestellung/PosHourlyView";
 import { listLocations } from "@/lib/admin/locations.functions";
 import { LocationPills } from "@/components/shared/LocationPills";
 import { SalesGroupFilter } from "@/components/bestellung/SalesGroupFilter";
@@ -89,6 +91,8 @@ function PosVerkaufPage() {
   const callSet = useServerFn(setSalesStatsGroupOverride);
   const callClear = useServerFn(clearSalesStatsGroupOverride);
   const callReplace = useServerFn(replacePosSalesStats);
+  const callListHourly = useServerFn(listPosHourlyStats);
+  const callReplaceHourly = useServerFn(replacePosHourlyStats);
   const queryClient = useQueryClient();
   const auth = useAuth();
   const isAdmin = auth.identity?.role === "admin";
@@ -105,6 +109,7 @@ function PosVerkaufPage() {
   }, [locations, locationId]);
 
   const [period, setPeriod] = useState<Period>("d365");
+  const [view, setView] = useState<"articles" | "hourly">("articles");
 
   const statsQ = useQuery({
     queryKey: ["sales-stats", locationId, period],
@@ -231,180 +236,198 @@ function PosVerkaufPage() {
 
       <LocationPills locations={locations} value={locationId} onChange={setLocationId} />
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)}>
-          <TabsList>
-            <TabsTrigger value="d365">Letzte 365 Tage</TabsTrigger>
-            <TabsTrigger value="alltime">Gesamt (seit Aufzeichnung)</TabsTrigger>
-          </TabsList>
-        </Tabs>
-        {reportDate && (
-          <span className="rounded-md border border-border bg-muted/40 px-2 py-1 text-xs text-muted-foreground">
-            Stand: {dateFmt.format(new Date(reportDate))}
-          </span>
-        )}
-        {unmatchedCount > 0 && (
-          <button
-            type="button"
-            onClick={() => setHaupt(UNMATCHED)}
-            className="rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-900 hover:bg-amber-100 focus:outline-none focus:ring-1 focus:ring-ring dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200"
-            title="Filter auf Artikel ohne Gruppenzuordnung setzen"
-          >
-            {intFmt.format(unmatchedCount)} Artikel ohne Gruppenzuordnung
-          </button>
-        )}
-        {isAdmin && (
-          <div className="ml-auto">
-            <PosImportDialog
-              locationId={locationId}
-              period={period}
-              onReplace={(input) => callReplace({ data: input })}
-              onDone={() => {
-                queryClient.invalidateQueries({ queryKey: ["sales-stats", locationId] });
-              }}
+      <Tabs value={view} onValueChange={(v) => setView(v as "articles" | "hourly")}>
+        <TabsList>
+          <TabsTrigger value="articles">Artikel</TabsTrigger>
+          <TabsTrigger value="hourly">Stundenbericht</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      {view === "hourly" ? (
+        <PosHourlyView
+          locationId={locationId}
+          isAdmin={isAdmin}
+          onList={(input) => callListHourly({ data: input })}
+          onReplace={(input) => callReplaceHourly({ data: input })}
+        />
+      ) : (
+        <>
+          <div className="flex flex-wrap items-center gap-3">
+            <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)}>
+              <TabsList>
+                <TabsTrigger value="d365">Letzte 365 Tage</TabsTrigger>
+                <TabsTrigger value="alltime">Gesamt (seit Aufzeichnung)</TabsTrigger>
+              </TabsList>
+            </Tabs>
+            {reportDate && (
+              <span className="rounded-md border border-border bg-muted/40 px-2 py-1 text-xs text-muted-foreground">
+                Stand: {dateFmt.format(new Date(reportDate))}
+              </span>
+            )}
+            {unmatchedCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setHaupt(UNMATCHED)}
+                className="rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-900 hover:bg-amber-100 focus:outline-none focus:ring-1 focus:ring-ring dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200"
+                title="Filter auf Artikel ohne Gruppenzuordnung setzen"
+              >
+                {intFmt.format(unmatchedCount)} Artikel ohne Gruppenzuordnung
+              </button>
+            )}
+            {isAdmin && (
+              <div className="ml-auto">
+                <PosImportDialog
+                  locationId={locationId}
+                  period={period}
+                  onReplace={(input) => callReplace({ data: input })}
+                  onDone={() => {
+                    queryClient.invalidateQueries({ queryKey: ["sales-stats", locationId] });
+                  }}
+                />
+              </div>
+            )}
+          </div>
+
+          {statsQ.isError && (
+            <Alert variant="destructive">
+              <AlertTitle>Fehler</AlertTitle>
+              <AlertDescription>
+                {statsQ.error instanceof Error ? statsQ.error.message : "Fehler beim Laden."}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Suche nach Nummer oder Name…"
+              className="w-64 rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+            <SalesGroupFilter
+              rows={rows}
+              haupt={haupt}
+              setHaupt={setHaupt}
+              unter={unter}
+              setUnter={setUnter}
+              wg={wg}
+              setWg={setWg}
+              extraHauptOption={{ value: UNMATCHED, label: "Ohne Zuordnung" }}
             />
           </div>
-        )}
-      </div>
 
-      {statsQ.isError && (
-        <Alert variant="destructive">
-          <AlertTitle>Fehler</AlertTitle>
-          <AlertDescription>
-            {statsQ.error instanceof Error ? statsQ.error.message : "Fehler beim Laden."}
-          </AlertDescription>
-        </Alert>
-      )}
-
-      <div className="flex flex-wrap items-center gap-2">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Suche nach Nummer oder Name…"
-          className="w-64 rounded-md border border-input bg-background px-3 py-2 text-sm"
-        />
-        <SalesGroupFilter
-          rows={rows}
-          haupt={haupt}
-          setHaupt={setHaupt}
-          unter={unter}
-          setUnter={setUnter}
-          wg={wg}
-          setWg={setWg}
-          extraHauptOption={{ value: UNMATCHED, label: "Ohne Zuordnung" }}
-        />
-      </div>
-
-      {statsQ.isLoading ? (
-        <p className="text-sm text-muted-foreground">Lädt …</p>
-      ) : !hasData ? (
-        <div className="rounded-md border border-dashed border-border bg-muted/20 p-6 text-sm text-muted-foreground">
-          Noch keine POS-Verkaufsdaten importiert.
-        </div>
-      ) : sorted.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Keine Artikel für den Filter.</p>
-      ) : (
-        <div className="rounded-md border border-border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <SortableHead
-                  label="Nr."
-                  colKey="nummer"
-                  sortKey={sortKey}
-                  sortDir={sortDir}
-                  onClick={toggleSort}
-                  className="w-20"
-                />
-                <SortableHead
-                  label="Artikel"
-                  colKey="name"
-                  sortKey={sortKey}
-                  sortDir={sortDir}
-                  onClick={toggleSort}
-                />
-                <SortableHead
-                  label="Warengruppe"
-                  colKey="warengruppe"
-                  sortKey={sortKey}
-                  sortDir={sortDir}
-                  onClick={toggleSort}
-                  className="w-40"
-                />
-                <SortableHead
-                  label="Verkauft"
-                  colKey="count"
-                  sortKey={sortKey}
-                  sortDir={sortDir}
-                  onClick={toggleSort}
-                  className="w-28 text-right"
-                />
-                <SortableHead
-                  label="Umsatz"
-                  colKey="umsatz"
-                  sortKey={sortKey}
-                  sortDir={sortDir}
-                  onClick={toggleSort}
-                  className="w-36 text-right"
-                />
-                <SortableHead
-                  label="Ø-Preis"
-                  colKey="avg"
-                  sortKey={sortKey}
-                  sortDir={sortDir}
-                  onClick={toggleSort}
-                  className="w-28 text-right"
-                />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sorted.map((r) => {
-                const avg = averagePriceCents(r.umsatzCents, r.verkaufCount);
-                return (
-                  <TableRow key={r.id}>
-                    <TableCell className="tabular-nums text-muted-foreground">
-                      {intFmt.format(r.nummer)}
-                    </TableCell>
-                    <TableCell className="font-medium">{r.name}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      <AssignCell
-                        row={r}
-                        options={assignableWgOptions}
-                        onAssign={(warengruppeKey) =>
-                          setOverrideMut.mutate({ nummer: r.nummer, warengruppeKey })
-                        }
-                        onClear={() => clearOverrideMut.mutate({ nummer: r.nummer })}
-                        busy={setOverrideMut.isPending || clearOverrideMut.isPending}
-                      />
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {intFmt.format(r.verkaufCount)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatEurFromCents(r.umsatzCents)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {formatEurFromCents(avg)}
-                    </TableCell>
+          {statsQ.isLoading ? (
+            <p className="text-sm text-muted-foreground">Lädt …</p>
+          ) : !hasData ? (
+            <div className="rounded-md border border-dashed border-border bg-muted/20 p-6 text-sm text-muted-foreground">
+              Noch keine POS-Verkaufsdaten importiert.
+            </div>
+          ) : sorted.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Keine Artikel für den Filter.</p>
+          ) : (
+            <div className="rounded-md border border-border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <SortableHead
+                      label="Nr."
+                      colKey="nummer"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onClick={toggleSort}
+                      className="w-20"
+                    />
+                    <SortableHead
+                      label="Artikel"
+                      colKey="name"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onClick={toggleSort}
+                    />
+                    <SortableHead
+                      label="Warengruppe"
+                      colKey="warengruppe"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onClick={toggleSort}
+                      className="w-40"
+                    />
+                    <SortableHead
+                      label="Verkauft"
+                      colKey="count"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onClick={toggleSort}
+                      className="w-28 text-right"
+                    />
+                    <SortableHead
+                      label="Umsatz"
+                      colKey="umsatz"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onClick={toggleSort}
+                      className="w-36 text-right"
+                    />
+                    <SortableHead
+                      label="Ø-Preis"
+                      colKey="avg"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onClick={toggleSort}
+                      className="w-28 text-right"
+                    />
                   </TableRow>
-                );
-              })}
-              <TableRow className="border-t-2 border-border bg-muted/30 font-semibold">
-                <TableCell />
-                <TableCell>Summe (Filter)</TableCell>
-                <TableCell />
-                <TableCell className="text-right tabular-nums">
-                  {intFmt.format(totalCount)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatEurFromCents(totalUmsatz)}
-                </TableCell>
-                <TableCell />
-              </TableRow>
-            </TableBody>
-          </Table>
-        </div>
+                </TableHeader>
+                <TableBody>
+                  {sorted.map((r) => {
+                    const avg = averagePriceCents(r.umsatzCents, r.verkaufCount);
+                    return (
+                      <TableRow key={r.id}>
+                        <TableCell className="tabular-nums text-muted-foreground">
+                          {intFmt.format(r.nummer)}
+                        </TableCell>
+                        <TableCell className="font-medium">{r.name}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          <AssignCell
+                            row={r}
+                            options={assignableWgOptions}
+                            onAssign={(warengruppeKey) =>
+                              setOverrideMut.mutate({ nummer: r.nummer, warengruppeKey })
+                            }
+                            onClear={() => clearOverrideMut.mutate({ nummer: r.nummer })}
+                            busy={setOverrideMut.isPending || clearOverrideMut.isPending}
+                          />
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {intFmt.format(r.verkaufCount)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {formatEurFromCents(r.umsatzCents)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">
+                          {formatEurFromCents(avg)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  <TableRow className="border-t-2 border-border bg-muted/30 font-semibold">
+                    <TableCell />
+                    <TableCell>Summe (Filter)</TableCell>
+                    <TableCell />
+                    <TableCell className="text-right tabular-nums">
+                      {intFmt.format(totalCount)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatEurFromCents(totalUmsatz)}
+                    </TableCell>
+                    <TableCell />
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
