@@ -22,7 +22,7 @@ import {
 import { parseEuroToCents } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/admin/wein")({
-  head: () => ({ meta: [{ title: "Wein · Bestellung" }] }),
+  head: () => ({ meta: [{ title: "Wein · Stammdaten" }] }),
   component: WeinPage,
 });
 
