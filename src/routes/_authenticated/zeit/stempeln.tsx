@@ -21,6 +21,7 @@ import { getCurrentPosition, GpsError } from "@/lib/geo/client";
 import { formatShortDate } from "@/lib/format-date";
 import { parseAbsenceTodayError, type AbsenceType } from "@/lib/time/absence-warn";
 import { useIsPreview, PREVIEW_DISABLED_TOOLTIP } from "@/hooks/use-is-preview";
+import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/_authenticated/zeit/stempeln")({
   head: () => ({
@@ -50,6 +51,10 @@ function formatTime(iso: string): string {
 function ZeitPage() {
   const qc = useQueryClient();
   const isPreview = useIsPreview();
+  const { identity, signOut } = useAuth();
+  // Sonderfall Sumitr: dieser Mitarbeiter nutzt nur die Stempel-Seite und
+  // braucht dort einen direkten Abmelde-Button statt „Zurück".
+  const isSumitr = (identity?.displayName ?? "").trim().toLowerCase().startsWith("sumitr");
   const fetchOpen = useServerFn(getMyOpenEntry);
   const fetchList = useServerFn(listMyEntries);
   const doClockIn = useServerFn(clockIn);
@@ -124,9 +129,21 @@ function ZeitPage() {
     <main className="mx-auto max-w-xl space-y-6 px-4 py-8">
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Zeiterfassung</h1>
-        <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
-          Zurück
-        </Link>
+        {isSumitr ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              void signOut();
+            }}
+          >
+            Abmelden
+          </Button>
+        ) : (
+          <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
+            Zurück
+          </Link>
+        )}
       </header>
 
       <Card className="p-6">
