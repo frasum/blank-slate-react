@@ -46,6 +46,23 @@ Server-Regel „nur referenzfreie Standorte löschbar" (Check auf
 Dialog empfiehlt Deaktivieren als Alltagsweg. Status: TSB deaktiviert,
 bis der Standort aufgesetzt wird.
 
+**ST1b (05.07.2026) — Rest-Audit:** Alle rohen `from("locations")`-Stellen
+durchgegangen. Ursache der weiterhin sichtbaren TSB-Pills auf
+`bestellung/verkaufsartikel` (und potenziell weiteren Auswahl-Seiten):
+`admin/locations.tsx` teilte den Query-Key `["admin","locations"]` mit
+allen Auswahl-Oberflächen, rief `listLocations` aber mit
+`includeInactive: true` auf — der Admin-Cache hat die gefilterte Liste
+überschrieben. Fix: eigener Key `["admin","locations","with-inactive"]`
+auf der Admin-Seite; `invalidateQueries` per Prefix trifft weiterhin
+beide. 0 Auswahl-Ladestellen mussten inhaltlich umgestellt werden
+(alle nutzten schon `listLocations`). 15 Daten-/Integritäts-Zugriffe
+(`assertLocationInOrg`, Namens-Joins an historischen Bestellungen/
+Zeiteinträgen/ICS, Import-Zuordnungen, Provisions-Update, Display-
+API, Geofence-Check) sind bewusst ungefiltert und tragen jetzt einen
+`// ST1: bewusst ungefiltert — Daten-Zugriff …`-Kommentar, damit das
+Audit wiederholbar ist. `telegram-report.server.ts` filtert bereits
+eigenständig auf `is_active = true` (aus ST1).
+
 **KAB1 (05.07.2026):** UI der Tagesabrechnung konsolidiert — der manuelle
 Button „Session speichern" ist entfernt (Auto-Save deckt denselben Payload
 ab, verifiziert: `handleSave` und Auto-Save-Effekt in `SessionFieldsCard`
