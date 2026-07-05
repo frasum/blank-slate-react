@@ -3,7 +3,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { listStaff, setStaffRole, setStaffLocationDepartment } from "@/lib/admin/staff.functions";
+import {
+  listStaff,
+  listStaffPersonalSummary,
+  setStaffRole,
+  setStaffLocationDepartment,
+} from "@/lib/admin/staff.functions";
 import { assignStaffSkills, listSkills, type SkillCategory } from "@/lib/admin/skills.functions";
 import { listLocations } from "@/lib/admin/locations.functions";
 import {
@@ -147,6 +152,21 @@ function StaffListPage() {
   const queryClient = useQueryClient();
 
   const staffQ = useQuery({ queryKey: ["admin", "staff"], queryFn: () => listStaff() });
+  // SD1b — Tenure/Alter kommen aus dediziertem admin/payroll-Reader,
+  // damit listStaff keine Personaldaten mehr transportiert.
+  const personalSummaryQ = useQuery({
+    queryKey: ["admin", "staff-personal-summary"],
+    queryFn: () => listStaffPersonalSummary(),
+  });
+  const personalByStaff = useMemo(() => {
+    const m = new Map<string, { employmentStartDate: string | null; dateOfBirth: string | null }>();
+    for (const r of personalSummaryQ.data ?? [])
+      m.set(r.staffId, {
+        employmentStartDate: r.employmentStartDate,
+        dateOfBirth: r.dateOfBirth,
+      });
+    return m;
+  }, [personalSummaryQ.data]);
   const skillsQ = useQuery({
     queryKey: ["admin", "skills"],
     queryFn: () => listSkills(),
@@ -422,6 +442,8 @@ function StaffListPage() {
                       skillPending={skillMutation.isPending}
                       onToggleDept={toggleDept}
                       onToggleSkill={toggleSkill}
+                      employmentStartDate={personalByStaff.get(s.id)?.employmentStartDate ?? null}
+                      dateOfBirth={personalByStaff.get(s.id)?.dateOfBirth ?? null}
                     />
                   ))}
                   {filtered.length === 0 && (
@@ -454,6 +476,8 @@ function StaffMatrixRow({
   skillPending,
   onToggleDept,
   onToggleSkill,
+  employmentStartDate,
+  dateOfBirth,
 }: {
   staff: StaffRow;
   locations: LocationRow[];
@@ -469,6 +493,8 @@ function StaffMatrixRow({
     active: boolean,
   ) => void;
   onToggleSkill: (staffId: string, skillId: string, has: boolean, currentIds: string[]) => void;
+  employmentStartDate: string | null;
+  dateOfBirth: string | null;
 }) {
   const heldSkills = useMemo(
     () =>
@@ -502,14 +528,14 @@ function StaffMatrixRow({
             className="font-medium text-foreground hover:underline"
           >
             {staff.displayName}
-            {formatTenure(staff.employmentStartDate) && (
+            {formatTenure(employmentStartDate) && (
               <span className="ml-1 font-normal text-muted-foreground">
-                ({formatTenure(staff.employmentStartDate)})
+                ({formatTenure(employmentStartDate)})
               </span>
             )}
-            {computeAgeYears(staff.dateOfBirth) !== null && (
+            {computeAgeYears(dateOfBirth) !== null && (
               <span className="ml-1 font-normal text-muted-foreground">
-                ({computeAgeYears(staff.dateOfBirth)})
+                ({computeAgeYears(dateOfBirth)})
               </span>
             )}
           </Link>

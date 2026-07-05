@@ -2965,3 +2965,29 @@ Neuregelung: Personalverwaltung ist admin + payroll. Konkret:
   Vor-/Nachname (E-Mail-Suche entfällt bewusst).
 
 Ersetzt die B1c-Ursprungsentscheidung „Admin/Manager" formal.
+
+### SD1b — Geburts-/Eintrittsdatum raus aus manager-lesbaren Readern (05.07.)
+
+Nachschärfung zu SD1: `listStaff` (manager-lesbar) hat zwischenzeitlich
+`date_of_birth` (für die Alters-Anzeige) und `employment_start_date` (für
+die Tenure-Klammer) an alle Manager-Konsumenten geliefert, obwohl beide
+Felder nur in `staff.index.tsx` (seit SD1 admin/payroll-only) genutzt
+werden. Ergebnis: PII (inkl. Jahrgang) floss unnötig durch geteilte Reader.
+
+Änderungen:
+
+- `listStaff` liefert weder `dateOfBirth` noch `employmentStartDate`.
+- Neuer Reader `listStaffPersonalSummary` (GET, admin/payroll,
+  org-scoped) liefert genau diese beiden Felder pro Staff-Zeile; die
+  Staff-Verwaltung ruft ihn zusätzlich zu `listStaff` auf.
+- `getStaffForRoster` liefert statt `dateOfBirth` nur noch
+  `birthdayMonthDay` (MM-DD, server-seitig via `slice(5, 10)`);
+  `RosterGrid` vergleicht direkt gegen `iso.slice(5, 10)`. Jahrgang
+  verlässt den Server nicht mehr.
+- Regressionsschutz auf Typebene: `staff-list-shape.test.ts` (keine
+  `dateOfBirth`/`employmentStartDate` mehr), neu
+  `roster-staff-row-shape.test.ts` (kein `dateOfBirth`, dafür
+  `birthdayMonthDay`).
+
+Lektion: **Neue Felder in geteilten Readern immer gegen die Guard-Stufe
+des Readers prüfen — nicht gegen die Seite, für die man sie gerade baut.**

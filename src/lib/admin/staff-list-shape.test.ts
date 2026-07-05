@@ -10,6 +10,11 @@ describe("listStaff Rückgabe-Shape (SD1)", () => {
     expectTypeOf<StaffListRow>().not.toHaveProperty("email");
     expectTypeOf<StaffListRow>().not.toHaveProperty("phone");
   });
+  // SD1b — Geburts-/Eintrittsdatum dürfen im manager-lesbaren Reader nicht mehr auftauchen.
+  it("enthält keine dateOfBirth/employmentStartDate-Felder (SD1b)", () => {
+    expectTypeOf<StaffListRow>().not.toHaveProperty("dateOfBirth");
+    expectTypeOf<StaffListRow>().not.toHaveProperty("employmentStartDate");
+  });
   it("liefert weiterhin Anzeigedaten für die Nicht-Personalverwaltungs-Konsumenten", () => {
     expectTypeOf<StaffListRow>().toHaveProperty("id");
     expectTypeOf<StaffListRow>().toHaveProperty("displayName");
