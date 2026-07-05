@@ -86,9 +86,8 @@ const GROUPS: Group[] = [
   {
     key: "personal",
     label: "Mitarbeiter",
-    default: "/admin/staff",
+    default: "/admin/zeit-uebersicht",
     prefixes: [
-      "/admin/staff",
       "/admin/dienstplan",
       "/admin/zeit-uebersicht",
       "/admin/urlaub",
@@ -101,9 +100,6 @@ const GROUPS: Group[] = [
       { to: "/admin/dienstplan", label: "Dienstplan" },
       { to: "/admin/urlaub", label: "Urlaubsantrag / Schichttausch" },
       { to: "/admin/personal-antraege", label: "Personal-Anträge", roles: ["admin"] },
-      // SD1 — „Mitarbeiter" nur für admin (Manager haben keinen Zutritt mehr;
-      // payroll erreicht die Seite über die eigene Tab-Leiste).
-      { to: "/admin/staff", label: "Mitarbeiter", roles: ["admin"] },
       { to: "/admin/wein-quiz", label: "Wein-Quiz" },
       { to: "/admin/dokumente", label: "Dokument-Vorlagen", roles: ["admin"] },
     ],
@@ -137,11 +133,14 @@ const GROUPS: Group[] = [
     key: "stammdaten",
     label: "Stammdaten",
     default: "/admin/locations",
-    prefixes: ["/admin/locations", "/admin/verkaufsartikel", "/admin/wein"],
+    prefixes: ["/admin/locations", "/admin/verkaufsartikel", "/admin/wein", "/admin/staff"],
     sub: [
       { to: "/admin/locations", label: "Standorte" },
       { to: "/admin/verkaufsartikel", label: "Verkaufsartikel" },
       { to: "/admin/wein", label: "Wein" },
+      // SD1 — „Mitarbeiter" nur für admin (Manager haben keinen Zutritt mehr;
+      // payroll erreicht die Seite über die eigene Tab-Leiste).
+      { to: "/admin/staff", label: "Mitarbeiter", roles: ["admin"] },
     ],
   },
   {
