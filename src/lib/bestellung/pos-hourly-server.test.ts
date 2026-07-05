@@ -25,9 +25,7 @@ describe("ReplacePosHourlyStatsInput", () => {
   });
 
   it("lehnt unbekannte Periode ab", () => {
-    expect(
-      ReplacePosHourlyStatsInput.safeParse({ ...base, period: "monat" }).success,
-    ).toBe(false);
+    expect(ReplacePosHourlyStatsInput.safeParse({ ...base, period: "monat" }).success).toBe(false);
   });
 
   it("lehnt Zukunftsdatum ab", () => {

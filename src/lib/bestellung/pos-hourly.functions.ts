@@ -11,10 +11,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { writeAuditLog } from "@/lib/admin/audit";
 import type { Database } from "@/integrations/supabase/types";
-import {
-  ReplacePosHourlyStatsInput,
-  checkHourlyAgainstFooter,
-} from "./pos-hourly-server";
+import { ReplacePosHourlyStatsInput, checkHourlyAgainstFooter } from "./pos-hourly-server";
 
 type Admin = SupabaseClient<Database>;
 

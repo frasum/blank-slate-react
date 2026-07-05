@@ -51,10 +51,7 @@ import {
   parsePosHourly,
   type ParsedPosHourly,
 } from "@/lib/bestellung/pos-hourly-parser";
-import {
-  avgPerBookingCents,
-  hourShare,
-} from "@/lib/bestellung/pos-hourly-server";
+import { avgPerBookingCents, hourShare } from "@/lib/bestellung/pos-hourly-server";
 import type {
   PosHourlyResult,
   PosHourlyRowRead,
@@ -67,7 +64,10 @@ type Metric = "umsatz" | "anzahl";
 const dateFmt = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" });
 const eurFmt = new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" });
 const intFmt = new Intl.NumberFormat("de-DE");
-const pctFmt = new Intl.NumberFormat("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const pctFmt = new Intl.NumberFormat("de-DE", {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+});
 
 function formatEurFromCents(cents: number | null): string {
   return cents === null ? "—" : eurFmt.format(cents / 100);
@@ -223,9 +223,7 @@ export function PosHourlyView({
                         <div className="font-medium">{d.label}</div>
                         <div>Umsatz: {eurFmt.format(d.wertEur)}</div>
                         <div>Buchungen: {intFmt.format(d.anzahl)}</div>
-                        <div>
-                          Anteil: {d.share === null ? "—" : `${pctFmt.format(d.share)} %`}
-                        </div>
+                        <div>Anteil: {d.share === null ? "—" : `${pctFmt.format(d.share)} %`}</div>
                         <div>Ø/Buchung: {formatEurFromCents(d.avg)}</div>
                       </div>
                     );
@@ -235,7 +233,9 @@ export function PosHourlyView({
                   {chartData.map((d) => (
                     <Cell
                       key={d.hour}
-                      fill={d.isPeak ? "hsl(var(--primary))" : "hsl(var(--chart-1, var(--primary)))"}
+                      fill={
+                        d.isPeak ? "hsl(var(--primary))" : "hsl(var(--chart-1, var(--primary)))"
+                      }
                       fillOpacity={d.isPeak ? 1 : 0.6}
                     />
                   ))}
@@ -311,8 +311,7 @@ async function extractSheetRows(file: File): Promise<(string | number | null)[][
   await wb.xlsx.load(await file.arrayBuffer());
   // "Stunden-Bericht (lang) - 1" ist üblicherweise das erste Sheet; wenn ein
   // Match auf den Namen möglich ist, bevorzugen wir das.
-  const ws =
-    wb.worksheets.find((s) => /stunden-bericht/i.test(s.name)) ?? wb.worksheets[0];
+  const ws = wb.worksheets.find((s) => /stunden-bericht/i.test(s.name)) ?? wb.worksheets[0];
   if (!ws) throw new Error("Datei enthält kein Arbeitsblatt.");
   const out: (string | number | null)[][] = [];
   ws.eachRow({ includeEmpty: true }, (row) => {
@@ -413,8 +412,7 @@ function PosHourlyImportDialog({
     }
   }
 
-  const canSubmit =
-    !!parsed && allHourlyChecksOk(parsed) && !!locationId && !submitMut.isPending;
+  const canSubmit = !!parsed && allHourlyChecksOk(parsed) && !!locationId && !submitMut.isPending;
 
   async function handleSubmit() {
     if (!parsed || !locationId || !parsed.footer) return;
@@ -450,9 +448,9 @@ function PosHourlyImportDialog({
         <DialogHeader>
           <DialogTitle>POS-Stundenbericht importieren</DialogTitle>
           <DialogDescription>
-            Vectron „Stunden-Bericht (lang)" (XLSX) einlesen, Kontrollsummen prüfen und Standort
-            × Periode ersetzen. Die Datei bleibt im Browser — nur die geprüften Zeilen gehen an
-            den Server.
+            Vectron „Stunden-Bericht (lang)" (XLSX) einlesen, Kontrollsummen prüfen und Standort ×
+            Periode ersetzen. Die Datei bleibt im Browser — nur die geprüften Zeilen gehen an den
+            Server.
           </DialogDescription>
         </DialogHeader>
 
@@ -514,9 +512,7 @@ function PosHourlyImportDialog({
               />
               <SummaryCard
                 label="Σ Umsatz"
-                value={eurFmt.format(
-                  parsed.rows.reduce((s, r) => s + r.wertCents, 0) / 100,
-                )}
+                value={eurFmt.format(parsed.rows.reduce((s, r) => s + r.wertCents, 0) / 100)}
               />
             </div>
 

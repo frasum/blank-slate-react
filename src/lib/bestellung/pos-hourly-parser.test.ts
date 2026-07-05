@@ -9,10 +9,7 @@ function hourRow(h: string, anzahl: number | string | null, wert: number | strin
 
 describe("parsePosHourly", () => {
   it("liest ein sauberes 24-Stunden-Sheet mit Fußzeile", () => {
-    const rows: (string | number | null)[][] = [
-      header,
-      ["-", null, null, null, null, null],
-    ];
+    const rows: (string | number | null)[][] = [header, ["-", null, null, null, null, null]];
     for (let h = 0; h < 24; h++) {
       rows.push(hourRow(`${h}:00`, 10, 5)); // 10 * 24 = 240; 5.00 * 24 = 120.00
     }
@@ -48,11 +45,7 @@ describe("parsePosHourly", () => {
   });
 
   it("Anzahl>0 mit leerem Wert → wertCents 0", () => {
-    const rows = [
-      header,
-      hourRow("7:00", 3, null),
-      ["Alle (Zeit)", 3, 0, null, null, null],
-    ];
+    const rows = [header, hourRow("7:00", 3, null), ["Alle (Zeit)", 3, 0, null, null, null]];
     const p = parsePosHourly(rows);
     expect(p.rows[0]).toEqual({ hour: 7, anzahl: 3, wertCents: 0 });
     expect(allHourlyChecksOk(p)).toBe(true);
@@ -82,11 +75,7 @@ describe("parsePosHourly", () => {
   });
 
   it("Fußzeilen-Mismatch → checks nicht ok", () => {
-    const rows = [
-      header,
-      hourRow("0:00", 1, 1),
-      ["Alle (Zeit)", 2, 2, null, null, null],
-    ];
+    const rows = [header, hourRow("0:00", 1, 1), ["Alle (Zeit)", 2, 2, null, null, null]];
     const p = parsePosHourly(rows);
     expect(allHourlyChecksOk(p)).toBe(false);
   });
