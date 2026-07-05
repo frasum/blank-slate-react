@@ -13,7 +13,6 @@ import { Check, Download, FileText, Lock, Printer, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { todayIso } from "@/lib/format";
 import { KassePageSkeleton } from "@/components/ui/page-skeletons";
@@ -337,6 +336,7 @@ function KassePage() {
 
   // KAB1: Kopplungs-Dialog „Drucken + Finalisieren"
   const [printCouple, setPrintCouple] = useState<{ lockAfter: boolean } | null>(null);
+  // KAB1: „danach Session sperren" ist Standard-AN für Admins, aber UI-verborgen.
   const [printCoupleBusy, setPrintCoupleBusy] = useState(false);
 
   // -------------------- Wasserlinie (Admin) --------------------
