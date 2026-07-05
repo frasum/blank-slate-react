@@ -351,7 +351,7 @@ export async function generateDailySummaryPdf(data: PdfExportData): Promise<{
       },
     },
     {
-      content: fmtEur(_diffToTargetCents),
+      content: fmtEurSigned(_diffToTargetCents),
       styles: {
         fontStyle: "bold",
         fontSize: 10,
