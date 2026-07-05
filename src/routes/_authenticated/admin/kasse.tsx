@@ -360,6 +360,8 @@ function KassePage() {
       })),
       staffById: new Map((staffQ.data ?? []).map((s) => [s.id, s.displayName])),
       locationName: (locationsQ.data ?? []).find((l) => l.id === locationId)?.name ?? undefined,
+      createdByName: identity.displayName ?? null,
+      managerOnDutyNames: ov.managerOnDutyNames ?? [],
       cashBalanceTargetCents: cashBalanceTargetResolvedCents,
       previousDeficitCents,
       previousDeficitSourceDate,

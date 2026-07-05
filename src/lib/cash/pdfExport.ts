@@ -61,6 +61,9 @@ export interface PdfExportData {
   session: PdfSession;
   locationName?: string;
   createdByName?: string | null;
+  /** DR2: Namen der Personen, die an diesem Tag im Dienstplan-Bereich GL
+   *  (Geschäftsleitung) am Standort eingeplant waren. */
+  managerOnDutyNames?: string[];
   channels: PdfChannel[];
   channelAmounts: { channelId: string; amountCents: Cents }[];
   terminals: PdfTerminal[];
@@ -178,6 +181,9 @@ export async function generateDailySummaryPdf(data: PdfExportData): Promise<{
   doc.setFont("helvetica", "normal");
   const parts: string[] = [];
   if (data.createdByName) parts.push(`Erstellt von: ${data.createdByName}`);
+  if (data.managerOnDutyNames && data.managerOnDutyNames.length > 0) {
+    parts.push(`Manager: ${data.managerOnDutyNames.join(", ")}`);
+  }
   parts.push(`Export: ${format(new Date(), "dd.MM.yyyy HH:mm", { locale: de })}`);
   doc.text(parts.join("  ·  "), pageWidth / 2, y, { align: "center" });
   doc.setTextColor(0);

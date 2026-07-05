@@ -209,6 +209,9 @@ export function renderDailyPrintHtml(data: PdfExportData): string {
 
   const subParts: string[] = [];
   if (data.createdByName) subParts.push(`Erstellt von: ${esc(data.createdByName)}`);
+  if (data.managerOnDutyNames && data.managerOnDutyNames.length > 0) {
+    subParts.push(`Manager: ${esc(data.managerOnDutyNames.join(", "))}`);
+  }
   subParts.push(`Export: ${esc(nowStr)}`);
 
   const rowKV = (label: string, value: string, extra = ""): string =>
