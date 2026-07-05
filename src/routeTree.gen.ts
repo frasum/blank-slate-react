@@ -33,6 +33,7 @@ import { Route as AuthenticatedZeitAufgabenRouteImport } from './routes/_authent
 import { Route as AuthenticatedZeitAbrechnungRouteImport } from './routes/_authenticated/zeit/abrechnung'
 import { Route as AuthenticatedAdminZeitUebersichtRouteImport } from './routes/_authenticated/admin/zeit-uebersicht'
 import { Route as AuthenticatedAdminWeinQuizRouteImport } from './routes/_authenticated/admin/wein-quiz'
+import { Route as AuthenticatedAdminWeinRouteImport } from './routes/_authenticated/admin/wein'
 import { Route as AuthenticatedAdminVerkaufsartikelRouteImport } from './routes/_authenticated/admin/verkaufsartikel'
 import { Route as AuthenticatedAdminUrlaubRouteImport } from './routes/_authenticated/admin/urlaub'
 import { Route as AuthenticatedAdminTrinkgeldRestRouteImport } from './routes/_authenticated/admin/trinkgeld-rest'
@@ -65,7 +66,6 @@ import { Route as ApiPublicCalendarTokenRouteImport } from './routes/api/public/
 import { Route as AuthenticatedAdminStaffNewRouteImport } from './routes/_authenticated/admin/staff.new'
 import { Route as AuthenticatedAdminStaffStaffIdRouteImport } from './routes/_authenticated/admin/staff.$staffId'
 import { Route as AuthenticatedAdminEinstellungenEasyorderVerwaltungRouteImport } from './routes/_authenticated/admin/einstellungen.easyorder-verwaltung'
-import { Route as AuthenticatedAdminBestellungWeinRouteImport } from './routes/_authenticated/admin/bestellung.wein'
 import { Route as AuthenticatedAdminBestellungLieferantenRouteImport } from './routes/_authenticated/admin/bestellung.lieferanten'
 import { Route as AuthenticatedAdminBestellungInventurRouteImport } from './routes/_authenticated/admin/bestellung.inventur'
 import { Route as AuthenticatedAdminBestellungBestellungenRouteImport } from './routes/_authenticated/admin/bestellung.bestellungen'
@@ -199,6 +199,11 @@ const AuthenticatedAdminWeinQuizRoute =
     path: '/wein-quiz',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminWeinRoute = AuthenticatedAdminWeinRouteImport.update({
+  id: '/wein',
+  path: '/wein',
+  getParentRoute: () => AuthenticatedAdminRouteRoute,
+} as any)
 const AuthenticatedAdminVerkaufsartikelRoute =
   AuthenticatedAdminVerkaufsartikelRouteImport.update({
     id: '/verkaufsartikel',
@@ -387,12 +392,6 @@ const AuthenticatedAdminEinstellungenEasyorderVerwaltungRoute =
     path: '/easyorder-verwaltung',
     getParentRoute: () => AuthenticatedAdminEinstellungenRoute,
   } as any)
-const AuthenticatedAdminBestellungWeinRoute =
-  AuthenticatedAdminBestellungWeinRouteImport.update({
-    id: '/wein',
-    path: '/wein',
-    getParentRoute: () => AuthenticatedAdminBestellungRoute,
-  } as any)
 const AuthenticatedAdminBestellungLieferantenRoute =
   AuthenticatedAdminBestellungLieferantenRouteImport.update({
     id: '/lieferanten',
@@ -445,6 +444,7 @@ export interface FileRoutesByFullPath {
   '/admin/trinkgeld-rest': typeof AuthenticatedAdminTrinkgeldRestRoute
   '/admin/urlaub': typeof AuthenticatedAdminUrlaubRoute
   '/admin/verkaufsartikel': typeof AuthenticatedAdminVerkaufsartikelRoute
+  '/admin/wein': typeof AuthenticatedAdminWeinRoute
   '/admin/wein-quiz': typeof AuthenticatedAdminWeinQuizRoute
   '/admin/zeit-uebersicht': typeof AuthenticatedAdminZeitUebersichtRoute
   '/zeit/abrechnung': typeof AuthenticatedZeitAbrechnungRoute
@@ -461,7 +461,6 @@ export interface FileRoutesByFullPath {
   '/admin/bestellung/bestellungen': typeof AuthenticatedAdminBestellungBestellungenRoute
   '/admin/bestellung/inventur': typeof AuthenticatedAdminBestellungInventurRoute
   '/admin/bestellung/lieferanten': typeof AuthenticatedAdminBestellungLieferantenRoute
-  '/admin/bestellung/wein': typeof AuthenticatedAdminBestellungWeinRoute
   '/admin/einstellungen/easyorder-verwaltung': typeof AuthenticatedAdminEinstellungenEasyorderVerwaltungRoute
   '/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
   '/admin/staff/new': typeof AuthenticatedAdminStaffNewRoute
@@ -502,6 +501,7 @@ export interface FileRoutesByTo {
   '/admin/trinkgeld-rest': typeof AuthenticatedAdminTrinkgeldRestRoute
   '/admin/urlaub': typeof AuthenticatedAdminUrlaubRoute
   '/admin/verkaufsartikel': typeof AuthenticatedAdminVerkaufsartikelRoute
+  '/admin/wein': typeof AuthenticatedAdminWeinRoute
   '/admin/wein-quiz': typeof AuthenticatedAdminWeinQuizRoute
   '/admin/zeit-uebersicht': typeof AuthenticatedAdminZeitUebersichtRoute
   '/zeit/abrechnung': typeof AuthenticatedZeitAbrechnungRoute
@@ -518,7 +518,6 @@ export interface FileRoutesByTo {
   '/admin/bestellung/bestellungen': typeof AuthenticatedAdminBestellungBestellungenRoute
   '/admin/bestellung/inventur': typeof AuthenticatedAdminBestellungInventurRoute
   '/admin/bestellung/lieferanten': typeof AuthenticatedAdminBestellungLieferantenRoute
-  '/admin/bestellung/wein': typeof AuthenticatedAdminBestellungWeinRoute
   '/admin/einstellungen/easyorder-verwaltung': typeof AuthenticatedAdminEinstellungenEasyorderVerwaltungRoute
   '/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
   '/admin/staff/new': typeof AuthenticatedAdminStaffNewRoute
@@ -565,6 +564,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/trinkgeld-rest': typeof AuthenticatedAdminTrinkgeldRestRoute
   '/_authenticated/admin/urlaub': typeof AuthenticatedAdminUrlaubRoute
   '/_authenticated/admin/verkaufsartikel': typeof AuthenticatedAdminVerkaufsartikelRoute
+  '/_authenticated/admin/wein': typeof AuthenticatedAdminWeinRoute
   '/_authenticated/admin/wein-quiz': typeof AuthenticatedAdminWeinQuizRoute
   '/_authenticated/admin/zeit-uebersicht': typeof AuthenticatedAdminZeitUebersichtRoute
   '/_authenticated/zeit/abrechnung': typeof AuthenticatedZeitAbrechnungRoute
@@ -581,7 +581,6 @@ export interface FileRoutesById {
   '/_authenticated/admin/bestellung/bestellungen': typeof AuthenticatedAdminBestellungBestellungenRoute
   '/_authenticated/admin/bestellung/inventur': typeof AuthenticatedAdminBestellungInventurRoute
   '/_authenticated/admin/bestellung/lieferanten': typeof AuthenticatedAdminBestellungLieferantenRoute
-  '/_authenticated/admin/bestellung/wein': typeof AuthenticatedAdminBestellungWeinRoute
   '/_authenticated/admin/einstellungen/easyorder-verwaltung': typeof AuthenticatedAdminEinstellungenEasyorderVerwaltungRoute
   '/_authenticated/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
   '/_authenticated/admin/staff/new': typeof AuthenticatedAdminStaffNewRoute
@@ -628,6 +627,7 @@ export interface FileRouteTypes {
     | '/admin/trinkgeld-rest'
     | '/admin/urlaub'
     | '/admin/verkaufsartikel'
+    | '/admin/wein'
     | '/admin/wein-quiz'
     | '/admin/zeit-uebersicht'
     | '/zeit/abrechnung'
@@ -644,7 +644,6 @@ export interface FileRouteTypes {
     | '/admin/bestellung/bestellungen'
     | '/admin/bestellung/inventur'
     | '/admin/bestellung/lieferanten'
-    | '/admin/bestellung/wein'
     | '/admin/einstellungen/easyorder-verwaltung'
     | '/admin/staff/$staffId'
     | '/admin/staff/new'
@@ -685,6 +684,7 @@ export interface FileRouteTypes {
     | '/admin/trinkgeld-rest'
     | '/admin/urlaub'
     | '/admin/verkaufsartikel'
+    | '/admin/wein'
     | '/admin/wein-quiz'
     | '/admin/zeit-uebersicht'
     | '/zeit/abrechnung'
@@ -701,7 +701,6 @@ export interface FileRouteTypes {
     | '/admin/bestellung/bestellungen'
     | '/admin/bestellung/inventur'
     | '/admin/bestellung/lieferanten'
-    | '/admin/bestellung/wein'
     | '/admin/einstellungen/easyorder-verwaltung'
     | '/admin/staff/$staffId'
     | '/admin/staff/new'
@@ -747,6 +746,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/trinkgeld-rest'
     | '/_authenticated/admin/urlaub'
     | '/_authenticated/admin/verkaufsartikel'
+    | '/_authenticated/admin/wein'
     | '/_authenticated/admin/wein-quiz'
     | '/_authenticated/admin/zeit-uebersicht'
     | '/_authenticated/zeit/abrechnung'
@@ -763,7 +763,6 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/bestellung/bestellungen'
     | '/_authenticated/admin/bestellung/inventur'
     | '/_authenticated/admin/bestellung/lieferanten'
-    | '/_authenticated/admin/bestellung/wein'
     | '/_authenticated/admin/einstellungen/easyorder-verwaltung'
     | '/_authenticated/admin/staff/$staffId'
     | '/_authenticated/admin/staff/new'
@@ -956,6 +955,13 @@ declare module '@tanstack/react-router' {
       path: '/wein-quiz'
       fullPath: '/admin/wein-quiz'
       preLoaderRoute: typeof AuthenticatedAdminWeinQuizRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/wein': {
+      id: '/_authenticated/admin/wein'
+      path: '/wein'
+      fullPath: '/admin/wein'
+      preLoaderRoute: typeof AuthenticatedAdminWeinRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
     '/_authenticated/admin/verkaufsartikel': {
@@ -1182,13 +1188,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminEinstellungenEasyorderVerwaltungRouteImport
       parentRoute: typeof AuthenticatedAdminEinstellungenRoute
     }
-    '/_authenticated/admin/bestellung/wein': {
-      id: '/_authenticated/admin/bestellung/wein'
-      path: '/wein'
-      fullPath: '/admin/bestellung/wein'
-      preLoaderRoute: typeof AuthenticatedAdminBestellungWeinRouteImport
-      parentRoute: typeof AuthenticatedAdminBestellungRoute
-    }
     '/_authenticated/admin/bestellung/lieferanten': {
       id: '/_authenticated/admin/bestellung/lieferanten'
       path: '/lieferanten'
@@ -1217,7 +1216,6 @@ interface AuthenticatedAdminBestellungRouteChildren {
   AuthenticatedAdminBestellungBestellungenRoute: typeof AuthenticatedAdminBestellungBestellungenRoute
   AuthenticatedAdminBestellungInventurRoute: typeof AuthenticatedAdminBestellungInventurRoute
   AuthenticatedAdminBestellungLieferantenRoute: typeof AuthenticatedAdminBestellungLieferantenRoute
-  AuthenticatedAdminBestellungWeinRoute: typeof AuthenticatedAdminBestellungWeinRoute
   AuthenticatedAdminBestellungIndexRoute: typeof AuthenticatedAdminBestellungIndexRoute
 }
 
@@ -1229,8 +1227,6 @@ const AuthenticatedAdminBestellungRouteChildren: AuthenticatedAdminBestellungRou
       AuthenticatedAdminBestellungInventurRoute,
     AuthenticatedAdminBestellungLieferantenRoute:
       AuthenticatedAdminBestellungLieferantenRoute,
-    AuthenticatedAdminBestellungWeinRoute:
-      AuthenticatedAdminBestellungWeinRoute,
     AuthenticatedAdminBestellungIndexRoute:
       AuthenticatedAdminBestellungIndexRoute,
   }
@@ -1299,6 +1295,7 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminTrinkgeldRestRoute: typeof AuthenticatedAdminTrinkgeldRestRoute
   AuthenticatedAdminUrlaubRoute: typeof AuthenticatedAdminUrlaubRoute
   AuthenticatedAdminVerkaufsartikelRoute: typeof AuthenticatedAdminVerkaufsartikelRoute
+  AuthenticatedAdminWeinRoute: typeof AuthenticatedAdminWeinRoute
   AuthenticatedAdminWeinQuizRoute: typeof AuthenticatedAdminWeinQuizRoute
   AuthenticatedAdminZeitUebersichtRoute: typeof AuthenticatedAdminZeitUebersichtRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
@@ -1335,6 +1332,7 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
     AuthenticatedAdminUrlaubRoute: AuthenticatedAdminUrlaubRoute,
     AuthenticatedAdminVerkaufsartikelRoute:
       AuthenticatedAdminVerkaufsartikelRoute,
+    AuthenticatedAdminWeinRoute: AuthenticatedAdminWeinRoute,
     AuthenticatedAdminWeinQuizRoute: AuthenticatedAdminWeinQuizRoute,
     AuthenticatedAdminZeitUebersichtRoute:
       AuthenticatedAdminZeitUebersichtRoute,

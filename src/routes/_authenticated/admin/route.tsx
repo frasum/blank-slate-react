@@ -137,10 +137,11 @@ const GROUPS: Group[] = [
     key: "stammdaten",
     label: "Stammdaten",
     default: "/admin/locations",
-    prefixes: ["/admin/locations", "/admin/verkaufsartikel"],
+    prefixes: ["/admin/locations", "/admin/verkaufsartikel", "/admin/wein"],
     sub: [
       { to: "/admin/locations", label: "Standorte" },
       { to: "/admin/verkaufsartikel", label: "Verkaufsartikel" },
+      { to: "/admin/wein", label: "Wein" },
     ],
   },
   {

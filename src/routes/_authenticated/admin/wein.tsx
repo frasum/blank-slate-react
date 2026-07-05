@@ -21,8 +21,8 @@ import {
 } from "@/lib/bestellung/wine-research.functions";
 import { parseEuroToCents } from "@/lib/format";
 
-export const Route = createFileRoute("/_authenticated/admin/bestellung/wein")({
-  head: () => ({ meta: [{ title: "Wein · Bestellung" }] }),
+export const Route = createFileRoute("/_authenticated/admin/wein")({
+  head: () => ({ meta: [{ title: "Wein · Stammdaten" }] }),
   component: WeinPage,
 });
 
