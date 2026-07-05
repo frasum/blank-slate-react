@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   buildDailyReport,
   escapeHtml,
+  fmtBerlinTime,
   DEFAULT_REPORT_FLAGS,
   type ReportInput,
   type ReportFlags,
@@ -45,6 +46,44 @@ function makeInput(over?: Partial<ReportInput>): ReportInput {
 describe("escapeHtml", () => {
   it("escaped & < > in dieser Reihenfolge", () => {
     expect(escapeHtml("A & B <b>x</b>")).toBe("A &amp; B &lt;b&gt;x&lt;/b&gt;");
+  });
+});
+
+describe("fmtBerlinTime", () => {
+  it("reine HH:MM-Uhrzeit bleibt HH:MM", () => {
+    expect(fmtBerlinTime("15:00")).toBe("15:00");
+  });
+  it("HH:MM:SS wird auf HH:MM gekürzt", () => {
+    expect(fmtBerlinTime("15:00:00")).toBe("15:00");
+  });
+  it("ISO mit Zeitzone → Berlin-HH:MM", () => {
+    expect(fmtBerlinTime("2026-07-03T20:15:00+02:00")).toBe("20:15");
+  });
+  it("null → --:--", () => {
+    expect(fmtBerlinTime(null)).toBe("--:--");
+  });
+  it("Unfug → --:--", () => {
+    expect(fmtBerlinTime("nope")).toBe("--:--");
+  });
+});
+
+describe("buildDailyReport — Küche mit reinen HH:MM-Strings", () => {
+  it("rendert (15:00–23:30) statt (--:-- – --:--)", () => {
+    const out = buildDailyReport(
+      {
+        businessDate: "2026-07-03",
+        locations: [
+          {
+            locationId: "loc-x",
+            name: "BÄNG",
+            hasSession: true,
+            kitchen: [{ name: "K", shiftStart: "15:00", shiftEnd: "23:30" }],
+          },
+        ],
+      },
+      DEFAULT_REPORT_FLAGS,
+    );
+    expect(out).toContain("(15:00–23:30)");
   });
 });
 
