@@ -3481,7 +3481,7 @@ Audit-Actions: `display_reminder.created|updated|deleted`.
   färbt sich (Gelb #FACC15 / Rot #F08A7A, schwarze Schrift), Layout-Canvas
   bekommt pastelligen Hintergrund. `PillSelect` färbt nur mit `themed`-Prop;
   alle anderen PillSelect-Verwendungen bleiben pixelgleich. Druck (`@media
-  print`) resettet das Theme.
+print`) resettet das Theme.
 
 ### Real-Datei-Validierung Stundenberichte (cent-verifiziert)
 
