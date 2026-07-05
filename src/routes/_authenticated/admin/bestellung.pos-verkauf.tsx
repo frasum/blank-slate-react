@@ -331,11 +331,16 @@ function PosVerkaufPage() {
                       {intFmt.format(r.nummer)}
                     </TableCell>
                     <TableCell className="font-medium">{r.name}</TableCell>
-                    <TableCell
-                      className="text-muted-foreground"
-                      title={r.productGroup !== null ? `Nr. ${r.productGroup}` : undefined}
-                    >
-                      {r.warengruppe ?? (r.productGroup !== null ? `#${r.productGroup}` : "—")}
+                    <TableCell className="text-muted-foreground">
+                      <AssignCell
+                        row={r}
+                        options={assignableWgOptions}
+                        onAssign={(warengruppeKey) =>
+                          setOverrideMut.mutate({ nummer: r.nummer, warengruppeKey })
+                        }
+                        onClear={() => clearOverrideMut.mutate({ nummer: r.nummer })}
+                        busy={setOverrideMut.isPending || clearOverrideMut.isPending}
+                      />
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {intFmt.format(r.verkaufCount)}
