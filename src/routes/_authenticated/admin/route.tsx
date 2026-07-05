@@ -93,8 +93,10 @@ const GROUPS: Group[] = [
       "/admin/zeit-uebersicht",
       "/admin/urlaub",
       "/admin/personal-antraege",
+      "/admin/wein-quiz",
     ],
     sub: [
+      { to: "/admin/wein-quiz", label: "Wein-Quiz" },
       // SD1 — „Mitarbeiter" nur für admin (Manager haben keinen Zutritt mehr;
       // payroll erreicht die Seite über die eigene Tab-Leiste).
       { to: "/admin/staff", label: "Mitarbeiter", roles: ["admin"] },
