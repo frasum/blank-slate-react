@@ -470,12 +470,14 @@ type LocationRowData = {
   geocoded_address?: string | null;
   cashBalanceTargetCents?: number | null;
   cashBalanceTargetResolvedCents?: number | null;
+  isActive?: boolean;
 };
 
 function LocationRow(props: {
   loc: LocationRowData;
   onSave: (name: string, details: LocationDetails) => void;
   onDelete: () => void;
+  onToggleActive: (next: boolean) => void;
   onGeoChanged: () => void;
 }) {
   const [name, setName] = useState(props.loc.name);
@@ -511,8 +513,14 @@ function LocationRow(props: {
     .filter(Boolean)
     .join(" · ");
 
+  const isActive = props.loc.isActive !== false;
   return (
-    <div className="max-w-2xl space-y-2 rounded-md border border-input bg-background p-3">
+    <div
+      className={
+        "max-w-2xl space-y-2 rounded-md border border-input bg-background p-3 " +
+        (isActive ? "" : "opacity-60")
+      }
+    >
       <div className="flex items-start gap-2">
         <button
           type="button"
@@ -530,7 +538,14 @@ function LocationRow(props: {
             ▸
           </span>
           <span className="flex-1">
-            <span className="block text-sm font-medium text-foreground">{props.loc.name}</span>
+            <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+              {props.loc.name}
+              {!isActive && (
+                <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-normal uppercase tracking-wide text-muted-foreground">
+                  deaktiviert
+                </span>
+              )}
+            </span>
             {summary ? (
               <span className="block text-xs text-muted-foreground">{summary}</span>
             ) : (
@@ -545,6 +560,12 @@ function LocationRow(props: {
           className="rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground hover:bg-accent"
         >
           Display
+        </button>
+        <button
+          onClick={() => props.onToggleActive(!isActive)}
+          className="rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground hover:bg-accent"
+        >
+          {isActive ? "Deaktivieren" : "Aktivieren"}
         </button>
         <button
           onClick={() => props.onDelete()}
