@@ -62,28 +62,11 @@ function buildStaffDeptsMap(
 // Wird server-seitig VOR Insert/Update aufgerufen (Client nicht vertrauen).
 async function assertStaffDeptAssignment(
   supabaseAdmin: {
-    from: (t: string) => {
-      select: (s: string) => {
-        eq: (
-          c: string,
-          v: string,
-        ) => {
-          eq: (
-            c: string,
-            v: string,
-          ) => {
-            eq: (
-              c: string,
-              v: string,
-            ) => {
-              eq: (
-                c: string,
-                v: string,
-              ) => { maybeSingle: () => Promise<{ data: unknown; error: unknown }> };
-            };
-          };
-        };
-      };
+    from: (
+      t: "staff_locations",
+    ) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      select: (s: string) => any;
     };
   },
   organizationId: string,
