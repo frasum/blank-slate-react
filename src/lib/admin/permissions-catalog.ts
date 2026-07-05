@@ -40,6 +40,9 @@ export type AppPermission =
   | "roster.leave.request_self"
   | "roster.leave.view_all"
   | "roster.leave.decide"
+  // PL1 — Schichttausch-Verwaltung
+  | "roster.swap.view_pending"
+  | "roster.swap.decide"
   // Modul Lohn/HR
   | "payroll.compensation.view"
   | "payroll.compensation.edit"
@@ -315,14 +318,28 @@ export const PERMISSION_CATALOG: readonly PermissionMeta[] = [
     module: "dienstplan",
     label: "Alle Urlaubsanträge sehen",
     description: "Antragsliste aller Mitarbeiter ansehen.",
-    scopable: false,
+    scopable: true,
   },
   {
     key: "roster.leave.decide",
     module: "dienstplan",
     label: "Urlaubsanträge entscheiden",
     description: "Anträge genehmigen oder ablehnen.",
-    scopable: false,
+    scopable: true,
+  },
+  {
+    key: "roster.swap.view_pending",
+    module: "dienstplan",
+    label: "Tauschanfragen sehen",
+    description: "Wartende und offene Schichttausch-Anfragen ansehen.",
+    scopable: true,
+  },
+  {
+    key: "roster.swap.decide",
+    module: "dienstplan",
+    label: "Tauschanfragen entscheiden",
+    description: "Schichttausch genehmigen oder ablehnen.",
+    scopable: true,
   },
   // ----- Modul Lohn/HR -----
   {
