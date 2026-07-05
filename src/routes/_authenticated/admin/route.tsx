@@ -345,7 +345,9 @@ function AdminLayout() {
                         active ||
                         (s.to === "/admin/migration" &&
                           isSystemPath(pathname) &&
-                          !pathname.startsWith("/admin/migration"));
+                          !pathname.startsWith("/admin/migration")) ||
+                        (s.to === "/admin/pos-verkauf" &&
+                          pathname.startsWith("/admin/pos-stundenbericht"));
                       const showDot =
                         (s.to === "/admin/personal-antraege" && pendingReview > 0) ||
                         (s.to === "/admin/urlaub" && (pendingLeave > 0 || pendingSwaps > 0));
