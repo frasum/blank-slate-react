@@ -1866,6 +1866,8 @@ type WeeklyData = {
     // Z4 — Skill-IDs der Person (Wochenplan-Skill-Filter).
     skillIds?: string[];
   }[];
+  // Z4b — Dienstplan-Realität der Woche je Mitarbeiter (aus roster_shifts).
+  rosterByStaff?: Record<string, { areas: Department[]; skillIds: string[] }>;
 };
 
 function fmtDec(n: number): string {
