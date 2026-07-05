@@ -1106,7 +1106,7 @@ function ZeitUebersichtPage() {
               const endedAt = buildIsoFromLocal(iso, to, from);
               setShiftMut.mutate({ id, startedAt, endedAt });
             }}
-            onCreateInline={(staffId, iso, from, to) => {
+            onCreateInline={(staffId, iso, from, to, department) => {
               if (!effectiveLocationId) {
                 toast.error("Bitte erst einen Standort wählen.");
                 return;
@@ -1118,6 +1118,7 @@ function ZeitUebersichtPage() {
                 locationId: effectiveLocationId,
                 startedAt,
                 endedAt,
+                department,
               });
             }}
             entriesById={useMemo(() => {
