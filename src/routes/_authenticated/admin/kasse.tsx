@@ -647,7 +647,7 @@ function KassePage() {
             })()}
             onSave={(data) =>
               callUpdate({ data: { sessionId: sessionId!, ...data } }).then(() => {
-                toast.success("Session gespeichert.");
+                // KAB1: Kein Toast – Feedback zeigt der Auto-Save-Status im Card-Footer.
                 void invalidate();
               })
             }
