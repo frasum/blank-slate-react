@@ -435,7 +435,9 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
     // 1. Einträge am Zielstandort.
     const { data: rows, error } = await supabaseAdmin
       .from("time_entries")
-      .select("id, staff_id, started_at, ended_at, business_date, location_id, staff(display_name)")
+      .select(
+        "id, staff_id, started_at, ended_at, business_date, location_id, department, staff(display_name)",
+      )
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId)
       .gte("business_date", data.weekStart)
@@ -467,6 +469,7 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
     // Person deterministisch auf EINER Zeile auflaufen (time_entries hat
     // keine Abteilungs-Dimension).
     const deptByStaff = buildPrimaryDeptMap(deptRows ?? []);
+    const staffDeptsByStaff = buildStaffDeptsMap(deptRows ?? []);
 
     // Z2: Alle dem Standort zugeordneten (aktiven) Mitarbeiter — EINE Zeile
     // pro Zuordnung, damit Mehrfach-Zuordnungen (z. B. kitchen + gl) im
@@ -476,12 +479,16 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
       .map((d) => {
         const s = d.staff as { display_name: string; is_active: boolean } | null;
         const dept = d.department as Department;
+        const staffId = d.staff_id as string;
         return {
-          staffId: d.staff_id as string,
+          staffId,
           displayName: s?.display_name ?? "—",
           department: dept,
           isActive: s?.is_active ?? true,
-          isPrimary: deptByStaff.get(d.staff_id as string) === dept,
+          isPrimary: deptByStaff.get(staffId) === dept,
+          // Z3: alle Abteilungen der Person am Standort — Client attribuiert
+          // damit Einträge über entryRowDepartment auf die richtige Zeile.
+          staffDepts: staffDeptsByStaff.get(staffId) ?? [],
         };
       })
       .filter((s) => s.isActive);
@@ -502,7 +509,11 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
         id: r.id as string,
         staffId: r.staff_id as string,
         displayName: (r.staff as { display_name: string } | null)?.display_name ?? "—",
+        // Z3: Primär-Abteilung als Fallback für Grid-Kompatibilität; das Grid
+        // nutzt entryRowDepartment(rawDepartment, staffDepts) für die
+        // eigentliche Zeilen-Attribution.
         department: deptByStaff.get(r.staff_id as string) ?? ("service" as const),
+        rawDepartment: (r.department as Department | null) ?? null,
         businessDate: r.business_date as string,
         startedAt: r.started_at as string,
         endedAt: r.ended_at as string,
