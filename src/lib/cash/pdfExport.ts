@@ -343,7 +343,7 @@ export async function generateDailySummaryPdf(data: PdfExportData): Promise<{
       },
     },
     {
-      content: fmtEur(bargeldCents),
+      content: fmtEur(_diffToTargetCents),
       styles: {
         fontStyle: "bold",
         fontSize: 10,
