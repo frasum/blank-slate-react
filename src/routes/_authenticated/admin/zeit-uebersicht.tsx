@@ -655,6 +655,7 @@ function ZeitUebersichtPage() {
       locationId: string;
       startedAt: string;
       endedAt: string;
+      department?: Department | null;
     }) => callCreateShift({ data: vars }),
     onSuccess: () => {
       invalidateWeekly();
