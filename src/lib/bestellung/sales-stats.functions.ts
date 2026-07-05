@@ -15,6 +15,7 @@ import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
+import { writeAuditLog } from "@/lib/admin/audit";
 import type { Database } from "@/integrations/supabase/types";
 import {
   enrichSalesStats,
@@ -23,6 +24,10 @@ import {
   type SalesArticleForJoin,
   type SalesStatRow,
 } from "./sales-stats";
+import {
+  ReplacePosSalesStatsInput,
+  checkRowsAgainstFooter,
+} from "./pos-report-server";
 
 type Admin = SupabaseClient<Database>;
 
