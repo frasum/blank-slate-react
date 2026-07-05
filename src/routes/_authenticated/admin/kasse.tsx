@@ -9,11 +9,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Check, Download, FileText, Lock, Printer, X } from "lucide-react";
+import { Lock, Printer } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { todayIso } from "@/lib/format";
 import { KassePageSkeleton } from "@/components/ui/page-skeletons";
 import {
@@ -47,17 +46,14 @@ import {
   listRevenueChannels,
   lockSession,
   removeSessionSatellite,
-  reopenSession,
   setCashLock,
   unlockSession,
   updateSession,
 } from "@/lib/cash/cash.functions";
-import { generateDailySummaryPdf } from "@/lib/cash/pdfExport";
 import { buildDailySummaryData } from "@/lib/cash/daily-summary-data";
 import { printDailySummary } from "@/components/cash/DailyPrintView";
 import { DateSelector } from "@/components/shared/DateSelector";
 import { LocationPills } from "@/components/shared/LocationPills";
-import { PdfCanvasPreview } from "@/components/cash/PdfCanvasPreview";
 import { parseEuroToCents } from "@/lib/cash/kasse-helpers";
 import { SettlementWarningsBanner } from "@/components/cash/SettlementWarningsBanner";
 import { SettlementsCard } from "@/components/cash/SettlementsCard";
@@ -65,7 +61,6 @@ import { SessionFieldsCard } from "@/components/cash/SessionFieldsCard";
 import { TipPoolCard } from "@/components/cash/TipPoolCard";
 import { computeTipTotalCents } from "@/lib/cash/tip-pool";
 import { fmtCents } from "@/lib/format";
-import type jsPDF from "jspdf";
 
 export const Route = createFileRoute("/_authenticated/admin/kasse")({
   head: () => ({ meta: [{ title: "Tagesabrechnung" }] }),
