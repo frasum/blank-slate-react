@@ -2342,6 +2342,8 @@ export type Database = {
       sales_articles: {
         Row: {
           created_at: string
+          hauptgruppe: string | null
+          hauptgruppe_nr: number | null
           id: string
           is_active: boolean
           location_id: string
@@ -2350,10 +2352,15 @@ export type Database = {
           price_cents: number | null
           product_group: number | null
           takeaway_price_cents: number | null
+          untergruppe: string | null
+          untergruppe_nr: number | null
           updated_at: string
+          warengruppe: string | null
         }
         Insert: {
           created_at?: string
+          hauptgruppe?: string | null
+          hauptgruppe_nr?: number | null
           id?: string
           is_active?: boolean
           location_id: string
@@ -2362,10 +2369,15 @@ export type Database = {
           price_cents?: number | null
           product_group?: number | null
           takeaway_price_cents?: number | null
+          untergruppe?: string | null
+          untergruppe_nr?: number | null
           updated_at?: string
+          warengruppe?: string | null
         }
         Update: {
           created_at?: string
+          hauptgruppe?: string | null
+          hauptgruppe_nr?: number | null
           id?: string
           is_active?: boolean
           location_id?: string
@@ -2374,7 +2386,10 @@ export type Database = {
           price_cents?: number | null
           product_group?: number | null
           takeaway_price_cents?: number | null
+          untergruppe?: string | null
+          untergruppe_nr?: number | null
           updated_at?: string
+          warengruppe?: string | null
         }
         Relationships: [
           {
