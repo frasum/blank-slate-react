@@ -27,6 +27,7 @@ export async function assertWithinFence(args: {
   const { admin, organizationId, locationId, fix } = args;
 
   const { data: loc, error } = await admin
+    // ST1: bewusst ungefiltert — Daten-Zugriff (Geofence-Check by id).
     .from("locations")
     .select("latitude, longitude, geofence_radius_m, name")
     .eq("id", locationId)
