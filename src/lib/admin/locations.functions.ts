@@ -31,7 +31,13 @@ const detailsShape = {
 
 export const listLocations = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((input) =>
+    z
+      .object({ includeInactive: z.boolean().optional() })
+      .optional()
+      .parse(input ?? {}),
+  )
+  .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, [
       "manager",
       "admin",
@@ -39,14 +45,17 @@ export const listLocations = createServerFn({ method: "GET" })
       "planer",
     ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const [{ data, error }, { data: org, error: orgErr }] = await Promise.all([
-      supabaseAdmin
-        .from("locations")
-        .select(
-          "id, name, timezone, street, postal_code, city, delivery_notes, phone, contact_name, contact_phone, latitude, longitude, geofence_radius_m, geocoded_at, geocoded_address, cash_balance_target_cents",
-        )
-        .eq("organization_id", caller.organizationId)
-        .order("name"),
+    const includeInactive = data?.includeInactive === true;
+    let query = supabaseAdmin
+      .from("locations")
+      .select(
+        "id, name, timezone, street, postal_code, city, delivery_notes, phone, contact_name, contact_phone, latitude, longitude, geofence_radius_m, geocoded_at, geocoded_address, cash_balance_target_cents, is_active",
+      )
+      .eq("organization_id", caller.organizationId)
+      .order("name");
+    if (!includeInactive) query = query.eq("is_active", true);
+    const [{ data: rows, error }, { data: org, error: orgErr }] = await Promise.all([
+      query,
       supabaseAdmin
         .from("organizations")
         .select("cash_balance_target_cents")
@@ -56,11 +65,12 @@ export const listLocations = createServerFn({ method: "GET" })
     if (error) throw error;
     if (orgErr) throw orgErr;
     const orgTarget = Number(org?.cash_balance_target_cents ?? 200_000);
-    return (data ?? []).map((row) => {
+    return (rows ?? []).map((row) => {
       const raw =
         row.cash_balance_target_cents == null ? null : Number(row.cash_balance_target_cents);
       return {
         ...row,
+        isActive: row.is_active !== false,
         cashBalanceTargetCents: raw,
         cashBalanceTargetResolvedCents: raw ?? orgTarget,
       };
@@ -175,6 +185,44 @@ export const deleteLocation = createServerFn({ method: "POST" })
       return {
         result: { ok: true as const },
         audit: { action: "location.delete", entity: "location", entityId: data.locationId },
+      };
+    });
+  });
+
+// ST1: Aktiv-Schalter. Setzt nur Sichtbarkeit — Daten, Zuordnungen und
+// Historie bleiben unangetastet. Reaktivieren jederzeit möglich.
+export const setLocationActive = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({ locationId: z.string().uuid(), isActive: z.boolean() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: loc, error: loadErr } = await supabaseAdmin
+        .from("locations")
+        .select("id, name, is_active")
+        .eq("id", data.locationId)
+        .eq("organization_id", caller.organizationId)
+        .maybeSingle();
+      if (loadErr) throw loadErr;
+      if (!loc) throw new Error("Standort nicht gefunden.");
+      const alreadyInState = Boolean(loc.is_active) === data.isActive;
+      const { error } = await supabaseAdmin
+        .from("locations")
+        .update({ is_active: data.isActive })
+        .eq("id", data.locationId)
+        .eq("organization_id", caller.organizationId);
+      if (error) throw error;
+      return {
+        result: { ok: true as const, changed: !alreadyInState },
+        audit: {
+          action: data.isActive ? "location.activated" : "location.deactivated",
+          entity: "location",
+          entityId: data.locationId,
+          meta: { name: loc.name },
+        },
       };
     });
   });

@@ -2,7 +2,34 @@
 
 Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen Baublock konsultiert. Bewusst kurz gehalten — Architektur-Begründungen stehen im gruendungsdokument.md, nicht hier.
 
-Stand: 05.07.2026 (KAB1)
+Stand: 05.07.2026 (ST1)
+
+**ST1 (05.07.2026) — Standort-Lebenszyklus:** Neue Spalte
+`locations.is_active boolean NOT NULL DEFAULT true` als reine
+Sichtbarkeits-Markierung. Die zentrale Standort-Auswahl
+(`listLocations` in `src/lib/admin/locations.functions.ts`) filtert
+default `is_active = true` und akzeptiert optional
+`{ includeInactive: true }` — nur die Standorte-Admin-Seite nutzt
+diesen Zweig (deaktivierte Standorte erscheinen dort gedämpft mit
+Badge „deaktiviert" und Button „Aktivieren"). Alle Auswahl-Oberflächen
+im System (Zeitübersicht-, Kasse-, Dienstplan-, Jahresplaner-,
+Statistik-, EasyOrder-, Verkaufsartikel-, Batch-, Display-,
+Mitarbeiter-Pills usw.) beziehen ihre Liste über `listLocations` und
+bekommen inaktive Standorte damit automatisch nicht mehr angeboten.
+Zusätzlich überspringt der **Telegram-Tagesbericht**
+(`telegram-report.server.ts`) inaktive Standorte. Historische
+DATEN-Abfragen (Zeit-Einträge, Sessions, Lohn, Buchhaltung) und
+`staff_locations`-Zuordnungen bleiben unangetastet — wer den Standort
+später reaktiviert oder alte Daten auswertet, sieht alles. Direkter
+Aufruf einer Display-/Detailroute eines inaktiven Standorts liefert
+weiterhin Inhalt (kein 404). Neue admin-only Server-Function
+`setLocationActive({ locationId, isActive })` schaltet den Zustand um
+(Audit `location.activated` / `location.deactivated`). Löschen ist
+härter: Dialog verlangt das Eintippen des Standort-Namens; die
+Server-Regel „nur referenzfreie Standorte löschbar" (Check auf
+`staff_locations`) bleibt unverändert die eigentliche Sicherung. Der
+Dialog empfiehlt Deaktivieren als Alltagsweg. Status: TSB deaktiviert,
+bis der Standort aufgesetzt wird.
 
 **KAB1 (05.07.2026):** UI der Tagesabrechnung konsolidiert — der manuelle
 Button „Session speichern" ist entfernt (Auto-Save deckt denselben Payload

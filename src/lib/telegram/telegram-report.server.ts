@@ -91,6 +91,7 @@ async function loadReportInputForOrg(
     .from("locations")
     .select("id, name, cash_balance_target_cents")
     .eq("organization_id", organizationId)
+    .eq("is_active", true)
     .order("name");
   if (locErr) throw locErr;
 
