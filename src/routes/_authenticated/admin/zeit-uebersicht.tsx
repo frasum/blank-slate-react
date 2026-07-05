@@ -689,18 +689,23 @@ function ZeitUebersichtPage() {
       staffId: string;
       displayName: string;
       department: Department;
+      isPrimary: boolean;
       byDate: Map<string, WeeklyEntry[]>;
       totals: { total: number; evening: number; night: number; sunHol: number };
     };
+    const rowKey = (staffId: string, dept: Department) => `${staffId}:${dept}`;
     const rowMap = new Map<string, AccRow>();
-    // Grundmenge: alle dem Standort zugeordneten (aktiven) Mitarbeiter
-    // erscheinen — auch ohne einen einzigen Stempel in der Woche.
+    // Z2 — Grundmenge: EINE Zeile pro (Mitarbeiter, Zuordnung). Mehrfach-
+    // zugeordnete Mitarbeiter (z. B. kitchen + gl) erscheinen in JEDER
+    // Sektion. isPrimary markiert die Zeile, auf der die Stunden auflaufen.
     for (const s of data.assignedStaff ?? []) {
-      if (rowMap.has(s.staffId)) continue;
-      rowMap.set(s.staffId, {
+      const key = rowKey(s.staffId, s.department);
+      if (rowMap.has(key)) continue;
+      rowMap.set(key, {
         staffId: s.staffId,
         displayName: s.displayName,
         department: s.department,
+        isPrimary: s.isPrimary ?? true,
         byDate: new Map(),
         totals: { total: 0, evening: 0, night: 0, sunHol: 0 },
       });
@@ -710,16 +715,20 @@ function ZeitUebersichtPage() {
       // periode (Mo–So-Woche kann an Periodengrenzen überlappen) werden
       // weder in byDate noch in die Wochensummen aufgenommen.
       if (e.businessDate < fromDate || e.businessDate > toDate) continue;
-      let r = rowMap.get(e.staffId);
+      // Der Server liefert e.department bereits als Primär-Abteilung —
+      // Stunden landen daher immer auf der Primär-Zeile.
+      const key = rowKey(e.staffId, e.department);
+      let r = rowMap.get(key);
       if (!r) {
         r = {
           staffId: e.staffId,
           displayName: e.displayName,
           department: e.department,
+          isPrimary: true,
           byDate: new Map(),
           totals: { total: 0, evening: 0, night: 0, sunHol: 0 },
         };
-        rowMap.set(e.staffId, r);
+        rowMap.set(key, r);
       }
       const arr = r.byDate.get(e.businessDate) ?? [];
       arr.push(e);
