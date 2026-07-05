@@ -412,7 +412,8 @@ function KassePage() {
   function handlePrintClick() {
     if (sessionStatus === "open") {
       // Kopplung: Finalisieren-Dialog vorschalten (Admin-Checkbox: danach sperren)
-      setPrintCouple({ lockAfter: false });
+      // Admin: nach dem Druck automatisch sperren (Checkbox ausgeblendet, Default AN).
+      setPrintCouple({ lockAfter: isAdmin });
       return;
     }
     // finalized/locked: direkt drucken (kein Statuswechsel)
