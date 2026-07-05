@@ -2727,6 +2727,10 @@ area`) muss in der Kombi-Liste liegen.
 - Jahresplaner: gewählter Standort muss im Scope liegen; nur der
   freigegebene Bereichs-Block wird zurückgegeben.
 
+Die Entscheid-Fns (`decideLeaveRequest`, `decideSwapRequest`) validieren den
+Scope am jeweiligen Anker **VOR** dem Schreiben — planer außerhalb seiner
+Kombination bekommt `ForbiddenError`, kein Halbzustand.
+
 **Rechte-Vergabe:** die vier Schlüssel sind im Katalog jetzt `scopable=true`;
 `PermissionsTab` kann sie mit Standort und Bereich freigeben. Manager und
 Admin bleiben unverändert über `permission_role_defaults` (globaler Scope);
@@ -2744,3 +2748,23 @@ RPCs, Portal-Seiten der Mitarbeiter, `permission_overrides`-Schema.
 Tests: `scope-util.test.ts` deckt `resolvePlanerScope` (all, allow, leer) und
 `scopeIncludes` ab; bestehende `roster-scope-p2.db.test.ts` bleibt
 Charakterisierung für den Dienstplan.
+
+## Tagesabschluss 05.07.2026
+
+Abgenommen bei HEAD `96bf974d` (tsc/eslint 0/0, prettier sauber, vitest 1322
+grün). Heute gelandet: TP-GL Pool-Regel, DR1 Ein-Klick-Druck (HTML-Druckansicht,
+ein Datenobjekt mit PDF), KAB1 v2 (Auto-Save-Status, kontextueller
+Status-Button, Druck koppelt Finalisieren, Admin-Checkbox Sperren,
+`unlockSession`), ST1+ST1b Standort-Lebenszyklus (`is_active`, zentrale
+Filterung, Klassifizierungs-Audit, Tipp-Lösch-Bestätigung), EIN1
+Einstellungs-Tabs, TG3 Küchen-Zeiten im Telegram-Bericht, PL1
+Planer-Erweiterung (Urlaub/Tausch/Jahresplaner im (Standort,Bereich)-Scope,
+`scope-util`), Sumitr-Generalisierung; Telegram-Tagesbericht aktiviert und
+per Testbericht bewiesen (Legacy-Bot-Abschaltung Frank-seitig),
+Schichttausch-Verwaltung als Tab auf `/admin/urlaub`.
+
+Offen: Franks E2Es (TSB deaktivieren, Finalisieren-&-drucken Safari + Kiosk-PC,
+SUMITRs 8 Rechte-Klicks + Login-Test, Einstellungs-Tabs, erster automatischer
+Nachtbericht); TSB-PaySlips + Verkaufsartikel-Listen Spicery/TSB;
+Entscheidungen (A/B-Überträge, UP3); geparkt (BZ2, Welle B, MCP, MailerSend-DNS,
+`maybeSingle`-Härtung `getCashOverviewCore`).
