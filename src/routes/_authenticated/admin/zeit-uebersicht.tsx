@@ -66,6 +66,9 @@ import { ProvisionTab } from "@/components/lohn/ProvisionTab";
 import { LohnrechnerPanel } from "@/components/lohn/LohnrechnerPanel";
 import { BatchTimesCard } from "@/components/zeit/BatchTimesCard";
 import { entryRowDepartment } from "@/lib/time/primary-department";
+import { filterWeeklyRows } from "@/lib/time/weekly-filter";
+import { listSkills, type SkillCategory } from "@/lib/admin/skills.functions";
+import { PillSelect } from "@/components/ui/pill-select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
@@ -226,6 +229,7 @@ function ZeitUebersichtPage() {
   const fetchLocations = useServerFn(listLocations);
   const fetchOverview = useServerFn(getTimeOverview);
   const fetchWeekly = useServerFn(getWeeklyTimeEntries);
+  const fetchSkills = useServerFn(listSkills);
   const fetchNotes = useServerFn(listPayrollNotes);
   const fetchAdvances = useServerFn(listAdvancesByStaff);
   const fetchAbsences = useServerFn(listAbsencesByStaff);
@@ -277,6 +281,9 @@ function ZeitUebersichtPage() {
     [weekStartDate],
   );
   const [searchQuery, setSearchQuery] = useState<string>("");
+  // Z4 — Wochenplan-Filter (nur Anzeige, nicht Export/Buchhaltung).
+  const [deptFilter, setDeptFilter] = useState<Department | "all">("all");
+  const [skillFilter, setSkillFilter] = useState<string>("all");
   const [activeTab, setActiveTab] = useState<string>("weekly");
   // Buchhaltung-Tab: §3b-Toggle + eigene Suche.
   const [payrollMode, setPayrollMode] = useState<BuchhaltungMode>("simple");
@@ -661,6 +668,22 @@ function ZeitUebersichtPage() {
     }
     return m;
   }, [weeklyData]);
+
+  // Z4 — Skills-Stammdaten für den Filter.
+  const skillsQ = useQuery({
+    queryKey: ["skills-list"],
+    queryFn: () => fetchSkills(),
+  });
+  const skills = useMemo(() => skillsQ.data ?? [], [skillsQ.data]);
+  const skillsByStaffFilter = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const s of weeklyData?.assignedStaff ?? []) {
+      if (m.has(s.staffId)) continue;
+      m.set(s.staffId, s.skillIds ?? []);
+    }
+    return m;
+  }, [weeklyData]);
+
   const createShiftMut = useMutation({
     mutationFn: (vars: {
       staffId: string;
@@ -853,6 +876,21 @@ function ZeitUebersichtPage() {
       toast.error((e as Error).message || "PDF-Export fehlgeschlagen");
     }
   };
+
+  // Z4 — nur der Grid-Render folgt Bereich/Skill-Filtern; die Exporte oben
+  // nutzen weiterhin `weeklyExportInput` (alle Bereiche/Skills unabhängig
+  // vom Filter, damit ein Export nie ein stilles Teil-Ergebnis wird).
+  const weeklyDisplayInput = useMemo<WeeklyExportInput | null>(() => {
+    if (!weeklyExportInput) return null;
+    return {
+      ...weeklyExportInput,
+      rowsByDept: filterWeeklyRows(
+        weeklyExportInput.rowsByDept,
+        { dept: deptFilter, skillId: skillFilter, query: "" },
+        skillsByStaffFilter,
+      ),
+    };
+  }, [weeklyExportInput, deptFilter, skillFilter, skillsByStaffFilter]);
 
   // ============ Buchhaltung-Aggregation (Render + Export) ============
   const payrollRowsByStaff = useMemo(() => {
@@ -1068,6 +1106,61 @@ function ZeitUebersichtPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
+            {/* Z4 — Bereich + Skill (nur Anzeige-Filter, kombinieren per UND). */}
+            <div className="flex flex-wrap items-center gap-3">
+              <PillSelect<Department | "all">
+                ariaLabel="Bereich"
+                size="sm"
+                options={[
+                  { value: "all", label: "Alle" },
+                  { value: "kitchen", label: "Küche" },
+                  { value: "service", label: "Service" },
+                  { value: "gl", label: "GL" },
+                ]}
+                value={deptFilter}
+                onChange={setDeptFilter}
+              />
+              <label className="flex items-center gap-2 text-sm">
+                <span className="text-muted-foreground">Skill:</span>
+                <Select value={skillFilter} onValueChange={setSkillFilter}>
+                  <SelectTrigger className="h-8 w-[180px]">
+                    <SelectValue placeholder="Alle" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Alle</SelectItem>
+                    {(
+                      [
+                        { key: "kitchen", label: "Küche" },
+                        { key: "service", label: "Service" },
+                        { key: "gl", label: "Geschäftsleitung" },
+                        { key: "other", label: "Sonstige" },
+                      ] as { key: SkillCategory; label: string }[]
+                    ).map((cat) => {
+                      const items = skills.filter((s) => s.category === cat.key);
+                      if (items.length === 0) return null;
+                      return (
+                        <div key={cat.key}>
+                          <div className="px-2 pt-1 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            {cat.label}
+                          </div>
+                          {items.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>
+                              <span className="inline-flex items-center gap-2">
+                                <span
+                                  className="inline-block h-2 w-2 rounded-full"
+                                  style={{ backgroundColor: s.color ?? "#cbd5e1" }}
+                                />
+                                {s.name}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </label>
+            </div>
             {/* Zeile 3: Wochen-Chips */}
             <div className="flex flex-wrap items-center gap-2">
               {periodWeeks.map((c) => {
@@ -1107,7 +1200,7 @@ function ZeitUebersichtPage() {
             </div>
           </Card>
           <WeeklyPlan
-            input={weeklyExportInput}
+            input={weeklyDisplayInput}
             isLoading={weeklyLoading}
             weekDays={weekDays}
             periodStart={fromDate}
@@ -1770,6 +1863,8 @@ type WeeklyData = {
     isPrimary?: boolean;
     // Z3 — alle Abteilungen der Person am Standort (Attribution im Grid).
     staffDepts?: Department[];
+    // Z4 — Skill-IDs der Person (Wochenplan-Skill-Filter).
+    skillIds?: string[];
   }[];
 };
 
@@ -2233,10 +2328,7 @@ function WeeklyPlan({
                         <span
                           className={`absolute left-0 top-0 bottom-0 w-[2px] ${DEPT_BAR[row.department]}`}
                         />
-                        <span
-                          className="block truncate"
-                          title={mismatchedTitle ?? row.displayName}
-                        >
+                        <span className="block truncate" title={mismatchedTitle ?? row.displayName}>
                           {row.displayName}
                           {mismatchedTitle ? (
                             <span className="ml-0.5 text-amber-600">⚠</span>

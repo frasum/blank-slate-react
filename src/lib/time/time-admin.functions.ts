@@ -467,6 +467,24 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
     const deptByStaff = buildPrimaryDeptMap(deptRows ?? []);
     const staffDeptsByStaff = buildStaffDeptsMap(deptRows ?? []);
 
+    // Z4 — Skill-IDs pro Mitarbeiter (Wochenplan-Filter im Client).
+    const staffIds = Array.from(new Set((deptRows ?? []).map((d) => d.staff_id as string)));
+    const skillsByStaff = new Map<string, string[]>();
+    if (staffIds.length > 0) {
+      const { data: skillRows, error: skillErr } = await supabaseAdmin
+        .from("staff_skills")
+        .select("staff_id, skill_id")
+        .eq("organization_id", caller.organizationId)
+        .in("staff_id", staffIds);
+      if (skillErr) throw skillErr;
+      for (const r of skillRows ?? []) {
+        const sid = r.staff_id as string;
+        const arr = skillsByStaff.get(sid) ?? [];
+        arr.push(r.skill_id as string);
+        skillsByStaff.set(sid, arr);
+      }
+    }
+
     // Z2: Alle dem Standort zugeordneten (aktiven) Mitarbeiter — EINE Zeile
     // pro Zuordnung, damit Mehrfach-Zuordnungen (z. B. kitchen + gl) im
     // Wochenplan-Grid in JEDER Sektion erscheinen. isPrimary markiert die
@@ -485,6 +503,8 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
           // Z3: alle Abteilungen der Person am Standort — Client attribuiert
           // damit Einträge über entryRowDepartment auf die richtige Zeile.
           staffDepts: staffDeptsByStaff.get(staffId) ?? [],
+          // Z4: Skill-IDs der Person (für den Wochenplan-Skill-Filter).
+          skillIds: skillsByStaff.get(staffId) ?? [],
         };
       })
       .filter((s) => s.isActive);
