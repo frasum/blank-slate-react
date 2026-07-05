@@ -97,15 +97,15 @@ const GROUPS: Group[] = [
       "/admin/dokumente",
     ],
     sub: [
-      { to: "/admin/wein-quiz", label: "Wein-Quiz" },
-      // SD1 — „Mitarbeiter" nur für admin (Manager haben keinen Zutritt mehr;
-      // payroll erreicht die Seite über die eigene Tab-Leiste).
-      { to: "/admin/staff", label: "Mitarbeiter", roles: ["admin"] },
+      { to: "/admin/zeit-uebersicht", label: "Arbeitszeiten" },
       { to: "/admin/dienstplan", label: "Dienstplan" },
       { to: "/admin/urlaub", label: "Urlaubsantrag / Schichttausch" },
       { to: "/admin/personal-antraege", label: "Personal-Anträge", roles: ["admin"] },
+      // SD1 — „Mitarbeiter" nur für admin (Manager haben keinen Zutritt mehr;
+      // payroll erreicht die Seite über die eigene Tab-Leiste).
+      { to: "/admin/staff", label: "Mitarbeiter", roles: ["admin"] },
+      { to: "/admin/wein-quiz", label: "Wein-Quiz" },
       { to: "/admin/dokumente", label: "Dokument-Vorlagen", roles: ["admin"] },
-      { to: "/admin/zeit-uebersicht", label: "Arbeitszeiten" },
     ],
   },
   {
