@@ -1,39 +1,30 @@
-## Ausgangslage
+## VA-UI: Inline-Bearbeitung EK + Klick auf Namen öffnet Dialog
 
-Sumitr (`2e52c42f-…`, Rolle `planer`) hat aktuell für **Küche @ spicery** und **Küche @ YUM** bereits:
+Kleine UI-Anpassung in `src/routes/_authenticated/admin/bestellung.verkaufsartikel.tsx`. Keine Server-/Schema-Änderungen.
 
-- `roster.shift.manage` (Dienstplan bearbeiten)
-- `roster.absence.manage` (Abwesenheiten pflegen)
+### Änderungen
 
-Was fehlt, damit er in `/admin/urlaub` (Urlaubsanträge + Schichttausch) und im Jahresplaner (Urlaubspläne) etwas sieht: die beiden Sicht-Rechte, jeweils gescoped auf Küche × beide Standorte. Die PL1-Infrastruktur (`resolvePlanerScope` in `leave.functions.ts`, `swap.functions.ts`, `vacation-planner.functions.ts`) filtert dann automatisch auf genau seinen Scope.
+1. **EK-Spalte inline editierbar (nur admin)**
+   - Bisher reine Anzeige. Neu: gleiche `PriceCell`-Komponente wie Preis/Mitnahme, gebunden an `ekPriceCents`.
+   - `PriceCell` bekommt einen dritten `field`-Wert `"ekPriceCents"` (Typ `PriceField` erweitern).
+   - Speichern via bestehender `updateSalesArticle`-Mutation (`{ id, ekPriceCents }`). Server-seitige Admin-Prüfung (§VA3) bleibt unverändert.
+   - Marge-Tooltip bleibt erhalten, wandert an die inline-Zelle.
 
-## Änderung
+2. **Spalte „Bearb." entfernen**
+   - `<TableHead>` „Bearb." und die zugehörige `<TableCell>` mit dem Ghost-Button entfallen.
 
-Eine Migration, die vier `permission_overrides`-Zeilen anlegt (idempotent via `delete + insert`, entsprechend dem bestehenden Muster aus `setPermissionOverride`):
+3. **Klick auf Artikelnamen öffnet Bearbeiten-Dialog**
+   - Name-Zelle wird zu einem `button`, `onClick={() => setEditRow(row)}`.
+   - Styling: linksbündig, `font-medium`, `hover:underline`, Fokus-Ring — bleibt visuell wie eine Zeile, wirkt aber klickbar.
+   - `EditGroupsDialog` bleibt unverändert (Hierarchie + EK weiterhin dort editierbar für strukturelle Änderungen).
 
-| Recht                       | Standort  | Bereich | Effekt |
-| --------------------------- | --------- | ------- | ------ |
-| `roster.leave.view_all`     | spicery   | kitchen | allow  |
-| `roster.leave.view_all`     | YUM       | kitchen | allow  |
-| `roster.swap.view_pending`  | spicery   | kitchen | allow  |
-| `roster.swap.view_pending`  | YUM       | kitchen | allow  |
+### Nicht angefasst
 
-`roster.leave.view_all` deckt sowohl `/admin/urlaub` (Anträge-Liste) als auch den Jahresplaner ab — beide rufen dieselbe Permission ab.
+- `sales-articles.functions.ts`, Migrations, Typen, Auth.
+- Aktiv-Switch bleibt.
+- Preis/Mitnahme-Zellen (schon inline).
 
-## Konsequenzen im UI (schon vorhanden)
+### Erfolgs-Gate
 
-- `/admin/urlaub` (Tab „Urlaubsantrag / Schichttausch") wird für Sumitr sichtbar; sieht nur Küchen-Anträge und Küchen-Tauschanfragen aus spicery + YUM (Service-Anträge desselben Standorts bleiben unsichtbar).
-- Jahresplaner zeigt nur den Küche-Block seiner beiden Standorte.
-- Badge-Zähler oben (`getReviewPendingCounts`) berücksichtigen den gleichen Scope.
-- Dienstplan & Abwesenheiten bleiben unverändert (bestehende `manage`-Overrides).
-
-## Bewusst nicht enthalten
-
-- **Keine Entscheid-Rechte** (`roster.leave.decide`, `roster.swap.decide`). Anfragen sind sichtbar, aber nicht entscheidbar. Sag Bescheid, falls Sumitr auch entscheiden können soll — dann kommen zwei weitere Overrides dazu.
-- **Kein Rollen- oder Katalogumbau** — reine Datenänderung.
-- **TSB** wird nicht ergänzt (Anweisung: „von beiden Standorten" = spicery + YUM).
-
-## Erfolg
-
-- SQL läuft, vier neue Zeilen in `permission_overrides` vorhanden.
-- Manuell (Frank): Login als Sumitr → `/admin/urlaub` sichtbar, listet Küchen-Anträge/Tauschanfragen aus spicery + YUM; Service-Einträge desselben Standorts unsichtbar; Jahresplaner zeigt nur Küche.
+- `tsc`, `eslint`, `prettier`, `vitest` grün.
+- Manuell: als Admin EK inline ändern → speichert; als Manager EK-Spalte fehlt weiterhin; Klick auf Namen öffnet Dialog; „Bearb."-Spalte weg.
