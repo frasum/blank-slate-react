@@ -333,7 +333,13 @@ function ZeitUebersichtPage() {
         if (!d) continue;
         merged.entries.push(...d.entries);
         for (const s of d.assignedStaff ?? []) {
-          if (!merged.assignedStaff!.some((x) => x.staffId === s.staffId)) {
+          // Z2: Dedupe pro (Mitarbeiter, Abteilung) — sonst verschwindet die
+          // GL-Zeile eines Küchen-Primärmitarbeiters bei "Alle Standorte".
+          if (
+            !merged.assignedStaff!.some(
+              (x) => x.staffId === s.staffId && x.department === s.department,
+            )
+          ) {
             merged.assignedStaff!.push(s);
           }
         }
