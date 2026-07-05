@@ -4,10 +4,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import {
-  getOrgSettings,
-  setTelegramBotUsername,
-} from "@/lib/admin/org-settings.functions";
+import { getOrgSettings, setTelegramBotUsername } from "@/lib/admin/org-settings.functions";
 
 export function TelegramBotSection({ canEdit }: { canEdit: boolean }) {
   const queryClient = useQueryClient();
@@ -48,9 +45,9 @@ export function TelegramBotSection({ canEdit }: { canEdit: boolean }) {
       <div>
         <h2 className="text-base font-semibold text-foreground">Telegram-Bot</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Öffentlicher @-Handle des BotFather-Bots (z.&nbsp;B. <code>coco_platform_bot</code>).
-          Wird für den Verknüpfungs-Deep-Link in „Meine Daten" gebraucht. Der Bot-Token selbst
-          liegt sicher als Connector-Secret und wird hier nicht eingegeben.
+          Öffentlicher @-Handle des BotFather-Bots (z.&nbsp;B. <code>coco_platform_bot</code>). Wird
+          für den Verknüpfungs-Deep-Link in „Meine Daten" gebraucht. Der Bot-Token selbst liegt
+          sicher als Connector-Secret und wird hier nicht eingegeben.
         </p>
       </div>
 

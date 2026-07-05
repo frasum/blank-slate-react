@@ -17,10 +17,7 @@ import type { FormEvent } from "react";
 import { createFileRoute, useNavigate, useRouteContext } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import {
-  getOrgSettings,
-  updateOrgSettings,
-} from "@/lib/admin/org-settings.functions";
+import { getOrgSettings, updateOrgSettings } from "@/lib/admin/org-settings.functions";
 import { TrinkgeldpoolSection } from "@/components/settings/TrinkgeldpoolSection";
 import { BestellungenSection } from "@/components/settings/BestellungenSection";
 import { SofortmeldungSection } from "@/components/settings/SofortmeldungSection";

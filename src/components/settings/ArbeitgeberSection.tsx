@@ -4,10 +4,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import {
-  getOrgSettings,
-  setArbeitgeberStammdaten,
-} from "@/lib/admin/org-settings.functions";
+import { getOrgSettings, setArbeitgeberStammdaten } from "@/lib/admin/org-settings.functions";
 
 export function ArbeitgeberSection({ canEdit }: { canEdit: boolean }) {
   const queryClient = useQueryClient();
