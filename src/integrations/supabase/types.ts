@@ -1314,6 +1314,7 @@ export type Database = {
           geocoded_at: string | null
           geofence_radius_m: number
           id: string
+          is_active: boolean
           latitude: number | null
           longitude: number | null
           name: string
@@ -1338,6 +1339,7 @@ export type Database = {
           geocoded_at?: string | null
           geofence_radius_m?: number
           id?: string
+          is_active?: boolean
           latitude?: number | null
           longitude?: number | null
           name: string
@@ -1362,6 +1364,7 @@ export type Database = {
           geocoded_at?: string | null
           geofence_radius_m?: number
           id?: string
+          is_active?: boolean
           latitude?: number | null
           longitude?: number | null
           name?: string
