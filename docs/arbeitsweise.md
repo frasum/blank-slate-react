@@ -2587,6 +2587,27 @@ die UI.
 
 **Status:** VA1 ✅ Schema + UI (Import Frank ausstehend).
 
+## §VA2 — Verkaufsartikel-Hierarchie (Stand: 05.07.2026)
+
+Der Vectron-Vollexport liefert je Artikel die drei Ebenen **Hauptgruppe**
+(z. B. „Küche" #5) → **Untergruppe** (z. B. „Vorspeisen" #12) →
+**Warengruppe** (z. B. „Appetizer" #43, in `product_group`).
+
+- Felder denormalisiert an `sales_articles`: `hauptgruppe`,
+  `hauptgruppe_nr`, `untergruppe`, `untergruppe_nr`, `warengruppe` (der
+  Klartext-Name zur bestehenden `product_group`-Nummer).
+- Index `idx_sales_articles_gruppen` auf
+  `(location_id, hauptgruppe_nr, untergruppe_nr, product_group)` für
+  Gruppen-Sortierung und Filter.
+- **Quelle der Wahrheit ist Vectron** — Pflege ausschließlich per
+  Re-Import (Frank-SQL). Bewusst KEINE Lookup-Tabellen (Verwaltung ohne
+  Nutzen; gleiche Pragmatik wie das BWA-Entity-Textfeld).
+- UI: drei kaskadierende Dropdowns (Hauptgruppe → Untergruppe →
+  Warengruppe) mit Default „Alle", Editier-Dialog pro Artikel mit
+  Hinweis „Quelle Vectron — wird beim Re-Import überschrieben".
+- VA1-Grundsätze unverändert: DENY-ALL, kein Delete-Pfad (Deaktivieren
+  statt Löschen), Unique `(location_id, name)`.
+
 ## §56 AF1 — Task-Fotos (04.07.2026)
 
 Aufgaben (`tasks`) unterstützen Foto-Anhänge (Kamera am Handy oder Datei-
