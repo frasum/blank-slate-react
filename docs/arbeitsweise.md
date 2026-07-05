@@ -3068,6 +3068,33 @@ der Namens-Join in der Praxis zu viele „Ohne Zuordnung" liefert, wäre
 `vectron_nr` an `sales_articles` eine eigene kleine Folge-Welle
 (harter Join per PLU statt weichem Namens-Match).
 
+### §PV1a — POS-WG-Überschreibung (manuelles Gruppen-Mapping)
+
+Ergänzt §PV1 um einen manuellen Ausweg für Statistik-Artikel, die kein
+Namens-Match in `sales_articles` finden (typisch: historische
+`[deaktivierte]`-PLUs, Umbenennungen, Vectron-Interna). Ohne diesen
+Ausweg blieben solche Zeilen dauerhaft in „Ohne Zuordnung" hängen.
+
+- **Tabelle** `public.sales_pos_group_overrides` mit `unique
+  (location_id, nummer)` — je Standort × PLU-Nummer genau eine
+  Zuordnung. Spalten spiegeln die drei VA2-Ebenen als Snapshot:
+  `warengruppe/product_group`, `untergruppe/untergruppe_nr`,
+  `hauptgruppe/hauptgruppe_nr`. **DENY-ALL RLS** — kein Client-Zugriff.
+- **Pflege** ausschließlich über Server-Fns in
+  `src/lib/bestellung/sales-stats.functions.ts`
+  (`setSalesStatsGroupOverride`, `clearSalesStatsGroupOverride`),
+  `loadAdminCaller("manager")`, `assertLocationInOrg`. Auswahl über
+  `warengruppeKey` (Warengruppen-Name oder `#<productGroup>` — identisch
+  zum `deriveWgOptions`-Sentinel aus §PV1) → Server liest das
+  Gruppen-Exemplar aus `sales_articles` und schreibt den vollständigen
+  3-Ebenen-Snapshot.
+- **Anreicherung** in `enrichSalesStats` (`sales-stats.ts`) priorisiert
+  Override **vor** dem Namens-Join: `overrideByNummer.get(s.nummer)` →
+  falls vorhanden, wird der Snapshot direkt übernommen, `overridden:
+  true`, `unmatched: false`. Nur ohne Override greift das weiche
+  Namens-Match. Damit ist der Override der lokale, sichtbare
+  Reparaturweg — kein Eingriff in `sales_articles`/VA2.
+
 ### §PV2 — POS-Verkauf: XLSX-Upload mit Review-Screen (05.07.)
 
 Selbstbedienungs-Import für Frank nach dem Bilanz-Muster. Der bisherige
