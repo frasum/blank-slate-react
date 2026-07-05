@@ -257,16 +257,6 @@ export function RemindersAdmin({ locationId }: { locationId: string }) {
               />
             </div>
             <div>
-              <Label htmlFor="rem-emoji">Emoji (optional)</Label>
-              <Input
-                id="rem-emoji"
-                value={form.emoji}
-                onChange={(e) => setForm({ ...form, emoji: e.target.value })}
-                placeholder="🗑️"
-                maxLength={8}
-              />
-            </div>
-            <div>
               <Label>Farbe</Label>
               <Select
                 value={form.color}
