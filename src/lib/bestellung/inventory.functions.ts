@@ -76,6 +76,7 @@ export const createInventorySession = createServerFn({ method: "POST" })
     return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: loc, error: locErr } = await supabaseAdmin
+        // ST1: bewusst ungefiltert — Daten-Zugriff (assertLocationInOrg by id).
         .from("locations")
         .select("id")
         .eq("id", data.locationId)
