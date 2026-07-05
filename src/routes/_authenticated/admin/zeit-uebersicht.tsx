@@ -61,7 +61,7 @@ import {
   type BuchhaltungExportRow,
   type BuchhaltungMode,
 } from "@/lib/time/buchhaltung-export";
-import { FileDown, FileSpreadsheet, Search } from "lucide-react";
+import { CalendarDays, FileDown, FileSpreadsheet, Search } from "lucide-react";
 import { ProvisionTab } from "@/components/lohn/ProvisionTab";
 import { LohnrechnerPanel } from "@/components/lohn/LohnrechnerPanel";
 import { BatchTimesCard } from "@/components/zeit/BatchTimesCard";
@@ -530,9 +530,13 @@ function ZeitUebersichtPage() {
   }, [advancesQ.data]);
 
   const absencesByStaff = useMemo(() => {
-    const m = new Map<string, { krankDays: number; urlaubDays: number }>();
+    const m = new Map<string, { krankDays: number; urlaubDays: number; absenceNote: string }>();
     for (const a of absencesQ.data ?? []) {
-      m.set(a.staffId, { krankDays: a.krankDays, urlaubDays: a.urlaubDays });
+      m.set(a.staffId, {
+        krankDays: a.krankDays,
+        urlaubDays: a.urlaubDays,
+        absenceNote: a.absenceNote ?? "",
+      });
     }
     return m;
   }, [absencesQ.data]);
@@ -804,6 +808,7 @@ function ZeitUebersichtPage() {
         krankDays: abs?.krankDays ?? 0,
         vorschussEUR: advCents / 100,
         besonderheiten: note?.besonderheiten ?? "",
+        absenceNote: abs?.absenceNote ?? "",
       });
     }
     return m;
@@ -1628,6 +1633,15 @@ function PayrollRow({
         {vorschussLabel ?? "–"}
       </TableCell>
       <TableCell className="py-1.5">
+        {row.absenceNote ? (
+          <div
+            className="mb-1 flex items-start gap-1 text-xs text-muted-foreground"
+            title="Automatisch aus Urlaub/Krank — Korrekturen dort vornehmen."
+          >
+            <CalendarDays className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
+            <span className="leading-tight">{row.absenceNote}</span>
+          </div>
+        ) : null}
         <Textarea
           rows={1}
           placeholder="–"
@@ -1723,7 +1737,7 @@ function WeeklyPlan({
   periodStart?: string;
   periodEnd?: string;
   shiftsByStaff: Map<string, number>;
-  absencesByStaff: Map<string, { krankDays: number; urlaubDays: number }>;
+  absencesByStaff: Map<string, { krankDays: number; urlaubDays: number; absenceNote?: string }>;
 }) {
   // Header-Tagesmeta (Wochentag-Label + Feiertags-Hint)
   const dayMeta = weekDays.map((d) => {

@@ -4,6 +4,18 @@ Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen B
 
 Stand: 05.07.2026 (Tagesabschluss, HEAD 96bf974d)
 
+**BB1 (05.07.2026):** Buchhaltungs-Spalte „Besonderheiten" =
+**Auto-Teil** (live aus `roster_absence`, `formatAbsenceNote` in
+`src/lib/time/absence-note.ts` mit `mergeAbsenceRanges` wiederverwendet
+aus `vacation-planner.ts`, auf Perioden-Grenzen `[periodStart, periodEnd]`
+geklippt, Format `Urlaub 12.–24.07. · Krank 03.07.`, chronologisch mit `·`)
+**+ editierbarer** `payroll_notes.besonderheiten`-Notiz. Der Auto-Teil wird
+**NIE gespeichert** (eine Wahrheit — Korrekturen an der Quelle im
+Urlaubs-/Krank-Datensatz); UI zeigt ihn dezent (Kalender-Icon, muted, mit
+Tooltip) über dem Notiz-Feld; PDF/Excel-Export zeigt beide Teile getrennt
+durch `|` (nur vorhandene Teile). Server liefert `absenceNote` in
+`listAbsencesByStaff` mit; kein Schema, keine Migration.
+
 **Stempeln-Abmelden generalisiert (05.07.):** Der „Abmelden"-Knopf auf der
 Stempel-Seite gilt für ALLE (Zurück-Link bleibt). Ersetzt den kurzlebigen
 Sumitr-Namens-Hardcode (`special-cases.ts`, gelöscht). Grundsatz: Personen-

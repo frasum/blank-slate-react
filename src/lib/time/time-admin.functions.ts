@@ -18,6 +18,7 @@ import { makeAuditWriter } from "@/lib/admin/audit";
 import { businessDateOf } from "@/lib/business-date";
 import { assertBusinessDateUnlocked } from "./time-lock";
 import { timeEntryToSfnRow } from "@/lib/lohn/time-entry-sfn";
+import { formatAbsenceNote } from "./absence-note";
 import type { SfnShiftRow } from "@/lib/lohn/sfn-geld/types";
 import { computeStaffSfn } from "@/lib/lohn/compute-staff-sfn";
 
@@ -258,17 +259,28 @@ export const listAbsencesByStaff = createServerFn({ method: "GET" })
       .gte("date", data.periodStart)
       .lte("date", data.periodEnd);
     if (error) throw error;
-    const map = new Map<string, { krankDays: number; urlaubDays: number }>();
+    type Entry = {
+      krankDays: number;
+      urlaubDays: number;
+      items: Array<{ date: string; type: "urlaub" | "krank" }>;
+    };
+    const map = new Map<string, Entry>();
     for (const r of rows ?? []) {
-      const entry = map.get(r.staff_id) ?? { krankDays: 0, urlaubDays: 0 };
-      if (r.type === "krank") entry.krankDays += 1;
-      else if (r.type === "urlaub") entry.urlaubDays += 1;
+      const entry = map.get(r.staff_id) ?? { krankDays: 0, urlaubDays: 0, items: [] };
+      if (r.type === "krank") {
+        entry.krankDays += 1;
+        entry.items.push({ date: r.date, type: "krank" });
+      } else if (r.type === "urlaub") {
+        entry.urlaubDays += 1;
+        entry.items.push({ date: r.date, type: "urlaub" });
+      }
       map.set(r.staff_id, entry);
     }
     return Array.from(map.entries()).map(([staffId, v]) => ({
       staffId,
       krankDays: v.krankDays,
       urlaubDays: v.urlaubDays,
+      absenceNote: formatAbsenceNote(v.items, data.periodStart, data.periodEnd),
     }));
   });
 
