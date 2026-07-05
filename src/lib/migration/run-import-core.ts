@@ -120,6 +120,7 @@ export async function executeImport(args: RunImportArgs): Promise<RunImportResul
 
   // 2b) Standort-Namen → location_id (case-insensitiv). Quelle: optionale CSV-Spalte `restaurant`.
   const { data: locRows, error: locErr } = await admin
+    // ST1: bewusst ungefiltert — Daten-Zugriff (Migrations-Import: Name → ID).
     .from("locations")
     .select("id, name")
     .eq("organization_id", organizationId);

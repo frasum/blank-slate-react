@@ -83,6 +83,7 @@ export async function sendOrderEmailWithAdmin(
   let restaurantName = "";
   if (order.location_id) {
     const { data: loc } = await admin
+      // ST1: bewusst ungefiltert — Daten-Zugriff (Namens-Lookup an historischer Bestellung).
       .from("locations")
       .select("name")
       .eq("id", order.location_id)

@@ -61,6 +61,7 @@ async function loadLocationSettings(
   settings: ProvisionSettings;
 } | null> {
   const { data, error } = await supabase
+    // ST1: bewusst ungefiltert — Daten-Zugriff (Provisionseinstellungen einzelner Standort by id).
     .from("locations")
     .select("organization_id, commission_enabled, commission_min_revenue_cents, commission_pct")
     .eq("id", locationId)
@@ -257,6 +258,7 @@ export const updateCommissionSettings = createServerFn({ method: "POST" })
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
       const { data: before, error: beforeErr } = await supabaseAdmin
+        // ST1: bewusst ungefiltert — Daten-Zugriff (Provisions-Update by id, inkl. Audit-Vorzustand).
         .from("locations")
         .select("organization_id, commission_enabled, commission_min_revenue_cents, commission_pct")
         .eq("id", data.locationId)
@@ -267,6 +269,7 @@ export const updateCommissionSettings = createServerFn({ method: "POST" })
       }
 
       const { error: updateErr } = await supabaseAdmin
+        // ST1: bewusst ungefiltert — Daten-Zugriff (Provisions-Update by id).
         .from("locations")
         .update({
           commission_enabled: data.enabled,

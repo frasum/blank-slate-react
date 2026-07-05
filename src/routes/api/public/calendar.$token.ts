@@ -88,6 +88,7 @@ export const Route = createFileRoute("/api/public/calendar/$token")({
         const locMap = new Map<string, string>();
         if (locationIds.length) {
           const { data: locs } = await supabaseAdmin
+            // ST1: bewusst ungefiltert — Daten-Zugriff (Kalender-ICS: Namen an historischen Schichten).
             .from("locations")
             .select("id, name")
             .eq("organization_id", orgId)

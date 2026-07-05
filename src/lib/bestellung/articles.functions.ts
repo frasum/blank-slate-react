@@ -181,6 +181,7 @@ export const createArticle = createServerFn({ method: "POST" })
 
       // Standort-IDs müssen zur Organisation gehören.
       const { data: validLocs, error: locErr } = await supabaseAdmin
+        // ST1: bewusst ungefiltert — Daten-Zugriff (Org-Validierung übergebener IDs).
         .from("locations")
         .select("id")
         .eq("organization_id", caller.organizationId)
@@ -263,6 +264,7 @@ export const updateArticle = createServerFn({ method: "POST" })
       if (!sup) throw new Error("Lieferant gehört nicht zur Organisation.");
 
       const { data: validLocs, error: locErr } = await supabaseAdmin
+        // ST1: bewusst ungefiltert — Daten-Zugriff (Org-Validierung übergebener IDs).
         .from("locations")
         .select("id")
         .eq("organization_id", caller.organizationId)

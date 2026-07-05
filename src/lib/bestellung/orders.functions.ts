@@ -312,6 +312,7 @@ export const sendOrderEmail = createServerFn({ method: "POST" })
       let restaurantName = "";
       if (order.location_id) {
         const { data: loc } = await supabaseAdmin
+          // ST1: bewusst ungefiltert — Daten-Zugriff (Namens-Lookup an historischer Bestellung).
           .from("locations")
           .select("name")
           .eq("id", order.location_id)
