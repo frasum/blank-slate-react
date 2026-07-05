@@ -70,8 +70,7 @@ describe("pdfExport — Tip-Summe delegiert an computeTipTotalCents", () => {
     );
     expect(tipFromPdfRows(rows)).toBe(expected);
     // Sanity: Formel = card + cash + open − kassiertBrutto − hilfMahl
-    const inline =
-      40000 + 72000 + 5000 - 100000 - 1500 + (30000 + 55000 + 0 - 80000 - 0);
+    const inline = 40000 + 72000 + 5000 - 100000 - 1500 + (30000 + 55000 + 0 - 80000 - 0);
     expect(expected).toBe(inline);
   });
 });
