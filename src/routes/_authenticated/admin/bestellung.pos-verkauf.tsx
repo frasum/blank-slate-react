@@ -122,6 +122,14 @@ function PosVerkaufPage() {
   const reportDate = statsQ.data?.reportDate ?? null;
   const unmatchedCount = statsQ.data?.unmatchedCount ?? 0;
 
+  // Zuordnungs-Optionen: alle WG-Werte, die aus Namens-Matches oder Overrides
+  // bereits an POS-Zeilen hängen. Bewusst aus den enriched rows, damit die
+  // Liste zum Standort passt (statt separatem sales_articles-Fetch).
+  const assignableWgOptions = useMemo(
+    () => deriveWgOptions(rows.filter((r) => r.warengruppe !== null || r.productGroup !== null)),
+    [rows],
+  );
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return rows.filter((r) => {
