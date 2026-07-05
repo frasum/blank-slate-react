@@ -679,17 +679,20 @@ function ZeitUebersichtPage() {
     return m;
   }, [weeklyData]);
 
-  // Z4 — Skills-Stammdaten für den Filter.
+  // Z4 — Skills-Stammdaten nur noch für die Filter-UI (Kategorisierung/Anzeige).
+  // Das Matching selbst passiert seit Z4b gegen die Dienstplan-Realität der Woche.
   const skillsQ = useQuery({
     queryKey: ["skills-list"],
     queryFn: () => fetchSkills(),
   });
   const skills = useMemo(() => skillsQ.data ?? [], [skillsQ.data]);
-  const skillsByStaffFilter = useMemo(() => {
-    const m = new Map<string, string[]>();
-    for (const s of weeklyData?.assignedStaff ?? []) {
-      if (m.has(s.staffId)) continue;
-      m.set(s.staffId, s.skillIds ?? []);
+
+  // Z4b — Dienstplan-Realität der angezeigten Woche je Mitarbeiter
+  // (aus roster_shifts). Filtergrundlage für Bereich und Skill.
+  const rosterByStaffMap = useMemo(() => {
+    const m = new Map<string, { areas: Department[]; skillIds: string[] }>();
+    for (const [sid, bucket] of Object.entries(weeklyData?.rosterByStaff ?? {})) {
+      m.set(sid, { areas: [...bucket.areas], skillIds: [...bucket.skillIds] });
     }
     return m;
   }, [weeklyData]);
