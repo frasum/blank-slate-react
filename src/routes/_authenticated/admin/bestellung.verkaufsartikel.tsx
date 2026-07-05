@@ -480,6 +480,7 @@ function parseEuroInputToCents(raw: string): number | null | "invalid" {
 // ---------------------------------------------------------------------------
 
 function AddArticleDialog(props: {
+  isAdmin: boolean;
   submitting: boolean;
   onClose: () => void;
   onSubmit: (input: {
@@ -487,6 +488,7 @@ function AddArticleDialog(props: {
     productGroup: number | null;
     priceCents: number | null;
     takeawayPriceCents: number | null;
+    ekPriceCents: number | null;
     warengruppe: string | null;
     untergruppe: string | null;
     untergruppeNr: number | null;
@@ -498,6 +500,7 @@ function AddArticleDialog(props: {
   const [productGroup, setProductGroup] = useState("");
   const [price, setPrice] = useState("");
   const [takeaway, setTakeaway] = useState("");
+  const [ek, setEk] = useState("");
   const [warengruppe, setWarengruppe] = useState("");
   const [untergruppe, setUntergruppe] = useState("");
   const [untergruppeNr, setUntergruppeNr] = useState("");
