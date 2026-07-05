@@ -435,3 +435,49 @@ function CellView({ cell, area }: { cell: DisplayCell; area: "kitchen" | "servic
   }
   return <span className="text-slate-600">−</span>;
 }
+
+// DP1: Farb-Palette für die Warnbanner. Kräftige Töne mit gutem Kontrast
+// für die Display-Distanz. Sanftes Pulsieren via Tailwind animate-pulse.
+const REMINDER_STYLE: Record<
+  Reminder["color"],
+  { bg: string; text: string; border: string }
+> = {
+  grau: { bg: "bg-slate-600", text: "text-slate-50", border: "border-slate-400/60" },
+  braun: { bg: "bg-amber-900", text: "text-amber-50", border: "border-amber-700/70" },
+  blau: { bg: "bg-blue-700", text: "text-blue-50", border: "border-blue-400/60" },
+  gruen: { bg: "bg-emerald-700", text: "text-emerald-50", border: "border-emerald-400/60" },
+  gelb: { bg: "bg-yellow-400", text: "text-yellow-950", border: "border-yellow-200" },
+  orange: { bg: "bg-orange-600", text: "text-orange-50", border: "border-orange-300/70" },
+  rot: { bg: "bg-red-700", text: "text-red-50", border: "border-red-400/60" },
+  violett: { bg: "bg-violet-700", text: "text-violet-50", border: "border-violet-400/60" },
+};
+
+function ReminderStack({ reminders, now }: { reminders: Reminder[]; now: Date }) {
+  if (!reminders || reminders.length === 0) return null;
+  const nowB = nowBerlinParts(now);
+  const businessDate = businessDateOf(now);
+  const due = sortReminders(reminders.filter((r) => isReminderActive(r, nowB, businessDate)));
+  if (due.length === 0) return null;
+  return (
+    <div className="space-y-2 px-3 pt-3">
+      {due.map((r) => {
+        const s = REMINDER_STYLE[r.color] ?? REMINDER_STYLE.grau;
+        return (
+          <div
+            key={r.id}
+            className={cn(
+              "flex items-center justify-center gap-3 rounded-2xl border px-6 py-3 text-center shadow-lg animate-pulse",
+              s.bg,
+              s.text,
+              s.border,
+            )}
+            role="alert"
+          >
+            {r.emoji && <span className="text-3xl leading-none">{r.emoji}</span>}
+            <span className="text-2xl font-semibold tracking-tight">{r.title}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
