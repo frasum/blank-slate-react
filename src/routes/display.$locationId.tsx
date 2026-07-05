@@ -185,22 +185,30 @@ function DisplayPage() {
         </div>
       )}
 
-      <ReminderStack reminders={data.reminders ?? []} now={now} />
-
       <main className="space-y-4 p-3">
         {data.blocks.map((block, idx) => (
           <div key={block.area} className="space-y-4">
             <BlockTable block={block} days={data.days} payload={data} />
-            {data.customMessage && idx < data.blocks.length - 1 && (
-              <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 px-6 py-3 text-center text-base text-amber-200">
-                {data.customMessage}
+            {idx < data.blocks.length - 1 && (
+              <div className="space-y-2">
+                <ReminderStack reminders={data.reminders ?? []} now={now} />
+                {data.customMessage && (
+                  <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 px-6 py-3 text-center text-base text-amber-200">
+                    {data.customMessage}
+                  </div>
+                )}
               </div>
             )}
           </div>
         ))}
-        {data.customMessage && data.blocks.length <= 1 && (
-          <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 px-6 py-3 text-center text-base text-amber-200">
-            {data.customMessage}
+        {data.blocks.length <= 1 && (
+          <div className="space-y-2">
+            <ReminderStack reminders={data.reminders ?? []} now={now} />
+            {data.customMessage && (
+              <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 px-6 py-3 text-center text-base text-amber-200">
+                {data.customMessage}
+              </div>
+            )}
           </div>
         )}
         {data.blocks.length === 0 && (
