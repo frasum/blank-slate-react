@@ -36,9 +36,9 @@ export type SalesArticle = {
   untergruppeNr: number | null;
   hauptgruppe: string | null;
   hauptgruppeNr: number | null;
+  /** Einkaufspreis in Cent. Server-seitig nur für admin gefüllt, sonst null. */
+  ekPriceCents: number | null;
 };
-
-export type SalesArticleWithEk = SalesArticle & { ekPriceCents: number | null };
 
 // ---------------------------------------------------------------------------
 // Helpers
