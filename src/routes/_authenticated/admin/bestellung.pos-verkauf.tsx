@@ -88,7 +88,10 @@ function PosVerkaufPage() {
   const callList = useServerFn(listSalesStats);
   const callSet = useServerFn(setSalesStatsGroupOverride);
   const callClear = useServerFn(clearSalesStatsGroupOverride);
+  const callReplace = useServerFn(replacePosSalesStats);
   const queryClient = useQueryClient();
+  const auth = useAuth();
+  const isAdmin = auth.identity?.role === "admin";
 
   const locationsQ = useQuery({
     queryKey: ["locations"],
@@ -249,6 +252,18 @@ function PosVerkaufPage() {
           >
             {intFmt.format(unmatchedCount)} Artikel ohne Gruppenzuordnung
           </button>
+        )}
+        {isAdmin && (
+          <div className="ml-auto">
+            <PosImportDialog
+              locationId={locationId}
+              period={period}
+              onReplace={(input) => callReplace({ data: input })}
+              onDone={() => {
+                queryClient.invalidateQueries({ queryKey: ["sales-stats", locationId] });
+              }}
+            />
+          </div>
         )}
       </div>
 
