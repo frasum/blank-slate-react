@@ -94,6 +94,7 @@ const GROUPS: Group[] = [
       "/admin/urlaub",
       "/admin/personal-antraege",
       "/admin/wein-quiz",
+      "/admin/dokumente",
     ],
     sub: [
       { to: "/admin/wein-quiz", label: "Wein-Quiz" },
@@ -102,7 +103,8 @@ const GROUPS: Group[] = [
       { to: "/admin/staff", label: "Mitarbeiter", roles: ["admin"] },
       { to: "/admin/dienstplan", label: "Dienstplan" },
       { to: "/admin/urlaub", label: "Urlaubsantrag / Schichttausch" },
-      { to: "/admin/personal-antraege", label: "Stammdaten & Dokumente", roles: ["admin"] },
+      { to: "/admin/personal-antraege", label: "Personal-Anträge", roles: ["admin"] },
+      { to: "/admin/dokumente", label: "Dokument-Vorlagen", roles: ["admin"] },
       { to: "/admin/zeit-uebersicht", label: "Arbeitszeiten" },
     ],
   },
@@ -130,14 +132,6 @@ const GROUPS: Group[] = [
     default: "/admin/aufgaben",
     prefixes: ["/admin/aufgaben"],
     sub: [{ to: "/admin/aufgaben", label: "Kanban-Board" }],
-  },
-  {
-    key: "dokumente",
-    label: "Dokumente",
-    default: "/admin/dokumente",
-    prefixes: ["/admin/dokumente"],
-    sub: [{ to: "/admin/dokumente", label: "Vorlagen" }],
-    roles: ["admin"],
   },
   {
     key: "stammdaten",

@@ -56,7 +56,7 @@ export const Route = createFileRoute("/_authenticated/admin/personal-antraege")(
     const role = (context as { identity?: { role?: string } }).identity?.role;
     if (role !== "admin") throw redirect({ to: "/admin" });
   },
-  head: () => ({ meta: [{ title: "Stammdaten & Dokumente · COCO" }] }),
+  head: () => ({ meta: [{ title: "Personal-Anträge · COCO" }] }),
   component: PersonalAntraegePage,
 });
 
@@ -134,7 +134,7 @@ function PersonalAntraegePage() {
     <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          Stammdaten & Dokumente
+          Personal-Anträge
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Änderungsanträge der Mitarbeiter freigeben und Dokumenten-Übersicht mit Ablauf-Ampel.
