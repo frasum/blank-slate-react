@@ -15,6 +15,7 @@ import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
+import { writeAuditLog } from "@/lib/admin/audit";
 import type { Database } from "@/integrations/supabase/types";
 import {
   enrichSalesStats,
@@ -23,6 +24,7 @@ import {
   type SalesArticleForJoin,
   type SalesStatRow,
 } from "./sales-stats";
+import { ReplacePosSalesStatsInput, checkRowsAgainstFooter } from "./pos-report-server";
 
 type Admin = SupabaseClient<Database>;
 
@@ -190,6 +192,67 @@ export const setSalesStatsGroupOverride = createServerFn({ method: "POST" })
       .upsert(upsert, { onConflict: "location_id,nummer" });
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+// ---------- PV2: XLSX-Upload → atomarer Replace je Standort × Periode ----------
+
+export type ReplacePosSalesStatsResult = {
+  ok: true;
+  rowCount: number;
+  sumVerkauf: number;
+  sumCents: number;
+};
+
+export const replacePosSalesStats = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => ReplacePosSalesStatsInput.parse(input))
+  .handler(async ({ data, context }): Promise<ReplacePosSalesStatsResult> => {
+    // Import ist Datenhoheit → bewusst enger als das manager+-Lesen (Bauplan PV2).
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await assertLocationInOrg(supabaseAdmin, caller.organizationId, data.locationId);
+
+    // Server-seitige Wiederholung des Fußzeilen-Gates — dem Client nicht vertrauen.
+    // Der Client sendet als `footer` die um skipped bereinigten Sollwerte,
+    // sodass hier eine strenge Gleichheit gelten muss (Toleranz 0).
+    const sum = checkRowsAgainstFooter(data.rows, data.footer);
+    if (!sum.matches) {
+      throw new Error(
+        `Summen der Zeilen stimmen nicht mit der Fußzeile überein — Import abgelehnt. Zeilen: ${sum.sumCount} Stk / ${(sum.sumCents / 100).toFixed(2)} €, Fußzeile: ${data.footer.verkaufCount} Stk / ${(data.footer.umsatzCents / 100).toFixed(2)} €.`,
+      );
+    }
+
+    const { error } = await supabaseAdmin.rpc("replace_pos_sales_stats", {
+      p_organization_id: caller.organizationId,
+      p_location_id: data.locationId,
+      p_period: data.period,
+      p_report_date: data.reportDate,
+      p_rows: data.rows,
+    });
+    if (error) throw new Error(error.message);
+
+    await writeAuditLog({
+      organizationId: caller.organizationId,
+      actorUserId: caller.userId,
+      actorStaffId: caller.staffId,
+      action: "pos_sales.replaced",
+      entity: "sales_article_stats",
+      meta: {
+        locationId: data.locationId,
+        period: data.period,
+        reportDate: data.reportDate,
+        rowCount: data.rows.length,
+        sumVerkauf: sum.sumCount,
+        sumCents: sum.sumCents,
+      },
+    });
+
+    return {
+      ok: true,
+      rowCount: data.rows.length,
+      sumVerkauf: sum.sumCount,
+      sumCents: sum.sumCents,
+    };
   });
 
 export const clearSalesStatsGroupOverride = createServerFn({ method: "POST" })

@@ -4820,6 +4820,16 @@ export type Database = {
         }
         Returns: undefined
       }
+      replace_pos_sales_stats: {
+        Args: {
+          p_location_id: string
+          p_organization_id: string
+          p_period: string
+          p_report_date: string
+          p_rows: Json
+        }
+        Returns: undefined
+      }
       replace_staff_locations: {
         Args: {
           p_location_ids: string[]
