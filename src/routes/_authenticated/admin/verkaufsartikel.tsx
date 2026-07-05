@@ -42,7 +42,7 @@ import { EkZuordnungTab } from "@/components/verkaufsartikel/EkZuordnungTab";
 import { SalesGroupFilter } from "@/components/bestellung/SalesGroupFilter";
 import { ALL, matchesHaupt, matchesUnter, matchesWg } from "@/lib/bestellung/sales-group-filter";
 
-export const Route = createFileRoute("/_authenticated/admin/bestellung/verkaufsartikel")({
+export const Route = createFileRoute("/_authenticated/admin/verkaufsartikel")({
   head: () => ({ meta: [{ title: "Verkaufsartikel · Bestellung" }] }),
   component: VerkaufsartikelPage,
 });
