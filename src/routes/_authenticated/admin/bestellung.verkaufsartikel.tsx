@@ -282,13 +282,15 @@ function VerkaufsartikelPage() {
                     className="text-muted-foreground"
                     title={row.hauptgruppeNr !== null ? `Nr. ${row.hauptgruppeNr}` : undefined}
                   >
-                    {row.hauptgruppe ?? (row.hauptgruppeNr !== null ? `#${row.hauptgruppeNr}` : "—")}
+                    {row.hauptgruppe ??
+                      (row.hauptgruppeNr !== null ? `#${row.hauptgruppeNr}` : "—")}
                   </TableCell>
                   <TableCell
                     className="text-muted-foreground"
                     title={row.untergruppeNr !== null ? `Nr. ${row.untergruppeNr}` : undefined}
                   >
-                    {row.untergruppe ?? (row.untergruppeNr !== null ? `#${row.untergruppeNr}` : "—")}
+                    {row.untergruppe ??
+                      (row.untergruppeNr !== null ? `#${row.untergruppeNr}` : "—")}
                   </TableCell>
                   <TableCell
                     className="text-muted-foreground"
@@ -676,9 +678,7 @@ function EditGroupsDialog(props: {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Hierarchie bearbeiten — {a.name}</DialogTitle>
-          <DialogDescription>
-            Quelle Vectron — wird beim Re-Import überschrieben.
-          </DialogDescription>
+          <DialogDescription>Quelle Vectron — wird beim Re-Import überschrieben.</DialogDescription>
         </DialogHeader>
         <div className="space-y-3 py-2">
           <HierarchyFieldset
@@ -724,8 +724,7 @@ function HierarchyFieldset(props: {
   productGroup: string;
   setProductGroup: (v: string) => void;
 }) {
-  const inputCls =
-    "w-full rounded border border-input bg-background px-3 py-2 text-sm";
+  const inputCls = "w-full rounded border border-input bg-background px-3 py-2 text-sm";
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
