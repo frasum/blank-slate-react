@@ -2229,7 +2229,7 @@ function WeeklyPlan({
                     : undefined;
                   return (
                     <TableRow key={`${row.staffId}:${row.department}`}>
-                      <TableCell className="relative px-1 font-medium align-middle text-center text-xs w-[68px] min-w-[68px] max-w-[68px]">
+                      <TableCell className="group relative px-1 font-medium align-middle text-center text-xs w-[68px] min-w-[68px] max-w-[68px]">
                         <span
                           className={`absolute left-0 top-0 bottom-0 w-[2px] ${DEPT_BAR[row.department]}`}
                         />
@@ -2242,7 +2242,7 @@ function WeeklyPlan({
                             <span className="ml-0.5 text-amber-600">⚠</span>
                           ) : null}
                         </span>
-                        {isAdmin ? (
+                        {isAdmin && (staffDeptsByStaff.get(row.staffId)?.length ?? 0) > 1 ? (
                           <ReassignPopover
                             row={row}
                             entriesById={entriesById}
@@ -2634,7 +2634,7 @@ function ReassignPopover({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="mt-0.5 text-[10px] text-muted-foreground hover:text-foreground underline decoration-dotted"
+          className="mt-0.5 text-[10px] text-muted-foreground hover:text-foreground underline decoration-dotted opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
           title="Einträge einer Abteilung zuordnen"
           disabled={pending}
         >

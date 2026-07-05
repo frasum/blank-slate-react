@@ -3117,3 +3117,23 @@ report_date, rows jsonb)` — `SECURITY DEFINER`, `search_path=''`,
   (gleicher Standort/Periode) → alle Checks grün, Summenzeile
   unverändert (Idempotenz gegen den verifizierten Erst-Import), Audit-
   Eintrag `pos_sales.replaced` vorhanden.
+
+## §Z3 — Nachtrag (umhängen-Popover-Sichtbarkeit)
+
+- Der „umhängen"-Trigger unter dem Namen im Wochenplan wird nur gerendert,
+  wenn die Person am Standort **mehr als eine** Abteilungs-Zuordnung hat
+  (`staffDepts.length > 1`) und Einträge in der Woche existieren. Bei nur
+  einer Zuordnung gibt es kein sinnvolles Ziel — der Link entfällt.
+- Optisch dezent: der Trigger ist per Default unsichtbar
+  (`opacity-0`) und erscheint erst beim Hover/Focus auf der Namenszelle
+  (`group-hover:opacity-100`). Die Zeile bleibt ruhig, die Funktion ist
+  einen Hover entfernt.
+
+## §49 — Lektion: zod 4 UUID-Validierung
+
+- `z.string().uuid()` prüft in zod 4 die Versions- und Varianten-Bits
+  nach RFC 4122. Test-Dummies wie
+  `"11111111-1111-1111-1111-111111111111"` sind **keine** gültige UUID
+  und lassen `safeParse` scheitern. Fixtures müssen RFC-4122-konform
+  sein, z. B. `"11111111-1111-4111-8111-111111111111"` (Version 4,
+  Varianten-Bit `8`).
