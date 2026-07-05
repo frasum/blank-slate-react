@@ -13,7 +13,7 @@ geklippt, Format `Urlaub 12.–24.07. · Krank 03.07.`, chronologisch mit `·`)
 **NIE gespeichert** (eine Wahrheit — Korrekturen an der Quelle im
 Urlaubs-/Krank-Datensatz); UI zeigt ihn dezent (Kalender-Icon, muted, mit
 Tooltip) über dem Notiz-Feld; PDF/Excel-Export zeigt beide Teile getrennt
-durch ` | ` (nur vorhandene Teile). Server liefert `absenceNote` in
+durch `|` (nur vorhandene Teile). Server liefert `absenceNote` in
 `listAbsencesByStaff` mit; kein Schema, keine Migration.
 
 **Stempeln-Abmelden generalisiert (05.07.):** Der „Abmelden"-Knopf auf der
