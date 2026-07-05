@@ -900,10 +900,10 @@ function ZeitUebersichtPage() {
       rowsByDept: filterWeeklyRows(
         weeklyExportInput.rowsByDept,
         { dept: deptFilter, skillId: skillFilter, query: "" },
-        skillsByStaffFilter,
+        rosterByStaffMap,
       ),
     };
-  }, [weeklyExportInput, deptFilter, skillFilter, skillsByStaffFilter]);
+  }, [weeklyExportInput, deptFilter, skillFilter, rosterByStaffMap]);
 
   // ============ Buchhaltung-Aggregation (Render + Export) ============
   const payrollRowsByStaff = useMemo(() => {
