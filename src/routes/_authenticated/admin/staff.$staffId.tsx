@@ -31,6 +31,7 @@ import { SofortmeldungBanner } from "@/components/admin/SofortmeldungBanner";
 import { DokumenteTab } from "@/components/admin/DokumenteTab";
 import type { AppRole } from "@/lib/admin/role-guard";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import {
   deletePayslip,
   getPayslipSignedUrl,
@@ -355,14 +356,19 @@ function SkillChip({
 
   const bg = chipBackground(skill.color, active);
   const isWhite = (skill.color ?? "").toLowerCase() === "#ffffff";
+  // Inaktive Skills bewusst neutral-grau (einheitlich mit staff.index.tsx):
+  // Farbe signalisiert ausschließlich „aktiv/zugewiesen".
   const textStyle: React.CSSProperties = active
     ? { color: isWhite ? "#0a0a0a" : "#ffffff" }
-    : { color: skill.color ?? undefined };
-  const borderColor = skill.color ?? undefined;
+    : {};
+  const borderColor = active ? (skill.color ?? undefined) : undefined;
 
   return (
     <span
-      className="inline-flex items-center rounded-full border"
+      className={cn(
+        "inline-flex items-center rounded-full border",
+        !active && "border-muted-foreground/30 text-muted-foreground",
+      )}
       style={{ borderColor, backgroundColor: bg }}
     >
       <button
