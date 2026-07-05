@@ -163,6 +163,7 @@ export const createDisplayReminder = createServerFn({ method: "POST" })
         interval_weeks: data.intervalWeeks,
         anchor_date: data.anchorDate ?? null,
         from_time: data.fromTime,
+        until_time: data.untilTime,
         is_active: data.isActive ?? true,
         sort_order: data.sortOrder ?? 0,
       };
@@ -200,6 +201,7 @@ export const updateDisplayReminder = createServerFn({ method: "POST" })
         interval_weeks: data.intervalWeeks,
         anchor_date: data.anchorDate ?? null,
         from_time: data.fromTime,
+        until_time: data.untilTime,
         is_active: data.isActive ?? true,
         sort_order: data.sortOrder ?? 0,
       };
