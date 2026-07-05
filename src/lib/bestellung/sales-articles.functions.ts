@@ -153,6 +153,9 @@ export const createSalesArticle = createServerFn({ method: "POST" })
     return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       await assertLocationInOrg(supabaseAdmin, caller.organizationId, data.locationId);
+      // EK darf nur admin setzen — Manager übergebene Werte werden ignoriert.
+      const includeEk = caller.role === "admin";
+      const ekForInsert = includeEk ? (data.ekPriceCents ?? null) : null;
       const insert = {
         organization_id: caller.organizationId,
         location_id: data.locationId,
@@ -166,12 +169,13 @@ export const createSalesArticle = createServerFn({ method: "POST" })
         untergruppe_nr: data.untergruppeNr ?? null,
         hauptgruppe: data.hauptgruppe ?? null,
         hauptgruppe_nr: data.hauptgruppeNr ?? null,
+        ek_price_cents: ekForInsert,
       };
       const { data: row, error } = await supabaseAdmin
         .from("sales_articles")
         .insert(insert)
         .select(
-          "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr",
+          "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr, ek_price_cents",
         )
         .single();
       if (error) {
@@ -182,7 +186,7 @@ export const createSalesArticle = createServerFn({ method: "POST" })
         }
         throw new Error(error.message);
       }
-      const result = mapRow(row);
+      const result = mapRow(row, { includeEk });
       return {
         result,
         audit: {
@@ -195,6 +199,7 @@ export const createSalesArticle = createServerFn({ method: "POST" })
             productGroup: result.productGroup,
             priceCents: result.priceCents,
             takeawayPriceCents: result.takeawayPriceCents,
+            ekPriceCents: ekForInsert,
           },
         },
       };
