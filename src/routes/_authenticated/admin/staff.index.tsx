@@ -615,6 +615,7 @@ function StaffMatrixRow({
                       onClick={() => onToggleSkill(staff.id, skill.id, has, staff.skillIds)}
                       className={cn(
                         "inline-flex min-w-[36px] items-center justify-center rounded-md border-2 px-2.5 py-1 text-xs font-bold transition-all",
+                        !has && "border-muted-foreground/30 text-muted-foreground bg-transparent",
                         !eligible && !has && "cursor-not-allowed opacity-25",
                         eligible && !disabled && "cursor-pointer hover:scale-105",
                         !eligible && has && "opacity-70",
