@@ -2255,6 +2255,7 @@ function WeeklyPlan({
                             entriesById={entriesById}
                             onReassign={onReassign}
                             pending={pending}
+                            staffDeptsByStaff={staffDeptsByStaff}
                           />
                         ) : null}
                       </TableCell>
