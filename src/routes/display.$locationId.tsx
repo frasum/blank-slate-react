@@ -464,14 +464,14 @@ function ReminderStack({ reminders, now }: { reminders: Reminder[]; now: Date })
   const due = sortReminders(reminders.filter((r) => isReminderActive(r, nowB, businessDate)));
   if (due.length === 0) return null;
   return (
-    <div className="space-y-2 px-3 pt-3">
+    <div className="space-y-2">
       {due.map((r) => {
         const s = REMINDER_STYLE[r.color] ?? REMINDER_STYLE.grau;
         return (
           <div
             key={r.id}
             className={cn(
-              "flex items-center justify-center gap-3 rounded-2xl border px-6 py-3 text-center shadow-lg animate-pulse",
+              "flex items-center justify-center gap-3 rounded-2xl border px-6 py-3 text-center shadow-lg animate-reminder-blink",
               s.bg,
               s.text,
               s.border,
