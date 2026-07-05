@@ -2872,3 +2872,12 @@ SUMITRs 8 Rechte-Klicks + Login-Test, Einstellungs-Tabs, erster automatischer
 Nachtbericht); TSB-PaySlips + Verkaufsartikel-Listen Spicery/TSB;
 Entscheidungen (A/B-Überträge, UP3); geparkt (BZ2, Welle B, MCP, MailerSend-DNS,
 `maybeSingle`-Härtung `getCashOverviewCore`).
+
+## 2026-07-05 — Tip-Formel im Tages-PDF/Druck zentralisiert (KGL-Grundsatz)
+
+Tip-Formel im Tages-PDF/Druck korrigiert (alte `max(0, Differenz)`-Näherung
+in `SettlementsCard`/`DailyPrintView`/`pdfExport` ersetzt) und auf
+`computeTipTotalCents` (`src/lib/cash/tip-pool.ts`) zentralisiert — Regel hat
+wieder genau eine Implementierung. Neues Feld `kassiert_brutto_cents` mit
+`pos_sales`-Fallback im `PdfExportData`-Pfad. Blockierender Gleichheits-Test
+`src/lib/cash/pdfExport-tip.test.ts` verhindert Rückfall auf Inline-Reduce.
