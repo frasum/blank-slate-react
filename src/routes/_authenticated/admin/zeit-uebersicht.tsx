@@ -2045,6 +2045,7 @@ function WeeklyPlan({
     nextStaffId: string,
     nextIso: string,
     nextField: "from" | "to",
+    nextDepartment: Department = current.department,
   ) => {
     const sameCell = nextStaffId === current.staffId && nextIso === current.iso;
     if (!sameCell) {
@@ -2054,7 +2055,7 @@ function WeeklyPlan({
     if (sameCell) {
       setEdit({ ...current, field: nextField });
     } else {
-      startEdit(nextStaffId, nextIso, nextField);
+      startEdit(nextStaffId, nextIso, nextField, nextDepartment);
     }
   };
 
