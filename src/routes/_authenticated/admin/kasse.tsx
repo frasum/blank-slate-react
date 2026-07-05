@@ -9,7 +9,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Download, FileText, X } from "lucide-react";
+import { Download, FileText, Printer, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -51,6 +51,8 @@ import {
   updateSession,
 } from "@/lib/cash/cash.functions";
 import { generateDailySummaryPdf } from "@/lib/cash/pdfExport";
+import { buildDailySummaryData } from "@/lib/cash/daily-summary-data";
+import { printDailySummary } from "@/components/cash/DailyPrintView";
 import { DateSelector } from "@/components/shared/DateSelector";
 import { LocationPills } from "@/components/shared/LocationPills";
 import { PdfCanvasPreview } from "@/components/cash/PdfCanvasPreview";
