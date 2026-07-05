@@ -2029,6 +2029,57 @@ export type Database = {
           },
         ]
       }
+      pos_hourly_stats: {
+        Row: {
+          anzahl: number
+          created_at: string
+          hour: number
+          id: string
+          location_id: string
+          organization_id: string
+          period: string
+          report_date: string
+          wert_cents: number
+        }
+        Insert: {
+          anzahl?: number
+          created_at?: string
+          hour: number
+          id?: string
+          location_id: string
+          organization_id: string
+          period: string
+          report_date: string
+          wert_cents?: number
+        }
+        Update: {
+          anzahl?: number
+          created_at?: string
+          hour?: number
+          id?: string
+          location_id?: string
+          organization_id?: string
+          period?: string
+          report_date?: string
+          wert_cents?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_hourly_stats_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_hourly_stats_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       revenue_channels: {
         Row: {
           created_at: string
@@ -4820,6 +4871,16 @@ export type Database = {
           p_konten: Json
           p_organization_id: string
           p_positions: Json
+        }
+        Returns: undefined
+      }
+      replace_pos_hourly_stats: {
+        Args: {
+          p_location_id: string
+          p_organization_id: string
+          p_period: string
+          p_report_date: string
+          p_rows: Json
         }
         Returns: undefined
       }
