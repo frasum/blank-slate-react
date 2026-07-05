@@ -2721,10 +2721,11 @@ oder `{ all: false, combos: [...] }` für planer. `getMyRosterScopes` ruft
 diesen Helfer jetzt selbst auf; Verhalten unverändert.
 
 **Scope-Anker:**
+
 - Urlaubsantrag: der Antragsteller muss eine `staff_locations`-Zeile mit
   einer freigegebenen `(location, department)`-Kombination haben.
 - Schichttausch: die Schicht des Anfragenden (`roster_shifts.location_id +
-  area`) muss in der Kombi-Liste liegen.
+area`) muss in der Kombi-Liste liegen.
 - Jahresplaner: gewählter Standort muss im Scope liegen; nur der
   freigegebene Bereichs-Block wird zurückgegeben.
 
