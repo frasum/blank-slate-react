@@ -2281,6 +2281,7 @@ function WeeklyPlan({
                                         flatRows[t.rowIdx].staffId,
                                         dayMeta[t.dayIdx].iso,
                                         edit.field,
+                                        flatRows[t.rowIdx].department,
                                       );
                                     return;
                                   }
@@ -2297,6 +2298,7 @@ function WeeklyPlan({
                                         flatRows[t.rowIdx].staffId,
                                         dayMeta[t.dayIdx].iso,
                                         edit.field,
+                                        flatRows[t.rowIdx].department,
                                       );
                                     return;
                                   }
