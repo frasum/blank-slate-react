@@ -38,6 +38,12 @@ export type SalesArticle = {
   hauptgruppeNr: number | null;
   /** Einkaufspreis in Cent. Server-seitig nur für admin gefüllt, sonst null. */
   ekPriceCents: number | null;
+  /** EKZ1 — Verknüpfungs-Felder. Nur admin gefüllt. */
+  ekSourceArticleId: string | null;
+  ekSourceArticleName: string | null;
+  ekPortionMl: number | null;
+  ekSourceVolumeMl: number | null;
+  ekMatchIgnored: boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -76,6 +82,11 @@ function mapRow(
     hauptgruppe: string | null;
     hauptgruppe_nr: number | null;
     ek_price_cents?: number | null;
+    ek_source_article_id?: string | null;
+    ek_portion_ml?: number | null;
+    ek_source_volume_ml?: number | null;
+    ek_match_ignored?: boolean | null;
+    articles?: { name: string | null } | null;
   },
   opts: { includeEk: boolean },
 ): SalesArticle {
@@ -97,6 +108,17 @@ function mapRow(
       !opts.includeEk || row.ek_price_cents === null || row.ek_price_cents === undefined
         ? null
         : Number(row.ek_price_cents),
+    ekSourceArticleId: opts.includeEk ? (row.ek_source_article_id ?? null) : null,
+    ekSourceArticleName: opts.includeEk ? (row.articles?.name ?? null) : null,
+    ekPortionMl:
+      opts.includeEk && row.ek_portion_ml !== null && row.ek_portion_ml !== undefined
+        ? Number(row.ek_portion_ml)
+        : null,
+    ekSourceVolumeMl:
+      opts.includeEk && row.ek_source_volume_ml !== null && row.ek_source_volume_ml !== undefined
+        ? Number(row.ek_source_volume_ml)
+        : null,
+    ekMatchIgnored: opts.includeEk ? Boolean(row.ek_match_ignored) : false,
   };
 }
 
@@ -117,7 +139,7 @@ export const listSalesArticles = createServerFn({ method: "POST" })
     const { data: rows, error } = await supabaseAdmin
       .from("sales_articles")
       .select(
-        "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr, ek_price_cents",
+        "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr, ek_price_cents, ek_source_article_id, ek_portion_ml, ek_source_volume_ml, ek_match_ignored, articles:ek_source_article_id(name)",
       )
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId)
@@ -179,7 +201,7 @@ export const createSalesArticle = createServerFn({ method: "POST" })
         .from("sales_articles")
         .insert(insert)
         .select(
-          "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr, ek_price_cents",
+          "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr, ek_price_cents, ek_source_article_id, ek_portion_ml, ek_source_volume_ml, ek_match_ignored, articles:ek_source_article_id(name)",
         )
         .single();
       if (error) {
@@ -254,7 +276,7 @@ export const updateSalesArticle = createServerFn({ method: "POST" })
       const { data: before, error: beforeErr } = await supabaseAdmin
         .from("sales_articles")
         .select(
-          "id, organization_id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr, ek_price_cents",
+          "id, organization_id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr, ek_price_cents, ek_source_article_id, ek_portion_ml, ek_source_volume_ml, ek_match_ignored, articles:ek_source_article_id(name)",
         )
         .eq("id", data.id)
         .maybeSingle();
@@ -337,7 +359,7 @@ export const updateSalesArticle = createServerFn({ method: "POST" })
         .eq("id", data.id)
         .eq("organization_id", caller.organizationId)
         .select(
-          "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr, ek_price_cents",
+          "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr, ek_price_cents, ek_source_article_id, ek_portion_ml, ek_source_volume_ml, ek_match_ignored, articles:ek_source_article_id(name)",
         )
         .single();
       if (error) throw new Error(error.message);
