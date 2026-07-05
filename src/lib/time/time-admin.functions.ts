@@ -393,7 +393,7 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
     // 3. Abteilungen für diesen Standort.
     const { data: deptRows, error: deptErr } = await supabaseAdmin
       .from("staff_locations")
-      .select("staff_id, department")
+      .select("staff_id, department, staff(display_name, is_active)")
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId);
     if (deptErr) throw deptErr;
@@ -401,6 +401,21 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
     for (const d of deptRows ?? []) {
       deptByStaff.set(d.staff_id, d.department as "kitchen" | "service" | "gl");
     }
+
+    // Alle dem Standort zugeordneten Mitarbeiter (auch ohne Stunden) —
+    // damit die Wochenansicht die Roster-Grundmenge zeigt, nicht nur
+    // die, die real gestempelt haben. Inaktive werden ausgeblendet.
+    const assignedStaff = (deptRows ?? [])
+      .map((d) => {
+        const s = d.staff as { display_name: string; is_active: boolean } | null;
+        return {
+          staffId: d.staff_id as string,
+          displayName: s?.display_name ?? "—",
+          department: d.department as "kitchen" | "service" | "gl",
+          isActive: s?.is_active ?? true,
+        };
+      })
+      .filter((s) => s.isActive);
 
     const crossLocationDates: Record<string, string[]> = {};
     for (const c of crossRows ?? []) {
@@ -424,6 +439,7 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
         endedAt: r.ended_at as string,
       })),
       crossLocationDates,
+      assignedStaff,
     };
   });
 

@@ -326,11 +326,17 @@ function ZeitUebersichtPage() {
         weekEnd: fmtIso(addDays(weekStartDate, 6)),
         entries: [],
         crossLocationDates: {},
+        assignedStaff: [],
       };
       for (const q of allLocationQueries) {
         const d = q.data as WeeklyData | undefined;
         if (!d) continue;
         merged.entries.push(...d.entries);
+        for (const s of d.assignedStaff ?? []) {
+          if (!merged.assignedStaff!.some((x) => x.staffId === s.staffId)) {
+            merged.assignedStaff!.push(s);
+          }
+        }
       }
       return merged;
     }
@@ -681,6 +687,18 @@ function ZeitUebersichtPage() {
       totals: { total: number; evening: number; night: number; sunHol: number };
     };
     const rowMap = new Map<string, AccRow>();
+    // Grundmenge: alle dem Standort zugeordneten (aktiven) Mitarbeiter
+    // erscheinen — auch ohne einen einzigen Stempel in der Woche.
+    for (const s of data.assignedStaff ?? []) {
+      if (rowMap.has(s.staffId)) continue;
+      rowMap.set(s.staffId, {
+        staffId: s.staffId,
+        displayName: s.displayName,
+        department: s.department,
+        byDate: new Map(),
+        totals: { total: 0, evening: 0, night: 0, sunHol: 0 },
+      });
+    }
     for (const e of data.entries) {
       // Out-of-Period-Skip: Einträge außerhalb der gewählten Abrechnungs-
       // periode (Mo–So-Woche kann an Periodengrenzen überlappen) werden
@@ -1676,6 +1694,12 @@ type WeeklyData = {
   weekEnd: string;
   entries: WeeklyEntry[];
   crossLocationDates: Record<string, string[]>;
+  assignedStaff?: {
+    staffId: string;
+    displayName: string;
+    department: Department;
+    isActive: boolean;
+  }[];
 };
 
 function fmtDec(n: number): string {
