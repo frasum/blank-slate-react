@@ -201,6 +201,21 @@ function VerkaufsartikelPage() {
 
       <LocationPills locations={locations} value={locationId} onChange={setLocationId} />
 
+      {isAdmin && locationId && (
+        <Tabs value={subtab} onValueChange={(v) => setSubtab(v as "liste" | "ek")}>
+          <TabsList>
+            <TabsTrigger value="liste">Verkaufsartikel</TabsTrigger>
+            <TabsTrigger value="ek">EK-Zuordnung</TabsTrigger>
+          </TabsList>
+          <TabsContent value="ek" className="pt-4">
+            <EkZuordnungTab locationId={locationId} />
+          </TabsContent>
+          <TabsContent value="liste" className="pt-4" />
+        </Tabs>
+      )}
+
+      {(!isAdmin || subtab === "liste") && (
+      <>
       <div className="flex flex-wrap items-center gap-2">
         <input
           type="text"
