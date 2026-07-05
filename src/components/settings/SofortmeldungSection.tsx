@@ -49,7 +49,7 @@ export function SofortmeldungSection({ canEdit }: { canEdit: boolean }) {
         </p>
       </div>
 
-      <label className="block space-y-1">
+      <label className="flex flex-col gap-1">
         <span className="text-xs font-medium text-muted-foreground">Betriebsnummer</span>
         <input
           type="text"

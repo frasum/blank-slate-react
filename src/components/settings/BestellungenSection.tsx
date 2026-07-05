@@ -47,7 +47,7 @@ export function BestellungenSection({
         <span className="text-sm text-foreground">Testmodus aktiv</span>
       </label>
 
-      <label className="block space-y-1">
+      <label className="flex flex-col gap-1">
         <span className="text-xs font-medium text-muted-foreground">Test-E-Mail-Adresse</span>
         <input
           type="email"
