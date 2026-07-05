@@ -2484,6 +2484,66 @@ export type Database = {
           },
         ]
       }
+      sales_pos_group_overrides: {
+        Row: {
+          created_at: string
+          hauptgruppe: string | null
+          hauptgruppe_nr: number | null
+          id: string
+          location_id: string
+          nummer: number
+          organization_id: string
+          product_group: number | null
+          untergruppe: string | null
+          untergruppe_nr: number | null
+          updated_at: string
+          warengruppe: string | null
+        }
+        Insert: {
+          created_at?: string
+          hauptgruppe?: string | null
+          hauptgruppe_nr?: number | null
+          id?: string
+          location_id: string
+          nummer: number
+          organization_id: string
+          product_group?: number | null
+          untergruppe?: string | null
+          untergruppe_nr?: number | null
+          updated_at?: string
+          warengruppe?: string | null
+        }
+        Update: {
+          created_at?: string
+          hauptgruppe?: string | null
+          hauptgruppe_nr?: number | null
+          id?: string
+          location_id?: string
+          nummer?: number
+          organization_id?: string
+          product_group?: number | null
+          untergruppe?: string | null
+          untergruppe_nr?: number | null
+          updated_at?: string
+          warengruppe?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_pos_group_overrides_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_pos_group_overrides_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       session_advances: {
         Row: {
           amount_cents: number

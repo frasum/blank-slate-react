@@ -4,14 +4,19 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { listSalesStats } from "@/lib/bestellung/sales-stats.functions";
+import {
+  clearSalesStatsGroupOverride,
+  listSalesStats,
+  setSalesStatsGroupOverride,
+} from "@/lib/bestellung/sales-stats.functions";
 import { listLocations } from "@/lib/admin/locations.functions";
 import { LocationPills } from "@/components/shared/LocationPills";
 import { SalesGroupFilter } from "@/components/bestellung/SalesGroupFilter";
 import {
   ALL,
+  deriveWgOptions,
   matchesHaupt,
   matchesUnter,
   matchesWg,
@@ -20,6 +25,14 @@ import {
 import { averagePriceCents, type EnrichedStatRow } from "@/lib/bestellung/sales-stats";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -52,6 +65,9 @@ function formatEurFromCents(cents: number | null): string {
 
 function PosVerkaufPage() {
   const callList = useServerFn(listSalesStats);
+  const callSet = useServerFn(setSalesStatsGroupOverride);
+  const callClear = useServerFn(clearSalesStatsGroupOverride);
+  const queryClient = useQueryClient();
 
   const locationsQ = useQuery({
     queryKey: ["locations"],
@@ -72,6 +88,21 @@ function PosVerkaufPage() {
     enabled: !!locationId,
   });
 
+  const setOverrideMut = useMutation({
+    mutationFn: (input: { nummer: number; warengruppeKey: string }) =>
+      callSet({ data: { locationId, nummer: input.nummer, warengruppeKey: input.warengruppeKey } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sales-stats", locationId] });
+    },
+  });
+  const clearOverrideMut = useMutation({
+    mutationFn: (input: { nummer: number }) =>
+      callClear({ data: { locationId, nummer: input.nummer } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sales-stats", locationId] });
+    },
+  });
+
   const [search, setSearch] = useState("");
   const [haupt, setHaupt] = useState<string>(ALL);
   const [unter, setUnter] = useState<string>(ALL);
@@ -90,6 +121,14 @@ function PosVerkaufPage() {
   const rows = useMemo<EnrichedStatRow[]>(() => statsQ.data?.rows ?? [], [statsQ.data]);
   const reportDate = statsQ.data?.reportDate ?? null;
   const unmatchedCount = statsQ.data?.unmatchedCount ?? 0;
+
+  // Zuordnungs-Optionen: alle WG-Werte, die aus Namens-Matches oder Overrides
+  // bereits an POS-Zeilen hängen. Bewusst aus den enriched rows, damit die
+  // Liste zum Standort passt (statt separatem sales_articles-Fetch).
+  const assignableWgOptions = useMemo(
+    () => deriveWgOptions(rows.filter((r) => r.warengruppe !== null || r.productGroup !== null)),
+    [rows],
+  );
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -292,11 +331,16 @@ function PosVerkaufPage() {
                       {intFmt.format(r.nummer)}
                     </TableCell>
                     <TableCell className="font-medium">{r.name}</TableCell>
-                    <TableCell
-                      className="text-muted-foreground"
-                      title={r.productGroup !== null ? `Nr. ${r.productGroup}` : undefined}
-                    >
-                      {r.warengruppe ?? (r.productGroup !== null ? `#${r.productGroup}` : "—")}
+                    <TableCell className="text-muted-foreground">
+                      <AssignCell
+                        row={r}
+                        options={assignableWgOptions}
+                        onAssign={(warengruppeKey) =>
+                          setOverrideMut.mutate({ nummer: r.nummer, warengruppeKey })
+                        }
+                        onClear={() => clearOverrideMut.mutate({ nummer: r.nummer })}
+                        busy={setOverrideMut.isPending || clearOverrideMut.isPending}
+                      />
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {intFmt.format(r.verkaufCount)}
@@ -358,5 +402,118 @@ function SortableHead({
         <span className="text-xs text-muted-foreground">{arrow}</span>
       </button>
     </TableHead>
+  );
+}
+
+function AssignCell({
+  row,
+  options,
+  onAssign,
+  onClear,
+  busy,
+}: {
+  row: EnrichedStatRow;
+  options: { value: string; label: string }[];
+  onAssign: (warengruppeKey: string) => void;
+  onClear: () => void;
+  busy: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pick, setPick] = useState<string>("");
+
+  const currentLabel =
+    row.warengruppe ?? (row.productGroup !== null ? `#${row.productGroup}` : null);
+
+  return (
+    <div className="flex items-center gap-2">
+      {currentLabel ? (
+        <span
+          className={
+            row.overridden
+              ? "rounded-md border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary"
+              : ""
+          }
+          title={row.productGroup !== null ? `Nr. ${row.productGroup}` : undefined}
+        >
+          {currentLabel}
+        </span>
+      ) : (
+        <span className="text-muted-foreground">—</span>
+      )}
+
+      <Popover
+        open={open}
+        onOpenChange={(v) => {
+          setOpen(v);
+          if (v) setPick("");
+        }}
+      >
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="rounded-md border border-input bg-background px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            disabled={busy}
+          >
+            {row.overridden ? "Ändern" : currentLabel ? "Zuordnen" : "Zuordnen"}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-64 space-y-2">
+          <div className="text-xs text-muted-foreground">
+            Nr. {row.nummer} · {row.name}
+          </div>
+          <Select value={pick} onValueChange={setPick}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Warengruppe wählen…" />
+            </SelectTrigger>
+            <SelectContent>
+              {options.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="flex items-center justify-between gap-2 pt-1">
+            {row.overridden ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onClear();
+                  setOpen(false);
+                }}
+                disabled={busy}
+                className="text-xs text-destructive hover:underline disabled:opacity-50"
+              >
+                Zuordnung aufheben
+              </button>
+            ) : (
+              <span />
+            )}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="rounded-md border border-input bg-background px-2 py-1 text-xs"
+              >
+                Abbrechen
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (pick) {
+                    onAssign(pick);
+                    setOpen(false);
+                  }
+                }}
+                disabled={!pick || busy}
+                className="rounded-md bg-primary px-2 py-1 text-xs font-medium text-primary-foreground disabled:opacity-50"
+              >
+                Speichern
+              </button>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
   );
 }

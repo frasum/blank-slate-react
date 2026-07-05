@@ -19,6 +19,7 @@ import type { Database } from "@/integrations/supabase/types";
 import {
   enrichSalesStats,
   type EnrichedStatRow,
+  type PosGroupOverride,
   type SalesArticleForJoin,
   type SalesStatRow,
 } from "./sales-stats";
@@ -78,6 +79,25 @@ export const listSalesStats = createServerFn({ method: "POST" })
     if (statsRes.error) throw new Error(statsRes.error.message);
     if (articlesRes.error) throw new Error(articlesRes.error.message);
 
+    const overridesRes = await supabaseAdmin
+      .from("sales_pos_group_overrides")
+      .select(
+        "nummer, warengruppe, product_group, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr",
+      )
+      .eq("organization_id", caller.organizationId)
+      .eq("location_id", data.locationId);
+    if (overridesRes.error) throw new Error(overridesRes.error.message);
+
+    const overrides: PosGroupOverride[] = (overridesRes.data ?? []).map((o) => ({
+      nummer: Number(o.nummer),
+      warengruppe: o.warengruppe,
+      productGroup: o.product_group === null ? null : Number(o.product_group),
+      untergruppe: o.untergruppe,
+      untergruppeNr: o.untergruppe_nr === null ? null : Number(o.untergruppe_nr),
+      hauptgruppe: o.hauptgruppe,
+      hauptgruppeNr: o.hauptgruppe_nr === null ? null : Number(o.hauptgruppe_nr),
+    }));
+
     const stats: SalesStatRow[] = (statsRes.data ?? []).map((r) => ({
       id: r.id,
       locationId: r.location_id,
@@ -99,10 +119,93 @@ export const listSalesStats = createServerFn({ method: "POST" })
       hauptgruppeNr: a.hauptgruppe_nr === null ? null : Number(a.hauptgruppe_nr),
     }));
 
-    const { rows, unmatchedCount } = enrichSalesStats(stats, articles);
+    const { rows, unmatchedCount } = enrichSalesStats(stats, articles, overrides);
     const reportDate = stats.reduce<string | null>(
       (acc, s) => (acc === null || s.reportDate > acc ? s.reportDate : acc),
       null,
     );
     return { rows, reportDate, unmatchedCount };
+  });
+
+// ---------- Manuelles Zuordnen: warengruppeKey → Snapshot der 3 Ebenen ----------
+
+const SetInput = z.object({
+  locationId: z.string().uuid(),
+  nummer: z.number().int(),
+  /** Wert aus deriveWgOptions: entweder Warengruppen-Name oder `#<productGroup>`. */
+  warengruppeKey: z.string().min(1),
+});
+
+const ClearInput = z.object({
+  locationId: z.string().uuid(),
+  nummer: z.number().int(),
+});
+
+function wgKeyOf(name: string | null, nr: number | null): string | null {
+  if (name) return name;
+  if (nr !== null) return `#${nr}`;
+  return null;
+}
+
+export const setSalesStatsGroupOverride = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => SetInput.parse(input))
+  .handler(async ({ data, context }): Promise<{ ok: true }> => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await assertLocationInOrg(supabaseAdmin, caller.organizationId, data.locationId);
+
+    const articlesRes = await supabaseAdmin
+      .from("sales_articles")
+      .select(
+        "warengruppe, product_group, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr",
+      )
+      .eq("organization_id", caller.organizationId)
+      .eq("location_id", data.locationId);
+    if (articlesRes.error) throw new Error(articlesRes.error.message);
+
+    const exemplar = (articlesRes.data ?? []).find(
+      (a) =>
+        wgKeyOf(a.warengruppe, a.product_group === null ? null : Number(a.product_group)) ===
+        data.warengruppeKey,
+    );
+    if (!exemplar) {
+      throw new Error("Warengruppe nicht in den Verkaufsartikeln dieses Standorts gefunden.");
+    }
+
+    const upsert = {
+      organization_id: caller.organizationId,
+      location_id: data.locationId,
+      nummer: data.nummer,
+      warengruppe: exemplar.warengruppe,
+      product_group: exemplar.product_group,
+      untergruppe: exemplar.untergruppe,
+      untergruppe_nr: exemplar.untergruppe_nr,
+      hauptgruppe: exemplar.hauptgruppe,
+      hauptgruppe_nr: exemplar.hauptgruppe_nr,
+    };
+
+    const { error } = await supabaseAdmin
+      .from("sales_pos_group_overrides")
+      .upsert(upsert, { onConflict: "location_id,nummer" });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const clearSalesStatsGroupOverride = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => ClearInput.parse(input))
+  .handler(async ({ data, context }): Promise<{ ok: true }> => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await assertLocationInOrg(supabaseAdmin, caller.organizationId, data.locationId);
+
+    const { error } = await supabaseAdmin
+      .from("sales_pos_group_overrides")
+      .delete()
+      .eq("organization_id", caller.organizationId)
+      .eq("location_id", data.locationId)
+      .eq("nummer", data.nummer);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
