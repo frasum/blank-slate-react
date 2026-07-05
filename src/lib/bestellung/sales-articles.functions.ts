@@ -110,11 +110,13 @@ export const listSalesArticles = createServerFn({ method: "POST" })
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     await assertLocationInOrg(supabaseAdmin, caller.organizationId, data.locationId);
+    const includeEk = caller.role === "admin";
+    const cols = includeEk
+      ? "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr, ek_price_cents"
+      : "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr";
     const { data: rows, error } = await supabaseAdmin
       .from("sales_articles")
-      .select(
-        "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr",
-      )
+      .select(cols)
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId)
       .order("hauptgruppe_nr", { ascending: true, nullsFirst: false })
@@ -122,7 +124,7 @@ export const listSalesArticles = createServerFn({ method: "POST" })
       .order("product_group", { ascending: true, nullsFirst: false })
       .order("name", { ascending: true });
     if (error) throw new Error(error.message);
-    return (rows ?? []).map(mapRow);
+    return (rows ?? []).map((r) => mapRow(r, { includeEk }));
   });
 
 // ---------------------------------------------------------------------------
