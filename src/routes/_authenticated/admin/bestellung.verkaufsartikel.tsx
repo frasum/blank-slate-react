@@ -17,6 +17,7 @@ import {
 } from "@/lib/bestellung/sales-articles.functions";
 import { listLocations } from "@/lib/admin/locations.functions";
 import { LocationPills } from "@/components/shared/LocationPills";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -53,6 +54,8 @@ type PriceField = "priceCents" | "takeawayPriceCents";
 
 function VerkaufsartikelPage() {
   const qc = useQueryClient();
+  const { identity } = useAuth();
+  const isAdmin = identity?.role === "admin";
   const callList = useServerFn(listSalesArticles);
   const callUpdate = useServerFn(updateSalesArticle);
   const callCreate = useServerFn(createSalesArticle);
@@ -270,6 +273,7 @@ function VerkaufsartikelPage() {
                 <TableHead className="w-32">Warengruppe</TableHead>
                 <TableHead className="w-36">Preis</TableHead>
                 <TableHead className="w-36">Mitnahme</TableHead>
+                {isAdmin && <TableHead className="w-32">EK</TableHead>}
                 <TableHead className="w-28 text-right">Aktiv</TableHead>
                 <TableHead className="w-20 text-right">Bearb.</TableHead>
               </TableRow>
@@ -316,6 +320,18 @@ function VerkaufsartikelPage() {
                       }
                     />
                   </TableCell>
+                  {isAdmin && (
+                    <TableCell
+                      className="text-muted-foreground"
+                      title={
+                        row.ekPriceCents !== null && row.priceCents !== null
+                          ? `Marge: ${formatEuro(row.priceCents - row.ekPriceCents)}`
+                          : undefined
+                      }
+                    >
+                      {row.ekPriceCents === null ? "—" : formatEuro(row.ekPriceCents)}
+                    </TableCell>
+                  )}
                   <TableCell className="text-right">
                     <Switch
                       checked={row.isActive}
@@ -342,6 +358,7 @@ function VerkaufsartikelPage() {
 
       {addOpen && (
         <AddArticleDialog
+          isAdmin={isAdmin}
           submitting={createMut.isPending}
           onClose={() => setAddOpen(false)}
           onSubmit={(input) => createMut.mutate({ data: { ...input, locationId } })}
@@ -349,6 +366,7 @@ function VerkaufsartikelPage() {
       )}
       {editRow && (
         <EditGroupsDialog
+          isAdmin={isAdmin}
           article={editRow}
           submitting={updateMut.isPending}
           onClose={() => setEditRow(null)}
@@ -462,6 +480,7 @@ function parseEuroInputToCents(raw: string): number | null | "invalid" {
 // ---------------------------------------------------------------------------
 
 function AddArticleDialog(props: {
+  isAdmin: boolean;
   submitting: boolean;
   onClose: () => void;
   onSubmit: (input: {
@@ -469,6 +488,7 @@ function AddArticleDialog(props: {
     productGroup: number | null;
     priceCents: number | null;
     takeawayPriceCents: number | null;
+    ekPriceCents: number | null;
     warengruppe: string | null;
     untergruppe: string | null;
     untergruppeNr: number | null;
@@ -480,6 +500,7 @@ function AddArticleDialog(props: {
   const [productGroup, setProductGroup] = useState("");
   const [price, setPrice] = useState("");
   const [takeaway, setTakeaway] = useState("");
+  const [ek, setEk] = useState("");
   const [warengruppe, setWarengruppe] = useState("");
   const [untergruppe, setUntergruppe] = useState("");
   const [untergruppeNr, setUntergruppeNr] = useState("");
@@ -527,12 +548,18 @@ function AddArticleDialog(props: {
       setLocalErr("Mitnahme: nur Zahlen und Komma (max. 2 Nachkommastellen).");
       return;
     }
+    const ekCents = props.isAdmin ? parseEuroInputToCents(ek) : null;
+    if (ekCents === "invalid") {
+      setLocalErr("EK: nur Zahlen und Komma (max. 2 Nachkommastellen).");
+      return;
+    }
     setLocalErr(null);
     props.onSubmit({
       name: trimmed,
       productGroup: productGroupParsed,
       priceCents,
       takeawayPriceCents: takeawayCents,
+      ekPriceCents: ekCents,
       warengruppe: warengruppe.trim() || null,
       untergruppe: untergruppe.trim() || null,
       untergruppeNr: untergruppeNrParsed,
@@ -596,6 +623,18 @@ function AddArticleDialog(props: {
               />
             </label>
           </div>
+          {props.isAdmin && (
+            <label className="block space-y-1">
+              <span className="text-xs font-medium text-muted-foreground">EK (€) — nur Admin</span>
+              <input
+                value={ek}
+                onChange={(e) => setEk(e.target.value)}
+                inputMode="decimal"
+                className="w-full rounded border border-input bg-background px-3 py-2 text-sm"
+                placeholder="optional"
+              />
+            </label>
+          )}
           {localErr && <p className="text-xs text-destructive">{localErr}</p>}
         </div>
         <DialogFooter>
@@ -622,9 +661,11 @@ type GroupsPatch = {
   hauptgruppe: string | null;
   hauptgruppeNr: number | null;
   productGroup: number | null;
+  ekPriceCents?: number | null;
 };
 
 function EditGroupsDialog(props: {
+  isAdmin: boolean;
   article: SalesArticle;
   submitting: boolean;
   onClose: () => void;
@@ -642,6 +683,11 @@ function EditGroupsDialog(props: {
   const [warengruppe, setWarengruppe] = useState(a.warengruppe ?? "");
   const [productGroup, setProductGroup] = useState(
     a.productGroup === null ? "" : String(a.productGroup),
+  );
+  const [ek, setEk] = useState(
+    a.ekPriceCents === null || a.ekPriceCents === undefined
+      ? ""
+      : (a.ekPriceCents / 100).toFixed(2).replace(".", ","),
   );
   const [localErr, setLocalErr] = useState<string | null>(null);
 
@@ -662,6 +708,15 @@ function EditGroupsDialog(props: {
     if (un === "invalid") return;
     const hn = parseInt(hauptgruppeNr, "Hauptgruppe Nr.");
     if (hn === "invalid") return;
+    let ekCents: number | null | undefined = undefined;
+    if (props.isAdmin) {
+      const parsed = parseEuroInputToCents(ek);
+      if (parsed === "invalid") {
+        setLocalErr("EK: nur Zahlen und Komma (max. 2 Nachkommastellen).");
+        return;
+      }
+      ekCents = parsed;
+    }
     setLocalErr(null);
     props.onSubmit({
       hauptgruppe: hauptgruppe.trim() || null,
@@ -670,6 +725,7 @@ function EditGroupsDialog(props: {
       untergruppeNr: un,
       warengruppe: warengruppe.trim() || null,
       productGroup: pg,
+      ...(props.isAdmin ? { ekPriceCents: ekCents } : {}),
     });
   };
 
@@ -677,7 +733,7 @@ function EditGroupsDialog(props: {
     <Dialog open onOpenChange={(o) => !o && props.onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Hierarchie bearbeiten — {a.name}</DialogTitle>
+          <DialogTitle>Artikel bearbeiten — {a.name}</DialogTitle>
           <DialogDescription>Quelle Vectron — wird beim Re-Import überschrieben.</DialogDescription>
         </DialogHeader>
         <div className="space-y-3 py-2">
@@ -695,6 +751,18 @@ function EditGroupsDialog(props: {
             productGroup={productGroup}
             setProductGroup={setProductGroup}
           />
+          {props.isAdmin && (
+            <label className="block space-y-1">
+              <span className="text-xs font-medium text-muted-foreground">EK (€) — nur Admin</span>
+              <input
+                value={ek}
+                onChange={(e) => setEk(e.target.value)}
+                inputMode="decimal"
+                className="w-full rounded border border-input bg-background px-3 py-2 text-sm"
+                placeholder="optional"
+              />
+            </label>
+          )}
           {localErr && <p className="text-xs text-destructive">{localErr}</p>}
         </div>
         <DialogFooter>

@@ -2342,6 +2342,7 @@ export type Database = {
       sales_articles: {
         Row: {
           created_at: string
+          ek_price_cents: number | null
           hauptgruppe: string | null
           hauptgruppe_nr: number | null
           id: string
@@ -2359,6 +2360,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          ek_price_cents?: number | null
           hauptgruppe?: string | null
           hauptgruppe_nr?: number | null
           id?: string
@@ -2376,6 +2378,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          ek_price_cents?: number | null
           hauptgruppe?: string | null
           hauptgruppe_nr?: number | null
           id?: string

@@ -2,7 +2,7 @@
 
 Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen Baublock konsultiert. Bewusst kurz gehalten — Architektur-Begründungen stehen im gruendungsdokument.md, nicht hier.
 
-Stand: 05.07.2026 (VA2)
+Stand: 05.07.2026 (VA3)
 
 **PL1-Fix Urlaub-Sichtbarkeit (05.07.2026):** In
 `permission_role_defaults` war `roster.leave.view_all` als Default für
@@ -2636,6 +2636,15 @@ geschnitten als Spicerys (eigene Hauptgruppen wie Infotexte/Liefergebühr) —
 bestätigt die Denormalisierungs-Entscheidung (Vectron-Wahrheit je Standort).
 
 **Offen:** TSB-Export beim Aufsetzen des Standorts (Pipeline steht).
+
+### VA3 — Einkaufspreis (05.07.2026)
+
+`ek_price_cents` (BIGINT Cents, nullable, `CHECK >= 0`) an `sales_articles`;
+Auslieferung server-seitig admin-only (Margen-Wissen — Manager sehen das
+Feld weder in der Liste noch im Netzwerk-Response, Update-Pfad ignoriert
+`ekPriceCents` schweigend für Nicht-Admins). Werte kommen per Frank-SQL aus
+den Vectron-Exporten (Spicery 209, YUM 98). **Marge** wird nur abgeleitet
+(Admin-Tooltip am EK: `preis − EK`, wenn beide vorhanden) — nie gespeichert.
 
 ## §56 AF1 — Task-Fotos (04.07.2026)
 
