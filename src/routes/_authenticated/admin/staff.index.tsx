@@ -33,6 +33,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Search, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AppRole } from "@/lib/admin/role-guard";
+import { computeAgeYears } from "@/lib/profile/age";
 
 function formatTenure(startDate: string | null | undefined): string | null {
   if (!startDate) return null;
@@ -501,6 +502,11 @@ function StaffMatrixRow({
             {formatTenure(staff.employmentStartDate) && (
               <span className="ml-1 font-normal text-muted-foreground">
                 ({formatTenure(staff.employmentStartDate)})
+              </span>
+            )}
+            {computeAgeYears(staff.dateOfBirth) !== null && (
+              <span className="ml-1 font-normal text-muted-foreground">
+                ({computeAgeYears(staff.dateOfBirth)})
               </span>
             )}
           </Link>

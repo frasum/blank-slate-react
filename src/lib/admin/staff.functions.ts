@@ -73,14 +73,16 @@ export const listStaff = createServerFn({ method: "GET" })
     if (error) throw error;
     const staffIds = (data ?? []).map((s) => s.id);
     const startDates = new Map<string, string | null>();
+    const birthDates = new Map<string, string | null>();
     if (staffIds.length > 0) {
       const { data: details, error: dErr } = await supabaseAdmin
         .from("staff_personal_details")
-        .select("staff_id, employment_start_date")
+        .select("staff_id, employment_start_date, date_of_birth")
         .in("staff_id", staffIds);
       if (dErr) throw dErr;
       for (const d of details ?? []) {
         startDates.set(d.staff_id as string, (d.employment_start_date as string | null) ?? null);
+        birthDates.set(d.staff_id as string, (d.date_of_birth as string | null) ?? null);
       }
     }
     return (data ?? []).map((s) => {
@@ -126,6 +128,7 @@ export const listStaff = createServerFn({ method: "GET" })
         skillIds,
         hasPin: s.staff_pins !== null,
         employmentStartDate: startDates.get(s.id) ?? null,
+        dateOfBirth: birthDates.get(s.id) ?? null,
       };
     });
   });
