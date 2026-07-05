@@ -3446,3 +3446,58 @@ Audit-Actions: `display_reminder.created|updated|deleted`.
 - `src/lib/display/reminders.functions.ts` — Server-Fns (list/create/update/delete).
 - `src/components/aufgaben/RemindersAdmin.tsx` — Verwaltungs-UI im Tab.
 - `src/routes/display.$locationId.tsx` — `ReminderStack` mit `animate-pulse`.
+
+## Nachtschicht 05./06.07.2026
+
+**Verifizierter Stand:** HEAD `9be78c9c`, 1439 Tests grün, 06.07.2026 —
+`tsc --noEmit` 0 Fehler, `eslint src/ --max-warnings=5`,
+`prettier --check .` sauber, `vitest run` komplett grün.
+
+### Abgenommen in einem Paket bei HEAD `9be78c9c`
+
+- **§KAB2 + DR2–DR4** — Tagesabrechnungs-Feinschliff (Ein-Knopf-Druck-
+  Vorbereitung, Warnbanner, Trinkgeld-Rest-Übernahme) inklusive der
+  begleitenden Druck-/PDF-Anpassungen.
+- **§DP1** — Display-Erinnerungen (wiederkehrende Warnbanner je Standort,
+  Wochentag/Parität, Berlin-Uhrzeit-Gate, `display_reminders` DENY-ALL).
+- **§DP1b** — Vollbild-Wechsel 15 / 15 mit `until_time`, deterministischer
+  Phasen-Takt aus der Uhrzeit (kein Component-Timer); der frühere
+  Mittel-Balken samt `animate-reminder-blink` entfällt ersatzlos.
+- **§NAV1** — Navigation konsolidiert: „Stammdaten & Dokumente" heißt jetzt
+  **Personal-Anträge** (admin-only); **Dokument-Vorlagen** wandern als
+  Sub-Tab unter „Mitarbeiter" (Top-Gruppe „Dokumente" entfällt).
+- **Struktur-Umbauten (NAV1-Welle)** — POS-Verkauf, Verkaufsartikel und Wein
+  laufen als Top-Routen (`/admin/pos-verkauf`, `/admin/verkaufsartikel`,
+  `/admin/wein`) statt unter `/admin/bestellung/*`; POS-Verkauf sitzt unter
+  „Auswertungen", Verkaufsartikel + Wein + Mitarbeiter unter „Stammdaten",
+  **Standorte** wandert unter „Einstellungen". `/admin/aufgaben` bekommt zwei
+  Sub-Tabs **Board** (Kanban) und **Aufgaben-Display** (Reminder-CRUD) —
+  die frühere Inline-Tabs-Leiste ist weg.
+- **§TH1 — Standort-Farbthema** — `LocationThemeProvider` im
+  `_authenticated`-Layout hält den Theme-Key
+  (`spicery` | `yum` | `neutral`). `LocationPills` melden ihre Auswahl per
+  `useLocationThemeSync`; Namens-Mapping enthält „spicery" → spicery,
+  „yum" → yum, sonst neutral (TSB bleibt bewusst neutral). Aktive Pille
+  färbt sich (Gelb #FACC15 / Rot #F08A7A, schwarze Schrift), Layout-Canvas
+  bekommt pastelligen Hintergrund. `PillSelect` färbt nur mit `themed`-Prop;
+  alle anderen PillSelect-Verwendungen bleiben pixelgleich. Druck (`@media
+print`) resettet das Theme.
+
+### Real-Datei-Validierung Stundenberichte (cent-verifiziert)
+
+Nach den PV3-Uploads wurde per SQL gegen `sales_pos_hourly` gegengeprüft —
+beide Häuser stehen cent-exakt an denselben Werten wie die Vectron-
+Rohdateien:
+
+- Spicery: **101.283 Buchungen / 9.817.288,78 €**.
+- YUM: **97.695 Buchungen / 8.383.044,04 €**.
+
+### Offene E2E-Punkte (Frank)
+
+- **§DP1/DP1b** — Display-Erinnerungen live am Abend beobachten
+  (Vollbild-Wechsel 15/15, mehrere gleichzeitig fällige Reminder).
+- **§TH1** — Farb-Rundgang durch Spicery/YUM/„Alle" auf Zeit-, Kasse-,
+  Dienstplan- und Aufgaben-Display-Seiten; TSB-Farbe bleibt bewusst
+  neutral, endgültige Farbe noch unentschieden.
+- **§KAB2** — Ein-Knopf-Druck beim nächsten echten Tagesabschluss
+  (Praxistest, kein Testlauf).
