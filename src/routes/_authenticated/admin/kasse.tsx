@@ -412,6 +412,49 @@ function KassePage() {
       toast.error((e as Error).message);
     }
   }
+
+  // KAB1: Klick auf „Tagesabrechnung drucken" – Status-bewusst
+  function handlePrintClick() {
+    if (sessionStatus === "open") {
+      // Kopplung: Finalisieren-Dialog vorschalten (Admin-Checkbox: danach sperren)
+      setPrintCouple({ lockAfter: false });
+      return;
+    }
+    // finalized/locked: direkt drucken (kein Statuswechsel)
+    handlePrint();
+  }
+
+  async function runPrintCouple(mode: "finalize_print" | "print_only") {
+    const data = buildSummaryDataOrNull();
+    if (!data) {
+      setPrintCouple(null);
+      return;
+    }
+    setPrintCoupleBusy(true);
+    try {
+      if (mode === "finalize_print") {
+        // Reihenfolge strikt: erst Finalisieren, dann Druck.
+        if (!sessionId) throw new Error("Keine Session");
+        await callFinalize({ data: { sessionId } });
+        toast.success("Tag finalisiert.");
+        const shouldLock = isAdmin && printCouple?.lockAfter === true;
+        printDailySummary(data);
+        if (shouldLock) {
+          await callLock({ data: { sessionId } });
+          toast.success("Session gesperrt.");
+        }
+        void invalidate();
+      } else {
+        printDailySummary(data);
+      }
+      setPrintCouple(null);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setPrintCoupleBusy(false);
+    }
+  }
+
   function closePdfPreview() {
     setPdfPreview(null);
   }
