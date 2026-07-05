@@ -442,6 +442,8 @@ function StaffListPage() {
                       skillPending={skillMutation.isPending}
                       onToggleDept={toggleDept}
                       onToggleSkill={toggleSkill}
+                      employmentStartDate={personalByStaff.get(s.id)?.employmentStartDate ?? null}
+                      dateOfBirth={personalByStaff.get(s.id)?.dateOfBirth ?? null}
                     />
                   ))}
                   {filtered.length === 0 && (
