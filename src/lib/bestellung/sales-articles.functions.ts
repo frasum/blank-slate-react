@@ -216,6 +216,7 @@ const UpdateInput = z
     id: z.string().uuid(),
     priceCents: priceField,
     takeawayPriceCents: priceField,
+    ekPriceCents: priceField,
     productGroup: z.number().int().nullable().optional(),
     isActive: z.boolean().optional(),
     warengruppe: z.string().trim().max(200).nullable().optional(),
@@ -228,6 +229,7 @@ const UpdateInput = z
     (v) =>
       v.priceCents !== undefined ||
       v.takeawayPriceCents !== undefined ||
+      v.ekPriceCents !== undefined ||
       v.productGroup !== undefined ||
       v.isActive !== undefined ||
       v.warengruppe !== undefined ||
@@ -245,10 +247,11 @@ export const updateSalesArticle = createServerFn({ method: "POST" })
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
     return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const includeEk = caller.role === "admin";
       const { data: before, error: beforeErr } = await supabaseAdmin
         .from("sales_articles")
         .select(
-          "id, organization_id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr",
+          "id, organization_id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr, ek_price_cents",
         )
         .eq("id", data.id)
         .maybeSingle();
@@ -273,6 +276,15 @@ export const updateSalesArticle = createServerFn({ method: "POST" })
           before: before.takeaway_price_cents,
           after: data.takeawayPriceCents,
         };
+      }
+      // EK darf nur admin ändern — sonst schweigend ignorieren.
+      if (
+        includeEk &&
+        data.ekPriceCents !== undefined &&
+        data.ekPriceCents !== before.ek_price_cents
+      ) {
+        patch.ek_price_cents = data.ekPriceCents;
+        changed.ekPriceCents = { before: before.ek_price_cents, after: data.ekPriceCents };
       }
       if (data.productGroup !== undefined && data.productGroup !== before.product_group) {
         patch.product_group = data.productGroup;
@@ -306,7 +318,7 @@ export const updateSalesArticle = createServerFn({ method: "POST" })
       // Nichts geändert? Bestehende Zeile zurückgeben, KEIN Audit-Eintrag.
       if (Object.keys(changed).length === 0) {
         return {
-          result: mapRow(before),
+          result: mapRow(before, { includeEk }),
           audit: {
             action: "sales_article.updated",
             entity: "sales_articles",
@@ -322,11 +334,11 @@ export const updateSalesArticle = createServerFn({ method: "POST" })
         .eq("id", data.id)
         .eq("organization_id", caller.organizationId)
         .select(
-          "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr",
+          "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr, ek_price_cents",
         )
         .single();
       if (error) throw new Error(error.message);
-      const result = mapRow(row);
+      const result = mapRow(row, { includeEk });
       return {
         result,
         audit: {
