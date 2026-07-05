@@ -2145,13 +2145,24 @@ function WeeklyPlan({
                     {grp.deptLabel}
                   </TableCell>
                 </TableRow>
-                {grp.rows.map((row) => (
-                  <TableRow key={row.staffId}>
+                {grp.rows.map((row) => {
+                  const primaryDeptLabel =
+                    grp.rows.find((r) => r.staffId === row.staffId && r.isPrimary !== false)
+                      ?.department ?? row.department;
+                  const secondaryTitle =
+                    row.isPrimary === false
+                      ? `Zeiten dieser Person werden unter ${DEPT_HEADER_LABEL[primaryDeptLabel]} erfasst.`
+                      : undefined;
+                  return (
+                  <TableRow key={`${row.staffId}:${row.department}`}>
                     <TableCell className="relative px-1 font-medium align-middle text-center text-xs w-[68px] min-w-[68px] max-w-[68px]">
                       <span
                         className={`absolute left-0 top-0 bottom-0 w-[2px] ${DEPT_BAR[row.department]}`}
                       />
-                      <span className="block truncate" title={row.displayName}>
+                      <span
+                        className={`block truncate ${row.isPrimary === false ? "text-muted-foreground/70 italic" : ""}`}
+                        title={secondaryTitle ?? row.displayName}
+                      >
                         {row.displayName}
                       </span>
                     </TableCell>
@@ -2165,7 +2176,7 @@ function WeeklyPlan({
                             ? "bg-gray-50"
                             : "";
                       const empty = day.shifts.length === 0;
-                      const clickable = isAdmin && !dm.outOfPeriod;
+                      const clickable = isAdmin && !dm.outOfPeriod && row.isPrimary !== false;
                       const multi = day.shifts.length > 1;
                       const isEditingCell =
                         edit !== null && edit.staffId === row.staffId && edit.iso === day.iso;
@@ -2284,12 +2295,14 @@ function WeeklyPlan({
                         <Fragment key={day.iso}>
                           <TableCell
                             onClick={() => handleCellClick("from")}
+                            title={secondaryTitle}
                             className={`w-[62px] min-w-[62px] border-l px-1 py-1 text-center align-middle tabular-nums text-sm ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
                           >
                             {renderShift("from")}
                           </TableCell>
                           <TableCell
                             onClick={() => handleCellClick("to")}
+                            title={secondaryTitle}
                             className={`w-[62px] min-w-[62px] px-1 py-1 text-center align-middle tabular-nums text-sm ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
                           >
                             {renderShift("to")}
@@ -2337,7 +2350,8 @@ function WeeklyPlan({
                       );
                     })()}
                   </TableRow>
-                ))}
+                  );
+                })}
               </Fragment>
             );
           })}
