@@ -78,26 +78,82 @@ function VerkaufsartikelPage() {
   const invalidate = () => qc.invalidateQueries({ queryKey: ["sales-articles", locationId] });
 
   const [search, setSearch] = useState("");
-  const [group, setGroup] = useState<string>("__all__");
+  const [haupt, setHaupt] = useState<string>("__all__");
+  const [unter, setUnter] = useState<string>("__all__");
+  const [wg, setWg] = useState<string>("__all__");
   const [showInactive, setShowInactive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+  const [editRow, setEditRow] = useState<SalesArticle | null>(null);
 
-  const groups = useMemo(() => {
-    const s = new Set<number>();
-    for (const r of rows) if (r.productGroup !== null) s.add(r.productGroup);
-    return Array.from(s).sort((a, b) => a - b);
+  // Kaskadierende Optionen
+  const hauptOptions = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const r of rows) {
+      const key = r.hauptgruppe ?? (r.hauptgruppeNr !== null ? `#${r.hauptgruppeNr}` : "");
+      if (key) m.set(key, r.hauptgruppe ?? `Hauptgruppe ${r.hauptgruppeNr}`);
+    }
+    return Array.from(m.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
   }, [rows]);
+
+  const rowsAfterHaupt = useMemo(() => {
+    if (haupt === "__all__") return rows;
+    return rows.filter(
+      (r) => (r.hauptgruppe ?? (r.hauptgruppeNr !== null ? `#${r.hauptgruppeNr}` : "")) === haupt,
+    );
+  }, [rows, haupt]);
+
+  const unterOptions = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const r of rowsAfterHaupt) {
+      const key = r.untergruppe ?? (r.untergruppeNr !== null ? `#${r.untergruppeNr}` : "");
+      if (key) m.set(key, r.untergruppe ?? `Untergruppe ${r.untergruppeNr}`);
+    }
+    return Array.from(m.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [rowsAfterHaupt]);
+
+  const rowsAfterUnter = useMemo(() => {
+    if (unter === "__all__") return rowsAfterHaupt;
+    return rowsAfterHaupt.filter(
+      (r) => (r.untergruppe ?? (r.untergruppeNr !== null ? `#${r.untergruppeNr}` : "")) === unter,
+    );
+  }, [rowsAfterHaupt, unter]);
+
+  const wgOptions = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const r of rowsAfterUnter) {
+      const key = r.warengruppe ?? (r.productGroup !== null ? `#${r.productGroup}` : "");
+      if (key) m.set(key, r.warengruppe ?? `WG ${r.productGroup}`);
+    }
+    return Array.from(m.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [rowsAfterUnter]);
+
+  // Reset Unter-/Warengruppe wenn Parent-Filter wegfällt
+  useEffect(() => {
+    if (unter !== "__all__" && !unterOptions.some((o) => o.value === unter)) setUnter("__all__");
+  }, [unter, unterOptions]);
+  useEffect(() => {
+    if (wg !== "__all__" && !wgOptions.some((o) => o.value === wg)) setWg("__all__");
+  }, [wg, wgOptions]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return rows.filter((r) => {
+    return rowsAfterUnter.filter((r) => {
       if (!showInactive && !r.isActive) return false;
-      if (group !== "__all__" && String(r.productGroup ?? "") !== group) return false;
+      if (wg !== "__all__") {
+        const key = r.warengruppe ?? (r.productGroup !== null ? `#${r.productGroup}` : "");
+        if (key !== wg) return false;
+      }
       if (q && !r.name.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [rows, search, group, showInactive]);
+  }, [rowsAfterUnter, search, wg, showInactive]);
 
   const activeCount = rows.filter((r) => r.isActive).length;
 
@@ -147,15 +203,41 @@ function VerkaufsartikelPage() {
           placeholder="Suche nach Name…"
           className="w-64 rounded-md border border-input bg-background px-3 py-2 text-sm"
         />
-        <Select value={group} onValueChange={setGroup}>
-          <SelectTrigger className="w-48">
+        <Select value={haupt} onValueChange={setHaupt}>
+          <SelectTrigger className="w-44">
+            <SelectValue placeholder="Hauptgruppe" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Alle Hauptgruppen</SelectItem>
+            {hauptOptions.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={unter} onValueChange={setUnter}>
+          <SelectTrigger className="w-44">
+            <SelectValue placeholder="Untergruppe" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Alle Untergruppen</SelectItem>
+            {unterOptions.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={wg} onValueChange={setWg}>
+          <SelectTrigger className="w-44">
             <SelectValue placeholder="Warengruppe" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="__all__">Alle Warengruppen</SelectItem>
-            {groups.map((g) => (
-              <SelectItem key={g} value={String(g)}>
-                WG {g}
+            {wgOptions.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
               </SelectItem>
             ))}
           </SelectContent>
@@ -183,17 +265,37 @@ function VerkaufsartikelPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead className="w-24">WG</TableHead>
+                <TableHead className="w-32">Hauptgruppe</TableHead>
+                <TableHead className="w-32">Untergruppe</TableHead>
+                <TableHead className="w-32">Warengruppe</TableHead>
                 <TableHead className="w-36">Preis</TableHead>
                 <TableHead className="w-36">Mitnahme</TableHead>
-                <TableHead className="w-24 text-right">Aktiv</TableHead>
+                <TableHead className="w-28 text-right">Aktiv</TableHead>
+                <TableHead className="w-20 text-right">Bearb.</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.map((row) => (
                 <TableRow key={row.id} className={row.isActive ? "" : "opacity-60"}>
                   <TableCell className="font-medium">{row.name}</TableCell>
-                  <TableCell className="text-muted-foreground">{row.productGroup ?? "—"}</TableCell>
+                  <TableCell
+                    className="text-muted-foreground"
+                    title={row.hauptgruppeNr !== null ? `Nr. ${row.hauptgruppeNr}` : undefined}
+                  >
+                    {row.hauptgruppe ?? (row.hauptgruppeNr !== null ? `#${row.hauptgruppeNr}` : "—")}
+                  </TableCell>
+                  <TableCell
+                    className="text-muted-foreground"
+                    title={row.untergruppeNr !== null ? `Nr. ${row.untergruppeNr}` : undefined}
+                  >
+                    {row.untergruppe ?? (row.untergruppeNr !== null ? `#${row.untergruppeNr}` : "—")}
+                  </TableCell>
+                  <TableCell
+                    className="text-muted-foreground"
+                    title={row.productGroup !== null ? `Nr. ${row.productGroup}` : undefined}
+                  >
+                    {row.warengruppe ?? (row.productGroup !== null ? `#${row.productGroup}` : "—")}
+                  </TableCell>
                   <TableCell>
                     <PriceCell
                       article={row}
@@ -220,6 +322,11 @@ function VerkaufsartikelPage() {
                       }
                     />
                   </TableCell>
+                  <TableCell className="text-right">
+                    <Button size="sm" variant="ghost" onClick={() => setEditRow(row)}>
+                      Bearb.
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -236,6 +343,19 @@ function VerkaufsartikelPage() {
           submitting={createMut.isPending}
           onClose={() => setAddOpen(false)}
           onSubmit={(input) => createMut.mutate({ data: { ...input, locationId } })}
+        />
+      )}
+      {editRow && (
+        <EditGroupsDialog
+          article={editRow}
+          submitting={updateMut.isPending}
+          onClose={() => setEditRow(null)}
+          onSubmit={(patch) => {
+            updateMut.mutate(
+              { data: { id: editRow.id, ...patch } },
+              { onSuccess: () => setEditRow(null) },
+            );
+          }}
         />
       )}
     </div>
