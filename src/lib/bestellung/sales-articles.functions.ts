@@ -31,6 +31,11 @@ export type SalesArticle = {
   takeawayPriceCents: number | null;
   isActive: boolean;
   updatedAt: string;
+  warengruppe: string | null;
+  untergruppe: string | null;
+  untergruppeNr: number | null;
+  hauptgruppe: string | null;
+  hauptgruppeNr: number | null;
 };
 
 // ---------------------------------------------------------------------------
@@ -62,6 +67,11 @@ function mapRow(row: {
   takeaway_price_cents: number | null;
   is_active: boolean;
   updated_at: string;
+  warengruppe: string | null;
+  untergruppe: string | null;
+  untergruppe_nr: number | null;
+  hauptgruppe: string | null;
+  hauptgruppe_nr: number | null;
 }): SalesArticle {
   return {
     id: row.id,
@@ -72,6 +82,11 @@ function mapRow(row: {
     takeawayPriceCents: row.takeaway_price_cents === null ? null : Number(row.takeaway_price_cents),
     isActive: row.is_active,
     updatedAt: row.updated_at,
+    warengruppe: row.warengruppe,
+    untergruppe: row.untergruppe,
+    untergruppeNr: row.untergruppe_nr === null ? null : Number(row.untergruppe_nr),
+    hauptgruppe: row.hauptgruppe,
+    hauptgruppeNr: row.hauptgruppe_nr === null ? null : Number(row.hauptgruppe_nr),
   };
 }
 
