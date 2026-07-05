@@ -48,6 +48,7 @@ export interface PdfSettlement {
   hilf_mahl_cents: Cents;
   open_invoices_cents: Cents;
   cash_handed_in_cents: Cents;
+  kassiert_brutto_cents?: Cents;
   differenz_cents: Cents;
   kitchen_tip_cents: Cents;
   submitted_at?: string | null;
