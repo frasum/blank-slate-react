@@ -4,14 +4,19 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { listSalesStats } from "@/lib/bestellung/sales-stats.functions";
+import {
+  clearSalesStatsGroupOverride,
+  listSalesStats,
+  setSalesStatsGroupOverride,
+} from "@/lib/bestellung/sales-stats.functions";
 import { listLocations } from "@/lib/admin/locations.functions";
 import { LocationPills } from "@/components/shared/LocationPills";
 import { SalesGroupFilter } from "@/components/bestellung/SalesGroupFilter";
 import {
   ALL,
+  deriveWgOptions,
   matchesHaupt,
   matchesUnter,
   matchesWg,
@@ -20,6 +25,14 @@ import {
 import { averagePriceCents, type EnrichedStatRow } from "@/lib/bestellung/sales-stats";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
