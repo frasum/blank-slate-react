@@ -138,6 +138,7 @@ const CreateInput = z.object({
   productGroup: z.number().int().nullable().optional(),
   priceCents: priceField,
   takeawayPriceCents: priceField,
+  ekPriceCents: priceField,
   warengruppe: z.string().trim().max(200).nullable().optional(),
   untergruppe: z.string().trim().max(200).nullable().optional(),
   untergruppeNr: z.number().int().nullable().optional(),
