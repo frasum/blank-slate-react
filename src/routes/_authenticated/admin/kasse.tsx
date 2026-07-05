@@ -434,9 +434,7 @@ function KassePage() {
           <div className="ml-auto flex items-end gap-3">
             <SessionStatusInline
               status={sessionStatus}
-              lockedAt={
-                (ovQ.data.session as { locked_at?: string | null }).locked_at ?? null
-              }
+              lockedAt={(ovQ.data.session as { locked_at?: string | null }).locked_at ?? null}
             />
             {isAdmin && sessionStatus === "finalized" && !underWaterline && (
               <Button
