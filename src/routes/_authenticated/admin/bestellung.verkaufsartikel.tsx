@@ -50,7 +50,7 @@ export const Route = createFileRoute("/_authenticated/admin/bestellung/verkaufsa
   component: VerkaufsartikelPage,
 });
 
-type PriceField = "priceCents" | "takeawayPriceCents";
+type PriceField = "priceCents" | "takeawayPriceCents" | "ekPriceCents";
 
 function VerkaufsartikelPage() {
   const qc = useQueryClient();
@@ -275,13 +275,20 @@ function VerkaufsartikelPage() {
                 <TableHead className="w-36">Mitnahme</TableHead>
                 {isAdmin && <TableHead className="w-32">EK</TableHead>}
                 <TableHead className="w-28 text-right">Aktiv</TableHead>
-                <TableHead className="w-20 text-right">Bearb.</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.map((row) => (
                 <TableRow key={row.id} className={row.isActive ? "" : "opacity-60"}>
-                  <TableCell className="font-medium">{row.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <button
+                      type="button"
+                      onClick={() => setEditRow(row)}
+                      className="text-left hover:underline focus:outline-none focus:ring-1 focus:ring-ring rounded"
+                    >
+                      {row.name}
+                    </button>
+                  </TableCell>
                   <TableCell
                     className="text-muted-foreground"
                     title={row.hauptgruppeNr !== null ? `Nr. ${row.hauptgruppeNr}` : undefined}
@@ -322,14 +329,19 @@ function VerkaufsartikelPage() {
                   </TableCell>
                   {isAdmin && (
                     <TableCell
-                      className="text-muted-foreground"
                       title={
                         row.ekPriceCents !== null && row.priceCents !== null
                           ? `Marge: ${formatEuro(row.priceCents - row.ekPriceCents)}`
                           : undefined
                       }
                     >
-                      {row.ekPriceCents === null ? "—" : formatEuro(row.ekPriceCents)}
+                      <PriceCell
+                        article={row}
+                        field="ekPriceCents"
+                        onSave={(cents) =>
+                          updateMut.mutate({ data: { id: row.id, ekPriceCents: cents } })
+                        }
+                      />
                     </TableCell>
                   )}
                   <TableCell className="text-right">
@@ -339,11 +351,6 @@ function VerkaufsartikelPage() {
                         updateMut.mutate({ data: { id: row.id, isActive: v } })
                       }
                     />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button size="sm" variant="ghost" onClick={() => setEditRow(row)}>
-                      Bearb.
-                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
