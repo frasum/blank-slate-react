@@ -1676,6 +1676,12 @@ type WeeklyData = {
   weekEnd: string;
   entries: WeeklyEntry[];
   crossLocationDates: Record<string, string[]>;
+  assignedStaff?: {
+    staffId: string;
+    displayName: string;
+    department: Department;
+    isActive: boolean;
+  }[];
 };
 
 function fmtDec(n: number): string {
