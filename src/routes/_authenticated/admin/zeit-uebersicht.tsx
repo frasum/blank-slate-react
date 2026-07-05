@@ -642,7 +642,12 @@ function ZeitUebersichtPage() {
   }
 
   const setShiftMut = useMutation({
-    mutationFn: (vars: { id: string; startedAt: string; endedAt: string }) =>
+    mutationFn: (vars: {
+      id: string;
+      startedAt: string;
+      endedAt: string;
+      department?: Department | null;
+    }) =>
       callSetShift({ data: vars }),
     onSuccess: () => {
       invalidateWeekly();
