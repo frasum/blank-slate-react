@@ -743,6 +743,16 @@ function KassePage() {
                 </Badge>
               )}
 
+              {isAdmin && sessionStatus === "locked" && (
+                <Button
+                  variant="outline"
+                  disabled={unlockMut.isPending}
+                  onClick={() => setUnlockConfirm(true)}
+                >
+                  Session entsperren
+                </Button>
+              )}
+
               {sessionStatus === "open" && (
                 <Button
                   disabled={!writable || finalizeMut.isPending}
