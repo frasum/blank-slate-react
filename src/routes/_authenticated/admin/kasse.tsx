@@ -9,11 +9,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Check, Download, FileText, Lock, Printer, X } from "lucide-react";
+import { Lock, Printer } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { todayIso } from "@/lib/format";
 import { KassePageSkeleton } from "@/components/ui/page-skeletons";
 import {
@@ -47,17 +46,14 @@ import {
   listRevenueChannels,
   lockSession,
   removeSessionSatellite,
-  reopenSession,
   setCashLock,
   unlockSession,
   updateSession,
 } from "@/lib/cash/cash.functions";
-import { generateDailySummaryPdf } from "@/lib/cash/pdfExport";
 import { buildDailySummaryData } from "@/lib/cash/daily-summary-data";
 import { printDailySummary } from "@/components/cash/DailyPrintView";
 import { DateSelector } from "@/components/shared/DateSelector";
 import { LocationPills } from "@/components/shared/LocationPills";
-import { PdfCanvasPreview } from "@/components/cash/PdfCanvasPreview";
 import { parseEuroToCents } from "@/lib/cash/kasse-helpers";
 import { SettlementWarningsBanner } from "@/components/cash/SettlementWarningsBanner";
 import { SettlementsCard } from "@/components/cash/SettlementsCard";
@@ -65,7 +61,6 @@ import { SessionFieldsCard } from "@/components/cash/SessionFieldsCard";
 import { TipPoolCard } from "@/components/cash/TipPoolCard";
 import { computeTipTotalCents } from "@/lib/cash/tip-pool";
 import { fmtCents } from "@/lib/format";
-import type jsPDF from "jspdf";
 
 export const Route = createFileRoute("/_authenticated/admin/kasse")({
   head: () => ({ meta: [{ title: "Tagesabrechnung" }] }),
@@ -122,7 +117,6 @@ function KassePage() {
   const callRemoveSat = useServerFn(removeSessionSatellite);
   const callFinalize = useServerFn(finalizeSession);
   const callLock = useServerFn(lockSession);
-  const callReopen = useServerFn(reopenSession);
   const callUnlock = useServerFn(unlockSession);
   const callCorrect = useServerFn(correctWaiterSettlement);
   const callAdminCreate = useServerFn(adminCreateWaiterSettlement);
@@ -167,7 +161,6 @@ function KassePage() {
   const sessionStatus = ovQ.data?.session?.status ?? null;
   const lockedThrough = ovQ.data?.cashLockedThroughDate ?? null;
   const underWaterline = lockedThrough !== null && businessDate <= lockedThrough;
-  const isLocked = sessionStatus === "locked" || underWaterline;
   const writable = sessionStatus === "open" && !underWaterline;
   const correctable =
     (sessionStatus === "open" || sessionStatus === "finalized") && !underWaterline;
@@ -296,20 +289,7 @@ function KassePage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // -------------------- Footer-Aktionen --------------------
-  const finalizeMut = useMutation({
-    mutationFn: () => {
-      if (!sessionId) throw new Error("Keine Session");
-      return callFinalize({ data: { sessionId } });
-    },
-    onSuccess: () => {
-      toast.success("Tag finalisiert.");
-      void invalidate();
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-  const [finalizeConfirm, setFinalizeConfirm] = useState(false);
-
+  // -------------------- Admin-Sicherheitsventile --------------------
   const lockMut = useMutation({
     mutationFn: () => {
       if (!sessionId) throw new Error("Keine Session");
@@ -322,19 +302,6 @@ function KassePage() {
     onError: (e: Error) => toast.error(e.message),
   });
   const [lockConfirm, setLockConfirm] = useState(false);
-
-  const reopenMut = useMutation({
-    mutationFn: () => {
-      if (!sessionId) throw new Error("Keine Session");
-      return callReopen({ data: { sessionId } });
-    },
-    onSuccess: () => {
-      toast.success("Session wieder geöffnet.");
-      void invalidate();
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-  const [reopenConfirm, setReopenConfirm] = useState(false);
 
   // „Session entsperren" (Admin) — setzt eine gesperrte Session zurück
   // auf offen, damit ein irrtümlich gesperrter Tag noch einmal
@@ -354,10 +321,8 @@ function KassePage() {
   });
   const [unlockConfirm, setUnlockConfirm] = useState(false);
 
-  // KAB1: Kopplungs-Dialog „Drucken + Finalisieren"
-  const [printCouple, setPrintCouple] = useState<{ lockAfter: boolean } | null>(null);
-  // KAB1: „danach Session sperren" ist Standard-AN für Admins, aber UI-verborgen.
-  const [printCoupleBusy, setPrintCoupleBusy] = useState(false);
+  // KAB2: Ein-Knopf-Druckfluss – „Drucken = Finalisieren".
+  const [printBusy, setPrintBusy] = useState(false);
 
   // -------------------- Wasserlinie (Admin) --------------------
   const [cashLockDate, setCashLockDate] = useState<string>("");
@@ -373,13 +338,7 @@ function KassePage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // -------------------- PDF Export --------------------
-  const [pdfPreview, setPdfPreview] = useState<{
-    doc: jsPDF;
-    blob: Blob;
-    fileName: string;
-  } | null>(null);
-  // DR1: gemeinsamer Daten-Builder für PDF & HTML-Druckansicht (eine Zahlen-
+  // DR1: gemeinsamer Daten-Builder für die HTML-Druckansicht (eine Zahlen-
   // Wahrheit – keine zweite Karten-/Bargeld-Berechnung).
   function buildSummaryDataOrNull() {
     const ov = ovQ.data;
@@ -407,17 +366,6 @@ function KassePage() {
     });
   }
 
-  async function handleExportPdf() {
-    const data = buildSummaryDataOrNull();
-    if (!data) return;
-    try {
-      const out = await generateDailySummaryPdf(data);
-      setPdfPreview(out);
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
-  }
-
   function handlePrint() {
     const data = buildSummaryDataOrNull();
     if (!data) return;
@@ -428,51 +376,35 @@ function KassePage() {
     }
   }
 
-  // KAB1: Klick auf „Tagesabrechnung drucken" – Status-bewusst
-  function handlePrintClick() {
-    if (sessionStatus === "open") {
-      // Kopplung: Finalisieren-Dialog vorschalten (Admin-Checkbox: danach sperren)
-      // Admin: nach dem Druck automatisch sperren (Checkbox ausgeblendet, Default AN).
-      setPrintCouple({ lockAfter: isAdmin });
+  // KAB2: EIN Knopf. Bei `open` immer Finalisieren → Druck (→ Admin auto-lock),
+  // bei `finalized`/`locked` nur Druck. Strikte Reihenfolge: schlägt Finalize
+  // fehl, wird NICHT gedruckt (bestehende Kopplung).
+  async function handlePrintClick() {
+    if (sessionStatus !== "open") {
+      handlePrint();
       return;
     }
-    // finalized/locked: direkt drucken (kein Statuswechsel)
-    handlePrint();
-  }
-
-  async function runPrintCouple(mode: "finalize_print" | "print_only") {
     const data = buildSummaryDataOrNull();
-    if (!data) {
-      setPrintCouple(null);
+    if (!data) return;
+    if (!sessionId) {
+      toast.error("Keine Session");
       return;
     }
-    setPrintCoupleBusy(true);
+    setPrintBusy(true);
     try {
-      if (mode === "finalize_print") {
-        // Reihenfolge strikt: erst Finalisieren, dann Druck.
-        if (!sessionId) throw new Error("Keine Session");
-        await callFinalize({ data: { sessionId } });
-        toast.success("Tag finalisiert.");
-        const shouldLock = isAdmin && printCouple?.lockAfter === true;
-        printDailySummary(data);
-        if (shouldLock) {
-          await callLock({ data: { sessionId } });
-          toast.success("Session gesperrt.");
-        }
-        void invalidate();
-      } else {
-        printDailySummary(data);
+      await callFinalize({ data: { sessionId } });
+      toast.success("Tag finalisiert.");
+      printDailySummary(data);
+      if (isAdmin) {
+        await callLock({ data: { sessionId } });
+        toast.success("Session gesperrt.");
       }
-      setPrintCouple(null);
+      void invalidate();
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
-      setPrintCoupleBusy(false);
+      setPrintBusy(false);
     }
-  }
-
-  function closePdfPreview() {
-    setPdfPreview(null);
   }
 
   return (
@@ -500,31 +432,44 @@ function KassePage() {
         </div>
         {ovQ.data?.session && (
           <div className="ml-auto flex items-end gap-3">
+            <SessionStatusInline
+              status={sessionStatus}
+              lockedAt={(ovQ.data.session as { locked_at?: string | null }).locked_at ?? null}
+            />
+            {isAdmin && sessionStatus === "finalized" && !underWaterline && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={lockMut.isPending}
+                onClick={() => setLockConfirm(true)}
+              >
+                Session sperren
+              </Button>
+            )}
+            {isAdmin && sessionStatus === "locked" && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={unlockMut.isPending}
+                onClick={() => setUnlockConfirm(true)}
+              >
+                Session entsperren
+              </Button>
+            )}
             <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportPdf}
+              onClick={() => void handlePrintClick()}
+              disabled={printBusy}
               className="gap-2"
               title={
                 (ovQ.data.session.guest_count ?? 0) <= 0
                   ? "Gästeanzahl fehlt – bitte zuerst eintragen und speichern"
-                  : "PDF für Archiv/E-Mail"
-              }
-            >
-              <Download className="h-4 w-4" />
-              PDF Export
-            </Button>
-            <Button
-              onClick={handlePrintClick}
-              className="gap-2"
-              title={
-                (ovQ.data.session.guest_count ?? 0) <= 0
-                  ? "Gästeanzahl fehlt – bitte zuerst eintragen und speichern"
-                  : "Öffnet den System-Druckdialog"
+                  : sessionStatus === "open"
+                    ? "Finalisiert den Tag und öffnet den Druckdialog"
+                    : "Öffnet den System-Druckdialog"
               }
             >
               <Printer className="h-4 w-4" />
-              Tagesabrechnung drucken
+              {printBusy ? "Wird ausgeführt…" : "Tagesabrechnung drucken"}
             </Button>
           </div>
         )}
@@ -720,83 +665,6 @@ function KassePage() {
             editable={correctable}
             staffList={staffQ.data ?? []}
           />
-
-          <Card className="flex flex-wrap items-center justify-between gap-4 p-4">
-            {/* KAB1: kleiner Status-Stepper zur Orientierung */}
-            <StatusStepper status={sessionStatus} />
-            <div className="flex flex-wrap items-center gap-3">
-              {sessionStatus === "locked" && (
-                <Badge variant="secondary" className="gap-1">
-                  <Lock className="h-3.5 w-3.5" />
-                  Gesperrt
-                  {(ovQ.data.session as { locked_at?: string | null }).locked_at && (
-                    <span className="ml-1 text-xs opacity-70">
-                      ·{" "}
-                      {new Date(
-                        (ovQ.data.session as { locked_at?: string | null }).locked_at as string,
-                      ).toLocaleString("de-DE", {
-                        dateStyle: "short",
-                        timeStyle: "short",
-                      })}
-                    </span>
-                  )}
-                </Badge>
-              )}
-
-              {isAdmin && sessionStatus === "locked" && (
-                <Button
-                  variant="outline"
-                  disabled={unlockMut.isPending}
-                  onClick={() => setUnlockConfirm(true)}
-                >
-                  Session entsperren
-                </Button>
-              )}
-
-              {sessionStatus === "open" && (
-                <Button
-                  disabled={!writable || finalizeMut.isPending}
-                  onClick={() => setFinalizeConfirm(true)}
-                >
-                  Tag finalisieren
-                </Button>
-              )}
-
-              {sessionStatus === "finalized" &&
-                (isAdmin ? (
-                  <Button
-                    variant="destructive"
-                    disabled={isLocked || lockMut.isPending}
-                    onClick={() => setLockConfirm(true)}
-                  >
-                    Session sperren
-                  </Button>
-                ) : (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span>
-                          <Button variant="destructive" disabled>
-                            Session sperren
-                          </Button>
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent>Sperren: nur Admin</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                ))}
-
-              {isAdmin && sessionStatus === "finalized" && !underWaterline && (
-                <Button
-                  variant="outline"
-                  disabled={reopenMut.isPending}
-                  onClick={() => setReopenConfirm(true)}
-                >
-                  Session wieder öffnen
-                </Button>
-              )}
-            </div>
-          </Card>
         </>
       )}
 
@@ -838,36 +706,6 @@ function KassePage() {
           </div>
         </Card>
       )}
-
-      {/* --- PDF-Vorschau --- */}
-      <Dialog open={pdfPreview !== null} onOpenChange={(o) => !o && closePdfPreview()}>
-        <DialogContent className="flex h-[85vh] max-w-5xl flex-col p-0">
-          <DialogHeader className="border-b px-6 py-4">
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              {pdfPreview?.fileName ?? "PDF Vorschau"}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="min-h-0 flex-1 p-2">
-            {pdfPreview && <PdfCanvasPreview blob={pdfPreview.blob} />}
-          </div>
-          <DialogFooter className="gap-2 border-t px-6 py-4">
-            <Button variant="outline" onClick={closePdfPreview}>
-              <X className="mr-2 h-4 w-4" />
-              Schließen
-            </Button>
-            <Button
-              onClick={() => {
-                if (!pdfPreview) return;
-                pdfPreview.doc.save(pdfPreview.fileName);
-              }}
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Herunterladen
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* --- Korrektur-Dialog --- */}
       <Dialog open={correct !== null} onOpenChange={(o) => !o && setCorrect(null)}>
@@ -1096,32 +934,7 @@ function KassePage() {
         </DialogContent>
       </Dialog>
 
-      {/* --- Finalize/Lock-Confirms --- */}
-      <Dialog open={finalizeConfirm} onOpenChange={setFinalizeConfirm}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Tag finalisieren?</DialogTitle>
-            <DialogDescription>
-              Sperrt das Erfassen weiterer Kellner-Abrechnungen und Satelliten. Korrekturen durch
-              Manager bleiben möglich, bis ein Admin die Session sperrt.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setFinalizeConfirm(false)}>
-              Abbrechen
-            </Button>
-            <Button
-              disabled={finalizeMut.isPending}
-              onClick={() =>
-                finalizeMut.mutate(undefined, { onSuccess: () => setFinalizeConfirm(false) })
-              }
-            >
-              Finalisieren
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
+      {/* --- Sperr-/Entsperr-Dialoge (Admin) --- */}
       <Dialog open={lockConfirm} onOpenChange={setLockConfirm}>
         <DialogContent>
           <DialogHeader>
@@ -1140,32 +953,6 @@ function KassePage() {
               onClick={() => lockMut.mutate(undefined, { onSuccess: () => setLockConfirm(false) })}
             >
               Sperren
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={reopenConfirm} onOpenChange={setReopenConfirm}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Session wieder öffnen?</DialogTitle>
-            <DialogDescription>
-              Setzt den Status von „finalisiert" zurück auf „offen", sodass Kellner-Abrechnungen und
-              Satelliten für diesen Geschäftstag erneut bearbeitet werden können. Nur möglich,
-              solange die Session nicht gesperrt und nicht unter der Wasserlinie liegt.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setReopenConfirm(false)}>
-              Abbrechen
-            </Button>
-            <Button
-              disabled={reopenMut.isPending}
-              onClick={() =>
-                reopenMut.mutate(undefined, { onSuccess: () => setReopenConfirm(false) })
-              }
-            >
-              Wieder öffnen
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1203,87 +990,43 @@ function KassePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* KAB1: Kopplungs-Dialog „Drucken + Finalisieren" (nur bei Session-Status open) */}
-      <Dialog open={printCouple !== null} onOpenChange={(o) => !o && setPrintCouple(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Tag finalisieren &amp; drucken?</DialogTitle>
-            <DialogDescription>
-              Finalisieren sperrt weitere Kellner-Abgaben; Manager-Korrekturen bleiben bis zur
-              Admin-Sperre möglich.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              disabled={printCoupleBusy}
-              onClick={() => runPrintCouple("print_only")}
-              className="gap-2"
-            >
-              <Printer className="h-4 w-4" />
-              Nur drucken
-            </Button>
-            <Button
-              disabled={printCoupleBusy}
-              onClick={() => runPrintCouple("finalize_print")}
-              className="gap-2"
-            >
-              <Check className="h-4 w-4" />
-              {printCoupleBusy ? "Wird ausgeführt…" : "Finalisieren & drucken"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
 
-// KAB1: Kleiner Status-Stepper – Offen → Finalisiert → Gesperrt
-function StatusStepper({ status }: { status: string | null }) {
-  const steps = [
-    { key: "open", label: "Offen" },
-    { key: "finalized", label: "Finalisiert" },
-    { key: "locked", label: "Gesperrt" },
-  ] as const;
-  const activeIdx = Math.max(
-    0,
-    steps.findIndex((s) => s.key === status),
-  );
+// KAB2: dezente Statuszeile — ersetzt den früheren StatusStepper und die
+// Status-Karte im Footer. Kein separater Einstieg, keine Finalize-Aktion.
+function SessionStatusInline({
+  status,
+  lockedAt,
+}: {
+  status: string | null;
+  lockedAt: string | null;
+}) {
+  if (!status) return null;
+  const label =
+    status === "open"
+      ? "Offen"
+      : status === "finalized"
+        ? "Finalisiert"
+        : status === "locked"
+          ? "Gesperrt"
+          : status;
+  const variant: "default" | "secondary" =
+    status === "locked" ? "secondary" : status === "finalized" ? "secondary" : "default";
   return (
-    <ol className="flex items-center gap-2 text-xs">
-      {steps.map((s, i) => {
-        const isCurrent = i === activeIdx;
-        const isDone = i < activeIdx;
-        return (
-          <li key={s.key} className="flex items-center gap-2">
-            <span
-              className={
-                "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 " +
-                (isCurrent
-                  ? "bg-primary text-primary-foreground font-medium"
-                  : isDone
-                    ? "bg-muted text-foreground"
-                    : "bg-muted/40 text-muted-foreground")
-              }
-            >
-              {isDone ? <Check className="h-3 w-3" /> : i + 1}
-            </span>
-            <span
-              className={
-                isCurrent
-                  ? "font-medium text-foreground"
-                  : isDone
-                    ? "text-foreground"
-                    : "text-muted-foreground"
-              }
-            >
-              {s.label}
-            </span>
-            {i < steps.length - 1 && <span className="text-muted-foreground">→</span>}
-          </li>
-        );
-      })}
-    </ol>
+    <Badge variant={variant} className="gap-1 self-center">
+      {status === "locked" && <Lock className="h-3.5 w-3.5" />}
+      {label}
+      {status === "locked" && lockedAt && (
+        <span className="ml-1 text-xs opacity-70">
+          ·{" "}
+          {new Date(lockedAt).toLocaleString("de-DE", {
+            dateStyle: "short",
+            timeStyle: "short",
+          })}
+        </span>
+      )}
+    </Badge>
   );
 }
