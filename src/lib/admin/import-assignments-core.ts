@@ -59,6 +59,7 @@ export async function runImportAssignmentsCore(input: ImportCoreInput): Promise<
 
   const altLoc = input.altLocationMap ?? ALT_LOCATION_MAP;
   const { data: locRows, error: locErr } = await admin
+    // ST1: bewusst ungefiltert — Daten-Zugriff (Import-Zuordnung Alt-ID → Standort).
     .from("locations")
     .select("id")
     .eq("organization_id", organizationId);

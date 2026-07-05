@@ -295,6 +295,7 @@ export const getMyRosterScopes = createServerFn({ method: "GET" })
     const caller = await loadAdminCaller(context.supabase, context.userId, READ_ROLES);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: locs, error } = await supabaseAdmin
+      // ST1: bewusst ungefiltert — Daten-Zugriff (Dienstplan-Defaults für alle bestehenden Standorte).
       .from("locations")
       .select("id")
       .eq("organization_id", caller.organizationId);

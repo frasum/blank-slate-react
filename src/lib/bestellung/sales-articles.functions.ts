@@ -43,6 +43,7 @@ async function assertLocationInOrg(
   locationId: string,
 ): Promise<void> {
   const { data, error } = await admin
+    // ST1: bewusst ungefiltert — Daten-Zugriff (assertLocationInOrg by id).
     .from("locations")
     .select("id")
     .eq("id", locationId)

@@ -143,6 +143,7 @@ export const getMyPeriodEntries = createServerFn({ method: "GET" })
     if (error) throw error;
 
     const { data: locs, error: lErr } = await supabaseAdmin
+      // ST1: bewusst ungefiltert — Daten-Zugriff (Namensauflösung an historischen Zeiteinträgen).
       .from("locations")
       .select("id, name")
       .eq("organization_id", caller.organizationId);

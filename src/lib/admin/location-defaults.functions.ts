@@ -63,6 +63,7 @@ export const upsertLocationDepartmentDefault = createServerFn({ method: "POST" }
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       // Standort-Org prüfen (RLS-Ersatz auf Service-Role-Pfad).
       const { data: loc, error: locErr } = await supabaseAdmin
+        // ST1: bewusst ungefiltert — Daten-Zugriff (Org-Check by id).
         .from("locations")
         .select("organization_id")
         .eq("id", data.locationId)

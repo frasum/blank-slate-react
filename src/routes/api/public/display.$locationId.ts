@@ -123,6 +123,7 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
         }
 
         const { data: location, error: locErr } = await supabaseAdmin
+          // ST1: bewusst ungefiltert — Daten-Zugriff (Display-API by id).
           .from("locations")
           .select("id, name")
           .eq("id", locationId)
