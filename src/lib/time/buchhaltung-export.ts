@@ -17,6 +17,8 @@ export type BuchhaltungExportRow = {
   krankDays: number;
   vorschussEUR: number;
   besonderheiten: string;
+  /** Auto-Teil aus Urlaub/Krank (siehe formatAbsenceNote). Wird NIE gespeichert. */
+  absenceNote?: string;
 };
 
 export type BuchhaltungExportInput = {
@@ -89,7 +91,10 @@ function cellValue(row: BuchhaltungExportRow, key: string): string | number {
     case "vorschussEUR":
       return row.vorschussEUR > 0 ? fmtEUR(row.vorschussEUR) : "";
     case "besonderheiten":
-      return row.besonderheiten ?? "";
+      return [row.absenceNote ?? "", row.besonderheiten ?? ""]
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0)
+        .join(" | ");
     default:
       return "";
   }
