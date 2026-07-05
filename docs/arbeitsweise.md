@@ -2937,6 +2937,42 @@ Person (Primär-Abteilung) — Summen führen niemanden doppelt. Eine echte
 Abteilungs-Dimension auf `time_entries` (z. B. GL-Stunden trennen) wäre
 eine eigene Welle.
 
+## §Z3 — Abteilungs-Dimension auf `time_entries` (Wochenplan voll editierbar)
+
+Z2 zeigte Sekundär-Zeilen nur grau und schreibgeschützt — nach Frank-Feedback
+aus dem Echtbetrieb unbrauchbar. Z3 ersetzt den Anzeige-Kompromiss durch
+echte Daten.
+
+- Neue Spalte `public.time_entries.department` (NULL-fähig, Enum
+  `staff_department`) + Index `(staff_id, business_date, department)`.
+  NULL = unbestimmt (Stempel, Batch-Times, Pool-Writeback, Bestandsdaten) →
+  Anzeige auf der Primär-Zeile wie bisher. Kein Backfill.
+- Attribution zentral in `entryRowDepartment(entryDept, staffDepts)`
+  (`src/lib/time/primary-department.ts`):
+  - `entryDept` gesetzt & ∈ `staffDepts` → Eintrag gehört zu dieser Zeile.
+  - `entryDept` NULL → Primär-Zeile (`primaryDepartment`).
+  - `entryDept` gesetzt, aber Person am Standort nicht (mehr) zugeordnet →
+    Primär-Zeile + ⚠ Warn-Tooltip. Kein stilles Verschlucken.
+- Schreibpfade: nur die Wochenplan-Dialoge setzen die Spalte.
+  - `createTimeEntryShift`: neues Zod-Feld `department` (optional);
+    „+" übergibt die Abteilung seiner Zeile.
+  - `setTimeEntryShift`: `department` optional — `undefined` lässt
+    unverändert, ein Enum-Wert (oder `null`) hängt um. Wird über die
+    Popover-Aktion „umhängen" auf der Person-Zelle bedient.
+  - Serverseitige Validierung: die Abteilung MUSS in
+    `staff_locations(staff_id, location_id)` liegen — sonst Ablehnung, kein
+    Audit.
+  - Audit-Meta `before`/`after` enthält `department`.
+- Unverändert: Stempeln (`clockIn/clockOut`), Batch-Times, Pool-Writeback,
+  Schichttausch, Importe — alle schreiben die Spalte nicht (NULL).
+  Zusammenfassung, Buchhaltungs-Export, SFN, Lohn (M4), Perioden aggregieren
+  weiter pro Person über alle Einträge und ignorieren `department` — eine
+  Person erscheint dort weiterhin genau einmal.
+
+Damit ist der Wochenplan-Grid ab Z3 voll interaktiv: „+" auf jeder Zeile,
+Sekundär-Zeilen editierbar wie Primär-Zeilen, MOs GL-Stunden landen auf der
+GL-Zeile.
+
 ## SD1 — Personalverwaltung admin/payroll-only (05.07.)
 
 Auslöser: Manager-Sichtbarkeits-Review. Personalverwaltung (`/admin/staff`
