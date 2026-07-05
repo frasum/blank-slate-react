@@ -1,53 +1,22 @@
-# Fix: Tip-Berechnung in Kellner-Abrechnungen
+## Ziel
+Neben der bestehenden Klammer mit Betriebszugehörigkeit (z. B. `ANDI (2-11)`) eine weitere Klammer mit dem aktuellen Alter des Mitarbeiters anzeigen: `ANDI (2-11) (34)`.
 
-## Problem
+## Umsetzung
 
-Aktuell (in `SettlementsCard.tsx` Z. 67, `pdfExport.ts` Z. 415, `DailyPrintView.tsx` Z. 301) wird der Tip berechnet als:
+**1. Datenquelle erweitern** — `src/lib/admin/staff.functions.ts` (`listStaff`)
+- Beim bestehenden `supabaseAdmin.from("staff_personal_details").select(...)` das Feld `date_of_birth` mit abfragen.
+- Zweite Map `birthDates: Map<string, string | null>` befüllen.
+- `StaffRow` (in derselben Datei) um `dateOfBirth: string | null` ergänzen und im Return-Mapping setzen.
 
-```
-tip = kitchen_tip_cents + max(0, differenz_cents)
-```
+**2. Reines Alters-Helferchen** — neu `src/lib/profile/age.ts` (+ Test `age.test.ts`)
+- `computeAgeYears(birthDate: string | null, today?: Date): number | null` — Jahre gemäß Kalender (Geburtstag im laufenden Jahr berücksichtigt), `null` bei fehlendem/ungültigem Datum oder Zukunftsdatum. Testfälle: vor/nach Geburtstag, Schaltjahr 29.02., ungültige Eingabe, null.
 
-Das ist inkonsistent zur kanonischen Pool-Formel in `tip-pool.ts` (`computeTipTotalCents`) und zählt den Küchen-Anteil de facto doppelt. Beispiel Screenshot: Bargeld 720 € → angezeigter Tip 478,67 €, real dürfte der Tip < Bargeld sein.
+**3. Anzeige** — `src/routes/_authenticated/admin/staff.index.tsx` (Zeilen 500–506)
+- Direkt nach der Tenure-Klammer eine zweite `<span>` mit `({computeAgeYears(staff.dateOfBirth)})` rendern, sofern nicht null.
+- Gleiche Optik: `ml-1 font-normal text-muted-foreground`.
 
-## Zielformel (Spicery-Abrechnung, vom User bestätigt)
-
-Pro Settlement:
-```
-tipCents = cardTotalCents + cashHandedInCents + openInvoicesCents
-         − kassiertBruttoCents (Fallback posSalesCents) − hilfMahlCents
-```
-
-Identisch mit `computeTipTotalCents` — eine Zeile, dieselbe Summe.
-
-## Änderungen (nur Präsentationsschicht)
-
-1. **`src/components/cash/SettlementsCard.tsx`**
-   - `const tipTotal = …` (Z. 67) auf obige Formel umstellen. `kassiertBrutto`-Fallback beibehalten.
-   - `tipPct` unverändert (`tipTotal / pos_sales`).
-
-2. **`src/components/cash/DailyPrintView.tsx`** (Z. 293–305)
-   - Pro-Zeilen-Ausgabe: neue `td` „Tip" mit der Pool-Formel pro Settlement (aktuell wird dort nur `kitchen_tip_cents` gezeigt — bleibt zusätzlich als Küchen-Anteil).
-   - `sumTipAll` = Σ Pool-Formel über aktive Settlements (statt `sumKitchenTip + max(0, sumDiff)`).
-   - Fußzeile „Mitarbeiter-Pool"/„Küchen-Pool" bleibt inhaltlich korrekt (`sumKitchenTip` und `sumTipAll − sumKitchenTip`).
-
-3. **`src/lib/cash/pdfExport.ts`** (Z. 386, 413–430)
-   - Analoge Umstellung: Tip pro Zeile via Pool-Formel; `sumTipAll` = Σ Pool-Formel.
-   - Aufteilung „Mitarbeiter-Pool = sumTipAll − sumKitchenTip", „Küchen-Pool = sumKitchenTip".
-
-## Nicht angefasst
-
-- `waiter-settlement.ts`, `tip-pool.ts`, DB-Spalten, Migrations, `differenz_cents` bleiben unverändert (differenz ist weiterhin Kontroll-/Warnwert für Settlement-Warnings).
-- Kein Refactor der Server-Funktionen; kein neuer Endpunkt.
-
-## Technische Details
-
-- `computeTipTotalCents` in `src/lib/cash/tip-pool.ts` bereits vorhanden — wird in SettlementsCard direkt pro Row-Objekt aufgerufen (Array mit einem Element), um Duplikation zu vermeiden.
-- Fallback `kassiertBrutto ?? posSales` bleibt konsistent zur bestehenden `kassiertBrutto`-Semantik in der Row.
-- Tests: `tip-pool` ist bereits getestet; die UI-Karten sind Präsentations-only, keine neuen Tests nötig. `vitest`, `tsc`, `eslint`, `prettier` laufen als Gate.
+## Nicht anfassen
+Tenure-Formatierung, Sortierung, Berechtigungen, weitere Spalten. Kein neues Feld in Formularen — `date_of_birth` wird nur gelesen.
 
 ## Erfolgs-Gate
-
-1. `bunx tsc --noEmit`, `bunx eslint . --max-warnings=0`, `bunx prettier --check .`, `bunx vitest run` grün.
-2. Manuell (Screenshot-Fall): Bargeld 720 → Tip << 720 (Pool-Formel), Tip% konsistent.
-3. Tages-PDF/Print zeigt Tip pro Kellner + gleiche Gesamtsumme wie SettlementsCard-Aggregation.
+`tsc --noEmit` 0; `vitest run` grün (neue Age-Tests blockierend); UI zeigt hinter der Tenure-Klammer eine zweite Klammer mit dem Alter — fehlt das Geburtsdatum, erscheint keine zweite Klammer.
