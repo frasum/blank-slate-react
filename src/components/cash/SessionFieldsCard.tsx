@@ -267,9 +267,9 @@ export function SessionFieldsCard({
   const saveStatusLabel = saving
     ? "Speichert…"
     : autoSaveError
-      ? `Nicht gespeichert: ${autoSaveError}`
+      ? "Speichern fehlgeschlagen — erneut versuchen"
       : lastSavedAt
-        ? `Gespeichert · ${lastSavedAt.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}`
+        ? `Automatisch gespeichert · ${lastSavedAt.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}`
         : "Auto-Save aktiv";
 
   const channelById = Object.fromEntries(channels.map((c) => [c.id, c]));
@@ -580,13 +580,24 @@ export function SessionFieldsCard({
         {writable && (
           <p
             className={`text-xs self-center ${autoSaveError ? "text-destructive" : "text-muted-foreground"}`}
+            aria-live="polite"
           >
             {saveStatusLabel}
+            {autoSaveError && (
+              <>
+                {" "}
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="underline underline-offset-2 hover:text-foreground"
+                >
+                  Erneut versuchen
+                </button>
+              </>
+            )}
           </p>
         )}
-        <Button disabled={!writable || saving} onClick={handleSave}>
-          {saving ? "Speichert…" : "Session speichern"}
-        </Button>
       </div>
     </div>
   );
