@@ -404,3 +404,116 @@ function SortableHead({
     </TableHead>
   );
 }
+
+function AssignCell({
+  row,
+  options,
+  onAssign,
+  onClear,
+  busy,
+}: {
+  row: EnrichedStatRow;
+  options: { value: string; label: string }[];
+  onAssign: (warengruppeKey: string) => void;
+  onClear: () => void;
+  busy: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pick, setPick] = useState<string>("");
+
+  const currentLabel =
+    row.warengruppe ?? (row.productGroup !== null ? `#${row.productGroup}` : null);
+
+  return (
+    <div className="flex items-center gap-2">
+      {currentLabel ? (
+        <span
+          className={
+            row.overridden
+              ? "rounded-md border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary"
+              : ""
+          }
+          title={row.productGroup !== null ? `Nr. ${row.productGroup}` : undefined}
+        >
+          {currentLabel}
+        </span>
+      ) : (
+        <span className="text-muted-foreground">—</span>
+      )}
+
+      <Popover
+        open={open}
+        onOpenChange={(v) => {
+          setOpen(v);
+          if (v) setPick("");
+        }}
+      >
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="rounded-md border border-input bg-background px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            disabled={busy}
+          >
+            {row.overridden ? "Ändern" : currentLabel ? "Zuordnen" : "Zuordnen"}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-64 space-y-2">
+          <div className="text-xs text-muted-foreground">
+            Nr. {row.nummer} · {row.name}
+          </div>
+          <Select value={pick} onValueChange={setPick}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Warengruppe wählen…" />
+            </SelectTrigger>
+            <SelectContent>
+              {options.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="flex items-center justify-between gap-2 pt-1">
+            {row.overridden ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onClear();
+                  setOpen(false);
+                }}
+                disabled={busy}
+                className="text-xs text-destructive hover:underline disabled:opacity-50"
+              >
+                Zuordnung aufheben
+              </button>
+            ) : (
+              <span />
+            )}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="rounded-md border border-input bg-background px-2 py-1 text-xs"
+              >
+                Abbrechen
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (pick) {
+                    onAssign(pick);
+                    setOpen(false);
+                  }
+                }}
+                disabled={!pick || busy}
+                className="rounded-md bg-primary px-2 py-1 text-xs font-medium text-primary-foreground disabled:opacity-50"
+              >
+                Speichern
+              </button>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
