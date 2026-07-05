@@ -1699,6 +1699,7 @@ type WeeklyData = {
     displayName: string;
     department: Department;
     isActive: boolean;
+    isPrimary?: boolean;
   }[];
 };
 
