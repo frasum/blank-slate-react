@@ -18,6 +18,7 @@ function r(overrides: Partial<Reminder> = {}): Reminder {
     intervalWeeks: 1,
     anchorDate: null,
     fromTime: "20:00",
+    untilTime: "01:00",
     sortOrder: 0,
     ...overrides,
   };
@@ -59,6 +60,28 @@ describe("isReminderActive", () => {
   it("nach Mitternacht desselben Geschäftstags weiterhin aktiv", () => {
     // Geschäftstag = 2026-07-07 (Di), Kalenderzeit = 2026-07-08 00:30 Berlin
     expect(isReminderActive(r(), { date: "2026-07-08", hour: 0, minute: 30 }, businessDate)).toBe(
+      true,
+    );
+  });
+
+  it("DP1b: 20:00–01:00 → 23:59 aktiv", () => {
+    expect(isReminderActive(r(), { date: "2026-07-07", hour: 23, minute: 59 }, businessDate)).toBe(
+      true,
+    );
+  });
+
+  it("DP1b: 20:00–01:00 → 01:30 (nach Ende) inaktiv", () => {
+    expect(isReminderActive(r(), { date: "2026-07-08", hour: 1, minute: 30 }, businessDate)).toBe(
+      false,
+    );
+  });
+
+  it("DP1b: gleicher Abend 18:00–22:00 → 22:30 inaktiv", () => {
+    const rem = r({ fromTime: "18:00", untilTime: "22:00" });
+    expect(isReminderActive(rem, { date: "2026-07-07", hour: 22, minute: 30 }, businessDate)).toBe(
+      false,
+    );
+    expect(isReminderActive(rem, { date: "2026-07-07", hour: 21, minute: 59 }, businessDate)).toBe(
       true,
     );
   });
