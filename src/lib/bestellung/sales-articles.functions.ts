@@ -110,6 +110,8 @@ export const listSalesArticles = createServerFn({ method: "POST" })
       )
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId)
+      .order("hauptgruppe_nr", { ascending: true, nullsFirst: false })
+      .order("untergruppe_nr", { ascending: true, nullsFirst: false })
       .order("product_group", { ascending: true, nullsFirst: false })
       .order("name", { ascending: true });
     if (error) throw new Error(error.message);
@@ -128,6 +130,11 @@ const CreateInput = z.object({
   productGroup: z.number().int().nullable().optional(),
   priceCents: priceField,
   takeawayPriceCents: priceField,
+  warengruppe: z.string().trim().max(200).nullable().optional(),
+  untergruppe: z.string().trim().max(200).nullable().optional(),
+  untergruppeNr: z.number().int().nullable().optional(),
+  hauptgruppe: z.string().trim().max(200).nullable().optional(),
+  hauptgruppeNr: z.number().int().nullable().optional(),
 });
 
 export const createSalesArticle = createServerFn({ method: "POST" })
@@ -146,6 +153,11 @@ export const createSalesArticle = createServerFn({ method: "POST" })
         price_cents: data.priceCents ?? null,
         takeaway_price_cents: data.takeawayPriceCents ?? null,
         is_active: true,
+        warengruppe: data.warengruppe ?? null,
+        untergruppe: data.untergruppe ?? null,
+        untergruppe_nr: data.untergruppeNr ?? null,
+        hauptgruppe: data.hauptgruppe ?? null,
+        hauptgruppe_nr: data.hauptgruppeNr ?? null,
       };
       const { data: row, error } = await supabaseAdmin
         .from("sales_articles")
@@ -192,13 +204,23 @@ const UpdateInput = z
     takeawayPriceCents: priceField,
     productGroup: z.number().int().nullable().optional(),
     isActive: z.boolean().optional(),
+    warengruppe: z.string().trim().max(200).nullable().optional(),
+    untergruppe: z.string().trim().max(200).nullable().optional(),
+    untergruppeNr: z.number().int().nullable().optional(),
+    hauptgruppe: z.string().trim().max(200).nullable().optional(),
+    hauptgruppeNr: z.number().int().nullable().optional(),
   })
   .refine(
     (v) =>
       v.priceCents !== undefined ||
       v.takeawayPriceCents !== undefined ||
       v.productGroup !== undefined ||
-      v.isActive !== undefined,
+      v.isActive !== undefined ||
+      v.warengruppe !== undefined ||
+      v.untergruppe !== undefined ||
+      v.untergruppeNr !== undefined ||
+      v.hauptgruppe !== undefined ||
+      v.hauptgruppeNr !== undefined,
     { message: "Keine Änderungen übergeben." },
   );
 
@@ -245,6 +267,26 @@ export const updateSalesArticle = createServerFn({ method: "POST" })
       if (data.isActive !== undefined && data.isActive !== before.is_active) {
         patch.is_active = data.isActive;
         changed.isActive = { before: before.is_active, after: data.isActive };
+      }
+      if (data.warengruppe !== undefined && data.warengruppe !== before.warengruppe) {
+        patch.warengruppe = data.warengruppe;
+        changed.warengruppe = { before: before.warengruppe, after: data.warengruppe };
+      }
+      if (data.untergruppe !== undefined && data.untergruppe !== before.untergruppe) {
+        patch.untergruppe = data.untergruppe;
+        changed.untergruppe = { before: before.untergruppe, after: data.untergruppe };
+      }
+      if (data.untergruppeNr !== undefined && data.untergruppeNr !== before.untergruppe_nr) {
+        patch.untergruppe_nr = data.untergruppeNr;
+        changed.untergruppeNr = { before: before.untergruppe_nr, after: data.untergruppeNr };
+      }
+      if (data.hauptgruppe !== undefined && data.hauptgruppe !== before.hauptgruppe) {
+        patch.hauptgruppe = data.hauptgruppe;
+        changed.hauptgruppe = { before: before.hauptgruppe, after: data.hauptgruppe };
+      }
+      if (data.hauptgruppeNr !== undefined && data.hauptgruppeNr !== before.hauptgruppe_nr) {
+        patch.hauptgruppe_nr = data.hauptgruppeNr;
+        changed.hauptgruppeNr = { before: before.hauptgruppe_nr, after: data.hauptgruppeNr };
       }
 
       // Nichts geändert? Bestehende Zeile zurückgeben, KEIN Audit-Eintrag.
