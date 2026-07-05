@@ -92,6 +92,10 @@ const TIME_FMT = new Intl.DateTimeFormat("de-DE", {
 
 export function fmtBerlinTime(iso: string | null | undefined): string {
   if (!iso) return "--:--";
+  // Reine Uhrzeit ("HH:MM" oder "HH:MM:SS", Berlin-Wandzeit aus der Pool-Karte):
+  // direkt HH:MM zurückgeben, kein Date-Parsing.
+  const hm = /^(\d{2}):(\d{2})(?::\d{2})?$/.exec(iso.trim());
+  if (hm) return `${hm[1]}:${hm[2]}`;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "--:--";
   // "HH:MM" statt "HH.MM" (Intl liefert auf einigen Runtimes de-DE mit Punkt).

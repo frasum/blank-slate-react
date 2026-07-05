@@ -2664,3 +2664,14 @@ D4-Display, Telegram-Cron 05.07. 07:05); Entscheidungen (A/B negative
 Urlaubs-Überträge, UP3 ja/nein, „Meine Stunden"-Deltas); Nachlieferungen
 (TSB-PaySlips, Spicery/TSB-Verkaufsartikel); geparkt (BZ2, Welle B,
 MCP-Wiedereinführung, MailerSend-DNS).
+
+## 68. TG3 — Küchen-Zeiten im Telegram-Bericht (05.07.2026)
+
+TG3 (05.07.): `fmtBerlinTime` akzeptiert reine `HH:MM`-Strings
+(Pool-Karten-Format) — Küchen-Zeiten im Bericht repariert; vorher lief
+`new Date("15:00")` in `Invalid Date` und der Bericht zeigte
+`(--:-- – --:--)`. Wissens-Notiz: `session_tip_pool_entries.shift_start/-end`
+sind **Berlin-Wandzeit-Strings** aus `<input type="time">`, keine Timestamps —
+neue Konsumenten müssen das reine `HH:MM`-Format akzeptieren, bevor sie ein
+`Date`-Parsing versuchen. Tests in `telegram-report.test.ts` blockierend
+(HH:MM, HH:MM:SS, ISO, null, Küchen-Zeile).
