@@ -808,6 +808,7 @@ function ZeitUebersichtPage() {
         krankDays: abs?.krankDays ?? 0,
         vorschussEUR: advCents / 100,
         besonderheiten: note?.besonderheiten ?? "",
+        absenceNote: abs?.absenceNote ?? "",
       });
     }
     return m;
