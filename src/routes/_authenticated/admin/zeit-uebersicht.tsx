@@ -66,11 +66,7 @@ import { ProvisionTab } from "@/components/lohn/ProvisionTab";
 import { LohnrechnerPanel } from "@/components/lohn/LohnrechnerPanel";
 import { BatchTimesCard } from "@/components/zeit/BatchTimesCard";
 import { entryRowDepartment } from "@/lib/time/primary-department";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -647,8 +643,7 @@ function ZeitUebersichtPage() {
       startedAt: string;
       endedAt: string;
       department?: Department | null;
-    }) =>
-      callSetShift({ data: vars }),
+    }) => callSetShift({ data: vars }),
     onSuccess: () => {
       invalidateWeekly();
     },
@@ -2229,9 +2224,7 @@ function WeeklyPlan({
                   // Z3 — Warnung, wenn ein Eintrag eine Abteilung trägt, die
                   // der Person am Standort nicht (mehr) zugeordnet ist. Er
                   // erscheint dann auf der Primär-Zeile.
-                  const mismatchedTitle = (
-                    row as { mismatched?: boolean }
-                  ).mismatched
+                  const mismatchedTitle = (row as { mismatched?: boolean }).mismatched
                     ? "Achtung: mindestens ein Eintrag trägt eine Abteilung, die der Person am Standort nicht zugeordnet ist — er wird hier auf der Primär-Zeile angezeigt."
                     : undefined;
                   return (
@@ -2649,9 +2642,7 @@ function ReassignPopover({
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 p-3 space-y-2">
-        <div className="text-xs font-medium">
-          {row.displayName} — Einträge dieser Woche
-        </div>
+        <div className="text-xs font-medium">{row.displayName} — Einträge dieser Woche</div>
         {entries.map((e) => {
           const current = e.rawDepartment ?? null;
           return (

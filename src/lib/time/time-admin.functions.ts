@@ -62,9 +62,7 @@ function buildStaffDeptsMap(
 // Wird server-seitig VOR Insert/Update aufgerufen (Client nicht vertrauen).
 async function assertStaffDeptAssignment(
   supabaseAdmin: {
-    from: (
-      t: "staff_locations",
-    ) => {
+    from: (t: "staff_locations") => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       select: (s: string) => any;
     };
@@ -84,9 +82,7 @@ async function assertStaffDeptAssignment(
     .maybeSingle();
   if (error) throw error;
   if (!data) {
-    throw new Error(
-      `Abteilung „${department}" ist der Person am Standort nicht zugeordnet.`,
-    );
+    throw new Error(`Abteilung „${department}" ist der Person am Standort nicht zugeordnet.`);
   }
 }
 
