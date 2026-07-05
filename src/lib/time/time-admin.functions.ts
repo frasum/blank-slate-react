@@ -534,6 +534,10 @@ export const setTimeEntryShift = createServerFn({ method: "POST" })
         id: z.string().uuid(),
         startedAt: z.string().datetime(),
         endedAt: z.string().datetime(),
+        // Z3 — optional: setzt/ändert die Abteilungs-Dimension des Eintrags.
+        // undefined → unverändert lassen; null → auf NULL setzen; Enum-Wert
+        // wird gegen staff_locations validiert (Person ∈ Abteilung am Standort).
+        department: z.enum(["kitchen", "service", "gl"]).nullish(),
       })
       .parse(input),
   )
@@ -567,14 +571,32 @@ export const setTimeEntryShift = createServerFn({ method: "POST" })
         if (newBusinessDate !== before.business_date) {
           await assertBusinessDateUnlocked(supabaseAdmin, caller.organizationId, newBusinessDate);
         }
+        // Z3: Abteilungs-Zuordnung serverseitig gegen staff_locations prüfen.
+        if (data.department != null && before.location_id) {
+          await assertStaffDeptAssignment(
+            supabaseAdmin,
+            caller.organizationId,
+            before.staff_id,
+            before.location_id,
+            data.department,
+          );
+        }
+
+        const patch: {
+          started_at: string;
+          ended_at: string;
+          business_date: string;
+          department?: Department | null;
+        } = {
+          started_at: data.startedAt,
+          ended_at: data.endedAt,
+          business_date: newBusinessDate,
+        };
+        if (data.department !== undefined) patch.department = data.department;
 
         const { error } = await supabaseAdmin
           .from("time_entries")
-          .update({
-            started_at: data.startedAt,
-            ended_at: data.endedAt,
-            business_date: newBusinessDate,
-          })
+          .update(patch)
           .eq("id", data.id)
           .eq("organization_id", caller.organizationId);
         if (error) throw error;
@@ -591,11 +613,16 @@ export const setTimeEntryShift = createServerFn({ method: "POST" })
                 startedAt: before.started_at,
                 endedAt: before.ended_at,
                 businessDate: before.business_date,
+                department: (before as { department: Department | null }).department ?? null,
               },
               after: {
                 startedAt: data.startedAt,
                 endedAt: data.endedAt,
                 businessDate: newBusinessDate,
+                department:
+                  data.department !== undefined
+                    ? (data.department ?? null)
+                    : ((before as { department: Department | null }).department ?? null),
               },
             },
           },
@@ -613,6 +640,7 @@ export const createTimeEntryShift = createServerFn({ method: "POST" })
         locationId: z.string().uuid(),
         startedAt: z.string().datetime(),
         endedAt: z.string().datetime(),
+        department: z.enum(["kitchen", "service", "gl"]).nullish(),
       })
       .parse(input),
   )
@@ -640,6 +668,17 @@ export const createTimeEntryShift = createServerFn({ method: "POST" })
         if (sErr) throw sErr;
         if (!staff) throw new Error("Mitarbeiter nicht in dieser Organisation.");
 
+        // Z3: Falls Abteilung mitgegeben → gegen staff_locations validieren.
+        if (data.department != null) {
+          await assertStaffDeptAssignment(
+            supabaseAdmin,
+            caller.organizationId,
+            data.staffId,
+            data.locationId,
+            data.department,
+          );
+        }
+
         const { data: created, error } = await supabaseAdmin
           .from("time_entries")
           .insert({
@@ -651,6 +690,7 @@ export const createTimeEntryShift = createServerFn({ method: "POST" })
             business_date: businessDate,
             break_minutes: 0,
             source: "manual",
+            department: data.department ?? null,
           })
           .select("id")
           .single();
@@ -669,6 +709,7 @@ export const createTimeEntryShift = createServerFn({ method: "POST" })
               businessDate,
               startedAt: data.startedAt,
               endedAt: data.endedAt,
+              department: data.department ?? null,
             },
           },
         };
