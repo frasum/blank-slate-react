@@ -24,7 +24,7 @@ type Admin = SupabaseClient<Database>;
 
 // EKZ1: EIN Select-String für alle Reads/Writes, damit die neuen
 // Verknüpfungs-Felder nicht an einer Stelle vergessen werden.
-const SALES_ARTICLE_SELECT =
+const "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr, ek_price_cents, ek_source_article_id, ek_portion_ml, ek_source_volume_ml, ek_match_ignored, articles:ek_source_article_id(name)" =
   "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr, ek_price_cents, ek_source_article_id, ek_portion_ml, ek_source_volume_ml, ek_match_ignored, articles:ek_source_article_id(name)";
 
 export type SalesArticle = {
@@ -144,7 +144,7 @@ export const listSalesArticles = createServerFn({ method: "POST" })
     const { data: rows, error } = await supabaseAdmin
       .from("sales_articles")
       .select(
-        SALES_ARTICLE_SELECT,
+        "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr, ek_price_cents, ek_source_article_id, ek_portion_ml, ek_source_volume_ml, ek_match_ignored, articles:ek_source_article_id(name)",
       )
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId)
@@ -206,7 +206,7 @@ export const createSalesArticle = createServerFn({ method: "POST" })
         .from("sales_articles")
         .insert(insert)
         .select(
-          SALES_ARTICLE_SELECT,
+          "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr, ek_price_cents, ek_source_article_id, ek_portion_ml, ek_source_volume_ml, ek_match_ignored, articles:ek_source_article_id(name)",
         )
         .single();
       if (error) {
@@ -281,7 +281,7 @@ export const updateSalesArticle = createServerFn({ method: "POST" })
       const { data: before, error: beforeErr } = await supabaseAdmin
         .from("sales_articles")
         .select(
-          "organization_id, " + SALES_ARTICLE_SELECT,
+          "id, organization_id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr, ek_price_cents, ek_source_article_id, ek_portion_ml, ek_source_volume_ml, ek_match_ignored, articles:ek_source_article_id(name)",
         )
         .eq("id", data.id)
         .maybeSingle();
@@ -364,7 +364,7 @@ export const updateSalesArticle = createServerFn({ method: "POST" })
         .eq("id", data.id)
         .eq("organization_id", caller.organizationId)
         .select(
-          SALES_ARTICLE_SELECT,
+          "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr, ek_price_cents, ek_source_article_id, ek_portion_ml, ek_source_volume_ml, ek_match_ignored, articles:ek_source_article_id(name)",
         )
         .single();
       if (error) throw new Error(error.message);
