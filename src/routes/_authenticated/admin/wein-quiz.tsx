@@ -9,7 +9,7 @@ import { listArticles } from "@/lib/bestellung/articles.functions";
 import { listStaff } from "@/lib/admin/staff.functions";
 import { listWineQuizScores, saveWineQuizScore } from "@/lib/bestellung/wine-quiz.functions";
 
-export const Route = createFileRoute("/_authenticated/admin/bestellung/wein-quiz")({
+export const Route = createFileRoute("/_authenticated/admin/wein-quiz")({
   head: () => ({ meta: [{ title: "Wein-Quiz · Bestellung" }] }),
   component: WeinQuizPage,
 });
