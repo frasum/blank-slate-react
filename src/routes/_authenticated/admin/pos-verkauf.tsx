@@ -62,6 +62,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PosNav } from "@/components/bestellung/PosNav";
 
 export const Route = createFileRoute("/_authenticated/admin/pos-verkauf")({
   head: () => ({ meta: [{ title: "POS-Verkauf · Bestellung" }] }),
@@ -222,6 +223,7 @@ function PosVerkaufPage() {
 
   return (
     <div className="space-y-4">
+      <PosNav />
       <div>
         <h2 className="text-lg font-semibold text-foreground">POS-Verkauf</h2>
         <p className="text-sm text-muted-foreground">
