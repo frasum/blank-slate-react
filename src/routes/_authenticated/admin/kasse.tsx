@@ -353,77 +353,50 @@ function KassePage() {
     blob: Blob;
     fileName: string;
   } | null>(null);
-  async function handleExportPdf() {
+  // DR1: gemeinsamer Daten-Builder für PDF & HTML-Druckansicht (eine Zahlen-
+  // Wahrheit – keine zweite Karten-/Bargeld-Berechnung).
+  function buildSummaryDataOrNull() {
     const ov = ovQ.data;
     if (!ov?.session) {
       toast.error("Keine Session für diesen Tag.");
-      return;
+      return null;
     }
     if ((ov.session.guest_count ?? 0) <= 0) {
       toast.error("Bitte zuerst die Gästeanzahl eintragen und speichern.");
-      return;
+      return null;
     }
-    const channels = (channelsQ.data ?? []).map((c) => ({
-      id: c.id,
-      label: c.label,
-      kind: c.kind,
-    }));
-    const terminals = (terminalsQ.data ?? []).map((t) => ({
-      id: t.id,
-      label: t.label,
-      isGl: t.isGl,
-    }));
-    const staffById = new Map((staffQ.data ?? []).map((s) => [s.id, s.displayName]));
-    const locationName =
-      (locationsQ.data ?? []).find((l) => l.id === locationId)?.name ?? undefined;
+    return buildDailySummaryData({
+      overview: ov,
+      channels: (channelsQ.data ?? []).map((c) => ({ id: c.id, label: c.label, kind: c.kind })),
+      terminals: (terminalsQ.data ?? []).map((t) => ({
+        id: t.id,
+        label: t.label,
+        isGl: t.isGl,
+      })),
+      staffById: new Map((staffQ.data ?? []).map((s) => [s.id, s.displayName])),
+      locationName: (locationsQ.data ?? []).find((l) => l.id === locationId)?.name ?? undefined,
+      cashBalanceTargetCents: cashBalanceTargetResolvedCents,
+      previousDeficitCents,
+      previousDeficitSourceDate,
+    });
+  }
+
+  async function handleExportPdf() {
+    const data = buildSummaryDataOrNull();
+    if (!data) return;
     try {
-      const out = await generateDailySummaryPdf({
-        session: {
-          business_date: ov.session.business_date,
-          guest_count: ov.session.guest_count,
-          cash_actual_cents: ov.session.cash_actual_cents,
-          notes: ov.session.notes,
-          vectron_daily_total_cents: ov.session.vectron_daily_total_cents,
-          vouchers_sold_cents: ov.session.vouchers_sold_cents,
-          vouchers_redeemed_cents: ov.session.vouchers_redeemed_cents,
-          finedine_vouchers_cents: ov.session.finedine_vouchers_cents,
-          einladung_cents: ov.session.einladung_cents,
-          sonstige_einnahme_cents: ov.session.sonstige_einnahme_cents,
-          vorschuss_cents: ov.session.vorschuss_cents,
-        },
-        locationName,
-        channels,
-        channelAmounts: ov.channelAmounts,
-        terminals,
-        terminalAmounts: ov.terminalAmounts,
-        settlements: ov.settlements.map((s) => ({
-          staffName: s.staffName,
-          status: s.status as string,
-          pos_sales_cents: Number(s.pos_sales_cents),
-          card_total_cents: Number(s.card_total_cents),
-          hilf_mahl_cents: Number(s.hilf_mahl_cents),
-          open_invoices_cents: Number(s.open_invoices_cents),
-          cash_handed_in_cents: Number(s.cash_handed_in_cents),
-          differenz_cents: Number(s.differenz_cents),
-          kitchen_tip_cents: Number(s.kitchen_tip_cents),
-          submitted_at: s.submitted_at,
-          updated_at: (s as { updated_at?: string | null }).updated_at ?? null,
-          corrected_from_id: s.corrected_from_id,
-        })),
-        expenses: ov.expenses.map((e) => ({
-          description: e.description,
-          amountCents: e.amountCents,
-        })),
-        advances: ov.advances.map((a) => ({
-          staffName: staffById.get(a.staffId) ?? a.staffId.slice(0, 8),
-          amountCents: a.amountCents,
-          note: a.note,
-        })),
-        cashBalanceTargetCents: cashBalanceTargetResolvedCents,
-        previousDeficitCents,
-        previousDeficitSourceDate,
-      });
+      const out = await generateDailySummaryPdf(data);
       setPdfPreview(out);
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  }
+
+  function handlePrint() {
+    const data = buildSummaryDataOrNull();
+    if (!data) return;
+    try {
+      printDailySummary(data);
     } catch (e) {
       toast.error((e as Error).message);
     }
