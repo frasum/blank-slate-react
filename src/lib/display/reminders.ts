@@ -27,6 +27,12 @@ export type Reminder = {
   anchorDate: string | null;
   /** "HH:MM" (Berlin-Wandzeit). */
   fromTime: string;
+  /**
+   * "HH:MM" — Ende des Anzeigefensters (Berlin-Wandzeit).
+   * untilTime <= fromTime bedeutet: über Mitternacht in den frühen Morgen
+   * desselben Geschäftstags (Cutoff 03:00).
+   */
+  untilTime: string;
   sortOrder: number;
 };
 
@@ -93,7 +99,11 @@ export function isReminderActive(r: Reminder, nowBerlin: NowBerlin, businessDate
   const dayOffset = isoDayDiff(nowBerlin.date, businessDate);
   if (dayOffset < 0) return false;
   const nowMin = dayOffset * 1440 + nowBerlin.hour * 60 + nowBerlin.minute;
-  return nowMin >= parseHm(r.fromTime);
+  const startMin = parseHm(r.fromTime);
+  const rawUntil = parseHm(r.untilTime);
+  // DP1b: untilTime <= fromTime → Ende auf Folgekalendertag desselben Geschäftstags.
+  const endMin = rawUntil <= startMin ? rawUntil + 1440 : rawUntil;
+  return nowMin >= startMin && nowMin < endMin;
 }
 
 /** Nur die aktuell fälligen Reminder — Serverpfad oder Debug-Nutzung. */
