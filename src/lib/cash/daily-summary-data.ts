@@ -53,6 +53,10 @@ export function buildDailySummaryData(input: BuildDailySummaryDataInput): PdfExp
       hilf_mahl_cents: Number(s.hilf_mahl_cents),
       open_invoices_cents: Number(s.open_invoices_cents),
       cash_handed_in_cents: Number(s.cash_handed_in_cents),
+      kassiert_brutto_cents: Number(
+        (s as { kassiert_brutto_cents?: number | string | null }).kassiert_brutto_cents ??
+          s.pos_sales_cents,
+      ),
       differenz_cents: Number(s.differenz_cents),
       kitchen_tip_cents: Number(s.kitchen_tip_cents),
       submitted_at: s.submitted_at,
