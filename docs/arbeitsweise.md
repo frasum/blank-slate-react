@@ -4,6 +4,21 @@ Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen B
 
 Stand: 05.07.2026 (Tagesabschluss, HEAD 96bf974d)
 
+**PL1-Fix Urlaub-Sichtbarkeit (05.07.2026):** In
+`permission_role_defaults` war `roster.leave.view_all` als Default für
+die Rolle `planer` hinterlegt — `resolvePlanerScope` erhielt dadurch bei
+`has_permission(perm, null, null)` sofort `true` und kurzschloss auf
+`{all:true}`, so dass `listLeaveRequests`/`decideLeaveRequest` KEINEN
+Bereichs-Filter mehr anwendeten (Planer sah Service-Urlaubsanträge).
+Fix: Migration löscht diesen Default → Planer greift wieder auf
+`permission_overrides` zurück (Sumitr: Küche an beiden Standorten). Der
+**Jahresplaner** (`getVacationPlanner`) ist gezielt entkoppelt und
+standort-gattert (nicht bereichs-gattert): sobald der Planer an einem
+Standort irgendeinen Bereich frei hat, sieht er dort BEIDE Blöcke
+(Küche + Service) — bewusst, weil die Balken-Übersicht die
+Kollisionen zwischen Bereichen zeigen muss. Schichttausch war schon
+korrekt bereichs-scoped (kein planer-Default für `roster.swap.view_pending`).
+
 **BB1 (05.07.2026):** Buchhaltungs-Spalte „Besonderheiten" =
 **Auto-Teil** (live aus `roster_absence`, `formatAbsenceNote` in
 `src/lib/time/absence-note.ts` mit `mergeAbsenceRanges` wiederverwendet
