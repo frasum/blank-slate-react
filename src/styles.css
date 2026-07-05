@@ -173,21 +173,3 @@
   }
 }
 
-/*
- * DP1b: Display-Erinnerungs-Banner blinken deutlich, aber nicht
- * stroboskopisch (~1s Zyklus). Filter brightness() bewahrt das
- * Kontrast-Verhältnis zwischen Text und Hintergrund in beiden Phasen.
- */
-@keyframes reminder-blink {
-  0%,
-  100% {
-    filter: brightness(1);
-  }
-  50% {
-    filter: brightness(0.45);
-  }
-}
-
-@utility animate-reminder-blink {
-  animation: reminder-blink 1s ease-in-out infinite;
-}
