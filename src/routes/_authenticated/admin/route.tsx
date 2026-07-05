@@ -141,16 +141,20 @@ const GROUPS: Group[] = [
     key: "stammdaten",
     label: "Stammdaten",
     default: "/admin/locations",
-    prefixes: ["/admin/locations"],
-    sub: [{ to: "/admin/locations", label: "Standorte" }],
+    prefixes: ["/admin/locations", "/admin/verkaufsartikel"],
+    sub: [
+      { to: "/admin/locations", label: "Standorte" },
+      { to: "/admin/verkaufsartikel", label: "Verkaufsartikel" },
+    ],
   },
   {
     key: "auswertungen",
     label: "Auswertungen",
     default: "/admin/statistik",
-    prefixes: ["/admin/statistik", "/admin/bwa", "/admin/bilanz"],
+    prefixes: ["/admin/statistik", "/admin/bwa", "/admin/bilanz", "/admin/pos-verkauf"],
     sub: [
       { to: "/admin/statistik", label: "Statistik" },
+      { to: "/admin/pos-verkauf", label: "POS-Verkauf" },
       { to: "/admin/bwa", label: "BWA", roles: ["admin"] },
       { to: "/admin/bilanz", label: "Jahresabschluss", roles: ["admin"] },
     ],
