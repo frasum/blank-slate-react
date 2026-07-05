@@ -38,6 +38,7 @@ export type SalesArticle = {
   hauptgruppeNr: number | null;
 };
 
+export type SalesArticleWithEk = SalesArticle & { ekPriceCents: number | null };
 
 // ---------------------------------------------------------------------------
 // Helpers
