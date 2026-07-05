@@ -59,7 +59,7 @@ export function ArbeitgeberSection({ canEdit }: { canEdit: boolean }) {
         </p>
       </div>
 
-      <label className="block space-y-1">
+      <label className="flex flex-col gap-1">
         <span className="text-xs font-medium text-muted-foreground">Firmenname</span>
         <input
           type="text"
@@ -71,7 +71,7 @@ export function ArbeitgeberSection({ canEdit }: { canEdit: boolean }) {
         />
       </label>
 
-      <label className="block space-y-1">
+      <label className="flex flex-col gap-1">
         <span className="text-xs font-medium text-muted-foreground">Anschrift</span>
         <textarea
           value={agAdresse}
@@ -83,7 +83,7 @@ export function ArbeitgeberSection({ canEdit }: { canEdit: boolean }) {
         />
       </label>
 
-      <label className="block space-y-1">
+      <label className="flex flex-col gap-1">
         <span className="text-xs font-medium text-muted-foreground">
           Vertretungsberechtigte Person
         </span>
