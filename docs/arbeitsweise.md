@@ -3183,10 +3183,52 @@ report_date, rows jsonb)` — `SECURITY DEFINER`, `search_path=''`,
 - Datenpfad: `getWeeklyTimeEntries` liefert je `assignedStaff`-Zeile
   zusätzlich `skillIds: string[]` (Join `staff_skills`, org-gescoped).
   Die reine Filterlogik ist in `src/lib/time/weekly-filter.ts`
-  (`filterWeeklyRows(rows, {dept, skillId, query}, skillsByStaff)`)
-  ausgelagert und mit den Fällen „nur Bereich", „nur Skill", „Skill +
-  Bereich", „Suche zusätzlich", „Mitarbeiter ohne Skills" und „leeres
-  Ergebnis" getestet.
+  (`filterWeeklyRows(rows, {dept, skillId, query}, rosterByStaff)`)
+  ausgelagert.
+
+### §Z4b — Dienstplan-basierter Match (Wochen-Scope)
+
+Bereich- und Skill-Filter matchen seit Z4b **nicht** mehr die
+Skill-Stammdaten (`staff_skills`), sondern die **Dienstplan-Realität
+der angezeigten Woche** aus `roster_shifts`. Auslöser: „YUM · Küche ·
+SPÜLEN" soll exakt die Personen zeigen, die in dieser Woche mit
+SPÜLEN eingeplant sind — nicht jede, die den Skill grundsätzlich
+könnte.
+
+- **Datenpfad:** `getWeeklyTimeEntries` liefert zusätzlich
+  `rosterByStaff: Record<string, { areas: Department[]; skillIds:
+  string[] }>` — ein `roster_shifts`-Select für `(location_id,
+  shift_date ∈ [weekStart..weekEnd])`, distinct je Staff aggregiert.
+  Bei „Alle Standorte" merged der bestehende Client-Merge die
+  `rosterByStaff`-Buckets (Union je Person über alle Standorte).
+  `assignedStaff.skillIds` (Stammdaten) bleibt im Response-Shape für
+  andere Konsumenten, wird vom Filter aber nicht mehr benutzt.
+- **Semantik (verbindlich):**
+  - **„Alle" + kein Skill:** volle Z2-Grundmenge (alle Zugeordneten,
+    auch ohne Schichten der Woche) — Eintragen für Nicht-Eingeplante
+    bleibt möglich.
+  - **Bereichs-Pill:** nur Personen mit mindestens einer
+    `roster_shifts`-Schicht dieses `area` in der Woche am gewählten
+    Standort (bzw. an irgendeinem, bei „Alle Standorte").
+  - **Skill-Filter:** nur Personen mit mindestens einer Schicht der
+    Woche, deren `skill_id` dem gewählten Skill entspricht. Schichten
+    mit `skill_id = null` zählen für den Bereichs-, **nicht** für den
+    Skill-Filter.
+  - **Bereich + Skill kombiniert:** entkoppelt über die Woche
+    (Bereich UND Skill, je über irgendeine Schicht — dürfen
+    verschiedene sein). Einfachste konsistente Regel; strengere
+    Kopplung „selbe Schicht" nur auf Zuruf.
+  - **Suche** kombiniert weiterhin per UND; Sektionen ohne
+    verbleibende Zeilen werden ausgeblendet.
+- **Hinweis in der Filterleiste:** solange ein Filter aktiv ist,
+  steht neben den Filtern der dezente Text „Zeigt nur in dieser
+  Woche entsprechend Eingeplante" mit Tooltip auf die Datenquelle,
+  damit niemand Personen für „verschwunden" hält.
+- **Tests** (`weekly-filter.test.ts`) decken den Frank-Fall
+  (Skill-Stammdaten vorhanden, aber keine passende Schicht →
+  versteckt), `skill_id = null` (Bereich trifft, Skill nicht),
+  Bereich geplant/nicht geplant, Bereich + Skill über
+  unterschiedliche Schichten und „Alle/Alle = Grundmenge" ab.
 
 ## §49 — Lektion: zod 4 UUID-Validierung
 
