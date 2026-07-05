@@ -1713,6 +1713,8 @@ type WeeklyEntry = {
   staffId: string;
   displayName: string;
   department: Department;
+  // Z3 — Roh-Abteilung des Eintrags (NULL = unbestimmt/Bestandsdaten).
+  rawDepartment?: Department | null;
   businessDate: string;
   startedAt: string;
   endedAt: string;
