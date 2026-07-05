@@ -17,9 +17,11 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadStaffCaller } from "@/lib/time/time.functions";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { assertRealIdentity } from "@/lib/admin/impersonation";
-import { runGuarded } from "@/lib/admin/admin-call";
+import { runWithPermission, assertPermission } from "@/lib/admin/admin-call";
 import { makeAuditWriter } from "@/lib/admin/audit";
 import { writeAuditLog } from "@/lib/admin/audit";
+import { ForbiddenError } from "@/lib/admin/role-guard";
+import { resolvePlanerScope, scopeIncludes } from "./scope-util";
 import { sendTelegramToStaff } from "@/lib/telegram/telegram.functions";
 import {
   canAcceptCounterShift,
@@ -885,7 +887,13 @@ export type PendingSwapRow = {
 export const listPendingSwaps = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<PendingSwapRow[]> => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    // PL1 — planer zusätzlich zugelassen; Rechte-Check via has_permission.
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "manager",
+      "admin",
+      "planer",
+    ]);
+    await assertPermission(context.supabase, "roster.swap.view_pending", null);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: rows, error } = await supabaseAdmin
       .from("shift_swap_requests")
@@ -943,7 +951,26 @@ export const listPendingSwaps = createServerFn({ method: "GET" })
       return a.created_at < b.created_at ? 1 : -1;
     });
 
+    // PL1 — Scope-Filter über die Schicht des Anfragenden (locationId + area).
+    const scope = await resolvePlanerScope(
+      context.supabase,
+      supabaseAdmin,
+      caller.organizationId,
+      "roster.swap.view_pending",
+    );
+    const inScope = (row: (typeof sorted)[number]) => {
+      const rs = row.req_shift;
+      if (!rs) return false;
+      if (rs.area !== "kitchen" && rs.area !== "service") {
+        // GL-Schichten fallen ausserhalb der Bereichs-Freigaben; für admin/manager
+        // liefert scopeIncludes bei all=true trotzdem true.
+        return scope.all;
+      }
+      return scopeIncludes(scope, rs.location_id, rs.area);
+    };
+
     return sorted
+      .filter(inScope)
       .filter((r) => r.req_shift && r.requester)
       .map((r) => ({
         id: r.id,
@@ -1019,9 +1046,18 @@ export const decideSwapRequest = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "manager",
+      "admin",
+      "planer",
+    ]);
     type DecideResult = { ok: true; decision: "approved" | "rejected" };
-    return runGuarded<DecideResult>(caller.role, "manager", makeAuditWriter(caller), async () => {
+    return runWithPermission<DecideResult>(
+      context.supabase,
+      "roster.swap.decide",
+      null,
+      makeAuditWriter(caller),
+      async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
       const { data: reqRow, error } = await supabaseAdmin
@@ -1036,6 +1072,29 @@ export const decideSwapRequest = createServerFn({ method: "POST" })
       if (!reqRow) throw new Error("Anfrage nicht gefunden.");
       if (reqRow.status !== "peer_accepted") {
         throw new Error("Anfrage wartet nicht auf Freigabe.");
+      }
+
+      // PL1 — Scope-Validierung der Anfragenden-Schicht VOR jeder Schreibaktion.
+      const scope = await resolvePlanerScope(
+        context.supabase,
+        supabaseAdmin,
+        caller.organizationId,
+        "roster.swap.decide",
+      );
+      if (!scope.all) {
+        const reqShiftForScope = await loadShift(
+          supabaseAdmin,
+          caller.organizationId,
+          reqRow.shift_id,
+        );
+        if (reqShiftForScope.area !== "kitchen" && reqShiftForScope.area !== "service") {
+          throw new ForbiddenError("Anfrage liegt außerhalb deines Bereichs.");
+        }
+        if (
+          !scopeIncludes(scope, reqShiftForScope.location_id, reqShiftForScope.area)
+        ) {
+          throw new ForbiddenError("Anfrage liegt außerhalb deines Bereichs.");
+        }
       }
 
       if (data.decision === "rejected") {
@@ -1161,5 +1220,6 @@ export const decideSwapRequest = createServerFn({ method: "POST" })
           },
         },
       };
-    });
+      },
+    );
   });
