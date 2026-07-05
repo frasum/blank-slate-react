@@ -189,6 +189,49 @@ export const deleteLocation = createServerFn({ method: "POST" })
     });
   });
 
+// ST1: Aktiv-Schalter. Setzt nur Sichtbarkeit — Daten, Zuordnungen und
+// Historie bleiben unangetastet. Reaktivieren jederzeit möglich.
+export const setLocationActive = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({ locationId: z.string().uuid(), isActive: z.boolean() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: loc, error: loadErr } = await supabaseAdmin
+        .from("locations")
+        .select("id, name, is_active")
+        .eq("id", data.locationId)
+        .eq("organization_id", caller.organizationId)
+        .maybeSingle();
+      if (loadErr) throw loadErr;
+      if (!loc) throw new Error("Standort nicht gefunden.");
+      if (Boolean(loc.is_active) === data.isActive) {
+        return {
+          result: { ok: true as const, changed: false },
+          audit: null,
+        };
+      }
+      const { error } = await supabaseAdmin
+        .from("locations")
+        .update({ is_active: data.isActive })
+        .eq("id", data.locationId)
+        .eq("organization_id", caller.organizationId);
+      if (error) throw error;
+      return {
+        result: { ok: true as const, changed: true },
+        audit: {
+          action: data.isActive ? "location.activated" : "location.deactivated",
+          entity: "location",
+          entityId: data.locationId,
+          meta: { name: loc.name },
+        },
+      };
+    });
+  });
+
 // =========================================================================
 // Geofencing (B6) — Koordinaten + Radius pro Standort
 // =========================================================================
