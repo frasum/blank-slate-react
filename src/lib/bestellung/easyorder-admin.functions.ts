@@ -109,6 +109,7 @@ async function assertStaffInOrg(admin: Admin, organizationId: string, staffId: s
 
 async function assertLocationInOrg(admin: Admin, organizationId: string, locationId: string) {
   const { data, error } = await admin
+    // ST1: bewusst ungefiltert — Daten-Zugriff (assertLocationInOrg by id).
     .from("locations")
     .select("id")
     .eq("id", locationId)
