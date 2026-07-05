@@ -3141,3 +3141,7 @@ report_date, rows jsonb)` — `SECURITY DEFINER`, `search_path=''`,
   Primär- und Sekundär-Zeilen (kein Grau, kein Kursiv). Alle Zeilen
   sind gleichwertig editierbar; `isPrimary` bleibt intern nur für die
   NULL-Attribution relevant.
+- Der „umhängen"-Trigger liegt als **Overlay** in der Namenszelle
+  (`absolute bottom-0 right-0.5`), damit er beim Hover keine
+  Zeilenhöhe reserviert — alle Wochenplan-Zeilen bleiben gleich hoch,
+  auch bei Personen mit Mehrfach-Zuordnung.
