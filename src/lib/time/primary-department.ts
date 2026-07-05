@@ -20,3 +20,27 @@ export function primaryDepartment(depts: readonly Department[]): Department {
   }
   return "service";
 }
+
+// Z3 — Zeilen-Attribution eines time_entries-Eintrags im Wochenplan.
+//
+// Regel:
+//   * entryDept != null UND ∈ staffDepts → dieser Eintrag gehört zur Zeile
+//     dieser Abteilung.
+//   * entryDept == null → NULL-Fall (Stempel/Batch/Pool/Bestandsdaten) →
+//     Anzeige auf der Primär-Zeile (kitchen > service > gl).
+//   * entryDept != null aber NICHT in staffDepts → Person ist der
+//     Abteilung am Standort (nicht mehr) zugeordnet: Anzeige auf der
+//     Primär-Zeile + `mismatched: true` für Tooltip/Warnung. Kein
+//     stilles Verschlucken.
+export function entryRowDepartment(
+  entryDept: Department | null | undefined,
+  staffDepts: readonly Department[],
+): { department: Department; mismatched: boolean } {
+  if (entryDept && staffDepts.includes(entryDept)) {
+    return { department: entryDept, mismatched: false };
+  }
+  return {
+    department: primaryDepartment(staffDepts),
+    mismatched: entryDept != null,
+  };
+}
