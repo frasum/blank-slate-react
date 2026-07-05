@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -21,11 +22,13 @@ import {
   type LeaveRequestRow,
 } from "@/lib/roster/leave.functions";
 import { VacationPlannerSection } from "@/components/urlaub/VacationPlannerSection";
+import { AdminSwapsPanel } from "@/components/tausch/AdminSwapsPanel";
+import { listPendingSwaps } from "@/lib/roster/swap.functions";
 
 type Filter = "offen" | "genehmigt" | "abgelehnt" | "alle";
 
 export const Route = createFileRoute("/_authenticated/admin/urlaub")({
-  head: () => ({ meta: [{ title: "Urlaubsanträge" }] }),
+  head: () => ({ meta: [{ title: "Urlaubsantrag / Schichttausch" }] }),
   component: AdminUrlaubPage,
 });
 
@@ -58,6 +61,11 @@ function AdminUrlaubPage() {
     queryKey: ["admin-leave-requests", filter],
     queryFn: () => fetchList({ data: { status: filter } }),
   });
+  const swapsQ = useQuery({
+    queryKey: ["admin", "swap-requests"],
+    queryFn: () => listPendingSwaps(),
+  });
+  const pendingSwaps = (swapsQ.data ?? []).filter((r) => r.status === "peer_accepted").length;
 
   async function handleApprove(id: string) {
     setBusy(true);
@@ -101,13 +109,30 @@ function AdminUrlaubPage() {
   return (
     <div className="space-y-6">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Urlaubsanträge</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Urlaubsanträge & Schichttausch
+        </h1>
         <p className="text-sm text-muted-foreground">
-          Offene Anträge prüfen, genehmigen oder ablehnen.
+          Offene Urlaubsanträge und Schichttausch-Freigaben an einem Ort.
         </p>
       </header>
 
-      <div className="flex flex-wrap gap-2">
+      <Tabs defaultValue="urlaub" className="w-full">
+        <TabsList>
+          <TabsTrigger value="urlaub">Urlaubsanträge</TabsTrigger>
+          <TabsTrigger value="tausch">
+            Schichttausch
+            {pendingSwaps > 0 && (
+              <span
+                className="ml-1.5 inline-block h-2 w-2 rounded-full bg-destructive align-middle"
+                aria-label={`${pendingSwaps} Tauschanfragen warten`}
+              />
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="urlaub" className="mt-4 space-y-6">
+          <div className="flex flex-wrap gap-2">
         {FILTERS.map((f) => (
           <Button
             key={f.key}
@@ -119,7 +144,7 @@ function AdminUrlaubPage() {
             {f.label}
           </Button>
         ))}
-      </div>
+          </div>
 
       {query.isLoading ? (
         <Card className="p-6 text-sm text-muted-foreground">Lade…</Card>
@@ -225,7 +250,13 @@ function AdminUrlaubPage() {
         </DialogContent>
       </Dialog>
 
-      <VacationPlannerSection />
+          <VacationPlannerSection />
+        </TabsContent>
+
+        <TabsContent value="tausch" className="mt-4">
+          <AdminSwapsPanel />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
