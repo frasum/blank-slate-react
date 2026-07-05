@@ -1793,6 +1793,7 @@ function WeeklyPlan({
   pending,
   onUpdateInline,
   onCreateInline,
+  onReassign,
   periodStart,
   periodEnd,
   shiftsByStaff,
@@ -1812,6 +1813,8 @@ function WeeklyPlan({
     to: string,
     department: Department,
   ) => void;
+  // Z3 — Abteilung eines bestehenden Eintrags umhängen.
+  onReassign: (id: string, department: Department | null) => void;
   periodStart?: string;
   periodEnd?: string;
   shiftsByStaff: Map<string, number>;
