@@ -79,10 +79,7 @@ describe("enrichSalesStats", () => {
       hauptgruppeNr: 2,
     };
     const { rows, unmatchedCount } = enrichSalesStats(
-      [
-        stat("Unbekannter Artikel", { nummer: 42 }),
-        stat("Bekannt", { nummer: 7 }),
-      ],
+      [stat("Unbekannter Artikel", { nummer: 42 }), stat("Bekannt", { nummer: 7 })],
       [article("Bekannt", { warengruppe: "Pasta" })],
       [override],
     );
