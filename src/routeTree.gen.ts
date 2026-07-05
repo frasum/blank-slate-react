@@ -41,6 +41,7 @@ import { Route as AuthenticatedAdminStatistikRouteImport } from './routes/_authe
 import { Route as AuthenticatedAdminStandortzeitenRouteImport } from './routes/_authenticated/admin/standortzeiten'
 import { Route as AuthenticatedAdminStaffRouteImport } from './routes/_authenticated/admin/staff'
 import { Route as AuthenticatedAdminPosVerkaufRouteImport } from './routes/_authenticated/admin/pos-verkauf'
+import { Route as AuthenticatedAdminPosStundenberichtRouteImport } from './routes/_authenticated/admin/pos-stundenbericht'
 import { Route as AuthenticatedAdminPersonalAntraegeRouteImport } from './routes/_authenticated/admin/personal-antraege'
 import { Route as AuthenticatedAdminMigrationRouteImport } from './routes/_authenticated/admin/migration'
 import { Route as AuthenticatedAdminLohnVerteilungRouteImport } from './routes/_authenticated/admin/lohn-verteilung'
@@ -246,6 +247,12 @@ const AuthenticatedAdminPosVerkaufRoute =
     path: '/pos-verkauf',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminPosStundenberichtRoute =
+  AuthenticatedAdminPosStundenberichtRouteImport.update({
+    id: '/pos-stundenbericht',
+    path: '/pos-stundenbericht',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminPersonalAntraegeRoute =
   AuthenticatedAdminPersonalAntraegeRouteImport.update({
     id: '/personal-antraege',
@@ -445,6 +452,7 @@ export interface FileRoutesByFullPath {
   '/admin/lohn-verteilung': typeof AuthenticatedAdminLohnVerteilungRoute
   '/admin/migration': typeof AuthenticatedAdminMigrationRoute
   '/admin/personal-antraege': typeof AuthenticatedAdminPersonalAntraegeRoute
+  '/admin/pos-stundenbericht': typeof AuthenticatedAdminPosStundenberichtRoute
   '/admin/pos-verkauf': typeof AuthenticatedAdminPosVerkaufRoute
   '/admin/staff': typeof AuthenticatedAdminStaffRouteWithChildren
   '/admin/standortzeiten': typeof AuthenticatedAdminStandortzeitenRoute
@@ -504,6 +512,7 @@ export interface FileRoutesByTo {
   '/admin/lohn-verteilung': typeof AuthenticatedAdminLohnVerteilungRoute
   '/admin/migration': typeof AuthenticatedAdminMigrationRoute
   '/admin/personal-antraege': typeof AuthenticatedAdminPersonalAntraegeRoute
+  '/admin/pos-stundenbericht': typeof AuthenticatedAdminPosStundenberichtRoute
   '/admin/pos-verkauf': typeof AuthenticatedAdminPosVerkaufRoute
   '/admin/standortzeiten': typeof AuthenticatedAdminStandortzeitenRoute
   '/admin/statistik': typeof AuthenticatedAdminStatistikRoute
@@ -567,6 +576,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/lohn-verteilung': typeof AuthenticatedAdminLohnVerteilungRoute
   '/_authenticated/admin/migration': typeof AuthenticatedAdminMigrationRoute
   '/_authenticated/admin/personal-antraege': typeof AuthenticatedAdminPersonalAntraegeRoute
+  '/_authenticated/admin/pos-stundenbericht': typeof AuthenticatedAdminPosStundenberichtRoute
   '/_authenticated/admin/pos-verkauf': typeof AuthenticatedAdminPosVerkaufRoute
   '/_authenticated/admin/staff': typeof AuthenticatedAdminStaffRouteWithChildren
   '/_authenticated/admin/standortzeiten': typeof AuthenticatedAdminStandortzeitenRoute
@@ -631,6 +641,7 @@ export interface FileRouteTypes {
     | '/admin/lohn-verteilung'
     | '/admin/migration'
     | '/admin/personal-antraege'
+    | '/admin/pos-stundenbericht'
     | '/admin/pos-verkauf'
     | '/admin/staff'
     | '/admin/standortzeiten'
@@ -690,6 +701,7 @@ export interface FileRouteTypes {
     | '/admin/lohn-verteilung'
     | '/admin/migration'
     | '/admin/personal-antraege'
+    | '/admin/pos-stundenbericht'
     | '/admin/pos-verkauf'
     | '/admin/standortzeiten'
     | '/admin/statistik'
@@ -752,6 +764,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/lohn-verteilung'
     | '/_authenticated/admin/migration'
     | '/_authenticated/admin/personal-antraege'
+    | '/_authenticated/admin/pos-stundenbericht'
     | '/_authenticated/admin/pos-verkauf'
     | '/_authenticated/admin/staff'
     | '/_authenticated/admin/standortzeiten'
@@ -1024,6 +1037,13 @@ declare module '@tanstack/react-router' {
       path: '/pos-verkauf'
       fullPath: '/admin/pos-verkauf'
       preLoaderRoute: typeof AuthenticatedAdminPosVerkaufRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/pos-stundenbericht': {
+      id: '/_authenticated/admin/pos-stundenbericht'
+      path: '/pos-stundenbericht'
+      fullPath: '/admin/pos-stundenbericht'
+      preLoaderRoute: typeof AuthenticatedAdminPosStundenberichtRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
     '/_authenticated/admin/personal-antraege': {
@@ -1309,6 +1329,7 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminLohnVerteilungRoute: typeof AuthenticatedAdminLohnVerteilungRoute
   AuthenticatedAdminMigrationRoute: typeof AuthenticatedAdminMigrationRoute
   AuthenticatedAdminPersonalAntraegeRoute: typeof AuthenticatedAdminPersonalAntraegeRoute
+  AuthenticatedAdminPosStundenberichtRoute: typeof AuthenticatedAdminPosStundenberichtRoute
   AuthenticatedAdminPosVerkaufRoute: typeof AuthenticatedAdminPosVerkaufRoute
   AuthenticatedAdminStaffRoute: typeof AuthenticatedAdminStaffRouteWithChildren
   AuthenticatedAdminStandortzeitenRoute: typeof AuthenticatedAdminStandortzeitenRoute
@@ -1346,6 +1367,8 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
     AuthenticatedAdminMigrationRoute: AuthenticatedAdminMigrationRoute,
     AuthenticatedAdminPersonalAntraegeRoute:
       AuthenticatedAdminPersonalAntraegeRoute,
+    AuthenticatedAdminPosStundenberichtRoute:
+      AuthenticatedAdminPosStundenberichtRoute,
     AuthenticatedAdminPosVerkaufRoute: AuthenticatedAdminPosVerkaufRoute,
     AuthenticatedAdminStaffRoute: AuthenticatedAdminStaffRouteWithChildren,
     AuthenticatedAdminStandortzeitenRoute:

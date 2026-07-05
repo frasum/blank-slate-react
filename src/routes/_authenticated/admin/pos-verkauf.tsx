@@ -12,8 +12,6 @@ import {
   replacePosSalesStats,
   setSalesStatsGroupOverride,
 } from "@/lib/bestellung/sales-stats.functions";
-import { listPosHourlyStats, replacePosHourlyStats } from "@/lib/bestellung/pos-hourly.functions";
-import { PosHourlyView } from "@/components/bestellung/PosHourlyView";
 import { listLocations } from "@/lib/admin/locations.functions";
 import { LocationPills } from "@/components/shared/LocationPills";
 import { SalesGroupFilter } from "@/components/bestellung/SalesGroupFilter";
@@ -91,8 +89,6 @@ function PosVerkaufPage() {
   const callSet = useServerFn(setSalesStatsGroupOverride);
   const callClear = useServerFn(clearSalesStatsGroupOverride);
   const callReplace = useServerFn(replacePosSalesStats);
-  const callListHourly = useServerFn(listPosHourlyStats);
-  const callReplaceHourly = useServerFn(replacePosHourlyStats);
   const queryClient = useQueryClient();
   const auth = useAuth();
   const isAdmin = auth.identity?.role === "admin";
@@ -109,7 +105,6 @@ function PosVerkaufPage() {
   }, [locations, locationId]);
 
   const [period, setPeriod] = useState<Period>("d365");
-  const [view, setView] = useState<"articles" | "hourly">("articles");
 
   const statsQ = useQuery({
     queryKey: ["sales-stats", locationId, period],
@@ -236,23 +231,7 @@ function PosVerkaufPage() {
 
       <LocationPills locations={locations} value={locationId} onChange={setLocationId} />
 
-      <Tabs value={view} onValueChange={(v) => setView(v as "articles" | "hourly")}>
-        <TabsList>
-          <TabsTrigger value="articles">Artikel</TabsTrigger>
-          <TabsTrigger value="hourly">Stundenbericht</TabsTrigger>
-        </TabsList>
-      </Tabs>
-
-      {view === "hourly" ? (
-        <PosHourlyView
-          locationId={locationId}
-          isAdmin={isAdmin}
-          onList={(input) => callListHourly({ data: input })}
-          onReplace={(input) => callReplaceHourly({ data: input })}
-        />
-      ) : (
-        <>
-          <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
             <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)}>
               <TabsList>
                 <TabsTrigger value="d365">Letzte 365 Tage</TabsTrigger>
@@ -286,7 +265,7 @@ function PosVerkaufPage() {
                 />
               </div>
             )}
-          </div>
+      </div>
 
           {statsQ.isError && (
             <Alert variant="destructive">
@@ -427,8 +406,6 @@ function PosVerkaufPage() {
               </Table>
             </div>
           )}
-        </>
-      )}
     </div>
   );
 }
