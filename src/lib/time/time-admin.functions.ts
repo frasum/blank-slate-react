@@ -18,6 +18,7 @@ import { makeAuditWriter } from "@/lib/admin/audit";
 import { businessDateOf } from "@/lib/business-date";
 import { assertBusinessDateUnlocked } from "./time-lock";
 import { timeEntryToSfnRow } from "@/lib/lohn/time-entry-sfn";
+import { formatAbsenceNote } from "./absence-note";
 import type { SfnShiftRow } from "@/lib/lohn/sfn-geld/types";
 import { computeStaffSfn } from "@/lib/lohn/compute-staff-sfn";
 
