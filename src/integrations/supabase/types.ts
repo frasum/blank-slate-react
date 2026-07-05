@@ -4314,6 +4314,7 @@ export type Database = {
           break_minutes: number
           business_date: string
           created_at: string
+          department: Database["public"]["Enums"]["staff_department"] | null
           ended_at: string | null
           id: string
           import_key: string | null
@@ -4328,6 +4329,7 @@ export type Database = {
           break_minutes?: number
           business_date: string
           created_at?: string
+          department?: Database["public"]["Enums"]["staff_department"] | null
           ended_at?: string | null
           id?: string
           import_key?: string | null
@@ -4342,6 +4344,7 @@ export type Database = {
           break_minutes?: number
           business_date?: string
           created_at?: string
+          department?: Database["public"]["Enums"]["staff_department"] | null
           ended_at?: string | null
           id?: string
           import_key?: string | null

@@ -43,6 +43,49 @@ function buildPrimaryDeptMap(
   return out;
 }
 
+// Z3 — Alle Abteilungs-Zuordnungen je Mitarbeiter (für die
+// Zeilen-Attribution im Wochenplan-Grid).
+function buildStaffDeptsMap(
+  rows: ReadonlyArray<{ staff_id: string; department: string }>,
+): Map<string, Department[]> {
+  const byStaff = new Map<string, Department[]>();
+  for (const r of rows) {
+    const dept = r.department as Department;
+    const arr = byStaff.get(r.staff_id) ?? [];
+    if (!arr.includes(dept)) arr.push(dept);
+    byStaff.set(r.staff_id, arr);
+  }
+  return byStaff;
+}
+
+// Z3 — Prüft, ob eine Abteilung der Person am Standort zugeordnet ist.
+// Wird server-seitig VOR Insert/Update aufgerufen (Client nicht vertrauen).
+async function assertStaffDeptAssignment(
+  supabaseAdmin: {
+    from: (t: "staff_locations") => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      select: (s: string) => any;
+    };
+  },
+  organizationId: string,
+  staffId: string,
+  locationId: string,
+  department: Department,
+): Promise<void> {
+  const { data, error } = await supabaseAdmin
+    .from("staff_locations")
+    .select("staff_id")
+    .eq("organization_id", organizationId)
+    .eq("staff_id", staffId)
+    .eq("location_id", locationId)
+    .eq("department", department)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) {
+    throw new Error(`Abteilung „${department}" ist der Person am Standort nicht zugeordnet.`);
+  }
+}
+
 // =========================================================================
 // B6 — Arbeitszeitübersicht (Zusammenfassung + Buchhaltung)
 // =========================================================================
@@ -388,7 +431,9 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
     // 1. Einträge am Zielstandort.
     const { data: rows, error } = await supabaseAdmin
       .from("time_entries")
-      .select("id, staff_id, started_at, ended_at, business_date, location_id, staff(display_name)")
+      .select(
+        "id, staff_id, started_at, ended_at, business_date, location_id, department, staff(display_name)",
+      )
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId)
       .gte("business_date", data.weekStart)
@@ -420,6 +465,7 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
     // Person deterministisch auf EINER Zeile auflaufen (time_entries hat
     // keine Abteilungs-Dimension).
     const deptByStaff = buildPrimaryDeptMap(deptRows ?? []);
+    const staffDeptsByStaff = buildStaffDeptsMap(deptRows ?? []);
 
     // Z2: Alle dem Standort zugeordneten (aktiven) Mitarbeiter — EINE Zeile
     // pro Zuordnung, damit Mehrfach-Zuordnungen (z. B. kitchen + gl) im
@@ -429,12 +475,16 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
       .map((d) => {
         const s = d.staff as { display_name: string; is_active: boolean } | null;
         const dept = d.department as Department;
+        const staffId = d.staff_id as string;
         return {
-          staffId: d.staff_id as string,
+          staffId,
           displayName: s?.display_name ?? "—",
           department: dept,
           isActive: s?.is_active ?? true,
-          isPrimary: deptByStaff.get(d.staff_id as string) === dept,
+          isPrimary: deptByStaff.get(staffId) === dept,
+          // Z3: alle Abteilungen der Person am Standort — Client attribuiert
+          // damit Einträge über entryRowDepartment auf die richtige Zeile.
+          staffDepts: staffDeptsByStaff.get(staffId) ?? [],
         };
       })
       .filter((s) => s.isActive);
@@ -455,7 +505,11 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
         id: r.id as string,
         staffId: r.staff_id as string,
         displayName: (r.staff as { display_name: string } | null)?.display_name ?? "—",
+        // Z3: Primär-Abteilung als Fallback für Grid-Kompatibilität; das Grid
+        // nutzt entryRowDepartment(rawDepartment, staffDepts) für die
+        // eigentliche Zeilen-Attribution.
         department: deptByStaff.get(r.staff_id as string) ?? ("service" as const),
+        rawDepartment: (r.department as Department | null) ?? null,
         businessDate: r.business_date as string,
         startedAt: r.started_at as string,
         endedAt: r.ended_at as string,
@@ -476,6 +530,10 @@ export const setTimeEntryShift = createServerFn({ method: "POST" })
         id: z.string().uuid(),
         startedAt: z.string().datetime(),
         endedAt: z.string().datetime(),
+        // Z3 — optional: setzt/ändert die Abteilungs-Dimension des Eintrags.
+        // undefined → unverändert lassen; null → auf NULL setzen; Enum-Wert
+        // wird gegen staff_locations validiert (Person ∈ Abteilung am Standort).
+        department: z.enum(["kitchen", "service", "gl"]).nullish(),
       })
       .parse(input),
   )
@@ -509,14 +567,32 @@ export const setTimeEntryShift = createServerFn({ method: "POST" })
         if (newBusinessDate !== before.business_date) {
           await assertBusinessDateUnlocked(supabaseAdmin, caller.organizationId, newBusinessDate);
         }
+        // Z3: Abteilungs-Zuordnung serverseitig gegen staff_locations prüfen.
+        if (data.department != null && before.location_id) {
+          await assertStaffDeptAssignment(
+            supabaseAdmin,
+            caller.organizationId,
+            before.staff_id,
+            before.location_id,
+            data.department,
+          );
+        }
+
+        const patch: {
+          started_at: string;
+          ended_at: string;
+          business_date: string;
+          department?: Department | null;
+        } = {
+          started_at: data.startedAt,
+          ended_at: data.endedAt,
+          business_date: newBusinessDate,
+        };
+        if (data.department !== undefined) patch.department = data.department;
 
         const { error } = await supabaseAdmin
           .from("time_entries")
-          .update({
-            started_at: data.startedAt,
-            ended_at: data.endedAt,
-            business_date: newBusinessDate,
-          })
+          .update(patch)
           .eq("id", data.id)
           .eq("organization_id", caller.organizationId);
         if (error) throw error;
@@ -533,11 +609,16 @@ export const setTimeEntryShift = createServerFn({ method: "POST" })
                 startedAt: before.started_at,
                 endedAt: before.ended_at,
                 businessDate: before.business_date,
+                department: (before as { department: Department | null }).department ?? null,
               },
               after: {
                 startedAt: data.startedAt,
                 endedAt: data.endedAt,
                 businessDate: newBusinessDate,
+                department:
+                  data.department !== undefined
+                    ? (data.department ?? null)
+                    : ((before as { department: Department | null }).department ?? null),
               },
             },
           },
@@ -555,6 +636,7 @@ export const createTimeEntryShift = createServerFn({ method: "POST" })
         locationId: z.string().uuid(),
         startedAt: z.string().datetime(),
         endedAt: z.string().datetime(),
+        department: z.enum(["kitchen", "service", "gl"]).nullish(),
       })
       .parse(input),
   )
@@ -582,6 +664,17 @@ export const createTimeEntryShift = createServerFn({ method: "POST" })
         if (sErr) throw sErr;
         if (!staff) throw new Error("Mitarbeiter nicht in dieser Organisation.");
 
+        // Z3: Falls Abteilung mitgegeben → gegen staff_locations validieren.
+        if (data.department != null) {
+          await assertStaffDeptAssignment(
+            supabaseAdmin,
+            caller.organizationId,
+            data.staffId,
+            data.locationId,
+            data.department,
+          );
+        }
+
         const { data: created, error } = await supabaseAdmin
           .from("time_entries")
           .insert({
@@ -593,6 +686,7 @@ export const createTimeEntryShift = createServerFn({ method: "POST" })
             business_date: businessDate,
             break_minutes: 0,
             source: "manual",
+            department: data.department ?? null,
           })
           .select("id")
           .single();
@@ -611,6 +705,7 @@ export const createTimeEntryShift = createServerFn({ method: "POST" })
               businessDate,
               startedAt: data.startedAt,
               endedAt: data.endedAt,
+              department: data.department ?? null,
             },
           },
         };

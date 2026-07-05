@@ -65,6 +65,15 @@ import { CalendarDays, FileDown, FileSpreadsheet, Search } from "lucide-react";
 import { ProvisionTab } from "@/components/lohn/ProvisionTab";
 import { LohnrechnerPanel } from "@/components/lohn/LohnrechnerPanel";
 import { BatchTimesCard } from "@/components/zeit/BatchTimesCard";
+import { entryRowDepartment } from "@/lib/time/primary-department";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export const Route = createFileRoute("/_authenticated/admin/zeit-uebersicht")({
   head: () => ({ meta: [{ title: "Arbeitszeiten" }] }),
@@ -629,19 +638,36 @@ function ZeitUebersichtPage() {
   }
 
   const setShiftMut = useMutation({
-    mutationFn: (vars: { id: string; startedAt: string; endedAt: string }) =>
-      callSetShift({ data: vars }),
+    mutationFn: (vars: {
+      id: string;
+      startedAt: string;
+      endedAt: string;
+      department?: Department | null;
+    }) => callSetShift({ data: vars }),
     onSuccess: () => {
       invalidateWeekly();
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  // Z3 — alle Abteilungen der Person am Standort, gebündelt für Grid + Popover.
+  const staffDeptsByStaff = useMemo(() => {
+    const m = new Map<string, Department[]>();
+    for (const s of weeklyData?.assignedStaff ?? []) {
+      const arr = m.get(s.staffId) ?? [];
+      const from = s.staffDepts ?? [s.department];
+      for (const d of from) if (!arr.includes(d)) arr.push(d);
+      m.set(s.staffId, arr);
+    }
+    return m;
+  }, [weeklyData]);
   const createShiftMut = useMutation({
     mutationFn: (vars: {
       staffId: string;
       locationId: string;
       startedAt: string;
       endedAt: string;
+      department?: Department | null;
     }) => callCreateShift({ data: vars }),
     onSuccess: () => {
       invalidateWeekly();
@@ -692,13 +718,17 @@ function ZeitUebersichtPage() {
       isPrimary: boolean;
       byDate: Map<string, WeeklyEntry[]>;
       totals: { total: number; evening: number; night: number; sunHol: number };
+      mismatched: boolean;
     };
     const rowKey = (staffId: string, dept: Department) => `${staffId}:${dept}`;
     const rowMap = new Map<string, AccRow>();
-    // Z2 — Grundmenge: EINE Zeile pro (Mitarbeiter, Zuordnung). Mehrfach-
-    // zugeordnete Mitarbeiter (z. B. kitchen + gl) erscheinen in JEDER
-    // Sektion. isPrimary markiert die Zeile, auf der die Stunden auflaufen.
+    // Z2/Z3 — Grundmenge: EINE Zeile pro (Mitarbeiter, Zuordnung). Alle
+    // Zeilen sind ab Z3 voll editierbar; isPrimary bleibt nur für die
+    // NULL-Attribution (Fallback auf Primär-Zeile) relevant.
+    const staffDeptsByStaff = new Map<string, Department[]>();
     for (const s of data.assignedStaff ?? []) {
+      const arr = staffDeptsByStaff.get(s.staffId) ?? s.staffDepts ?? [];
+      staffDeptsByStaff.set(s.staffId, arr);
       const key = rowKey(s.staffId, s.department);
       if (rowMap.has(key)) continue;
       rowMap.set(key, {
@@ -708,6 +738,7 @@ function ZeitUebersichtPage() {
         isPrimary: s.isPrimary ?? true,
         byDate: new Map(),
         totals: { total: 0, evening: 0, night: 0, sunHol: 0 },
+        mismatched: false,
       });
     }
     for (const e of data.entries) {
@@ -715,21 +746,28 @@ function ZeitUebersichtPage() {
       // periode (Mo–So-Woche kann an Periodengrenzen überlappen) werden
       // weder in byDate noch in die Wochensummen aufgenommen.
       if (e.businessDate < fromDate || e.businessDate > toDate) continue;
-      // Der Server liefert e.department bereits als Primär-Abteilung —
-      // Stunden landen daher immer auf der Primär-Zeile.
-      const key = rowKey(e.staffId, e.department);
+      // Z3 — Attribution zentral über entryRowDepartment:
+      //   - department != null & ∈ staffDepts → eigene Zeile
+      //   - NULL → Primär-Zeile
+      //   - department gesetzt, aber nicht mehr zugeordnet → Primär-Zeile
+      //     + `mismatched` (Tooltip-Warnung)
+      const staffDepts = staffDeptsByStaff.get(e.staffId) ?? [e.department];
+      const attr = entryRowDepartment(e.rawDepartment ?? null, staffDepts);
+      const key = rowKey(e.staffId, attr.department);
       let r = rowMap.get(key);
       if (!r) {
         r = {
           staffId: e.staffId,
           displayName: e.displayName,
-          department: e.department,
+          department: attr.department,
           isPrimary: true,
           byDate: new Map(),
           totals: { total: 0, evening: 0, night: 0, sunHol: 0 },
+          mismatched: false,
         };
         rowMap.set(key, r);
       }
+      if (attr.mismatched) r.mismatched = true;
       const arr = r.byDate.get(e.businessDate) ?? [];
       arr.push(e);
       r.byDate.set(e.businessDate, arr);
@@ -1081,7 +1119,7 @@ function ZeitUebersichtPage() {
               const endedAt = buildIsoFromLocal(iso, to, from);
               setShiftMut.mutate({ id, startedAt, endedAt });
             }}
-            onCreateInline={(staffId, iso, from, to) => {
+            onCreateInline={(staffId, iso, from, to, department) => {
               if (!effectiveLocationId) {
                 toast.error("Bitte erst einen Standort wählen.");
                 return;
@@ -1093,8 +1131,20 @@ function ZeitUebersichtPage() {
                 locationId: effectiveLocationId,
                 startedAt,
                 endedAt,
+                department,
               });
             }}
+            onReassign={(id, department) => {
+              const entry = weeklyData?.entries.find((e) => e.id === id);
+              if (!entry) return;
+              setShiftMut.mutate({
+                id,
+                startedAt: entry.startedAt,
+                endedAt: entry.endedAt,
+                department,
+              });
+            }}
+            staffDeptsByStaff={staffDeptsByStaff}
             entriesById={useMemo(() => {
               const m = new Map<string, WeeklyEntry>();
               for (const e of weeklyData?.entries ?? []) m.set(e.id, e);
@@ -1700,6 +1750,8 @@ type WeeklyEntry = {
   staffId: string;
   displayName: string;
   department: Department;
+  // Z3 — Roh-Abteilung des Eintrags (NULL = unbestimmt/Bestandsdaten).
+  rawDepartment?: Department | null;
   businessDate: string;
   startedAt: string;
   endedAt: string;
@@ -1716,6 +1768,8 @@ type WeeklyData = {
     department: Department;
     isActive: boolean;
     isPrimary?: boolean;
+    // Z3 — alle Abteilungen der Person am Standort (Attribution im Grid).
+    staffDepts?: Department[];
   }[];
 };
 
@@ -1762,6 +1816,8 @@ function WeeklyPlan({
   pending,
   onUpdateInline,
   onCreateInline,
+  onReassign,
+  staffDeptsByStaff,
   periodStart,
   periodEnd,
   shiftsByStaff,
@@ -1774,7 +1830,16 @@ function WeeklyPlan({
   entriesById: Map<string, WeeklyEntry>;
   pending: boolean;
   onUpdateInline: (id: string, iso: string, from: string, to: string) => void;
-  onCreateInline: (staffId: string, iso: string, from: string, to: string) => void;
+  onCreateInline: (
+    staffId: string,
+    iso: string,
+    from: string,
+    to: string,
+    department: Department,
+  ) => void;
+  // Z3 — Abteilung eines bestehenden Eintrags umhängen.
+  onReassign: (id: string, department: Department | null) => void;
+  staffDeptsByStaff: Map<string, Department[]>;
   periodStart?: string;
   periodEnd?: string;
   shiftsByStaff: Map<string, number>;
@@ -1820,6 +1885,9 @@ function WeeklyPlan({
     existingId: string | null;
     origFrom: string;
     origTo: string;
+    // Z3 — Abteilung der Zeile (für Create-Pfad; Updates lassen die Spalte
+    // unverändert, damit ein Time-Edit keinen Umhänge-Effekt hat).
+    department: Department;
   };
   const [edit, setEdit] = useState<EditState | null>(null);
   const editStaffId = edit?.staffId;
@@ -1870,7 +1938,12 @@ function WeeklyPlan({
     return HHMM.test(out) ? out : null;
   };
 
-  const startEdit = (staffId: string, iso: string, field: "from" | "to") => {
+  const startEdit = (
+    staffId: string,
+    iso: string,
+    field: "from" | "to",
+    department: Department,
+  ) => {
     if (!isAdmin) return;
     const found = findEntries(staffId, iso);
     if (found.length > 1) return;
@@ -1886,6 +1959,7 @@ function WeeklyPlan({
         existingId: found[0].id,
         origFrom: f,
         origTo: t,
+        department,
       });
     } else {
       setEdit({
@@ -1897,6 +1971,7 @@ function WeeklyPlan({
         existingId: null,
         origFrom: "",
         origTo: "",
+        department,
       });
     }
   };
@@ -1914,7 +1989,7 @@ function WeeklyPlan({
       if (from === e.origFrom && to === e.origTo) return true;
       onUpdateInline(e.existingId, e.iso, from, to);
     } else {
-      onCreateInline(e.staffId, e.iso, from, to);
+      onCreateInline(e.staffId, e.iso, from, to, e.department);
     }
     return true;
   };
@@ -1942,9 +2017,8 @@ function WeeklyPlan({
   const flatRows = useMemo(() => groups.flatMap((g) => g.rows), [groups]);
   const isCellEditable = (row: (typeof flatRows)[number] | undefined, dayIdx: number): boolean => {
     if (!row || !isAdmin) return false;
-    // Z2: „+" nur auf der Primär-Zeile — sonst würde ein neu angelegter Entry
-    // nach dem Refetch in der Primär-Sektion auftauchen.
-    if (row.isPrimary === false) return false;
+    // Z3 — alle Zeilen editierbar. Neu erstellte Einträge tragen die
+    // Abteilung ihrer Zeile und bleiben nach dem Refetch dort.
     const dm = dayMeta[dayIdx];
     if (!dm || dm.outOfPeriod) return false;
     const day = row.days[dayIdx];
@@ -2001,6 +2075,7 @@ function WeeklyPlan({
     nextStaffId: string,
     nextIso: string,
     nextField: "from" | "to",
+    nextDepartment: Department = current.department,
   ) => {
     const sameCell = nextStaffId === current.staffId && nextIso === current.iso;
     if (!sameCell) {
@@ -2010,7 +2085,7 @@ function WeeklyPlan({
     if (sameCell) {
       setEdit({ ...current, field: nextField });
     } else {
-      startEdit(nextStaffId, nextIso, nextField);
+      startEdit(nextStaffId, nextIso, nextField, nextDepartment);
     }
   };
 
@@ -2146,13 +2221,12 @@ function WeeklyPlan({
                   </TableCell>
                 </TableRow>
                 {grp.rows.map((row) => {
-                  const primaryDeptLabel =
-                    grp.rows.find((r) => r.staffId === row.staffId && r.isPrimary !== false)
-                      ?.department ?? row.department;
-                  const secondaryTitle =
-                    row.isPrimary === false
-                      ? `Zeiten dieser Person werden unter ${DEPT_HEADER_LABEL[primaryDeptLabel]} erfasst.`
-                      : undefined;
+                  // Z3 — Warnung, wenn ein Eintrag eine Abteilung trägt, die
+                  // der Person am Standort nicht (mehr) zugeordnet ist. Er
+                  // erscheint dann auf der Primär-Zeile.
+                  const mismatchedTitle = (row as { mismatched?: boolean }).mismatched
+                    ? "Achtung: mindestens ein Eintrag trägt eine Abteilung, die der Person am Standort nicht zugeordnet ist — er wird hier auf der Primär-Zeile angezeigt."
+                    : undefined;
                   return (
                     <TableRow key={`${row.staffId}:${row.department}`}>
                       <TableCell className="relative px-1 font-medium align-middle text-center text-xs w-[68px] min-w-[68px] max-w-[68px]">
@@ -2161,10 +2235,22 @@ function WeeklyPlan({
                         />
                         <span
                           className={`block truncate ${row.isPrimary === false ? "text-muted-foreground/70 italic" : ""}`}
-                          title={secondaryTitle ?? row.displayName}
+                          title={mismatchedTitle ?? row.displayName}
                         >
                           {row.displayName}
+                          {mismatchedTitle ? (
+                            <span className="ml-0.5 text-amber-600">⚠</span>
+                          ) : null}
                         </span>
+                        {isAdmin ? (
+                          <ReassignPopover
+                            row={row}
+                            entriesById={entriesById}
+                            onReassign={onReassign}
+                            pending={pending}
+                            staffDeptsByStaff={staffDeptsByStaff}
+                          />
+                        ) : null}
                       </TableCell>
                       {row.days.map((day, idx) => {
                         const dm = dayMeta[idx];
@@ -2176,7 +2262,9 @@ function WeeklyPlan({
                               ? "bg-gray-50"
                               : "";
                         const empty = day.shifts.length === 0;
-                        const clickable = isAdmin && !dm.outOfPeriod && row.isPrimary !== false;
+                        // Z3 — alle Zeilen sind editierbar; das Grid attribuiert
+                        // Einträge über entryRowDepartment.
+                        const clickable = isAdmin && !dm.outOfPeriod;
                         const multi = day.shifts.length > 1;
                         const isEditingCell =
                           edit !== null && edit.staffId === row.staffId && edit.iso === day.iso;
@@ -2184,7 +2272,7 @@ function WeeklyPlan({
                         const handleCellClick = (which: "from" | "to") => {
                           if (!editable) return;
                           if (isEditingCell) return;
-                          startEdit(row.staffId, day.iso, which);
+                          startEdit(row.staffId, day.iso, which, row.department);
                         };
                         const renderShift = (which: "from" | "to") => {
                           if (isEditingCell && edit.field === which) {
@@ -2230,6 +2318,7 @@ function WeeklyPlan({
                                         flatRows[t.rowIdx].staffId,
                                         dayMeta[t.dayIdx].iso,
                                         edit.field,
+                                        flatRows[t.rowIdx].department,
                                       );
                                     return;
                                   }
@@ -2246,6 +2335,7 @@ function WeeklyPlan({
                                         flatRows[t.rowIdx].staffId,
                                         dayMeta[t.dayIdx].iso,
                                         edit.field,
+                                        flatRows[t.rowIdx].department,
                                       );
                                     return;
                                   }
@@ -2297,14 +2387,14 @@ function WeeklyPlan({
                           <Fragment key={day.iso}>
                             <TableCell
                               onClick={() => handleCellClick("from")}
-                              title={secondaryTitle}
+                              title={mismatchedTitle}
                               className={`w-[62px] min-w-[62px] border-l px-1 py-1 text-center align-middle tabular-nums text-sm ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
                             >
                               {renderShift("from")}
                             </TableCell>
                             <TableCell
                               onClick={() => handleCellClick("to")}
-                              title={secondaryTitle}
+                              title={mismatchedTitle}
                               className={`w-[62px] min-w-[62px] px-1 py-1 text-center align-middle tabular-nums text-sm ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
                             >
                               {renderShift("to")}
@@ -2513,5 +2603,83 @@ function PeriodsPanel({
         </div>
       )}
     </div>
+  );
+}
+
+// Z3 — Umhängen-Popover je Zeile: listet alle Einträge der Person in dieser
+// Woche mit einem Abteilungs-Select (begrenzt auf ihre Zuordnungen am
+// Standort). NULL („—") ist erlaubt und stellt den Ur-Zustand
+// (Bestandsdaten/Stempel) wieder her.
+function ReassignPopover({
+  row,
+  entriesById,
+  onReassign,
+  pending,
+  staffDeptsByStaff,
+}: {
+  row: WeeklyExportRow;
+  entriesById: Map<string, WeeklyEntry>;
+  onReassign: (id: string, department: Department | null) => void;
+  pending: boolean;
+  staffDeptsByStaff: Map<string, Department[]>;
+}) {
+  const staffDepts = staffDeptsByStaff.get(row.staffId) ?? [row.department];
+  const entries = [...entriesById.values()]
+    .filter((e) => e.staffId === row.staffId)
+    .sort((a, b) => a.businessDate.localeCompare(b.businessDate));
+  if (entries.length === 0) return null;
+  const NULL_TOKEN = "__null__";
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="mt-0.5 text-[10px] text-muted-foreground hover:text-foreground underline decoration-dotted"
+          title="Einträge einer Abteilung zuordnen"
+          disabled={pending}
+        >
+          umhängen
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-72 p-3 space-y-2">
+        <div className="text-xs font-medium">{row.displayName} — Einträge dieser Woche</div>
+        {entries.map((e) => {
+          const current = e.rawDepartment ?? null;
+          return (
+            <div key={e.id} className="flex items-center gap-2 text-xs">
+              <span className="tabular-nums w-24 truncate">
+                {e.businessDate.slice(8, 10)}.{e.businessDate.slice(5, 7)}.{" "}
+                {new Date(e.startedAt).toLocaleTimeString("de-DE", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  timeZone: "Europe/Berlin",
+                })}
+              </span>
+              <Select
+                value={current ?? NULL_TOKEN}
+                disabled={pending}
+                onValueChange={(v) => {
+                  const next = v === NULL_TOKEN ? null : (v as Department);
+                  if (next === current) return;
+                  onReassign(e.id, next);
+                }}
+              >
+                <SelectTrigger className="h-7 flex-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NULL_TOKEN}>— (Primär)</SelectItem>
+                  {staffDepts.map((d) => (
+                    <SelectItem key={d} value={d}>
+                      {DEPT_LABEL[d]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          );
+        })}
+      </PopoverContent>
+    </Popover>
   );
 }
