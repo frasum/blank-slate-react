@@ -17,6 +17,7 @@ export interface BuildDailySummaryDataInput {
   staffById: Map<string, string>;
   locationName: string | undefined;
   createdByName?: string | null;
+  managerOnDutyNames?: string[];
   cashBalanceTargetCents: number;
   previousDeficitCents: number;
   previousDeficitSourceDate: string | null;
@@ -41,6 +42,7 @@ export function buildDailySummaryData(input: BuildDailySummaryDataInput): PdfExp
     },
     locationName: input.locationName,
     createdByName: input.createdByName ?? null,
+    managerOnDutyNames: input.managerOnDutyNames ?? [],
     channels,
     channelAmounts: ov.channelAmounts,
     terminals,
