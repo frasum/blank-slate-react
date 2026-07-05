@@ -96,7 +96,8 @@ function DisplayPage() {
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 30 * 1000);
+    // DP1b: 1-s-Takt, damit der 15/15-Vollbild-Wechsel exakt greift.
+    const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
 
@@ -177,6 +178,23 @@ function DisplayPage() {
         </header>
       )}
 
+      {(() => {
+        const nowB = nowBerlinParts(now);
+        const bd = businessDateOf(now);
+        const due = sortReminders(
+          (data.reminders ?? []).filter((r) => isReminderActive(r, nowB, bd)),
+        );
+        // Deterministischer 15/15-Takt aus der Uhrzeit — synchron über
+        // mehrere Displays, keine Sprünge bei Refresh/Remount.
+        const secondsSinceMidnight =
+          now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+        const phaseA = Math.floor(secondsSinceMidnight / 15) % 2 === 0;
+        if (due.length > 0 && phaseA) {
+          return <ReminderFullscreen reminders={due} />;
+        }
+        return null;
+      })()}
+
       {data.birthdays.length > 0 && (
         <div className="border-b border-amber-400/40 bg-gradient-to-r from-amber-500/20 via-yellow-400/20 to-amber-500/20 px-6 py-3 text-center">
           <p className="text-xl font-semibold tracking-tight text-amber-100">
@@ -189,26 +207,16 @@ function DisplayPage() {
         {data.blocks.map((block, idx) => (
           <div key={block.area} className="space-y-4">
             <BlockTable block={block} days={data.days} payload={data} />
-            {idx < data.blocks.length - 1 && (
-              <div className="space-y-2">
-                <ReminderStack reminders={data.reminders ?? []} now={now} />
-                {data.customMessage && (
-                  <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 px-6 py-3 text-center text-base text-amber-200">
-                    {data.customMessage}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        ))}
-        {data.blocks.length <= 1 && (
-          <div className="space-y-2">
-            <ReminderStack reminders={data.reminders ?? []} now={now} />
-            {data.customMessage && (
+            {data.customMessage && idx < data.blocks.length - 1 && (
               <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 px-6 py-3 text-center text-base text-amber-200">
                 {data.customMessage}
               </div>
             )}
+          </div>
+        ))}
+        {data.customMessage && data.blocks.length <= 1 && (
+          <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 px-6 py-3 text-center text-base text-amber-200">
+            {data.customMessage}
           </div>
         )}
         {data.blocks.length === 0 && (
