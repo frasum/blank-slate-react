@@ -4,6 +4,21 @@ Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen B
 
 Stand: 05.07.2026 (ST1)
 
+**EIN1 (05.07.2026):** Einstellungen/Allgemein in vier Unter-Tabs
+gegliedert (Trinkgeldpool · Bestellungen · Sofortmeldung & Arbeitgeber
+· Telegram), Tab-Wahl im URL-Param `?tab=…` (Reload/Verlinkung halten
+die Position, z. B. `…/admin/einstellungen?tab=telegram`). Die sechs
+bisherigen Sektionen sind als eigene Komponenten nach
+`src/components/settings/` extrahiert
+(`TrinkgeldpoolSection`, `BestellungenSection`, `SofortmeldungSection`,
+`ArbeitgeberSection`, `TelegramBotSection`,
+`TelegramTagesberichtSection`). Reine Umgruppierung — Formulare,
+Validierungen, Server-Aufrufe und Texte sind Zeichen für Zeichen
+identisch. Die org-settings-Mutation (`updateOrgSettings` erwartet
+alle fünf Felder gemeinsam) bleibt im Container und wird von
+Trinkgeldpool- + Bestellungen-Sektion via Props geteilt, damit das
+bisherige Speicherverhalten beider Karten erhalten bleibt.
+
 **ST1 (05.07.2026) — Standort-Lebenszyklus:** Neue Spalte
 `locations.is_active boolean NOT NULL DEFAULT true` als reine
 Sichtbarkeits-Markierung. Die zentrale Standort-Auswahl
