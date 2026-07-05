@@ -433,31 +433,46 @@ function KassePage() {
         </div>
         {ovQ.data?.session && (
           <div className="ml-auto flex items-end gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportPdf}
-              className="gap-2"
-              title={
-                (ovQ.data.session.guest_count ?? 0) <= 0
-                  ? "Gästeanzahl fehlt – bitte zuerst eintragen und speichern"
-                  : "PDF für Archiv/E-Mail"
+            <SessionStatusInline
+              status={sessionStatus}
+              lockedAt={
+                (ovQ.data.session as { locked_at?: string | null }).locked_at ?? null
               }
-            >
-              <Download className="h-4 w-4" />
-              PDF Export
-            </Button>
+            />
+            {isAdmin && sessionStatus === "finalized" && !underWaterline && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={lockMut.isPending}
+                onClick={() => setLockConfirm(true)}
+              >
+                Session sperren
+              </Button>
+            )}
+            {isAdmin && sessionStatus === "locked" && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={unlockMut.isPending}
+                onClick={() => setUnlockConfirm(true)}
+              >
+                Session entsperren
+              </Button>
+            )}
             <Button
-              onClick={handlePrintClick}
+              onClick={() => void handlePrintClick()}
+              disabled={printBusy}
               className="gap-2"
               title={
                 (ovQ.data.session.guest_count ?? 0) <= 0
                   ? "Gästeanzahl fehlt – bitte zuerst eintragen und speichern"
-                  : "Öffnet den System-Druckdialog"
+                  : sessionStatus === "open"
+                    ? "Finalisiert den Tag und öffnet den Druckdialog"
+                    : "Öffnet den System-Druckdialog"
               }
             >
               <Printer className="h-4 w-4" />
-              Tagesabrechnung drucken
+              {printBusy ? "Wird ausgeführt…" : "Tagesabrechnung drucken"}
             </Button>
           </div>
         )}
