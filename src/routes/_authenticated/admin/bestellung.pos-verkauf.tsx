@@ -410,6 +410,325 @@ function PosVerkaufPage() {
   );
 }
 
+// ============================ PV2: Import-Dialog ============================
+
+type ReplaceInput = {
+  locationId: string;
+  period: Period;
+  reportDate: string;
+  rows: { nummer: number; name: string; verkaufCount: number; umsatzCents: number }[];
+  footer: { verkaufCount: number; umsatzCents: number };
+};
+
+function todayIso(): string {
+  const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin" });
+  return fmt.format(new Date());
+}
+
+async function extractSheetRows(file: File): Promise<(string | number | null)[][]> {
+  const ExcelJS = (await import("exceljs")).default;
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(await file.arrayBuffer());
+  const ws = wb.worksheets[0];
+  if (!ws) throw new Error("Datei enthält kein Arbeitsblatt.");
+  const rows: (string | number | null)[][] = [];
+  ws.eachRow({ includeEmpty: true }, (row) => {
+    const cells: (string | number | null)[] = [];
+    // ExcelJS liefert 1-basierten Index; wir iterieren nach cellCount, um die
+    // Ausrichtung der Kopfzeile zu erhalten (findHeader arbeitet mit Positionen).
+    const max = row.cellCount;
+    for (let c = 1; c <= max; c++) {
+      const cell = row.getCell(c);
+      const v = cell.value as unknown;
+      if (v === null || v === undefined) cells.push(null);
+      else if (typeof v === "number" || typeof v === "string") cells.push(v);
+      else if (typeof v === "object") {
+        const o = v as { text?: string; result?: number | string };
+        if (typeof o.text === "string") cells.push(o.text);
+        else if (typeof o.result === "number" || typeof o.result === "string") cells.push(o.result);
+        else cells.push(String(v));
+      } else cells.push(String(v));
+    }
+    rows.push(cells);
+  });
+  return rows;
+}
+
+function checkLabel(name: string): string {
+  switch (name) {
+    case "footer_stueck":
+      return "Kontrollsumme Stück (Fußzeile)";
+    case "footer_umsatz":
+      return "Kontrollsumme Umsatz (Fußzeile)";
+    case "nummer_unique":
+      return "Artikelnummern eindeutig";
+    default:
+      return name;
+  }
+}
+
+function formatCheckValue(name: string, value: number): string {
+  if (name === "footer_umsatz") return eurFmt.format(value / 100);
+  return intFmt.format(value);
+}
+
+function PosImportDialog({
+  locationId,
+  period,
+  onReplace,
+  onDone,
+}: {
+  locationId: string;
+  period: Period;
+  onReplace: (input: ReplaceInput) => Promise<unknown>;
+  onDone: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pickedPeriod, setPickedPeriod] = useState<Period>(period);
+  const [reportDate, setReportDate] = useState<string>(todayIso());
+  const [file, setFile] = useState<File | null>(null);
+  const [parsed, setParsed] = useState<ParsedPosReport | null>(null);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
+
+  function reset() {
+    setFile(null);
+    setParsed(null);
+    setParseError(null);
+    setServerError(null);
+  }
+
+  // Beim Öffnen aktuelle Werte aus dem Elternzustand übernehmen.
+  useEffect(() => {
+    if (open) {
+      setPickedPeriod(period);
+      setReportDate(todayIso());
+      reset();
+    }
+  }, [open, period]);
+
+  async function handleFile(f: File) {
+    setFile(f);
+    setParsed(null);
+    setParseError(null);
+    setServerError(null);
+    try {
+      const raw = await extractSheetRows(f);
+      setParsed(parsePosReport(raw));
+    } catch (e) {
+      setParseError(e instanceof Error ? e.message : "Datei konnte nicht gelesen werden.");
+    }
+  }
+
+  const canSubmit = !!parsed && allChecksOk(parsed) && !!locationId && !busy;
+
+  async function handleSubmit() {
+    if (!parsed || !locationId) return;
+    const footer = footerForServer(parsed);
+    if (!footer) return;
+    setBusy(true);
+    setServerError(null);
+    try {
+      await onReplace({
+        locationId,
+        period: pickedPeriod,
+        reportDate,
+        rows: parsed.rows,
+        footer,
+      });
+      toast.success(
+        `Import gespeichert: ${intFmt.format(parsed.rows.length)} Artikel, ${intFmt.format(
+          footer.verkaufCount,
+        )} Stk / ${eurFmt.format(footer.umsatzCents / 100)}.`,
+      );
+      onDone();
+      setOpen(false);
+    } catch (e) {
+      setServerError(e instanceof Error ? e.message : "Import fehlgeschlagen.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" disabled={!locationId}>
+          XLSX importieren…
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>POS-Verkauf importieren</DialogTitle>
+          <DialogDescription>
+            Vectron-Artikelbericht (XLSX) einlesen, Kontrollsummen prüfen und Standort × Periode
+            ersetzen. Die Datei bleibt im Browser — nur die geprüften Zeilen gehen an den Server.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <Label>Periode</Label>
+            <Select value={pickedPeriod} onValueChange={(v) => setPickedPeriod(v as Period)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="d365">Letzte 365 Tage</SelectItem>
+                <SelectItem value="alltime">Gesamt (seit Aufzeichnung)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label>Stichtag</Label>
+            <Input
+              type="date"
+              value={reportDate}
+              max={todayIso()}
+              onChange={(e) => setReportDate(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <Label>Datei</Label>
+          <Input
+            type="file"
+            accept=".xlsx"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void handleFile(f);
+            }}
+          />
+          {file && (
+            <p className="text-xs text-muted-foreground">
+              {file.name} ({Math.round(file.size / 1024)} kB)
+            </p>
+          )}
+        </div>
+
+        {parseError && (
+          <Alert variant="destructive">
+            <AlertTitle>Datei nicht lesbar</AlertTitle>
+            <AlertDescription>{parseError}</AlertDescription>
+          </Alert>
+        )}
+
+        {parsed && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-3 gap-3 text-sm">
+              <SummaryCard label="Artikel" value={intFmt.format(parsed.rows.length)} />
+              <SummaryCard
+                label="Σ Stück"
+                value={intFmt.format(parsed.rows.reduce((s, r) => s + r.verkaufCount, 0))}
+              />
+              <SummaryCard
+                label="Σ Umsatz"
+                value={eurFmt.format(
+                  parsed.rows.reduce((s, r) => s + r.umsatzCents, 0) / 100,
+                )}
+              />
+            </div>
+
+            <div className="rounded-md border border-border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Prüfung</TableHead>
+                    <TableHead className="text-right">Soll (Fußzeile)</TableHead>
+                    <TableHead className="text-right">Ist</TableHead>
+                    <TableHead className="w-16 text-right">Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {parsed.checks.map((c) => (
+                    <TableRow key={c.name}>
+                      <TableCell>{checkLabel(c.name)}</TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {formatCheckValue(c.name, c.expected)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {formatCheckValue(c.name, c.actual)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {c.ok ? (
+                          <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200">
+                            OK
+                          </span>
+                        ) : (
+                          <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-xs font-medium text-destructive">
+                            Fehler
+                          </span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {parsed.skipped.length > 0 && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-900/50 dark:bg-amber-950/40">
+                <p className="font-medium text-amber-900 dark:text-amber-200">
+                  {parsed.skipped.length} Zeile(n) übersprungen (namenlose PLU)
+                </p>
+                <ul className="mt-1 list-disc pl-5 text-xs text-amber-900/80 dark:text-amber-200/80">
+                  {parsed.skipped.slice(0, 8).map((s, i) => (
+                    <li key={i}>
+                      Nr. {s.nummer ?? "?"} · {intFmt.format(s.verkaufCount)} Stk ·{" "}
+                      {eurFmt.format(s.umsatzCents / 100)}
+                    </li>
+                  ))}
+                  {parsed.skipped.length > 8 && <li>… und weitere</li>}
+                </ul>
+              </div>
+            )}
+
+            {parsed.warnings.length > 0 && (
+              <details className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+                <summary className="cursor-pointer font-medium text-foreground">
+                  {parsed.warnings.length} Warnung(en)
+                </summary>
+                <ul className="mt-2 list-disc pl-5">
+                  {parsed.warnings.map((w, i) => (
+                    <li key={i}>{w}</li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </div>
+        )}
+
+        {serverError && (
+          <Alert variant="destructive">
+            <AlertTitle>Import abgelehnt</AlertTitle>
+            <AlertDescription>{serverError}</AlertDescription>
+          </Alert>
+        )}
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setOpen(false)} disabled={busy}>
+            Abbrechen
+          </Button>
+          <Button onClick={handleSubmit} disabled={!canSubmit}>
+            {busy ? "Speichere…" : "Speichern & ersetzen"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SummaryCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-border bg-muted/30 p-2">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="text-base font-semibold tabular-nums">{value}</div>
+    </div>
+  );
+}
+
 function SortableHead({
   label,
   colKey,
