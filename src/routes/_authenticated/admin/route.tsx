@@ -245,8 +245,19 @@ function AdminLayout() {
           </div>
           {isPayroll ? (
             <nav className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border/60 pb-0 text-sm">
-              <Link to="/admin/zeit-uebersicht" className={tabClass(true)}>
+              <Link
+                to="/admin/zeit-uebersicht"
+                className={tabClass(pathname === "/admin/zeit-uebersicht")}
+              >
                 Arbeitszeiten
+              </Link>
+              <Link
+                to="/admin/staff"
+                className={tabClass(
+                  pathname === "/admin/staff" || pathname.startsWith("/admin/staff/"),
+                )}
+              >
+                Mitarbeiter
               </Link>
             </nav>
           ) : isPlaner ? (
