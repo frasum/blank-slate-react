@@ -1171,6 +1171,39 @@ function KassePage() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={unlockConfirm} onOpenChange={setUnlockConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Session entsperren?</DialogTitle>
+            <DialogDescription>
+              Hebt die harte Sperre auf und setzt den Status zurück auf „offen", damit Korrekturen
+              und Kellner-Abrechnungen für diesen Geschäftstag wieder möglich sind.
+              {underWaterline && (
+                <>
+                  {" "}
+                  <strong>Achtung:</strong> Dieser Geschäftstag liegt unter der Standort-Wasserlinie
+                  ({lockedThrough}). Der Session-Status wird zwar geändert, Schreibversuche werden
+                  aber weiter von der Wasserlinie geblockt, bis du diese getrennt zurückfährst.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUnlockConfirm(false)}>
+              Abbrechen
+            </Button>
+            <Button
+              disabled={unlockMut.isPending}
+              onClick={() =>
+                unlockMut.mutate(undefined, { onSuccess: () => setUnlockConfirm(false) })
+              }
+            >
+              Entsperren
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* KAB1: Kopplungs-Dialog „Drucken + Finalisieren" (nur bei Session-Status open) */}
       <Dialog open={printCouple !== null} onOpenChange={(o) => !o && setPrintCouple(null)}>
         <DialogContent>
