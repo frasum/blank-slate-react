@@ -1843,6 +1843,7 @@ function WeeklyPlan({
   ) => void;
   // Z3 — Abteilung eines bestehenden Eintrags umhängen.
   onReassign: (id: string, department: Department | null) => void;
+  staffDeptsByStaff: Map<string, Department[]>;
   periodStart?: string;
   periodEnd?: string;
   shiftsByStaff: Map<string, number>;
