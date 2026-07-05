@@ -10,6 +10,7 @@ import { PosHourlyView } from "@/components/bestellung/PosHourlyView";
 import { listLocations } from "@/lib/admin/locations.functions";
 import { LocationPills } from "@/components/shared/LocationPills";
 import { useAuth } from "@/hooks/use-auth";
+import { PosNav } from "@/components/bestellung/PosNav";
 
 export const Route = createFileRoute("/_authenticated/admin/pos-stundenbericht")({
   head: () => ({ meta: [{ title: "POS-Stundenbericht · Auswertungen" }] }),
@@ -32,6 +33,7 @@ function PosStundenberichtPage() {
 
   return (
     <div className="space-y-4">
+      <PosNav />
       <div>
         <h2 className="text-lg font-semibold text-foreground">POS-Stundenbericht</h2>
         <p className="text-sm text-muted-foreground">
