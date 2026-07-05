@@ -8,7 +8,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { assertPermission } from "@/lib/admin/admin-call";
 import { ForbiddenError } from "@/lib/admin/role-guard";
-import { resolvePlanerScope, scopeIncludes } from "./scope-util";
+import { resolvePlanerScope } from "./scope-util";
 import { dailyVacationCounts, mergeAbsenceRanges, type AbsenceRange } from "./vacation-planner";
 
 // PL1 — planer zusätzlich zugelassen; Rechte-Check via has_permission und
@@ -72,8 +72,14 @@ export const getVacationPlanner = createServerFn({ method: "GET" })
       if (!s || s.is_active === false) continue;
       const dept = r.department as "kitchen" | "service" | "gl";
       const mapped: Row["department"] = dept === "kitchen" ? "kitchen" : "service";
-      // PL1 — für planer nur den freigegebenen Bereichs-Block je Standort zurückgeben.
-      if (!scopeIncludes(scope, data.locationId, mapped)) continue;
+      // PL1/BB (05.07.): Jahresplaner ist bewusst standort-gattert, nicht
+      // bereichs-gattert — hat der Planer irgendeinen Bereich an diesem
+      // Standort frei, sieht er BEIDE Bereichs-Blöcke (Küche + Service).
+      // Die Antragsliste (listLeaveRequests) filtert weiterhin per Bereich.
+      if (!scope.all) {
+        const locOk = scope.combos.some((c) => c.locationId === data.locationId);
+        if (!locOk) continue;
+      }
       const key = `${s.id}::${mapped}`;
       if (!seen.has(key)) {
         seen.set(key, { staffId: s.id, displayName: s.display_name, department: mapped });
