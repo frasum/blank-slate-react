@@ -993,87 +993,43 @@ function KassePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* KAB1: Kopplungs-Dialog „Drucken + Finalisieren" (nur bei Session-Status open) */}
-      <Dialog open={printCouple !== null} onOpenChange={(o) => !o && setPrintCouple(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Tag finalisieren &amp; drucken?</DialogTitle>
-            <DialogDescription>
-              Finalisieren sperrt weitere Kellner-Abgaben; Manager-Korrekturen bleiben bis zur
-              Admin-Sperre möglich.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              disabled={printCoupleBusy}
-              onClick={() => runPrintCouple("print_only")}
-              className="gap-2"
-            >
-              <Printer className="h-4 w-4" />
-              Nur drucken
-            </Button>
-            <Button
-              disabled={printCoupleBusy}
-              onClick={() => runPrintCouple("finalize_print")}
-              className="gap-2"
-            >
-              <Check className="h-4 w-4" />
-              {printCoupleBusy ? "Wird ausgeführt…" : "Finalisieren & drucken"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
 
-// KAB1: Kleiner Status-Stepper – Offen → Finalisiert → Gesperrt
-function StatusStepper({ status }: { status: string | null }) {
-  const steps = [
-    { key: "open", label: "Offen" },
-    { key: "finalized", label: "Finalisiert" },
-    { key: "locked", label: "Gesperrt" },
-  ] as const;
-  const activeIdx = Math.max(
-    0,
-    steps.findIndex((s) => s.key === status),
-  );
+// KAB2: dezente Statuszeile — ersetzt den früheren StatusStepper und die
+// Status-Karte im Footer. Kein separater Einstieg, keine Finalize-Aktion.
+function SessionStatusInline({
+  status,
+  lockedAt,
+}: {
+  status: string | null;
+  lockedAt: string | null;
+}) {
+  if (!status) return null;
+  const label =
+    status === "open"
+      ? "Offen"
+      : status === "finalized"
+        ? "Finalisiert"
+        : status === "locked"
+          ? "Gesperrt"
+          : status;
+  const variant: "default" | "secondary" =
+    status === "locked" ? "secondary" : status === "finalized" ? "secondary" : "default";
   return (
-    <ol className="flex items-center gap-2 text-xs">
-      {steps.map((s, i) => {
-        const isCurrent = i === activeIdx;
-        const isDone = i < activeIdx;
-        return (
-          <li key={s.key} className="flex items-center gap-2">
-            <span
-              className={
-                "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 " +
-                (isCurrent
-                  ? "bg-primary text-primary-foreground font-medium"
-                  : isDone
-                    ? "bg-muted text-foreground"
-                    : "bg-muted/40 text-muted-foreground")
-              }
-            >
-              {isDone ? <Check className="h-3 w-3" /> : i + 1}
-            </span>
-            <span
-              className={
-                isCurrent
-                  ? "font-medium text-foreground"
-                  : isDone
-                    ? "text-foreground"
-                    : "text-muted-foreground"
-              }
-            >
-              {s.label}
-            </span>
-            {i < steps.length - 1 && <span className="text-muted-foreground">→</span>}
-          </li>
-        );
-      })}
-    </ol>
+    <Badge variant={variant} className="gap-1 self-center">
+      {status === "locked" && <Lock className="h-3.5 w-3.5" />}
+      {label}
+      {status === "locked" && lockedAt && (
+        <span className="ml-1 text-xs opacity-70">
+          ·{" "}
+          {new Date(lockedAt).toLocaleString("de-DE", {
+            dateStyle: "short",
+            timeStyle: "short",
+          })}
+        </span>
+      )}
+    </Badge>
   );
 }
