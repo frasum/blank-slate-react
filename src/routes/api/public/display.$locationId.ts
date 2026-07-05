@@ -41,6 +41,7 @@ type DisplayReminder = {
   intervalWeeks: 1 | 2;
   anchorDate: string | null;
   fromTime: string;
+  untilTime: string;
   sortOrder: number;
 };
 type DisplayPayload = {
@@ -164,7 +165,7 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
         const { data: reminderRows } = await supabaseAdmin
           .from("display_reminders" as never)
           .select(
-            "id, title, emoji, color, weekday, interval_weeks, anchor_date, from_time, sort_order",
+            "id, title, emoji, color, weekday, interval_weeks, anchor_date, from_time, until_time, sort_order",
           )
           .eq("organization_id", s.organization_id)
           .eq("location_id", locationId)
@@ -179,6 +180,7 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
             interval_weeks: number;
             anchor_date: string | null;
             from_time: string;
+            until_time: string;
             sort_order: number;
           }>
         ).map((r) => ({
@@ -190,6 +192,7 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
           intervalWeeks: (r.interval_weeks === 2 ? 2 : 1) as 1 | 2,
           anchorDate: r.anchor_date,
           fromTime: (r.from_time ?? "").slice(0, 5),
+          untilTime: (r.until_time ?? "01:00").slice(0, 5),
           sortOrder: r.sort_order,
         }));
         const todaysReminders: DisplayReminder[] = remindersForBusinessDate(
@@ -204,6 +207,7 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
           intervalWeeks: r.intervalWeeks,
           anchorDate: r.anchorDate,
           fromTime: r.fromTime,
+          untilTime: r.untilTime,
           sortOrder: r.sortOrder,
         }));
 
