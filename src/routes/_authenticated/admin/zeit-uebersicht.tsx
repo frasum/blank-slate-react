@@ -1173,6 +1173,14 @@ function ZeitUebersichtPage() {
                   </SelectContent>
                 </Select>
               </label>
+              {(deptFilter !== "all" || skillFilter !== "all") && (
+                <span
+                  className="text-xs text-muted-foreground"
+                  title="Bereich- und Skill-Filter matchen die Dienstplan-Realität der angezeigten Woche (roster_shifts), nicht die Skill-Stammdaten."
+                >
+                  Zeigt nur in dieser Woche entsprechend Eingeplante
+                </span>
+              )}
             </div>
             {/* Zeile 3: Wochen-Chips */}
             <div className="flex flex-wrap items-center gap-2">
