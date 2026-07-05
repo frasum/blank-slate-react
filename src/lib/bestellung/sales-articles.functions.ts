@@ -22,6 +22,11 @@ type SalesArticleUpdate = Database["public"]["Tables"]["sales_articles"]["Update
 
 type Admin = SupabaseClient<Database>;
 
+// EKZ1: EIN Select-String für alle Reads/Writes, damit die neuen
+// Verknüpfungs-Felder nicht an einer Stelle vergessen werden.
+const SALES_ARTICLE_SELECT =
+  "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr, ek_price_cents, ek_source_article_id, ek_portion_ml, ek_source_volume_ml, ek_match_ignored, articles:ek_source_article_id(name)";
+
 export type SalesArticle = {
   id: string;
   locationId: string;
