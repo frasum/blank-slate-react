@@ -2342,7 +2342,11 @@ export type Database = {
       sales_articles: {
         Row: {
           created_at: string
+          ek_match_ignored: boolean
+          ek_portion_ml: number | null
           ek_price_cents: number | null
+          ek_source_article_id: string | null
+          ek_source_volume_ml: number | null
           hauptgruppe: string | null
           hauptgruppe_nr: number | null
           id: string
@@ -2360,7 +2364,11 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          ek_match_ignored?: boolean
+          ek_portion_ml?: number | null
           ek_price_cents?: number | null
+          ek_source_article_id?: string | null
+          ek_source_volume_ml?: number | null
           hauptgruppe?: string | null
           hauptgruppe_nr?: number | null
           id?: string
@@ -2378,7 +2386,11 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          ek_match_ignored?: boolean
+          ek_portion_ml?: number | null
           ek_price_cents?: number | null
+          ek_source_article_id?: string | null
+          ek_source_volume_ml?: number | null
           hauptgruppe?: string | null
           hauptgruppe_nr?: number | null
           id?: string
@@ -2395,6 +2407,13 @@ export type Database = {
           warengruppe?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "sales_articles_ek_source_article_id_fkey"
+            columns: ["ek_source_article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sales_articles_location_id_fkey"
             columns: ["location_id"]
