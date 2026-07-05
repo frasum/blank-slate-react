@@ -340,6 +340,10 @@ function KassePage() {
   });
   const [reopenConfirm, setReopenConfirm] = useState(false);
 
+  // KAB1: Kopplungs-Dialog „Drucken + Finalisieren"
+  const [printCouple, setPrintCouple] = useState<{ lockAfter: boolean } | null>(null);
+  const [printCoupleBusy, setPrintCoupleBusy] = useState(false);
+
   // -------------------- Wasserlinie (Admin) --------------------
   const [cashLockDate, setCashLockDate] = useState<string>("");
   const [cashLockReason, setCashLockReason] = useState<string>("");
