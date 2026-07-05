@@ -35,15 +35,15 @@ describe("isReminderActive", () => {
   const businessDate = "2026-07-07"; // Dienstag
 
   it("richtiger Wochentag + nach fromTime => aktiv", () => {
-    expect(
-      isReminderActive(r(), { date: "2026-07-07", hour: 20, minute: 5 }, businessDate),
-    ).toBe(true);
+    expect(isReminderActive(r(), { date: "2026-07-07", hour: 20, minute: 5 }, businessDate)).toBe(
+      true,
+    );
   });
 
   it("richtiger Wochentag, aber vor fromTime => nicht aktiv", () => {
-    expect(
-      isReminderActive(r(), { date: "2026-07-07", hour: 19, minute: 59 }, businessDate),
-    ).toBe(false);
+    expect(isReminderActive(r(), { date: "2026-07-07", hour: 19, minute: 59 }, businessDate)).toBe(
+      false,
+    );
   });
 
   it("falscher Wochentag => nicht aktiv", () => {
@@ -58,9 +58,9 @@ describe("isReminderActive", () => {
 
   it("nach Mitternacht desselben Geschäftstags weiterhin aktiv", () => {
     // Geschäftstag = 2026-07-07 (Di), Kalenderzeit = 2026-07-08 00:30 Berlin
-    expect(
-      isReminderActive(r(), { date: "2026-07-08", hour: 0, minute: 30 }, businessDate),
-    ).toBe(true);
+    expect(isReminderActive(r(), { date: "2026-07-08", hour: 0, minute: 30 }, businessDate)).toBe(
+      true,
+    );
   });
 
   it("14-tägig: gerade Woche zum Anker aktiv, dazwischenliegende nicht", () => {
@@ -111,7 +111,9 @@ describe("remindersForBusinessDate", () => {
       r({ id: "c", weekday: 1, intervalWeeks: 2, anchorDate: "2026-07-14" }), // +7 → raus
       r({ id: "d", weekday: 1, intervalWeeks: 2, anchorDate: "2026-07-07" }),
     ];
-    const got = remindersForBusinessDate(list, "2026-07-07").map((x) => x.id).sort();
+    const got = remindersForBusinessDate(list, "2026-07-07")
+      .map((x) => x.id)
+      .sort();
     expect(got).toEqual(["a", "d"]);
   });
 });
@@ -127,15 +129,8 @@ describe("sortReminders / activeReminders", () => {
   });
 
   it("activeReminders lässt inaktive weg", () => {
-    const list = [
-      r({ id: "on" }),
-      r({ id: "early", fromTime: "23:59" }),
-    ];
-    const got = activeReminders(
-      list,
-      { date: "2026-07-07", hour: 20, minute: 30 },
-      "2026-07-07",
-    );
+    const list = [r({ id: "on" }), r({ id: "early", fromTime: "23:59" })];
+    const got = activeReminders(list, { date: "2026-07-07", hour: 20, minute: 30 }, "2026-07-07");
     expect(got.map((x) => x.id)).toEqual(["on"]);
   });
 });

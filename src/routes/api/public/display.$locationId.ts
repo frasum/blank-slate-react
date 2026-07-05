@@ -7,7 +7,11 @@ import { Buffer } from "node:buffer";
 import { timingSafeEqual } from "node:crypto";
 import { resolveCellKind } from "@/lib/display/cell";
 import { currentPeriodEnd, nextPeriodEnd, periodLabel } from "@/lib/display/period-split";
-import { remindersForBusinessDate, type Reminder, type ReminderColor } from "@/lib/display/reminders";
+import {
+  remindersForBusinessDate,
+  type Reminder,
+  type ReminderColor,
+} from "@/lib/display/reminders";
 import { businessDateOf } from "@/lib/business-date";
 
 type DisplayCell = {
@@ -165,17 +169,19 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
           .eq("organization_id", s.organization_id)
           .eq("location_id", locationId)
           .eq("is_active", true);
-        const reminderList: Reminder[] = ((reminderRows ?? []) as Array<{
-          id: string;
-          title: string;
-          emoji: string | null;
-          color: string;
-          weekday: number;
-          interval_weeks: number;
-          anchor_date: string | null;
-          from_time: string;
-          sort_order: number;
-        }>).map((r) => ({
+        const reminderList: Reminder[] = (
+          (reminderRows ?? []) as Array<{
+            id: string;
+            title: string;
+            emoji: string | null;
+            color: string;
+            weekday: number;
+            interval_weeks: number;
+            anchor_date: string | null;
+            from_time: string;
+            sort_order: number;
+          }>
+        ).map((r) => ({
           id: r.id,
           title: r.title,
           emoji: r.emoji,

@@ -438,10 +438,7 @@ function CellView({ cell, area }: { cell: DisplayCell; area: "kitchen" | "servic
 
 // DP1: Farb-Palette für die Warnbanner. Kräftige Töne mit gutem Kontrast
 // für die Display-Distanz. Sanftes Pulsieren via Tailwind animate-pulse.
-const REMINDER_STYLE: Record<
-  Reminder["color"],
-  { bg: string; text: string; border: string }
-> = {
+const REMINDER_STYLE: Record<Reminder["color"], { bg: string; text: string; border: string }> = {
   grau: { bg: "bg-slate-600", text: "text-slate-50", border: "border-slate-400/60" },
   braun: { bg: "bg-amber-900", text: "text-amber-50", border: "border-amber-700/70" },
   blau: { bg: "bg-blue-700", text: "text-blue-50", border: "border-blue-400/60" },

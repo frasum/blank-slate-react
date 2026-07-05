@@ -84,11 +84,7 @@ export function remindersForBusinessDate(list: Reminder[], businessDate: string)
  * Wichtig: Vergleich als Zeitpunkt, nicht als naive Uhrzeit — nach Mitternacht
  * ist 00:30 des Folgekalendertags immer noch >= 20:00 des Geschäftstags.
  */
-export function isReminderActive(
-  r: Reminder,
-  nowBerlin: NowBerlin,
-  businessDate: string,
-): boolean {
+export function isReminderActive(r: Reminder, nowBerlin: NowBerlin, businessDate: string): boolean {
   if (isoWeekday(businessDate) !== r.weekday) return false;
   if (r.intervalWeeks === 2) {
     if (!r.anchorDate) return false;
