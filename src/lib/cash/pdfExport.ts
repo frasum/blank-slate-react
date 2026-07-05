@@ -84,6 +84,14 @@ function fmtEur(cents: Cents | null | undefined): string {
   return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(v);
 }
 
+// DR4: Vorzeichen-Formatter für die Wechselgeld-Differenz. Positiv (in Tresor
+// zu legen) mit „+"-Präfix, negativ automatisch mit Minus, 0 ohne Vorzeichen.
+function fmtEurSigned(cents: Cents | null | undefined): string {
+  const c = cents ?? 0;
+  const s = fmtEur(c);
+  return c > 0 ? `+${s}` : s;
+}
+
 function fmtTime(iso: string | null | undefined): string {
   if (!iso) return "---";
   try {
@@ -343,7 +351,7 @@ export async function generateDailySummaryPdf(data: PdfExportData): Promise<{
       },
     },
     {
-      content: fmtEur(_diffToTargetCents),
+      content: fmtEurSigned(_diffToTargetCents),
       styles: {
         fontStyle: "bold",
         fontSize: 10,

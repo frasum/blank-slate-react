@@ -30,6 +30,15 @@ function fmtEur(cents: number | null | undefined): string {
   return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(v);
 }
 
+// DR4: Vorzeichen-Formatter für die Wechselgeld-Differenz. Positiv (in Tresor
+// zu legen) mit „+"-Präfix, negativ mit Minus (Intl liefert es automatisch),
+// 0 ohne Vorzeichen.
+function fmtEurSigned(cents: number | null | undefined): string {
+  const c = cents ?? 0;
+  const s = fmtEur(c);
+  return c > 0 ? `+${s}` : s;
+}
+
 function fmtTime(iso: string | null | undefined): string {
   if (!iso) return "---";
   const d = new Date(iso);
@@ -280,7 +289,7 @@ export function renderDailyPrintHtml(data: PdfExportData): string {
     );
   }
   leftRows.push(
-    `<div class="box"><span>Differenz zum Wechselgeldbestand</span><span>${fmtEur(
+    `<div class="box"><span>Differenz zum Wechselgeldbestand</span><span>${fmtEurSigned(
       wechselgeldbestandCents - cashTarget,
     )}</span></div>`,
   );
