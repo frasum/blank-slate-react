@@ -402,6 +402,7 @@ Rekonstruiert per Kalibrierung gegen bereits validierte Bestands-Sessions (Refer
 | §PV1a POS-WG-Überschreibung — `sales_pos_group_overrides` (DENY-ALL, manager-Server-Fn, Override vor Namens-Join)                      | ✅                                                                                                                                             |
 | §PV2 POS-Verkauf — XLSX-Upload mit Review-Screen (`replace_pos_sales_stats`, strikter Fußzeilen-Check, Audit)                          | ✅ (E2E: optionaler Idempotenz-Reupload offen)                                                                                                 |
 | §PV3 POS-Stundenbericht — Vectron „Stunden-Bericht (lang)", Chart+Tabelle, Upload mit Fußzeilen-Gate (`pos_hourly_stats`)              | ✅ (Real-Datei-Validierung durch Claude: Spicery 101.283 Stk / 9.817.288,78 € · YUM 97.695 Stk / 8.383.044,04 € — Upload-Freigabe Frank offen) |
+| §KAB2 Tagesabrechnung Ein-Knopf-Flow — „Tagesabrechnung drucken" = finalize→print(→lock), Status-Stepper/PDF-Export/Kopplungs-Dialog raus, dezente Statuszeile + Admin-Sperren/Entsperren als Ventile | ✅ (E2E-Rundgang Frank offen)                                                                                                                  |
 
 **Juni-Kassenlücke geschlossen (29.06.2026):** YUM (16., 18.–25.) und Spicery (16., 18.–25., 28.) aus `tagesabrechnung` nachimportiert — 19 Sessions; das leere native YUM-28 durch Legacy-Daten ersetzt. `vectron_daily_total_cents` 19/19 gegen die Quelle verifiziert. Mapping siehe Abschnitt 5.
 
