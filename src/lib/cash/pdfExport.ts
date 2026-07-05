@@ -289,6 +289,17 @@ export async function generateDailySummaryPdf(data: PdfExportData): Promise<{
 
   summaryRows.push(sectionHeader("Ergebnis"));
   const bargeldColor = bargeldCents >= 0 ? GREEN : RED;
+  // DR3: „Differenz zum Wechselgeldbestand" = Wechselgeldbestand − Soll-Bestand
+  // (identisch zur Bildschirmberechnung in CashSummaryBlock). Vorher wurde
+  // fälschlich `bargeldCents` gedruckt, was bei Location-Targets ≠ 0
+  // (z. B. Spicery) einen falschen Wert ergab.
+  const _cashTargetForDiff = data.cashBalanceTargetCents ?? 200_000;
+  const _wechselForDiff = computeWechselgeld({
+    tagesBargeldCents: bargeldCents,
+    previousDeficitCents: data.previousDeficitCents ?? 0,
+    cashTargetCents: _cashTargetForDiff,
+  }).wechselgeldbestandCents;
+  const _diffToTargetCents = _wechselForDiff - _cashTargetForDiff;
   summaryRows.push([
     {
       content: "Tages-Bargeld",
@@ -332,7 +343,7 @@ export async function generateDailySummaryPdf(data: PdfExportData): Promise<{
       },
     },
     {
-      content: fmtEur(bargeldCents),
+      content: fmtEur(_diffToTargetCents),
       styles: {
         fontStyle: "bold",
         fontSize: 10,
