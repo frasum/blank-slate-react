@@ -2749,6 +2749,24 @@ Tests: `scope-util.test.ts` deckt `resolvePlanerScope` (all, allow, leer) und
 `scopeIncludes` ab; bestehende `roster-scope-p2.db.test.ts` bleibt
 Charakterisierung für den Dienstplan.
 
+## §26.DP-A1 — Planer-Dienstplan-Ansicht (Bereichs-Tabs, 05.07.)
+
+Rollen-gebundene Sonderansicht des Dienstplans für `planer`. Weiche in
+`src/routes/_authenticated/admin/dienstplan.tsx` läuft ausschließlich über
+`identity.role === "planer"` (kein Personen-Hardcode); alle übrigen Rollen
+sehen die bestehende Seite (`AdminManagerDienstplan`) verhaltensgleich.
+Neue Komponenten: `src/components/roster/PlanerRosterView.tsx` (Tabs
+KÜCHE|SERVICE via URL-Search-Param `?bereich=kueche|service`, gemeinsame
+Zyklus-Navigation 26.–25., einmal Paint-Toolbar/Skill-Filter pro Tab) und
+`src/components/roster/RosterAreaBlock.tsx` (ein Standort × ein Bereich,
+eigene per-Location-Queries für staff/shifts/release, Realtime-Kanal, DnD,
+`RosterGrid` mit `visibleAreas=[area]`). Editierbarkeit pro Block via
+`canEditScope(scopes, locationId, area)`; nicht editierbare Blöcke zeigen
+ein „Nur Lesen"-Badge und rendern das Grid in einem `pointer-events-none`-
+Wrapper (No-op-Handler) — die Serverdurchsetzung (PL1) bleibt die
+eigentliche Sicherung. Für SUMITR ergibt das: Küche-Tab Spicery+YUM
+editierbar, Service-Tab beide read-only.
+
 ## Tagesabschluss 05.07.2026
 
 Abgenommen bei HEAD `96bf974d` (tsc/eslint 0/0, prettier sauber, vitest 1322
