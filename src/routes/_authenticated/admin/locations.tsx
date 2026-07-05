@@ -8,6 +8,7 @@ import {
   deleteLocation,
   geocodeLocation,
   listLocations,
+  setLocationActive,
   updateLocation,
   updateLocationGeo,
 } from "@/lib/admin/locations.functions";
@@ -89,14 +90,23 @@ function LocationsPage() {
   const callCreate = useServerFn(createLocation);
   const callUpdate = useServerFn(updateLocation);
   const callDelete = useServerFn(deleteLocation);
+  const callSetActive = useServerFn(setLocationActive);
   const [newName, setNewName] = useState("");
   const [newDetails, setNewDetails] = useState<LocationDetails>(emptyDetails);
   const [msg, setMsg] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  // ST1: Bestätigungs-Dialoge (Löschen mit Namens-Eingabe; Deaktivieren/Aktivieren)
+  const [confirmDelete, setConfirmDelete] = useState<LocationRowData | null>(null);
+  const [deleteInput, setDeleteInput] = useState("");
+  const [confirmActive, setConfirmActive] = useState<{
+    loc: LocationRowData;
+    next: boolean;
+  } | null>(null);
 
   const locationsQ = useQuery({
     queryKey: ["admin", "locations"],
-    queryFn: () => listLocations(),
+    // Standort-Admin-Seite zeigt auch deaktivierte Standorte (gedämpft).
+    queryFn: () => listLocations({ data: { includeInactive: true } }),
   });
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["admin", "locations"] });
@@ -120,7 +130,20 @@ function LocationsPage() {
   });
   const deleteMut = useMutation({
     mutationFn: (id: string) => callDelete({ data: { locationId: id } }),
-    onSuccess: refresh,
+    onSuccess: () => {
+      setConfirmDelete(null);
+      setDeleteInput("");
+      return refresh();
+    },
+    onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
+  });
+  const setActiveMut = useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      callSetActive({ data: { locationId: id, isActive } }),
+    onSuccess: () => {
+      setConfirmActive(null);
+      return refresh();
+    },
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
   });
 
@@ -195,7 +218,15 @@ function LocationsPage() {
               key={loc.id}
               loc={loc}
               onSave={(name, details) => updateMut.mutate({ id: loc.id, name, details })}
-              onDelete={() => deleteMut.mutate(loc.id)}
+              onDelete={() => {
+                setMsg(null);
+                setDeleteInput("");
+                setConfirmDelete(loc);
+              }}
+              onToggleActive={(next) => {
+                setMsg(null);
+                setConfirmActive({ loc, next });
+              }}
               onGeoChanged={refresh}
             />
           ))}
@@ -204,6 +235,120 @@ function LocationsPage() {
           )}
         </div>
       )}
+
+      {/* ST1: Bestätigungs-Dialog „Deaktivieren/Aktivieren" */}
+      {confirmActive && (
+        <ConfirmDialog
+          title={
+            confirmActive.next
+              ? `„${confirmActive.loc.name}" wieder aktivieren?`
+              : `„${confirmActive.loc.name}" deaktivieren?`
+          }
+          body={
+            confirmActive.next
+              ? "Der Standort erscheint wieder in allen Auswahl-Listen."
+              : "Der Standort verschwindet aus allen Auswahl-Listen des Systems. Daten, Zuordnungen und Historie bleiben erhalten. Reaktivieren jederzeit möglich."
+          }
+          confirmLabel={confirmActive.next ? "Aktivieren" : "Deaktivieren"}
+          destructive={!confirmActive.next}
+          busy={setActiveMut.isPending}
+          onConfirm={() =>
+            setActiveMut.mutate({ id: confirmActive.loc.id, isActive: confirmActive.next })
+          }
+          onCancel={() => setConfirmActive(null)}
+        />
+      )}
+
+      {/* ST1: Bestätigungs-Dialog „Löschen" mit Namens-Tipp */}
+      {confirmDelete && (
+        <ConfirmDialog
+          title={`„${confirmDelete.name}" endgültig löschen?`}
+          body={
+            <>
+              <p>
+                Löschen ist nur möglich, wenn <strong>keine Mitarbeiter mehr zugeordnet</strong>{" "}
+                sind (Server-Regel — Referenz-Prüfung bleibt unverändert die eigentliche
+                Sicherung).
+              </p>
+              <p className="text-muted-foreground">
+                Tipp: Zum Ausblenden reicht <em>Deaktivieren</em> — der Standort verschwindet aus
+                allen Auswahl-Listen, alle Daten bleiben erhalten.
+              </p>
+              <p>
+                Zum Bestätigen bitte den Namen tippen:{" "}
+                <code className="rounded bg-muted px-1">{confirmDelete.name}</code>
+              </p>
+              <input
+                autoFocus
+                value={deleteInput}
+                onChange={(e) => setDeleteInput(e.target.value)}
+                placeholder={confirmDelete.name}
+                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+            </>
+          }
+          confirmLabel="Endgültig löschen"
+          destructive
+          busy={deleteMut.isPending}
+          confirmDisabled={deleteInput.trim() !== confirmDelete.name}
+          onConfirm={() => deleteMut.mutate(confirmDelete.id)}
+          onCancel={() => {
+            setConfirmDelete(null);
+            setDeleteInput("");
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ST1: kleiner, wiederverwendbarer Bestätigungs-Dialog
+function ConfirmDialog(props: {
+  title: string;
+  body: React.ReactNode;
+  confirmLabel: string;
+  destructive?: boolean;
+  busy?: boolean;
+  confirmDisabled?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={props.onCancel}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md space-y-3 rounded-md border border-input bg-background p-5 shadow-lg"
+      >
+        <h2 className="text-base font-semibold text-foreground">{props.title}</h2>
+        <div className="space-y-2 text-sm text-foreground">{props.body}</div>
+        <div className="flex items-center justify-end gap-2 pt-2">
+          <button
+            type="button"
+            onClick={props.onCancel}
+            className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground hover:bg-accent"
+          >
+            Abbrechen
+          </button>
+          <button
+            type="button"
+            onClick={props.onConfirm}
+            disabled={props.busy || props.confirmDisabled}
+            className={
+              (props.destructive
+                ? "bg-destructive text-destructive-foreground hover:bg-destructive/90 "
+                : "bg-primary text-primary-foreground hover:bg-primary/90 ") +
+              "rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50"
+            }
+          >
+            {props.busy ? "…" : props.confirmLabel}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
