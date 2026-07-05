@@ -167,7 +167,7 @@ export function PlanerRosterView({ bereich }: Props) {
     setSkillFilter([]);
     void navigate({
       to: "/admin/dienstplan",
-      search: (prev) => ({ ...(prev as Record<string, unknown>), bereich: next }),
+      search: (prev: Record<string, unknown>) => ({ ...prev, bereich: next }),
     });
   }
 
