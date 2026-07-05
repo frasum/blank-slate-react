@@ -1106,6 +1106,61 @@ function ZeitUebersichtPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
+            {/* Z4 — Bereich + Skill (nur Anzeige-Filter, kombinieren per UND). */}
+            <div className="flex flex-wrap items-center gap-3">
+              <PillSelect<Department | "all">
+                ariaLabel="Bereich"
+                size="sm"
+                options={[
+                  { value: "all", label: "Alle" },
+                  { value: "kitchen", label: "Küche" },
+                  { value: "service", label: "Service" },
+                  { value: "gl", label: "GL" },
+                ]}
+                value={deptFilter}
+                onChange={setDeptFilter}
+              />
+              <label className="flex items-center gap-2 text-sm">
+                <span className="text-muted-foreground">Skill:</span>
+                <Select value={skillFilter} onValueChange={setSkillFilter}>
+                  <SelectTrigger className="h-8 w-[180px]">
+                    <SelectValue placeholder="Alle" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Alle</SelectItem>
+                    {(
+                      [
+                        { key: "kitchen", label: "Küche" },
+                        { key: "service", label: "Service" },
+                        { key: "gl", label: "Geschäftsleitung" },
+                        { key: "other", label: "Sonstige" },
+                      ] as { key: SkillCategory; label: string }[]
+                    ).map((cat) => {
+                      const items = skills.filter((s) => s.category === cat.key);
+                      if (items.length === 0) return null;
+                      return (
+                        <div key={cat.key}>
+                          <div className="px-2 pt-1 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            {cat.label}
+                          </div>
+                          {items.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>
+                              <span className="inline-flex items-center gap-2">
+                                <span
+                                  className="inline-block h-2 w-2 rounded-full"
+                                  style={{ backgroundColor: s.color ?? "#cbd5e1" }}
+                                />
+                                {s.name}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </label>
+            </div>
             {/* Zeile 3: Wochen-Chips */}
             <div className="flex flex-wrap items-center gap-2">
               {periodWeeks.map((c) => {
