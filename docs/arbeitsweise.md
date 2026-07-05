@@ -4,6 +4,13 @@ Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen B
 
 Stand: 05.07.2026 (ST1)
 
+**Stempel-Seite Abmelden (05.07.2026):** `/zeit/stempeln` zeigt neben
+dem „Zurück"-Link zusätzlich einen dezenten „Abmelden"-Button für alle
+Nutzer (Generalisierung des Sumitr-Sonderfalls vom 05.07. —
+Personen-Hardcodes sind unerwünscht, Bedürfnisse werden generisch
+gelöst). `src/lib/auth/special-cases.ts` und der `isSumitr`-Helfer
+sind entsprechend entfallen.
+
 **EIN1 (05.07.2026):** Einstellungen/Allgemein in vier Unter-Tabs
 gegliedert (Trinkgeldpool · Bestellungen · Sofortmeldung & Arbeitgeber
 · Telegram), Tab-Wahl im URL-Param `?tab=…` (Reload/Verlinkung halten
