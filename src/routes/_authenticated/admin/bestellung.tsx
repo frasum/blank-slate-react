@@ -21,6 +21,7 @@ function BestellungLayout() {
         <SubLink to="/admin/bestellung/bestellungen">Bestellhistorie</SubLink>
         <SubLink to="/admin/bestellung/inventur">Inventur</SubLink>
         <SubLink to="/admin/bestellung/verkaufsartikel">Verkaufsartikel</SubLink>
+        <SubLink to="/admin/bestellung/pos-verkauf">POS-Verkauf</SubLink>
         <SubLink to="/admin/bestellung/wein">Wein</SubLink>
         <SubLink to="/admin/bestellung/wein-quiz">Wein-Quiz</SubLink>
         <SubLink to="/easyorder">EasyOrder</SubLink>

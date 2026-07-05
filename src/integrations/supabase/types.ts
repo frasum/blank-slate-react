@@ -2339,6 +2339,60 @@ export type Database = {
           },
         ]
       }
+      sales_article_stats: {
+        Row: {
+          created_at: string
+          id: string
+          location_id: string
+          name: string
+          nummer: number
+          organization_id: string
+          period: string
+          report_date: string
+          umsatz_cents: number
+          verkauf_count: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          location_id: string
+          name: string
+          nummer: number
+          organization_id: string
+          period: string
+          report_date: string
+          umsatz_cents?: number
+          verkauf_count?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          location_id?: string
+          name?: string
+          nummer?: number
+          organization_id?: string
+          period?: string
+          report_date?: string
+          umsatz_cents?: number
+          verkauf_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_article_stats_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_article_stats_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales_articles: {
         Row: {
           created_at: string
