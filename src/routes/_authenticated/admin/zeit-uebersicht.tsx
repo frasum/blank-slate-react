@@ -326,11 +326,17 @@ function ZeitUebersichtPage() {
         weekEnd: fmtIso(addDays(weekStartDate, 6)),
         entries: [],
         crossLocationDates: {},
+        assignedStaff: [],
       };
       for (const q of allLocationQueries) {
         const d = q.data as WeeklyData | undefined;
         if (!d) continue;
         merged.entries.push(...d.entries);
+        for (const s of d.assignedStaff ?? []) {
+          if (!merged.assignedStaff!.some((x) => x.staffId === s.staffId)) {
+            merged.assignedStaff!.push(s);
+          }
+        }
       }
       return merged;
     }
