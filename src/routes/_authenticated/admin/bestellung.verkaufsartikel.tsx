@@ -663,9 +663,11 @@ type GroupsPatch = {
   hauptgruppe: string | null;
   hauptgruppeNr: number | null;
   productGroup: number | null;
+  ekPriceCents?: number | null;
 };
 
 function EditGroupsDialog(props: {
+  isAdmin: boolean;
   article: SalesArticle;
   submitting: boolean;
   onClose: () => void;
@@ -683,6 +685,11 @@ function EditGroupsDialog(props: {
   const [warengruppe, setWarengruppe] = useState(a.warengruppe ?? "");
   const [productGroup, setProductGroup] = useState(
     a.productGroup === null ? "" : String(a.productGroup),
+  );
+  const [ek, setEk] = useState(
+    a.ekPriceCents === null || a.ekPriceCents === undefined
+      ? ""
+      : (a.ekPriceCents / 100).toFixed(2).replace(".", ","),
   );
   const [localErr, setLocalErr] = useState<string | null>(null);
 
@@ -703,6 +710,15 @@ function EditGroupsDialog(props: {
     if (un === "invalid") return;
     const hn = parseInt(hauptgruppeNr, "Hauptgruppe Nr.");
     if (hn === "invalid") return;
+    let ekCents: number | null | undefined = undefined;
+    if (props.isAdmin) {
+      const parsed = parseEuroInputToCents(ek);
+      if (parsed === "invalid") {
+        setLocalErr("EK: nur Zahlen und Komma (max. 2 Nachkommastellen).");
+        return;
+      }
+      ekCents = parsed;
+    }
     setLocalErr(null);
     props.onSubmit({
       hauptgruppe: hauptgruppe.trim() || null,
@@ -711,6 +727,7 @@ function EditGroupsDialog(props: {
       untergruppeNr: un,
       warengruppe: warengruppe.trim() || null,
       productGroup: pg,
+      ...(props.isAdmin ? { ekPriceCents: ekCents } : {}),
     });
   };
 
@@ -718,7 +735,7 @@ function EditGroupsDialog(props: {
     <Dialog open onOpenChange={(o) => !o && props.onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Hierarchie bearbeiten — {a.name}</DialogTitle>
+          <DialogTitle>Artikel bearbeiten — {a.name}</DialogTitle>
           <DialogDescription>Quelle Vectron — wird beim Re-Import überschrieben.</DialogDescription>
         </DialogHeader>
         <div className="space-y-3 py-2">
@@ -736,6 +753,20 @@ function EditGroupsDialog(props: {
             productGroup={productGroup}
             setProductGroup={setProductGroup}
           />
+          {props.isAdmin && (
+            <label className="block space-y-1">
+              <span className="text-xs font-medium text-muted-foreground">
+                EK (€) — nur Admin
+              </span>
+              <input
+                value={ek}
+                onChange={(e) => setEk(e.target.value)}
+                inputMode="decimal"
+                className="w-full rounded border border-input bg-background px-3 py-2 text-sm"
+                placeholder="optional"
+              />
+            </label>
+          )}
           {localErr && <p className="text-xs text-destructive">{localErr}</p>}
         </div>
         <DialogFooter>
