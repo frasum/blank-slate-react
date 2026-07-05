@@ -877,6 +877,21 @@ function ZeitUebersichtPage() {
     }
   };
 
+  // Z4 — nur der Grid-Render folgt Bereich/Skill-Filtern; die Exporte oben
+  // nutzen weiterhin `weeklyExportInput` (alle Bereiche/Skills unabhängig
+  // vom Filter, damit ein Export nie ein stilles Teil-Ergebnis wird).
+  const weeklyDisplayInput = useMemo<WeeklyExportInput | null>(() => {
+    if (!weeklyExportInput) return null;
+    return {
+      ...weeklyExportInput,
+      rowsByDept: filterWeeklyRows(
+        weeklyExportInput.rowsByDept,
+        { dept: deptFilter, skillId: skillFilter, query: "" },
+        skillsByStaffFilter,
+      ),
+    };
+  }, [weeklyExportInput, deptFilter, skillFilter, skillsByStaffFilter]);
+
   // ============ Buchhaltung-Aggregation (Render + Export) ============
   const payrollRowsByStaff = useMemo(() => {
     const is3b = payrollMode === "section3b";
