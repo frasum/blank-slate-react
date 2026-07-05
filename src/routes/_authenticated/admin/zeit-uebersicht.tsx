@@ -1149,6 +1149,7 @@ function ZeitUebersichtPage() {
                 department,
               });
             }}
+            staffDeptsByStaff={staffDeptsByStaff}
             entriesById={useMemo(() => {
               const m = new Map<string, WeeklyEntry>();
               for (const e of weeklyData?.entries ?? []) m.set(e.id, e);
