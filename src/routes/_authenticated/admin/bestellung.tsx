@@ -4,6 +4,7 @@
 
 import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
 import { CartDrawer } from "@/components/bestellung/CartDrawer";
+import { TestModeBanner } from "@/components/bestellung/TestModeBanner";
 
 export const Route = createFileRoute("/_authenticated/admin/bestellung")({
   head: () => ({ meta: [{ title: "Bestellung · Verwaltung" }] }),
@@ -13,6 +14,7 @@ export const Route = createFileRoute("/_authenticated/admin/bestellung")({
 function BestellungLayout() {
   return (
     <div className="space-y-6">
+      <TestModeBanner />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Bestellung</h1>
       </div>
