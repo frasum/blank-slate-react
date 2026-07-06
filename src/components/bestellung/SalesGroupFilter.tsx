@@ -32,6 +32,11 @@ type Props = {
   setWg: (v: string) => void;
   /** Optionale Zusatz-Option auf Hauptgruppen-Ebene (z. B. „Ohne Zuordnung"). */
   extraHauptOption?: GroupOption;
+  /**
+   * Optionaler Whitelist-Filter für Hauptgruppen (Label, case-insensitive).
+   * Nur passende Hauptgruppen erscheinen im Dropdown.
+   */
+  allowedHauptLabels?: readonly string[];
 };
 
 export function SalesGroupFilter({
@@ -43,8 +48,14 @@ export function SalesGroupFilter({
   wg,
   setWg,
   extraHauptOption,
+  allowedHauptLabels,
 }: Props) {
-  const hauptOptions = useMemo(() => deriveHauptOptions(rows), [rows]);
+  const hauptOptions = useMemo(() => {
+    const all = deriveHauptOptions(rows);
+    if (!allowedHauptLabels || allowedHauptLabels.length === 0) return all;
+    const allow = new Set(allowedHauptLabels.map((l) => l.trim().toLowerCase()));
+    return all.filter((o) => allow.has(o.label.trim().toLowerCase()));
+  }, [rows, allowedHauptLabels]);
 
   const rowsAfterHaupt = useMemo(() => {
     if (haupt === ALL) return rows;
