@@ -6,9 +6,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
-import { assertPermission } from "@/lib/admin/admin-call";
 import { ForbiddenError } from "@/lib/admin/role-guard";
-import { resolvePlanerScope } from "./scope-util";
+import { resolvePlanerScope, assertScopeNotEmpty } from "./scope-util";
 import { dailyVacationCounts, mergeAbsenceRanges, type AbsenceRange } from "./vacation-planner";
 
 // PL1 — planer zusätzlich zugelassen; Rechte-Check via has_permission und
@@ -41,7 +40,6 @@ export const getVacationPlanner = createServerFn({ method: "GET" })
   )
   .handler(async ({ data, context }): Promise<VacationPlannerResult> => {
     const caller = await loadAdminCaller(context.supabase, context.userId, READ_ROLES);
-    await assertPermission(context.supabase, "roster.leave.view_all", null);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // PL1 — Scope auflösen. Planer ohne Freigabe für diesen Standort ⇒ Forbidden.
@@ -51,6 +49,8 @@ export const getVacationPlanner = createServerFn({ method: "GET" })
       caller.organizationId,
       "roster.leave.view_all",
     );
+    // PL2 — Aufrufer ohne jede Freigabe (keine Rolle, keine Overrides) ⇒ Forbidden.
+    assertScopeNotEmpty(scope, "roster.leave.view_all");
     if (!scope.all) {
       const locationInScope = scope.combos.some((c) => c.locationId === data.locationId);
       if (!locationInScope) {

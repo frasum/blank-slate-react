@@ -9,6 +9,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import type { AppPermission } from "@/lib/admin/permissions-catalog";
+import { ForbiddenError } from "@/lib/admin/role-guard";
 
 export type RosterScope = { locationId: string; area: "kitchen" | "service" };
 
@@ -89,4 +90,15 @@ export function scopeIncludes(
 ): boolean {
   if (scope.all) return true;
   return scope.combos.some((c) => c.locationId === locationId && c.area === area);
+}
+
+// PL2 — Wirft, wenn der Aufrufer WEDER global berechtigt ist noch irgendeine
+// gescopte Freigabe hat. Ersetzt globale assertPermission-Vorab-Checks
+// vor resolvePlanerScope, die für planer-Rollen ohne Rollen-Default
+// fälschlich Forbidden liefern (has_permission ohne _location/_area matcht
+// nur Overrides mit location_id IS NULL).
+export function assertScopeNotEmpty(scope: ResolvedScope, permission: string): void {
+  if (!scope.all && scope.combos.length === 0) {
+    throw new ForbiddenError(`Fehlende Berechtigung: ${permission}`);
+  }
 }

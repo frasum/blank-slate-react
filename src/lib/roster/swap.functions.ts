@@ -17,11 +17,11 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadStaffCaller } from "@/lib/time/time.functions";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { assertRealIdentity } from "@/lib/admin/impersonation";
-import { runWithPermission, assertPermission } from "@/lib/admin/admin-call";
+import { runWithPermission } from "@/lib/admin/admin-call";
 import { makeAuditWriter } from "@/lib/admin/audit";
 import { writeAuditLog } from "@/lib/admin/audit";
 import { ForbiddenError } from "@/lib/admin/role-guard";
-import { resolvePlanerScope, scopeIncludes } from "./scope-util";
+import { resolvePlanerScope, scopeIncludes, assertScopeNotEmpty } from "./scope-util";
 import { sendTelegramToStaff } from "@/lib/telegram/telegram.functions";
 import {
   canAcceptCounterShift,
@@ -893,7 +893,6 @@ export const listPendingSwaps = createServerFn({ method: "GET" })
       "admin",
       "planer",
     ]);
-    await assertPermission(context.supabase, "roster.swap.view_pending", null);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: rows, error } = await supabaseAdmin
       .from("shift_swap_requests")
@@ -958,6 +957,8 @@ export const listPendingSwaps = createServerFn({ method: "GET" })
       caller.organizationId,
       "roster.swap.view_pending",
     );
+    // PL2 — Aufrufer ohne jede Freigabe ⇒ Forbidden.
+    assertScopeNotEmpty(scope, "roster.swap.view_pending");
     const inScope = (row: (typeof sorted)[number]) => {
       const rs = row.req_shift;
       if (!rs) return false;

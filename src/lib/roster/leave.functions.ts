@@ -14,7 +14,7 @@ import { writeAuditLog, makeAuditWriter } from "@/lib/admin/audit";
 import { loadStaffCaller } from "@/lib/time/time.functions";
 import { assertRealIdentity } from "@/lib/admin/impersonation";
 import { ForbiddenError } from "@/lib/admin/role-guard";
-import { resolvePlanerScope, type ResolvedScope } from "./scope-util";
+import { resolvePlanerScope, assertScopeNotEmpty, type ResolvedScope } from "./scope-util";
 import {
   canCancelLeave,
   canDecideLeave,
@@ -232,7 +232,6 @@ export const listLeaveRequests = createServerFn({ method: "GET" })
   )
   .handler(async ({ data, context }): Promise<LeaveRequestRow[]> => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
-    await assertPermission(context.supabase, "roster.leave.view_all", null);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const status = data.status ?? "offen";
     let q = supabaseAdmin
@@ -245,13 +244,15 @@ export const listLeaveRequests = createServerFn({ method: "GET" })
     if (status !== "alle") q = q.eq("status", status);
     const { data: rows, error } = await q;
     if (error) throw error;
-    // PL1 — Scope-Filter (admin/manager: all=true ⇒ Ergebnis unverändert).
     const scope = await resolvePlanerScope(
       context.supabase,
       supabaseAdmin,
       caller.organizationId,
       "roster.leave.view_all",
     );
+    // PL2 — Aufrufer ohne jede Freigabe ⇒ Forbidden.
+    assertScopeNotEmpty(scope, "roster.leave.view_all");
+    // PL1 — Scope-Filter (admin/manager: all=true ⇒ Ergebnis unverändert).
     const staffIds = Array.from(new Set((rows ?? []).map((r) => r.staff_id as string)));
     const inScope = await filterStaffIdsToScope(
       supabaseAdmin,
