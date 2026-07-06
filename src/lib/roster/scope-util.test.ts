@@ -4,8 +4,10 @@ import {
   canEditScope,
   resolvePlanerScope,
   scopeIncludes,
+  assertScopeNotEmpty,
   type RosterScope,
 } from "./scope-util";
+import { ForbiddenError } from "@/lib/admin/role-guard";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import type { AppPermission } from "@/lib/admin/permissions-catalog";
@@ -116,5 +118,24 @@ describe("scopeIncludes", () => {
     expect(scopeIncludes(scope, L1, "kitchen")).toBe(true);
     expect(scopeIncludes(scope, L1, "service")).toBe(false);
     expect(scopeIncludes(scope, L2, "kitchen")).toBe(false);
+  });
+});
+
+describe("assertScopeNotEmpty", () => {
+  it("all=true → kein Throw", () => {
+    expect(() => assertScopeNotEmpty({ all: true }, "roster.leave.view_all")).not.toThrow();
+  });
+  it("combos nicht leer → kein Throw", () => {
+    expect(() =>
+      assertScopeNotEmpty(
+        { all: false, combos: [{ locationId: L1, area: "kitchen" }] },
+        "roster.leave.view_all",
+      ),
+    ).not.toThrow();
+  });
+  it("all=false, combos=[] → ForbiddenError", () => {
+    expect(() =>
+      assertScopeNotEmpty({ all: false, combos: [] }, "roster.leave.view_all"),
+    ).toThrow(ForbiddenError);
   });
 });
