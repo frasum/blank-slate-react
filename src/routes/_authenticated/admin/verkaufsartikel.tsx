@@ -41,11 +41,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { EkZuordnungTab } from "@/components/verkaufsartikel/EkZuordnungTab";
 import { SalesGroupFilter } from "@/components/bestellung/SalesGroupFilter";
 import { ALL, matchesHaupt, matchesUnter, matchesWg } from "@/lib/bestellung/sales-group-filter";
-import {
-  wareneinsatzQuote,
-  WE_GRUEN_BIS,
-  WE_GELB_BIS,
-} from "@/lib/bestellung/ek-linking";
+import { wareneinsatzQuote, WE_GRUEN_BIS, WE_GELB_BIS } from "@/lib/bestellung/ek-linking";
 
 const WE_TOOLTIP =
   "Wareneinsatz = EK netto ÷ VK netto (VK ÷ 1,19). Grün ≤ 25 % · Gelb ≤ 35 % · Rot > 35 %";
@@ -243,11 +239,11 @@ function VerkaufsartikelPage() {
                     <TableHead className="w-36">Preis</TableHead>
                     <TableHead className="w-36">Mitnahme</TableHead>
                     {isAdmin && <TableHead className="w-32">EK</TableHead>}
-                      {isAdmin && (
-                        <TableHead className="w-24" title={WE_TOOLTIP}>
-                          WE %
-                        </TableHead>
-                      )}
+                    {isAdmin && (
+                      <TableHead className="w-24" title={WE_TOOLTIP}>
+                        WE %
+                      </TableHead>
+                    )}
                     <TableHead className="w-28 text-right">Aktiv</TableHead>
                   </TableRow>
                 </TableHeader>
