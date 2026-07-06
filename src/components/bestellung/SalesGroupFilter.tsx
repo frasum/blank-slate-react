@@ -41,6 +41,10 @@ type Props = {
    * Optionale Blacklist für Untergruppen (Label, case-insensitive).
    */
   blockedUnterLabels?: readonly string[];
+  /**
+   * Optionale Blacklist für Warengruppen (Label, case-insensitive).
+   */
+  blockedWgLabels?: readonly string[];
 };
 
 export function SalesGroupFilter({
@@ -54,6 +58,7 @@ export function SalesGroupFilter({
   extraHauptOption,
   allowedHauptLabels,
   blockedUnterLabels,
+  blockedWgLabels,
 }: Props) {
   const hauptOptions = useMemo(() => {
     const all = deriveHauptOptions(rows);
@@ -80,7 +85,12 @@ export function SalesGroupFilter({
     return rowsAfterHaupt.filter((r) => matchesUnter(r, unter));
   }, [rowsAfterHaupt, unter]);
 
-  const wgOptions = useMemo(() => deriveWgOptions(rowsAfterUnter), [rowsAfterUnter]);
+  const wgOptions = useMemo(() => {
+    const all = deriveWgOptions(rowsAfterUnter);
+    if (!blockedWgLabels || blockedWgLabels.length === 0) return all;
+    const block = new Set(blockedWgLabels.map((l) => l.trim().toLowerCase()));
+    return all.filter((o) => !block.has(o.label.trim().toLowerCase()));
+  }, [rowsAfterUnter, blockedWgLabels]);
 
   useEffect(() => {
     if (unter !== ALL && !unterOptions.some((o) => o.value === unter)) setUnter(ALL);
