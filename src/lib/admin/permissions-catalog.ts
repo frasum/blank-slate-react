@@ -62,11 +62,13 @@ export type AppPermission =
 
 export type PermissionEffect = "allow" | "deny";
 
-export type PermissionModule = "kasse" | "zeit" | "dienstplan" | "lohn" | "aufgaben";
-// Anmerkung: `recipes.manage` fällt strukturell in ein neues Modul
-// „Verkaufsartikel". Bis der Rechte-Tab dafür eine eigene Sektion bekommt
-// (R2/R3), lassen wir das Recht ohne Modul-Zuordnung im Katalog liegen und
-// blenden es im UI unter „Sonstige" ein.
+export type PermissionModule =
+  | "kasse"
+  | "zeit"
+  | "dienstplan"
+  | "lohn"
+  | "aufgaben"
+  | "verkaufsartikel";
 
 export const MODULE_LABEL: Record<PermissionModule, string> = {
   kasse: "Kasse / Tagesabrechnung",
@@ -74,6 +76,7 @@ export const MODULE_LABEL: Record<PermissionModule, string> = {
   dienstplan: "Dienstplan & Urlaub",
   lohn: "Lohn & HR",
   aufgaben: "Aufgaben / Tagesbetrieb",
+  verkaufsartikel: "Verkaufsartikel & Rezepturen",
 };
 
 export type PermissionMeta = {
@@ -433,10 +436,9 @@ export const PERMISSION_CATALOG: readonly PermissionMeta[] = [
     description: "Aufgabe aus dem Board entfernen (bleibt im Audit, wiederherstellbar; Admin).",
     scopable: true,
   },
-  // ----- Modul Verkaufsartikel / Rezepturen -----
   {
     key: "recipes.manage",
-    module: "aufgaben",
+    module: "verkaufsartikel",
     label: "Rezepte verwalten",
     description:
       "Speisen-Rezepturen anlegen und ändern (Zwischenrezepte, Zutaten, Inhalt-Felder auf Einkaufsartikeln). Admin und Manager automatisch; einzelne Planer per Override.",
