@@ -74,6 +74,13 @@ const EMPTY_SUPPLIER_DRAFT: SupplierDraft = {
   sortOrder: 0,
 };
 
+// SL1: Änderung einer Standort-Zeile (Kundennummer/Aktiv) beim Save.
+type SupplierLocationChange = {
+  locationId: string;
+  customerNumber: string | null;
+  isActive: boolean;
+};
+
 type ArticleDraft = {
   name: string;
   sku: string;
