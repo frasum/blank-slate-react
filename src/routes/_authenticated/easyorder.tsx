@@ -17,6 +17,7 @@ import {
   type EasyOrderFreeTextInput,
 } from "@/lib/bestellung/easyorder.functions";
 import { getCurrentPosition } from "@/lib/geo/client";
+import { TestModeBanner } from "@/components/bestellung/TestModeBanner";
 
 export const Route = createFileRoute("/_authenticated/easyorder")({
   head: () => ({ meta: [{ title: "EasyOrder · Bestellung" }] }),
@@ -51,6 +52,7 @@ function EasyOrderPage() {
   if (ctxQ.isLoading) {
     return (
       <div className="mx-auto w-full max-w-3xl px-4">
+        <TestModeBanner />
         <p className="p-6 text-sm text-muted-foreground">Lädt …</p>
       </div>
     );
@@ -58,6 +60,7 @@ function EasyOrderPage() {
   if (ctxQ.error) {
     return (
       <div className="mx-auto w-full max-w-3xl px-4">
+        <TestModeBanner />
         <p className="p-6 text-sm text-destructive">
           Fehler: {ctxQ.error instanceof Error ? ctxQ.error.message : "Unbekannt"}
         </p>
@@ -69,6 +72,7 @@ function EasyOrderPage() {
   if (!ctxQ.data?.hasEasyOrder) {
     return (
       <div className="mx-auto w-full max-w-3xl px-4">
+        <TestModeBanner />
         <div className="mx-auto max-w-lg rounded-lg border border-border bg-card p-8 text-center">
           <h2 className="mb-2 text-xl font-semibold text-foreground">Kein Zugriff</h2>
           <p className="text-sm text-muted-foreground">
@@ -84,6 +88,7 @@ function EasyOrderPage() {
     return (
       <div className="mx-auto w-full max-w-3xl px-4">
         <div className="space-y-4">
+          <TestModeBanner />
           <h2 className="text-lg font-semibold text-foreground">Wo bestellst du?</h2>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {locations.map((l) => (
@@ -103,6 +108,7 @@ function EasyOrderPage() {
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4">
+      <TestModeBanner />
       <EasyOrderCart
         locationId={effectiveLocationId}
         locationName={selectedLocation?.locationName ?? ""}
