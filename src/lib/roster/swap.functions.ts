@@ -17,7 +17,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadStaffCaller } from "@/lib/time/time.functions";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { assertRealIdentity } from "@/lib/admin/impersonation";
-import { runWithPermission, assertPermission } from "@/lib/admin/admin-call";
+import { runWithPermission } from "@/lib/admin/admin-call";
 import { makeAuditWriter } from "@/lib/admin/audit";
 import { writeAuditLog } from "@/lib/admin/audit";
 import { ForbiddenError } from "@/lib/admin/role-guard";
