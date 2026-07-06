@@ -100,7 +100,13 @@ function isGetraenkeHauptgruppe(a: SalesArticle): boolean {
   return hg.includes("getränk") || hg.includes("getraenk");
 }
 
-export function EkZuordnungTab({ locationId }: { locationId: string }) {
+export function EkZuordnungTab({
+  locationId,
+  onCreateRecipeFor,
+}: {
+  locationId: string;
+  onCreateRecipeFor?: (salesArticleId: string) => void;
+}) {
   const qc = useQueryClient();
   const callList = useServerFn(listSalesArticles);
   const callLink = useServerFn(linkSalesArticleEk);
@@ -422,6 +428,14 @@ export function EkZuordnungTab({ locationId }: { locationId: string }) {
             invalidate();
           }}
           onLink={(vars) => callLink({ data: vars })}
+          onCreateRecipeFor={
+            onCreateRecipeFor
+              ? (id) => {
+                  setLinkTarget(null);
+                  onCreateRecipeFor(id);
+                }
+              : undefined
+          }
         />
       )}
     </div>
@@ -433,6 +447,7 @@ function LinkDialog({
   onClose,
   onLinked,
   onLink,
+  onCreateRecipeFor,
 }: {
   sales: SalesArticle;
   onClose: () => void;
@@ -443,6 +458,7 @@ function LinkDialog({
     portionMl?: number | null;
     sourceVolumeMl?: number | null;
   }) => Promise<{ ekCents: number }>;
+  onCreateRecipeFor?: (salesArticleId: string) => void;
 }) {
   const callSearch = useServerFn(searchPurchaseArticlesForEk);
   const [query, setQuery] = useState("");
@@ -530,6 +546,20 @@ function LinkDialog({
         </DialogHeader>
 
         <div className="space-y-4">
+          {onCreateRecipeFor && (
+            <div className="flex items-center justify-between rounded-md border border-dashed border-border bg-muted/30 px-3 py-2 text-sm">
+              <span className="text-muted-foreground">
+                Kein 1:1-Einkaufsartikel? Aus Zutaten berechnen:
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onCreateRecipeFor(sales.id)}
+              >
+                Neues Rezept für diesen Artikel
+              </Button>
+            </div>
+          )}
           <div>
             <Input
               value={query}
