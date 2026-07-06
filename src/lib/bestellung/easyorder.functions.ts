@@ -142,24 +142,24 @@ export async function getEasyOrderCatalogCore(
     articles: (articles ?? [])
       .filter((a) => !disabledSupplierIds.has(a.supplier_id))
       .map((a) => ({
-      id: a.id,
-      name: a.name,
-      sku: a.sku,
-      unit: a.unit,
-      priceCents: Number(a.price_cents ?? 0),
-      category: a.category,
-      supplierId: a.supplier_id,
-      supplierName: (a.suppliers as { name: string } | null)?.name ?? "",
-      orderUnit: (a as { order_unit?: string | null }).order_unit ?? a.unit,
-      minOrderQuantity: Math.max(
-        1,
-        Math.round(Number((a as { min_order_quantity?: number }).min_order_quantity ?? 1)),
-      ),
-      quantityStep: Math.max(
-        1,
-        Math.round(Number((a as { quantity_step?: number }).quantity_step ?? 1)),
-      ),
-    })),
+        id: a.id,
+        name: a.name,
+        sku: a.sku,
+        unit: a.unit,
+        priceCents: Number(a.price_cents ?? 0),
+        category: a.category,
+        supplierId: a.supplier_id,
+        supplierName: (a.suppliers as { name: string } | null)?.name ?? "",
+        orderUnit: (a as { order_unit?: string | null }).order_unit ?? a.unit,
+        minOrderQuantity: Math.max(
+          1,
+          Math.round(Number((a as { min_order_quantity?: number }).min_order_quantity ?? 1)),
+        ),
+        quantityStep: Math.max(
+          1,
+          Math.round(Number((a as { quantity_step?: number }).quantity_step ?? 1)),
+        ),
+      })),
   };
 }
 

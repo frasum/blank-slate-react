@@ -129,9 +129,7 @@ describe.skipIf(!dbTestsEnabled)("supplier_locations (DB)", () => {
     );
 
     const client = await signInAsUser(user.email, user.password);
-    const { data, error } = await client
-      .from("supplier_locations")
-      .select("id, customer_number");
+    const { data, error } = await client.from("supplier_locations").select("id, customer_number");
     // RLS ohne Policies → keine Exception, aber leere Antwort.
     expect(error).toBeNull();
     expect(data ?? []).toHaveLength(0);

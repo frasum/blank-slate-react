@@ -259,9 +259,7 @@ function LieferantenPage() {
   const searchLower = search.trim().toLowerCase();
   const filteredSuppliers = useMemo(() => {
     // SL1: Lieferanten, die am aktiven Standort deaktiviert sind, ausblenden.
-    const all = (suppliersQ.data ?? []).filter(
-      (s) => !disabledSupplierIdsAtLocation.has(s.id),
-    );
+    const all = (suppliersQ.data ?? []).filter((s) => !disabledSupplierIdsAtLocation.has(s.id));
     if (!searchLower) return all;
     return all.filter((s) => {
       if (s.name.toLowerCase().includes(searchLower)) return true;
@@ -833,9 +831,7 @@ function LieferantenPage() {
               initial={
                 supplierDialog.mode === "edit" ? supplierDialog.initial : EMPTY_SUPPLIER_DRAFT
               }
-              editingSupplierId={
-                supplierDialog.mode === "edit" ? supplierDialog.supplierId : null
-              }
+              editingSupplierId={supplierDialog.mode === "edit" ? supplierDialog.supplierId : null}
               locations={activeLocations.map((l) => ({ id: l.id, name: l.name }))}
               submitLabel={supplierDialog.mode === "edit" ? "Speichern" : "Anlegen"}
               submitting={
@@ -913,8 +909,7 @@ function SupplierForm(props: {
   const [locRows, setLocRows] = useState<Record<string, Row>>(initialRows);
   // Sync, wenn supLocQ.data neu eintrifft.
   const [syncedKey, setSyncedKey] = useState<string>("");
-  const currentKey =
-    (props.editingSupplierId ?? "") + ":" + (supLocQ.data ? "loaded" : "empty");
+  const currentKey = (props.editingSupplierId ?? "") + ":" + (supLocQ.data ? "loaded" : "empty");
   if (currentKey !== syncedKey) {
     setSyncedKey(currentKey);
     setLocRows(initialRows);
