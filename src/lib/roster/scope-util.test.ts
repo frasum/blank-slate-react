@@ -134,8 +134,8 @@ describe("assertScopeNotEmpty", () => {
     ).not.toThrow();
   });
   it("all=false, combos=[] → ForbiddenError", () => {
-    expect(() =>
-      assertScopeNotEmpty({ all: false, combos: [] }, "roster.leave.view_all"),
-    ).toThrow(ForbiddenError);
+    expect(() => assertScopeNotEmpty({ all: false, combos: [] }, "roster.leave.view_all")).toThrow(
+      ForbiddenError,
+    );
   });
 });
