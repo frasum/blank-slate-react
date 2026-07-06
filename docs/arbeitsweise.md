@@ -3579,3 +3579,84 @@ Rohdateien:
   neutral, endgültige Farbe noch unentschieden.
 - **§KAB2** — Ein-Knopf-Druck beim nächsten echten Tagesabschluss
   (Praxistest, kein Testlauf).
+
+## 69. Rezeptur-Modul (R1–R2b, 06.07.2026)
+
+**Zweck.** Speisen-Kalkulation als **dritte EK-Herkunft** neben Getränke-1:1-Link
+(EKZ1) und manuellem EK. `ek_price_cents` bleibt der materialisierte Cache;
+`recalcAllLinkedEk` rechnet jetzt **drei Quellen** (1:1, Rezept, Manuell
+unberührt) und liefert `{updated, skipped}` — Übersprungene (fehlender
+Gebinde-Inhalt, Zyklus) werden in der Werkbank angezeigt. Die
+Wareneinsatz-Ampel (EKW1) gilt damit **unverändert auch für Speisen**.
+
+**Datenmodell** (Migrationen `20260706155548` Enum-only + `20260706155630`):
+
+- `recipes` — `kind` (`dish` / `sub`), Subs mit **Pflicht-Ausbeute**
+  (`yield_quantity` / `yield_unit`), Notizfeld. CHECK `recipes_yield_chk`:
+  Sub ⇒ Ausbeute Pflicht, Gericht ⇒ Ausbeute verboten.
+- `recipe_items` — Zutat = **Artikel ODER Sub-Rezept per XOR-CHECK**
+  (`recipe_items_source_xor`), Menge, Einheit (`g` / `ml` / `stk`),
+  `loss_percent 0–90`, Selbstbezugs-CHECK (`recipe_items_no_self`).
+- `articles.content_quantity` / `content_unit` — „Inhalt je Inventureinheit"
+  (z. B. 1 kg = 1000 g). Pflege **on demand im Editor** (kein Backfill).
+- `sales_articles.recipe_id` (`ON DELETE RESTRICT`) mit XOR gegen
+  `ek_source_article_id`; der bestehende Ignoriert-Guard ist erweitert.
+- **RLS**: deny-all-Hausmuster auf `recipes` und `recipe_items` (keine
+  Client-Policies, alle Reads/Writes über Server-Fns mit `supabaseAdmin`).
+  Inventur-Liste der deny-all-Tabellen um `recipes` und `recipe_items`
+  ergänzt → **achtzehn deny-all-Tabellen**.
+
+**Rechenkern `src/lib/bestellung/recipe-costing.ts`** (rein, getestet):
+
+- Preis je Basiseinheit über das **E1-Modul `unit-conversion.ts`**
+  (wiederverwendet, kein Duplikat) ÷ `content_quantity`.
+- **Verlust IMMER als Ausbeute**: `qty / (1 − loss/100)` (10 % Verlust ⇒
+  ÷ 0,9, nicht × 1,1 — häufigster Rechenfehler, deshalb hier festgehalten).
+- Sub-Kaskade mit **Zyklen-Erkennung** und **Tiefenlimit 5**.
+- Fehlerklassen `MissingContentError` / `UnitMismatchError` / `CycleError`
+  / `DepthError` / `MissingDataError`.
+- **Rundung nur am Ende** (`Math.round` in `costRecipeCents`); Sub-Kaskaden
+  fliessen unrudiert.
+- **Einheiten-Regel**: Zeilen-Einheit MUSS `content_unit` des Artikels bzw.
+  `yield_unit` des Subs entsprechen — im Editor **per Konstruktion
+  erzwungen** (Einheit nicht wählbar), **keine g↔ml-Umrechnung** (ehrlich
+  statt Dichte-Raterei).
+
+**Rechte.** Neue Permission **`recipes.manage`** (Rollen-Defaults `admin` /
+`manager`; im Rechte-Tab vergebbar). Für Planer (Sumitr) als **GLOBALER
+Override** (`location = NULL`) — Rezepte sind org-weit, daher hier bewusst
+globaler `assertPermission`-Check **OHNE** `resolvePlanerScope` (Abgrenzung
+zur PL2-Regel im Code-Kommentar der Functions dokumentiert).
+
+**Server-Fns `recipes.functions.ts`.** `listRecipes` (mit
+Verwendungszählern), `getRecipe`, `upsertRecipe`, `deleteRecipe`
+(RESTRICT-Fehler übersetzt), `setRecipeItems` (Replace-all,
+**Zyklen-Check vor Schreiben**), `setArticleContent`,
+`linkSalesArticleRecipe` / `unlinkSalesArticleRecipe` (Cross-Org-Guards,
+Link setzt `ignored=false`), `listRecipeArticleCandidates` — alle
+audit-geloggt, Listen via `selectAllPaged`.
+
+**UI (R2 / R2b).** Dritter Tab „Rezepte" (Gerichte / Zwischenrezepte,
+Suche, Duplizieren); Editor mit Zutaten-Typeahead (Artikel + `SUB:`-Rezepte),
+Live-Kosten aus dem Rechenkern (importiert), Kosten-Breakdown absteigend,
+Inline-Pflege fehlender Gebinde-Inhalte, Verknüpfungs-Sektion mit
+**WE-%-Ampel**. Anlage **vom Verkaufsartikel aus** (R2b): „+ Gericht" fragt
+zuerst den Verkaufsartikel ab (Name vorbefüllt, sofort verknüpft; 1:1-Fälle
+ausgegraut), „Rezept anlegen"-Link in der Verkaufsartikel-Liste, „Aus
+Zutaten berechnen" im Werkbank-Dialog; der freie Weg **ohne** Artikel
+bleibt.
+
+**Abnahmen.**
+
+- **R1** HEAD `62bcf8d0` — 1479 Tests (+16 Rechenkern).
+- **R2** HEAD `dbdf3f45` — 1483 Tests.
+- **R2b** HEAD `8685dfb3` — vier Gates grün (`tsc`, `eslint`, `prettier`,
+  `vitest`).
+- **Live-DB-Verifikation R1** per CSV: Tabellen 2 / Client-Policies 0 /
+  CHECKs / Rollen-Defaults 2.
+
+**Offen.** Golden-Master-Referenzgericht **Tom Kha Gai** — Kalkulations-CSV
+mit Franks Einkaufspreisen liegt vor (~2,67 €/Hauptgericht-Portion).
+Ausstehend: Franks Portions-Mengen + **vier Daten-Klärungen** —
+Galanga-Preisbasis, Fischsaucen-Gebinde, Kaffirlimettenblätter / Schalotten
+als Artikel anlegen, Eigenfond als erstes Sub-Rezept.
