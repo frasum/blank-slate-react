@@ -160,6 +160,8 @@ export type Database = {
         Row: {
           allow_decimal_order_quantity: boolean
           category: string | null
+          content_quantity: number | null
+          content_unit: string | null
           created_at: string
           description: string | null
           food_pairings: string | null
@@ -189,6 +191,8 @@ export type Database = {
         Insert: {
           allow_decimal_order_quantity?: boolean
           category?: string | null
+          content_quantity?: number | null
+          content_unit?: string | null
           created_at?: string
           description?: string | null
           food_pairings?: string | null
@@ -218,6 +222,8 @@ export type Database = {
         Update: {
           allow_decimal_order_quantity?: boolean
           category?: string | null
+          content_quantity?: number | null
+          content_unit?: string | null
           created_at?: string
           description?: string | null
           food_pairings?: string | null
@@ -2149,6 +2155,105 @@ export type Database = {
           },
         ]
       }
+      recipe_items: {
+        Row: {
+          article_id: string | null
+          id: string
+          loss_percent: number
+          position: number
+          quantity: number
+          recipe_id: string
+          sub_recipe_id: string | null
+          unit: string
+        }
+        Insert: {
+          article_id?: string | null
+          id?: string
+          loss_percent?: number
+          position?: number
+          quantity: number
+          recipe_id: string
+          sub_recipe_id?: string | null
+          unit: string
+        }
+        Update: {
+          article_id?: string | null
+          id?: string
+          loss_percent?: number
+          position?: number
+          quantity?: number
+          recipe_id?: string
+          sub_recipe_id?: string | null
+          unit?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recipe_items_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recipe_items_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "recipes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recipe_items_sub_recipe_id_fkey"
+            columns: ["sub_recipe_id"]
+            isOneToOne: false
+            referencedRelation: "recipes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recipes: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          name: string
+          notes: string | null
+          organization_id: string
+          updated_at: string
+          yield_quantity: number | null
+          yield_unit: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: string
+          name: string
+          notes?: string | null
+          organization_id: string
+          updated_at?: string
+          yield_quantity?: number | null
+          yield_unit?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          name?: string
+          notes?: string | null
+          organization_id?: string
+          updated_at?: string
+          yield_quantity?: number | null
+          yield_unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recipes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       revenue_channels: {
         Row: {
           created_at: string
@@ -2530,6 +2635,7 @@ export type Database = {
           organization_id: string
           price_cents: number | null
           product_group: number | null
+          recipe_id: string | null
           takeaway_price_cents: number | null
           untergruppe: string | null
           untergruppe_nr: number | null
@@ -2552,6 +2658,7 @@ export type Database = {
           organization_id: string
           price_cents?: number | null
           product_group?: number | null
+          recipe_id?: string | null
           takeaway_price_cents?: number | null
           untergruppe?: string | null
           untergruppe_nr?: number | null
@@ -2574,6 +2681,7 @@ export type Database = {
           organization_id?: string
           price_cents?: number | null
           product_group?: number | null
+          recipe_id?: string | null
           takeaway_price_cents?: number | null
           untergruppe?: string | null
           untergruppe_nr?: number | null
@@ -2600,6 +2708,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_articles_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "recipes"
             referencedColumns: ["id"]
           },
         ]
