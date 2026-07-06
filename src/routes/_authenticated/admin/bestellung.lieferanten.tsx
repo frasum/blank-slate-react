@@ -239,16 +239,22 @@ function LieferantenPage() {
     const all = articlesQ.data ?? [];
     const grouped = new Map<string, typeof all>();
     for (const a of all) {
+      // SL1: Nur Artikel, die für den aktiven Standort freigegeben sind.
+      // Freitext-Artikel (ohne locationIds) werden nie im Katalog gelistet.
+      if (activeLocationId && !(a.locationIds ?? []).includes(activeLocationId)) continue;
       const arr = grouped.get(a.supplier_id) ?? [];
       arr.push(a);
       grouped.set(a.supplier_id, arr);
     }
     return grouped;
-  }, [articlesQ.data]);
+  }, [articlesQ.data, activeLocationId]);
 
   const searchLower = search.trim().toLowerCase();
   const filteredSuppliers = useMemo(() => {
-    const all = suppliersQ.data ?? [];
+    // SL1: Lieferanten, die am aktiven Standort deaktiviert sind, ausblenden.
+    const all = (suppliersQ.data ?? []).filter(
+      (s) => !disabledSupplierIdsAtLocation.has(s.id),
+    );
     if (!searchLower) return all;
     return all.filter((s) => {
       if (s.name.toLowerCase().includes(searchLower)) return true;
@@ -259,7 +265,7 @@ function LieferantenPage() {
           (a.sku ?? "").toLowerCase().includes(searchLower),
       );
     });
-  }, [suppliersQ.data, searchLower, articlesBySupplier]);
+  }, [suppliersQ.data, searchLower, articlesBySupplier, disabledSupplierIdsAtLocation]);
 
   // Bei aktiver Suche: alle Treffer-Lieferanten automatisch aufklappen.
   const effectivelyExpanded = useMemo(() => {
