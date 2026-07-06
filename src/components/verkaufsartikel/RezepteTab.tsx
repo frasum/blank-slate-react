@@ -267,6 +267,7 @@ function RecipeListSection(props: {
   emptyLabel: string;
   rows: RecipeListItem[];
   usageLabelFn: (n: number) => string;
+  subtitleFn: (r: RecipeListItem) => string[];
   onOpen: (id: string) => void;
   onDuplicate: (r: RecipeListItem) => void;
   onDelete: (id: string) => void;
@@ -298,6 +299,19 @@ function RecipeListSection(props: {
                     >
                       {r.name}
                     </button>
+                    {(() => {
+                      const names = props.subtitleFn(r);
+                      if (names.length === 0) return null;
+                      return (
+                        <div
+                          className="text-xs text-muted-foreground"
+                          title={names.join(", ")}
+                        >
+                          Verkaufsartikel: {names.slice(0, 2).join(", ")}
+                          {names.length > 2 ? ` (+${names.length - 2})` : ""}
+                        </div>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {r.yieldQuantity !== null && r.yieldUnit
