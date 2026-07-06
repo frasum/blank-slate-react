@@ -29,9 +29,15 @@ import {
   getActiveCart,
   removeCartItem,
   updateCartItem,
+  setCartMeta,
 } from "@/lib/bestellung/cart.functions";
 import { getLastOrderByArticle } from "@/lib/bestellung/orders.functions";
 import { listLocations } from "@/lib/admin/locations.functions";
+import {
+  listSupplierLocations,
+  setSupplierLocation,
+} from "@/lib/bestellung/supplier-locations.functions";
+import { LocationPills } from "@/components/shared/LocationPills";
 
 export const Route = createFileRoute("/_authenticated/admin/bestellung/lieferanten")({
   head: () => ({ meta: [{ title: "Lieferanten · Bestellung" }] }),
