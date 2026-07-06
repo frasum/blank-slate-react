@@ -18,6 +18,7 @@ import {
   type OrderEmailData,
   type TestModeContext,
 } from "./order-email";
+import { resolveCustomerNumber } from "./customer-number";
 
 type Admin = SupabaseClient<Database>;
 
@@ -76,6 +77,24 @@ export async function sendOrderEmailWithAdmin(
   if (!supplier) throw new Error("Lieferant nicht gefunden.");
   if (!supplier.email) throw new Error("Lieferant hat keine E-Mail-Adresse hinterlegt.");
 
+  // SL1: standort-genaue Kundennummer (Fallback org-weit, wenn Zeile fehlt
+  // oder customer_number leer). Aktiv-Status ist hier bewusst KEIN Guard —
+  // der greift beim Bestellanlegen (RPC create_order_from_cart), damit
+  // bereits versandbereite Bestellungen nicht nachträglich blockiert werden.
+  let perLocation: { customer_number: string | null } | null = null;
+  if (order.location_id) {
+    const { data: slRow, error: slErr } = await admin
+      .from("supplier_locations")
+      .select("customer_number")
+      .eq("organization_id", organizationId)
+      .eq("supplier_id", order.supplier_id)
+      .eq("location_id", order.location_id)
+      .maybeSingle();
+    if (slErr) throw slErr;
+    perLocation = slRow ?? null;
+  }
+  const resolvedCustomerNumber = resolveCustomerNumber(supplier.customer_number, perLocation);
+
   const testCtx: TestModeContext | undefined = testEnabled
     ? { originalSupplierEmail: supplier.email }
     : undefined;
@@ -103,7 +122,7 @@ export async function sendOrderEmailWithAdmin(
   const emailData: OrderEmailData = {
     orderNumber: order.order_number,
     supplierName: supplier.name,
-    customerNumber: supplier.customer_number,
+    customerNumber: resolvedCustomerNumber,
     restaurantName,
     deliveryAddress: order.delivery_address ?? "",
     deliveryDate: order.delivery_date,
