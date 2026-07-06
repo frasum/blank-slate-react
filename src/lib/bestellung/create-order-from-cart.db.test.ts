@@ -54,7 +54,14 @@ describe.skipIf(!dbTestsEnabled)("create_order_from_cart (DB-RPC)", () => {
         })
         .select("id")
         .single();
-      return data!.id as string;
+      const articleId = data!.id as string;
+      // SL1 Guard 1: Artikel für den Test-Standort freigeben.
+      await org.service.from("article_locations").insert({
+        organization_id: org.orgId,
+        article_id: articleId,
+        location_id: org.defaultLocationId,
+      });
+      return articleId;
     };
     artA1 = await mkArt(supplierA, "Tomaten", 250);
     artA2 = await mkArt(supplierA, "Basilikum", 180);
