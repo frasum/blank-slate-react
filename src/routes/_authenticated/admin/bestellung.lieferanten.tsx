@@ -29,9 +29,15 @@ import {
   getActiveCart,
   removeCartItem,
   updateCartItem,
+  setCartMeta,
 } from "@/lib/bestellung/cart.functions";
 import { getLastOrderByArticle } from "@/lib/bestellung/orders.functions";
 import { listLocations } from "@/lib/admin/locations.functions";
+import {
+  listSupplierLocations,
+  setSupplierLocation,
+} from "@/lib/bestellung/supplier-locations.functions";
+import { LocationPills } from "@/components/shared/LocationPills";
 
 export const Route = createFileRoute("/_authenticated/admin/bestellung/lieferanten")({
   head: () => ({ meta: [{ title: "Lieferanten · Bestellung" }] }),
@@ -66,6 +72,13 @@ const EMPTY_SUPPLIER_DRAFT: SupplierDraft = {
   orderDeadline: "",
   minOrderValueEuro: "",
   sortOrder: 0,
+};
+
+// SL1: Änderung einer Standort-Zeile (Kundennummer/Aktiv) beim Save.
+type SupplierLocationChange = {
+  locationId: string;
+  customerNumber: string | null;
+  isActive: boolean;
 };
 
 type ArticleDraft = {
@@ -139,6 +152,8 @@ function LieferantenPage() {
   const callAdd = useServerFn(addCartItem);
   const callUpdateCart = useServerFn(updateCartItem);
   const callRemove = useServerFn(removeCartItem);
+  const callSetCartMeta = useServerFn(setCartMeta);
+  const callSetSupplierLocation = useServerFn(setSupplierLocation);
 
   const [showInactive, setShowInactive] = useState(false);
   const [search, setSearch] = useState("");
@@ -180,9 +195,42 @@ function LieferantenPage() {
     queryFn: () => listLocations(),
   });
 
+  // SL1: Standort-Deaktivierungen für Katalog-Filter (nur is_active=false Rows).
+  const supplierLocationsQ = useQuery({
+    queryKey: ["bestellung", "supplier-locations", "all"],
+    queryFn: () => listSupplierLocations({ data: {} }),
+  });
+
+  const activeLocations = useMemo(
+    () => (locationsQ.data ?? []).filter((l) => l.isActive !== false),
+    [locationsQ.data],
+  );
+
+  // SL1: Standort-Pill = Warenkorb-Standort. Fallback: erster aktiver Standort.
+  const activeLocationId: string | null =
+    cartQ.data?.cart.location_id ?? activeLocations[0]?.id ?? null;
+
+  const setCartLocMut = useMutation({
+    mutationFn: (locationId: string) => callSetCartMeta({ data: { locationId } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["bestellung", "cart"] }),
+    onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
+  });
+
+  // SL1: an aktivem Standort deaktivierte Lieferanten (fehlende Zeile = aktiv).
+  const disabledSupplierIdsAtLocation = useMemo(() => {
+    const set = new Set<string>();
+    if (!activeLocationId) return set;
+    for (const r of supplierLocationsQ.data ?? []) {
+      if (r.locationId === activeLocationId && !r.isActive) set.add(r.supplierId);
+    }
+    return set;
+  }, [supplierLocationsQ.data, activeLocationId]);
+
   const refreshSuppliers = () => qc.invalidateQueries({ queryKey: ["bestellung", "suppliers"] });
   const refreshArticles = () => qc.invalidateQueries({ queryKey: ["bestellung", "articles"] });
   const refreshCart = () => qc.invalidateQueries({ queryKey: ["bestellung", "cart"] });
+  const refreshSupplierLocations = () =>
+    qc.invalidateQueries({ queryKey: ["bestellung", "supplier-locations"] });
 
   // Cart-Map: articleId → { itemId, quantity }
   const cartByArticle = useMemo(() => {
@@ -198,16 +246,20 @@ function LieferantenPage() {
     const all = articlesQ.data ?? [];
     const grouped = new Map<string, typeof all>();
     for (const a of all) {
+      // SL1: Nur Artikel, die für den aktiven Standort freigegeben sind.
+      // Freitext-Artikel (ohne locationIds) werden nie im Katalog gelistet.
+      if (activeLocationId && !(a.locationIds ?? []).includes(activeLocationId)) continue;
       const arr = grouped.get(a.supplier_id) ?? [];
       arr.push(a);
       grouped.set(a.supplier_id, arr);
     }
     return grouped;
-  }, [articlesQ.data]);
+  }, [articlesQ.data, activeLocationId]);
 
   const searchLower = search.trim().toLowerCase();
   const filteredSuppliers = useMemo(() => {
-    const all = suppliersQ.data ?? [];
+    // SL1: Lieferanten, die am aktiven Standort deaktiviert sind, ausblenden.
+    const all = (suppliersQ.data ?? []).filter((s) => !disabledSupplierIdsAtLocation.has(s.id));
     if (!searchLower) return all;
     return all.filter((s) => {
       if (s.name.toLowerCase().includes(searchLower)) return true;
@@ -218,7 +270,7 @@ function LieferantenPage() {
           (a.sku ?? "").toLowerCase().includes(searchLower),
       );
     });
-  }, [suppliersQ.data, searchLower, articlesBySupplier]);
+  }, [suppliersQ.data, searchLower, articlesBySupplier, disabledSupplierIdsAtLocation]);
 
   // Bei aktiver Suche: alle Treffer-Lieferanten automatisch aufklappen.
   const effectivelyExpanded = useMemo(() => {
@@ -254,8 +306,12 @@ function LieferantenPage() {
   });
 
   const updateSupMut = useMutation({
-    mutationFn: (input: { id: string; draft: SupplierDraft }) =>
-      callUpdateSup({
+    mutationFn: async (input: {
+      id: string;
+      draft: SupplierDraft;
+      locationChanges: SupplierLocationChange[];
+    }) => {
+      await callUpdateSup({
         data: {
           supplierId: input.id,
           name: input.draft.name,
@@ -270,11 +326,24 @@ function LieferantenPage() {
           minOrderValueCents: parseEuroToCents(input.draft.minOrderValueEuro),
           sortOrder: input.draft.sortOrder,
         },
-      }),
+      });
+      // SL1: geänderte Standort-Zeilen speichern.
+      for (const c of input.locationChanges) {
+        await callSetSupplierLocation({
+          data: {
+            supplierId: input.id,
+            locationId: c.locationId,
+            customerNumber: c.customerNumber,
+            isActive: c.isActive,
+          },
+        });
+      }
+    },
     onSuccess: () => {
       setSupplierDialog(null);
       setMsg(null);
-      return refreshSuppliers();
+      refreshSuppliers();
+      return refreshSupplierLocations();
     },
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
   });
@@ -394,6 +463,15 @@ function LieferantenPage() {
 
   return (
     <div className="space-y-4">
+      {/* SL1: Standort-Pill (bindet an Warenkorb). Keine „Alle"-Option. */}
+      {activeLocations.length > 1 && activeLocationId && (
+        <LocationPills
+          locations={activeLocations.map((l) => ({ id: l.id, name: l.name }))}
+          value={activeLocationId}
+          onChange={(id) => setCartLocMut.mutate(id)}
+          size="sm"
+        />
+      )}
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3">
         <input
@@ -753,13 +831,19 @@ function LieferantenPage() {
               initial={
                 supplierDialog.mode === "edit" ? supplierDialog.initial : EMPTY_SUPPLIER_DRAFT
               }
+              editingSupplierId={supplierDialog.mode === "edit" ? supplierDialog.supplierId : null}
+              locations={activeLocations.map((l) => ({ id: l.id, name: l.name }))}
               submitLabel={supplierDialog.mode === "edit" ? "Speichern" : "Anlegen"}
               submitting={
                 supplierDialog.mode === "edit" ? updateSupMut.isPending : createSupMut.isPending
               }
-              onSubmit={(d) => {
+              onSubmit={(d, locationChanges) => {
                 if (supplierDialog.mode === "edit") {
-                  updateSupMut.mutate({ id: supplierDialog.supplierId, draft: d });
+                  updateSupMut.mutate({
+                    id: supplierDialog.supplierId,
+                    draft: d,
+                    locationChanges,
+                  });
                 } else {
                   createSupMut.mutate(d);
                 }
@@ -787,21 +871,82 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function SupplierForm(props: {
   initial: SupplierDraft;
+  editingSupplierId: string | null;
+  locations: { id: string; name: string }[];
   submitLabel: string;
   submitting: boolean;
-  onSubmit: (d: SupplierDraft) => void;
+  onSubmit: (d: SupplierDraft, locationChanges: SupplierLocationChange[]) => void;
   onCancel: () => void;
 }) {
   const [d, setD] = useState<SupplierDraft>(props.initial);
   const set = <K extends keyof SupplierDraft>(k: K, v: SupplierDraft[K]) =>
     setD((prev) => ({ ...prev, [k]: v }));
 
+  // SL1: aktuelle supplier_locations für diesen Lieferanten laden. Nur im
+  // edit-Modus sinnvoll — beim Neuanlegen existiert der Lieferant noch nicht.
+  const supLocQ = useQuery({
+    queryKey: ["bestellung", "supplier-locations", "for-supplier", props.editingSupplierId],
+    queryFn: () => listSupplierLocations({ data: { supplierId: props.editingSupplierId! } }),
+    enabled: !!props.editingSupplierId,
+  });
+
+  // Lokaler UI-State pro Standort. Default: aktiv=true, Nummer="" — genau die
+  // Semantik „keine Zeile in DB". Existierende Zeile überschreibt.
+  type Row = { customerNumber: string; isActive: boolean };
+  const initialRows = useMemo<Record<string, Row>>(() => {
+    const map: Record<string, Row> = {};
+    for (const loc of props.locations) {
+      map[loc.id] = { customerNumber: "", isActive: true };
+    }
+    for (const r of supLocQ.data ?? []) {
+      map[r.locationId] = {
+        customerNumber: r.customerNumber ?? "",
+        isActive: r.isActive,
+      };
+    }
+    return map;
+  }, [props.locations, supLocQ.data]);
+  const [locRows, setLocRows] = useState<Record<string, Row>>(initialRows);
+  // Sync, wenn supLocQ.data neu eintrifft.
+  const [syncedKey, setSyncedKey] = useState<string>("");
+  const currentKey = (props.editingSupplierId ?? "") + ":" + (supLocQ.data ? "loaded" : "empty");
+  if (currentKey !== syncedKey) {
+    setSyncedKey(currentKey);
+    setLocRows(initialRows);
+  }
+
+  function computeLocationChanges(): SupplierLocationChange[] {
+    if (!props.editingSupplierId) return [];
+    const existing = new Map((supLocQ.data ?? []).map((r) => [r.locationId, r] as const));
+    const changes: SupplierLocationChange[] = [];
+    for (const loc of props.locations) {
+      const cur = locRows[loc.id];
+      if (!cur) continue;
+      const ex = existing.get(loc.id);
+      const normalized = cur.customerNumber.trim();
+      const exNumber = ex?.customerNumber ?? "";
+      const exActive = ex?.isActive ?? true;
+      const hasRow = !!ex;
+      const isDefault = normalized === "" && cur.isActive === true;
+      // Kein Change, wenn Default-Zustand ohne DB-Row (Zeile gar nicht erst anlegen).
+      if (!hasRow && isDefault) continue;
+      // Kein Change, wenn identisch zur DB-Row.
+      if (hasRow && normalized === (exNumber ?? "") && cur.isActive === exActive) continue;
+      changes.push({
+        locationId: loc.id,
+        customerNumber: normalized === "" ? null : normalized,
+        isActive: cur.isActive,
+      });
+    }
+    return changes;
+  }
+
   return (
     <form
       className="space-y-3"
       onSubmit={(e) => {
         e.preventDefault();
-        props.onSubmit(d);
+        props.onSubmit(d, computeLocationChanges());
       }}
     >
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -842,7 +987,7 @@ function SupplierForm(props: {
             className={inputCls}
           />
         </Field>
-        <Field label="Unsere Kundennummer">
+        <Field label="Kundennummer (Standard, wenn kein Standort-Wert)">
           <input
             value={d.customerNumber}
             onChange={(e) => set("customerNumber", e.target.value)}
@@ -910,6 +1055,53 @@ function SupplierForm(props: {
           className={inputCls}
         />
       </Field>
+      {props.editingSupplierId && props.locations.length > 0 && (
+        <div className="rounded-md border border-border p-3">
+          <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
+            Standorte
+          </div>
+          <p className="mb-3 text-xs text-muted-foreground">
+            Leeres Feld = Standard-Kundennummer. Aus = Lieferant an diesem Standort deaktiviert.
+          </p>
+          <div className="space-y-2">
+            {props.locations.map((loc) => {
+              const row = locRows[loc.id] ?? { customerNumber: "", isActive: true };
+              return (
+                <div
+                  key={loc.id}
+                  className="flex flex-wrap items-center gap-3 rounded border border-input bg-background px-3 py-2"
+                >
+                  <span className="min-w-32 text-sm font-medium text-foreground">{loc.name}</span>
+                  <input
+                    value={row.customerNumber}
+                    onChange={(e) =>
+                      setLocRows((prev) => ({
+                        ...prev,
+                        [loc.id]: { ...row, customerNumber: e.target.value },
+                      }))
+                    }
+                    placeholder={d.customerNumber || "—"}
+                    className={`${inputCls} max-w-48`}
+                  />
+                  <label className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={row.isActive}
+                      onChange={(e) =>
+                        setLocRows((prev) => ({
+                          ...prev,
+                          [loc.id]: { ...row, isActive: e.target.checked },
+                        }))
+                      }
+                    />
+                    aktiv
+                  </label>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
       <div className="flex items-center gap-2">
         <button
           type="submit"

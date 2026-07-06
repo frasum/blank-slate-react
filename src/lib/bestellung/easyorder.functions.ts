@@ -111,6 +111,17 @@ export async function getEasyOrderCatalogCore(
     .eq("location_id", locationId);
   const allowedSupplierIds = (wl ?? []).map((r) => r.supplier_id);
 
+  // SL1: standort-genaue Deaktivierung. Zeilen mit is_active=false schließen
+  // den Lieferanten für diesen Standort aus; FEHLENDE Zeile = erlaubt.
+  const { data: slDisabled, error: slErr } = await admin
+    .from("supplier_locations")
+    .select("supplier_id")
+    .eq("organization_id", caller.organizationId)
+    .eq("location_id", locationId)
+    .eq("is_active", false);
+  if (slErr) throw new Error(slErr.message);
+  const disabledSupplierIds = new Set((slDisabled ?? []).map((r) => r.supplier_id));
+
   // Standort-Zuordnung: nur Artikel zeigen, die für diesen Standort freigegeben
   // sind. Inner-Join auf article_locations, damit wir keine riesige IN-Liste
   // (URL-Längen-Limit von PostgREST) bauen müssen.
@@ -128,25 +139,27 @@ export async function getEasyOrderCatalogCore(
 
   return {
     locationId,
-    articles: (articles ?? []).map((a) => ({
-      id: a.id,
-      name: a.name,
-      sku: a.sku,
-      unit: a.unit,
-      priceCents: Number(a.price_cents ?? 0),
-      category: a.category,
-      supplierId: a.supplier_id,
-      supplierName: (a.suppliers as { name: string } | null)?.name ?? "",
-      orderUnit: (a as { order_unit?: string | null }).order_unit ?? a.unit,
-      minOrderQuantity: Math.max(
-        1,
-        Math.round(Number((a as { min_order_quantity?: number }).min_order_quantity ?? 1)),
-      ),
-      quantityStep: Math.max(
-        1,
-        Math.round(Number((a as { quantity_step?: number }).quantity_step ?? 1)),
-      ),
-    })),
+    articles: (articles ?? [])
+      .filter((a) => !disabledSupplierIds.has(a.supplier_id))
+      .map((a) => ({
+        id: a.id,
+        name: a.name,
+        sku: a.sku,
+        unit: a.unit,
+        priceCents: Number(a.price_cents ?? 0),
+        category: a.category,
+        supplierId: a.supplier_id,
+        supplierName: (a.suppliers as { name: string } | null)?.name ?? "",
+        orderUnit: (a as { order_unit?: string | null }).order_unit ?? a.unit,
+        minOrderQuantity: Math.max(
+          1,
+          Math.round(Number((a as { min_order_quantity?: number }).min_order_quantity ?? 1)),
+        ),
+        quantityStep: Math.max(
+          1,
+          Math.round(Number((a as { quantity_step?: number }).quantity_step ?? 1)),
+        ),
+      })),
   };
 }
 
