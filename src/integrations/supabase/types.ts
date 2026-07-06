@@ -5178,6 +5178,7 @@ export type Database = {
         | "tasks.delete"
         | "roster.swap.view_pending"
         | "roster.swap.decide"
+        | "recipes.manage"
       app_role: "admin" | "manager" | "staff" | "payroll" | "planer"
       permission_effect: "allow" | "deny"
       register_transfer_direction:
@@ -5375,6 +5376,7 @@ export const Constants = {
         "tasks.delete",
         "roster.swap.view_pending",
         "roster.swap.decide",
+        "recipes.manage",
       ],
       app_role: ["admin", "manager", "staff", "payroll", "planer"],
       permission_effect: ["allow", "deny"],
