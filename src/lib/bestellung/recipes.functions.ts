@@ -95,20 +95,20 @@ export const listRecipes = createServerFn({ method: "POST" })
     type Row = {
       id: string;
       name: string;
-      kind: RecipeKind;
+      kind: string;
       yield_quantity: number | null;
       yield_unit: RecipeUnit | null;
       updated_at: string;
     };
-    const rows = await selectAllPaged<Row>((from, to) => {
-      let q = supabaseAdmin
+    const kindFilter = data.kind;
+    const rows = await selectAllPaged<Row>(() => {
+      const base = supabaseAdmin
         .from("recipes")
         .select("id, name, kind, yield_quantity, yield_unit, updated_at")
         .eq("organization_id", caller.organizationId)
         .order("name", { ascending: true })
         .order("id", { ascending: true });
-      if (data.kind) q = q.eq("kind", data.kind);
-      return q.range(from, to) as unknown as ReturnType<typeof q.range>;
+      return kindFilter ? base.eq("kind", kindFilter) : base;
     });
 
     if (rows.length === 0) return [];
@@ -138,7 +138,7 @@ export const listRecipes = createServerFn({ method: "POST" })
     return rows.map((r) => ({
       id: r.id,
       name: r.name,
-      kind: r.kind,
+      kind: r.kind as RecipeKind,
       yieldQuantity: r.yield_quantity === null ? null : Number(r.yield_quantity),
       yieldUnit: r.yield_unit,
       updatedAt: r.updated_at,
@@ -848,17 +848,14 @@ export async function loadCostingCtxForOrganization(
     price_cents: number;
     order_to_inventory_factor: number;
     content_quantity: number | null;
-    content_unit: RecipeUnit | null;
+    content_unit: string | null;
   };
-  const artRows = await selectAllPaged<ArtRow>((from, to) =>
+  const artRows = await selectAllPaged<ArtRow>(() =>
     supabaseAdmin
       .from("articles")
       .select("id, price_cents, order_to_inventory_factor, content_quantity, content_unit")
       .eq("organization_id", organizationId)
-      .order("id", { ascending: true })
-      .range(from, to) as unknown as ReturnType<
-      ReturnType<typeof supabaseAdmin.from<"articles">>["select"]
-    >,
+      .order("id", { ascending: true }),
   );
   const articles = new Map<string, ArticleData>();
   for (const r of artRows) {
@@ -867,7 +864,7 @@ export async function loadCostingCtxForOrganization(
       priceCents: Number(r.price_cents),
       orderToInventoryFactor: Number(r.order_to_inventory_factor),
       contentQuantity: r.content_quantity === null ? null : Number(r.content_quantity),
-      contentUnit: r.content_unit,
+      contentUnit: r.content_unit as RecipeUnit | null,
     });
   }
 
@@ -875,17 +872,14 @@ export async function loadCostingCtxForOrganization(
     id: string;
     kind: string;
     yield_quantity: number | null;
-    yield_unit: RecipeUnit | null;
+    yield_unit: string | null;
   };
-  const recipeRows = await selectAllPaged<RecipeRow>((from, to) =>
+  const recipeRows = await selectAllPaged<RecipeRow>(() =>
     supabaseAdmin
       .from("recipes")
       .select("id, kind, yield_quantity, yield_unit")
       .eq("organization_id", organizationId)
-      .order("id", { ascending: true })
-      .range(from, to) as unknown as ReturnType<
-      ReturnType<typeof supabaseAdmin.from<"recipes">>["select"]
-    >,
+      .order("id", { ascending: true }),
   );
   const subs = new Map<string, SubRecipeMeta>();
   for (const r of recipeRows) {
@@ -893,7 +887,7 @@ export async function loadCostingCtxForOrganization(
       subs.set(r.id, {
         id: r.id,
         yieldQuantity: Number(r.yield_quantity),
-        yieldUnit: r.yield_unit,
+        yieldUnit: r.yield_unit as RecipeUnit,
       });
     }
   }
@@ -905,14 +899,14 @@ export async function loadCostingCtxForOrganization(
     article_id: string | null;
     sub_recipe_id: string | null;
     quantity: number;
-    unit: RecipeUnit;
+    unit: string;
     loss_percent: number;
   };
   const recipeIds = recipeRows.map((r) => r.id);
   const items: ItemRow[] =
     recipeIds.length === 0
       ? []
-      : await selectAllPaged<ItemRow>((from, to) =>
+      : await selectAllPaged<ItemRow>(() =>
           supabaseAdmin
             .from("recipe_items")
             .select(
@@ -921,10 +915,7 @@ export async function loadCostingCtxForOrganization(
             .in("recipe_id", recipeIds)
             .order("recipe_id", { ascending: true })
             .order("position", { ascending: true })
-            .order("id", { ascending: true })
-            .range(from, to) as unknown as ReturnType<
-            ReturnType<typeof supabaseAdmin.from<"recipe_items">>["select"]
-          >,
+            .order("id", { ascending: true }),
         );
 
   const recipes = new Map<string, RecipeData>();
@@ -937,7 +928,7 @@ export async function loadCostingCtxForOrganization(
       articleId: it.article_id,
       subRecipeId: it.sub_recipe_id,
       quantity: Number(it.quantity),
-      unit: it.unit,
+      unit: it.unit as RecipeUnit,
       lossPercent: Number(it.loss_percent),
     };
     recipe.items.push(line);
