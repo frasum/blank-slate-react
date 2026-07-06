@@ -319,6 +319,11 @@ function VerkaufsartikelPage() {
                           />
                         </TableCell>
                       )}
+                      {isAdmin && (
+                        <TableCell>
+                          <WeBadge pct={wareneinsatzQuote(row.ekPriceCents, row.priceCents)} />
+                        </TableCell>
+                      )}
                       <TableCell className="text-right">
                         <Switch
                           checked={row.isActive}
