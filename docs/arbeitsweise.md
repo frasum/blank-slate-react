@@ -30,6 +30,24 @@ korrekt bereichs-scoped (kein planer-Default für `roster.swap.view_pending`).
 `planer`-Rollen-Defaults entfernt (Migration) — Sicht ausschließlich über
 gescopte Overrides.
 
+**PL2 (06.07.2026) — Planer-Regression durch globale Vorab-Checks:** Die
+PL1-Nachschärfung (Löschung des `roster.leave.view_all`-Rollen-Defaults für
+`planer`) legte einen Muster-Fehler frei: `has_permission` OHNE
+`_location`/`_area` matcht nur Overrides mit `location_id IS NULL` — ein
+globaler `assertPermission(…, perm, null)`-Vorab-Check liefert für Planer
+mit rein GESCOPTEN Overrides daher immer Forbidden, bevor die
+`resolvePlanerScope`-Logik dahinter greift. Betroffen: `getVacationPlanner`
+(Jahresplaner lud nicht — Frank-Report), `listLeaveRequests`,
+`listPendingSwaps`. Fix: Vorab-Checks entfernt; neuer getesteter Helper
+`assertScopeNotEmpty(scope, perm)` (`scope-util.ts`) wirft NACH der
+Scope-Auflösung, wenn weder `all` noch irgendeine Freigabe vorliegt —
+Sicherheits-Invariante unverändert (Berechtigungslose weiter Forbidden;
+admin/manager via `all=true` unverändert). Regel: Vor `resolvePlanerScope`
+nie ein globaler `assertPermission`-Check — das Gate ist
+`assertScopeNotEmpty`. Gescopte Checks MIT `location`/`area` (z. B.
+`moveRosterShift`) und Self-Service-Rechte bleiben unberührt. Vier Gates
+grün (1457 Tests).
+
 **BB1 (05.07.2026):** Buchhaltungs-Spalte „Besonderheiten" =
 **Auto-Teil** (live aus `roster_absence`, `formatAbsenceNote` in
 `src/lib/time/absence-note.ts` mit `mergeAbsenceRanges` wiederverwendet
