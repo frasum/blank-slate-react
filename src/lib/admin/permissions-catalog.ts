@@ -56,11 +56,19 @@ export type AppPermission =
   | "tasks.create"
   | "tasks.assign"
   | "tasks.change_status"
-  | "tasks.delete";
+  | "tasks.delete"
+  // Modul Verkaufsartikel / Rezepturen
+  | "recipes.manage";
 
 export type PermissionEffect = "allow" | "deny";
 
-export type PermissionModule = "kasse" | "zeit" | "dienstplan" | "lohn" | "aufgaben";
+export type PermissionModule =
+  | "kasse"
+  | "zeit"
+  | "dienstplan"
+  | "lohn"
+  | "aufgaben"
+  | "verkaufsartikel";
 
 export const MODULE_LABEL: Record<PermissionModule, string> = {
   kasse: "Kasse / Tagesabrechnung",
@@ -68,6 +76,7 @@ export const MODULE_LABEL: Record<PermissionModule, string> = {
   dienstplan: "Dienstplan & Urlaub",
   lohn: "Lohn & HR",
   aufgaben: "Aufgaben / Tagesbetrieb",
+  verkaufsartikel: "Verkaufsartikel & Rezepturen",
 };
 
 export type PermissionMeta = {
@@ -426,6 +435,14 @@ export const PERMISSION_CATALOG: readonly PermissionMeta[] = [
     label: "Aufgaben archivieren",
     description: "Aufgabe aus dem Board entfernen (bleibt im Audit, wiederherstellbar; Admin).",
     scopable: true,
+  },
+  {
+    key: "recipes.manage",
+    module: "verkaufsartikel",
+    label: "Rezepte verwalten",
+    description:
+      "Speisen-Rezepturen anlegen und ändern (Zwischenrezepte, Zutaten, Inhalt-Felder auf Einkaufsartikeln). Admin und Manager automatisch; einzelne Planer per Override.",
+    scopable: false,
   },
 ] as const;
 

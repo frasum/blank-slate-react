@@ -13,6 +13,7 @@ import { makeAuditWriter } from "@/lib/admin/audit";
 import { computeEkFromLink } from "./ek-linking";
 import type { Database } from "@/integrations/supabase/types";
 import { selectAllPaged } from "@/lib/supabase/select-all";
+import { loadCostingCtxForOrganization, recalcRecipeEkCents } from "./recipes.functions";
 
 type SalesArticleUpdate = Database["public"]["Tables"]["sales_articles"]["Update"];
 
@@ -360,12 +361,66 @@ export const recalcAllLinkedEk = createServerFn({ method: "POST" })
         changed += 1;
       }
 
+      // R1: Zweite Quelle — Verkaufsartikel mit recipe_id über den Rezept-
+      // Rechenkern neu ermitteln. Fehler (Missing Content, UnitMismatch,
+      // Zyklus, Depth) brechen den Lauf NICHT ab, sondern wandern in
+      // `skipped` — die R2-UI zeigt sie zur Nachpflege an.
+      type RecipeLinkedRow = {
+        id: string;
+        ek_price_cents: number | null;
+        recipe_id: string;
+      };
+      const recipeLinked = await selectAllPaged<RecipeLinkedRow>(() =>
+        supabaseAdmin
+          .from("sales_articles")
+          .select("id, ek_price_cents, recipe_id")
+          .eq("organization_id", caller.organizationId)
+          .not("recipe_id", "is", null)
+          .order("id"),
+      );
+      const skipped: { salesArticleId: string; reason: string }[] = [];
+      let recipeChecked = 0;
+      let recipeChanged = 0;
+      if (recipeLinked.length > 0) {
+        const ctx = await loadCostingCtxForOrganization(caller.organizationId);
+        for (const row of recipeLinked) {
+          recipeChecked += 1;
+          const res = recalcRecipeEkCents(row.recipe_id, ctx);
+          if (!res.ok) {
+            skipped.push({ salesArticleId: row.id, reason: res.reason });
+            continue;
+          }
+          if (res.ekCents === Number(row.ek_price_cents)) continue;
+          const { error: upErr } = await supabaseAdmin
+            .from("sales_articles")
+            .update({ ek_price_cents: res.ekCents, updated_at: nowIso })
+            .eq("id", row.id)
+            .eq("organization_id", caller.organizationId);
+          if (upErr) throw new Error(upErr.message);
+          recipeChanged += 1;
+        }
+      }
+
       return {
-        result: { checked, changed },
+        result: {
+          checked: checked + recipeChecked,
+          changed: changed + recipeChanged,
+          linkChecked: checked,
+          linkChanged: changed,
+          recipeChecked,
+          recipeChanged,
+          skipped,
+        },
         audit: {
           action: "sales_article.ek_recalc_all",
           entity: "sales_articles",
-          meta: { checked, changed },
+          meta: {
+            linkChecked: checked,
+            linkChanged: changed,
+            recipeChecked,
+            recipeChanged,
+            skippedCount: skipped.length,
+          },
         },
       };
     });
