@@ -551,11 +551,7 @@ function LinkDialog({
               <span className="text-muted-foreground">
                 Kein 1:1-Einkaufsartikel? Aus Zutaten berechnen:
               </span>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onCreateRecipeFor(sales.id)}
-              >
+              <Button size="sm" variant="outline" onClick={() => onCreateRecipeFor(sales.id)}>
                 Neues Rezept für diesen Artikel
               </Button>
             </div>

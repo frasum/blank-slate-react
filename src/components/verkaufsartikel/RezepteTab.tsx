@@ -303,10 +303,7 @@ function RecipeListSection(props: {
                       const names = props.subtitleFn(r);
                       if (names.length === 0) return null;
                       return (
-                        <div
-                          className="text-xs text-muted-foreground"
-                          title={names.join(", ")}
-                        >
+                        <div className="text-xs text-muted-foreground" title={names.join(", ")}>
                           Verkaufsartikel: {names.slice(0, 2).join(", ")}
                           {names.length > 2 ? ` (+${names.length - 2})` : ""}
                         </div>
@@ -375,9 +372,7 @@ function NewRecipeDialog(props: {
   const preselected = useMemo(() => {
     if (props.kind !== "dish") return null;
     if (!props.preselectedSalesArticleId) return null;
-    return (
-      props.salesArticles.find((s) => s.id === props.preselectedSalesArticleId) ?? null
-    );
+    return props.salesArticles.find((s) => s.id === props.preselectedSalesArticleId) ?? null;
   }, [props.kind, props.preselectedSalesArticleId, props.salesArticles]);
 
   const [step, setStep] = useState<"pick" | "form">(
@@ -553,9 +548,7 @@ function NewRecipeDialog(props: {
               <div className="rounded-md border border-border bg-muted/40 p-2 text-xs">
                 Wird verknüpft mit{" "}
                 <span className="font-medium text-foreground">{salesArticle.name}</span>
-                {salesArticle.priceCents !== null && (
-                  <> · VK {fmtCents(salesArticle.priceCents)}</>
-                )}
+                {salesArticle.priceCents !== null && <> · VK {fmtCents(salesArticle.priceCents)}</>}
               </div>
             )}
             {props.kind === "dish" && !salesArticle && (
@@ -563,32 +556,34 @@ function NewRecipeDialog(props: {
                 Ohne Verkaufsartikel — später über den Editor verknüpfen.
               </div>
             )}
-          <div>
-            <label className="text-xs font-medium text-muted-foreground">Name</label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
-          </div>
-          {props.kind === "sub" && (
-            <div className="flex items-end gap-2">
-              <div className="flex-1">
-                <label className="text-xs font-medium text-muted-foreground">Ausbeute-Menge</label>
-                <Input
-                  value={yieldQty}
-                  onChange={(e) => setYieldQty(e.target.value)}
-                  placeholder="z. B. 1000"
-                  inputMode="decimal"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground">Einheit</label>
-                <UnitSelect value={yieldUnit} onChange={setYieldUnit} />
-              </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Name</label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
             </div>
-          )}
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+            {props.kind === "sub" && (
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <label className="text-xs font-medium text-muted-foreground">
+                    Ausbeute-Menge
+                  </label>
+                  <Input
+                    value={yieldQty}
+                    onChange={(e) => setYieldQty(e.target.value)}
+                    placeholder="z. B. 1000"
+                    inputMode="decimal"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Einheit</label>
+                  <UnitSelect value={yieldUnit} onChange={setYieldUnit} />
+                </div>
+              </div>
+            )}
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
           </div>
         )}
 
@@ -599,11 +594,7 @@ function NewRecipeDialog(props: {
           {step === "form" && (
             <>
               {props.kind === "dish" && !props.preselectedSalesArticleId && (
-                <Button
-                  variant="outline"
-                  onClick={() => setStep("pick")}
-                  disabled={saving}
-                >
+                <Button variant="outline" onClick={() => setStep("pick")} disabled={saving}>
                   Zurück
                 </Button>
               )}

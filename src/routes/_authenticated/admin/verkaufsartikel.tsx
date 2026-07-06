@@ -202,9 +202,7 @@ function VerkaufsartikelPage() {
           <TabsContent value="ek" className="pt-4">
             <EkZuordnungTab
               locationId={locationId}
-              onCreateRecipeFor={
-                canManageRecipes.data ? startRecipeForArticle : undefined
-              }
+              onCreateRecipeFor={canManageRecipes.data ? startRecipeForArticle : undefined}
             />
           </TabsContent>
           {canManageRecipes.data && (
