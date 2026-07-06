@@ -317,14 +317,19 @@ export function EkZuordnungTab({ locationId }: { locationId: string }) {
                       <WeBadge pct={wePct} />
                     </TableCell>
                     <TableCell>
-                      {st === "verknuepft" && (
-                        <Badge variant="secondary" title={r.ekSourceArticleName ?? ""}>
-                          verknüpft
-                          {r.ekPortionMl && r.ekSourceVolumeMl
-                            ? ` (${r.ekPortionMl}/${r.ekSourceVolumeMl} ml)`
-                            : " (1:1)"}
-                        </Badge>
-                      )}
+                      {st === "verknuepft" &&
+                        (r.recipeId ? (
+                          <Badge variant="secondary" title={r.recipeName ?? ""}>
+                            Rezept{r.recipeName ? `: ${r.recipeName}` : ""}
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" title={r.ekSourceArticleName ?? ""}>
+                            verknüpft
+                            {r.ekPortionMl && r.ekSourceVolumeMl
+                              ? ` (${r.ekPortionMl}/${r.ekSourceVolumeMl} ml)`
+                              : " (1:1)"}
+                          </Badge>
+                        ))}
                       {st === "manuell" && <Badge variant="outline">manuell</Badge>}
                       {st === "ignoriert" && <Badge variant="outline">ignoriert</Badge>}
                       {st === "offen" && <span className="text-xs text-muted-foreground">—</span>}
