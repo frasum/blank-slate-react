@@ -172,6 +172,21 @@ function VerkaufsartikelPage() {
               setWg={setWg}
               allowedHauptLabels={["Küche", "Getränke"]}
               blockedUnterLabels={["Divers", "FFP2", "Hilf Mahl", "Hilfmal"]}
+              blockedWgLabels={[
+                "FFP2",
+                "Getränke offen",
+                "Heißgetränke",
+                "Hilf mahl",
+                "Hilf mal",
+                "Küche offen",
+                "Liefergebühr",
+                "TakeAway",
+                "Take Away",
+                "Thai Fusion",
+                "Thai Pinto 4 Talon",
+                "Thai Pinto 5 Talon",
+                "Zusatztexte",
+              ]}
             />
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
               <Switch checked={showInactive} onCheckedChange={setShowInactive} />
