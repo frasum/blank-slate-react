@@ -3011,6 +3011,17 @@ Treffer mit Einkaufspreis 0, und als größter Hebel: 61 von 130
 Einkaufs-Weinen sowie alle Biere ohne Einkaufspreis. Speisen bewusst
 ausgeklammert (Rezept-Welle).
 
+**EKW1 — Wareneinsatzquote (06.07.2026):** Ampel-Spalte „WE %" in beiden
+Verkaufsartikel-Tabs (Liste + EK-Werkbank), Rechenweg zentral und
+getestet in `ek-linking.ts`: `wareneinsatzQuote(ekCents, vkBruttoCents)`
+= EK netto ÷ VK netto × 100 (VK ist brutto → ÷ 1,19; Konstante
+`EKW_VAT_RATE`). Schwellen als Konstanten: grün ≤ 25 % · gelb ≤ 35 % ·
+rot darüber (`WE_GRUEN_BIS`/`WE_GELB_BIS`). Werkbank zusätzlich:
+Sortierung nach WE % und ungewichteter Ø im Filterkopf (Hinweis: echte
+betriebliche Quote braucht Absatzmengen aus der POS-Statistik — spätere
+Welle, dann je Warengruppe gewichtbar). Abgenommen HEAD 7dd5288d, vier
+Gates grün (1463 Tests).
+
 ## §Z2 — Wochenplan zeigt Mitarbeiter je Zuordnung (Analogie zu D-3)
 
 Ein Mitarbeiter erscheint im Wochenplan-Grid der Zeitübersicht in JEDER
