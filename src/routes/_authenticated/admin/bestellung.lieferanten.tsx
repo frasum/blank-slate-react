@@ -875,21 +875,83 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function SupplierForm(props: {
   initial: SupplierDraft;
+  editingSupplierId: string | null;
+  locations: { id: string; name: string }[];
   submitLabel: string;
   submitting: boolean;
-  onSubmit: (d: SupplierDraft) => void;
+  onSubmit: (d: SupplierDraft, locationChanges: SupplierLocationChange[]) => void;
   onCancel: () => void;
 }) {
   const [d, setD] = useState<SupplierDraft>(props.initial);
   const set = <K extends keyof SupplierDraft>(k: K, v: SupplierDraft[K]) =>
     setD((prev) => ({ ...prev, [k]: v }));
 
+  // SL1: aktuelle supplier_locations für diesen Lieferanten laden. Nur im
+  // edit-Modus sinnvoll — beim Neuanlegen existiert der Lieferant noch nicht.
+  const supLocQ = useQuery({
+    queryKey: ["bestellung", "supplier-locations", "for-supplier", props.editingSupplierId],
+    queryFn: () => listSupplierLocations({ data: { supplierId: props.editingSupplierId! } }),
+    enabled: !!props.editingSupplierId,
+  });
+
+  // Lokaler UI-State pro Standort. Default: aktiv=true, Nummer="" — genau die
+  // Semantik „keine Zeile in DB". Existierende Zeile überschreibt.
+  type Row = { customerNumber: string; isActive: boolean };
+  const initialRows = useMemo<Record<string, Row>>(() => {
+    const map: Record<string, Row> = {};
+    for (const loc of props.locations) {
+      map[loc.id] = { customerNumber: "", isActive: true };
+    }
+    for (const r of supLocQ.data ?? []) {
+      map[r.locationId] = {
+        customerNumber: r.customerNumber ?? "",
+        isActive: r.isActive,
+      };
+    }
+    return map;
+  }, [props.locations, supLocQ.data]);
+  const [locRows, setLocRows] = useState<Record<string, Row>>(initialRows);
+  // Sync, wenn supLocQ.data neu eintrifft.
+  const [syncedKey, setSyncedKey] = useState<string>("");
+  const currentKey =
+    (props.editingSupplierId ?? "") + ":" + (supLocQ.data ? "loaded" : "empty");
+  if (currentKey !== syncedKey) {
+    setSyncedKey(currentKey);
+    setLocRows(initialRows);
+  }
+
+  function computeLocationChanges(): SupplierLocationChange[] {
+    if (!props.editingSupplierId) return [];
+    const existing = new Map((supLocQ.data ?? []).map((r) => [r.locationId, r] as const));
+    const changes: SupplierLocationChange[] = [];
+    for (const loc of props.locations) {
+      const cur = locRows[loc.id];
+      if (!cur) continue;
+      const ex = existing.get(loc.id);
+      const normalized = cur.customerNumber.trim();
+      const exNumber = ex?.customerNumber ?? "";
+      const exActive = ex?.isActive ?? true;
+      const hasRow = !!ex;
+      const isDefault = normalized === "" && cur.isActive === true;
+      // Kein Change, wenn Default-Zustand ohne DB-Row (Zeile gar nicht erst anlegen).
+      if (!hasRow && isDefault) continue;
+      // Kein Change, wenn identisch zur DB-Row.
+      if (hasRow && normalized === (exNumber ?? "") && cur.isActive === exActive) continue;
+      changes.push({
+        locationId: loc.id,
+        customerNumber: normalized === "" ? null : normalized,
+        isActive: cur.isActive,
+      });
+    }
+    return changes;
+  }
+
   return (
     <form
       className="space-y-3"
       onSubmit={(e) => {
         e.preventDefault();
-        props.onSubmit(d);
+        props.onSubmit(d, computeLocationChanges());
       }}
     >
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -930,7 +992,7 @@ function SupplierForm(props: {
             className={inputCls}
           />
         </Field>
-        <Field label="Unsere Kundennummer">
+        <Field label="Kundennummer (Standard, wenn kein Standort-Wert)">
           <input
             value={d.customerNumber}
             onChange={(e) => set("customerNumber", e.target.value)}
@@ -998,6 +1060,53 @@ function SupplierForm(props: {
           className={inputCls}
         />
       </Field>
+      {props.editingSupplierId && props.locations.length > 0 && (
+        <div className="rounded-md border border-border p-3">
+          <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
+            Standorte
+          </div>
+          <p className="mb-3 text-xs text-muted-foreground">
+            Leeres Feld = Standard-Kundennummer. Aus = Lieferant an diesem Standort deaktiviert.
+          </p>
+          <div className="space-y-2">
+            {props.locations.map((loc) => {
+              const row = locRows[loc.id] ?? { customerNumber: "", isActive: true };
+              return (
+                <div
+                  key={loc.id}
+                  className="flex flex-wrap items-center gap-3 rounded border border-input bg-background px-3 py-2"
+                >
+                  <span className="min-w-32 text-sm font-medium text-foreground">{loc.name}</span>
+                  <input
+                    value={row.customerNumber}
+                    onChange={(e) =>
+                      setLocRows((prev) => ({
+                        ...prev,
+                        [loc.id]: { ...row, customerNumber: e.target.value },
+                      }))
+                    }
+                    placeholder={d.customerNumber || "—"}
+                    className={`${inputCls} max-w-48`}
+                  />
+                  <label className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={row.isActive}
+                      onChange={(e) =>
+                        setLocRows((prev) => ({
+                          ...prev,
+                          [loc.id]: { ...row, isActive: e.target.checked },
+                        }))
+                      }
+                    />
+                    aktiv
+                  </label>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
       <div className="flex items-center gap-2">
         <button
           type="submit"
