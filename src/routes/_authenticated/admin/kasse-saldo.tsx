@@ -239,7 +239,6 @@ function KasseSaldoPage() {
                   <TableHead className="text-right px-2 py-2 text-xs">SoUse</TableHead>
                   <TableHead className="text-right px-2 py-2 text-xs">Wolt</TableHead>
                   <TableHead className="text-right px-2 py-2 text-xs">Gut. EL</TableHead>
-                  <TableHead className="text-right px-2 py-2 text-xs">FineDine</TableHead>
                   <TableHead className="text-right px-2 py-2 text-xs">Gut. VK</TableHead>
                   <TableHead className="text-right px-2 py-2 text-xs">Einladung</TableHead>
                   <TableHead className="text-right px-2 py-2 text-xs">Off. RE</TableHead>
@@ -271,9 +270,6 @@ function KasseSaldoPage() {
                     </TableCell>
                     <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
                       {fmtEuro(r.vouchersRedeemedCents)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
-                      {fmtEuro(r.finedineCents)}
                     </TableCell>
                     <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
                       {fmtEuro(r.vouchersSoldCents)}
@@ -316,9 +312,6 @@ function KasseSaldoPage() {
                   </TableCell>
                   <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
                     {fmtEuro(totals.vouchersRedeemed)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
-                    {fmtEuro(totals.finedine)}
                   </TableCell>
                   <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
                     {fmtEuro(totals.vouchersSold)}
