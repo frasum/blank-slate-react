@@ -70,9 +70,16 @@ export function PermissionsTab({ staffId }: { staffId: string }) {
 
   const defaultSet = useMemo(() => new Set(permsQ.data?.defaults ?? []), [permsQ.data?.defaults]);
 
-  // Nach Modul gruppieren (Reihenfolge: kasse → zeit).
+  // Nach Modul gruppieren (Reihenfolge wie im Katalog sichtbar machen).
   const grouped = useMemo(() => {
-    const order: PermissionModule[] = ["kasse", "zeit"];
+    const order: PermissionModule[] = [
+      "kasse",
+      "zeit",
+      "dienstplan",
+      "lohn",
+      "aufgaben",
+      "verkaufsartikel",
+    ];
     const map = new Map<PermissionModule, PermissionMeta[]>();
     for (const m of order) map.set(m, []);
     for (const p of PERMISSION_CATALOG) {
