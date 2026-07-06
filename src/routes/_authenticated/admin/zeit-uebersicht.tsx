@@ -1491,7 +1491,12 @@ function ZeitUebersichtPage() {
         </TabsContent>
       </Tabs>
 
-      {isAdmin && !isAllLocations && effectiveLocationId && fromDate && toDate && (
+      {isAdmin &&
+        activeTab === "payroll" &&
+        !isAllLocations &&
+        effectiveLocationId &&
+        fromDate &&
+        toDate && (
         <BatchTimesCard
           locationId={effectiveLocationId}
           periodStart={fromDate}
