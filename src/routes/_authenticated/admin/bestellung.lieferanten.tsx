@@ -301,8 +301,12 @@ function LieferantenPage() {
   });
 
   const updateSupMut = useMutation({
-    mutationFn: (input: { id: string; draft: SupplierDraft }) =>
-      callUpdateSup({
+    mutationFn: async (input: {
+      id: string;
+      draft: SupplierDraft;
+      locationChanges: SupplierLocationChange[];
+    }) => {
+      await callUpdateSup({
         data: {
           supplierId: input.id,
           name: input.draft.name,
@@ -317,11 +321,24 @@ function LieferantenPage() {
           minOrderValueCents: parseEuroToCents(input.draft.minOrderValueEuro),
           sortOrder: input.draft.sortOrder,
         },
-      }),
+      });
+      // SL1: geänderte Standort-Zeilen speichern.
+      for (const c of input.locationChanges) {
+        await callSetSupplierLocation({
+          data: {
+            supplierId: input.id,
+            locationId: c.locationId,
+            customerNumber: c.customerNumber,
+            isActive: c.isActive,
+          },
+        });
+      }
+    },
     onSuccess: () => {
       setSupplierDialog(null);
       setMsg(null);
-      return refreshSuppliers();
+      refreshSuppliers();
+      return refreshSupplierLocations();
     },
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
   });
