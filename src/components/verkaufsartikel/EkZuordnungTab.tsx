@@ -90,6 +90,7 @@ const PORTION_CHIPS: { label: string; ml: number | "flasche" }[] = [
 function statusOf(a: SalesArticle): StatusFilter {
   if (a.ekMatchIgnored) return "ignoriert";
   if (a.ekSourceArticleId) return "verknuepft";
+  if (a.recipeId) return "verknuepft";
   if (a.ekPriceCents !== null) return "manuell";
   return "offen";
 }
@@ -121,6 +122,7 @@ export function EkZuordnungTab({ locationId }: { locationId: string }) {
   const [weSort, setWeSort] = useState<WeSort>("none");
   const [linkTarget, setLinkTarget] = useState<SalesArticle | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [skipped, setSkipped] = useState<{ salesArticleId: string; reason: string }[]>([]);
 
   const counts = useMemo(() => {
     const c = { offen: 0, verknuepft: 0, manuell: 0, ignoriert: 0, alle: rows.length };
@@ -167,6 +169,7 @@ export function EkZuordnungTab({ locationId }: { locationId: string }) {
     onSuccess: (res) => {
       invalidate();
       toast.success(`EKs neu berechnet: ${res.checked} geprüft, ${res.changed} geändert.`);
+      setSkipped(res.skipped ?? []);
     },
     onError: (e: Error) => toast.error(e.message),
   });
