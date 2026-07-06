@@ -2997,6 +2997,20 @@ die Rezept-Welle nachzieht (1-Zutat-Spezialfall = jetziger Stand).
 Bestehende EK-Werte (35 automatisch + 306 Vectron-Import) bleiben als
 „Manueller EK" bis zur Zuordnung — nichts gelöscht.
 
+**EK1 — Massen-Verknüpfung Getränke (06.07.2026):** 81 Verkaufsartikel per
+Offline-Abgleich (CSV-Exporte, Token-Matching ohne Volumen-/Jahrgangs-
+Rauschen, Volumen-Parser analog `extractVolumeMl`, Marge-Plausibilitäts-Gate
+≥ 30 %) eindeutig mit Einkaufsartikeln verknüpft — 33 davon 1:1-Flaschen,
+Rest anteilig (`ek_portion_ml`/`ek_source_volume_ml`, z. B. 0,2l-Glas aus
+0,75l-Flasche). SQL setzte NUR die Verknüpfungsfelder (Guards: nie über
+bestehende Links/Ignorier-Flags); Preise via `recalcAllLinkedEk` durch die
+App berechnet. Live verifiziert: 82/82 Verknüpfungen mit EK-Preis, 0
+CHECK-Verletzungen. Restarbeit bei Frank: 268 Werkbank-Kandidaten (197
+Cocktails/Tees = Rezept-/Ignorieren-Fälle, 60 mehrdeutig), 13 eindeutige
+Treffer mit Einkaufspreis 0, und als größter Hebel: 61 von 130
+Einkaufs-Weinen sowie alle Biere ohne Einkaufspreis. Speisen bewusst
+ausgeklammert (Rezept-Welle).
+
 ## §Z2 — Wochenplan zeigt Mitarbeiter je Zuordnung (Analogie zu D-3)
 
 Ein Mitarbeiter erscheint im Wochenplan-Grid der Zeitübersicht in JEDER
