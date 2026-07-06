@@ -97,7 +97,7 @@ export const listRecipes = createServerFn({ method: "POST" })
       name: string;
       kind: string;
       yield_quantity: number | null;
-      yield_unit: RecipeUnit | null;
+      yield_unit: string | null;
       updated_at: string;
     };
     const kindFilter = data.kind;
@@ -140,7 +140,7 @@ export const listRecipes = createServerFn({ method: "POST" })
       name: r.name,
       kind: r.kind as RecipeKind,
       yieldQuantity: r.yield_quantity === null ? null : Number(r.yield_quantity),
-      yieldUnit: r.yield_unit,
+      yieldUnit: r.yield_unit as RecipeUnit | null,
       updatedAt: r.updated_at,
       usageCount: counts.get(r.id) ?? 0,
     }));
