@@ -363,15 +363,59 @@ function RecipeListSection(props: {
 
 function NewRecipeDialog(props: {
   kind: RecipeKind;
+  preselectedSalesArticleId?: string | null;
+  salesArticles: SalesArticle[];
   onClose: () => void;
   onCreated: (id: string) => void;
 }) {
   const callUpsert = useServerFn(upsertRecipe);
-  const [name, setName] = useState("");
+  const callLink = useServerFn(linkSalesArticleRecipe);
+
+  // Zweistufig nur für Gerichte. Zwischenrezepte gehen direkt in die Form.
+  const preselected = useMemo(() => {
+    if (props.kind !== "dish") return null;
+    if (!props.preselectedSalesArticleId) return null;
+    return (
+      props.salesArticles.find((s) => s.id === props.preselectedSalesArticleId) ?? null
+    );
+  }, [props.kind, props.preselectedSalesArticleId, props.salesArticles]);
+
+  const [step, setStep] = useState<"pick" | "form">(
+    props.kind === "sub" || preselected ? "form" : "pick",
+  );
+  const [salesArticle, setSalesArticle] = useState<SalesArticle | null>(preselected);
+  const [name, setName] = useState(preselected?.name ?? "");
   const [yieldQty, setYieldQty] = useState<string>("");
   const [yieldUnit, setYieldUnit] = useState<RecipeUnit>("ml");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [query, setQuery] = useState("");
+
+  // Auswahl-Listen für Schritt 1
+  const { eligible, blocked } = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const el: SalesArticle[] = [];
+    const bl: SalesArticle[] = [];
+    for (const s of props.salesArticles) {
+      if (!s.isActive) continue;
+      if (s.recipeId !== null) continue; // hat schon ein Rezept
+      if (q && !s.name.toLowerCase().includes(q)) continue;
+      if (s.ekSourceArticleId !== null) bl.push(s);
+      else el.push(s);
+    }
+    return { eligible: el.slice(0, 30), blocked: bl.slice(0, 10) };
+  }, [props.salesArticles, query]);
+
+  function chooseArticle(s: SalesArticle) {
+    setSalesArticle(s);
+    setName(s.name);
+    setStep("form");
+  }
+
+  function chooseStandalone() {
+    setSalesArticle(null);
+    setStep("form");
+  }
 
   async function save() {
     setError(null);
@@ -397,6 +441,21 @@ function NewRecipeDialog(props: {
           notes: null,
         },
       });
+      if (props.kind === "dish" && salesArticle) {
+        try {
+          await callLink({
+            data: { salesArticleId: salesArticle.id, recipeId: res.id },
+          });
+          toast.success(`Rezept angelegt und mit „${salesArticle.name}" verknüpft.`);
+        } catch (e) {
+          // Rezept ist bereits angelegt — Fehler melden, aber Editor öffnen.
+          toast.error(
+            e instanceof Error
+              ? `Rezept angelegt, Verknüpfung fehlgeschlagen: ${e.message}`
+              : "Verknüpfung fehlgeschlagen.",
+          );
+        }
+      }
       props.onCreated(res.id);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Speichern fehlgeschlagen.");
@@ -409,14 +468,101 @@ function NewRecipeDialog(props: {
     <Dialog open onOpenChange={(o) => (o ? undefined : props.onClose())}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Neues {props.kind === "dish" ? "Gericht" : "Zwischenrezept"}</DialogTitle>
+          <DialogTitle>
+            Neues {props.kind === "dish" ? "Gericht" : "Zwischenrezept"}
+            {step === "pick" ? " — Verkaufsartikel wählen" : ""}
+          </DialogTitle>
           <DialogDescription>
             {props.kind === "sub"
               ? "Zwischenrezepte (z. B. Currypaste, Fond) brauchen eine Ausbeute — daraus ergibt sich der Preis je Basiseinheit für übergeordnete Rezepte."
-              : "Gerichte werden mit Verkaufsartikeln verknüpft; ihre Kosten ergeben den EK."}
+              : step === "pick"
+                ? "Für welchen Verkaufsartikel? Das Rezept wird sofort verknüpft, damit VK und WE-% ab der ersten Zutat sichtbar sind."
+                : "Gerichte werden mit Verkaufsartikeln verknüpft; ihre Kosten ergeben den EK."}
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-3">
+
+        {step === "pick" ? (
+          <div className="space-y-3">
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Verkaufsartikel suchen …"
+              autoFocus
+            />
+            <div className="max-h-72 overflow-y-auto rounded-md border border-border">
+              {eligible.length === 0 && blocked.length === 0 ? (
+                <p className="p-2 text-xs text-muted-foreground">Keine Treffer.</p>
+              ) : (
+                <ul className="divide-y divide-border text-sm">
+                  {eligible.map((s) => (
+                    <li key={s.id}>
+                      <button
+                        type="button"
+                        onClick={() => chooseArticle(s)}
+                        className="flex w-full items-center justify-between px-3 py-2 text-left hover:bg-muted"
+                      >
+                        <span>
+                          <span className="font-medium">{s.name}</span>
+                          {s.hauptgruppe && (
+                            <span className="ml-2 text-xs text-muted-foreground">
+                              {s.hauptgruppe}
+                              {s.untergruppe ? ` · ${s.untergruppe}` : ""}
+                            </span>
+                          )}
+                        </span>
+                        <span className="font-mono text-xs">
+                          {s.priceCents === null ? "—" : fmtCents(s.priceCents)}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                  {blocked.map((s) => (
+                    <li key={s.id}>
+                      <div
+                        className="flex w-full items-center justify-between px-3 py-2 text-left opacity-50"
+                        title="hat 1:1-Zuordnung — erst in der EK-Werkbank lösen"
+                      >
+                        <span>
+                          <span className="font-medium">{s.name}</span>
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            hat 1:1-Zuordnung — erst in der EK-Werkbank lösen
+                          </span>
+                        </span>
+                        <span className="font-mono text-xs">
+                          {s.priceCents === null ? "—" : fmtCents(s.priceCents)}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="text-right">
+              <button
+                type="button"
+                onClick={chooseStandalone}
+                className="text-xs text-muted-foreground underline hover:text-foreground"
+              >
+                Ohne Verkaufsartikel anlegen
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {props.kind === "dish" && salesArticle && (
+              <div className="rounded-md border border-border bg-muted/40 p-2 text-xs">
+                Wird verknüpft mit{" "}
+                <span className="font-medium text-foreground">{salesArticle.name}</span>
+                {salesArticle.priceCents !== null && (
+                  <> · VK {fmtCents(salesArticle.priceCents)}</>
+                )}
+              </div>
+            )}
+            {props.kind === "dish" && !salesArticle && (
+              <div className="rounded-md border border-dashed border-border p-2 text-xs text-muted-foreground">
+                Ohne Verkaufsartikel — später über den Editor verknüpfen.
+              </div>
+            )}
           <div>
             <label className="text-xs font-medium text-muted-foreground">Name</label>
             <Input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
@@ -443,14 +589,29 @@ function NewRecipeDialog(props: {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-        </div>
+          </div>
+        )}
+
         <DialogFooter>
           <Button variant="ghost" onClick={props.onClose} disabled={saving}>
             Abbrechen
           </Button>
-          <Button onClick={save} disabled={saving}>
-            {saving ? "Speichert …" : "Anlegen"}
-          </Button>
+          {step === "form" && (
+            <>
+              {props.kind === "dish" && !props.preselectedSalesArticleId && (
+                <Button
+                  variant="outline"
+                  onClick={() => setStep("pick")}
+                  disabled={saving}
+                >
+                  Zurück
+                </Button>
+              )}
+              <Button onClick={save} disabled={saving}>
+                {saving ? "Speichert …" : "Anlegen"}
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
