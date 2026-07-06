@@ -5,7 +5,7 @@
 // Client mit dem SELBEN reinen Rechenkern wie der Server
 // (`recipe-costing.ts`) — keine Formel-Duplikate in dieser Datei.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -60,7 +60,15 @@ import {
 // Haupt-Komponente
 // ---------------------------------------------------------------------------
 
-export function RezepteTab({ locationId }: { locationId: string }) {
+export function RezepteTab({
+  locationId,
+  initialCreateForSalesArticleId,
+  onConsumedInitialCreate,
+}: {
+  locationId: string;
+  initialCreateForSalesArticleId?: string | null;
+  onConsumedInitialCreate?: () => void;
+}) {
   const qc = useQueryClient();
   const callList = useServerFn(listRecipes);
   const callDelete = useServerFn(deleteRecipe);
@@ -92,12 +100,40 @@ export function RezepteTab({ locationId }: { locationId: string }) {
 
   const [search, setSearch] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
-  const [creating, setCreating] = useState<{ kind: RecipeKind } | null>(null);
+  const [creating, setCreating] = useState<{
+    kind: RecipeKind;
+    preselectedSalesArticleId?: string | null;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // R2b — Einstieg von anderen Tabs: Vorauswahl eines Verkaufsartikels
+  // öffnet den zweistufigen „+ Gericht"-Fluss direkt in Schritt 2.
+  useEffect(() => {
+    if (initialCreateForSalesArticleId) {
+      setCreating({
+        kind: "dish",
+        preselectedSalesArticleId: initialCreateForSalesArticleId,
+      });
+      onConsumedInitialCreate?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialCreateForSalesArticleId]);
 
   const rows = recipesQ.data ?? [];
   const dishes = rows.filter((r) => r.kind === "dish");
   const subs = rows.filter((r) => r.kind === "sub");
+
+  // R2b — Verknüpfte Verkaufsartikel je Rezept, für die Untertitel in der Liste.
+  const salesNamesByRecipe = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const s of salesQ.data ?? []) {
+      if (!s.recipeId) continue;
+      const list = m.get(s.recipeId) ?? [];
+      list.push(s.name);
+      m.set(s.recipeId, list);
+    }
+    return m;
+  }, [salesQ.data]);
 
   const filterFn = (r: RecipeListItem) => {
     const q = search.trim().toLowerCase();
@@ -182,6 +218,7 @@ export function RezepteTab({ locationId }: { locationId: string }) {
         emptyLabel="Noch keine Gerichte angelegt."
         rows={dishes.filter(filterFn)}
         usageLabelFn={(n) => `${n} Verkaufsartikel`}
+        subtitleFn={(r) => salesNamesByRecipe.get(r.id) ?? []}
         onOpen={setOpenId}
         onDuplicate={duplicate}
         onDelete={(id) => deleteMut.mutate(id)}
@@ -192,6 +229,7 @@ export function RezepteTab({ locationId }: { locationId: string }) {
         emptyLabel="Noch keine Zwischenrezepte."
         rows={subs.filter(filterFn)}
         usageLabelFn={(n) => `verwendet in ${n} Rezepten`}
+        subtitleFn={() => []}
         onOpen={setOpenId}
         onDuplicate={duplicate}
         onDelete={(id) => deleteMut.mutate(id)}
@@ -200,6 +238,8 @@ export function RezepteTab({ locationId }: { locationId: string }) {
       {creating && (
         <NewRecipeDialog
           kind={creating.kind}
+          preselectedSalesArticleId={creating.preselectedSalesArticleId ?? null}
+          salesArticles={salesQ.data ?? []}
           onClose={() => setCreating(null)}
           onCreated={(id) => {
             setCreating(null);
