@@ -10,6 +10,7 @@ import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { runGuarded } from "@/lib/admin/admin-call";
 import { makeAuditWriter } from "@/lib/admin/audit";
 import { computeInventoryLineValueCents, normalizedPriceCents } from "./unit-conversion";
+import { selectAllPaged } from "@/lib/supabase/select-all";
 
 async function recomputeSessionTotal(sessionId: string, organizationId: string): Promise<number> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -136,26 +137,45 @@ export const getInventorySession = createServerFn({ method: "GET" })
       .eq("organization_id", caller.organizationId);
     if (iErr) throw iErr;
 
-    const { data: articles, error: aErr } = await supabaseAdmin
-      .from("articles")
-      .select("id, name, sku, unit, price_cents, category, supplier_id, sort_order")
-      // E1: zusätzliche Einheitenfelder für Live-Rendering
-      .eq("organization_id", caller.organizationId)
-      .eq("is_active", true)
-      .order("sort_order")
-      .order("name");
-    if (aErr) throw aErr;
+    // BFIX2: paginiert — Katalog kann > 1000 Zeilen erreichen; sonst fehlen
+    // Artikel in der Inventur-Maske.
+    const articles = await selectAllPaged<{
+      id: string;
+      name: string;
+      sku: string | null;
+      unit: string;
+      price_cents: number;
+      category: string | null;
+      supplier_id: string;
+      sort_order: number;
+    }>(() =>
+      supabaseAdmin
+        .from("articles")
+        .select("id, name, sku, unit, price_cents, category, supplier_id, sort_order")
+        .eq("organization_id", caller.organizationId)
+        .eq("is_active", true)
+        .order("sort_order")
+        .order("name")
+        .order("id"),
+    );
 
-    const { data: articleUnits, error: auErr } = await supabaseAdmin
-      .from("articles")
-      .select("id, order_unit, inventory_unit, order_to_inventory_factor")
-      .eq("organization_id", caller.organizationId);
-    if (auErr) throw auErr;
+    const articleUnits = await selectAllPaged<{
+      id: string;
+      order_unit: string;
+      inventory_unit: string;
+      order_to_inventory_factor: number;
+    }>(() =>
+      supabaseAdmin
+        .from("articles")
+        .select("id, order_unit, inventory_unit, order_to_inventory_factor")
+        .eq("organization_id", caller.organizationId)
+        .order("id"),
+    );
     const unitsById = new Map<
       string,
       { order_unit: string; inventory_unit: string; order_to_inventory_factor: number }
     >();
-    for (const u of articleUnits ?? []) {
+    for (const u of articleUnits) {
       unitsById.set(u.id, {
         order_unit: u.order_unit,
         inventory_unit: u.inventory_unit,
@@ -203,7 +223,7 @@ export const getInventorySession = createServerFn({ method: "GET" })
       });
     }
 
-    const rows = (articles ?? []).map((a) => {
+    const rows = articles.map((a) => {
       const it = byArticle.get(a.id);
       const u = unitsById.get(a.id);
       return {

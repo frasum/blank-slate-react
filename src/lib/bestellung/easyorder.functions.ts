@@ -22,6 +22,7 @@ import { writeAuditLog } from "@/lib/admin/audit";
 import { hasMinRole } from "@/lib/admin/role-guard";
 import { assertWithinFence } from "@/lib/geo/server-check";
 import type { Database } from "@/integrations/supabase/types";
+import { selectAllPaged } from "@/lib/supabase/select-all";
 
 type Admin = SupabaseClient<Database>;
 
@@ -125,21 +126,37 @@ export async function getEasyOrderCatalogCore(
   // Standort-Zuordnung: nur Artikel zeigen, die für diesen Standort freigegeben
   // sind. Inner-Join auf article_locations, damit wir keine riesige IN-Liste
   // (URL-Längen-Limit von PostgREST) bauen müssen.
-  let q = admin
-    .from("articles")
-    .select(
-      "id, name, sku, unit, price_cents, category, supplier_id, order_unit, min_order_quantity, quantity_step, suppliers(name), article_locations!inner(location_id)",
-    )
-    .eq("organization_id", caller.organizationId)
-    .eq("is_active", true)
-    .eq("article_locations.location_id", locationId);
-  if (allowedSupplierIds.length > 0) q = q.in("supplier_id", allowedSupplierIds);
-  const { data: articles, error } = await q.order("name");
-  if (error) throw new Error(error.message);
+  // BFIX2: paginiert — TSB-Katalog liegt knapp unter 1000; nächster Wachstum
+  // würde stumm kappen. `id` als Tiebreaker für deterministische Seiten.
+  type CatalogRow = {
+    id: string;
+    name: string;
+    sku: string | null;
+    unit: string | null;
+    price_cents: number;
+    category: string | null;
+    supplier_id: string;
+    order_unit: string | null;
+    min_order_quantity: number | null;
+    quantity_step: number | null;
+    suppliers: { name: string } | null;
+  };
+  const articles = await selectAllPaged<CatalogRow>(() => {
+    let q = admin
+      .from("articles")
+      .select(
+        "id, name, sku, unit, price_cents, category, supplier_id, order_unit, min_order_quantity, quantity_step, suppliers(name), article_locations!inner(location_id)",
+      )
+      .eq("organization_id", caller.organizationId)
+      .eq("is_active", true)
+      .eq("article_locations.location_id", locationId);
+    if (allowedSupplierIds.length > 0) q = q.in("supplier_id", allowedSupplierIds);
+    return q.order("name").order("id");
+  });
 
   return {
     locationId,
-    articles: (articles ?? [])
+    articles: articles
       .filter((a) => !disabledSupplierIds.has(a.supplier_id))
       .map((a) => ({
         id: a.id,

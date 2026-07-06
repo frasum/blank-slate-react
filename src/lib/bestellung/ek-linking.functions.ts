@@ -12,6 +12,7 @@ import { runGuarded } from "@/lib/admin/admin-call";
 import { makeAuditWriter } from "@/lib/admin/audit";
 import { computeEkFromLink } from "./ek-linking";
 import type { Database } from "@/integrations/supabase/types";
+import { selectAllPaged } from "@/lib/supabase/select-all";
 
 type SalesArticleUpdate = Database["public"]["Tables"]["sales_articles"]["Update"];
 
@@ -312,19 +313,30 @@ export const recalcAllLinkedEk = createServerFn({ method: "POST" })
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
     return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: linked, error } = await supabaseAdmin
-        .from("sales_articles")
-        .select(
-          "id, ek_price_cents, ek_portion_ml, ek_source_volume_ml, ek_source_article_id, articles!sales_articles_ek_source_article_id_fkey(price_cents)",
-        )
-        .eq("organization_id", caller.organizationId)
-        .not("ek_source_article_id", "is", null);
-      if (error) throw new Error(error.message);
+      // BFIX2: paginiert — sales_articles kann bei mehreren Standorten > 1000 werden.
+      type LinkedRow = {
+        id: string;
+        ek_price_cents: number | null;
+        ek_portion_ml: number | null;
+        ek_source_volume_ml: number | null;
+        ek_source_article_id: string | null;
+        articles: { price_cents: number | null } | null;
+      };
+      const linked = await selectAllPaged<LinkedRow>(() =>
+        supabaseAdmin
+          .from("sales_articles")
+          .select(
+            "id, ek_price_cents, ek_portion_ml, ek_source_volume_ml, ek_source_article_id, articles!sales_articles_ek_source_article_id_fkey(price_cents)",
+          )
+          .eq("organization_id", caller.organizationId)
+          .not("ek_source_article_id", "is", null)
+          .order("id"),
+      );
 
       let checked = 0;
       let changed = 0;
       const nowIso = new Date().toISOString();
-      for (const row of linked ?? []) {
+      for (const row of linked) {
         checked += 1;
         const src = row.articles as { price_cents: number | null } | null;
         const srcPrice =

@@ -8,6 +8,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { runGuarded } from "@/lib/admin/admin-call";
 import { makeAuditWriter } from "@/lib/admin/audit";
+import { selectAllPaged } from "@/lib/supabase/select-all";
 
 /**
  * Reduziert einen Suchbegriff auf eine sichere Allowlist (Unicode-Buchstaben,
@@ -107,34 +108,67 @@ export const listArticles = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    let q = supabaseAdmin
-      .from("articles")
-      .select(
-        "id, supplier_id, name, sku, description, category, unit, price_cents, packaging_unit, order_unit, inventory_unit, order_to_inventory_factor, quantity_step, allow_decimal_order_quantity, min_order_quantity, target_stock_total, target_stock_bar, image_url, is_active, sort_order, created_at, updated_at, grape_variety, origin_country, food_pairings, special_attributes",
-      )
-      .eq("organization_id", caller.organizationId)
-      .order("sort_order")
-      .order("name");
-    if (!data.includeInactive) q = q.eq("is_active", true);
-    if (data.supplierId) q = q.eq("supplier_id", data.supplierId);
-    if (data.category) q = q.eq("category", data.category);
-    if (data.onlyWine) q = q.eq("category", "Wein");
-    if (data.search) {
-      const term = sanitizeArticleSearchTerm(data.search);
-      if (term) q = q.or(`name.ilike.%${term}%,sku.ilike.%${term}%`);
-    }
-    const { data: rows, error } = await q;
-    if (error) throw error;
-    const articleRows = rows ?? [];
+    // BFIX2: paginiert — Katalog kann > 1000 Zeilen erreichen. Ohne stabilen
+    // Tiebreaker (id) wäre `.range()` nicht deterministisch.
+    const articleRows = await selectAllPaged<{
+      id: string;
+      supplier_id: string;
+      name: string;
+      sku: string | null;
+      description: string | null;
+      category: string | null;
+      unit: string;
+      price_cents: number;
+      packaging_unit: number | null;
+      order_unit: string;
+      inventory_unit: string;
+      order_to_inventory_factor: number;
+      quantity_step: number;
+      allow_decimal_order_quantity: boolean;
+      min_order_quantity: number;
+      target_stock_total: number | null;
+      target_stock_bar: number | null;
+      image_url: string | null;
+      is_active: boolean;
+      sort_order: number;
+      created_at: string;
+      updated_at: string;
+      grape_variety: string | null;
+      origin_country: string | null;
+      food_pairings: string | null;
+      special_attributes: string[] | null;
+    }>(() => {
+      let q = supabaseAdmin
+        .from("articles")
+        .select(
+          "id, supplier_id, name, sku, description, category, unit, price_cents, packaging_unit, order_unit, inventory_unit, order_to_inventory_factor, quantity_step, allow_decimal_order_quantity, min_order_quantity, target_stock_total, target_stock_bar, image_url, is_active, sort_order, created_at, updated_at, grape_variety, origin_country, food_pairings, special_attributes",
+        )
+        .eq("organization_id", caller.organizationId)
+        .order("sort_order")
+        .order("name")
+        .order("id");
+      if (!data.includeInactive) q = q.eq("is_active", true);
+      if (data.supplierId) q = q.eq("supplier_id", data.supplierId);
+      if (data.category) q = q.eq("category", data.category);
+      if (data.onlyWine) q = q.eq("category", "Wein");
+      if (data.search) {
+        const term = sanitizeArticleSearchTerm(data.search);
+        if (term) q = q.or(`name.ilike.%${term}%,sku.ilike.%${term}%`);
+      }
+      return q;
+    });
     if (articleRows.length === 0) return [];
     const articleIds = new Set(articleRows.map((r) => r.id));
-    const { data: links, error: linkErr } = await supabaseAdmin
-      .from("article_locations")
-      .select("article_id, location_id")
-      .eq("organization_id", caller.organizationId);
-    if (linkErr) throw linkErr;
+    // BFIX2: paginiert — article_locations kann > 1000 Zeilen erreichen.
+    const links = await selectAllPaged<{ article_id: string; location_id: string }>(() =>
+      supabaseAdmin
+        .from("article_locations")
+        .select("article_id, location_id")
+        .eq("organization_id", caller.organizationId)
+        .order("id"),
+    );
     const byArticle = new Map<string, string[]>();
-    for (const l of links ?? []) {
+    for (const l of links) {
       if (!articleIds.has(l.article_id)) continue;
       const arr = byArticle.get(l.article_id) ?? [];
       arr.push(l.location_id);
@@ -148,15 +182,18 @@ export const listArticleCategories = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await supabaseAdmin
-      .from("articles")
-      .select("category")
-      .eq("organization_id", caller.organizationId)
-      .not("category", "is", null);
-    if (error) throw error;
+    // BFIX2: paginiert — lädt category über alle Artikel; kappt sonst bei ~1000.
+    const data = await selectAllPaged<{ category: string | null }>(() =>
+      supabaseAdmin
+        .from("articles")
+        .select("category")
+        .eq("organization_id", caller.organizationId)
+        .not("category", "is", null)
+        .order("id"),
+    );
     const set = new Set<string>();
-    for (const r of data ?? []) {
-      const c = (r as { category: string | null }).category;
+    for (const r of data) {
+      const c = r.category;
       if (c && c.trim()) set.add(c.trim());
     }
     return Array.from(set).sort((a, b) => a.localeCompare(b, "de"));

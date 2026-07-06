@@ -17,6 +17,7 @@ import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { runGuarded } from "@/lib/admin/admin-call";
 import { makeAuditWriter } from "@/lib/admin/audit";
 import type { Database } from "@/integrations/supabase/types";
+import { selectAllPaged } from "@/lib/supabase/select-all";
 
 type SalesArticleUpdate = Database["public"]["Tables"]["sales_articles"]["Update"];
 
@@ -136,19 +137,22 @@ export const listSalesArticles = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     await assertLocationInOrg(supabaseAdmin, caller.organizationId, data.locationId);
     const includeEk = caller.role === "admin";
-    const { data: rows, error } = await supabaseAdmin
-      .from("sales_articles")
-      .select(
-        "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr, ek_price_cents, ek_source_article_id, ek_portion_ml, ek_source_volume_ml, ek_match_ignored, articles:ek_source_article_id(name)",
-      )
-      .eq("organization_id", caller.organizationId)
-      .eq("location_id", data.locationId)
-      .order("hauptgruppe_nr", { ascending: true, nullsFirst: false })
-      .order("untergruppe_nr", { ascending: true, nullsFirst: false })
-      .order("product_group", { ascending: true, nullsFirst: false })
-      .order("name", { ascending: true });
-    if (error) throw new Error(error.message);
-    return (rows ?? []).map((r) => mapRow(r, { includeEk }));
+    // BFIX2: paginiert — Menükarte je Standort kann bei größeren Betrieben > 1000 werden.
+    const rows = await selectAllPaged(() =>
+      supabaseAdmin
+        .from("sales_articles")
+        .select(
+          "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr, ek_price_cents, ek_source_article_id, ek_portion_ml, ek_source_volume_ml, ek_match_ignored, articles:ek_source_article_id(name)",
+        )
+        .eq("organization_id", caller.organizationId)
+        .eq("location_id", data.locationId)
+        .order("hauptgruppe_nr", { ascending: true, nullsFirst: false })
+        .order("untergruppe_nr", { ascending: true, nullsFirst: false })
+        .order("product_group", { ascending: true, nullsFirst: false })
+        .order("name", { ascending: true })
+        .order("id", { ascending: true }),
+    );
+    return rows.map((r) => mapRow(r, { includeEk }));
   });
 
 // ---------------------------------------------------------------------------
