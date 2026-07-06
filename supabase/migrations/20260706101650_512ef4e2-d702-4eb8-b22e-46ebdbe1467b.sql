@@ -1,0 +1,1 @@
+revoke execute on function public.tg_inventory_items_assert_open() from public, anon, authenticated;
