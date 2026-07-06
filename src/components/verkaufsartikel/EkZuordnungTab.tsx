@@ -45,10 +45,35 @@ import {
   computeEkFromLink,
   parsePortionMlFromName,
   parseVolumeMlFromName,
+  wareneinsatzQuote,
+  WE_GRUEN_BIS,
+  WE_GELB_BIS,
 } from "@/lib/bestellung/ek-linking";
 
 type StatusFilter = "offen" | "verknuepft" | "manuell" | "ignoriert" | "alle";
 type Group = "getraenke" | "alle";
+type WeSort = "none" | "asc" | "desc";
+
+const WE_TOOLTIP =
+  "Wareneinsatz = EK netto ÷ VK netto (VK ÷ 1,19). Grün ≤ 25 % · Gelb ≤ 35 % · Rot > 35 %";
+
+function WeBadge({ pct }: { pct: number | null }) {
+  if (pct === null) return <span className="text-xs text-muted-foreground">—</span>;
+  const cls =
+    pct <= WE_GRUEN_BIS
+      ? "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-200 dark:border-emerald-800"
+      : pct <= WE_GELB_BIS
+        ? "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/40 dark:text-amber-200 dark:border-amber-800"
+        : "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/40 dark:text-red-200 dark:border-red-800";
+  return (
+    <span
+      className={`inline-flex items-center rounded-md border px-2 py-0.5 font-mono text-xs ${cls}`}
+      title={WE_TOOLTIP}
+    >
+      {pct.toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %
+    </span>
+  );
+}
 
 const PORTION_CHIPS: { label: string; ml: number | "flasche" }[] = [
   { label: "4 cl", ml: 40 },
@@ -93,6 +118,7 @@ export function EkZuordnungTab({ locationId }: { locationId: string }) {
   const [status, setStatus] = useState<StatusFilter>("offen");
   const [group, setGroup] = useState<Group>("getraenke");
   const [search, setSearch] = useState("");
+  const [weSort, setWeSort] = useState<WeSort>("none");
   const [linkTarget, setLinkTarget] = useState<SalesArticle | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -104,13 +130,37 @@ export function EkZuordnungTab({ locationId }: { locationId: string }) {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return rows.filter((r) => {
+    const base = rows.filter((r) => {
       if (group === "getraenke" && !isGetraenkeHauptgruppe(r)) return false;
       if (status !== "alle" && statusOf(r) !== status) return false;
       if (q && !r.name.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [rows, group, status, search]);
+    if (weSort === "none") return base;
+    const withPct = base.map((r) => ({
+      r,
+      pct: wareneinsatzQuote(r.ekPriceCents, r.priceCents),
+    }));
+    withPct.sort((a, b) => {
+      // nicht berechenbare ans Ende
+      if (a.pct === null && b.pct === null) return 0;
+      if (a.pct === null) return 1;
+      if (b.pct === null) return -1;
+      return weSort === "asc" ? a.pct - b.pct : b.pct - a.pct;
+    });
+    return withPct.map((x) => x.r);
+  }, [rows, group, status, search, weSort]);
+
+  const avgWe = useMemo(() => {
+    const vals: number[] = [];
+    for (const r of filtered) {
+      const p = wareneinsatzQuote(r.ekPriceCents, r.priceCents);
+      if (p !== null) vals.push(p);
+    }
+    if (vals.length === 0) return null;
+    const avg = vals.reduce((s, x) => s + x, 0) / vals.length;
+    return { avg: Math.round(avg * 10) / 10, n: vals.length };
+  }, [filtered]);
 
   const recalcMut = useMutation({
     mutationFn: () => callRecalc(),
@@ -191,6 +241,23 @@ export function EkZuordnungTab({ locationId }: { locationId: string }) {
         />
       </div>
 
+      {avgWe && (
+        <div
+          className="text-sm text-muted-foreground"
+          title="Ungewichteter Schnitt der angezeigten Artikel. Die echte betriebliche Quote braucht Absatzmengen (POS-Statistik) — spätere Welle."
+        >
+          Ø WE:{" "}
+          <span className="font-mono text-foreground">
+            {avgWe.avg.toLocaleString("de-DE", {
+              minimumFractionDigits: 1,
+              maximumFractionDigits: 1,
+            })}{" "}
+            %
+          </span>{" "}
+          (n={avgWe.n})
+        </div>
+      )}
+
       {error && (
         <Alert variant="destructive">
           <AlertTitle>Fehler</AlertTitle>
@@ -211,6 +278,18 @@ export function EkZuordnungTab({ locationId }: { locationId: string }) {
                 <TableHead className="w-40">Untergruppe</TableHead>
                 <TableHead className="w-24 text-right">VK</TableHead>
                 <TableHead className="w-24 text-right">EK</TableHead>
+                <TableHead className="w-24 text-right">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setWeSort(weSort === "asc" ? "desc" : weSort === "desc" ? "none" : "asc")
+                    }
+                    className="inline-flex items-center gap-1 hover:underline"
+                    title={WE_TOOLTIP}
+                  >
+                    WE %{weSort === "asc" ? " ▲" : weSort === "desc" ? " ▼" : ""}
+                  </button>
+                </TableHead>
                 <TableHead className="w-40">Herkunft</TableHead>
                 <TableHead className="w-56 text-right">Aktion</TableHead>
               </TableRow>
@@ -218,6 +297,7 @@ export function EkZuordnungTab({ locationId }: { locationId: string }) {
             <TableBody>
               {filtered.map((r) => {
                 const st = statusOf(r);
+                const wePct = wareneinsatzQuote(r.ekPriceCents, r.priceCents);
                 return (
                   <TableRow key={r.id}>
                     <TableCell className="font-medium">{r.name}</TableCell>
@@ -229,6 +309,9 @@ export function EkZuordnungTab({ locationId }: { locationId: string }) {
                     </TableCell>
                     <TableCell className="text-right font-mono">
                       {r.ekPriceCents === null ? "—" : fmtCents(r.ekPriceCents)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <WeBadge pct={wePct} />
                     </TableCell>
                     <TableCell>
                       {st === "verknuepft" && (
