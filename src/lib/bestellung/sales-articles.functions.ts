@@ -45,6 +45,10 @@ export type SalesArticle = {
   ekPortionMl: number | null;
   ekSourceVolumeMl: number | null;
   ekMatchIgnored: boolean;
+  /** R2 — Rezept-Verknüpfung (nur admin gefüllt). */
+  recipeId: string | null;
+  recipeName: string | null;
+  recipeItemCount: number | null;
 };
 
 // ---------------------------------------------------------------------------
@@ -88,6 +92,8 @@ function mapRow(
     ek_source_volume_ml?: number | null;
     ek_match_ignored?: boolean | null;
     articles?: { name: string | null } | null;
+    recipe_id?: string | null;
+    recipes?: { name: string | null } | null;
   },
   opts: { includeEk: boolean },
 ): SalesArticle {
@@ -120,6 +126,11 @@ function mapRow(
         ? Number(row.ek_source_volume_ml)
         : null,
     ekMatchIgnored: opts.includeEk ? Boolean(row.ek_match_ignored) : false,
+    recipeId: opts.includeEk ? (row.recipe_id ?? null) : null,
+    recipeName: opts.includeEk ? (row.recipes?.name ?? null) : null,
+    // Item-Count wird von der Liste nicht mitgezogen (wäre zusätzlicher
+    // Join) — die R2-UI ergänzt ihn aus listRecipes/listRecipeArticleCandidates.
+    recipeItemCount: null,
   };
 }
 
@@ -142,7 +153,7 @@ export const listSalesArticles = createServerFn({ method: "POST" })
       supabaseAdmin
         .from("sales_articles")
         .select(
-          "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr, ek_price_cents, ek_source_article_id, ek_portion_ml, ek_source_volume_ml, ek_match_ignored, articles:ek_source_article_id(name)",
+          "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr, ek_price_cents, ek_source_article_id, ek_portion_ml, ek_source_volume_ml, ek_match_ignored, articles:ek_source_article_id(name), recipe_id, recipes:recipe_id(name)",
         )
         .eq("organization_id", caller.organizationId)
         .eq("location_id", data.locationId)
@@ -205,7 +216,7 @@ export const createSalesArticle = createServerFn({ method: "POST" })
         .from("sales_articles")
         .insert(insert)
         .select(
-          "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr, ek_price_cents, ek_source_article_id, ek_portion_ml, ek_source_volume_ml, ek_match_ignored, articles:ek_source_article_id(name)",
+          "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr, ek_price_cents, ek_source_article_id, ek_portion_ml, ek_source_volume_ml, ek_match_ignored, articles:ek_source_article_id(name), recipe_id, recipes:recipe_id(name)",
         )
         .single();
       if (error) {
@@ -280,7 +291,7 @@ export const updateSalesArticle = createServerFn({ method: "POST" })
       const { data: before, error: beforeErr } = await supabaseAdmin
         .from("sales_articles")
         .select(
-          "id, organization_id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr, ek_price_cents, ek_source_article_id, ek_portion_ml, ek_source_volume_ml, ek_match_ignored, articles:ek_source_article_id(name)",
+          "id, organization_id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr, ek_price_cents, ek_source_article_id, ek_portion_ml, ek_source_volume_ml, ek_match_ignored, articles:ek_source_article_id(name), recipe_id, recipes:recipe_id(name)",
         )
         .eq("id", data.id)
         .maybeSingle();
@@ -363,7 +374,7 @@ export const updateSalesArticle = createServerFn({ method: "POST" })
         .eq("id", data.id)
         .eq("organization_id", caller.organizationId)
         .select(
-          "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr, ek_price_cents, ek_source_article_id, ek_portion_ml, ek_source_volume_ml, ek_match_ignored, articles:ek_source_article_id(name)",
+          "id, location_id, name, product_group, price_cents, takeaway_price_cents, is_active, updated_at, warengruppe, untergruppe, untergruppe_nr, hauptgruppe, hauptgruppe_nr, ek_price_cents, ek_source_article_id, ek_portion_ml, ek_source_volume_ml, ek_match_ignored, articles:ek_source_article_id(name), recipe_id, recipes:recipe_id(name)",
         )
         .single();
       if (error) throw new Error(error.message);

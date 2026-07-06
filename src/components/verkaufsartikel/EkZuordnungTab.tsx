@@ -90,6 +90,7 @@ const PORTION_CHIPS: { label: string; ml: number | "flasche" }[] = [
 function statusOf(a: SalesArticle): StatusFilter {
   if (a.ekMatchIgnored) return "ignoriert";
   if (a.ekSourceArticleId) return "verknuepft";
+  if (a.recipeId) return "verknuepft";
   if (a.ekPriceCents !== null) return "manuell";
   return "offen";
 }
@@ -121,6 +122,7 @@ export function EkZuordnungTab({ locationId }: { locationId: string }) {
   const [weSort, setWeSort] = useState<WeSort>("none");
   const [linkTarget, setLinkTarget] = useState<SalesArticle | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [skipped, setSkipped] = useState<{ salesArticleId: string; reason: string }[]>([]);
 
   const counts = useMemo(() => {
     const c = { offen: 0, verknuepft: 0, manuell: 0, ignoriert: 0, alle: rows.length };
@@ -167,6 +169,7 @@ export function EkZuordnungTab({ locationId }: { locationId: string }) {
     onSuccess: (res) => {
       invalidate();
       toast.success(`EKs neu berechnet: ${res.checked} geprüft, ${res.changed} geändert.`);
+      setSkipped(res.skipped ?? []);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -265,6 +268,28 @@ export function EkZuordnungTab({ locationId }: { locationId: string }) {
         </Alert>
       )}
 
+      {skipped.length > 0 && (
+        <Alert>
+          <AlertTitle>{skipped.length} Rezept-EK übersprungen — bitte nachpflegen</AlertTitle>
+          <AlertDescription>
+            <ul className="mt-1 list-disc pl-4 text-xs">
+              {skipped.slice(0, 20).map((s) => {
+                const name = rows.find((r) => r.id === s.salesArticleId)?.name ?? s.salesArticleId;
+                return (
+                  <li key={s.salesArticleId}>
+                    <span className="font-medium">{name}</span>: {s.reason}
+                  </li>
+                );
+              })}
+              {skipped.length > 20 && <li>… und {skipped.length - 20} weitere.</li>}
+            </ul>
+            <button type="button" className="mt-2 text-xs underline" onClick={() => setSkipped([])}>
+              Schliessen
+            </button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {articlesQ.isLoading ? (
         <p className="text-sm text-muted-foreground">Lädt …</p>
       ) : filtered.length === 0 ? (
@@ -314,14 +339,19 @@ export function EkZuordnungTab({ locationId }: { locationId: string }) {
                       <WeBadge pct={wePct} />
                     </TableCell>
                     <TableCell>
-                      {st === "verknuepft" && (
-                        <Badge variant="secondary" title={r.ekSourceArticleName ?? ""}>
-                          verknüpft
-                          {r.ekPortionMl && r.ekSourceVolumeMl
-                            ? ` (${r.ekPortionMl}/${r.ekSourceVolumeMl} ml)`
-                            : " (1:1)"}
-                        </Badge>
-                      )}
+                      {st === "verknuepft" &&
+                        (r.recipeId ? (
+                          <Badge variant="secondary" title={r.recipeName ?? ""}>
+                            Rezept{r.recipeName ? `: ${r.recipeName}` : ""}
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" title={r.ekSourceArticleName ?? ""}>
+                            verknüpft
+                            {r.ekPortionMl && r.ekSourceVolumeMl
+                              ? ` (${r.ekPortionMl}/${r.ekSourceVolumeMl} ml)`
+                              : " (1:1)"}
+                          </Badge>
+                        ))}
                       {st === "manuell" && <Badge variant="outline">manuell</Badge>}
                       {st === "ignoriert" && <Badge variant="outline">ignoriert</Badge>}
                       {st === "offen" && <span className="text-xs text-muted-foreground">—</span>}
