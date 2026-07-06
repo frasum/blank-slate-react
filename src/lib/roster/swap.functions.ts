@@ -957,6 +957,8 @@ export const listPendingSwaps = createServerFn({ method: "GET" })
       caller.organizationId,
       "roster.swap.view_pending",
     );
+    // PL2 — Aufrufer ohne jede Freigabe ⇒ Forbidden.
+    assertScopeNotEmpty(scope, "roster.swap.view_pending");
     const inScope = (row: (typeof sorted)[number]) => {
       const rs = row.req_shift;
       if (!rs) return false;
