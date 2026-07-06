@@ -111,7 +111,7 @@ describe.skipIf(!dbTestsEnabled)("supplier_locations (DB)", () => {
     return org.service.rpc("create_order_from_cart", {
       p_org_id: org.orgId,
       p_user_id: user.userId,
-      p_notes: null,
+      p_notes: undefined,
     });
   }
 
