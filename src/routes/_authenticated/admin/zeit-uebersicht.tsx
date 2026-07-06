@@ -1497,13 +1497,13 @@ function ZeitUebersichtPage() {
         effectiveLocationId &&
         fromDate &&
         toDate && (
-        <BatchTimesCard
-          locationId={effectiveLocationId}
-          periodStart={fromDate}
-          periodEnd={toDate}
-          periodLabel={selectedPeriod?.label ?? `${fromDate} – ${toDate}`}
-        />
-      )}
+          <BatchTimesCard
+            locationId={effectiveLocationId}
+            periodStart={fromDate}
+            periodEnd={toDate}
+            periodLabel={selectedPeriod?.label ?? `${fromDate} – ${toDate}`}
+          />
+        )}
     </div>
   );
 }
