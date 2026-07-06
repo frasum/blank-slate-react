@@ -30,6 +30,24 @@ korrekt bereichs-scoped (kein planer-Default für `roster.swap.view_pending`).
 `planer`-Rollen-Defaults entfernt (Migration) — Sicht ausschließlich über
 gescopte Overrides.
 
+**PL2 (06.07.2026) — Planer-Regression durch globale Vorab-Checks:** Die
+PL1-Nachschärfung (Löschung des `roster.leave.view_all`-Rollen-Defaults für
+`planer`) legte einen Muster-Fehler frei: `has_permission` OHNE
+`_location`/`_area` matcht nur Overrides mit `location_id IS NULL` — ein
+globaler `assertPermission(…, perm, null)`-Vorab-Check liefert für Planer
+mit rein GESCOPTEN Overrides daher immer Forbidden, bevor die
+`resolvePlanerScope`-Logik dahinter greift. Betroffen: `getVacationPlanner`
+(Jahresplaner lud nicht — Frank-Report), `listLeaveRequests`,
+`listPendingSwaps`. Fix: Vorab-Checks entfernt; neuer getesteter Helper
+`assertScopeNotEmpty(scope, perm)` (`scope-util.ts`) wirft NACH der
+Scope-Auflösung, wenn weder `all` noch irgendeine Freigabe vorliegt —
+Sicherheits-Invariante unverändert (Berechtigungslose weiter Forbidden;
+admin/manager via `all=true` unverändert). Regel: Vor `resolvePlanerScope`
+nie ein globaler `assertPermission`-Check — das Gate ist
+`assertScopeNotEmpty`. Gescopte Checks MIT `location`/`area` (z. B.
+`moveRosterShift`) und Self-Service-Rechte bleiben unberührt. Vier Gates
+grün (1457 Tests).
+
 **BB1 (05.07.2026):** Buchhaltungs-Spalte „Besonderheiten" =
 **Auto-Teil** (live aus `roster_absence`, `formatAbsenceNote` in
 `src/lib/time/absence-note.ts` mit `mergeAbsenceRanges` wiederverwendet
@@ -2978,6 +2996,20 @@ die Rezept-Welle nachzieht (1-Zutat-Spezialfall = jetziger Stand).
 
 Bestehende EK-Werte (35 automatisch + 306 Vectron-Import) bleiben als
 „Manueller EK" bis zur Zuordnung — nichts gelöscht.
+
+**EK1 — Massen-Verknüpfung Getränke (06.07.2026):** 81 Verkaufsartikel per
+Offline-Abgleich (CSV-Exporte, Token-Matching ohne Volumen-/Jahrgangs-
+Rauschen, Volumen-Parser analog `extractVolumeMl`, Marge-Plausibilitäts-Gate
+≥ 30 %) eindeutig mit Einkaufsartikeln verknüpft — 33 davon 1:1-Flaschen,
+Rest anteilig (`ek_portion_ml`/`ek_source_volume_ml`, z. B. 0,2l-Glas aus
+0,75l-Flasche). SQL setzte NUR die Verknüpfungsfelder (Guards: nie über
+bestehende Links/Ignorier-Flags); Preise via `recalcAllLinkedEk` durch die
+App berechnet. Live verifiziert: 82/82 Verknüpfungen mit EK-Preis, 0
+CHECK-Verletzungen. Restarbeit bei Frank: 268 Werkbank-Kandidaten (197
+Cocktails/Tees = Rezept-/Ignorieren-Fälle, 60 mehrdeutig), 13 eindeutige
+Treffer mit Einkaufspreis 0, und als größter Hebel: 61 von 130
+Einkaufs-Weinen sowie alle Biere ohne Einkaufspreis. Speisen bewusst
+ausgeklammert (Rezept-Welle).
 
 ## §Z2 — Wochenplan zeigt Mitarbeiter je Zuordnung (Analogie zu D-3)
 
