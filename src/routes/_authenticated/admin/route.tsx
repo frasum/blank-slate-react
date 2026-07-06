@@ -193,6 +193,19 @@ const SYSTEM_SUB: { to: string; label: string }[] = [
   { to: "/admin/lohn-verteilung", label: "Lohn PDF Import" },
 ];
 
+// Sub-Sub-Nav für „Einstellungen → Allgemein" (?tab=…). Wird nur auf
+// /admin/einstellungen gerendert und teilt sich Styling & Struktur mit
+// SYSTEM_SUB, damit die Optik 1:1 mit den anderen Tab-Leisten übereinstimmt.
+const EINSTELLUNGEN_ALLGEMEIN_SUB: {
+  tab: "trinkgeldpool" | "bestellungen" | "sofortmeldung" | "telegram";
+  label: string;
+}[] = [
+  { tab: "trinkgeldpool", label: "Trinkgeldpool" },
+  { tab: "bestellungen", label: "Bestellungen" },
+  { tab: "sofortmeldung", label: "Sofortmeldung & Arbeitgeber" },
+  { tab: "telegram", label: "Telegram" },
+];
+
 function isSystemPath(pathname: string): boolean {
   return SYSTEM_SUB.some((s) => pathname === s.to || pathname.startsWith(s.to + "/"));
 }
@@ -206,6 +219,7 @@ function AdminLayout() {
   const isPayroll = identity.role === "payroll";
   const isPlaner = identity.role === "planer";
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const searchParams = useRouterState({ select: (s) => s.location.search });
   const role = identity.role as Role;
   const visibleGroups = GROUPS.filter((g) => !g.roles || g.roles.includes(role));
   const activeGroup = visibleGroups.find((g) => matchPrefix(pathname, g.prefixes));
@@ -376,6 +390,26 @@ function AdminLayout() {
                     const active = pathname === s.to || pathname.startsWith(s.to + "/");
                     return (
                       <Link key={s.to} to={s.to} className={tabClass(active)}>
+                        {s.label}
+                      </Link>
+                    );
+                  })}
+                </nav>
+              )}
+              {pathname === "/admin/einstellungen" && (
+                <nav className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border/60 pt-2 text-xs">
+                  {EINSTELLUNGEN_ALLGEMEIN_SUB.map((s) => {
+                    const currentTab =
+                      (searchParams as { tab?: string } | undefined)?.tab ?? "trinkgeldpool";
+                    const active = currentTab === s.tab;
+                    return (
+                      <Link
+                        key={s.tab}
+                        to="/admin/einstellungen"
+                        search={{ tab: s.tab }}
+                        replace
+                        className={tabClass(active)}
+                      >
                         {s.label}
                       </Link>
                     );
