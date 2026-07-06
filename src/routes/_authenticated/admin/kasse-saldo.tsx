@@ -117,6 +117,9 @@ function KasseSaldoPage() {
     return locationsQ.data?.find((l) => l.id === locationId)?.name ?? "Standort";
   }, [locationId, locationsQ.data]);
 
+  // YUM zeigt keine FineDine-Spalte (dort nicht genutzt).
+  const hideFineDine = locationName.trim().toLowerCase() === "yum";
+
   const fetchBreakdown = useServerFn(getCashDailyBreakdown);
   const q = useQuery({
     queryKey: ["cash-daily-breakdown", fromDate, toDate, locationId],
@@ -239,7 +242,9 @@ function KasseSaldoPage() {
                   <TableHead className="text-right px-2 py-2 text-xs">SoUse</TableHead>
                   <TableHead className="text-right px-2 py-2 text-xs">Wolt</TableHead>
                   <TableHead className="text-right px-2 py-2 text-xs">Gut. EL</TableHead>
-                  <TableHead className="text-right px-2 py-2 text-xs">FineDine</TableHead>
+                  {!hideFineDine && (
+                    <TableHead className="text-right px-2 py-2 text-xs">FineDine</TableHead>
+                  )}
                   <TableHead className="text-right px-2 py-2 text-xs">Gut. VK</TableHead>
                   <TableHead className="text-right px-2 py-2 text-xs">Einladung</TableHead>
                   <TableHead className="text-right px-2 py-2 text-xs">Off. RE</TableHead>
@@ -272,9 +277,11 @@ function KasseSaldoPage() {
                     <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
                       {fmtEuro(r.vouchersRedeemedCents)}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
-                      {fmtEuro(r.finedineCents)}
-                    </TableCell>
+                    {!hideFineDine && (
+                      <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
+                        {fmtEuro(r.finedineCents)}
+                      </TableCell>
+                    )}
                     <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
                       {fmtEuro(r.vouchersSoldCents)}
                     </TableCell>
@@ -317,9 +324,11 @@ function KasseSaldoPage() {
                   <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
                     {fmtEuro(totals.vouchersRedeemed)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
-                    {fmtEuro(totals.finedine)}
-                  </TableCell>
+                  {!hideFineDine && (
+                    <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
+                      {fmtEuro(totals.finedine)}
+                    </TableCell>
+                  )}
                   <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
                     {fmtEuro(totals.vouchersSold)}
                   </TableCell>
