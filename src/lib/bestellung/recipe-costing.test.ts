@@ -21,8 +21,8 @@ function mkArticle(over: Partial<ArticleData>): ArticleData {
     id: over.id ?? "a1",
     priceCents: over.priceCents ?? 1000, // 10,00 €
     orderToInventoryFactor: over.orderToInventoryFactor ?? 1,
-    contentQuantity: over.contentQuantity ?? 1000,
-    contentUnit: over.contentUnit ?? "g",
+    contentQuantity: "contentQuantity" in over ? (over.contentQuantity ?? null) : 1000,
+    contentUnit: "contentUnit" in over ? (over.contentUnit ?? null) : "g",
   };
 }
 
