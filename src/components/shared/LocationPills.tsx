@@ -3,7 +3,7 @@
 // `allValue` konfigurierbar (Default "__all__"), damit bestehende Sentinels
 // (z. B. "all" in zeit-uebersicht) ohne Umbau weiterlaufen.
 import { PillSelect, type PillSelectOption } from "@/components/ui/pill-select";
-import { useLocationThemeSync } from "@/lib/location-theme/context";
+import { useLocationThemeSync } from "@/lib/location-theme/theme-utils";
 
 type Props = {
   locations: { id: string; name: string }[];

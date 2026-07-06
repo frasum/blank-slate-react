@@ -11,7 +11,8 @@ import { getMyIdentity } from "@/lib/auth/me.functions";
 import { ImpersonationBanner } from "@/components/impersonation-banner";
 import { PortalShell } from "@/components/portal/PortalShell";
 import { TelegramLinkBanner } from "@/components/telegram/TelegramLinkBanner";
-import { LocationThemeProvider, useLocationTheme } from "@/lib/location-theme/context";
+import { LocationThemeProvider } from "@/lib/location-theme/context";
+import { useLocationTheme } from "@/lib/location-theme/theme-utils";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
