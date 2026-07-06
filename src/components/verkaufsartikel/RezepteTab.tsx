@@ -5,7 +5,7 @@
 // Client mit dem SELBEN reinen Rechenkern wie der Server
 // (`recipe-costing.ts`) — keine Formel-Duplikate in dieser Datei.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -60,7 +60,15 @@ import {
 // Haupt-Komponente
 // ---------------------------------------------------------------------------
 
-export function RezepteTab({ locationId }: { locationId: string }) {
+export function RezepteTab({
+  locationId,
+  initialCreateForSalesArticleId,
+  onConsumedInitialCreate,
+}: {
+  locationId: string;
+  initialCreateForSalesArticleId?: string | null;
+  onConsumedInitialCreate?: () => void;
+}) {
   const qc = useQueryClient();
   const callList = useServerFn(listRecipes);
   const callDelete = useServerFn(deleteRecipe);
@@ -92,12 +100,40 @@ export function RezepteTab({ locationId }: { locationId: string }) {
 
   const [search, setSearch] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
-  const [creating, setCreating] = useState<{ kind: RecipeKind } | null>(null);
+  const [creating, setCreating] = useState<{
+    kind: RecipeKind;
+    preselectedSalesArticleId?: string | null;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // R2b — Einstieg von anderen Tabs: Vorauswahl eines Verkaufsartikels
+  // öffnet den zweistufigen „+ Gericht"-Fluss direkt in Schritt 2.
+  useEffect(() => {
+    if (initialCreateForSalesArticleId) {
+      setCreating({
+        kind: "dish",
+        preselectedSalesArticleId: initialCreateForSalesArticleId,
+      });
+      onConsumedInitialCreate?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialCreateForSalesArticleId]);
 
   const rows = recipesQ.data ?? [];
   const dishes = rows.filter((r) => r.kind === "dish");
   const subs = rows.filter((r) => r.kind === "sub");
+
+  // R2b — Verknüpfte Verkaufsartikel je Rezept, für die Untertitel in der Liste.
+  const salesNamesByRecipe = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const s of salesQ.data ?? []) {
+      if (!s.recipeId) continue;
+      const list = m.get(s.recipeId) ?? [];
+      list.push(s.name);
+      m.set(s.recipeId, list);
+    }
+    return m;
+  }, [salesQ.data]);
 
   const filterFn = (r: RecipeListItem) => {
     const q = search.trim().toLowerCase();
@@ -182,6 +218,7 @@ export function RezepteTab({ locationId }: { locationId: string }) {
         emptyLabel="Noch keine Gerichte angelegt."
         rows={dishes.filter(filterFn)}
         usageLabelFn={(n) => `${n} Verkaufsartikel`}
+        subtitleFn={(r) => salesNamesByRecipe.get(r.id) ?? []}
         onOpen={setOpenId}
         onDuplicate={duplicate}
         onDelete={(id) => deleteMut.mutate(id)}
@@ -192,6 +229,7 @@ export function RezepteTab({ locationId }: { locationId: string }) {
         emptyLabel="Noch keine Zwischenrezepte."
         rows={subs.filter(filterFn)}
         usageLabelFn={(n) => `verwendet in ${n} Rezepten`}
+        subtitleFn={() => []}
         onOpen={setOpenId}
         onDuplicate={duplicate}
         onDelete={(id) => deleteMut.mutate(id)}
@@ -200,6 +238,8 @@ export function RezepteTab({ locationId }: { locationId: string }) {
       {creating && (
         <NewRecipeDialog
           kind={creating.kind}
+          preselectedSalesArticleId={creating.preselectedSalesArticleId ?? null}
+          salesArticles={salesQ.data ?? []}
           onClose={() => setCreating(null)}
           onCreated={(id) => {
             setCreating(null);
@@ -227,6 +267,7 @@ function RecipeListSection(props: {
   emptyLabel: string;
   rows: RecipeListItem[];
   usageLabelFn: (n: number) => string;
+  subtitleFn: (r: RecipeListItem) => string[];
   onOpen: (id: string) => void;
   onDuplicate: (r: RecipeListItem) => void;
   onDelete: (id: string) => void;
@@ -258,6 +299,16 @@ function RecipeListSection(props: {
                     >
                       {r.name}
                     </button>
+                    {(() => {
+                      const names = props.subtitleFn(r);
+                      if (names.length === 0) return null;
+                      return (
+                        <div className="text-xs text-muted-foreground" title={names.join(", ")}>
+                          Verkaufsartikel: {names.slice(0, 2).join(", ")}
+                          {names.length > 2 ? ` (+${names.length - 2})` : ""}
+                        </div>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {r.yieldQuantity !== null && r.yieldUnit
@@ -309,15 +360,57 @@ function RecipeListSection(props: {
 
 function NewRecipeDialog(props: {
   kind: RecipeKind;
+  preselectedSalesArticleId?: string | null;
+  salesArticles: SalesArticle[];
   onClose: () => void;
   onCreated: (id: string) => void;
 }) {
   const callUpsert = useServerFn(upsertRecipe);
-  const [name, setName] = useState("");
+  const callLink = useServerFn(linkSalesArticleRecipe);
+
+  // Zweistufig nur für Gerichte. Zwischenrezepte gehen direkt in die Form.
+  const preselected = useMemo(() => {
+    if (props.kind !== "dish") return null;
+    if (!props.preselectedSalesArticleId) return null;
+    return props.salesArticles.find((s) => s.id === props.preselectedSalesArticleId) ?? null;
+  }, [props.kind, props.preselectedSalesArticleId, props.salesArticles]);
+
+  const [step, setStep] = useState<"pick" | "form">(
+    props.kind === "sub" || preselected ? "form" : "pick",
+  );
+  const [salesArticle, setSalesArticle] = useState<SalesArticle | null>(preselected);
+  const [name, setName] = useState(preselected?.name ?? "");
   const [yieldQty, setYieldQty] = useState<string>("");
   const [yieldUnit, setYieldUnit] = useState<RecipeUnit>("ml");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [query, setQuery] = useState("");
+
+  // Auswahl-Listen für Schritt 1
+  const { eligible, blocked } = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const el: SalesArticle[] = [];
+    const bl: SalesArticle[] = [];
+    for (const s of props.salesArticles) {
+      if (!s.isActive) continue;
+      if (s.recipeId !== null) continue; // hat schon ein Rezept
+      if (q && !s.name.toLowerCase().includes(q)) continue;
+      if (s.ekSourceArticleId !== null) bl.push(s);
+      else el.push(s);
+    }
+    return { eligible: el.slice(0, 30), blocked: bl.slice(0, 10) };
+  }, [props.salesArticles, query]);
+
+  function chooseArticle(s: SalesArticle) {
+    setSalesArticle(s);
+    setName(s.name);
+    setStep("form");
+  }
+
+  function chooseStandalone() {
+    setSalesArticle(null);
+    setStep("form");
+  }
 
   async function save() {
     setError(null);
@@ -343,6 +436,21 @@ function NewRecipeDialog(props: {
           notes: null,
         },
       });
+      if (props.kind === "dish" && salesArticle) {
+        try {
+          await callLink({
+            data: { salesArticleId: salesArticle.id, recipeId: res.id },
+          });
+          toast.success(`Rezept angelegt und mit „${salesArticle.name}" verknüpft.`);
+        } catch (e) {
+          // Rezept ist bereits angelegt — Fehler melden, aber Editor öffnen.
+          toast.error(
+            e instanceof Error
+              ? `Rezept angelegt, Verknüpfung fehlgeschlagen: ${e.message}`
+              : "Verknüpfung fehlgeschlagen.",
+          );
+        }
+      }
       props.onCreated(res.id);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Speichern fehlgeschlagen.");
@@ -355,48 +463,146 @@ function NewRecipeDialog(props: {
     <Dialog open onOpenChange={(o) => (o ? undefined : props.onClose())}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Neues {props.kind === "dish" ? "Gericht" : "Zwischenrezept"}</DialogTitle>
+          <DialogTitle>
+            Neues {props.kind === "dish" ? "Gericht" : "Zwischenrezept"}
+            {step === "pick" ? " — Verkaufsartikel wählen" : ""}
+          </DialogTitle>
           <DialogDescription>
             {props.kind === "sub"
               ? "Zwischenrezepte (z. B. Currypaste, Fond) brauchen eine Ausbeute — daraus ergibt sich der Preis je Basiseinheit für übergeordnete Rezepte."
-              : "Gerichte werden mit Verkaufsartikeln verknüpft; ihre Kosten ergeben den EK."}
+              : step === "pick"
+                ? "Für welchen Verkaufsartikel? Das Rezept wird sofort verknüpft, damit VK und WE-% ab der ersten Zutat sichtbar sind."
+                : "Gerichte werden mit Verkaufsartikeln verknüpft; ihre Kosten ergeben den EK."}
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-3">
-          <div>
-            <label className="text-xs font-medium text-muted-foreground">Name</label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
-          </div>
-          {props.kind === "sub" && (
-            <div className="flex items-end gap-2">
-              <div className="flex-1">
-                <label className="text-xs font-medium text-muted-foreground">Ausbeute-Menge</label>
-                <Input
-                  value={yieldQty}
-                  onChange={(e) => setYieldQty(e.target.value)}
-                  placeholder="z. B. 1000"
-                  inputMode="decimal"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground">Einheit</label>
-                <UnitSelect value={yieldUnit} onChange={setYieldUnit} />
-              </div>
+
+        {step === "pick" ? (
+          <div className="space-y-3">
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Verkaufsartikel suchen …"
+              autoFocus
+            />
+            <div className="max-h-72 overflow-y-auto rounded-md border border-border">
+              {eligible.length === 0 && blocked.length === 0 ? (
+                <p className="p-2 text-xs text-muted-foreground">Keine Treffer.</p>
+              ) : (
+                <ul className="divide-y divide-border text-sm">
+                  {eligible.map((s) => (
+                    <li key={s.id}>
+                      <button
+                        type="button"
+                        onClick={() => chooseArticle(s)}
+                        className="flex w-full items-center justify-between px-3 py-2 text-left hover:bg-muted"
+                      >
+                        <span>
+                          <span className="font-medium">{s.name}</span>
+                          {s.hauptgruppe && (
+                            <span className="ml-2 text-xs text-muted-foreground">
+                              {s.hauptgruppe}
+                              {s.untergruppe ? ` · ${s.untergruppe}` : ""}
+                            </span>
+                          )}
+                        </span>
+                        <span className="font-mono text-xs">
+                          {s.priceCents === null ? "—" : fmtCents(s.priceCents)}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                  {blocked.map((s) => (
+                    <li key={s.id}>
+                      <div
+                        className="flex w-full items-center justify-between px-3 py-2 text-left opacity-50"
+                        title="hat 1:1-Zuordnung — erst in der EK-Werkbank lösen"
+                      >
+                        <span>
+                          <span className="font-medium">{s.name}</span>
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            hat 1:1-Zuordnung — erst in der EK-Werkbank lösen
+                          </span>
+                        </span>
+                        <span className="font-mono text-xs">
+                          {s.priceCents === null ? "—" : fmtCents(s.priceCents)}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
-          )}
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-        </div>
+            <div className="text-right">
+              <button
+                type="button"
+                onClick={chooseStandalone}
+                className="text-xs text-muted-foreground underline hover:text-foreground"
+              >
+                Ohne Verkaufsartikel anlegen
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {props.kind === "dish" && salesArticle && (
+              <div className="rounded-md border border-border bg-muted/40 p-2 text-xs">
+                Wird verknüpft mit{" "}
+                <span className="font-medium text-foreground">{salesArticle.name}</span>
+                {salesArticle.priceCents !== null && <> · VK {fmtCents(salesArticle.priceCents)}</>}
+              </div>
+            )}
+            {props.kind === "dish" && !salesArticle && (
+              <div className="rounded-md border border-dashed border-border p-2 text-xs text-muted-foreground">
+                Ohne Verkaufsartikel — später über den Editor verknüpfen.
+              </div>
+            )}
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Name</label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+            </div>
+            {props.kind === "sub" && (
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <label className="text-xs font-medium text-muted-foreground">
+                    Ausbeute-Menge
+                  </label>
+                  <Input
+                    value={yieldQty}
+                    onChange={(e) => setYieldQty(e.target.value)}
+                    placeholder="z. B. 1000"
+                    inputMode="decimal"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Einheit</label>
+                  <UnitSelect value={yieldUnit} onChange={setYieldUnit} />
+                </div>
+              </div>
+            )}
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+          </div>
+        )}
+
         <DialogFooter>
           <Button variant="ghost" onClick={props.onClose} disabled={saving}>
             Abbrechen
           </Button>
-          <Button onClick={save} disabled={saving}>
-            {saving ? "Speichert …" : "Anlegen"}
-          </Button>
+          {step === "form" && (
+            <>
+              {props.kind === "dish" && !props.preselectedSalesArticleId && (
+                <Button variant="outline" onClick={() => setStep("pick")} disabled={saving}>
+                  Zurück
+                </Button>
+              )}
+              <Button onClick={save} disabled={saving}>
+                {saving ? "Speichert …" : "Anlegen"}
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

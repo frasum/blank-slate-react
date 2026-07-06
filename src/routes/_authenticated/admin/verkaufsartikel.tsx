@@ -111,6 +111,15 @@ function VerkaufsartikelPage() {
   const [editRow, setEditRow] = useState<SalesArticle | null>(null);
   const [subtab, setSubtab] = useState<"liste" | "ek">("liste");
   const [tabValue, setTabValue] = useState<"liste" | "ek" | "rezepte">("liste");
+  // R2b — Cross-Tab-Übergabe: wenn gesetzt, öffnet der Rezepte-Tab beim
+  // Wechsel den zweistufigen „+ Gericht"-Fluss mit diesem Artikel bereits gewählt.
+  const [pendingRecipeForArticleId, setPendingRecipeForArticleId] = useState<string | null>(null);
+
+  function startRecipeForArticle(salesArticleId: string) {
+    setPendingRecipeForArticleId(salesArticleId);
+    setTabValue("rezepte");
+    setSubtab("liste");
+  }
 
   // UX-Gate: Rezepte-Tab nur wenn has_permission('recipes.manage', null) true ist.
   const canManageRecipes = useQuery({
@@ -191,11 +200,18 @@ function VerkaufsartikelPage() {
             {canManageRecipes.data && <TabsTrigger value="rezepte">Rezepte</TabsTrigger>}
           </TabsList>
           <TabsContent value="ek" className="pt-4">
-            <EkZuordnungTab locationId={locationId} />
+            <EkZuordnungTab
+              locationId={locationId}
+              onCreateRecipeFor={canManageRecipes.data ? startRecipeForArticle : undefined}
+            />
           </TabsContent>
           {canManageRecipes.data && (
             <TabsContent value="rezepte" className="pt-4">
-              <RezepteTab locationId={locationId} />
+              <RezepteTab
+                locationId={locationId}
+                initialCreateForSalesArticleId={pendingRecipeForArticleId}
+                onConsumedInitialCreate={() => setPendingRecipeForArticleId(null)}
+              />
             </TabsContent>
           )}
           <TabsContent value="liste" className="pt-4" />
@@ -334,13 +350,27 @@ function VerkaufsartikelPage() {
                               : undefined
                           }
                         >
-                          <PriceCell
-                            article={row}
-                            field="ekPriceCents"
-                            onSave={(cents) =>
-                              updateMut.mutate({ data: { id: row.id, ekPriceCents: cents } })
-                            }
-                          />
+                          <div className="flex flex-col">
+                            <PriceCell
+                              article={row}
+                              field="ekPriceCents"
+                              onSave={(cents) =>
+                                updateMut.mutate({ data: { id: row.id, ekPriceCents: cents } })
+                              }
+                            />
+                            {canManageRecipes.data &&
+                              row.ekPriceCents === null &&
+                              row.recipeId === null &&
+                              row.ekSourceArticleId === null && (
+                                <button
+                                  type="button"
+                                  onClick={() => startRecipeForArticle(row.id)}
+                                  className="mt-0.5 self-start px-2 text-[11px] text-muted-foreground underline hover:text-foreground"
+                                >
+                                  Rezept anlegen
+                                </button>
+                              )}
+                          </div>
                         </TableCell>
                       )}
                       {isAdmin && (
