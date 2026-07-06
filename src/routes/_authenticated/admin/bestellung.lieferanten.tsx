@@ -145,6 +145,8 @@ function LieferantenPage() {
   const callAdd = useServerFn(addCartItem);
   const callUpdateCart = useServerFn(updateCartItem);
   const callRemove = useServerFn(removeCartItem);
+  const callSetCartMeta = useServerFn(setCartMeta);
+  const callSetSupplierLocation = useServerFn(setSupplierLocation);
 
   const [showInactive, setShowInactive] = useState(false);
   const [search, setSearch] = useState("");
@@ -186,9 +188,42 @@ function LieferantenPage() {
     queryFn: () => listLocations(),
   });
 
+  // SL1: Standort-Deaktivierungen für Katalog-Filter (nur is_active=false Rows).
+  const supplierLocationsQ = useQuery({
+    queryKey: ["bestellung", "supplier-locations", "all"],
+    queryFn: () => listSupplierLocations({ data: {} }),
+  });
+
+  const activeLocations = useMemo(
+    () => (locationsQ.data ?? []).filter((l) => l.isActive !== false),
+    [locationsQ.data],
+  );
+
+  // SL1: Standort-Pill = Warenkorb-Standort. Fallback: erster aktiver Standort.
+  const activeLocationId: string | null =
+    cartQ.data?.cart.location_id ?? activeLocations[0]?.id ?? null;
+
+  const setCartLocMut = useMutation({
+    mutationFn: (locationId: string) => callSetCartMeta({ data: { locationId } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["bestellung", "cart"] }),
+    onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
+  });
+
+  // SL1: an aktivem Standort deaktivierte Lieferanten (fehlende Zeile = aktiv).
+  const disabledSupplierIdsAtLocation = useMemo(() => {
+    const set = new Set<string>();
+    if (!activeLocationId) return set;
+    for (const r of supplierLocationsQ.data ?? []) {
+      if (r.locationId === activeLocationId && !r.isActive) set.add(r.supplierId);
+    }
+    return set;
+  }, [supplierLocationsQ.data, activeLocationId]);
+
   const refreshSuppliers = () => qc.invalidateQueries({ queryKey: ["bestellung", "suppliers"] });
   const refreshArticles = () => qc.invalidateQueries({ queryKey: ["bestellung", "articles"] });
   const refreshCart = () => qc.invalidateQueries({ queryKey: ["bestellung", "cart"] });
+  const refreshSupplierLocations = () =>
+    qc.invalidateQueries({ queryKey: ["bestellung", "supplier-locations"] });
 
   // Cart-Map: articleId → { itemId, quantity }
   const cartByArticle = useMemo(() => {
