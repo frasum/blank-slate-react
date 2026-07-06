@@ -11,12 +11,6 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { runGuarded } from "@/lib/admin/admin-call";
 import { makeAuditWriter } from "@/lib/admin/audit";
-import {
-  buildOrderEmailHtml,
-  buildOrderEmailSubject,
-  buildOrderEmailText,
-  type OrderEmailData,
-} from "./order-email";
 
 const READ_ROLES = ["staff", "manager", "admin"] as const;
 
@@ -262,13 +256,13 @@ export const getLastOrderByArticle = createServerFn({ method: "GET" })
     return out;
   });
 
-// Welle 1-D — Mailversand an Lieferanten via MailerSend HTTP-API (kein SMTP,
-// Cloudflare Workers können keine SMTP-Sockets öffnen). Secrets werden INSIDE
-// des Handlers gelesen (Module-Scope process.env ist im Worker undefined).
-// 2xx (insb. 202 Accepted = asynchron eingereiht) gilt als Erfolg. Hinweis:
-// 202 bedeutet "in Queue", nicht "zugestellt" — spätere Hard-Bounces (z. B.
-// ungültige Lieferantenadresse) ändern den Status nicht zurück. Webhook-basierte
-// Delivery-Events sind Out-of-Scope für 1-D.
+// BFIX1 — Warenkorb-Versand delegiert vollständig an sendOrderEmailWithAdmin
+// (einziger Versandpfad, teilt sich Testmodus-Umschaltung, Absenderprüfung
+// und Status-Update mit dem EasyOrder-Auto-Versand). Vorher lief hier eine
+// Welle-1-Eigenimplementierung, die den (später gebauten) Testmodus
+// umgangen hat — echte Bestellung an den Lieferanten trotz aktivem
+// Testmodus. Auth (loadAdminCaller manager) + runGuarded + Audit bleiben
+// hier; der komplette Mail-/DB-Teil kommt aus dem zentralen Helfer.
 export const sendOrderEmail = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({ orderId: z.string().uuid() }).parse(input))
@@ -276,123 +270,19 @@ export const sendOrderEmail = createServerFn({ method: "POST" })
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
     return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const processMod = await import("node:process");
-      const env = processMod.default.env;
-
-      const apiKey = env.MAILERSEND_API_KEY;
-      const fromEmail = env.MAILERSEND_FROM_EMAIL;
-      const fromName = env.MAILERSEND_FROM_NAME ?? "Bestellung COCO";
-      if (!apiKey)
-        throw new Error("Mailversand ist nicht konfiguriert (MAILERSEND_API_KEY fehlt).");
-      if (!fromEmail) throw new Error("Absenderadresse fehlt (MAILERSEND_FROM_EMAIL).");
-
-      const { data: order, error: oErr } = await supabaseAdmin
-        .from("orders")
-        .select(
-          "id, order_number, supplier_id, location_id, status, total_amount_cents, delivery_date, time_window, delivery_address, notes",
-        )
-        .eq("id", data.orderId)
-        .eq("organization_id", caller.organizationId)
-        .maybeSingle();
-      if (oErr) throw oErr;
-      if (!order) throw new Error("Bestellung nicht gefunden.");
-      if (order.status === "cancelled")
-        throw new Error("Stornierte Bestellung kann nicht versendet werden.");
-
-      const { data: supplier, error: sErr } = await supabaseAdmin
-        .from("suppliers")
-        .select("id, name, email, customer_number")
-        .eq("id", order.supplier_id)
-        .eq("organization_id", caller.organizationId)
-        .maybeSingle();
-      if (sErr) throw sErr;
-      if (!supplier) throw new Error("Lieferant nicht gefunden.");
-      if (!supplier.email) throw new Error("Lieferant hat keine E-Mail-Adresse hinterlegt.");
-
-      let restaurantName = "";
-      if (order.location_id) {
-        const { data: loc } = await supabaseAdmin
-          // ST1: bewusst ungefiltert — Daten-Zugriff (Namens-Lookup an historischer Bestellung).
-          .from("locations")
-          .select("name")
-          .eq("id", order.location_id)
-          .maybeSingle();
-        restaurantName = loc?.name ?? "";
-      }
-
-      const { data: items, error: iErr } = await supabaseAdmin
-        .from("order_items")
-        .select(
-          "article_name, sku, quantity, unit, unit_price_cents, total_price_cents, is_free_text_item",
-        )
-        .eq("order_id", order.id)
-        .order("created_at");
-      if (iErr) throw iErr;
-
-      const emailData: OrderEmailData = {
-        orderNumber: order.order_number,
-        supplierName: supplier.name,
-        customerNumber: supplier.customer_number,
-        restaurantName,
-        deliveryAddress: order.delivery_address ?? "",
-        deliveryDate: order.delivery_date,
-        timeWindow: order.time_window,
-        notes: order.notes,
-        items: (items ?? []).map((it) => ({
-          articleName: it.article_name,
-          sku: it.sku,
-          quantity: Number(it.quantity),
-          unit: it.unit,
-          unitPriceCents: Number(it.unit_price_cents),
-          totalPriceCents: Number(it.total_price_cents),
-          isFreeText: it.is_free_text_item,
-        })),
-        totalAmountCents: Number(order.total_amount_cents),
-      };
-
-      const res = await fetch("https://api.mailersend.com/v1/email", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          "X-Requested-With": "XMLHttpRequest",
-        },
-        body: JSON.stringify({
-          from: { email: fromEmail, name: fromName },
-          to: [{ email: supplier.email, name: supplier.name }],
-          subject: buildOrderEmailSubject(emailData),
-          html: buildOrderEmailHtml(emailData),
-          text: buildOrderEmailText(emailData),
-        }),
-      });
-      // 202 Accepted = Erfolg (asynchroner Versand). res.ok deckt 202 ab.
-      if (!res.ok) {
-        const body = await res.text().catch(() => "");
-        throw new Error(`Mailversand fehlgeschlagen (${res.status}). ${body.slice(0, 300)}`);
-      }
-
-      const { error: upErr } = await supabaseAdmin
-        .from("orders")
-        .update({
-          status: "sent",
-          email_sent: true,
-          email_sent_at: new Date().toISOString(),
-        })
-        .eq("id", order.id)
-        .eq("organization_id", caller.organizationId);
-      if (upErr) throw upErr;
-
+      const { sendOrderEmailWithAdmin } = await import("./send-order-email.server");
+      const sent = await sendOrderEmailWithAdmin(
+        supabaseAdmin,
+        caller.organizationId,
+        data.orderId,
+      );
       return {
-        result: { ok: true as const, orderId: order.id },
+        result: { ok: true as const, orderId: sent.orderId, wasResend: sent.wasResend },
         audit: {
           action: "order.email_sent",
           entity: "order",
-          entityId: order.id,
-          meta: {
-            orderNumber: order.order_number,
-            supplierId: supplier.id,
-            wasResend: order.status === "sent",
-          },
+          entityId: sent.orderId,
+          meta: { orderNumber: sent.orderNumber, wasResend: sent.wasResend },
         },
       };
     });
