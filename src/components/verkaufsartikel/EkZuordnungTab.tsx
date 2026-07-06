@@ -268,6 +268,34 @@ export function EkZuordnungTab({ locationId }: { locationId: string }) {
         </Alert>
       )}
 
+      {skipped.length > 0 && (
+        <Alert>
+          <AlertTitle>
+            {skipped.length} Rezept-EK übersprungen — bitte nachpflegen
+          </AlertTitle>
+          <AlertDescription>
+            <ul className="mt-1 list-disc pl-4 text-xs">
+              {skipped.slice(0, 20).map((s) => {
+                const name = rows.find((r) => r.id === s.salesArticleId)?.name ?? s.salesArticleId;
+                return (
+                  <li key={s.salesArticleId}>
+                    <span className="font-medium">{name}</span>: {s.reason}
+                  </li>
+                );
+              })}
+              {skipped.length > 20 && <li>… und {skipped.length - 20} weitere.</li>}
+            </ul>
+            <button
+              type="button"
+              className="mt-2 text-xs underline"
+              onClick={() => setSkipped([])}
+            >
+              Schliessen
+            </button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {articlesQ.isLoading ? (
         <p className="text-sm text-muted-foreground">Lädt …</p>
       ) : filtered.length === 0 ? (
