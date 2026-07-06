@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { computeEkFromLink, parsePortionMlFromName, parseVolumeMlFromName } from "./ek-linking";
+import {
+  computeEkFromLink,
+  parsePortionMlFromName,
+  parseVolumeMlFromName,
+  wareneinsatzQuote,
+} from "./ek-linking";
 
 describe("computeEkFromLink", () => {
   it("4 cl aus 1,0-l-Flasche zu 15,20 € → 0,61 € (gerundet)", () => {
@@ -103,5 +108,28 @@ describe("parsePortionMlFromName", () => {
   });
   it("nackte 5 (ohne Komma) → null", () => {
     expect(parsePortionMlFromName("Espresso 5")).toBe(null);
+  });
+});
+
+describe("wareneinsatzQuote", () => {
+  it("Normalfall: EK 53 ct, VK brutto 490 ct → 12.9 %", () => {
+    // VK netto = 490 / 1.19 = 411.7647 → 53 / 411.7647 = 0.12871 → 12.9
+    expect(wareneinsatzQuote(53, 490)).toBe(12.9);
+  });
+  it("EK null → null", () => {
+    expect(wareneinsatzQuote(null, 490)).toBe(null);
+  });
+  it("VK null → null", () => {
+    expect(wareneinsatzQuote(53, null)).toBe(null);
+  });
+  it("VK 0 → null", () => {
+    expect(wareneinsatzQuote(53, 0)).toBe(null);
+  });
+  it("EK 0 → 0", () => {
+    expect(wareneinsatzQuote(0, 490)).toBe(0);
+  });
+  it("vatRate wirkt: 0.07 statt 0.19 verschiebt Ergebnis", () => {
+    // VK netto = 490 / 1.07 = 457.9439 → 53 / 457.9439 = 0.11573 → 11.6
+    expect(wareneinsatzQuote(53, 490, 0.07)).toBe(11.6);
   });
 });

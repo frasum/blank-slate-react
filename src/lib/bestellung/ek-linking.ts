@@ -101,3 +101,26 @@ export function parsePortionMlFromName(name: string): number | null {
   }
   return null;
 }
+
+// EKW1 — Wareneinsatzquote (EK netto ÷ VK netto × 100).
+// price_cents ist BRUTTO (Endpreis inkl. MwSt), ek_price_cents ist NETTO.
+// vatRate: 0.19 = 19 % (Getränke im Haus). Rückgabe auf 1 Nachkommastelle
+// gerundet. null, wenn EK oder VK fehlt bzw. VK ≤ 0.
+export const EKW_VAT_RATE = 0.19;
+export const WE_GRUEN_BIS = 25; // %
+export const WE_GELB_BIS = 35; // %  (darüber: rot)
+
+export function wareneinsatzQuote(
+  ekCents: number | null,
+  vkBruttoCents: number | null,
+  vatRate = EKW_VAT_RATE,
+): number | null {
+  if (ekCents === null || vkBruttoCents === null) return null;
+  if (!Number.isFinite(ekCents) || !Number.isFinite(vkBruttoCents)) return null;
+  if (vkBruttoCents <= 0) return null;
+  if (ekCents < 0) return null;
+  const vkNetto = vkBruttoCents / (1 + vatRate);
+  if (vkNetto <= 0) return null;
+  const pct = (ekCents / vkNetto) * 100;
+  return Math.round(pct * 10) / 10;
+}
