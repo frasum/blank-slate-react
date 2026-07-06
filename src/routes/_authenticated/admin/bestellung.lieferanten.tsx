@@ -833,13 +833,21 @@ function LieferantenPage() {
               initial={
                 supplierDialog.mode === "edit" ? supplierDialog.initial : EMPTY_SUPPLIER_DRAFT
               }
+              editingSupplierId={
+                supplierDialog.mode === "edit" ? supplierDialog.supplierId : null
+              }
+              locations={activeLocations.map((l) => ({ id: l.id, name: l.name }))}
               submitLabel={supplierDialog.mode === "edit" ? "Speichern" : "Anlegen"}
               submitting={
                 supplierDialog.mode === "edit" ? updateSupMut.isPending : createSupMut.isPending
               }
-              onSubmit={(d) => {
+              onSubmit={(d, locationChanges) => {
                 if (supplierDialog.mode === "edit") {
-                  updateSupMut.mutate({ id: supplierDialog.supplierId, draft: d });
+                  updateSupMut.mutate({
+                    id: supplierDialog.supplierId,
+                    draft: d,
+                    locationChanges,
+                  });
                 } else {
                   createSupMut.mutate(d);
                 }
