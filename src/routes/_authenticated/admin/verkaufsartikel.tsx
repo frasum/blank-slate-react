@@ -39,9 +39,11 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { EkZuordnungTab } from "@/components/verkaufsartikel/EkZuordnungTab";
+import { RezepteTab } from "@/components/verkaufsartikel/RezepteTab";
 import { SalesGroupFilter } from "@/components/bestellung/SalesGroupFilter";
 import { ALL, matchesHaupt, matchesUnter, matchesWg } from "@/lib/bestellung/sales-group-filter";
 import { wareneinsatzQuote, WE_GRUEN_BIS, WE_GELB_BIS } from "@/lib/bestellung/ek-linking";
+import { supabase } from "@/integrations/supabase/client";
 
 const WE_TOOLTIP =
   "Wareneinsatz = EK netto ÷ VK netto (VK ÷ 1,19). Grün ≤ 25 % · Gelb ≤ 35 % · Rot > 35 %";
@@ -108,6 +110,19 @@ function VerkaufsartikelPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [editRow, setEditRow] = useState<SalesArticle | null>(null);
   const [subtab, setSubtab] = useState<"liste" | "ek">("liste");
+  const [tabValue, setTabValue] = useState<"liste" | "ek" | "rezepte">("liste");
+
+  // UX-Gate: Rezepte-Tab nur wenn has_permission('recipes.manage', null) true ist.
+  const canManageRecipes = useQuery({
+    queryKey: ["has-perm", "recipes.manage"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("has_permission", {
+        _perm: "recipes.manage",
+      });
+      if (error) return false;
+      return Boolean(data);
+    },
+  });
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -162,19 +177,32 @@ function VerkaufsartikelPage() {
       <LocationPills locations={locations} value={locationId} onChange={setLocationId} />
 
       {isAdmin && locationId && (
-        <Tabs value={subtab} onValueChange={(v) => setSubtab(v as "liste" | "ek")}>
+        <Tabs
+          value={tabValue}
+          onValueChange={(v) => {
+            const next = v as "liste" | "ek" | "rezepte";
+            setTabValue(next);
+            setSubtab(next === "rezepte" ? "liste" : (next as "liste" | "ek"));
+          }}
+        >
           <TabsList>
             <TabsTrigger value="liste">Verkaufsartikel</TabsTrigger>
             <TabsTrigger value="ek">EK-Zuordnung</TabsTrigger>
+            {canManageRecipes.data && <TabsTrigger value="rezepte">Rezepte</TabsTrigger>}
           </TabsList>
           <TabsContent value="ek" className="pt-4">
             <EkZuordnungTab locationId={locationId} />
           </TabsContent>
+          {canManageRecipes.data && (
+            <TabsContent value="rezepte" className="pt-4">
+              <RezepteTab locationId={locationId} />
+            </TabsContent>
+          )}
           <TabsContent value="liste" className="pt-4" />
         </Tabs>
       )}
 
-      {(!isAdmin || subtab === "liste") && (
+      {(!isAdmin || (subtab === "liste" && tabValue === "liste")) && (
         <>
           <div className="flex flex-wrap items-center gap-2">
             <input

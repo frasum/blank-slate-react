@@ -75,6 +75,144 @@ export type RecipeDetail = {
 };
 
 // ---------------------------------------------------------------------------
+// listRecipeArticleCandidates — schlanke Lese-Fn für den R2-Editor.
+// Liefert alle aktiven Einkaufsartikel der Org (mit Lieferantname und den
+// Feldern, die pricePerBaseUnitCents braucht) sowie eine vollständige
+// Rezept-Kaskade (Rezepte + Items + Sub-Meta). Der Editor baut daraus
+// clientseitig einen CostingCtx, um Live-Kosten mit demselben Rechenkern
+// wie der Server zu zeigen.
+// ---------------------------------------------------------------------------
+
+export type RecipeArticleCandidate = {
+  id: string;
+  name: string;
+  supplierName: string | null;
+  priceCents: number;
+  orderToInventoryFactor: number;
+  contentQuantity: number | null;
+  contentUnit: RecipeUnit | null;
+};
+
+export type RecipeCandidateBundle = {
+  articles: RecipeArticleCandidate[];
+  recipes: Array<{
+    id: string;
+    name: string;
+    kind: RecipeKind;
+    yieldQuantity: number | null;
+    yieldUnit: RecipeUnit | null;
+    items: RecipeDetailItem[];
+  }>;
+};
+
+export const listRecipeArticleCandidates = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<RecipeCandidateBundle> => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, ALLOWED_ROLES);
+    await assertPermission(context.supabase, "recipes.manage", null);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    type ArtRow = {
+      id: string;
+      name: string;
+      price_cents: number;
+      order_to_inventory_factor: number;
+      content_quantity: number | null;
+      content_unit: string | null;
+      is_active: boolean;
+      suppliers: { name: string | null } | null;
+    };
+    const artRows = await selectAllPaged<ArtRow>(() =>
+      supabaseAdmin
+        .from("articles")
+        .select(
+          "id, name, price_cents, order_to_inventory_factor, content_quantity, content_unit, is_active, suppliers:supplier_id(name)",
+        )
+        .eq("organization_id", caller.organizationId)
+        .eq("is_active", true)
+        .order("name", { ascending: true })
+        .order("id", { ascending: true }),
+    );
+
+    type RecRow = {
+      id: string;
+      name: string;
+      kind: string;
+      yield_quantity: number | null;
+      yield_unit: string | null;
+    };
+    const recRows = await selectAllPaged<RecRow>(() =>
+      supabaseAdmin
+        .from("recipes")
+        .select("id, name, kind, yield_quantity, yield_unit")
+        .eq("organization_id", caller.organizationId)
+        .order("name", { ascending: true })
+        .order("id", { ascending: true }),
+    );
+
+    type ItRow = {
+      id: string;
+      recipe_id: string;
+      position: number;
+      article_id: string | null;
+      sub_recipe_id: string | null;
+      quantity: number;
+      unit: string;
+      loss_percent: number;
+    };
+    const recIds = recRows.map((r) => r.id);
+    const itemRows: ItRow[] =
+      recIds.length === 0
+        ? []
+        : await selectAllPaged<ItRow>(() =>
+            supabaseAdmin
+              .from("recipe_items")
+              .select(
+                "id, recipe_id, position, article_id, sub_recipe_id, quantity, unit, loss_percent",
+              )
+              .in("recipe_id", recIds)
+              .order("recipe_id", { ascending: true })
+              .order("position", { ascending: true })
+              .order("id", { ascending: true }),
+          );
+
+    const itemsByRecipe = new Map<string, RecipeDetailItem[]>();
+    for (const it of itemRows) {
+      const list = itemsByRecipe.get(it.recipe_id) ?? [];
+      list.push({
+        id: it.id,
+        position: it.position,
+        articleId: it.article_id,
+        subRecipeId: it.sub_recipe_id,
+        quantity: Number(it.quantity),
+        unit: it.unit as RecipeUnit,
+        lossPercent: Number(it.loss_percent),
+      });
+      itemsByRecipe.set(it.recipe_id, list);
+    }
+
+    return {
+      articles: artRows.map((a) => ({
+        id: a.id,
+        name: a.name,
+        supplierName: a.suppliers?.name ?? null,
+        priceCents: Number(a.price_cents),
+        orderToInventoryFactor: Number(a.order_to_inventory_factor),
+        contentQuantity: a.content_quantity === null ? null : Number(a.content_quantity),
+        contentUnit: a.content_unit as RecipeUnit | null,
+      })),
+      recipes: recRows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        kind: r.kind as RecipeKind,
+        yieldQuantity: r.yield_quantity === null ? null : Number(r.yield_quantity),
+        yieldUnit: r.yield_unit as RecipeUnit | null,
+        items: itemsByRecipe.get(r.id) ?? [],
+      })),
+    };
+  });
+
+// ---------------------------------------------------------------------------
 // listRecipes
 // ---------------------------------------------------------------------------
 
