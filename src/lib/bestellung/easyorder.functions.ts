@@ -111,6 +111,17 @@ export async function getEasyOrderCatalogCore(
     .eq("location_id", locationId);
   const allowedSupplierIds = (wl ?? []).map((r) => r.supplier_id);
 
+  // SL1: standort-genaue Deaktivierung. Zeilen mit is_active=false schließen
+  // den Lieferanten für diesen Standort aus; FEHLENDE Zeile = erlaubt.
+  const { data: slDisabled, error: slErr } = await admin
+    .from("supplier_locations")
+    .select("supplier_id")
+    .eq("organization_id", caller.organizationId)
+    .eq("location_id", locationId)
+    .eq("is_active", false);
+  if (slErr) throw new Error(slErr.message);
+  const disabledSupplierIds = new Set((slDisabled ?? []).map((r) => r.supplier_id));
+
   // Standort-Zuordnung: nur Artikel zeigen, die für diesen Standort freigegeben
   // sind. Inner-Join auf article_locations, damit wir keine riesige IN-Liste
   // (URL-Längen-Limit von PostgREST) bauen müssen.
@@ -128,7 +139,9 @@ export async function getEasyOrderCatalogCore(
 
   return {
     locationId,
-    articles: (articles ?? []).map((a) => ({
+    articles: (articles ?? [])
+      .filter((a) => !disabledSupplierIds.has(a.supplier_id))
+      .map((a) => ({
       id: a.id,
       name: a.name,
       sku: a.sku,
