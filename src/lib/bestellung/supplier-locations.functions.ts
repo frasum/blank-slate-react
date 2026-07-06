@@ -20,6 +20,7 @@ import type { Database } from "@/integrations/supabase/types";
 type Admin = SupabaseClient<Database>;
 
 export type SupplierLocationRow = {
+  supplierId: string;
   locationId: string;
   customerNumber: string | null;
   isActive: boolean;
@@ -58,16 +59,20 @@ async function assertLocationInOrg(admin: Admin, organizationId: string, locatio
 export async function listSupplierLocationsCore(
   admin: Admin,
   organizationId: string,
-  supplierId: string,
+  supplierId?: string,
 ): Promise<SupplierLocationRow[]> {
-  await assertSupplierInOrg(admin, organizationId, supplierId);
-  const { data, error } = await admin
+  if (supplierId) {
+    await assertSupplierInOrg(admin, organizationId, supplierId);
+  }
+  let q = admin
     .from("supplier_locations")
-    .select("location_id, customer_number, is_active")
-    .eq("organization_id", organizationId)
-    .eq("supplier_id", supplierId);
+    .select("supplier_id, location_id, customer_number, is_active")
+    .eq("organization_id", organizationId);
+  if (supplierId) q = q.eq("supplier_id", supplierId);
+  const { data, error } = await q;
   if (error) throw new Error(error.message);
   return (data ?? []).map((r) => ({
+    supplierId: r.supplier_id,
     locationId: r.location_id,
     customerNumber: r.customer_number,
     isActive: r.is_active,
@@ -113,7 +118,7 @@ export async function setSupplierLocationCore(
 // ---------------------------------------------------------------------------
 
 const ListInput = z.object({
-  supplierId: z.string().uuid(),
+  supplierId: z.string().uuid().optional(),
 });
 
 export const listSupplierLocations = createServerFn({ method: "GET" })
