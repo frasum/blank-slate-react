@@ -231,6 +231,12 @@ Erst wenn ESLint 0 Fehler und alle Tests grün sind → ABGENOMMEN.
   Claude verifiziert parallel per frischem Clone. Bis zur Klärung darf
   Lovable NICHTS committen (Push aus alter Sandbox wischt neuere Commits
   weg — E1-Muster). Origin ist die Wahrheit, nie die Workspace-Aussage.
+- **PostgREST-1000-Zeilen-Kappung:** Jeder Supabase-Read, dessen
+  Ergebnismenge 1000 Zeilen erreichen KANN (Artikel, Zuordnungstabellen,
+  Historien), läuft über `selectAllPaged` mit stabilem `ORDER BY`
+  (`id`-Tiebreaker). Unpaginierte Reads nur für ID-Lookups und hart
+  begrenzte Mengen. (Lektion BFIX2: die Kappung schlägt still zu — keine
+  Fehlermeldung, nur fehlende Daten.)
 
 ## 4. Stammdaten-Referenz (COCO Produktion)
 
@@ -636,7 +642,9 @@ Quelle der Wahrheit: Legacy `bestellung` (Repo `bestellung-5fff1793`, hat `SYSTE
 
 **H Kontaktdaten:** 22 Füllungen NUR leerer COCO-Felder (`email`/`phone`/org-weite `customer_number`); bestehende Werte nie überschrieben. Einziger Lieferant ohne E-Mail: „Nicht zugeordnet" (gewollt — Platzhalter, Versand verweigert sauber).
 
-**E Artikel-Dubletten (06.07.2026, abgeschlossen):** 105 Kandidaten-Paare von Frank per CSV markiert (Größen-/Qualitäts-Varianten bewusst NICHT gemerged: Roederer 0,375l/0,75l, Plose, Coca-Cola-Gebinde, Havana 3/7 años, Top-Service-Gebinde). Dazu 36 exakte Namens-Dubletten, die erst durch die A-Lieferanten-Merges entstanden waren (Feldbrach/Früchte-Feldbrach-Überschneidung u. a.), automatisch ergänzt. Per Verkettung 93 Merge-Gruppen, 113 Artikel aufgelöst → 1200 Artikel (live verifiziert). Überlebender je Gruppe zur Laufzeit gewählt (meiste Bestellhistorie → vorhandene Beschreibung → kleinste ID); leere Felder aus Dubletten aufgefüllt; Inventur-Kollisionen (UNIQUE session_id+article_id) durch Mengen-Summierung gelöst; Umhängen von order_items/cart(\_draft)\_items/inventory_items/sales_articles.ek_source_article_id/article_locations (Union). Zwei Paare auf Rückfrage zurückgestellt (Farnetani Barolo/Grappa; Hamberger BGL-H-Milch). SL2 damit vollständig abgeschlossen — das CSV-Diff-→-idempotente-Pakete-Muster steht für künftige Legacy-Abgleiche bereit.
+**E Artikel-Dubletten (06.07.2026, abgeschlossen):** 105 Kandidaten-Paare von Frank per CSV markiert (Größen-/Qualitäts-Varianten bewusst NICHT gemerged: Roederer 0,375l/0,75l, Plose, Coca-Cola-Gebinde, Havana 3/7 años, Top-Service-Gebinde). Dazu 36 exakte Namens-Dubletten, die erst durch die A-Lieferanten-Merges entstanden waren (Feldbrach/Früchte-Feldbrach-Überschneidung u. a.), automatisch ergänzt. Per Verkettung 93 Merge-Gruppen, 113 Artikel aufgelöst → 1200 Artikel (live verifiziert). Überlebender je Gruppe zur Laufzeit gewählt (meiste Bestellhistorie → vorhandene Beschreibung → kleinste ID); leere Felder aus Dubletten aufgefüllt; Inventur-Kollisionen (UNIQUE session_id+article_id) durch Mengen-Summierung gelöst; Umhängen von order_items/cart(\_draft)\_items/inventory_items/sales_articles.ek_source_article_id/article_locations (Union). Rückfragen geklärt: Farnetani Barolo/Grappa bewusst getrennt gelassen (zwei Produkte); das BGL-H-Milch-Paar war transitiv bereits in E enthalten (beide über das Milch-Paar verkettet). SL2 damit vollständig abgeschlossen — das CSV-Diff-→-idempotente-Pakete-Muster steht für künftige Legacy-Abgleiche bereit.
+
+**BFIX2 (06.07.2026) — PostgREST-1000-Zeilen-Kappung:** PostgREST kappt Ergebnismengen per Default bei 1000 Zeilen — `listArticles` lud Artikel (1199) und `article_locations` (~1700) unpaginiert, wodurch der Admin-Katalog nach den SL1-Standortfiltern ganze Lieferanten fälschlich leer zeigte (Kappungsgrenze lag alphabetisch mitten im „K": KAO sichtbar, Klocke leer). Die DB-Daten waren korrekt; reiner Lade-Bug, der latent seit dem 1335-Artikel-Import bestand und erst durch die Standortfilter sichtbar wurde. Fix: zentraler Helper `selectAllPaged` (`src/lib/supabase/select-all.ts`, getestet, Hard-Cap gegen Endlosschleifen) + Umstellung aller >1000-Zeilen-Kandidaten (`listArticles`, `listArticleCategories`, EasyOrder-Katalog, Inventur, EK-Werkbank, Verkaufsartikel) mit stabilem `id`-Tiebreaker im `ORDER BY`. Abgenommen HEAD `12c35416`, vier Gates grün (1454 Tests).
 
 ## 8. CI-Befund (15.06.2026): db-integration Schema-Cache-Blocker
 
