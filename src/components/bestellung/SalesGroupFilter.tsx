@@ -37,6 +37,10 @@ type Props = {
    * Nur passende Hauptgruppen erscheinen im Dropdown.
    */
   allowedHauptLabels?: readonly string[];
+  /**
+   * Optionale Blacklist für Untergruppen (Label, case-insensitive).
+   */
+  blockedUnterLabels?: readonly string[];
 };
 
 export function SalesGroupFilter({
@@ -49,6 +53,7 @@ export function SalesGroupFilter({
   setWg,
   extraHauptOption,
   allowedHauptLabels,
+  blockedUnterLabels,
 }: Props) {
   const hauptOptions = useMemo(() => {
     const all = deriveHauptOptions(rows);
@@ -63,7 +68,12 @@ export function SalesGroupFilter({
     return rows.filter((r) => matchesHaupt(r, haupt));
   }, [rows, haupt, extraHauptOption]);
 
-  const unterOptions = useMemo(() => deriveUnterOptions(rowsAfterHaupt), [rowsAfterHaupt]);
+  const unterOptions = useMemo(() => {
+    const all = deriveUnterOptions(rowsAfterHaupt);
+    if (!blockedUnterLabels || blockedUnterLabels.length === 0) return all;
+    const block = new Set(blockedUnterLabels.map((l) => l.trim().toLowerCase()));
+    return all.filter((o) => !block.has(o.label.trim().toLowerCase()));
+  }, [rowsAfterHaupt, blockedUnterLabels]);
 
   const rowsAfterUnter = useMemo(() => {
     if (unter === ALL) return rowsAfterHaupt;
