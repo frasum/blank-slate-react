@@ -131,8 +131,7 @@ export const listRecipes = createServerFn({ method: "POST" })
       if (r.recipe_id) counts.set(r.recipe_id, (counts.get(r.recipe_id) ?? 0) + 1);
     }
     for (const r of subUse.data ?? []) {
-      if (r.sub_recipe_id)
-        counts.set(r.sub_recipe_id, (counts.get(r.sub_recipe_id) ?? 0) + 1);
+      if (r.sub_recipe_id) counts.set(r.sub_recipe_id, (counts.get(r.sub_recipe_id) ?? 0) + 1);
     }
 
     return rows.map((r) => ({
@@ -162,7 +161,9 @@ export const getRecipe = createServerFn({ method: "POST" })
 
     const { data: recipe, error } = await supabaseAdmin
       .from("recipes")
-      .select("id, organization_id, name, kind, yield_quantity, yield_unit, notes, created_at, updated_at")
+      .select(
+        "id, organization_id, name, kind, yield_quantity, yield_unit, notes, created_at, updated_at",
+      )
       .eq("id", data.recipeId)
       .maybeSingle();
     if (error) throw new Error(error.message);
@@ -490,7 +491,9 @@ export const setRecipeItems = createServerFn({ method: "POST" })
               throw new Error("Zwischenrezept gehört nicht zur aktiven Organisation.");
             }
             if (s.kind !== "sub" || !s.yield_unit || s.yield_quantity === null) {
-              throw new Error("Als Zutat verwendbare Rezepte müssen Zwischenrezepte mit Ausbeute sein.");
+              throw new Error(
+                "Als Zutat verwendbare Rezepte müssen Zwischenrezepte mit Ausbeute sein.",
+              );
             }
             subMap.set(s.id, {
               id: s.id,
@@ -521,7 +524,9 @@ export const setRecipeItems = createServerFn({ method: "POST" })
             }
           } else if (it.subRecipeId) {
             if (it.subRecipeId === data.recipeId) {
-              throw new Error(`Zeile ${idx + 1}: Rezept kann sich nicht selbst als Zutat verwenden.`);
+              throw new Error(
+                `Zeile ${idx + 1}: Rezept kann sich nicht selbst als Zutat verwenden.`,
+              );
             }
             const sub = subMap.get(it.subRecipeId);
             if (!sub) throw new Error(`Zeile ${idx + 1}: Zwischenrezept nicht gefunden.`);
@@ -738,7 +743,9 @@ export const linkSalesArticleRecipe = createServerFn({ method: "POST" })
           throw new Error("Rezept gehört nicht zur aktiven Organisation.");
         }
         if (recipe.kind !== "dish") {
-          throw new Error("Nur Gerichte (kind='dish') können mit einem Verkaufsartikel verknüpft werden.");
+          throw new Error(
+            "Nur Gerichte (kind='dish') können mit einem Verkaufsartikel verknüpft werden.",
+          );
         }
 
         const { error: updErr } = await supabaseAdmin
@@ -838,9 +845,7 @@ export const unlinkSalesArticleRecipe = createServerFn({ method: "POST" })
 // Editor-Preview. Lädt alle Rezepte + Items + Artikel einer Org paginiert.
 // ---------------------------------------------------------------------------
 
-export async function loadCostingCtxForOrganization(
-  organizationId: string,
-): Promise<CostingCtx> {
+export async function loadCostingCtxForOrganization(organizationId: string): Promise<CostingCtx> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
   type ArtRow = {
