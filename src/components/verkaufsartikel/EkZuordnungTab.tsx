@@ -270,9 +270,7 @@ export function EkZuordnungTab({ locationId }: { locationId: string }) {
 
       {skipped.length > 0 && (
         <Alert>
-          <AlertTitle>
-            {skipped.length} Rezept-EK übersprungen — bitte nachpflegen
-          </AlertTitle>
+          <AlertTitle>{skipped.length} Rezept-EK übersprungen — bitte nachpflegen</AlertTitle>
           <AlertDescription>
             <ul className="mt-1 list-disc pl-4 text-xs">
               {skipped.slice(0, 20).map((s) => {
@@ -285,11 +283,7 @@ export function EkZuordnungTab({ locationId }: { locationId: string }) {
               })}
               {skipped.length > 20 && <li>… und {skipped.length - 20} weitere.</li>}
             </ul>
-            <button
-              type="button"
-              className="mt-2 text-xs underline"
-              onClick={() => setSkipped([])}
-            >
+            <button type="button" className="mt-2 text-xs underline" onClick={() => setSkipped([])}>
               Schliessen
             </button>
           </AlertDescription>
