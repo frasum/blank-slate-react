@@ -14,7 +14,7 @@
 
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { createFileRoute, useNavigate, useRouteContext } from "@tanstack/react-router";
+import { createFileRoute, useRouteContext } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getOrgSettings, updateOrgSettings } from "@/lib/admin/org-settings.functions";
@@ -52,7 +52,6 @@ function OrgSettingsPage() {
   const canEdit = identity.role === "admin";
   const queryClient = useQueryClient();
   const callUpdate = useServerFn(updateOrgSettings);
-  const navigate = useNavigate({ from: Route.fullPath });
   const { tab } = Route.useSearch();
 
   const settingsQ = useQuery({
@@ -133,10 +132,6 @@ function OrgSettingsPage() {
     mutation.mutate();
   };
 
-  const goToTab = (key: TabKey) => {
-    void navigate({ search: { tab: key }, replace: true });
-  };
-
   return (
     <div className="max-w-xl space-y-6">
       <div>
@@ -144,33 +139,6 @@ function OrgSettingsPage() {
         <p className="mt-1 text-sm text-muted-foreground">
           Organisationsweite Geschäftsregeln. {canEdit ? "Nur Admin darf ändern." : "Nur lesen."}
         </p>
-      </div>
-
-      <div
-        role="tablist"
-        aria-label="Einstellungen-Untergruppen"
-        className="flex flex-wrap gap-1 border-b border-border"
-      >
-        {SUB_TABS.map((t) => {
-          const active = t.key === tab;
-          return (
-            <button
-              key={t.key}
-              role="tab"
-              type="button"
-              aria-selected={active}
-              onClick={() => goToTab(t.key)}
-              className={
-                "-mb-px border-b-2 px-3 py-2 text-sm font-medium transition " +
-                (active
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground")
-              }
-            >
-              {t.label}
-            </button>
-          );
-        })}
       </div>
 
       <div className="space-y-8">
