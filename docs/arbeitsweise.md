@@ -231,6 +231,12 @@ Erst wenn ESLint 0 Fehler und alle Tests grün sind → ABGENOMMEN.
   Claude verifiziert parallel per frischem Clone. Bis zur Klärung darf
   Lovable NICHTS committen (Push aus alter Sandbox wischt neuere Commits
   weg — E1-Muster). Origin ist die Wahrheit, nie die Workspace-Aussage.
+- **PostgREST-1000-Zeilen-Kappung:** Jeder Supabase-Read, dessen
+  Ergebnismenge 1000 Zeilen erreichen KANN (Artikel, Zuordnungstabellen,
+  Historien), läuft über `selectAllPaged` mit stabilem `ORDER BY`
+  (`id`-Tiebreaker). Unpaginierte Reads nur für ID-Lookups und hart
+  begrenzte Mengen. (Lektion BFIX2: die Kappung schlägt still zu — keine
+  Fehlermeldung, nur fehlende Daten.)
 
 ## 4. Stammdaten-Referenz (COCO Produktion)
 
