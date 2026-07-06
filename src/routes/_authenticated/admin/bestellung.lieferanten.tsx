@@ -441,6 +441,15 @@ function LieferantenPage() {
 
   return (
     <div className="space-y-4">
+      {/* SL1: Standort-Pill (bindet an Warenkorb). Keine „Alle"-Option. */}
+      {activeLocations.length > 1 && activeLocationId && (
+        <LocationPills
+          locations={activeLocations.map((l) => ({ id: l.id, name: l.name }))}
+          value={activeLocationId}
+          onChange={(id) => setCartLocMut.mutate(id)}
+          size="sm"
+        />
+      )}
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3">
         <input
