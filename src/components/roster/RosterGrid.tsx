@@ -73,6 +73,13 @@ type Props = {
   locked: boolean;
   paint: PaintSelection;
   busy: boolean;
+  /**
+   * SP1 — Aktives Planungsfenster des Grids. Wird für die Farbe der
+   * Cross-Booking-Punkte gebraucht: gleicher-Fenster-Buchungen = Konflikt
+   * (rot), anderer-Fenster-Buchungen = Info (blau, legitime Doppelschicht).
+   * Default `"abend"` — deckt alle Nicht-Tagesbetrieb-Standorte ab.
+   */
+  viewportServicePeriod?: "mittag" | "abend";
   onCreate: (staffId: string, iso: string, area: GridArea, skillId: string) => Promise<void> | void;
   onDelete: (id: string) => Promise<void> | void;
   onChangeSkill: (id: string, skillId: string) => Promise<void> | void;
@@ -108,6 +115,7 @@ export function RosterGrid({
   locked,
   paint,
   busy,
+  viewportServicePeriod = "abend",
   onCreate,
   onDelete,
   onChangeSkill,
@@ -467,6 +475,7 @@ export function RosterGrid({
                               }}
                               onCellClick={() => void handleEmptyCellClick(row, iso)}
                               others={others}
+                              viewportServicePeriod={viewportServicePeriod}
                               isUnavailable={isUnavailable}
                               onSetUnavailable={async () => {
                                 await onSetUnavailable(row.staffId, iso);
@@ -764,6 +773,7 @@ function EmptyCell({
   hasWish,
   onSetWish,
   onClearWish,
+  viewportServicePeriod,
 }: {
   row: RosterStaffRow;
   iso: string;
@@ -792,6 +802,7 @@ function EmptyCell({
   hasWish: boolean;
   onSetWish: () => void;
   onClearWish: () => void;
+  viewportServicePeriod: "mittag" | "abend";
 }) {
   const { profile, other } = skillsForCell(row, activeArea, allSkills);
   const marker = (
@@ -814,24 +825,37 @@ function EmptyCell({
     <span className="relative block">
       {marker}
       {others.length > 0 && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span
-              className="absolute right-0.5 top-0.5 inline-block h-1.5 w-1.5 rounded-full bg-red-500"
-              aria-label="Bereits anderswo eingeteilt"
-            />
-          </TooltipTrigger>
-          <TooltipContent className="max-w-xs">
-            <div className="space-y-0.5 text-xs">
-              {others.map((b, i) => (
-                <div key={i}>
-                  Bereits: {b.locationName} · {AREA_SHORT[b.area]}
-                  {b.skillName ? ` · ${b.skillName}` : ""}
+        (() => {
+          const hasConflict = others.some((b) => b.servicePeriod === viewportServicePeriod);
+          return (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span
+                  className={cn(
+                    "absolute right-0.5 top-0.5 inline-block h-1.5 w-1.5 rounded-full",
+                    hasConflict ? "bg-red-500" : "bg-sky-500",
+                  )}
+                  aria-label={
+                    hasConflict
+                      ? "Bereits im gleichen Fenster eingeteilt"
+                      : "In anderem Fenster eingeteilt (Doppelschicht)"
+                  }
+                />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <div className="space-y-0.5 text-xs">
+                  {others.map((b, i) => (
+                    <div key={i}>
+                      {b.servicePeriod === "mittag" ? "Mittag" : "Abend"}: {b.locationName} ·{" "}
+                      {AREA_SHORT[b.area]}
+                      {b.skillName ? ` · ${b.skillName}` : ""}
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </TooltipContent>
-        </Tooltip>
+              </TooltipContent>
+            </Tooltip>
+          );
+        })()
       )}
     </span>
   );

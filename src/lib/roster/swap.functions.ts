@@ -63,6 +63,7 @@ type ShiftRow = {
   area: SwapArea;
   shift_date: string;
   organization_id: string;
+  service_period: "mittag" | "abend";
 };
 
 async function loadShift(
@@ -72,13 +73,18 @@ async function loadShift(
 ): Promise<ShiftRow> {
   const { data, error } = await admin
     .from("roster_shifts")
-    .select("id, staff_id, location_id, area, shift_date, organization_id")
+    .select("id, staff_id, location_id, area, shift_date, organization_id, service_period")
     .eq("id", shiftId)
     .eq("organization_id", organizationId)
     .maybeSingle();
   if (error) throw error;
   if (!data) throw new Error("Schicht nicht gefunden.");
-  return data as ShiftRow;
+  return {
+    ...(data as ShiftRow),
+    service_period: (((data as { service_period: string | null }).service_period ?? "abend") as
+      | "mittag"
+      | "abend"),
+  };
 }
 
 async function hasActiveRequestForShift(

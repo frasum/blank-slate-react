@@ -232,7 +232,14 @@ function MyShiftsPage() {
                     <div key={s.id} className="space-y-2 px-4 py-3 text-sm">
                       <div className="flex items-center justify-between">
                         <div className="font-medium">{s.locationName}</div>
-                        <div className="text-xs text-muted-foreground">{AREA_LABEL[s.area]}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {AREA_LABEL[s.area]}
+                          {s.locationDayServiceEnabled ? (
+                            <span className="ml-2 inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-foreground">
+                              {s.servicePeriod === "mittag" ? "Mittag" : "Abend"}
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
                       {s.skillLabel && (
                         <div className="text-xs text-muted-foreground">{s.skillLabel}</div>

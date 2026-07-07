@@ -1,74 +1,77 @@
-# RT1 + UZ1 — Betriebskalender & Urlaubszählung mit Feiertags-Regel
+## SP1 — Schichtbetrieb Mittag/Abend
 
-Umfangreicher Bauplan-Schritt: Schema, reine Module, Server-Fns, mehrere UI-Stellen. Umsetzung in einer Reihenfolge, in der jeder Zwischenschritt für sich lauffähig ist.
+Voraussetzung: RT1+UZ1 ist gemergt (`assertDayOpen` wird mitgenutzt, nicht geändert).
 
-## 1. Migration (approval-pflichtig)
+### 1) Migration
 
-Eine Migration mit:
-- `public.location_rest_days` (org_id, location_id, weekday 1–7, UNIQUE(location_id, weekday))
-- `public.location_calendar_exceptions` (org_id, location_id, date, kind IN ('closed','open'), reason, UNIQUE(location_id, date))
-- Beide: RLS an, KEINE Client-Policies, `REVOKE ALL … FROM PUBLIC, anon, authenticated`, `GRANT ALL … TO service_role` (deny-all-Hausmuster). Doku-Inventur wächst auf **zwanzig**.
-- `organization_settings.count_holidays_as_leave boolean NOT NULL DEFAULT false`
+Neue Wanderung mit exakt diesen Schritten (Hausmuster: `DROP` vor `CREATE`, keine `USING (true)`):
 
-## 2. Reine Module (+ Vitest)
+- `ALTER TABLE public.locations ADD COLUMN day_service_enabled boolean NOT NULL DEFAULT false;`
+- `ALTER TABLE public.roster_shifts ADD COLUMN service_period text NOT NULL DEFAULT 'abend' CHECK (service_period IN ('mittag','abend'));`
+- Vorhandenen Unique-Constraint `roster_shifts_staff_id_location_id_shift_date_area_key` per Namen droppen und neu anlegen als
+  `UNIQUE (staff_id, location_id, shift_date, area, service_period)`.
+- Bestandsdaten (`service_period='abend'` per Default) bleiben eindeutig — kein Datenumbau.
 
-**`src/lib/roster/business-calendar.ts`** (neu)
-- `isoWeekday(dateIso: string): number` (Mo=1 … So=7)
-- `isClosedDay(dateIso, restWeekdays: number[], exceptions: Map<string,'closed'|'open'>): boolean`
-- Regel: Ausnahme schlägt Wochentag. Kombitests: (Ruhetag & keine Ausnahme) / (Ruhetag & open) / (Nicht-Ruhetag & closed) / (Nicht-Ruhetag & keine).
+Kein Anfassen von RLS, Realtime, Publication (bleibt `REPLICA IDENTITY FULL`).
 
-**`src/lib/time/shift-hours.ts`**
-- `bavarianHolidayMap` exportieren (bislang lokal). Keine Logik-Änderung.
+### 2) Reines Modul + Tests
 
-**`src/lib/roster/leave-requests.ts`**
-- `countLeaveDays(start, end, holidayDates?: Set<string>)`: Feiertage im Zeitraum abziehen, min 0. Ohne Parameter identisches Verhalten → bestehende Tests bleiben unangetastet grün. Neue Tests: Feiertag mittendrin / am Rand / mehrere / keiner / alle Tage Feiertage.
+- Neu: `src/lib/roster/cross-booking.ts`
+  - Typ `CrossBookingKind = 'conflict' | 'info'`
+  - `classifyCrossBookings(rows, { locationId, area, servicePeriod })` liefert pro `(staffId, shiftDate)` Buckets:
+    - **conflict**: gleicher Tag + gleiches Fenster an anderem Standort
+    - **info**: gleicher Tag + anderes Fenster (legitime Doppelschicht)
+- `src/lib/roster/cross-booking.test.ts`:
+  - Standard-Standorte (alles `'abend'`): Verhalten wie heute — jede Fremdbuchung ist `conflict`.
+  - Tagesbetrieb: Fremdbuchung im selben Fenster = `conflict`, im anderen Fenster = `info`.
+  - Mehrfach-Fremdbuchungen richtig klassifiziert.
 
-## 3. Server-Functions
+### 3) Server-Functions
 
-**`src/lib/roster/business-calendar.functions.ts`** (neu)
-- `getLocationCalendar({ locationId, startDate, endDate })` — read, Rollen wie Roster-Reads → `{ restWeekdays: number[], exceptions: { date, kind, reason }[] }`.
-- `setRestDays({ locationId, weekdays })` — manager+ via `runWithPermission("locations.manage")` (bestehendes Recht), Cross-Org-Guard, Audit.
-- `upsertCalendarException({ locationId, date, kind, reason })` — dito.
-- `deleteCalendarException({ id })` — dito.
+`src/lib/roster/roster.functions.ts`
 
-**`business-calendar.server.ts`** (Helper)
-- `assertDayOpen(supabaseAdmin, locationId, shiftDate)` — lädt rest_days + exception für den Tag, wirft `Error("Ruhetag/geschlossen (…)")` wenn zu. VOR Schreiben, ohne Audit bei Ablehnung.
+- `RosterShift` + `RosterCrossBooking` bekommen `servicePeriod: 'mittag' | 'abend'`.
+- `getRosterShifts` / `getMyShifts` / `getStaffCrossBookings`: `service_period` mitlesen.
+- `createRosterShift` / `moveRosterShift`: `servicePeriod` (Zod-Enum, Default `'abend'`) im Input.
+  - Neu: Helper `assertServicePeriodAllowed(admin, locationId, servicePeriod)` — bei `'mittag'` prüft `locations.day_service_enabled`; sonst Klartext-Fehler „Standort hat keinen Tagesbetrieb aktiviert.".
+  - Bestehende „max. eine Einteilung pro Tag"-Regel wird **fenster-bewusst**: gleicher Standort/Bereich im selben Fenster bleibt Duplikat; Fremdbuchung im selben Fenster bleibt Konflikt; Fremdbuchung in anderem Fenster ist erlaubt (echte Doppelschicht). `assertDayOpen` und `assertShiftDateUnlocked` bleiben davor.
+  - Reihenfolge: `assertShiftDateUnlocked` → `assertDayOpen` → `assertServicePeriodAllowed` → Konflikt-Pre-Check.
+- Audit-Meta: `servicePeriod` in allen betroffenen Events.
 
-**Roster-Schreib-Fns** (`roster.functions.ts`, `swap.functions.ts` soweit relevant)
-- Bei Anlegen/Verschieben/Bestätigen: `assertDayOpen` einhängen. Löschen bleibt frei.
+`src/lib/roster/swap.functions.ts` — nur passives Mitlesen:
+- Selects um `service_period` erweitern; Konflikt-Check für Peer-Kandidaten läuft im selben Fenster (Anfragen respektieren das Fenster der Anker-Schicht).
 
-**Urlaubs-Fns**
-- `leave.functions.ts` (`requestLeave`, `listLeaveRequests`, `getMyLeaveRequests`) und `vacation-planner.functions.ts`: Setting `count_holidays_as_leave` laden. Wenn false → für Zeitraum via `bavarianHolidayMap` Feiertags-Set bilden und an `countLeaveDays` übergeben.
+`src/lib/locations/*` (bzw. bestehende Standort-Admin-Fn): Toggle `day_service_enabled` schreiben (Admin-Recht, Audit).
 
-## 4. UI
+### 4) UI
 
-**Stammdaten → Standorte** — neue Sektion „Betriebskalender" pro Standort:
-- 7 Checkboxen Wochentage (Ruhetage), Ausnahmen-Liste mit Datum + Art (`closed`/`open`) + Grund, Hinzufügen/Löschen.
+- **Stammdaten → Standorte**: Zeile/Schalter „Tagesbetrieb (Mittagsservice)" neben dem Betriebskalender. Hilfetext: „Aktiviert ein zweites Planungsfenster (Mittag) im Dienstplan dieses Standorts."
+- **Dienstplan-Grid** (`RosterAreaBlock` / `dienstplan.tsx`):
+  - Standort hat `day_service_enabled=false` → **kein** Umschalter, Grid exakt wie heute.
+  - `day_service_enabled=true` → Segmented Control „Mittag | Abend" oberhalb des Grids; Grid-Layout unverändert; `shifts`-Filter respektiert das aktive Fenster; Summenspalten je Fenster; Paint/DnD/Popover schreibt ins aktive Fenster (Payload `servicePeriod`).
+- **Cross-Booking-Punkte**: statt „irgend eine Fremdbuchung = rot" jetzt via `classifyCrossBookings` — rot bei Konflikt, blau bei anderem Fenster; Tooltip „Mittag: <Standort · Bereich>" bzw. „Abend: …".
+- **Öffentliches Display** (`display.$locationId.ts`): bei Tagesbetrieb-Standorten zwei Blöcke „Mittag"/„Abend" (oder in der Rotation nacheinander), sonst wie heute.
+- **„Meine Schichten"** (`my-shifts.ts` + Route): Fenster-Label „Mittag"/„Abend" an der Schicht — **nur** wenn der Standort Tagesbetrieb hat (aus dem geladenen Snapshot ableiten).
 
-**Dienstplan-Grid** (`RosterGrid`, `PlanerRosterView`):
-- Geschlossene Tage grau, Paint/Drag/Popover-Anlage clientseitig blockiert.
-- Bestehende Schichten dort: roter Rahmen + Tooltip „Standort geschlossen", löschbar.
+### 5) Nicht anfassen
 
-**Öffentliches Display (D3)** (`src/routes/api/public/display.$locationId.ts` / Renderer): geschlossene Tage als „Ruhetag".
+- Zeiterfassung, Kasse, Trinkgeldpool, Lohn/SFN — Ist-Zeiten bleiben fensterlos.
+- `pap-2026/**`, Perioden-/Sperrlogik, PL1/PL2-Scope.
+- Keine Uhrzeiten (D-1); `service_period` ist ein Fenster-Label.
+- RT1-Tabellen und `assertDayOpen`.
 
-**Urlaub** (Dialoge, Listen, Jahresplaner): Tage-Anzeige „X Urlaubstage (Y Feiertage nicht gezählt)" wenn Y > 0.
+### 6) Erfolgs-Gate
 
-**Einstellungen (Org)** (`ArbeitgeberSection` oder eigene Sektion): Schalter „Feiertage zählen als Urlaubstage" (Default aus) mit Hilfetext inkl. Hinweis auf Live-Neuberechnung älterer Anträge.
+- `npx tsc --noEmit`
+- `npx eslint . --max-warnings=0`
+- `npx prettier --check .`
+- `npx vitest run` — inkl. neuer Cross-Booking-Klassifizierungs-Tests
+- DB-Test nach Hausmuster: Unique erlaubt `('mittag' + 'abend')` für gleiche `(staff, loc, date, area)`, lehnt Duplikat im selben Fenster ab.
 
-**Stempeluhr**: nur dezenter Hinweis „Heute ist Ruhetag" beim Einstempeln, kein Block.
+### 7) Manuelle Abnahme (Frank)
 
-## 5. Nicht angefasst
+- Spicery/YUM: kein Umschalter, Grid exakt wie heute (wichtigster Punkt).
+- TSB „Tagesbetrieb" an → Umschalter erscheint, Mittag- + Abend-Schicht für gleiche Person am gleichen Tag anlegbar.
+- Gleiche Person am selben Tag im selben Fenster an zwei Standorten → roter Punkt; in verschiedenen Fenstern → blauer Punkt.
 
-`bavarianHolidayMap`-Logik selbst, SFN/Lohn-Geldpfad, `pap-2026/**`, Kasse, Trinkgeldpool, Statistik (→ RT2), Zeit-Schreibpfade außer Hinweis, Perioden-/Sperrlogik.
-
-## Erfolgs-Gate
-
-`tsc --noEmit`, `eslint --max-warnings=0`, `prettier --check .`, `vitest run` grün. Manuelle Abnahme wie im Auftrag beschrieben.
-
-## Reihenfolge der Umsetzung
-
-1. Migration einreichen (Approval abwarten).
-2. Reine Module + Tests.
-3. Server-Fns (Kalender + Guard einhängen + Urlaub anpassen).
-4. UI-Stellen (Standorte-Sektion → Grid-Overlay → Display → Urlaubs-Anzeigen → Org-Schalter → Stempel-Hinweis).
-5. Lint/Format/Tests, dann Abnahme.
+Vor dem Commit: `prettier --write` + `eslint --fix`.

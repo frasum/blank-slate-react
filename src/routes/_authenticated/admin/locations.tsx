@@ -478,6 +478,7 @@ type LocationRowData = {
   cashBalanceTargetCents?: number | null;
   cashBalanceTargetResolvedCents?: number | null;
   isActive?: boolean;
+  day_service_enabled?: boolean;
 };
 
 function LocationRow(props: {
@@ -616,7 +617,12 @@ function LocationRow(props: {
       )}
       {displayOpen && <DisplayPanel locationId={props.loc.id} />}
       {open && <GeofencePanel loc={props.loc} onChanged={props.onGeoChanged} />}
-      {open && <LocationCalendarPanel locationId={props.loc.id} />}
+      {open && (
+        <LocationCalendarPanel
+          locationId={props.loc.id}
+          dayServiceEnabled={props.loc.day_service_enabled === true}
+        />
+      )}
     </div>
   );
 }

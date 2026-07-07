@@ -293,6 +293,9 @@ export function PlanerRosterView({ bereich }: Props) {
                     unavailableSet={unavailableSet}
                     absenceMap={absenceMap}
                     wishMap={wishMap}
+                    dayServiceEnabled={
+                      (loc as { day_service_enabled?: boolean | null }).day_service_enabled === true
+                    }
                   />
                 );
               })}

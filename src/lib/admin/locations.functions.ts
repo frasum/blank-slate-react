@@ -49,7 +49,7 @@ export const listLocations = createServerFn({ method: "GET" })
     let query = supabaseAdmin
       .from("locations")
       .select(
-        "id, name, timezone, street, postal_code, city, delivery_notes, phone, contact_name, contact_phone, latitude, longitude, geofence_radius_m, geocoded_at, geocoded_address, cash_balance_target_cents, is_active",
+        "id, name, timezone, street, postal_code, city, delivery_notes, phone, contact_name, contact_phone, latitude, longitude, geofence_radius_m, geocoded_at, geocoded_address, cash_balance_target_cents, is_active, day_service_enabled",
       )
       .eq("organization_id", caller.organizationId)
       .order("name");
@@ -335,6 +335,52 @@ export const updateLocationGeo = createServerFn({ method: "POST" })
             longitude: data.longitude,
             geofenceRadiusM: data.geofenceRadiusM,
           },
+        },
+      };
+    });
+  });
+
+// SP1 — Tagesbetrieb (Mittagsservice) je Standort umschalten.
+// Beeinflusst nur die Dienstplan-UI und die Erlaubnis, Mittag-Fenster-Schichten
+// zu planen. Bestandsschichten (alle „abend" per Default) bleiben unverändert.
+export const setLocationDayServiceEnabled = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        locationId: z.string().uuid(),
+        enabled: z.boolean(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: loc, error: loadErr } = await supabaseAdmin
+        .from("locations")
+        .select("id, name, day_service_enabled")
+        .eq("id", data.locationId)
+        .eq("organization_id", caller.organizationId)
+        .maybeSingle();
+      if (loadErr) throw loadErr;
+      if (!loc) throw new Error("Standort nicht gefunden.");
+      const already = Boolean(loc.day_service_enabled) === data.enabled;
+      if (!already) {
+        const { error } = await supabaseAdmin
+          .from("locations")
+          .update({ day_service_enabled: data.enabled })
+          .eq("id", data.locationId)
+          .eq("organization_id", caller.organizationId);
+        if (error) throw error;
+      }
+      return {
+        result: { ok: true as const, changed: !already },
+        audit: {
+          action: data.enabled ? "location.day_service.enable" : "location.day_service.disable",
+          entity: "location",
+          entityId: data.locationId,
+          meta: { name: loc.name },
         },
       };
     });

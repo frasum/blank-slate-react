@@ -10,6 +10,7 @@ import {
   setRestDays,
   upsertCalendarException,
 } from "@/lib/roster/business-calendar.functions";
+import { setLocationDayServiceEnabled } from "@/lib/admin/locations.functions";
 
 const WEEKDAYS: { value: number; label: string }[] = [
   { value: 1, label: "Mo" },
@@ -25,11 +26,33 @@ function isoToday(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function LocationCalendarPanel({ locationId }: { locationId: string }) {
+export function LocationCalendarPanel({
+  locationId,
+  dayServiceEnabled,
+}: {
+  locationId: string;
+  dayServiceEnabled?: boolean;
+}) {
   const qc = useQueryClient();
   const callSetRest = useServerFn(setRestDays);
   const callUpsert = useServerFn(upsertCalendarException);
   const callDelete = useServerFn(deleteCalendarException);
+  const callSetDayService = useServerFn(setLocationDayServiceEnabled);
+
+  const [dayServiceOn, setDayServiceOn] = useState<boolean>(dayServiceEnabled === true);
+  useEffect(() => {
+    setDayServiceOn(dayServiceEnabled === true);
+  }, [dayServiceEnabled]);
+
+  const dayServiceMut = useMutation({
+    mutationFn: (next: boolean) => callSetDayService({ data: { locationId, enabled: next } }),
+    onSuccess: async (_res, next) => {
+      setDayServiceOn(next);
+      setMsg(next ? "Tagesbetrieb aktiviert." : "Tagesbetrieb deaktiviert.");
+      await qc.invalidateQueries({ queryKey: ["locations"] });
+    },
+    onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
+  });
 
   const q = useQuery({
     queryKey: ["location-calendar", locationId],
@@ -101,6 +124,34 @@ export function LocationCalendarPanel({ locationId }: { locationId: string }) {
 
   return (
     <div className="mt-3 space-y-4 rounded-md border border-input bg-muted/30 p-3 text-sm">
+      <div className="flex items-start justify-between gap-3 rounded-md border border-input bg-background p-3">
+        <div>
+          <p className="text-sm font-medium">Tagesbetrieb (Mittagsservice)</p>
+          <p className="text-xs text-muted-foreground">
+            Aktiviert ein zweites Planungsfenster (Mittag) im Dienstplan dieses Standorts.
+          </p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={dayServiceOn}
+          disabled={dayServiceMut.isPending}
+          onClick={() => dayServiceMut.mutate(!dayServiceOn)}
+          className={
+            "relative h-6 w-11 shrink-0 rounded-full transition-colors " +
+            (dayServiceOn ? "bg-primary" : "bg-muted-foreground/30") +
+            " disabled:opacity-50"
+          }
+        >
+          <span
+            className={
+              "absolute top-0.5 h-5 w-5 rounded-full bg-background shadow transition-transform " +
+              (dayServiceOn ? "translate-x-5" : "translate-x-0.5")
+            }
+          />
+        </button>
+      </div>
+
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
         Betriebskalender
       </p>

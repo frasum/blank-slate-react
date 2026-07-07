@@ -41,6 +41,7 @@ import {
   type RosterSkill,
   type RosterCrossBooking,
 } from "@/lib/roster/roster.functions";
+import type { ServicePeriod } from "@/lib/roster/cross-booking";
 
 type GridArea = "kitchen" | "service";
 
@@ -62,6 +63,8 @@ type Props = {
   unavailableSet: Set<string>;
   absenceMap: Map<string, "urlaub" | "krank">;
   wishMap: Map<string, string | null>;
+  /** SP1 — Standort hat Tagesbetrieb aktiv. Nur dann wird der Mittag/Abend-Umschalter angezeigt. */
+  dayServiceEnabled?: boolean;
 };
 
 export function RosterAreaBlock({
@@ -82,10 +85,13 @@ export function RosterAreaBlock({
   unavailableSet,
   absenceMap,
   wishMap,
+  dayServiceEnabled,
 }: Props) {
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
   const periodLocked = period?.status === "locked";
+  const [activePeriod, setActivePeriod] = useState<ServicePeriod>("abend");
+  const windowOn = dayServiceEnabled === true;
 
   const staffQ = useQuery({
     queryKey: ["roster-staff", locationId],
@@ -122,6 +128,11 @@ export function RosterAreaBlock({
 
   const staff = useMemo(() => staffQ.data ?? [], [staffQ.data]);
   const shifts: RosterShift[] = useMemo(() => shiftsQ.data ?? [], [shiftsQ.data]);
+  // SP1 — bei Tagesbetrieb nur Schichten des aktiven Fensters ins Grid geben.
+  const shiftsForGrid: RosterShift[] = useMemo(
+    () => (windowOn ? shifts.filter((s) => s.servicePeriod === activePeriod) : shifts),
+    [shifts, windowOn, activePeriod],
+  );
   const staffNameById = useMemo(() => {
     const m = new Map<string, string>();
     for (const r of staff) m.set(r.staffId, r.displayName);
@@ -129,20 +140,23 @@ export function RosterAreaBlock({
   }, [staff]);
 
   // Lock-Map: alle Cross-Bookings (organisationsweit) — verhindert
-  // Doppelbelegungen auch über Standorte/Bereiche hinweg.
+  // Doppelbelegungen im gleichen Fenster auch über Standorte/Bereiche hinweg.
+  // SP1: Cross-Bookings in anderem Fenster blockieren nicht (Doppelschicht ok).
   const lockMap = useMemo(() => {
     const m = new Map<
       string,
       { locationId: string; locationName: string; area: "kitchen" | "service" | "gl" }
     >();
     for (const b of crossBookings) {
+      if (b.servicePeriod !== activePeriod) continue;
       const k = `${b.staffId}|${b.shiftDate}`;
       if (!m.has(k)) {
         m.set(k, { locationId: b.locationId, locationName: b.locationName, area: b.area });
       }
     }
     return m;
-  }, [crossBookings]);
+  }, [crossBookings, activePeriod]);
+
 
   const filteredStaff = useMemo(() => {
     if (skillFilter.length === 0) return staff;
@@ -166,7 +180,14 @@ export function RosterAreaBlock({
     setBusy(true);
     try {
       await createRosterShift({
-        data: { locationId, staffId, shiftDate: iso, area: a, skillId },
+        data: {
+          locationId,
+          staffId,
+          shiftDate: iso,
+          area: a,
+          skillId,
+          servicePeriod: activePeriod,
+        },
       });
       qc.invalidateQueries({ queryKey: ["roster-shifts"] });
       qc.invalidateQueries({ queryKey: ["roster-cross-bookings"] });
@@ -369,7 +390,13 @@ export function RosterAreaBlock({
     setBusy(true);
     try {
       await moveRosterShift({
-        data: { id: shift.id, staffId: target.staffId, shiftDate: target.iso, area: target.area },
+        data: {
+          id: shift.id,
+          staffId: target.staffId,
+          shiftDate: target.iso,
+          area: target.area,
+          servicePeriod: shift.servicePeriod,
+        },
       });
       qc.invalidateQueries({ queryKey: ["roster-shifts"] });
       qc.invalidateQueries({ queryKey: ["roster-cross-bookings"] });
@@ -403,6 +430,31 @@ export function RosterAreaBlock({
               Periode gesperrt
             </Badge>
           )}
+          {windowOn && (
+            <div
+              role="tablist"
+              aria-label="Servicezeit"
+              className="ml-2 inline-flex overflow-hidden rounded-md border border-input"
+            >
+              {(["mittag", "abend"] as const).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  role="tab"
+                  aria-selected={activePeriod === p}
+                  onClick={() => setActivePeriod(p)}
+                  className={
+                    "px-3 py-1 text-xs font-medium " +
+                    (activePeriod === p
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background text-foreground hover:bg-accent")
+                  }
+                >
+                  {p === "mittag" ? "Mittag" : "Abend"}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         {canEdit && period && (
           <div className="flex items-center gap-2">
@@ -432,9 +484,10 @@ export function RosterAreaBlock({
             days={days}
             today={today}
             staff={filteredStaff}
-            shifts={shifts}
+            shifts={shiftsForGrid}
             allSkills={allSkills}
             crossBookings={crossBookings}
+            viewportServicePeriod={windowOn ? activePeriod : "abend"}
             lockMap={lockMap}
             unavailableSet={unavailableSet}
             absenceMap={absenceMap}

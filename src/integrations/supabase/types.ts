@@ -1471,6 +1471,7 @@ export type Database = {
           contact_name: string | null
           contact_phone: string | null
           created_at: string
+          day_service_enabled: boolean
           delivery_notes: string | null
           geocoded_address: string | null
           geocoded_at: string | null
@@ -1496,6 +1497,7 @@ export type Database = {
           contact_name?: string | null
           contact_phone?: string | null
           created_at?: string
+          day_service_enabled?: boolean
           delivery_notes?: string | null
           geocoded_address?: string | null
           geocoded_at?: string | null
@@ -1521,6 +1523,7 @@ export type Database = {
           contact_name?: string | null
           contact_phone?: string | null
           created_at?: string
+          day_service_enabled?: boolean
           delivery_notes?: string | null
           geocoded_address?: string | null
           geocoded_at?: string | null
@@ -2591,6 +2594,7 @@ export type Database = {
           location_id: string
           notes: string | null
           organization_id: string
+          service_period: string
           shift_date: string
           skill_id: string | null
           staff_id: string
@@ -2604,6 +2608,7 @@ export type Database = {
           location_id: string
           notes?: string | null
           organization_id: string
+          service_period?: string
           shift_date: string
           skill_id?: string | null
           staff_id: string
@@ -2617,6 +2622,7 @@ export type Database = {
           location_id?: string
           notes?: string | null
           organization_id?: string
+          service_period?: string
           shift_date?: string
           skill_id?: string | null
           staff_id?: string
