@@ -56,14 +56,7 @@ const TOP_N = 15;
 // RP2 — Farbtabelle für Standort-Segmente in den Diagrammen.
 // Bekannte Standorte behalten ihre Marken-Akzentfarbe (spicery = gelb,
 // yum = koralle, siehe styles.css). Fallback-Palette für weitere Standorte.
-const LOCATION_FALLBACK_COLORS = [
-  "#3b82f6",
-  "#22c55e",
-  "#a855f7",
-  "#ef4444",
-  "#0ea5e9",
-  "#f97316",
-];
+const LOCATION_FALLBACK_COLORS = ["#3b82f6", "#22c55e", "#a855f7", "#ef4444", "#0ea5e9", "#f97316"];
 
 function colorForLocation(name: string, indexHint: number): string {
   const k = locationThemeKey(name);
@@ -163,17 +156,13 @@ function RennerPennerPage() {
         <h2 className="text-lg font-semibold text-foreground">Renner &amp; Penner</h2>
         <p className="text-sm text-muted-foreground">
           Rangliste der Getränke aus dem aktuellen POS-Snapshot. Ein VA-Bündel (offene Gläser +
-          Flasche desselben Weins) erscheint als ein Eintrag. Mehrere Standorte lassen sich
-          zum Vergleich markieren — gleicher Artikelname zählt standort-übergreifend als ein
-          Eintrag; die Segmentfarbe zeigt den Anteil je Standort.
+          Flasche desselben Weins) erscheint als ein Eintrag. Mehrere Standorte lassen sich zum
+          Vergleich markieren — gleicher Artikelname zählt standort-übergreifend als ein Eintrag;
+          die Segmentfarbe zeigt den Anteil je Standort.
         </p>
       </div>
 
-      <LocationMultiPills
-        locations={locations}
-        selected={locationIds}
-        onChange={setLocationIds}
-      />
+      <LocationMultiPills locations={locations} selected={locationIds} onChange={setLocationIds} />
 
       <div className="flex flex-wrap items-center gap-3">
         <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)}>
@@ -291,11 +280,7 @@ function LocationMultiPills({
                 ? "text-primary-foreground shadow-sm"
                 : "border-border bg-card text-foreground hover:bg-muted",
             )}
-            style={
-              active
-                ? { background: color, borderColor: color, color: "#111" }
-                : undefined
-            }
+            style={active ? { background: color, borderColor: color, color: "#111" } : undefined}
           >
             {l.name}
           </button>

@@ -121,7 +121,9 @@ export function aggregateRennerPenner(
     }
   }
 
-  const entries: RennerEntry[] = orderKeys.map((key) => buildEntry(key, groups.get(key)!, location));
+  const entries: RennerEntry[] = orderKeys.map((key) =>
+    buildEntry(key, groups.get(key)!, location),
+  );
 
   // 2) Ladenhüter — nach Nummer nicht in stats vertreten
   const seenNummern = new Set<number>();
@@ -232,7 +234,11 @@ function buildEntry(
  * denselben Namen).
  */
 export function mergeAcrossLocations(
-  perLoc: ReadonlyArray<{ locationId: string; locationName: string; entries: readonly RennerEntry[] }>,
+  perLoc: ReadonlyArray<{
+    locationId: string;
+    locationName: string;
+    entries: readonly RennerEntry[];
+  }>,
   normalize: (name: string) => string,
 ): RennerEntry[] {
   if (perLoc.length <= 1) {
@@ -313,7 +319,9 @@ export function mergeAcrossLocations(
           : null;
       existing.ekwPct = wareneinsatzQuote(avgEkNetto, avgVkBrutto);
       existing.dbCents =
-        existing.wareneinsatzCents === null ? null : existing.umsatzCents - existing.wareneinsatzCents;
+        existing.wareneinsatzCents === null
+          ? null
+          : existing.umsatzCents - existing.wareneinsatzCents;
     }
   }
   return orderKeys.map((k) => byKey.get(k)!);

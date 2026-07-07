@@ -139,92 +139,92 @@ async function loadForLocation(
   data: { period: "d365" | "alltime"; groups: string[] },
 ) {
   const stats = await selectAllPaged<{
-      nummer: number;
-      name: string;
-      verkauf_count: number;
-      umsatz_cents: number;
-      report_date: string;
-    }>((from, to) =>
-      supabaseAdmin
-        .from("sales_article_stats")
-        .select("id, nummer, name, verkauf_count, umsatz_cents, report_date")
-        .eq("organization_id", organizationId)
-        .eq("location_id", loc.id)
-        .eq("period", data.period)
-        .order("id", { ascending: true })
-        .range(from, to),
-    );
+    nummer: number;
+    name: string;
+    verkauf_count: number;
+    umsatz_cents: number;
+    report_date: string;
+  }>((from, to) =>
+    supabaseAdmin
+      .from("sales_article_stats")
+      .select("id, nummer, name, verkauf_count, umsatz_cents, report_date")
+      .eq("organization_id", organizationId)
+      .eq("location_id", loc.id)
+      .eq("period", data.period)
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
 
-    const articles = await selectAllPaged<{
-      id: string;
-      name: string;
-      hauptgruppe: string | null;
-      warengruppe: string | null;
-      is_active: boolean;
-      ek_source_article_id: string | null;
-      ek_portion_ml: number | null;
-      ek_source_volume_ml: number | null;
-      ek_price_cents: number | null;
-      price_cents: number | null;
-    }>((from, to) =>
-      supabaseAdmin
-        .from("sales_articles")
-        .select(
-          "id, name, hauptgruppe, warengruppe, is_active, ek_source_article_id, ek_portion_ml, ek_source_volume_ml, ek_price_cents, price_cents",
-        )
-        .eq("organization_id", organizationId)
-        .eq("location_id", loc.id)
-        .order("id", { ascending: true })
-        .range(from, to),
-    );
+  const articles = await selectAllPaged<{
+    id: string;
+    name: string;
+    hauptgruppe: string | null;
+    warengruppe: string | null;
+    is_active: boolean;
+    ek_source_article_id: string | null;
+    ek_portion_ml: number | null;
+    ek_source_volume_ml: number | null;
+    ek_price_cents: number | null;
+    price_cents: number | null;
+  }>((from, to) =>
+    supabaseAdmin
+      .from("sales_articles")
+      .select(
+        "id, name, hauptgruppe, warengruppe, is_active, ek_source_article_id, ek_portion_ml, ek_source_volume_ml, ek_price_cents, price_cents",
+      )
+      .eq("organization_id", organizationId)
+      .eq("location_id", loc.id)
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
 
-    const vaByName = new Map<string, (typeof articles)[number]>();
-    for (const a of articles) {
-      const key = normalizeName(a.name);
-      if (!vaByName.has(key)) vaByName.set(key, a);
-    }
+  const vaByName = new Map<string, (typeof articles)[number]>();
+  for (const a of articles) {
+    const key = normalizeName(a.name);
+    if (!vaByName.has(key)) vaByName.set(key, a);
+  }
 
-    const drinkArticles = articles.filter((a) => a.is_active && (a.hauptgruppe || a.warengruppe));
+  const drinkArticles = articles.filter((a) => a.is_active && (a.hauptgruppe || a.warengruppe));
 
-    const groupSet = new Set<string>();
-    for (const a of drinkArticles) {
-      if (a.hauptgruppe) groupSet.add(a.hauptgruppe);
-      if (a.warengruppe) groupSet.add(a.warengruppe);
-    }
-    const groupOptions = [...groupSet];
+  const groupSet = new Set<string>();
+  for (const a of drinkArticles) {
+    if (a.hauptgruppe) groupSet.add(a.hauptgruppe);
+    if (a.warengruppe) groupSet.add(a.warengruppe);
+  }
+  const groupOptions = [...groupSet];
 
-    const rawRows: RennerRawRow[] = [];
-    for (const s of stats) {
-      const va = vaByName.get(normalizeName(s.name));
-      if (!va) continue;
-      const raw: RennerRawRow = {
-        nummer: Number(s.nummer),
-        name: va.name,
-        hauptgruppe: va.hauptgruppe,
-        warengruppe: va.warengruppe,
-        verkaufCount: Number(s.verkauf_count),
-        umsatzCents: Number(s.umsatz_cents),
-        ekSourceArticleId: va.ek_source_article_id,
-        ekPortionMl: va.ek_portion_ml === null ? null : Number(va.ek_portion_ml),
-        ekSourceVolumeMl: va.ek_source_volume_ml === null ? null : Number(va.ek_source_volume_ml),
-        ekPriceCents: va.ek_price_cents === null ? null : Number(va.ek_price_cents),
-        priceCents: va.price_cents === null ? null : Number(va.price_cents),
-      };
-      if (!matchesGroupFilter(raw, data.groups)) continue;
-      rawRows.push(raw);
-    }
+  const rawRows: RennerRawRow[] = [];
+  for (const s of stats) {
+    const va = vaByName.get(normalizeName(s.name));
+    if (!va) continue;
+    const raw: RennerRawRow = {
+      nummer: Number(s.nummer),
+      name: va.name,
+      hauptgruppe: va.hauptgruppe,
+      warengruppe: va.warengruppe,
+      verkaufCount: Number(s.verkauf_count),
+      umsatzCents: Number(s.umsatz_cents),
+      ekSourceArticleId: va.ek_source_article_id,
+      ekPortionMl: va.ek_portion_ml === null ? null : Number(va.ek_portion_ml),
+      ekSourceVolumeMl: va.ek_source_volume_ml === null ? null : Number(va.ek_source_volume_ml),
+      ekPriceCents: va.ek_price_cents === null ? null : Number(va.ek_price_cents),
+      priceCents: va.price_cents === null ? null : Number(va.price_cents),
+    };
+    if (!matchesGroupFilter(raw, data.groups)) continue;
+    rawRows.push(raw);
+  }
 
-    const seenNames = new Set<string>();
-    for (const s of stats) seenNames.add(normalizeName(s.name));
-    const leftoverCandidates: RennerArticleForLeftovers[] = drinkArticles
-      .filter((a) => matchesGroupFilter(a, data.groups))
-      .filter((a) => !seenNames.has(normalizeName(a.name)))
-      .map((a, idx) => ({
-        nummer: -1 - idx, // Platzhalter (nicht in stats vertreten)
-        name: a.name,
-        hauptgruppe: a.hauptgruppe,
-        warengruppe: a.warengruppe,
-      }));
+  const seenNames = new Set<string>();
+  for (const s of stats) seenNames.add(normalizeName(s.name));
+  const leftoverCandidates: RennerArticleForLeftovers[] = drinkArticles
+    .filter((a) => matchesGroupFilter(a, data.groups))
+    .filter((a) => !seenNames.has(normalizeName(a.name)))
+    .map((a, idx) => ({
+      nummer: -1 - idx, // Platzhalter (nicht in stats vertreten)
+      name: a.name,
+      hauptgruppe: a.hauptgruppe,
+      warengruppe: a.warengruppe,
+    }));
 
   const aggregated = aggregateRennerPenner(rawRows, [], { id: loc.id, name: loc.name });
 
