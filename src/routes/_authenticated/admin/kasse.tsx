@@ -476,6 +476,7 @@ function KassePage() {
               onClick={() => void handlePrintClick()}
               disabled={printBusy}
               className="gap-2"
+              data-testid="finalize-print-button"
               title={
                 (ovQ.data.session.guest_count ?? 0) <= 0
                   ? "Gästeanzahl fehlt – bitte zuerst eintragen und speichern"
