@@ -29,18 +29,18 @@ Stand: 07.07.2026, Audit am HEAD c8b6816d. Grundlage für den späteren Ausbau z
 
 ## B. Modul-Katalog für zubuchbare Module
 
-| Modul               | Inhalt (heutige Routen/Functions)                                                                                    | Setzt voraus                            |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| KERN (immer dabei)  | Organisation, Standorte, Mitarbeiter-Stammdaten, Rollen/Rechte/Overrides, PIN-/Badge-Auth, Audit-Log, Einstellungen  | —                                       |
-| ZEIT                | Stempeluhr (Terminal/mobil), Pausen-Compliance, Manager-Korrekturen, Wasserlinie, Zeitübersicht                      | KERN                                    |
-| PLAN                | Dienstplan-Grid, öffentliches Display, Wunsch-/Urlaubs-/Tausch-Self-Service, Jahresplaner                            | KERN                                    |
-| KASSE               | Tagesabschluss, Kellnerabrechnungen, Trinkgeldpool, Tresor/Bank, Perioden                                            | KERN + ZEIT (Pool-Stunden)              |
-| LOHN                | SFN-Zuschläge, PAP-Brutto/Netto, Lohnarten, Lohnbüro-Export, Payslips                                                | KERN + ZEIT (+ KASSE für Provision)     |
-| EINKAUF             | Lieferanten, Artikel, Bestellungen/E-Mail, EasyOrder                                                                 | KERN                                    |
-| KALKULATION         | Verkaufsartikel, EK-Zuordnung, Rezepturen, Wareneinsatz-Ampel                                                        | EINKAUF                                 |
-| INVENTUR            | Inventur-Sessions, Bestandswert                                                                                       | EINKAUF                                 |
-| WEIN                | Weinkatalog, Quiz                                                                                                     | EINKAUF                                 |
-| STATISTIK           | Umsatz/Trinkgeld/Personalquote, PDF                                                                                   | KASSE bzw. ZEIT je Report               |
+| Modul              | Inhalt (heutige Routen/Functions)                                                                                   | Setzt voraus                        |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| KERN (immer dabei) | Organisation, Standorte, Mitarbeiter-Stammdaten, Rollen/Rechte/Overrides, PIN-/Badge-Auth, Audit-Log, Einstellungen | —                                   |
+| ZEIT               | Stempeluhr (Terminal/mobil), Pausen-Compliance, Manager-Korrekturen, Wasserlinie, Zeitübersicht                     | KERN                                |
+| PLAN               | Dienstplan-Grid, öffentliches Display, Wunsch-/Urlaubs-/Tausch-Self-Service, Jahresplaner                           | KERN                                |
+| KASSE              | Tagesabschluss, Kellnerabrechnungen, Trinkgeldpool, Tresor/Bank, Perioden                                           | KERN + ZEIT (Pool-Stunden)          |
+| LOHN               | SFN-Zuschläge, PAP-Brutto/Netto, Lohnarten, Lohnbüro-Export, Payslips                                               | KERN + ZEIT (+ KASSE für Provision) |
+| EINKAUF            | Lieferanten, Artikel, Bestellungen/E-Mail, EasyOrder                                                                | KERN                                |
+| KALKULATION        | Verkaufsartikel, EK-Zuordnung, Rezepturen, Wareneinsatz-Ampel                                                       | EINKAUF                             |
+| INVENTUR           | Inventur-Sessions, Bestandswert                                                                                     | EINKAUF                             |
+| WEIN               | Weinkatalog, Quiz                                                                                                   | EINKAUF                             |
+| STATISTIK          | Umsatz/Trinkgeld/Personalquote, PDF                                                                                 | KASSE bzw. ZEIT je Report           |
 
 Paketierungs-Idee: HR-Edition = KERN+ZEIT+PLAN(+LOHN) als fokussiertes Einstiegsprodukt (gastromatic-Segment); Voll-Edition = alles. thaitime dient dabei ausschließlich als Anforderungs-Spender (Dokumentengenerierung, Onboarding-Einladungen, Messaging → M4/M8-Backlog), NICHT als Codebasis (keine Mandantenfähigkeit, 0 Tests, wird per Strangler Fig abgelöst).
 
