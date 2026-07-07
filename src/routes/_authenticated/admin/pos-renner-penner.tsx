@@ -24,6 +24,7 @@ import {
 } from "recharts";
 import { listLocations } from "@/lib/admin/locations.functions";
 import { LocationPills } from "@/components/shared/LocationPills";
+import { PosNav } from "@/components/bestellung/PosNav";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -131,6 +132,7 @@ function RennerPennerPage() {
 
   return (
     <div className="space-y-4">
+      <PosNav />
       <div>
         <h2 className="text-lg font-semibold text-foreground">Renner &amp; Penner</h2>
         <p className="text-sm text-muted-foreground">
