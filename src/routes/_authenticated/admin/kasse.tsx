@@ -476,6 +476,7 @@ function KassePage() {
               onClick={() => void handlePrintClick()}
               disabled={printBusy}
               className="gap-2"
+              data-testid="finalize-print-button"
               title={
                 (ovQ.data.session.guest_count ?? 0) <= 0
                   ? "Gästeanzahl fehlt – bitte zuerst eintragen und speichern"
@@ -1031,7 +1032,12 @@ function SessionStatusInline({
   const variant: "default" | "secondary" =
     status === "locked" ? "secondary" : status === "finalized" ? "secondary" : "default";
   return (
-    <Badge variant={variant} className="gap-1 self-center">
+    <Badge
+      variant={variant}
+      className="gap-1 self-center"
+      data-testid="session-status-badge"
+      data-status={status}
+    >
       {status === "locked" && <Lock className="h-3.5 w-3.5" />}
       {label}
       {status === "locked" && lockedAt && (
