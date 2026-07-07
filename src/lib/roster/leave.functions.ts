@@ -22,6 +22,25 @@ import {
   isValidLeaveRange,
   type LeaveStatus,
 } from "./leave-requests";
+import { bavarianHolidaysBetween } from "./holiday-utils";
+
+async function loadCountHolidays(
+  admin: import("@supabase/supabase-js").SupabaseClient<
+    import("@/integrations/supabase/types").Database
+  >,
+  organizationId: string,
+): Promise<boolean> {
+  const { data } = await admin
+    .from("organization_settings")
+    .select("count_holidays_as_leave")
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+  return Boolean(data?.count_holidays_as_leave ?? false);
+}
+
+function holidaySetIfSkip(skip: boolean, start: string, end: string): Set<string> | undefined {
+  return skip ? bavarianHolidaysBetween(start, end) : undefined;
+}
 
 // PL1 — planer wird als Rollen-Whitelist zugelassen; feingranulare Rechte-
 // Prüfung übernimmt weiterhin has_permission (roster.leave.view_all/decide),
