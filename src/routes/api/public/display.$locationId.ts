@@ -32,6 +32,10 @@ type DisplayBlock = {
   rows: DisplayRow[];
   dayCounts: number[];
 };
+type DisplayPeriodBlocks = {
+  period: "mittag" | "abend";
+  blocks: DisplayBlock[];
+};
 type DisplayReminder = {
   id: string;
   title: string;
@@ -48,10 +52,14 @@ type DisplayPayload = {
   location: { id: string; name: string };
   generatedAt: string;
   refreshIntervalSeconds: number;
+  rotationIntervalSeconds: number;
+  dayServiceEnabled: boolean;
   windowStart: string;
   windowEnd: string;
   days: string[];
   blocks: DisplayBlock[];
+  /** SP1b — bei day_service_enabled: zwei Fenster-Blöcke (Mittag/Abend). */
+  periodBlocks: DisplayPeriodBlocks[] | null;
   showAreas: string[] | null;
   showHeader: boolean;
   showFooter: boolean;
