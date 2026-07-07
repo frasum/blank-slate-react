@@ -91,6 +91,24 @@ export async function runTool(
       return await abwesenheiten(ctx, input);
     case "personalkosten_quote":
       return await personalkostenQuote(ctx, input);
+    case "kasse_tagesabschluss":
+      return await kasseTagesabschluss(ctx, input);
+    case "bestellungen_zeitraum":
+      return await bestellungenZeitraum(ctx, input);
+    case "inventur_aktuell":
+      return await inventurAktuell(ctx, input);
+    case "bwa_monat":
+      return await bwaMonat(ctx, input);
+    case "bilanz_summen":
+      return await bilanzSummen(ctx, input);
+    case "dienstplan_geplant":
+      return await dienstplanGeplant(ctx, input);
+    case "aufgaben_status":
+      return await aufgabenStatus(ctx, input);
+    case "tausch_anfragen":
+      return await tauschAnfragen(ctx, input);
+    case "urlaub_antraege":
+      return await urlaubAntraege(ctx, input);
   }
 }
 
