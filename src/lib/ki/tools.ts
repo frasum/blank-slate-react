@@ -21,6 +21,7 @@ export const TOOL_NAMES = [
   "aufgaben_status",
   "tausch_anfragen",
   "urlaub_antraege",
+  "branchenbenchmark_lookup",
 ] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];
