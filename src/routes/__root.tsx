@@ -11,6 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { startSentryClient, captureClientError } from "@/lib/monitoring/sentry-client";
 import { AuthProvider } from "@/contexts/auth-context";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import cocoFavicon from "@/assets/coco-favicon.png.asset.json";
@@ -43,6 +44,10 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
+    void captureClientError(error, {
+      boundary: "tanstack_root_error_component",
+      route: typeof window !== "undefined" ? window.location.pathname : "unknown",
+    });
   }, [error]);
 
   return (
@@ -133,6 +138,9 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  useEffect(() => {
+    void startSentryClient();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

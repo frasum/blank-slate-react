@@ -21,18 +21,66 @@ export type AuditEntry = {
 export type AuditWriter = (entry: AuditEntry) => Promise<void>;
 
 /**
+ * Optionaler Kontext für Monitoring (P1). Wird bei Fehlern an Sentry
+ * mitgesendet, ist aber KEIN Pflichtparameter — bestehende Aufrufer bleiben
+ * unverändert. Kritische Geldpfade (Kassen-Finalize, Lohn, Bestellung)
+ * sollten `op` und `orgId` setzen und `critical: true` markieren.
+ */
+export type GuardedCallContext = {
+  op?: string;
+  orgId?: string | null;
+  callerStaffId?: string | null;
+  critical?: boolean;
+  tags?: Record<string, string | number | boolean | null | undefined>;
+};
+
+async function reportGuardedFailure(
+  err: unknown,
+  callerRole: AppRole | null,
+  ctx: GuardedCallContext | undefined,
+): Promise<void> {
+  // ForbiddenError ist erwartetes Fachverhalten (401/403), kein Monitoring-Fall.
+  if (err instanceof ForbiddenError) return;
+  try {
+    const { captureServerError } = await import("@/lib/monitoring/sentry.server");
+    await captureServerError(err, {
+      op: ctx?.op,
+      orgId: ctx?.orgId ?? null,
+      callerStaffId: ctx?.callerStaffId ?? null,
+      role: callerRole,
+      critical: ctx?.critical,
+      tags: ctx?.tags,
+    });
+  } catch {
+    /* Monitoring darf nichts brechen. */
+  }
+}
+
+/**
  * Führt `op` nur aus, wenn die Aufruferrolle `minRole` erfüllt, und schreibt
  * danach einen audit_log-Eintrag. Bei ForbiddenError wird `writeAudit` nicht
  * aufgerufen. Bei Fehler in `op` wird `writeAudit` ebenfalls nicht aufgerufen.
+ *
+ * P1 — Optionaler `ctx`-Parameter für Monitoring-Tags (Org, Route, Critical).
+ * Fehler in `op` werden — außer ForbiddenError — an Sentry gemeldet, bevor sie
+ * weitergereicht werden.
  */
 export async function runGuarded<T>(
   callerRole: AppRole | null,
   minRole: AppRole,
   writeAudit: AuditWriter,
   op: () => Promise<{ result: T; audit: AuditEntry }>,
+  ctx?: GuardedCallContext,
 ): Promise<T> {
   assertMinRole(callerRole, minRole);
-  const { result, audit } = await op();
+  let result: T;
+  let audit: AuditEntry;
+  try {
+    ({ result, audit } = await op());
+  } catch (err) {
+    await reportGuardedFailure(err, callerRole, ctx);
+    throw err;
+  }
   await writeAudit(audit);
   return result;
 }
@@ -106,7 +154,14 @@ export async function runWithPermission<T>(
     op = arg6 as () => Promise<{ result: T; audit: AuditEntry }>;
   }
   await assertPermission(supabase, permission, locationId, area);
-  const { result, audit } = await op();
+  let result: T;
+  let audit: AuditEntry;
+  try {
+    ({ result, audit } = await op());
+  } catch (err) {
+    await reportGuardedFailure(err, null, undefined);
+    throw err;
+  }
   await writeAudit(audit);
   return result;
 }
