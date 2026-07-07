@@ -1315,62 +1315,62 @@ export async function finalizeSessionCore(
     "manager",
     makeAuditWriter(caller),
     async () => {
-    const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
-    const waterline = await loadLocationCashLock(caller.organizationId, session.location_id);
-    assertCashWritable({
-      businessDate: session.business_date,
-      sessionStatus: session.status as "open" | "finalized" | "locked",
-      sessionLockedAt: session.locked_at,
-      cashLockedThroughDate: waterline,
-      blockIfFinalized: true, // Doppel-Finalize verboten.
-    });
+      const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
+      const waterline = await loadLocationCashLock(caller.organizationId, session.location_id);
+      assertCashWritable({
+        businessDate: session.business_date,
+        sessionStatus: session.status as "open" | "finalized" | "locked",
+        sessionLockedAt: session.locked_at,
+        cashLockedThroughDate: waterline,
+        blockIfFinalized: true, // Doppel-Finalize verboten.
+      });
 
-    // TG1 — Abschluss-Warnung: Pool > 0 € bei 0 anrechenbaren Minuten.
-    const tipSettings = await loadTipSettings(caller.organizationId, session.location_id);
-    const pool = await computeSessionTipPoolCore(caller, session, tipSettings);
-    const eligibleMinutes = pool.poolEntries
-      .filter((p) => p.participates)
-      .reduce((s, p) => s + p.hoursMinutes, 0);
-    const kitchenWarn = poolNeedsHoursWarning(pool.kitchenPoolCents, eligibleMinutes);
-    const serviceWarn = poolNeedsHoursWarning(pool.servicePoolCents, eligibleMinutes);
-    if ((kitchenWarn || serviceWarn) && data.confirmPoolWarning !== true) {
-      throw new PoolHoursWarningError(
-        pool.servicePoolCents,
-        pool.kitchenPoolCents,
-        eligibleMinutes,
-      );
-    }
+      // TG1 — Abschluss-Warnung: Pool > 0 € bei 0 anrechenbaren Minuten.
+      const tipSettings = await loadTipSettings(caller.organizationId, session.location_id);
+      const pool = await computeSessionTipPoolCore(caller, session, tipSettings);
+      const eligibleMinutes = pool.poolEntries
+        .filter((p) => p.participates)
+        .reduce((s, p) => s + p.hoursMinutes, 0);
+      const kitchenWarn = poolNeedsHoursWarning(pool.kitchenPoolCents, eligibleMinutes);
+      const serviceWarn = poolNeedsHoursWarning(pool.servicePoolCents, eligibleMinutes);
+      if ((kitchenWarn || serviceWarn) && data.confirmPoolWarning !== true) {
+        throw new PoolHoursWarningError(
+          pool.servicePoolCents,
+          pool.kitchenPoolCents,
+          eligibleMinutes,
+        );
+      }
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin
-      .from("sessions")
-      .update({
-        status: "finalized",
-        finalized_at: new Date().toISOString(),
-        finalized_by: caller.staffId,
-      })
-      .eq("id", session.id)
-      .eq("organization_id", caller.organizationId);
-    if (error) throw error;
-    return {
-      result: { ok: true as const },
-      audit: {
-        action: "cash.session.finalized",
-        entity: "session",
-        entityId: session.id,
-        meta: {
-          businessDate: session.business_date,
-          ...(kitchenWarn || serviceWarn
-            ? {
-                poolHoursWarningConfirmed: true,
-                poolServiceCents: pool.servicePoolCents,
-                poolKitchenCents: pool.kitchenPoolCents,
-                eligibleMinutes,
-              }
-            : {}),
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { error } = await supabaseAdmin
+        .from("sessions")
+        .update({
+          status: "finalized",
+          finalized_at: new Date().toISOString(),
+          finalized_by: caller.staffId,
+        })
+        .eq("id", session.id)
+        .eq("organization_id", caller.organizationId);
+      if (error) throw error;
+      return {
+        result: { ok: true as const },
+        audit: {
+          action: "cash.session.finalized",
+          entity: "session",
+          entityId: session.id,
+          meta: {
+            businessDate: session.business_date,
+            ...(kitchenWarn || serviceWarn
+              ? {
+                  poolHoursWarningConfirmed: true,
+                  poolServiceCents: pool.servicePoolCents,
+                  poolKitchenCents: pool.kitchenPoolCents,
+                  eligibleMinutes,
+                }
+              : {}),
+          },
         },
-      },
-    };
+      };
     },
     {
       op: "cash.session.finalize",

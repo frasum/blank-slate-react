@@ -273,22 +273,22 @@ export const sendOrderEmail = createServerFn({ method: "POST" })
       "manager",
       makeAuditWriter(caller),
       async () => {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { sendOrderEmailWithAdmin } = await import("./send-order-email.server");
-      const sent = await sendOrderEmailWithAdmin(
-        supabaseAdmin,
-        caller.organizationId,
-        data.orderId,
-      );
-      return {
-        result: { ok: true as const, orderId: sent.orderId, wasResend: sent.wasResend },
-        audit: {
-          action: "order.email_sent",
-          entity: "order",
-          entityId: sent.orderId,
-          meta: { orderNumber: sent.orderNumber, wasResend: sent.wasResend },
-        },
-      };
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { sendOrderEmailWithAdmin } = await import("./send-order-email.server");
+        const sent = await sendOrderEmailWithAdmin(
+          supabaseAdmin,
+          caller.organizationId,
+          data.orderId,
+        );
+        return {
+          result: { ok: true as const, orderId: sent.orderId, wasResend: sent.wasResend },
+          audit: {
+            action: "order.email_sent",
+            entity: "order",
+            entityId: sent.orderId,
+            meta: { orderNumber: sent.orderNumber, wasResend: sent.wasResend },
+          },
+        };
       },
       {
         op: "bestellung.send_order_email",

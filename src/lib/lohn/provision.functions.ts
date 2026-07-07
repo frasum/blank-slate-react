@@ -259,50 +259,52 @@ export const updateCommissionSettings = createServerFn({ method: "POST" })
       "admin",
       makeAuditWriter(caller),
       async () => {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-      const { data: before, error: beforeErr } = await supabaseAdmin
-        // ST1: bewusst ungefiltert — Daten-Zugriff (Provisions-Update by id, inkl. Audit-Vorzustand).
-        .from("locations")
-        .select("organization_id, commission_enabled, commission_min_revenue_cents, commission_pct")
-        .eq("id", data.locationId)
-        .maybeSingle();
-      if (beforeErr) throw beforeErr;
-      if (!before || before.organization_id !== caller.organizationId) {
-        throw new Error("Standort nicht in deiner Organisation.");
-      }
+        const { data: before, error: beforeErr } = await supabaseAdmin
+          // ST1: bewusst ungefiltert — Daten-Zugriff (Provisions-Update by id, inkl. Audit-Vorzustand).
+          .from("locations")
+          .select(
+            "organization_id, commission_enabled, commission_min_revenue_cents, commission_pct",
+          )
+          .eq("id", data.locationId)
+          .maybeSingle();
+        if (beforeErr) throw beforeErr;
+        if (!before || before.organization_id !== caller.organizationId) {
+          throw new Error("Standort nicht in deiner Organisation.");
+        }
 
-      const { error: updateErr } = await supabaseAdmin
-        // ST1: bewusst ungefiltert — Daten-Zugriff (Provisions-Update by id).
-        .from("locations")
-        .update({
-          commission_enabled: data.enabled,
-          commission_min_revenue_cents: data.minRevenueCents,
-          commission_pct: data.pct,
-        })
-        .eq("id", data.locationId);
-      if (updateErr) throw updateErr;
+        const { error: updateErr } = await supabaseAdmin
+          // ST1: bewusst ungefiltert — Daten-Zugriff (Provisions-Update by id).
+          .from("locations")
+          .update({
+            commission_enabled: data.enabled,
+            commission_min_revenue_cents: data.minRevenueCents,
+            commission_pct: data.pct,
+          })
+          .eq("id", data.locationId);
+        if (updateErr) throw updateErr;
 
-      return {
-        result: { ok: true as const },
-        audit: {
-          action: "provision.settings_changed",
-          entity: "locations",
-          entityId: data.locationId,
-          meta: {
-            before: {
-              enabled: Boolean(before.commission_enabled),
-              minRevenueCents: Number(before.commission_min_revenue_cents ?? 0),
-              pct: Number(before.commission_pct ?? 0),
-            },
-            after: {
-              enabled: data.enabled,
-              minRevenueCents: data.minRevenueCents,
-              pct: data.pct,
+        return {
+          result: { ok: true as const },
+          audit: {
+            action: "provision.settings_changed",
+            entity: "locations",
+            entityId: data.locationId,
+            meta: {
+              before: {
+                enabled: Boolean(before.commission_enabled),
+                minRevenueCents: Number(before.commission_min_revenue_cents ?? 0),
+                pct: Number(before.commission_pct ?? 0),
+              },
+              after: {
+                enabled: data.enabled,
+                minRevenueCents: data.minRevenueCents,
+                pct: data.pct,
+              },
             },
           },
-        },
-      };
+        };
       },
       {
         op: "lohn.commission.update_settings",
