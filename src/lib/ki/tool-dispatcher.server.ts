@@ -695,20 +695,19 @@ async function bestellungenZeitraum(ctx: ToolContext, input: Record<string, unkn
     .select("supplier_id, location_id, total_amount_cents, status, suppliers(name)")
     .eq("organization_id", ctx.organizationId)
     .gte("created_at", from)
-    .lt("created_at", toIso)
-    .returns<
-      {
-        supplier_id: string;
-        location_id: string | null;
-        total_amount_cents: number;
-        status: string;
-        suppliers: { name: string } | null;
-      }[]
-    >();
+    .lt("created_at", toIso);
   if (locationId) q = q.eq("location_id", locationId);
   if (supplierId) q = q.eq("supplier_id", supplierId);
   if (status !== "any") q = q.eq("status", status);
-  const { data, error } = await q;
+  const { data, error } = await q.returns<
+    {
+      supplier_id: string;
+      location_id: string | null;
+      total_amount_cents: number;
+      status: string;
+      suppliers: { name: string } | null;
+    }[]
+  >();
   if (error) throw new Error(error.message);
 
   type Agg = { name: string; count: number; totalCents: number };
@@ -754,19 +753,18 @@ async function inventurAktuell(ctx: ToolContext, input: Record<string, unknown>)
     .select("id, location_id, name, completed_at, total_value_cents, locations(name)")
     .eq("organization_id", ctx.organizationId)
     .eq("status", "completed")
-    .order("completed_at", { ascending: false })
-    .returns<
-      {
-        id: string;
-        location_id: string;
-        name: string;
-        completed_at: string | null;
-        total_value_cents: number;
-        locations: { name: string } | null;
-      }[]
-    >();
+    .order("completed_at", { ascending: false });
   if (locationId) q = q.eq("location_id", locationId);
-  const { data, error } = await q;
+  const { data, error } = await q.returns<
+    {
+      id: string;
+      location_id: string;
+      name: string;
+      completed_at: string | null;
+      total_value_cents: number;
+      locations: { name: string } | null;
+    }[]
+  >();
   if (error) throw new Error(error.message);
 
   const latestByLoc = new Map<string, (typeof data)[number]>();
