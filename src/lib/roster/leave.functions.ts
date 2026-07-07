@@ -23,6 +23,7 @@ import {
   type LeaveStatus,
 } from "./leave-requests";
 import { bavarianHolidaysBetween } from "./holiday-utils";
+import { countHolidaysInRange } from "./leave-requests";
 
 async function loadCountHolidays(
   admin: import("@supabase/supabase-js").SupabaseClient<
