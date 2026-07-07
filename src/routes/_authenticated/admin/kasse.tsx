@@ -339,6 +339,10 @@ function KassePage() {
   // Zusammenfassung (Gäste, Umsatz, Pool, Stunden je Mitarbeiter). Nur bei
   // Status `open` — Druck-Nachläufe (finalized/locked) laufen ohne Dialog.
   const [finalizeConfirmOpen, setFinalizeConfirmOpen] = useState(false);
+  // P2h: Pool-Warnung (TG1) inline im Dialog statt via `window.confirm`.
+  // Bleibt gesetzt, solange der Warn-Zustand aktiv ist; ein zweiter Klick
+  // auf „Trotzdem finalisieren" sendet `confirmPoolWarning: true`.
+  const [finalizeWarnMsg, setFinalizeWarnMsg] = useState<string | null>(null);
 
   // -------------------- Wasserlinie (Admin) --------------------
   const [cashLockDate, setCashLockDate] = useState<string>("");
@@ -413,9 +417,10 @@ function KassePage() {
   }
 
   // Führt den eigentlichen Finalize-/Druck-/Lock-Flow aus. Wird aus dem
-  // Bestätigungs-Dialog aufgerufen. Verhalten der Pool-Warnung (TG1)
-  // unverändert: bei „0 anrechenbare Stunden" fragt zusätzlich window.confirm.
-  async function runFinalizeAndPrint() {
+  // Bestätigungs-Dialog aufgerufen. Pool-Warnung (TG1) inline: der Dialog
+  // wechselt in den Warn-Zustand, ein zweiter Klick sendet
+  // `confirmPoolWarning: true`. Server-API + Audit-Semantik unverändert.
+  async function runFinalizeAndPrint(confirmPool: boolean) {
     const data = buildSummaryDataOrNull();
     if (!data) return;
     if (!sessionId) {
@@ -425,20 +430,22 @@ function KassePage() {
     setPrintBusy(true);
     try {
       try {
-        await callFinalize({ data: { sessionId } });
+        await callFinalize({
+          data: { sessionId, ...(confirmPool ? { confirmPoolWarning: true } : {}) },
+        });
       } catch (err) {
-        // TG1 — Pool > 0 € bei 0 anrechenbaren Stunden. Explizit bestätigen.
         const msg = err instanceof Error ? err.message : String(err);
-        if (/0 anrechenbare Stunden/.test(msg)) {
-          if (!window.confirm(`${msg}\n\nStunden fehlen vermutlich. Trotzdem abschließen?`)) {
-            setPrintBusy(false);
-            return;
-          }
-          await callFinalize({ data: { sessionId, confirmPoolWarning: true } });
-        } else {
-          throw err;
+        // TG1 — Pool > 0 € bei 0 anrechenbaren Stunden: Dialog in Warn-Zustand
+        // wechseln, statt einen zweiten (nativen) confirm zu öffnen.
+        if (/0 anrechenbare Stunden/.test(msg) && !confirmPool) {
+          setFinalizeWarnMsg(msg);
+          setPrintBusy(false);
+          return;
         }
+        throw err;
       }
+      setFinalizeConfirmOpen(false);
+      setFinalizeWarnMsg(null);
       toast.success("Tag finalisiert.");
       printDailySummary(data);
       if (isAdmin) {
@@ -1040,7 +1047,10 @@ function KassePage() {
 
       <FinalizeConfirmDialog
         open={finalizeConfirmOpen}
-        onOpenChange={setFinalizeConfirmOpen}
+        onOpenChange={(v) => {
+          setFinalizeConfirmOpen(v);
+          if (!v) setFinalizeWarnMsg(null);
+        }}
         busy={printBusy}
         guestCount={ovQ.data?.session?.guest_count ?? 0}
         settlements={
@@ -1055,9 +1065,9 @@ function KassePage() {
             ?.vectron_daily_total_cents ?? 0,
         )}
         pool={poolQ.data ?? null}
+        warnMsg={finalizeWarnMsg}
         onConfirm={async () => {
-          setFinalizeConfirmOpen(false);
-          await runFinalizeAndPrint();
+          await runFinalizeAndPrint(Boolean(finalizeWarnMsg));
         }}
       />
     </div>
@@ -1072,6 +1082,7 @@ function FinalizeConfirmDialog({
   settlements,
   vectronTotalCents,
   pool,
+  warnMsg,
   onConfirm,
 }: {
   open: boolean;
@@ -1085,6 +1096,7 @@ function FinalizeConfirmDialog({
   }>;
   vectronTotalCents: number;
   pool: Awaited<ReturnType<typeof getTipPoolOverview>> | null;
+  warnMsg: string | null;
   onConfirm: () => void | Promise<void>;
 }) {
   const sumPos = settlements.reduce((s, r) => s + Number(r.pos_sales_cents ?? 0), 0);
@@ -1158,11 +1170,21 @@ function FinalizeConfirmDialog({
                 {eligibleHours > 0 ? `${eurPerHour.toFixed(2)} €/h` : "—"}
               </dd>
             </dl>
-            {poolCents > 0 && eligibleHours <= 0 && (
-              <div className="mt-2 rounded border border-destructive/50 bg-destructive/10 p-2 text-xs text-destructive">
-                Achtung: Pool &gt; 0 €, aber keine anrechenbaren Stunden erfasst. Der Server wird
-                beim Finalisieren zusätzlich rückfragen.
+            {warnMsg ? (
+              <div
+                className="mt-2 rounded border border-destructive/50 bg-destructive/10 p-2 text-xs text-destructive"
+                data-testid="finalize-warn-message"
+              >
+                {warnMsg}
               </div>
+            ) : (
+              poolCents > 0 &&
+              eligibleHours <= 0 && (
+                <div className="mt-2 rounded border border-destructive/50 bg-destructive/10 p-2 text-xs text-destructive">
+                  Achtung: Pool &gt; 0 €, aber keine anrechenbaren Stunden erfasst. Der Server wird
+                  beim Finalisieren zusätzlich rückfragen.
+                </div>
+              )
             )}
           </section>
 
@@ -1202,15 +1224,26 @@ function FinalizeConfirmDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={busy}
+            data-testid="finalize-cancel-button"
+          >
             Abbrechen
           </Button>
           <Button
             onClick={() => void onConfirm()}
             disabled={busy || guestCount <= 0}
             data-testid="finalize-confirm-button"
+            data-state={warnMsg ? "warning" : undefined}
+            variant={warnMsg ? "destructive" : "default"}
           >
-            {busy ? "Wird finalisiert…" : "Finalisieren & drucken"}
+            {busy
+              ? "Wird finalisiert…"
+              : warnMsg
+                ? "Trotzdem finalisieren"
+                : "Finalisieren & drucken"}
           </Button>
         </DialogFooter>
       </DialogContent>
