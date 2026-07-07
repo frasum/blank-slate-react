@@ -4,6 +4,8 @@ Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen B
 
 SaaS-Vorbereitung: Readiness-Audit und Modul-Katalog stehen in docs/saas-vorbereitung.md (Leitplanke: keine SaaS-Umbauten vor dem Kassen-Go-live).
 
+Produktionsreife-Review: docs/produktionsreife-review.md (Stand 07.07.2026, HEAD 8cfdbc1d) — kritischer Pfad vor dem Kassen-Go-live: Monitoring (G4) → Finalize-E2E (G5b) → Restore-Probe (G6) → Cutover.
+
 Stand: 06.07.2026 (SL2)
 
 TH1 — Standort-Farbthema: LocationThemeProvider im \_authenticated-Layout hält den themeKey (spicery/yum/neutral).
