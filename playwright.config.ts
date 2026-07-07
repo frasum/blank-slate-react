@@ -10,7 +10,10 @@
 
 import { defineConfig, devices } from "@playwright/test";
 
-const baseURL = process.env.E2E_BASE_URL ?? "http://localhost:3000";
+// Der Lovable-Vite-Wrapper (@lovable.dev/vite-tanstack-config) besitzt den
+// Dev-Port (8080) inkl. strictPort — CLI-Flags werden überstimmt. Wir richten
+// uns nach ihm statt gegen ihn.
+const baseURL = process.env.E2E_BASE_URL ?? "http://localhost:8080";
 const startDevServer = !process.env.E2E_BASE_URL;
 
 export default defineConfig({
@@ -30,7 +33,7 @@ export default defineConfig({
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: startDevServer
     ? {
-        command: "bun run dev -- --port 3000 --strictPort",
+        command: "bun run dev",
         url: baseURL,
         reuseExistingServer: true,
         timeout: 120_000,
