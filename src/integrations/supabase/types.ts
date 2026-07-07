@@ -1262,6 +1262,57 @@ export type Database = {
           },
         ]
       }
+      ki_usage_log: {
+        Row: {
+          cost_microcents: number
+          created_at: string
+          id: string
+          input_tokens: number
+          model: string
+          organization_id: string
+          output_tokens: number
+          staff_id: string | null
+          tool_rounds: number
+        }
+        Insert: {
+          cost_microcents?: number
+          created_at?: string
+          id?: string
+          input_tokens?: number
+          model: string
+          organization_id: string
+          output_tokens?: number
+          staff_id?: string | null
+          tool_rounds?: number
+        }
+        Update: {
+          cost_microcents?: number
+          created_at?: string
+          id?: string
+          input_tokens?: number
+          model?: string
+          organization_id?: string
+          output_tokens?: number
+          staff_id?: string | null
+          tool_rounds?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ki_usage_log_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ki_usage_log_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leave_requests: {
         Row: {
           created_at: string
