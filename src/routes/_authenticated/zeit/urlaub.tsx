@@ -174,6 +174,12 @@ function UrlaubPage() {
                   <span className="text-xs text-muted-foreground">
                     ({r.days} {r.days === 1 ? "Tag" : "Tage"})
                   </span>
+                  {r.holidaysSkipped > 0 ? (
+                    <span className="text-xs text-muted-foreground">
+                      · {r.holidaysSkipped}{" "}
+                      {r.holidaysSkipped === 1 ? "Feiertag" : "Feiertage"} nicht gezählt
+                    </span>
+                  ) : null}
                 </div>
                 <div>{statusBadge(r.status)}</div>
                 {r.reason ? (
