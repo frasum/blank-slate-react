@@ -327,7 +327,13 @@ export function mergeAcrossLocations(
   return orderKeys.map((k) => byKey.get(k)!);
 }
 
-/** Case-insensitiver Gruppen-Match: prüft hauptgruppe ODER warengruppe. */
+/**
+ * Case-insensitiver Substring-Match auf hauptgruppe ODER warengruppe.
+ * Beispiel: Filter `["Wein"]` matched sowohl Spicery-Gruppe `Wein` als auch
+ * YUM-Gruppen `Weißwein Flasche`, `Rotwein offen`, `Schaumwein Flasche` etc.
+ * Standort-übergreifende Abfragen funktionieren so, ohne dass der Aufrufer
+ * jede lokale Bezeichnung kennen muss.
+ */
 export function matchesGroupFilter(
   row: { hauptgruppe: string | null; warengruppe: string | null },
   selected: readonly string[],
@@ -336,5 +342,5 @@ export function matchesGroupFilter(
   const lo = selected.map((s) => s.toLocaleLowerCase("de"));
   const h = row.hauptgruppe?.toLocaleLowerCase("de") ?? null;
   const w = row.warengruppe?.toLocaleLowerCase("de") ?? null;
-  return lo.some((sel) => sel === h || sel === w);
+  return lo.some((sel) => (h !== null && h.includes(sel)) || (w !== null && w.includes(sel)));
 }

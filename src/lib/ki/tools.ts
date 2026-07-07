@@ -46,7 +46,7 @@ export const TOOLS: ToolDef[] = [
   {
     name: "getraenke_ranking",
     description:
-      "Renner & Penner-Rangliste der Getränke (Wein/Spirituosen/Cocktails etc.) aus dem POS-Snapshot. Wein wird über Portion+Flasche zusammengefasst. Der Snapshot deckt entweder die letzten 365 Tage oder den gesamten erfassten Zeitraum ab — beliebige Datumsfenster sind für Getränke NICHT möglich.",
+      "Renner & Penner-Rangliste der Getränke (Wein/Spirituosen/Cocktails etc.) aus dem POS-Snapshot. Wein wird über Portion+Flasche zusammengefasst. Der Snapshot deckt entweder die letzten 365 Tage oder den gesamten erfassten Zeitraum ab — beliebige Datumsfenster sind für Getränke NICHT möglich. Der Gruppenfilter arbeitet als Substring-Match: `['Wein']` deckt sowohl generische Gruppen wie `Wein` als auch feingliedrige Varianten wie `Weißwein Flasche`, `Rotwein offen`, `Schaumwein Flasche` ab — pro Standort können die Gruppennamen unterschiedlich sein.",
     input_schema: {
       type: "object",
       properties: {
