@@ -3733,3 +3733,20 @@ als Artikel anlegen, Eigenfond als erstes Sub-Rezept.
 **GELÖST (Nachtrag gleicher Tag).** Der lokale 3/3-Beweis wurde erbracht. Weg dorthin: manuelle Chain-Anwendung per `psql -1` (**Regel: manuelle Replays IMMER mit `-1`**, sonst rollt der abschließende `COMMIT;BEGIN;`-Enum-Trick am Dateiende lautlos zurück), ein Rechte-Rundumschlag auf dem chirurgisch neu aufgebauten Schema (Default-Privileges wandern beim `DROP SCHEMA` mit ins Grab) sowie die P2d–P2i-Seed/Spec-Fixes. Das **Docker-Doppelwelt-Phänomen** (zwei Kontexte `default` / `desktop-linux`) bleibt als lokale Mac-Eigenheit dokumentiert: für CLI-Arbeiten `DOCKER_HOST` explizit auf den Desktop-Socket setzen bzw. im Zweifel per `docker exec` direkt in den Port-Container arbeiten. **Alternativer Beweisweg ohne Mac-Docker** bleibt der CI-`e2e`-Job (gleiche Kette, eine Welt) — nach den heutigen Commits auf GitHub Actions grün prüfen, dann tickt das Promotions-Kriterium.
 
 **P2h — Dialog-Konsolidierung.** Der KAB2-Finalize läuft jetzt vollständig über den Bestätigungs-Dialog: die Pool-Warnung (TG1) wird inline im selben Dialog als Warn-Zustand angezeigt (`data-state="warning"` am Bestätigen-Button, Label „Trotzdem finalisieren"), der frühere native `window.confirm`-Pfad ist entfernt; Server-API (`confirmPoolWarning`) und Audit-Semantik (`poolHoursWarningConfirmed`) sind unverändert. **Spec-Regel bekräftigt:** E2E-Interaktionen laufen ausschließlich über `data-testid`s (`finalize-print-button`, `finalize-confirm-button`, `finalize-cancel-button`) — keine Browser-Dialoge (`page.waitForEvent("dialog")`) mehr, das war die Race-Ursache aus P2i.
+
+## 73. Code-Review 07/2026 — Repo-Wahrheit & Merkliste (07.07.2026)
+
+**Volltext:** siehe [`docs/code-review-2026-07.md`](./code-review-2026-07.md) (YAGNI/KISS/DRY/SOLID + Produktionsreife-Prüfung, HEAD-Bereich `37a8b8ac`–`a17dd3e1`, jede Aussage repo-belegt).
+
+**Kurzfassung.**
+
+- **Muss vor Produktivstart:** (1) Sentry-DSN + Testfehler-Probe — ✅ **ERLEDIGT 07.07.** (DSN in Lovable-Secrets neben `MAILERSEND_API_KEY`; Positiv-Probe via Envelope-`curl` mit Event-Quittung; Negativ-Probe: Pool-Warnung erscheint filterbedingt **nicht** im Dashboard). (2) **P3 Restore-Probe** — **OFFEN**, letzter Muss-Punkt (Runbook-Gerüst: `docs/produktionsreife-review.md`, G6). (3) Cutover-Gates unverändert (§5-Voll-Reimport, YUM-Anker).
+- **Sollte bald:** `.env`-Enttrackung + CI-Secret-Guard — ✅ **ERLEDIGT** (ENV1, `a17dd3e1`); CI-`e2e`-Job nach **10 grünen Läufen auf blockierend** heben; HIBP-Toggle bestätigen.
+- **Kann später:** Groß-Dateien per Pfadfinderregel verschlanken (`zeit-uebersicht` 2805 Z., `bwa` 2468, `RezepteTab` 1486, `kasse` 1294 — funktionierend, `kasse` E2E-versiegelt; **kein eigener Refactoring-Sprint**); Geldformatierung (4 Definitionen) bei Gelegenheit nach `lib/money`; Lohn-Einmalbezug-TODO ist geplante Stufe 2.
+- **Nicht anfassen (Risiko > Nutzen):** `supabaseAdmin` in den drei token-gated Public-Routen (ST1-dokumentierte Architektur); generierte `any` (62, ausschließlich `routeTree.gen`) — handgeschriebener Code: **0 `any`, 0 `ts-ignore`, 0 `console.log`**; Trinkgeld-Formel eine Definition, acht Verwender (KGL gelebt); kein Git-History-Rewrite wegen historischer Publishable-Werte; keine SaaS-Strukturumbauten vor Kassen-Go-live.
+
+**Merkliste (persönlich Frank/Betrieb, nicht Code):** HIBP-Toggle bestätigen · Sumitr-PL2-Klicktest · TG1-Kontroll-CSV · CI-`e2e`-Promotion beobachten.
+
+**Nächster Pflichtblock.** P3 Restore-Probe (halbtags, ohne Lovable), danach Cutover-Planung.
+
+**Gesamturteil.** Struktur gesund — die Hausregeln (KGL, BIGINT-Cents, reine Module, Review-Loop, „melden statt still lösen") operationalisieren die Prinzipien. Restarbeit ist **Betrieb, nicht Architektur**.
