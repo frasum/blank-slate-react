@@ -6,7 +6,7 @@ SaaS-Vorbereitung: Readiness-Audit und Modul-Katalog stehen in docs/saas-vorbere
 
 Produktionsreife-Review: docs/produktionsreife-review.md (Stand 07.07.2026, HEAD 8cfdbc1d, inkl. Patch-Plan P0–P7) — kritischer Pfad vor dem Kassen-Go-live: Monitoring (P1) → Finalize-E2E (P2) → Restore-Probe (P3) → Cutover.
 
-Stand: 06.07.2026 (SL2)
+Stand: 07.07.2026 (RT1–TG1)
 
 TH1 — Standort-Farbthema: LocationThemeProvider im \_authenticated-Layout hält den themeKey (spicery/yum/neutral).
 LocationPills melden die Auswahl per useLocationThemeSync; Mapping: Name enthält „spicery" → spicery, „yum" → yum, sonst neutral (auch TSB/„Alle"/leer).
@@ -439,6 +439,9 @@ Rekonstruiert per Kalibrierung gegen bereits validierte Bestands-Sessions (Refer
 | §PV3 POS-Stundenbericht — Vectron „Stunden-Bericht (lang)", Chart+Tabelle, Upload mit Fußzeilen-Gate (`pos_hourly_stats`)                                                                             | ✅ (Real-Datei-Validierung durch Claude: Spicery 101.283 Stk / 9.817.288,78 € · YUM 97.695 Stk / 8.383.044,04 € — Upload-Freigabe Frank offen) |
 | §KAB2 Tagesabrechnung Ein-Knopf-Flow — „Tagesabrechnung drucken" = finalize→print(→lock), Status-Stepper/PDF-Export/Kopplungs-Dialog raus, dezente Statuszeile + Admin-Sperren/Entsperren als Ventile | ✅ (E2E-Rundgang Frank offen)                                                                                                                  |
 | Rezeptur-Modul R1–R2b (Schema, Rechenkern, Editor, Anlage vom Verkaufsartikel)                                                                                                                        | ✅ (Golden-Master-Referenzgericht ausstehend)                                                                                                  |
+| Betriebskalender RT1/UZ1 (Ruhetage, Ausnahmen, Feiertags-Urlaubsregel)                                                                                                                                | ✅                                                                                                                                             |
+| Schichtbetrieb SP1/SP1b (service_period, Display-Rotation, Marker)                                                                                                                                    | ✅ (aktiviert erst bei TSB-Reaktivierung)                                                                                                     |
+| Trinkgeld-Modell je Standort TG1 (Pool-Schalter, Overrides, Abschluss-Warnung)                                                                                                                        | ✅                                                                                                                                             |
 
 **Juni-Kassenlücke geschlossen (29.06.2026):** YUM (16., 18.–25.) und Spicery (16., 18.–25., 28.) aus `tagesabrechnung` nachimportiert — 19 Sessions; das leere native YUM-28 durch Legacy-Daten ersetzt. `vectron_daily_total_cents` 19/19 gegen die Quelle verifiziert. Mapping siehe Abschnitt 5.
 
