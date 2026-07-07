@@ -6,7 +6,7 @@ SaaS-Vorbereitung: Readiness-Audit und Modul-Katalog stehen in docs/saas-vorbere
 
 Produktionsreife-Review: docs/produktionsreife-review.md (Stand 07.07.2026, HEAD 8cfdbc1d, inkl. Patch-Plan P0–P7) — kritischer Pfad vor dem Kassen-Go-live: Monitoring (P1) → Finalize-E2E (P2) → Restore-Probe (P3) → Cutover.
 
-Stand: 06.07.2026 (SL2)
+Stand: 07.07.2026 (RT1–TG1)
 
 TH1 — Standort-Farbthema: LocationThemeProvider im \_authenticated-Layout hält den themeKey (spicery/yum/neutral).
 LocationPills melden die Auswahl per useLocationThemeSync; Mapping: Name enthält „spicery" → spicery, „yum" → yum, sonst neutral (auch TSB/„Alle"/leer).
@@ -439,6 +439,9 @@ Rekonstruiert per Kalibrierung gegen bereits validierte Bestands-Sessions (Refer
 | §PV3 POS-Stundenbericht — Vectron „Stunden-Bericht (lang)", Chart+Tabelle, Upload mit Fußzeilen-Gate (`pos_hourly_stats`)                                                                             | ✅ (Real-Datei-Validierung durch Claude: Spicery 101.283 Stk / 9.817.288,78 € · YUM 97.695 Stk / 8.383.044,04 € — Upload-Freigabe Frank offen) |
 | §KAB2 Tagesabrechnung Ein-Knopf-Flow — „Tagesabrechnung drucken" = finalize→print(→lock), Status-Stepper/PDF-Export/Kopplungs-Dialog raus, dezente Statuszeile + Admin-Sperren/Entsperren als Ventile | ✅ (E2E-Rundgang Frank offen)                                                                                                                  |
 | Rezeptur-Modul R1–R2b (Schema, Rechenkern, Editor, Anlage vom Verkaufsartikel)                                                                                                                        | ✅ (Golden-Master-Referenzgericht ausstehend)                                                                                                  |
+| Betriebskalender RT1/UZ1 (Ruhetage, Ausnahmen, Feiertags-Urlaubsregel)                                                                                                                                | ✅                                                                                                                                             |
+| Schichtbetrieb SP1/SP1b (service_period, Display-Rotation, Marker)                                                                                                                                    | ✅ (aktiviert erst bei TSB-Reaktivierung)                                                                                                      |
+| Trinkgeld-Modell je Standort TG1 (Pool-Schalter, Overrides, Abschluss-Warnung)                                                                                                                        | ✅                                                                                                                                             |
 
 **Juni-Kassenlücke geschlossen (29.06.2026):** YUM (16., 18.–25.) und Spicery (16., 18.–25., 28.) aus `tagesabrechnung` nachimportiert — 19 Sessions; das leere native YUM-28 durch Legacy-Daten ersetzt. `vectron_daily_total_cents` 19/19 gegen die Quelle verifiziert. Mapping siehe Abschnitt 5.
 
@@ -3664,3 +3667,21 @@ mit Franks Einkaufspreisen liegt vor (~2,67 €/Hauptgericht-Portion).
 Ausstehend: Franks Portions-Mengen + **vier Daten-Klärungen** —
 Galanga-Preisbasis, Fischsaucen-Gebinde, Kaffirlimettenblätter / Schalotten
 als Artikel anlegen, Eigenfond als erstes Sub-Rezept.
+
+## 70. Betriebskalender, Schichtbetrieb & Trinkgeld-Modell (RT1/UZ1/SP1/TG1/SP1b, 07.07.2026)
+
+**Leitprinzip (Frank):** Alles generell gebaut, aber **schlafend** — Aktivierung nur per aktivem Schalter je Standort; YUM/Spicery verhalten sich nach dem Merge exakt wie vorher (einzige bewusste Ausnahme: die Feiertags-Urlaubsregel, siehe UZ1 — von Frank als sofort wirksame Fehlerkorrektur bestätigt).
+
+**RT1 — Betriebskalender.** `location_rest_days` (ISO-Wochentag 1–7, unique je Standort) + `location_calendar_exceptions` (Einzeldatum, `kind` `closed`/`open` — Betriebsferien UND Sonderöffnung am Ruhetag), beide deny-all (RLS-Inventur damit **zwanzig** Tabellen — Liste um beide ergänzt). Reines Modul `business-calendar.ts`: `isClosedDay` — Ausnahme schlägt Wochentag. Serverseitiger Guard `assertDayOpen` in Schicht-Anlegen/Verschieben (**Löschen bewusst frei**); Grid zeigt geschlossene Tage grau mit blockiertem Malen, Alt-Schichten auf geschlossenen Tagen rot gerahmt; Display kennzeichnet „Ruhetag"; Stempeln bleibt frei (nur Hinweis). Einstellung: Stammdaten → Standorte → „Betriebskalender". **Bewusst offen:** Statistik-Umstellung „Ø je Öffnungstag" = Folge-Baustein RT2.
+
+**UZ1 — Urlaubszählung.** `organization_settings.count_holidays_as_leave` (Default `false` = gesetzliche Feiertage zählen **NICHT** als Urlaubstage — korrigiert den Altzustand, in dem Feiertage Urlaubstage verbrauchten; wirkt sofort und rückwirkend in allen Anzeigen, da live gerechnet). `countLeaveDays(start, end, holidayDates?)` rückwärtskompatibel; Feiertage via `holiday-utils.ts` aus dem **wiederverwendeten** `bavarianHolidayMap` (`shift-hours.ts`, jetzt exportiert). Org-Schalter in den Einstellungen.
+
+**SP1 — Schichtbetrieb (Servicezeiten).** `locations.day_service_enabled` (Default aus) + `roster_shifts.service_period` (`mittag`/`abend`, Default `abend`), Unique-Key erweitert auf `(staff, location, date, area, service_period)`. `mittag` serverseitig nur bei aktiviertem Tagesbetrieb. Grid: Fenster-Umschalter (Segmented Control) nur bei aktivierten Standorten; Cross-Booking fenster-bewusst via reinem Modul `cross-booking.ts` — gleiches Fenster woanders = Konflikt (rot, hat Vorrang), anderes Fenster = Info. Der Dienstplan bleibt **uhrzeiten-los** (D-1); `service_period` ist ein Planungsfenster, keine Uhrzeit.
+
+**SP1b — Anzeige-Verfeinerungen.** Display rotiert bei Tagesbetrieb-Standorten MITTAG/ABEND als Vollbild-Blöcke mit großem Titel und zeitgesteuerter Priorität (`DISPLAY_PERIOD_SWITCH_HOUR = 15`, Konstante); Grid zeigt Gegenfenster-Marker ☀︎/☾ auf besetzten Zellen; Zeitübersicht/„Meine Schichten" tragen ein rein **abgeleitetes** „Mittag/Abend"-Badge (`derivePeriodLabel` nach Startzeit — nie gespeichert, die Uhrzeit bleibt die einzige Wahrheit; Badge nur an Tagesbetrieb-Standorten).
+
+**TG1 — Trinkgeld-Modell je Standort.** `locations.tip_service_pool_enabled` (Default an) + drei Override-Spalten (`kitchen_tip_rate_override` ≤ 0,2, `tip_pool_min_hours_override`, `kitchen_manual_only_override`; `NULL` = Org-Standard). Loader `tip-settings.ts` mit Vererbung (Simphony-Muster: Org-Standard, Standort überschreibt). **Pool aus** (TSB-Modell „jeder behält seins, Küchen-Abgabe läuft weiter"): `serviceShares = []` und `serviceRemainder = 0` — bewusst **NICHT** „Rest = Pool" (kein Phantom-Rest); Kellner-Ansicht zeigt Hinweistext, Rest-Ansicht „—", Statistik weist „kein Pool" aus. Charakterisierung bewiesen: bestehende tip-pool-Tests unverändert (0 gelöschte Zeilen).
+
+**Abschluss-Warnung (Lehre aus dem 423-€-Vorfall 02.07.).** `poolNeedsHoursWarning` + serverseitiger `PoolHoursWarningError` beim Finalisieren — ein Abschluss mit aktivem Pool > 0 € bei 0 anrechenbaren Minuten erfordert **explizite Bestätigung**, die als `poolHoursWarningConfirmed: true` im `audit_log.meta` landet. (Der Vorfall selbst: Service-Pool-Einträge des 02.07. hatten 0 Minuten → Rest = kompletter Pool 423,07 €; Daten-Fix per SQL, Verteilung ist reine Anzeige ohne Buchungs-Konsumenten.)
+
+**Abnahmen.** RT1+UZ1+SP1 HEAD `8cfdbc1d` (1505 Tests, Live-CSV: Tabellen/Spalten/Policies/Setting verifiziert), TG1+SP1b HEAD `ddf6cb1a` (1522 Tests). Alle vier Gates jeweils grün.
