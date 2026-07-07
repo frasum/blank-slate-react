@@ -8,6 +8,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2, Mic, Send, Sparkles } from "lucide-react";
+import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -111,6 +112,7 @@ function FragCocoPage() {
   const speech = useSpeechInput({
     lang: "de-DE",
     onFinished: (text) => submitQuestion(text),
+    onError: (message) => toast.error(message),
   });
 
   useEffect(() => {
