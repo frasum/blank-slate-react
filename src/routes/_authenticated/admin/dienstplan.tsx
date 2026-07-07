@@ -331,6 +331,10 @@ function AdminManagerDienstplan() {
   const staff = useMemo(() => staffQ.data ?? [], [staffQ.data]);
   const shifts: RosterShift[] = useMemo(() => shiftsQ.data ?? [], [shiftsQ.data]);
   const crossBookings = useMemo(() => crossQ.data ?? [], [crossQ.data]);
+  const monthCrossBookings = useMemo(
+    () => crossMonthQ.data ?? crossBookings,
+    [crossMonthQ.data, crossBookings],
+  );
 
   // SP2 — Fenster-Umschalter oberhalb des Grids. Sichtbar, sobald mehr als
   // ein Planungsfenster für den Standort aktiviert ist (Legacy-Verhalten
