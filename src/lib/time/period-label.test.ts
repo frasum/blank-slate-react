@@ -1,9 +1,20 @@
 import { describe, it, expect } from "vitest";
-import { derivePeriodLabel, DISPLAY_PERIOD_SWITCH_HOUR } from "./period-label";
+import { derivePeriodLabel, DISPLAY_PERIOD_SWITCH_HOUR, PERIOD_FRUEH_BIS } from "./period-label";
 
 describe("derivePeriodLabel", () => {
-  it("konstante Umschaltzeit ist 15", () => {
+  it("Konstanten: Früh-Grenze = 11, Mittag→Abend-Grenze = 15", () => {
+    expect(PERIOD_FRUEH_BIS).toBe(11);
     expect(DISPLAY_PERIOD_SWITCH_HOUR).toBe(15);
+  });
+
+  it("Grenzfall 10:59 = Früh", () => {
+    // UTC 08:59 = 10:59 CEST
+    expect(derivePeriodLabel("2026-07-15T08:59:00Z", "Europe/Berlin")).toBe("Früh");
+  });
+
+  it("Grenzfall 11:00 = Mittag", () => {
+    // UTC 09:00 = 11:00 CEST
+    expect(derivePeriodLabel("2026-07-15T09:00:00Z", "Europe/Berlin")).toBe("Mittag");
   });
 
   it("14:59 Berliner Ortszeit = Mittag", () => {
@@ -25,14 +36,15 @@ describe("derivePeriodLabel", () => {
     expect(derivePeriodLabel("2026-01-15T13:59:00Z", "Europe/Berlin")).toBe("Mittag");
   });
 
-  it("Zeitzone wird beachtet — 15:00 UTC in London = Abend, in Los Angeles noch Mittag", () => {
+  it("Zeitzone wird beachtet — 15:00 UTC in London = Abend, in Los Angeles = Früh", () => {
     expect(derivePeriodLabel("2026-07-15T15:00:00Z", "Europe/London")).toBe("Abend"); // 16:00 BST
-    expect(derivePeriodLabel("2026-07-15T15:00:00Z", "America/Los_Angeles")).toBe("Mittag"); // 08:00 PDT
+    expect(derivePeriodLabel("2026-07-15T15:00:00Z", "America/Los_Angeles")).toBe("Früh"); // 08:00 PDT
   });
 
   it("Default-Zeitzone ist Europe/Berlin", () => {
     expect(derivePeriodLabel("2026-07-15T13:00:00Z")).toBe("Abend");
     expect(derivePeriodLabel("2026-07-15T12:59:00Z")).toBe("Mittag");
+    expect(derivePeriodLabel("2026-07-15T08:59:00Z")).toBe("Früh");
   });
 
   it("ungültige Startzeit wirft", () => {

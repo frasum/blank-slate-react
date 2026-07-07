@@ -145,20 +145,21 @@ export const getMyPeriodEntries = createServerFn({ method: "GET" })
     const { data: locs, error: lErr } = await supabaseAdmin
       // ST1: bewusst ungefiltert — Daten-Zugriff (Namensauflösung an historischen Zeiteinträgen).
       .from("locations")
-      .select("id, name, day_service_enabled")
+      .select("id, name, enabled_service_periods")
       .eq("organization_id", caller.organizationId);
     if (lErr) throw lErr;
     const nameById = new Map<string, string>(
       (locs ?? []).map((l) => [l.id as string, l.name as string]),
     );
-    // SP1b — Tagesbetrieb pro Standort. Nur bei aktiviertem Tagesbetrieb
-    // wird im Portal ein „Mittag"/„Abend"-Badge angezeigt (abgeleitet aus
-    // der Startzeit, nicht persistiert).
+    // SP2 — Aktive Planungsfenster je Standort. Fenster-Badge wird im Portal
+    // gezeigt, sobald mehr als ein Fenster aktiv ist (aus der Startzeit
+    // abgeleitet, nicht persistiert).
     const dayServiceById = new Map<string, boolean>(
-      (locs ?? []).map((l) => [
-        l.id as string,
-        (l as { day_service_enabled?: boolean | null }).day_service_enabled === true,
-      ]),
+      (locs ?? []).map((l) => {
+        const periods = ((l as { enabled_service_periods?: string[] | null })
+          .enabled_service_periods ?? ["abend"]) as string[];
+        return [l.id as string, periods.length > 1];
+      }),
     );
 
     return {

@@ -8,7 +8,7 @@
 //
 // Reines Modul: keine DB-, Netz- oder Zeit-Abhängigkeiten.
 
-export type ServicePeriod = "mittag" | "abend";
+export type ServicePeriod = "frueh" | "mittag" | "abend";
 
 export type CrossBookingKind = "conflict" | "info";
 
@@ -69,7 +69,9 @@ export function classifyCrossBookings(
 
 /** Menschlich lesbares Fenster-Label. */
 export function servicePeriodLabel(p: ServicePeriod): string {
-  return p === "mittag" ? "Mittag" : "Abend";
+  if (p === "frueh") return "Früh";
+  if (p === "mittag") return "Mittag";
+  return "Abend";
 }
 
 /** Gruppiert klassifizierte Cross-Bookings nach `staffId|shiftDate`. */

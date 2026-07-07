@@ -12,10 +12,15 @@ export type MyShiftRow = {
   skillLabel: string | null;
   status: "planned" | "confirmed";
   notes: string | null;
-  servicePeriod: "mittag" | "abend";
+  servicePeriod: "frueh" | "mittag" | "abend";
   /**
-   * SP1 — Standort hat Tagesbetrieb aktiv. Nur dann soll das UI
-   * ein Fenster-Label „Mittag"/„Abend" anzeigen.
+   * SP2 — Aktive Planungsfenster des Standorts. UI zeigt ein Fenster-Label
+   * genau dann, wenn mehr als ein Fenster aktiv ist.
+   */
+  enabledServicePeriods: Array<"frueh" | "mittag" | "abend">;
+  /**
+   * Kompatibilitäts-Alias: mehr als ein aktives Fenster.
+   * (Bleibt bis Commit 2 der UI-Umstellung.)
    */
   locationDayServiceEnabled: boolean;
 };

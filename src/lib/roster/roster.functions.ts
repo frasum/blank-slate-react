@@ -15,30 +15,37 @@ import { mergeAbsenceRanges, type AbsenceRange } from "@/lib/roster/vacation-pla
 import { resolvePlanerScope } from "@/lib/roster/scope-util";
 import { assertDayOpen } from "@/lib/roster/business-calendar.server";
 
-// SP1 — Helper: „Mittag" nur zulässig, wenn Standort day_service_enabled.
+// SP2 — Helper: gewähltes Planungsfenster muss in enabled_service_periods
+// des Standorts liegen. Ersetzt den früheren Boolean-Check (day_service_enabled).
+const PERIOD_LABEL: Record<"frueh" | "mittag" | "abend", string> = {
+  frueh: "Früh",
+  mittag: "Mittag",
+  abend: "Abend",
+};
 async function assertServicePeriodAllowed(
   admin: import("@supabase/supabase-js").SupabaseClient<
     import("@/integrations/supabase/types").Database
   >,
   locationId: string,
-  servicePeriod: "mittag" | "abend",
+  servicePeriod: "frueh" | "mittag" | "abend",
 ): Promise<void> {
-  if (servicePeriod === "abend") return;
   const { data, error } = await admin
     .from("locations")
-    .select("name, day_service_enabled")
+    .select("name, enabled_service_periods")
     .eq("id", locationId)
     .maybeSingle();
   if (error) throw error;
-  if (data?.day_service_enabled !== true) {
-    const locName = (data as { name?: string | null } | null)?.name?.trim();
-    const label = locName ? `„${locName}"` : "Dieser Standort";
-    throw new Error(
-      `Mittagsschicht nicht möglich: ${label} hat keinen Tagesbetrieb. ` +
-        "Entweder auf die Abendschicht wechseln oder unter Admin → Standorte → " +
-        "Betrieb den Tagesbetrieb für diesen Standort aktivieren.",
-    );
-  }
+  const enabled = ((data?.enabled_service_periods as string[] | null) ?? ["abend"]) as Array<
+    "frueh" | "mittag" | "abend"
+  >;
+  if (enabled.includes(servicePeriod)) return;
+  const locName = (data as { name?: string | null } | null)?.name?.trim();
+  const label = locName ? `„${locName}"` : "Dieser Standort";
+  const allowed = enabled.map((p) => PERIOD_LABEL[p]).join(", ") || "—";
+  throw new Error(
+    `Fenster „${PERIOD_LABEL[servicePeriod]}" nicht möglich: ${label} hat nur ${allowed} aktiviert. ` +
+      "Unter Admin → Standorte kann die Fenster-Liste angepasst werden.",
+  );
 }
 
 const READ_ROLES = ["manager", "admin", "payroll", "staff", "planer"] as const;
@@ -106,7 +113,7 @@ export type RosterShift = {
   skillColor: string | null;
   status: "planned" | "confirmed";
   notes: string | null;
-  servicePeriod: "mittag" | "abend";
+  servicePeriod: "frueh" | "mittag" | "abend";
 };
 
 export type RosterSkill = {
@@ -134,7 +141,7 @@ export type RosterCrossBooking = {
   locationName: string;
   area: "kitchen" | "service" | "gl";
   skillName: string | null;
-  servicePeriod: "mittag" | "abend";
+  servicePeriod: "frueh" | "mittag" | "abend";
 };
 
 export type RosterAvailability = {
@@ -184,7 +191,10 @@ export const getRosterShifts = createServerFn({ method: "GET" })
       skillColor: (r.skills as { color: string | null } | null)?.color ?? null,
       status: r.status as "planned" | "confirmed",
       notes: (r.notes as string | null) ?? null,
-      servicePeriod: ((r.service_period as string | null) ?? "abend") as "mittag" | "abend",
+      servicePeriod: ((r.service_period as string | null) ?? "abend") as
+        | "frueh"
+        | "mittag"
+        | "abend",
     }));
   });
 
@@ -223,7 +233,7 @@ export const getMyShifts = createServerFn({ method: "GET" })
     const { data: rows, error } = await supabaseAdmin
       .from("roster_shifts")
       .select(
-        "id, shift_date, area, status, notes, location_id, service_period, locations(name, day_service_enabled), skills(name, category)",
+        "id, shift_date, area, status, notes, location_id, service_period, locations(name, enabled_service_periods), skills(name, category)",
       )
       .eq("organization_id", caller.organizationId)
       .eq("staff_id", caller.staffId)
@@ -235,7 +245,13 @@ export const getMyShifts = createServerFn({ method: "GET" })
 
     return (rows ?? []).map((r) => {
       const skill = r.skills as { name: string; category: string } | null;
-      const loc = r.locations as { name: string; day_service_enabled: boolean | null } | null;
+      const loc = r.locations as {
+        name: string;
+        enabled_service_periods: string[] | null;
+      } | null;
+      const enabledPeriods = ((loc?.enabled_service_periods ?? ["abend"]) as string[]).filter(
+        (p): p is "frueh" | "mittag" | "abend" => p === "frueh" || p === "mittag" || p === "abend",
+      );
       return {
         id: r.id as string,
         shift_date: r.shift_date as string,
@@ -246,8 +262,14 @@ export const getMyShifts = createServerFn({ method: "GET" })
         skillLabel: skill?.name ?? null,
         status: r.status as "planned" | "confirmed",
         notes: (r.notes as string | null) ?? null,
-        servicePeriod: ((r.service_period as string | null) ?? "abend") as "mittag" | "abend",
-        locationDayServiceEnabled: loc?.day_service_enabled === true,
+        servicePeriod: ((r.service_period as string | null) ?? "abend") as
+          | "frueh"
+          | "mittag"
+          | "abend",
+        enabledServicePeriods: enabledPeriods,
+        // Kompatibilitäts-Feld (bleibt bis Commit 2): mehr als ein aktives
+        // Fenster ⇒ UI zeigt Fenster-Badge.
+        locationDayServiceEnabled: enabledPeriods.length > 1,
       };
     });
   });
@@ -474,7 +496,10 @@ export const getStaffCrossBookings = createServerFn({ method: "GET" })
       locationName: (r.locations as { name: string } | null)?.name ?? "—",
       area: r.area as "kitchen" | "service" | "gl",
       skillName: (r.skills as { name: string } | null)?.name ?? null,
-      servicePeriod: ((r.service_period as string | null) ?? "abend") as "mittag" | "abend",
+      servicePeriod: ((r.service_period as string | null) ?? "abend") as
+        | "frueh"
+        | "mittag"
+        | "abend",
     }));
   });
 
