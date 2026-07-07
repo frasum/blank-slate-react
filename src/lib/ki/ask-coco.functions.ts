@@ -12,6 +12,8 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import {
@@ -246,12 +248,8 @@ function extractText(blocks: ContentBlock[]): string {
     .trim();
 }
 
-// Typ des Admin-Clients (server-only). Import erfolgt nur zur Typprüfung —
-// deshalb `import type`, damit der Runtime-Import im Handler ausreicht.
-import type { supabaseAdmin as SupabaseAdminType } from "@/integrations/supabase/client.server";
-
 async function logUsage(
-  admin: typeof SupabaseAdminType,
+  admin: SupabaseClient<Database>,
   entry: {
     organizationId: string;
     staffId: string;
