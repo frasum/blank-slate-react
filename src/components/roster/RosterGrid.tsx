@@ -72,6 +72,12 @@ type Props = {
   shifts: RosterShift[];
   allSkills: RosterSkill[];
   crossBookings: RosterCrossBooking[];
+  /**
+   * Cross-Bookings über die gesamte Abrechnungsperiode (26.–25.), unabhängig
+   * vom sichtbaren Halb-Fenster. Basis für die Σ-Spalte + Breakdown-Popover.
+   * Fällt auf `crossBookings` zurück, falls nicht angegeben.
+   */
+  monthCrossBookings?: RosterCrossBooking[];
   lockMap: Map<
     string,
     { locationId: string; locationName: string; area: "kitchen" | "service" | "gl" }
