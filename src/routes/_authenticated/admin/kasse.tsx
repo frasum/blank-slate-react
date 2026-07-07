@@ -408,6 +408,20 @@ function KassePage() {
       toast.error("Keine Session");
       return;
     }
+    // FZD: Nicht mehr direkt finalisieren — Bestätigungs-Dialog zuerst.
+    setFinalizeConfirmOpen(true);
+  }
+
+  // Führt den eigentlichen Finalize-/Druck-/Lock-Flow aus. Wird aus dem
+  // Bestätigungs-Dialog aufgerufen. Verhalten der Pool-Warnung (TG1)
+  // unverändert: bei „0 anrechenbare Stunden" fragt zusätzlich window.confirm.
+  async function runFinalizeAndPrint() {
+    const data = buildSummaryDataOrNull();
+    if (!data) return;
+    if (!sessionId) {
+      toast.error("Keine Session");
+      return;
+    }
     setPrintBusy(true);
     try {
       try {
