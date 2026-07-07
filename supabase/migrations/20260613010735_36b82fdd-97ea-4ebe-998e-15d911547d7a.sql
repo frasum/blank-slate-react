@@ -24,8 +24,10 @@ do $$ begin
 exception when duplicate_object then null; end $$;
 
 do $$ begin
+  -- BFIX4: enthält auch die 2 später ergänzten Werte (to_safe, to_other);
+  -- ALTER TYPE ADD VALUE IF NOT EXISTS weiter unten in der Kette sind No-ops.
   create type public.register_transfer_direction as enum
-    ('to_restaurant', 'from_restaurant');
+    ('to_restaurant', 'from_restaurant', 'to_safe', 'to_other');
 exception when duplicate_object then null; end $$;
 
 ------------------------------------------------------------

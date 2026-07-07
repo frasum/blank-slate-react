@@ -2,7 +2,9 @@
 -- B2a: Zeiterfassung — Kerntabelle time_entries
 -- Geschäftsregeln im Code (server-side); RLS verbietet jeden Client-Schreibzugriff.
 
-CREATE TYPE public.time_entry_source AS ENUM ('clock', 'manual');
+-- BFIX4: enthält auch die 2 später ergänzten Werte (import, pool);
+-- ALTER TYPE ADD VALUE IF NOT EXISTS weiter unten in der Kette sind No-ops.
+CREATE TYPE public.time_entry_source AS ENUM ('clock', 'manual', 'import', 'pool');
 
 CREATE TABLE public.time_entries (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,

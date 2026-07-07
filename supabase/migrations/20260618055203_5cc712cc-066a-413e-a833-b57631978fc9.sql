@@ -7,6 +7,8 @@
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'app_permission') THEN
+    -- BFIX4: enthält auch die 38 später ergänzten Werte;
+    -- ALTER TYPE ADD VALUE IF NOT EXISTS weiter unten in der Kette sind No-ops.
     CREATE TYPE public.app_permission AS ENUM (
       'cash.session.view',
       'cash.session.open',
@@ -19,7 +21,45 @@ BEGIN
       'cash.settlement.admin_create',
       'cash.tippool.manage',
       'cash.channel.manage',
-      'cash.export.pdf'
+      'cash.export.pdf',
+      'time.entry.view_self',
+      'time.entry.view_all',
+      'time.entry.clock',
+      'time.entry.edit',
+      'time.period.view',
+      'time.period.manage',
+      'time.period.lock',
+      'time.payroll_note.view',
+      'time.payroll_note.edit',
+      'time.export',
+      'roster.shift.view_self',
+      'roster.shift.view_all',
+      'roster.shift.manage',
+      'roster.availability.manage_self',
+      'roster.availability.manage_all',
+      'roster.absence.view',
+      'roster.absence.manage',
+      'roster.wish.create_self',
+      'roster.wish.view_all',
+      'roster.wish.manage_all',
+      'roster.leave.request_self',
+      'roster.leave.view_all',
+      'roster.leave.decide',
+      'payroll.compensation.view',
+      'payroll.compensation.edit',
+      'payroll.personal.view',
+      'payroll.personal.edit',
+      'payroll.personal.import',
+      'payroll.calc.run',
+      'payroll.period.view',
+      'tasks.view',
+      'tasks.create',
+      'tasks.assign',
+      'tasks.change_status',
+      'tasks.delete',
+      'roster.swap.view_pending',
+      'roster.swap.decide',
+      'recipes.manage'
     );
   END IF;
 END $$;
