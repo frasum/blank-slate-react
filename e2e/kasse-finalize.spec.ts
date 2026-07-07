@@ -13,9 +13,13 @@
 //
 // Selektoren: bevorzugt Rollen/Text; drei minimale `data-testid`s im UI:
 //   * `finalize-print-button`  — Finalisieren/Drucken-Button
-//   * `session-status-badge`   — Statusanzeige (Attribut `data-status`)
-//   * (Warn-Dialog nutzt `window.confirm` — nativer Browser-Dialog, kein
-//      DOM-Element; Playwright bindet sich per `page.on('dialog')` ein.)
+//   * `finalize-confirm-button` — Bestätigen im Dialog (im Warn-Zustand
+//     zusätzlich `data-state="warning"`)
+//   * `finalize-cancel-button`  — Abbrechen im Dialog
+//   * `session-status-badge`    — Statusanzeige (Attribut `data-status`)
+//
+// P2h: Die Pool-Warnung läuft inline im Bestätigungs-Dialog — kein
+// `window.confirm` mehr. E2E-Interaktionen ausschließlich über testids.
 
 import { test, expect, type Page } from "@playwright/test";
 import {
@@ -56,7 +60,6 @@ test.describe("Kassen-Finalize (P2)", () => {
     page,
   }) => {
     seed = await seedKasseFinalize("happy", { withServiceHours: true });
-    // Native print-Dialog sofort abwerfen, sonst blockiert er den Flow.
     await page.addInitScript(() => {
       window.print = () => {};
     });
@@ -67,6 +70,7 @@ test.describe("Kassen-Finalize (P2)", () => {
     await expect(page.getByTestId("session-status-badge")).toHaveAttribute("data-status", "open");
 
     await page.getByTestId("finalize-print-button").click();
+    await page.getByTestId("finalize-confirm-button").click();
 
     await expect(page.getByTestId("session-status-badge")).toHaveAttribute(
       "data-status",
@@ -74,10 +78,8 @@ test.describe("Kassen-Finalize (P2)", () => {
       { timeout: 20_000 },
     );
 
-    // Zweiter Finalize: Button ist im Status "finalized/locked" nur noch
-    // Druck-Trigger. Ein direkter erneuter Finalize (Server) wird per
-    // Doppel-Finalize-Guard (`blockIfFinalized`) abgelehnt — geprüft im
-    // db-Test `cash-finalize.db.test.ts`. Hier reicht: Badge ist stabil.
+    // Zweiter Klick: im Status finalized/locked öffnet der Button keinen
+    // Dialog mehr, sondern druckt nur. Badge bleibt stabil.
     await page.getByTestId("finalize-print-button").click();
     await expect(page.getByTestId("session-status-badge")).toHaveAttribute(
       "data-status",
@@ -96,21 +98,26 @@ test.describe("Kassen-Finalize (P2)", () => {
     await loginAsAdmin(page, seed);
     await openKasseForSeed(page);
 
-    // Klick 1: Dialog erwarten → Abbrechen.
-    const dlg1Promise = page.waitForEvent("dialog");
+    // Runde 1: Dialog öffnen → Bestätigen → Server wirft Pool-Warnung →
+    // Dialog wechselt in Warn-Zustand → Abbrechen. Session bleibt offen.
     await page.getByTestId("finalize-print-button").click();
-    const dlg1 = await dlg1Promise;
-    expect(dlg1.message()).toMatch(/anrechenbare Stunden/);
-    await dlg1.dismiss();
-
-    // Klick-1-Flow vollständig beendet (printBusy=false ⇒ Button wieder enabled).
-    await expect(page.getByTestId("finalize-print-button")).toBeEnabled();
+    await page.getByTestId("finalize-confirm-button").click();
+    const confirmBtn = page.getByTestId("finalize-confirm-button");
+    await expect(confirmBtn).toHaveAttribute("data-state", "warning", { timeout: 10_000 });
+    await expect(page.getByTestId("finalize-warn-message")).toContainText(/anrechenbare Stunden/);
+    await page.getByTestId("finalize-cancel-button").click();
     await expect(page.getByTestId("session-status-badge")).toHaveAttribute("data-status", "open");
 
-    // Klick 2: Dialog erwarten → Bestätigen.
-    const dlg2Promise = page.waitForEvent("dialog");
+    // Runde 2: Dialog erneut öffnen → Bestätigen → Warn-Zustand →
+    // „Trotzdem finalisieren" sendet `confirmPoolWarning: true`.
     await page.getByTestId("finalize-print-button").click();
-    await (await dlg2Promise).accept();
+    await page.getByTestId("finalize-confirm-button").click();
+    await expect(page.getByTestId("finalize-confirm-button")).toHaveAttribute(
+      "data-state",
+      "warning",
+      { timeout: 10_000 },
+    );
+    await page.getByTestId("finalize-confirm-button").click();
 
     await expect(page.getByTestId("session-status-badge")).toHaveAttribute(
       "data-status",
@@ -134,6 +141,7 @@ test.describe("Kassen-Finalize (P2)", () => {
     await openKasseForSeed(page);
 
     await page.getByTestId("finalize-print-button").click();
+    await page.getByTestId("finalize-confirm-button").click();
     await expect(page.getByTestId("session-status-badge")).toHaveAttribute(
       "data-status",
       /finalized|locked/,
