@@ -167,7 +167,7 @@ export async function seedKasseFinalize(
       business_date: businessDate,
       started_at: startISO,
       ended_at: endISO,
-      department: "service",
+      // Bewusst ohne department: Pool nutzt staff_locations.department; vermeidet den PostgREST-Schema-Cache-Bug (PGRST204) auf frischen Stacks.
     });
     if (teErr) throw new Error(`time_entries insert failed: ${teErr.message}`);
   }
