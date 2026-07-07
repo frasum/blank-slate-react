@@ -185,23 +185,29 @@ export const getMyLeaveRequests = createServerFn({ method: "GET" })
       .eq("staff_id", caller.staffId)
       .order("created_at", { ascending: false });
     if (error) throw error;
-    return (data ?? []).map((r) => ({
-      id: r.id as string,
-      staffId: r.staff_id as string,
-      staffName: null,
-      startDate: r.start_date as string,
-      endDate: r.end_date as string,
-      reason: (r.reason as string | null) ?? null,
-      status: r.status as LeaveStatus,
-      decisionNote: (r.decision_note as string | null) ?? null,
-      decidedAt: (r.decided_at as string | null) ?? null,
-      createdAt: r.created_at as string,
-      days: countLeaveDays(
+    return (data ?? []).map((r) => {
+      const hset = holidaySetIfSkip(
+        skipHolidays,
         r.start_date as string,
         r.end_date as string,
-        holidaySetIfSkip(skipHolidays, r.start_date as string, r.end_date as string),
-      ),
-    }));
+      );
+      return {
+        id: r.id as string,
+        staffId: r.staff_id as string,
+        staffName: null,
+        startDate: r.start_date as string,
+        endDate: r.end_date as string,
+        reason: (r.reason as string | null) ?? null,
+        status: r.status as LeaveStatus,
+        decisionNote: (r.decision_note as string | null) ?? null,
+        decidedAt: (r.decided_at as string | null) ?? null,
+        createdAt: r.created_at as string,
+        days: countLeaveDays(r.start_date as string, r.end_date as string, hset),
+        holidaysSkipped: hset
+          ? countHolidaysInRange(r.start_date as string, r.end_date as string, hset)
+          : 0,
+      };
+    });
   });
 
 export const cancelMyLeaveRequest = createServerFn({ method: "POST" })
