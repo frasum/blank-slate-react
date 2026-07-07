@@ -108,23 +108,13 @@ function parseStack(stack: string) {
     .reverse();
 }
 
-function currentRequestUrl(): string | null {
+async function currentRequestUrl(): Promise<string | null> {
   try {
-    // Lazy import: nur zur Laufzeit im Server-Kontext verfügbar.
-    const req = globalThisRequest();
-    return req?.url ?? null;
-  } catch {
-    return null;
-  }
-}
-
-function globalThisRequest(): Request | null {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const mod = require("@tanstack/react-start/server") as {
+    const mod = (await import("@tanstack/react-start/server")) as {
       getRequest?: () => Request | undefined;
     };
-    return mod.getRequest?.() ?? null;
+    const req = mod.getRequest?.();
+    return req?.url ?? null;
   } catch {
     return null;
   }
@@ -143,7 +133,7 @@ export async function captureServerError(
     const parts = parseDsn(dsn);
     if (!parts) return;
 
-    const requestUrl = currentRequestUrl();
+    const requestUrl = await currentRequestUrl();
     const event = buildEvent(err, ctx, requestUrl);
 
     const envelopeHeader = JSON.stringify({
