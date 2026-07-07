@@ -29,6 +29,13 @@ import {
 import { computePresets } from "./period-resolver";
 import type { ToolName } from "./tools";
 import { pseudonymizeDeep, type PseudonymMap } from "./pseudonym";
+import {
+  BENCHMARK_QUELLE,
+  BENCHMARK_STAND,
+  listBenchmarks,
+  lookupBenchmark,
+  type BenchmarkKennzahl,
+} from "./branchenbenchmark";
 
 type Admin = SupabaseClient<Database>;
 
@@ -109,6 +116,8 @@ export async function runTool(
       return await tauschAnfragen(ctx, input);
     case "urlaub_antraege":
       return await urlaubAntraege(ctx, input);
+    case "branchenbenchmark_lookup":
+      return branchenbenchmarkLookup(input);
   }
 }
 
