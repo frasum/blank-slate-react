@@ -45,7 +45,9 @@ function TipRemainderPage() {
   }, [locationId, locationsQ.data]);
   useEffect(() => {
     if (!periodId && periodsQ.data && periodsQ.data.length > 0) {
-      setPeriodId(periodsQ.data[0].id);
+      const today = new Date().toISOString().slice(0, 10);
+      const current = periodsQ.data.find((p) => p.startDate <= today && today <= p.endDate);
+      setPeriodId((current ?? periodsQ.data[0]).id);
     }
   }, [periodId, periodsQ.data]);
 
