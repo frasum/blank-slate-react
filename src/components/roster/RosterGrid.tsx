@@ -196,6 +196,24 @@ export function RosterGrid({
     return m;
   }, [crossBookings]);
 
+  // SP1b — Gegenfenster-Marker (Sonne/Mond) auf bereits besetzten Zellen.
+  // Zeigt an, dass dieselbe Person am selben Tag im JEWEILS ANDEREN
+  // Fenster (gleicher oder anderer Standort) eine Schicht hat. Für die
+  // aktive Zelle im aktiven Fenster wird nur nach Buchungen im anderen
+  // Fenster gefiltert. Der rote Konflikt-Punkt (gleiches Fenster
+  // woanders) bleibt separat und hat weiter Vorrang.
+  const otherPeriodByStaffDate = React.useMemo(() => {
+    const m = new Map<string, RosterCrossBooking[]>();
+    for (const b of crossBookings) {
+      if (b.servicePeriod === viewportServicePeriod) continue;
+      const k = `${b.staffId}|${b.shiftDate}`;
+      const arr = m.get(k) ?? [];
+      arr.push(b);
+      m.set(k, arr);
+    }
+    return m;
+  }, [crossBookings, viewportServicePeriod]);
+
   const totalArea = React.useMemo(() => {
     let n = 0;
     for (const v of dayCount.values()) n += v;
