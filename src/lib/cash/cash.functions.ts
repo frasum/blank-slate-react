@@ -1310,7 +1310,11 @@ export async function finalizeSessionCore(
   caller: AdminCaller,
   data: { sessionId: string; confirmPoolWarning?: boolean },
 ) {
-  return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+  return runGuarded(
+    caller.role,
+    "manager",
+    makeAuditWriter(caller),
+    async () => {
     const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
     const waterline = await loadLocationCashLock(caller.organizationId, session.location_id);
     assertCashWritable({
