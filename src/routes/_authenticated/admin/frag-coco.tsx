@@ -127,8 +127,7 @@ function FragCocoPage() {
   };
 
   // Push-to-Talk: Leertaste-Halten bei fokussiertem Mikrofon-Knopf.
-  const isTouch =
-    typeof window !== "undefined" && window.matchMedia?.("(hover: none)").matches;
+  const isTouch = typeof window !== "undefined" && window.matchMedia?.("(hover: none)").matches;
 
   const startMic = () => {
     if (busy || speech.isRecording) return;
@@ -249,9 +248,7 @@ function FragCocoPage() {
           <span className="text-foreground">Höre zu …</span>
           <span className="truncate text-muted-foreground">
             {speech.finalText}
-            {speech.interimText && (
-              <em className="ml-1 italic opacity-70">{speech.interimText}</em>
-            )}
+            {speech.interimText && <em className="ml-1 italic opacity-70">{speech.interimText}</em>}
           </span>
         </div>
       )}

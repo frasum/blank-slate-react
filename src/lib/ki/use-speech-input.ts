@@ -11,12 +11,7 @@
 //   Text wird gefiltert.
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import {
-  combinedText,
-  initialSpeechState,
-  shouldSend,
-  speechReducer,
-} from "./speech-state";
+import { combinedText, initialSpeechState, shouldSend, speechReducer } from "./speech-state";
 
 type BrowserSpeechRecognition = {
   lang: string;

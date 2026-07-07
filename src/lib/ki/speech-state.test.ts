@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  combinedText,
-  initialSpeechState,
-  shouldSend,
-  speechReducer,
-} from "./speech-state";
+import { combinedText, initialSpeechState, shouldSend, speechReducer } from "./speech-state";
 
 describe("speechReducer", () => {
   it("startet leer im Recording-Zustand", () => {
