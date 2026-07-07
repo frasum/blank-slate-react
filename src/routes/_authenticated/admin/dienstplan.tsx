@@ -248,6 +248,23 @@ function AdminManagerDienstplan() {
       }),
     enabled: !!windowStart && !!windowEnd,
   });
+  // Σ-Spalte: Cross-Bookings der gesamten Abrechnungsperiode (26.–25.),
+  // unabhängig vom sichtbaren Halb-Fenster. Dient nur der Summe/Breakdown.
+  const crossMonthQ = useQuery({
+    queryKey: [
+      "roster-cross-bookings-month",
+      effectivePeriod?.startDate,
+      effectivePeriod?.endDate,
+    ],
+    queryFn: () =>
+      getStaffCrossBookings({
+        data: {
+          fromDate: effectivePeriod!.startDate,
+          toDate: effectivePeriod!.endDate,
+        },
+      }),
+    enabled: !!effectivePeriod,
+  });
   const availabilityQ = useQuery({
     queryKey: ["roster-availability", windowStart, windowEnd],
     queryFn: () =>
@@ -290,6 +307,7 @@ function AdminManagerDienstplan() {
       .on("postgres_changes", { event: "*", schema: "public", table: "roster_shifts" }, () => {
         qc.invalidateQueries({ queryKey: ["roster-shifts"] });
         qc.invalidateQueries({ queryKey: ["roster-cross-bookings"] });
+        qc.invalidateQueries({ queryKey: ["roster-cross-bookings-month"] });
       })
       .on(
         "postgres_changes",
@@ -313,6 +331,10 @@ function AdminManagerDienstplan() {
   const staff = useMemo(() => staffQ.data ?? [], [staffQ.data]);
   const shifts: RosterShift[] = useMemo(() => shiftsQ.data ?? [], [shiftsQ.data]);
   const crossBookings = useMemo(() => crossQ.data ?? [], [crossQ.data]);
+  const monthCrossBookings = useMemo(
+    () => crossMonthQ.data ?? crossBookings,
+    [crossMonthQ.data, crossBookings],
+  );
 
   // SP2 — Fenster-Umschalter oberhalb des Grids. Sichtbar, sobald mehr als
   // ein Planungsfenster für den Standort aktiviert ist (Legacy-Verhalten
@@ -803,6 +825,7 @@ function AdminManagerDienstplan() {
               shifts={shiftsForGrid}
               allSkills={allSkills}
               crossBookings={crossBookings}
+              monthCrossBookings={monthCrossBookings}
               viewportServicePeriod={dayServiceEnabled ? activePeriod : "abend"}
               lockMap={lockMap}
               unavailableSet={unavailableSet}
