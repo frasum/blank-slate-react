@@ -7,7 +7,7 @@
 // möglich — Umschalter zeigt genau diese beiden Sichten (Konflikt-Meldung
 // im Chat vom 07.07.).
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -68,10 +68,9 @@ function RennerPennerPage() {
   const locationsQ = useQuery({ queryKey: ["locations"], queryFn: () => listLocations() });
   const locations = useMemo(() => locationsQ.data ?? [], [locationsQ.data]);
   const [locationId, setLocationId] = useState<string>("");
-  if (!locationId && locations.length > 0) {
-    // Simple lazy init ohne Effect — Location-Pills liefern onChange sofort.
-    setTimeout(() => setLocationId(locations[0].id), 0);
-  }
+  useEffect(() => {
+    if (!locationId && locations.length > 0) setLocationId(locations[0].id);
+  }, [locations, locationId]);
 
   const [period, setPeriod] = useState<Period>("d365");
   const [groups, setGroups] = useState<string[]>(DEFAULT_GROUPS);
