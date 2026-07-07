@@ -57,11 +57,11 @@ import { PlanerRosterView } from "@/components/roster/PlanerRosterView";
 
 export const Route = createFileRoute("/_authenticated/admin/dienstplan")({
   head: () => ({ meta: [{ title: "Dienstplan" }] }),
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (search: Record<string, unknown>): { bereich?: "kueche" | "service" } => ({
     bereich:
       search.bereich === "service" || search.bereich === "kueche"
         ? (search.bereich as "kueche" | "service")
-        : ("kueche" as const),
+        : undefined,
   }),
   component: DienstplanPage,
 });
