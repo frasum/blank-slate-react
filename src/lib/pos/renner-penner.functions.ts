@@ -15,6 +15,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { selectAllPaged } from "@/lib/supabase/select-all";
+import { normalizeName } from "@/lib/bestellung/sales-stats";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import {
@@ -80,7 +81,6 @@ export const getRennerPenner = createServerFn({ method: "POST" })
 
     const articles = await selectAllPaged<{
       id: string;
-      nummer: number | null;
       name: string;
       hauptgruppe: string | null;
       warengruppe: string | null;
@@ -94,7 +94,7 @@ export const getRennerPenner = createServerFn({ method: "POST" })
       supabaseAdmin
         .from("sales_articles")
         .select(
-          "id, nummer, name, hauptgruppe, warengruppe, is_active, ek_source_article_id, ek_portion_ml, ek_source_volume_ml, ek_price_cents, price_cents",
+          "id, name, hauptgruppe, warengruppe, is_active, ek_source_article_id, ek_portion_ml, ek_source_volume_ml, ek_price_cents, price_cents",
         )
         .eq("organization_id", caller.organizationId)
         .eq("location_id", data.locationId)
@@ -102,12 +102,12 @@ export const getRennerPenner = createServerFn({ method: "POST" })
         .range(from, to),
     );
 
-    // Index Verkaufsartikel nach nummer (nummer kann in VA null sein → dann kein Join).
-    const vaByNummer = new Map<number, (typeof articles)[number]>();
+    // Weicher Namens-Join (analog PV1/enrichSalesStats): sales_articles hat
+    // keine POS-Artikelnummer, deshalb Match über normalisierten Namen.
+    const vaByName = new Map<string, (typeof articles)[number]>();
     for (const a of articles) {
-      if (a.nummer !== null && a.nummer !== undefined) {
-        if (!vaByNummer.has(Number(a.nummer))) vaByNummer.set(Number(a.nummer), a);
-      }
+      const key = normalizeName(a.name);
+      if (!vaByName.has(key)) vaByName.set(key, a);
     }
 
     // Getränke-VAs (hauptgruppe/warengruppe vorhanden) für Chip-Auswahl + Ladenhüter.
@@ -120,11 +120,11 @@ export const getRennerPenner = createServerFn({ method: "POST" })
     }
     const groupOptions = [...groupSet].sort((a, b) => a.localeCompare(b, "de"));
 
-    // Rohzeilen aus stats × VA-Stammdaten. Ohne VA-Match landet die Zeile ohne
-    // Gruppen und wird durch den Gruppenfilter herausgefiltert.
+    // Rohzeilen aus stats × VA-Stammdaten (Namens-Join). Ohne VA-Match keine
+    // Gruppen → durch Gruppenfilter herausgefiltert.
     const rawRows: RennerRawRow[] = [];
     for (const s of stats) {
-      const va = vaByNummer.get(Number(s.nummer));
+      const va = vaByName.get(normalizeName(s.name));
       if (!va) continue;
       const raw: RennerRawRow = {
         nummer: Number(s.nummer),
@@ -144,17 +144,26 @@ export const getRennerPenner = createServerFn({ method: "POST" })
       rawRows.push(raw);
     }
 
+    // Ladenhüter: aktive Getränke-VAs, deren Namen in KEINER Stats-Zeile
+    // vorkommen. Da rawRows namensbasiert gejoint sind, arbeiten wir hier
+    // ebenfalls über normalisierten Namen und synthesizen eine stabile
+    // „Nummer" via Set (die UI zeigt nur Name+Gruppe).
+    const seenNames = new Set<string>();
+    for (const s of stats) seenNames.add(normalizeName(s.name));
     const leftoverCandidates: RennerArticleForLeftovers[] = drinkArticles
       .filter((a) => matchesGroupFilter(a, data.groups))
-      .filter((a) => a.nummer !== null && a.nummer !== undefined)
-      .map((a) => ({
-        nummer: Number(a.nummer),
+      .filter((a) => !seenNames.has(normalizeName(a.name)))
+      .map((a, idx) => ({
+        nummer: -1 - idx, // Platzhalter (nicht in stats vertreten)
         name: a.name,
         hauptgruppe: a.hauptgruppe,
         warengruppe: a.warengruppe,
       }));
 
-    const aggregated = aggregateRennerPenner(rawRows, leftoverCandidates);
+    // Core erhält bereits gefilterte Ladenhüter-Liste; leere Stats-Referenz
+    // heißt: aggregateRennerPenner soll KEINE zusätzliche Filterung machen.
+    const aggregated = aggregateRennerPenner(rawRows, []);
+    aggregated.ladenhueter = leftoverCandidates;
 
     const reportDate = stats.reduce<string | null>(
       (acc, s) => (acc === null || s.report_date > acc ? s.report_date : acc),
