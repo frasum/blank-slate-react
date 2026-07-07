@@ -71,12 +71,12 @@ Merkliste stehen zusätzlich in `docs/arbeitsweise.md` §73.
 
 Nur bei Feature-Vorbeikommen anfassen — **kein Refactoring-Sprint**:
 
-| Datei                                                    | Zeilen | Hinweis                                                        |
-| -------------------------------------------------------- | -----: | -------------------------------------------------------------- |
-| `src/routes/_authenticated/admin/zeit-uebersicht.tsx`    |   2805 | funktionierend, gewachsen                                      |
-| `src/routes/_authenticated/admin/bwa.tsx`                |   2468 | funktionierend                                                 |
-| `src/components/verkaufsartikel/RezepteTab.tsx`          |   1486 | funktionierend                                                 |
-| `src/routes/_authenticated/admin/kasse.tsx`              |   1294 | funktionierend, **E2E-versiegelt** (P2, `kasse-finalize.spec`) |
+| Datei                                                 | Zeilen | Hinweis                                                        |
+| ----------------------------------------------------- | -----: | -------------------------------------------------------------- |
+| `src/routes/_authenticated/admin/zeit-uebersicht.tsx` |   2805 | funktionierend, gewachsen                                      |
+| `src/routes/_authenticated/admin/bwa.tsx`             |   2468 | funktionierend                                                 |
+| `src/components/verkaufsartikel/RezepteTab.tsx`       |   1486 | funktionierend                                                 |
+| `src/routes/_authenticated/admin/kasse.tsx`           |   1294 | funktionierend, **E2E-versiegelt** (P2, `kasse-finalize.spec`) |
 
 ### 3.2 Geldformatierung konsolidieren
 
