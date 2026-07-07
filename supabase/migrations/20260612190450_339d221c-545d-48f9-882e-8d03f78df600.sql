@@ -5,7 +5,9 @@
 -- =========================================================================
 -- 1. Enum app_role
 -- =========================================================================
-CREATE TYPE public.app_role AS ENUM ('admin', 'manager', 'staff');
+-- BFIX4: enthält auch die 2 später ergänzten Werte (payroll, planer);
+-- ALTER TYPE ADD VALUE IF NOT EXISTS weiter unten in der Kette sind No-ops.
+CREATE TYPE public.app_role AS ENUM ('admin', 'manager', 'staff', 'payroll', 'planer');
 
 -- =========================================================================
 -- 2. Tabellen (alle mit organization_id; RLS wird per Event-Trigger

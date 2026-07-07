@@ -18,7 +18,9 @@
 --    Vorerst nur 'badge_login'. Weitere Werte (z.B. supplier_portal,
 --    photo_capture) kommen mit den jeweiligen Modulen per ALTER TYPE.
 -- =========================================================================
-CREATE TYPE public.token_type AS ENUM ('badge_login');
+-- BFIX4: enthält auch den 1 später ergänzten Wert (calendar_feed);
+-- ALTER TYPE ADD VALUE IF NOT EXISTS weiter unten in der Kette ist No-op.
+CREATE TYPE public.token_type AS ENUM ('badge_login', 'calendar_feed');
 
 -- =========================================================================
 -- 2. access_tokens — das EINE Token-System
