@@ -407,57 +407,72 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
           { area: "kitchen", title: "Küche" },
           { area: "service", title: "Service" },
         ];
-        const blocks: DisplayBlock[] = [];
-        for (const { area, title } of areaOrder) {
-          if (wantedAreas && !wantedAreas.includes(area)) continue;
-          const blockRows = rowEntries.filter((r) => r.area === area);
-          const dayCounts = new Array<number>(days.length).fill(0);
-          const rows: DisplayRow[] = blockRows.map((entry) => {
-            const cells: DisplayCell[] = days.map((date, i) => {
-              const shiftKey = `${entry.staffId}|${date}|${area}`;
-              const hasShift = shiftMap.has(shiftKey);
-              const overlayKey = `${entry.staffId}|${date}`;
-              const absenceType = absenceMap.get(overlayKey) ?? null;
-              const hasWish = wishSet.has(overlayKey);
-              const hasAvailability = availSet.has(overlayKey);
-              const k = resolveCellKind({ hasShift, absenceType, hasWish, hasAvailability });
-              let skill: string | null = null;
-              let color: string | null = null;
-              if (k === "shift") {
-                const sid = shiftMap.get(shiftKey) ?? null;
-                const meta = sid ? (skillMap.get(sid) ?? null) : null;
-                skill = meta?.name ?? null;
-                color = meta?.color ?? null;
-                dayCounts[i] += 1;
+        function buildBlocks(period: "mittag" | "abend" | null): DisplayBlock[] {
+          const out: DisplayBlock[] = [];
+          for (const { area, title } of areaOrder) {
+            if (wantedAreas && !wantedAreas.includes(area)) continue;
+            const blockRows = rowEntries.filter((r) => r.area === area);
+            const dayCounts = new Array<number>(days.length).fill(0);
+            const rows: DisplayRow[] = blockRows.map((entry) => {
+              const cells: DisplayCell[] = days.map((date, i) => {
+                const shiftKey = period
+                  ? `${entry.staffId}|${date}|${area}|${period}`
+                  : `${entry.staffId}|${date}|${area}`;
+                const hasShift = shiftMap.has(shiftKey);
+                const overlayKey = `${entry.staffId}|${date}`;
+                const absenceType = absenceMap.get(overlayKey) ?? null;
+                const hasWish = wishSet.has(overlayKey);
+                const hasAvailability = availSet.has(overlayKey);
+                const k = resolveCellKind({ hasShift, absenceType, hasWish, hasAvailability });
+                let skill: string | null = null;
+                let color: string | null = null;
+                if (k === "shift") {
+                  const sid = shiftMap.get(shiftKey) ?? null;
+                  const meta = sid ? (skillMap.get(sid) ?? null) : null;
+                  skill = meta?.name ?? null;
+                  color = meta?.color ?? null;
+                  dayCounts[i] += 1;
+                }
+                return { k, skill, color };
+              });
+              let shiftCountCurrent = 0;
+              let shiftCountNext = 0;
+              for (let i = 0; i < cells.length; i++) {
+                if (cells[i].k !== "shift") continue;
+                if (days[i] <= curEnd) shiftCountCurrent += 1;
+                else shiftCountNext += 1;
               }
-              return { k, skill, color };
+              return {
+                staffId: entry.staffId,
+                staffName: entry.staffName,
+                cells,
+                shiftCountCurrent,
+                shiftCountNext,
+              };
             });
-            let shiftCountCurrent = 0;
-            let shiftCountNext = 0;
-            for (let i = 0; i < cells.length; i++) {
-              if (cells[i].k !== "shift") continue;
-              if (days[i] <= curEnd) shiftCountCurrent += 1;
-              else shiftCountNext += 1;
-            }
-            return {
-              staffId: entry.staffId,
-              staffName: entry.staffName,
-              cells,
-              shiftCountCurrent,
-              shiftCountNext,
-            };
-          });
-          blocks.push({ area, title, rows, dayCounts });
+            out.push({ area, title, rows, dayCounts });
+          }
+          return out;
         }
+        const blocks: DisplayBlock[] = dayServiceEnabled ? [] : buildBlocks(null);
+        const periodBlocks: DisplayPeriodBlocks[] | null = dayServiceEnabled
+          ? [
+              { period: "mittag", blocks: buildBlocks("mittag") },
+              { period: "abend", blocks: buildBlocks("abend") },
+            ]
+          : null;
 
         const payload: DisplayPayload = {
           location: { id: location.id, name: location.name },
           generatedAt: new Date().toISOString(),
           refreshIntervalSeconds: s.refresh_interval_seconds,
+          rotationIntervalSeconds: s.rotation_interval_seconds,
+          dayServiceEnabled,
           windowStart,
           windowEnd,
           days,
           blocks,
+          periodBlocks,
           showAreas: s.show_areas,
           showHeader: s.show_header,
           showFooter: s.show_footer,
