@@ -3,7 +3,16 @@
 // Paint-Mode-Klicklogik. Service-Schichten nutzen service-marker.ts.
 import * as React from "react";
 import { useDroppable } from "@dnd-kit/core";
-import { ChefHat, UtensilsCrossed, Umbrella, HeartPulse, Cake, Heart } from "lucide-react";
+import {
+  ChefHat,
+  UtensilsCrossed,
+  Umbrella,
+  HeartPulse,
+  Cake,
+  Heart,
+  Sun,
+  Moon,
+} from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { parseIso } from "@/lib/format";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -196,6 +205,24 @@ export function RosterGrid({
     return m;
   }, [crossBookings]);
 
+  // SP1b — Gegenfenster-Marker (Sonne/Mond) auf bereits besetzten Zellen.
+  // Zeigt an, dass dieselbe Person am selben Tag im JEWEILS ANDEREN
+  // Fenster (gleicher oder anderer Standort) eine Schicht hat. Für die
+  // aktive Zelle im aktiven Fenster wird nur nach Buchungen im anderen
+  // Fenster gefiltert. Der rote Konflikt-Punkt (gleiches Fenster
+  // woanders) bleibt separat und hat weiter Vorrang.
+  const otherPeriodByStaffDate = React.useMemo(() => {
+    const m = new Map<string, RosterCrossBooking[]>();
+    for (const b of crossBookings) {
+      if (b.servicePeriod === viewportServicePeriod) continue;
+      const k = `${b.staffId}|${b.shiftDate}`;
+      const arr = m.get(k) ?? [];
+      arr.push(b);
+      m.set(k, arr);
+    }
+    return m;
+  }, [crossBookings, viewportServicePeriod]);
+
   const totalArea = React.useMemo(() => {
     let n = 0;
     for (const v of dayCount.values()) n += v;
@@ -384,6 +411,12 @@ export function RosterGrid({
                       const isLocked = lockEntry !== null;
                       const isBirthday =
                         row.birthdayMonthDay != null && row.birthdayMonthDay === iso.slice(5, 10);
+                      // SP1b — Marker für Doppelschicht im Gegenfenster
+                      // nur auf besetzten Zellen; leere Zellen behalten den
+                      // vorhandenen blauen Punkt (Info) / roten Punkt (Konflikt).
+                      const otherPeriod = shift
+                        ? (otherPeriodByStaffDate.get(`${row.staffId}|${iso}`) ?? [])
+                        : [];
                       return (
                         <DropCell
                           key={iso}
@@ -408,6 +441,7 @@ export function RosterGrid({
                               ? `Bereits in ${lockEntry.locationName} · ${AREA_SHORT[lockEntry.area]} eingeteilt`
                               : null
                           }
+                          otherPeriod={otherPeriod}
                         >
                           {shift ? (
                             <PillConfirmPopover
@@ -575,6 +609,7 @@ function DropCell({
   wishNote,
   locked,
   lockLabel,
+  otherPeriod,
   children,
 }: {
   staffId: string;
@@ -594,6 +629,7 @@ function DropCell({
   wishNote: string | null;
   locked: boolean;
   lockLabel: string | null;
+  otherPeriod?: RosterCrossBooking[];
   children: React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({
@@ -727,6 +763,33 @@ function DropCell({
             }}
           />
         </>
+      ) : null}
+      {hasShift && otherPeriod && otherPeriod.length > 0 ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute right-0.5 top-0.5 z-30 inline-flex items-center justify-center text-amber-500"
+            >
+              {otherPeriod[0].servicePeriod === "mittag" ? (
+                <Sun className="h-3 w-3" />
+              ) : (
+                <Moon className="h-3 w-3 text-indigo-400" />
+              )}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs">
+            <div className="space-y-0.5 text-xs">
+              {otherPeriod.map((b, i) => (
+                <div key={i}>
+                  {b.servicePeriod === "mittag" ? "Mittag" : "Abend"}: {b.locationName} ·{" "}
+                  {b.area === "kitchen" ? "Küche" : "Service"}
+                  {b.skillName ? ` · ${b.skillName}` : ""}
+                </div>
+              ))}
+            </div>
+          </TooltipContent>
+        </Tooltip>
       ) : null}
     </td>
   );

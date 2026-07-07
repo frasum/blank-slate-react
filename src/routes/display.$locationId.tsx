@@ -17,6 +17,7 @@ import {
   type Reminder,
 } from "@/lib/display/reminders";
 import { businessDateOf } from "@/lib/business-date";
+import { DISPLAY_PERIOD_SWITCH_HOUR } from "@/lib/time/period-label";
 
 type DisplayCell = {
   k: "shift" | "urlaub" | "krank" | "wish" | "available" | "empty";
@@ -36,15 +37,22 @@ type DisplayBlock = {
   rows: DisplayRow[];
   dayCounts: number[];
 };
+type DisplayPeriodBlocks = {
+  period: "mittag" | "abend";
+  blocks: DisplayBlock[];
+};
 
 type DisplayPayload = {
   location: { id: string; name: string };
   generatedAt: string;
   refreshIntervalSeconds: number;
+  rotationIntervalSeconds: number;
+  dayServiceEnabled: boolean;
   windowStart: string;
   windowEnd: string;
   days: string[];
   blocks: DisplayBlock[];
+  periodBlocks: DisplayPeriodBlocks[] | null;
   showAreas: string[] | null;
   showHeader: boolean;
   showFooter: boolean;
@@ -204,24 +212,7 @@ function DisplayPage() {
       )}
 
       <main className="space-y-4 p-3">
-        {data.blocks.map((block, idx) => (
-          <div key={block.area} className="space-y-4">
-            <BlockTable block={block} days={data.days} payload={data} />
-            {data.customMessage && idx < data.blocks.length - 1 && (
-              <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 px-6 py-3 text-center text-base text-amber-200">
-                {data.customMessage}
-              </div>
-            )}
-          </div>
-        ))}
-        {data.customMessage && data.blocks.length <= 1 && (
-          <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 px-6 py-3 text-center text-base text-amber-200">
-            {data.customMessage}
-          </div>
-        )}
-        {data.blocks.length === 0 && (
-          <p className="text-center text-slate-400">Keine Bereiche konfiguriert.</p>
-        )}
+        <DisplayBody payload={data} now={now} />
       </main>
 
       {data.showFooter && (
@@ -252,6 +243,82 @@ function DisplayPage() {
         </footer>
       )}
     </div>
+  );
+}
+
+function DisplayBody({ payload, now }: { payload: DisplayPayload; now: Date }) {
+  // SP1b — Fenster-Rotation für Standorte mit Tagesbetrieb.
+  // Vor DISPLAY_PERIOD_SWITCH_HOUR (15 Uhr Ortszeit) führt Mittag und
+  // wird doppelt so lange gezeigt; danach führt Abend. Zyklus 3 Slots
+  // à `rotationIntervalSeconds`: [Leader, Leader, Anderes].
+  if (payload.dayServiceEnabled && payload.periodBlocks && payload.periodBlocks.length > 0) {
+    const T = Math.max(5, payload.rotationIntervalSeconds || 20);
+    // Deterministischer Takt aus Sekunden seit Mitternacht (Ortszeit).
+    const berlinHour = Number(
+      new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Europe/Berlin",
+        hour: "2-digit",
+        hour12: false,
+      })
+        .formatToParts(now)
+        .find((p) => p.type === "hour")?.value ?? "0",
+    );
+    const leader: "mittag" | "abend" = berlinHour < DISPLAY_PERIOD_SWITCH_HOUR ? "mittag" : "abend";
+    const secondsSinceMidnight = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    const slot = Math.floor(secondsSinceMidnight / T) % 3;
+    const showLeader = slot < 2;
+    const currentPeriod: "mittag" | "abend" = showLeader
+      ? leader
+      : leader === "mittag"
+        ? "abend"
+        : "mittag";
+    const entry =
+      payload.periodBlocks.find((p) => p.period === currentPeriod) ?? payload.periodBlocks[0];
+    const title = entry.period === "mittag" ? "MITTAG" : "ABEND";
+    const titleClass =
+      entry.period === "mittag"
+        ? "bg-amber-500/20 text-amber-100 border-amber-400/40"
+        : "bg-indigo-500/20 text-indigo-100 border-indigo-400/40";
+    return (
+      <div className="space-y-4">
+        <div className={"rounded-2xl border px-8 py-4 text-center " + titleClass}>
+          <div className="text-4xl font-black tracking-[0.2em]">{title}</div>
+        </div>
+        {entry.blocks.map((block) => (
+          <BlockTable key={block.area} block={block} days={payload.days} payload={payload} />
+        ))}
+        {payload.customMessage && (
+          <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 px-6 py-3 text-center text-base text-amber-200">
+            {payload.customMessage}
+          </div>
+        )}
+        {entry.blocks.length === 0 && (
+          <p className="text-center text-slate-400">Keine Bereiche konfiguriert.</p>
+        )}
+      </div>
+    );
+  }
+  return (
+    <>
+      {payload.blocks.map((block, idx) => (
+        <div key={block.area} className="space-y-4">
+          <BlockTable block={block} days={payload.days} payload={payload} />
+          {payload.customMessage && idx < payload.blocks.length - 1 && (
+            <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 px-6 py-3 text-center text-base text-amber-200">
+              {payload.customMessage}
+            </div>
+          )}
+        </div>
+      ))}
+      {payload.customMessage && payload.blocks.length <= 1 && (
+        <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 px-6 py-3 text-center text-base text-amber-200">
+          {payload.customMessage}
+        </div>
+      )}
+      {payload.blocks.length === 0 && (
+        <p className="text-center text-slate-400">Keine Bereiche konfiguriert.</p>
+      )}
+    </>
   );
 }
 

@@ -14,6 +14,7 @@ import {
   periodTotalMinutes,
   type EntryInput,
 } from "@/lib/time/my-period-hours";
+import { derivePeriodLabel } from "@/lib/time/period-label";
 
 export const Route = createFileRoute("/_authenticated/zeit/stunden")({
   head: () => ({
@@ -126,6 +127,7 @@ type Entry = EntryInput & {
   id: string;
   source: "clock" | "manual";
   locationName: string | null;
+  locationDayServiceEnabled: boolean;
 };
 
 function MyHoursBody({ entries }: { entries: Entry[] }) {
@@ -169,6 +171,11 @@ function MyHoursBody({ entries }: { entries: Entry[] }) {
                         {e.source === "manual" && (
                           <Badge variant="outline" className="text-[10px]">
                             korrigiert
+                          </Badge>
+                        )}
+                        {e.locationDayServiceEnabled && (
+                          <Badge variant="secondary" className="text-[10px]">
+                            {derivePeriodLabel(e.startedAt)}
                           </Badge>
                         )}
                       </div>

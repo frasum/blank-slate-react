@@ -32,6 +32,10 @@ type DisplayBlock = {
   rows: DisplayRow[];
   dayCounts: number[];
 };
+type DisplayPeriodBlocks = {
+  period: "mittag" | "abend";
+  blocks: DisplayBlock[];
+};
 type DisplayReminder = {
   id: string;
   title: string;
@@ -48,10 +52,14 @@ type DisplayPayload = {
   location: { id: string; name: string };
   generatedAt: string;
   refreshIntervalSeconds: number;
+  rotationIntervalSeconds: number;
+  dayServiceEnabled: boolean;
   windowStart: string;
   windowEnd: string;
   days: string[];
   blocks: DisplayBlock[];
+  /** SP1b — bei day_service_enabled: zwei Fenster-Blöcke (Mittag/Abend). */
+  periodBlocks: DisplayPeriodBlocks[] | null;
   showAreas: string[] | null;
   showHeader: boolean;
   showFooter: boolean;
@@ -144,11 +152,13 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
         const { data: location, error: locErr } = await supabaseAdmin
           // ST1: bewusst ungefiltert — Daten-Zugriff (Display-API by id).
           .from("locations")
-          .select("id, name")
+          .select("id, name, day_service_enabled")
           .eq("id", locationId)
           .eq("organization_id", s.organization_id)
           .maybeSingle();
         if (locErr || !location) return jsonError(404, "Filiale nicht gefunden.");
+        const dayServiceEnabled =
+          (location as { day_service_enabled?: boolean | null }).day_service_enabled === true;
 
         const today = todayIso();
         const businessDate = businessDateOf(new Date());
@@ -301,14 +311,17 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
         // Schichten im Fenster.
         const { data: shiftRows, error: shiftErr } = await supabaseAdmin
           .from("roster_shifts")
-          .select("staff_id, shift_date, area, skill_id")
+          .select("staff_id, shift_date, area, skill_id, service_period")
           .eq("organization_id", s.organization_id)
           .eq("location_id", locationId)
           .gte("shift_date", windowStart)
           .lte("shift_date", windowEnd);
         if (shiftErr) return jsonError(500, "Daten konnten nicht geladen werden.");
 
-        // Map staffId|date|blockArea → skill_id (gesetzten Eintrag bevorzugen).
+        // Map staffId|date|blockArea(|period) → skill_id (gesetzten Eintrag bevorzugen).
+        // Ohne Tagesbetrieb ignorieren wir das Fenster (Legacy-Verhalten, alle
+        // Schichten in einer Ansicht). Mit Tagesbetrieb wird das Fenster in
+        // den Key aufgenommen und pro Fenster ein eigener Block gebaut.
         const shiftMap = new Map<string, string | null>();
         const skillIdSet = new Set<string>();
         for (const sh of shiftRows ?? []) {
@@ -317,10 +330,15 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
           const rawArea = sh.area as string;
           const blockArea: "kitchen" | "service" = rawArea === "kitchen" ? "kitchen" : "service";
           const skillId = (sh.skill_id as string | null) ?? null;
-          const key = `${staffId}|${date}|${blockArea}`;
-          const existing = shiftMap.get(key);
-          if (existing === undefined || (existing === null && skillId !== null)) {
-            shiftMap.set(key, skillId);
+          const period = ((sh.service_period as string | null) ?? "abend") as "mittag" | "abend";
+          const keys = dayServiceEnabled
+            ? [`${staffId}|${date}|${blockArea}|${period}`]
+            : [`${staffId}|${date}|${blockArea}`];
+          for (const key of keys) {
+            const existing = shiftMap.get(key);
+            if (existing === undefined || (existing === null && skillId !== null)) {
+              shiftMap.set(key, skillId);
+            }
           }
           if (skillId) skillIdSet.add(skillId);
         }
@@ -389,57 +407,72 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
           { area: "kitchen", title: "Küche" },
           { area: "service", title: "Service" },
         ];
-        const blocks: DisplayBlock[] = [];
-        for (const { area, title } of areaOrder) {
-          if (wantedAreas && !wantedAreas.includes(area)) continue;
-          const blockRows = rowEntries.filter((r) => r.area === area);
-          const dayCounts = new Array<number>(days.length).fill(0);
-          const rows: DisplayRow[] = blockRows.map((entry) => {
-            const cells: DisplayCell[] = days.map((date, i) => {
-              const shiftKey = `${entry.staffId}|${date}|${area}`;
-              const hasShift = shiftMap.has(shiftKey);
-              const overlayKey = `${entry.staffId}|${date}`;
-              const absenceType = absenceMap.get(overlayKey) ?? null;
-              const hasWish = wishSet.has(overlayKey);
-              const hasAvailability = availSet.has(overlayKey);
-              const k = resolveCellKind({ hasShift, absenceType, hasWish, hasAvailability });
-              let skill: string | null = null;
-              let color: string | null = null;
-              if (k === "shift") {
-                const sid = shiftMap.get(shiftKey) ?? null;
-                const meta = sid ? (skillMap.get(sid) ?? null) : null;
-                skill = meta?.name ?? null;
-                color = meta?.color ?? null;
-                dayCounts[i] += 1;
+        function buildBlocks(period: "mittag" | "abend" | null): DisplayBlock[] {
+          const out: DisplayBlock[] = [];
+          for (const { area, title } of areaOrder) {
+            if (wantedAreas && !wantedAreas.includes(area)) continue;
+            const blockRows = rowEntries.filter((r) => r.area === area);
+            const dayCounts = new Array<number>(days.length).fill(0);
+            const rows: DisplayRow[] = blockRows.map((entry) => {
+              const cells: DisplayCell[] = days.map((date, i) => {
+                const shiftKey = period
+                  ? `${entry.staffId}|${date}|${area}|${period}`
+                  : `${entry.staffId}|${date}|${area}`;
+                const hasShift = shiftMap.has(shiftKey);
+                const overlayKey = `${entry.staffId}|${date}`;
+                const absenceType = absenceMap.get(overlayKey) ?? null;
+                const hasWish = wishSet.has(overlayKey);
+                const hasAvailability = availSet.has(overlayKey);
+                const k = resolveCellKind({ hasShift, absenceType, hasWish, hasAvailability });
+                let skill: string | null = null;
+                let color: string | null = null;
+                if (k === "shift") {
+                  const sid = shiftMap.get(shiftKey) ?? null;
+                  const meta = sid ? (skillMap.get(sid) ?? null) : null;
+                  skill = meta?.name ?? null;
+                  color = meta?.color ?? null;
+                  dayCounts[i] += 1;
+                }
+                return { k, skill, color };
+              });
+              let shiftCountCurrent = 0;
+              let shiftCountNext = 0;
+              for (let i = 0; i < cells.length; i++) {
+                if (cells[i].k !== "shift") continue;
+                if (days[i] <= curEnd) shiftCountCurrent += 1;
+                else shiftCountNext += 1;
               }
-              return { k, skill, color };
+              return {
+                staffId: entry.staffId,
+                staffName: entry.staffName,
+                cells,
+                shiftCountCurrent,
+                shiftCountNext,
+              };
             });
-            let shiftCountCurrent = 0;
-            let shiftCountNext = 0;
-            for (let i = 0; i < cells.length; i++) {
-              if (cells[i].k !== "shift") continue;
-              if (days[i] <= curEnd) shiftCountCurrent += 1;
-              else shiftCountNext += 1;
-            }
-            return {
-              staffId: entry.staffId,
-              staffName: entry.staffName,
-              cells,
-              shiftCountCurrent,
-              shiftCountNext,
-            };
-          });
-          blocks.push({ area, title, rows, dayCounts });
+            out.push({ area, title, rows, dayCounts });
+          }
+          return out;
         }
+        const blocks: DisplayBlock[] = dayServiceEnabled ? [] : buildBlocks(null);
+        const periodBlocks: DisplayPeriodBlocks[] | null = dayServiceEnabled
+          ? [
+              { period: "mittag", blocks: buildBlocks("mittag") },
+              { period: "abend", blocks: buildBlocks("abend") },
+            ]
+          : null;
 
         const payload: DisplayPayload = {
           location: { id: location.id, name: location.name },
           generatedAt: new Date().toISOString(),
           refreshIntervalSeconds: s.refresh_interval_seconds,
+          rotationIntervalSeconds: s.rotation_interval_seconds,
+          dayServiceEnabled,
           windowStart,
           windowEnd,
           days,
           blocks,
+          periodBlocks,
           showAreas: s.show_areas,
           showHeader: s.show_header,
           showFooter: s.show_footer,
