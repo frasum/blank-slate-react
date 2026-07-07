@@ -2034,6 +2034,65 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
     }
   }
 
+  // Partner-Kellner: gleiche Behandlung wie der Haupt-Kellner —
+  // offene time_entries auto-ausstempeln UND Service-Pool-Ende setzen,
+  // damit der Nicht-Stempler-Pfad im B-2-Writeback greift. Ohne diesen
+  // Block bleibt der Partner mit shift_end=NULL im Pool zurück; sein
+  // Pool-time_entry wird dann von syncPoolTimeEntry gelöscht statt
+  // erzeugt (Live-Fall COCO am 06.07.). Best-effort: pro Partner
+  // gekapselt, damit ein Fehler bei einem Partner die Abgabe nicht kippt.
+  const submissionIso = new Date().toISOString();
+  for (const partnerStaffId of partnerStaffIds) {
+    try {
+      const { data: openPartnerTE } = await supabaseAdmin
+        .from("time_entries")
+        .select("id, started_at")
+        .eq("staff_id", partnerStaffId)
+        .is("ended_at", null)
+        .maybeSingle();
+      let partnerEndedAt: string = submissionIso;
+      if (openPartnerTE) {
+        const gross = grossMinutesBetween(new Date(openPartnerTE.started_at), new Date());
+        const breakMinutes = arbzgMinimumBreak(gross);
+        const partnerCaller: StaffCaller = { ...caller, staffId: partnerStaffId };
+        const closedPartner = await performClockOut(partnerCaller, breakMinutes, {
+          triggered_by: "settlement_partner",
+          settlement_id: settlementId,
+          arbzg_default: true,
+          primary_staff_id: caller.staffId,
+        });
+        if (closedPartner?.endedAt) partnerEndedAt = closedPartner.endedAt;
+      }
+      await applyServicePoolEnd({
+        organizationId: caller.organizationId,
+        sessionId: session.id,
+        staffId: partnerStaffId,
+        submissionIso: partnerEndedAt,
+        businessDate,
+      });
+    } catch (err) {
+      console.error("[settlement.partner-autoclock] failed", { partnerStaffId, err });
+      try {
+        await writeAuditLog({
+          organizationId: caller.organizationId,
+          actorUserId: caller.userId,
+          actorStaffId: caller.staffId,
+          action: "cash.settlement.partner_autoclock_failed",
+          entity: "waiter_settlement",
+          entityId: settlementId,
+          meta: {
+            sessionId: session.id,
+            businessDate,
+            partnerStaffId,
+            error: String(err).slice(0, 300),
+          },
+        });
+      } catch (auditErr) {
+        console.error("[settlement.partner-autoclock] audit failed", auditErr);
+      }
+    }
+  }
+
   // B-2: Pool-Zeit-Rückschreibung als time_entries (source='pool') für
   // Nicht-Stempler. Aktualisierend via syncPoolTimeEntry — überschreibt
   // frühere Pool-Zeiten und entfernt sie, wenn ein echter Stempel oder
