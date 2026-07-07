@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { combinedText, initialSpeechState, shouldSend, speechReducer } from "./speech-state";
+import { mapSpeechErrorMessage } from "./use-speech-input";
 
 describe("speechReducer", () => {
   it("startet leer im Recording-Zustand", () => {
@@ -59,5 +60,19 @@ describe("combinedText / shouldSend", () => {
   it("leeres Transkript sendet nicht", () => {
     expect(shouldSend(initialSpeechState)).toBe(false);
     expect(shouldSend({ status: "idle", finalText: "   ", interimText: "" })).toBe(false);
+  });
+});
+
+describe("mapSpeechErrorMessage", () => {
+  it("mappt not-allowed und audio-capture auf den Mikrofon-Hinweis", () => {
+    expect(mapSpeechErrorMessage("not-allowed")).toMatch(/Mikrofon-Zugriff/);
+    expect(mapSpeechErrorMessage("audio-capture")).toMatch(/Mikrofon-Zugriff/);
+  });
+  it("mappt service-not-allowed und no-start auf den Diktat-Hinweis", () => {
+    expect(mapSpeechErrorMessage("service-not-allowed")).toMatch(/Siri & Diktat/);
+    expect(mapSpeechErrorMessage("no-start")).toMatch(/Siri & Diktat/);
+  });
+  it("fällt auf generische Meldung mit Code zurück", () => {
+    expect(mapSpeechErrorMessage("network")).toMatch(/\(network\)/);
   });
 });
