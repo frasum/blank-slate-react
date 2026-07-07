@@ -12,6 +12,7 @@ import {
   Heart,
   Sun,
   Moon,
+  Sunrise,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { parseIso } from "@/lib/format";
@@ -771,7 +772,9 @@ function DropCell({
               aria-hidden="true"
               className="pointer-events-none absolute right-0.5 top-0.5 z-30 inline-flex items-center justify-center text-amber-500"
             >
-              {otherPeriod[0].servicePeriod === "mittag" ? (
+              {otherPeriod[0].servicePeriod === "frueh" ? (
+                <Sunrise className="h-3 w-3 text-orange-400" />
+              ) : otherPeriod[0].servicePeriod === "mittag" ? (
                 <Sun className="h-3 w-3" />
               ) : (
                 <Moon className="h-3 w-3 text-indigo-400" />
@@ -782,7 +785,12 @@ function DropCell({
             <div className="space-y-0.5 text-xs">
               {otherPeriod.map((b, i) => (
                 <div key={i}>
-                  {b.servicePeriod === "mittag" ? "Mittag" : "Abend"}: {b.locationName} ·{" "}
+                  {b.servicePeriod === "frueh"
+                    ? "Früh"
+                    : b.servicePeriod === "mittag"
+                      ? "Mittag"
+                      : "Abend"}
+                  : {b.locationName} ·{" "}
                   {b.area === "kitchen" ? "Küche" : "Service"}
                   {b.skillName ? ` · ${b.skillName}` : ""}
                 </div>
