@@ -26,12 +26,18 @@ async function assertServicePeriodAllowed(
   if (servicePeriod === "abend") return;
   const { data, error } = await admin
     .from("locations")
-    .select("day_service_enabled")
+    .select("name, day_service_enabled")
     .eq("id", locationId)
     .maybeSingle();
   if (error) throw error;
   if (data?.day_service_enabled !== true) {
-    throw new Error("Dieser Standort hat keinen Tagesbetrieb aktiviert.");
+    const locName = (data as { name?: string | null } | null)?.name?.trim();
+    const label = locName ? `„${locName}"` : "Dieser Standort";
+    throw new Error(
+      `Mittagsschicht nicht möglich: ${label} hat keinen Tagesbetrieb. ` +
+        "Entweder auf die Abendschicht wechseln oder unter Admin → Standorte → " +
+        "Betrieb den Tagesbetrieb für diesen Standort aktivieren.",
+    );
   }
 }
 
