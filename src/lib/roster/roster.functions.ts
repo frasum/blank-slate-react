@@ -15,6 +15,26 @@ import { mergeAbsenceRanges, type AbsenceRange } from "@/lib/roster/vacation-pla
 import { resolvePlanerScope } from "@/lib/roster/scope-util";
 import { assertDayOpen } from "@/lib/roster/business-calendar.server";
 
+// SP1 — Helper: „Mittag" nur zulässig, wenn Standort day_service_enabled.
+async function assertServicePeriodAllowed(
+  admin: import("@supabase/supabase-js").SupabaseClient<
+    import("@/integrations/supabase/types").Database
+  >,
+  locationId: string,
+  servicePeriod: "mittag" | "abend",
+): Promise<void> {
+  if (servicePeriod === "abend") return;
+  const { data, error } = await admin
+    .from("locations")
+    .select("day_service_enabled")
+    .eq("id", locationId)
+    .maybeSingle();
+  if (error) throw error;
+  if (data?.day_service_enabled !== true) {
+    throw new Error("Dieser Standort hat keinen Tagesbetrieb aktiviert.");
+  }
+}
+
 const READ_ROLES = ["manager", "admin", "payroll", "staff", "planer"] as const;
 const WRITE_ROLES = ["manager", "admin", "planer"] as const;
 
@@ -80,6 +100,7 @@ export type RosterShift = {
   skillColor: string | null;
   status: "planned" | "confirmed";
   notes: string | null;
+  servicePeriod: "mittag" | "abend";
 };
 
 export type RosterSkill = {
@@ -107,6 +128,7 @@ export type RosterCrossBooking = {
   locationName: string;
   area: "kitchen" | "service" | "gl";
   skillName: string | null;
+  servicePeriod: "mittag" | "abend";
 };
 
 export type RosterAvailability = {
@@ -137,7 +159,7 @@ export const getRosterShifts = createServerFn({ method: "GET" })
     const { data: rows, error } = await supabaseAdmin
       .from("roster_shifts")
       .select(
-        "id, staff_id, location_id, shift_date, area, skill_id, status, notes, staff(display_name), skills(name, color)",
+        "id, staff_id, location_id, shift_date, area, skill_id, status, notes, service_period, staff(display_name), skills(name, color)",
       )
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId)
@@ -156,6 +178,7 @@ export const getRosterShifts = createServerFn({ method: "GET" })
       skillColor: (r.skills as { color: string | null } | null)?.color ?? null,
       status: r.status as "planned" | "confirmed",
       notes: (r.notes as string | null) ?? null,
+      servicePeriod: ((r.service_period as string | null) ?? "abend") as "mittag" | "abend",
     }));
   });
 
@@ -194,7 +217,7 @@ export const getMyShifts = createServerFn({ method: "GET" })
     const { data: rows, error } = await supabaseAdmin
       .from("roster_shifts")
       .select(
-        "id, shift_date, area, status, notes, location_id, locations(name), skills(name, category)",
+        "id, shift_date, area, status, notes, location_id, service_period, locations(name, day_service_enabled), skills(name, category)",
       )
       .eq("organization_id", caller.organizationId)
       .eq("staff_id", caller.staffId)
@@ -206,16 +229,19 @@ export const getMyShifts = createServerFn({ method: "GET" })
 
     return (rows ?? []).map((r) => {
       const skill = r.skills as { name: string; category: string } | null;
+      const loc = r.locations as { name: string; day_service_enabled: boolean | null } | null;
       return {
         id: r.id as string,
         shift_date: r.shift_date as string,
         locationId: r.location_id as string,
-        locationName: (r.locations as { name: string } | null)?.name ?? "—",
+        locationName: loc?.name ?? "—",
         area: r.area as "kitchen" | "service" | "gl",
         skillCode: skill?.category ?? null,
         skillLabel: skill?.name ?? null,
         status: r.status as "planned" | "confirmed",
         notes: (r.notes as string | null) ?? null,
+        servicePeriod: ((r.service_period as string | null) ?? "abend") as "mittag" | "abend",
+        locationDayServiceEnabled: loc?.day_service_enabled === true,
       };
     });
   });
@@ -428,7 +454,9 @@ export const getStaffCrossBookings = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: rows, error } = await supabaseAdmin
       .from("roster_shifts")
-      .select("staff_id, shift_date, location_id, area, locations(name), skills(name)")
+      .select(
+        "staff_id, shift_date, location_id, area, service_period, locations(name), skills(name)",
+      )
       .eq("organization_id", caller.organizationId)
       .gte("shift_date", data.fromDate)
       .lte("shift_date", data.toDate);
@@ -440,6 +468,7 @@ export const getStaffCrossBookings = createServerFn({ method: "GET" })
       locationName: (r.locations as { name: string } | null)?.name ?? "—",
       area: r.area as "kitchen" | "service" | "gl",
       skillName: (r.skills as { name: string } | null)?.name ?? null,
+      servicePeriod: ((r.service_period as string | null) ?? "abend") as "mittag" | "abend",
     }));
   });
 
@@ -457,6 +486,7 @@ export const createRosterShift = createServerFn({ method: "POST" })
         shiftDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
         area: z.enum(["kitchen", "service", "gl"]),
         skillId: z.string().uuid().nullable(),
+        servicePeriod: z.enum(["mittag", "abend"]).optional().default("abend"),
       })
       .parse(input),
   )
@@ -472,21 +502,25 @@ export const createRosterShift = createServerFn({ method: "POST" })
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, data.shiftDate);
         await assertDayOpen(supabaseAdmin, data.locationId, data.shiftDate);
+        await assertServicePeriodAllowed(supabaseAdmin, data.locationId, data.servicePeriod);
 
-        // Regel: max. EINE Einteilung pro Mitarbeiter und Tag (standort-/bereichsübergreifend).
+        // Regel: max. EINE Einteilung pro Mitarbeiter, Tag und Fenster
+        // (standort-/bereichsübergreifend). Mittag + Abend am gleichen Tag
+        // sind mit SP1 ausdrücklich erlaubt (Doppelschicht).
         const { data: existing, error: existErr } = await supabaseAdmin
           .from("roster_shifts")
-          .select("location_id, area, locations(name)")
+          .select("location_id, area, service_period, locations(name)")
           .eq("organization_id", caller.organizationId)
           .eq("staff_id", data.staffId)
           .eq("shift_date", data.shiftDate)
+          .eq("service_period", data.servicePeriod)
           .limit(1)
           .maybeSingle();
         if (existErr) throw existErr;
         if (existing) {
           const locName = (existing.locations as { name: string } | null)?.name ?? "—";
           throw new Error(
-            `Mitarbeiter ist an diesem Tag bereits eingeteilt (${locName} · ${existing.area}).`,
+            `Mitarbeiter ist an diesem Tag im gleichen Fenster bereits eingeteilt (${locName} · ${existing.area}).`,
           );
         }
 
@@ -501,8 +535,9 @@ export const createRosterShift = createServerFn({ method: "POST" })
               area: data.area,
               skill_id: data.skillId,
               status: "planned",
+              service_period: data.servicePeriod,
             },
-            { onConflict: "staff_id,location_id,shift_date,area" },
+            { onConflict: "staff_id,location_id,shift_date,area,service_period" },
           )
           .select("id")
           .single();
@@ -520,6 +555,7 @@ export const createRosterShift = createServerFn({ method: "POST" })
               shiftDate: data.shiftDate,
               area: data.area,
               skillId: data.skillId,
+              servicePeriod: data.servicePeriod,
             },
           },
         };
@@ -692,6 +728,7 @@ export const moveRosterShift = createServerFn({ method: "POST" })
         staffId: z.string().uuid(),
         shiftDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
         area: z.enum(["kitchen", "service", "gl"]),
+        servicePeriod: z.enum(["mittag", "abend"]).optional().default("abend"),
       })
       .parse(input),
   )
@@ -700,7 +737,7 @@ export const moveRosterShift = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: snap, error: loadErr } = await supabaseAdmin
       .from("roster_shifts")
-      .select("location_id, staff_id, shift_date, area, skill_id, status")
+      .select("location_id, staff_id, shift_date, area, skill_id, status, service_period")
       .eq("id", data.id)
       .eq("organization_id", caller.organizationId)
       .maybeSingle();
@@ -713,11 +750,16 @@ export const moveRosterShift = createServerFn({ method: "POST" })
       snap.area as "kitchen" | "service" | "gl",
       makeAuditWriter(caller),
       async () => {
+        const targetPeriod = data.servicePeriod;
+        const currentPeriod = ((snap.service_period as string | null) ?? "abend") as
+          | "mittag"
+          | "abend";
         // No-op guard: nichts ändert sich.
         if (
           snap.staff_id === data.staffId &&
           snap.shift_date === data.shiftDate &&
-          snap.area === data.area
+          snap.area === data.area &&
+          currentPeriod === targetPeriod
         ) {
           return {
             result: { ok: true as const },
@@ -749,6 +791,8 @@ export const moveRosterShift = createServerFn({ method: "POST" })
         }
         // Ziel-Tag muss offen sein (Löschen bleibt erlaubt).
         await assertDayOpen(supabaseAdmin, snap.location_id as string, data.shiftDate);
+        // Ziel-Fenster (Mittag) nur wenn Standort Tagesbetrieb hat.
+        await assertServicePeriodAllowed(supabaseAdmin, snap.location_id as string, targetPeriod);
 
         // Konflikt-Pre-Check auf Zielzelle.
         const { data: clash, error: clashErr } = await supabaseAdmin
@@ -759,20 +803,25 @@ export const moveRosterShift = createServerFn({ method: "POST" })
           .eq("staff_id", data.staffId)
           .eq("shift_date", data.shiftDate)
           .eq("area", data.area)
+          .eq("service_period", targetPeriod)
           .neq("id", data.id)
           .maybeSingle();
         if (clashErr) throw clashErr;
         if (clash) {
-          throw new Error("Mitarbeiter ist an diesem Tag in diesem Bereich bereits eingeteilt.");
+          throw new Error(
+            "Mitarbeiter ist an diesem Tag in diesem Bereich und Fenster bereits eingeteilt.",
+          );
         }
 
-        // Regel: max. EINE Einteilung pro Mitarbeiter und Tag — auch an anderem Standort/Bereich.
+        // Regel: max. EINE Einteilung pro Mitarbeiter, Tag und Fenster —
+        // auch an anderem Standort/Bereich. Andere Fenster erlaubt (Doppelschicht).
         const { data: elsewhere, error: elseErr } = await supabaseAdmin
           .from("roster_shifts")
-          .select("location_id, area, locations(name)")
+          .select("location_id, area, service_period, locations(name)")
           .eq("organization_id", caller.organizationId)
           .eq("staff_id", data.staffId)
           .eq("shift_date", data.shiftDate)
+          .eq("service_period", targetPeriod)
           .neq("id", data.id)
           .limit(1)
           .maybeSingle();
@@ -780,7 +829,7 @@ export const moveRosterShift = createServerFn({ method: "POST" })
         if (elsewhere) {
           const locName = (elsewhere.locations as { name: string } | null)?.name ?? "—";
           throw new Error(
-            `Mitarbeiter ist an diesem Tag bereits eingeteilt (${locName} · ${elsewhere.area}).`,
+            `Mitarbeiter ist an diesem Tag im gleichen Fenster bereits eingeteilt (${locName} · ${elsewhere.area}).`,
           );
         }
 
@@ -790,6 +839,7 @@ export const moveRosterShift = createServerFn({ method: "POST" })
             staff_id: data.staffId,
             shift_date: data.shiftDate,
             area: data.area,
+            service_period: targetPeriod,
           })
           .eq("id", data.id)
           .eq("organization_id", caller.organizationId);
@@ -806,11 +856,13 @@ export const moveRosterShift = createServerFn({ method: "POST" })
                 staffId: snap.staff_id,
                 shiftDate: snap.shift_date,
                 area: snap.area,
+                servicePeriod: currentPeriod,
               },
               after: {
                 staffId: data.staffId,
                 shiftDate: data.shiftDate,
                 area: data.area,
+                servicePeriod: targetPeriod,
               },
             },
           },

@@ -57,11 +57,11 @@ import { PlanerRosterView } from "@/components/roster/PlanerRosterView";
 
 export const Route = createFileRoute("/_authenticated/admin/dienstplan")({
   head: () => ({ meta: [{ title: "Dienstplan" }] }),
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (search: Record<string, unknown>): { bereich?: "kueche" | "service" } => ({
     bereich:
       search.bereich === "service" || search.bereich === "kueche"
         ? (search.bereich as "kueche" | "service")
-        : ("kueche" as const),
+        : undefined,
   }),
   component: DienstplanPage,
 });
@@ -313,6 +313,23 @@ function AdminManagerDienstplan() {
   const staff = useMemo(() => staffQ.data ?? [], [staffQ.data]);
   const shifts: RosterShift[] = useMemo(() => shiftsQ.data ?? [], [shiftsQ.data]);
   const crossBookings = useMemo(() => crossQ.data ?? [], [crossQ.data]);
+
+  // SP1 — Tagesbetrieb: Fenster-Umschalter oberhalb des Grids. Bei
+  // Standard-Standorten (day_service_enabled=false) unsichtbar und alles
+  // verhält sich wie vor SP1 (Fenster fest auf „abend").
+  const activeLocationRaw = (locationsQ.data ?? []).find((l) => l.id === effectiveLocationId) as
+    | { day_service_enabled?: boolean | null }
+    | undefined;
+  const dayServiceEnabled = activeLocationRaw?.day_service_enabled === true;
+  const [activePeriod, setActivePeriod] = useState<"mittag" | "abend">("abend");
+  useEffect(() => {
+    if (!dayServiceEnabled && activePeriod !== "abend") setActivePeriod("abend");
+  }, [dayServiceEnabled, activePeriod]);
+
+  const shiftsForGrid: RosterShift[] = useMemo(
+    () => (dayServiceEnabled ? shifts.filter((s) => s.servicePeriod === activePeriod) : shifts),
+    [shifts, dayServiceEnabled, activePeriod],
+  );
   const unavailable = useMemo(() => availabilityQ.data ?? [], [availabilityQ.data]);
   const unavailableSet = useMemo(() => {
     const s = new Set<string>();
@@ -344,13 +361,15 @@ function AdminManagerDienstplan() {
       { locationId: string; locationName: string; area: "kitchen" | "service" | "gl" }
     >();
     for (const b of crossBookings) {
+      // SP1: nur Fenster-gleiche Fremdbuchungen blocken den Slot.
+      if (dayServiceEnabled && b.servicePeriod !== activePeriod) continue;
       const k = `${b.staffId}|${b.shiftDate}`;
       if (!m.has(k)) {
         m.set(k, { locationId: b.locationId, locationName: b.locationName, area: b.area });
       }
     }
     return m;
-  }, [crossBookings]);
+  }, [crossBookings, dayServiceEnabled, activePeriod]);
 
   function warnIfUnavailable(staffId: string, iso: string) {
     if (!unavailableSet.has(`${staffId}|${iso}`)) return;
@@ -394,6 +413,7 @@ function AdminManagerDienstplan() {
           shiftDate: iso,
           area,
           skillId,
+          servicePeriod: activePeriod,
         },
       });
       qc.invalidateQueries({ queryKey: ["roster-shifts"] });
@@ -493,6 +513,7 @@ function AdminManagerDienstplan() {
           staffId: target.staffId,
           shiftDate: target.iso,
           area: target.area,
+          servicePeriod: shift.servicePeriod,
         },
       });
       qc.invalidateQueries({ queryKey: ["roster-shifts"] });
@@ -739,6 +760,34 @@ function AdminManagerDienstplan() {
                 )}
               </div>
             </div>
+            {dayServiceEnabled && (
+              <div className="mb-2 flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Servicezeit:</span>
+                <div
+                  role="tablist"
+                  aria-label="Servicezeit"
+                  className="inline-flex overflow-hidden rounded-md border border-input"
+                >
+                  {(["mittag", "abend"] as const).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      role="tab"
+                      aria-selected={activePeriod === p}
+                      onClick={() => setActivePeriod(p)}
+                      className={
+                        "px-3 py-1 text-xs font-medium " +
+                        (activePeriod === p
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-background text-foreground hover:bg-accent")
+                      }
+                    >
+                      {p === "mittag" ? "Mittag" : "Abend"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <RosterGrid
               activeArea={activeArea}
               visibleAreas={visibleAreas}
@@ -750,9 +799,10 @@ function AdminManagerDienstplan() {
               days={days}
               today={today}
               staff={filteredStaff}
-              shifts={shifts}
+              shifts={shiftsForGrid}
               allSkills={allSkills}
               crossBookings={crossBookings}
+              viewportServicePeriod={dayServiceEnabled ? activePeriod : "abend"}
               lockMap={lockMap}
               unavailableSet={unavailableSet}
               absenceMap={absenceMap}
