@@ -24,12 +24,14 @@ import { SofortmeldungSection } from "@/components/settings/SofortmeldungSection
 import { ArbeitgeberSection } from "@/components/settings/ArbeitgeberSection";
 import { TelegramBotSection } from "@/components/settings/TelegramBotSection";
 import { TelegramTagesberichtSection } from "@/components/settings/TelegramTagesberichtSection";
+import { UrlaubsregelnSection } from "@/components/settings/UrlaubsregelnSection";
 
 const SUB_TABS = [
   { key: "trinkgeldpool", label: "Trinkgeldpool" },
   { key: "bestellungen", label: "Bestellungen" },
   { key: "sofortmeldung", label: "Sofortmeldung & Arbeitgeber" },
   { key: "telegram", label: "Telegram" },
+  { key: "urlaub", label: "Urlaub & Feiertage" },
 ] as const;
 
 type TabKey = (typeof SUB_TABS)[number]["key"];
@@ -185,6 +187,8 @@ function OrgSettingsPage() {
             <TelegramTagesberichtSection canEdit={canEdit} />
           </>
         )}
+
+        {tab === "urlaub" && <UrlaubsregelnSection canEdit={canEdit} />}
       </div>
     </div>
   );
