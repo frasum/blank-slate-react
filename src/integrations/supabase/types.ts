@@ -1326,6 +1326,54 @@ export type Database = {
           },
         ]
       }
+      location_calendar_exceptions: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          kind: string
+          location_id: string
+          organization_id: string
+          reason: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          kind: string
+          location_id: string
+          organization_id: string
+          reason?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          kind?: string
+          location_id?: string
+          organization_id?: string
+          reason?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "location_calendar_exceptions_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "location_calendar_exceptions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       location_department_defaults: {
         Row: {
           created_at: string
@@ -1367,6 +1415,45 @@ export type Database = {
           },
           {
             foreignKeyName: "location_department_defaults_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      location_rest_days: {
+        Row: {
+          created_at: string
+          id: string
+          location_id: string
+          organization_id: string
+          weekday: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          location_id: string
+          organization_id: string
+          weekday: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          location_id?: string
+          organization_id?: string
+          weekday?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "location_rest_days_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "location_rest_days_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -1730,6 +1817,7 @@ export type Database = {
           batch_weekday_end: string
           batch_weekday_start: string
           betriebsnummer: string | null
+          count_holidays_as_leave: boolean
           created_at: string
           kitchen_manual_only: boolean
           kitchen_tip_rate: number
@@ -1756,6 +1844,7 @@ export type Database = {
           batch_weekday_end?: string
           batch_weekday_start?: string
           betriebsnummer?: string | null
+          count_holidays_as_leave?: boolean
           created_at?: string
           kitchen_manual_only?: boolean
           kitchen_tip_rate?: number
@@ -1782,6 +1871,7 @@ export type Database = {
           batch_weekday_end?: string
           batch_weekday_start?: string
           betriebsnummer?: string | null
+          count_holidays_as_leave?: boolean
           created_at?: string
           kitchen_manual_only?: boolean
           kitchen_tip_rate?: number

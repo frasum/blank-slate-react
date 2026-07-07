@@ -198,13 +198,14 @@ const SYSTEM_SUB: { to: string; label: string }[] = [
 // /admin/einstellungen gerendert und teilt sich Styling & Struktur mit
 // SYSTEM_SUB, damit die Optik 1:1 mit den anderen Tab-Leisten übereinstimmt.
 const EINSTELLUNGEN_ALLGEMEIN_SUB: {
-  tab: "trinkgeldpool" | "bestellungen" | "sofortmeldung" | "telegram";
+  tab: "trinkgeldpool" | "bestellungen" | "sofortmeldung" | "telegram" | "urlaub";
   label: string;
 }[] = [
   { tab: "trinkgeldpool", label: "Trinkgeldpool" },
   { tab: "bestellungen", label: "Bestellungen" },
   { tab: "sofortmeldung", label: "Sofortmeldung & Arbeitgeber" },
   { tab: "telegram", label: "Telegram" },
+  { tab: "urlaub", label: "Urlaub & Feiertage" },
 ];
 
 function isSystemPath(pathname: string): boolean {

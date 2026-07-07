@@ -27,6 +27,7 @@ export type OrgSettings = {
   arbeitgeberAdresse: string | null;
   arbeitgeberVertreter: string | null;
   telegramBotUsername: string | null;
+  countHolidaysAsLeave: boolean;
 };
 
 const updateSchema = z
@@ -61,7 +62,7 @@ export const getOrgSettings = createServerFn({ method: "GET" })
     const { data, error } = await supabaseAdmin
       .from("organization_settings")
       .select(
-        "kitchen_tip_rate, tip_pool_min_hours, kitchen_manual_only, test_mode_enabled, test_mode_email, betriebsnummer, arbeitgeber_name, arbeitgeber_adresse, arbeitgeber_vertreter, telegram_bot_username",
+        "kitchen_tip_rate, tip_pool_min_hours, kitchen_manual_only, test_mode_enabled, test_mode_email, betriebsnummer, arbeitgeber_name, arbeitgeber_adresse, arbeitgeber_vertreter, telegram_bot_username, count_holidays_as_leave",
       )
       .eq("organization_id", caller.organizationId)
       .maybeSingle();
@@ -77,6 +78,7 @@ export const getOrgSettings = createServerFn({ method: "GET" })
       arbeitgeberAdresse: data?.arbeitgeber_adresse ?? null,
       arbeitgeberVertreter: data?.arbeitgeber_vertreter ?? null,
       telegramBotUsername: data?.telegram_bot_username ?? null,
+      countHolidaysAsLeave: Boolean(data?.count_holidays_as_leave ?? false),
     };
   });
 
@@ -253,6 +255,46 @@ export const setTelegramBotUsername = createServerFn({ method: "POST" })
             entity: "organization_settings",
             entityId: caller.organizationId,
             meta: { hasBotUsername: !!data.telegramBotUsername },
+          },
+        };
+      },
+    );
+  });
+
+// RT1/UZ1 — Schalter „Feiertage zählen als Urlaubstage" (Default: aus).
+export const setCountHolidaysAsLeave = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => z.object({ countHolidaysAsLeave: z.boolean() }).parse(i))
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    return runGuarded(
+      caller.role,
+      "admin",
+      async (entry) => {
+        await writeAuditLog({
+          organizationId: caller.organizationId,
+          actorUserId: caller.userId,
+          actorStaffId: caller.staffId,
+          action: entry.action,
+          entity: entry.entity,
+          entityId: entry.entityId ?? null,
+          meta: entry.meta,
+        });
+      },
+      async () => {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { error } = await supabaseAdmin
+          .from("organization_settings")
+          .update({ count_holidays_as_leave: data.countHolidaysAsLeave })
+          .eq("organization_id", caller.organizationId);
+        if (error) throw error;
+        return {
+          result: { ok: true as const },
+          audit: {
+            action: "settings.count_holidays_as_leave.changed",
+            entity: "organization_settings",
+            entityId: caller.organizationId,
+            meta: { value: data.countHolidaysAsLeave },
           },
         };
       },

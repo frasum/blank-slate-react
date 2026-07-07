@@ -22,6 +22,26 @@ import {
   isValidLeaveRange,
   type LeaveStatus,
 } from "./leave-requests";
+import { bavarianHolidaysBetween } from "./holiday-utils";
+import { countHolidaysInRange } from "./leave-requests";
+
+async function loadCountHolidays(
+  admin: import("@supabase/supabase-js").SupabaseClient<
+    import("@/integrations/supabase/types").Database
+  >,
+  organizationId: string,
+): Promise<boolean> {
+  const { data } = await admin
+    .from("organization_settings")
+    .select("count_holidays_as_leave")
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+  return Boolean(data?.count_holidays_as_leave ?? false);
+}
+
+function holidaySetIfSkip(skip: boolean, start: string, end: string): Set<string> | undefined {
+  return skip ? bavarianHolidaysBetween(start, end) : undefined;
+}
 
 // PL1 — planer wird als Rollen-Whitelist zugelassen; feingranulare Rechte-
 // Prüfung übernimmt weiterhin has_permission (roster.leave.view_all/decide),
@@ -74,6 +94,7 @@ export type LeaveRequestRow = {
   decidedAt: string | null;
   createdAt: string;
   days: number;
+  holidaysSkipped: number;
 };
 
 // =========================================================================
@@ -98,8 +119,13 @@ export const requestLeave = createServerFn({ method: "POST" })
     if (!isValidLeaveRange(data.start_date, data.end_date)) {
       throw new Error("Bis-Datum muss am Von-Datum oder danach liegen.");
     }
-    const days = countLeaveDays(data.start_date, data.end_date);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const skip = !(await loadCountHolidays(supabaseAdmin, caller.organizationId));
+    const days = countLeaveDays(
+      data.start_date,
+      data.end_date,
+      holidaySetIfSkip(skip, data.start_date, data.end_date),
+    );
 
     // Überschneidung mit eigenem offenem/genehmigtem Antrag?
     const { data: overlaps, error: overlapErr } = await supabaseAdmin
@@ -149,6 +175,7 @@ export const getMyLeaveRequests = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<LeaveRequestRow[]> => {
     const caller = await loadStaffCaller(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const skipHolidays = !(await loadCountHolidays(supabaseAdmin, caller.organizationId));
     const { data, error } = await supabaseAdmin
       .from("leave_requests")
       .select(
@@ -158,19 +185,25 @@ export const getMyLeaveRequests = createServerFn({ method: "GET" })
       .eq("staff_id", caller.staffId)
       .order("created_at", { ascending: false });
     if (error) throw error;
-    return (data ?? []).map((r) => ({
-      id: r.id as string,
-      staffId: r.staff_id as string,
-      staffName: null,
-      startDate: r.start_date as string,
-      endDate: r.end_date as string,
-      reason: (r.reason as string | null) ?? null,
-      status: r.status as LeaveStatus,
-      decisionNote: (r.decision_note as string | null) ?? null,
-      decidedAt: (r.decided_at as string | null) ?? null,
-      createdAt: r.created_at as string,
-      days: countLeaveDays(r.start_date as string, r.end_date as string),
-    }));
+    return (data ?? []).map((r) => {
+      const hset = holidaySetIfSkip(skipHolidays, r.start_date as string, r.end_date as string);
+      return {
+        id: r.id as string,
+        staffId: r.staff_id as string,
+        staffName: null,
+        startDate: r.start_date as string,
+        endDate: r.end_date as string,
+        reason: (r.reason as string | null) ?? null,
+        status: r.status as LeaveStatus,
+        decisionNote: (r.decision_note as string | null) ?? null,
+        decidedAt: (r.decided_at as string | null) ?? null,
+        createdAt: r.created_at as string,
+        days: countLeaveDays(r.start_date as string, r.end_date as string, hset),
+        holidaysSkipped: hset
+          ? countHolidaysInRange(r.start_date as string, r.end_date as string, hset)
+          : 0,
+      };
+    });
   });
 
 export const cancelMyLeaveRequest = createServerFn({ method: "POST" })
@@ -233,6 +266,7 @@ export const listLeaveRequests = createServerFn({ method: "GET" })
   .handler(async ({ data, context }): Promise<LeaveRequestRow[]> => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const skipHolidays = !(await loadCountHolidays(supabaseAdmin, caller.organizationId));
     const status = data.status ?? "offen";
     let q = supabaseAdmin
       .from("leave_requests")
@@ -262,19 +296,25 @@ export const listLeaveRequests = createServerFn({ method: "GET" })
     );
     return (rows ?? [])
       .filter((r) => inScope.has(r.staff_id as string))
-      .map((r) => ({
-        id: r.id as string,
-        staffId: r.staff_id as string,
-        staffName: (r.staff as { display_name: string } | null)?.display_name ?? null,
-        startDate: r.start_date as string,
-        endDate: r.end_date as string,
-        reason: (r.reason as string | null) ?? null,
-        status: r.status as LeaveStatus,
-        decisionNote: (r.decision_note as string | null) ?? null,
-        decidedAt: (r.decided_at as string | null) ?? null,
-        createdAt: r.created_at as string,
-        days: countLeaveDays(r.start_date as string, r.end_date as string),
-      }));
+      .map((r) => {
+        const hset = holidaySetIfSkip(skipHolidays, r.start_date as string, r.end_date as string);
+        return {
+          id: r.id as string,
+          staffId: r.staff_id as string,
+          staffName: (r.staff as { display_name: string } | null)?.display_name ?? null,
+          startDate: r.start_date as string,
+          endDate: r.end_date as string,
+          reason: (r.reason as string | null) ?? null,
+          status: r.status as LeaveStatus,
+          decisionNote: (r.decision_note as string | null) ?? null,
+          decidedAt: (r.decided_at as string | null) ?? null,
+          createdAt: r.created_at as string,
+          days: countLeaveDays(r.start_date as string, r.end_date as string, hset),
+          holidaysSkipped: hset
+            ? countHolidaysInRange(r.start_date as string, r.end_date as string, hset)
+            : 0,
+        };
+      });
   });
 
 export const decideLeaveRequest = createServerFn({ method: "POST" })
@@ -364,7 +404,12 @@ export const decideLeaveRequest = createServerFn({ method: "POST" })
         });
         if (rpcErr) throw rpcErr;
 
-        const tage = countLeaveDays(snap.start_date as string, snap.end_date as string);
+        const skipHolidays = !(await loadCountHolidays(supabaseAdmin, caller.organizationId));
+        const tage = countLeaveDays(
+          snap.start_date as string,
+          snap.end_date as string,
+          holidaySetIfSkip(skipHolidays, snap.start_date as string, snap.end_date as string),
+        );
         return {
           result: { ok: true as const },
           audit: {

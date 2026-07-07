@@ -3,6 +3,7 @@ import {
   canCancelLeave,
   canDecideLeave,
   countLeaveDays,
+  countHolidaysInRange,
   isValidLeaveRange,
 } from "./leave-requests";
 
@@ -42,6 +43,42 @@ describe("leave-requests", () => {
       expect(canDecideLeave("offen")).toBe(true);
       expect(canDecideLeave("genehmigt")).toBe(false);
       expect(canDecideLeave("abgelehnt")).toBe(false);
+    });
+  });
+
+  describe("countLeaveDays mit Feiertagen", () => {
+    it("ohne Feiertags-Set unverändert", () => {
+      expect(countLeaveDays("2026-08-14", "2026-08-16")).toBe(3);
+    });
+    it("Feiertag mitten drin zählt nicht", () => {
+      const h = new Set(["2026-08-15"]);
+      expect(countLeaveDays("2026-08-14", "2026-08-16", h)).toBe(2);
+    });
+    it("Feiertag am Rand", () => {
+      const h = new Set(["2026-08-14"]);
+      expect(countLeaveDays("2026-08-14", "2026-08-16", h)).toBe(2);
+    });
+    it("mehrere Feiertage", () => {
+      const h = new Set(["2026-08-15", "2026-08-16"]);
+      expect(countLeaveDays("2026-08-14", "2026-08-17", h)).toBe(2);
+    });
+    it("Feiertag außerhalb des Zeitraums", () => {
+      const h = new Set(["2026-09-01"]);
+      expect(countLeaveDays("2026-08-14", "2026-08-16", h)).toBe(3);
+    });
+    it("nur Feiertage → 0", () => {
+      const h = new Set(["2026-08-15", "2026-08-16"]);
+      expect(countLeaveDays("2026-08-15", "2026-08-16", h)).toBe(0);
+    });
+  });
+
+  describe("countHolidaysInRange", () => {
+    it("leeres Set → 0", () => {
+      expect(countHolidaysInRange("2026-08-14", "2026-08-16", new Set())).toBe(0);
+    });
+    it("zählt nur Treffer im Bereich", () => {
+      const h = new Set(["2026-08-15", "2026-09-01"]);
+      expect(countHolidaysInRange("2026-08-14", "2026-08-16", h)).toBe(1);
     });
   });
 });

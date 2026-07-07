@@ -17,6 +17,7 @@ import {
   regenerateDisplayToken,
   upsertDisplaySettings,
 } from "@/lib/display/display.functions";
+import { LocationCalendarPanel } from "@/components/admin/LocationCalendarPanel";
 
 export const Route = createFileRoute("/_authenticated/admin/locations")({
   head: () => ({ meta: [{ title: "Standorte · Verwaltung" }] }),
@@ -615,6 +616,7 @@ function LocationRow(props: {
       )}
       {displayOpen && <DisplayPanel locationId={props.loc.id} />}
       {open && <GeofencePanel loc={props.loc} onChanged={props.onGeoChanged} />}
+      {open && <LocationCalendarPanel locationId={props.loc.id} />}
     </div>
   );
 }

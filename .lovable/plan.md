@@ -1,81 +1,74 @@
-# SL1 — Standort-Lieferanten
+# RT1 + UZ1 — Betriebskalender & Urlaubszählung mit Feiertags-Regel
 
-Umsetzung 1:1 nach Vorgabe. Kernsemantik konstant: **fehlende `supplier_locations`-Zeile = aktiv, Fallback auf `suppliers.customer_number`**. Kein Backfill.
+Umfangreicher Bauplan-Schritt: Schema, reine Module, Server-Fns, mehrere UI-Stellen. Umsetzung in einer Reihenfolge, in der jeder Zwischenschritt für sich lauffähig ist.
 
-## Schritte (Reihenfolge = Committreihenfolge)
+## 1. Migration (approval-pflichtig)
 
-### 1. Migration `supplier_locations` (deny-all wie `article_locations`)
-- Tabelle mit `unique (supplier_id, location_id)`, `is_active default true`, `customer_number text nullable`.
-- Indizes auf `supplier_id`, `location_id`.
-- `grant all … to service_role`, RLS on, **keine** Client-Policies.
-- Erwartet in RLS-Inventur: siebte gewollte deny-all-Tabelle.
+Eine Migration mit:
+- `public.location_rest_days` (org_id, location_id, weekday 1–7, UNIQUE(location_id, weekday))
+- `public.location_calendar_exceptions` (org_id, location_id, date, kind IN ('closed','open'), reason, UNIQUE(location_id, date))
+- Beide: RLS an, KEINE Client-Policies, `REVOKE ALL … FROM PUBLIC, anon, authenticated`, `GRANT ALL … TO service_role` (deny-all-Hausmuster). Doku-Inventur wächst auf **zwanzig**.
+- `organization_settings.count_holidays_as_leave boolean NOT NULL DEFAULT false`
 
-### 2. Migration `create_order_from_cart` (4-Param-Variante) — Guard 1+2
-- DROP+CREATE nur der 4-Param-Signatur (`p_supplier_id default null`); 3-Param-Variante unangetastet.
-- `SECURITY DEFINER`, `set search_path=public`, `REVOKE PUBLIC/anon/authenticated`, `GRANT execute … TO service_role`.
-- Guard 1 vor der Loop: fehlende `article_locations`-Zeile am `v_cart.location_id` → `P0006`, Meldung deutsch: `'Nicht bestellbar am gewählten Standort: %'` (Freitext `article_id IS NULL` ausgenommen).
-- Guard 2: `supplier_locations.is_active=false` am Cart-Standort → `P0007`, deutsch: `'Lieferant am gewählten Standort deaktiviert: %'` (fehlende Zeile = aktiv). Ton wie bestehende Meldungen („Standort wählen, bevor du bestellst.").
+## 2. Reine Module (+ Vitest)
 
-### 3. Reine Helper `src/lib/bestellung/customer-number.ts` + Test
-- `resolveCustomerNumber(orgWide, perLocation)`: leerer/`null` `perLocation.customer_number` → Fallback org-weit.
-- `customer-number.test.ts`: Fallback-Matrix (Zeile mit Nummer / mit NULL / mit Leerstring / keine Zeile) × (org-weit gesetzt / NULL).
+**`src/lib/roster/business-calendar.ts`** (neu)
+- `isoWeekday(dateIso: string): number` (Mo=1 … So=7)
+- `isClosedDay(dateIso, restWeekdays: number[], exceptions: Map<string,'closed'|'open'>): boolean`
+- Regel: Ausnahme schlägt Wochentag. Kombitests: (Ruhetag & keine Ausnahme) / (Ruhetag & open) / (Nicht-Ruhetag & closed) / (Nicht-Ruhetag & keine).
 
-### 4. `src/lib/bestellung/supplier-locations.functions.ts`
-- `listSupplierLocations({ supplierId })` — `loadAdminCaller(caller, "manager")`, prüft `suppliers.organization_id`, liefert existierende Zeilen.
-- `setSupplierLocation({ supplierId, locationId, customerNumber, isActive })` — Cross-Org-Check (Lieferant + Standort in Aufrufer-Org, Muster aus `easyorder-admin.functions.ts`), Upsert `onConflict "supplier_id,location_id"`, `runGuarded` + Audit `supplier_location.set` mit `{ supplierId, locationId, customerNumber, isActive }`.
+**`src/lib/time/shift-hours.ts`**
+- `bavarianHolidayMap` exportieren (bislang lokal). Keine Logik-Änderung.
 
-### 5. Lieferanten-Dialog (`bestellung.lieferanten.tsx`)
-- Bestehendes Feld beschriften: „Kundennummer (Standard, wenn kein Standort-Wert)".
-- Neuer Abschnitt „Standorte": pro aktivem Standort (via bestehendem `listLocations`) eine Zeile mit Kundennummer-Input (Placeholder = org-weiter Wert) + Aktiv-Switch. Zustand ohne DB-Zeile: aktiv + leer.
-- Save ruft `setSupplierLocation` je **geänderter** Zeile, danach `invalidate` der Katalog-Query.
+**`src/lib/roster/leave-requests.ts`**
+- `countLeaveDays(start, end, holidayDates?: Set<string>)`: Feiertage im Zeitraum abziehen, min 0. Ohne Parameter identisches Verhalten → bestehende Tests bleiben unangetastet grün. Neue Tests: Feiertag mittendrin / am Rand / mehrere / keiner / alle Tage Feiertage.
 
-### 6. Admin-Katalog: Standort-Pill + Filter (`bestellung.lieferanten.tsx`)
-- `LocationPills` oberhalb der Suche, Init = `carts.location_id` sonst erster aktiver Standort. **Keine „Alle"-Option.**
-- Pill-Wechsel ruft bestehendes `setCartMeta({ locationId })` — Pill und Warenkorb-Standort sind ein Zustand.
-- Artikel-Filter: Inner-Join-Muster wie `getEasyOrderCatalogCore` (nur Artikel mit `article_locations`-Zeile am gewählten Standort).
-- Lieferanten-Filter: `supplier_locations.is_active=false` am Standort → aus (fehlende Zeile = sichtbar).
-- `SendOrderDialog` unverändert (folgt Cart-Standort).
+## 3. Server-Functions
 
-### 7. `send-order-email.server.ts` — standort-genaue Kundennummer
-- Zusätzliche `supplier_locations.maybeSingle()`-Abfrage mit `(order.supplier_id, order.location_id)`.
-- `customerNumber` via `resolveCustomerNumber(supplier.customer_number, row)`.
-- Alles Andere (Testmodus, MailerSend-Call, `order-email.ts` Templates, Status-Update, Audit) Zeichen für Zeichen unverändert. EasyOrder profitiert automatisch (BFIX1).
+**`src/lib/roster/business-calendar.functions.ts`** (neu)
+- `getLocationCalendar({ locationId, startDate, endDate })` — read, Rollen wie Roster-Reads → `{ restWeekdays: number[], exceptions: { date, kind, reason }[] }`.
+- `setRestDays({ locationId, weekdays })` — manager+ via `runWithPermission("locations.manage")` (bestehendes Recht), Cross-Org-Guard, Audit.
+- `upsertCalendarException({ locationId, date, kind, reason })` — dito.
+- `deleteCalendarException({ id })` — dito.
 
-### 8. `getEasyOrderCatalogCore` (`easyorder.functions.ts`)
-- Zusätzlicher Filter: Lieferanten mit `supplier_locations.is_active=false` am angefragten Standort ausblenden. `staff_easyorder_suppliers`-Whitelist und `article_locations`-Filter bleiben unverändert.
+**`business-calendar.server.ts`** (Helper)
+- `assertDayOpen(supabaseAdmin, locationId, shiftDate)` — lädt rest_days + exception für den Tag, wirft `Error("Ruhetag/geschlossen (…)")` wenn zu. VOR Schreiben, ohne Audit bei Ablehnung.
 
-### 9. DB-Tests (`*.db.test.ts`)
-- Neue Datei `supplier-locations.db.test.ts`. Skip-Mechanismus **1:1 aus `easyorder.db.test.ts` übernehmen** (Flag heißt `SUPABASE_DB_TESTS`, durchgehend groß — der Prompt-Tippfehler `SUPabase_DB_TESTS` ist nicht zu übernehmen).
-- (a) **Deny-all-Check** nach Hausmuster: via `service_role` eine `supplier_locations`-Zeile seeden, dann mit anon/authenticated-Client `select` → **Assertion auf 0 Zeilen** (kein Error erwartet; RLS ohne Policies liefert leer, wirft nicht). Vorlage: bestehende deny-all-Tests in `easyorder-admin.db.test.ts` / `inventory.db.test.ts`.
-- (b) RPC `create_order_from_cart` mit nicht freigegebenem Artikel → wirft `P0006`.
-- (c) RPC mit standort-deaktiviertem Lieferanten (`is_active=false`-Zeile) → wirft `P0007`.
-- (d) Fehlende `supplier_locations`-Zeile blockt nicht (RPC läuft durch).
+**Roster-Schreib-Fns** (`roster.functions.ts`, `swap.functions.ts` soweit relevant)
+- Bei Anlegen/Verschieben/Bestätigen: `assertDayOpen` einhängen. Löschen bleibt frei.
 
-### 10. Format + Gate
-- `npx prettier --write` + `npx eslint --fix` über alle geänderten Dateien.
-- Erfolgs-Gate: `tsc --noEmit` 0, `eslint --max-warnings=0` 0, `prettier --check .` clean, `vitest run` grün, `grep -rn "api.mailersend.com" src` = 1 Treffer.
+**Urlaubs-Fns**
+- `leave.functions.ts` (`requestLeave`, `listLeaveRequests`, `getMyLeaveRequests`) und `vacation-planner.functions.ts`: Setting `count_holidays_as_leave` laden. Wenn false → für Zeitraum via `bavarianHolidayMap` Feiertags-Set bilden und an `countLeaveDays` übergeben.
 
-## Technische Details
+## 4. UI
 
-- **Migrations-Reihenfolge kritisch**: erst Tabelle (Schritt 1), warten auf Types-Regeneration, dann Server-Fns/UI (5-8), dann RPC-Guard-Migration (Schritt 2) mit `supplier_locations`-Referenz.
-- **Cross-Org-Validierung**: Muster aus `easyorder-admin.functions.ts` (assertLocationInOrg) übernehmen — nicht neu erfinden.
-- **`resolveCustomerNumber`** ist reine Datenlogik in eigener Datei (nicht in `.functions.ts`, nicht in `.server.ts`) → im Browser und Server importierbar.
-- **Audit-Payload**: `customer_number` ist keine Personaldate → darf ins `meta` (kein Redact-Bedarf).
-- **RPC-Grants nicht regressieren**: bei DROP+CREATE zwingend `REVOKE … FROM PUBLIC, anon, authenticated;` + `GRANT EXECUTE … TO service_role;` wieder setzen (Sicherheits-Fix #1).
-- **RLS-Ablehnung**: „deny-all" heißt in Postgres **stille Leerantwort**, nicht Exception — Tests entsprechend schreiben.
-- **Guard-Meldungen deutsch**, gleicher Ton wie bestehende `create_order_from_cart`-Fehler (P0001–P0005).
+**Stammdaten → Standorte** — neue Sektion „Betriebskalender" pro Standort:
+- 7 Checkboxen Wochentage (Ruhetage), Ausnahmen-Liste mit Datum + Art (`closed`/`open`) + Grund, Hinzufügen/Löschen.
 
-## Commit-Reihenfolge
+**Dienstplan-Grid** (`RosterGrid`, `PlanerRosterView`):
+- Geschlossene Tage grau, Paint/Drag/Popover-Anlage clientseitig blockiert.
+- Bestehende Schichten dort: roter Rahmen + Tooltip „Standort geschlossen", löschbar.
 
-```text
-1. migration: create supplier_locations (deny-all)
-2. feat(lib): customer-number helper + test
-3. feat(lib): supplier-locations.functions.ts
-4. feat(email): standort-genaue Kundennummer
-5. feat(easyorder): supplier_locations-Filter
-6. feat(admin): Lieferanten-Dialog Standort-Sektion
-7. feat(admin): Katalog Standort-Pill + article/supplier-Filter
-8. migration: create_order_from_cart Guard 1+2 (4-Param)
-9. test(db): supplier-locations RLS + RPC-Guards
-10. chore: prettier/eslint sweep
-```
+**Öffentliches Display (D3)** (`src/routes/api/public/display.$locationId.ts` / Renderer): geschlossene Tage als „Ruhetag".
+
+**Urlaub** (Dialoge, Listen, Jahresplaner): Tage-Anzeige „X Urlaubstage (Y Feiertage nicht gezählt)" wenn Y > 0.
+
+**Einstellungen (Org)** (`ArbeitgeberSection` oder eigene Sektion): Schalter „Feiertage zählen als Urlaubstage" (Default aus) mit Hilfetext inkl. Hinweis auf Live-Neuberechnung älterer Anträge.
+
+**Stempeluhr**: nur dezenter Hinweis „Heute ist Ruhetag" beim Einstempeln, kein Block.
+
+## 5. Nicht angefasst
+
+`bavarianHolidayMap`-Logik selbst, SFN/Lohn-Geldpfad, `pap-2026/**`, Kasse, Trinkgeldpool, Statistik (→ RT2), Zeit-Schreibpfade außer Hinweis, Perioden-/Sperrlogik.
+
+## Erfolgs-Gate
+
+`tsc --noEmit`, `eslint --max-warnings=0`, `prettier --check .`, `vitest run` grün. Manuelle Abnahme wie im Auftrag beschrieben.
+
+## Reihenfolge der Umsetzung
+
+1. Migration einreichen (Approval abwarten).
+2. Reine Module + Tests.
+3. Server-Fns (Kalender + Guard einhängen + Urlaub anpassen).
+4. UI-Stellen (Standorte-Sektion → Grid-Overlay → Display → Urlaubs-Anzeigen → Org-Schalter → Stempel-Hinweis).
+5. Lint/Format/Tests, dann Abnahme.

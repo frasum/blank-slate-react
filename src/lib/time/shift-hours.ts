@@ -49,7 +49,7 @@ function fmtMmDd(d: Date): string {
   return `${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
 }
 
-function bavarianHolidayMap(year: number): Map<string, string> {
+export function bavarianHolidayMap(year: number): Map<string, string> {
   const easter = easterSunday(year);
   const map = new Map<string, string>();
   map.set("01-01", "Neujahr");
