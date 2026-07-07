@@ -118,8 +118,8 @@ export async function seedKasseFinalize(
         display_name: `${tag} E2E`,
         email,
         is_active: true,
-      // E2E-Nutzer überspringen den Erst-Login-Passwortwechsel (Route-Guard).
-      must_change_password: false,
+        // E2E-Nutzer überspringen den Erst-Login-Passwortwechsel (Route-Guard).
+        must_change_password: false,
       })
       .select("id")
       .single();
