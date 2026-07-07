@@ -112,6 +112,7 @@ function KassePage() {
   const fetchTerminals = useServerFn(listPaymentTerminals);
   const fetchStaff = useServerFn(listStaff);
   const fetchLocations = useServerFn(listLocations);
+  const fetchTipPool = useServerFn(getTipPoolOverview);
   const callCreateSession = useServerFn(getOrCreateOpenSession);
   const callUpdate = useServerFn(updateSession);
   const callAddSat = useServerFn(addSessionSatellite);
@@ -155,6 +156,16 @@ function KassePage() {
     enabled: locationId !== "",
   });
   const staffQ = useQuery({ queryKey: ["admin-staff"], queryFn: () => fetchStaff() });
+
+  // Trinkgeld-Pool für die Finalize-Zusammenfassung. Gleicher Query-Key
+  // wie in TipPoolCard, damit bereits im Cache liegende Daten sofort
+  // verfügbar sind (kein Doppel-Request).
+  const sessionIdForPool = ovQ.data?.session?.id ?? null;
+  const poolQ = useQuery({
+    queryKey: ["cash", "tip-pool", sessionIdForPool],
+    queryFn: () => fetchTipPool({ data: { sessionId: sessionIdForPool! } }),
+    enabled: sessionIdForPool !== null,
+  });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["cash"] });
 
