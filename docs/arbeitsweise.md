@@ -706,7 +706,7 @@ Sicherheits-Durchgang nach einem externen Review (ChatGPT, gegen einen Repo-Snap
 
 - `hasPin` über `staff_pins`-Embed ist korrekt (To-One → Objekt/null, kein Array-Bug).
 - Ein `UNIQUE(staff_id, shift_date)` auf `roster_shifts` wäre eine **Design-Regression** — Cross-Booking über Bereiche/Standorte ist **absichtlich** nur ein advisory roter Punkt, kein harter Block.
-- `.env` ist zwar eingecheckt, enthält aber nur den publishable/anon-Key + domain-beschränkten Maps-Key (kein `service_role`/Secret) → niedrige Priorität.
+- `.env` **ist am 07.07.2026 aus dem Git-Tracking entfernt** (ENV1): Werte waren ausschließlich publishable/anon + domain-beschränkter Maps-Key, deshalb kein History-Rewrite. Lokal aus `.env.example` neu befüllen (Werte aus dem Supabase-Projekt bzw. `supabase status`). CI-Guard im `check`-Job blockt Wieder-Committen und generisches `*_KEY = "…"` in getrackten Dateien.
 
 **Offen — Härtungs-Backlog (Defense-in-Depth, keine offene Lücke):** Display-Token `Referrer-Policy: no-referrer` + Rotation; `search_path`-Härtung breiter ausrollen; Composite-FKs `(organization_id, location_id)`; Check-Constraints (qty>0, cents≥0 — nuanciert, manche Beträge legitim negativ); db-security-Tests blockierend machen (aus dem flaky `db-integration`-Job herauslösen); Bun-Version pinnen.
 
