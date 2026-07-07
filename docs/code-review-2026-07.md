@@ -131,10 +131,11 @@ inlined `import.meta.env.VITE_*` **zur Build-Zeit** aus dem Repo-Stand
 
 **Meldung statt stiller Lösung (Hausregel):** Die ENV1-Enttrackung war
 korrekt für alles außer den beiden reinen Publishable-Werten. Diese
-werden ab jetzt bewusst als *eigene* Datei eingecheckt, die
+werden ab jetzt bewusst als _eigene_ Datei eingecheckt, die
 ENV1-Grundregel „keine Secrets im Repo" bleibt unangetastet.
 
 **Umsetzung:**
+
 - Neue Datei `.env.production` mit ausschließlich publishable Werten:
   `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`,
   `VITE_SUPABASE_PROJECT_ID`, `VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_*`
@@ -148,6 +149,7 @@ ENV1-Grundregel „keine Secrets im Repo" bleibt unangetastet.
   SERVICE_ROLE/SECRET/PRIVATE_KEY-Muster.
 
 **Modul-Status:**
+
 - **ENV1 .env-Enttrackung + CI-Guard** — ✅ bleibt gültig; ergänzt um
   dokumentierte Ausnahme `.env.production` für Publishable-Only-Werte.
 
