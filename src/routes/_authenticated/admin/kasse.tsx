@@ -395,8 +395,13 @@ function KassePage() {
     setPrintBusy(true);
     try {
       try {
+        // P2-DIAG: nach Diagnose-Lauf entfernen
+        console.error("[finalize-start]", { attempt: 1, confirmFlag: false, ts: Date.now() });
         await callFinalize({ data: { sessionId } });
       } catch (err) {
+        // P2-DIAG: nach Diagnose-Lauf entfernen
+        const _e = err as Error;
+        console.error("[finalize-catch]", { name: _e?.name, message: _e?.message });
         // TG1 — Pool > 0 € bei 0 anrechenbaren Stunden. Explizit bestätigen.
         const msg = err instanceof Error ? err.message : String(err);
         if (/0 anrechenbare Stunden/.test(msg)) {
@@ -404,6 +409,8 @@ function KassePage() {
             setPrintBusy(false);
             return;
           }
+          // P2-DIAG: nach Diagnose-Lauf entfernen
+          console.error("[finalize-start]", { attempt: 2, confirmFlag: true, ts: Date.now() });
           await callFinalize({ data: { sessionId, confirmPoolWarning: true } });
         } else {
           throw err;
