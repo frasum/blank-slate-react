@@ -394,7 +394,21 @@ function KassePage() {
     }
     setPrintBusy(true);
     try {
-      await callFinalize({ data: { sessionId } });
+      try {
+        await callFinalize({ data: { sessionId } });
+      } catch (err) {
+        // TG1 — Pool > 0 € bei 0 anrechenbaren Stunden. Explizit bestätigen.
+        const msg = err instanceof Error ? err.message : String(err);
+        if (/0 anrechenbare Stunden/.test(msg)) {
+          if (!window.confirm(`${msg}\n\nStunden fehlen vermutlich. Trotzdem abschließen?`)) {
+            setPrintBusy(false);
+            return;
+          }
+          await callFinalize({ data: { sessionId, confirmPoolWarning: true } });
+        } else {
+          throw err;
+        }
+      }
       toast.success("Tag finalisiert.");
       printDailySummary(data);
       if (isAdmin) {
