@@ -78,4 +78,29 @@ Wichtig vor breiter Nutzung (alle Standorte, mehr Nutzer): G1 Kassen-Refactoring
 
 Später optimieren (Richtung SaaS, nach saas-vorbereitung.md): mandantenfähige Secrets/Integrationen, Konfigurationsobjekte Stufe B, organization_features, DSGVO-Paket (AVV, Lösch-/Aufbewahrungskonzept — heute existiert Datensparsamkeit, aber kein dokumentierter Löschprozess für ausgeschiedene Mitarbeiter), Onboarding-Wizard.
 
+I. Ergänzungen aus dem iterativen Tiefen-Pass (07.07., zweiter Durchgang)
+
+Gelesen: Projektstruktur, README.md, package.json, supabase/config.toml, Auth-Kern (admin-context.ts, requireSupabaseAuth-Nutzer), Migrations-Stichproben. Kein Code geändert.
+
+README.md ist stark veraltet — sie meldet „Phase B0 von B0–B7 — Fundament", während das System bei M0–M5 plus Rezeptur-Modul und Betriebskalender steht. Für jeden neuen Mitwirkenden (Mensch oder Modell ohne Projektgedächtnis) ist das der erste Eindruck — und er ist falsch. Die Verweise auf gruendungsdokument/arbeitsweise sind korrekt und bleiben der richtige Kern. → Patch P0 (trivial).
+
+Dependency-Lage gesund: React 19, Vite 7, Vitest 4, TypeScript 5.8, Tailwind 4, supabase-js 2.108 — durchgehend aktuelle Major-Versionen, kein Legacy-Ballast (63 deps + 21 devDeps, schlank für den Funktionsumfang). Ein periodischer npm outdated/npm audit-Lauf ist dennoch nirgends verankert. → Patch P7.
+
+Auth-Kern bestätigt die Architektur-Einschätzung: loadAdminCaller lädt den Aufruferkontext über den authentifizierten User-Client (RLS greift auch hier), erzwingt Mindestrollen am Ende, dokumentiert die Impersonation (IMP1) transparent im Typ und überlässt Audit-Schreiben bewusst den Erfolgs-Wrappern. Genau so gehört ein Guard gebaut.
+
+J. Patch-Plan (Vorschläge — kleine, nachvollziehbare Schritte; je ein Lovable-Prompt, je vier Gates)
+
+| # Patch | Risiko | Inhalt |
+| --- | --- | --- |
+| P0 README aktualisieren | keins (Doku) | Status-Abschnitt auf realen Stand (Modul-Tabelle aus arbeitsweise verlinken), Setup-Block prüfen |
+| P1 Monitoring (= G4) | niedrig | Sentry-Init in __root + Andockung im Server-Function-Wrapper; Alerts für Finalize/Lohn/Bestellung; DSN als env |
+| P2 Finalize-E2E (= G5b) | keins (nur Tests) | Playwright gegen lokalen Supabase-Stack: Abrechnung → Finalize inkl. TG1-Warnpfad |
+| P3 Restore-Runbook (= G6) | keins (kein Code) | PITR-Probe auf Wegwerf-Projekt, Schrittfolge als docs/runbook-restore.md — Frank+Claude gemeinsam, halbtags |
+| P4 FK-Indizes (= G2) | niedrig | EINE Migration, ~10 Indizes; vorher Bestätigungs-Query auf der Live-DB (liefere ich) |
+| P5 cash.functions.ts teilen (= G1) | mittel | Reines Move-Refactoring in vier Dateien mit Re-Exports; Gate: alle 1505 Tests unverändert grün — erst NACH dem Kassen-Cutover, nicht davor |
+| P6 Trinkgeld-Rest bündeln (= G3) | niedrig | Batch-Laden je Periode statt 3 Queries × Session; Rechenmodul unangetastet |
+| P7 CI-Hygiene (= G7 + Versions-Audit) | keins | Job-Schritt „generierte Dateien regenerieren + diff --exit-code"; monatlicher npm outdated-Report |
+
+Empfohlene Reihenfolge unverändert wie Abschnitt H: P1 → P2 → P3 → Cutover, danach P0/P4/P6/P7 nach Gelegenheit, P5 bewusst hinter den Cutover. Jeder Patch kommt als eigener Prompt mit „Nicht-anfassen"-Liste und Erfolgs-Gate — nichts davon wird ohne Franks Freigabe angestoßen.
+
 Fazit in einem Satz: COCO ist ein für seine Größe ungewöhnlich diszipliniertes System, dessen Weg zur vollen Produktionsreife nicht durch Umbauten führt, sondern durch vier Betriebs-Bausteine — sehen (Monitoring), beweisen (E2E), üben (Restore), abschließen (Cutover).
