@@ -145,11 +145,20 @@ export const getMyPeriodEntries = createServerFn({ method: "GET" })
     const { data: locs, error: lErr } = await supabaseAdmin
       // ST1: bewusst ungefiltert — Daten-Zugriff (Namensauflösung an historischen Zeiteinträgen).
       .from("locations")
-      .select("id, name")
+      .select("id, name, day_service_enabled")
       .eq("organization_id", caller.organizationId);
     if (lErr) throw lErr;
     const nameById = new Map<string, string>(
       (locs ?? []).map((l) => [l.id as string, l.name as string]),
+    );
+    // SP1b — Tagesbetrieb pro Standort. Nur bei aktiviertem Tagesbetrieb
+    // wird im Portal ein „Mittag"/„Abend"-Badge angezeigt (abgeleitet aus
+    // der Startzeit, nicht persistiert).
+    const dayServiceById = new Map<string, boolean>(
+      (locs ?? []).map((l) => [
+        l.id as string,
+        (l as { day_service_enabled?: boolean | null }).day_service_enabled === true,
+      ]),
     );
 
     return {
@@ -169,6 +178,9 @@ export const getMyPeriodEntries = createServerFn({ method: "GET" })
         source: r.source as "clock" | "manual",
         locationId: (r.location_id as string | null) ?? null,
         locationName: r.location_id ? (nameById.get(r.location_id as string) ?? null) : null,
+        locationDayServiceEnabled: r.location_id
+          ? (dayServiceById.get(r.location_id as string) ?? false)
+          : false,
       })),
     };
   });
