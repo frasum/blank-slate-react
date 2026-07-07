@@ -150,10 +150,7 @@ function PosVerkaufPage() {
 
   // „Handlungsbedarf" = keine echte Vectron-Warengruppe (nur #Nummer oder gar nichts).
   // Overrides zählen als zugeordnet, weil sie eine warengruppe setzen.
-  const needsAssignmentCount = useMemo(
-    () => rows.filter((r) => !r.warengruppe).length,
-    [rows],
-  );
+  const needsAssignmentCount = useMemo(() => rows.filter((r) => !r.warengruppe).length, [rows]);
 
   // Zuordnungs-Optionen: alle WG-Werte, die aus Namens-Matches oder Overrides
   // bereits an POS-Zeilen hängen. Bewusst aus den enriched rows, damit die
@@ -807,11 +804,7 @@ function AssignCell({
   //  - warengruppe da   → „Korrigieren" (dezent; kommt aus Vectron, optionaler Override)
   //  - sonst            → „Zuordnen" (auffällig amber; echtes To-do)
   const hasVectronGroup = row.warengruppe !== null && !row.overridden;
-  const buttonLabel = row.overridden
-    ? "Ändern"
-    : hasVectronGroup
-      ? "Korrigieren"
-      : "Zuordnen";
+  const buttonLabel = row.overridden ? "Ändern" : hasVectronGroup ? "Korrigieren" : "Zuordnen";
   const buttonNeedsAttention = !row.overridden && !hasVectronGroup;
   const buttonTitle = row.overridden
     ? "Aktuelle Zuordnung ist ein manueller Override — Ändern öffnet die Auswahl."
@@ -847,12 +840,7 @@ function AssignCell({
         }}
       >
         <PopoverTrigger asChild>
-          <button
-            type="button"
-            className={buttonClass}
-            disabled={busy}
-            title={buttonTitle}
-          >
+          <button type="button" className={buttonClass} disabled={busy} title={buttonTitle}>
             {buttonLabel}
           </button>
         </PopoverTrigger>

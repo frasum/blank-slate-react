@@ -51,6 +51,7 @@ import { Route as AuthenticatedAdminKasseSaldoRouteImport } from './routes/_auth
 import { Route as AuthenticatedAdminKasseRouteImport } from './routes/_authenticated/admin/kasse'
 import { Route as AuthenticatedAdminImportZuordnungenRouteImport } from './routes/_authenticated/admin/import-zuordnungen'
 import { Route as AuthenticatedAdminImpersonateRouteImport } from './routes/_authenticated/admin/impersonate'
+import { Route as AuthenticatedAdminFragCocoRouteImport } from './routes/_authenticated/admin/frag-coco'
 import { Route as AuthenticatedAdminEinstellungenRouteImport } from './routes/_authenticated/admin/einstellungen'
 import { Route as AuthenticatedAdminDokumenteRouteImport } from './routes/_authenticated/admin/dokumente'
 import { Route as AuthenticatedAdminDienstplanRouteImport } from './routes/_authenticated/admin/dienstplan'
@@ -307,6 +308,12 @@ const AuthenticatedAdminImpersonateRoute =
     path: '/impersonate',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminFragCocoRoute =
+  AuthenticatedAdminFragCocoRouteImport.update({
+    id: '/frag-coco',
+    path: '/frag-coco',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminEinstellungenRoute =
   AuthenticatedAdminEinstellungenRouteImport.update({
     id: '/einstellungen',
@@ -451,6 +458,7 @@ export interface FileRoutesByFullPath {
   '/admin/dienstplan': typeof AuthenticatedAdminDienstplanRoute
   '/admin/dokumente': typeof AuthenticatedAdminDokumenteRoute
   '/admin/einstellungen': typeof AuthenticatedAdminEinstellungenRouteWithChildren
+  '/admin/frag-coco': typeof AuthenticatedAdminFragCocoRoute
   '/admin/impersonate': typeof AuthenticatedAdminImpersonateRoute
   '/admin/import-zuordnungen': typeof AuthenticatedAdminImportZuordnungenRoute
   '/admin/kasse': typeof AuthenticatedAdminKasseRoute
@@ -512,6 +520,7 @@ export interface FileRoutesByTo {
   '/admin/bwa': typeof AuthenticatedAdminBwaRoute
   '/admin/dienstplan': typeof AuthenticatedAdminDienstplanRoute
   '/admin/dokumente': typeof AuthenticatedAdminDokumenteRoute
+  '/admin/frag-coco': typeof AuthenticatedAdminFragCocoRoute
   '/admin/impersonate': typeof AuthenticatedAdminImpersonateRoute
   '/admin/import-zuordnungen': typeof AuthenticatedAdminImportZuordnungenRoute
   '/admin/kasse': typeof AuthenticatedAdminKasseRoute
@@ -577,6 +586,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/dienstplan': typeof AuthenticatedAdminDienstplanRoute
   '/_authenticated/admin/dokumente': typeof AuthenticatedAdminDokumenteRoute
   '/_authenticated/admin/einstellungen': typeof AuthenticatedAdminEinstellungenRouteWithChildren
+  '/_authenticated/admin/frag-coco': typeof AuthenticatedAdminFragCocoRoute
   '/_authenticated/admin/impersonate': typeof AuthenticatedAdminImpersonateRoute
   '/_authenticated/admin/import-zuordnungen': typeof AuthenticatedAdminImportZuordnungenRoute
   '/_authenticated/admin/kasse': typeof AuthenticatedAdminKasseRoute
@@ -643,6 +653,7 @@ export interface FileRouteTypes {
     | '/admin/dienstplan'
     | '/admin/dokumente'
     | '/admin/einstellungen'
+    | '/admin/frag-coco'
     | '/admin/impersonate'
     | '/admin/import-zuordnungen'
     | '/admin/kasse'
@@ -704,6 +715,7 @@ export interface FileRouteTypes {
     | '/admin/bwa'
     | '/admin/dienstplan'
     | '/admin/dokumente'
+    | '/admin/frag-coco'
     | '/admin/impersonate'
     | '/admin/import-zuordnungen'
     | '/admin/kasse'
@@ -768,6 +780,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/dienstplan'
     | '/_authenticated/admin/dokumente'
     | '/_authenticated/admin/einstellungen'
+    | '/_authenticated/admin/frag-coco'
     | '/_authenticated/admin/impersonate'
     | '/_authenticated/admin/import-zuordnungen'
     | '/_authenticated/admin/kasse'
@@ -1122,6 +1135,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminImpersonateRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/frag-coco': {
+      id: '/_authenticated/admin/frag-coco'
+      path: '/frag-coco'
+      fullPath: '/admin/frag-coco'
+      preLoaderRoute: typeof AuthenticatedAdminFragCocoRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/einstellungen': {
       id: '/_authenticated/admin/einstellungen'
       path: '/einstellungen'
@@ -1341,6 +1361,7 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminDienstplanRoute: typeof AuthenticatedAdminDienstplanRoute
   AuthenticatedAdminDokumenteRoute: typeof AuthenticatedAdminDokumenteRoute
   AuthenticatedAdminEinstellungenRoute: typeof AuthenticatedAdminEinstellungenRouteWithChildren
+  AuthenticatedAdminFragCocoRoute: typeof AuthenticatedAdminFragCocoRoute
   AuthenticatedAdminImpersonateRoute: typeof AuthenticatedAdminImpersonateRoute
   AuthenticatedAdminImportZuordnungenRoute: typeof AuthenticatedAdminImportZuordnungenRoute
   AuthenticatedAdminKasseRoute: typeof AuthenticatedAdminKasseRoute
@@ -1377,6 +1398,7 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
     AuthenticatedAdminDokumenteRoute: AuthenticatedAdminDokumenteRoute,
     AuthenticatedAdminEinstellungenRoute:
       AuthenticatedAdminEinstellungenRouteWithChildren,
+    AuthenticatedAdminFragCocoRoute: AuthenticatedAdminFragCocoRoute,
     AuthenticatedAdminImpersonateRoute: AuthenticatedAdminImpersonateRoute,
     AuthenticatedAdminImportZuordnungenRoute:
       AuthenticatedAdminImportZuordnungenRoute,

@@ -251,11 +251,7 @@ function AdminManagerDienstplan() {
   // Σ-Spalte: Cross-Bookings der gesamten Abrechnungsperiode (26.–25.),
   // unabhängig vom sichtbaren Halb-Fenster. Dient nur der Summe/Breakdown.
   const crossMonthQ = useQuery({
-    queryKey: [
-      "roster-cross-bookings-month",
-      effectivePeriod?.startDate,
-      effectivePeriod?.endDate,
-    ],
+    queryKey: ["roster-cross-bookings-month", effectivePeriod?.startDate, effectivePeriod?.endDate],
     queryFn: () =>
       getStaffCrossBookings({
         data: {

@@ -156,10 +156,13 @@ const GROUPS: Group[] = [
       "/admin/bilanz",
       "/admin/pos-verkauf",
       "/admin/pos-stundenbericht",
+      "/admin/pos-renner-penner",
+      "/admin/frag-coco",
     ],
     sub: [
       { to: "/admin/statistik", label: "Statistik" },
       { to: "/admin/pos-verkauf", label: "POS-Verkauf" },
+      { to: "/admin/frag-coco", label: "Frag COCO", roles: ["admin"] },
       { to: "/admin/bwa", label: "BWA", roles: ["admin"] },
       { to: "/admin/bilanz", label: "Jahresabschluss", roles: ["admin"] },
     ],
