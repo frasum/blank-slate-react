@@ -75,6 +75,20 @@ CREATE POLICY roster_absence_select_view ON public.roster_absence
   );
 
 -- day_off_wishes
+-- BFIX5: Tabelle wurde ursprünglich direkt auf der Live-DB angelegt;
+-- hier für frische Replays nachgezogen (live: No-op dank IF NOT EXISTS).
+CREATE TABLE IF NOT EXISTS public.day_off_wishes (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
+  staff_id        uuid NOT NULL REFERENCES public.staff(id) ON DELETE CASCADE,
+  wish_date       date NOT NULL,
+  note            text,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (staff_id, wish_date)
+);
+ALTER TABLE public.day_off_wishes ENABLE ROW LEVEL SECURITY;
+GRANT ALL ON public.day_off_wishes TO service_role;
+
 DROP POLICY IF EXISTS day_off_wishes_select_own ON public.day_off_wishes;
 CREATE POLICY day_off_wishes_select_view ON public.day_off_wishes
   FOR SELECT
