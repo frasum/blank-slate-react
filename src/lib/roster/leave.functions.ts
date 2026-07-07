@@ -94,6 +94,7 @@ export type LeaveRequestRow = {
   decidedAt: string | null;
   createdAt: string;
   days: number;
+  holidaysSkipped: number;
 };
 
 // =========================================================================
