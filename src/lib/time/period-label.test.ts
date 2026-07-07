@@ -40,9 +40,9 @@ describe("derivePeriodLabel", () => {
     expect(derivePeriodLabel("2026-01-15T13:59:00Z", "Europe/Berlin")).toBe("Mittag");
   });
 
-  it("Zeitzone wird beachtet — 15:00 UTC in London = Abend, in Los Angeles noch Mittag", () => {
+  it("Zeitzone wird beachtet — 15:00 UTC in London = Abend, in Los Angeles = Früh", () => {
     expect(derivePeriodLabel("2026-07-15T15:00:00Z", "Europe/London")).toBe("Abend"); // 16:00 BST
-    expect(derivePeriodLabel("2026-07-15T15:00:00Z", "America/Los_Angeles")).toBe("Mittag"); // 08:00 PDT
+    expect(derivePeriodLabel("2026-07-15T15:00:00Z", "America/Los_Angeles")).toBe("Früh"); // 08:00 PDT
   });
 
   it("Default-Zeitzone ist Europe/Berlin", () => {
