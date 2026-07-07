@@ -21,15 +21,19 @@ import type { Database } from "@/integrations/supabase/types";
 import {
   aggregateRennerPenner,
   matchesGroupFilter,
+  mergeAcrossLocations,
   type RennerArticleForLeftovers,
   type RennerAggregateResult,
+  type RennerEntry,
   type RennerRawRow,
 } from "./renner-penner-core";
 
 type Admin = SupabaseClient<Database>;
 
 const Input = z.object({
-  locationId: z.string().uuid(),
+  /** Ein oder mehrere Standorte. Bei > 1 liefert die Fn eine
+   *  standort-übergreifende Rangliste inklusive per-Standort-Anteil. */
+  locationIds: z.array(z.string().uuid()).min(1),
   period: z.enum(["d365", "alltime"]),
   /** Case-insensitive Match gegen hauptgruppe ODER warengruppe. Leere Liste = alle. */
   groups: z.array(z.string().min(1)).default([]),
@@ -41,17 +45,24 @@ export type RennerPennerResult = RennerAggregateResult & {
   reportDate: string | null;
   /** Distinct-Werte über alle Getränke-VAs — als Chip-Auswahl im UI. */
   groupOptions: string[];
+  /** RP2 — Reihenfolge der ausgewählten Standorte (id + Name), für Legende/Farben. */
+  locations: { id: string; name: string }[];
 };
 
-async function assertLocationInOrg(admin: Admin, orgId: string, locationId: string) {
+async function assertLocationInOrg(
+  admin: Admin,
+  orgId: string,
+  locationId: string,
+): Promise<{ id: string; name: string }> {
   const { data, error } = await admin
     .from("locations")
-    .select("id")
+    .select("id, name")
     .eq("id", locationId)
     .eq("organization_id", orgId)
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) throw new Error("Standort gehört nicht zur aktiven Organisation.");
+  return { id: data.id, name: data.name };
 }
 
 export const getRennerPenner = createServerFn({ method: "POST" })
@@ -60,10 +71,74 @@ export const getRennerPenner = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<RennerPennerResult> => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await assertLocationInOrg(supabaseAdmin, caller.organizationId, data.locationId);
 
-    // Beide Datensätze paginiert lesen (BFIX2).
-    const stats = await selectAllPaged<{
+    // Reihenfolge stabil halten (Legende/Chart-Farben deterministisch).
+    const locationInfos = await Promise.all(
+      data.locationIds.map((id) => assertLocationInOrg(supabaseAdmin, caller.organizationId, id)),
+    );
+
+    const perLocationResults: Array<{
+      locationId: string;
+      locationName: string;
+      entries: RennerEntry[];
+      leftoverNames: Set<string>;
+      leftoverArticles: RennerArticleForLeftovers[];
+      groupOptions: string[];
+      reportDate: string | null;
+    }> = [];
+
+    for (const loc of locationInfos) {
+      const single = await loadForLocation(supabaseAdmin, caller.organizationId, loc, data);
+      perLocationResults.push(single);
+    }
+
+    // Cross-location Merge (No-op bei 1 Standort).
+    const mergedEntries = mergeAcrossLocations(
+      perLocationResults.map((p) => ({
+        locationId: p.locationId,
+        locationName: p.locationName,
+        entries: p.entries,
+      })),
+      normalizeName,
+    );
+
+    // Ladenhüter: normalisierter Name existiert in KEINEM gemergten Eintrag,
+    // ist aber in mindestens einem Standort als aktives Getränk vorhanden.
+    const soldNames = new Set<string>();
+    for (const e of mergedEntries) soldNames.add(normalizeName(e.name));
+    const leftoverByName = new Map<string, RennerArticleForLeftovers>();
+    for (const p of perLocationResults) {
+      for (const a of p.leftoverArticles) {
+        const nk = normalizeName(a.name);
+        if (soldNames.has(nk)) continue;
+        if (!leftoverByName.has(nk)) leftoverByName.set(nk, a);
+      }
+    }
+
+    const groupSet = new Set<string>();
+    for (const p of perLocationResults) for (const g of p.groupOptions) groupSet.add(g);
+
+    const reportDate = perLocationResults.reduce<string | null>(
+      (acc, p) => (p.reportDate && (acc === null || p.reportDate > acc) ? p.reportDate : acc),
+      null,
+    );
+
+    return {
+      entries: mergedEntries,
+      ladenhueter: [...leftoverByName.values()],
+      reportDate,
+      groupOptions: [...groupSet].sort((a, b) => a.localeCompare(b, "de")),
+      locations: locationInfos,
+    };
+  });
+
+async function loadForLocation(
+  supabaseAdmin: Admin,
+  organizationId: string,
+  loc: { id: string; name: string },
+  data: { period: "d365" | "alltime"; groups: string[] },
+) {
+  const stats = await selectAllPaged<{
       nummer: number;
       name: string;
       verkauf_count: number;
@@ -73,8 +148,8 @@ export const getRennerPenner = createServerFn({ method: "POST" })
       supabaseAdmin
         .from("sales_article_stats")
         .select("id, nummer, name, verkauf_count, umsatz_cents, report_date")
-        .eq("organization_id", caller.organizationId)
-        .eq("location_id", data.locationId)
+        .eq("organization_id", organizationId)
+        .eq("location_id", loc.id)
         .eq("period", data.period)
         .order("id", { ascending: true })
         .range(from, to),
@@ -97,21 +172,18 @@ export const getRennerPenner = createServerFn({ method: "POST" })
         .select(
           "id, name, hauptgruppe, warengruppe, is_active, ek_source_article_id, ek_portion_ml, ek_source_volume_ml, ek_price_cents, price_cents",
         )
-        .eq("organization_id", caller.organizationId)
-        .eq("location_id", data.locationId)
+        .eq("organization_id", organizationId)
+        .eq("location_id", loc.id)
         .order("id", { ascending: true })
         .range(from, to),
     );
 
-    // Weicher Namens-Join (analog PV1/enrichSalesStats): sales_articles hat
-    // keine POS-Artikelnummer, deshalb Match über normalisierten Namen.
     const vaByName = new Map<string, (typeof articles)[number]>();
     for (const a of articles) {
       const key = normalizeName(a.name);
       if (!vaByName.has(key)) vaByName.set(key, a);
     }
 
-    // Getränke-VAs (hauptgruppe/warengruppe vorhanden) für Chip-Auswahl + Ladenhüter.
     const drinkArticles = articles.filter((a) => a.is_active && (a.hauptgruppe || a.warengruppe));
 
     const groupSet = new Set<string>();
@@ -119,10 +191,8 @@ export const getRennerPenner = createServerFn({ method: "POST" })
       if (a.hauptgruppe) groupSet.add(a.hauptgruppe);
       if (a.warengruppe) groupSet.add(a.warengruppe);
     }
-    const groupOptions = [...groupSet].sort((a, b) => a.localeCompare(b, "de"));
+    const groupOptions = [...groupSet];
 
-    // Rohzeilen aus stats × VA-Stammdaten (Namens-Join). Ohne VA-Match keine
-    // Gruppen → durch Gruppenfilter herausgefiltert.
     const rawRows: RennerRawRow[] = [];
     for (const s of stats) {
       const va = vaByName.get(normalizeName(s.name));
@@ -144,10 +214,6 @@ export const getRennerPenner = createServerFn({ method: "POST" })
       rawRows.push(raw);
     }
 
-    // Ladenhüter: aktive Getränke-VAs, deren Namen in KEINER Stats-Zeile
-    // vorkommen. Da rawRows namensbasiert gejoint sind, arbeiten wir hier
-    // ebenfalls über normalisierten Namen und synthesizen eine stabile
-    // „Nummer" via Set (die UI zeigt nur Name+Gruppe).
     const seenNames = new Set<string>();
     for (const s of stats) seenNames.add(normalizeName(s.name));
     const leftoverCandidates: RennerArticleForLeftovers[] = drinkArticles
@@ -160,19 +226,20 @@ export const getRennerPenner = createServerFn({ method: "POST" })
         warengruppe: a.warengruppe,
       }));
 
-    // Core erhält bereits gefilterte Ladenhüter-Liste; leere Stats-Referenz
-    // heißt: aggregateRennerPenner soll KEINE zusätzliche Filterung machen.
-    const aggregated = aggregateRennerPenner(rawRows, []);
-    aggregated.ladenhueter = leftoverCandidates;
+  const aggregated = aggregateRennerPenner(rawRows, [], { id: loc.id, name: loc.name });
 
-    const reportDate = stats.reduce<string | null>(
-      (acc, s) => (acc === null || s.report_date > acc ? s.report_date : acc),
-      null,
-    );
+  const reportDate = stats.reduce<string | null>(
+    (acc, s) => (acc === null || s.report_date > acc ? s.report_date : acc),
+    null,
+  );
 
-    return {
-      ...aggregated,
-      reportDate,
-      groupOptions,
-    };
-  });
+  return {
+    locationId: loc.id,
+    locationName: loc.name,
+    entries: aggregated.entries,
+    leftoverNames: new Set(leftoverCandidates.map((l) => normalizeName(l.name))),
+    leftoverArticles: leftoverCandidates,
+    groupOptions,
+    reportDate,
+  };
+}
