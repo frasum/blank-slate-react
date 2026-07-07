@@ -19,6 +19,7 @@ type BrowserSpeechRecognition = {
   continuous: boolean;
   onresult: ((ev: SpeechResultEvent) => void) | null;
   onerror: ((ev: { error: string }) => void) | null;
+  onstart: (() => void) | null;
   onend: (() => void) | null;
   start: () => void;
   stop: () => void;
@@ -43,30 +44,63 @@ function getCtor(): Ctor | null {
 
 export type SpeechPermission = "unknown" | "granted" | "denied";
 
+/**
+ * Übersetzt die `SpeechRecognitionErrorEvent.error`-Codes in nutzerfreundliche
+ * Hinweise. Reine Funktion, damit sie in Tests abgedeckt werden kann.
+ */
+export function mapSpeechErrorMessage(code: string): string {
+  switch (code) {
+    case "not-allowed":
+    case "audio-capture":
+      return "Mikrofon-Zugriff verweigert — in Safari: Einstellungen → Websites → Mikrofon erlauben.";
+    case "service-not-allowed":
+    case "no-start":
+      return "Spracherkennung des Browsers nicht verfügbar — auf dem Mac „Siri & Diktat" aktivieren oder die Diktat-Taste der Tastatur nutzen.";
+    default:
+      return `Spracherkennung fehlgeschlagen (${code}).`;
+  }
+}
+
+const START_TIMEOUT_MS = 2000;
+
 export type UseSpeechInputOptions = {
   lang?: string;
   /** Wird beim Beenden mit nicht-leerem Text aufgerufen. */
   onFinished?: (text: string) => void;
+  /** Wird bei Fehlern (Berechtigung, Dienst, Nicht-Start) mit einer deutschen Meldung aufgerufen. */
+  onError?: (message: string) => void;
 };
 
 export function useSpeechInput(opts: UseSpeechInputOptions = {}) {
-  const { lang = "de-DE", onFinished } = opts;
+  const { lang = "de-DE", onFinished, onError } = opts;
   const [state, dispatch] = useReducer(speechReducer, initialSpeechState);
   const [permission, setPermission] = useState<SpeechPermission>("unknown");
   const recRef = useRef<BrowserSpeechRecognition | null>(null);
   const finishedCallbackRef = useRef(onFinished);
   finishedCallbackRef.current = onFinished;
+  const errorCallbackRef = useRef(onError);
+  errorCallbackRef.current = onError;
+  const startTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isSupported = useMemo(() => getCtor() !== null, []);
 
+  const clearStartTimer = useCallback(() => {
+    if (startTimerRef.current !== null) {
+      clearTimeout(startTimerRef.current);
+      startTimerRef.current = null;
+    }
+  }, []);
+
   const cleanup = useCallback(() => {
+    clearStartTimer();
     const r = recRef.current;
     if (!r) return;
     r.onresult = null;
     r.onerror = null;
+    r.onstart = null;
     r.onend = null;
     recRef.current = null;
-  }, []);
+  }, [clearStartTimer]);
 
   // Beim Statuswechsel auf "idle" (nach stop) senden — genau einmal pro
   // Aufnahme-Zyklus.
@@ -102,13 +136,19 @@ export function useSpeechInput(opts: UseSpeechInputOptions = {}) {
         dispatch({ type: "result", text: alt.transcript, isFinal: res.isFinal });
       }
     };
+    r.onstart = () => {
+      clearStartTimer();
+    };
     r.onerror = (ev) => {
+      clearStartTimer();
       if (ev.error === "not-allowed" || ev.error === "service-not-allowed") {
         setPermission("denied");
       }
+      errorCallbackRef.current?.(mapSpeechErrorMessage(ev.error));
       dispatch({ type: "stop" });
     };
     r.onend = () => {
+      clearStartTimer();
       dispatch({ type: "stop" });
       cleanup();
     };
@@ -117,11 +157,26 @@ export function useSpeechInput(opts: UseSpeechInputOptions = {}) {
       r.start();
       setPermission((p) => (p === "denied" ? p : "granted"));
       dispatch({ type: "start" });
+      startTimerRef.current = setTimeout(() => {
+        startTimerRef.current = null;
+        // Kein onstart innerhalb von 2 s → gleicher Hinweis wie bei
+        // service-not-allowed (typisch, wenn macOS-Diktat deaktiviert ist).
+        errorCallbackRef.current?.(mapSpeechErrorMessage("no-start"));
+        try {
+          recRef.current?.abort();
+        } catch {
+          /* ignore */
+        }
+        dispatch({ type: "stop" });
+        cleanup();
+      }, START_TIMEOUT_MS);
     } catch {
+      clearStartTimer();
+      errorCallbackRef.current?.(mapSpeechErrorMessage("no-start"));
       dispatch({ type: "stop" });
       cleanup();
     }
-  }, [cleanup, isSupported, lang, state.status]);
+  }, [cleanup, clearStartTimer, isSupported, lang, state.status]);
 
   const stop = useCallback(() => {
     const r = recRef.current;
