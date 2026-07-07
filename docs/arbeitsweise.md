@@ -2,6 +2,8 @@
 
 Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen Baublock konsultiert. Bewusst kurz gehalten — Architektur-Begründungen stehen im gruendungsdokument.md, nicht hier.
 
+SaaS-Vorbereitung: Readiness-Audit und Modul-Katalog stehen in docs/saas-vorbereitung.md (Leitplanke: keine SaaS-Umbauten vor dem Kassen-Go-live).
+
 Stand: 06.07.2026 (SL2)
 
 TH1 — Standort-Farbthema: LocationThemeProvider im \_authenticated-Layout hält den themeKey (spicery/yum/neutral).
@@ -1513,7 +1515,7 @@ Live-Inventur der COCO-DB (5 Diagnose-SQLs, CSV-verifiziert): Policies, Tabellen
 ### Bewusste RLS-Ausnahmen (bei künftigen Audits NICHT erneut aufwerfen)
 
 - **`permission_role_defaults` mit `USING (true)` für `authenticated`** — das einzige Flag der Inventur: globaler Berechtigungs-Katalog (nur `role`/`permission`/effect, keine `organization_id`, keine Personen-/Org-Daten) → Lesen für alle Angemeldeten ist korrekt. Dies ist die dokumentierte Ausnahme zum §7-Gesetz.
-- **Sechzehn gewollte deny-all-Tabellen** (0 Client-Policies, Zugriff nur serverseitig/service_role): `access_tokens`, `article_locations`, `audit_log`, `document_templates`, `generated_documents`, `pin_attempts`, `roster_releases`, `sales_articles`, `shift_swap_declines`, `shift_swap_requests`, `sofortmeldung`, `staff_data_change_requests`, `staff_documents`, `staff_pins`, `supplier_locations`, `task_photos`.
+- **Achtzehn gewollte deny-all-Tabellen** (0 Client-Policies, Zugriff nur serverseitig/service_role): `access_tokens`, `article_locations`, `audit_log`, `document_templates`, `generated_documents`, `pin_attempts`, `recipe_items`, `recipes`, `roster_releases`, `sales_articles`, `shift_swap_declines`, `shift_swap_requests`, `sofortmeldung`, `staff_data_change_requests`, `staff_documents`, `staff_pins`, `supplier_locations`, `task_photos`.
 - **`generate_order_number` LEBT** — Spalten-DEFAULT von `orders.order_number` (Bestellnummern ORD-JJJJ-MM-nnnn). Nie droppen.
 
 **ADV1 (06.07.2026) — Supabase-Advisor-Bewertung:** Alle 29 Advisor-Meldungen (13 WARN, 16 INFO) gegen die Architektur geprüft. Ergebnis: 25 von 29 sind Absicht — die 16 „RLS enabled, no policy"-INFOs sind das deny-all-Hausmuster (Policies anlegen würde die Tabellen ÖFFNEN — Advisor-Vorschlägen hier NIE folgen); 9 WARNs zu authenticated-aufrufbaren SECURITY-DEFINER-Helfern (`has_permission`, `is_admin`, `current_*` …) sind bewusste Grants der Härtung vom 01.07. — 154 RLS-Policy-Stellen und die PL1/PL2-Scope-Auflösung hängen daran, Revoke würde RLS und Jahresplaner brechen. Behoben: Trigger-Funktion `tg_inventory_items_assert_open` für `public`/`anon`/`authenticated` revoked (Migration + Live-DB verifiziert: nur `postgres`/`service_role`). Frank-seitig: HIBP-Passwortschutz im Auth-Dashboard aktiviert (offene Aufgabe aus der 01.07.-Migration). Bekannt/kosmetisch: `pg_net` im `public`-Schema bleibt. Regel für künftige Advisor-Läufe: Meldungen erst gegen deny-all-Inventur und Grant-Absichten prüfen, nie blind remediieren.
