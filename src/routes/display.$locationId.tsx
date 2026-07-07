@@ -17,6 +17,7 @@ import {
   type Reminder,
 } from "@/lib/display/reminders";
 import { businessDateOf } from "@/lib/business-date";
+import { DISPLAY_PERIOD_SWITCH_HOUR } from "@/lib/time/period-label";
 
 type DisplayCell = {
   k: "shift" | "urlaub" | "krank" | "wish" | "available" | "empty";
@@ -36,15 +37,22 @@ type DisplayBlock = {
   rows: DisplayRow[];
   dayCounts: number[];
 };
+type DisplayPeriodBlocks = {
+  period: "mittag" | "abend";
+  blocks: DisplayBlock[];
+};
 
 type DisplayPayload = {
   location: { id: string; name: string };
   generatedAt: string;
   refreshIntervalSeconds: number;
+  rotationIntervalSeconds: number;
+  dayServiceEnabled: boolean;
   windowStart: string;
   windowEnd: string;
   days: string[];
   blocks: DisplayBlock[];
+  periodBlocks: DisplayPeriodBlocks[] | null;
   showAreas: string[] | null;
   showHeader: boolean;
   showFooter: boolean;
