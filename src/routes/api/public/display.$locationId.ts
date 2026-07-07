@@ -188,6 +188,16 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
         const nxtEnd = nextPeriodEnd(curEnd);
         const curLabel = periodLabel(curEnd);
         const nxtLabel = periodLabel(nxtEnd);
+        // Start der laufenden Abrechnungsperiode = 26. des Vormonats von curEnd.
+        const curEndY = Number(curEnd.slice(0, 4));
+        const curEndM = Number(curEnd.slice(5, 7));
+        const curStartY = curEndM === 1 ? curEndY - 1 : curEndY;
+        const curStartM = curEndM === 1 ? 12 : curEndM - 1;
+        const pad2 = (n: number) => (n < 10 ? `0${n}` : String(n));
+        const curStart = `${curStartY}-${pad2(curStartM)}-26`;
+        // Erweiterter Range für Zähler: gesamte laufende + Folgeperiode.
+        const countStart = curStart < windowStart ? curStart : windowStart;
+        const countEnd = nxtEnd > windowEnd ? nxtEnd : windowEnd;
 
         // Reminders des heutigen Geschäftstags — Client entscheidet über
         // Fälligkeit anhand fromTime (isReminderActive in reminders.ts).
@@ -327,14 +337,16 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
         const rowStaffIds = Array.from(new Set(rowEntries.map((r) => r.staffId)));
         const idSafe = rowStaffIds.length ? rowStaffIds : ["00000000-0000-0000-0000-000000000000"];
 
-        // Schichten im Fenster.
+        // Schichten im erweiterten Bereich (Fenster + volle Abrechnungsperioden).
+        // Zellen nutzen weiter das Fenster; die Perioden-Zähler zählen
+        // alle Schichten der laufenden bzw. Folgeperiode.
         const { data: shiftRows, error: shiftErr } = await supabaseAdmin
           .from("roster_shifts")
           .select("staff_id, shift_date, area, skill_id, service_period")
           .eq("organization_id", s.organization_id)
           .eq("location_id", locationId)
-          .gte("shift_date", windowStart)
-          .lte("shift_date", windowEnd);
+          .gte("shift_date", countStart)
+          .lte("shift_date", countEnd);
         if (shiftErr) return jsonError(500, "Daten konnten nicht geladen werden.");
 
         // Map staffId|date|blockArea(|period) → skill_id (gesetzten Eintrag bevorzugen).
@@ -343,6 +355,10 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
         // den Key aufgenommen und pro Fenster ein eigener Block gebaut.
         const shiftMap = new Map<string, string | null>();
         const skillIdSet = new Set<string>();
+        // Perioden-Zähler: staffId|area → {cur, next}. Deduplizierung über
+        // staffId|date|area|period, damit gleiche Slots nicht doppelt zählen.
+        const periodCounts = new Map<string, { cur: number; next: number }>();
+        const periodSeen = new Set<string>();
         for (const sh of shiftRows ?? []) {
           const staffId = sh.staff_id as string;
           const date = sh.shift_date as string;
@@ -353,16 +369,31 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
           const period = (
             PERIOD_ORDER.includes(rawPeriod as (typeof PERIOD_ORDER)[number]) ? rawPeriod : "abend"
           ) as "frueh" | "mittag" | "abend";
-          const keys = multiPeriod
-            ? [`${staffId}|${date}|${blockArea}|${period}`]
-            : [`${staffId}|${date}|${blockArea}`];
-          for (const key of keys) {
-            const existing = shiftMap.get(key);
-            if (existing === undefined || (existing === null && skillId !== null)) {
-              shiftMap.set(key, skillId);
+          // shiftMap nur für Zellen im Fenster füllen.
+          if (date >= windowStart && date <= windowEnd) {
+            const keys = multiPeriod
+              ? [`${staffId}|${date}|${blockArea}|${period}`]
+              : [`${staffId}|${date}|${blockArea}`];
+            for (const key of keys) {
+              const existing = shiftMap.get(key);
+              if (existing === undefined || (existing === null && skillId !== null)) {
+                shiftMap.set(key, skillId);
+              }
+            }
+            if (skillId) skillIdSet.add(skillId);
+          }
+          // Perioden-Zähler über den gesamten Range.
+          if (date >= curStart && date <= nxtEnd) {
+            const dedupKey = `${staffId}|${date}|${blockArea}|${period}`;
+            if (!periodSeen.has(dedupKey)) {
+              periodSeen.add(dedupKey);
+              const cntKey = `${staffId}|${blockArea}`;
+              const bucket = periodCounts.get(cntKey) ?? { cur: 0, next: 0 };
+              if (date <= curEnd) bucket.cur += 1;
+              else bucket.next += 1;
+              periodCounts.set(cntKey, bucket);
             }
           }
-          if (skillId) skillIdSet.add(skillId);
         }
 
         // Skills.
@@ -457,13 +488,10 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
                 }
                 return { k, skill, color };
               });
-              let shiftCountCurrent = 0;
-              let shiftCountNext = 0;
-              for (let i = 0; i < cells.length; i++) {
-                if (cells[i].k !== "shift") continue;
-                if (days[i] <= curEnd) shiftCountCurrent += 1;
-                else shiftCountNext += 1;
-              }
+              // Perioden-Zähler aus vollem Range (nicht nur sichtbares Fenster).
+              const pc = periodCounts.get(`${entry.staffId}|${area}`) ?? { cur: 0, next: 0 };
+              const shiftCountCurrent = pc.cur;
+              const shiftCountNext = pc.next;
               return {
                 staffId: entry.staffId,
                 staffName: entry.staffName,
