@@ -7,8 +7,19 @@ Stack: TanStack Start (React 19, Vite 7), Bun, Supabase, TypeScript strict.
 
 ## Status
 
-Phase **B0 von B0–B7** — Fundament: TS-Strict, Lint, Test-Setup, CI,
-erste Mandanten-Tabellen, Geschäftstag-Funktion, RLS-Inventur-Skript.
+Die Module M0–M5 sind gebaut und im Betrieb (Dienstplan produktiv als
+alleinige Planungswahrheit, Bestellwesen live, Zeiterfassung und
+Lohn-Rechenkern verifiziert); der Kassen-Tagesabschluss läuft im
+Parallelbetrieb vor dem Cutover. Dazu: Rezeptur-Modul,
+Betriebskalender/Schichtbetrieb/Trinkgeld-Modell (je Standort
+konfigurierbar), Fehler-Monitoring.
+
+Maßgeblich und stets aktuell:
+[`docs/arbeitsweise.md`](docs/arbeitsweise.md) (Modul-Status,
+Arbeitsweise, Stammdaten) ·
+[`docs/produktionsreife-review.md`](docs/produktionsreife-review.md)
+(Patch-Plan P0–P7, kritischer Pfad zum Go-live) ·
+[`docs/saas-vorbereitung.md`](docs/saas-vorbereitung.md).
 
 ## Bauplan & Designentscheidungen
 
