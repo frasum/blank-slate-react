@@ -14,6 +14,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "e2e": "playwright test",
     "prepare": "husky"
   },
   "lint-staged": {
