@@ -339,6 +339,10 @@ function KassePage() {
   // Zusammenfassung (Gäste, Umsatz, Pool, Stunden je Mitarbeiter). Nur bei
   // Status `open` — Druck-Nachläufe (finalized/locked) laufen ohne Dialog.
   const [finalizeConfirmOpen, setFinalizeConfirmOpen] = useState(false);
+  // P2h: Pool-Warnung (TG1) inline im Dialog statt via `window.confirm`.
+  // Bleibt gesetzt, solange der Warn-Zustand aktiv ist; ein zweiter Klick
+  // auf „Trotzdem finalisieren" sendet `confirmPoolWarning: true`.
+  const [finalizeWarnMsg, setFinalizeWarnMsg] = useState<string | null>(null);
 
   // -------------------- Wasserlinie (Admin) --------------------
   const [cashLockDate, setCashLockDate] = useState<string>("");
@@ -413,9 +417,10 @@ function KassePage() {
   }
 
   // Führt den eigentlichen Finalize-/Druck-/Lock-Flow aus. Wird aus dem
-  // Bestätigungs-Dialog aufgerufen. Verhalten der Pool-Warnung (TG1)
-  // unverändert: bei „0 anrechenbare Stunden" fragt zusätzlich window.confirm.
-  async function runFinalizeAndPrint() {
+  // Bestätigungs-Dialog aufgerufen. Pool-Warnung (TG1) inline: der Dialog
+  // wechselt in den Warn-Zustand, ein zweiter Klick sendet
+  // `confirmPoolWarning: true`. Server-API + Audit-Semantik unverändert.
+  async function runFinalizeAndPrint(confirmPool: boolean) {
     const data = buildSummaryDataOrNull();
     if (!data) return;
     if (!sessionId) {
@@ -425,20 +430,22 @@ function KassePage() {
     setPrintBusy(true);
     try {
       try {
-        await callFinalize({ data: { sessionId } });
+        await callFinalize({
+          data: { sessionId, ...(confirmPool ? { confirmPoolWarning: true } : {}) },
+        });
       } catch (err) {
-        // TG1 — Pool > 0 € bei 0 anrechenbaren Stunden. Explizit bestätigen.
         const msg = err instanceof Error ? err.message : String(err);
-        if (/0 anrechenbare Stunden/.test(msg)) {
-          if (!window.confirm(`${msg}\n\nStunden fehlen vermutlich. Trotzdem abschließen?`)) {
-            setPrintBusy(false);
-            return;
-          }
-          await callFinalize({ data: { sessionId, confirmPoolWarning: true } });
-        } else {
-          throw err;
+        // TG1 — Pool > 0 € bei 0 anrechenbaren Stunden: Dialog in Warn-Zustand
+        // wechseln, statt einen zweiten (nativen) confirm zu öffnen.
+        if (/0 anrechenbare Stunden/.test(msg) && !confirmPool) {
+          setFinalizeWarnMsg(msg);
+          setPrintBusy(false);
+          return;
         }
+        throw err;
       }
+      setFinalizeConfirmOpen(false);
+      setFinalizeWarnMsg(null);
       toast.success("Tag finalisiert.");
       printDailySummary(data);
       if (isAdmin) {
