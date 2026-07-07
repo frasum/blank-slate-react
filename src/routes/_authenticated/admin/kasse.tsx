@@ -1084,9 +1084,7 @@ function FinalizeConfirmDialog({
     cash_handed_in_cents: number | string | null;
   }>;
   vectronTotalCents: number;
-  pool:
-    | (import("@/lib/cash/cash.functions").GetTipPoolOverviewResult extends infer T ? T : never)
-    | null;
+  pool: Awaited<ReturnType<typeof getTipPoolOverview>> | null;
   onConfirm: () => void | Promise<void>;
 }) {
   const sumPos = settlements.reduce((s, r) => s + Number(r.pos_sales_cents ?? 0), 0);
