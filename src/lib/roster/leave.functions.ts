@@ -262,6 +262,7 @@ export const listLeaveRequests = createServerFn({ method: "GET" })
   .handler(async ({ data, context }): Promise<LeaveRequestRow[]> => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const skipHolidays = !(await loadCountHolidays(supabaseAdmin, caller.organizationId));
     const status = data.status ?? "offen";
     let q = supabaseAdmin
       .from("leave_requests")
@@ -302,7 +303,11 @@ export const listLeaveRequests = createServerFn({ method: "GET" })
         decisionNote: (r.decision_note as string | null) ?? null,
         decidedAt: (r.decided_at as string | null) ?? null,
         createdAt: r.created_at as string,
-        days: countLeaveDays(r.start_date as string, r.end_date as string),
+        days: countLeaveDays(
+          r.start_date as string,
+          r.end_date as string,
+          holidaySetIfSkip(skipHolidays, r.start_date as string, r.end_date as string),
+        ),
       }));
   });
 
@@ -393,7 +398,12 @@ export const decideLeaveRequest = createServerFn({ method: "POST" })
         });
         if (rpcErr) throw rpcErr;
 
-        const tage = countLeaveDays(snap.start_date as string, snap.end_date as string);
+        const skipHolidays = !(await loadCountHolidays(supabaseAdmin, caller.organizationId));
+        const tage = countLeaveDays(
+          snap.start_date as string,
+          snap.end_date as string,
+          holidaySetIfSkip(skipHolidays, snap.start_date as string, snap.end_date as string),
+        );
         return {
           result: { ok: true as const },
           audit: {
