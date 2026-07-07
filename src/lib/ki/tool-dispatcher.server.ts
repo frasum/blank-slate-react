@@ -29,6 +29,13 @@ import {
 import { computePresets } from "./period-resolver";
 import type { ToolName } from "./tools";
 import { pseudonymizeDeep, type PseudonymMap } from "./pseudonym";
+import {
+  BENCHMARK_QUELLE,
+  BENCHMARK_STAND,
+  listBenchmarks,
+  lookupBenchmark,
+  type BenchmarkKennzahl,
+} from "./branchenbenchmark";
 
 type Admin = SupabaseClient<Database>;
 
@@ -47,6 +54,32 @@ export class ToolError extends Error {
     super(message);
     this.name = "ToolError";
   }
+}
+
+// ─────────────────────────────────────────────────── branchenbenchmark_lookup
+
+function branchenbenchmarkLookup(input: Record<string, unknown>) {
+  const raw = input.kennzahl;
+  const meta = {
+    quelle: BENCHMARK_QUELLE,
+    stand: BENCHMARK_STAND,
+    segment: "Vollgastronomie Deutschland",
+    hinweis:
+      "Richtwerte, keine Punktschätzung. Für belastbare Vergleiche Definition (netto/brutto, inkl./ohne AG-Anteil) prüfen.",
+  };
+  if (raw === undefined || raw === null || raw === "") {
+    return { ...meta, kennzahlen: listBenchmarks() };
+  }
+  if (typeof raw !== "string") {
+    throw new ToolError("Parameter 'kennzahl' muss ein String sein.");
+  }
+  const entry = lookupBenchmark(raw as BenchmarkKennzahl);
+  if (!entry) {
+    throw new ToolError(
+      `Unbekannte Kennzahl '${raw}'. Verfügbar: umsatz_pro_arbeitsstunde, personalkostenquote, wareneinsatzquote, bon_pro_gast.`,
+    );
+  }
+  return { ...meta, kennzahl: entry };
 }
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -109,6 +142,8 @@ export async function runTool(
       return await tauschAnfragen(ctx, input);
     case "urlaub_antraege":
       return await urlaubAntraege(ctx, input);
+    case "branchenbenchmark_lookup":
+      return branchenbenchmarkLookup(input);
   }
 }
 
