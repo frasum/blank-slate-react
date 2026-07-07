@@ -56,6 +56,32 @@ export class ToolError extends Error {
   }
 }
 
+// ─────────────────────────────────────────────────── branchenbenchmark_lookup
+
+function branchenbenchmarkLookup(input: Record<string, unknown>) {
+  const raw = input.kennzahl;
+  const meta = {
+    quelle: BENCHMARK_QUELLE,
+    stand: BENCHMARK_STAND,
+    segment: "Vollgastronomie Deutschland",
+    hinweis:
+      "Richtwerte, keine Punktschätzung. Für belastbare Vergleiche Definition (netto/brutto, inkl./ohne AG-Anteil) prüfen.",
+  };
+  if (raw === undefined || raw === null || raw === "") {
+    return { ...meta, kennzahlen: listBenchmarks() };
+  }
+  if (typeof raw !== "string") {
+    throw new ToolError("Parameter 'kennzahl' muss ein String sein.");
+  }
+  const entry = lookupBenchmark(raw as BenchmarkKennzahl);
+  if (!entry) {
+    throw new ToolError(
+      `Unbekannte Kennzahl '${raw}'. Verfügbar: umsatz_pro_arbeitsstunde, personalkostenquote, wareneinsatzquote, bon_pro_gast.`,
+    );
+  }
+  return { ...meta, kennzahl: entry };
+}
+
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
