@@ -79,7 +79,7 @@ function RennerPennerPage() {
     enabled: !!locationId,
   });
 
-  const entries = dataQ.data?.entries ?? [];
+  const entries = useMemo(() => dataQ.data?.entries ?? [], [dataQ.data]);
   const groupOptions = dataQ.data?.groupOptions ?? [];
   const ladenhueter = dataQ.data?.ladenhueter ?? [];
   const reportDate = dataQ.data?.reportDate ?? null;
