@@ -10,6 +10,8 @@
 
 import { defineConfig, devices } from "@playwright/test";
 
+// Für lokale Läufe müssen VITE_SUPABASE_URL/VITE_SUPABASE_PUBLISHABLE_KEY auf den lokalen Stack zeigen, bevor der Dev-Server startet —
+// sonst meldet sich der Browser am Live-Projekt an und findet die Seed-Nutzer nicht.
 // Der Lovable-Vite-Wrapper (@lovable.dev/vite-tanstack-config) besitzt den
 // Dev-Port (8080) inkl. strictPort — CLI-Flags werden überstimmt. Wir richten
 // uns nach ihm statt gegen ihn.
