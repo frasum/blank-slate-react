@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildPseudonymMap,
-  depseudonymize,
-  pseudonymize,
-  pseudonymizeDeep,
-} from "./pseudonym";
+import { buildPseudonymMap, depseudonymize, pseudonymize, pseudonymizeDeep } from "./pseudonym";
 
 describe("buildPseudonymMap + pseudonymize", () => {
   it("ersetzt Anzeige-, Vor- und Nachname deterministisch", () => {
@@ -53,7 +48,9 @@ describe("buildPseudonymMap + pseudonymize", () => {
       lastName: null,
     }));
     const map = buildPseudonymMap(staff);
-    expect(depseudonymize("Top: MA-10 und MA-12", map)).toBe("Top: Mitarbeiter10 und Mitarbeiter12");
+    expect(depseudonymize("Top: MA-10 und MA-12", map)).toBe(
+      "Top: Mitarbeiter10 und Mitarbeiter12",
+    );
   });
 
   it("pseudonymizeDeep läuft rekursiv durch Objekte & Arrays", () => {

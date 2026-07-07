@@ -46,7 +46,9 @@ function mondayOf(d: Date): Date {
 
 /** Liefert alle Standard-Presets relativ zu `today` (UTC). */
 export function computePresets(today: Date = new Date()): Preset[] {
-  const today0 = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+  const today0 = new Date(
+    Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()),
+  );
   const yesterday = addDays(today0, -1);
   const weekStart = mondayOf(today0);
   const lastWeekStart = addDays(weekStart, -7);

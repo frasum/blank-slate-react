@@ -153,8 +153,8 @@ function FragCocoPage() {
         <div>
           <h2 className="text-lg font-semibold text-foreground">Frag COCO</h2>
           <p className="text-sm text-muted-foreground">
-            Stell natürliche Fragen zu deinen Betriebsdaten — COCO rechnet nicht selbst,
-            sondern zieht Antworten aus deinen Auswertungen.
+            Stell natürliche Fragen zu deinen Betriebsdaten — COCO rechnet nicht selbst, sondern
+            zieht Antworten aus deinen Auswertungen.
           </p>
         </div>
       </header>
@@ -164,13 +164,12 @@ function FragCocoPage() {
           <AlertTitle>Kurzer Hinweis vorab</AlertTitle>
           <AlertDescription className="space-y-2">
             <p>
-              Antworten basieren ausschließlich auf COCO-Auswertungen (Renner &amp; Penner,
-              Umsatz, Arbeitszeiten, Abwesenheiten). Bei Unsicherheit prüfe die genannte
-              Auswertung direkt.
+              Antworten basieren ausschließlich auf COCO-Auswertungen (Renner &amp; Penner, Umsatz,
+              Arbeitszeiten, Abwesenheiten). Bei Unsicherheit prüfe die genannte Auswertung direkt.
             </p>
             <p className="text-xs text-muted-foreground">
-              Personendaten werden vor jedem KI-Aufruf pseudonymisiert (MA-1, MA-2 …) und in
-              der Antwort wieder in Klarnamen zurückgetauscht.
+              Personendaten werden vor jedem KI-Aufruf pseudonymisiert (MA-1, MA-2 …) und in der
+              Antwort wieder in Klarnamen zurückgetauscht.
             </p>
             <Button size="sm" variant="outline" onClick={dismissIntro}>
               Verstanden
@@ -256,8 +255,8 @@ function TurnBubble({ turn }: { turn: Turn }) {
         {turn.meta && turn.meta.tools.length > 0 && (
           <p className="mt-2 border-t border-border/40 pt-1 text-[10px] text-muted-foreground">
             Werkzeuge: {turn.meta.tools.join(", ")} · {turn.meta.rounds} Runde
-            {turn.meta.rounds === 1 ? "" : "n"} ·{" "}
-            {turn.meta.inputTokens + turn.meta.outputTokens} Token
+            {turn.meta.rounds === 1 ? "" : "n"} · {turn.meta.inputTokens + turn.meta.outputTokens}{" "}
+            Token
           </p>
         )}
       </div>

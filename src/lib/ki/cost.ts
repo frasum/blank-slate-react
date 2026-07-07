@@ -32,11 +32,7 @@ const FALLBACK: ModelPricing = PRICING["claude-haiku-4-5"];
  * Kosten einer Anfrage in Mikrocent (Cent × 1_000_000). BIGINT-freundlich.
  * Formel: (input×in$/1e6 + output×out$/1e6) × EUR-Kurs × 100 (Cent) × 1e6 (Mikro).
  */
-export function costMicroCents(
-  model: string,
-  inputTokens: number,
-  outputTokens: number,
-): number {
+export function costMicroCents(model: string, inputTokens: number, outputTokens: number): number {
   const p = PRICING[model] ?? FALLBACK;
   const usd =
     (inputTokens * p.inputUsdPerMillion + outputTokens * p.outputUsdPerMillion) / 1_000_000;

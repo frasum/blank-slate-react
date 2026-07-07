@@ -21,7 +21,12 @@ import {
   pseudonymizeDeep,
   type StaffPseudonymInput,
 } from "./pseudonym";
-import { callModel, ModelUnavailableError, type ContentBlock, type Message } from "./anthropic-client";
+import {
+  callModel,
+  ModelUnavailableError,
+  type ContentBlock,
+  type Message,
+} from "./anthropic-client";
 import { TOOL_NAMES, TOOLS, type ToolName } from "./tools";
 import { runTool, ToolError, type ToolContext } from "./tool-dispatcher.server";
 import { costMicroCents } from "./cost";
@@ -289,14 +294,20 @@ export const getKiUsageMonth = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
     z
-      .object({ yearMonth: z.string().regex(/^\d{4}-\d{2}$/).optional() })
+      .object({
+        yearMonth: z
+          .string()
+          .regex(/^\d{4}-\d{2}$/)
+          .optional(),
+      })
       .parse(input ?? {}),
   )
   .handler(async ({ data, context }): Promise<KiUsageMonth> => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const now = new Date();
-    const ym = data.yearMonth ?? `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+    const ym =
+      data.yearMonth ?? `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
     const [y, m] = ym.split("-").map(Number);
     const start = new Date(Date.UTC(y, m - 1, 1)).toISOString();
     const end = new Date(Date.UTC(y, m, 1)).toISOString();

@@ -85,10 +85,7 @@ export function buildPseudonymMap(staff: readonly StaffPseudonymInput[]): Pseudo
   const pattern =
     alternatives.length === 0
       ? null
-      : new RegExp(
-          `(?<!${LETTER_CLASS})(${alternatives.join("|")})(?!${LETTER_CLASS})`,
-          "giu",
-        );
+      : new RegExp(`(?<!${LETTER_CLASS})(${alternatives.join("|")})(?!${LETTER_CLASS})`, "giu");
 
   return { forward, reverse, pattern };
 }

@@ -21,7 +21,11 @@ import {
 } from "@/lib/pos/renner-penner-core";
 import { aggregatePersonnel, type CompRow, type WorkEntry } from "@/lib/statistics/personnel-core";
 import { aggregateByBusinessDate, summarize } from "@/lib/statistics/revenue-core";
-import { mapToSessionInputs, type ChannelAmountRow, type SessionRow } from "@/lib/statistics/revenue-map";
+import {
+  mapToSessionInputs,
+  type ChannelAmountRow,
+  type SessionRow,
+} from "@/lib/statistics/revenue-map";
 import { computePresets } from "./period-resolver";
 import type { ToolName } from "./tools";
 import { pseudonymizeDeep, type PseudonymMap } from "./pseudonym";
@@ -153,12 +157,15 @@ async function getraenkeRanking(ctx: ToolContext, input: Record<string, unknown>
     .select("id, name")
     .eq("organization_id", ctx.organizationId);
   if (locErr) throw new Error(locErr.message);
-  const scope = locationId
-    ? (locs ?? []).filter((l) => l.id === locationId)
-    : (locs ?? []);
+  const scope = locationId ? (locs ?? []).filter((l) => l.id === locationId) : (locs ?? []);
   if (scope.length === 0) throw new ToolError("Keine Standorte im Scope.");
 
-  const perLoc: { locationId: string; locationName: string; entries: RennerEntry[]; reportDate: string | null }[] = [];
+  const perLoc: {
+    locationId: string;
+    locationName: string;
+    entries: RennerEntry[];
+    reportDate: string | null;
+  }[] = [];
   for (const loc of scope) {
     const single = await loadRankingForLocation(ctx, loc, period, gruppen);
     perLoc.push(single);
@@ -360,7 +367,9 @@ async function arbeitsstunden(ctx: ToolContext, input: Record<string, unknown>) 
 
   let q = ctx.admin
     .from("time_entries")
-    .select("staff_id, started_at, ended_at, break_minutes, business_date, location_id, staff(display_name)")
+    .select(
+      "staff_id, started_at, ended_at, break_minutes, business_date, location_id, staff(display_name)",
+    )
     .eq("organization_id", ctx.organizationId)
     .gte("business_date", from)
     .lte("business_date", to)
@@ -402,8 +411,7 @@ async function arbeitsstunden(ctx: ToolContext, input: Record<string, unknown>) 
     const cur = perStaff.get(r.staff_id as string) ?? {
       netMinutes: 0,
       department: d,
-      displayName:
-        (r.staff as { display_name: string } | null)?.display_name ?? String(r.staff_id),
+      displayName: (r.staff as { display_name: string } | null)?.display_name ?? String(r.staff_id),
     };
     cur.netMinutes += net;
     perStaff.set(r.staff_id as string, cur);

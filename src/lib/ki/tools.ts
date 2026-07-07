@@ -48,8 +48,7 @@ export const TOOLS: ToolDef[] = [
         gruppen: {
           type: "array",
           items: { type: "string" },
-          description:
-            "Filter auf Warengruppen (case-insensitiv). Leer = alle Getränkegruppen.",
+          description: "Filter auf Warengruppen (case-insensitiv). Leer = alle Getränkegruppen.",
         },
         location_id: {
           type: "string",
