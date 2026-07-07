@@ -22,6 +22,7 @@ import {
   seedKasseFinalize,
   markLocationClosed,
   findPoolWarningAuditRow,
+  probeOrgState,
   type E2ESeed,
 } from "./seed";
 
@@ -93,6 +94,9 @@ test.describe("Kassen-Finalize (P2)", () => {
       window.print = () => {};
     });
 
+    // P2-DIAG: nach Diagnose-Lauf entfernen
+    console.log("[diag-db-0]", JSON.stringify(await probeOrgState(seed.orgId)));
+
     await loginAsAdmin(page, seed);
     await openKasseForSeed(page);
 
@@ -105,9 +109,15 @@ test.describe("Kassen-Finalize (P2)", () => {
     // Session bleibt offen.
     await expect(page.getByTestId("session-status-badge")).toHaveAttribute("data-status", "open");
 
+    // P2-DIAG: nach Diagnose-Lauf entfernen
+    console.log("[diag-db-1]", JSON.stringify(await probeOrgState(seed.orgId)));
+
     // Zweiter Klick: Dialog bestätigen → finalisiert.
     page.once("dialog", (d) => void d.accept());
     await page.getByTestId("finalize-print-button").click();
+    // P2-DIAG: nach Diagnose-Lauf entfernen
+    await page.waitForTimeout(300);
+    console.log("[diag-db-2]", JSON.stringify(await probeOrgState(seed.orgId)));
     await expect(page.getByTestId("session-status-badge")).toHaveAttribute(
       "data-status",
       /finalized|locked/,
