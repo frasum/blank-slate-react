@@ -37,7 +37,7 @@ jobs:
             echo "::error::.env ist getrackt — bitte enttracken (git rm --cached .env)."
             exit 1
           fi
-          if git grep -lE "(SERVICE_ROLE|SECRET|PRIVATE)_?KEY[[:space:]]*=[[:space:]]*[\"'\''][^\"'\'']" -- ':!*.example' ':!*.md' ':!.github/workflows/ci.yml'; then
+          if git grep -lE "(SERVICE_ROLE|SECRET|PRIVATE)_?KEY[[:space:]]*=[[:space:]]*[\"'][^\"']" -- ':!*.example' ':!*.md' ':!.github/workflows/ci.yml'; then
             echo "::error::Secret-Muster in getrackter Datei gefunden."
             exit 1
           fi
