@@ -35,3 +35,9 @@ dist-ssr
 .env
 .env.*.local
 /*.csv
+
+# Ausnahme: .env.production enthält nur publishable VITE_*-Werte
+# (Supabase-URL + anon-Key, Google-Maps-Browser-Key) und wird bewusst
+# eingecheckt, damit der Client-Bundle im Publish-Build die Werte erhält.
+# Siehe docs/code-review-2026-07.md (ENV1-Ausnahme, 07/2026).
+!.env.production
