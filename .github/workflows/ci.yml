@@ -31,6 +31,16 @@ jobs:
             echo "Kanonisch ist NUR docs/arbeitsweise.md (klein)."
             exit 1
           fi
+      - name: Guard – keine .env im Git, keine Secrets in getrackten Dateien
+        run: |
+          if git ls-files --error-unmatch .env 2>/dev/null; then
+            echo "::error::.env ist getrackt — bitte enttracken (git rm --cached .env)."
+            exit 1
+          fi
+          if git grep -lE "(SERVICE_ROLE|SECRET|PRIVATE)_?KEY[[:space:]]*=" -- ':!*.example' ':!*.md' ':!.github/workflows/ci.yml'; then
+            echo "::error::Secret-Muster in getrackter Datei gefunden."
+            exit 1
+          fi
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
