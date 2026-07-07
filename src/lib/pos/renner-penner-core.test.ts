@@ -132,4 +132,15 @@ describe("matchesGroupFilter", () => {
   it("no match", () => {
     expect(matchesGroupFilter({ hauptgruppe: "Bier", warengruppe: null }, ["Wein"])).toBe(false);
   });
+  it("Substring-Match findet lokale Varianten (YUM: Weißwein Flasche, Rotwein offen)", () => {
+    expect(
+      matchesGroupFilter({ hauptgruppe: "Weißwein Flasche", warengruppe: null }, ["Wein"]),
+    ).toBe(true);
+    expect(matchesGroupFilter({ hauptgruppe: null, warengruppe: "Rotwein offen" }, ["wein"])).toBe(
+      true,
+    );
+    expect(
+      matchesGroupFilter({ hauptgruppe: "Schaumwein Flasche", warengruppe: null }, ["Wein"]),
+    ).toBe(true);
+  });
 });
