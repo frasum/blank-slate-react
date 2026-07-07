@@ -917,7 +917,12 @@ function EmptyCell({
                 <div className="space-y-0.5 text-xs">
                   {others.map((b, i) => (
                     <div key={i}>
-                      {b.servicePeriod === "mittag" ? "Mittag" : "Abend"}: {b.locationName} ·{" "}
+                      {b.servicePeriod === "frueh"
+                        ? "Früh"
+                        : b.servicePeriod === "mittag"
+                          ? "Mittag"
+                          : "Abend"}
+                      : {b.locationName} ·{" "}
                       {AREA_SHORT[b.area]}
                       {b.skillName ? ` · ${b.skillName}` : ""}
                     </div>
