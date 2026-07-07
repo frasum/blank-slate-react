@@ -20,6 +20,16 @@
 
 import { wareneinsatzQuote } from "@/lib/bestellung/ek-linking";
 
+/** RP2 — Standort-Anteil an einem gemergten Eintrag. */
+export type LocationSlice = {
+  locationId: string;
+  locationName: string;
+  einheiten: number;
+  umsatzCents: number;
+  wareneinsatzCents: number | null;
+  dbCents: number | null;
+};
+
 /** Vom Server je Stats-Zeile geliefert (bereits mit VA-Stammdaten angereichert). */
 export type RennerRawRow = {
   nummer: number;
@@ -80,6 +90,8 @@ export type RennerEntry = {
   /** Deckungsbeitrag = Umsatz − Wareneinsatz. null wenn WE unbekannt. */
   dbCents: number | null;
   components: RennerComponent[];
+  /** RP2 — Standort-Aufschlüsselung (immer ≥ 1 Element). */
+  perLocation: LocationSlice[];
 };
 
 export type RennerAggregateResult = {
