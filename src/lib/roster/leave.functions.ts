@@ -186,11 +186,7 @@ export const getMyLeaveRequests = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false });
     if (error) throw error;
     return (data ?? []).map((r) => {
-      const hset = holidaySetIfSkip(
-        skipHolidays,
-        r.start_date as string,
-        r.end_date as string,
-      );
+      const hset = holidaySetIfSkip(skipHolidays, r.start_date as string, r.end_date as string);
       return {
         id: r.id as string,
         staffId: r.staff_id as string,
@@ -301,11 +297,7 @@ export const listLeaveRequests = createServerFn({ method: "GET" })
     return (rows ?? [])
       .filter((r) => inScope.has(r.staff_id as string))
       .map((r) => {
-        const hset = holidaySetIfSkip(
-          skipHolidays,
-          r.start_date as string,
-          r.end_date as string,
-        );
+        const hset = holidaySetIfSkip(skipHolidays, r.start_date as string, r.end_date as string);
         return {
           id: r.id as string,
           staffId: r.staff_id as string,

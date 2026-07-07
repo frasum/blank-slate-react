@@ -4,10 +4,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import {
-  getOrgSettings,
-  setCountHolidaysAsLeave,
-} from "@/lib/admin/org-settings.functions";
+import { getOrgSettings, setCountHolidaysAsLeave } from "@/lib/admin/org-settings.functions";
 
 export function UrlaubsregelnSection({ canEdit }: { canEdit: boolean }) {
   const qc = useQueryClient();
@@ -34,10 +31,10 @@ export function UrlaubsregelnSection({ canEdit }: { canEdit: boolean }) {
       <div>
         <h2 className="text-base font-semibold text-foreground">Urlaubszählung</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Standard: Gesetzliche (bayerische) Feiertage werden NICHT als Urlaubstag gezählt.
-          Der Schalter kehrt die Regel um. Die Zählung wird immer live berechnet — bestehende
-          Anträge zeigen nach einer Umstellung ggf. andere Tageszahlen als bei Antragstellung.
-          Das ist gewollt (eine Regel, eine Zählung).
+          Standard: Gesetzliche (bayerische) Feiertage werden NICHT als Urlaubstag gezählt. Der
+          Schalter kehrt die Regel um. Die Zählung wird immer live berechnet — bestehende Anträge
+          zeigen nach einer Umstellung ggf. andere Tageszahlen als bei Antragstellung. Das ist
+          gewollt (eine Regel, eine Zählung).
         </p>
       </div>
       <label className="flex items-start gap-3">

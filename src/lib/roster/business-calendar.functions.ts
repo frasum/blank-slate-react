@@ -105,34 +105,34 @@ export const setRestDays = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
     return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        await assertLocationInOrg(supabaseAdmin, caller.organizationId, data.locationId);
-        const unique = Array.from(new Set(data.weekdays)).sort((a, b) => a - b);
-        const { error: delErr } = await supabaseAdmin
-          .from("location_rest_days")
-          .delete()
-          .eq("organization_id", caller.organizationId)
-          .eq("location_id", data.locationId);
-        if (delErr) throw delErr;
-        if (unique.length > 0) {
-          const { error: insErr } = await supabaseAdmin.from("location_rest_days").insert(
-            unique.map((w) => ({
-              organization_id: caller.organizationId,
-              location_id: data.locationId,
-              weekday: w,
-            })),
-          );
-          if (insErr) throw insErr;
-        }
-        return {
-          result: { ok: true as const, weekdays: unique },
-          audit: {
-            action: "location_rest_days.set",
-            entity: "location",
-            entityId: data.locationId,
-            meta: { weekdays: unique },
-          },
-        };
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      await assertLocationInOrg(supabaseAdmin, caller.organizationId, data.locationId);
+      const unique = Array.from(new Set(data.weekdays)).sort((a, b) => a - b);
+      const { error: delErr } = await supabaseAdmin
+        .from("location_rest_days")
+        .delete()
+        .eq("organization_id", caller.organizationId)
+        .eq("location_id", data.locationId);
+      if (delErr) throw delErr;
+      if (unique.length > 0) {
+        const { error: insErr } = await supabaseAdmin.from("location_rest_days").insert(
+          unique.map((w) => ({
+            organization_id: caller.organizationId,
+            location_id: data.locationId,
+            weekday: w,
+          })),
+        );
+        if (insErr) throw insErr;
+      }
+      return {
+        result: { ok: true as const, weekdays: unique },
+        audit: {
+          action: "location_rest_days.set",
+          entity: "location",
+          entityId: data.locationId,
+          meta: { weekdays: unique },
+        },
+      };
     });
   });
 
@@ -151,38 +151,38 @@ export const upsertCalendarException = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
     return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        await assertLocationInOrg(supabaseAdmin, caller.organizationId, data.locationId);
-        const reason = data.reason && data.reason.length > 0 ? data.reason : null;
-        const { data: row, error } = await supabaseAdmin
-          .from("location_calendar_exceptions")
-          .upsert(
-            {
-              organization_id: caller.organizationId,
-              location_id: data.locationId,
-              date: data.date,
-              kind: data.kind,
-              reason,
-            },
-            { onConflict: "location_id,date" },
-          )
-          .select("id")
-          .single();
-        if (error) throw error;
-        return {
-          result: { id: row.id as string },
-          audit: {
-            action: "location_calendar_exception.upsert",
-            entity: "location_calendar_exception",
-            entityId: row.id as string,
-            meta: {
-              locationId: data.locationId,
-              date: data.date,
-              kind: data.kind,
-              hasReason: !!reason,
-            },
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      await assertLocationInOrg(supabaseAdmin, caller.organizationId, data.locationId);
+      const reason = data.reason && data.reason.length > 0 ? data.reason : null;
+      const { data: row, error } = await supabaseAdmin
+        .from("location_calendar_exceptions")
+        .upsert(
+          {
+            organization_id: caller.organizationId,
+            location_id: data.locationId,
+            date: data.date,
+            kind: data.kind,
+            reason,
           },
-        };
+          { onConflict: "location_id,date" },
+        )
+        .select("id")
+        .single();
+      if (error) throw error;
+      return {
+        result: { id: row.id as string },
+        audit: {
+          action: "location_calendar_exception.upsert",
+          entity: "location_calendar_exception",
+          entityId: row.id as string,
+          meta: {
+            locationId: data.locationId,
+            date: data.date,
+            kind: data.kind,
+            hasReason: !!reason,
+          },
+        },
+      };
     });
   });
 
@@ -202,20 +202,20 @@ export const deleteCalendarException = createServerFn({ method: "POST" })
       throw new Error("Eintrag nicht gefunden.");
     }
     return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
-        const { error } = await supabaseAdmin
-          .from("location_calendar_exceptions")
-          .delete()
-          .eq("id", data.id)
-          .eq("organization_id", caller.organizationId);
-        if (error) throw error;
-        return {
-          result: { ok: true as const },
-          audit: {
-            action: "location_calendar_exception.delete",
-            entity: "location_calendar_exception",
-            entityId: data.id,
-            meta: { locationId: snap.location_id, date: snap.date, kind: snap.kind },
-          },
-        };
+      const { error } = await supabaseAdmin
+        .from("location_calendar_exceptions")
+        .delete()
+        .eq("id", data.id)
+        .eq("organization_id", caller.organizationId);
+      if (error) throw error;
+      return {
+        result: { ok: true as const },
+        audit: {
+          action: "location_calendar_exception.delete",
+          entity: "location_calendar_exception",
+          entityId: data.id,
+          meta: { locationId: snap.location_id, date: snap.date, kind: snap.kind },
+        },
+      };
     });
   });

@@ -193,9 +193,7 @@ export function LocationCalendarPanel({ locationId }: { locationId: string }) {
                 <span>
                   <span className="font-medium">{ex.date}</span> ·{" "}
                   {ex.kind === "closed" ? "Geschlossen" : "Geöffnet"}
-                  {ex.reason ? (
-                    <span className="text-muted-foreground"> — {ex.reason}</span>
-                  ) : null}
+                  {ex.reason ? <span className="text-muted-foreground"> — {ex.reason}</span> : null}
                 </span>
                 <button
                   type="button"

@@ -11,11 +11,7 @@ export function isValidLeaveRange(start: string, end: string): boolean {
   return end >= start;
 }
 
-export function countLeaveDays(
-  start: string,
-  end: string,
-  holidayDates?: Set<string>,
-): number {
+export function countLeaveDays(start: string, end: string, holidayDates?: Set<string>): number {
   if (!isValidLeaveRange(start, end)) return 0;
   const s = Date.UTC(
     Number(start.slice(0, 4)),

@@ -171,8 +171,8 @@ function AdminUrlaubPage() {
                       </span>
                       {r.holidaysSkipped > 0 ? (
                         <span className="ml-1 text-xs text-muted-foreground">
-                          · {r.holidaysSkipped}{" "}
-                          {r.holidaysSkipped === 1 ? "Feiertag" : "Feiertage"} nicht gezählt
+                          · {r.holidaysSkipped} {r.holidaysSkipped === 1 ? "Feiertag" : "Feiertage"}{" "}
+                          nicht gezählt
                         </span>
                       ) : null}
                     </div>
