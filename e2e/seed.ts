@@ -181,6 +181,8 @@ export async function seedKasseFinalize(
       location_id: locationId,
       business_date: businessDate,
       status: "open",
+      guest_count: 25, // Finalize-Voraussetzung (Button sperrt bei 0)
+      vectron_daily_total_cents: 100000, // = Summe Kellner-Umsätze → POS-Abgleich sauber
     })
     .select("id")
     .single();
