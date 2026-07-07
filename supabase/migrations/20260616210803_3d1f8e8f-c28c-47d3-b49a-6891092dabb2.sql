@@ -28,11 +28,31 @@ $function$;
 
 -- 2) Lock down SECURITY DEFINER functions that should not be publicly executable.
 
--- Event trigger function — must never be callable directly.
-REVOKE EXECUTE ON FUNCTION public.rls_auto_enable() FROM PUBLIC, anon, authenticated;
+-- Event trigger function (von der Lovable-Plattform direkt auf der Live-DB
+-- angelegt, nicht Teil der Migrationskette) — Guard für frische Replays:
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public' AND p.proname = 'rls_auto_enable'
+  ) THEN
+    REVOKE EXECUTE ON FUNCTION public.rls_auto_enable() FROM PUBLIC, anon, authenticated;
+  END IF;
+END $$;
 
--- Trigger function — only fired by table trigger, not callable directly.
-REVOKE EXECUTE ON FUNCTION public.tg_organizations_create_settings() FROM PUBLIC, anon, authenticated;
+-- Trigger function (ebenfalls plattform-seitig angelegt, nicht Teil der
+-- Migrationskette) — Guard für frische Replays:
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public' AND p.proname = 'tg_organizations_create_settings'
+  ) THEN
+    REVOKE EXECUTE ON FUNCTION public.tg_organizations_create_settings() FROM PUBLIC, anon, authenticated;
+  END IF;
+END $$;
 
 -- create_order_from_cart: anon must not be able to call it; only authenticated.
 REVOKE EXECUTE ON FUNCTION public.create_order_from_cart(uuid, uuid, text, uuid) FROM PUBLIC, anon;
