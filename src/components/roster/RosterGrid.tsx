@@ -123,6 +123,7 @@ export function RosterGrid({
   shifts,
   allSkills,
   crossBookings,
+  monthCrossBookings,
   lockMap,
   unavailableSet,
   absenceMap,
