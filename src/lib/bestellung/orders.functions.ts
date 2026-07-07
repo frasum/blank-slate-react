@@ -268,7 +268,11 @@ export const sendOrderEmail = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ orderId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
-    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+    return runGuarded(
+      caller.role,
+      "manager",
+      makeAuditWriter(caller),
+      async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { sendOrderEmailWithAdmin } = await import("./send-order-email.server");
       const sent = await sendOrderEmailWithAdmin(
@@ -285,5 +289,13 @@ export const sendOrderEmail = createServerFn({ method: "POST" })
           meta: { orderNumber: sent.orderNumber, wasResend: sent.wasResend },
         },
       };
-    });
+      },
+      {
+        op: "bestellung.send_order_email",
+        orgId: caller.organizationId,
+        callerStaffId: caller.staffId,
+        critical: true,
+        tags: { order_id: data.orderId },
+      },
+    );
   });
