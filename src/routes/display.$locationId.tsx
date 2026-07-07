@@ -264,8 +264,7 @@ function DisplayBody({ payload, now }: { payload: DisplayPayload; now: Date }) {
         .find((p) => p.type === "hour")?.value ?? "0",
     );
     const leader: "mittag" | "abend" = berlinHour < DISPLAY_PERIOD_SWITCH_HOUR ? "mittag" : "abend";
-    const secondsSinceMidnight =
-      now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    const secondsSinceMidnight = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
     const slot = Math.floor(secondsSinceMidnight / T) % 3;
     const showLeader = slot < 2;
     const currentPeriod: "mittag" | "abend" = showLeader
@@ -282,11 +281,7 @@ function DisplayBody({ payload, now }: { payload: DisplayPayload; now: Date }) {
         : "bg-indigo-500/20 text-indigo-100 border-indigo-400/40";
     return (
       <div className="space-y-4">
-        <div
-          className={
-            "rounded-2xl border px-8 py-4 text-center " + titleClass
-          }
-        >
+        <div className={"rounded-2xl border px-8 py-4 text-center " + titleClass}>
           <div className="text-4xl font-black tracking-[0.2em]">{title}</div>
         </div>
         {entry.blocks.map((block) => (

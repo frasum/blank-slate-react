@@ -3,7 +3,16 @@
 // Paint-Mode-Klicklogik. Service-Schichten nutzen service-marker.ts.
 import * as React from "react";
 import { useDroppable } from "@dnd-kit/core";
-import { ChefHat, UtensilsCrossed, Umbrella, HeartPulse, Cake, Heart, Sun, Moon } from "lucide-react";
+import {
+  ChefHat,
+  UtensilsCrossed,
+  Umbrella,
+  HeartPulse,
+  Cake,
+  Heart,
+  Sun,
+  Moon,
+} from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { parseIso } from "@/lib/format";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
