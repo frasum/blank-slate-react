@@ -33,7 +33,7 @@ type DisplayBlock = {
   dayCounts: number[];
 };
 type DisplayPeriodBlocks = {
-  period: "mittag" | "abend";
+  period: "frueh" | "mittag" | "abend";
   blocks: DisplayBlock[];
 };
 type DisplayReminder = {
@@ -53,12 +53,18 @@ type DisplayPayload = {
   generatedAt: string;
   refreshIntervalSeconds: number;
   rotationIntervalSeconds: number;
-  dayServiceEnabled: boolean;
+  /**
+   * SP2b — Für den Standort aktivierte Planungsfenster in Reihenfolge
+   * frueh → mittag → abend. Ersetzt den früheren Boolean
+   * `dayServiceEnabled` (Fenster-Rotation aktiv, sobald length > 1).
+   */
+  enabledPeriods: Array<"frueh" | "mittag" | "abend">;
   windowStart: string;
   windowEnd: string;
   days: string[];
   blocks: DisplayBlock[];
-  /** SP1b — bei day_service_enabled: zwei Fenster-Blöcke (Mittag/Abend). */
+  /** SP2b — Ein Blocksatz je aktiviertem Fenster (frueh/mittag/abend).
+   *  `null`, wenn nur genau ein Fenster aktiv ist (Legacy-Ansicht). */
   periodBlocks: DisplayPeriodBlocks[] | null;
   showAreas: string[] | null;
   showHeader: boolean;
