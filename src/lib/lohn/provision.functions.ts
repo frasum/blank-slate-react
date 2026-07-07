@@ -254,7 +254,11 @@ export const updateCommissionSettings = createServerFn({ method: "POST" })
   .inputValidator((input) => updateSchema.parse(input))
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
-    return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
+    return runGuarded(
+      caller.role,
+      "admin",
+      makeAuditWriter(caller),
+      async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
       const { data: before, error: beforeErr } = await supabaseAdmin
@@ -299,5 +303,13 @@ export const updateCommissionSettings = createServerFn({ method: "POST" })
           },
         },
       };
-    });
+      },
+      {
+        op: "lohn.commission.update_settings",
+        orgId: caller.organizationId,
+        callerStaffId: caller.staffId,
+        critical: true,
+        tags: { location_id: data.locationId },
+      },
+    );
   });
