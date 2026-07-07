@@ -983,6 +983,7 @@ function KassePage() {
 
       {/* --- Sperr-/Entsperr-Dialoge (Admin) --- */}
       <Dialog open={lockConfirm} onOpenChange={setLockConfirm}>
+        {/* placeholder anchor */}
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Session sperren?</DialogTitle>
