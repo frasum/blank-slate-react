@@ -39,10 +39,7 @@ import {
 import { cn } from "@/lib/utils";
 import { WeBadge } from "@/components/verkaufsartikel/we-badge";
 import { fmtCents } from "@/lib/format";
-import {
-  getRennerPenner,
-  type RennerPennerResult,
-} from "@/lib/pos/renner-penner.functions";
+import { getRennerPenner, type RennerPennerResult } from "@/lib/pos/renner-penner.functions";
 import type { RennerEntry } from "@/lib/pos/renner-penner-core";
 
 export const Route = createFileRoute("/_authenticated/admin/pos-renner-penner")({
@@ -135,8 +132,8 @@ function RennerPennerPage() {
       <div>
         <h2 className="text-lg font-semibold text-foreground">Renner &amp; Penner</h2>
         <p className="text-sm text-muted-foreground">
-          Rangliste der Getränke aus dem aktuellen POS-Snapshot. Ein VA-Bündel
-          (offene Gläser + Flasche desselben Weins) erscheint als ein Eintrag.
+          Rangliste der Getränke aus dem aktuellen POS-Snapshot. Ein VA-Bündel (offene Gläser +
+          Flasche desselben Weins) erscheint als ein Eintrag.
         </p>
       </div>
 
@@ -234,14 +231,8 @@ function KpiRow({
     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
       <Kpi label="Umsatz (Auswahl)" value={`${fmtCents(umsatzCents)} €`} />
       <Kpi label="Einheiten" value={intFmt.format(einheiten)} />
-      <Kpi
-        label="Liter (belinkt)"
-        value={liter === null ? "—" : `${decFmt.format(liter)} L`}
-      />
-      <Kpi
-        label="Ø-Wareneinsatz"
-        value={ekwAvg === null ? "—" : `${decFmt.format(ekwAvg)} %`}
-      />
+      <Kpi label="Liter (belinkt)" value={liter === null ? "—" : `${decFmt.format(liter)} L`} />
+      <Kpi label="Ø-Wareneinsatz" value={ekwAvg === null ? "—" : `${decFmt.format(ekwAvg)} %`} />
     </div>
   );
 }
@@ -316,7 +307,12 @@ function RankingSection({
   const [openKey, setOpenKey] = useState<string | null>(null);
   const chartData = entries.map((e) => ({
     name: e.name,
-    value: sortKey === "umsatz" ? e.umsatzCents / 100 : sortKey === "menge" ? e.einheitenGesamt : (e.dbCents ?? 0) / 100,
+    value:
+      sortKey === "umsatz"
+        ? e.umsatzCents / 100
+        : sortKey === "menge"
+          ? e.einheitenGesamt
+          : (e.dbCents ?? 0) / 100,
     umsatz: e.umsatzCents / 100,
   }));
 
@@ -438,9 +434,7 @@ function EntryRow({
                   <td className="py-1 text-right tabular-nums">
                     {c.portionMl === null ? "—" : `${c.portionMl} ml`}
                   </td>
-                  <td className="py-1 text-right tabular-nums">
-                    {intFmt.format(c.verkaufCount)}
-                  </td>
+                  <td className="py-1 text-right tabular-nums">{intFmt.format(c.verkaufCount)}</td>
                   <td className="py-1 text-right tabular-nums">{fmtCents(c.umsatzCents)} €</td>
                 </tr>
               ))}
@@ -470,11 +464,7 @@ function summaryLine(e: RennerEntry): string {
   return parts.join(" + ").replace(" + ≈", " ≈");
 }
 
-function LadenhueterCard({
-  rows,
-}: {
-  rows: RennerPennerResult["ladenhueter"];
-}) {
+function LadenhueterCard({ rows }: { rows: RennerPennerResult["ladenhueter"] }) {
   if (rows.length === 0) return null;
   return (
     <div className="rounded-md border border-border">

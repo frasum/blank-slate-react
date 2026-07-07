@@ -149,9 +149,7 @@ function buildEntry(key: string, rows: RennerRawRow[]): RennerEntry {
     }
 
     const isOpenGlass =
-      r.ekPortionMl !== null &&
-      r.ekSourceVolumeMl !== null &&
-      r.ekPortionMl < r.ekSourceVolumeMl;
+      r.ekPortionMl !== null && r.ekSourceVolumeMl !== null && r.ekPortionMl < r.ekSourceVolumeMl;
     if (isOpenGlass) offen += r.verkaufCount;
     else flaschen += r.verkaufCount;
 

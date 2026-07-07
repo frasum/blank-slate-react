@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  aggregateRennerPenner,
-  matchesGroupFilter,
-  type RennerRawRow,
-} from "./renner-penner-core";
+import { aggregateRennerPenner, matchesGroupFilter, type RennerRawRow } from "./renner-penner-core";
 
 function row(overrides: Partial<RennerRawRow>): RennerRawRow {
   return {
@@ -129,9 +125,9 @@ describe("matchesGroupFilter", () => {
     expect(matchesGroupFilter({ hauptgruppe: "Wein", warengruppe: null }, ["wein"])).toBe(true);
   });
   it("matched warengruppe wenn hauptgruppe leer", () => {
-    expect(
-      matchesGroupFilter({ hauptgruppe: null, warengruppe: "Cocktails" }, ["Cocktails"]),
-    ).toBe(true);
+    expect(matchesGroupFilter({ hauptgruppe: null, warengruppe: "Cocktails" }, ["Cocktails"])).toBe(
+      true,
+    );
   });
   it("no match", () => {
     expect(matchesGroupFilter({ hauptgruppe: "Bier", warengruppe: null }, ["Wein"])).toBe(false);

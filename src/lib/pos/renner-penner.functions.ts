@@ -136,8 +136,7 @@ export const getRennerPenner = createServerFn({ method: "POST" })
         umsatzCents: Number(s.umsatz_cents),
         ekSourceArticleId: va.ek_source_article_id,
         ekPortionMl: va.ek_portion_ml === null ? null : Number(va.ek_portion_ml),
-        ekSourceVolumeMl:
-          va.ek_source_volume_ml === null ? null : Number(va.ek_source_volume_ml),
+        ekSourceVolumeMl: va.ek_source_volume_ml === null ? null : Number(va.ek_source_volume_ml),
         ekPriceCents: va.ek_price_cents === null ? null : Number(va.ek_price_cents),
         priceCents: va.price_cents === null ? null : Number(va.price_cents),
       };
