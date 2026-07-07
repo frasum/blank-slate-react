@@ -1047,7 +1047,8 @@ async function aufgabenStatus(ctx: ToolContext, input: Record<string, unknown>) 
     per_standort: [...perLoc.entries()]
       .map(([id, v]) => ({ location_id: id, name: v.name, anzahl: v.count }))
       .sort((a, b) => b.anzahl - a.anzahl),
-    hinweis: "Nur nicht-archivierte Aufgaben. Überfällig = Status offen und due_at in der Vergangenheit.",
+    hinweis:
+      "Nur nicht-archivierte Aufgaben. Überfällig = Status offen und due_at in der Vergangenheit.",
   };
 }
 
