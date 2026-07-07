@@ -5,11 +5,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
-import { runWithPermission } from "@/lib/admin/admin-call";
+import { runGuarded } from "@/lib/admin/admin-call";
 import { makeAuditWriter } from "@/lib/admin/audit";
 
 const READ_ROLES = ["manager", "admin", "payroll", "staff", "planer"] as const;
-const WRITE_ROLES = ["manager", "admin"] as const;
 
 export type CalendarException = {
   id: string;
@@ -104,13 +103,8 @@ export const setRestDays = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
-    return runWithPermission(
-      context.supabase,
-      "locations.manage",
-      data.locationId,
-      makeAuditWriter(caller),
-      async () => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         await assertLocationInOrg(supabaseAdmin, caller.organizationId, data.locationId);
         const unique = Array.from(new Set(data.weekdays)).sort((a, b) => a - b);
@@ -139,8 +133,7 @@ export const setRestDays = createServerFn({ method: "POST" })
             meta: { weekdays: unique },
           },
         };
-      },
-    );
+    });
   });
 
 export const upsertCalendarException = createServerFn({ method: "POST" })
@@ -156,13 +149,8 @@ export const upsertCalendarException = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
-    return runWithPermission(
-      context.supabase,
-      "locations.manage",
-      data.locationId,
-      makeAuditWriter(caller),
-      async () => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         await assertLocationInOrg(supabaseAdmin, caller.organizationId, data.locationId);
         const reason = data.reason && data.reason.length > 0 ? data.reason : null;
@@ -195,15 +183,14 @@ export const upsertCalendarException = createServerFn({ method: "POST" })
             },
           },
         };
-      },
-    );
+    });
   });
 
 export const deleteCalendarException = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: snap, error: loadErr } = await supabaseAdmin
       .from("location_calendar_exceptions")
@@ -214,12 +201,7 @@ export const deleteCalendarException = createServerFn({ method: "POST" })
     if (!snap || snap.organization_id !== caller.organizationId) {
       throw new Error("Eintrag nicht gefunden.");
     }
-    return runWithPermission(
-      context.supabase,
-      "locations.manage",
-      snap.location_id as string,
-      makeAuditWriter(caller),
-      async () => {
+    return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
         const { error } = await supabaseAdmin
           .from("location_calendar_exceptions")
           .delete()
@@ -235,6 +217,5 @@ export const deleteCalendarException = createServerFn({ method: "POST" })
             meta: { locationId: snap.location_id, date: snap.date, kind: snap.kind },
           },
         };
-      },
-    );
+    });
   });
