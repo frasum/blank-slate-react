@@ -130,14 +130,18 @@ function TipRemainderPage() {
               )}
               {remainderQ.data.rows.map((r) => {
                 const total = r.kitchenRemainderCents + r.serviceRemainderCents;
+                const svcOff = remainderQ.data.servicePoolEnabled === false;
                 return (
                   <tr key={r.businessDate} className="border-t border-border">
                     <td className="px-4 py-2 font-mono tabular-nums">{r.businessDate}</td>
                     <td className="px-4 py-2 text-right font-mono tabular-nums">
                       {fmtCents(r.kitchenRemainderCents)} €
                     </td>
-                    <td className="px-4 py-2 text-right font-mono tabular-nums">
-                      {fmtCents(r.serviceRemainderCents)} €
+                    <td
+                      className="px-4 py-2 text-right font-mono tabular-nums"
+                      title={svcOff ? "kein Service-Pool an diesem Standort" : undefined}
+                    >
+                      {svcOff ? "—" : `${fmtCents(r.serviceRemainderCents)} €`}
                     </td>
                     <td className="px-4 py-2 text-right font-mono tabular-nums">
                       {fmtCents(total)} €
@@ -152,8 +156,17 @@ function TipRemainderPage() {
                 <td className="px-4 py-2 text-right font-mono tabular-nums">
                   {fmtCents(remainderQ.data.totals.kitchenCents)} €
                 </td>
-                <td className="px-4 py-2 text-right font-mono tabular-nums">
-                  {fmtCents(remainderQ.data.totals.serviceCents)} €
+                <td
+                  className="px-4 py-2 text-right font-mono tabular-nums"
+                  title={
+                    remainderQ.data.servicePoolEnabled === false
+                      ? "kein Service-Pool an diesem Standort"
+                      : undefined
+                  }
+                >
+                  {remainderQ.data.servicePoolEnabled === false
+                    ? "—"
+                    : `${fmtCents(remainderQ.data.totals.serviceCents)} €`}
                 </td>
                 <td className="px-4 py-2 text-right font-mono tabular-nums">
                   {fmtCents(remainderQ.data.totals.totalCents)} €

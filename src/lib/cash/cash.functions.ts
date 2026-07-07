@@ -25,6 +25,7 @@ import {
   computeTipPool,
   computeTipTotalCents,
   effectiveParticipation,
+  poolNeedsHoursWarning,
   resolvePoolTimeEntries,
   type TipPoolResult,
   type StaffDepartment,
@@ -36,6 +37,10 @@ import { assertCashWritable, CashLockedError } from "./cash-lock";
 import type { Json } from "@/integrations/supabase/types";
 import { ForbiddenError } from "@/lib/admin/role-guard";
 import { sessionToDayInput } from "./session-day-input";
+import { loadTipSettings, type TipSettings } from "./tip-settings";
+
+export { loadTipSettings };
+export type { TipSettings };
 
 // ------------------------------------------------------------------------
 // Fehlerklassen
@@ -84,6 +89,26 @@ export class WaiterSettlementAlreadyExistsError extends Error {
       "Für diesen Kellner existiert bereits eine aktive Abrechnung. Bitte Korrektur statt Neuanlage verwenden.",
     );
     this.name = "WaiterSettlementAlreadyExistsError";
+  }
+}
+
+/**
+ * TG1 — Aktiver Pool enthält Geld, aber es sind keine Stunden erfasst.
+ * Wird von `finalizeSessionCore` geworfen, wenn nicht mit
+ * `confirmPoolWarning: true` bestätigt wird.
+ */
+export class PoolHoursWarningError extends Error {
+  constructor(
+    public readonly serviceCents: number,
+    public readonly kitchenCents: number,
+    public readonly eligibleMinutes: number,
+  ) {
+    super(
+      `Pool enthält Geld (Service ${(serviceCents / 100).toFixed(2)} € · Küche ${(
+        kitchenCents / 100
+      ).toFixed(2)} €), aber 0 anrechenbare Stunden. Bitte prüfen.`,
+    );
+    this.name = "PoolHoursWarningError";
   }
 }
 
@@ -501,7 +526,8 @@ export const getMySettlement = createServerFn({ method: "GET" })
 export async function getMySettlementCore(caller: StaffCaller) {
   const businessDate = await getCurrentBusinessDate();
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const settings = await loadOrgSettings(caller.organizationId);
+  // Fallback für "keine Session heute": Org-Standard (kein Standort bekannt).
+  const orgSettings = await loadOrgSettings(caller.organizationId);
   // Standort-Zuordnung des Kellners laden — es können mehrere offene Sessions
   // am gleichen Geschäftstag existieren (eine je Standort). Ohne Filter würde
   // maybeSingle() bei >1 Zeile einen Fehler liefern und die UI zeigte fälschlich
@@ -539,13 +565,16 @@ export async function getMySettlementCore(caller: StaffCaller) {
       businessDate,
       session: null,
       settlement: null,
-      kitchenTipRate: settings.kitchenTipRate,
+      kitchenTipRate: orgSettings.kitchenTipRate,
+      servicePoolEnabled: true,
       staffId: caller.staffId,
       myPoolShareCents: null as number | null,
       otherLocationSessionsCount: openSessionsCount ?? 0,
       hasStaffLocations: staffLocationIds.length > 0,
     };
   }
+  // Session gefunden → Standort-Vererbung nutzen (Overrides + Pool-Schalter).
+  const settings = await loadTipSettings(caller.organizationId, session.location_id);
   const { data: row } = await supabaseAdmin
     .from("waiter_settlements")
     .select(
@@ -595,6 +624,7 @@ export async function getMySettlementCore(caller: StaffCaller) {
     },
     settlement: settlementWithPartners,
     kitchenTipRate: settings.kitchenTipRate,
+    servicePoolEnabled: settings.servicePoolEnabled,
     staffId: caller.staffId,
     myPoolShareCents,
     otherLocationSessionsCount: 0,
@@ -641,6 +671,7 @@ export async function getTipPoolOverviewCore(
     staffNames: Record<string, string>;
     manualStaffIds: string[];
     kitchenManualOnly: boolean;
+    servicePoolEnabled: boolean;
     poolEntries: Array<{
       staffId: string;
       displayName: string;
@@ -661,7 +692,7 @@ export async function getTipPoolOverviewCore(
   }
 > {
   const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
-  const settings = await loadOrgSettings(caller.organizationId);
+  const settings = await loadTipSettings(caller.organizationId, session.location_id);
   return computeSessionTipPoolCore(caller, session, settings);
 }
 
@@ -673,12 +704,13 @@ export type LoadedOrgSettings = Awaited<ReturnType<typeof loadOrgSettings>>;
 export async function computeSessionTipPoolCore(
   caller: AdminCaller,
   session: LoadedSession,
-  settings: LoadedOrgSettings,
+  settings: LoadedOrgSettings | TipSettings,
 ): Promise<
   TipPoolResult & {
     staffNames: Record<string, string>;
     manualStaffIds: string[];
     kitchenManualOnly: boolean;
+    servicePoolEnabled: boolean;
     poolEntries: Array<{
       staffId: string;
       displayName: string;
@@ -698,6 +730,9 @@ export async function computeSessionTipPoolCore(
     }>;
   }
 > {
+  // Standort-Vererbung: LoadedOrgSettings hat kein `servicePoolEnabled`.
+  // Ohne expliziten Wert → true (bitgenau Alt-Verhalten für Bestand).
+  const servicePoolEnabled = (settings as TipSettings).servicePoolEnabled ?? true;
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
   const [settlementsRes, timeRes, manualRes] = await Promise.all([
@@ -824,7 +859,10 @@ export async function computeSessionTipPoolCore(
 
   const kitchenPoolCents = settlements.reduce((s, x) => s + x.kitchenTipCents, 0);
   const tipTotalCents = computeTipTotalCents(settlements);
-  const servicePoolCents = tipTotalCents - kitchenPoolCents;
+  const servicePoolCentsRaw = tipTotalCents - kitchenPoolCents;
+  // TG1: Standort ohne Service-Pool → kein Poolgeld, kein Phantom-Rest.
+  // Kellner behalten ihr individuelles Trinkgeld physisch selbst.
+  const servicePoolCents = servicePoolEnabled ? servicePoolCentsRaw : 0;
 
   const result = computeTipPool({
     kitchenPoolCents,
@@ -836,8 +874,21 @@ export async function computeSessionTipPoolCore(
     minHoursPerDay: settings.tipPoolMinHours,
   });
 
+  // Bei deaktivertem Service-Pool: keine Service-Shares ausweisen und
+  // kein Rest — computeTipPool würde bei poolCents=0 zwar 0-Shares und
+  // remainder=0 liefern, aber wir filtern die Service-Zeilen zusätzlich
+  // vollständig aus `shares` heraus (statt „Rest = Pool").
+  const shares = servicePoolEnabled
+    ? result.shares
+    : result.shares.filter((sh) => sh.department !== "service");
+  const serviceRemainder = servicePoolEnabled ? result.serviceRemainder : 0;
+
   return {
     ...result,
+    shares,
+    servicePoolCents,
+    serviceRemainder,
+    servicePoolEnabled,
     staffNames,
     manualStaffIds: Array.from(manualByStaff.keys()),
     kitchenManualOnly: settings.kitchenManualOnly,
@@ -902,7 +953,7 @@ export const getTipRemainderByPeriod = createServerFn({ method: "GET" })
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
     await assertLocationInOrg(caller.organizationId, data.locationId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const settings = await loadOrgSettings(caller.organizationId);
+    const settings = await loadTipSettings(caller.organizationId, data.locationId);
     const { data: sessions, error } = await supabaseAdmin
       .from("sessions")
       .select("id, business_date, status, locked_at, location_id, tip_pool_settlement_only")
@@ -937,6 +988,7 @@ export const getTipRemainderByPeriod = createServerFn({ method: "GET" })
         serviceCents: serviceTotal,
         totalCents: kitchenTotal + serviceTotal,
       },
+      servicePoolEnabled: settings.servicePoolEnabled,
     };
   });
 
@@ -1241,13 +1293,23 @@ export async function updateSessionCore(caller: AdminCaller, data: UpdateSession
 
 export const finalizeSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ sessionId: z.string().uuid() }).parse(input))
+  .inputValidator((input) =>
+    z
+      .object({
+        sessionId: z.string().uuid(),
+        confirmPoolWarning: z.boolean().optional(),
+      })
+      .parse(input),
+  )
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
     return finalizeSessionCore(caller, data);
   });
 
-export async function finalizeSessionCore(caller: AdminCaller, data: { sessionId: string }) {
+export async function finalizeSessionCore(
+  caller: AdminCaller,
+  data: { sessionId: string; confirmPoolWarning?: boolean },
+) {
   return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
     const session = await loadSessionWithLock(caller.organizationId, data.sessionId);
     const waterline = await loadLocationCashLock(caller.organizationId, session.location_id);
@@ -1258,6 +1320,23 @@ export async function finalizeSessionCore(caller: AdminCaller, data: { sessionId
       cashLockedThroughDate: waterline,
       blockIfFinalized: true, // Doppel-Finalize verboten.
     });
+
+    // TG1 — Abschluss-Warnung: Pool > 0 € bei 0 anrechenbaren Minuten.
+    const tipSettings = await loadTipSettings(caller.organizationId, session.location_id);
+    const pool = await computeSessionTipPoolCore(caller, session, tipSettings);
+    const eligibleMinutes = pool.poolEntries
+      .filter((p) => p.participates)
+      .reduce((s, p) => s + p.hoursMinutes, 0);
+    const kitchenWarn = poolNeedsHoursWarning(pool.kitchenPoolCents, eligibleMinutes);
+    const serviceWarn = poolNeedsHoursWarning(pool.servicePoolCents, eligibleMinutes);
+    if ((kitchenWarn || serviceWarn) && data.confirmPoolWarning !== true) {
+      throw new PoolHoursWarningError(
+        pool.servicePoolCents,
+        pool.kitchenPoolCents,
+        eligibleMinutes,
+      );
+    }
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("sessions")
@@ -1275,7 +1354,17 @@ export async function finalizeSessionCore(caller: AdminCaller, data: { sessionId
         action: "cash.session.finalized",
         entity: "session",
         entityId: session.id,
-        meta: { businessDate: session.business_date },
+        meta: {
+          businessDate: session.business_date,
+          ...(kitchenWarn || serviceWarn
+            ? {
+                poolHoursWarningConfirmed: true,
+                poolServiceCents: pool.servicePoolCents,
+                poolKitchenCents: pool.kitchenPoolCents,
+                eligibleMinutes,
+              }
+            : {}),
+        },
       },
     };
   });
@@ -1741,7 +1830,7 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
   }
   if (session.status !== "open") throw new NoOpenSessionError(businessDate);
 
-  const settings = await loadOrgSettings(caller.organizationId);
+  const settings = await loadTipSettings(caller.organizationId, session.location_id);
   const waterline = await loadLocationCashLock(caller.organizationId, session.location_id);
   assertCashWritable({
     businessDate: session.business_date,
@@ -2255,7 +2344,7 @@ export async function adminCreateWaiterSettlementCore(
     if (exErr) throw exErr;
     if (existing) throw new WaiterSettlementAlreadyExistsError(session.id, data.staffId);
 
-    const settings = await loadOrgSettings(caller.organizationId);
+    const settings = await loadTipSettings(caller.organizationId, session.location_id);
     const kassiertBruttoCents = data.kassiertBruttoCents ?? data.posSalesCents;
     const calc = calcWaiterSettlement({
       posSalesCents: data.posSalesCents,

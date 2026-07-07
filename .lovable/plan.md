@@ -1,77 +1,115 @@
-## SP1 — Schichtbetrieb Mittag/Abend
 
-Voraussetzung: RT1+UZ1 ist gemergt (`assertDayOpen` wird mitgenutzt, nicht geändert).
+## TG1 — Umfang
 
-### 1) Migration
+Ziel: Trinkgeld-Parameter (Küchen-Rate, Mindeststunden, kitchen-manual-only, **neu:** Service-Pool an/aus) pro Standort überschreibbar, sonst Org-Standard. Plus: Warndialog beim Abschluss, wenn Pool > 0 € bei 0 anrechenbaren Minuten.
 
-Neue Wanderung mit exakt diesen Schritten (Hausmuster: `DROP` vor `CREATE`, keine `USING (true)`):
+## Rückfragen an dich (vor Umsetzung)
 
-- `ALTER TABLE public.locations ADD COLUMN day_service_enabled boolean NOT NULL DEFAULT false;`
-- `ALTER TABLE public.roster_shifts ADD COLUMN service_period text NOT NULL DEFAULT 'abend' CHECK (service_period IN ('mittag','abend'));`
-- Vorhandenen Unique-Constraint `roster_shifts_staff_id_location_id_shift_date_area_key` per Namen droppen und neu anlegen als
-  `UNIQUE (staff_id, location_id, shift_date, area, service_period)`.
-- Bestandsdaten (`service_period='abend'` per Default) bleiben eindeutig — kein Datenumbau.
+1. **Rate-Snapshot beim Erfassen einer Kellner-Abrechnung**: `submitWaiterSettlementCore` / `adminCreateWaiterSettlementCore` snapshotten heute `settings.kitchenTipRate` in `waiter_settlements.kitchen_tip_rate`. TG1 lässt die Erfassung ansonsten unangetastet — nur die **Quelle** der Rate wechselt auf `loadTipSettings(orgId, session.location_id)`. So kommt der Standort-Override tatsächlich zum Tragen. Bestätigst du das? (Ohne diesen Wechsel wäre der Override wirkungslos.)
+2. **Warndialog auf `finalizeSession`** (nicht `lockSession`) — TG1 sagt „beim Finalisieren". Session-Endpunkt liefert Zusatz-Payload `poolWarning?: { serviceCents; kitchenCents; eligibleMinutes }` und ein neuer `confirm: true` bricht die Warnung durch. Alternative: separater Preview-Aufruf vor `finalizeSession`. **Vorschlag: gleicher Endpunkt mit `confirm`-Flag** (weniger Round-Trips).
+3. **`serviceRemainder` bei Pool=aus**: Anweisung sagt `serviceRemainder = 0` (kein Phantom-Rest). Bestätigt — d. h. bei `tip_service_pool_enabled=false` fließt individuelles Trinkgeld nirgendwo mehr in Aggregate/Statistik als „Rest" ein.
 
-Kein Anfassen von RLS, Realtime, Publication (bleibt `REPLICA IDENTITY FULL`).
+Wenn (1)–(3) so passen, baue ich ohne weitere Zwischenfragen.
 
-### 2) Reines Modul + Tests
+## Migration (separate Datei, kein Merge-Konflikt mit RT1/SP1)
 
-- Neu: `src/lib/roster/cross-booking.ts`
-  - Typ `CrossBookingKind = 'conflict' | 'info'`
-  - `classifyCrossBookings(rows, { locationId, area, servicePeriod })` liefert pro `(staffId, shiftDate)` Buckets:
-    - **conflict**: gleicher Tag + gleiches Fenster an anderem Standort
-    - **info**: gleicher Tag + anderes Fenster (legitime Doppelschicht)
-- `src/lib/roster/cross-booking.test.ts`:
-  - Standard-Standorte (alles `'abend'`): Verhalten wie heute — jede Fremdbuchung ist `conflict`.
-  - Tagesbetrieb: Fremdbuchung im selben Fenster = `conflict`, im anderen Fenster = `info`.
-  - Mehrfach-Fremdbuchungen richtig klassifiziert.
+```sql
+ALTER TABLE public.locations
+  ADD COLUMN tip_service_pool_enabled boolean NOT NULL DEFAULT true,
+  ADD COLUMN kitchen_tip_rate_override numeric(5,4)
+    CHECK (kitchen_tip_rate_override IS NULL
+           OR (kitchen_tip_rate_override >= 0 AND kitchen_tip_rate_override <= 0.2)),
+  ADD COLUMN tip_pool_min_hours_override numeric(4,1)
+    CHECK (tip_pool_min_hours_override IS NULL OR tip_pool_min_hours_override >= 0),
+  ADD COLUMN kitchen_manual_only_override boolean;
+```
 
-### 3) Server-Functions
+Default `true` für `tip_service_pool_enabled` → bitgenau altes Verhalten für Bestand.
 
-`src/lib/roster/roster.functions.ts`
+## Neuer Loader (Vererbung)
 
-- `RosterShift` + `RosterCrossBooking` bekommen `servicePeriod: 'mittag' | 'abend'`.
-- `getRosterShifts` / `getMyShifts` / `getStaffCrossBookings`: `service_period` mitlesen.
-- `createRosterShift` / `moveRosterShift`: `servicePeriod` (Zod-Enum, Default `'abend'`) im Input.
-  - Neu: Helper `assertServicePeriodAllowed(admin, locationId, servicePeriod)` — bei `'mittag'` prüft `locations.day_service_enabled`; sonst Klartext-Fehler „Standort hat keinen Tagesbetrieb aktiviert.".
-  - Bestehende „max. eine Einteilung pro Tag"-Regel wird **fenster-bewusst**: gleicher Standort/Bereich im selben Fenster bleibt Duplikat; Fremdbuchung im selben Fenster bleibt Konflikt; Fremdbuchung in anderem Fenster ist erlaubt (echte Doppelschicht). `assertDayOpen` und `assertShiftDateUnlocked` bleiben davor.
-  - Reihenfolge: `assertShiftDateUnlocked` → `assertDayOpen` → `assertServicePeriodAllowed` → Konflikt-Pre-Check.
-- Audit-Meta: `servicePeriod` in allen betroffenen Events.
+`loadTipSettings(orgId, locationId)` in `src/lib/cash/tip-settings.ts` (neu):
 
-`src/lib/roster/swap.functions.ts` — nur passives Mitlesen:
-- Selects um `service_period` erweitern; Konflikt-Check für Peer-Kandidaten läuft im selben Fenster (Anfragen respektieren das Fenster der Anker-Schicht).
+```ts
+type TipSettings = {
+  servicePoolEnabled: boolean;    // default true
+  kitchenTipRate: number;         // COALESCE(loc.override, org, 0.02)
+  tipPoolMinHours: number;        // COALESCE(loc.override, org, 2.5)
+  kitchenManualOnly: boolean;     // COALESCE(loc.override, org, false)
+};
+```
 
-`src/lib/locations/*` (bzw. bestehende Standort-Admin-Fn): Toggle `day_service_enabled` schreiben (Admin-Recht, Audit).
+`loadOrgSettings` bleibt bestehen und unangetastet (Wasserlinie & Co lesen es weiter).
 
-### 4) UI
+## Backend-Verkabelung
 
-- **Stammdaten → Standorte**: Zeile/Schalter „Tagesbetrieb (Mittagsservice)" neben dem Betriebskalender. Hilfetext: „Aktiviert ein zweites Planungsfenster (Mittag) im Dienstplan dieses Standorts."
-- **Dienstplan-Grid** (`RosterAreaBlock` / `dienstplan.tsx`):
-  - Standort hat `day_service_enabled=false` → **kein** Umschalter, Grid exakt wie heute.
-  - `day_service_enabled=true` → Segmented Control „Mittag | Abend" oberhalb des Grids; Grid-Layout unverändert; `shifts`-Filter respektiert das aktive Fenster; Summenspalten je Fenster; Paint/DnD/Popover schreibt ins aktive Fenster (Payload `servicePeriod`).
-- **Cross-Booking-Punkte**: statt „irgend eine Fremdbuchung = rot" jetzt via `classifyCrossBookings` — rot bei Konflikt, blau bei anderem Fenster; Tooltip „Mittag: <Standort · Bereich>" bzw. „Abend: …".
-- **Öffentliches Display** (`display.$locationId.ts`): bei Tagesbetrieb-Standorten zwei Blöcke „Mittag"/„Abend" (oder in der Rotation nacheinander), sonst wie heute.
-- **„Meine Schichten"** (`my-shifts.ts` + Route): Fenster-Label „Mittag"/„Abend" an der Schicht — **nur** wenn der Standort Tagesbetrieb hat (aus dem geladenen Snapshot ableiten).
+`computeSessionTipPoolCore` bekommt neben `LoadedOrgSettings` optional `tipSettings: TipSettings` und benutzt intern die Overrides. Alle heutigen Aufrufer laden künftig `loadTipSettings(org, session.location_id)`:
 
-### 5) Nicht anfassen
+* `getTipPoolOverviewCore`
+* `getMySettlementCore` (Rate-Anzeige + Pool-Anteil)
+* `getTipRemainderByPeriod` (pro-Standort → pro-Standort-Settings)
+* `tip-stats.functions.ts` — je Session `loadTipSettings(org, s.location_id)` (Cache per locationId im Loop)
+* `submitWaiterSettlementCore` / `adminCreateWaiterSettlementCore` — Rate-Quelle wechseln (siehe Rückfrage 1)
 
-- Zeiterfassung, Kasse, Trinkgeldpool, Lohn/SFN — Ist-Zeiten bleiben fensterlos.
-- `pap-2026/**`, Perioden-/Sperrlogik, PL1/PL2-Scope.
-- Keine Uhrzeiten (D-1); `service_period` ist ein Fenster-Label.
-- RT1-Tabellen und `assertDayOpen`.
+`computeSessionTipPoolCore` bei `servicePoolEnabled = false`:
+* Küchen-Berechnung unverändert.
+* `computeTipPool` wird mit `servicePoolCents: 0` gerufen; Service-Zeilen werden aus `result.shares` gefiltert; `serviceRemainder = 0` (statt Pool-Rest); `servicePoolCents` im Rückgabe-Objekt = 0.
+* `poolEntries` behält Service-MA (für Anzeige „Eigenes Trinkgeld"), aber `shareCents` bleibt 0.
 
-### 6) Erfolgs-Gate
+**`tip-pool.ts` selbst wird NICHT verändert. Die bestehenden `tip-pool.test.ts`-Fälle bleiben grün.**
 
-- `npx tsc --noEmit`
-- `npx eslint . --max-warnings=0`
-- `npx prettier --check .`
-- `npx vitest run` — inkl. neuer Cross-Booking-Klassifizierungs-Tests
-- DB-Test nach Hausmuster: Unique erlaubt `('mittag' + 'abend')` für gleiche `(staff, loc, date, area)`, lehnt Duplikat im selben Fenster ab.
+## Warndialog (Pool ohne Stunden)
 
-### 7) Manuelle Abnahme (Frank)
+Neuer reiner Helfer in `tip-pool.ts`:
+```ts
+export function poolNeedsHoursWarning(poolCents: number, totalEligibleMinutes: number): boolean {
+  return poolCents > 0 && totalEligibleMinutes <= 0;
+}
+```
 
-- Spicery/YUM: kein Umschalter, Grid exakt wie heute (wichtigster Punkt).
-- TSB „Tagesbetrieb" an → Umschalter erscheint, Mittag- + Abend-Schicht für gleiche Person am gleichen Tag anlegbar.
-- Gleiche Person am selben Tag im selben Fenster an zwei Standorten → roter Punkt; in verschiedenen Fenstern → blauer Punkt.
+`finalizeSessionCore` erweitert:
+* Vor der Statusänderung `computeSessionTipPoolCore` laufen lassen und `totalEligibleMinutes` (Summe aller `poolEntries.hoursMinutes` von teilnehmenden MA) ermitteln.
+* Wenn `poolNeedsHoursWarning(kitchenPoolCents, min) || poolNeedsHoursWarning(servicePoolCents, min)` und **nicht** `data.confirmPoolWarning === true` → strukturierte Warnung werfen (neue Fehlerklasse `PoolHoursWarning` mit `serviceCents/kitchenCents/eligibleMinutes`).
+* UI in `kasse.tsx` fängt Fehler, zeigt Bestätigungsdialog, ruft mit `confirmPoolWarning: true` erneut auf.
+* Audit-Log-Meta bei Bestätigung: `poolHoursWarningConfirmed: true, poolCents, eligibleMinutes`.
 
-Vor dem Commit: `prettier --write` + `eslint --fix`.
+## UI
+
+### Standort-Editor (`src/components/admin/LocationTipPoolPanel.tsx`, neu)
+Sektion „Trinkgeld" unter „Betriebskalender":
+* Schalter „Service-Pool aktiv (Trinkgeld wird geteilt)"
+* Drei Override-Felder (Placeholder = geerbter Org-Standard): Küchen-Abgabe %, Mindeststunden, Küche-manuell
+* Leerlassen = geerbt. Save → neue Server-Fn `updateLocationTipSettings` (manager+, Audit-Log).
+
+### Kellner-Tagesansicht (`components/cash/*` / `getMySettlementCore` UI)
+Wenn `servicePoolEnabled=false`: „Dein Pool-Anteil" ersetzt durch „Eigenes Trinkgeld verbleibt bei dir · Küchen-Abgabe X %".
+
+### Trinkgeld-Rest (`trinkgeld-rest.tsx`)
+Service-Spalte für solche Standorte „—" mit Tooltip „kein Service-Pool an diesem Standort".
+
+### Statistik (`statistik.tsx` Trinkgeld-Karte)
+Für Sessions ohne Service-Pool wird `serviceCents=0` beigetragen und in der Fußzeile „N Sessions ohne Service-Pool" ausgewiesen (kein Trend-Verlust — Küche zählt normal).
+
+### Finalize-Dialog (`kasse.tsx`)
+Fangt `PoolHoursWarning`, zeigt Confirm-Modal mit den Beträgen.
+
+## Neue Tests
+
+* `tip-pool.test.ts` (nur **ergänzt**, bestehende Fälle unangetastet): `poolNeedsHoursWarning` Matrix.
+* `tip-settings.test.ts`: COALESCE-Vererbung (Override gesetzt / NULL / Org-Fallback).
+* `tip-pool-service-disabled.test.ts` (integration-nah, mit Fake-Loader): `servicePoolEnabled=false` → `serviceShares` leer, `serviceRemainder=0`, Küche unverändert.
+
+## Nicht angefasst
+
+* `computeTipPool`-Formel & Bestandstests
+* Ledger/Bargeld-Export, Kassen-Finalize-Ablauf jenseits des Warndialogs
+* `organization_settings`-Bestandsfelder
+* `pap-2026/**`, Lohn, Bestellwesen, RT1/SP1-Bereiche
+
+## Erfolgs-Gate
+
+`tsc`, `eslint --max-warnings=0`, `prettier --check`, `vitest run` (alle Bestandstests + neue).
+
+---
+
+**Antworte kurz mit „ok" oder Änderungen zu (1)/(2)/(3), dann baue ich in einem Zug durch.**

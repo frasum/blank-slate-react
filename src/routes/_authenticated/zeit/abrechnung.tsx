@@ -175,6 +175,9 @@ function AbrechnungPage() {
   }
 
   const { session, settlement, businessDate, staffId: myStaffId, myPoolShareCents } = myQ.data;
+  const servicePoolEnabled =
+    (myQ.data as { servicePoolEnabled?: boolean }).servicePoolEnabled !== false;
+  const kitchenTipRate = Number((myQ.data as { kitchenTipRate?: number }).kitchenTipRate ?? 0.02);
   const otherLocationSessionsCount =
     (myQ.data as { otherLocationSessionsCount?: number }).otherLocationSessionsCount ?? 0;
   const hasStaffLocations =
@@ -258,15 +261,31 @@ function AbrechnungPage() {
             </span>
           </div>
           <div className="mt-2 rounded-md border bg-muted/40 p-3">
-            <div className="text-xs text-muted-foreground">Mein Pool-Anteil</div>
-            {sessionLocked && myPoolShareCents != null ? (
-              <div className="mt-1 text-2xl font-semibold tabular-nums">
-                {formatCents(myPoolShareCents)} €
-              </div>
+            {servicePoolEnabled ? (
+              <>
+                <div className="text-xs text-muted-foreground">Mein Pool-Anteil</div>
+                {sessionLocked && myPoolShareCents != null ? (
+                  <div className="mt-1 text-2xl font-semibold tabular-nums">
+                    {formatCents(myPoolShareCents)} €
+                  </div>
+                ) : (
+                  <div className="mt-1 text-sm text-muted-foreground">
+                    Dein Anteil steht nach Tagesabschluss fest.
+                  </div>
+                )}
+              </>
             ) : (
-              <div className="mt-1 text-sm text-muted-foreground">
-                Dein Anteil steht nach Tagesabschluss fest.
-              </div>
+              <>
+                <div className="text-xs text-muted-foreground">Trinkgeld an diesem Standort</div>
+                <div className="mt-1 text-sm">
+                  Eigenes Trinkgeld verbleibt bei dir · Küchen-Abgabe{" "}
+                  {(kitchenTipRate * 100)
+                    .toFixed(2)
+                    .replace(/\.?0+$/, "")
+                    .replace(".", ",")}{" "}
+                  %
+                </div>
+              </>
             )}
           </div>
           {settlement.submitted_at && (
