@@ -480,6 +480,10 @@ type LocationRowData = {
   cashBalanceTargetResolvedCents?: number | null;
   isActive?: boolean;
   day_service_enabled?: boolean;
+  tip_service_pool_enabled?: boolean;
+  kitchen_tip_rate_override?: number | string | null;
+  tip_pool_min_hours_override?: number | string | null;
+  kitchen_manual_only_override?: boolean | null;
 };
 
 function LocationRow(props: {
