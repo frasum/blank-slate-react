@@ -144,6 +144,8 @@ export async function runTool(
       return await urlaubAntraege(ctx, input);
     case "branchenbenchmark_lookup":
       return branchenbenchmarkLookup(input);
+    case "personal_bestand":
+      return await personalBestand(ctx, input);
   }
 }
 
