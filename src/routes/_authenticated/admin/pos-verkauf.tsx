@@ -802,6 +802,26 @@ function AssignCell({
   const currentLabel =
     row.warengruppe ?? (row.productGroup !== null ? `#${row.productGroup}` : null);
 
+  // Drei UI-Zustände:
+  //  - overridden       → „Ändern" (dezent, blau markiert am Label)
+  //  - warengruppe da   → „Korrigieren" (dezent; kommt aus Vectron, optionaler Override)
+  //  - sonst            → „Zuordnen" (auffällig amber; echtes To-do)
+  const hasVectronGroup = row.warengruppe !== null && !row.overridden;
+  const buttonLabel = row.overridden
+    ? "Ändern"
+    : hasVectronGroup
+      ? "Korrigieren"
+      : "Zuordnen";
+  const buttonNeedsAttention = !row.overridden && !hasVectronGroup;
+  const buttonTitle = row.overridden
+    ? "Aktuelle Zuordnung ist ein manueller Override — Ändern öffnet die Auswahl."
+    : hasVectronGroup
+      ? "Warengruppe kommt aus Vectron und ist aktiv — nur überschreiben, wenn sie falsch ist."
+      : "Diesem Artikel ist keine Warengruppe zugeordnet — bitte Warengruppe wählen.";
+  const buttonClass = buttonNeedsAttention
+    ? "rounded-md border border-amber-400 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-900 hover:bg-amber-100 focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 dark:border-amber-500/60 dark:bg-amber-950/40 dark:text-amber-100"
+    : "rounded-md border border-input bg-background px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50";
+
   return (
     <div className="flex items-center gap-2">
       {currentLabel ? (
@@ -829,10 +849,11 @@ function AssignCell({
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="rounded-md border border-input bg-background px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            className={buttonClass}
             disabled={busy}
+            title={buttonTitle}
           >
-            {row.overridden ? "Ändern" : currentLabel ? "Zuordnen" : "Zuordnen"}
+            {buttonLabel}
           </button>
         </PopoverTrigger>
         <PopoverContent className="w-64 space-y-2">
