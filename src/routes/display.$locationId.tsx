@@ -212,24 +212,7 @@ function DisplayPage() {
       )}
 
       <main className="space-y-4 p-3">
-        {data.blocks.map((block, idx) => (
-          <div key={block.area} className="space-y-4">
-            <BlockTable block={block} days={data.days} payload={data} />
-            {data.customMessage && idx < data.blocks.length - 1 && (
-              <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 px-6 py-3 text-center text-base text-amber-200">
-                {data.customMessage}
-              </div>
-            )}
-          </div>
-        ))}
-        {data.customMessage && data.blocks.length <= 1 && (
-          <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 px-6 py-3 text-center text-base text-amber-200">
-            {data.customMessage}
-          </div>
-        )}
-        {data.blocks.length === 0 && (
-          <p className="text-center text-slate-400">Keine Bereiche konfiguriert.</p>
-        )}
+        <DisplayBody payload={data} now={now} />
       </main>
 
       {data.showFooter && (
