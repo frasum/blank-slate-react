@@ -13,6 +13,7 @@ function row(date: string, area: MyShiftRow["area"] = "service", loc = "Hauptlok
     status: "planned",
     notes: null,
     servicePeriod: "abend",
+    enabledServicePeriods: ["abend"],
     locationDayServiceEnabled: false,
   };
 }

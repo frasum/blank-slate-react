@@ -314,13 +314,15 @@ function AdminManagerDienstplan() {
   const shifts: RosterShift[] = useMemo(() => shiftsQ.data ?? [], [shiftsQ.data]);
   const crossBookings = useMemo(() => crossQ.data ?? [], [crossQ.data]);
 
-  // SP1 — Tagesbetrieb: Fenster-Umschalter oberhalb des Grids. Bei
-  // Standard-Standorten (day_service_enabled=false) unsichtbar und alles
-  // verhält sich wie vor SP1 (Fenster fest auf „abend").
+  // SP2 — Fenster-Umschalter oberhalb des Grids. Sichtbar, sobald mehr als
+  // ein Planungsfenster für den Standort aktiviert ist (Legacy-Verhalten
+  // bleibt für Standorte mit nur „abend" erhalten). Die eigentliche
+  // Umschalter-UI mit „Früh" folgt in Commit 2.
   const activeLocationRaw = (locationsQ.data ?? []).find((l) => l.id === effectiveLocationId) as
-    | { day_service_enabled?: boolean | null }
+    | { enabled_service_periods?: string[] | null }
     | undefined;
-  const dayServiceEnabled = activeLocationRaw?.day_service_enabled === true;
+  const dayServiceEnabled =
+    (activeLocationRaw?.enabled_service_periods ?? []).length > 1;
   const [activePeriod, setActivePeriod] = useState<"mittag" | "abend">("abend");
   useEffect(() => {
     if (!dayServiceEnabled && activePeriod !== "abend") setActivePeriod("abend");

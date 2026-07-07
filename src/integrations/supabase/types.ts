@@ -1471,8 +1471,8 @@ export type Database = {
           contact_name: string | null
           contact_phone: string | null
           created_at: string
-          day_service_enabled: boolean
           delivery_notes: string | null
+          enabled_service_periods: string[]
           geocoded_address: string | null
           geocoded_at: string | null
           geofence_radius_m: number
@@ -1501,8 +1501,8 @@ export type Database = {
           contact_name?: string | null
           contact_phone?: string | null
           created_at?: string
-          day_service_enabled?: boolean
           delivery_notes?: string | null
+          enabled_service_periods?: string[]
           geocoded_address?: string | null
           geocoded_at?: string | null
           geofence_radius_m?: number
@@ -1531,8 +1531,8 @@ export type Database = {
           contact_name?: string | null
           contact_phone?: string | null
           created_at?: string
-          day_service_enabled?: boolean
           delivery_notes?: string | null
+          enabled_service_periods?: string[]
           geocoded_address?: string | null
           geocoded_at?: string | null
           geofence_radius_m?: number

@@ -479,7 +479,7 @@ type LocationRowData = {
   cashBalanceTargetCents?: number | null;
   cashBalanceTargetResolvedCents?: number | null;
   isActive?: boolean;
-  day_service_enabled?: boolean;
+  enabled_service_periods?: string[] | null;
   tip_service_pool_enabled?: boolean;
   kitchen_tip_rate_override?: number | string | null;
   tip_pool_min_hours_override?: number | string | null;
@@ -625,7 +625,7 @@ function LocationRow(props: {
       {open && (
         <LocationCalendarPanel
           locationId={props.loc.id}
-          dayServiceEnabled={props.loc.day_service_enabled === true}
+          dayServiceEnabled={(props.loc.enabled_service_periods ?? []).length > 1}
         />
       )}
       {open && (

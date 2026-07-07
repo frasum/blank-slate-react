@@ -88,7 +88,7 @@ type Props = {
    * (rot), anderer-Fenster-Buchungen = Info (blau, legitime Doppelschicht).
    * Default `"abend"` — deckt alle Nicht-Tagesbetrieb-Standorte ab.
    */
-  viewportServicePeriod?: "mittag" | "abend";
+  viewportServicePeriod?: "frueh" | "mittag" | "abend";
   onCreate: (staffId: string, iso: string, area: GridArea, skillId: string) => Promise<void> | void;
   onDelete: (id: string) => Promise<void> | void;
   onChangeSkill: (id: string, skillId: string) => Promise<void> | void;
@@ -865,7 +865,7 @@ function EmptyCell({
   hasWish: boolean;
   onSetWish: () => void;
   onClearWish: () => void;
-  viewportServicePeriod: "mittag" | "abend";
+  viewportServicePeriod: "frueh" | "mittag" | "abend";
 }) {
   const { profile, other } = skillsForCell(row, activeArea, allSkills);
   const marker = (

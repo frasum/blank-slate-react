@@ -49,7 +49,7 @@ export const listLocations = createServerFn({ method: "GET" })
     let query = supabaseAdmin
       .from("locations")
       .select(
-        "id, name, timezone, street, postal_code, city, delivery_notes, phone, contact_name, contact_phone, latitude, longitude, geofence_radius_m, geocoded_at, geocoded_address, cash_balance_target_cents, is_active, day_service_enabled, tip_service_pool_enabled, kitchen_tip_rate_override, tip_pool_min_hours_override, kitchen_manual_only_override",
+        "id, name, timezone, street, postal_code, city, delivery_notes, phone, contact_name, contact_phone, latitude, longitude, geofence_radius_m, geocoded_at, geocoded_address, cash_balance_target_cents, is_active, enabled_service_periods, tip_service_pool_enabled, kitchen_tip_rate_override, tip_pool_min_hours_override, kitchen_manual_only_override",
       )
       .eq("organization_id", caller.organizationId)
       .order("name");
@@ -340,9 +340,81 @@ export const updateLocationGeo = createServerFn({ method: "POST" })
     });
   });
 
-// SP1 — Tagesbetrieb (Mittagsservice) je Standort umschalten.
-// Beeinflusst nur die Dienstplan-UI und die Erlaubnis, Mittag-Fenster-Schichten
-// zu planen. Bestandsschichten (alle „abend" per Default) bleiben unverändert.
+// SP2 — Aktive Planungsfenster (frueh/mittag/abend) je Standort setzen.
+// Ersetzt den früheren Boolean-Schalter (day_service_enabled). Der alte
+// Server-Fn-Alias `setLocationDayServiceEnabled` bleibt bis zur UI-Umstellung
+// (Commit 2) als Kompatibilitäts-Wrapper bestehen.
+const SERVICE_PERIODS = ["frueh", "mittag", "abend"] as const;
+type ServicePeriod = (typeof SERVICE_PERIODS)[number];
+
+function normalizePeriods(input: readonly string[]): ServicePeriod[] {
+  const filtered = input.filter((p): p is ServicePeriod =>
+    (SERVICE_PERIODS as readonly string[]).includes(p),
+  );
+  const unique = Array.from(new Set(filtered));
+  // Deterministische Reihenfolge früh → mittag → abend.
+  unique.sort(
+    (a, b) => SERVICE_PERIODS.indexOf(a) - SERVICE_PERIODS.indexOf(b),
+  );
+  return unique;
+}
+
+export const setLocationEnabledServicePeriods = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        locationId: z.string().uuid(),
+        periods: z.array(z.enum(SERVICE_PERIODS)).min(1),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const periods = normalizePeriods(data.periods);
+      if (periods.length === 0) {
+        throw new Error("Mindestens ein Planungsfenster muss aktiv bleiben.");
+      }
+      const { data: loc, error: loadErr } = await supabaseAdmin
+        .from("locations")
+        .select("id, name, enabled_service_periods")
+        .eq("id", data.locationId)
+        .eq("organization_id", caller.organizationId)
+        .maybeSingle();
+      if (loadErr) throw loadErr;
+      if (!loc) throw new Error("Standort nicht gefunden.");
+      const before = normalizePeriods((loc.enabled_service_periods as string[] | null) ?? []);
+      const changed =
+        before.length !== periods.length || before.some((p, i) => p !== periods[i]);
+      if (changed) {
+        const { error } = await supabaseAdmin
+          .from("locations")
+          .update({ enabled_service_periods: periods })
+          .eq("id", data.locationId)
+          .eq("organization_id", caller.organizationId);
+        if (error) throw error;
+      }
+      return {
+        result: { ok: true as const, changed, periods },
+        audit: {
+          action: "location.service_periods.update",
+          entity: "location",
+          entityId: data.locationId,
+          meta: { name: loc.name, before, after: periods },
+        },
+      };
+    });
+  });
+
+/**
+ * Kompatibilitäts-Wrapper: bildet den alten Boolean auf die neue
+ * Fenster-Liste ab. Wird in Commit 2 durch den direkten Aufruf von
+ * `setLocationEnabledServicePeriods` ersetzt.
+ *   enabled=true  → ['mittag','abend']
+ *   enabled=false → ['abend']
+ */
 export const setLocationDayServiceEnabled = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
@@ -359,17 +431,20 @@ export const setLocationDayServiceEnabled = createServerFn({ method: "POST" })
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: loc, error: loadErr } = await supabaseAdmin
         .from("locations")
-        .select("id, name, day_service_enabled")
+        .select("id, name, enabled_service_periods")
         .eq("id", data.locationId)
         .eq("organization_id", caller.organizationId)
         .maybeSingle();
       if (loadErr) throw loadErr;
       if (!loc) throw new Error("Standort nicht gefunden.");
-      const already = Boolean(loc.day_service_enabled) === data.enabled;
+      const before = normalizePeriods((loc.enabled_service_periods as string[] | null) ?? []);
+      const target: ServicePeriod[] = data.enabled ? ["mittag", "abend"] : ["abend"];
+      const already =
+        before.length === target.length && before.every((p, i) => p === target[i]);
       if (!already) {
         const { error } = await supabaseAdmin
           .from("locations")
-          .update({ day_service_enabled: data.enabled })
+          .update({ enabled_service_periods: target })
           .eq("id", data.locationId)
           .eq("organization_id", caller.organizationId);
         if (error) throw error;
@@ -380,7 +455,7 @@ export const setLocationDayServiceEnabled = createServerFn({ method: "POST" })
           action: data.enabled ? "location.day_service.enable" : "location.day_service.disable",
           entity: "location",
           entityId: data.locationId,
-          meta: { name: loc.name },
+          meta: { name: loc.name, before, after: target },
         },
       };
     });

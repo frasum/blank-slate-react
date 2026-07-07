@@ -152,13 +152,17 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
         const { data: location, error: locErr } = await supabaseAdmin
           // ST1: bewusst ungefiltert — Daten-Zugriff (Display-API by id).
           .from("locations")
-          .select("id, name, day_service_enabled")
+          .select("id, name, enabled_service_periods")
           .eq("id", locationId)
           .eq("organization_id", s.organization_id)
           .maybeSingle();
         if (locErr || !location) return jsonError(404, "Filiale nicht gefunden.");
-        const dayServiceEnabled =
-          (location as { day_service_enabled?: boolean | null }).day_service_enabled === true;
+        // SP2 — Fenster-Blöcke aktiv, sobald mehr als ein Fenster für den
+        // Standort aktiviert ist. Rendering (frueh/mittag/abend) folgt in
+        // Commit 2; hier bleibt der Legacy-Pfad (mittag/abend) erhalten.
+        const enabledPeriods = ((location as { enabled_service_periods?: string[] | null })
+          .enabled_service_periods ?? ["abend"]) as string[];
+        const dayServiceEnabled = enabledPeriods.length > 1;
 
         const today = todayIso();
         const businessDate = businessDateOf(new Date());

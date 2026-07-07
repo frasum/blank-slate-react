@@ -63,7 +63,7 @@ type ShiftRow = {
   area: SwapArea;
   shift_date: string;
   organization_id: string;
-  service_period: "mittag" | "abend";
+  service_period: "frueh" | "mittag" | "abend";
 };
 
 async function loadShift(
@@ -82,6 +82,7 @@ async function loadShift(
   return {
     ...(data as ShiftRow),
     service_period: ((data as { service_period: string | null }).service_period ?? "abend") as
+      | "frueh"
       | "mittag"
       | "abend",
   };

@@ -91,6 +91,45 @@ describe("classifyCrossBookings", () => {
     const kinds = out.map((r) => `${r.locationId}:${r.kind}`).sort();
     expect(kinds).toEqual(["L_A:info", "L_B:conflict", "L_C:conflict"]);
   });
+
+  it("SP2: Früh vs. Abend am selben Tag → info (Doppelschicht ok)", () => {
+    const rows = [
+      row({ staffId: "s1", locationId: "L_OTHER", area: "service", servicePeriod: "frueh" }),
+    ];
+    const out = classifyCrossBookings(rows, {
+      locationId: "L_HOME",
+      area: "service",
+      servicePeriod: "abend",
+    });
+    expect(out).toHaveLength(1);
+    expect(out[0].kind).toBe("info");
+  });
+
+  it("SP2: Früh vs. Früh woanders → conflict", () => {
+    const rows = [
+      row({ staffId: "s1", locationId: "L_OTHER", area: "service", servicePeriod: "frueh" }),
+    ];
+    const out = classifyCrossBookings(rows, {
+      locationId: "L_HOME",
+      area: "service",
+      servicePeriod: "frueh",
+    });
+    expect(out).toHaveLength(1);
+    expect(out[0].kind).toBe("conflict");
+  });
+
+  it("SP2: Früh + Mittag + Abend am selben Tag ergeben zwei Infos aus Sicht Abend", () => {
+    const rows = [
+      row({ staffId: "s1", locationId: "L_A", servicePeriod: "frueh" }),
+      row({ staffId: "s1", locationId: "L_B", servicePeriod: "mittag" }),
+    ];
+    const out = classifyCrossBookings(rows, {
+      locationId: "L_HOME",
+      area: "service",
+      servicePeriod: "abend",
+    });
+    expect(out.map((r) => r.kind).sort()).toEqual(["info", "info"]);
+  });
 });
 
 describe("indexClassifiedByStaffDate + worstKind", () => {
