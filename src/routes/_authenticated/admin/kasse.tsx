@@ -335,6 +335,10 @@ function KassePage() {
 
   // KAB2: Ein-Knopf-Druckfluss – „Drucken = Finalisieren".
   const [printBusy, setPrintBusy] = useState(false);
+  // KAB2 + FZD: Vor dem Finalisieren erscheint ein Bestätigungs-Dialog mit
+  // Zusammenfassung (Gäste, Umsatz, Pool, Stunden je Mitarbeiter). Nur bei
+  // Status `open` — Druck-Nachläufe (finalized/locked) laufen ohne Dialog.
+  const [finalizeConfirmOpen, setFinalizeConfirmOpen] = useState(false);
 
   // -------------------- Wasserlinie (Admin) --------------------
   const [cashLockDate, setCashLockDate] = useState<string>("");
