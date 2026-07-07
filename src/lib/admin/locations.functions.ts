@@ -353,9 +353,7 @@ function normalizePeriods(input: readonly string[]): ServicePeriod[] {
   );
   const unique = Array.from(new Set(filtered));
   // Deterministische Reihenfolge früh → mittag → abend.
-  unique.sort(
-    (a, b) => SERVICE_PERIODS.indexOf(a) - SERVICE_PERIODS.indexOf(b),
-  );
+  unique.sort((a, b) => SERVICE_PERIODS.indexOf(a) - SERVICE_PERIODS.indexOf(b));
   return unique;
 }
 
@@ -386,8 +384,7 @@ export const setLocationEnabledServicePeriods = createServerFn({ method: "POST" 
       if (loadErr) throw loadErr;
       if (!loc) throw new Error("Standort nicht gefunden.");
       const before = normalizePeriods((loc.enabled_service_periods as string[] | null) ?? []);
-      const changed =
-        before.length !== periods.length || before.some((p, i) => p !== periods[i]);
+      const changed = before.length !== periods.length || before.some((p, i) => p !== periods[i]);
       if (changed) {
         const { error } = await supabaseAdmin
           .from("locations")
@@ -439,8 +436,7 @@ export const setLocationDayServiceEnabled = createServerFn({ method: "POST" })
       if (!loc) throw new Error("Standort nicht gefunden.");
       const before = normalizePeriods((loc.enabled_service_periods as string[] | null) ?? []);
       const target: ServicePeriod[] = data.enabled ? ["mittag", "abend"] : ["abend"];
-      const already =
-        before.length === target.length && before.every((p, i) => p === target[i]);
+      const already = before.length === target.length && before.every((p, i) => p === target[i]);
       if (!already) {
         const { error } = await supabaseAdmin
           .from("locations")

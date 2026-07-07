@@ -250,8 +250,7 @@ export const getMyShifts = createServerFn({ method: "GET" })
         enabled_service_periods: string[] | null;
       } | null;
       const enabledPeriods = ((loc?.enabled_service_periods ?? ["abend"]) as string[]).filter(
-        (p): p is "frueh" | "mittag" | "abend" =>
-          p === "frueh" || p === "mittag" || p === "abend",
+        (p): p is "frueh" | "mittag" | "abend" => p === "frueh" || p === "mittag" || p === "abend",
       );
       return {
         id: r.id as string,

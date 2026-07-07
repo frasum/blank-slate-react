@@ -294,8 +294,10 @@ export function PlanerRosterView({ bereich }: Props) {
                     absenceMap={absenceMap}
                     wishMap={wishMap}
                     dayServiceEnabled={
-                      ((loc as { enabled_service_periods?: string[] | null })
-                        .enabled_service_periods ?? []).length > 1
+                      (
+                        (loc as { enabled_service_periods?: string[] | null })
+                          .enabled_service_periods ?? []
+                      ).length > 1
                     }
                   />
                 );

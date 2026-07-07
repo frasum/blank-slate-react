@@ -1,9 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  derivePeriodLabel,
-  DISPLAY_PERIOD_SWITCH_HOUR,
-  PERIOD_FRUEH_BIS,
-} from "./period-label";
+import { derivePeriodLabel, DISPLAY_PERIOD_SWITCH_HOUR, PERIOD_FRUEH_BIS } from "./period-label";
 
 describe("derivePeriodLabel", () => {
   it("Konstanten: Früh-Grenze = 11, Mittag→Abend-Grenze = 15", () => {

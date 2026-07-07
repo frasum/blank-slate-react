@@ -321,8 +321,7 @@ function AdminManagerDienstplan() {
   const activeLocationRaw = (locationsQ.data ?? []).find((l) => l.id === effectiveLocationId) as
     | { enabled_service_periods?: string[] | null }
     | undefined;
-  const dayServiceEnabled =
-    (activeLocationRaw?.enabled_service_periods ?? []).length > 1;
+  const dayServiceEnabled = (activeLocationRaw?.enabled_service_periods ?? []).length > 1;
   const [activePeriod, setActivePeriod] = useState<"mittag" | "abend">("abend");
   useEffect(() => {
     if (!dayServiceEnabled && activePeriod !== "abend") setActivePeriod("abend");
