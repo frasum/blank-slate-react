@@ -18,6 +18,7 @@ import {
   upsertDisplaySettings,
 } from "@/lib/display/display.functions";
 import { LocationCalendarPanel } from "@/components/admin/LocationCalendarPanel";
+import { LocationTipPoolPanel } from "@/components/admin/LocationTipPoolPanel";
 
 export const Route = createFileRoute("/_authenticated/admin/locations")({
   head: () => ({ meta: [{ title: "Standorte · Verwaltung" }] }),
@@ -621,6 +622,27 @@ function LocationRow(props: {
         <LocationCalendarPanel
           locationId={props.loc.id}
           dayServiceEnabled={props.loc.day_service_enabled === true}
+        />
+      )}
+      {open && (
+        <LocationTipPoolPanel
+          locationId={props.loc.id}
+          initial={{
+            tipServicePoolEnabled: props.loc.tip_service_pool_enabled !== false,
+            kitchenTipRateOverride:
+              props.loc.kitchen_tip_rate_override == null
+                ? null
+                : Number(props.loc.kitchen_tip_rate_override),
+            tipPoolMinHoursOverride:
+              props.loc.tip_pool_min_hours_override == null
+                ? null
+                : Number(props.loc.tip_pool_min_hours_override),
+            kitchenManualOnlyOverride:
+              props.loc.kitchen_manual_only_override == null
+                ? null
+                : Boolean(props.loc.kitchen_manual_only_override),
+          }}
+          onSaved={props.onGeoChanged}
         />
       )}
     </div>

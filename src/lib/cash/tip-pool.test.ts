@@ -3,6 +3,7 @@ import {
   computeTipPool,
   computeTipTotalCents,
   effectiveParticipation,
+  poolNeedsHoursWarning,
   resolvePoolTimeEntries,
 } from "./tip-pool";
 
@@ -465,5 +466,24 @@ describe("computeTipPool: Teilnahme-Übersteuerung entkoppelt von Stunden", () =
     });
     expect(r.shares).toHaveLength(1);
     expect(r.shares[0]).toMatchObject({ staffId: "x", shareCents: 10_000 });
+  });
+});
+
+describe("poolNeedsHoursWarning", () => {
+  it("Pool > 0 + 0 Minuten → warnen", () => {
+    expect(poolNeedsHoursWarning(42_307, 0)).toBe(true);
+  });
+  it("Pool > 0 + negative Minuten → warnen (defensive)", () => {
+    expect(poolNeedsHoursWarning(1, -5)).toBe(true);
+  });
+  it("Pool > 0 + Minuten vorhanden → nicht warnen", () => {
+    expect(poolNeedsHoursWarning(42_307, 1)).toBe(false);
+  });
+  it("Pool = 0 → nie warnen", () => {
+    expect(poolNeedsHoursWarning(0, 0)).toBe(false);
+    expect(poolNeedsHoursWarning(0, 60)).toBe(false);
+  });
+  it("Pool negativ (überzogener Pool) → nicht warnen (anderes Problem)", () => {
+    expect(poolNeedsHoursWarning(-100, 0)).toBe(false);
   });
 });

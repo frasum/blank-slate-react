@@ -49,7 +49,7 @@ export const listLocations = createServerFn({ method: "GET" })
     let query = supabaseAdmin
       .from("locations")
       .select(
-        "id, name, timezone, street, postal_code, city, delivery_notes, phone, contact_name, contact_phone, latitude, longitude, geofence_radius_m, geocoded_at, geocoded_address, cash_balance_target_cents, is_active, day_service_enabled",
+        "id, name, timezone, street, postal_code, city, delivery_notes, phone, contact_name, contact_phone, latitude, longitude, geofence_radius_m, geocoded_at, geocoded_address, cash_balance_target_cents, is_active, day_service_enabled, tip_service_pool_enabled, kitchen_tip_rate_override, tip_pool_min_hours_override, kitchen_manual_only_override",
       )
       .eq("organization_id", caller.organizationId)
       .order("name");
@@ -384,4 +384,90 @@ export const setLocationDayServiceEnabled = createServerFn({ method: "POST" })
         },
       };
     });
+  });
+
+// =========================================================================
+// TG1 — Trinkgeld-Einstellungen je Standort (Service-Pool + Overrides)
+// =========================================================================
+
+const tipSettingsSchema = z.object({
+  locationId: z.string().uuid(),
+  tipServicePoolEnabled: z.boolean(),
+  kitchenTipRateOverride: z.number().min(0).max(0.2).nullable(),
+  tipPoolMinHoursOverride: z.number().min(0).max(24).nullable(),
+  kitchenManualOnlyOverride: z.boolean().nullable(),
+});
+
+export const updateLocationTipSettings = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => tipSettingsSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: loc, error: loadErr } = await supabaseAdmin
+        .from("locations")
+        .select(
+          "id, name, tip_service_pool_enabled, kitchen_tip_rate_override, tip_pool_min_hours_override, kitchen_manual_only_override",
+        )
+        .eq("id", data.locationId)
+        .eq("organization_id", caller.organizationId)
+        .maybeSingle();
+      if (loadErr) throw loadErr;
+      if (!loc) throw new Error("Standort nicht gefunden.");
+      const { error } = await supabaseAdmin
+        .from("locations")
+        .update({
+          tip_service_pool_enabled: data.tipServicePoolEnabled,
+          kitchen_tip_rate_override: data.kitchenTipRateOverride,
+          tip_pool_min_hours_override: data.tipPoolMinHoursOverride,
+          kitchen_manual_only_override: data.kitchenManualOnlyOverride,
+        })
+        .eq("id", data.locationId)
+        .eq("organization_id", caller.organizationId);
+      if (error) throw error;
+      return {
+        result: { ok: true as const },
+        audit: {
+          action: "location.tip_settings.update",
+          entity: "location",
+          entityId: data.locationId,
+          meta: {
+            name: loc.name,
+            before: {
+              tipServicePoolEnabled: loc.tip_service_pool_enabled,
+              kitchenTipRateOverride: loc.kitchen_tip_rate_override,
+              tipPoolMinHoursOverride: loc.tip_pool_min_hours_override,
+              kitchenManualOnlyOverride: loc.kitchen_manual_only_override,
+            },
+            after: {
+              tipServicePoolEnabled: data.tipServicePoolEnabled,
+              kitchenTipRateOverride: data.kitchenTipRateOverride,
+              tipPoolMinHoursOverride: data.tipPoolMinHoursOverride,
+              kitchenManualOnlyOverride: data.kitchenManualOnlyOverride,
+            },
+          },
+        },
+      };
+    });
+  });
+
+// Read-Only: Org-Standards für die Trinkgeld-Einstellungen (nur zur Anzeige
+// der Vererbung im Standort-Editor). Manager+ ok.
+export const getOrgTipDefaults = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin
+      .from("organization_settings")
+      .select("kitchen_tip_rate, tip_pool_min_hours, kitchen_manual_only")
+      .eq("organization_id", caller.organizationId)
+      .maybeSingle();
+    if (error) throw error;
+    return {
+      kitchenTipRate: Number(data?.kitchen_tip_rate ?? 0.02),
+      tipPoolMinHours: Number(data?.tip_pool_min_hours ?? 2.5),
+      kitchenManualOnly: Boolean(data?.kitchen_manual_only ?? false),
+    };
   });

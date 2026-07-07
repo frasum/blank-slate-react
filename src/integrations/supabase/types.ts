@@ -1478,6 +1478,8 @@ export type Database = {
           geofence_radius_m: number
           id: string
           is_active: boolean
+          kitchen_manual_only_override: boolean | null
+          kitchen_tip_rate_override: number | null
           latitude: number | null
           longitude: number | null
           name: string
@@ -1486,6 +1488,8 @@ export type Database = {
           postal_code: string | null
           street: string | null
           timezone: string
+          tip_pool_min_hours_override: number | null
+          tip_service_pool_enabled: boolean
           updated_at: string
         }
         Insert: {
@@ -1504,6 +1508,8 @@ export type Database = {
           geofence_radius_m?: number
           id?: string
           is_active?: boolean
+          kitchen_manual_only_override?: boolean | null
+          kitchen_tip_rate_override?: number | null
           latitude?: number | null
           longitude?: number | null
           name: string
@@ -1512,6 +1518,8 @@ export type Database = {
           postal_code?: string | null
           street?: string | null
           timezone?: string
+          tip_pool_min_hours_override?: number | null
+          tip_service_pool_enabled?: boolean
           updated_at?: string
         }
         Update: {
@@ -1530,6 +1538,8 @@ export type Database = {
           geofence_radius_m?: number
           id?: string
           is_active?: boolean
+          kitchen_manual_only_override?: boolean | null
+          kitchen_tip_rate_override?: number | null
           latitude?: number | null
           longitude?: number | null
           name?: string
@@ -1538,6 +1548,8 @@ export type Database = {
           postal_code?: string | null
           street?: string | null
           timezone?: string
+          tip_pool_min_hours_override?: number | null
+          tip_service_pool_enabled?: boolean
           updated_at?: string
         }
         Relationships: [

@@ -13,9 +13,10 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import {
   computeSessionTipPoolCore,
-  loadOrgSettings,
+  loadTipSettings,
   type LoadedSession,
 } from "@/lib/cash/cash.functions";
+import type { TipSettings } from "@/lib/cash/tip-settings";
 import { computeTrend, type Trend } from "./revenue-core";
 import {
   currentMonth,
@@ -56,7 +57,16 @@ export const getTipStats = createServerFn({ method: "GET" })
     ]);
     const org = caller.organizationId;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const settings = await loadOrgSettings(org);
+    // TG1: Standort-Vererbung. Cache je locationId, damit der Session-Loop
+    // pro Standort nur einmal lädt.
+    const settingsCache = new Map<string, TipSettings>();
+    async function settingsFor(locationId: string): Promise<TipSettings> {
+      const hit = settingsCache.get(locationId);
+      if (hit) return hit;
+      const s = await loadTipSettings(org, locationId);
+      settingsCache.set(locationId, s);
+      return s;
+    }
 
     // Zeitraum + Vorperiode auflösen (identisch zu getRevenueStats).
     let current: Window;
@@ -106,7 +116,7 @@ export const getTipStats = createServerFn({ method: "GET" })
       const results: SessionTipResult[] = [];
       const staffNames: Record<string, string> = {};
       for (const s of (sessions ?? []) as LoadedSession[]) {
-        const res = await computeSessionTipPoolCore(caller, s, settings);
+        const res = await computeSessionTipPoolCore(caller, s, await settingsFor(s.location_id));
         results.push({
           businessDate: s.business_date as string,
           serviceRemainderCents: res.serviceRemainder,

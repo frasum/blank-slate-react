@@ -245,3 +245,21 @@ export function resolvePoolTimeEntries(input: {
   }
   return out;
 }
+
+// ------------------------------------------------------------------------
+// TG1 — Abschluss-Warnung: aktiver Pool, aber keine anrechenbaren Stunden.
+// Rein funktional; UI ruft dies auf, um vor dem Finalisieren zu warnen.
+// ------------------------------------------------------------------------
+
+/**
+ * Liefert true, wenn ein Pool Geld enthält (> 0 Cent) und gleichzeitig
+ * keine anrechenbaren Minuten (≤ 0) vorliegen. Beides zusammen ist der
+ * Fingerabdruck fehlender Stunden am Abschluss (Lehre 02.07.2026,
+ * 423-€-Vorfall).
+ */
+export function poolNeedsHoursWarning(
+  poolCents: number,
+  totalEligibleMinutes: number,
+): boolean {
+  return poolCents > 0 && totalEligibleMinutes <= 0;
+}
