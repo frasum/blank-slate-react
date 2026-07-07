@@ -59,7 +59,6 @@ export function useSpeechInput(opts: UseSpeechInputOptions = {}) {
   const [state, dispatch] = useReducer(speechReducer, initialSpeechState);
   const [permission, setPermission] = useState<SpeechPermission>("unknown");
   const recRef = useRef<BrowserSpeechRecognition | null>(null);
-  const finishedRef = useRef(false);
   const finishedCallbackRef = useRef(onFinished);
   finishedCallbackRef.current = onFinished;
 
@@ -72,16 +71,6 @@ export function useSpeechInput(opts: UseSpeechInputOptions = {}) {
     r.onerror = null;
     r.onend = null;
     recRef.current = null;
-  }, []);
-
-  const finalize = useCallback(() => {
-    if (finishedRef.current) return;
-    finishedRef.current = true;
-    // Wir müssen den aktuellen Reducer-Zustand kennen — verpacken via
-    // funktionalem Zugriff über einen einmaligen Dispatch nicht möglich,
-    // daher lesen wir über einen Ref-Trick nicht, sondern via State im
-    // Effect. Hier begnügen wir uns mit dem letzten bekannten Wert:
-    // der onend-Callback wird stets NACH dem letzten result gefeuert.
   }, []);
 
   // Beim Statuswechsel auf "idle" (nach stop) senden — genau einmal pro
@@ -106,7 +95,6 @@ export function useSpeechInput(opts: UseSpeechInputOptions = {}) {
     const Ctor = getCtor();
     if (!Ctor) return;
     cleanup();
-    finishedRef.current = false;
     const r = new Ctor();
     r.lang = lang;
     r.interimResults = true;
