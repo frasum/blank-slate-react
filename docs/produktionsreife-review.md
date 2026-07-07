@@ -62,7 +62,7 @@ G2 — FK-Index-Nachzug: eine Migration mit ~10 gezielten Indizes (Kandidatenlis
 
 G3 — Trinkgeld-Rest-Ansicht bündeln: computeSessionTipPoolCore bekommt eine Batch-Variante (Settlements/Time-Entries/Pool-Entries für ALLE Sessions der Periode in je einer Query laden, im Speicher gruppieren) — Rechenmodul unverändert.
 
-G4 — Monitoring: Sentry-Init in __root + Server-Function-Wrapper (runGuarded ist die natürliche Andockstelle); Alerts auf Finalize-/Lohn-/Bestell-Fehler.
+G4 — Monitoring: Sentry-Init in \_\_root + Server-Function-Wrapper (runGuarded ist die natürliche Andockstelle); Alerts auf Finalize-/Lohn-/Bestell-Fehler.
 
 G5 — E2E-Smoke (Playwright): drei Szenarien — (a) PIN-Login → Stempeln → Ausstempeln mit Pausendialog, (b) Kellnerabrechnung → Finalize inkl. TG1-Warnungs-Pfad, (c) Warenkorb → Bestellung (Testmodus-Redirect prüft E-Mail). Läuft gegen den lokalen Supabase-Stack der db-Tests.
 
