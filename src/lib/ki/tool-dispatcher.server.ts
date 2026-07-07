@@ -634,8 +634,8 @@ async function kasseTagesabschluss(ctx: ToolContext, input: Record<string, unkno
     if (trErr) throw new Error(trErr.message);
     for (const r of tr ?? []) {
       const c = Number(r.amount_cents ?? 0);
-      if (r.direction === "in") transfersIn += c;
-      else transfersOut += c;
+      if (r.direction === "to_restaurant") transfersIn += c;
+      else transfersOut += c; // to_safe / to_other / from_restaurant = Abfluss
     }
   }
 
