@@ -22,7 +22,6 @@ import {
   seedKasseFinalize,
   markLocationClosed,
   findPoolWarningAuditRow,
-  probeOrgState,
   type E2ESeed,
 } from "./seed";
 
@@ -94,30 +93,25 @@ test.describe("Kassen-Finalize (P2)", () => {
       window.print = () => {};
     });
 
-    // P2-DIAG: nach Diagnose-Lauf entfernen
-    console.log("[diag-db-0]", JSON.stringify(await probeOrgState(seed.orgId)));
-
     await loginAsAdmin(page, seed);
     await openKasseForSeed(page);
 
-    // Erster Klick: Dialog erscheint → Abbrechen.
-    page.once("dialog", (d) => {
-      expect(d.message()).toMatch(/anrechenbare Stunden/);
-      void d.dismiss();
-    });
+    // Klick 1: Dialog erwarten → Abbrechen.
+    const dlg1Promise = page.waitForEvent("dialog");
     await page.getByTestId("finalize-print-button").click();
-    // Session bleibt offen.
+    const dlg1 = await dlg1Promise;
+    expect(dlg1.message()).toMatch(/anrechenbare Stunden/);
+    await dlg1.dismiss();
+
+    // Klick-1-Flow vollständig beendet (printBusy=false ⇒ Button wieder enabled).
+    await expect(page.getByTestId("finalize-print-button")).toBeEnabled();
     await expect(page.getByTestId("session-status-badge")).toHaveAttribute("data-status", "open");
 
-    // P2-DIAG: nach Diagnose-Lauf entfernen
-    console.log("[diag-db-1]", JSON.stringify(await probeOrgState(seed.orgId)));
-
-    // Zweiter Klick: Dialog bestätigen → finalisiert.
-    page.once("dialog", (d) => void d.accept());
+    // Klick 2: Dialog erwarten → Bestätigen.
+    const dlg2Promise = page.waitForEvent("dialog");
     await page.getByTestId("finalize-print-button").click();
-    // P2-DIAG: nach Diagnose-Lauf entfernen
-    await page.waitForTimeout(300);
-    console.log("[diag-db-2]", JSON.stringify(await probeOrgState(seed.orgId)));
+    await (await dlg2Promise).accept();
+
     await expect(page.getByTestId("session-status-badge")).toHaveAttribute(
       "data-status",
       /finalized|locked/,
