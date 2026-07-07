@@ -55,7 +55,7 @@ export function mapSpeechErrorMessage(code: string): string {
       return "Mikrofon-Zugriff verweigert — in Safari: Einstellungen → Websites → Mikrofon erlauben.";
     case "service-not-allowed":
     case "no-start":
-      return "Spracherkennung des Browsers nicht verfügbar — auf dem Mac „Siri & Diktat" aktivieren oder die Diktat-Taste der Tastatur nutzen.";
+      return 'Spracherkennung des Browsers nicht verfügbar — auf dem Mac „Siri & Diktat" aktivieren oder die Diktat-Taste der Tastatur nutzen.';
     default:
       return `Spracherkennung fehlgeschlagen (${code}).`;
   }
