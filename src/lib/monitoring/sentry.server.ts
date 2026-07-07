@@ -36,7 +36,11 @@ export type ServerErrorContext = {
   op?: string;
   /** organization_id, sofern bekannt. */
   orgId?: string | null;
-  /** staff_id des Aufrufers. */
+  /**
+   * staff_id des Aufrufers. Wird bewusst NICHT an Sentry gesendet
+   * (Datensparsamkeit: Rolle + org_id reichen zur Diagnose). Feld bleibt im
+   * Kontext-Typ für interne Aufrufer, wird aber im Event unterdrückt.
+   */
   callerStaffId?: string | null;
   /** Rolle des Aufrufers. */
   role?: string | null;
@@ -81,7 +85,6 @@ function buildEvent(err: unknown, ctx: ServerErrorContext, requestUrl: string | 
     server_name: "coco-worker",
     environment,
     tags,
-    user: ctx.callerStaffId ? { id: ctx.callerStaffId } : undefined,
     exception: {
       values: [
         {
@@ -94,7 +97,6 @@ function buildEvent(err: unknown, ctx: ServerErrorContext, requestUrl: string | 
     extra: {
       ...(ctx.extra ?? {}),
       ...(requestUrl ? { requestUrl } : {}),
-      impersonatedBy: ctx.callerStaffId && ctx.tags?.impersonated_by ? undefined : undefined,
     },
   };
 }
