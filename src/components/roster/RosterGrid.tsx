@@ -186,20 +186,22 @@ export function RosterGrid({
   // Monats-Σ pro Mitarbeiter (über alle Standorte/Bereiche via crossBookings).
   const monthSum = React.useMemo(() => {
     const m = new Map<string, number>();
-    for (const b of crossBookings) m.set(b.staffId, (m.get(b.staffId) ?? 0) + 1);
+    const src = monthCrossBookings ?? crossBookings;
+    for (const b of src) m.set(b.staffId, (m.get(b.staffId) ?? 0) + 1);
     return m;
-  }, [crossBookings]);
+  }, [monthCrossBookings, crossBookings]);
 
   const monthBreakdown = React.useMemo(() => {
     const m = new Map<string, Map<string, number>>();
-    for (const b of crossBookings) {
+    const src = monthCrossBookings ?? crossBookings;
+    for (const b of src) {
       const inner = m.get(b.staffId) ?? new Map<string, number>();
       const k = `${b.locationName} · ${AREA_SHORT[b.area]}`;
       inner.set(k, (inner.get(k) ?? 0) + 1);
       m.set(b.staffId, inner);
     }
     return m;
-  }, [crossBookings]);
+  }, [monthCrossBookings, crossBookings]);
 
   // Cross-Booking-Index für Markierungen in leeren Zellen.
   const otherByStaffDate = React.useMemo(() => {
