@@ -17,7 +17,7 @@ import {
   type Reminder,
 } from "@/lib/display/reminders";
 import { businessDateOf } from "@/lib/business-date";
-import { DISPLAY_PERIOD_SWITCH_HOUR } from "@/lib/time/period-label";
+import { DISPLAY_PERIOD_SWITCH_HOUR, PERIOD_FRUEH_BIS } from "@/lib/time/period-label";
 
 type DisplayCell = {
   k: "shift" | "urlaub" | "krank" | "wish" | "available" | "empty";
@@ -38,7 +38,7 @@ type DisplayBlock = {
   dayCounts: number[];
 };
 type DisplayPeriodBlocks = {
-  period: "mittag" | "abend";
+  period: "frueh" | "mittag" | "abend";
   blocks: DisplayBlock[];
 };
 
@@ -47,7 +47,7 @@ type DisplayPayload = {
   generatedAt: string;
   refreshIntervalSeconds: number;
   rotationIntervalSeconds: number;
-  dayServiceEnabled: boolean;
+  enabledPeriods: Array<"frueh" | "mittag" | "abend">;
   windowStart: string;
   windowEnd: string;
   days: string[];
@@ -247,13 +247,23 @@ function DisplayPage() {
 }
 
 function DisplayBody({ payload, now }: { payload: DisplayPayload; now: Date }) {
-  // SP1b — Fenster-Rotation für Standorte mit Tagesbetrieb.
-  // Vor DISPLAY_PERIOD_SWITCH_HOUR (15 Uhr Ortszeit) führt Mittag und
-  // wird doppelt so lange gezeigt; danach führt Abend. Zyklus 3 Slots
-  // à `rotationIntervalSeconds`: [Leader, Leader, Anderes].
-  if (payload.dayServiceEnabled && payload.periodBlocks && payload.periodBlocks.length > 0) {
+  // SP2b — Fenster-Rotation über alle für den Standort aktivierten
+  // Planungsfenster (frueh/mittag/abend) in fester Reihenfolge.
+  // Zeitgesteuerter Leader (Ortszeit Europe/Berlin):
+  //   Stunde <  PERIOD_FRUEH_BIS (11)         → FRÜH
+  //   Stunde <  DISPLAY_PERIOD_SWITCH_HOUR (15) → MITTAG
+  //   sonst                                    → ABEND
+  // Ist der zeitgesteuerte Leader am Standort nicht aktiviert, rückt das
+  // nächste aktive Fenster in Ordnungsreihenfolge nach. Rotations-Muster
+  // pro Zyklus: [Leader, Leader, ...übrige aktive Fenster in Reihenfolge].
+  // Bei genau einem aktivierten Fenster keine Rotation, kein Titel-Zwang
+  // (Verhalten wie vor SP2b).
+  const multiPeriod =
+    !!payload.periodBlocks &&
+    payload.periodBlocks.length > 0 &&
+    (payload.enabledPeriods?.length ?? 0) > 1;
+  if (multiPeriod && payload.periodBlocks) {
     const T = Math.max(5, payload.rotationIntervalSeconds || 20);
-    // Deterministischer Takt aus Sekunden seit Mitternacht (Ortszeit).
     const berlinHour = Number(
       new Intl.DateTimeFormat("en-GB", {
         timeZone: "Europe/Berlin",
@@ -263,22 +273,42 @@ function DisplayBody({ payload, now }: { payload: DisplayPayload; now: Date }) {
         .formatToParts(now)
         .find((p) => p.type === "hour")?.value ?? "0",
     );
-    const leader: "mittag" | "abend" = berlinHour < DISPLAY_PERIOD_SWITCH_HOUR ? "mittag" : "abend";
+    const ORDER: Array<"frueh" | "mittag" | "abend"> = ["frueh", "mittag", "abend"];
+    const orderedActive = ORDER.filter((p) => payload.enabledPeriods.includes(p));
+    const timeLeader: "frueh" | "mittag" | "abend" =
+      berlinHour < PERIOD_FRUEH_BIS
+        ? "frueh"
+        : berlinHour < DISPLAY_PERIOD_SWITCH_HOUR
+          ? "mittag"
+          : "abend";
+    // Leader muss selbst aktiviert sein — sonst nächstes aktives Fenster
+    // in fester Reihenfolge (frueh → mittag → abend, wrap-around).
+    const leader: "frueh" | "mittag" | "abend" = orderedActive.includes(timeLeader)
+      ? timeLeader
+      : (() => {
+          const idx = ORDER.indexOf(timeLeader);
+          for (let i = 1; i <= ORDER.length; i++) {
+            const cand = ORDER[(idx + i) % ORDER.length];
+            if (orderedActive.includes(cand)) return cand;
+          }
+          return orderedActive[0];
+        })();
+    // Zyklus: [Leader, Leader, ...übrige aktive Fenster in Reihenfolge].
+    const others = orderedActive.filter((p) => p !== leader);
+    const rotation: Array<"frueh" | "mittag" | "abend"> = [leader, leader, ...others];
     const secondsSinceMidnight = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
-    const slot = Math.floor(secondsSinceMidnight / T) % 3;
-    const showLeader = slot < 2;
-    const currentPeriod: "mittag" | "abend" = showLeader
-      ? leader
-      : leader === "mittag"
-        ? "abend"
-        : "mittag";
+    const slot = Math.floor(secondsSinceMidnight / T) % rotation.length;
+    const currentPeriod = rotation[slot];
     const entry =
       payload.periodBlocks.find((p) => p.period === currentPeriod) ?? payload.periodBlocks[0];
-    const title = entry.period === "mittag" ? "MITTAG" : "ABEND";
+    const title =
+      entry.period === "frueh" ? "FRÜH" : entry.period === "mittag" ? "MITTAG" : "ABEND";
     const titleClass =
-      entry.period === "mittag"
-        ? "bg-amber-500/20 text-amber-100 border-amber-400/40"
-        : "bg-indigo-500/20 text-indigo-100 border-indigo-400/40";
+      entry.period === "frueh"
+        ? "bg-orange-500/20 text-orange-100 border-orange-400/40"
+        : entry.period === "mittag"
+          ? "bg-amber-500/20 text-amber-100 border-amber-400/40"
+          : "bg-indigo-500/20 text-indigo-100 border-indigo-400/40";
     return (
       <div className="space-y-4">
         <div className={"rounded-2xl border px-8 py-4 text-center " + titleClass}>
