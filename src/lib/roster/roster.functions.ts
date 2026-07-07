@@ -13,6 +13,7 @@ import { assertRealIdentity } from "@/lib/admin/impersonation";
 import type { MyShiftRow } from "@/lib/roster/my-shifts";
 import { mergeAbsenceRanges, type AbsenceRange } from "@/lib/roster/vacation-planner";
 import { resolvePlanerScope } from "@/lib/roster/scope-util";
+import { assertDayOpen } from "@/lib/roster/business-calendar.server";
 
 const READ_ROLES = ["manager", "admin", "payroll", "staff", "planer"] as const;
 const WRITE_ROLES = ["manager", "admin", "planer"] as const;
@@ -470,6 +471,7 @@ export const createRosterShift = createServerFn({ method: "POST" })
       async () => {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, data.shiftDate);
+        await assertDayOpen(supabaseAdmin, data.locationId, data.shiftDate);
 
         // Regel: max. EINE Einteilung pro Mitarbeiter und Tag (standort-/bereichsübergreifend).
         const { data: existing, error: existErr } = await supabaseAdmin
