@@ -732,8 +732,7 @@ export async function computeSessionTipPoolCore(
 > {
   // Standort-Vererbung: LoadedOrgSettings hat kein `servicePoolEnabled`.
   // Ohne expliziten Wert → true (bitgenau Alt-Verhalten für Bestand).
-  const servicePoolEnabled =
-    (settings as TipSettings).servicePoolEnabled ?? true;
+  const servicePoolEnabled = (settings as TipSettings).servicePoolEnabled ?? true;
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
   const [settlementsRes, timeRes, manualRes] = await Promise.all([

@@ -4,10 +4,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import {
-  getOrgTipDefaults,
-  updateLocationTipSettings,
-} from "@/lib/admin/locations.functions";
+import { getOrgTipDefaults, updateLocationTipSettings } from "@/lib/admin/locations.functions";
 
 type Props = {
   locationId: string;
@@ -96,16 +93,13 @@ export function LocationTipPoolPanel({ locationId, initial, onSaved }: Props) {
   const orgRatePct =
     defaultsQ.data == null ? "…" : `${(defaultsQ.data.kitchenTipRate * 100).toFixed(2)} %`;
   const orgHours = defaultsQ.data == null ? "…" : String(defaultsQ.data.tipPoolMinHours);
-  const orgManual =
-    defaultsQ.data == null ? "…" : defaultsQ.data.kitchenManualOnly ? "an" : "aus";
+  const orgManual = defaultsQ.data == null ? "…" : defaultsQ.data.kitchenManualOnly ? "an" : "aus";
 
   const inputCls = "w-full rounded-md border border-input bg-background px-3 py-2 text-sm";
 
   return (
     <div className="mt-3 space-y-3 rounded-md border border-input bg-muted/30 p-3 text-sm">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        Trinkgeld
-      </p>
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Trinkgeld</p>
       <label className="flex items-center gap-2">
         <input
           type="checkbox"

@@ -279,7 +279,11 @@ function AbrechnungPage() {
                 <div className="text-xs text-muted-foreground">Trinkgeld an diesem Standort</div>
                 <div className="mt-1 text-sm">
                   Eigenes Trinkgeld verbleibt bei dir · Küchen-Abgabe{" "}
-                  {(kitchenTipRate * 100).toFixed(2).replace(/\.?0+$/, "").replace(".", ",")} %
+                  {(kitchenTipRate * 100)
+                    .toFixed(2)
+                    .replace(/\.?0+$/, "")
+                    .replace(".", ",")}{" "}
+                  %
                 </div>
               </>
             )}

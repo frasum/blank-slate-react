@@ -257,9 +257,6 @@ export function resolvePoolTimeEntries(input: {
  * Fingerabdruck fehlender Stunden am Abschluss (Lehre 02.07.2026,
  * 423-€-Vorfall).
  */
-export function poolNeedsHoursWarning(
-  poolCents: number,
-  totalEligibleMinutes: number,
-): boolean {
+export function poolNeedsHoursWarning(poolCents: number, totalEligibleMinutes: number): boolean {
   return poolCents > 0 && totalEligibleMinutes <= 0;
 }

@@ -36,10 +36,7 @@ export function mergeTipSettings(input: TipSettingsInput): TipSettings {
   };
 }
 
-export async function loadTipSettings(
-  orgId: string,
-  locationId: string,
-): Promise<TipSettings> {
+export async function loadTipSettings(orgId: string, locationId: string): Promise<TipSettings> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const [orgRes, locRes] = await Promise.all([
     supabaseAdmin
