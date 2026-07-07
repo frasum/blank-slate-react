@@ -1091,8 +1091,7 @@ function FinalizeConfirmDialog({
   const sumCard = settlements.reduce((s, r) => s + Number(r.card_total_cents ?? 0), 0);
   const sumCash = settlements.reduce((s, r) => s + Number(r.cash_handed_in_cents ?? 0), 0);
 
-  const poolCents =
-    (pool?.kitchenPoolCents ?? 0) + (pool?.servicePoolCents ?? 0);
+  const poolCents = (pool?.kitchenPoolCents ?? 0) + (pool?.servicePoolCents ?? 0);
   const shares = pool?.shares ?? [];
   const eligibleHours = shares.reduce((s, sh) => s + sh.hoursWorked, 0);
   const eurPerHour = eligibleHours > 0 ? poolCents / 100 / eligibleHours : 0;
@@ -1112,7 +1111,11 @@ function FinalizeConfirmDialog({
       };
     })
     .sort((a, b) =>
-      a.department === b.department ? a.name.localeCompare(b.name) : a.department === "service" ? -1 : 1,
+      a.department === b.department
+        ? a.name.localeCompare(b.name)
+        : a.department === "service"
+          ? -1
+          : 1,
     );
 
   return (
