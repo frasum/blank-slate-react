@@ -280,4 +280,24 @@ export const TOOLS: ToolDef[] = [
       },
     },
   },
+  {
+    name: "branchenbenchmark_lookup",
+    description:
+      "Kuratierte Branchen-Referenzwerte (Vollgastronomie Deutschland) aus dem DEHOGA-Branchenbericht — für den Vergleich eigener Kennzahlen mit dem Branchendurchschnitt. Verfügbare Kennzahlen: 'umsatz_pro_arbeitsstunde', 'personalkostenquote', 'wareneinsatzquote', 'bon_pro_gast'. Ohne Parameter = Liste aller verfügbaren Referenzwerte. Antworte immer mit Bandbreite (von/bis), Einheit, Quelle und Stand-Jahr — und weise darauf hin, dass es Richtwerte sind, keine Punktschätzungen.",
+    input_schema: {
+      type: "object",
+      properties: {
+        kennzahl: {
+          type: "string",
+          enum: [
+            "umsatz_pro_arbeitsstunde",
+            "personalkostenquote",
+            "wareneinsatzquote",
+            "bon_pro_gast",
+          ],
+          description: "Optional. Leer = alle verfügbaren Kennzahlen zurückgeben.",
+        },
+      },
+    },
+  },
 ];
