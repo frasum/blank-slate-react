@@ -1210,3 +1210,95 @@ async function urlaubAntraege(ctx: ToolContext, input: Record<string, unknown>) 
     ctx.pseudonym,
   );
 }
+
+// ─────────────────────────────────────────────────────────── personal_bestand
+
+async function personalBestand(ctx: ToolContext, input: Record<string, unknown>) {
+  const includeInactive = input.include_inactive === true;
+
+  // Standorte für Namensauflösung
+  const { data: locs, error: locErr } = await ctx.admin
+    .from("locations")
+    .select("id, name")
+    .eq("organization_id", ctx.organizationId);
+  if (locErr) throw new Error(locErr.message);
+  const locName = new Map((locs ?? []).map((l) => [l.id, l.name]));
+
+  // Staff
+  const staff = await selectAllPaged<{ id: string; is_active: boolean }>((from, to) =>
+    ctx.admin
+      .from("staff")
+      .select("id, is_active")
+      .eq("organization_id", ctx.organizationId)
+      .range(from, to),
+  );
+  const aktive = staff.filter((s) => s.is_active);
+  const inaktive = staff.filter((s) => !s.is_active);
+  const scopeIds = new Set((includeInactive ? staff : aktive).map((s) => s.id));
+
+  // Rollen
+  const roles = await selectAllPaged<{ staff_id: string; role: string }>((from, to) =>
+    ctx.admin
+      .from("role_assignments")
+      .select("staff_id, role")
+      .eq("organization_id", ctx.organizationId)
+      .range(from, to),
+  );
+  const perRolle = new Map<string, number>();
+  const rolesByStaff = new Map<string, Set<string>>();
+  for (const r of roles) {
+    if (!scopeIds.has(r.staff_id)) continue;
+    const set = rolesByStaff.get(r.staff_id) ?? new Set<string>();
+    set.add(r.role);
+    rolesByStaff.set(r.staff_id, set);
+  }
+  for (const set of rolesByStaff.values()) {
+    for (const role of set) perRolle.set(role, (perRolle.get(role) ?? 0) + 1);
+  }
+
+  // Standort- und Abteilungszuordnungen
+  const sl = await selectAllPaged<{
+    staff_id: string;
+    location_id: string;
+    department: string | null;
+  }>((from, to) =>
+    ctx.admin
+      .from("staff_locations")
+      .select("staff_id, location_id, department")
+      .eq("organization_id", ctx.organizationId)
+      .range(from, to),
+  );
+  const perStandort = new Map<string, Set<string>>();
+  const perAbteilung = new Map<string, Set<string>>();
+  for (const row of sl) {
+    if (!scopeIds.has(row.staff_id)) continue;
+    const locSet = perStandort.get(row.location_id) ?? new Set<string>();
+    locSet.add(row.staff_id);
+    perStandort.set(row.location_id, locSet);
+    if (row.department) {
+      const dSet = perAbteilung.get(row.department) ?? new Set<string>();
+      dSet.add(row.staff_id);
+      perAbteilung.set(row.department, dSet);
+    }
+  }
+
+  return {
+    hinweis:
+      "Aggregierte Zählungen ohne Personendaten. Ein Mitarbeiter kann mehreren Standorten/Abteilungen/Rollen zugeordnet sein — die Summen sind daher nicht additiv.",
+    gesamt_aktiv: aktive.length,
+    gesamt_inaktiv: inaktive.length,
+    gezaehlt: scopeIds.size,
+    per_standort: [...perStandort.entries()]
+      .map(([id, s]) => ({
+        standort: locName.get(id) ?? id,
+        anzahl: s.size,
+      }))
+      .sort((a, b) => b.anzahl - a.anzahl),
+    per_rolle: [...perRolle.entries()]
+      .map(([role, n]) => ({ rolle: role, anzahl: n }))
+      .sort((a, b) => b.anzahl - a.anzahl),
+    per_abteilung: [...perAbteilung.entries()]
+      .map(([d, s]) => ({ abteilung: d, anzahl: s.size }))
+      .sort((a, b) => b.anzahl - a.anzahl),
+  };
+}
