@@ -197,6 +197,8 @@ export async function seedKasseFinalize(
     hilf_mahl_cents: 0,
     open_invoices_cents: 0,
     cash_handed_in_cents: 80000,
+    kitchen_tip_rate: 0.02,
+    kitchen_tip_cents: 2000,
     status: "submitted",
   });
   if (wsErr) throw new Error(`waiter_settlements insert failed: ${wsErr.message}`);
@@ -243,7 +245,7 @@ export async function markLocationClosed(
   const { error } = await svc.from("location_calendar_exceptions").insert({
     organization_id: organizationId,
     location_id: locationId,
-    exception_date: date,
+    date,
     kind: "closed",
   });
   if (error) throw new Error(`calendar exception insert failed: ${error.message}`);
