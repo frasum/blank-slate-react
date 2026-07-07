@@ -11,6 +11,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { writeAuditLog } from "./audit";
+import { resolveActiveImpersonation } from "./impersonation";
 
 export type ImpersonationStaffOption = {
   staffId: string;
@@ -97,31 +98,28 @@ export const listStaffForImpersonation = createServerFn({ method: "GET" })
 export const getImpersonationStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<ImpersonationStatus> => {
+    // IMP2: über die zentrale Auflösung — löst automatisch abgelaufene
+    // Sitzungen (inkl. Audit) auf und liefert dann `null`.
+    const imp = await resolveActiveImpersonation(context.supabase, context.userId);
+    if (!imp) {
+      return { active: false, asStaffId: null, asDisplayName: null, since: null };
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await supabaseAdmin
-      .from("admin_impersonations")
-      .select("target_staff_id, started_at")
-      .eq("admin_user_id", context.userId)
-      .is("ended_at", null)
-      .maybeSingle();
-    if (error) throw new Error(`impersonation status failed: ${error.message}`);
-    if (!data) return { active: false, asStaffId: null, asDisplayName: null, since: null };
-
     const { data: staff } = await supabaseAdmin
       .from("staff")
       .select("display_name, first_name, last_name")
-      .eq("id", data.target_staff_id)
+      .eq("id", imp.targetStaffId)
       .maybeSingle();
     const displayName =
       staff?.display_name?.trim() ||
       [staff?.first_name, staff?.last_name].filter(Boolean).join(" ").trim() ||
-      data.target_staff_id.slice(0, 8);
+      imp.targetStaffId.slice(0, 8);
 
     return {
       active: true,
-      asStaffId: data.target_staff_id,
+      asStaffId: imp.targetStaffId,
       asDisplayName: displayName,
-      since: data.started_at,
+      since: imp.startedAt,
     };
   });
 
