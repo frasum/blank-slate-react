@@ -6,7 +6,7 @@ SaaS-Vorbereitung: Readiness-Audit und Modul-Katalog stehen in docs/saas-vorbere
 
 Produktionsreife-Review: docs/produktionsreife-review.md (Stand 07.07.2026, HEAD 8cfdbc1d, inkl. Patch-Plan P0–P7) — kritischer Pfad vor dem Kassen-Go-live: Monitoring (P1) → Finalize-E2E (P2) → Restore-Probe (P3) → Cutover.
 
-Stand: 07.07.2026 (RT1–TG1)
+Stand: 07.07.2026 (P1/IMP2)
 
 TH1 — Standort-Farbthema: LocationThemeProvider im \_authenticated-Layout hält den themeKey (spicery/yum/neutral).
 LocationPills melden die Auswahl per useLocationThemeSync; Mapping: Name enthält „spicery" → spicery, „yum" → yum, sonst neutral (auch TSB/„Alle"/leer).
@@ -442,6 +442,7 @@ Rekonstruiert per Kalibrierung gegen bereits validierte Bestands-Sessions (Refer
 | Betriebskalender RT1/UZ1 (Ruhetage, Ausnahmen, Feiertags-Urlaubsregel)                                                                                                                                | ✅                                                                                                                                             |
 | Schichtbetrieb SP1/SP1b (service_period, Display-Rotation, Marker)                                                                                                                                    | ✅ (aktiviert erst bei TSB-Reaktivierung)                                                                                                      |
 | Trinkgeld-Modell je Standort TG1 (Pool-Schalter, Overrides, Abschluss-Warnung)                                                                                                                        | ✅                                                                                                                                             |
+| Monitoring & Impersonation-Härtung P1/IMP2 (Sentry, 60-min-Verfall)                                                                                                                                   | ✅ (DSN-Setzung + Probe bei Frank offen)                                                                                                      |
 
 **Juni-Kassenlücke geschlossen (29.06.2026):** YUM (16., 18.–25.) und Spicery (16., 18.–25., 28.) aus `tagesabrechnung` nachimportiert — 19 Sessions; das leere native YUM-28 durch Legacy-Daten ersetzt. `vectron_daily_total_cents` 19/19 gegen die Quelle verifiziert. Mapping siehe Abschnitt 5.
 
