@@ -317,9 +317,9 @@ function AdminManagerDienstplan() {
   // SP1 — Tagesbetrieb: Fenster-Umschalter oberhalb des Grids. Bei
   // Standard-Standorten (day_service_enabled=false) unsichtbar und alles
   // verhält sich wie vor SP1 (Fenster fest auf „abend").
-  const activeLocationRaw = (locationsQ.data ?? []).find(
-    (l) => l.id === effectiveLocationId,
-  ) as { day_service_enabled?: boolean | null } | undefined;
+  const activeLocationRaw = (locationsQ.data ?? []).find((l) => l.id === effectiveLocationId) as
+    | { day_service_enabled?: boolean | null }
+    | undefined;
   const dayServiceEnabled = activeLocationRaw?.day_service_enabled === true;
   const [activePeriod, setActivePeriod] = useState<"mittag" | "abend">("abend");
   useEffect(() => {

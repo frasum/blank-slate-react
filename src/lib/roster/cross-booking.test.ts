@@ -7,7 +7,11 @@ import {
 } from "./cross-booking";
 
 function row(
-  o: Partial<CrossBookingRow> & { staffId: string; locationId: string; area?: CrossBookingRow["area"] },
+  o: Partial<CrossBookingRow> & {
+    staffId: string;
+    locationId: string;
+    area?: CrossBookingRow["area"];
+  },
 ): CrossBookingRow {
   return {
     staffId: o.staffId,

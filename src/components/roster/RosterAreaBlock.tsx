@@ -157,7 +157,6 @@ export function RosterAreaBlock({
     return m;
   }, [crossBookings, activePeriod]);
 
-
   const filteredStaff = useMemo(() => {
     if (skillFilter.length === 0) return staff;
     return staff.filter((r) => r.skillIds.some((sid) => skillFilter.includes(sid)));

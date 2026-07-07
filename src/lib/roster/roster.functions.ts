@@ -454,7 +454,9 @@ export const getStaffCrossBookings = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: rows, error } = await supabaseAdmin
       .from("roster_shifts")
-      .select("staff_id, shift_date, location_id, area, service_period, locations(name), skills(name)")
+      .select(
+        "staff_id, shift_date, location_id, area, service_period, locations(name), skills(name)",
+      )
       .eq("organization_id", caller.organizationId)
       .gte("shift_date", data.fromDate)
       .lte("shift_date", data.toDate);

@@ -61,8 +61,7 @@ export function classifyCrossBookings(
     ) {
       continue;
     }
-    const kind: CrossBookingKind =
-      r.servicePeriod === viewport.servicePeriod ? "conflict" : "info";
+    const kind: CrossBookingKind = r.servicePeriod === viewport.servicePeriod ? "conflict" : "info";
     out.push({ ...r, kind });
   }
   return out;
@@ -91,9 +90,7 @@ export function indexClassifiedByStaffDate(
  * Der „schlimmste" Kind unter mehreren Klassifikationen. Konflikt schlägt
  * Info; leere Menge liefert `null`.
  */
-export function worstKind(
-  rows: readonly { kind: CrossBookingKind }[],
-): CrossBookingKind | null {
+export function worstKind(rows: readonly { kind: CrossBookingKind }[]): CrossBookingKind | null {
   if (rows.length === 0) return null;
   for (const r of rows) if (r.kind === "conflict") return "conflict";
   return "info";

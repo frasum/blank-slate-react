@@ -81,9 +81,9 @@ async function loadShift(
   if (!data) throw new Error("Schicht nicht gefunden.");
   return {
     ...(data as ShiftRow),
-    service_period: (((data as { service_period: string | null }).service_period ?? "abend") as
+    service_period: ((data as { service_period: string | null }).service_period ?? "abend") as
       | "mittag"
-      | "abend"),
+      | "abend",
   };
 }
 

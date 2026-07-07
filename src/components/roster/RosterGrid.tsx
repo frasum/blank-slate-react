@@ -824,7 +824,7 @@ function EmptyCell({
   const cellInner = (
     <span className="relative block">
       {marker}
-      {others.length > 0 && (
+      {others.length > 0 &&
         (() => {
           const hasConflict = others.some((b) => b.servicePeriod === viewportServicePeriod);
           return (
@@ -855,8 +855,7 @@ function EmptyCell({
               </TooltipContent>
             </Tooltip>
           );
-        })()
-      )}
+        })()}
     </span>
   );
 
