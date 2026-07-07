@@ -375,7 +375,6 @@ async function arbeitsstunden(ctx: ToolContext, input: Record<string, unknown>) 
     .select("staff_id, location_id, department");
   if (deptErr) throw new Error(deptErr.message);
   const deptByStaffLocation = new Map<string, string>();
-  const grouped = new Map<string, Department[]>();
   const byStaffLoc = new Map<string, Department[]>();
   for (const r of deptRows ?? []) {
     const key = `${r.location_id as string}|${r.staff_id as string}`;
@@ -386,7 +385,6 @@ async function arbeitsstunden(ctx: ToolContext, input: Record<string, unknown>) 
   for (const [key, depts] of byStaffLoc) {
     deptByStaffLocation.set(key, primaryDepartment(depts));
   }
-  void grouped;
 
   type Agg = { netMinutes: number; department: string; displayName: string };
   const perStaff = new Map<string, Agg>();
