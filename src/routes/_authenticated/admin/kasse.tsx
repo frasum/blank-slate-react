@@ -42,6 +42,7 @@ import {
   getCashOverview,
   getPreviousOperativeDeficit,
   getOrCreateOpenSession,
+  getTipPoolOverview,
   listPaymentTerminals,
   listRevenueChannels,
   lockSession,
@@ -111,6 +112,7 @@ function KassePage() {
   const fetchTerminals = useServerFn(listPaymentTerminals);
   const fetchStaff = useServerFn(listStaff);
   const fetchLocations = useServerFn(listLocations);
+  const fetchTipPool = useServerFn(getTipPoolOverview);
   const callCreateSession = useServerFn(getOrCreateOpenSession);
   const callUpdate = useServerFn(updateSession);
   const callAddSat = useServerFn(addSessionSatellite);
@@ -154,6 +156,16 @@ function KassePage() {
     enabled: locationId !== "",
   });
   const staffQ = useQuery({ queryKey: ["admin-staff"], queryFn: () => fetchStaff() });
+
+  // Trinkgeld-Pool für die Finalize-Zusammenfassung. Gleicher Query-Key
+  // wie in TipPoolCard, damit bereits im Cache liegende Daten sofort
+  // verfügbar sind (kein Doppel-Request).
+  const sessionIdForPool = ovQ.data?.session?.id ?? null;
+  const poolQ = useQuery({
+    queryKey: ["cash", "tip-pool", sessionIdForPool],
+    queryFn: () => fetchTipPool({ data: { sessionId: sessionIdForPool! } }),
+    enabled: sessionIdForPool !== null,
+  });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["cash"] });
 
@@ -323,6 +335,10 @@ function KassePage() {
 
   // KAB2: Ein-Knopf-Druckfluss – „Drucken = Finalisieren".
   const [printBusy, setPrintBusy] = useState(false);
+  // KAB2 + FZD: Vor dem Finalisieren erscheint ein Bestätigungs-Dialog mit
+  // Zusammenfassung (Gäste, Umsatz, Pool, Stunden je Mitarbeiter). Nur bei
+  // Status `open` — Druck-Nachläufe (finalized/locked) laufen ohne Dialog.
+  const [finalizeConfirmOpen, setFinalizeConfirmOpen] = useState(false);
 
   // -------------------- Wasserlinie (Admin) --------------------
   const [cashLockDate, setCashLockDate] = useState<string>("");
@@ -386,6 +402,20 @@ function KassePage() {
       handlePrint();
       return;
     }
+    const data = buildSummaryDataOrNull();
+    if (!data) return;
+    if (!sessionId) {
+      toast.error("Keine Session");
+      return;
+    }
+    // FZD: Nicht mehr direkt finalisieren — Bestätigungs-Dialog zuerst.
+    setFinalizeConfirmOpen(true);
+  }
+
+  // Führt den eigentlichen Finalize-/Druck-/Lock-Flow aus. Wird aus dem
+  // Bestätigungs-Dialog aufgerufen. Verhalten der Pool-Warnung (TG1)
+  // unverändert: bei „0 anrechenbare Stunden" fragt zusätzlich window.confirm.
+  async function runFinalizeAndPrint() {
     const data = buildSummaryDataOrNull();
     if (!data) return;
     if (!sessionId) {
@@ -1007,7 +1037,181 @@ function KassePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <FinalizeConfirmDialog
+        open={finalizeConfirmOpen}
+        onOpenChange={setFinalizeConfirmOpen}
+        busy={printBusy}
+        guestCount={ovQ.data?.session?.guest_count ?? 0}
+        settlements={
+          (ovQ.data?.settlements as Array<{
+            pos_sales_cents: number | string | null;
+            card_total_cents: number | string | null;
+            cash_handed_in_cents: number | string | null;
+          }>) ?? []
+        }
+        vectronTotalCents={Number(
+          (ovQ.data?.session as { vectron_daily_total_cents?: number | null } | undefined)
+            ?.vectron_daily_total_cents ?? 0,
+        )}
+        pool={poolQ.data ?? null}
+        onConfirm={async () => {
+          setFinalizeConfirmOpen(false);
+          await runFinalizeAndPrint();
+        }}
+      />
     </div>
+  );
+}
+
+function FinalizeConfirmDialog({
+  open,
+  onOpenChange,
+  busy,
+  guestCount,
+  settlements,
+  vectronTotalCents,
+  pool,
+  onConfirm,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  busy: boolean;
+  guestCount: number;
+  settlements: Array<{
+    pos_sales_cents: number | string | null;
+    card_total_cents: number | string | null;
+    cash_handed_in_cents: number | string | null;
+  }>;
+  vectronTotalCents: number;
+  pool: Awaited<ReturnType<typeof getTipPoolOverview>> | null;
+  onConfirm: () => void | Promise<void>;
+}) {
+  const sumPos = settlements.reduce((s, r) => s + Number(r.pos_sales_cents ?? 0), 0);
+  const sumCard = settlements.reduce((s, r) => s + Number(r.card_total_cents ?? 0), 0);
+  const sumCash = settlements.reduce((s, r) => s + Number(r.cash_handed_in_cents ?? 0), 0);
+
+  const poolCents =
+    (pool?.kitchenPoolCents ?? 0) + (pool?.servicePoolCents ?? 0);
+  const shares = pool?.shares ?? [];
+  const eligibleHours = shares.reduce((s, sh) => s + sh.hoursWorked, 0);
+  const eurPerHour = eligibleHours > 0 ? poolCents / 100 / eligibleHours : 0;
+  const nameById = pool?.staffNames ?? {};
+  // Alle Pool-Teilnehmer (kitchen/service, participates=true). Auch mit 0 h
+  // aufführen — Transparenz vor Abschluss.
+  const participantRows = (pool?.poolEntries ?? [])
+    .filter((e) => e.participates && (e.department === "kitchen" || e.department === "service"))
+    .map((e) => {
+      const share = shares.find((s) => s.staffId === e.staffId);
+      return {
+        staffId: e.staffId,
+        name: e.displayName || nameById[e.staffId] || e.staffId,
+        department: e.department as "kitchen" | "service",
+        hours: (e.hoursMinutes ?? 0) / 60,
+        shareCents: share?.shareCents ?? 0,
+      };
+    })
+    .sort((a, b) =>
+      a.department === b.department ? a.name.localeCompare(b.name) : a.department === "service" ? -1 : 1,
+    );
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Tag finalisieren?</DialogTitle>
+          <DialogDescription>
+            Bitte die Zusammenfassung prüfen. Nach dem Finalisieren sind Korrekturen nur noch
+            eingeschränkt möglich; als Admin wird die Session anschließend automatisch gesperrt.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 text-sm">
+          <section>
+            <div className="mb-1 font-medium">Gäste & Umsatz</div>
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-1">
+              <dt className="text-muted-foreground">Gästeanzahl</dt>
+              <dd className="text-right tabular-nums">{guestCount}</dd>
+              <dt className="text-muted-foreground">Vectron Tagesumsatz</dt>
+              <dd className="text-right tabular-nums">{fmtCents(vectronTotalCents)}</dd>
+              <dt className="text-muted-foreground">Kellner-Umsatz (POS)</dt>
+              <dd className="text-right tabular-nums">{fmtCents(sumPos)}</dd>
+              <dt className="text-muted-foreground">davon Karte</dt>
+              <dd className="text-right tabular-nums">{fmtCents(sumCard)}</dd>
+              <dt className="text-muted-foreground">davon Bar abgegeben</dt>
+              <dd className="text-right tabular-nums">{fmtCents(sumCash)}</dd>
+            </dl>
+          </section>
+
+          <section>
+            <div className="mb-1 font-medium">Trinkgeld-Pool</div>
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-1">
+              <dt className="text-muted-foreground">Pool-Betrag</dt>
+              <dd className="text-right tabular-nums">{fmtCents(poolCents)}</dd>
+              <dt className="text-muted-foreground">Anrechenbare Stunden</dt>
+              <dd className="text-right tabular-nums">{eligibleHours.toFixed(2)} h</dd>
+              <dt className="text-muted-foreground">Rechnerischer €/Stunde</dt>
+              <dd className="text-right tabular-nums">
+                {eligibleHours > 0 ? `${eurPerHour.toFixed(2)} €/h` : "—"}
+              </dd>
+            </dl>
+            {poolCents > 0 && eligibleHours <= 0 && (
+              <div className="mt-2 rounded border border-destructive/50 bg-destructive/10 p-2 text-xs text-destructive">
+                Achtung: Pool &gt; 0 €, aber keine anrechenbaren Stunden erfasst. Der Server wird
+                beim Finalisieren zusätzlich rückfragen.
+              </div>
+            )}
+          </section>
+
+          <section>
+            <div className="mb-1 font-medium">Anrechenbare Stunden je Mitarbeiter</div>
+            {participantRows.length === 0 ? (
+              <div className="text-muted-foreground">Keine Pool-Teilnehmer erfasst.</div>
+            ) : (
+              <div className="max-h-64 overflow-auto rounded border">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      <th className="px-2 py-1 text-left font-medium">Mitarbeiter</th>
+                      <th className="px-2 py-1 text-left font-medium">Bereich</th>
+                      <th className="px-2 py-1 text-right font-medium">Stunden</th>
+                      <th className="px-2 py-1 text-right font-medium">Pool-Anteil</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {participantRows.map((r) => (
+                      <tr key={r.staffId} className="border-t">
+                        <td className="px-2 py-1">{r.name}</td>
+                        <td className="px-2 py-1 text-muted-foreground">
+                          {r.department === "kitchen" ? "Küche" : "Service"}
+                        </td>
+                        <td className="px-2 py-1 text-right tabular-nums">{r.hours.toFixed(2)}</td>
+                        <td className="px-2 py-1 text-right tabular-nums">
+                          {fmtCents(r.shareCents)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
+            Abbrechen
+          </Button>
+          <Button
+            onClick={() => void onConfirm()}
+            disabled={busy || guestCount <= 0}
+            data-testid="finalize-confirm-button"
+          >
+            {busy ? "Wird finalisiert…" : "Finalisieren & drucken"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
