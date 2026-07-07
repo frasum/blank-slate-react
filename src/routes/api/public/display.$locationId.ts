@@ -152,11 +152,13 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
         const { data: location, error: locErr } = await supabaseAdmin
           // ST1: bewusst ungefiltert — Daten-Zugriff (Display-API by id).
           .from("locations")
-          .select("id, name")
+          .select("id, name, day_service_enabled")
           .eq("id", locationId)
           .eq("organization_id", s.organization_id)
           .maybeSingle();
         if (locErr || !location) return jsonError(404, "Filiale nicht gefunden.");
+        const dayServiceEnabled =
+          (location as { day_service_enabled?: boolean | null }).day_service_enabled === true;
 
         const today = todayIso();
         const businessDate = businessDateOf(new Date());
@@ -309,14 +311,17 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
         // Schichten im Fenster.
         const { data: shiftRows, error: shiftErr } = await supabaseAdmin
           .from("roster_shifts")
-          .select("staff_id, shift_date, area, skill_id")
+          .select("staff_id, shift_date, area, skill_id, service_period")
           .eq("organization_id", s.organization_id)
           .eq("location_id", locationId)
           .gte("shift_date", windowStart)
           .lte("shift_date", windowEnd);
         if (shiftErr) return jsonError(500, "Daten konnten nicht geladen werden.");
 
-        // Map staffId|date|blockArea → skill_id (gesetzten Eintrag bevorzugen).
+        // Map staffId|date|blockArea(|period) → skill_id (gesetzten Eintrag bevorzugen).
+        // Ohne Tagesbetrieb ignorieren wir das Fenster (Legacy-Verhalten, alle
+        // Schichten in einer Ansicht). Mit Tagesbetrieb wird das Fenster in
+        // den Key aufgenommen und pro Fenster ein eigener Block gebaut.
         const shiftMap = new Map<string, string | null>();
         const skillIdSet = new Set<string>();
         for (const sh of shiftRows ?? []) {
@@ -325,10 +330,15 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
           const rawArea = sh.area as string;
           const blockArea: "kitchen" | "service" = rawArea === "kitchen" ? "kitchen" : "service";
           const skillId = (sh.skill_id as string | null) ?? null;
-          const key = `${staffId}|${date}|${blockArea}`;
-          const existing = shiftMap.get(key);
-          if (existing === undefined || (existing === null && skillId !== null)) {
-            shiftMap.set(key, skillId);
+          const period = ((sh.service_period as string | null) ?? "abend") as "mittag" | "abend";
+          const keys = dayServiceEnabled
+            ? [`${staffId}|${date}|${blockArea}|${period}`]
+            : [`${staffId}|${date}|${blockArea}`];
+          for (const key of keys) {
+            const existing = shiftMap.get(key);
+            if (existing === undefined || (existing === null && skillId !== null)) {
+              shiftMap.set(key, skillId);
+            }
           }
           if (skillId) skillIdSet.add(skillId);
         }
