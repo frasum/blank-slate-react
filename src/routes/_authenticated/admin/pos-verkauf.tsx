@@ -134,6 +134,7 @@ function PosVerkaufPage() {
   const [wg, setWg] = useState<string>(ALL);
   const [sortKey, setSortKey] = useState<SortKey>("umsatz");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [onlyNeedsAssignment, setOnlyNeedsAssignment] = useState(false);
 
   // Wenn Filter „Ohne Zuordnung" aktiv ist, sind Unter/WG sinnlos → auf ALL.
   useEffect(() => {
@@ -147,6 +148,13 @@ function PosVerkaufPage() {
   const reportDate = statsQ.data?.reportDate ?? null;
   const unmatchedCount = statsQ.data?.unmatchedCount ?? 0;
 
+  // „Handlungsbedarf" = keine echte Vectron-Warengruppe (nur #Nummer oder gar nichts).
+  // Overrides zählen als zugeordnet, weil sie eine warengruppe setzen.
+  const needsAssignmentCount = useMemo(
+    () => rows.filter((r) => !r.warengruppe).length,
+    [rows],
+  );
+
   // Zuordnungs-Optionen: alle WG-Werte, die aus Namens-Matches oder Overrides
   // bereits an POS-Zeilen hängen. Bewusst aus den enriched rows, damit die
   // Liste zum Standort passt (statt separatem sales_articles-Fetch).
@@ -158,6 +166,7 @@ function PosVerkaufPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return rows.filter((r) => {
+      if (onlyNeedsAssignment && r.warengruppe) return false;
       if (haupt === UNMATCHED) {
         if (!r.unmatched) return false;
       } else if (haupt !== ALL) {
@@ -172,7 +181,7 @@ function PosVerkaufPage() {
       }
       return true;
     });
-  }, [rows, search, haupt, unter, wg]);
+  }, [rows, search, haupt, unter, wg, onlyNeedsAssignment]);
 
   const sorted = useMemo(() => {
     const arr = [...filtered];
@@ -296,6 +305,20 @@ function PosVerkaufPage() {
           setWg={setWg}
           extraHauptOption={{ value: UNMATCHED, label: "Ohne Zuordnung" }}
         />
+        <button
+          type="button"
+          onClick={() => setOnlyNeedsAssignment((v) => !v)}
+          aria-pressed={onlyNeedsAssignment}
+          disabled={needsAssignmentCount === 0}
+          className={
+            onlyNeedsAssignment
+              ? "rounded-md border border-amber-400 bg-amber-100 px-2 py-1 text-xs font-medium text-amber-900 hover:bg-amber-200 focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 dark:border-amber-500/60 dark:bg-amber-900/40 dark:text-amber-100"
+              : "rounded-md border border-border bg-background px-2 py-1 text-xs text-muted-foreground hover:text-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
+          }
+          title="Zeigt nur Artikel ohne echte Vectron-Warengruppe — das sind die tatsächlichen To-dos."
+        >
+          Nur ohne Warengruppe ({intFmt.format(needsAssignmentCount)})
+        </button>
       </div>
 
       {statsQ.isLoading ? (
@@ -779,6 +802,26 @@ function AssignCell({
   const currentLabel =
     row.warengruppe ?? (row.productGroup !== null ? `#${row.productGroup}` : null);
 
+  // Drei UI-Zustände:
+  //  - overridden       → „Ändern" (dezent, blau markiert am Label)
+  //  - warengruppe da   → „Korrigieren" (dezent; kommt aus Vectron, optionaler Override)
+  //  - sonst            → „Zuordnen" (auffällig amber; echtes To-do)
+  const hasVectronGroup = row.warengruppe !== null && !row.overridden;
+  const buttonLabel = row.overridden
+    ? "Ändern"
+    : hasVectronGroup
+      ? "Korrigieren"
+      : "Zuordnen";
+  const buttonNeedsAttention = !row.overridden && !hasVectronGroup;
+  const buttonTitle = row.overridden
+    ? "Aktuelle Zuordnung ist ein manueller Override — Ändern öffnet die Auswahl."
+    : hasVectronGroup
+      ? "Warengruppe kommt aus Vectron und ist aktiv — nur überschreiben, wenn sie falsch ist."
+      : "Diesem Artikel ist keine Warengruppe zugeordnet — bitte Warengruppe wählen.";
+  const buttonClass = buttonNeedsAttention
+    ? "rounded-md border border-amber-400 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-900 hover:bg-amber-100 focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 dark:border-amber-500/60 dark:bg-amber-950/40 dark:text-amber-100"
+    : "rounded-md border border-input bg-background px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50";
+
   return (
     <div className="flex items-center gap-2">
       {currentLabel ? (
@@ -806,10 +849,11 @@ function AssignCell({
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="rounded-md border border-input bg-background px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            className={buttonClass}
             disabled={busy}
+            title={buttonTitle}
           >
-            {row.overridden ? "Ändern" : currentLabel ? "Zuordnen" : "Zuordnen"}
+            {buttonLabel}
           </button>
         </PopoverTrigger>
         <PopoverContent className="w-64 space-y-2">
