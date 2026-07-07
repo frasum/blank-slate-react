@@ -6,6 +6,7 @@ import { tabClass } from "@/components/ui/nav-tab";
 
 const ITEMS = [
   { to: "/admin/pos-verkauf", label: "Artikel" },
+  { to: "/admin/pos-renner-penner", label: "Renner & Penner" },
   { to: "/admin/pos-stundenbericht", label: "Stundenbericht" },
 ] as const;
 
