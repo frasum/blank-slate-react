@@ -255,6 +255,21 @@ export async function markLocationClosed(
   if (error) throw new Error(`calendar exception insert failed: ${error.message}`);
 }
 
+// P2-DIAG: nach Diagnose-Lauf entfernen
+export async function probeOrgState(orgId: string) {
+  const svc = service();
+  const org = await svc.from("organizations").select("id").eq("id", orgId).maybeSingle();
+  const sessions = await svc
+    .from("sessions")
+    .select("id,status,business_date,location_id")
+    .eq("organization_id", orgId);
+  return {
+    orgExists: !!org.data,
+    sessions: sessions.data ?? [],
+    sessErr: sessions.error?.message ?? null,
+  };
+}
+
 /** Zählt Audit-Log-Einträge mit `meta.poolHoursWarningConfirmed = true`. */
 export async function findPoolWarningAuditRow(
   organizationId: string,
