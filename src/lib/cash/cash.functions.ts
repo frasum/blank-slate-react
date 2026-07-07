@@ -3225,7 +3225,7 @@ async function applyRosterPoolSnapshot(input: {
       .eq("organization_id", input.organizationId)
       .eq("location_id", input.locationId)
       .eq("shift_date", input.businessDate)
-      .eq("status", "confirmed"),
+      .in("status", ["planned", "confirmed"]),
     supabaseAdmin
       .from("location_department_defaults")
       .select("department, default_checkin, default_checkout")
