@@ -117,8 +117,13 @@ export const requestLeave = createServerFn({ method: "POST" })
     if (!isValidLeaveRange(data.start_date, data.end_date)) {
       throw new Error("Bis-Datum muss am Von-Datum oder danach liegen.");
     }
-    const days = countLeaveDays(data.start_date, data.end_date);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const skip = !(await loadCountHolidays(supabaseAdmin, caller.organizationId));
+    const days = countLeaveDays(
+      data.start_date,
+      data.end_date,
+      holidaySetIfSkip(skip, data.start_date, data.end_date),
+    );
 
     // Überschneidung mit eigenem offenem/genehmigtem Antrag?
     const { data: overlaps, error: overlapErr } = await supabaseAdmin
@@ -168,6 +173,7 @@ export const getMyLeaveRequests = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<LeaveRequestRow[]> => {
     const caller = await loadStaffCaller(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const skipHolidays = !(await loadCountHolidays(supabaseAdmin, caller.organizationId));
     const { data, error } = await supabaseAdmin
       .from("leave_requests")
       .select(
@@ -188,7 +194,11 @@ export const getMyLeaveRequests = createServerFn({ method: "GET" })
       decisionNote: (r.decision_note as string | null) ?? null,
       decidedAt: (r.decided_at as string | null) ?? null,
       createdAt: r.created_at as string,
-      days: countLeaveDays(r.start_date as string, r.end_date as string),
+      days: countLeaveDays(
+        r.start_date as string,
+        r.end_date as string,
+        holidaySetIfSkip(skipHolidays, r.start_date as string, r.end_date as string),
+      ),
     }));
   });
 
