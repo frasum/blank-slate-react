@@ -31,6 +31,11 @@ Laufendes Betriebshandbuch (Rollen, Review-Loop, Stammdaten, Modul-Status):
 
 ## Entwicklung
 
+Lokale Entwicklung: `.env.example` nach `.env` kopieren und die Werte aus
+dem Supabase-Projekt (bzw. `supabase status` für den lokalen Stack)
+eintragen. `.env` ist in `.gitignore` und wird per CI-Guard gegen
+Wieder-Committen geschützt.
+
 ```bash
 bun install
 bun run dev        # Vite/TanStack-Dev-Server
