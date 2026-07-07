@@ -402,6 +402,12 @@ export function RosterGrid({
                       const isLocked = lockEntry !== null;
                       const isBirthday =
                         row.birthdayMonthDay != null && row.birthdayMonthDay === iso.slice(5, 10);
+                      // SP1b — Marker für Doppelschicht im Gegenfenster
+                      // nur auf besetzten Zellen; leere Zellen behalten den
+                      // vorhandenen blauen Punkt (Info) / roten Punkt (Konflikt).
+                      const otherPeriod = shift
+                        ? (otherPeriodByStaffDate.get(`${row.staffId}|${iso}`) ?? [])
+                        : [];
                       return (
                         <DropCell
                           key={iso}
@@ -426,6 +432,7 @@ export function RosterGrid({
                               ? `Bereits in ${lockEntry.locationName} · ${AREA_SHORT[lockEntry.area]} eingeteilt`
                               : null
                           }
+                          otherPeriod={otherPeriod}
                         >
                           {shift ? (
                             <PillConfirmPopover
