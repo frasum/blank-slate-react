@@ -141,7 +141,6 @@ export async function runWithPermission<T>(
   arg4: AuditWriter | StaffDepartment | null,
   arg5: AuditWriter | (() => Promise<{ result: T; audit: AuditEntry }>),
   arg6?: () => Promise<{ result: T; audit: AuditEntry }>,
-  ctx?: GuardedCallContext,
 ): Promise<T> {
   let area: StaffDepartment | null = null;
   let writeAudit: AuditWriter;
@@ -160,7 +159,7 @@ export async function runWithPermission<T>(
   try {
     ({ result, audit } = await op());
   } catch (err) {
-    await reportGuardedFailure(err, null, ctx);
+    await reportGuardedFailure(err, null, undefined);
     throw err;
   }
   await writeAudit(audit);
