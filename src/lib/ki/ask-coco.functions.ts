@@ -246,8 +246,12 @@ function extractText(blocks: ContentBlock[]): string {
     .trim();
 }
 
+// Typ des Admin-Clients (server-only). Import erfolgt nur zur Typprüfung —
+// deshalb `import type`, damit der Runtime-Import im Handler ausreicht.
+import type { supabaseAdmin as SupabaseAdminType } from "@/integrations/supabase/client.server";
+
 async function logUsage(
-  admin: Awaited<ReturnType<typeof importAdmin>>,
+  admin: typeof SupabaseAdminType,
   entry: {
     organizationId: string;
     staffId: string;
@@ -271,13 +275,6 @@ async function logUsage(
     // Kostenprotokoll darf die Nutzerantwort nicht kaputt machen.
     console.error("ki_usage_log insert failed:", error.message);
   }
-}
-
-// Hilfstyp, damit `logUsage` den Admin-Client typisiert bekommt, ohne den
-// (server-only) Import nach oben zu heben.
-async function importAdmin() {
-  const mod = await import("@/integrations/supabase/client.server");
-  return mod.supabaseAdmin;
 }
 
 // ────────────────────────────────────────────────────────── Nutzung/Monat ──
