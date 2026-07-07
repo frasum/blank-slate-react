@@ -301,4 +301,18 @@ export const TOOLS: ToolDef[] = [
       },
     },
   },
+  {
+    name: "personal_bestand",
+    description:
+      "Aggregierte Personalkennzahlen der Organisation (KEINE Personendaten, nur Zählungen): Anzahl aktiver und inaktiver Mitarbeiter, Verteilung pro Standort, pro Rolle (admin/manager/payroll/staff) und pro Abteilung (service/kitchen). Nutze das für Fragen wie 'wieviele Mitarbeiter haben wir', 'wie ist das Team verteilt', 'wieviele in der Küche'.",
+    input_schema: {
+      type: "object",
+      properties: {
+        include_inactive: {
+          type: "boolean",
+          description: "Wenn true, werden auch deaktivierte Mitarbeiter mitgezählt. Default false.",
+        },
+      },
+    },
+  },
 ];
