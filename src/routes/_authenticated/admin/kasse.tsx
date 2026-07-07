@@ -1047,7 +1047,10 @@ function KassePage() {
 
       <FinalizeConfirmDialog
         open={finalizeConfirmOpen}
-        onOpenChange={setFinalizeConfirmOpen}
+        onOpenChange={(v) => {
+          setFinalizeConfirmOpen(v);
+          if (!v) setFinalizeWarnMsg(null);
+        }}
         busy={printBusy}
         guestCount={ovQ.data?.session?.guest_count ?? 0}
         settlements={
@@ -1062,9 +1065,9 @@ function KassePage() {
             ?.vectron_daily_total_cents ?? 0,
         )}
         pool={poolQ.data ?? null}
+        warnMsg={finalizeWarnMsg}
         onConfirm={async () => {
-          setFinalizeConfirmOpen(false);
-          await runFinalizeAndPrint();
+          await runFinalizeAndPrint(Boolean(finalizeWarnMsg));
         }}
       />
     </div>
