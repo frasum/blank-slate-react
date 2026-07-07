@@ -117,3 +117,40 @@ Loop/„melden statt still lösen") sind die operative Form von
 YAGNI/KISS/DRY/SOLID in diesem Repo — Prinzipien sind gelebt, nicht
 deklariert. **Restarbeit ist Betrieb, nicht Architektur** — nach P3
 Restore-Probe steht dem Cutover nichts entgegen.
+
+---
+
+## 6. Nachtrag 07.07.2026 — ENV1-Ausnahme für Publish-Build
+
+**Symptom (07.07.):** `cocoplatform.online` zeigt „Seite konnte nicht
+geladen werden". Ursache: der Publish-Build enthielt kein
+`VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` mehr, weil die
+zuvor getrackte `.env` mit ENV1 aus dem Repo entfernt wurde. Vite
+inlined `import.meta.env.VITE_*` **zur Build-Zeit** aus dem Repo-Stand
+— server-seitige Lovable-Secrets erreichen den Client-Bundle nicht.
+
+**Meldung statt stiller Lösung (Hausregel):** Die ENV1-Enttrackung war
+korrekt für alles außer den beiden reinen Publishable-Werten. Diese
+werden ab jetzt bewusst als *eigene* Datei eingecheckt, die
+ENV1-Grundregel „keine Secrets im Repo" bleibt unangetastet.
+
+**Umsetzung:**
+- Neue Datei `.env.production` mit ausschließlich publishable Werten:
+  `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`,
+  `VITE_SUPABASE_PROJECT_ID`, `VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_*`
+  (Browser-Key ist domain-beschränkt).
+- `.gitignore` erhält `!.env.production` als expliziten Whitelist-Eintrag
+  mit Kommentar.
+- **Keine Secrets** in `.env.production` — SERVICE_ROLE_KEY, DSNs,
+  API-Tokens etc. bleiben ausschließlich in Lovable-Secrets. Der
+  CI-Guard („keine .env im Git, keine Secrets in getrackten Dateien",
+  `.github/workflows/ci.yml`) greift weiter für `.env` und
+  SERVICE_ROLE/SECRET/PRIVATE_KEY-Muster.
+
+**Modul-Status:**
+- **ENV1 .env-Enttrackung + CI-Guard** — ✅ bleibt gültig; ergänzt um
+  dokumentierte Ausnahme `.env.production` für Publishable-Only-Werte.
+
+**Nach Publish neu prüfen:** `cocoplatform.online` lädt bis
+Login-Screen, Supabase-Requests gehen mit anon-Key raus, Sentry-Envelope
+ohne Pool-Warnung.
