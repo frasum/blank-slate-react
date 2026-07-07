@@ -22,6 +22,7 @@ export const TOOL_NAMES = [
   "tausch_anfragen",
   "urlaub_antraege",
   "branchenbenchmark_lookup",
+  "personal_bestand",
 ] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];
@@ -296,6 +297,20 @@ export const TOOLS: ToolDef[] = [
             "bon_pro_gast",
           ],
           description: "Optional. Leer = alle verfügbaren Kennzahlen zurückgeben.",
+        },
+      },
+    },
+  },
+  {
+    name: "personal_bestand",
+    description:
+      "Aggregierte Personalkennzahlen der Organisation (KEINE Personendaten, nur Zählungen): Anzahl aktiver und inaktiver Mitarbeiter, Verteilung pro Standort, pro Rolle (admin/manager/payroll/staff) und pro Abteilung (service/kitchen). Nutze das für Fragen wie 'wieviele Mitarbeiter haben wir', 'wie ist das Team verteilt', 'wieviele in der Küche'.",
+    input_schema: {
+      type: "object",
+      properties: {
+        include_inactive: {
+          type: "boolean",
+          description: "Wenn true, werden auch deaktivierte Mitarbeiter mitgezählt. Default false.",
         },
       },
     },
