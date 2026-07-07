@@ -11,7 +11,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { selectAllPaged } from "@/lib/supabase/select-all";
 import { normalizeName } from "@/lib/bestellung/sales-stats";
 import { grossMinutesBetween } from "@/lib/time/break-rules";
-import { buildPrimaryDeptMap } from "@/lib/time/primary-department";
+import { primaryDepartment, type Department } from "@/lib/time/primary-department";
 import {
   aggregateRennerPenner,
   matchesGroupFilter,
@@ -53,10 +53,6 @@ function requireDate(input: unknown, field: string): string {
     throw new ToolError(`Parameter '${field}' fehlt oder ist kein ISO-Datum YYYY-MM-DD.`);
   }
   return input;
-}
-function optionalDate(input: unknown, field: string): string | undefined {
-  if (input === undefined || input === null || input === "") return undefined;
-  return requireDate(input, field);
 }
 function optionalUuid(input: unknown, field: string): string | undefined {
   if (input === undefined || input === null || input === "") return undefined;
@@ -379,16 +375,18 @@ async function arbeitsstunden(ctx: ToolContext, input: Record<string, unknown>) 
     .select("staff_id, location_id, department");
   if (deptErr) throw new Error(deptErr.message);
   const deptByStaffLocation = new Map<string, string>();
-  const grouped = new Map<string, { staff_id: string; department: string }[]>();
+  const grouped = new Map<string, Department[]>();
+  const byStaffLoc = new Map<string, Department[]>();
   for (const r of deptRows ?? []) {
-    const arr = grouped.get(r.location_id as string) ?? [];
-    arr.push({ staff_id: r.staff_id as string, department: r.department as string });
-    grouped.set(r.location_id as string, arr);
+    const key = `${r.location_id as string}|${r.staff_id as string}`;
+    const arr = byStaffLoc.get(key) ?? [];
+    arr.push(r.department as Department);
+    byStaffLoc.set(key, arr);
   }
-  for (const [locId, arr] of grouped) {
-    const primary = buildPrimaryDeptMap(arr);
-    for (const [staffId, d] of primary) deptByStaffLocation.set(`${locId}|${staffId}`, d);
+  for (const [key, depts] of byStaffLoc) {
+    deptByStaffLocation.set(key, primaryDepartment(depts));
   }
+  void grouped;
 
   type Agg = { netMinutes: number; department: string; displayName: string };
   const perStaff = new Map<string, Agg>();
