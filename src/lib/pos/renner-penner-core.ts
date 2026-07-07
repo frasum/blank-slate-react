@@ -106,6 +106,7 @@ export type RennerAggregateResult = {
 export function aggregateRennerPenner(
   rows: readonly RennerRawRow[],
   articlesForLeftovers: readonly RennerArticleForLeftovers[],
+  location?: { id: string; name: string },
 ): RennerAggregateResult {
   // 1) Gruppieren
   const groups = new Map<string, RennerRawRow[]>();
@@ -120,7 +121,7 @@ export function aggregateRennerPenner(
     }
   }
 
-  const entries: RennerEntry[] = orderKeys.map((key) => buildEntry(key, groups.get(key)!));
+  const entries: RennerEntry[] = orderKeys.map((key) => buildEntry(key, groups.get(key)!, location));
 
   // 2) Ladenhüter — nach Nummer nicht in stats vertreten
   const seenNummern = new Set<number>();
@@ -130,7 +131,11 @@ export function aggregateRennerPenner(
   return { entries, ladenhueter };
 }
 
-function buildEntry(key: string, rows: RennerRawRow[]): RennerEntry {
+function buildEntry(
+  key: string,
+  rows: RennerRawRow[],
+  location?: { id: string; name: string },
+): RennerEntry {
   // Kürzester Name wird zum Bündelnamen (bei Gleichstand: erster).
   let displayName = rows[0].name;
   for (const r of rows) {
@@ -205,7 +210,113 @@ function buildEntry(key: string, rows: RennerRawRow[]): RennerEntry {
     ekwPct,
     dbCents,
     components,
+    perLocation: location
+      ? [
+          {
+            locationId: location.id,
+            locationName: location.name,
+            einheiten,
+            umsatzCents: umsatz,
+            wareneinsatzCents: we,
+            dbCents,
+          },
+        ]
+      : [],
   };
+}
+
+/**
+ * RP2 — Fasst pro-Standort-Ergebnisse zu einer standort-übergreifenden
+ * Rangliste zusammen. Merge-Schlüssel = normalisierter Anzeigename
+ * (Gerichte/Getränke haben pro Standort andere Vectron-Nummern, aber
+ * denselben Namen).
+ */
+export function mergeAcrossLocations(
+  perLoc: ReadonlyArray<{ locationId: string; locationName: string; entries: readonly RennerEntry[] }>,
+  normalize: (name: string) => string,
+): RennerEntry[] {
+  if (perLoc.length <= 1) {
+    return perLoc[0]?.entries.slice() ?? [];
+  }
+  const byKey = new Map<string, RennerEntry>();
+  const orderKeys: string[] = [];
+  for (const loc of perLoc) {
+    for (const e of loc.entries) {
+      const mkey = e.ekSourceArticleId ? `ek:${normalize(e.name)}` : `n:${normalize(e.name)}`;
+      const existing = byKey.get(mkey);
+      if (!existing) {
+        // erste Sichtung → kopieren; perLocation ggf. auf 1-Slice normalisieren.
+        const slice: LocationSlice = e.perLocation[0] ?? {
+          locationId: loc.locationId,
+          locationName: loc.locationName,
+          einheiten: e.einheitenGesamt,
+          umsatzCents: e.umsatzCents,
+          wareneinsatzCents: e.wareneinsatzCents,
+          dbCents: e.dbCents,
+        };
+        byKey.set(mkey, {
+          ...e,
+          key: mkey,
+          perLocation: [slice],
+          components: e.components.slice(),
+        });
+        orderKeys.push(mkey);
+        continue;
+      }
+      // Aggregieren.
+      existing.einheitenGesamt += e.einheitenGesamt;
+      existing.umsatzCents += e.umsatzCents;
+      existing.offeneGlaeserCount += e.offeneGlaeserCount;
+      existing.flaschenCount += e.flaschenCount;
+      if (existing.wareneinsatzCents === null || e.wareneinsatzCents === null) {
+        existing.wareneinsatzCents = null;
+      } else {
+        existing.wareneinsatzCents += e.wareneinsatzCents;
+      }
+      if (existing.volumenMl === null || e.volumenMl === null) {
+        existing.volumenMl = null;
+      } else {
+        existing.volumenMl += e.volumenMl;
+      }
+      if (existing.hauptgruppe === null) existing.hauptgruppe = e.hauptgruppe;
+      if (existing.warengruppe === null) existing.warengruppe = e.warengruppe;
+      if (existing.ekSourceVolumeMl === null) existing.ekSourceVolumeMl = e.ekSourceVolumeMl;
+      // Kürzester Name gewinnt weiter.
+      if (e.name.length < existing.name.length) existing.name = e.name;
+      // Komponenten anhängen (Duplikate zwischen Standorten ok — Nummer +
+      // Name reichen zur visuellen Trennung; unterschiedliche Nummern pro
+      // Standort sind der Regelfall).
+      for (const c of e.components) existing.components.push(c);
+      const slice: LocationSlice = e.perLocation[0] ?? {
+        locationId: loc.locationId,
+        locationName: loc.locationName,
+        einheiten: e.einheitenGesamt,
+        umsatzCents: e.umsatzCents,
+        wareneinsatzCents: e.wareneinsatzCents,
+        dbCents: e.dbCents,
+      };
+      existing.perLocation.push(slice);
+      // Abgeleitete Kennzahlen neu berechnen.
+      existing.flaschenAequivalent =
+        existing.volumenMl !== null &&
+        existing.ekSourceVolumeMl !== null &&
+        existing.ekSourceVolumeMl > 0
+          ? existing.volumenMl / existing.ekSourceVolumeMl
+          : null;
+      const avgEkNetto =
+        existing.wareneinsatzCents !== null && existing.einheitenGesamt > 0
+          ? Math.round(existing.wareneinsatzCents / existing.einheitenGesamt)
+          : null;
+      const avgVkBrutto =
+        existing.einheitenGesamt > 0
+          ? Math.round(existing.umsatzCents / existing.einheitenGesamt)
+          : null;
+      existing.ekwPct = wareneinsatzQuote(avgEkNetto, avgVkBrutto);
+      existing.dbCents =
+        existing.wareneinsatzCents === null ? null : existing.umsatzCents - existing.wareneinsatzCents;
+    }
+  }
+  return orderKeys.map((k) => byKey.get(k)!);
 }
 
 /** Case-insensitiver Gruppen-Match: prüft hauptgruppe ODER warengruppe. */
