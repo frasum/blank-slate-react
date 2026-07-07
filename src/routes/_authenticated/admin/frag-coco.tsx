@@ -289,26 +289,11 @@ function FragCocoPage() {
                 ? "Mikrofon im Browser erlauben"
                 : isTouch
                   ? "Antippen zum Starten/Stoppen"
-                  : "Gedrückt halten (oder Leertaste) zum Sprechen"
+                  : "Klicken zum Starten/Stoppen (Leertaste = gedrückt halten)"
             }
             aria-label={speech.isRecording ? "Aufnahme stoppen" : "Sprachaufnahme starten"}
             aria-pressed={speech.isRecording}
-            onMouseDown={(e) => {
-              if (isTouch) return;
-              e.preventDefault();
-              startMic();
-            }}
-            onMouseUp={(e) => {
-              if (isTouch) return;
-              e.preventDefault();
-              stopMic();
-            }}
-            onMouseLeave={() => {
-              if (isTouch) return;
-              if (speech.isRecording) stopMic();
-            }}
             onClick={(e) => {
-              if (!isTouch) return;
               e.preventDefault();
               toggleMic();
             }}
