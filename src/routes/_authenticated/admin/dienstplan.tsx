@@ -825,6 +825,7 @@ function AdminManagerDienstplan() {
               shifts={shiftsForGrid}
               allSkills={allSkills}
               crossBookings={crossBookings}
+              monthCrossBookings={monthCrossBookings}
               viewportServicePeriod={dayServiceEnabled ? activePeriod : "abend"}
               lockMap={lockMap}
               unavailableSet={unavailableSet}
