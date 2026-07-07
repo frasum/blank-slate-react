@@ -30,3 +30,7 @@ logs/
 
 # Editor-Artefakte
 .DS_Store
+
+# Playwright-Artefakte
+playwright-report/
+test-results/
