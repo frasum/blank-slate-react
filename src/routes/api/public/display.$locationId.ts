@@ -169,12 +169,11 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
         // SP2b — Aktivierte Fenster als Payload-Feld führen und die
         // Rendering-Verzweigung daran aufhängen (kein Boolean-Legacy).
         const PERIOD_ORDER = ["frueh", "mittag", "abend"] as const;
-        const rawEnabled =
-          (location as { enabled_service_periods?: string[] | null }).enabled_service_periods ??
-          ["abend"];
-        const enabledPeriods = PERIOD_ORDER.filter((p) =>
-          rawEnabled.includes(p),
-        ) as Array<"frueh" | "mittag" | "abend">;
+        const rawEnabled = (location as { enabled_service_periods?: string[] | null })
+          .enabled_service_periods ?? ["abend"];
+        const enabledPeriods = PERIOD_ORDER.filter((p) => rawEnabled.includes(p)) as Array<
+          "frueh" | "mittag" | "abend"
+        >;
         // Fallback: irgendetwas fremdes/leeres → 'abend' als sicherer Default.
         const enabledPeriodsSafe: Array<"frueh" | "mittag" | "abend"> =
           enabledPeriods.length > 0 ? enabledPeriods : ["abend"];
@@ -351,9 +350,9 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
           const blockArea: "kitchen" | "service" = rawArea === "kitchen" ? "kitchen" : "service";
           const skillId = (sh.skill_id as string | null) ?? null;
           const rawPeriod = (sh.service_period as string | null) ?? "abend";
-          const period = (PERIOD_ORDER.includes(rawPeriod as (typeof PERIOD_ORDER)[number])
-            ? rawPeriod
-            : "abend") as "frueh" | "mittag" | "abend";
+          const period = (
+            PERIOD_ORDER.includes(rawPeriod as (typeof PERIOD_ORDER)[number]) ? rawPeriod : "abend"
+          ) as "frueh" | "mittag" | "abend";
           const keys = multiPeriod
             ? [`${staffId}|${date}|${blockArea}|${period}`]
             : [`${staffId}|${date}|${blockArea}`];

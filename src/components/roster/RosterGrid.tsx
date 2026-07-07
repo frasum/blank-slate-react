@@ -790,8 +790,7 @@ function DropCell({
                     : b.servicePeriod === "mittag"
                       ? "Mittag"
                       : "Abend"}
-                  : {b.locationName} ·{" "}
-                  {b.area === "kitchen" ? "Küche" : "Service"}
+                  : {b.locationName} · {b.area === "kitchen" ? "Küche" : "Service"}
                   {b.skillName ? ` · ${b.skillName}` : ""}
                 </div>
               ))}
@@ -922,8 +921,7 @@ function EmptyCell({
                         : b.servicePeriod === "mittag"
                           ? "Mittag"
                           : "Abend"}
-                      : {b.locationName} ·{" "}
-                      {AREA_SHORT[b.area]}
+                      : {b.locationName} · {AREA_SHORT[b.area]}
                       {b.skillName ? ` · ${b.skillName}` : ""}
                     </div>
                   ))}
