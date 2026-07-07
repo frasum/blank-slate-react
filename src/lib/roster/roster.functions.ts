@@ -747,6 +747,8 @@ export const moveRosterShift = createServerFn({ method: "POST" })
         if (snap.shift_date !== data.shiftDate) {
           await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, data.shiftDate);
         }
+        // Ziel-Tag muss offen sein (Löschen bleibt erlaubt).
+        await assertDayOpen(supabaseAdmin, snap.location_id as string, data.shiftDate);
 
         // Konflikt-Pre-Check auf Zielzelle.
         const { data: clash, error: clashErr } = await supabaseAdmin
