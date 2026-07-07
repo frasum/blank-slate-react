@@ -42,6 +42,7 @@ import {
   getCashOverview,
   getPreviousOperativeDeficit,
   getOrCreateOpenSession,
+  getTipPoolOverview,
   listPaymentTerminals,
   listRevenueChannels,
   lockSession,
