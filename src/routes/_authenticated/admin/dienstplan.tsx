@@ -248,6 +248,23 @@ function AdminManagerDienstplan() {
       }),
     enabled: !!windowStart && !!windowEnd,
   });
+  // Σ-Spalte: Cross-Bookings der gesamten Abrechnungsperiode (26.–25.),
+  // unabhängig vom sichtbaren Halb-Fenster. Dient nur der Summe/Breakdown.
+  const crossMonthQ = useQuery({
+    queryKey: [
+      "roster-cross-bookings-month",
+      effectivePeriod?.startDate,
+      effectivePeriod?.endDate,
+    ],
+    queryFn: () =>
+      getStaffCrossBookings({
+        data: {
+          fromDate: effectivePeriod!.startDate,
+          toDate: effectivePeriod!.endDate,
+        },
+      }),
+    enabled: !!effectivePeriod,
+  });
   const availabilityQ = useQuery({
     queryKey: ["roster-availability", windowStart, windowEnd],
     queryFn: () =>
@@ -290,6 +307,7 @@ function AdminManagerDienstplan() {
       .on("postgres_changes", { event: "*", schema: "public", table: "roster_shifts" }, () => {
         qc.invalidateQueries({ queryKey: ["roster-shifts"] });
         qc.invalidateQueries({ queryKey: ["roster-cross-bookings"] });
+        qc.invalidateQueries({ queryKey: ["roster-cross-bookings-month"] });
       })
       .on(
         "postgres_changes",
