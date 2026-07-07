@@ -65,13 +65,14 @@ export const getRennerPenner = createServerFn({ method: "POST" })
     // Beide Datensätze paginiert lesen (BFIX2).
     const stats = await selectAllPaged<{
       nummer: number;
+      name: string;
       verkauf_count: number;
       umsatz_cents: number;
       report_date: string;
     }>((from, to) =>
       supabaseAdmin
         .from("sales_article_stats")
-        .select("id, nummer, verkauf_count, umsatz_cents, report_date")
+        .select("id, nummer, name, verkauf_count, umsatz_cents, report_date")
         .eq("organization_id", caller.organizationId)
         .eq("location_id", data.locationId)
         .eq("period", data.period)
