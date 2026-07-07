@@ -166,9 +166,19 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
         // SP2 — Fenster-Blöcke aktiv, sobald mehr als ein Fenster für den
         // Standort aktiviert ist. Rendering (frueh/mittag/abend) folgt in
         // Commit 2; hier bleibt der Legacy-Pfad (mittag/abend) erhalten.
-        const enabledPeriods = ((location as { enabled_service_periods?: string[] | null })
-          .enabled_service_periods ?? ["abend"]) as string[];
-        const dayServiceEnabled = enabledPeriods.length > 1;
+        // SP2b — Aktivierte Fenster als Payload-Feld führen und die
+        // Rendering-Verzweigung daran aufhängen (kein Boolean-Legacy).
+        const PERIOD_ORDER = ["frueh", "mittag", "abend"] as const;
+        const rawEnabled =
+          (location as { enabled_service_periods?: string[] | null }).enabled_service_periods ??
+          ["abend"];
+        const enabledPeriods = PERIOD_ORDER.filter((p) =>
+          rawEnabled.includes(p),
+        ) as Array<"frueh" | "mittag" | "abend">;
+        // Fallback: irgendetwas fremdes/leeres → 'abend' als sicherer Default.
+        const enabledPeriodsSafe: Array<"frueh" | "mittag" | "abend"> =
+          enabledPeriods.length > 0 ? enabledPeriods : ["abend"];
+        const multiPeriod = enabledPeriodsSafe.length > 1;
 
         const today = todayIso();
         const businessDate = businessDateOf(new Date());
@@ -340,8 +350,11 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
           const rawArea = sh.area as string;
           const blockArea: "kitchen" | "service" = rawArea === "kitchen" ? "kitchen" : "service";
           const skillId = (sh.skill_id as string | null) ?? null;
-          const period = ((sh.service_period as string | null) ?? "abend") as "mittag" | "abend";
-          const keys = dayServiceEnabled
+          const rawPeriod = (sh.service_period as string | null) ?? "abend";
+          const period = (PERIOD_ORDER.includes(rawPeriod as (typeof PERIOD_ORDER)[number])
+            ? rawPeriod
+            : "abend") as "frueh" | "mittag" | "abend";
+          const keys = multiPeriod
             ? [`${staffId}|${date}|${blockArea}|${period}`]
             : [`${staffId}|${date}|${blockArea}`];
           for (const key of keys) {
@@ -417,7 +430,7 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
           { area: "kitchen", title: "Küche" },
           { area: "service", title: "Service" },
         ];
-        function buildBlocks(period: "mittag" | "abend" | null): DisplayBlock[] {
+        function buildBlocks(period: "frueh" | "mittag" | "abend" | null): DisplayBlock[] {
           const out: DisplayBlock[] = [];
           for (const { area, title } of areaOrder) {
             if (wantedAreas && !wantedAreas.includes(area)) continue;
@@ -464,12 +477,9 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
           }
           return out;
         }
-        const blocks: DisplayBlock[] = dayServiceEnabled ? [] : buildBlocks(null);
-        const periodBlocks: DisplayPeriodBlocks[] | null = dayServiceEnabled
-          ? [
-              { period: "mittag", blocks: buildBlocks("mittag") },
-              { period: "abend", blocks: buildBlocks("abend") },
-            ]
+        const blocks: DisplayBlock[] = multiPeriod ? [] : buildBlocks(null);
+        const periodBlocks: DisplayPeriodBlocks[] | null = multiPeriod
+          ? enabledPeriodsSafe.map((p) => ({ period: p, blocks: buildBlocks(p) }))
           : null;
 
         const payload: DisplayPayload = {
@@ -477,7 +487,7 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
           generatedAt: new Date().toISOString(),
           refreshIntervalSeconds: s.refresh_interval_seconds,
           rotationIntervalSeconds: s.rotation_interval_seconds,
-          dayServiceEnabled,
+          enabledPeriods: enabledPeriodsSafe,
           windowStart,
           windowEnd,
           days,
