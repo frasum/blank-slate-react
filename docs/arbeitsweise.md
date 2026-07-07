@@ -442,7 +442,7 @@ Rekonstruiert per Kalibrierung gegen bereits validierte Bestands-Sessions (Refer
 | Betriebskalender RT1/UZ1 (Ruhetage, Ausnahmen, Feiertags-Urlaubsregel)                                                                                                                                | ✅                                                                                                                                             |
 | Schichtbetrieb SP1/SP1b (service_period, Display-Rotation, Marker)                                                                                                                                    | ✅ (aktiviert erst bei TSB-Reaktivierung)                                                                                                      |
 | Trinkgeld-Modell je Standort TG1 (Pool-Schalter, Overrides, Abschluss-Warnung)                                                                                                                        | ✅                                                                                                                                             |
-| Monitoring & Impersonation-Härtung P1/IMP2 (Sentry, 60-min-Verfall)                                                                                                                                   | ✅ (DSN-Setzung + Probe bei Frank offen)                                                                                                      |
+| Monitoring & Impersonation-Härtung P1/IMP2 (Sentry, 60-min-Verfall)                                                                                                                                   | ✅ (DSN-Setzung + Probe bei Frank offen)                                                                                                       |
 
 **Juni-Kassenlücke geschlossen (29.06.2026):** YUM (16., 18.–25.) und Spicery (16., 18.–25., 28.) aus `tagesabrechnung` nachimportiert — 19 Sessions; das leere native YUM-28 durch Legacy-Daten ersetzt. `vectron_daily_total_cents` 19/19 gegen die Quelle verifiziert. Mapping siehe Abschnitt 5.
 
@@ -3686,3 +3686,13 @@ als Artikel anlegen, Eigenfond als erstes Sub-Rezept.
 **Abschluss-Warnung (Lehre aus dem 423-€-Vorfall 02.07.).** `poolNeedsHoursWarning` + serverseitiger `PoolHoursWarningError` beim Finalisieren — ein Abschluss mit aktivem Pool > 0 € bei 0 anrechenbaren Minuten erfordert **explizite Bestätigung**, die als `poolHoursWarningConfirmed: true` im `audit_log.meta` landet. (Der Vorfall selbst: Service-Pool-Einträge des 02.07. hatten 0 Minuten → Rest = kompletter Pool 423,07 €; Daten-Fix per SQL, Verteilung ist reine Anzeige ohne Buchungs-Konsumenten.)
 
 **Abnahmen.** RT1+UZ1+SP1 HEAD `8cfdbc1d` (1505 Tests, Live-CSV: Tabellen/Spalten/Policies/Setting verifiziert), TG1+SP1b HEAD `ddf6cb1a` (1522 Tests). Alle vier Gates jeweils grün.
+
+## 71. Monitoring & Impersonation-Härtung (P1/IMP2, 07.07.2026)
+
+**P1 — Fehler-Monitoring (Sentry).** Leichtgewichtiger Envelope-POST direkt an die Sentry-API (bewusst **KEIN** Server-SDK — Worker bleibt schlank, `sentry.server.ts`), No-op ohne `SENTRY_DSN`, „wirft nie". Angedockt am zentralen `runGuarded`-Fehlerpfad (`reportGuardedFailure` in `admin-call.ts`); Client-Init in `__root` via `@sentry/react`, DSN kommt über Server-Fn. Event-Inhalt bewusst **datensparsam**: `op`, `org_id`, `role`, `route`, `critical` — **KEINE** Personendaten, **KEINE** Payloads, **KEINE** Tokens (§7). **Ausnahme-Filter:** `ForbiddenError` (erwartetes Fachverhalten) und `PoolHoursWarningError` (erwarteter Bestätigungs-Ablauf; namensbasierter Check gegen Zyklus admin↔cash) werden **NICHT** gemeldet. **Regel für neue Fachfehler-Klassen:** erwartete Kontrollfluss-Fehler in den Filter aufnehmen, sonst verrauscht der kritische Kanal.
+
+**IMP2 — Impersonation-Ablauf.** Admin-Vorschau verfällt automatisch nach `IMPERSONATION_MAX_MINUTES = 60` (reiner Helfer `impersonation-expiry.ts`, getestet inkl. Grenzfall); serverseitig durchgesetzt, Aufräumen über denselben Pfad wie manuelles Beenden mit Audit-Grund `expired`; Banner zeigt Restzeit.
+
+**Abnahme.** HEAD `938ce382`, vier Gates grün (1534 Tests).
+
+**Frank-seitig offen.** Sentry-DSN im Deployment setzen + Testfehler-Probe (und gegenprüfen, dass ein Finalize mit Pool-Warnung **KEINEN** Alarm erzeugt); Impersonation-Ablauf-Test (`started_at` per SQL 61 min zurückdatieren).
