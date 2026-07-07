@@ -600,6 +600,7 @@ function DropCell({
   wishNote,
   locked,
   lockLabel,
+  otherPeriod,
   children,
 }: {
   staffId: string;
@@ -619,6 +620,7 @@ function DropCell({
   wishNote: string | null;
   locked: boolean;
   lockLabel: string | null;
+  otherPeriod?: RosterCrossBooking[];
   children: React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({
