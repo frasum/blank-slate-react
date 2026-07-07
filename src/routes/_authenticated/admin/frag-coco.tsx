@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, Send, Sparkles } from "lucide-react";
+import { Loader2, Mic, Send, Sparkles } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +17,7 @@ import {
   type KiUsageMonth,
 } from "@/lib/ki/ask-coco.functions";
 import { formatEurFromMicroCents } from "@/lib/ki/cost";
+import { useSpeechInput } from "@/lib/ki/use-speech-input";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/admin/frag-coco")({
@@ -48,6 +49,7 @@ function FragCocoPage() {
   const [showIntro, setShowIntro] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const listEndRef = useRef<HTMLDivElement>(null);
+  const micButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     try {
@@ -97,6 +99,20 @@ function FragCocoPage() {
     },
   });
 
+  const submitQuestion = (q: string) => {
+    const trimmed = q.trim();
+    if (!trimmed || send.isPending) return;
+    setTurns((prev) => [...prev, { role: "user", text: trimmed }]);
+    setInput("");
+    setError(null);
+    send.mutate(trimmed);
+  };
+
+  const speech = useSpeechInput({
+    lang: "de-DE",
+    onFinished: (text) => submitQuestion(text),
+  });
+
   useEffect(() => {
     listEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [turns, send.isPending]);
@@ -107,11 +123,23 @@ function FragCocoPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSend) return;
-    const q = input.trim();
-    setTurns((prev) => [...prev, { role: "user", text: q }]);
-    setInput("");
-    setError(null);
-    send.mutate(q);
+    submitQuestion(input);
+  };
+
+  // Push-to-Talk: Leertaste-Halten bei fokussiertem Mikrofon-Knopf.
+  const isTouch = typeof window !== "undefined" && window.matchMedia?.("(hover: none)").matches;
+
+  const startMic = () => {
+    if (busy || speech.isRecording) return;
+    speech.start();
+  };
+  const stopMic = () => {
+    if (!speech.isRecording) return;
+    speech.stop();
+  };
+  const toggleMic = () => {
+    if (speech.isRecording) stopMic();
+    else startMic();
   };
 
   const dismissIntro = () => {
@@ -171,6 +199,12 @@ function FragCocoPage() {
               Personendaten werden vor jedem KI-Aufruf pseudonymisiert (MA-1, MA-2 …) und in der
               Antwort wieder in Klarnamen zurückgetauscht.
             </p>
+            {speech.isSupported && (
+              <p className="text-xs text-muted-foreground">
+                Die Spracherkennung nutzt den Dienst deines Browsers (Chrome/Safari transkribieren
+                serverseitig beim jeweiligen Anbieter).
+              </p>
+            )}
             <Button size="sm" variant="outline" onClick={dismissIntro}>
               Verstanden
             </Button>
@@ -202,6 +236,23 @@ function FragCocoPage() {
         <div ref={listEndRef} />
       </div>
 
+      {speech.isRecording && (
+        <div
+          className="flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs"
+          aria-live="polite"
+        >
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-destructive" />
+          </span>
+          <span className="text-foreground">Höre zu …</span>
+          <span className="truncate text-muted-foreground">
+            {speech.finalText}
+            {speech.interimText && <em className="ml-1 italic opacity-70">{speech.interimText}</em>}
+          </span>
+        </div>
+      )}
+
       {error && (
         <Alert variant="destructive">
           <AlertTitle>Fehler</AlertTitle>
@@ -222,9 +273,59 @@ function FragCocoPage() {
           rows={2}
           placeholder="Frag COCO … (Enter = senden, Shift+Enter = neue Zeile)"
           className="min-h-[3rem] flex-1 resize-none rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          disabled={busy}
+          disabled={busy || speech.isRecording}
           aria-label="Deine Frage an COCO"
         />
+        {speech.isSupported && (
+          <Button
+            ref={micButtonRef}
+            type="button"
+            variant={speech.isRecording ? "destructive" : "outline"}
+            disabled={busy}
+            title={
+              speech.permission === "denied"
+                ? "Mikrofon im Browser erlauben"
+                : isTouch
+                  ? "Antippen zum Starten/Stoppen"
+                  : "Gedrückt halten (oder Leertaste) zum Sprechen"
+            }
+            aria-label={speech.isRecording ? "Aufnahme stoppen" : "Sprachaufnahme starten"}
+            aria-pressed={speech.isRecording}
+            onMouseDown={(e) => {
+              if (isTouch) return;
+              e.preventDefault();
+              startMic();
+            }}
+            onMouseUp={(e) => {
+              if (isTouch) return;
+              e.preventDefault();
+              stopMic();
+            }}
+            onMouseLeave={() => {
+              if (isTouch) return;
+              if (speech.isRecording) stopMic();
+            }}
+            onClick={(e) => {
+              if (!isTouch) return;
+              e.preventDefault();
+              toggleMic();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === " " && !e.repeat) {
+                e.preventDefault();
+                startMic();
+              }
+            }}
+            onKeyUp={(e) => {
+              if (e.key === " ") {
+                e.preventDefault();
+                stopMic();
+              }
+            }}
+          >
+            <Mic className={cn("h-4 w-4", speech.isRecording && "animate-pulse")} />
+          </Button>
+        )}
         <Button type="submit" disabled={!canSend}>
           <Send className="mr-1 h-4 w-4" />
           Senden
