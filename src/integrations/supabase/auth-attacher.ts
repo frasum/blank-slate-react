@@ -31,8 +31,7 @@ export const attachSupabaseAuth = createMiddleware({ type: "function" }).client(
       // öffentliche `getSentryClientConfig`-Function auf. Ohne diese
       // Ausnahme würden die Kitchen-Displays (/display/$id) sofort auf
       // /auth umgeleitet, sobald irgendein serverFn ohne Session feuert.
-      const path =
-        typeof window !== "undefined" ? window.location.pathname : "";
+      const path = typeof window !== "undefined" ? window.location.pathname : "";
       const isPublicPath =
         path.startsWith("/auth") ||
         path.startsWith("/display/") ||
