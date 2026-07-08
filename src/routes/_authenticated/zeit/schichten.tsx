@@ -11,11 +11,7 @@ import {
   type MyAbsenceRange,
 } from "@/lib/roster/roster.functions";
 import { groupMyShiftsByDate } from "@/lib/roster/my-shifts";
-import {
-  formatShiftMatesLine,
-  MATES_LINE_PREFIX,
-  shiftMatesKey,
-} from "@/lib/roster/shift-mates";
+import { formatShiftMatesLine, MATES_LINE_PREFIX, shiftMatesKey } from "@/lib/roster/shift-mates";
 import {
   createSwapRequest,
   listMySwapRequests,
@@ -243,62 +239,62 @@ function MyShiftsPage() {
                 {(() => {
                   const shownMatesKeys = new Set<string>();
                   return day.shifts.map((s) => {
-                  const swap = swapByShift.get(s.id);
-                  const isFuture = s.shift_date > todayIso;
-                  const mateKey = shiftMatesKey(s.shift_date, s.locationId);
-                  const matesLine =
-                    !matesQuery.isError && matesQuery.data
-                      ? formatShiftMatesLine(matesQuery.data[mateKey] ?? [])
-                      : "";
-                  const showMates = matesLine.length > 0 && !shownMatesKeys.has(mateKey);
-                  if (showMates) shownMatesKeys.add(mateKey);
-                  return (
-                    <div key={s.id} className="space-y-2 px-4 py-3 text-sm">
-                      <div className="flex items-center justify-between">
-                        <div className="font-medium">{s.locationName}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {AREA_LABEL[s.area]}
-                          {s.locationDayServiceEnabled ? (
-                            <span className="ml-2 inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-foreground">
-                              {s.servicePeriod === "mittag" ? "Mittag" : "Abend"}
+                    const swap = swapByShift.get(s.id);
+                    const isFuture = s.shift_date > todayIso;
+                    const mateKey = shiftMatesKey(s.shift_date, s.locationId);
+                    const matesLine =
+                      !matesQuery.isError && matesQuery.data
+                        ? formatShiftMatesLine(matesQuery.data[mateKey] ?? [])
+                        : "";
+                    const showMates = matesLine.length > 0 && !shownMatesKeys.has(mateKey);
+                    if (showMates) shownMatesKeys.add(mateKey);
+                    return (
+                      <div key={s.id} className="space-y-2 px-4 py-3 text-sm">
+                        <div className="flex items-center justify-between">
+                          <div className="font-medium">{s.locationName}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {AREA_LABEL[s.area]}
+                            {s.locationDayServiceEnabled ? (
+                              <span className="ml-2 inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-foreground">
+                                {s.servicePeriod === "mittag" ? "Mittag" : "Abend"}
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                        {s.skillLabel && (
+                          <div className="text-xs text-muted-foreground">{s.skillLabel}</div>
+                        )}
+                        {s.notes && <div className="text-xs text-muted-foreground">{s.notes}</div>}
+                        {showMates && (
+                          <div className="text-xs text-muted-foreground">
+                            <span className="font-medium">{MATES_LINE_PREFIX}</span> {matesLine}
+                          </div>
+                        )}
+                        {swap ? (
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-900">
+                              {swap.status === "open"
+                                ? "Tausch angefragt"
+                                : "Kollege gefunden — wartet auf Freigabe"}
                             </span>
-                          ) : null}
-                        </div>
+                          </div>
+                        ) : isFuture ? (
+                          <div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs"
+                              onClick={() => {
+                                setOfferShiftId(s.id);
+                                setNote("");
+                              }}
+                            >
+                              Zum Tausch anbieten
+                            </Button>
+                          </div>
+                        ) : null}
                       </div>
-                      {s.skillLabel && (
-                        <div className="text-xs text-muted-foreground">{s.skillLabel}</div>
-                      )}
-                      {s.notes && <div className="text-xs text-muted-foreground">{s.notes}</div>}
-                      {showMates && (
-                        <div className="text-xs text-muted-foreground">
-                          <span className="font-medium">{MATES_LINE_PREFIX}</span> {matesLine}
-                        </div>
-                      )}
-                      {swap ? (
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-900">
-                            {swap.status === "open"
-                              ? "Tausch angefragt"
-                              : "Kollege gefunden — wartet auf Freigabe"}
-                          </span>
-                        </div>
-                      ) : isFuture ? (
-                        <div>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs"
-                            onClick={() => {
-                              setOfferShiftId(s.id);
-                              setNote("");
-                            }}
-                          >
-                            Zum Tausch anbieten
-                          </Button>
-                        </div>
-                      ) : null}
-                    </div>
-                  );
+                    );
                   });
                 })()}
               </Card>
