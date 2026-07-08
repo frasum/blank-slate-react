@@ -93,7 +93,7 @@ function DienstplanPage() {
   const { identity } = Route.useRouteContext();
   const { bereich } = Route.useSearch();
   if (identity.role === "planer") {
-    return <PlanerRosterView bereich={bereich} />;
+    return <PlanerRosterView bereich={bereich ?? "kueche"} />;
   }
   return <AdminManagerDienstplan />;
 }
