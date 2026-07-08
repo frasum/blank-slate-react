@@ -966,7 +966,6 @@ function KassePage() {
                   ["kassiertBrutto", "Abzugebender Betrag"],
                   ["cardTotal", "EC-/Kartensumme"],
                   ["hilfMahl", "Hilfsmahlzeiten"],
-                  ["openInvoices", "Offene Rechnungen"],
                   ["cashHandedIn", "Abgegebenes Bargeld"],
                 ] as const
               ).map(([key, label]) => (
@@ -996,6 +995,12 @@ function KassePage() {
                   ) : null}
                 </div>
               ))}
+              <OpenInvoicesEditor
+                rows={createSettlement.openInvoices}
+                onChange={(next) =>
+                  setCreateSettlement({ ...createSettlement, openInvoices: next })
+                }
+              />
               <div className="space-y-1">
                 <Label>Begründung *</Label>
                 <Input
