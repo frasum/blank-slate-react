@@ -301,8 +301,15 @@ export async function generateDailySummaryPdf(data: PdfExportData): Promise<{
       }
     }
     if (openNames.length > 0) {
-      // Dezente Unterzeile mit den Reservierungsnamen (leere Betrag-Spalte).
-      summaryRows.push([`  ↳ ${openNames.join(" · ")}`, ""]);
+      // Dezente Unterzeile mit den Reservierungsnamen — Layout identisch
+      // zum HTML-Print (klein, grau, über beide Spalten, ohne Präfix).
+      summaryRows.push([
+        {
+          content: openNames.join(" · "),
+          colSpan: 2,
+          styles: { fontSize: 6.5, textColor: [100, 116, 139] },
+        },
+      ]);
     }
   }
   summaryRows.push(["Personal", fmtEur(sumAdvances)]);
