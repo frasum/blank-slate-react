@@ -57,6 +57,36 @@ import { DateSelector } from "@/components/shared/DateSelector";
 import { LocationPills } from "@/components/shared/LocationPills";
 import { parseEuroToCents } from "@/lib/cash/kasse-helpers";
 import { SettlementWarningsBanner } from "@/components/cash/SettlementWarningsBanner";
+import type { OpenInvoiceEntry } from "@/lib/cash/open-invoices";
+
+// Übersetzt die Roheingabe aus dem Korrektur-/Anlage-Dialog in
+// OpenInvoiceEntry[]. Wirft, wenn ein Betrag > 0 ohne Namen dabei ist
+// oder ein Eurobetrag ungültig ist. Rein clientseitiger Guard vor dem
+// Server-Aufruf; der Server erzwingt dieselbe Regel.
+function toOpenInvoiceEntries(
+  rows: Array<{ name: string; amount: string }>,
+): OpenInvoiceEntry[] {
+  const entries: OpenInvoiceEntry[] = [];
+  for (const r of rows) {
+    const name = r.name.trim();
+    const amountRaw = r.amount.trim();
+    if (name === "" && amountRaw === "") continue;
+    const cents = amountRaw === "" ? 0 : parseEuroToCents(r.amount);
+    if (cents === null || cents < 0) {
+      throw new Error("Bitte gültige Eurobeträge für die offenen Rechnungen eintragen.");
+    }
+    if (cents === 0 && name === "") continue;
+    if (name === "") {
+      throw new Error("Bitte für jede offene Rechnung einen Reservierungsnamen eintragen.");
+    }
+    entries.push({ name, cents });
+  }
+  return entries;
+}
+
+function centsToEuroString(cents: number): string {
+  return (Math.round(cents) / 100).toFixed(2);
+}
 import { SettlementsCard } from "@/components/cash/SettlementsCard";
 import { SessionFieldsCard } from "@/components/cash/SessionFieldsCard";
 import { TipPoolCard } from "@/components/cash/TipPoolCard";
@@ -80,7 +110,7 @@ type CorrectState = {
   kassiertBrutto: string;
   cardTotal: string;
   hilfMahl: string;
-  openInvoices: string;
+  openInvoices: Array<{ name: string; amount: string }>;
   cashHandedIn: string;
   reason: string;
 };
@@ -92,7 +122,7 @@ type CreateState = {
   kassiertBrutto: string;
   cardTotal: string;
   hilfMahl: string;
-  openInvoices: string;
+  openInvoices: Array<{ name: string; amount: string }>;
   cashHandedIn: string;
   reason: string;
 };
@@ -211,14 +241,14 @@ function KassePage() {
         correct.kassiertBrutto.trim() === "" ? pos : parseEuroToCents(correct.kassiertBrutto);
       const card = parseEuroToCents(correct.cardTotal);
       const hilf = parseEuroToCents(correct.hilfMahl);
-      const open = parseEuroToCents(correct.openInvoices);
       const cash = parseEuroToCents(correct.cashHandedIn);
+      const openEntries = toOpenInvoiceEntries(correct.openInvoices);
+      const open = openEntries.reduce((s, e) => s + e.cents, 0);
       if (
         pos === null ||
         kassiert === null ||
         card === null ||
         hilf === null ||
-        open === null ||
         cash === null
       ) {
         throw new Error("Bitte gültige Eurobeträge eintragen.");
@@ -231,6 +261,7 @@ function KassePage() {
           cardTotalCents: card,
           hilfMahlCents: hilf,
           openInvoicesCents: open,
+          openInvoiceEntries: openEntries,
           cashHandedInCents: cash,
           partnerStaffIds: correct.partnerStaffId ? [correct.partnerStaffId] : [],
           reason: correct.reason,
@@ -266,14 +297,14 @@ function KassePage() {
           : parseEuroToCents(createSettlement.kassiertBrutto);
       const card = parseEuroToCents(createSettlement.cardTotal);
       const hilf = parseEuroToCents(createSettlement.hilfMahl);
-      const open = parseEuroToCents(createSettlement.openInvoices);
       const cash = parseEuroToCents(createSettlement.cashHandedIn);
+      const openEntries = toOpenInvoiceEntries(createSettlement.openInvoices);
+      const open = openEntries.reduce((s, e) => s + e.cents, 0);
       if (
         pos === null ||
         kassiert === null ||
         card === null ||
         hilf === null ||
-        open === null ||
         cash === null
       ) {
         throw new Error("Bitte gültige Eurobeträge eintragen.");
@@ -288,6 +319,7 @@ function KassePage() {
           cardTotalCents: card,
           hilfMahlCents: hilf,
           openInvoicesCents: open,
+          openInvoiceEntries: openEntries,
           cashHandedInCents: cash,
           reason: createSettlement.reason,
         },
@@ -563,7 +595,7 @@ function KassePage() {
                 kassiertBrutto: "0.00",
                 cardTotal: "0.00",
                 hilfMahl: "0.00",
-                openInvoices: "0.00",
+                openInvoices: [],
                 cashHandedIn: "0.00",
                 reason: "",
               })
@@ -585,7 +617,12 @@ function KassePage() {
                 ).toFixed(2),
                 cardTotal: (Number(row.card_total_cents) / 100).toFixed(2),
                 hilfMahl: (Number(row.hilf_mahl_cents) / 100).toFixed(2),
-                openInvoices: (Number(row.open_invoices_cents) / 100).toFixed(2),
+                openInvoices:
+                  ((row as { openInvoiceEntries?: Array<{ name: string; cents: number }> })
+                    .openInvoiceEntries ?? []).map((e) => ({
+                    name: e.name,
+                    amount: centsToEuroString(e.cents),
+                  })),
                 cashHandedIn: (Number(row.cash_handed_in_cents) / 100).toFixed(2),
                 reason: "",
               })
@@ -801,7 +838,6 @@ function KassePage() {
                   ["kassiertBrutto", "Abzugebender Betrag"],
                   ["cardTotal", "EC-/Kartensumme"],
                   ["hilfMahl", "Hilfsmahlzeiten"],
-                  ["openInvoices", "Offene Rechnungen"],
                   ["cashHandedIn", "Abgegebenes Bargeld"],
                 ] as const
               ).map(([key, label]) => (
@@ -827,6 +863,10 @@ function KassePage() {
                   ) : null}
                 </div>
               ))}
+              <OpenInvoicesEditor
+                rows={correct.openInvoices}
+                onChange={(next) => setCorrect({ ...correct, openInvoices: next })}
+              />
               <div className="space-y-1">
                 <Label>Begründung *</Label>
                 <Input
@@ -926,7 +966,6 @@ function KassePage() {
                   ["kassiertBrutto", "Abzugebender Betrag"],
                   ["cardTotal", "EC-/Kartensumme"],
                   ["hilfMahl", "Hilfsmahlzeiten"],
-                  ["openInvoices", "Offene Rechnungen"],
                   ["cashHandedIn", "Abgegebenes Bargeld"],
                 ] as const
               ).map(([key, label]) => (
@@ -956,6 +995,12 @@ function KassePage() {
                   ) : null}
                 </div>
               ))}
+              <OpenInvoicesEditor
+                rows={createSettlement.openInvoices}
+                onChange={(next) =>
+                  setCreateSettlement({ ...createSettlement, openInvoices: next })
+                }
+              />
               <div className="space-y-1">
                 <Label>Begründung *</Label>
                 <Input
@@ -1290,5 +1335,63 @@ function SessionStatusInline({
         </span>
       )}
     </Badge>
+  );
+}
+
+// Kompakte Editor-Liste für „Offene Rechnungen" in den Admin-Dialogen.
+// Spiegelt die Regel der Kellner-UI: pro Zeile Reservierungsname + Euro.
+// Rein visuelle Hilfen; die harte Validierung passiert in der Mutation
+// (toOpenInvoiceEntries) und im Server-Trigger.
+function OpenInvoicesEditor({
+  rows,
+  onChange,
+}: {
+  rows: Array<{ name: string; amount: string }>;
+  onChange: (next: Array<{ name: string; amount: string }>) => void;
+}) {
+  const update = (idx: number, patch: Partial<{ name: string; amount: string }>) => {
+    onChange(rows.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+  };
+  const remove = (idx: number) => onChange(rows.filter((_, i) => i !== idx));
+  const add = () => onChange([...rows, { name: "", amount: "" }]);
+  return (
+    <div className="space-y-2 rounded-md border border-border/60 p-3">
+      <div className="flex items-center justify-between">
+        <Label>Offene Rechnungen</Label>
+        <span className="text-xs text-muted-foreground">
+          Reservierungsname ist Pflicht, sobald ein Betrag &gt; 0 steht.
+        </span>
+      </div>
+      {rows.length === 0 && (
+        <p className="text-xs text-muted-foreground">Keine offene Rechnung.</p>
+      )}
+      {rows.map((r, idx) => {
+        const nameMissing = r.amount.trim() !== "" && r.name.trim() === "";
+        return (
+          <div key={idx} className="flex flex-col gap-2 sm:flex-row">
+            <Input
+              className="flex-1"
+              placeholder="Reservierungs-/Gästename"
+              value={r.name}
+              onChange={(e) => update(idx, { name: e.target.value })}
+              aria-invalid={nameMissing}
+            />
+            <Input
+              className="sm:w-32"
+              inputMode="decimal"
+              placeholder="0,00 €"
+              value={r.amount}
+              onChange={(e) => update(idx, { amount: e.target.value })}
+            />
+            <Button type="button" variant="ghost" size="sm" onClick={() => remove(idx)}>
+              Entfernen
+            </Button>
+          </div>
+        );
+      })}
+      <Button type="button" variant="outline" size="sm" onClick={add}>
+        + offene Rechnung
+      </Button>
+    </div>
   );
 }

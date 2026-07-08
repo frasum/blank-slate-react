@@ -4888,6 +4888,7 @@ export type Database = {
           kitchen_tip_cents: number
           kitchen_tip_rate: number
           open_invoices_cents: number
+          open_invoices_details: Json
           organization_id: string
           partner_staff_id: string | null
           pos_sales_cents: number
@@ -4912,6 +4913,7 @@ export type Database = {
           kitchen_tip_cents?: number
           kitchen_tip_rate: number
           open_invoices_cents?: number
+          open_invoices_details?: Json
           organization_id: string
           partner_staff_id?: string | null
           pos_sales_cents?: number
@@ -4936,6 +4938,7 @@ export type Database = {
           kitchen_tip_cents?: number
           kitchen_tip_rate?: number
           open_invoices_cents?: number
+          open_invoices_details?: Json
           organization_id?: string
           partner_staff_id?: string | null
           pos_sales_cents?: number

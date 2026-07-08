@@ -38,6 +38,42 @@ import type { Json } from "@/integrations/supabase/types";
 import { ForbiddenError } from "@/lib/admin/role-guard";
 import { sessionToDayInput } from "./session-day-input";
 import { loadTipSettings, type TipSettings } from "./tip-settings";
+import {
+  openInvoiceEntriesSchema,
+  parseOpenInvoiceEntries,
+  sumOpenInvoiceEntries,
+  type OpenInvoiceEntry,
+} from "./open-invoices";
+
+// Übersetzt Kellner-Eingabe in die persistierte JSONB-Struktur.
+// Regeln (spiegeln den DB-Trigger):
+//   - Wenn `entries` mind. eine Zeile hat, gewinnt die Liste; die Summe
+//     wird IMMER serverseitig neu berechnet (Client-Wert für Summe wird
+//     verworfen).
+//   - Wenn `entries` leer ist und `fallbackCents > 0`, wird das als
+//     Eingabefehler behandelt (Kellner muss Namen eintragen).
+//   - Wenn `entries` leer und `fallbackCents = 0`, bleibt beides 0.
+function resolveOpenInvoicesInput(
+  entries: OpenInvoiceEntry[] | undefined,
+  fallbackCents: number,
+): { cents: number; details: OpenInvoiceEntry[] } {
+  const list = entries ?? [];
+  if (list.length > 0) {
+    const cents = sumOpenInvoiceEntries(list);
+    return { cents, details: list };
+  }
+  if (fallbackCents > 0) {
+    throw new Error(
+      "Bitte für jede offene Rechnung den Reservierungsnamen eintragen, sonst ist keine Abgabe möglich.",
+    );
+  }
+  return { cents: 0, details: [] };
+}
+
+// Konvertiert die zulässige JSONB-Struktur für Supabase-Inserts.
+function toJsonbDetails(entries: OpenInvoiceEntry[]): Json {
+  return entries.map((e) => ({ name: e.name, cents: e.cents })) as unknown as Json;
+}
 
 export { loadTipSettings };
 export type { TipSettings };
@@ -378,7 +414,7 @@ export async function getCashOverviewCore(
     supabaseAdmin
       .from("waiter_settlements")
       .select(
-        "id, staff_id, partner_staff_id, pos_sales_cents, kassiert_brutto_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents, differenz_cents, kitchen_tip_cents, kitchen_tip_rate, status, submitted_at, corrected_from_id, auto_clockout_time_entry_id, primary_staff:staff!waiter_settlements_staff_id_fkey(display_name), settlement_partners(staff_id, staff:staff!settlement_partners_staff_id_fkey(display_name))",
+        "id, staff_id, partner_staff_id, pos_sales_cents, kassiert_brutto_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, open_invoices_details, cash_handed_in_cents, differenz_cents, kitchen_tip_cents, kitchen_tip_rate, status, submitted_at, corrected_from_id, auto_clockout_time_entry_id, primary_staff:staff!waiter_settlements_staff_id_fkey(display_name), settlement_partners(staff_id, staff:staff!settlement_partners_staff_id_fkey(display_name))",
       )
       .eq("organization_id", caller.organizationId)
       .eq("session_id", session.id)
@@ -462,12 +498,16 @@ export async function getCashOverviewCore(
         .filter((n): n is string => !!n);
       const staffName =
         partnerStaffNames.length > 0 ? [primary, ...partnerStaffNames].join(" + ") : primary;
+      const openInvoiceEntries = parseOpenInvoiceEntries(
+        (s as { open_invoices_details?: unknown }).open_invoices_details,
+      );
       return {
         ...s,
         staffName,
         primaryStaffName: primary,
         partnerStaffNames,
         partnerStaffIds,
+        openInvoiceEntries,
       };
     }),
     channelAmounts: (channelAmtRes.data ?? []).map((r) => ({
@@ -578,7 +618,7 @@ export async function getMySettlementCore(caller: StaffCaller) {
   const { data: row } = await supabaseAdmin
     .from("waiter_settlements")
     .select(
-      "id, status, pos_sales_cents, kassiert_brutto_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents, differenz_cents, kitchen_tip_cents, kitchen_tip_rate, submitted_at, auto_clockout_time_entry_id, second_waiter_name, additional_waiters, partner_staff_id, settlement_partners(staff:staff!settlement_partners_staff_id_fkey(display_name))",
+      "id, status, pos_sales_cents, kassiert_brutto_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, open_invoices_details, cash_handed_in_cents, differenz_cents, kitchen_tip_cents, kitchen_tip_rate, submitted_at, auto_clockout_time_entry_id, second_waiter_name, additional_waiters, partner_staff_id, settlement_partners(staff:staff!settlement_partners_staff_id_fkey(display_name))",
     )
     .eq("organization_id", caller.organizationId)
     .eq("session_id", session.id)
@@ -609,7 +649,14 @@ export async function getMySettlementCore(caller: StaffCaller) {
     .map((p) => p.staff?.display_name ?? null)
     .filter((n): n is string => !!n)
     .sort((a, b) => a.localeCompare(b, "de"));
-  const settlementWithPartners = row ? { ...row, partnerStaffNames: partnerRows } : null;
+  const openInvoiceEntries = row
+    ? parseOpenInvoiceEntries(
+        (row as { open_invoices_details?: unknown }).open_invoices_details,
+      )
+    : [];
+  const settlementWithPartners = row
+    ? { ...row, partnerStaffNames: partnerRows, openInvoiceEntries }
+    : null;
 
   const sessionLocationName =
     (session as { locations?: { name: string | null } | null }).locations?.name ?? null;
@@ -1780,6 +1827,11 @@ const settlementInputSchema = z.object({
   cardTotalCents: z.number().int().min(0),
   hilfMahlCents: z.number().int().min(0),
   openInvoicesCents: z.number().int().min(0),
+  // Offene Rechnungen als Liste (Reservierungsname + Cent-Betrag).
+  // Wenn nicht leer, ist DAS die Wahrheit — Server summiert und
+  // überschreibt openInvoicesCents. Leere Liste + openInvoicesCents > 0
+  // wird als Eingabefehler abgelehnt.
+  openInvoiceEntries: openInvoiceEntriesSchema.optional(),
   cashHandedInCents: z.number().int().min(0),
   // Mitarbeitende Kellner (staff_ids). Werden nach Insert in
   // `settlement_partners` verknüpft. Leere Liste = solo. Duplikate und
@@ -1894,12 +1946,19 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
   // Abzugebender Betrag: leeres Feld → Fallback auf Leistung (posSales).
   const kassiertBruttoCents = data.kassiertBruttoCents ?? data.posSalesCents;
 
+  // Offene Rechnungen: Liste ist Wahrheit; Summe wird serverseitig neu
+  // berechnet. Ohne Namen bei Summe > 0 wirft resolveOpenInvoicesInput.
+  const openInvoicesResolved = resolveOpenInvoicesInput(
+    data.openInvoiceEntries,
+    data.openInvoicesCents,
+  );
+
   const calc = calcWaiterSettlement({
     posSalesCents: data.posSalesCents,
     kassiertBruttoCents: kassiertBruttoCents,
     cardTotalCents: data.cardTotalCents,
     hilfMahlCents: data.hilfMahlCents,
-    openInvoicesCents: data.openInvoicesCents,
+    openInvoicesCents: openInvoicesResolved.cents,
     kitchenTipRate,
   });
 
@@ -1929,7 +1988,8 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
         kassiert_brutto_cents: kassiertBruttoCents,
         card_total_cents: data.cardTotalCents,
         hilf_mahl_cents: data.hilfMahlCents,
-        open_invoices_cents: data.openInvoicesCents,
+        open_invoices_cents: openInvoicesResolved.cents,
+        open_invoices_details: toJsonbDetails(openInvoicesResolved.details),
         cash_handed_in_cents: data.cashHandedInCents,
         differenz_cents: calc.differenzCents,
         kitchen_tip_cents: calc.kitchenTipCents,
@@ -1953,7 +2013,8 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
         kassiert_brutto_cents: kassiertBruttoCents,
         card_total_cents: data.cardTotalCents,
         hilf_mahl_cents: data.hilfMahlCents,
-        open_invoices_cents: data.openInvoicesCents,
+        open_invoices_cents: openInvoicesResolved.cents,
+        open_invoices_details: toJsonbDetails(openInvoicesResolved.details),
         cash_handed_in_cents: data.cashHandedInCents,
         differenz_cents: calc.differenzCents,
         kitchen_tip_cents: calc.kitchenTipCents,
@@ -2198,6 +2259,7 @@ const correctSchema = z.object({
   cardTotalCents: z.number().int().min(0),
   hilfMahlCents: z.number().int().min(0),
   openInvoicesCents: z.number().int().min(0),
+  openInvoiceEntries: openInvoiceEntriesSchema.optional(),
   cashHandedInCents: z.number().int().min(0),
   partnerStaffIds: z.array(z.string().uuid()).optional(),
   reason: z.string().trim().min(3).max(500),
@@ -2273,12 +2335,16 @@ export async function correctWaiterSettlementCore(
     // Rate ERBEN vom Original — Rate-Änderung darf rückwirkend nichts ändern.
     const inheritedRate = Number(original.kitchen_tip_rate);
     const kassiertBruttoCents = data.kassiertBruttoCents ?? data.posSalesCents;
+    const openInvoicesResolved = resolveOpenInvoicesInput(
+      data.openInvoiceEntries,
+      data.openInvoicesCents,
+    );
     const calc = calcWaiterSettlement({
       posSalesCents: data.posSalesCents,
       kassiertBruttoCents: kassiertBruttoCents,
       cardTotalCents: data.cardTotalCents,
       hilfMahlCents: data.hilfMahlCents,
-      openInvoicesCents: data.openInvoicesCents,
+      openInvoicesCents: openInvoicesResolved.cents,
       kitchenTipRate: inheritedRate,
     });
 
@@ -2302,7 +2368,8 @@ export async function correctWaiterSettlementCore(
         kassiert_brutto_cents: kassiertBruttoCents,
         card_total_cents: data.cardTotalCents,
         hilf_mahl_cents: data.hilfMahlCents,
-        open_invoices_cents: data.openInvoicesCents,
+        open_invoices_cents: openInvoicesResolved.cents,
+        open_invoices_details: toJsonbDetails(openInvoicesResolved.details),
         cash_handed_in_cents: data.cashHandedInCents,
         differenz_cents: calc.differenzCents,
         kitchen_tip_cents: calc.kitchenTipCents,
@@ -2355,6 +2422,7 @@ const adminCreateSettlementSchema = z.object({
   cardTotalCents: z.number().int().min(0),
   hilfMahlCents: z.number().int().min(0),
   openInvoicesCents: z.number().int().min(0),
+  openInvoiceEntries: openInvoiceEntriesSchema.optional(),
   cashHandedInCents: z.number().int().min(0),
   partnerStaffIds: z.array(z.string().uuid()).optional(),
   reason: z.string().trim().min(3).max(500),
@@ -2417,12 +2485,16 @@ export async function adminCreateWaiterSettlementCore(
 
     const settings = await loadTipSettings(caller.organizationId, session.location_id);
     const kassiertBruttoCents = data.kassiertBruttoCents ?? data.posSalesCents;
+    const openInvoicesResolved = resolveOpenInvoicesInput(
+      data.openInvoiceEntries,
+      data.openInvoicesCents,
+    );
     const calc = calcWaiterSettlement({
       posSalesCents: data.posSalesCents,
       kassiertBruttoCents: kassiertBruttoCents,
       cardTotalCents: data.cardTotalCents,
       hilfMahlCents: data.hilfMahlCents,
-      openInvoicesCents: data.openInvoicesCents,
+      openInvoicesCents: openInvoicesResolved.cents,
       kitchenTipRate: settings.kitchenTipRate,
     });
 
@@ -2437,7 +2509,8 @@ export async function adminCreateWaiterSettlementCore(
         kassiert_brutto_cents: kassiertBruttoCents,
         card_total_cents: data.cardTotalCents,
         hilf_mahl_cents: data.hilfMahlCents,
-        open_invoices_cents: data.openInvoicesCents,
+        open_invoices_cents: openInvoicesResolved.cents,
+        open_invoices_details: toJsonbDetails(openInvoicesResolved.details),
         cash_handed_in_cents: data.cashHandedInCents,
         differenz_cents: calc.differenzCents,
         kitchen_tip_cents: calc.kitchenTipCents,

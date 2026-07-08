@@ -64,6 +64,9 @@ export function buildDailySummaryData(input: BuildDailySummaryDataInput): PdfExp
       submitted_at: s.submitted_at,
       updated_at: (s as { updated_at?: string | null }).updated_at ?? null,
       corrected_from_id: s.corrected_from_id,
+      openInvoiceEntries:
+        (s as { openInvoiceEntries?: Array<{ name: string; cents: number }> })
+          .openInvoiceEntries ?? [],
     })),
     expenses: ov.expenses.map((e) => ({
       description: e.description,

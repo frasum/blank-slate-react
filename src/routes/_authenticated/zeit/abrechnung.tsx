@@ -27,6 +27,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { calcWaiterSettlement } from "@/lib/cash/waiter-settlement";
 import { SecondWaiterSelect } from "@/components/cash/SecondWaiterSelect";
 import { parseEuroToCents as parseEuroToCentsBase } from "@/lib/format";
+import type { OpenInvoiceEntry } from "@/lib/cash/open-invoices";
 
 export const Route = createFileRoute("/_authenticated/zeit/abrechnung")({
   head: () => ({
@@ -57,7 +58,7 @@ type FormState = {
   kassiertBrutto: string;
   cardTotal: string;
   hilfMahl: string;
-  openInvoices: string;
+  openInvoices: Array<{ name: string; amount: string }>;
   cashHandedIn: string;
   partnerStaffIds: string[];
 };
@@ -67,7 +68,7 @@ const EMPTY_FORM: FormState = {
   kassiertBrutto: "",
   cardTotal: "",
   hilfMahl: "",
-  openInvoices: "",
+  openInvoices: [],
   cashHandedIn: "",
   partnerStaffIds: [],
 };
@@ -93,12 +94,29 @@ function AbrechnungPage() {
     const kassiertRaw = form.kassiertBrutto.trim();
     const kassiertBruttoCents =
       kassiertRaw === "" ? posSalesCents : parseEuroToCents(form.kassiertBrutto);
+    // Offene Rechnungen: Liste aus (Name, Euro). Jede Zeile mit Betrag > 0
+    // braucht einen nicht-leeren Namen; sonst blockt der Absende-Button.
+    const openInvoiceRows = form.openInvoices.map((r) => {
+      const name = r.name.trim();
+      const cents = r.amount.trim() === "" ? 0 : parseEuroToCents(r.amount);
+      const valid =
+        cents !== null && cents >= 0 && (cents === 0 || name.length > 0) && name.length <= 120;
+      return { name, cents, valid };
+    });
+    const openInvoiceEntries: OpenInvoiceEntry[] = openInvoiceRows
+      .filter((r) => r.valid && r.cents !== null && r.cents > 0)
+      .map((r) => ({ name: r.name, cents: r.cents as number }));
+    const openInvoicesCents = openInvoiceEntries.reduce((s, r) => s + r.cents, 0);
+    const openInvoicesAllValid = openInvoiceRows.every((r) => r.valid);
     return {
       posSalesCents,
       kassiertBruttoCents,
       cardTotalCents: parseEuroToCents(form.cardTotal),
       hilfMahlCents: parseEuroToCents(form.hilfMahl),
-      openInvoicesCents: parseEuroToCents(form.openInvoices),
+      openInvoicesCents,
+      openInvoiceEntries,
+      openInvoiceRows,
+      openInvoicesAllValid,
       cashHandedInCents: parseEuroToCents(form.cashHandedIn),
     };
   }, [form]);
@@ -113,7 +131,7 @@ function AbrechnungPage() {
     !kassiertBruttoNegative &&
     parsed.cardTotalCents !== null &&
     parsed.hilfMahlCents !== null &&
-    parsed.openInvoicesCents !== null &&
+    parsed.openInvoicesAllValid &&
     parsed.cashHandedInCents !== null;
 
   const preview = useMemo(() => {
@@ -144,7 +162,8 @@ function AbrechnungPage() {
           kassiertBruttoCents: parsed.kassiertBruttoCents!,
           cardTotalCents: parsed.cardTotalCents!,
           hilfMahlCents: parsed.hilfMahlCents!,
-          openInvoicesCents: parsed.openInvoicesCents!,
+          openInvoicesCents: parsed.openInvoicesCents,
+          openInvoiceEntries: parsed.openInvoiceEntries,
           cashHandedInCents: parsed.cashHandedInCents!,
           partnerStaffIds: form.partnerStaffIds.filter(Boolean),
         },
@@ -249,6 +268,22 @@ function AbrechnungPage() {
           <ReadOnlyRow label="EC-/Kartensumme" cents={Number(settlement.card_total_cents)} />
           <ReadOnlyRow label="Hilfsmahlzeiten" cents={Number(settlement.hilf_mahl_cents)} />
           <ReadOnlyRow label="Offene Rechnungen" cents={Number(settlement.open_invoices_cents)} />
+          {(() => {
+            const entries =
+              (settlement as { openInvoiceEntries?: Array<{ name: string; cents: number }> })
+                .openInvoiceEntries ?? [];
+            if (entries.length === 0) return null;
+            return (
+              <ul className="ml-2 space-y-0.5 text-xs text-muted-foreground">
+                {entries.map((e, i) => (
+                  <li key={i} className="flex justify-between">
+                    <span>· {e.name}</span>
+                    <span className="font-mono tabular-nums">{formatCents(e.cents)} €</span>
+                  </li>
+                ))}
+              </ul>
+            );
+          })()}
           <ReadOnlyRow
             label="Abgegebenes Bargeld"
             cents={Number(settlement.cash_handed_in_cents)}
@@ -363,12 +398,11 @@ function AbrechnungPage() {
           onChange={(v) => setForm({ ...form, hilfMahl: v })}
           error={parsed.hilfMahlCents === null && form.hilfMahl !== ""}
         />
-        <EuroField
-          id="open"
-          label="Offene Rechnungen"
-          value={form.openInvoices}
-          onChange={(v) => setForm({ ...form, openInvoices: v })}
-          error={parsed.openInvoicesCents === null && form.openInvoices !== ""}
+        <OpenInvoicesField
+          rows={form.openInvoices}
+          onChange={(next) => setForm({ ...form, openInvoices: next })}
+          rowValidity={parsed.openInvoiceRows}
+          sumCents={parsed.openInvoicesCents}
         />
         <EuroField
           id="cash"
@@ -561,6 +595,86 @@ function ReadOnlyRow({
       >
         {formatCents(cents)} €
       </span>
+    </div>
+  );
+}
+
+// Liste einzelner offener Rechnungen (Reservierungsname + Euro). Jede Zeile
+// mit Betrag > 0 braucht einen Namen — sonst kann die Abrechnung nicht
+// abgegeben werden (Server erzwingt dieselbe Regel).
+function OpenInvoicesField({
+  rows,
+  onChange,
+  rowValidity,
+  sumCents,
+}: {
+  rows: Array<{ name: string; amount: string }>;
+  onChange: (next: Array<{ name: string; amount: string }>) => void;
+  rowValidity: Array<{ name: string; cents: number | null; valid: boolean }>;
+  sumCents: number;
+}) {
+  const update = (idx: number, patch: Partial<{ name: string; amount: string }>) => {
+    const next = rows.map((r, i) => (i === idx ? { ...r, ...patch } : r));
+    onChange(next);
+  };
+  const remove = (idx: number) => onChange(rows.filter((_, i) => i !== idx));
+  const add = () => onChange([...rows, { name: "", amount: "" }]);
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label>Offene Rechnungen</Label>
+        <span className="text-xs text-muted-foreground">
+          Summe: <span className="font-mono tabular-nums">{formatCents(sumCents)} €</span>
+        </span>
+      </div>
+      {rows.length === 0 && (
+        <p className="text-xs text-muted-foreground">
+          Keine offene Rechnung. Falls doch, unten „+ offene Rechnung" — Reservierungsname ist
+          Pflicht.
+        </p>
+      )}
+      {rows.map((r, idx) => {
+        const v = rowValidity[idx];
+        const nameMissing = v ? !v.valid && (v.cents ?? 0) > 0 && v.name.length === 0 : false;
+        const amountInvalid = v ? v.cents === null : false;
+        return (
+          <div key={idx} className="space-y-1 rounded-md border border-border/70 p-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <div className="flex-1 space-y-1">
+                <Input
+                  placeholder="Reservierungs-/Gästename"
+                  value={r.name}
+                  onChange={(e) => update(idx, { name: e.target.value })}
+                  aria-invalid={nameMissing}
+                />
+              </div>
+              <div className="w-full space-y-1 sm:w-40">
+                <Input
+                  inputMode="decimal"
+                  placeholder="0,00 €"
+                  value={r.amount}
+                  onChange={(e) => update(idx, { amount: e.target.value })}
+                  aria-invalid={amountInvalid}
+                />
+              </div>
+              <Button type="button" variant="ghost" size="sm" onClick={() => remove(idx)}>
+                Entfernen
+              </Button>
+            </div>
+            {nameMissing && (
+              <p className="text-xs text-destructive">
+                Bitte Reservierungsname eintragen — sonst kann die Abrechnung nicht abgegeben werden.
+              </p>
+            )}
+            {amountInvalid && (
+              <p className="text-xs text-destructive">Bitte gültigen Eurobetrag eintragen.</p>
+            )}
+          </div>
+        );
+      })}
+      <Button type="button" variant="outline" size="sm" onClick={add}>
+        + offene Rechnung
+      </Button>
     </div>
   );
 }
