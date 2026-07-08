@@ -48,7 +48,7 @@ describe("buildDayView", () => {
     expect(out).toHaveLength(1);
     expect(out[0].locationId).toBe("L1");
     expect(out[0].kitchen.map((e) => e.staffName)).toEqual(["Anna"]);
-    expect(out[0].service.map((e) => e.staffName)).toEqual(["Bea", "Cem"]);
+    expect(out[0].service.map((e) => e.staffName)).toEqual(["Cem", "Bea"]);
     expect(out[0].service.find((e) => e.staffName === "Cem")?.marker).toBe("GL");
     expect(out[0].service.find((e) => e.staffName === "Bea")?.marker).toBe("X");
   });
