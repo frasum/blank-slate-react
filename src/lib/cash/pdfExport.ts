@@ -55,6 +55,9 @@ export interface PdfSettlement {
   submitted_at?: string | null;
   updated_at?: string | null;
   corrected_from_id?: string | null;
+  // Offene Rechnungen mit Reservierungsname pro Position (optional, weil
+  // Alt-Zeilen vor Einführung der Namen kein Detail haben).
+  openInvoiceEntries?: Array<{ name: string; cents: number }>;
 }
 
 export interface PdfExportData {
