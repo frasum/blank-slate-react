@@ -598,3 +598,83 @@ function ReadOnlyRow({
     </div>
   );
 }
+
+// Liste einzelner offener Rechnungen (Reservierungsname + Euro). Jede Zeile
+// mit Betrag > 0 braucht einen Namen — sonst kann die Abrechnung nicht
+// abgegeben werden (Server erzwingt dieselbe Regel).
+function OpenInvoicesField({
+  rows,
+  onChange,
+  rowValidity,
+  sumCents,
+}: {
+  rows: Array<{ name: string; amount: string }>;
+  onChange: (next: Array<{ name: string; amount: string }>) => void;
+  rowValidity: Array<{ name: string; cents: number | null; valid: boolean }>;
+  sumCents: number;
+}) {
+  const update = (idx: number, patch: Partial<{ name: string; amount: string }>) => {
+    const next = rows.map((r, i) => (i === idx ? { ...r, ...patch } : r));
+    onChange(next);
+  };
+  const remove = (idx: number) => onChange(rows.filter((_, i) => i !== idx));
+  const add = () => onChange([...rows, { name: "", amount: "" }]);
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label>Offene Rechnungen</Label>
+        <span className="text-xs text-muted-foreground">
+          Summe: <span className="font-mono tabular-nums">{formatCents(sumCents)} €</span>
+        </span>
+      </div>
+      {rows.length === 0 && (
+        <p className="text-xs text-muted-foreground">
+          Keine offene Rechnung. Falls doch, unten „+ offene Rechnung" — Reservierungsname ist
+          Pflicht.
+        </p>
+      )}
+      {rows.map((r, idx) => {
+        const v = rowValidity[idx];
+        const nameMissing = v ? !v.valid && (v.cents ?? 0) > 0 && v.name.length === 0 : false;
+        const amountInvalid = v ? v.cents === null : false;
+        return (
+          <div key={idx} className="space-y-1 rounded-md border border-border/70 p-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <div className="flex-1 space-y-1">
+                <Input
+                  placeholder="Reservierungs-/Gästename"
+                  value={r.name}
+                  onChange={(e) => update(idx, { name: e.target.value })}
+                  aria-invalid={nameMissing}
+                />
+              </div>
+              <div className="w-full space-y-1 sm:w-40">
+                <Input
+                  inputMode="decimal"
+                  placeholder="0,00 €"
+                  value={r.amount}
+                  onChange={(e) => update(idx, { amount: e.target.value })}
+                  aria-invalid={amountInvalid}
+                />
+              </div>
+              <Button type="button" variant="ghost" size="sm" onClick={() => remove(idx)}>
+                Entfernen
+              </Button>
+            </div>
+            {nameMissing && (
+              <p className="text-xs text-destructive">
+                Bitte Reservierungsname eintragen — sonst kann die Abrechnung nicht abgegeben werden.
+              </p>
+            )}
+            {amountInvalid && (
+              <p className="text-xs text-destructive">Bitte gültigen Eurobetrag eintragen.</p>
+            )}
+          </div>
+        );
+      })}
+      <Button type="button" variant="outline" size="sm" onClick={add}>
+        + offene Rechnung
+      </Button>
+    </div>
+  );
+}
