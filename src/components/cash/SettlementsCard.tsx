@@ -163,6 +163,17 @@ export function SettlementsCard({
                   >
                     {fmtCents(Number(r.open_invoices_cents))}
                   </span>
+                  {(() => {
+                    const entries =
+                      (r as { openInvoiceEntries?: Array<{ name: string; cents: number }> })
+                        .openInvoiceEntries ?? [];
+                    if (entries.length === 0) return null;
+                    return (
+                      <div className="mt-0.5 text-[10px] font-normal leading-tight text-muted-foreground">
+                        {entries.map((e) => e.name).join(" · ")}
+                      </div>
+                    );
+                  })()}
                 </TableCell>
                 <TableCell className="text-right font-mono">
                   <span
