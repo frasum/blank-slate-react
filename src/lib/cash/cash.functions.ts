@@ -1946,12 +1946,19 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
   // Abzugebender Betrag: leeres Feld → Fallback auf Leistung (posSales).
   const kassiertBruttoCents = data.kassiertBruttoCents ?? data.posSalesCents;
 
+  // Offene Rechnungen: Liste ist Wahrheit; Summe wird serverseitig neu
+  // berechnet. Ohne Namen bei Summe > 0 wirft resolveOpenInvoicesInput.
+  const openInvoicesResolved = resolveOpenInvoicesInput(
+    data.openInvoiceEntries,
+    data.openInvoicesCents,
+  );
+
   const calc = calcWaiterSettlement({
     posSalesCents: data.posSalesCents,
     kassiertBruttoCents: kassiertBruttoCents,
     cardTotalCents: data.cardTotalCents,
     hilfMahlCents: data.hilfMahlCents,
-    openInvoicesCents: data.openInvoicesCents,
+    openInvoicesCents: openInvoicesResolved.cents,
     kitchenTipRate,
   });
 
@@ -1981,7 +1988,8 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
         kassiert_brutto_cents: kassiertBruttoCents,
         card_total_cents: data.cardTotalCents,
         hilf_mahl_cents: data.hilfMahlCents,
-        open_invoices_cents: data.openInvoicesCents,
+        open_invoices_cents: openInvoicesResolved.cents,
+        open_invoices_details: toJsonbDetails(openInvoicesResolved.details),
         cash_handed_in_cents: data.cashHandedInCents,
         differenz_cents: calc.differenzCents,
         kitchen_tip_cents: calc.kitchenTipCents,
@@ -2005,7 +2013,8 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
         kassiert_brutto_cents: kassiertBruttoCents,
         card_total_cents: data.cardTotalCents,
         hilf_mahl_cents: data.hilfMahlCents,
-        open_invoices_cents: data.openInvoicesCents,
+        open_invoices_cents: openInvoicesResolved.cents,
+        open_invoices_details: toJsonbDetails(openInvoicesResolved.details),
         cash_handed_in_cents: data.cashHandedInCents,
         differenz_cents: calc.differenzCents,
         kitchen_tip_cents: calc.kitchenTipCents,
