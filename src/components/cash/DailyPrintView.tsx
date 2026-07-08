@@ -269,6 +269,21 @@ export function renderDailyPrintHtml(data: PdfExportData): string {
   leftRows.push(rowKV("Gutschein Verkauf", fmtEur(vouchersSold)));
   if (finedine !== 0) leftRows.push(rowKV("FineDine", fmtEur(finedine)));
   leftRows.push(rowKV("Offen", fmtEur(sumOpen)));
+  {
+    // Namen der offenen Rechnungen als dezente Unterzeile — hilft bei der
+    // Zuordnung, wenn am nächsten Tag jemand nachzahlt.
+    const openNames: string[] = [];
+    for (const s of active) {
+      for (const e of s.openInvoiceEntries ?? []) {
+        if (e.name) openNames.push(e.name);
+      }
+    }
+    if (openNames.length > 0) {
+      leftRows.push(
+        `<tr class="row"><td colspan="2" style="font-size:8pt;color:#64748b;padding-top:0;">${esc(openNames.join(" · "))}</td></tr>`,
+      );
+    }
+  }
   leftRows.push(rowKV("Personal", fmtEur(sumAdvances)));
   leftRows.push(rowKV("Einladung", fmtEur(einladung)));
   leftRows.push(rowKV("Sonstige Einnahmen", fmtEur(sonstige)));
