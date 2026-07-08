@@ -57,8 +57,7 @@ function todayIsoBerlin(): string {
     month: "2-digit",
     day: "2-digit",
   }).formatToParts(new Date());
-  const get = (t: Intl.DateTimeFormatPartTypes) =>
-    parts.find((p) => p.type === t)?.value ?? "";
+  const get = (t: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === t)?.value ?? "";
   return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
@@ -104,7 +103,10 @@ export const Route = createFileRoute("/api/public/trmnl-tasks/$token")({
         type OrgTokenRow = { id: string; name: string; trmnl_token: string | null };
         type OrgQuery = {
           select: (cols: string) => {
-            eq: (col: string, val: string) => {
+            eq: (
+              col: string,
+              val: string,
+            ) => {
               maybeSingle: () => Promise<{
                 data: OrgTokenRow | null;
                 error: { message: string } | null;
@@ -370,9 +372,7 @@ function renderPage(input: RenderInput): string {
         })
         .join("");
       const overflowHtml =
-        col.overflow > 0
-          ? `<div class="overflow">+${col.overflow} weitere</div>`
-          : "";
+        col.overflow > 0 ? `<div class="overflow">+${col.overflow} weitere</div>` : "";
       const total = col.visible.length + col.overflow;
       return `<section class="col"><header class="col-head">${escapeHtml(TASK_STATUS_LABEL[col.status])} <span class="count">${total}</span></header>${cardsHtml || '<div class="muted">Keine Aufgaben</div>'}${overflowHtml}</section>`;
     })

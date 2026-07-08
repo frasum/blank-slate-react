@@ -25,8 +25,7 @@ export function resolveRosterTarget(now: Date): {
     minute: "2-digit",
     hour12: false,
   }).formatToParts(now);
-  const get = (t: Intl.DateTimeFormatPartTypes) =>
-    parts.find((p) => p.type === t)?.value ?? "";
+  const get = (t: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === t)?.value ?? "";
   const y = Number(get("year"));
   const m = Number(get("month"));
   const d = Number(get("day"));
@@ -205,14 +204,20 @@ export function groupRosterByLocation(input: {
   for (const [locationId, rows] of byLoc) {
     // Fenster-Gruppierung nur, wenn tatsächlich > 1 Fenster im Standort erscheint.
     const periods = new Set(
-      rows.map((r) => (r.servicePeriod && PERIOD_ORDER[r.servicePeriod] !== undefined ? r.servicePeriod : "abend")),
+      rows.map((r) =>
+        r.servicePeriod && PERIOD_ORDER[r.servicePeriod] !== undefined ? r.servicePeriod : "abend",
+      ),
     );
     const useWindows = periods.size > 1;
 
     // Key: area|period (period null wenn !useWindows)
     const groupMap = new Map<
       string,
-      { areaKey: "kitchen" | "service" | "gl"; period: "frueh" | "mittag" | "abend" | null; names: Set<string> }
+      {
+        areaKey: "kitchen" | "service" | "gl";
+        period: "frueh" | "mittag" | "abend" | null;
+        names: Set<string>;
+      }
     >();
     for (const r of rows) {
       const areaKey: "kitchen" | "service" | "gl" =
@@ -232,9 +237,7 @@ export function groupRosterByLocation(input: {
     const groups: RosterGroup[] = Array.from(groupMap.values())
       .map((g) => ({
         areaKey: g.areaKey,
-        areaLabel:
-          AREA_LABEL[g.areaKey] +
-          (g.period ? ` · ${PERIOD_LABEL[g.period]}` : ""),
+        areaLabel: AREA_LABEL[g.areaKey] + (g.period ? ` · ${PERIOD_LABEL[g.period]}` : ""),
         period: g.period,
         names: Array.from(g.names).sort((a, b) => a.localeCompare(b, "de")),
       }))
