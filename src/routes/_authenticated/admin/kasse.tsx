@@ -1337,3 +1337,61 @@ function SessionStatusInline({
     </Badge>
   );
 }
+
+// Kompakte Editor-Liste für „Offene Rechnungen" in den Admin-Dialogen.
+// Spiegelt die Regel der Kellner-UI: pro Zeile Reservierungsname + Euro.
+// Rein visuelle Hilfen; die harte Validierung passiert in der Mutation
+// (toOpenInvoiceEntries) und im Server-Trigger.
+function OpenInvoicesEditor({
+  rows,
+  onChange,
+}: {
+  rows: Array<{ name: string; amount: string }>;
+  onChange: (next: Array<{ name: string; amount: string }>) => void;
+}) {
+  const update = (idx: number, patch: Partial<{ name: string; amount: string }>) => {
+    onChange(rows.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+  };
+  const remove = (idx: number) => onChange(rows.filter((_, i) => i !== idx));
+  const add = () => onChange([...rows, { name: "", amount: "" }]);
+  return (
+    <div className="space-y-2 rounded-md border border-border/60 p-3">
+      <div className="flex items-center justify-between">
+        <Label>Offene Rechnungen</Label>
+        <span className="text-xs text-muted-foreground">
+          Reservierungsname ist Pflicht, sobald ein Betrag &gt; 0 steht.
+        </span>
+      </div>
+      {rows.length === 0 && (
+        <p className="text-xs text-muted-foreground">Keine offene Rechnung.</p>
+      )}
+      {rows.map((r, idx) => {
+        const nameMissing = r.amount.trim() !== "" && r.name.trim() === "";
+        return (
+          <div key={idx} className="flex flex-col gap-2 sm:flex-row">
+            <Input
+              className="flex-1"
+              placeholder="Reservierungs-/Gästename"
+              value={r.name}
+              onChange={(e) => update(idx, { name: e.target.value })}
+              aria-invalid={nameMissing}
+            />
+            <Input
+              className="sm:w-32"
+              inputMode="decimal"
+              placeholder="0,00 €"
+              value={r.amount}
+              onChange={(e) => update(idx, { amount: e.target.value })}
+            />
+            <Button type="button" variant="ghost" size="sm" onClick={() => remove(idx)}>
+              Entfernen
+            </Button>
+          </div>
+        );
+      })}
+      <Button type="button" variant="outline" size="sm" onClick={add}>
+        + offene Rechnung
+      </Button>
+    </div>
+  );
+}
