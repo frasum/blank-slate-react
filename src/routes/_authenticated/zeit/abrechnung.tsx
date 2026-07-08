@@ -94,12 +94,29 @@ function AbrechnungPage() {
     const kassiertRaw = form.kassiertBrutto.trim();
     const kassiertBruttoCents =
       kassiertRaw === "" ? posSalesCents : parseEuroToCents(form.kassiertBrutto);
+    // Offene Rechnungen: Liste aus (Name, Euro). Jede Zeile mit Betrag > 0
+    // braucht einen nicht-leeren Namen; sonst blockt der Absende-Button.
+    const openInvoiceRows = form.openInvoices.map((r) => {
+      const name = r.name.trim();
+      const cents = r.amount.trim() === "" ? 0 : parseEuroToCents(r.amount);
+      const valid =
+        cents !== null && cents >= 0 && (cents === 0 || name.length > 0) && name.length <= 120;
+      return { name, cents, valid };
+    });
+    const openInvoiceEntries: OpenInvoiceEntry[] = openInvoiceRows
+      .filter((r) => r.valid && r.cents !== null && r.cents > 0)
+      .map((r) => ({ name: r.name, cents: r.cents as number }));
+    const openInvoicesCents = openInvoiceEntries.reduce((s, r) => s + r.cents, 0);
+    const openInvoicesAllValid = openInvoiceRows.every((r) => r.valid);
     return {
       posSalesCents,
       kassiertBruttoCents,
       cardTotalCents: parseEuroToCents(form.cardTotal),
       hilfMahlCents: parseEuroToCents(form.hilfMahl),
-      openInvoicesCents: parseEuroToCents(form.openInvoices),
+      openInvoicesCents,
+      openInvoiceEntries,
+      openInvoiceRows,
+      openInvoicesAllValid,
       cashHandedInCents: parseEuroToCents(form.cashHandedIn),
     };
   }, [form]);
@@ -114,7 +131,7 @@ function AbrechnungPage() {
     !kassiertBruttoNegative &&
     parsed.cardTotalCents !== null &&
     parsed.hilfMahlCents !== null &&
-    parsed.openInvoicesCents !== null &&
+    parsed.openInvoicesAllValid &&
     parsed.cashHandedInCents !== null;
 
   const preview = useMemo(() => {
