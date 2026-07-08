@@ -1353,26 +1353,42 @@ function OpenInvoicesEditor({
       </div>
       {rows.length === 0 && <p className="text-xs text-muted-foreground">Keine offene Rechnung.</p>}
       {rows.map((r, idx) => {
-        const nameMissing = r.amount.trim() !== "" && r.name.trim() === "";
+        const amountRaw = r.amount.trim();
+        const parsed = amountRaw === "" ? 0 : parseEuroToCents(r.amount);
+        const amountInvalid = amountRaw !== "" && (parsed === null || parsed < 0);
+        const nameMissing =
+          !amountInvalid && parsed !== null && parsed > 0 && r.name.trim() === "";
         return (
-          <div key={idx} className="flex flex-col gap-2 sm:flex-row">
-            <Input
-              className="flex-1"
-              placeholder="Reservierungs-/Gästename"
-              value={r.name}
-              onChange={(e) => update(idx, { name: e.target.value })}
-              aria-invalid={nameMissing}
-            />
-            <Input
-              className="sm:w-32"
-              inputMode="decimal"
-              placeholder="0,00 €"
-              value={r.amount}
-              onChange={(e) => update(idx, { amount: e.target.value })}
-            />
-            <Button type="button" variant="ghost" size="sm" onClick={() => remove(idx)}>
-              Entfernen
-            </Button>
+          <div key={idx} className="space-y-1">
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                className="flex-1"
+                placeholder="Reservierungs-/Gästename"
+                value={r.name}
+                onChange={(e) => update(idx, { name: e.target.value })}
+                aria-invalid={nameMissing}
+              />
+              <Input
+                className="sm:w-32"
+                inputMode="decimal"
+                placeholder="0,00 €"
+                value={r.amount}
+                onChange={(e) => update(idx, { amount: e.target.value })}
+                aria-invalid={amountInvalid}
+              />
+              <Button type="button" variant="ghost" size="sm" onClick={() => remove(idx)}>
+                Entfernen
+              </Button>
+            </div>
+            {nameMissing && (
+              <p className="text-xs text-destructive">
+                Bitte Reservierungsname eintragen — sonst kann die Abrechnung nicht gespeichert
+                werden.
+              </p>
+            )}
+            {amountInvalid && (
+              <p className="text-xs text-destructive">Bitte gültigen Eurobetrag eintragen.</p>
+            )}
           </div>
         );
       })}
