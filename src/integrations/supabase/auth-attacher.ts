@@ -25,7 +25,20 @@ export const attachSupabaseAuth = createMiddleware({ type: "function" }).client(
       // offen blieb). Wir leiten dann hart auf /auth und BRECHEN den RPC ab,
       // damit der Aufruf nicht ohne Header rausgeht und als unverständlicher
       // 401 („No authorization header provided") den Error-Boundary blankt.
-      if (typeof window !== "undefined" && !window.location.pathname.startsWith("/auth")) {
+      // Ausnahme: bewusst öffentliche Routen (Display-Anzeige, öffentliche
+      // API-Endpunkte, Passwort-Reset, Auth selbst) dürfen ohne Session
+      // laufen — z. B. ruft die Root-Komponente beim ersten Rendern die
+      // öffentliche `getSentryClientConfig`-Function auf. Ohne diese
+      // Ausnahme würden die Kitchen-Displays (/display/$id) sofort auf
+      // /auth umgeleitet, sobald irgendein serverFn ohne Session feuert.
+      const path =
+        typeof window !== "undefined" ? window.location.pathname : "";
+      const isPublicPath =
+        path.startsWith("/auth") ||
+        path.startsWith("/display/") ||
+        path.startsWith("/api/public/") ||
+        path.startsWith("/reset-password");
+      if (typeof window !== "undefined" && !isPublicPath) {
         window.location.replace("/auth");
         // Promise, die nie auflöst — der Redirect entlädt die Seite ohnehin.
         await new Promise<never>(() => {});
