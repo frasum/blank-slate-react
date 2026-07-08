@@ -293,6 +293,18 @@ export async function generateDailySummaryPdf(data: PdfExportData): Promise<{
   summaryRows.push(["Gutschein Verkauf", fmtEur(vouchersSold)]);
   if (finedine !== 0) summaryRows.push(["FineDine", fmtEur(finedine)]);
   summaryRows.push(["Offen", fmtEur(sumOpen)]);
+  {
+    const openNames: string[] = [];
+    for (const s of active) {
+      for (const e of s.openInvoiceEntries ?? []) {
+        if (e.name) openNames.push(e.name);
+      }
+    }
+    if (openNames.length > 0) {
+      // Dezente Unterzeile mit den Reservierungsnamen (leere Betrag-Spalte).
+      summaryRows.push([`  ↳ ${openNames.join(" · ")}`, ""]);
+    }
+  }
   summaryRows.push(["Personal", fmtEur(sumAdvances)]);
   summaryRows.push(["Einladung", fmtEur(einladung)]);
   summaryRows.push(["Sonstige Einnahmen", fmtEur(sonstige)]);
