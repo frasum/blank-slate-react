@@ -115,14 +115,17 @@ function DienstplanPage() {
 
   if (effectiveView === "tag") {
     return (
-      <RosterDayView
-        date={tag ?? todayIso()}
-        onDateChange={(iso) =>
-          void navigate({
-            search: (prev: Record<string, unknown>) => ({ ...prev, ansicht: "tag", tag: iso }),
-          })
-        }
-      />
+      <>
+        <ViewToggle current="tag" />
+        <RosterDayView
+          date={tag ?? todayIso()}
+          onDateChange={(iso) =>
+            void navigate({
+              search: (prev: Record<string, unknown>) => ({ ...prev, ansicht: "tag", tag: iso }),
+            })
+          }
+        />
+      </>
     );
   }
 
