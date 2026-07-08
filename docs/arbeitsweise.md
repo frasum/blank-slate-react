@@ -6,7 +6,7 @@ SaaS-Vorbereitung: Readiness-Audit und Modul-Katalog stehen in docs/saas-vorbere
 
 Produktionsreife-Review: docs/produktionsreife-review.md (Stand 07.07.2026, HEAD 8cfdbc1d, inkl. Patch-Plan P0–P7) — kritischer Pfad vor dem Kassen-Go-live: Monitoring (P1) → Finalize-E2E (P2) → Restore-Probe (P3) → Cutover.
 
-Stand: 08.07.2026 (§75: TRMNL2/3, Display-Flotte live)
+Stand: 08.07.2026 (§76: Display-Ausfall behoben, Not-Redirect-Allowlist)
 
 TH1 — Standort-Farbthema: LocationThemeProvider im \_authenticated-Layout hält den themeKey (spicery/yum/neutral).
 LocationPills melden die Auswahl per useLocationThemeSync; Mapping: Name enthält „spicery" → spicery, „yum" → yum, sonst neutral (auch TSB/„Alle"/leer).
@@ -3798,3 +3798,23 @@ Abgenommener Anker: HEAD `a5f1967e`, vier Gates grün, **1615 Tests**.
 **Entschieden/zurückgestellt:** Manager-Standort-Scoping („André sieht nur YUM+TSB") ist analysiert: mit Rolle `manager` per Override NICHT abbildbar (globaler Rollen-Default schlägt Scope-Auflösung); vorgesehener Weg wäre Rolle `planer` + explizite Freigaben im PermissionsTab, Preis: Manager-Defaults (cash._/time._) müssten als Freigaben zurückgegeben werden. **Frank stellt zurück** — erst Praxiserfahrung mit dem Ist-Zustand.
 
 **Offen:** (1) **PL3-Prompt liegt bereit, noch nicht beauftragt** — Freiwunsch-Scoping: `getDayOffWishes` filtert org-weit statt wie Urlaub über PL1-Scopes; auch `createDayOffWishFor` ohne Scope-Validierung des Ziel-Mitarbeiters. Muss VOR einer etwaigen André-Umstellung gebaut werden. (2) Bestellungen-Badge zeigte 46 — Plausibilität prüfen (§74-Punkt, zählt alle `email_sent=false` ohne Datumsgrenze). (3) P3 Restore-Probe unverändert nächster Pflichtblock.
+
+## 76. Session 08.07.2026 (Nachmittag) — Küchen-Display-Ausfall: Diagnose, echte Ursache, Fix
+
+Abgenommener Anker: HEAD `377ca16d`, vier Gates grün, 1615 Tests.
+
+**Symptom:** Beide Küchen-Displays (`/display/$locationId?token=…`) zeigten statt des Schichtplans den COCO-Login; parallel reagierte der „Öffnen"-Button der Display-Einstellungen in `/admin/locations` nicht mehr. Reproduzierbar im Inkognito-Fenster, auch nach erzwungenem frischem Publish. `/api/public/*`-Routen (TRMNL-Boards) funktionierten durchgehend.
+
+**Echte Ursache (von Lovable selbst gefunden):** Die globale Client-Middleware `attachSupabaseAuth` (`src/integrations/supabase/auth-attacher.ts`) löste bei JEDEM serverFn-RPC ohne Session ein hartes `window.location.replace("/auth")` aus. Beim ersten Rendern von `__root.tsx` feuert `startSentryClient()` die (bewusst öffentliche) `getSentryClientConfig`-Function — auf den sitzungslosen Kiosks führte das sofort zu `/auth`. Eingeführt wurde die Falle mit der Sentry-Client-Initialisierung (Sentry-Probe §73, live seit dem Vormittags-Publish); sichtbar wurde sie erst beim nächsten Kaltladen der Kiosks. **Fix (`369f96e8`):** Not-Redirect um eine Allowlist bewusst öffentlicher Pfade ergänzt (`/auth`, `/display/`, `/api/public/`, `/reset-password`). Sicherheitsbewertung: unkritisch — der Redirect war reine UX; Zugriffsschutz liegt unverändert serverseitig (requireSupabaseAuth, RLS).
+
+**Fehldiagnose als Lehre:** Claudes Beweiskette (Route fehlt im Build-Artefakt) passte zu allen Beobachtungen, war aber falsch — die lokale `curl`-Reproduktion lieferte HTTP 200, weil curl kein JavaScript ausführt; der Redirect passiert erst clientseitig. Merksätze: (1) **Client-seitige globale Middleware kann öffentliche Seiten killen, ohne dass tsc/vitest/SSR-Probe es je sehen** — die vier Gates testen kein Browser-Verhalten. (2) Bei „Seite X leitet zum Login" immer zuerst nach `window.location`/`navigate`-Aufrufen in globalen Middlewares/Providern greppen, bevor Build/Deploy verdächtigt wird. (3) Eine curl-/SSR-Probe entlastet nur den Server-Pfad, nie den Client-Pfad.
+
+**Nebenbefunde des Nachmittags:**
+- `cocoplatform.lovable.app` leitet kanonisch auf `cocoplatform.online` um und verliert dabei den Pfad — für Routen-Tests unbrauchbar, immer direkt `.online` testen.
+- Lovable-Preview-Kaltstarts („Seite nicht erreichbar", nach Wartezeit ok) sind Sandbox-Verhalten; Produktion (Cloudflare) kennt das nicht.
+- `vite build` braucht inzwischen >4 GB Heap (lokal OOM) — **Arbeitspunkt Bundle-Verschlankung** (schwere Client-Brocken wie jspdf/pdfjs gezielt splitten), bevor der Build zum echten Risiko wird.
+- Lovable-Prettier-Versäumnisse: heute ~10 Vorkommen inkl. der Fix-Datei selbst. Regel bestätigt: Format-Aufträge immer repo-weit.
+- D4-Überbrückungs-Prompt (Küchen-Display als servergerenderte `/api/public/display-html/`-Route) liegt fertig in der Schublade — nicht gebaut, da Ursache behoben; bei erneutem Client-Bundle-Ausfall sofort einsetzbar.
+- Publish-Panel „Review security 4": Lovable-Scanner-Funde bei Gelegenheit sichten und als „bewusst öffentlich" abhaken oder beheben.
+
+**Offen (unverändert + neu):** PL3-Freiwunsch-Prompt bereit, nicht beauftragt · Bestellungen-Badge-Plausibilität (46) · P3 Restore-Probe · Bundle-Verschlankung (neu) · Security-Scanner-Review (neu).
