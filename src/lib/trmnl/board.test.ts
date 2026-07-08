@@ -22,7 +22,6 @@ function task(overrides: Partial<Task>): Task {
     sort_order: 0,
     due_at: overrides.due_at ?? null,
     assignee_staff_id: null,
-    created_by_staff_id: null,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
     started_at: null,
