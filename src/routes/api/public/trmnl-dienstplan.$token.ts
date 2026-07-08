@@ -183,12 +183,7 @@ function renderPage(input: {
                 const we = dow === 0 || dow === 6;
                 const today = iso === input.todayIso;
                 const empty = m === EMPTY_MARKER;
-                const cls = [
-                  "cell",
-                  we ? "we" : "",
-                  today ? "today" : "",
-                  empty ? "empty" : "",
-                ]
+                const cls = ["cell", we ? "we" : "", today ? "today" : "", empty ? "empty" : ""]
                   .filter(Boolean)
                   .join(" ");
                 return `<td class="${cls}">${escapeHtml(m)}</td>`;

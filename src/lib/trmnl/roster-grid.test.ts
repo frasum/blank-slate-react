@@ -6,10 +6,7 @@ import type {
 } from "@/lib/display/display-data.server";
 import { buildRosterGrid, cellMarker, EMPTY_MARKER } from "./roster-grid";
 
-function cell(
-  k: DisplayCell["k"],
-  skill: string | null = null,
-): DisplayCell {
+function cell(k: DisplayCell["k"], skill: string | null = null): DisplayCell {
   return { k, skill, color: null };
 }
 
@@ -111,7 +108,9 @@ describe("buildRosterGrid", () => {
 
   it("blendet Leerzeilen (nur EMPTY_MARKER) aus", () => {
     const leer: DisplayCell[] = D14.map(() => cell("empty"));
-    const mit: DisplayCell[] = D14.map((_, i) => (i === 0 ? cell("shift", "Service") : cell("empty")));
+    const mit: DisplayCell[] = D14.map((_, i) =>
+      i === 0 ? cell("shift", "Service") : cell("empty"),
+    );
     const periodBlocks: DisplayPeriodBlocks[] = [
       {
         period: "abend",
@@ -132,9 +131,7 @@ describe("buildRosterGrid", () => {
   });
 
   it("nutzt blocks (Single-Period) wenn periodBlocks null ist", () => {
-    const cells: DisplayCell[] = D14.map((_, i) =>
-      i === 0 ? cell("shift", "GL") : cell("empty"),
-    );
+    const cells: DisplayCell[] = D14.map((_, i) => (i === 0 ? cell("shift", "GL") : cell("empty")));
     const grid = buildRosterGrid(
       {
         days: D14,

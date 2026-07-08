@@ -109,10 +109,8 @@ export async function buildDisplayData(
   if (locErr || !location) return { ok: false, status: 404, message: "Filiale nicht gefunden." };
 
   const PERIOD_ORDER = ["frueh", "mittag", "abend"] as const;
-  const rawEnabled =
-    (location as { enabled_service_periods?: string[] | null }).enabled_service_periods ?? [
-      "abend",
-    ];
+  const rawEnabled = (location as { enabled_service_periods?: string[] | null })
+    .enabled_service_periods ?? ["abend"];
   const enabledPeriods = PERIOD_ORDER.filter((p) => rawEnabled.includes(p)) as Array<
     "frueh" | "mittag" | "abend"
   >;

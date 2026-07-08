@@ -64,6 +64,7 @@ import { Route as AuthenticatedAdminStaffIndexRouteImport } from './routes/_auth
 import { Route as AuthenticatedAdminEinstellungenIndexRouteImport } from './routes/_authenticated/admin/einstellungen.index'
 import { Route as AuthenticatedAdminBestellungIndexRouteImport } from './routes/_authenticated/admin/bestellung.index'
 import { Route as ApiPublicTrmnlTasksTokenRouteImport } from './routes/api/public/trmnl-tasks.$token'
+import { Route as ApiPublicTrmnlDienstplanTokenRouteImport } from './routes/api/public/trmnl-dienstplan.$token'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
 import { Route as ApiPublicTelegramDailyReportRouteImport } from './routes/api/public/telegram/daily-report'
 import { Route as ApiPublicDisplayLocationIdRouteImport } from './routes/api/public/display.$locationId'
@@ -386,6 +387,12 @@ const ApiPublicTrmnlTasksTokenRoute =
     path: '/api/public/trmnl-tasks/$token',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicTrmnlDienstplanTokenRoute =
+  ApiPublicTrmnlDienstplanTokenRouteImport.update({
+    id: '/api/public/trmnl-dienstplan/$token',
+    path: '/api/public/trmnl-dienstplan/$token',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicTelegramWebhookRoute =
   ApiPublicTelegramWebhookRouteImport.update({
     id: '/api/public/telegram/webhook',
@@ -507,6 +514,7 @@ export interface FileRoutesByFullPath {
   '/api/public/display/$locationId': typeof ApiPublicDisplayLocationIdRoute
   '/api/public/telegram/daily-report': typeof ApiPublicTelegramDailyReportRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
+  '/api/public/trmnl-dienstplan/$token': typeof ApiPublicTrmnlDienstplanTokenRoute
   '/api/public/trmnl-tasks/$token': typeof ApiPublicTrmnlTasksTokenRoute
   '/admin/bestellung/': typeof AuthenticatedAdminBestellungIndexRoute
   '/admin/einstellungen/': typeof AuthenticatedAdminEinstellungenIndexRoute
@@ -569,6 +577,7 @@ export interface FileRoutesByTo {
   '/api/public/display/$locationId': typeof ApiPublicDisplayLocationIdRoute
   '/api/public/telegram/daily-report': typeof ApiPublicTelegramDailyReportRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
+  '/api/public/trmnl-dienstplan/$token': typeof ApiPublicTrmnlDienstplanTokenRoute
   '/api/public/trmnl-tasks/$token': typeof ApiPublicTrmnlTasksTokenRoute
   '/admin/bestellung': typeof AuthenticatedAdminBestellungIndexRoute
   '/admin/einstellungen': typeof AuthenticatedAdminEinstellungenIndexRoute
@@ -637,6 +646,7 @@ export interface FileRoutesById {
   '/api/public/display/$locationId': typeof ApiPublicDisplayLocationIdRoute
   '/api/public/telegram/daily-report': typeof ApiPublicTelegramDailyReportRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
+  '/api/public/trmnl-dienstplan/$token': typeof ApiPublicTrmnlDienstplanTokenRoute
   '/api/public/trmnl-tasks/$token': typeof ApiPublicTrmnlTasksTokenRoute
   '/_authenticated/admin/bestellung/': typeof AuthenticatedAdminBestellungIndexRoute
   '/_authenticated/admin/einstellungen/': typeof AuthenticatedAdminEinstellungenIndexRoute
@@ -705,6 +715,7 @@ export interface FileRouteTypes {
     | '/api/public/display/$locationId'
     | '/api/public/telegram/daily-report'
     | '/api/public/telegram/webhook'
+    | '/api/public/trmnl-dienstplan/$token'
     | '/api/public/trmnl-tasks/$token'
     | '/admin/bestellung/'
     | '/admin/einstellungen/'
@@ -767,6 +778,7 @@ export interface FileRouteTypes {
     | '/api/public/display/$locationId'
     | '/api/public/telegram/daily-report'
     | '/api/public/telegram/webhook'
+    | '/api/public/trmnl-dienstplan/$token'
     | '/api/public/trmnl-tasks/$token'
     | '/admin/bestellung'
     | '/admin/einstellungen'
@@ -834,6 +846,7 @@ export interface FileRouteTypes {
     | '/api/public/display/$locationId'
     | '/api/public/telegram/daily-report'
     | '/api/public/telegram/webhook'
+    | '/api/public/trmnl-dienstplan/$token'
     | '/api/public/trmnl-tasks/$token'
     | '/_authenticated/admin/bestellung/'
     | '/_authenticated/admin/einstellungen/'
@@ -850,6 +863,7 @@ export interface RootRouteChildren {
   ApiPublicDisplayLocationIdRoute: typeof ApiPublicDisplayLocationIdRoute
   ApiPublicTelegramDailyReportRoute: typeof ApiPublicTelegramDailyReportRoute
   ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
+  ApiPublicTrmnlDienstplanTokenRoute: typeof ApiPublicTrmnlDienstplanTokenRoute
   ApiPublicTrmnlTasksTokenRoute: typeof ApiPublicTrmnlTasksTokenRoute
 }
 
@@ -1240,6 +1254,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicTrmnlTasksTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/trmnl-dienstplan/$token': {
+      id: '/api/public/trmnl-dienstplan/$token'
+      path: '/api/public/trmnl-dienstplan/$token'
+      fullPath: '/api/public/trmnl-dienstplan/$token'
+      preLoaderRoute: typeof ApiPublicTrmnlDienstplanTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/telegram/webhook': {
       id: '/api/public/telegram/webhook'
       path: '/api/public/telegram/webhook'
@@ -1507,6 +1528,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicDisplayLocationIdRoute: ApiPublicDisplayLocationIdRoute,
   ApiPublicTelegramDailyReportRoute: ApiPublicTelegramDailyReportRoute,
   ApiPublicTelegramWebhookRoute: ApiPublicTelegramWebhookRoute,
+  ApiPublicTrmnlDienstplanTokenRoute: ApiPublicTrmnlDienstplanTokenRoute,
   ApiPublicTrmnlTasksTokenRoute: ApiPublicTrmnlTasksTokenRoute,
 }
 export const routeTree = rootRouteImport
