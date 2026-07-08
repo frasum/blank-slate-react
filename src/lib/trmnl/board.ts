@@ -166,6 +166,30 @@ export type RosterLocationBlock = {
   total: number;
 };
 
+/**
+ * Kappt eine Namensliste bei `max` Einträgen; Rest als `overflow`-Zähler.
+ * Wird für die 800×480-Kompaktansicht genutzt (feste Zeilenbreite).
+ */
+export function truncateNames(
+  names: string[],
+  max: number,
+): { visible: string[]; overflow: number } {
+  if (max < 0) throw new Error("max muss >= 0 sein.");
+  if (names.length <= max) return { visible: names.slice(), overflow: 0 };
+  return { visible: names.slice(0, max), overflow: names.length - max };
+}
+
+/**
+ * Kürzt Text auf höchstens `max` Zeichen; hängt ein Ellipsis-Zeichen an,
+ * wenn tatsächlich gekappt wurde. `max` schließt das Ellipsis-Zeichen ein.
+ */
+export function ellipsize(text: string, max: number): string {
+  if (max <= 0) return "";
+  if (text.length <= max) return text;
+  if (max === 1) return "…";
+  return text.slice(0, max - 1) + "…";
+}
+
 const AREA_LABEL: Record<string, string> = {
   kitchen: "Küche",
   service: "Service",
