@@ -663,7 +663,8 @@ function OpenInvoicesField({
             </div>
             {nameMissing && (
               <p className="text-xs text-destructive">
-                Bitte Reservierungsname eintragen — sonst kann die Abrechnung nicht abgegeben werden.
+                Bitte Reservierungsname eintragen — sonst kann die Abrechnung nicht abgegeben
+                werden.
               </p>
             )}
             {amountInvalid && (

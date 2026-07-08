@@ -650,9 +650,7 @@ export async function getMySettlementCore(caller: StaffCaller) {
     .filter((n): n is string => !!n)
     .sort((a, b) => a.localeCompare(b, "de"));
   const openInvoiceEntries = row
-    ? parseOpenInvoiceEntries(
-        (row as { open_invoices_details?: unknown }).open_invoices_details,
-      )
+    ? parseOpenInvoiceEntries((row as { open_invoices_details?: unknown }).open_invoices_details)
     : [];
   const settlementWithPartners = row
     ? { ...row, partnerStaffNames: partnerRows, openInvoiceEntries }

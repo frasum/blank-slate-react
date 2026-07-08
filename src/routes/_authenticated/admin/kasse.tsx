@@ -63,9 +63,7 @@ import type { OpenInvoiceEntry } from "@/lib/cash/open-invoices";
 // OpenInvoiceEntry[]. Wirft, wenn ein Betrag > 0 ohne Namen dabei ist
 // oder ein Eurobetrag ungültig ist. Rein clientseitiger Guard vor dem
 // Server-Aufruf; der Server erzwingt dieselbe Regel.
-function toOpenInvoiceEntries(
-  rows: Array<{ name: string; amount: string }>,
-): OpenInvoiceEntry[] {
+function toOpenInvoiceEntries(rows: Array<{ name: string; amount: string }>): OpenInvoiceEntry[] {
   const entries: OpenInvoiceEntry[] = [];
   for (const r of rows) {
     const name = r.name.trim();
@@ -244,13 +242,7 @@ function KassePage() {
       const cash = parseEuroToCents(correct.cashHandedIn);
       const openEntries = toOpenInvoiceEntries(correct.openInvoices);
       const open = openEntries.reduce((s, e) => s + e.cents, 0);
-      if (
-        pos === null ||
-        kassiert === null ||
-        card === null ||
-        hilf === null ||
-        cash === null
-      ) {
+      if (pos === null || kassiert === null || card === null || hilf === null || cash === null) {
         throw new Error("Bitte gültige Eurobeträge eintragen.");
       }
       return callCorrect({
@@ -300,13 +292,7 @@ function KassePage() {
       const cash = parseEuroToCents(createSettlement.cashHandedIn);
       const openEntries = toOpenInvoiceEntries(createSettlement.openInvoices);
       const open = openEntries.reduce((s, e) => s + e.cents, 0);
-      if (
-        pos === null ||
-        kassiert === null ||
-        card === null ||
-        hilf === null ||
-        cash === null
-      ) {
+      if (pos === null || kassiert === null || card === null || hilf === null || cash === null) {
         throw new Error("Bitte gültige Eurobeträge eintragen.");
       }
       return callAdminCreate({
@@ -617,12 +603,13 @@ function KassePage() {
                 ).toFixed(2),
                 cardTotal: (Number(row.card_total_cents) / 100).toFixed(2),
                 hilfMahl: (Number(row.hilf_mahl_cents) / 100).toFixed(2),
-                openInvoices:
-                  ((row as { openInvoiceEntries?: Array<{ name: string; cents: number }> })
-                    .openInvoiceEntries ?? []).map((e) => ({
-                    name: e.name,
-                    amount: centsToEuroString(e.cents),
-                  })),
+                openInvoices: (
+                  (row as { openInvoiceEntries?: Array<{ name: string; cents: number }> })
+                    .openInvoiceEntries ?? []
+                ).map((e) => ({
+                  name: e.name,
+                  amount: centsToEuroString(e.cents),
+                })),
                 cashHandedIn: (Number(row.cash_handed_in_cents) / 100).toFixed(2),
                 reason: "",
               })
@@ -1362,9 +1349,7 @@ function OpenInvoicesEditor({
           Reservierungsname ist Pflicht, sobald ein Betrag &gt; 0 steht.
         </span>
       </div>
-      {rows.length === 0 && (
-        <p className="text-xs text-muted-foreground">Keine offene Rechnung.</p>
-      )}
+      {rows.length === 0 && <p className="text-xs text-muted-foreground">Keine offene Rechnung.</p>}
       {rows.map((r, idx) => {
         const nameMissing = r.amount.trim() !== "" && r.name.trim() === "";
         return (
