@@ -54,13 +54,24 @@ import { PaintToolbar, type PaintSelection } from "@/components/roster/PaintTool
 import { SkillFilterChips } from "@/components/roster/SkillFilterChips";
 import { PeriodNav } from "@/components/roster/PeriodNav";
 import { PlanerRosterView } from "@/components/roster/PlanerRosterView";
+import { RosterDayView } from "@/components/roster/RosterDayView";
 
 export const Route = createFileRoute("/_authenticated/admin/dienstplan")({
   head: () => ({ meta: [{ title: "Dienstplan" }] }),
-  validateSearch: (search: Record<string, unknown>): { bereich?: "kueche" | "service" } => ({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { bereich?: "kueche" | "service"; ansicht?: "grid" | "tag"; tag?: string } => ({
     bereich:
       search.bereich === "service" || search.bereich === "kueche"
         ? (search.bereich as "kueche" | "service")
+        : undefined,
+    ansicht:
+      search.ansicht === "grid" || search.ansicht === "tag"
+        ? (search.ansicht as "grid" | "tag")
+        : undefined,
+    tag:
+      typeof search.tag === "string" && /^\d{4}-\d{2}-\d{2}$/.test(search.tag)
+        ? search.tag
         : undefined,
   }),
   component: DienstplanPage,
@@ -91,11 +102,77 @@ function DienstplanPage() {
   // Ansicht (stapelt Standorte, Tabs pro Bereich). Alle übrigen Rollen sehen
   // die bestehende Seite unverändert.
   const { identity } = Route.useRouteContext();
-  const { bereich } = Route.useSearch();
-  if (identity.role === "planer") {
-    return <PlanerRosterView bereich={bereich ?? "kueche"} />;
+  const { bereich, ansicht, tag } = Route.useSearch();
+  const navigate = Route.useNavigate();
+
+  // D5 — Ansichts-Wahl: Ohne Param entscheidet einmalig beim Mount die
+  // Bildschirmbreite (<768px → Tag). Kein Live-Umschalten beim Resize.
+  const [autoView] = useState<"grid" | "tag">(() => {
+    if (typeof window === "undefined") return "grid";
+    return window.matchMedia("(max-width: 767px)").matches ? "tag" : "grid";
+  });
+  const effectiveView = ansicht ?? autoView;
+
+  if (effectiveView === "tag") {
+    return (
+      <>
+        <ViewToggle current="tag" />
+        <RosterDayView
+          date={tag ?? todayIso()}
+          onDateChange={(iso) =>
+            void navigate({
+              search: (prev: Record<string, unknown>) => ({ ...prev, ansicht: "tag", tag: iso }),
+            })
+          }
+        />
+      </>
+    );
   }
-  return <AdminManagerDienstplan />;
+
+  if (identity.role === "planer") {
+    return (
+      <>
+        <ViewToggle current="grid" />
+        <PlanerRosterView bereich={bereich ?? "kueche"} />
+      </>
+    );
+  }
+  return (
+    <>
+      <ViewToggle current="grid" />
+      <AdminManagerDienstplan />
+    </>
+  );
+}
+
+function ViewToggle({ current }: { current: "grid" | "tag" }) {
+  const navigate = Route.useNavigate();
+  return (
+    <div className="mb-2 flex justify-end gap-1">
+      <Button
+        size="sm"
+        variant={current === "grid" ? "default" : "outline"}
+        onClick={() =>
+          void navigate({
+            search: (prev: Record<string, unknown>) => ({ ...prev, ansicht: "grid" }),
+          })
+        }
+      >
+        Grid
+      </Button>
+      <Button
+        size="sm"
+        variant={current === "tag" ? "default" : "outline"}
+        onClick={() =>
+          void navigate({
+            search: (prev: Record<string, unknown>) => ({ ...prev, ansicht: "tag" }),
+          })
+        }
+      >
+        Tag
+      </Button>
+    </div>
+  );
 }
 
 function AdminManagerDienstplan() {
