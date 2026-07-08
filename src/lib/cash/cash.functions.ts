@@ -2422,6 +2422,7 @@ const adminCreateSettlementSchema = z.object({
   cardTotalCents: z.number().int().min(0),
   hilfMahlCents: z.number().int().min(0),
   openInvoicesCents: z.number().int().min(0),
+  openInvoiceEntries: openInvoiceEntriesSchema.optional(),
   cashHandedInCents: z.number().int().min(0),
   partnerStaffIds: z.array(z.string().uuid()).optional(),
   reason: z.string().trim().min(3).max(500),
