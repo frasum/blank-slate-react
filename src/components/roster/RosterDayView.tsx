@@ -252,9 +252,7 @@ export function RosterDayView({ date, onDateChange }: Props) {
                               className={`flex items-center gap-2 rounded-md text-sm ${
                                 editable ? "cursor-pointer px-1 py-1 hover:bg-accent" : ""
                               }`}
-                              onClick={
-                                editable ? () => openEdit(loc, "service", e) : undefined
-                              }
+                              onClick={editable ? () => openEdit(loc, "service", e) : undefined}
                             >
                               <span
                                 className="inline-flex h-6 min-w-[2rem] shrink-0 items-center justify-center rounded-md px-1.5 text-xs font-semibold"

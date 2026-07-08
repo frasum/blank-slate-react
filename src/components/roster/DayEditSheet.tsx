@@ -316,11 +316,7 @@ export function DayEditSheet({
               staffShiftDates={todaysShiftDates(currentStaffId)}
               busy={busy}
               onCancel={() =>
-                setInner(
-                  target.mode === "add"
-                    ? { view: "add-pick-staff" }
-                    : { view: "menu" },
-                )
+                setInner(target.mode === "add" ? { view: "add-pick-staff" } : { view: "menu" })
               }
               onSubmit={async (from, to) => {
                 setAbs.mutate({ staffId: currentStaffId, from, to, type: inner.type });
@@ -361,12 +357,7 @@ function AbsenceButtons({
 }) {
   if (hasAbsence) {
     return (
-      <Button
-        variant="outline"
-        className="w-full justify-start"
-        disabled={busy}
-        onClick={onClear}
-      >
+      <Button variant="outline" className="w-full justify-start" disabled={busy} onClick={onClear}>
         Abwesenheit entfernen
       </Button>
     );
