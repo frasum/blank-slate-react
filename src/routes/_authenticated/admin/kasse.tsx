@@ -56,8 +56,37 @@ import { printDailySummary } from "@/components/cash/DailyPrintView";
 import { DateSelector } from "@/components/shared/DateSelector";
 import { LocationPills } from "@/components/shared/LocationPills";
 import { parseEuroToCents } from "@/lib/cash/kasse-helpers";
-import { parseEuroToCents as parseEuroToCentsBase } from "@/lib/format";
 import { SettlementWarningsBanner } from "@/components/cash/SettlementWarningsBanner";
+import type { OpenInvoiceEntry } from "@/lib/cash/open-invoices";
+
+// Übersetzt die Roheingabe aus dem Korrektur-/Anlage-Dialog in
+// OpenInvoiceEntry[]. Wirft, wenn ein Betrag > 0 ohne Namen dabei ist
+// oder ein Eurobetrag ungültig ist. Rein clientseitiger Guard vor dem
+// Server-Aufruf; der Server erzwingt dieselbe Regel.
+function toOpenInvoiceEntries(
+  rows: Array<{ name: string; amount: string }>,
+): OpenInvoiceEntry[] {
+  const entries: OpenInvoiceEntry[] = [];
+  for (const r of rows) {
+    const name = r.name.trim();
+    const amountRaw = r.amount.trim();
+    if (name === "" && amountRaw === "") continue;
+    const cents = amountRaw === "" ? 0 : parseEuroToCents(r.amount);
+    if (cents === null || cents < 0) {
+      throw new Error("Bitte gültige Eurobeträge für die offenen Rechnungen eintragen.");
+    }
+    if (cents === 0 && name === "") continue;
+    if (name === "") {
+      throw new Error("Bitte für jede offene Rechnung einen Reservierungsnamen eintragen.");
+    }
+    entries.push({ name, cents });
+  }
+  return entries;
+}
+
+function centsToEuroString(cents: number): string {
+  return (Math.round(cents) / 100).toFixed(2);
+}
 import { SettlementsCard } from "@/components/cash/SettlementsCard";
 import { SessionFieldsCard } from "@/components/cash/SessionFieldsCard";
 import { TipPoolCard } from "@/components/cash/TipPoolCard";
