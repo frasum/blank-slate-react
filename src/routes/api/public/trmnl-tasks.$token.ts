@@ -98,9 +98,22 @@ export const Route = createFileRoute("/api/public/trmnl-tasks/$token")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-        const { data: orgRow, error: orgErr } = await supabaseAdmin
-          .from("organizations")
-          // trmnl_token wurde per Migration ergänzt; Typegenerierung greift erst nach Approval.
+        // Spalte `trmnl_token` wurde per Migration ergänzt; die generierten
+        // Types werden erst nach Approval regeneriert — bis dahin schmaler
+        // Cast auf die zwei benötigten Zugriffe (kein `any`).
+        type OrgTokenRow = { id: string; name: string; trmnl_token: string | null };
+        type OrgQuery = {
+          select: (cols: string) => {
+            eq: (col: string, val: string) => {
+              maybeSingle: () => Promise<{
+                data: OrgTokenRow | null;
+                error: { message: string } | null;
+              }>;
+            };
+          };
+        };
+        const orgQ = supabaseAdmin.from("organizations") as unknown as OrgQuery;
+        const { data: orgRow, error: orgErr } = await orgQ
           .select("id, name, trmnl_token")
           .eq("trmnl_token", token)
           .maybeSingle();
