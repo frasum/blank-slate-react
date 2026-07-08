@@ -1356,8 +1356,7 @@ function OpenInvoicesEditor({
         const amountRaw = r.amount.trim();
         const parsed = amountRaw === "" ? 0 : parseEuroToCents(r.amount);
         const amountInvalid = amountRaw !== "" && (parsed === null || parsed < 0);
-        const nameMissing =
-          !amountInvalid && parsed !== null && parsed > 0 && r.name.trim() === "";
+        const nameMissing = !amountInvalid && parsed !== null && parsed > 0 && r.name.trim() === "";
         return (
           <div key={idx} className="space-y-1">
             <div className="flex flex-col gap-2 sm:flex-row">
