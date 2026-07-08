@@ -268,6 +268,22 @@ function AbrechnungPage() {
           <ReadOnlyRow label="EC-/Kartensumme" cents={Number(settlement.card_total_cents)} />
           <ReadOnlyRow label="Hilfsmahlzeiten" cents={Number(settlement.hilf_mahl_cents)} />
           <ReadOnlyRow label="Offene Rechnungen" cents={Number(settlement.open_invoices_cents)} />
+          {(() => {
+            const entries =
+              (settlement as { openInvoiceEntries?: Array<{ name: string; cents: number }> })
+                .openInvoiceEntries ?? [];
+            if (entries.length === 0) return null;
+            return (
+              <ul className="ml-2 space-y-0.5 text-xs text-muted-foreground">
+                {entries.map((e, i) => (
+                  <li key={i} className="flex justify-between">
+                    <span>· {e.name}</span>
+                    <span className="font-mono tabular-nums">{formatCents(e.cents)} €</span>
+                  </li>
+                ))}
+              </ul>
+            );
+          })()}
           <ReadOnlyRow
             label="Abgegebenes Bargeld"
             cents={Number(settlement.cash_handed_in_cents)}
