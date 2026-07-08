@@ -489,7 +489,8 @@ function renderPageSmall(input: RenderInput): string {
       const kTrim = truncateNames(kitchen, Math.min(kitchen.length, MAX_ROSTER_NAMES));
       const remaining = Math.max(0, MAX_ROSTER_NAMES - kTrim.visible.length);
       const sTrim = truncateNames(service, Math.min(service.length, remaining));
-      const overflow = kTrim.overflow + sTrim.overflow + (service.length - sTrim.visible.length - sTrim.overflow);
+      const overflow =
+        kTrim.overflow + sTrim.overflow + (service.length - sTrim.visible.length - sTrim.overflow);
       const parts: string[] = [];
       if (kTrim.visible.length)
         parts.push(`<span class="tag">K:</span> ${escapeHtml(kTrim.visible.join(" "))}`);
