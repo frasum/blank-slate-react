@@ -1972,6 +1972,7 @@ export type Database = {
           id: string
           name: string
           opening_safe_balance_cents: number
+          trmnl_token: string | null
           updated_at: string
         }
         Insert: {
@@ -1980,6 +1981,7 @@ export type Database = {
           id?: string
           name: string
           opening_safe_balance_cents?: number
+          trmnl_token?: string | null
           updated_at?: string
         }
         Update: {
@@ -1988,6 +1990,7 @@ export type Database = {
           id?: string
           name?: string
           opening_safe_balance_cents?: number
+          trmnl_token?: string | null
           updated_at?: string
         }
         Relationships: []
