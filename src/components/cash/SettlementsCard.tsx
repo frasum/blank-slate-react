@@ -25,6 +25,10 @@ export function SettlementsCard({
   onCreate: () => void;
 }) {
   const rows = data.settlements;
+  // Für Korrekturen: Vorgänger-Zeile per corrected_from_id auflösen,
+  // damit geänderte Zellen dezent markiert werden können.
+  const byId = new Map(rows.map((r) => [r.id, r] as const));
+  const changedMark = "underline decoration-destructive/70 decoration-2 underline-offset-4";
   return (
     <Card>
       <div className="flex items-center justify-between border-b px-4 py-3">
@@ -77,6 +81,32 @@ export function SettlementsCard({
               },
             ]);
             const tipPct = pos > 0 ? (tipTotal / pos) * 100 : null;
+            // Wenn diese Zeile eine andere korrigiert, zellenweise vergleichen.
+            const prevId = (r as { corrected_from_id?: string | null }).corrected_from_id ?? null;
+            const prev = !superseded && prevId ? byId.get(prevId) : undefined;
+            const diff = (a: number, b: number | string | null | undefined) =>
+              prev ? a !== Number(b ?? 0) : false;
+            const prevKassiert = prev
+              ? Number(
+                  (prev as { kassiert_brutto_cents?: number | string | null })
+                    .kassiert_brutto_cents ?? prev.pos_sales_cents,
+                )
+              : 0;
+            const prevTip = prev
+              ? computeTipTotalCents([
+                  {
+                    cardTotalCents: Number(prev.card_total_cents),
+                    cashHandedInCents: Number(prev.cash_handed_in_cents),
+                    posSalesCents: Number(prev.pos_sales_cents),
+                    openInvoicesCents: Number(prev.open_invoices_cents),
+                    hilfMahlCents: Number(prev.hilf_mahl_cents),
+                    kassiertBruttoCents: prevKassiert,
+                  },
+                ])
+              : 0;
+            const prevPos = prev ? Number(prev.pos_sales_cents) : 0;
+            const prevTipPct = prev && prevPos > 0 ? (prevTip / prevPos) * 100 : null;
+            const mark = (changed: boolean) => (changed ? ` ${changedMark}` : "");
             return (
               <TableRow key={r.id} className={superseded ? "opacity-50" : ""}>
                 <TableCell>
@@ -95,24 +125,69 @@ export function SettlementsCard({
                   })()}
                 </TableCell>
                 <TableCell className="text-right font-mono">
-                  {fmtCents(Number(r.pos_sales_cents))}
-                </TableCell>
-                <TableCell className="text-right font-mono">{fmtCents(kassiertBrutto)}</TableCell>
-                <TableCell className="text-right font-mono">
-                  {fmtCents(Number(r.card_total_cents))}
+                  <span className={"inline-block" + mark(diff(pos, prev?.pos_sales_cents))}>
+                    {fmtCents(pos)}
+                  </span>
                 </TableCell>
                 <TableCell className="text-right font-mono">
-                  {fmtCents(Number(r.hilf_mahl_cents))}
+                  <span className={"inline-block" + mark(prev ? kassiertBrutto !== prevKassiert : false)}>
+                    {fmtCents(kassiertBrutto)}
+                  </span>
                 </TableCell>
                 <TableCell className="text-right font-mono">
-                  {fmtCents(Number(r.open_invoices_cents))}
+                  <span
+                    className={
+                      "inline-block" +
+                      mark(diff(Number(r.card_total_cents), prev?.card_total_cents))
+                    }
+                  >
+                    {fmtCents(Number(r.card_total_cents))}
+                  </span>
                 </TableCell>
                 <TableCell className="text-right font-mono">
-                  {fmtCents(Number(r.cash_handed_in_cents))}
+                  <span
+                    className={
+                      "inline-block" +
+                      mark(diff(Number(r.hilf_mahl_cents), prev?.hilf_mahl_cents))
+                    }
+                  >
+                    {fmtCents(Number(r.hilf_mahl_cents))}
+                  </span>
                 </TableCell>
-                <TableCell className="text-right font-mono">{fmtCents(tipTotal)}</TableCell>
                 <TableCell className="text-right font-mono">
-                  {tipPct === null ? "–" : `${tipPct.toFixed(1).replace(".", ",")} %`}
+                  <span
+                    className={
+                      "inline-block" +
+                      mark(diff(Number(r.open_invoices_cents), prev?.open_invoices_cents))
+                    }
+                  >
+                    {fmtCents(Number(r.open_invoices_cents))}
+                  </span>
+                </TableCell>
+                <TableCell className="text-right font-mono">
+                  <span
+                    className={
+                      "inline-block" +
+                      mark(diff(Number(r.cash_handed_in_cents), prev?.cash_handed_in_cents))
+                    }
+                  >
+                    {fmtCents(Number(r.cash_handed_in_cents))}
+                  </span>
+                </TableCell>
+                <TableCell className="text-right font-mono">
+                  <span className={"inline-block" + mark(prev ? tipTotal !== prevTip : false)}>
+                    {fmtCents(tipTotal)}
+                  </span>
+                </TableCell>
+                <TableCell className="text-right font-mono">
+                  <span
+                    className={
+                      "inline-block" +
+                      mark(prev ? (tipPct ?? 0) !== (prevTipPct ?? 0) : false)
+                    }
+                  >
+                    {tipPct === null ? "–" : `${tipPct.toFixed(1).replace(".", ",")} %`}
+                  </span>
                 </TableCell>
                 <TableCell>
                   <Badge variant={superseded ? "outline" : "default"}>{r.status}</Badge>
