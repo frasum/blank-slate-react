@@ -498,12 +498,16 @@ export async function getCashOverviewCore(
         .filter((n): n is string => !!n);
       const staffName =
         partnerStaffNames.length > 0 ? [primary, ...partnerStaffNames].join(" + ") : primary;
+      const openInvoiceEntries = parseOpenInvoiceEntries(
+        (s as { open_invoices_details?: unknown }).open_invoices_details,
+      );
       return {
         ...s,
         staffName,
         primaryStaffName: primary,
         partnerStaffNames,
         partnerStaffIds,
+        openInvoiceEntries,
       };
     }),
     channelAmounts: (channelAmtRes.data ?? []).map((r) => ({
