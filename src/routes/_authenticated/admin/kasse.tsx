@@ -56,6 +56,7 @@ import { printDailySummary } from "@/components/cash/DailyPrintView";
 import { DateSelector } from "@/components/shared/DateSelector";
 import { LocationPills } from "@/components/shared/LocationPills";
 import { parseEuroToCents } from "@/lib/cash/kasse-helpers";
+import { parseEuroToCents as parseEuroToCentsBase } from "@/lib/format";
 import { SettlementWarningsBanner } from "@/components/cash/SettlementWarningsBanner";
 import { SettlementsCard } from "@/components/cash/SettlementsCard";
 import { SessionFieldsCard } from "@/components/cash/SessionFieldsCard";
@@ -80,7 +81,7 @@ type CorrectState = {
   kassiertBrutto: string;
   cardTotal: string;
   hilfMahl: string;
-  openInvoices: string;
+  openInvoices: Array<{ name: string; amount: string }>;
   cashHandedIn: string;
   reason: string;
 };
@@ -92,7 +93,7 @@ type CreateState = {
   kassiertBrutto: string;
   cardTotal: string;
   hilfMahl: string;
-  openInvoices: string;
+  openInvoices: Array<{ name: string; amount: string }>;
   cashHandedIn: string;
   reason: string;
 };
