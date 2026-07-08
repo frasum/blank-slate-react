@@ -14,6 +14,8 @@ import type { MyShiftRow } from "@/lib/roster/my-shifts";
 import { mergeAbsenceRanges, type AbsenceRange } from "@/lib/roster/vacation-planner";
 import { resolvePlanerScope } from "@/lib/roster/scope-util";
 import { assertDayOpen } from "@/lib/roster/business-calendar.server";
+import { selectAllPaged } from "@/lib/supabase/select-all";
+import { shiftMatesKey, type ShiftMate } from "@/lib/roster/shift-mates";
 
 // SP2 — Helper: gewähltes Planungsfenster muss in enabled_service_periods
 // des Standorts liegen. Ersetzt den früheren Boolean-Check (day_service_enabled).
