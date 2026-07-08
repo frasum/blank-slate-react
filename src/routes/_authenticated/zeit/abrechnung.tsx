@@ -398,12 +398,11 @@ function AbrechnungPage() {
           onChange={(v) => setForm({ ...form, hilfMahl: v })}
           error={parsed.hilfMahlCents === null && form.hilfMahl !== ""}
         />
-        <EuroField
-          id="open"
-          label="Offene Rechnungen"
-          value={form.openInvoices}
-          onChange={(v) => setForm({ ...form, openInvoices: v })}
-          error={parsed.openInvoicesCents === null && form.openInvoices !== ""}
+        <OpenInvoicesField
+          rows={form.openInvoices}
+          onChange={(next) => setForm({ ...form, openInvoices: next })}
+          rowValidity={parsed.openInvoiceRows}
+          sumCents={parsed.openInvoicesCents}
         />
         <EuroField
           id="cash"
