@@ -4,8 +4,18 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { getMyShifts, getMyAbsences, type MyAbsenceRange } from "@/lib/roster/roster.functions";
+import {
+  getMyShifts,
+  getMyAbsences,
+  getMyShiftMates,
+  type MyAbsenceRange,
+} from "@/lib/roster/roster.functions";
 import { groupMyShiftsByDate } from "@/lib/roster/my-shifts";
+import {
+  formatShiftMatesLine,
+  MATES_LINE_PREFIX,
+  shiftMatesKey,
+} from "@/lib/roster/shift-mates";
 import {
   createSwapRequest,
   listMySwapRequests,
@@ -95,6 +105,7 @@ function MyShiftsPage() {
   const [range, setRange] = useState<RangeKey>("month");
   const fetchShifts = useServerFn(getMyShifts);
   const fetchAbsences = useServerFn(getMyAbsences);
+  const fetchMates = useServerFn(getMyShiftMates);
   const fetchSwaps = useServerFn(listMySwapRequests);
   const fetchOpen = useServerFn(listOpenSwapsForMe);
   const createSwap = useServerFn(createSwapRequest);
@@ -108,6 +119,10 @@ function MyShiftsPage() {
   const absencesQuery = useQuery({
     queryKey: ["my-absences", from, to],
     queryFn: () => fetchAbsences({ data: { from, to } }),
+  });
+  const matesQuery = useQuery({
+    queryKey: ["my-shift-mates", from, to],
+    queryFn: () => fetchMates({ data: { from, to } }),
   });
   const swapsQuery = useQuery({
     queryKey: ["my-swap-requests"],
@@ -225,9 +240,18 @@ function MyShiftsPage() {
                 {formatDayHeader(day.date)}
               </h2>
               <Card className="divide-y">
-                {day.shifts.map((s) => {
+                {(() => {
+                  const shownMatesKeys = new Set<string>();
+                  return day.shifts.map((s) => {
                   const swap = swapByShift.get(s.id);
                   const isFuture = s.shift_date > todayIso;
+                  const mateKey = shiftMatesKey(s.shift_date, s.locationId);
+                  const matesLine =
+                    !matesQuery.isError && matesQuery.data
+                      ? formatShiftMatesLine(matesQuery.data[mateKey] ?? [])
+                      : "";
+                  const showMates = matesLine.length > 0 && !shownMatesKeys.has(mateKey);
+                  if (showMates) shownMatesKeys.add(mateKey);
                   return (
                     <div key={s.id} className="space-y-2 px-4 py-3 text-sm">
                       <div className="flex items-center justify-between">
@@ -245,6 +269,11 @@ function MyShiftsPage() {
                         <div className="text-xs text-muted-foreground">{s.skillLabel}</div>
                       )}
                       {s.notes && <div className="text-xs text-muted-foreground">{s.notes}</div>}
+                      {showMates && (
+                        <div className="text-xs text-muted-foreground">
+                          <span className="font-medium">{MATES_LINE_PREFIX}</span> {matesLine}
+                        </div>
+                      )}
                       {swap ? (
                         <div className="flex items-center justify-between gap-2">
                           <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-900">
@@ -270,7 +299,8 @@ function MyShiftsPage() {
                       ) : null}
                     </div>
                   );
-                })}
+                  });
+                })()}
               </Card>
             </section>
           ))}
