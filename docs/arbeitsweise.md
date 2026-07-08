@@ -3810,6 +3810,7 @@ Abgenommener Anker: HEAD `377ca16d`, vier Gates grün, 1615 Tests.
 **Fehldiagnose als Lehre:** Claudes Beweiskette (Route fehlt im Build-Artefakt) passte zu allen Beobachtungen, war aber falsch — die lokale `curl`-Reproduktion lieferte HTTP 200, weil curl kein JavaScript ausführt; der Redirect passiert erst clientseitig. Merksätze: (1) **Client-seitige globale Middleware kann öffentliche Seiten killen, ohne dass tsc/vitest/SSR-Probe es je sehen** — die vier Gates testen kein Browser-Verhalten. (2) Bei „Seite X leitet zum Login" immer zuerst nach `window.location`/`navigate`-Aufrufen in globalen Middlewares/Providern greppen, bevor Build/Deploy verdächtigt wird. (3) Eine curl-/SSR-Probe entlastet nur den Server-Pfad, nie den Client-Pfad.
 
 **Nebenbefunde des Nachmittags:**
+
 - `cocoplatform.lovable.app` leitet kanonisch auf `cocoplatform.online` um und verliert dabei den Pfad — für Routen-Tests unbrauchbar, immer direkt `.online` testen.
 - Lovable-Preview-Kaltstarts („Seite nicht erreichbar", nach Wartezeit ok) sind Sandbox-Verhalten; Produktion (Cloudflare) kennt das nicht.
 - `vite build` braucht inzwischen >4 GB Heap (lokal OOM) — **Arbeitspunkt Bundle-Verschlankung** (schwere Client-Brocken wie jspdf/pdfjs gezielt splitten), bevor der Build zum echten Risiko wird.
