@@ -28,6 +28,9 @@ function task(overrides: Partial<Task>): Task {
     started_at: null,
     completed_at: null,
     archived_at: null,
+    escalate_at: null,
+    escalated_at: null,
+    created_by_staff_id: "sys",
     ...overrides,
   } as Task;
 }
