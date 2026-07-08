@@ -60,10 +60,7 @@ export function RosterDayView({ date, onDateChange }: Props) {
       enabled: locations.length > 0,
     })),
   });
-  const shifts: RosterShift[] = useMemo(
-    () => shiftsQs.flatMap((q) => q.data ?? []),
-    [shiftsQs],
-  );
+  const shifts: RosterShift[] = useMemo(() => shiftsQs.flatMap((q) => q.data ?? []), [shiftsQs]);
   const absencesQ = useQuery({
     queryKey: ["roster-absence", date, date],
     queryFn: () => getAbsences({ data: { fromDate: date, toDate: date } }),
