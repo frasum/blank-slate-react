@@ -60,20 +60,22 @@ import { SettlementWarningsBanner } from "@/components/cash/SettlementWarningsBa
 import type { OpenInvoiceEntry } from "@/lib/cash/open-invoices";
 
 // Übersetzt die Roheingabe aus dem Korrektur-/Anlage-Dialog in
-// OpenInvoiceEntry[]. Wirft, wenn ein Betrag > 0 ohne Namen dabei ist
-// oder ein Eurobetrag ungültig ist. Rein clientseitiger Guard vor dem
-// Server-Aufruf; der Server erzwingt dieselbe Regel.
+// OpenInvoiceEntry[]. Regel (analog Kellner-UI, siehe open-invoices.ts):
+// - Zeilen ohne Betrag > 0 werden still verworfen (auch mit Namen).
+// - Betrag > 0 ohne Namen wirft — Abgabe blockiert.
+// - Ungültiger Eurobetrag wirft.
+// Rein clientseitiger Guard; der Server erzwingt dieselbe Regel.
 function toOpenInvoiceEntries(rows: Array<{ name: string; amount: string }>): OpenInvoiceEntry[] {
   const entries: OpenInvoiceEntry[] = [];
   for (const r of rows) {
     const name = r.name.trim();
     const amountRaw = r.amount.trim();
-    if (name === "" && amountRaw === "") continue;
-    const cents = amountRaw === "" ? 0 : parseEuroToCents(r.amount);
+    if (amountRaw === "") continue;
+    const cents = parseEuroToCents(r.amount);
     if (cents === null || cents < 0) {
       throw new Error("Bitte gültige Eurobeträge für die offenen Rechnungen eintragen.");
     }
-    if (cents === 0 && name === "") continue;
+    if (cents === 0) continue;
     if (name === "") {
       throw new Error("Bitte für jede offene Rechnung einen Reservierungsnamen eintragen.");
     }
