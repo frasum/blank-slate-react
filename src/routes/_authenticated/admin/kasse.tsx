@@ -595,7 +595,7 @@ function KassePage() {
                 kassiertBrutto: "0.00",
                 cardTotal: "0.00",
                 hilfMahl: "0.00",
-                openInvoices: "0.00",
+                openInvoices: [],
                 cashHandedIn: "0.00",
                 reason: "",
               })
@@ -617,7 +617,12 @@ function KassePage() {
                 ).toFixed(2),
                 cardTotal: (Number(row.card_total_cents) / 100).toFixed(2),
                 hilfMahl: (Number(row.hilf_mahl_cents) / 100).toFixed(2),
-                openInvoices: (Number(row.open_invoices_cents) / 100).toFixed(2),
+                openInvoices:
+                  ((row as { openInvoiceEntries?: Array<{ name: string; cents: number }> })
+                    .openInvoiceEntries ?? []).map((e) => ({
+                    name: e.name,
+                    amount: centsToEuroString(e.cents),
+                  })),
                 cashHandedIn: (Number(row.cash_handed_in_cents) / 100).toFixed(2),
                 reason: "",
               })
