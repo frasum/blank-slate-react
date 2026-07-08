@@ -1,115 +1,69 @@
+## Ziel
 
-## TG1 — Umfang
+Kellner erfassen offene Rechnungen künftig als **Liste einzelner Positionen** — jede Position hat einen Betrag **und** einen Reservierungs-/Gästenamen. Ohne Name(n) ist keine Abgabe möglich. Auf der Tagesabrechnung erscheinen die Namen bei „Offen".
 
-Ziel: Trinkgeld-Parameter (Küchen-Rate, Mindeststunden, kitchen-manual-only, **neu:** Service-Pool an/aus) pro Standort überschreibbar, sonst Org-Standard. Plus: Warndialog beim Abschluss, wenn Pool > 0 € bei 0 anrechenbaren Minuten.
+## UI-Änderung Kellner-Abrechnung (`src/routes/_authenticated/zeit/abrechnung.tsx`)
 
-## Rückfragen an dich (vor Umsetzung)
+Das bisherige einzelne Euro-Feld „Offene Rechnungen" wird ersetzt durch eine Liste `openInvoices: Array<{ name: string; amount: string }>` mit:
 
-1. **Rate-Snapshot beim Erfassen einer Kellner-Abrechnung**: `submitWaiterSettlementCore` / `adminCreateWaiterSettlementCore` snapshotten heute `settings.kitchenTipRate` in `waiter_settlements.kitchen_tip_rate`. TG1 lässt die Erfassung ansonsten unangetastet — nur die **Quelle** der Rate wechselt auf `loadTipSettings(orgId, session.location_id)`. So kommt der Standort-Override tatsächlich zum Tragen. Bestätigst du das? (Ohne diesen Wechsel wäre der Override wirkungslos.)
-2. **Warndialog auf `finalizeSession`** (nicht `lockSession`) — TG1 sagt „beim Finalisieren". Session-Endpunkt liefert Zusatz-Payload `poolWarning?: { serviceCents; kitchenCents; eligibleMinutes }` und ein neuer `confirm: true` bricht die Warnung durch. Alternative: separater Preview-Aufruf vor `finalizeSession`. **Vorschlag: gleicher Endpunkt mit `confirm`-Flag** (weniger Round-Trips).
-3. **`serviceRemainder` bei Pool=aus**: Anweisung sagt `serviceRemainder = 0` (kein Phantom-Rest). Bestätigt — d. h. bei `tip_service_pool_enabled=false` fließt individuelles Trinkgeld nirgendwo mehr in Aggregate/Statistik als „Rest" ein.
+- „+ weitere offene Rechnung" (Button, standardmäßig 0 Einträge)
+- Pro Zeile: Name-Input (Reservierungs-/Gästename) + Euro-Input + „Entfernen"
+- Summe live berechnet und als Hilfstext angezeigt („Summe: XX,XX €")
+- Validierung: Jede Zeile mit `amount > 0` benötigt einen nicht-leeren Namen (trim). Sonst: `allValid = false` + rote Meldung an der betroffenen Zeile, Absende-Button bleibt disabled.
+- Read-only-Ansicht (bereits abgegeben): Namen + Beträge als Aufzählung unter „Offene Rechnungen"; Gesamtsumme wie bisher.
 
-Wenn (1)–(3) so passen, baue ich ohne weitere Zwischenfragen.
+## Datenmodell (Migration)
 
-## Migration (separate Datei, kein Merge-Konflikt mit RT1/SP1)
+Neue Spalte auf `waiter_settlements`:
 
-```sql
-ALTER TABLE public.locations
-  ADD COLUMN tip_service_pool_enabled boolean NOT NULL DEFAULT true,
-  ADD COLUMN kitchen_tip_rate_override numeric(5,4)
-    CHECK (kitchen_tip_rate_override IS NULL
-           OR (kitchen_tip_rate_override >= 0 AND kitchen_tip_rate_override <= 0.2)),
-  ADD COLUMN tip_pool_min_hours_override numeric(4,1)
-    CHECK (tip_pool_min_hours_override IS NULL OR tip_pool_min_hours_override >= 0),
-  ADD COLUMN kitchen_manual_only_override boolean;
+```
+open_invoices_details jsonb not null default '[]'::jsonb
 ```
 
-Default `true` für `tip_service_pool_enabled` → bitgenau altes Verhalten für Bestand.
+Format: `[{ "name": "Meier", "cents": 4500 }, ...]`. Reihenfolge = Eingabereihenfolge des Kellners. `open_invoices_cents` bleibt bestehen und wird serverseitig **immer** als Summe der Details gesetzt (Single Source: Details).
 
-## Neuer Loader (Vererbung)
+Check-Constraint per Trigger (keine CHECK auf Ausdrücken, siehe Projektregel): Beim `INSERT`/`UPDATE` sicherstellen, dass jeder Eintrag `name` (nicht leer) und `cents ≥ 0` hat und Summe = `open_invoices_cents`.
 
-`loadTipSettings(orgId, locationId)` in `src/lib/cash/tip-settings.ts` (neu):
+## Server-Functions (`src/lib/cash/cash.functions.ts`)
+
+Alle drei Schemas (`settlementInputSchema`, `correctSchema`, `adminCreateSettlementSchema`) bekommen ein neues Feld:
 
 ```ts
-type TipSettings = {
-  servicePoolEnabled: boolean;    // default true
-  kitchenTipRate: number;         // COALESCE(loc.override, org, 0.02)
-  tipPoolMinHours: number;        // COALESCE(loc.override, org, 2.5)
-  kitchenManualOnly: boolean;     // COALESCE(loc.override, org, false)
-};
+openInvoiceEntries: z.array(z.object({
+  name: z.string().trim().min(1).max(120),
+  cents: z.number().int().min(0),
+})).default([])
 ```
 
-`loadOrgSettings` bleibt bestehen und unangetastet (Wasserlinie & Co lesen es weiter).
+Server-Regeln:
+- `openInvoicesCents` wird **serverseitig** aus `openInvoiceEntries.reduce(sum)` neu berechnet (nicht mehr vom Client vertraut).
+- Wenn Summe > 0 und `openInvoiceEntries` leer → Fehler „Bitte für jede offene Rechnung einen Namen eintragen."
+- Insert/Update schreibt `open_invoices_details` mit den Einträgen.
+- `getMySettlement` und `getCashOverview` liefern `open_invoices_details` mit aus (Read-Selects um Spalte ergänzen).
 
-## Backend-Verkabelung
+## Anzeige „Offen" auf Tagesabrechnung
 
-`computeSessionTipPoolCore` bekommt neben `LoadedOrgSettings` optional `tipSettings: TipSettings` und benutzt intern die Overrides. Alle heutigen Aufrufer laden künftig `loadTipSettings(org, session.location_id)`:
+**`src/components/cash/DailyPrintView.tsx`** — Zeile „Offen" im linken Block bleibt erhalten (Summe). Zusätzlich: Unter dem Betrag ein kleiner, dezenter Text mit den Namen aller aktiven Settlements, kommagetrennt (z. B. „Meier · Schmidt · Tisch 12"), Doppelname wenn zwei Einträge denselben Namen tragen bleibt bewusst — es sind separate Rechnungen.
 
-* `getTipPoolOverviewCore`
-* `getMySettlementCore` (Rate-Anzeige + Pool-Anteil)
-* `getTipRemainderByPeriod` (pro-Standort → pro-Standort-Settings)
-* `tip-stats.functions.ts` — je Session `loadTipSettings(org, s.location_id)` (Cache per locationId im Loop)
-* `submitWaiterSettlementCore` / `adminCreateWaiterSettlementCore` — Rate-Quelle wechseln (siehe Rückfrage 1)
+**`src/routes/_authenticated/admin/kasse.tsx`** (Admin-Detailansicht) und **`SettlementsCard`**: In der Zeile eines Kellners den Wert „Offen" um einen Tooltip/Untertext mit den Namen ergänzen (kleine, muted Schrift unter dem Betrag).
 
-`computeSessionTipPoolCore` bei `servicePoolEnabled = false`:
-* Küchen-Berechnung unverändert.
-* `computeTipPool` wird mit `servicePoolCents: 0` gerufen; Service-Zeilen werden aus `result.shares` gefiltert; `serviceRemainder = 0` (statt Pool-Rest); `servicePoolCents` im Rückgabe-Objekt = 0.
-* `poolEntries` behält Service-MA (für Anzeige „Eigenes Trinkgeld"), aber `shareCents` bleibt 0.
+**Optional in Reichweite**: Telegram-Report (`telegram-report.server.ts`) und `daily-summary-data.ts` bleiben unverändert (Summen), damit der Umfang klein bleibt.
 
-**`tip-pool.ts` selbst wird NICHT verändert. Die bestehenden `tip-pool.test.ts`-Fälle bleiben grün.**
+## Admin-Pfade (Korrektur + Neuanlage)
 
-## Warndialog (Pool ohne Stunden)
+`SettlementCorrectionDialog` und der Admin-„Neue Abrechnung"-Dialog erhalten dieselbe Listen-UI wie die Kellner-Seite und senden `openInvoiceEntries`. Beim Öffnen der Korrektur werden vorhandene Einträge aus `open_invoices_details` vorbelegt.
 
-Neuer reiner Helfer in `tip-pool.ts`:
-```ts
-export function poolNeedsHoursWarning(poolCents: number, totalEligibleMinutes: number): boolean {
-  return poolCents > 0 && totalEligibleMinutes <= 0;
-}
-```
+## Tests
 
-`finalizeSessionCore` erweitert:
-* Vor der Statusänderung `computeSessionTipPoolCore` laufen lassen und `totalEligibleMinutes` (Summe aller `poolEntries.hoursMinutes` von teilnehmenden MA) ermitteln.
-* Wenn `poolNeedsHoursWarning(kitchenPoolCents, min) || poolNeedsHoursWarning(servicePoolCents, min)` und **nicht** `data.confirmPoolWarning === true` → strukturierte Warnung werfen (neue Fehlerklasse `PoolHoursWarning` mit `serviceCents/kitchenCents/eligibleMinutes`).
-* UI in `kasse.tsx` fängt Fehler, zeigt Bestätigungsdialog, ruft mit `confirmPoolWarning: true` erneut auf.
-* Audit-Log-Meta bei Bestätigung: `poolHoursWarningConfirmed: true, poolCents, eligibleMinutes`.
+- `waiter-settlement.test.ts` bleibt (rechnet nur mit Cents-Summe).
+- Neuer Test `cash-open-invoices.db.test.ts`:
+  - Kellner-Submit ohne Namen aber mit Betrag > 0 → Fehler.
+  - Submit mit zwei Einträgen → Summe in `open_invoices_cents`, JSONB korrekt persistiert.
+  - Korrektur ersetzt Einträge vollständig.
+- UI-Snapshot/Interaktionstest für die neue Liste (nur wenn schon Vitest-DOM-Setups bestehen — sonst weglassen).
 
-## UI
+## Nicht enthalten (bewusst)
 
-### Standort-Editor (`src/components/admin/LocationTipPoolPanel.tsx`, neu)
-Sektion „Trinkgeld" unter „Betriebskalender":
-* Schalter „Service-Pool aktiv (Trinkgeld wird geteilt)"
-* Drei Override-Felder (Placeholder = geerbter Org-Standard): Küchen-Abgabe %, Mindeststunden, Küche-manuell
-* Leerlassen = geerbt. Save → neue Server-Fn `updateLocationTipSettings` (manager+, Audit-Log).
-
-### Kellner-Tagesansicht (`components/cash/*` / `getMySettlementCore` UI)
-Wenn `servicePoolEnabled=false`: „Dein Pool-Anteil" ersetzt durch „Eigenes Trinkgeld verbleibt bei dir · Küchen-Abgabe X %".
-
-### Trinkgeld-Rest (`trinkgeld-rest.tsx`)
-Service-Spalte für solche Standorte „—" mit Tooltip „kein Service-Pool an diesem Standort".
-
-### Statistik (`statistik.tsx` Trinkgeld-Karte)
-Für Sessions ohne Service-Pool wird `serviceCents=0` beigetragen und in der Fußzeile „N Sessions ohne Service-Pool" ausgewiesen (kein Trend-Verlust — Küche zählt normal).
-
-### Finalize-Dialog (`kasse.tsx`)
-Fangt `PoolHoursWarning`, zeigt Confirm-Modal mit den Beträgen.
-
-## Neue Tests
-
-* `tip-pool.test.ts` (nur **ergänzt**, bestehende Fälle unangetastet): `poolNeedsHoursWarning` Matrix.
-* `tip-settings.test.ts`: COALESCE-Vererbung (Override gesetzt / NULL / Org-Fallback).
-* `tip-pool-service-disabled.test.ts` (integration-nah, mit Fake-Loader): `servicePoolEnabled=false` → `serviceShares` leer, `serviceRemainder=0`, Küche unverändert.
-
-## Nicht angefasst
-
-* `computeTipPool`-Formel & Bestandstests
-* Ledger/Bargeld-Export, Kassen-Finalize-Ablauf jenseits des Warndialogs
-* `organization_settings`-Bestandsfelder
-* `pap-2026/**`, Lohn, Bestellwesen, RT1/SP1-Bereiche
-
-## Erfolgs-Gate
-
-`tsc`, `eslint --max-warnings=0`, `prettier --check`, `vitest run` (alle Bestandstests + neue).
-
----
-
-**Antworte kurz mit „ok" oder Änderungen zu (1)/(2)/(3), dann baue ich in einem Zug durch.**
+- Keine Migration bestehender Zeilen: alte Settlements haben `open_invoices_details = []`; die Zahl in `open_invoices_cents` bleibt sichtbar, nur ohne Namen. Keine Rückwirkung auf abgeschlossene Geschäftstage.
+- Kein Rebuild von Telegram/PDF-Bargeld-Export (Betrag reicht dort).
+- Keine Änderung an Pool-/Tip-/Bargeld-Berechnung.
