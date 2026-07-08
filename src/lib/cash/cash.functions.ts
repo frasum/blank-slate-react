@@ -1827,6 +1827,11 @@ const settlementInputSchema = z.object({
   cardTotalCents: z.number().int().min(0),
   hilfMahlCents: z.number().int().min(0),
   openInvoicesCents: z.number().int().min(0),
+  // Offene Rechnungen als Liste (Reservierungsname + Cent-Betrag).
+  // Wenn nicht leer, ist DAS die Wahrheit — Server summiert und
+  // überschreibt openInvoicesCents. Leere Liste + openInvoicesCents > 0
+  // wird als Eingabefehler abgelehnt.
+  openInvoiceEntries: openInvoiceEntriesSchema.optional(),
   cashHandedInCents: z.number().int().min(0),
   // Mitarbeitende Kellner (staff_ids). Werden nach Insert in
   // `settlement_partners` verknüpft. Leere Liste = solo. Duplikate und
