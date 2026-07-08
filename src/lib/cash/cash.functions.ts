@@ -38,6 +38,42 @@ import type { Json } from "@/integrations/supabase/types";
 import { ForbiddenError } from "@/lib/admin/role-guard";
 import { sessionToDayInput } from "./session-day-input";
 import { loadTipSettings, type TipSettings } from "./tip-settings";
+import {
+  openInvoiceEntriesSchema,
+  parseOpenInvoiceEntries,
+  sumOpenInvoiceEntries,
+  type OpenInvoiceEntry,
+} from "./open-invoices";
+
+// Übersetzt Kellner-Eingabe in die persistierte JSONB-Struktur.
+// Regeln (spiegeln den DB-Trigger):
+//   - Wenn `entries` mind. eine Zeile hat, gewinnt die Liste; die Summe
+//     wird IMMER serverseitig neu berechnet (Client-Wert für Summe wird
+//     verworfen).
+//   - Wenn `entries` leer ist und `fallbackCents > 0`, wird das als
+//     Eingabefehler behandelt (Kellner muss Namen eintragen).
+//   - Wenn `entries` leer und `fallbackCents = 0`, bleibt beides 0.
+function resolveOpenInvoicesInput(
+  entries: OpenInvoiceEntry[] | undefined,
+  fallbackCents: number,
+): { cents: number; details: OpenInvoiceEntry[] } {
+  const list = entries ?? [];
+  if (list.length > 0) {
+    const cents = sumOpenInvoiceEntries(list);
+    return { cents, details: list };
+  }
+  if (fallbackCents > 0) {
+    throw new Error(
+      "Bitte für jede offene Rechnung den Reservierungsnamen eintragen, sonst ist keine Abgabe möglich.",
+    );
+  }
+  return { cents: 0, details: [] };
+}
+
+// Konvertiert die zulässige JSONB-Struktur für Supabase-Inserts.
+function toJsonbDetails(entries: OpenInvoiceEntry[]): Json {
+  return entries.map((e) => ({ name: e.name, cents: e.cents })) as unknown as Json;
+}
 
 export { loadTipSettings };
 export type { TipSettings };
