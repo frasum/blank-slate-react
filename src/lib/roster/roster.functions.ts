@@ -1534,3 +1534,143 @@ export const deleteDayOffWishFor = createServerFn({ method: "POST" })
       },
     );
   });
+
+// WA2 — „Mit dir im Dienst": Kollegen des Callers pro Tag+Standort.
+// Rechtemodell: keine RLS-Aufweichung. Caller-staffId kommt aus der Session.
+// Es werden ausschließlich Kollegen an Tagen/Standorten geladen, an denen
+// der Caller SELBST eingeplant ist. Keine Stammdaten außer display_name +
+// skill-Name.
+const MY_SHIFT_MATES_MAX_DAYS = 62;
+
+export type ShiftMatesMap = Record<string, ShiftMate[]>;
+
+export const getMyShiftMates = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }): Promise<ShiftMatesMap> => {
+    const caller = await loadStaffCaller(context.supabase, context.userId);
+
+    // Zeitraum serverseitig auf max. 62 Tage kappen.
+    const fromMs = Date.parse(`${data.from}T00:00:00Z`);
+    const toMs = Date.parse(`${data.to}T00:00:00Z`);
+    if (!Number.isFinite(fromMs) || !Number.isFinite(toMs) || toMs < fromMs) {
+      return {};
+    }
+    const dayMs = 24 * 60 * 60 * 1000;
+    const spanDays = Math.floor((toMs - fromMs) / dayMs) + 1;
+    const cappedTo =
+      spanDays > MY_SHIFT_MATES_MAX_DAYS
+        ? new Date(fromMs + (MY_SHIFT_MATES_MAX_DAYS - 1) * dayMs).toISOString().slice(0, 10)
+        : data.to;
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // 1) Eigene Schichten → Menge relevanter (date, location)-Paare.
+    const { data: ownRows, error: ownErr } = await supabaseAdmin
+      .from("roster_shifts")
+      .select("shift_date, location_id")
+      .eq("organization_id", caller.organizationId)
+      .eq("staff_id", caller.staffId)
+      .gte("shift_date", data.from)
+      .lte("shift_date", cappedTo);
+    if (ownErr) throw ownErr;
+    if (!ownRows || ownRows.length === 0) return {};
+
+    const pairSet = new Set<string>();
+    const dateSet = new Set<string>();
+    const locSet = new Set<string>();
+    for (const r of ownRows) {
+      const d = r.shift_date as string;
+      const l = r.location_id as string;
+      pairSet.add(shiftMatesKey(d, l));
+      dateSet.add(d);
+      locSet.add(l);
+    }
+    const dates = Array.from(dateSet);
+    const locations = Array.from(locSet);
+
+    // 2) Alle Schichten in diesen Datumsspalten UND Standorten laden.
+    // Filter im DB-Layer ist konservativ (Kreuzprodukt aus Dates×Locations);
+    // spätere In-Memory-Filterung erzwingt die exakten Paare.
+    const rawRows = await selectAllPaged<{
+      staff_id: string;
+      shift_date: string;
+      location_id: string;
+      area: string;
+      status: string;
+      skill_id: string | null;
+    }>((from, to) =>
+      supabaseAdmin
+        .from("roster_shifts")
+        .select("staff_id, shift_date, location_id, area, status, skill_id")
+        .eq("organization_id", caller.organizationId)
+        .in("shift_date", dates)
+        .in("location_id", locations)
+        .order("id", { ascending: true })
+        .range(from, to),
+    );
+
+    const mateRows = rawRows.filter(
+      (r) =>
+        r.staff_id !== caller.staffId &&
+        (r.area === "kitchen" || r.area === "service") &&
+        pairSet.has(shiftMatesKey(r.shift_date, r.location_id)),
+    );
+    if (mateRows.length === 0) return {};
+
+    // 3) Namen + Skills nachladen (nur die Felder, die die UI zeigt).
+    const staffIds = Array.from(new Set(mateRows.map((r) => r.staff_id)));
+    const skillIds = Array.from(
+      new Set(mateRows.map((r) => r.skill_id).filter((v): v is string => Boolean(v))),
+    );
+
+    const { data: staffRows, error: staffErr } = await supabaseAdmin
+      .from("staff")
+      .select("id, display_name")
+      .eq("organization_id", caller.organizationId)
+      .in("id", staffIds);
+    if (staffErr) throw staffErr;
+    const nameById = new Map<string, string>();
+    for (const s of staffRows ?? []) {
+      nameById.set(s.id as string, ((s.display_name as string | null) ?? "—").trim() || "—");
+    }
+
+    const skillNameById = new Map<string, string>();
+    if (skillIds.length > 0) {
+      const { data: skillRows, error: skillErr } = await supabaseAdmin
+        .from("skills")
+        .select("id, name")
+        .eq("organization_id", caller.organizationId)
+        .in("id", skillIds);
+      if (skillErr) throw skillErr;
+      for (const sk of skillRows ?? []) {
+        skillNameById.set(sk.id as string, sk.name as string);
+      }
+    }
+
+    const grouped: ShiftMatesMap = {};
+    for (const r of mateRows) {
+      const key = shiftMatesKey(r.shift_date, r.location_id);
+      const list = grouped[key] ?? (grouped[key] = []);
+      list.push({
+        staffId: r.staff_id,
+        displayName: nameById.get(r.staff_id) ?? "—",
+        area: r.area as "kitchen" | "service",
+        skillName: r.skill_id ? (skillNameById.get(r.skill_id) ?? null) : null,
+        status: r.status as "planned" | "confirmed",
+      });
+    }
+    // Alphabetisch nach Anzeigename (case-insensitiv, deutsche Locale).
+    const cmp = new Intl.Collator("de", { sensitivity: "base" }).compare;
+    for (const key of Object.keys(grouped)) {
+      grouped[key].sort((a, b) => cmp(a.displayName, b.displayName));
+    }
+    return grouped;
+  });
