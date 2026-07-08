@@ -241,14 +241,14 @@ function KassePage() {
         correct.kassiertBrutto.trim() === "" ? pos : parseEuroToCents(correct.kassiertBrutto);
       const card = parseEuroToCents(correct.cardTotal);
       const hilf = parseEuroToCents(correct.hilfMahl);
-      const open = parseEuroToCents(correct.openInvoices);
       const cash = parseEuroToCents(correct.cashHandedIn);
+      const openEntries = toOpenInvoiceEntries(correct.openInvoices);
+      const open = openEntries.reduce((s, e) => s + e.cents, 0);
       if (
         pos === null ||
         kassiert === null ||
         card === null ||
         hilf === null ||
-        open === null ||
         cash === null
       ) {
         throw new Error("Bitte gültige Eurobeträge eintragen.");
@@ -261,6 +261,7 @@ function KassePage() {
           cardTotalCents: card,
           hilfMahlCents: hilf,
           openInvoicesCents: open,
+          openInvoiceEntries: openEntries,
           cashHandedInCents: cash,
           partnerStaffIds: correct.partnerStaffId ? [correct.partnerStaffId] : [],
           reason: correct.reason,
