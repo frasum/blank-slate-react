@@ -3745,8 +3745,36 @@ als Artikel anlegen, Eigenfond als erstes Sub-Rezept.
 - **Kann später:** Groß-Dateien per Pfadfinderregel verschlanken (`zeit-uebersicht` 2805 Z., `bwa` 2468, `RezepteTab` 1486, `kasse` 1294 — funktionierend, `kasse` E2E-versiegelt; **kein eigener Refactoring-Sprint**); Geldformatierung (4 Definitionen) bei Gelegenheit nach `lib/money`; Lohn-Einmalbezug-TODO ist geplante Stufe 2.
 - **Nicht anfassen (Risiko > Nutzen):** `supabaseAdmin` in den drei token-gated Public-Routen (ST1-dokumentierte Architektur); generierte `any` (62, ausschließlich `routeTree.gen`) — handgeschriebener Code: **0 `any`, 0 `ts-ignore`, 0 `console.log`**; Trinkgeld-Formel eine Definition, acht Verwender (KGL gelebt); kein Git-History-Rewrite wegen historischer Publishable-Werte; keine SaaS-Strukturumbauten vor Kassen-Go-live.
 
-**Merkliste (persönlich Frank/Betrieb, nicht Code):** HIBP-Toggle bestätigen · Sumitr-PL2-Klicktest · TG1-Kontroll-CSV · CI-`e2e`-Promotion beobachten.
+**Merkliste (persönlich Frank/Betrieb, nicht Code):** HIBP-Toggle bestätigen · Sumitr-PL2-Klicktest · TG1-Kontroll-CSV · CI-`e2e`-Promotion beobachten · TRMNL-Token setzen · ANTHROPIC_API_KEY-Secret.
 
 **Nächster Pflichtblock.** P3 Restore-Probe (halbtags, ohne Lovable), danach Cutover-Planung.
 
 **Gesamturteil.** Struktur gesund — die Hausregeln (KGL, BIGINT-Cents, reine Module, Review-Loop, „melden statt still lösen") operationalisieren die Prinzipien. Restarbeit ist **Betrieb, nicht Architektur**.
+
+## 74. Direkt-Session 07.–08.07.2026 — Frag COCO, Renner & Penner, TRMNL, Offene Rechnungen
+
+Direkt mit Lovable gebaut (153 Commits, `a17dd3e1` → `43bb6fb5`), nachträglich von Claude geprüft: tsc grün, **1604 Tests grün**, Prettier auf allen neuen Modulen sauber (ein Nachzieher in `open-invoices.test.ts`, behoben). Alle vier neuen Migrationen replayfähig (§72-Regeln eingehalten).
+
+**KI1 — „Frag COCO" (`/admin/frag-coco`, admin-only).** Chat-Assistent mit Tool-Use-Schleife gegen die Anthropic Messages API (max. 6 Runden). Modul `src/lib/ki/`:
+
+- **17 Werkzeuge** (`tools.ts` + `tool-dispatcher.server.ts`): stammdaten_lookup, getraenke_ranking, umsatz_zeitraum, arbeitsstunden, abwesenheiten, personalkosten_quote, kasse_tagesabschluss, bestellungen_zeitraum, inventur_aktuell, bwa_monat, bilanz_summen, dienstplan_geplant, aufgaben_status, tausch_anfragen, urlaub_antraege, branchenbenchmark_lookup, personal_bestand.
+- **Pseudonymisierung** (`pseudonym.ts`, getestet): Personennamen werden vor JEDEM API-Aufruf deterministisch durch `MA-<n>`-Codes ersetzt und erst in der finalen Antwort zurückübersetzt — das Modell sieht nie Klarnamen. `staff_personal_details`/`lohn_*` werden NICHT gelesen; nur `staff` (id + display_name) und Aggregat-Tabellen.
+- **System-Prompt-Regeln:** nie selbst rechnen (Zahlen nur aus Tools), Zeitraum immer nennen, deutsches Zahlenformat, bei fehlendem Werkzeug ehrlich auf den passenden COCO-Menüpunkt verweisen. Perioden-Presets aus `period-resolver.ts` (getestet).
+- **Kosten-Tracking:** Tabelle `ki_usage_log` (Migration `20260707181219`) — Schreiben nur service_role, SELECT nur Admin der eigenen Org; `cost.ts` rechnet in **Microcents** (BIGINT). Monats-Summe in der Chat-Fußzeile via `getKiUsageMonth`.
+- **Env/Secrets (Frank-Seite):** `ANTHROPIC_API_KEY` (Pflicht; ohne Key freundlicher Hinweis statt Fehler), optional `COCO_KI_MODEL` (Default `claude-haiku-4-5`) und `COCO_KI_BASE_URL`.
+
+**KI2 — Spracheingabe.** Push-to-Talk-Mikrofon auf der Frag-COCO-Seite (`use-speech-input.ts`, Zustandsmaschine `speech-state.ts` getestet), Sprachtoasts, Klick-Toggle als Fallback.
+
+**KI3 — Branchenbenchmark (`branchenbenchmark.ts`, getestet).** Kuratierte DEHOGA-Richtwerte Vollgastronomie DE als client-sicheres Modul; Pflege 1× jährlich nach neuem DEHOGA-Bericht. Tool liefert Stand-Datum + Quelle mit.
+
+**RP1/RP2 — Renner & Penner (`/admin/pos-renner-penner`, manager+).** Auswertung auf `sales_article_stats`-Snapshots (`d365`/`alltime` — bewusst period-Wahl statt from/to, weil die Snapshots kumulativ sind und keine Tagesdaten existieren; keine RPC). Reine Merge-Logik `renner-penner-core.ts` (getestet): Zeilen mit `ek_source_article_id` werden zu EINEM Eintrag gebündelt (offene Gläser vs. Flaschen über `portionMl < ekSourceVolumeMl`), Wareneinsatz/DB/EKW je Eintrag, Standort-Slices, Ladenhüter = aktive Verkaufsartikel ohne Stats-Zeile. Snapshot-Tab mit Plan/Schl.-Anzeige; YUM-Gruppenfilter; Zuordnen-Spalte in der EK-Werkbank verbessert (`we-badge.tsx`).
+
+**TRMNL1 — E-Ink-Display-Route (`/api/public/trmnl-tasks/<token>`).** Stille, token-geschützte HTML-Seite für TRMNL X (1872×1404): Handlungs-Badges (offene Urlaubs-/Tauschanträge, Freiwünsche, unversendete Bestellungen), „Heute/Morgen im Dienst" mit 20-Uhr-Umschlag Europe/Berlin (DST-sicher), Kanban offen/läuft (Deckel 6/Spalte + Overflow). Reine Aufbereitung `src/lib/trmnl/board.ts` (17 Tests). Sicherheit nach ST1-Muster: `organizations.trmnl_token` (Migration `20260708042403`, partieller Unique-Index), timing-safe Vergleich, generisches 404, Längen-Gate, `no-store`, escapeHtml, selectAllPaged. **Es gibt bewusst keinen UI-Erzeugungspfad** — Token setzt der Admin per SQL (32 Byte CSPRNG, base64url).
+
+**OR1 — Offene Rechnungen mit Reservierungsnamen.** `waiter_settlements.open_invoices_details` (jsonb, Migration `20260708043308`) im Format `[{name, cents}]`; DB-Validierungs-Trigger erzwingt nicht-leere Namen, cents ≥ 0 und **Summen-Gleichheit mit `open_invoices_cents`** (leeres Array = Legacy-erlaubt). Reines Modul `open-invoices.ts` (Zod-Schema, Normalisierung defekter Einträge, getestet). UI in Abrechnung + Tagesabrechnungs-Druck integriert; geänderte Werte werden im Druck unterstrichen.
+
+**Weiteres im Delta:** Lohn-RLS-Härtung (Migration `20260707144410`: SELECT auf `lohn_absence_days`/`lohn_recurring_zeilen` auf manager+ eingeschränkt — Lovable-„Security fixes"); Dienstplan Σ-Spalte zeigt alle Schichten; `.env.production`-Guard in CI ergänzt.
+
+**Frank-seitig offen:** (1) `trmnl_token` per SQL setzen (Snippet im Chat vom 08.07.); (2) nach erstem Display-Abruf den Bestellungen-Badge auf Plausibilität prüfen (zählt ALLE `email_sent=false` ohne Datumsgrenze — alte Entwürfe würden mitgezählt); (3) `ANTHROPIC_API_KEY` in Lovable-Secrets für Frag COCO.
+
+**Merkposten:** gepagte Roster-Queries der TRMNL-Route sortieren nach `staff_id` ohne id-Tiebreaker — bei Tagesdaten unkritisch, bei Wiederverwendung des Musters für größere Zeiträume BFIX2-konform machen.
