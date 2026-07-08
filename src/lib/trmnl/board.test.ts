@@ -118,7 +118,9 @@ describe("actionBadges", () => {
     expect(b[1].emphasize).toBe(false);
   });
   it("alles 0 → leer", () => {
-    expect(actionBadges({ openLeaves: 0, openSwaps: 0, futureWishes: 0, unsentOrders: 0 })).toEqual([]);
+    expect(actionBadges({ openLeaves: 0, openSwaps: 0, futureWishes: 0, unsentOrders: 0 })).toEqual(
+      [],
+    );
   });
   it("Bestellungen 0 werden nicht angezeigt", () => {
     const b = actionBadges({ openLeaves: 2, openSwaps: 0, futureWishes: 1, unsentOrders: 0 });
@@ -173,9 +175,7 @@ describe("groupRosterByLocation", () => {
     expect(b.groups[1].areaLabel).toContain("Abend");
   });
   it("nur ein Fenster → kein Fenster-Label", () => {
-    const shifts = [
-      { staffId: "s1", locationId: "l1", area: "kitchen", servicePeriod: "abend" },
-    ];
+    const shifts = [{ staffId: "s1", locationId: "l1", area: "kitchen", servicePeriod: "abend" }];
     const [b] = groupRosterByLocation({
       shifts,
       staffNames,

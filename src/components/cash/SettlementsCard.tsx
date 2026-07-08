@@ -130,7 +130,11 @@ export function SettlementsCard({
                   </span>
                 </TableCell>
                 <TableCell className="text-right font-mono">
-                  <span className={"inline-block" + mark(prev ? kassiertBrutto !== prevKassiert : false)}>
+                  <span
+                    className={
+                      "inline-block" + mark(prev ? kassiertBrutto !== prevKassiert : false)
+                    }
+                  >
                     {fmtCents(kassiertBrutto)}
                   </span>
                 </TableCell>
@@ -147,8 +151,7 @@ export function SettlementsCard({
                 <TableCell className="text-right font-mono">
                   <span
                     className={
-                      "inline-block" +
-                      mark(diff(Number(r.hilf_mahl_cents), prev?.hilf_mahl_cents))
+                      "inline-block" + mark(diff(Number(r.hilf_mahl_cents), prev?.hilf_mahl_cents))
                     }
                   >
                     {fmtCents(Number(r.hilf_mahl_cents))}
@@ -193,8 +196,7 @@ export function SettlementsCard({
                 <TableCell className="text-right font-mono">
                   <span
                     className={
-                      "inline-block" +
-                      mark(prev ? (tipPct ?? 0) !== (prevTipPct ?? 0) : false)
+                      "inline-block" + mark(prev ? (tipPct ?? 0) !== (prevTipPct ?? 0) : false)
                     }
                   >
                     {tipPct === null ? "–" : `${tipPct.toFixed(1).replace(".", ",")} %`}
