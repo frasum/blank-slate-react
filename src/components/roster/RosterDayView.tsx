@@ -5,7 +5,6 @@
 // erfolgt bei Tageswechsel und Fokus.
 
 import { useMemo } from "react";
-import { useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueries } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -39,7 +38,6 @@ function addDaysIso(iso: string, delta: number): string {
 
 export function RosterDayView({ date, onDateChange }: Props) {
   const today = todayIso();
-  const navigate = useNavigate();
 
   const locationsQ = useQuery({ queryKey: ["locations"], queryFn: () => listLocations() });
   const scopesQ = useQuery({
@@ -94,26 +92,9 @@ export function RosterDayView({ date, onDateChange }: Props) {
     absencesQ.isLoading ||
     wishesQ.isLoading;
 
-  function goGrid() {
-    void navigate({
-      to: "/admin/dienstplan",
-      search: (prev: Record<string, unknown>) => ({ ...prev, ansicht: "grid" }),
-    });
-  }
-
   return (
     <div className="space-y-4">
-      <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:flex sm:flex-wrap sm:justify-between">
-        <h1 className="truncate text-2xl font-semibold">Dienstplan</h1>
-        <div className="flex shrink-0 gap-1">
-          <Button size="sm" variant="outline" onClick={goGrid}>
-            Grid
-          </Button>
-          <Button size="sm" variant="default">
-            Tag
-          </Button>
-        </div>
-      </header>
+      <h1 className="truncate text-2xl font-semibold">Dienstplan</h1>
 
       <div className="flex flex-wrap items-center gap-2">
         <Button
