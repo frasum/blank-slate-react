@@ -1,0 +1,2 @@
+ALTER TABLE public.organizations ADD COLUMN IF NOT EXISTS trmnl_token text;
+CREATE UNIQUE INDEX IF NOT EXISTS organizations_trmnl_token_key ON public.organizations (trmnl_token) WHERE trmnl_token IS NOT NULL;
