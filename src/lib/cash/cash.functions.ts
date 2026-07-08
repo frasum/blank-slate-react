@@ -618,7 +618,7 @@ export async function getMySettlementCore(caller: StaffCaller) {
   const { data: row } = await supabaseAdmin
     .from("waiter_settlements")
     .select(
-      "id, status, pos_sales_cents, kassiert_brutto_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, cash_handed_in_cents, differenz_cents, kitchen_tip_cents, kitchen_tip_rate, submitted_at, auto_clockout_time_entry_id, second_waiter_name, additional_waiters, partner_staff_id, settlement_partners(staff:staff!settlement_partners_staff_id_fkey(display_name))",
+      "id, status, pos_sales_cents, kassiert_brutto_cents, card_total_cents, hilf_mahl_cents, open_invoices_cents, open_invoices_details, cash_handed_in_cents, differenz_cents, kitchen_tip_cents, kitchen_tip_rate, submitted_at, auto_clockout_time_entry_id, second_waiter_name, additional_waiters, partner_staff_id, settlement_partners(staff:staff!settlement_partners_staff_id_fkey(display_name))",
     )
     .eq("organization_id", caller.organizationId)
     .eq("session_id", session.id)
@@ -649,7 +649,14 @@ export async function getMySettlementCore(caller: StaffCaller) {
     .map((p) => p.staff?.display_name ?? null)
     .filter((n): n is string => !!n)
     .sort((a, b) => a.localeCompare(b, "de"));
-  const settlementWithPartners = row ? { ...row, partnerStaffNames: partnerRows } : null;
+  const openInvoiceEntries = row
+    ? parseOpenInvoiceEntries(
+        (row as { open_invoices_details?: unknown }).open_invoices_details,
+      )
+    : [];
+  const settlementWithPartners = row
+    ? { ...row, partnerStaffNames: partnerRows, openInvoiceEntries }
+    : null;
 
   const sessionLocationName =
     (session as { locations?: { name: string | null } | null }).locations?.name ?? null;
