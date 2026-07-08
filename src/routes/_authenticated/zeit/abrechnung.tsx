@@ -27,6 +27,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { calcWaiterSettlement } from "@/lib/cash/waiter-settlement";
 import { SecondWaiterSelect } from "@/components/cash/SecondWaiterSelect";
 import { parseEuroToCents as parseEuroToCentsBase } from "@/lib/format";
+import type { OpenInvoiceEntry } from "@/lib/cash/open-invoices";
 
 export const Route = createFileRoute("/_authenticated/zeit/abrechnung")({
   head: () => ({
@@ -57,7 +58,7 @@ type FormState = {
   kassiertBrutto: string;
   cardTotal: string;
   hilfMahl: string;
-  openInvoices: string;
+  openInvoices: Array<{ name: string; amount: string }>;
   cashHandedIn: string;
   partnerStaffIds: string[];
 };
@@ -67,7 +68,7 @@ const EMPTY_FORM: FormState = {
   kassiertBrutto: "",
   cardTotal: "",
   hilfMahl: "",
-  openInvoices: "",
+  openInvoices: [],
   cashHandedIn: "",
   partnerStaffIds: [],
 };
