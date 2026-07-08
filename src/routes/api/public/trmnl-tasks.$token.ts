@@ -21,9 +21,11 @@ import { selectAllPaged } from "@/lib/supabase/select-all";
 import {
   actionBadges,
   buildBoard,
+  ellipsize,
   groupRosterByLocation,
   isOverdue,
   resolveRosterTarget,
+  truncateNames,
   type RosterShiftLite,
 } from "@/lib/trmnl/board";
 
@@ -94,6 +96,8 @@ export const Route = createFileRoute("/api/public/trmnl-tasks/$token")({
         const url = new URL(request.url);
         const columnsParam = url.searchParams.get("columns");
         const showAll = columnsParam === "all";
+        const sizeParam = url.searchParams.get("size");
+        const isSmall = sizeParam === "small";
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -279,7 +283,7 @@ export const Route = createFileRoute("/api/public/trmnl-tasks/$token")({
             : (["open", "in_progress"] as const),
         );
 
-        const html = renderPage({
+        const renderInput: RenderInput = {
           orgName,
           nowIso,
           targetLabel: target.label,
@@ -291,7 +295,8 @@ export const Route = createFileRoute("/api/public/trmnl-tasks/$token")({
           now,
           doneToday: doneRes.count ?? 0,
           cancelledToday: cancelledRes.count ?? 0,
-        });
+        };
+        const html = isSmall ? renderPageSmall(renderInput) : renderPage(renderInput);
 
         return new Response(html, {
           status: 200,
@@ -443,6 +448,129 @@ function renderPage(input: RenderInput): string {
     <span>Heute erledigt: <b>${input.doneToday}</b> · Abgebrochen: <b>${input.cancelledToday}</b></span>
     <span class="muted">COCO · TRMNL X</span>
   </footer>
+</body>
+</html>`;
+}
+
+function renderPageSmall(input: RenderInput): string {
+  const dateShort = input.now.toLocaleDateString("de-DE", {
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "Europe/Berlin",
+  });
+  const timeShort = input.now.toLocaleTimeString("de-DE", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/Berlin",
+  });
+
+  const badgesHtml = input.badges.length
+    ? input.badges
+        .map((b) => {
+          const cls = b.emphasize ? "sbadge sbadge-emph" : "sbadge";
+          return `<span class="${cls}">${escapeHtml(b.icon)} <b>${b.count}</b> ${escapeHtml(b.label)}</span>`;
+        })
+        .join("")
+    : `<span class="smuted">Alles erledigt.</span>`;
+
+  const MAX_ROSTER_NAMES = 9;
+  const rosterLinesHtml = input.rosterBlocks
+    .map((b) => {
+      const kitchen: string[] = [];
+      const service: string[] = [];
+      for (const g of b.groups) {
+        if (g.areaKey === "kitchen") kitchen.push(...g.names);
+        else if (g.areaKey === "service") service.push(...g.names);
+      }
+      const total = kitchen.length + service.length;
+      if (total === 0) return "";
+      // Kappen über beide Bereiche hinweg auf MAX_ROSTER_NAMES gesamt.
+      const kTrim = truncateNames(kitchen, Math.min(kitchen.length, MAX_ROSTER_NAMES));
+      const remaining = Math.max(0, MAX_ROSTER_NAMES - kTrim.visible.length);
+      const sTrim = truncateNames(service, Math.min(service.length, remaining));
+      const overflow =
+        kTrim.overflow + sTrim.overflow + (service.length - sTrim.visible.length - sTrim.overflow);
+      const parts: string[] = [];
+      if (kTrim.visible.length)
+        parts.push(`<span class="tag">K:</span> ${escapeHtml(kTrim.visible.join(" "))}`);
+      if (sTrim.visible.length)
+        parts.push(`<span class="tag">S:</span> ${escapeHtml(sTrim.visible.join(" "))}`);
+      const overflowHtml = overflow > 0 ? ` <span class="smuted">+${overflow}</span>` : "";
+      return `<div class="rline"><b>${escapeHtml(b.locationName)}</b> ${parts.join(" · ")}${overflowHtml}</div>`;
+    })
+    .filter(Boolean)
+    .join("");
+
+  const TASK_ROWS = 4;
+  const TITLE_MAX = 46;
+  const columnsHtml = input.board
+    .map((col) => {
+      const visibleRows = col.visible.slice(0, TASK_ROWS);
+      const extra = col.visible.length - visibleRows.length + col.overflow;
+      const rowsHtml = visibleRows
+        .map((t) => {
+          const overdue = isOverdue(t.due_at, input.now);
+          const loc = input.locationNames.get(t.location_id) ?? "—";
+          const title = ellipsize(`${overdue ? "! " : ""}${t.title} — ${loc}`, TITLE_MAX);
+          return `<div class="trow">${escapeHtml(title)}</div>`;
+        })
+        .join("");
+      const overflowHtml = extra > 0 ? `<div class="trow smuted">+${extra} weitere</div>` : "";
+      const total = col.visible.length + col.overflow;
+      const label =
+        col.status === "open" ? "Offen" : col.status === "in_progress" ? "Läuft" : col.status;
+      return `<section class="scol"><header class="scol-head">${escapeHtml(label)} <span class="count">${total}</span></header>${rowsHtml || '<div class="trow smuted">—</div>'}${overflowHtml}</section>`;
+    })
+    .join("");
+
+  return `<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>COCO TRMNL — Kompakt</title>
+<meta name="viewport" content="width=800">
+<style>
+  :root { color-scheme: only light; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #fff; color: #000; }
+  body {
+    width: 800px; height: 480px; overflow: hidden;
+    padding: 8px 12px;
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    font-size: 18px; line-height: 1.2;
+    -webkit-font-smoothing: none;
+  }
+  .smuted { opacity: 0.6; }
+  .shead { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #000; padding-bottom: 4px; }
+  .shead h1 { font-size: 20px; margin: 0; font-weight: 700; }
+  .shead .right { font-size: 16px; }
+  .sbadges { display: flex; gap: 8px; margin: 6px 0; flex-wrap: nowrap; overflow: hidden; }
+  .sbadge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border: 2px solid #000; font-size: 16px; white-space: nowrap; }
+  .sbadge b { font-size: 22px; font-weight: 800; }
+  .sbadge-emph { background: #000; color: #fff; }
+  .rblock { margin: 6px 0; }
+  .rblock h2 { font-size: 14px; margin: 0 0 2px 0; font-weight: 600; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.5px; }
+  .rline { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 2px 0; }
+  .tag { font-weight: 700; }
+  .sboard { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
+  .scol { border-top: 2px solid #000; padding-top: 2px; }
+  .scol-head { font-size: 16px; font-weight: 700; display: flex; justify-content: space-between; }
+  .trow { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .count { font-weight: 800; }
+</style>
+</head>
+<body>
+  <header class="shead">
+    <h1>Aufgaben &amp; Dienst</h1>
+    <div class="right">${escapeHtml(dateShort)} ${escapeHtml(timeShort)}</div>
+  </header>
+  <div class="sbadges">${badgesHtml}</div>
+  <div class="rblock">
+    <h2>${escapeHtml(input.targetLabel)}</h2>
+    ${rosterLinesHtml || '<div class="rline smuted">— keine Einteilung —</div>'}
+  </div>
+  <div class="sboard">${columnsHtml}</div>
 </body>
 </html>`;
 }

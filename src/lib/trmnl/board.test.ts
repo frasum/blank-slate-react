@@ -2,10 +2,12 @@ import { describe, it, expect } from "vitest";
 import {
   actionBadges,
   buildBoard,
+  ellipsize,
   groupRosterByLocation,
   isOverdue,
   resolveRosterTarget,
   ROSTER_LOOKAHEAD_HOUR,
+  truncateNames,
 } from "./board";
 import type { Task } from "@/lib/aufgaben/types";
 
@@ -183,5 +185,30 @@ describe("groupRosterByLocation", () => {
       absentStaffIds: new Set(),
     });
     expect(b.groups[0].areaLabel).toBe("Küche");
+  });
+});
+
+describe("truncateNames", () => {
+  it("unter der Grenze → keine Kappung", () => {
+    expect(truncateNames(["A", "B", "C"], 5)).toEqual({ visible: ["A", "B", "C"], overflow: 0 });
+  });
+  it("genau an der Grenze → keine Kappung", () => {
+    const names = ["A", "B", "C"];
+    expect(truncateNames(names, 3)).toEqual({ visible: ["A", "B", "C"], overflow: 0 });
+  });
+  it("über der Grenze → sichtbar + overflow", () => {
+    expect(truncateNames(["A", "B", "C", "D", "E"], 3)).toEqual({
+      visible: ["A", "B", "C"],
+      overflow: 2,
+    });
+  });
+});
+
+describe("ellipsize", () => {
+  it("kurz → unverändert", () => {
+    expect(ellipsize("Hallo", 10)).toBe("Hallo");
+  });
+  it("lang → mit Ellipsis gekappt", () => {
+    expect(ellipsize("Sehr langer Titel hier", 10)).toBe("Sehr lang…");
   });
 });
