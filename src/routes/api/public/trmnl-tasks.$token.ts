@@ -21,9 +21,11 @@ import { selectAllPaged } from "@/lib/supabase/select-all";
 import {
   actionBadges,
   buildBoard,
+  ellipsize,
   groupRosterByLocation,
   isOverdue,
   resolveRosterTarget,
+  truncateNames,
   type RosterShiftLite,
 } from "@/lib/trmnl/board";
 
@@ -94,6 +96,8 @@ export const Route = createFileRoute("/api/public/trmnl-tasks/$token")({
         const url = new URL(request.url);
         const columnsParam = url.searchParams.get("columns");
         const showAll = columnsParam === "all";
+        const sizeParam = url.searchParams.get("size");
+        const isSmall = sizeParam === "small";
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -279,7 +283,7 @@ export const Route = createFileRoute("/api/public/trmnl-tasks/$token")({
             : (["open", "in_progress"] as const),
         );
 
-        const html = renderPage({
+        const renderInput: RenderInput = {
           orgName,
           nowIso,
           targetLabel: target.label,
@@ -291,7 +295,8 @@ export const Route = createFileRoute("/api/public/trmnl-tasks/$token")({
           now,
           doneToday: doneRes.count ?? 0,
           cancelledToday: cancelledRes.count ?? 0,
-        });
+        };
+        const html = isSmall ? renderPageSmall(renderInput) : renderPage(renderInput);
 
         return new Response(html, {
           status: 200,
