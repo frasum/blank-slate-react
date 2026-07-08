@@ -2,10 +2,12 @@ import { describe, it, expect } from "vitest";
 import {
   actionBadges,
   buildBoard,
+  ellipsize,
   groupRosterByLocation,
   isOverdue,
   resolveRosterTarget,
   ROSTER_LOOKAHEAD_HOUR,
+  truncateNames,
 } from "./board";
 import type { Task } from "@/lib/aufgaben/types";
 
