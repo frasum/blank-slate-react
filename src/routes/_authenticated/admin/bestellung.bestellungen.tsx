@@ -119,21 +119,37 @@ function BestellungenPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-2">
-        <label className="block text-xs">
+        <div className="block text-xs">
           <span className="block uppercase tracking-wide text-muted-foreground">Status</span>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className={selectCls}
-          >
-            <option value="">Alle</option>
-            <option value="__unsent">Nur offen (nicht gesendet)</option>
-            <option value="pending">Offen</option>
-            <option value="sent">Versendet</option>
-            <option value="confirmed">Bestätigt</option>
-            <option value="cancelled">Storniert</option>
-          </select>
-        </label>
+          <div className="mt-1 inline-flex flex-wrap gap-1 rounded-md border border-input bg-background p-1">
+            {[
+              { v: "", label: "Alle" },
+              { v: "__unsent", label: "Nur offen (nicht gesendet)" },
+              { v: "pending", label: "Offen" },
+              { v: "sent", label: "Versendet" },
+              { v: "confirmed", label: "Bestätigt" },
+              { v: "cancelled", label: "Storniert" },
+            ].map((opt) => {
+              const active = statusFilter === opt.v;
+              return (
+                <button
+                  key={opt.v || "all"}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => setStatusFilter(opt.v)}
+                  className={
+                    "rounded px-3 py-1 text-xs font-medium transition-colors " +
+                    (active
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground")
+                  }
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
         {onlyUnsent && ordersQ.data && (
           // BF1 — zählt geladene Zeilen. Falls listOrders künftig
           // Paging/Limit bekommt, MUSS auf count: "exact" umgestellt werden.
