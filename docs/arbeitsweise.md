@@ -6,7 +6,7 @@ SaaS-Vorbereitung: Readiness-Audit und Modul-Katalog stehen in docs/saas-vorbere
 
 Produktionsreife-Review: docs/produktionsreife-review.md (Stand 07.07.2026, HEAD 8cfdbc1d, inkl. Patch-Plan P0–P7) — kritischer Pfad vor dem Kassen-Go-live: Monitoring (P1) → Finalize-E2E (P2) → Restore-Probe (P3) → Cutover.
 
-Stand: 09.07.2026 (§77: Mobile Tagesansicht + Edit, WA2, BF1)
+Stand: 09.07.2026 (§78: P3 Restore-Probe BESTANDEN)
 
 TH1 — Standort-Farbthema: LocationThemeProvider im \_authenticated-Layout hält den themeKey (spicery/yum/neutral).
 LocationPills melden die Auswahl per useLocationThemeSync; Mapping: Name enthält „spicery" → spicery, „yum" → yum, sonst neutral (auch TSB/„Alle"/leer).
@@ -3842,3 +3842,18 @@ Abgenommener Anker: HEAD `1c29b494`, vier Gates grün, 1628 Tests.
 - **Git-Branches (Absprache 09.07.):** Lovable-Labs „GitHub Branch Switching" aktiviert. Konvention: Alltagsarbeit bleibt auf main (ein Baumeister, seriell, Review-Loop als Schutz); Feature-Branches NUR für Großbaustellen mit Risiko (Erstkandidat: `feature/bundle-diet`). Harte Regel: nie zwei Branches parallel in Arbeit (Migrations-Timestamps, generierte Dateien). Konvention wird erst nach der ersten Trockenübung formalisiert.
 
 **Offen:** PL3-Freiwunsch-Prompt bereit, nicht beauftragt · P3 Restore-Probe (Pflichtblock — beim Postgres-Upgrade erneut schmerzlich als Lücke gespürt) · Bundle-Verschlankung als Branch-Trockenübung · Security-Scanner-Review („Review security 4") · Heim-Terminal-404 verifizieren · Manuelle E2E-Checks D5b/WA2/BF1 am Gerät.
+
+## 78. 09.07.2026 — P3 Restore-Probe BESTANDEN (letzter Muss-Punkt vor Cutover-Planung)
+
+Durchführung Frank (Terminal + Dashboard) mit Claude (Befehle, Prüf-SQL, Abgleich), ohne Lovable, ~2 h inkl. Einrichtung. Ablauf und Ergebnis: `docs/runbook-restore.md`. Kernergebnis: `pg_dump` (1,9 MB, 129 Tabellen) → Wegwerf-Projekt → **Kernzahlen-Abgleich 22/22 identisch**, inkl. Σ kassiert_brutto 133.242.780 Cents und Σ offene Rechnungen 1.396.405 Cents auf den Cent, 164 Migrationen, 85 RLS-Tabellen. Wiederherstellzeit < 15 min.
+
+**Nebenbefunde:**
+
+1. Backups sind PHYSICAL ohne Download → eigenständiger Ernstfall-Weg ist `pg_dump` (Runbook); der Dashboard-„Restore"-Knopf überschreibt die PRODUKTION — nie zum Üben drücken.
+2. **Storage-Objekte sind in keinem DB-Backup enthalten** (Mitarbeiter-Dokumente, payslips-Bucket) → neuer Arbeitspunkt **„Backup-Strategie Stufe 2"**: (a) Storage-Sicherung, (b) zeitgesteuerter Offsite-Dump (GitHub Action, DB-Passwort als Secret — bewusste Abwägung). Entschieden: KEIN Backup-Knopf im COCO-UI (Worker können kein pg_dump; tabellenweiser API-Export wäre kein konsistentes Backup; Ein-Klick-Exfiltration wäre ein Sicherheits-Eigentor).
+3. DB-Passwort wurde im Zuge der Probe rotiert (war kurz im Chat exponiert) — Rotation folgenlos, da App/Lovable über API-Keys laufen.
+4. Postgres-Patch 17.6.1.141 (09.07. früh) bestätigt sauber; Supabase legt vor Upgrades automatische Zusatz-Backups an. E-Ink-Displays können aus Downtime-Fenstern eingefrorene 404-Standbilder behalten → Force refresh.
+
+**Wegwerf-Projekt:** [ENTSCHEIDUNG FRANK EINTRAGEN: gelöscht ODER als coco-sandbox behalten — niemals produktiv].
+
+**Damit offen vor Cutover:** nur noch die Cutover-Planung selbst (§5-Voll-Reimport aus tagesabrechnung, YUM-Kassen-Anker, Testdaten-Bereinigung inkl. der 46 Test-Bestellungen). Übrige Liste: PL3 (bereit) · Bundle-Verschlankung (Branch-Übung) · Security-Scanner-Review · Backup-Strategie Stufe 2 (neu) · Heim-Terminal-404 verifizieren.
