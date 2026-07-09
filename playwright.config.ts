@@ -32,7 +32,17 @@ export default defineConfig({
     screenshot: "only-on-failure",
     video: "off",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    // WebKit deckt Safari ab. Auf diesen Runner gehört bislang nur der
+    // Bundle-Diet-Beweis (pdfjs-Legacy-Worker), weil Safari beim modernen
+    // Build stolpert — andere Suites bleiben chromium-only.
+    {
+      name: "webkit",
+      use: { ...devices["Desktop Safari"] },
+      testMatch: /lohn-split-worker\.spec\.ts/,
+    },
+  ],
   webServer: startDevServer
     ? {
         command: "bun run dev",
