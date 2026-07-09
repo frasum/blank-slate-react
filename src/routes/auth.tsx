@@ -8,7 +8,7 @@
 // (resetPasswordForEmail → /reset-password). Konten werden ausschließlich
 // vom Admin angelegt — keine Selbstregistrierung.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, redirect, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,7 +24,7 @@ export const Route = createFileRoute("/auth")({
   },
   head: () => ({
     meta: [{ title: "Anmelden · COCO" }, { name: "robots", content: "noindex" }],
-    links: [{ rel: "preload", as: "image", href: cocoLogoLight.url, fetchpriority: "high" }],
+    links: [{ rel: "preload", as: "image", href: cocoLogoLight.url, fetchPriority: "high" }],
   }),
   component: AuthPage,
 });
@@ -32,6 +32,14 @@ export const Route = createFileRoute("/auth")({
 type Tab = "password" | "pin";
 
 function AuthPage() {
+  // ssr:false rendert serverseitig nur die Suspense-Hülle. Damit die erste
+  // Client-Render-Runde HTML-strukturell identisch zur SSR-Ausgabe ist
+  // (kein Hydration-Mismatch → kein Error-Boundary-Flash, kein Weißblitz),
+  // rendern wir vor dem ersten Effekt eine leere <main>-Hülle und blenden
+  // den eigentlichen Inhalt erst nach dem Mount ein.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   const [tab, setTab] = useState<Tab>("password");
   const router = useRouter();
   const navigate = useNavigate();
@@ -41,6 +49,12 @@ function AuthPage() {
     await router.invalidate();
     await navigate({ to: "/" });
   };
+
+  if (!mounted) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-background px-4 py-12" />
+    );
+  }
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
