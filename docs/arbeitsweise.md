@@ -3854,6 +3854,6 @@ Durchführung Frank (Terminal + Dashboard) mit Claude (Befehle, Prüf-SQL, Abgle
 3. DB-Passwort wurde im Zuge der Probe rotiert (war kurz im Chat exponiert) — Rotation folgenlos, da App/Lovable über API-Keys laufen.
 4. Postgres-Patch 17.6.1.141 (09.07. früh) bestätigt sauber; Supabase legt vor Upgrades automatische Zusatz-Backups an. E-Ink-Displays können aus Downtime-Fenstern eingefrorene 404-Standbilder behalten → Force refresh.
 
-**Wegwerf-Projekt:** [ENTSCHEIDUNG FRANK EINTRAGEN: gelöscht ODER als coco-sandbox behalten — niemals produktiv].
+**Wegwerf-Projekt:** gelöscht (09.07.2026, nach bestandenem Abgleich; Neuaufbau bei Bedarf in <15 min per Runbook). Lokale Dump-Datei ebenfalls entsorgt bzw. bewusst als Offsite-Kopie verwahrt (Frank).
 
 **Damit offen vor Cutover:** nur noch die Cutover-Planung selbst (§5-Voll-Reimport aus tagesabrechnung, YUM-Kassen-Anker, Testdaten-Bereinigung inkl. der 46 Test-Bestellungen). Übrige Liste: PL3 (bereit) · Bundle-Verschlankung (Branch-Übung) · Security-Scanner-Review · Backup-Strategie Stufe 2 (neu) · Heim-Terminal-404 verifizieren.
