@@ -4,7 +4,7 @@
 // läuft im Browser. Server-Code wird vom Splitter NICHT angefasst.
 
 import { PDFDocument } from "pdf-lib";
-import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import workerUrl from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
 import {
   parsePersoFromPageText,
   parseRunMonth,
@@ -27,7 +27,7 @@ export type SplitResult = {
 
 export async function extractPageTexts(file: File | Blob): Promise<string[]> {
   const data = await file.arrayBuffer();
-  const pdfjsLib = await import("pdfjs-dist");
+  const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
   pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
   const pdf = await pdfjsLib.getDocument({ data }).promise;
   const out: string[] = [];

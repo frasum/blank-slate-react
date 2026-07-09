@@ -1,34 +1,46 @@
-## Problem
+## Ziel
 
-Die Preview-Seite zeigt „Diese Seite konnte nicht geladen werden". Console-Log:
+pdfjs-dist-Dublette im Client-Bundle beseitigen: alle vier Aufrufstellen auf den Legacy-Build vereinheitlichen (Safari-Kompatibilitäts-Obermenge). Erster formaler Feature-Branch nach §77.
 
-```
-[Supabase] Missing Supabase environment variable(s): SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY.
-```
+## Branch
 
-Ursache:
-- `src/integrations/supabase/client.ts` liest im Browser `import.meta.env.VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` und **wirft**, wenn beide fehlen.
-- Vite ersetzt diese Werte **zum Build-Zeitpunkt** aus der passenden `.env`-Datei.
-- Preview-Deploys werden mit `build:dev` (Mode = `development`) gebaut → geladen wird `.env` (+ ggf. `.env.development`), **nicht** `.env.production`.
-- Aktuelle `.env` enthält nur die Google-Maps-Keys, keine Supabase-Werte. Deshalb ist der Client im Preview-Bundle „nackt", wirft beim ersten Zugriff (z. B. in `_authenticated`), TanStack fängt es in der Root-Error-Boundary und zeigt die Fallback-Seite.
-- Der Produktions-Deploy (`cocoplatform.lovable.app`) ist nicht betroffen, weil `.env.production` die Werte enthält.
+- Neuer Branch von `main`: **`feature/bundle-diet`**
+- Solange offen: keine parallele Arbeit auf `main`.
 
-## Fix (ein einziger Schritt)
+## Änderungen (genau 4 Zeilen in 2 Dateien)
 
-`.env` um die beiden fehlenden `VITE_SUPABASE_*`-Variablen ergänzen — Werte 1:1 aus `.env.production` übernehmen. Danach wird der Preview-Build automatisch neu gebaut und die Seite lädt wieder.
+**`src/components/cash/PdfCanvasPreview.tsx`**
+- Z2: `pdfjs-dist/build/pdf.worker.min.mjs?url` → `pdfjs-dist/legacy/build/pdf.worker.min.mjs?url`
+- Z25: `await import("pdfjs-dist")` → `await import("pdfjs-dist/legacy/build/pdf.mjs")`
 
-Nichts am Code, nichts am Fehler-Handling ändern — der bestehende Error-Boundary hat seinen Job korrekt gemacht.
+**`src/lib/payslips/split-combined.ts`**
+- Z7: `pdfjs-dist/build/pdf.worker.min.mjs?url` → `pdfjs-dist/legacy/build/pdf.worker.min.mjs?url`
+- Z30: `await import("pdfjs-dist")` → `await import("pdfjs-dist/legacy/build/pdf.mjs")`
 
-## Technische Details
+## Nicht anfassen
 
-- Datei: `.env` (Repo-Root)
-- Hinzufügen (Werte aus `.env.production` spiegeln):
-  - `VITE_SUPABASE_PROJECT_ID`
-  - `VITE_SUPABASE_URL`
-  - `VITE_SUPABASE_PUBLISHABLE_KEY`
-- Publishable-Key ist explizit öffentlich (RLS aktiv), darf im Repo stehen — konsistent mit `.env.production`, die dort bereits eingecheckt ist.
-- Kein Server-Code, keine Migration, keine Tests betroffen.
+- `bwa.tsx`, `bilanz.tsx` (bereits Legacy).
+- `PdfCanvasPreview.tsx` NICHT löschen, auch wenn aktuell ungenutzt — Toten-Code-Entfernung ist separate Entscheidung.
+- Keine Dependency-Änderungen, keine Migrationen, keine weiteren Dateien.
 
-## Warum kein Code-Fix?
+## Vor dem Commit
 
-Man könnte den Client so umbauen, dass er im Fehlerfall lautlos einen No-Op-Proxy liefert — das würde die Symptome verstecken und alle Supabase-Aufrufe stumm scheitern lassen. Der aktuelle „laut werfen"-Ansatz ist richtig; der Fix gehört in die fehlende Konfiguration.
+- `npx prettier --write .`
+- `npx eslint --fix` auf den geänderten Dateien.
+
+## Erfolgs-Gate (automatisch)
+
+- `bun run tsc --noEmit` → 0 Fehler
+- `npx eslint .` → 0 Fehler
+- `npx prettier --check .` → sauber
+- `npx vitest run` → 1628 grün
+- Build: nur noch **ein** `pdf.worker.min-*.mjs` im Output.
+
+## Erfolgs-Gate (manuell, vor Merge — Pflicht)
+
+Frank testet auf dem Branch mit echten Daten in Safari UND Chrome:
+1. `/admin/lohn-verteilung` → Sammel-PDF aufteilen → „N Seiten → M Mitarbeiter" korrekt, kein splitError.
+2. DevTools → Netzwerk → Filter „worker": genau ein `pdf.worker.min-*.mjs` geladen.
+3. `/admin/bwa` und `/admin/bilanz` — PDF-Textimport funktioniert unverändert.
+
+Erst nach grünem Manuell-Test: PR → Claude-Review → Merge nach `main`.
