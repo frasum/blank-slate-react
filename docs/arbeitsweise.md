@@ -6,7 +6,7 @@ SaaS-Vorbereitung: Readiness-Audit und Modul-Katalog stehen in docs/saas-vorbere
 
 Produktionsreife-Review: docs/produktionsreife-review.md (Stand 07.07.2026, HEAD 8cfdbc1d, inkl. Patch-Plan P0–P7) — kritischer Pfad vor dem Kassen-Go-live: Monitoring (P1) → Finalize-E2E (P2) → Restore-Probe (P3) → Cutover.
 
-Stand: 08.07.2026 (§76: Display-Ausfall behoben, Not-Redirect-Allowlist)
+Stand: 09.07.2026 (§77: Mobile Tagesansicht + Edit, WA2, BF1)
 
 TH1 — Standort-Farbthema: LocationThemeProvider im \_authenticated-Layout hält den themeKey (spicery/yum/neutral).
 LocationPills melden die Auswahl per useLocationThemeSync; Mapping: Name enthält „spicery" → spicery, „yum" → yum, sonst neutral (auch TSB/„Alle"/leer).
@@ -3819,3 +3819,26 @@ Abgenommener Anker: HEAD `377ca16d`, vier Gates grün, 1615 Tests.
 - Publish-Panel „Review security 4": Lovable-Scanner-Funde bei Gelegenheit sichten und als „bewusst öffentlich" abhaken oder beheben.
 
 **Offen (unverändert + neu):** PL3-Freiwunsch-Prompt bereit, nicht beauftragt · Bestellungen-Badge-Plausibilität (46) · P3 Restore-Probe · Bundle-Verschlankung (neu) · Security-Scanner-Review (neu).
+
+## 77. Sessions 08.07. (Abend) – 09.07.2026 — Mobile Dienstplan, Kollegen-Anzeige, Bestellfilter, Wartung
+
+Abgenommener Anker: HEAD `1c29b494`, vier Gates grün, 1628 Tests.
+
+**WA2 — „Mit dir im Dienst" (`/zeit/schichten`).** Neue Server-Function `getMyShiftMates` (staffId ausschließlich aus der Session, Zeitraum serverseitig auf 62 Tage gekappt, `staff` nur `id, display_name`, BFIX2-Paging): Mitarbeiter sehen pro eigenem Arbeitstag die Kollegen desselben Standorts (beide Bereiche), Kappung `+N` nach 12 Namen. Die RLS-Härtung vom 18.06. (Staff liest nur eigene roster_shifts) bleibt unangetastet — die Kollegen-Scheibe kommt kontrolliert über die Function. Fehler der Zusatzzeile werden still geschluckt (Kernfunktion nie beeinträchtigt); reine Gruppierung in `shift-mates.ts` (getestet).
+
+**D5 — Mobile Tagesansicht (`/admin/dienstplan?ansicht=tag`).** Das RosterGrid bleibt Desktop-Werkzeug (bewusst NICHT responsiv gemacht — Paint/DnD auf Touch wäre eine Verschlimmbesserung). Für Handys: lesende Tagesansicht, automatisch aktiv < 768px, Umschalter Grid|Tag, Tag-Navigation, je Standort Küche (farbige Skill-Pillen) + Service (Marker aus service-marker.ts), U/K-Badges, geplant gestrichelt. GLEICHER Lesepfad wie PlanerRosterView ⇒ Planer-Scopes greifen identisch. Reine Aufbereitung `day-view.ts` (getestet). Grid/PlanerRosterView: null Zeilen Änderung.
+
+**D5b — Bearbeiten in der Tagesansicht (`DayEditSheet`).** Bottom-Sheet pro Person: Schicht anlegen (Bereich+Skill), bestätigen, Skill ändern, entfernen (mit Bestätigungs-Schritt), Urlaub/Krank als Zeitraum (Toast nennt `deletedShiftCount` wie im Grid), Abwesenheit entfernen, „+ Einteilen" für noch nicht eingeplante Personen. NULL neue Server-Logik — ausschließlich die sechs bestehenden Grid-Functions; Periodensperren/Freigaben greifen serverseitig automatisch. `canEdit` pro Standort UND Bereich aufgelöst (`canEditScope`) — feiner als bestellt, abgenommen.
+
+**Auth-SSR-Fix (`b5060a70`, Lovable direkt).** Hydration-Mismatch der Login-Seite behoben (Mounted-Gate: leere Hülle bis zum ersten Client-Render) + `fetchPriority`-Casing. Plausible Erklärung für das „erst Fehlerseite, dann Login"-Muster vom 08.07. nachmittags. Rein präsentational, Login-Logik/Redirects unangetastet.
+
+**BF1 — Filter „Nur offen (nicht gesendet)" (`/admin/bestellung/bestellungen?view=unsent`).** `listOrders` um `onlyUnsent` erweitert (Query identisch zum TRMNL-Zähler: `email_sent=false` UND `status≠cancelled` — Parität als Code-Kommentar-Vertrag), UI-Sentinel `"__unsent"`, Query-Key erweitert, Deep-Link via `validateSearch`/`zodValidator`, Amber-Zähler mit Paging-Warnkommentar. Prompt-Entwurf stammte von Frank+Lovable, von Claude gegen den Ist-Code verifiziert und korrigiert (Gate-Befehle, Prettier-Zeile, Zähler-Kommentar). Gerechtfertigte Abweichung: neue Dependency `@tanstack/zod-adapter` (offizieller TanStack-Adapter, durch die zodValidator-Vorgabe impliziert; 24h-Supply-Chain-Guard greift).
+
+**Befund zu den 46 offenen Bestellungen (§75-Punkt geklärt):** Es sind **wichtige Test-Bestellungen** — KEINE SQL-Bereinigung (Frank-Entscheidung 09.07.). Der TRMNL-Badge zählt sie korrekt mit; solange COCO Testumgebung ist, ist die hohe Zahl erwartbar. Nach Produktiv-Cutover neu bewerten (Testdaten-Bereinigung gehört ohnehin zur Cutover-Checkliste).
+
+**Wartung & Betrieb:**
+
+- **Postgres-Patch-Upgrade** 17.6.1.127 → 17.6.1.141 (09.07., Vormittagsfenster) durchgeführt, Smoke-Test sauber. Merksatz: Patch-Upgrades = kurze Downtime für ALLES inkl. Displays; vorher Backup-Existenz prüfen. E-Ink-Displays können aus dem Downtime-Fenster ein eingefrorenes 404-Standbild behalten → Force refresh. (Kleines Heim-Terminal zeigte danach weiter 404 trotz Browser-OK — Prüfgriffe: gespeicherte Plugin-URL frisch einfügen, richtige Plugin-Instanz am Gerät, Sync-Zeitstempel; Status bei Doku-Stand offen.)
+- **Git-Branches (Absprache 09.07.):** Lovable-Labs „GitHub Branch Switching" aktiviert. Konvention: Alltagsarbeit bleibt auf main (ein Baumeister, seriell, Review-Loop als Schutz); Feature-Branches NUR für Großbaustellen mit Risiko (Erstkandidat: `feature/bundle-diet`). Harte Regel: nie zwei Branches parallel in Arbeit (Migrations-Timestamps, generierte Dateien). Konvention wird erst nach der ersten Trockenübung formalisiert.
+
+**Offen:** PL3-Freiwunsch-Prompt bereit, nicht beauftragt · P3 Restore-Probe (Pflichtblock — beim Postgres-Upgrade erneut schmerzlich als Lücke gespürt) · Bundle-Verschlankung als Branch-Trockenübung · Security-Scanner-Review („Review security 4") · Heim-Terminal-404 verifizieren · Manuelle E2E-Checks D5b/WA2/BF1 am Gerät.
