@@ -127,12 +127,20 @@ function BestellungenPage() {
             className={selectCls}
           >
             <option value="">Alle</option>
+            <option value="__unsent">Nur offen (nicht gesendet)</option>
             <option value="pending">Offen</option>
             <option value="sent">Versendet</option>
             <option value="confirmed">Bestätigt</option>
             <option value="cancelled">Storniert</option>
           </select>
         </label>
+        {onlyUnsent && ordersQ.data && (
+          // BF1 — zählt geladene Zeilen. Falls listOrders künftig
+          // Paging/Limit bekommt, MUSS auf count: "exact" umgestellt werden.
+          <span className="rounded bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+            {ordersQ.data.length} offen
+          </span>
+        )}
         <label className="block text-xs">
           <span className="block uppercase tracking-wide text-muted-foreground">Lieferant</span>
           <select
