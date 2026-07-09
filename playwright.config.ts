@@ -34,9 +34,14 @@ export default defineConfig({
   },
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
-    // WebKit deckt Safari ab — nötig für den Bundle-Diet-Beweis
-    // (pdfjs-Legacy-Worker), weil Safari beim modernen Build stolpert.
-    { name: "webkit", use: { ...devices["Desktop Safari"] } },
+    // WebKit deckt Safari ab. Auf diesen Runner gehört bislang nur der
+    // Bundle-Diet-Beweis (pdfjs-Legacy-Worker), weil Safari beim modernen
+    // Build stolpert — andere Suites bleiben chromium-only.
+    {
+      name: "webkit",
+      use: { ...devices["Desktop Safari"] },
+      testMatch: /lohn-split-worker\.spec\.ts/,
+    },
   ],
   webServer: startDevServer
     ? {
