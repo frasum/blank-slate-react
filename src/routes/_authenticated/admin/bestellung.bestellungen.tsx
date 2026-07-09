@@ -4,6 +4,8 @@
 import { useMemo, useState } from "react";
 import type React from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
+import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { formatShortDateTime } from "@/lib/format-date";
@@ -17,6 +19,13 @@ import { listSuppliers } from "@/lib/bestellung/suppliers.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/bestellung/bestellungen")({
   head: () => ({ meta: [{ title: "Bestellhistorie · Bestellung" }] }),
+  validateSearch: zodValidator(
+    z.object({
+      // BF1 — Deep-Link: ?view=unsent aktiviert den „Nur offen"-Filter.
+      // Alle anderen Werte werden ignoriert.
+      view: fallback(z.string(), "").default(""),
+    }),
+  ),
   component: BestellungenPage,
 });
 
@@ -42,28 +51,38 @@ function BestellungenPage() {
   const callCancel = useServerFn(cancelOrder);
   const callSend = useServerFn(sendOrderEmail);
 
-  const [statusFilter, setStatusFilter] = useState<string>("");
+  const { view } = Route.useSearch();
+  // Sentinel-Wert "__unsent" ist bewusst kein DB-Status — die Server-Fn
+  // interpretiert ihn als onlyUnsent=true und lässt status leer.
+  const [statusFilter, setStatusFilter] = useState<string>(view === "unsent" ? "__unsent" : "");
   const [supplierFilter, setSupplierFilter] = useState<string>("");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [emailLogOrder, setEmailLogOrder] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+
+  const onlyUnsent = statusFilter === "__unsent";
 
   const suppliersQ = useQuery({
     queryKey: ["bestellung", "suppliers", { includeInactive: true }],
     queryFn: () => listSuppliers({ data: { includeInactive: true } }),
   });
   const ordersQ = useQuery({
-    queryKey: ["bestellung", "orders", { status: statusFilter, supplier: supplierFilter }],
+    queryKey: [
+      "bestellung",
+      "orders",
+      { status: onlyUnsent ? "" : statusFilter, supplier: supplierFilter, onlyUnsent },
+    ],
     queryFn: () =>
       listOrders({
         data: {
-          status: (statusFilter || undefined) as
+          status: (onlyUnsent ? undefined : statusFilter || undefined) as
             | "pending"
             | "sent"
             | "confirmed"
             | "cancelled"
             | undefined,
           supplierId: supplierFilter || undefined,
+          onlyUnsent: onlyUnsent ? true : undefined,
         },
       }),
   });
@@ -108,12 +127,20 @@ function BestellungenPage() {
             className={selectCls}
           >
             <option value="">Alle</option>
+            <option value="__unsent">Nur offen (nicht gesendet)</option>
             <option value="pending">Offen</option>
             <option value="sent">Versendet</option>
             <option value="confirmed">Bestätigt</option>
             <option value="cancelled">Storniert</option>
           </select>
         </label>
+        {onlyUnsent && ordersQ.data && (
+          // BF1 — zählt geladene Zeilen. Falls listOrders künftig
+          // Paging/Limit bekommt, MUSS auf count: "exact" umgestellt werden.
+          <span className="rounded bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+            {ordersQ.data.length} offen
+          </span>
+        )}
         <label className="block text-xs">
           <span className="block uppercase tracking-wide text-muted-foreground">Lieferant</span>
           <select
