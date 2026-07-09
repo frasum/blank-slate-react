@@ -65,10 +65,10 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Die Verbindung zur Datenbank ist in diesem Build nicht konfiguriert
-            (Supabase-Umgebungsvariablen fehlen). Bitte in Lovable die Cloud-
-            Verbindung prüfen oder in der Datei <code>.env</code> die Werte für
-            <code> VITE_SUPABASE_URL</code> und <code> VITE_SUPABASE_PUBLISHABLE_KEY</code>
-            {" "}ergänzen und den Build neu starten.
+            (Supabase-Umgebungsvariablen fehlen). Bitte in Lovable die Cloud- Verbindung prüfen oder
+            in der Datei <code>.env</code> die Werte für
+            <code> VITE_SUPABASE_URL</code> und <code> VITE_SUPABASE_PUBLISHABLE_KEY</code> ergänzen
+            und den Build neu starten.
           </p>
           <p className="mt-3 text-xs text-muted-foreground/80">
             Ein Neuladen behebt das Problem nicht, solange die Variablen fehlen.
