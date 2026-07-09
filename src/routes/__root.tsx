@@ -50,6 +50,34 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
     });
   }, [error]);
 
+  // Spezialfall: Supabase-Env-Variablen fehlen im Build. Statt der generischen
+  // "Erneut versuchen"-Karte eine erklärende Meldung zeigen — Refresh hilft
+  // hier nicht, der Fehler steckt in der Konfiguration.
+  const isSupabaseEnvError =
+    typeof error?.message === "string" &&
+    error.message.includes("Missing Supabase environment variable");
+  if (isSupabaseEnvError) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <div className="max-w-md text-center">
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">
+            Konfiguration unvollständig
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Die Verbindung zur Datenbank ist in diesem Build nicht konfiguriert
+            (Supabase-Umgebungsvariablen fehlen). Bitte in Lovable die Cloud-
+            Verbindung prüfen oder in der Datei <code>.env</code> die Werte für
+            <code> VITE_SUPABASE_URL</code> und <code> VITE_SUPABASE_PUBLISHABLE_KEY</code>
+            {" "}ergänzen und den Build neu starten.
+          </p>
+          <p className="mt-3 text-xs text-muted-foreground/80">
+            Ein Neuladen behebt das Problem nicht, solange die Variablen fehlen.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
