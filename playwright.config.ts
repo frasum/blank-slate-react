@@ -32,7 +32,12 @@ export default defineConfig({
     screenshot: "only-on-failure",
     video: "off",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    // WebKit deckt Safari ab — nötig für den Bundle-Diet-Beweis
+    // (pdfjs-Legacy-Worker), weil Safari beim modernen Build stolpert.
+    { name: "webkit", use: { ...devices["Desktop Safari"] } },
+  ],
   webServer: startDevServer
     ? {
         command: "bun run dev",
