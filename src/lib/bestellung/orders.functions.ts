@@ -62,6 +62,7 @@ export const listOrders = createServerFn({ method: "GET" })
           .string()
           .regex(/^\d{4}-\d{2}-\d{2}$/)
           .optional(),
+        onlyUnsent: z.boolean().optional(),
       })
       .partial()
       .parse(input ?? {}),
@@ -80,6 +81,10 @@ export const listOrders = createServerFn({ method: "GET" })
     if (data.supplierId) q = q.eq("supplier_id", data.supplierId);
     if (data.from) q = q.gte("created_at", `${data.from}T00:00:00Z`);
     if (data.to) q = q.lte("created_at", `${data.to}T23:59:59Z`);
+    // BF1 — „Nur offen (nicht gesendet)": identisch zur TRMNL-Zähler-Query
+    // in src/routes/api/public/trmnl-tasks.$token.ts, damit die UI-Zahl 1:1
+    // zur Badge auf dem E-Ink-Board passt.
+    if (data.onlyUnsent) q = q.eq("email_sent", false).neq("status", "cancelled");
     const { data: rows, error } = await q;
     if (error) throw error;
     return rows ?? [];
