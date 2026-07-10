@@ -135,7 +135,7 @@ export const getRevenueStats = createServerFn({ method: "GET" })
         // ausgeschlossen, bis TSB-Daten verifiziert sind.
         const { data: chRows, error: chErr } = await supabaseAdmin
           .from("session_channel_amounts")
-          .select("session_id, amount_cents, revenue_channels(is_takeaway, name)")
+          .select("session_id, amount_cents, revenue_channels(is_takeaway, label)")
           .eq("organization_id", org)
           .in("session_id", ids)
           .returns<ChannelAmountQueryRow[]>();
