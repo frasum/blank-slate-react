@@ -714,9 +714,7 @@ function TakeawayChannelsDonut({
               innerRadius={55}
               outerRadius={95}
               paddingAngle={1}
-              label={(entry: { pct?: number }) =>
-                entry.pct != null ? `${entry.pct}\u00a0%` : ""
-              }
+              label={(entry: { pct?: number }) => (entry.pct != null ? `${entry.pct}\u00a0%` : "")}
               labelLine={false}
             >
               {withPct.map((c, i) => (

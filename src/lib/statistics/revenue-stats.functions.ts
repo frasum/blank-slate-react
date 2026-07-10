@@ -101,9 +101,7 @@ export const getRevenueStats = createServerFn({ method: "GET" })
     }
 
     // 3) Fenster laden: Sessions + Channel-Amounts.
-    async function loadWindow(
-      win: Window,
-    ): Promise<{
+    async function loadWindow(win: Window): Promise<{
       daily: DailyRevenue[];
       summary: PeriodSummary;
       takeawayByChannel: TakeawayChannel[];

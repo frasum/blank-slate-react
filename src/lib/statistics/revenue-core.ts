@@ -153,9 +153,7 @@ export function groupTakeawayByChannel(
 // (dann alle 0 bzw. leeres Ergebnis).
 export type TakeawayChannelPct = TakeawayChannel & { pct: number };
 
-export function computeChannelPercents(
-  items: readonly TakeawayChannel[],
-): TakeawayChannelPct[] {
+export function computeChannelPercents(items: readonly TakeawayChannel[]): TakeawayChannelPct[] {
   if (items.length === 0) return [];
   const total = items.reduce((s, i) => s + i.amountCents, 0);
   if (total <= 0) return items.map((i) => ({ ...i, pct: 0 }));
@@ -164,14 +162,12 @@ export function computeChannelPercents(
     const floor = Math.floor(exact);
     return { idx, floor, frac: exact - floor };
   });
-  let assigned = raw.reduce((s, r) => s + r.floor, 0);
+  const assigned = raw.reduce((s, r) => s + r.floor, 0);
   let remainder = 100 - assigned;
   // Größte Fraktion zuerst; Gleichstand → höherer Betrag → kleinerer idx.
   const order = [...raw].sort(
     (a, b) =>
-      b.frac - a.frac ||
-      items[b.idx].amountCents - items[a.idx].amountCents ||
-      a.idx - b.idx,
+      b.frac - a.frac || items[b.idx].amountCents - items[a.idx].amountCents || a.idx - b.idx,
   );
   const bonus = new Array(items.length).fill(0);
   for (let k = 0; k < order.length && remainder > 0; k++) {
