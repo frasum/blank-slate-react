@@ -1,54 +1,32 @@
-## STAT-U3 — Standortvergleich-Tab
+## Plan: Trinkgeld-Anzeige im Standortvergleich prüfen
 
-Neuer Tab „Standortvergleich" auf `/admin/statistik`, gespeist ausschließlich aus bestehenden COCO-Bausteinen (kein Neubau von Umsatz-/Trinkgeld-Formeln, keine Migrationen, keine neuen Deps).
+### Diagnose zuerst — keine Code-Änderung ohne Faktenlage
 
-### 1) Reine Vergleichs-Helfer + Tests
-**Neu:** `src/lib/statistics/comparison-core.ts` mit
-- `pctDiff(a, b)` — relative Abweichung von `a` ggü. `b` (mit Vorzeichen); `b === 0` → `null`.
-- `shareOf(a, b)` — Anteil `a/(a+b)` als 0..1; `a+b === 0` → `0.5` (neutrale Aufteilung).
-- Optional: `pickTopTwoByTotal(rows)` — deterministische Auswahl der zwei umsatzstärksten Standorte (bei Gleichstand nach Name).
+Die Vergleichskarten holen ihre Zahlen 1:1 aus `getTipStats` (dieselbe Server-Fn, die auch der Trinkgeld-Tab nutzt). Bevor wir „reparieren", muss klar sein, ob die Zahl schon in der Quelle falsch ist oder erst in der Darstellung.
 
-**Neu:** `src/lib/statistics/comparison-core.test.ts` (Vorzeichen, 0-Randfälle, Rundung, Top-2-Auswahl inkl. Gleichstand).
+### Schritt 1 — DB-Realität abgleichen (nur Lesen)
 
-### 2) Server-Fn `getLocationComparison`
-**Neu:** `src/lib/statistics/comparison-stats.functions.ts` (Muster wie `getRevenueStats`/`getTipStats`):
-- Input: `{ month? | startDate?+endDate? }` — **kein** `locationId` (immer alle aktiven Standorte der Org).
-- Caller-/Rollen-Behandlung identisch (`loadAdminCaller` → `manager|admin|payroll`).
-- Umsatz je Standort: **ein** Read über `sessions` + `session_channel_amounts` + `waiter_settlements` für den Zeitraum ohne `location_id`-Filter, dann per `location_id` gruppiert und je Gruppe durch `aggregateByBusinessDate` + `summarize` (bestehende Bausteine aus `revenue-core.ts`) — liefert `totalCents`, `takeawayCents`, `daysWithData`.
-  - `avgDailyCents = totalCents / daysWithData` (0 bei `daysWithData === 0`).
-- Trinkgeld je Standort: `computeSessionTipPoolCore` je Session (Kernpfad aus `tip-stats.functions.ts` wiederverwenden), Ergebnisse per `location_id` gruppiert durch `aggregateTips` → `serviceCents`/`kitchenCents`.
-  - `avgTipPerDayCents = (service+kitchen) / daysWithData`.
-- Return-Shape:
-  ```ts
-  {
-    range: { startDate, endDate, label },
-    overall: { totalCents, avgDailyCents, tipTotalCents, daysWithData },
-    perLocation: Array<{
-      locationId, name,
-      totalCents, avgDailyCents, takeawayCents,
-      kitchenTipCents, serviceTipCents, avgTipPerDayCents,
-      daysWithData
-    }>
-  }
-  ```
-- **KGL:** keine Formel-Duplikate — nur Gruppierung um die bestehenden Bausteine. Falls nötig, minimale optionale Gruppierungs-Helfer in `revenue-core.ts`/`tip-aggregate.ts` ergänzen (additiv, bestehende Aufrufer bleiben grün).
+Für den aktuell im UI eingestellten Zeitraum (bitte kurz nennen: Monat oder Von/Bis) prüfe ich:
 
-### 3) UI-Tab in `statistik.tsx`
-- Vierter `TabsTrigger` „Standortvergleich" neben Umsatz/Trinkgeld/Personal; nutzt dieselbe Zeitraum-Auswahl.
-- Query auf `getLocationComparison` (analog zu den bestehenden Stats-Queries).
-- **Kopfkarte „Gesamt (alle Standorte)":** Gesamtumsatz · Ø Tagesumsatz · Trinkgeld gesamt (via `fmtCents`).
-- **Standortauswahl:** Wenn > 2 Standorte mit Daten, schlichter Pills-Umschalter A/B (Default: die zwei umsatzstärksten). Bei genau 1 Standort: Hinweistext statt Vergleichskarten. Bei 0: Leerzustand.
-- **Sechs Vergleichskarten** (eine wiederverwendbare Komponente `ComparisonCard` lokal im File):
-  Gesamtumsatz · Ø Tagesumsatz · Küchen-Trinkgeld · Service-Trinkgeld · Lieferumsatz (`takeawayCents`) · Ø Trinkgeld/Tag.
-  Layout je Karte: links A (Betrag + `pctDiff`-Badge grün/rot), „VS", rechts B spiegelbildlich; darunter zweifarbiger Anteilsbalken (`shareOf`) in stabilen Standortfarben (Zuordnung nach `locationId`-Reihenfolge, konsistent über alle Karten).
-- **Fußkarte „Tage mit Daten"** je Standort.
-- Keine hartkodierten Standortnamen — alles aus `locations`/Response.
+- `sessions` je Standort: Anzahl, Status, `business_date`-Spanne.
+- `waiter_settlements` je Standort: `card_total_cents`, `tip_cash_cents`, `tip_card_cents` — Roh-Trinkgeld vor Pool-Verteilung.
+- Vergleich mit dem, was `computeSessionTipPoolCore` als `serviceRemainder + kitchenRemainder + Σ shares` liefert (das ist, was `getTipStats` summiert).
 
-### Nicht angefasst
-- Umsatz-/Trinkgeld-/Personal-Tab-Inhalte, `tip-stats`/`revenue-stats`/`personnel-stats`.
-- Migrationen, RLS, Deps.
+Ziel: eine Tabelle „Standort | Roh-Trinkgeld (waiter_settlements) | Trinkgeld laut getTipStats | Delta".
 
-### Technische Details
-- Farbwahl: zwei Tokens aus dem bestehenden Chart-Farbraum wiederverwenden (kein neuer Design-Token). Zuordnung stabil per sortierter `locationId`.
-- Vor Commit: `npx prettier --write .` + `npx eslint --fix` auf geänderten Dateien.
-- Gates: `bun run tsc --noEmit` · `npx eslint .` · `npx prettier --check .` · `npx vitest run` (1641 + neue comparison-Tests).
+### Schritt 2 — Ursache benennen, dann erst entscheiden
+
+Je nach Befund einer von drei Fixes (kein Blindfix):
+
+- **A) Roh-Trinkgeld in Spicery ist wirklich so niedrig** → kein Bug. Ggf. Hinweis „Spicery hat im Zeitraum nur X abgerechnete Tage" in der Vergleichskarte ergänzen.
+- **B) getTipStats untertreibt Spicery** (z. B. `tip_pool_settlement_only`-Flag, Sessions ohne Settlement, Standort-Vererbung greift nicht) → gezielter Fix in `getTipStats` oder `computeSessionTipPoolCore`, mit Charakterisierungstest gegen die DB-Werte aus Schritt 1.
+- **C) Nur die Vergleichs-Anzeige irritiert** (Balken/Badge) → kosmetischer Fix: bei extremen Differenzen `+…%` durch „×N" ersetzen oder Balken mit Minimum-Breite anzeigen. Beträge unverändert.
+
+### Nicht Teil dieses Schritts
+
+- Keine Änderungen an `revQueries`, `tipQueries` oder anderen Tabs.
+- Keine neue Trinkgeld-Formel, keine Migration.
+
+### Kurze Rückfrage vor Start
+
+Damit ich in Schritt 1 den richtigen Zeitraum abfrage: welcher Monat / welches Datumsfenster ist im Screenshot gerade eingestellt? Und öffnest du den Trinkgeld-Tab einmal mit Standortfilter „Spicery" — steht dort dieselbe **20,10 €** wie in der Vergleichskarte, oder ein anderer Wert?

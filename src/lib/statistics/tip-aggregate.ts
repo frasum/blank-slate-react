@@ -3,6 +3,14 @@
 // Keine DB-Zugriffe, keine eigene Trinkgeld-Berechnung — die wird ausschließlich
 // von computeSessionTipPoolCore (cash.functions.ts) geliefert. Diese Datei
 // summiert nur über Sessions/Tage/Personen.
+//
+// STAT-U3-Fix (10.07.2026): Tages- und Gesamtsummen enthalten das
+// *gesamte* Trinkgeld = verteilte `shares` (Team) + `*Remainder` (nicht
+// verteilter Pool-Rest). Zuvor wurden nur die Remainders summiert, was
+// Standorte mit vollständiger Verteilung (Spicery: alles verteilt → Rest
+// ~0) gegenüber Pool-Standorten (YUM: Rest bleibt im Pool) systematisch
+// unterbewertet hat. `perStaff` war bereits korrekt und bleibt
+// unverändert.
 
 export type SessionTipResult = {
   businessDate: string;
@@ -46,12 +54,21 @@ export function aggregateTips(
   let kitchenTotal = 0;
 
   for (const r of results) {
+    let serviceSharesInSession = 0;
+    let kitchenSharesInSession = 0;
+    for (const share of r.shares) {
+      if (share.department === "service") serviceSharesInSession += share.shareCents;
+      else kitchenSharesInSession += share.shareCents;
+    }
+    const serviceTotalForSession = r.serviceRemainderCents + serviceSharesInSession;
+    const kitchenTotalForSession = r.kitchenRemainderCents + kitchenSharesInSession;
+
     const row = dailyMap.get(r.businessDate) ?? { serviceCents: 0, kitchenCents: 0 };
-    row.serviceCents += r.serviceRemainderCents;
-    row.kitchenCents += r.kitchenRemainderCents;
+    row.serviceCents += serviceTotalForSession;
+    row.kitchenCents += kitchenTotalForSession;
     dailyMap.set(r.businessDate, row);
-    serviceTotal += r.serviceRemainderCents;
-    kitchenTotal += r.kitchenRemainderCents;
+    serviceTotal += serviceTotalForSession;
+    kitchenTotal += kitchenTotalForSession;
 
     for (const share of r.shares) {
       const existing = perStaffMap.get(share.staffId);

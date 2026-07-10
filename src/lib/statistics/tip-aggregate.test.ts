@@ -70,7 +70,8 @@ describe("aggregateTips", () => {
       { staffId: "a", department: "service", tipCents: 2200, name: "Alice" },
       { staffId: "b", department: "kitchen", tipCents: 500, name: "Bob" },
     ]);
-    expect(totals.totalCents).toBe(0);
+    // STAT-U3-Fix: verteilte Shares zählen jetzt zu totals/daily.
+    expect(totals).toEqual({ serviceCents: 2200, kitchenCents: 500, totalCents: 2700 });
   });
 
   it("perStaff Sortierung absteigend nach Betrag, Fallback-Name = staffId", () => {
@@ -110,5 +111,48 @@ describe("aggregateTips", () => {
     expect(daily).toEqual([]);
     expect(perStaff).toEqual([]);
     expect(totals).toEqual({ serviceCents: 0, kitchenCents: 0, totalCents: 0 });
+  });
+
+  // STAT-U3-Regression: Ein Standort verteilt alles (Remainder=0), ein anderer
+  // hält den Pool. Zuvor wurde nur der Rest gezählt — der verteilende Standort
+  // sah dann fälschlich fast 0 € Trinkgeld aus. Jetzt muss beides gleich viel
+  // Trinkgeld ergeben, wenn Shares+Remainder gleich sind.
+  it("verteilende Standorte werden nicht mehr unterbewertet", () => {
+    const verteilend: SessionTipResult = {
+      businessDate: "2026-06-10",
+      serviceRemainderCents: 10,
+      kitchenRemainderCents: 0,
+      shares: [
+        { staffId: "s1", department: "service", shareCents: 15000 },
+        { staffId: "k1", department: "kitchen", shareCents: 5000 },
+      ],
+    };
+    const poolend: SessionTipResult = {
+      businessDate: "2026-06-10",
+      serviceRemainderCents: 15010,
+      kitchenRemainderCents: 5000,
+      shares: [],
+    };
+    const a = aggregateTips([verteilend], {}).totals;
+    const b = aggregateTips([poolend], {}).totals;
+    expect(a).toEqual(b);
+    expect(a.totalCents).toBe(20010);
+  });
+
+  it("totals = Σ shares + Σ remainders (Invariante)", () => {
+    const results: SessionTipResult[] = [
+      {
+        businessDate: "2026-06-10",
+        serviceRemainderCents: 30,
+        kitchenRemainderCents: 20,
+        shares: [
+          { staffId: "a", department: "service", shareCents: 1000 },
+          { staffId: "b", department: "kitchen", shareCents: 400 },
+        ],
+      },
+    ];
+    const { totals, perStaff } = aggregateTips(results, {});
+    const staffSum = perStaff.reduce((s, p) => s + p.tipCents, 0);
+    expect(totals.totalCents).toBe(staffSum + 30 + 20);
   });
 });
