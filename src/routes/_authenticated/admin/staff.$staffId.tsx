@@ -43,14 +43,7 @@ export const Route = createFileRoute("/_authenticated/admin/staff/$staffId")({
   component: StaffDetailPage,
 });
 
-type Tab =
-  | "basics"
-  | "personal"
-  | "pin"
-  | "account"
-  | "permissions"
-  | "dokumente"
-  | "lohn";
+type Tab = "basics" | "personal" | "pin" | "account" | "permissions" | "dokumente" | "lohn";
 
 function StaffDetailPage() {
   const { staffId } = Route.useParams();
@@ -76,9 +69,7 @@ function StaffDetailPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            {s.displayName}
-          </h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{s.displayName}</h1>
           <p
             className={`text-sm ${s.isActive ? "text-muted-foreground" : "text-muted-foreground/60"}`}
           >
@@ -86,11 +77,7 @@ function StaffDetailPage() {
           </p>
         </div>
         {isAdmin && (
-          <ActiveToggleButton
-            staffId={s.id}
-            displayName={s.displayName}
-            isActive={s.isActive}
-          />
+          <ActiveToggleButton staffId={s.id} displayName={s.displayName} isActive={s.isActive} />
         )}
       </div>
 
