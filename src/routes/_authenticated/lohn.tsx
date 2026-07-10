@@ -19,6 +19,14 @@ function fmtDate(iso: string | null): string {
   return d.toLocaleDateString("de-DE", { year: "numeric", month: "2-digit", day: "2-digit" });
 }
 
+function isIosSafari(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  const isIos = /iPhone|iPad|iPod/.test(ua);
+  const isSafari = /Safari\//.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
+  return isIos && isSafari;
+}
+
 function LohnPage() {
   const callOpen = useServerFn(getPayslipSignedUrl);
   const q = useQuery({
