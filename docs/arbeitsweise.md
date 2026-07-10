@@ -3887,3 +3887,19 @@ Anker: `5657ce69`, vier Gates grün, **1662 Tests**.
 **Betriebsnotizen:** Lovable-Preview zeigte „Konfiguration unvollständig" (Sandbox-.env von Lovable zerlegt; Produktion/`.env.production` intakt — der ENV1-Wächter funktionierte wie gebaut). Secrets-Prüfung: `GOOGLE_MAPS_BROWSER_KEY`/`_TRACKING_ID` ungenutzt, aber Connection-verwaltet → bewusst belassen; `GOOGLE_MAPS_API_KEY` wird von `geocoding.server.ts` genutzt (Korrektur früherer Annahme). Fund: `wine-research.functions.ts` (Firecrawl, Welle 3-C) existiert undokumentiert — Doku-Punkt offen.
 
 **Offen:** SD4 („Rolle & Aktiv": Deaktivieren in die Liste umziehen, dann Tab entfernen — NICHT ersatzlos) · Gerätetests ausstehend: iPhone-Payslip (noopener-Fix), Safari-Splitter mit echtem Lohn-PDF, SD3-Popover/Farben, drei KI4-Testfragen · toter `PdfCanvasPreview` (Produktentscheidung) · WebKit-CI-Job beobachten · PL3 (bereit) · Backup-Strategie Stufe 2 · Security-Scanner-Review · Cutover-Planung als nächster großer Block.
+
+## 82. 10.07.2026 (Nachmittag) — BK1b Import-Härtung Bankkonto
+
+Anker: `963aa0e8`, vier Gates grün.
+
+Nachzug zu §81: Die drei BK1-Befunde sind mit BK1b geschlossen.
+
+**IBAN-Falle (P1) entschärft:** Editierbares IBAN-Feld aus dem Import-UI entfernt; die IBAN wird jetzt serverseitig aus der CSV extrahiert (`extractSingleIban` in `src/lib/bank/bank-import-helpers.ts`). Mehrere IBANs in einer Datei → Import bricht ab; IBAN passt nicht zum gewählten Konto → Import bricht ab. Damit ist der Fehlbuchungs-Pfad („falsches Konto ausgewählt, Buchungen laufen still ins falsche Konto") baulich zu.
+
+**Spicery-Seed:** Migration legt Bankkonto Spicery (`DE26…7901`) und die initialen Kategorisierungsregeln an — Import ohne Vorarbeit möglich.
+
+**`.in()`-Chunking + Kategorie-Limit:** Existenz-Prüfung für Transaktionen in Chunks à 500 (`chunkArray`), um die Postgrest-URL-Länge nicht zu sprengen. `listBankTransactions` holt bei Kategorie-Filter bis 5000 Zeilen, damit die Zeilen nicht durch das Default-Limit unsichtbar werden.
+
+**Nebenarbeiten:** Parser-Fehlermeldungen nennen jetzt die deutschen Spaltennamen („Buchungstag", „Laufende Nummer"); vorhandene `prefer-const`-Lints gefixt; Prettier grün. Cent-genauer Abgleich gegen echte YUM- und Spicery-Exporte bestanden.
+
+**Offen bleibt** wie in §80 gelistet; zusätzlich der Alt-Test zur cp1252-€-Dekodierung (unabhängig von BK1b, weiter rot).
