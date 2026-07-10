@@ -1402,56 +1402,6 @@ export type TrinkgeldAggregat = {
   hinweis: string;
 };
 
-/** Reine Aufbereitung: aus Session-Ergebnissen die Aggregat-Antwort formen.
- *  Exportiert für Tests (kein DB-Zugriff, keine Personenanteile). */
-export function shapeTipAggregate(
-  results: SessionTipResult[],
-  locationOfSession: Map<string, string>,
-  locationName: Map<string, string>,
-): {
-  serviceCents: number;
-  kitchenCents: number;
-  totalCents: number;
-  daysWithData: number;
-  per_standort: {
-    location_id: string;
-    name: string;
-    serviceCents: number;
-    kitchenCents: number;
-    totalCents: number;
-  }[];
-} {
-  const agg = aggregateTips(results, {});
-  const perLoc = new Map<string, { serviceCents: number; kitchenCents: number }>();
-  for (const r of results) {
-    const locId = locationOfSession.get(r.businessDate + "|" + (r.shares[0]?.staffId ?? "")) ?? "";
-    // locationOfSession fallback über Map-Sondereintrag pro result:
-    void locId;
-  }
-  // Die Zuordnung Session→Location ist im Aggregator-Ergebnis nicht enthalten,
-  // deshalb wird sie über die separaten Aufrufe pro Standort im Handler
-  // gebaut (siehe trinkgeldAggregat). Diese Hilfsfunktion aggregiert nur die
-  // Gesamtsummen und die Anzahl Tage mit Trinkgeld.
-  for (const r of results) {
-    // Location-Buckets werden im Handler befüllt (siehe unten). Hier nur
-    // Platzhalter, damit die Signatur stabil bleibt.
-    void r;
-  }
-  return {
-    serviceCents: agg.totals.serviceCents,
-    kitchenCents: agg.totals.kitchenCents,
-    totalCents: agg.totals.totalCents,
-    daysWithData: agg.daily.filter((d) => d.serviceCents + d.kitchenCents > 0).length,
-    per_standort: [...perLoc.entries()].map(([id, v]) => ({
-      location_id: id,
-      name: locationName.get(id) ?? id,
-      serviceCents: v.serviceCents,
-      kitchenCents: v.kitchenCents,
-      totalCents: v.serviceCents + v.kitchenCents,
-    })),
-  };
-}
-
 async function trinkgeldAggregat(
   ctx: ToolContext,
   input: Record<string, unknown>,
