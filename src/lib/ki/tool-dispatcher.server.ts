@@ -376,7 +376,9 @@ async function umsatzZeitraum(ctx: ToolContext, input: Record<string, unknown>) 
 
   let q = ctx.admin
     .from("sessions")
-    .select("id, business_date, location_id, vectron_daily_total_cents")
+    .select(
+      "id, business_date, location_id, vectron_daily_total_cents, vouchers_sold_cents, vouchers_redeemed_cents",
+    )
     .eq("organization_id", ctx.organizationId)
     .gte("business_date", from)
     .lte("business_date", to);
@@ -391,19 +393,29 @@ async function umsatzZeitraum(ctx: ToolContext, input: Record<string, unknown>) 
     vectronCents: (r.vectron_daily_total_cents as number | null) ?? 0,
   }));
 
+  let vouchersSoldCents = 0;
+  let vouchersRedeemedCents = 0;
+  for (const r of sess ?? []) {
+    vouchersSoldCents += Number(r.vouchers_sold_cents ?? 0);
+    vouchersRedeemedCents += Number(r.vouchers_redeemed_cents ?? 0);
+  }
+
   let channels: ChannelAmountRow[] = [];
+  const takeawayRaw: { name: string; amountCents: number }[] = [];
+  let karteCents = 0;
+  let kassiertBruttoCents = 0;
   if (sessions.length > 0) {
     const ids = sessions.map((s) => s.id);
     const { data: ch, error: chErr } = await ctx.admin
       .from("session_channel_amounts")
-      .select("session_id, amount_cents, revenue_channels(is_takeaway)")
+      .select("session_id, amount_cents, revenue_channels(is_takeaway, label)")
       .eq("organization_id", ctx.organizationId)
       .in("session_id", ids)
       .returns<
         {
           session_id: string;
           amount_cents: number;
-          revenue_channels: { is_takeaway: boolean } | null;
+          revenue_channels: { is_takeaway: boolean; label: string } | null;
         }[]
       >();
     if (chErr) throw new Error(chErr.message);
@@ -412,10 +424,41 @@ async function umsatzZeitraum(ctx: ToolContext, input: Record<string, unknown>) 
       amountCents: r.amount_cents,
       isTakeaway: r.revenue_channels?.is_takeaway ?? false,
     }));
+    for (const r of ch ?? []) {
+      if (r.revenue_channels?.is_takeaway) {
+        takeawayRaw.push({
+          name: r.revenue_channels.label,
+          amountCents: r.amount_cents,
+        });
+      }
+    }
+
+    // Zahlungsweg-Aufschlüsselung: Karte + Bar-Restgröße aus aktiven
+    // Kellner-Abrechnungen (status != 'superseded'). Gleiche Zeilenbasis
+    // wie in STAT-U2 (revenue-stats.functions.ts).
+    const { data: wsRows, error: wsErr } = await ctx.admin
+      .from("waiter_settlements")
+      .select("card_total_cents, kassiert_brutto_cents, pos_sales_cents, status")
+      .eq("organization_id", ctx.organizationId)
+      .in("session_id", ids)
+      .neq("status", "superseded");
+    if (wsErr) throw new Error(wsErr.message);
+    for (const r of wsRows ?? []) {
+      karteCents += Number(r.card_total_cents ?? 0);
+      // kassiert_brutto ist die Bruttosumme, die der Kellner kassiert hat;
+      // Fallback auf pos_sales, wenn nicht gesetzt (parallel zu Kasse-UI).
+      const kb =
+        r.kassiert_brutto_cents === null || r.kassiert_brutto_cents === undefined
+          ? Number(r.pos_sales_cents ?? 0)
+          : Number(r.kassiert_brutto_cents);
+      kassiertBruttoCents += kb;
+    }
   }
 
   const daily = aggregateByBusinessDate(mapToSessionInputs(sessions, channels));
   const sum = summarize(daily);
+  const takeawayKanaele = groupTakeawayByChannel(takeawayRaw);
+  const barCentsRechnerisch = Math.max(0, kassiertBruttoCents - karteCents);
 
   return {
     range: { from, to },
@@ -424,6 +467,20 @@ async function umsatzZeitraum(ctx: ToolContext, input: Record<string, unknown>) 
     umsatz_takeaway_eur: sum.takeawayCents / 100,
     tage_mit_umsatz: sum.daysWithRevenue,
     session_count: sessions.length,
+    zahlungswege: {
+      karte_eur: round2(karteCents / 100),
+      bar_rechnerisch_eur: round2(barCentsRechnerisch / 100),
+      gutscheine_verkauft_eur: round2(vouchersSoldCents / 100),
+      gutscheine_eingeloest_eur: round2(vouchersRedeemedCents / 100),
+      hinweis:
+        "Bar ist eine rechnerische Restgröße = Σ kassiert_brutto − Σ Karte aus den aktiven Kellner-Abrechnungen (keine Kassenzählung).",
+    },
+    takeaway_kanaele: takeawayKanaele.map((c) => ({
+      name: c.name,
+      betrag_eur: round2(c.amountCents / 100),
+    })),
+    hinweis:
+      "Servicezeit-Aufschlüsselung (Mittag/Abend) ist aus den Kassendaten NICHT ableitbar — sessions sind Tages-Einheiten.",
   };
 }
 
