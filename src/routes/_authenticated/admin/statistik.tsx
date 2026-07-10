@@ -1148,10 +1148,10 @@ function LocationCompareSection({
                   valueOf={(r) => r.avgDailyCents}
                 />
                 <ComparisonCard
-                  title="Küchen-Trinkgeld"
+                  title="Lieferumsatz"
                   a={a}
                   b={b}
-                  valueOf={(r) => r.kitchenTipCents}
+                  valueOf={(r) => r.takeawayCents}
                 />
                 <ComparisonCard
                   title="Service-Trinkgeld"
@@ -1160,10 +1160,10 @@ function LocationCompareSection({
                   valueOf={(r) => r.serviceTipCents}
                 />
                 <ComparisonCard
-                  title="Lieferumsatz"
+                  title="Küchen-Trinkgeld"
                   a={a}
                   b={b}
-                  valueOf={(r) => r.takeawayCents}
+                  valueOf={(r) => r.kitchenTipCents}
                 />
                 <ComparisonCard
                   title="Ø Trinkgeld / Tag"
