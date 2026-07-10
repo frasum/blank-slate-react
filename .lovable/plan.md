@@ -1,30 +1,55 @@
-# Lücken-Kartierung „Frag COCO"
+# BK1 — Auswertungs-Tab „Bankkonto" (CSV-Import + Monats-/Kategorie-Auswertung)
 
-Ziel: **Erst verstehen, wo COCO blind ist — dann priorisieren.** Kein Code in diesem Schritt, sondern ein Dokument, das jedes Modul den aktuellen 17 Tools gegenüberstellt.
+Neuer admin-only Bereich unter `Auswertungen → Bankkonto`: CSV-Import aus Deutsche-Bank-Export (YUM), Dedupe per `Laufende Nummer`, Kategorisierung via Regeln + Overrides, Monats-/Kategorie-Auswertung. Mehrkonten-fähig, Cash-Modul bleibt unberührt.
 
-## Heute verdrahtet (17 Tools)
+## Schritte
 
-Stammdaten · Getränke-Ranking · Umsatz-Zeitraum · Arbeitsstunden · Abwesenheiten · Personalkostenquote · Kasse-Tagesabschluss · Bestellungen · Inventur · BWA · Bilanz · Dienstplan · Aufgaben · Tausch · Urlaub · Branchenbenchmark · Personalbestand.
+### 1. Migration (replayfähig, §72)
+Neue Migration mit vier Tabellen inkl. Grants (`authenticated` + `service_role`), RLS-Enable und Policies (Muster `bwa_monthly`):
+- `bank_accounts` (org, iban, name, location_id) — UNIQUE (org, iban)
+- `bank_categories` (org, name, sort_order) — UNIQUE (org, name)
+- `bank_category_rules` (org, category_id, match_field ∈ {name,zweck}, pattern, priority)
+- `bank_transactions` (org, account_id, laufende_nummer, buchungstag, wertstellungstag, betrag_cents BIGINT, saldo_cents, gegenpartei, verwendungszweck, bank_kategorie, bank_unterkategorie, override_category_id) — **UNIQUE (account_id, laufende_nummer)** = Idempotenz-Anker
+- Index `bank_transactions(org, account_id, buchungstag DESC)`
+- RLS SELECT: `organization_id = current_organization_id() AND has_min_permission('admin')`
+- Seed: YUM-Konto (IBAN `DE53700700240052787900`, org `77838674-…`, location `14c2d773-…`) + Seed-Kategorien und Regeln aus der Spec-Tabelle
 
-## Vorgehen
+### 2. Pure Kern-Module (getestet, ohne IO)
+- `src/lib/bank/bank-csv-parser.ts` — Windows-1252-Decode, `;`-CSV mit Quotes, Header-Erkennung nach Spaltennamen, Betrag/Saldo string-basiert → BIGINT cents, Datum `d.M.yyyy` → ISO, Dedupe über `Laufende Nummer`. Rückgabe: `{ rows, rohZeilen, eindeutig, zeitraum, summeEinCents, summeAusCents, saldoDeltaCents, saldoAbgleichOk }`.
+- `src/lib/bank/bank-categorize.ts` — Präzedenz Override > Regel (priority asc, dann Name) > „Ohne Kategorie". Case-insensitives Substring auf `gegenpartei` (`name`) bzw. `verwendungszweck` (`zweck`). Bank-Kategorie NICHT als Fallback.
+- `src/lib/bank/bank-stats-core.ts` — Monatsaggregate Ein/Aus/Netto, Kategorie×Monat-Matrix, Top-Gegenparteien.
 
-1. **Modul-Inventur.** Ich gehe jede Domäne im Repo durch (Kasse, Lohn, Bestellung, Dienstplan, Zeit, Aufgaben, Verkaufsartikel, Trinkgeld, Sofortmeldung, Migration, Dokumente, Statistik, Wein-Quiz, TRMNL/Display, Telegram, Bilanz/BWA, Personalstamm) und liste je Modul auf:
-   - welche typischen Fragen ein Betreiber stellt,
-   - welches vorhandene Tool sie beantwortet,
-   - welche **konkreten Lücken** offen sind.
-2. **Prüfen, wo bestehende Tools zu grob sind** — z. B. Umsatz ohne Kanal-Detail, Personalkosten ohne SFN/AG-Anteil, Bestellungen ohne Artikelebene, Aufgaben ohne Zuständigkeitsfrage.
-3. **Datenschutz-Grenzen markieren.** Was darf ein Tool ausliefern (Aggregat, pseudonymisiert) und was nicht (Lohnhöhe pro Person, Personaldetails, Sofortmeldungs-Rohdaten). Regel bleibt: Pseudonymisierung MA-1/MA-2, keine Rohnamen an die KI.
-4. **Priorisierung.** Je Lücke: Nutzen (wie oft gefragt) × Aufwand (Schema vorhanden? Aggregation trivial?) × Risiko (Datenschutz). Ergebnis: A/B/C-Liste.
-5. **Deliverable.** Eine neue Datei `docs/frag-coco-luecken.md` mit
-   - Tabelle „Modul → vorhandenes Tool → offene Frage",
-   - A/B/C-Liste mit kurzem Vorschlag pro Lücke (welches neue Tool, welche Tabelle, welche Aggregation),
-   - Absatz zu Datenschutz-Regeln und was bewusst NICHT ins Tool wandert.
+**Tests:** Sammelbuchungs-Dublette (gleiche laufende Nr. → 1), cp1252-Umlaut-Roundtrip, `-687,50 → -68750`, `306.234,05 → 30623405`, Saldo-Abgleich, fehlende/vertauschte Spalten → Fehler; Categorize-Präzedenz; Stats-Aggregat.
 
-## Was in diesem Schritt NICHT passiert
+### 3. Server-Fns (`src/lib/bank/bank.functions.ts`, Muster `bwa.functions.ts`)
+Alle mit `loadAdminCaller(..., ["admin"])`, org-gescoped, Zod-validiert:
+- `listBankAccounts`
+- `importBankTransactions` — bekommt geparste Zeilen + `account_iban`, legt Konto bei Bedarf an, Upsert `onConflict: account_id,laufende_nummer` mit `ignoreDuplicates`, gibt `{ inserted, skippedExisting }`
+- `listBankTransactions` — Filter Konto/Zeitraum/Kategorie/Suche, paginiert, mit aufgelöster Kategorie + Quelle (override/rule/none)
+- `getBankStats` — **nimmt Konto + Zeitraum als Parameter** (gleicher Filterkopf wie `listBankTransactions`), niemals hart „alles"
+- `setBankTransactionCategory` / `clearBankTransactionCategory`
+- `createBankCategory` / `renameBankCategory`
+- `deleteBankCategory` — **explizite Nutzungsprüfung vor Delete**: lehnt ab, wenn die Kategorie in `bank_transactions.override_category_id` ODER in `bank_category_rules.category_id` referenziert ist. Nicht auf `ON DELETE CASCADE` der Regeln verlassen (würde Regeln stillschweigend mitlöschen).
+- `createBankCategoryRule` / `deleteBankCategoryRule`
+- Audit-Log-Einträge via `makeAuditWriter` bei Schreibpfaden (bwa-Muster)
 
-- Keine neuen Tools, kein Dispatcher-Umbau, keine Migrationen.
-- Kein Auto-Discovery/Meta-Tool. Wenn nach der Kartierung viele Tools entstehen sollen, machen wir das als eigenen Bauplan-Schritt (dann ggf. mit Tool-Deferral-Muster).
+### 4. UI (`src/routes/_authenticated/admin/bankkonto.tsx`)
+`beforeLoad`-Admin-Gate (redirect `/admin`). Vier interne Tabs:
+- **Übersicht:** Filterkopf (Konto + Zeitraum) speist `getBankStats`. Kopfkarten (Zeitraum, Ein/Aus/Netto/Endsaldo), Monats-Chart (recharts, Balken Ein/Aus + Netto-Linie), Kategorie×Monat-Tabelle mit „Ohne Kategorie" prominent, Top-Gegenparteien Ein/Aus getrennt. Konto-Select nur bei >1 Konto.
+- **Buchungen:** Liste mit Filtern (identischer Filterkopf), Betrag rechtsbündig €, Kategorie-Badge mit Popover-Override (Quelle Regel/manuell erkennbar), Bank-Kategorie als Detail.
+- **Regeln:** Kategorien-CRUD + Regel-Liste (Feld/Pattern/Priorität) mit „trifft n Buchungen". Löschen-Button einer Kategorie ist disabled/mit Hinweis, solange Regeln oder Overrides referenzieren.
+- **Import:** PV2-Muster — Dropzone `.csv`, Parsen im Browser (nur geprüfte Zeilen zum Server), Review-Screen mit Parser-Kennzahlen inkl. Saldo-Abgleich grün/rot und Neu-vs.-bereits-vorhanden, dann Import-Button.
 
-## Nach der Freigabe
+### 5. Sub-Nav (`src/routes/_authenticated/admin/route.tsx`)
+Nur EIN Eintrag unter Auswertungen ergänzen: Prefix `/admin/bankkonto` + `{ to: "/admin/bankkonto", label: "Bankkonto", roles: ["admin"] }`. Keine Änderung an `permission_role_defaults` (PL2-Lektion).
 
-Du entscheidest anhand der A/B/C-Liste, welche Lücken wir zuerst schließen. Jede neue Werkzeug-Erweiterung läuft dann als eigener kleiner Prompt (Tool-Definition in `src/lib/ki/tools.ts`, Handler in `tool-dispatcher.server.ts`, Test, Doku-Nachzug).
+### 6. Nicht anfassen
+Statistik-Tabs, BWA, Bilanz, POS, import-zuordnungen, Cash-Modul, Frag-COCO-Tools (Bankdaten bleiben bewusst nicht exponiert), bestehende Migrationen.
+
+## Erfolgs-Gate
+- tsc / vitest / eslint / Prettier grün
+- Parser-Fixture (synthetisch, keine Echtdaten!) reproduziert 1221→1101; Netto == Saldo-Delta
+- Zweiter identischer Import → `{ inserted: 0 }`
+- `deleteBankCategory` mit referenzierenden Regeln ODER Overrides → Fehler, keine Löschung
+- RLS-Test: nur Admin derselben Org sieht `bank_*`
+- Manuelle Abnahme Frank: 1101 Buchungen, Netto −237.326,35 €, Saldo grün, „Ohne Kategorie" < 10 % Volumen
