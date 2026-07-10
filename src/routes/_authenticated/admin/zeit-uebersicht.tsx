@@ -788,7 +788,10 @@ function ZeitUebersichtPage() {
       //   - department gesetzt, aber nicht mehr zugeordnet → Primär-Zeile
       //     + `mismatched` (Tooltip-Warnung)
       const staffDepts = staffDeptsByStaff.get(e.staffId) ?? [e.department];
-      const attr = entryRowDepartment(e.rawDepartment ?? null, staffDepts);
+      const rosterArea =
+        (data.rosterAreaByStaffDate?.[e.staffId]?.[e.businessDate] as Department | undefined) ??
+        null;
+      const attr = entryRowDepartment(e.rawDepartment ?? null, staffDepts, { rosterArea });
       const key = rowKey(e.staffId, attr.department);
       let r = rowMap.get(key);
       if (!r) {
