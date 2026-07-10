@@ -2,7 +2,7 @@
 // Reines Frontend. Konsumiert `getRevenueStats` (Kalendermonat, S-3).
 // Keine neuen Server-Fns, kein Schema, keine Logik in src/lib/statistics/.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQueries, useQuery, type UseQueryResult } from "@tanstack/react-query";
 import {
@@ -45,6 +45,7 @@ import { getTipStats } from "@/lib/statistics/tip-stats.functions";
 import { getPersonnelStats } from "@/lib/statistics/personnel-stats.functions";
 import { personnelRatioPct } from "@/lib/statistics/personnel-core";
 import { computeChannelPercents } from "@/lib/statistics/revenue-core";
+import { pctDiff, shareOf, pickTopTwoByTotal } from "@/lib/statistics/comparison-core";
 import { generateStatistikPdf, type StatistikPdfData } from "@/lib/statistics/statistik-pdf";
 import { currentMonth, monthRange } from "@/lib/statistics/period-window";
 import { fillDailyGaps } from "@/lib/statistics/chart-fill";
