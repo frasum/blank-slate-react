@@ -245,7 +245,6 @@ function BasicsTab({
   );
 }
 
-
 function RoleTab({ staff }: { staff: { id: string; role: AppRole | null; isActive: boolean } }) {
   const queryClient = useQueryClient();
   const callSetRole = useServerFn(setStaffRole);

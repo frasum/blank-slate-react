@@ -115,11 +115,7 @@ function SkillColorChip({
 
   const bg = chipBackground(skill.color);
   const isWhite = (skill.color ?? "").toLowerCase() === "#ffffff";
-  const textColor: string | undefined = skill.color
-    ? isWhite
-      ? "#0a0a0a"
-      : "#ffffff"
-    : undefined;
+  const textColor: string | undefined = skill.color ? (isWhite ? "#0a0a0a" : "#ffffff") : undefined;
   const borderColor = skill.color ?? undefined;
 
   return (
