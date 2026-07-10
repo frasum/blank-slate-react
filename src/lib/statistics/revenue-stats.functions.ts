@@ -44,7 +44,7 @@ const MONTH_RE = /^\d{4}-\d{2}$/;
 type ChannelAmountQueryRow = {
   session_id: string;
   amount_cents: number;
-  revenue_channels: { is_takeaway: boolean; name: string } | null;
+  revenue_channels: { is_takeaway: boolean; label: string } | null;
 };
 
 type Window = { startDate: string; endDate: string };
@@ -148,7 +148,7 @@ export const getRevenueStats = createServerFn({ method: "GET" })
         for (const r of chRows ?? []) {
           if (r.revenue_channels?.is_takeaway) {
             takeawayRaw.push({
-              name: r.revenue_channels.name,
+              name: r.revenue_channels.label,
               amountCents: r.amount_cents,
             });
           }
