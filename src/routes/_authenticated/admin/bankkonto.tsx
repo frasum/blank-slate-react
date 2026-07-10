@@ -693,9 +693,10 @@ function ImportTab({ defaultIban }: { defaultIban: string }) {
   const [name, setName] = useState("");
   const [parseInfo, setParseInfo] = useState<{
     rows: number;
-    duplicatesInFile: number;
-    minDate: string | null;
-    maxDate: string | null;
+    rohZeilen: number;
+    from: string | null;
+    to: string | null;
+    saldoOk: boolean;
   } | null>(null);
   const [parsedRows, setParsedRows] = useState<Array<Record<string, unknown>> | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -734,12 +735,13 @@ function ImportTab({ defaultIban }: { defaultIban: string }) {
       setParsedRows(res.rows as unknown as Array<Record<string, unknown>>);
       setParseInfo({
         rows: res.rows.length,
-        duplicatesInFile: res.duplicatesInFile,
-        minDate: res.minDate,
-        maxDate: res.maxDate,
+        rohZeilen: res.rohZeilen,
+        from: res.zeitraum?.from ?? null,
+        to: res.zeitraum?.to ?? null,
+        saldoOk: res.saldoAbgleichOk,
       });
-      if (!iban && res.iban) setIban(res.iban);
-      if (!name && res.accountName) setName(res.accountName);
+      const firstIban = res.rows[0]?.iban;
+      if (!iban && firstIban) setIban(firstIban);
       toast.success(`Datei geparst: ${res.rows.length} Buchungen.`);
     } catch (e) {
       toast.error(`Parse-Fehler: ${(e as Error).message}`);
@@ -784,9 +786,12 @@ function ImportTab({ defaultIban }: { defaultIban: string }) {
         {parseInfo && (
           <div className="rounded border bg-muted/30 p-3 text-sm">
             <div>Zeilen geparst: {parseInfo.rows}</div>
-            <div>Duplikate innerhalb der Datei: {parseInfo.duplicatesInFile}</div>
+            <div>Rohzeilen (inkl. Duplikate): {parseInfo.rohZeilen}</div>
             <div>
-              Zeitraum: {parseInfo.minDate ?? "?"} – {parseInfo.maxDate ?? "?"}
+              Zeitraum: {parseInfo.from ?? "?"} – {parseInfo.to ?? "?"}
+            </div>
+            <div className={parseInfo.saldoOk ? "text-emerald-600" : "text-destructive"}>
+              Saldo-Abgleich: {parseInfo.saldoOk ? "ok" : "Abweichung"}
             </div>
           </div>
         )}
