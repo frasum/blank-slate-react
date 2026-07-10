@@ -606,57 +606,41 @@ function StaffMatrixRow({
         {isPayroll ? (
           <span className="text-xs text-muted-foreground">Lohnbüro – keine Bereiche/Skills</span>
         ) : isAdmin ? (
-          <div className="flex flex-wrap gap-1">
-            {skills.length === 0 && (
-              <span className="text-xs text-muted-foreground">Keine Skills angelegt.</span>
-            )}
-            {skills.length > 0 && visibleSkills.length === 0 && (
-              <span className="text-xs text-muted-foreground">Keine passende Abteilung.</span>
-            )}
-            {visibleSkills.map((skill) => {
-              const has = staff.skillIds.includes(skill.id);
-              const eligible = isSkillCategoryEligible(skill.category, staff.departments);
-              const disabled = !isAdmin || skillPending || (!eligible && !has);
-              const tooltip =
-                !eligible && !has
-                  ? `Erst Abteilung „${CATEGORY_LABEL[skill.category]}“ zuweisen`
-                  : has
-                    ? `${skill.name} entfernen`
-                    : `${skill.name} zuweisen`;
-              const color = skill.color ?? undefined;
-              return (
-                <Tooltip key={skill.id}>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      disabled={disabled}
-                      onClick={() => onToggleSkill(staff.id, skill.id, has, staff.skillIds)}
-                      className={cn(
-                        "inline-flex min-w-[36px] items-center justify-center rounded-md border-2 px-2.5 py-1 text-xs font-bold transition-all",
-                        !has && "border-muted-foreground/30 text-muted-foreground bg-transparent",
-                        !eligible && !has && "cursor-not-allowed opacity-25",
-                        eligible && !disabled && "cursor-pointer hover:scale-105",
-                        !eligible && has && "opacity-70",
-                      )}
-                      style={
-                        color && has
-                          ? { backgroundColor: color, borderColor: color, color: "#fff" }
-                          : undefined
-                      }
-                      data-inactive={!has || undefined}
-                      // Inaktive Skills bewusst neutral-grau: bessere Übersicht,
-                      // die Farbe signalisiert nur „aktiv/zugewiesen".
-                    >
-                      {skill.name}
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="text-xs">{tooltip}</p>
-                  </TooltipContent>
-                </Tooltip>
-              );
-            })}
-          </div>
+          <SkillAssignPopover
+            skills={skills}
+            currentIds={staff.skillIds}
+            pending={skillPending}
+            onSave={(next) => onSaveSkills(staff.id, next)}
+            trigger={
+              <button
+                type="button"
+                aria-label="Skills bearbeiten"
+                className="flex min-h-[32px] w-full flex-wrap items-center gap-1 rounded-md border border-transparent px-1 py-0.5 text-left hover:border-border hover:bg-muted/40"
+              >
+                {heldSkills.length === 0 ? (
+                  <span className="text-xs text-muted-foreground">+ Skills wählen</span>
+                ) : (
+                  heldSkills.map((sk) => {
+                    const meta = skills.find((m) => m.id === sk.id);
+                    const color = meta?.color ?? undefined;
+                    return (
+                      <span
+                        key={sk.id}
+                        className="inline-flex min-w-[36px] items-center justify-center rounded-md border-2 px-2 py-0.5 text-xs font-bold"
+                        style={
+                          color
+                            ? { backgroundColor: color, borderColor: color, color: "#fff" }
+                            : { borderColor: "hsl(var(--border))" }
+                        }
+                      >
+                        {sk.name}
+                      </span>
+                    );
+                  })
+                )}
+              </button>
+            }
+          />
         ) : (
           <span className="text-muted-foreground">
             {staff.skillIds.length > 0 ? `${staff.skillIds.length} Skills` : "—"}
