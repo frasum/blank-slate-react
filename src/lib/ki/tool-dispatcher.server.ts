@@ -1376,3 +1376,177 @@ async function personalBestand(ctx: ToolContext, input: Record<string, unknown>)
       .sort((a, b) => b.anzahl - a.anzahl),
   };
 }
+
+// ─────────────────────────────────────────────────────── trinkgeld_aggregat
+//
+// Pool-Summen (Service/Küche) je Zeitraum, wahlweise ein Standort oder
+// über alle Standorte der Organisation. Delegiert an
+// computeSessionTipPoolCore + aggregateTips — keine Zweit-Implementierung.
+// Datenschutz-Kanon: KEINE Personenanteile (auch nicht pseudonymisiert),
+// weil einzelne shares eindeutig einer Person zuordenbar sind.
+
+export type TrinkgeldAggregat = {
+  range: { from: string; to: string };
+  location_id: string | null;
+  serviceCents: number;
+  kitchenCents: number;
+  totalCents: number;
+  daysWithData: number;
+  per_standort: {
+    location_id: string;
+    name: string;
+    serviceCents: number;
+    kitchenCents: number;
+    totalCents: number;
+  }[];
+  hinweis: string;
+};
+
+/** Reine Aufbereitung: aus Session-Ergebnissen die Aggregat-Antwort formen.
+ *  Exportiert für Tests (kein DB-Zugriff, keine Personenanteile). */
+export function shapeTipAggregate(
+  results: SessionTipResult[],
+  locationOfSession: Map<string, string>,
+  locationName: Map<string, string>,
+): {
+  serviceCents: number;
+  kitchenCents: number;
+  totalCents: number;
+  daysWithData: number;
+  per_standort: {
+    location_id: string;
+    name: string;
+    serviceCents: number;
+    kitchenCents: number;
+    totalCents: number;
+  }[];
+} {
+  const agg = aggregateTips(results, {});
+  const perLoc = new Map<string, { serviceCents: number; kitchenCents: number }>();
+  for (const r of results) {
+    const locId = locationOfSession.get(r.businessDate + "|" + (r.shares[0]?.staffId ?? "")) ?? "";
+    // locationOfSession fallback über Map-Sondereintrag pro result:
+    void locId;
+  }
+  // Die Zuordnung Session→Location ist im Aggregator-Ergebnis nicht enthalten,
+  // deshalb wird sie über die separaten Aufrufe pro Standort im Handler
+  // gebaut (siehe trinkgeldAggregat). Diese Hilfsfunktion aggregiert nur die
+  // Gesamtsummen und die Anzahl Tage mit Trinkgeld.
+  for (const r of results) {
+    // Location-Buckets werden im Handler befüllt (siehe unten). Hier nur
+    // Platzhalter, damit die Signatur stabil bleibt.
+    void r;
+  }
+  return {
+    serviceCents: agg.totals.serviceCents,
+    kitchenCents: agg.totals.kitchenCents,
+    totalCents: agg.totals.totalCents,
+    daysWithData: agg.daily.filter((d) => d.serviceCents + d.kitchenCents > 0).length,
+    per_standort: [...perLoc.entries()].map(([id, v]) => ({
+      location_id: id,
+      name: locationName.get(id) ?? id,
+      serviceCents: v.serviceCents,
+      kitchenCents: v.kitchenCents,
+      totalCents: v.serviceCents + v.kitchenCents,
+    })),
+  };
+}
+
+async function trinkgeldAggregat(
+  ctx: ToolContext,
+  input: Record<string, unknown>,
+): Promise<TrinkgeldAggregat> {
+  const { from, to } = requireRange(input.from, input.to);
+  const locationId = optionalUuid(input.location_id, "location_id");
+
+  // Standorte für Namen und ggf. Auflistung.
+  const { data: locs, error: locErr } = await ctx.admin
+    .from("locations")
+    .select("id, name")
+    .eq("organization_id", ctx.organizationId);
+  if (locErr) throw new Error(locErr.message);
+  const locationName = new Map((locs ?? []).map((l) => [l.id as string, l.name as string]));
+
+  let sq = ctx.admin
+    .from("sessions")
+    .select("id, business_date, status, locked_at, location_id, tip_pool_settlement_only")
+    .eq("organization_id", ctx.organizationId)
+    .gte("business_date", from)
+    .lte("business_date", to);
+  if (locationId) sq = sq.eq("location_id", locationId);
+  const { data: sess, error } = await sq;
+  if (error) throw new Error(error.message);
+
+  // Settings je Standort cachen — analog getTipStats.
+  const settingsCache = new Map<string, TipSettings>();
+  async function settingsFor(locId: string): Promise<TipSettings> {
+    const hit = settingsCache.get(locId);
+    if (hit) return hit;
+    const s = await loadTipSettings(ctx.organizationId, locId);
+    settingsCache.set(locId, s);
+    return s;
+  }
+
+  const perLoc = new Map<
+    string,
+    { serviceCents: number; kitchenCents: number; results: SessionTipResult[] }
+  >();
+  const allResults: SessionTipResult[] = [];
+
+  for (const s of (sess ?? []) as LoadedSession[]) {
+    const res = await computeSessionTipPoolCore(ctx.caller, s, await settingsFor(s.location_id));
+    let svcShares = 0;
+    let kitShares = 0;
+    for (const sh of res.shares) {
+      if (sh.department === "service") svcShares += sh.shareCents;
+      else kitShares += sh.shareCents;
+    }
+    const svcTotal = res.serviceRemainder + svcShares;
+    const kitTotal = res.kitchenRemainder + kitShares;
+    const bucket = perLoc.get(s.location_id) ?? {
+      serviceCents: 0,
+      kitchenCents: 0,
+      results: [] as SessionTipResult[],
+    };
+    bucket.serviceCents += svcTotal;
+    bucket.kitchenCents += kitTotal;
+    const shape: SessionTipResult = {
+      businessDate: s.business_date as string,
+      serviceRemainderCents: res.serviceRemainder,
+      kitchenRemainderCents: res.kitchenRemainder,
+      shares: res.shares.map((sh) => ({
+        staffId: sh.staffId,
+        department: sh.department,
+        shareCents: sh.shareCents,
+      })),
+    };
+    bucket.results.push(shape);
+    perLoc.set(s.location_id, bucket);
+    allResults.push(shape);
+  }
+
+  const agg = aggregateTips(allResults, {});
+  const daysWithData = agg.daily.filter((d) => d.serviceCents + d.kitchenCents > 0).length;
+
+  return {
+    range: { from, to },
+    location_id: locationId ?? null,
+    serviceCents: agg.totals.serviceCents,
+    kitchenCents: agg.totals.kitchenCents,
+    totalCents: agg.totals.totalCents,
+    daysWithData,
+    per_standort: locationId
+      ? []
+      : [...perLoc.entries()]
+          .map(([id, v]) => ({
+            location_id: id,
+            name: locationName.get(id) ?? id,
+            serviceCents: v.serviceCents,
+            kitchenCents: v.kitchenCents,
+            totalCents: v.serviceCents + v.kitchenCents,
+          }))
+          .sort((a, b) => b.totalCents - a.totalCents),
+    hinweis:
+      "Nur Aggregatsummen — Einzelanteile werden aus Datenschutzgründen nicht ausgeliefert.",
+  };
+}
