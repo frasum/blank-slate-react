@@ -154,6 +154,7 @@ const GROUPS: Group[] = [
       "/admin/statistik",
       "/admin/bwa",
       "/admin/bilanz",
+      "/admin/bankkonto",
       "/admin/pos-verkauf",
       "/admin/pos-stundenbericht",
       "/admin/pos-renner-penner",
@@ -165,6 +166,7 @@ const GROUPS: Group[] = [
       { to: "/admin/frag-coco", label: "Frag COCO", roles: ["admin"] },
       { to: "/admin/bwa", label: "BWA", roles: ["admin"] },
       { to: "/admin/bilanz", label: "Jahresabschluss", roles: ["admin"] },
+      { to: "/admin/bankkonto", label: "Bankkonto", roles: ["admin"] },
     ],
   },
   {
