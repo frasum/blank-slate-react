@@ -1,51 +1,52 @@
-## Diagnose
+# STAT-U2 — Umsatzentwicklung (3 Serien) + Take-Away-Kanäle-Donut
 
-Mo (Sirirat „MO", `4edfdb…`) ist in `staff_locations` an beiden Standorten (spicery, YUM) für **kitchen, service UND gl** eingetragen. `time_entries` hat keine Abteilungs-Dimension — die Zeit-Übersicht attribuiert jede Zeile über `entryRowDepartment` → `primaryDepartment` (`src/lib/time/primary-department.ts`), und dessen Reihenfolge ist hart:
+Erweitert die bestehende Statistik-Seite (Umsatz-Tab) um zwei aus der Alt-App `tagesabrechnung` bewährte Auswertungen — rein aus COCO-Daten (Sessions, Channel-Amounts, Waiter-Settlements). Kein Schema-Change.
 
-```text
-kitchen  >  service  >  gl
-```
+## Umfang
 
-Also: sobald jemand irgendwo als „kitchen" gelistet ist, laufen alle Stunden ohne explizite Abteilung auf die Küchenzeile — unabhängig davon, was tatsächlich im Dienstplan steht. Mos Dienstplan-Schichten der letzten Wochen sind aber **ausnahmslos `area = 'service'`**.
+1. **Server + reine Logik**
+   - `revenue-core.ts` erweitern:
+     - `DailyRevenue` bekommt Feld `cardCents: number`.
+     - `sessionRevenue`/`aggregateByBusinessDate` bleiben rückwärts­kompatibel; Kreditkarten fließen als separater Aggregations-Parameter (Map `sessionId → cardCents`) über `aggregateByBusinessDate(sessions, cardBySession?)` ein — Default 0.
+     - Neue reine Helfer:
+       - `groupTakeawayByChannel(rows: { name: string; amountCents: number }[]) → { name, amountCents }[]` (Summe pro Name, absteigend sortiert).
+       - `computeChannelPercents(items) → { name, amountCents, pct }[]` mit Largest-Remainder-Runden, sodass Σ pct = 100 (bzw. 0 bei leerer Liste).
+   - `revenue-stats.functions.ts` erweitern:
+     - Zusätzliche Query `waiter_settlements` (org + Zeitraum + optional `location_id`, `card_total_cents` je `business_date`/`session_id`) → in `aggregateByBusinessDate` einspeisen.
+     - Zusätzliche Query `session_channel_amounts` mit Join `revenue_channels(name, is_takeaway)` filtert `is_takeaway=true` und liefert pro Kanalname die Summe. Ergebnis `takeawayByChannel` (sortiert abst.) im Response ergänzen.
+     - Vorperiode: Nur Basis-Summary (kein Kanal-Split, keine Card-Serie) — wie bisher.
+   - `revenue-map.ts` ggf. minimal anpassen, falls Card-Merge dort besser aufgehoben ist (bevorzugt reine Aggregation in `revenue-core`).
 
-Der Fehler ist damit systemisch (nicht Mo-spezifisch): Jede Person, die zusätzlich zur eigentlichen Abteilung irgendwo mal in „kitchen" oder darüber gemappt wurde, wird in der Zeit-Übersicht falsch einsortiert.
+2. **UI — `/admin/statistik` Umsatz-Tab (`statistik.tsx`)**
+   - **Karte „Umsatzverlauf"**: bestehendes `BarChart` durch `ComposedChart` mit drei Serien ersetzen:
+     - `Area` Tagesumsatz (blau, gefüllt)
+     - `Line` Kreditkarten (orange, gestrichelt)
+     - `Line` Takeaway (grün)
+     - Gemeinsame `Tooltip` in € (de-DE via bestehende `fmtCents`), Legende unter dem Chart.
+     - Vergleich/Trend-Kopfteil der Karte unverändert.
+   - **Neue Karte „Take Away Kanäle"** direkt darunter:
+     - `PieChart` (Donut, `innerRadius`) aus `takeawayByChannel` + `computeChannelPercents`.
+     - Segment-Labels mit Prozent, Legende `Name — X,XX € (yy %)`, Fußzeile `Gesamt Takeaway: … €` = bereits vorhandene `summary.takeawayCents`.
+     - Leerer Zeitraum / keine Takeaway-Umsätze → dezenter Leer-Zustand (Text), kein leerer Donut.
 
-## Zwei-Stufen-Fix
+3. **Tests (Vitest)** — `revenue-core.test.ts` erweitern:
+   - `aggregateByBusinessDate` mergt `cardCents` korrekt (mit/ohne Map).
+   - `groupTakeawayByChannel` summiert, sortiert.
+   - `computeChannelPercents` Σ = 100 bei Rundungskanten (z. B. drei Kanäle mit 1/3), leere Liste → [].
 
-### Stufe 1 — Daten bereinigen (sofort, ohne Code)
+## Nicht anfassen
 
-- In der Stammdaten-UI Mos Zuordnungen an beiden Standorten auf **nur `service`** reduzieren (kitchen + gl entfernen). Danach stimmt die Zeit-Übersicht rückwirkend, weil die Attribution zur Anzeigezeit berechnet wird.
-- Kein Migrationseingriff nötig — reine Datenpflege.
+- Trinkgeld-/Personal-Tabs, `tip-stats.functions.ts`, `personnel-stats.functions.ts`.
+- Keine Migrationen / RLS-Änderungen.
+- `revenue-core.ts` Bestandslogik (Haus/Takeaway, vectron/pos-Sonderfälle) — nur erweitern.
+- Keine hartkodierten Kanalnamen — alles aus `channels.name`.
 
-### Stufe 2 — Systemischer Fix (Code, gleiche Attributions-Logik für alle)
+## Vor dem Commit
 
-Ziel: die tatsächliche Roster-Area des jeweiligen Tages schlägt die statische Rangfolge.
+`npx prettier --write .` und `npx eslint --fix` auf die geänderten Dateien; Erfolgs-Gate: `tsc --noEmit`, `eslint .`, `prettier --check .`, `vitest run` alle grün.
 
-Änderungen:
+## Technische Notizen
 
-1. **`src/lib/time/primary-department.ts`**
-   - Neue Signatur `entryRowDepartment(entryDept, staffDepts, opts?: { rosterArea?: Department | null })`.
-   - Wenn `entryDept == null` und `rosterArea` an dem Tag existiert und in `staffDepts` liegt → Attribution auf `rosterArea` (nicht `primaryDepartment`).
-   - Fallback unverändert (`primaryDepartment(staffDepts)`), Reihenfolge bleibt kitchen > service > gl nur für den Fall „gar keine Roster-Info".
-   - Tests in `primary-department.test.ts` um Roster-Overlay-Fälle erweitern.
-
-2. **`src/routes/_authenticated/admin/zeit-uebersicht.tsx`**
-   - Roster-Shifts pro (staffId, iso) aus vorhandenem Loader mitziehen (Map `staffId|iso → area`).
-   - An der Attributionsstelle (Zeile 790–798) `rosterArea` mit übergeben.
-   - Für Zeilen-Gruppierung: existiert für einen Tag bereits eine Roster-Area einer Person, wird die dazugehörige Departments-Zeile garantiert erzeugt, damit die Stunden dort landen (statt eine neue leere „Küche"-Zeile zu öffnen, wenn dort nichts geplant ist).
-
-3. **Regression-Guard**
-   - Charakterisierungstest mit Mo-artigem Setup (`staffDepts = [kitchen, service, gl]`, Roster-Area = service, entryDept = null) → erwartetes Ergebnis `service`.
-
-Kein Schema-Change, keine RLS-Änderung, keine Migration. Reine Anzeige-Logik + Datenpflege.
-
-## Nicht enthalten (bewusst)
-
-- Keine Änderung an `time_entries`-Schema (Abteilung weiter am Eintrag nur wenn explizit gestempelt).
-- Keine Änderung an der Reihenfolge kitchen > service > gl als reiner Fallback — nur die Roster-Area schlägt ihn.
-- Keine UI-Umschichtung in der Stammdaten-Pflege (könnte separat als „Primary Department"-Feld folgen).
-
-## Test
-
-- `bun run test src/lib/time/primary-department.test.ts` grün.
-- Zeit-Übersicht der letzten 14 Tage für Mo zeigt Stunden unter **Service** (statt Küche), ohne dass ihre Zuordnung geändert werden muss.
+- `waiter_settlements` liefert card-Beträge pro Session; Zuordnung Session → `business_date` bereits über die Sessions-Query. Card-Map wird als `Record<sessionId, number>` an `aggregateByBusinessDate` gereicht, damit `revenue-core` rein bleibt.
+- `takeawayByChannel` wird über denselben `session_channel_amounts`-Read gewonnen, den `loadWindow` schon macht — nur mit zusätzlichem `revenue_channels(name)` im Select und einer zweiten Gruppierung; keine zweite Roundtrip-Query nötig.
+- `ComposedChart` ist Teil von `recharts` und benötigt keinen neuen Import auf Package-Ebene.
