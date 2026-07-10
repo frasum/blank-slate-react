@@ -1,8 +1,8 @@
 // Server-Functions für Skills-Stammdaten und Mitarbeiter-Skill-Zuordnung.
 //
 // `listSkills` und `getStaffSkills` sind Lese-Functions (manager+);
-// `assignStaffSkills` schreibt `staff_skills` analog zu `assignStaffLocations`
-// (DELETE + INSERT in einem Vorgang, durch `runGuarded` mit Audit-Log).
+// `assignStaffSkills` schreibt `staff_skills` per DELETE + INSERT in einem
+// Vorgang, durch `runGuarded` mit Audit-Log.
 
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";

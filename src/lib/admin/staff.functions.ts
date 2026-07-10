@@ -407,38 +407,6 @@ export const setStaffRole = createServerFn({ method: "POST" })
     });
   });
 
-export const assignStaffLocations = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
-    z
-      .object({
-        staffId: z.string().uuid(),
-        locationIds: z.array(z.string().uuid()),
-      })
-      .parse(input),
-  )
-  .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
-    return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { error: rpcErr } = await supabaseAdmin.rpc("replace_staff_locations", {
-        p_staff_id: data.staffId,
-        p_organization_id: caller.organizationId,
-        p_location_ids: data.locationIds,
-      });
-      if (rpcErr) throw rpcErr;
-      return {
-        result: { ok: true as const },
-        audit: {
-          action: "staff.assign_locations",
-          entity: "staff",
-          entityId: data.staffId,
-          meta: { locationIds: data.locationIds },
-        },
-      };
-    });
-  });
-
 export const setStaffParticipatesInPool = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>

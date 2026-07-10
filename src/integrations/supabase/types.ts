@@ -5298,14 +5298,6 @@ export type Database = {
         }
         Returns: undefined
       }
-      replace_staff_locations: {
-        Args: {
-          p_location_ids: string[]
-          p_organization_id: string
-          p_staff_id: string
-        }
-        Returns: undefined
-      }
       replace_staff_role: {
         Args: {
           p_organization_id: string
