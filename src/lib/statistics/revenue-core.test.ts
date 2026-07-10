@@ -4,6 +4,8 @@ import {
   aggregateByBusinessDate,
   summarize,
   computeTrend,
+  groupTakeawayByChannel,
+  computeChannelPercents,
   type SessionRevenueInput,
 } from "./revenue-core";
 
@@ -82,6 +84,7 @@ describe("aggregateByBusinessDate", () => {
         houseCents: 150000,
         takeawayCents: 30000,
         totalCents: 180000,
+        cardCents: 0,
         sessionCount: 2,
       },
     ]);
@@ -127,6 +130,7 @@ describe("summarize", () => {
         houseCents: 100,
         takeawayCents: 50,
         totalCents: 150,
+        cardCents: 0,
         sessionCount: 1,
       },
       {
@@ -134,6 +138,7 @@ describe("summarize", () => {
         houseCents: 0,
         takeawayCents: 0,
         totalCents: 0,
+        cardCents: 0,
         sessionCount: 1,
       },
       {
@@ -141,6 +146,7 @@ describe("summarize", () => {
         houseCents: 200,
         takeawayCents: 0,
         totalCents: 200,
+        cardCents: 0,
         sessionCount: 1,
       },
     ]);
@@ -174,5 +180,109 @@ describe("computeTrend", () => {
   });
   it("current===previous → delta 0, pct 0", () => {
     expect(computeTrend(100, 100)).toEqual({ deltaCents: 0, pct: 0 });
+  });
+});
+
+describe("aggregateByBusinessDate — cardCents", () => {
+  it("ohne Card-Map → cardCents = 0", () => {
+    const rows = aggregateByBusinessDate([
+      {
+        sessionId: "a",
+        businessDate: "2026-06-01",
+        locationId: "x",
+        vectronCents: 1000,
+        channels: [],
+      },
+    ]);
+    expect(rows[0].cardCents).toBe(0);
+  });
+  it("Map summiert Card pro Session und mergt pro Tag", () => {
+    const rows = aggregateByBusinessDate(
+      [
+        {
+          sessionId: "a",
+          businessDate: "2026-06-01",
+          locationId: "x",
+          vectronCents: 100,
+          channels: [],
+        },
+        {
+          sessionId: "b",
+          businessDate: "2026-06-01",
+          locationId: "y",
+          vectronCents: 200,
+          channels: [],
+        },
+      ],
+      new Map([
+        ["a", 400],
+        ["b", 600],
+      ]),
+    );
+    expect(rows[0].cardCents).toBe(1000);
+  });
+  it("Record-Form (Session ohne Eintrag = 0)", () => {
+    const rows = aggregateByBusinessDate(
+      [
+        {
+          sessionId: "a",
+          businessDate: "2026-06-01",
+          locationId: "x",
+          vectronCents: 100,
+          channels: [],
+        },
+      ],
+      { b: 999 },
+    );
+    expect(rows[0].cardCents).toBe(0);
+  });
+});
+
+describe("groupTakeawayByChannel", () => {
+  it("summiert je Name und sortiert absteigend", () => {
+    const out = groupTakeawayByChannel([
+      { name: "Wolt", amountCents: 1000 },
+      { name: "SoUse", amountCents: 500 },
+      { name: "Wolt", amountCents: 250 },
+    ]);
+    expect(out).toEqual([
+      { name: "Wolt", amountCents: 1250 },
+      { name: "SoUse", amountCents: 500 },
+    ]);
+  });
+  it("leere Liste", () => {
+    expect(groupTakeawayByChannel([])).toEqual([]);
+  });
+});
+
+describe("computeChannelPercents", () => {
+  it("Σ pct = 100 auch bei 1/3-Kanten", () => {
+    const out = computeChannelPercents([
+      { name: "A", amountCents: 100 },
+      { name: "B", amountCents: 100 },
+      { name: "C", amountCents: 100 },
+    ]);
+    expect(out.reduce((s, i) => s + i.pct, 0)).toBe(100);
+    expect(out.map((i) => i.pct).sort()).toEqual([33, 33, 34]);
+  });
+  it("exakte Aufteilung", () => {
+    const out = computeChannelPercents([
+      { name: "A", amountCents: 250 },
+      { name: "B", amountCents: 750 },
+    ]);
+    expect(out).toEqual([
+      { name: "A", amountCents: 250, pct: 25 },
+      { name: "B", amountCents: 750, pct: 75 },
+    ]);
+  });
+  it("leere Liste", () => {
+    expect(computeChannelPercents([])).toEqual([]);
+  });
+  it("Gesamtsumme 0 → alle pct=0", () => {
+    const out = computeChannelPercents([
+      { name: "A", amountCents: 0 },
+      { name: "B", amountCents: 0 },
+    ]);
+    expect(out.every((i) => i.pct === 0)).toBe(true);
   });
 });

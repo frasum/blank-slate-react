@@ -40,6 +40,7 @@ export type DailyRevenue = {
   houseCents: number;
   takeawayCents: number;
   totalCents: number;
+  cardCents: number;
   sessionCount: number;
 };
 
@@ -73,15 +74,25 @@ export function sessionRevenue(input: SessionRevenueInput): SessionRevenue {
   };
 }
 
-export function aggregateByBusinessDate(sessions: SessionRevenueInput[]): DailyRevenue[] {
+export function aggregateByBusinessDate(
+  sessions: SessionRevenueInput[],
+  cardBySession?: ReadonlyMap<string, number> | Record<string, number>,
+): DailyRevenue[] {
+  const getCard = (id: string): number => {
+    if (!cardBySession) return 0;
+    if (cardBySession instanceof Map) return cardBySession.get(id) ?? 0;
+    return (cardBySession as Record<string, number>)[id] ?? 0;
+  };
   const byDate = new Map<string, DailyRevenue>();
   for (const s of sessions) {
     const rev = sessionRevenue(s);
+    const card = getCard(s.sessionId);
     const existing = byDate.get(s.businessDate);
     if (existing) {
       existing.houseCents += rev.houseCents;
       existing.takeawayCents += rev.takeawayCents;
       existing.totalCents += rev.totalCents;
+      existing.cardCents += card;
       existing.sessionCount += 1;
     } else {
       byDate.set(s.businessDate, {
@@ -89,6 +100,7 @@ export function aggregateByBusinessDate(sessions: SessionRevenueInput[]): DailyR
         houseCents: rev.houseCents,
         takeawayCents: rev.takeawayCents,
         totalCents: rev.totalCents,
+        cardCents: card,
         sessionCount: 1,
       });
     }
@@ -116,4 +128,51 @@ export function computeTrend(currentCents: number, previousCents: number): Trend
   const deltaCents = currentCents - previousCents;
   const pct = previousCents === 0 ? null : (deltaCents / previousCents) * 100;
   return { deltaCents, pct };
+}
+
+// STAT-U2 — Take-Away je Kanal.
+// Summiert `amountCents` je Kanal-Name und sortiert absteigend. Reihenfolge
+// bei Gleichstand: stabil nach Kanal-Name (aufsteigend), damit die UI und
+// Tests deterministisch bleiben.
+export type TakeawayChannel = { name: string; amountCents: number };
+
+export function groupTakeawayByChannel(
+  rows: readonly { name: string; amountCents: number }[],
+): TakeawayChannel[] {
+  const acc = new Map<string, number>();
+  for (const r of rows) {
+    acc.set(r.name, (acc.get(r.name) ?? 0) + r.amountCents);
+  }
+  return Array.from(acc.entries())
+    .map(([name, amountCents]) => ({ name, amountCents }))
+    .sort((a, b) => b.amountCents - a.amountCents || a.name.localeCompare(b.name));
+}
+
+// Prozent-Verteilung mit Largest-Remainder-Rundung. Σ der ganzzahligen
+// `pct`-Werte ist genau 100, außer bei leerer Liste oder Gesamtsumme 0
+// (dann alle 0 bzw. leeres Ergebnis).
+export type TakeawayChannelPct = TakeawayChannel & { pct: number };
+
+export function computeChannelPercents(items: readonly TakeawayChannel[]): TakeawayChannelPct[] {
+  if (items.length === 0) return [];
+  const total = items.reduce((s, i) => s + i.amountCents, 0);
+  if (total <= 0) return items.map((i) => ({ ...i, pct: 0 }));
+  const raw = items.map((i, idx) => {
+    const exact = (i.amountCents / total) * 100;
+    const floor = Math.floor(exact);
+    return { idx, floor, frac: exact - floor };
+  });
+  const assigned = raw.reduce((s, r) => s + r.floor, 0);
+  let remainder = 100 - assigned;
+  // Größte Fraktion zuerst; Gleichstand → höherer Betrag → kleinerer idx.
+  const order = [...raw].sort(
+    (a, b) =>
+      b.frac - a.frac || items[b.idx].amountCents - items[a.idx].amountCents || a.idx - b.idx,
+  );
+  const bonus = new Array(items.length).fill(0);
+  for (let k = 0; k < order.length && remainder > 0; k++) {
+    bonus[order[k].idx] = 1;
+    remainder--;
+  }
+  return items.map((i, idx) => ({ ...i, pct: raw[idx].floor + bonus[idx] }));
 }

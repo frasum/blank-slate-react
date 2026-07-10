@@ -62,9 +62,10 @@ describe("entryRowDepartment", () => {
     ).toEqual({ department: "service", mismatched: false });
   });
   it("Z3b: rosterArea ignored when not in staffDepts", () => {
-    expect(
-      entryRowDepartment(null, ["service"], { rosterArea: "kitchen" }),
-    ).toEqual({ department: "service", mismatched: false });
+    expect(entryRowDepartment(null, ["service"], { rosterArea: "kitchen" })).toEqual({
+      department: "service",
+      mismatched: false,
+    });
   });
   it("Z3b: entryDept still wins over rosterArea when both set", () => {
     expect(
@@ -72,8 +73,9 @@ describe("entryRowDepartment", () => {
     ).toEqual({ department: "kitchen", mismatched: false });
   });
   it("Z3b: rosterArea does not fire without staffDepts membership", () => {
-    expect(
-      entryRowDepartment(null, ["kitchen"], { rosterArea: "service" }),
-    ).toEqual({ department: "kitchen", mismatched: false });
+    expect(entryRowDepartment(null, ["kitchen"], { rosterArea: "service" })).toEqual({
+      department: "kitchen",
+      mismatched: false,
+    });
   });
 });
