@@ -286,7 +286,11 @@ function ActiveToggleButton({
       <AlertDialogTrigger asChild>
         <button
           type="button"
-          className="rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground hover:bg-accent"
+          className={
+            isActive
+              ? "rounded-md border border-destructive bg-destructive px-3 py-1.5 text-sm font-medium text-destructive-foreground shadow-sm hover:bg-destructive/90"
+              : "rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground hover:bg-accent"
+          }
         >
           {isActive ? "Deaktivieren" : "Aktivieren"}
         </button>
