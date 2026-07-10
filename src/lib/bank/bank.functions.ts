@@ -14,6 +14,7 @@ import {
   type ResolveResult,
 } from "./bank-categorize";
 import { buildBankStats, type BankStats, type StatsTx } from "./bank-stats-core";
+import { chunk } from "./bank-import-helpers";
 
 // ==== Typen für die UI ================================================
 
@@ -184,6 +185,7 @@ export const listBankCategoriesAndRules = createServerFn({ method: "GET" })
 // Import: verlangt geparste Zeilen — der CSV-Parser läuft im Browser, hier
 // kommen nur validierte Objekte an. Konto wird bei Bedarf angelegt.
 const importRowSchema = z.object({
+  iban: z.string().trim().max(34),
   laufendeNummer: z.number().int(),
   buchungstag: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   wertstellungstag: z
@@ -214,6 +216,18 @@ export const importBankTransactions = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, ["admin"]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // Sicherheitsnetz: alle Zeilen müssen zur übergebenen accountIban gehören.
+    // Der Client sollte das bereits garantieren, aber der Server ist die
+    // maßgebliche Grenze — mehr-IBAN-Files dürfen nie in ein Konto laufen.
+    const wantIban = data.accountIban;
+    for (const r of data.rows) {
+      const rowIban = r.iban.replace(/\s+/g, "");
+      if (rowIban && rowIban !== wantIban) {
+        throw new Error(
+          `IBAN-Konflikt: Zeile enthält ${rowIban}, erwartet ${wantIban}. Datei enthält offenbar mehrere Konten.`,
+        );
+      }
+    }
     // Konto suchen oder anlegen (Name aus IBAN ableiten, wenn nicht angegeben).
     let { data: acct, error: acctErr } = await supabaseAdmin
       .from("bank_accounts")
@@ -239,13 +253,17 @@ export const importBankTransactions = createServerFn({ method: "POST" })
     const lfdNumbers = data.rows.map((r) => r.laufendeNummer);
     let existingCount = 0;
     if (lfdNumbers.length > 0) {
-      const { data: ex, error: exErr } = await supabaseAdmin
-        .from("bank_transactions")
-        .select("laufende_nummer")
-        .eq("account_id", accountId)
-        .in("laufende_nummer", lfdNumbers);
-      if (exErr) throw exErr;
-      existingCount = ex?.length ?? 0;
+      // In Blöcken abfragen — PostgREST-`in()` erzeugt sonst bei sehr großen
+      // CSVs URLs jenseits der Server-Limits.
+      for (const part of chunk(lfdNumbers, 500)) {
+        const { data: ex, error: exErr } = await supabaseAdmin
+          .from("bank_transactions")
+          .select("laufende_nummer")
+          .eq("account_id", accountId)
+          .in("laufende_nummer", part);
+        if (exErr) throw exErr;
+        existingCount += ex?.length ?? 0;
+      }
     }
     if (data.rows.length > 0) {
       const payload = data.rows.map((r) => ({
