@@ -344,6 +344,7 @@ function ZeitUebersichtPage() {
         crossLocationDates: {},
         assignedStaff: [],
         rosterByStaff: {},
+        rosterAreaByStaffDate: {},
       };
       for (const q of allLocationQueries) {
         const d = q.data as WeeklyData | undefined;
@@ -368,6 +369,23 @@ function ZeitUebersichtPage() {
           for (const a of bucket.areas) if (!cur.areas.includes(a)) cur.areas.push(a);
           for (const s of bucket.skillIds) if (!cur.skillIds.includes(s)) cur.skillIds.push(s);
           merged.rosterByStaff![sid] = cur;
+        }
+        // Z3b — Per-Tag-Roster-Area über Standorte mergen. Konflikt (zwei
+        // Standorte, unterschiedliche Area am selben Tag): kitchen>service>gl
+        // gewinnt — konsistent mit primaryDepartment.
+        for (const [sid, perDay] of Object.entries(d.rosterAreaByStaffDate ?? {})) {
+          const cur = merged.rosterAreaByStaffDate![sid] ?? {};
+          for (const [iso, area] of Object.entries(perDay)) {
+            const existing = cur[iso];
+            cur[iso] = existing
+              ? existing === area
+                ? existing
+                : (["kitchen", "service", "gl"] as Department[]).find(
+                    (d) => d === existing || d === area,
+                  )!
+              : area;
+          }
+          merged.rosterAreaByStaffDate![sid] = cur;
         }
       }
       return merged;
@@ -788,7 +806,10 @@ function ZeitUebersichtPage() {
       //   - department gesetzt, aber nicht mehr zugeordnet → Primär-Zeile
       //     + `mismatched` (Tooltip-Warnung)
       const staffDepts = staffDeptsByStaff.get(e.staffId) ?? [e.department];
-      const attr = entryRowDepartment(e.rawDepartment ?? null, staffDepts);
+      const rosterArea =
+        (data.rosterAreaByStaffDate?.[e.staffId]?.[e.businessDate] as Department | undefined) ??
+        null;
+      const attr = entryRowDepartment(e.rawDepartment ?? null, staffDepts, { rosterArea });
       const key = rowKey(e.staffId, attr.department);
       let r = rowMap.get(key);
       if (!r) {
@@ -1894,6 +1915,8 @@ type WeeklyData = {
   }[];
   // Z4b — Dienstplan-Realität der Woche je Mitarbeiter (aus roster_shifts).
   rosterByStaff?: Record<string, { areas: Department[]; skillIds: string[] }>;
+  // Z3b — Per-Tag-Roster-Area je Mitarbeiter (Attribution NULL-Einträge).
+  rosterAreaByStaffDate?: Record<string, Record<string, Department>>;
 };
 
 function fmtDec(n: number): string {

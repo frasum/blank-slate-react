@@ -496,20 +496,36 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
     const rosterByStaff: Record<string, { areas: Department[]; skillIds: string[] }> = {};
     const { data: rosterRows, error: rosterErr } = await supabaseAdmin
       .from("roster_shifts")
-      .select("staff_id, area, skill_id")
+      .select("staff_id, area, skill_id, shift_date")
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId)
       .gte("shift_date", data.weekStart)
       .lte("shift_date", weekEnd);
     if (rosterErr) throw rosterErr;
+    // Z3b — Per-Tag-Roster-Area je Mitarbeiter: erlaubt der Client-
+    // Attribution, NULL-Einträge auf die tatsächlich geplante Area des
+    // Tages zu legen (statt hart kitchen>service>gl). Bei mehreren Areas
+    // am selben Tag gewinnt die per primaryDepartment-Priorität — das
+    // ist der historische Default und bleibt für Randfälle stabil.
+    const rosterAreaByStaffDate: Record<string, Record<string, Department>> = {};
     for (const r of rosterRows ?? []) {
       const sid = r.staff_id as string;
       const area = r.area as Department | null;
       const skillId = r.skill_id as string | null;
+      const iso = r.shift_date as string;
       const bucket = rosterByStaff[sid] ?? { areas: [], skillIds: [] };
       if (area && !bucket.areas.includes(area)) bucket.areas.push(area);
       if (skillId && !bucket.skillIds.includes(skillId)) bucket.skillIds.push(skillId);
       rosterByStaff[sid] = bucket;
+      if (area) {
+        const perStaff = rosterAreaByStaffDate[sid] ?? {};
+        const existing = perStaff[iso];
+        // primaryDepartment liefert kitchen>service>gl — hier für den seltenen
+        // Fall zweier Schichten desselben Mitarbeiters am selben Tag mit
+        // unterschiedlichen Areas.
+        perStaff[iso] = existing ? primaryDepartment([existing, area]) : area;
+        rosterAreaByStaffDate[sid] = perStaff;
+      }
     }
 
     // Z2: Alle dem Standort zugeordneten (aktiven) Mitarbeiter — EINE Zeile
@@ -564,6 +580,7 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
       crossLocationDates,
       assignedStaff,
       rosterByStaff,
+      rosterAreaByStaffDate,
     };
   });
 

@@ -35,9 +35,19 @@ export function primaryDepartment(depts: readonly Department[]): Department {
 export function entryRowDepartment(
   entryDept: Department | null | undefined,
   staffDepts: readonly Department[],
+  opts?: { rosterArea?: Department | null },
 ): { department: Department; mismatched: boolean } {
   if (entryDept && staffDepts.includes(entryDept)) {
     return { department: entryDept, mismatched: false };
+  }
+  // Z3b — Wenn kein Eintrags-Department gesetzt ist (Stempel/Batch/Pool/
+  // Bestandsdaten), aber der Dienstplan an dem Tag eine passende Area
+  // gefahren hat, schlägt die Roster-Realität die statische kitchen>
+  // service>gl-Rangfolge. Verhindert, dass Mehrfach-Zuordnungen (z. B.
+  // kitchen + service) Stunden fälschlich in die Küche kippen, obwohl die
+  // Person laut Dienstplan Service war.
+  if (entryDept == null && opts?.rosterArea && staffDepts.includes(opts.rosterArea)) {
+    return { department: opts.rosterArea, mismatched: false };
   }
   return {
     department: primaryDepartment(staffDepts),

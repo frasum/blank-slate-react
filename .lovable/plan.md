@@ -1,25 +1,51 @@
-## Ziel
+## Diagnose
 
-Auf iOS Safari erscheint kurz ein „leerer" Tab, bevor die PDF geladen ist. Diesen Zwischen-Zustand mit einem sichtbaren Hinweis „Öffne PDF…" versehen, damit er nicht mehr leer wirkt.
+Mo (Sirirat „MO", `4edfdb…`) ist in `staff_locations` an beiden Standorten (spicery, YUM) für **kitchen, service UND gl** eingetragen. `time_entries` hat keine Abteilungs-Dimension — die Zeit-Übersicht attribuiert jede Zeile über `entryRowDepartment` → `primaryDepartment` (`src/lib/time/primary-department.ts`), und dessen Reihenfolge ist hart:
 
-## Änderung
+```text
+kitchen  >  service  >  gl
+```
 
-Nur `src/routes/_authenticated/lohn.tsx`, `open()`-Handler, iOS-Safari-Pfad:
+Also: sobald jemand irgendwo als „kitchen" gelistet ist, laufen alle Stunden ohne explizite Abteilung auf die Küchenzeile — unabhängig davon, was tatsächlich im Dienstplan steht. Mos Dienstplan-Schichten der letzten Wochen sind aber **ausnahmslos `area = 'service'`**.
 
-1. Statt `window.open("about:blank", …)` einen `data:`-URL mit minimalem HTML öffnen — z. B.:
-   ```html
-   <!doctype html><meta charset="utf-8"><title>Lohnabrechnung wird geladen…</title>
-   <style>html,body{height:100%;margin:0;font:16px -apple-system,system-ui,sans-serif;
-   background:#fff;color:#111;display:flex;align-items:center;justify-content:center}</style>
-   <p>Öffne PDF…</p>
-   ```
-2. Sobald die Signed-URL da ist, wie bisher `win.location.href = res.url` setzen — der Hinweis wird durch die PDF ersetzt.
-3. Bei Fehler weiterhin `win.close()` + `alert(...)`.
+Der Fehler ist damit systemisch (nicht Mo-spezifisch): Jede Person, die zusätzlich zur eigentlichen Abteilung irgendwo mal in „kitchen" oder darüber gemappt wurde, wird in der Zeit-Übersicht falsch einsortiert.
 
-Desktop-Pfad und Popup-Blocker-Fallback bleiben unverändert.
+## Zwei-Stufen-Fix
 
-## Erfolgs-Kriterien
+### Stufe 1 — Daten bereinigen (sofort, ohne Code)
 
-- iOS Safari: neuer Tab zeigt sofort „Öffne PDF…" (kein weißer Leer-Zustand mehr), danach lädt die PDF.
-- Desktop-Verhalten unverändert (kein leerer Zwischen-Tab, wie im vorigen Fix).
-- Prettier/ESLint sauber.
+- In der Stammdaten-UI Mos Zuordnungen an beiden Standorten auf **nur `service`** reduzieren (kitchen + gl entfernen). Danach stimmt die Zeit-Übersicht rückwirkend, weil die Attribution zur Anzeigezeit berechnet wird.
+- Kein Migrationseingriff nötig — reine Datenpflege.
+
+### Stufe 2 — Systemischer Fix (Code, gleiche Attributions-Logik für alle)
+
+Ziel: die tatsächliche Roster-Area des jeweiligen Tages schlägt die statische Rangfolge.
+
+Änderungen:
+
+1. **`src/lib/time/primary-department.ts`**
+   - Neue Signatur `entryRowDepartment(entryDept, staffDepts, opts?: { rosterArea?: Department | null })`.
+   - Wenn `entryDept == null` und `rosterArea` an dem Tag existiert und in `staffDepts` liegt → Attribution auf `rosterArea` (nicht `primaryDepartment`).
+   - Fallback unverändert (`primaryDepartment(staffDepts)`), Reihenfolge bleibt kitchen > service > gl nur für den Fall „gar keine Roster-Info".
+   - Tests in `primary-department.test.ts` um Roster-Overlay-Fälle erweitern.
+
+2. **`src/routes/_authenticated/admin/zeit-uebersicht.tsx`**
+   - Roster-Shifts pro (staffId, iso) aus vorhandenem Loader mitziehen (Map `staffId|iso → area`).
+   - An der Attributionsstelle (Zeile 790–798) `rosterArea` mit übergeben.
+   - Für Zeilen-Gruppierung: existiert für einen Tag bereits eine Roster-Area einer Person, wird die dazugehörige Departments-Zeile garantiert erzeugt, damit die Stunden dort landen (statt eine neue leere „Küche"-Zeile zu öffnen, wenn dort nichts geplant ist).
+
+3. **Regression-Guard**
+   - Charakterisierungstest mit Mo-artigem Setup (`staffDepts = [kitchen, service, gl]`, Roster-Area = service, entryDept = null) → erwartetes Ergebnis `service`.
+
+Kein Schema-Change, keine RLS-Änderung, keine Migration. Reine Anzeige-Logik + Datenpflege.
+
+## Nicht enthalten (bewusst)
+
+- Keine Änderung an `time_entries`-Schema (Abteilung weiter am Eintrag nur wenn explizit gestempelt).
+- Keine Änderung an der Reihenfolge kitchen > service > gl als reiner Fallback — nur die Roster-Area schlägt ihn.
+- Keine UI-Umschichtung in der Stammdaten-Pflege (könnte separat als „Primary Department"-Feld folgen).
+
+## Test
+
+- `bun run test src/lib/time/primary-department.test.ts` grün.
+- Zeit-Übersicht der letzten 14 Tage für Mo zeigt Stunden unter **Service** (statt Küche), ohne dass ihre Zuordnung geändert werden muss.
