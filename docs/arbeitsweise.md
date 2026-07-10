@@ -3933,3 +3933,41 @@ Nachzug zu §81: Die drei BK1-Befunde sind mit BK1b geschlossen.
 **Regel B — Destruktives SQL nie in derselben Lieferung wie seine Vorbedingung.** Das mitgelaufene DELETE stand im selben Block wie sein Kontroll-SELECT; Mehrfach-Statements laufen praktisch am Stück. Getrennte Lieferungen mit Zwischenprüfung. (Regel stammt aus einem Fehler des Prüfers, nicht des Baumeisters.)
 
 **Konsequenz für BK2:** Punkt 7 (Cross-Account-Duplikatswarnung, Fingerprint ohne Zweck-Text) und Punkt 8 (IBAN-Zwang statt Dropdown) sind direkt aus diesem Vorfall geboren. Der BK2-Bauplan implementiert die acht Anpassungen — Bau-Reihenfolge steht in `.lovable/plan.md`.
+
+## §84 — BK2 gebaut: GoCardless-Anbindung + Cron-Skizze (10.07. abends)
+
+Anker: BK2-Implementierung, Kern-Logik vier Gates grün.
+
+**Was gebaut wurde.** Direkt-Bankanbindung Deutsche Bank Spicery via GoCardless (PSD2). Migration erweitert `bank_accounts` um `gocardless_requisition_id`, `gocardless_account_id`, `last_synced_at` und legt einen **partiellen Unique-Index** auf `(account_id, external_tx_id) WHERE external_tx_id IS NOT NULL` — Idempotenz-Anker für API-Buchungen, ohne das CSV-Idempotenz-Muster (`laufende_nummer`) zu stören.
+
+- **Mapper** (`src/lib/bank/gocardless-map.ts`): Amount string→cents ohne parseFloat, ID-Präferenz `transactionId` → `internalTransactionId`. **Randfall geschlossen:** fehlen beide IDs, wird die Zeile **übersprungen und in `skipped` gezählt** — nie mit NULL-`external_tx_id` importiert (sonst greift der partielle Unique-Index nicht und Dubletten kämen zurück). Testfall in `gocardless-map.test.ts` deckt genau diesen Pfad ab.
+- **`computeDateFrom`** (`src/lib/bank/date-from.ts`): Erst-Sync 90 Tage zurück (GoCardless-Grenze), Folge-Syncs `last_synced_at − 7 Tage` als Overlap-Puffer.
+- **Cross-Account-Duplikate** (`src/lib/bank/cross-account-duplicates.ts`): Fingerprint aus `date|amount|counterparty` (ohne Zweck-Text — der variiert zwischen Konten), Warnung nicht Blockade. Direkte Konsequenz aus §83.
+- **API-Client** (`src/lib/bank/gocardless.server.ts`, server-only): Lazy Token-Cache, Requisition-Flow.
+- **Server-Funktionen** (`bank.functions.ts`): `startBankConnect`, `finalizeBankConnect` mit **striktem IBAN-Match** (Consent-Return-IBAN muss zur Konto-IBAN passen, sonst Abbruch — Konsequenz aus §83), `syncBankTransactions`, `findCrossAccountDuplicates`.
+- **Public Endpoint** (`src/routes/api/public/bank/sync-spicery.ts`): timing-safe `x-cron-secret`-Check, ruft `syncBankTransactions` für das Spicery-Konto.
+
+**Was NICHT durch Lovable ausgeführt wurde (Datenhoheit).** Das `cron.schedule`-Statement liefert Lovable als Vorab-SQL-Skizze; Frank setzt `<CRON_SECRET>` ein und führt es selbst im Supabase-Editor aus. Ziel-URL ist **`https://cocoplatform.online/api/public/bank/sync-spicery`** — die Lovable-Domain `project--<id>.lovable.app` scheidet aus (leitet pfadverlierend um, Lektion vom 08.07., TRMNL).
+
+```sql
+SELECT cron.schedule(
+  'bank-sync-spicery-daily',
+  '0 6 * * *',
+  $$
+  SELECT net.http_post(
+    url := 'https://cocoplatform.online/api/public/bank/sync-spicery',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'x-cron-secret', '<CRON_SECRET>'
+    ),
+    body := '{}'::jsonb
+  );
+  $$
+);
+```
+
+**Offener Ehrlichkeits-Punkt (aus vorheriger Lieferung).** Der GoCardless-Consent-Redirect bringt in der Praxis nur `?ref=<reference>` zurück, nicht die `requisitionId`, die `finalizeBankConnect` aktuell erwartet. Nachzug (`finalizeBankConnectByAccount`, Auflösung `reference → requisitionId` via API) folgt vor produktivem Erst-Connect.
+
+**Secrets, die noch fehlen:** `GOCARDLESS_SECRET_ID`, `GOCARDLESS_SECRET_KEY`, `CRON_SECRET`. Setzen erfolgt durch Frank; Lovable erzeugt sie nicht selbst.
+
+**Offen bleibt** wie in §83 gelistet, plus: `finalizeBankConnectByAccount` nachziehen · Secrets setzen · Cron-SQL im Supabase-Editor ausführen · produktiver Erst-Connect Spicery.
