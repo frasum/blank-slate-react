@@ -257,63 +257,6 @@ function BasicsTab({
   );
 }
 
-function LocationsTab({ staffId, current }: { staffId: string; current: string[] }) {
-  const queryClient = useQueryClient();
-  const locationsQ = useQuery({
-    queryKey: ["admin", "locations"],
-    queryFn: () => listLocations(),
-  });
-  const callAssign = useServerFn(assignStaffLocations);
-  const [selected, setSelected] = useState<Set<string>>(new Set(current));
-  const [msg, setMsg] = useState<string | null>(null);
-
-  const mutation = useMutation({
-    mutationFn: () => callAssign({ data: { staffId, locationIds: Array.from(selected) } }),
-    onSuccess: async () => {
-      setMsg("Gespeichert.");
-      await queryClient.invalidateQueries({ queryKey: ["admin", "staff"] });
-    },
-    onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
-  });
-
-  return (
-    <div className="max-w-lg space-y-3">
-      {locationsQ.isLoading && <p className="text-sm text-muted-foreground">Lade Standorte…</p>}
-      {locationsQ.data && locationsQ.data.length === 0 && (
-        <p className="text-sm text-muted-foreground">Noch keine Standorte angelegt.</p>
-      )}
-      <div className="space-y-2">
-        {locationsQ.data?.map((loc) => (
-          <label key={loc.id} className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={selected.has(loc.id)}
-              onChange={(e) => {
-                const next = new Set(selected);
-                if (e.target.checked) next.add(loc.id);
-                else next.delete(loc.id);
-                setSelected(next);
-              }}
-            />
-            <span className="text-foreground">{loc.name}</span>
-          </label>
-        ))}
-      </div>
-      {msg && <p className="text-sm text-muted-foreground">{msg}</p>}
-      <button
-        onClick={() => {
-          setMsg(null);
-          mutation.mutate();
-        }}
-        disabled={mutation.isPending}
-        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-      >
-        {mutation.isPending ? "Speichern…" : "Speichern"}
-      </button>
-    </div>
-  );
-}
-
 type SkillRow = {
   id: string;
   name: string;
