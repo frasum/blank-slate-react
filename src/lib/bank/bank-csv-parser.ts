@@ -238,7 +238,9 @@ export function resolveColumns(header: string[]): ColumnMap {
     saldo: findColumnIndex(header, COLUMN_ALIASES.saldo),
   };
   const required: (keyof ColumnMap)[] = ["iban", "betrag", "buchungstag", "laufendeNummer"];
-  const missing = required.filter((k) => map[k] < 0);
+  // Fehlermeldung nennt die Spalten so, wie sie in der Datei heißen müssten
+  // (erster Alias), nicht die internen Feld-Keys.
+  const missing = required.filter((k) => map[k] < 0).map((k) => COLUMN_ALIASES[k][0]);
   if (missing.length > 0) {
     throw new Error(
       `CSV-Header unvollständig: fehlende Spalte(n) ${missing.join(", ")}. ` +
