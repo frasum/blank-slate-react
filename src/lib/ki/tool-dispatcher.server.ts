@@ -392,17 +392,14 @@ async function umsatzZeitraum(ctx: ToolContext, input: Record<string, unknown>) 
     vectronCents: (r.vectron_daily_total_cents as number | null) ?? 0,
   }));
 
-  let vouchersSoldCents = 0;
-  let vouchersRedeemedCents = 0;
-  for (const r of sess ?? []) {
-    vouchersSoldCents += Number(r.vouchers_sold_cents ?? 0);
-    vouchersRedeemedCents += Number(r.vouchers_redeemed_cents ?? 0);
-  }
+  const voucherRows = (sess ?? []).map((r) => ({
+    vouchersSoldCents: Number(r.vouchers_sold_cents ?? 0),
+    vouchersRedeemedCents: Number(r.vouchers_redeemed_cents ?? 0),
+  }));
 
   let channels: ChannelAmountRow[] = [];
   const takeawayRaw: { name: string; amountCents: number }[] = [];
-  let karteCents = 0;
-  let kassiertBruttoCents = 0;
+  const settlementRows: { cardTotalCents: number; kassiertBruttoCents: number }[] = [];
   if (sessions.length > 0) {
     const ids = sessions.map((s) => s.id);
     const { data: ch, error: chErr } = await ctx.admin
@@ -432,9 +429,6 @@ async function umsatzZeitraum(ctx: ToolContext, input: Record<string, unknown>) 
       }
     }
 
-    // Zahlungsweg-Aufschlüsselung: Karte + Bar-Restgröße aus aktiven
-    // Kellner-Abrechnungen (status != 'superseded'). Gleiche Zeilenbasis
-    // wie in STAT-U2 (revenue-stats.functions.ts).
     const { data: wsRows, error: wsErr } = await ctx.admin
       .from("waiter_settlements")
       .select("card_total_cents, kassiert_brutto_cents, pos_sales_cents, status")
@@ -443,21 +437,20 @@ async function umsatzZeitraum(ctx: ToolContext, input: Record<string, unknown>) 
       .neq("status", "superseded");
     if (wsErr) throw new Error(wsErr.message);
     for (const r of wsRows ?? []) {
-      karteCents += Number(r.card_total_cents ?? 0);
-      // kassiert_brutto ist die Bruttosumme, die der Kellner kassiert hat;
-      // Fallback auf pos_sales, wenn nicht gesetzt (parallel zu Kasse-UI).
       const kb =
         r.kassiert_brutto_cents === null || r.kassiert_brutto_cents === undefined
           ? Number(r.pos_sales_cents ?? 0)
           : Number(r.kassiert_brutto_cents);
-      kassiertBruttoCents += kb;
+      settlementRows.push({
+        cardTotalCents: Number(r.card_total_cents ?? 0),
+        kassiertBruttoCents: kb,
+      });
     }
   }
 
   const daily = aggregateByBusinessDate(mapToSessionInputs(sessions, channels));
   const sum = summarize(daily);
-  const takeawayKanaele = groupTakeawayByChannel(takeawayRaw);
-  const barCentsRechnerisch = Math.max(0, kassiertBruttoCents - karteCents);
+  const zahlung = computePaymentBreakdown(settlementRows, voucherRows, takeawayRaw);
 
   return {
     range: { from, to },
@@ -467,19 +460,54 @@ async function umsatzZeitraum(ctx: ToolContext, input: Record<string, unknown>) 
     tage_mit_umsatz: sum.daysWithRevenue,
     session_count: sessions.length,
     zahlungswege: {
-      karte_eur: round2(karteCents / 100),
-      bar_rechnerisch_eur: round2(barCentsRechnerisch / 100),
-      gutscheine_verkauft_eur: round2(vouchersSoldCents / 100),
-      gutscheine_eingeloest_eur: round2(vouchersRedeemedCents / 100),
+      karte_eur: round2(zahlung.karteCents / 100),
+      bar_rechnerisch_eur: round2(zahlung.barCentsRechnerisch / 100),
+      gutscheine_verkauft_eur: round2(zahlung.gutscheineVerkauftCents / 100),
+      gutscheine_eingeloest_eur: round2(zahlung.gutscheineEingeloestCents / 100),
       hinweis:
         "Bar ist eine rechnerische Restgröße = Σ kassiert_brutto − Σ Karte aus den aktiven Kellner-Abrechnungen (keine Kassenzählung).",
     },
-    takeaway_kanaele: takeawayKanaele.map((c) => ({
+    takeaway_kanaele: zahlung.takeawayKanaele.map((c) => ({
       name: c.name,
       betrag_eur: round2(c.amountCents / 100),
     })),
     hinweis:
       "Servicezeit-Aufschlüsselung (Mittag/Abend) ist aus den Kassendaten NICHT ableitbar — sessions sind Tages-Einheiten.",
+  };
+}
+
+/** A1′ — Reine Aufbereitung der Zahlungsweg-Antwort. Exportiert für Tests. */
+export type PaymentBreakdown = {
+  karteCents: number;
+  barCentsRechnerisch: number;
+  gutscheineVerkauftCents: number;
+  gutscheineEingeloestCents: number;
+  takeawayKanaele: { name: string; amountCents: number }[];
+};
+
+export function computePaymentBreakdown(
+  settlements: readonly { cardTotalCents: number; kassiertBruttoCents: number }[],
+  vouchers: readonly { vouchersSoldCents: number; vouchersRedeemedCents: number }[],
+  takeawayRaw: readonly { name: string; amountCents: number }[],
+): PaymentBreakdown {
+  let karteCents = 0;
+  let kassiertBruttoCents = 0;
+  for (const s of settlements) {
+    karteCents += s.cardTotalCents;
+    kassiertBruttoCents += s.kassiertBruttoCents;
+  }
+  let gutscheineVerkauftCents = 0;
+  let gutscheineEingeloestCents = 0;
+  for (const v of vouchers) {
+    gutscheineVerkauftCents += v.vouchersSoldCents;
+    gutscheineEingeloestCents += v.vouchersRedeemedCents;
+  }
+  return {
+    karteCents,
+    barCentsRechnerisch: Math.max(0, kassiertBruttoCents - karteCents),
+    gutscheineVerkauftCents,
+    gutscheineEingeloestCents,
+    takeawayKanaele: groupTakeawayByChannel(takeawayRaw),
   };
 }
 
