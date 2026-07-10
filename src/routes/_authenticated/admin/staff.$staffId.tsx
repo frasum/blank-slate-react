@@ -3,14 +3,12 @@ import { createFileRoute, useRouteContext } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
-  assignStaffLocations,
   getStaff,
   setStaffActive,
   setStaffRole,
   setStaffParticipatesInPool,
   updateStaffBasics,
 } from "@/lib/admin/staff.functions";
-import { listLocations } from "@/lib/admin/locations.functions";
 import { clearPin, setPin } from "@/lib/admin/pin.functions";
 import {
   createStaffAccount,
@@ -47,7 +45,6 @@ export const Route = createFileRoute("/_authenticated/admin/staff/$staffId")({
 
 type Tab =
   | "basics"
-  | "locations"
   | "skills"
   | "personal"
   | "role"
@@ -93,7 +90,6 @@ function StaffDetailPage() {
         {(
           [
             ["basics", "Stammdaten"],
-            ["locations", "Standorte"],
             ["skills", "Skills"],
             ...(showPersonal ? ([["personal", "Personaldaten"]] as [Tab, string][]) : []),
             ["role", "Rolle & Aktiv"],
@@ -116,7 +112,6 @@ function StaffDetailPage() {
           <BasicsTab staff={s} />
         </div>
       )}
-      {tab === "locations" && <LocationsTab staffId={s.id} current={s.locationIds} />}
       {tab === "skills" && <SkillsTab staffId={s.id} isAdmin={isAdmin} />}
       {tab === "personal" && showPersonal && (
         <PersonalDetailsTab
