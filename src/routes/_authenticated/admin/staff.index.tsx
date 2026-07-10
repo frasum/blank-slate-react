@@ -65,6 +65,7 @@ const ROLE_OPTIONS: { value: AppRole | ""; label: string }[] = [
   { value: "", label: "—" },
   { value: "admin", label: "Admin" },
   { value: "manager", label: "Manager" },
+  { value: "planer", label: "Planer" },
   { value: "payroll", label: "Payroll" },
   { value: "staff", label: "Staff" },
 ];
