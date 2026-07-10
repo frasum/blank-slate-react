@@ -1135,24 +1135,14 @@ function LocationCompareSection({
 
               {/* Sechs Vergleichskarten */}
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                <ComparisonCard
-                  title="Gesamtumsatz"
-                  a={a}
-                  b={b}
-                  valueOf={(r) => r.totalCents}
-                />
+                <ComparisonCard title="Gesamtumsatz" a={a} b={b} valueOf={(r) => r.totalCents} />
                 <ComparisonCard
                   title="Ø Tagesumsatz"
                   a={a}
                   b={b}
                   valueOf={(r) => r.avgDailyCents}
                 />
-                <ComparisonCard
-                  title="Lieferumsatz"
-                  a={a}
-                  b={b}
-                  valueOf={(r) => r.takeawayCents}
-                />
+                <ComparisonCard title="Lieferumsatz" a={a} b={b} valueOf={(r) => r.takeawayCents} />
                 <ComparisonCard
                   title="Service-Trinkgeld"
                   a={a}
