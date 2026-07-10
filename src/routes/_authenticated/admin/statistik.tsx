@@ -538,6 +538,7 @@ function ErrorState({ message }: { message: string }) {
 function StatsView({ data }: { data: RevenueStats }) {
   const trend = data.trend;
   const hasDaily = data.daily.length > 0;
+  const hasTakeaway = data.takeawayByChannel.length > 0 && data.summary.takeawayCents > 0;
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-3">
@@ -560,6 +561,24 @@ function StatsView({ data }: { data: RevenueStats }) {
         </CardHeader>
         <CardContent>{hasDaily ? <RevenueChart daily={data.daily} /> : <EmptyChart />}</CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Take Away Kanäle</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {hasTakeaway ? (
+            <TakeawayChannelsDonut
+              channels={data.takeawayByChannel}
+              totalCents={data.summary.takeawayCents}
+            />
+          ) : (
+            <div className="flex h-[220px] flex-col items-center justify-center rounded-md border border-dashed border-border text-sm text-muted-foreground">
+              Keine Take-Away-Umsätze in diesem Zeitraum.
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -579,15 +598,18 @@ function RevenueChart({ daily }: { daily: DailyRow[] }) {
   const rows = fillDailyGaps(daily).map((d) => ({
     day: d.businessDate.slice(8, 10),
     fullDate: d.businessDate,
-    haus: d.houseCents / 100,
+    total: d.totalCents / 100,
+    card: (d.cardCents ?? 0) / 100,
     takeaway: d.takeawayCents / 100,
-    total: d.totalCents,
+    totalCents: d.totalCents,
+    cardCents: d.cardCents ?? 0,
+    takeawayCents: d.takeawayCents,
   }));
 
   return (
     <div className="h-[320px] w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={rows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+        <ComposedChart data={rows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
           <XAxis dataKey="day" tickLine={false} axisLine={false} fontSize={11} />
           <YAxis
@@ -598,15 +620,34 @@ function RevenueChart({ daily }: { daily: DailyRow[] }) {
             width={70}
           />
           <Tooltip content={<ChartTip />} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
-          <Bar dataKey="haus" stackId="rev" fill="#2563eb" name="Haus" radius={[0, 0, 0, 0]} />
-          <Bar
-            dataKey="takeaway"
-            stackId="rev"
-            fill="#f59e0b"
-            name="Takeaway"
-            radius={[4, 4, 0, 0]}
+          <Legend wrapperStyle={{ fontSize: 11 }} />
+          <Area
+            type="monotone"
+            dataKey="total"
+            name="Tagesumsatz"
+            fill="#2563eb"
+            stroke="#2563eb"
+            fillOpacity={0.18}
+            strokeWidth={2}
           />
-        </BarChart>
+          <Line
+            type="monotone"
+            dataKey="card"
+            name="Kreditkarten"
+            stroke="#f59e0b"
+            strokeWidth={2}
+            strokeDasharray="4 3"
+            dot={false}
+          />
+          <Line
+            type="monotone"
+            dataKey="takeaway"
+            name="Takeaway"
+            stroke="#16a34a"
+            strokeWidth={2}
+            dot={false}
+          />
+        </ComposedChart>
       </ResponsiveContainer>
     </div>
   );
@@ -614,7 +655,14 @@ function RevenueChart({ daily }: { daily: DailyRow[] }) {
 
 type TipPayload = {
   active?: boolean;
-  payload?: Array<{ payload: { fullDate: string; haus: number; takeaway: number; total: number } }>;
+  payload?: Array<{
+    payload: {
+      fullDate: string;
+      totalCents: number;
+      cardCents: number;
+      takeawayCents: number;
+    };
+  }>;
 };
 
 function ChartTip({ active, payload }: TipPayload) {
@@ -624,12 +672,85 @@ function ChartTip({ active, payload }: TipPayload) {
     <div className="rounded-md border border-border bg-popover px-3 py-2 text-xs shadow-md">
       <div className="font-medium">{row.fullDate}</div>
       <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 tabular-nums">
-        <span className="text-muted-foreground">Haus</span>
-        <span className="text-right">{fmtEuro(Math.round(row.haus * 100))}</span>
+        <span className="text-muted-foreground">Tagesumsatz</span>
+        <span className="text-right">{fmtEuro(row.totalCents)}</span>
+        <span className="text-muted-foreground">Kreditkarten</span>
+        <span className="text-right">{fmtEuro(row.cardCents)}</span>
         <span className="text-muted-foreground">Takeaway</span>
-        <span className="text-right">{fmtEuro(Math.round(row.takeaway * 100))}</span>
-        <span className="font-medium">Gesamt</span>
-        <span className="text-right font-medium">{fmtEuro(row.total)}</span>
+        <span className="text-right">{fmtEuro(row.takeawayCents)}</span>
+      </div>
+    </div>
+  );
+}
+
+const CHANNEL_COLORS = [
+  "#2563eb",
+  "#16a34a",
+  "#f59e0b",
+  "#db2777",
+  "#7c3aed",
+  "#0891b2",
+  "#dc2626",
+  "#4b5563",
+];
+
+function TakeawayChannelsDonut({
+  channels,
+  totalCents,
+}: {
+  channels: RevenueStats["takeawayByChannel"];
+  totalCents: number;
+}) {
+  const withPct = computeChannelPercents(channels);
+  return (
+    <div className="flex flex-col gap-4 md:flex-row md:items-center">
+      <div className="h-[240px] w-full md:w-1/2">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={withPct}
+              dataKey="amountCents"
+              nameKey="name"
+              innerRadius={55}
+              outerRadius={95}
+              paddingAngle={1}
+              label={(entry: { pct?: number }) =>
+                entry.pct != null ? `${entry.pct}\u00a0%` : ""
+              }
+              labelLine={false}
+            >
+              {withPct.map((c, i) => (
+                <Cell key={c.name} fill={CHANNEL_COLORS[i % CHANNEL_COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip
+              formatter={(value: number, _name, item) => [
+                `${fmtEuro(value)} (${(item?.payload as { pct?: number })?.pct ?? 0}\u00a0%)`,
+                item?.payload?.name as string,
+              ]}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="flex-1 space-y-2 text-sm">
+        <ul className="space-y-1.5">
+          {withPct.map((c, i) => (
+            <li key={c.name} className="flex items-center gap-2">
+              <span
+                aria-hidden
+                className="inline-block h-2.5 w-2.5 rounded-sm"
+                style={{ backgroundColor: CHANNEL_COLORS[i % CHANNEL_COLORS.length] }}
+              />
+              <span className="flex-1 truncate">{c.name}</span>
+              <span className="tabular-nums">
+                {fmtEuro(c.amountCents)} ({c.pct}&nbsp;%)
+              </span>
+            </li>
+          ))}
+        </ul>
+        <div className="border-t border-border pt-2 text-xs text-muted-foreground">
+          Gesamt Takeaway: <span className="tabular-nums">{fmtEuro(totalCents)}</span>
+        </div>
       </div>
     </div>
   );
