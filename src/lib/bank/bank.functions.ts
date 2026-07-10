@@ -229,7 +229,7 @@ export const importBankTransactions = createServerFn({ method: "POST" })
       }
     }
     // Konto suchen oder anlegen (Name aus IBAN ableiten, wenn nicht angegeben).
-    let { data: acct, error: acctErr } = await supabaseAdmin
+    const { data: acct, error: acctErr } = await supabaseAdmin
       .from("bank_accounts")
       .select("id")
       .eq("organization_id", caller.organizationId)
