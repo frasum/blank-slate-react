@@ -9,7 +9,7 @@ import {
   setStaffRole,
   setStaffLocationDepartment,
 } from "@/lib/admin/staff.functions";
-import { assignStaffSkills, listSkills, type SkillCategory } from "@/lib/admin/skills.functions";
+import { assignStaffSkills, listSkills } from "@/lib/admin/skills.functions";
 import { listLocations } from "@/lib/admin/locations.functions";
 import {
   getSofortmeldungOverview,
@@ -19,7 +19,6 @@ import type { SofortmeldungStatus } from "@/lib/sofortmeldung/sofortmeldung-rule
 import {
   distinctDepartments,
   ineligibleSkills,
-  isSkillCategoryEligible,
   type StaffDepartment,
 } from "@/lib/admin/skill-eligibility";
 import {
@@ -39,6 +38,7 @@ import { Search, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AppRole } from "@/lib/admin/role-guard";
 import { computeAgeYears } from "@/lib/profile/age";
+import { SkillAssignPopover } from "@/components/admin/SkillAssignPopover";
 
 function formatTenure(startDate: string | null | undefined): string | null {
   if (!startDate) return null;
@@ -68,13 +68,6 @@ const ROLE_OPTIONS: { value: AppRole | ""; label: string }[] = [
   { value: "payroll", label: "Payroll" },
   { value: "staff", label: "Staff" },
 ];
-
-const CATEGORY_LABEL: Record<SkillCategory, string> = {
-  kitchen: "Küche",
-  service: "Service",
-  gl: "Geschäftsleitung",
-  other: "Sonstiges",
-};
 
 const DEPARTMENT_ORDER: StaffDepartment[] = ["service", "kitchen", "gl"];
 const DEPARTMENT_SHORT: Record<StaffDepartment, string> = {
@@ -329,9 +322,8 @@ function StaffListPage() {
     deptMutation.mutate({ staffId, locationId, department, enabled: !active });
   }
 
-  function toggleSkill(staffId: string, skillId: string, has: boolean, currentIds: string[]) {
-    const next = has ? currentIds.filter((id) => id !== skillId) : [...currentIds, skillId];
-    skillMutation.mutate({ staffId, skillIds: next });
+  function saveSkills(staffId: string, skillIds: string[]) {
+    skillMutation.mutate({ staffId, skillIds });
   }
 
   return (
@@ -441,7 +433,7 @@ function StaffListPage() {
                       deptPending={deptMutation.isPending}
                       skillPending={skillMutation.isPending}
                       onToggleDept={toggleDept}
-                      onToggleSkill={toggleSkill}
+                      onSaveSkills={saveSkills}
                       employmentStartDate={personalByStaff.get(s.id)?.employmentStartDate ?? null}
                       dateOfBirth={personalByStaff.get(s.id)?.dateOfBirth ?? null}
                     />
@@ -475,7 +467,7 @@ function StaffMatrixRow({
   deptPending,
   skillPending,
   onToggleDept,
-  onToggleSkill,
+  onSaveSkills,
   employmentStartDate,
   dateOfBirth,
 }: {
@@ -492,7 +484,7 @@ function StaffMatrixRow({
     department: StaffDepartment,
     active: boolean,
   ) => void;
-  onToggleSkill: (staffId: string, skillId: string, has: boolean, currentIds: string[]) => void;
+  onSaveSkills: (staffId: string, skillIds: string[]) => void;
   employmentStartDate: string | null;
   dateOfBirth: string | null;
 }) {
@@ -506,15 +498,6 @@ function StaffMatrixRow({
   );
 
   const isPayroll = staff.role === "payroll";
-  const visibleSkills = useMemo(
-    () =>
-      skills.filter(
-        (sk) =>
-          (sk.category !== "other" && staff.departments.includes(sk.category as StaffDepartment)) ||
-          staff.skillIds.includes(sk.id),
-      ),
-    [skills, staff.departments, staff.skillIds],
-  );
 
   return (
     <TableRow className={cn("group", !staff.isActive && "opacity-50")}>
@@ -623,57 +606,41 @@ function StaffMatrixRow({
         {isPayroll ? (
           <span className="text-xs text-muted-foreground">Lohnbüro – keine Bereiche/Skills</span>
         ) : isAdmin ? (
-          <div className="flex flex-wrap gap-1">
-            {skills.length === 0 && (
-              <span className="text-xs text-muted-foreground">Keine Skills angelegt.</span>
-            )}
-            {skills.length > 0 && visibleSkills.length === 0 && (
-              <span className="text-xs text-muted-foreground">Keine passende Abteilung.</span>
-            )}
-            {visibleSkills.map((skill) => {
-              const has = staff.skillIds.includes(skill.id);
-              const eligible = isSkillCategoryEligible(skill.category, staff.departments);
-              const disabled = !isAdmin || skillPending || (!eligible && !has);
-              const tooltip =
-                !eligible && !has
-                  ? `Erst Abteilung „${CATEGORY_LABEL[skill.category]}“ zuweisen`
-                  : has
-                    ? `${skill.name} entfernen`
-                    : `${skill.name} zuweisen`;
-              const color = skill.color ?? undefined;
-              return (
-                <Tooltip key={skill.id}>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      disabled={disabled}
-                      onClick={() => onToggleSkill(staff.id, skill.id, has, staff.skillIds)}
-                      className={cn(
-                        "inline-flex min-w-[36px] items-center justify-center rounded-md border-2 px-2.5 py-1 text-xs font-bold transition-all",
-                        !has && "border-muted-foreground/30 text-muted-foreground bg-transparent",
-                        !eligible && !has && "cursor-not-allowed opacity-25",
-                        eligible && !disabled && "cursor-pointer hover:scale-105",
-                        !eligible && has && "opacity-70",
-                      )}
-                      style={
-                        color && has
-                          ? { backgroundColor: color, borderColor: color, color: "#fff" }
-                          : undefined
-                      }
-                      data-inactive={!has || undefined}
-                      // Inaktive Skills bewusst neutral-grau: bessere Übersicht,
-                      // die Farbe signalisiert nur „aktiv/zugewiesen".
-                    >
-                      {skill.name}
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="text-xs">{tooltip}</p>
-                  </TooltipContent>
-                </Tooltip>
-              );
-            })}
-          </div>
+          <SkillAssignPopover
+            skills={skills}
+            currentIds={staff.skillIds}
+            pending={skillPending}
+            onSave={(next) => onSaveSkills(staff.id, next)}
+            trigger={
+              <button
+                type="button"
+                aria-label="Skills bearbeiten"
+                className="flex min-h-[32px] w-full flex-wrap items-center gap-1 rounded-md border border-transparent px-1 py-0.5 text-left hover:border-border hover:bg-muted/40"
+              >
+                {heldSkills.length === 0 ? (
+                  <span className="text-xs text-muted-foreground">+ Skills wählen</span>
+                ) : (
+                  heldSkills.map((sk) => {
+                    const meta = skills.find((m) => m.id === sk.id);
+                    const color = meta?.color ?? undefined;
+                    return (
+                      <span
+                        key={sk.id}
+                        className="inline-flex min-w-[36px] items-center justify-center rounded-md border-2 px-2 py-0.5 text-xs font-bold"
+                        style={
+                          color
+                            ? { backgroundColor: color, borderColor: color, color: "#fff" }
+                            : { borderColor: "hsl(var(--border))" }
+                        }
+                      >
+                        {sk.name}
+                      </span>
+                    );
+                  })
+                )}
+              </button>
+            }
+          />
         ) : (
           <span className="text-muted-foreground">
             {staff.skillIds.length > 0 ? `${staff.skillIds.length} Skills` : "—"}
