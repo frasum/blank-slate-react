@@ -1524,7 +1524,6 @@ async function trinkgeldAggregat(
             totalCents: v.serviceCents + v.kitchenCents,
           }))
           .sort((a, b) => b.totalCents - a.totalCents),
-    hinweis:
-      "Nur Aggregatsummen — Einzelanteile werden aus Datenschutzgründen nicht ausgeliefert.",
+    hinweis: "Nur Aggregatsummen — Einzelanteile werden aus Datenschutzgründen nicht ausgeliefert.",
   };
 }
