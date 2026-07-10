@@ -5,7 +5,6 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   getStaff,
   setStaffActive,
-  setStaffRole,
   setStaffParticipatesInPool,
   updateStaffBasics,
 } from "@/lib/admin/staff.functions";
@@ -20,7 +19,17 @@ import { PersonalDetailsTab } from "@/components/admin/PersonalDetailsTab";
 import { PermissionsTab } from "@/components/admin/PermissionsTab";
 import { SofortmeldungBanner } from "@/components/admin/SofortmeldungBanner";
 import { DokumenteTab } from "@/components/admin/DokumenteTab";
-import type { AppRole } from "@/lib/admin/role-guard";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
   deletePayslip,
   getPayslipSignedUrl,
@@ -37,7 +46,6 @@ export const Route = createFileRoute("/_authenticated/admin/staff/$staffId")({
 type Tab =
   | "basics"
   | "personal"
-  | "role"
   | "pin"
   | "account"
   | "permissions"
@@ -66,11 +74,24 @@ function StaffDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{s.displayName}</h1>
-        <p className="text-sm text-muted-foreground">
-          {s.isActive ? "aktiv" : "inaktiv"} · Rolle: {s.role ?? "—"}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+            {s.displayName}
+          </h1>
+          <p
+            className={`text-sm ${s.isActive ? "text-muted-foreground" : "text-muted-foreground/60"}`}
+          >
+            {s.isActive ? "aktiv" : "inaktiv"} · Rolle: {s.role ?? "—"}
+          </p>
+        </div>
+        {isAdmin && (
+          <ActiveToggleButton
+            staffId={s.id}
+            displayName={s.displayName}
+            isActive={s.isActive}
+          />
+        )}
       </div>
 
       <div
@@ -81,7 +102,6 @@ function StaffDetailPage() {
           [
             ["basics", "Stammdaten"],
             ...(showPersonal ? ([["personal", "Personaldaten"]] as [Tab, string][]) : []),
-            ["role", "Rolle & Aktiv"],
             ["pin", "PIN"],
             ...(isAdmin ? ([["account", "Login"]] as [Tab, string][]) : []),
             ...(isAdmin ? ([["permissions", "Rechte"]] as [Tab, string][]) : []),
@@ -108,7 +128,6 @@ function StaffDetailPage() {
           canEditVacation={canEditVacation}
         />
       )}
-      {tab === "role" && <RoleTab staff={s} />}
       {tab === "pin" && <PinTab staffId={s.id} hasPin={s.hasPin} />}
       {tab === "account" && isAdmin && <AccountTab staffId={s.id} staffEmail={s.email} />}
       {tab === "permissions" && isAdmin && <PermissionsTab staffId={s.id} />}
