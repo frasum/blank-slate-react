@@ -20,12 +20,24 @@ import {
   type RennerRawRow,
 } from "@/lib/pos/renner-penner-core";
 import { aggregatePersonnel, type CompRow, type WorkEntry } from "@/lib/statistics/personnel-core";
-import { aggregateByBusinessDate, summarize } from "@/lib/statistics/revenue-core";
+import {
+  aggregateByBusinessDate,
+  groupTakeawayByChannel,
+  summarize,
+} from "@/lib/statistics/revenue-core";
 import {
   mapToSessionInputs,
   type ChannelAmountRow,
   type SessionRow,
 } from "@/lib/statistics/revenue-map";
+import {
+  computeSessionTipPoolCore,
+  loadTipSettings,
+  type LoadedSession,
+} from "@/lib/cash/cash.functions";
+import type { TipSettings } from "@/lib/cash/tip-settings";
+import { aggregateTips, type SessionTipResult } from "@/lib/statistics/tip-aggregate";
+import type { AdminCaller } from "@/lib/admin/admin-context";
 import { computePresets } from "./period-resolver";
 import type { ToolName } from "./tools";
 import { pseudonymizeDeep, type PseudonymMap } from "./pseudonym";
@@ -42,6 +54,9 @@ type Admin = SupabaseClient<Database>;
 export type ToolContext = {
   admin: Admin;
   organizationId: string;
+  /** Aufruferkontext — für Kern-Module wie computeSessionTipPoolCore, die
+   *  organizationId + Rolle des Admins erwarten. */
+  caller: AdminCaller;
   /** Pseudonymisierungs-Map — Tools mit Personenbezug (arbeitsstunden,
    *  abwesenheiten) wenden sie auf ihr Ergebnis an, damit der Modell-Input
    *  garantiert keine Klarnamen enthält. */
@@ -146,6 +161,8 @@ export async function runTool(
       return branchenbenchmarkLookup(input);
     case "personal_bestand":
       return await personalBestand(ctx, input);
+    case "trinkgeld_aggregat":
+      return await trinkgeldAggregat(ctx, input);
   }
 }
 
@@ -358,7 +375,9 @@ async function umsatzZeitraum(ctx: ToolContext, input: Record<string, unknown>) 
 
   let q = ctx.admin
     .from("sessions")
-    .select("id, business_date, location_id, vectron_daily_total_cents")
+    .select(
+      "id, business_date, location_id, vectron_daily_total_cents, vouchers_sold_cents, vouchers_redeemed_cents",
+    )
     .eq("organization_id", ctx.organizationId)
     .gte("business_date", from)
     .lte("business_date", to);
@@ -373,19 +392,26 @@ async function umsatzZeitraum(ctx: ToolContext, input: Record<string, unknown>) 
     vectronCents: (r.vectron_daily_total_cents as number | null) ?? 0,
   }));
 
+  const voucherRows = (sess ?? []).map((r) => ({
+    vouchersSoldCents: Number(r.vouchers_sold_cents ?? 0),
+    vouchersRedeemedCents: Number(r.vouchers_redeemed_cents ?? 0),
+  }));
+
   let channels: ChannelAmountRow[] = [];
+  const takeawayRaw: { name: string; amountCents: number }[] = [];
+  const settlementRows: { cardTotalCents: number; kassiertBruttoCents: number }[] = [];
   if (sessions.length > 0) {
     const ids = sessions.map((s) => s.id);
     const { data: ch, error: chErr } = await ctx.admin
       .from("session_channel_amounts")
-      .select("session_id, amount_cents, revenue_channels(is_takeaway)")
+      .select("session_id, amount_cents, revenue_channels(is_takeaway, label)")
       .eq("organization_id", ctx.organizationId)
       .in("session_id", ids)
       .returns<
         {
           session_id: string;
           amount_cents: number;
-          revenue_channels: { is_takeaway: boolean } | null;
+          revenue_channels: { is_takeaway: boolean; label: string } | null;
         }[]
       >();
     if (chErr) throw new Error(chErr.message);
@@ -394,10 +420,37 @@ async function umsatzZeitraum(ctx: ToolContext, input: Record<string, unknown>) 
       amountCents: r.amount_cents,
       isTakeaway: r.revenue_channels?.is_takeaway ?? false,
     }));
+    for (const r of ch ?? []) {
+      if (r.revenue_channels?.is_takeaway) {
+        takeawayRaw.push({
+          name: r.revenue_channels.label,
+          amountCents: r.amount_cents,
+        });
+      }
+    }
+
+    const { data: wsRows, error: wsErr } = await ctx.admin
+      .from("waiter_settlements")
+      .select("card_total_cents, kassiert_brutto_cents, pos_sales_cents, status")
+      .eq("organization_id", ctx.organizationId)
+      .in("session_id", ids)
+      .neq("status", "superseded");
+    if (wsErr) throw new Error(wsErr.message);
+    for (const r of wsRows ?? []) {
+      const kb =
+        r.kassiert_brutto_cents === null || r.kassiert_brutto_cents === undefined
+          ? Number(r.pos_sales_cents ?? 0)
+          : Number(r.kassiert_brutto_cents);
+      settlementRows.push({
+        cardTotalCents: Number(r.card_total_cents ?? 0),
+        kassiertBruttoCents: kb,
+      });
+    }
   }
 
   const daily = aggregateByBusinessDate(mapToSessionInputs(sessions, channels));
   const sum = summarize(daily);
+  const zahlung = computePaymentBreakdown(settlementRows, voucherRows, takeawayRaw);
 
   return {
     range: { from, to },
@@ -406,6 +459,55 @@ async function umsatzZeitraum(ctx: ToolContext, input: Record<string, unknown>) 
     umsatz_takeaway_eur: sum.takeawayCents / 100,
     tage_mit_umsatz: sum.daysWithRevenue,
     session_count: sessions.length,
+    zahlungswege: {
+      karte_eur: round2(zahlung.karteCents / 100),
+      bar_rechnerisch_eur: round2(zahlung.barCentsRechnerisch / 100),
+      gutscheine_verkauft_eur: round2(zahlung.gutscheineVerkauftCents / 100),
+      gutscheine_eingeloest_eur: round2(zahlung.gutscheineEingeloestCents / 100),
+      hinweis:
+        "Bar ist eine rechnerische Restgröße = Σ kassiert_brutto − Σ Karte aus den aktiven Kellner-Abrechnungen (keine Kassenzählung).",
+    },
+    takeaway_kanaele: zahlung.takeawayKanaele.map((c) => ({
+      name: c.name,
+      betrag_eur: round2(c.amountCents / 100),
+    })),
+    hinweis:
+      "Servicezeit-Aufschlüsselung (Mittag/Abend) ist aus den Kassendaten NICHT ableitbar — sessions sind Tages-Einheiten.",
+  };
+}
+
+/** A1′ — Reine Aufbereitung der Zahlungsweg-Antwort. Exportiert für Tests. */
+export type PaymentBreakdown = {
+  karteCents: number;
+  barCentsRechnerisch: number;
+  gutscheineVerkauftCents: number;
+  gutscheineEingeloestCents: number;
+  takeawayKanaele: { name: string; amountCents: number }[];
+};
+
+export function computePaymentBreakdown(
+  settlements: readonly { cardTotalCents: number; kassiertBruttoCents: number }[],
+  vouchers: readonly { vouchersSoldCents: number; vouchersRedeemedCents: number }[],
+  takeawayRaw: readonly { name: string; amountCents: number }[],
+): PaymentBreakdown {
+  let karteCents = 0;
+  let kassiertBruttoCents = 0;
+  for (const s of settlements) {
+    karteCents += s.cardTotalCents;
+    kassiertBruttoCents += s.kassiertBruttoCents;
+  }
+  let gutscheineVerkauftCents = 0;
+  let gutscheineEingeloestCents = 0;
+  for (const v of vouchers) {
+    gutscheineVerkauftCents += v.vouchersSoldCents;
+    gutscheineEingeloestCents += v.vouchersRedeemedCents;
+  }
+  return {
+    karteCents,
+    barCentsRechnerisch: Math.max(0, kassiertBruttoCents - karteCents),
+    gutscheineVerkauftCents,
+    gutscheineEingeloestCents,
+    takeawayKanaele: groupTakeawayByChannel(takeawayRaw),
   };
 }
 
@@ -1300,5 +1402,128 @@ async function personalBestand(ctx: ToolContext, input: Record<string, unknown>)
     per_abteilung: [...perAbteilung.entries()]
       .map(([d, s]) => ({ abteilung: d, anzahl: s.size }))
       .sort((a, b) => b.anzahl - a.anzahl),
+  };
+}
+
+// ─────────────────────────────────────────────────────── trinkgeld_aggregat
+//
+// Pool-Summen (Service/Küche) je Zeitraum, wahlweise ein Standort oder
+// über alle Standorte der Organisation. Delegiert an
+// computeSessionTipPoolCore + aggregateTips — keine Zweit-Implementierung.
+// Datenschutz-Kanon: KEINE Personenanteile (auch nicht pseudonymisiert),
+// weil einzelne shares eindeutig einer Person zuordenbar sind.
+
+export type TrinkgeldAggregat = {
+  range: { from: string; to: string };
+  location_id: string | null;
+  serviceCents: number;
+  kitchenCents: number;
+  totalCents: number;
+  daysWithData: number;
+  per_standort: {
+    location_id: string;
+    name: string;
+    serviceCents: number;
+    kitchenCents: number;
+    totalCents: number;
+  }[];
+  hinweis: string;
+};
+
+async function trinkgeldAggregat(
+  ctx: ToolContext,
+  input: Record<string, unknown>,
+): Promise<TrinkgeldAggregat> {
+  const { from, to } = requireRange(input.from, input.to);
+  const locationId = optionalUuid(input.location_id, "location_id");
+
+  // Standorte für Namen und ggf. Auflistung.
+  const { data: locs, error: locErr } = await ctx.admin
+    .from("locations")
+    .select("id, name")
+    .eq("organization_id", ctx.organizationId);
+  if (locErr) throw new Error(locErr.message);
+  const locationName = new Map((locs ?? []).map((l) => [l.id as string, l.name as string]));
+
+  let sq = ctx.admin
+    .from("sessions")
+    .select("id, business_date, status, locked_at, location_id, tip_pool_settlement_only")
+    .eq("organization_id", ctx.organizationId)
+    .gte("business_date", from)
+    .lte("business_date", to);
+  if (locationId) sq = sq.eq("location_id", locationId);
+  const { data: sess, error } = await sq;
+  if (error) throw new Error(error.message);
+
+  // Settings je Standort cachen — analog getTipStats.
+  const settingsCache = new Map<string, TipSettings>();
+  async function settingsFor(locId: string): Promise<TipSettings> {
+    const hit = settingsCache.get(locId);
+    if (hit) return hit;
+    const s = await loadTipSettings(ctx.organizationId, locId);
+    settingsCache.set(locId, s);
+    return s;
+  }
+
+  const perLoc = new Map<
+    string,
+    { serviceCents: number; kitchenCents: number; results: SessionTipResult[] }
+  >();
+  const allResults: SessionTipResult[] = [];
+
+  for (const s of (sess ?? []) as LoadedSession[]) {
+    const res = await computeSessionTipPoolCore(ctx.caller, s, await settingsFor(s.location_id));
+    let svcShares = 0;
+    let kitShares = 0;
+    for (const sh of res.shares) {
+      if (sh.department === "service") svcShares += sh.shareCents;
+      else kitShares += sh.shareCents;
+    }
+    const svcTotal = res.serviceRemainder + svcShares;
+    const kitTotal = res.kitchenRemainder + kitShares;
+    const bucket = perLoc.get(s.location_id) ?? {
+      serviceCents: 0,
+      kitchenCents: 0,
+      results: [] as SessionTipResult[],
+    };
+    bucket.serviceCents += svcTotal;
+    bucket.kitchenCents += kitTotal;
+    const shape: SessionTipResult = {
+      businessDate: s.business_date as string,
+      serviceRemainderCents: res.serviceRemainder,
+      kitchenRemainderCents: res.kitchenRemainder,
+      shares: res.shares.map((sh) => ({
+        staffId: sh.staffId,
+        department: sh.department,
+        shareCents: sh.shareCents,
+      })),
+    };
+    bucket.results.push(shape);
+    perLoc.set(s.location_id, bucket);
+    allResults.push(shape);
+  }
+
+  const agg = aggregateTips(allResults, {});
+  const daysWithData = agg.daily.filter((d) => d.serviceCents + d.kitchenCents > 0).length;
+
+  return {
+    range: { from, to },
+    location_id: locationId ?? null,
+    serviceCents: agg.totals.serviceCents,
+    kitchenCents: agg.totals.kitchenCents,
+    totalCents: agg.totals.totalCents,
+    daysWithData,
+    per_standort: locationId
+      ? []
+      : [...perLoc.entries()]
+          .map(([id, v]) => ({
+            location_id: id,
+            name: locationName.get(id) ?? id,
+            serviceCents: v.serviceCents,
+            kitchenCents: v.kitchenCents,
+            totalCents: v.serviceCents + v.kitchenCents,
+          }))
+          .sort((a, b) => b.totalCents - a.totalCents),
+    hinweis: "Nur Aggregatsummen — Einzelanteile werden aus Datenschutzgründen nicht ausgeliefert.",
   };
 }

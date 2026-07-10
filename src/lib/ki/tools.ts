@@ -2,6 +2,11 @@
 // je Tool + typisierte Union `ToolName`. Ausführungslogik liegt in
 // `tool-dispatcher.server.ts` — hier NUR Beschreibung/Schema (auch am Client
 // importierbar, falls die UI später Tools listen möchte).
+//
+// DATENSCHUTZ-KANON für alle Tools (verbindlich):
+// Werte, die nur für ≤ 3 Personen aussagekräftig sind, gelten als praktisch
+// personenbezogen → aggregieren oder weglassen. Nie: Personenwerte zu Lohn/
+// Trinkgeld, Kontakte/Adressen, Freitexte mit Personenbezug, Auditlog-Details.
 
 import type { ToolDef } from "./anthropic-client";
 
@@ -23,6 +28,7 @@ export const TOOL_NAMES = [
   "urlaub_antraege",
   "branchenbenchmark_lookup",
   "personal_bestand",
+  "trinkgeld_aggregat",
 ] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];
@@ -76,7 +82,7 @@ export const TOOLS: ToolDef[] = [
   {
     name: "umsatz_zeitraum",
     description:
-      "Netto-/Brutto-Umsatz der Sessions in einem Datumsfenster (inklusive Kanal-Splittung Haus/Takeaway). Datumsangaben immer als ISO YYYY-MM-DD.",
+      "Umsatz der Sessions in einem Datumsfenster inklusive Haus/Takeaway-Splittung UND Zahlungsweg-Aufschlüsselung (Karte, Bar-Restgröße = Kassiert − Karte, Gutscheine verkauft & eingelöst) sowie Take-Away-Kanäle je Name. WICHTIG: Servicezeit-Splits (Mittag/Abend) sind aus den Kassendaten NICHT ableitbar (sessions sind Tages-Einheiten) — bei entsprechenden Fragen ehrlich passen statt zu raten. Datumsangaben immer als ISO YYYY-MM-DD.",
     input_schema: {
       type: "object",
       properties: {
@@ -313,6 +319,20 @@ export const TOOLS: ToolDef[] = [
           description: "Wenn true, werden auch deaktivierte Mitarbeiter mitgezählt. Default false.",
         },
       },
+    },
+  },
+  {
+    name: "trinkgeld_aggregat",
+    description:
+      "Trinkgeld-Pool-Summen (Service/Küche) aggregiert je Zeitraum und optional Standort. Aggregierte Cent-Summen sowie Tage mit Trinkgeld — ohne Personenwerte (Datenschutz-Kanon: Einzelanteile sind einer Person zuordenbar und werden nie ausgeliefert). Ohne Standortfilter zusätzlich pro Standort aufgeschlüsselt.",
+    input_schema: {
+      type: "object",
+      properties: {
+        from: { type: "string", description: "Startdatum (ISO YYYY-MM-DD, inklusive)." },
+        to: { type: "string", description: "Enddatum (ISO YYYY-MM-DD, inklusive)." },
+        location_id: { type: "string", description: "Optionaler Standort (UUID)." },
+      },
+      required: ["from", "to"],
     },
   },
 ];

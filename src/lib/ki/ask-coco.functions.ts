@@ -127,6 +127,7 @@ export const askCoco = createServerFn({ method: "POST" })
     const toolCtx: ToolContext = {
       admin: supabaseAdmin,
       organizationId: caller.organizationId,
+      caller,
       pseudonym: map,
     };
 
