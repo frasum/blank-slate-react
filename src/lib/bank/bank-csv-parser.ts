@@ -82,7 +82,8 @@ export function parseGermanAmountToCents(input: string): number | null {
   }
   if (!/^\d+$/.test(intPart)) return null;
   if (decPart !== "" && !/^\d{1,2}$/.test(decPart)) return null;
-  const cents = Number.parseInt(intPart, 10) * 100 + Number.parseInt((decPart + "00").slice(0, 2), 10);
+  const cents =
+    Number.parseInt(intPart, 10) * 100 + Number.parseInt((decPart + "00").slice(0, 2), 10);
   if (!Number.isFinite(cents)) return null;
   return negative ? -cents : cents;
 }
@@ -237,7 +238,9 @@ export function resolveColumns(header: string[]): ColumnMap {
     saldo: findColumnIndex(header, COLUMN_ALIASES.saldo),
   };
   const required: (keyof ColumnMap)[] = ["iban", "betrag", "buchungstag", "laufendeNummer"];
-  const missing = required.filter((k) => map[k] < 0);
+  // Fehlermeldung nennt die Spalten so, wie sie in der Datei heißen müssten
+  // (erster Alias), nicht die internen Feld-Keys.
+  const missing = required.filter((k) => map[k] < 0).map((k) => COLUMN_ALIASES[k][0]);
   if (missing.length > 0) {
     throw new Error(
       `CSV-Header unvollständig: fehlende Spalte(n) ${missing.join(", ")}. ` +
@@ -286,8 +289,7 @@ export function parseBankCsv(text: string): ParseResult {
     seen.add(key);
     const wertstellungstag =
       cols.wertstellungstag >= 0 ? parseGermanDateToIso(row[cols.wertstellungstag] ?? "") : null;
-    const saldoCents =
-      cols.saldo >= 0 ? parseGermanAmountToCents(row[cols.saldo] ?? "") : null;
+    const saldoCents = cols.saldo >= 0 ? parseGermanAmountToCents(row[cols.saldo] ?? "") : null;
     rows.push({
       iban,
       laufendeNummer: lfd,
@@ -296,11 +298,9 @@ export function parseBankCsv(text: string): ParseResult {
       betragCents: betrag,
       saldoCents,
       gegenpartei: cols.gegenpartei >= 0 ? (row[cols.gegenpartei] ?? "").trim() : "",
-      verwendungszweck:
-        cols.verwendungszweck >= 0 ? (row[cols.verwendungszweck] ?? "").trim() : "",
+      verwendungszweck: cols.verwendungszweck >= 0 ? (row[cols.verwendungszweck] ?? "").trim() : "",
       bankKategorie: cols.kategorie >= 0 ? (row[cols.kategorie] ?? "").trim() : "",
-      bankUnterkategorie:
-        cols.unterkategorie >= 0 ? (row[cols.unterkategorie] ?? "").trim() : "",
+      bankUnterkategorie: cols.unterkategorie >= 0 ? (row[cols.unterkategorie] ?? "").trim() : "",
     });
   }
   // Chronologisch (aufsteigend) sortieren — Saldo-Abgleich braucht Start/Ende.
@@ -314,10 +314,14 @@ export function parseBankCsv(text: string): ParseResult {
     if (r.betragCents >= 0) summeEin += r.betragCents;
     else summeAus += r.betragCents;
   }
-  const zeitraum = rows.length ? { from: rows[0].buchungstag, to: rows[rows.length - 1].buchungstag } : null;
+  const zeitraum = rows.length
+    ? { from: rows[0].buchungstag, to: rows[rows.length - 1].buchungstag }
+    : null;
   // Saldo-Anker: erster/letzter Eintrag mit gesetztem Saldo.
   const withSaldo = rows.filter((r) => r.saldoCents != null);
-  const saldoEndeCents = withSaldo.length ? (withSaldo[withSaldo.length - 1].saldoCents as number) : null;
+  const saldoEndeCents = withSaldo.length
+    ? (withSaldo[withSaldo.length - 1].saldoCents as number)
+    : null;
   // Start-Saldo = Endsaldo VOR der ersten Buchung des Exports = saldoNachErsterBuchung - betragErsterBuchung.
   const saldoStartCents =
     withSaldo.length && withSaldo[0].saldoCents != null

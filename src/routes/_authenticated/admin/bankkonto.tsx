@@ -123,7 +123,12 @@ function BankkontoPage() {
         </div>
         <div>
           <Label>Von</Label>
-          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-40" />
+          <Input
+            type="date"
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+            className="w-40"
+          />
         </div>
         <div>
           <Label>Bis</Label>
@@ -188,7 +193,9 @@ function OverviewTab({
         </CardHeader>
         <CardContent className="h-72">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={s.monthly.map((m) => ({ ...m, ein: m.einCents / 100, aus: m.ausCents / 100 }))}>
+            <BarChart
+              data={s.monthly.map((m) => ({ ...m, ein: m.einCents / 100, aus: m.ausCents / 100 }))}
+            >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
               <YAxis />
@@ -222,20 +229,13 @@ function OverviewTab({
               {s.categoryMonth.rows.map((r) => (
                 <tr
                   key={r.categoryId ?? "_none"}
-                  className={
-                    r.categoryId == null
-                      ? "border-b bg-muted/40 font-medium"
-                      : "border-b"
-                  }
+                  className={r.categoryId == null ? "border-b bg-muted/40 font-medium" : "border-b"}
                 >
                   <td className="p-2">{r.categoryName}</td>
                   {s.categoryMonth.months.map((m) => {
                     const v = r.monthly[m] ?? 0;
                     return (
-                      <td
-                        key={m}
-                        className={`p-2 text-right ${v < 0 ? "text-destructive" : ""}`}
-                      >
+                      <td key={m} className={`p-2 text-right ${v < 0 ? "text-destructive" : ""}`}>
                         {v === 0 ? "" : formatCentsEUR(v)}
                       </td>
                     );
@@ -336,8 +336,7 @@ function TransactionsTab({
 
   const setCat = useServerFn(setBankTransactionCategory);
   const setCatM = useMutation({
-    mutationFn: (v: { transactionId: string; categoryId: string | null }) =>
-      setCat({ data: v }),
+    mutationFn: (v: { transactionId: string; categoryId: string | null }) => setCat({ data: v }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["bk", "tx"] });
       qc.invalidateQueries({ queryKey: ["bk", "stats"] });
@@ -779,8 +778,8 @@ function ImportTab({
       <CardContent className="space-y-4">
         <div className="text-sm text-muted-foreground">
           Erwartet: Original-Export der Deutschen Bank (Windows-1252, Semikolon-getrennt, mit
-          Kopfzeile aus dem Konto-Metablock). Doppel-Uploads sind idempotent — die laufende
-          Nummer wird pro Konto als eindeutiger Schlüssel geführt.
+          Kopfzeile aus dem Konto-Metablock). Doppel-Uploads sind idempotent — die laufende Nummer
+          wird pro Konto als eindeutiger Schlüssel geführt.
         </div>
 
         <div className="flex flex-wrap items-end gap-3">
