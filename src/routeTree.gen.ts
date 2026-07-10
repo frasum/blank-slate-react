@@ -70,6 +70,7 @@ import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/publi
 import { Route as ApiPublicTelegramDailyReportRouteImport } from './routes/api/public/telegram/daily-report'
 import { Route as ApiPublicDisplayLocationIdRouteImport } from './routes/api/public/display.$locationId'
 import { Route as ApiPublicCalendarTokenRouteImport } from './routes/api/public/calendar.$token'
+import { Route as ApiPublicBankSyncSpiceryRouteImport } from './routes/api/public/bank/sync-spicery'
 import { Route as AuthenticatedAdminStaffNewRouteImport } from './routes/_authenticated/admin/staff.new'
 import { Route as AuthenticatedAdminStaffStaffIdRouteImport } from './routes/_authenticated/admin/staff.$staffId'
 import { Route as AuthenticatedAdminEinstellungenEasyorderVerwaltungRouteImport } from './routes/_authenticated/admin/einstellungen.easyorder-verwaltung'
@@ -423,6 +424,12 @@ const ApiPublicCalendarTokenRoute = ApiPublicCalendarTokenRouteImport.update({
   path: '/api/public/calendar/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicBankSyncSpiceryRoute =
+  ApiPublicBankSyncSpiceryRouteImport.update({
+    id: '/api/public/bank/sync-spicery',
+    path: '/api/public/bank/sync-spicery',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedAdminStaffNewRoute =
   AuthenticatedAdminStaffNewRouteImport.update({
     id: '/new',
@@ -518,6 +525,7 @@ export interface FileRoutesByFullPath {
   '/admin/einstellungen/easyorder-verwaltung': typeof AuthenticatedAdminEinstellungenEasyorderVerwaltungRoute
   '/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
   '/admin/staff/new': typeof AuthenticatedAdminStaffNewRoute
+  '/api/public/bank/sync-spicery': typeof ApiPublicBankSyncSpiceryRoute
   '/api/public/calendar/$token': typeof ApiPublicCalendarTokenRoute
   '/api/public/display/$locationId': typeof ApiPublicDisplayLocationIdRoute
   '/api/public/telegram/daily-report': typeof ApiPublicTelegramDailyReportRoute
@@ -582,6 +590,7 @@ export interface FileRoutesByTo {
   '/admin/einstellungen/easyorder-verwaltung': typeof AuthenticatedAdminEinstellungenEasyorderVerwaltungRoute
   '/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
   '/admin/staff/new': typeof AuthenticatedAdminStaffNewRoute
+  '/api/public/bank/sync-spicery': typeof ApiPublicBankSyncSpiceryRoute
   '/api/public/calendar/$token': typeof ApiPublicCalendarTokenRoute
   '/api/public/display/$locationId': typeof ApiPublicDisplayLocationIdRoute
   '/api/public/telegram/daily-report': typeof ApiPublicTelegramDailyReportRoute
@@ -652,6 +661,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/einstellungen/easyorder-verwaltung': typeof AuthenticatedAdminEinstellungenEasyorderVerwaltungRoute
   '/_authenticated/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
   '/_authenticated/admin/staff/new': typeof AuthenticatedAdminStaffNewRoute
+  '/api/public/bank/sync-spicery': typeof ApiPublicBankSyncSpiceryRoute
   '/api/public/calendar/$token': typeof ApiPublicCalendarTokenRoute
   '/api/public/display/$locationId': typeof ApiPublicDisplayLocationIdRoute
   '/api/public/telegram/daily-report': typeof ApiPublicTelegramDailyReportRoute
@@ -722,6 +732,7 @@ export interface FileRouteTypes {
     | '/admin/einstellungen/easyorder-verwaltung'
     | '/admin/staff/$staffId'
     | '/admin/staff/new'
+    | '/api/public/bank/sync-spicery'
     | '/api/public/calendar/$token'
     | '/api/public/display/$locationId'
     | '/api/public/telegram/daily-report'
@@ -786,6 +797,7 @@ export interface FileRouteTypes {
     | '/admin/einstellungen/easyorder-verwaltung'
     | '/admin/staff/$staffId'
     | '/admin/staff/new'
+    | '/api/public/bank/sync-spicery'
     | '/api/public/calendar/$token'
     | '/api/public/display/$locationId'
     | '/api/public/telegram/daily-report'
@@ -855,6 +867,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/einstellungen/easyorder-verwaltung'
     | '/_authenticated/admin/staff/$staffId'
     | '/_authenticated/admin/staff/new'
+    | '/api/public/bank/sync-spicery'
     | '/api/public/calendar/$token'
     | '/api/public/display/$locationId'
     | '/api/public/telegram/daily-report'
@@ -872,6 +885,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   DisplayLocationIdRoute: typeof DisplayLocationIdRoute
+  ApiPublicBankSyncSpiceryRoute: typeof ApiPublicBankSyncSpiceryRoute
   ApiPublicCalendarTokenRoute: typeof ApiPublicCalendarTokenRoute
   ApiPublicDisplayLocationIdRoute: typeof ApiPublicDisplayLocationIdRoute
   ApiPublicTelegramDailyReportRoute: typeof ApiPublicTelegramDailyReportRoute
@@ -1309,6 +1323,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCalendarTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/bank/sync-spicery': {
+      id: '/api/public/bank/sync-spicery'
+      path: '/api/public/bank/sync-spicery'
+      fullPath: '/api/public/bank/sync-spicery'
+      preLoaderRoute: typeof ApiPublicBankSyncSpiceryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/admin/staff/new': {
       id: '/_authenticated/admin/staff/new'
       path: '/new'
@@ -1546,6 +1567,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   DisplayLocationIdRoute: DisplayLocationIdRoute,
+  ApiPublicBankSyncSpiceryRoute: ApiPublicBankSyncSpiceryRoute,
   ApiPublicCalendarTokenRoute: ApiPublicCalendarTokenRoute,
   ApiPublicDisplayLocationIdRoute: ApiPublicDisplayLocationIdRoute,
   ApiPublicTelegramDailyReportRoute: ApiPublicTelegramDailyReportRoute,

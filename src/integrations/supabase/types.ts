@@ -314,6 +314,10 @@ export type Database = {
       bank_accounts: {
         Row: {
           created_at: string
+          gocardless_account_id: string | null
+          gocardless_agreement_expires_at: string | null
+          gocardless_institution_id: string | null
+          gocardless_requisition_id: string | null
           iban: string
           id: string
           location_id: string | null
@@ -323,6 +327,10 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          gocardless_account_id?: string | null
+          gocardless_agreement_expires_at?: string | null
+          gocardless_institution_id?: string | null
+          gocardless_requisition_id?: string | null
           iban: string
           id?: string
           location_id?: string | null
@@ -332,6 +340,10 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          gocardless_account_id?: string | null
+          gocardless_agreement_expires_at?: string | null
+          gocardless_institution_id?: string | null
+          gocardless_requisition_id?: string | null
           iban?: string
           id?: string
           location_id?: string | null
@@ -444,9 +456,10 @@ export type Database = {
           betrag_cents: number
           buchungstag: string
           created_at: string
+          external_tx_id: string | null
           gegenpartei: string
           id: string
-          laufende_nummer: number
+          laufende_nummer: number | null
           organization_id: string
           override_category_id: string | null
           saldo_cents: number | null
@@ -461,9 +474,10 @@ export type Database = {
           betrag_cents: number
           buchungstag: string
           created_at?: string
+          external_tx_id?: string | null
           gegenpartei?: string
           id?: string
-          laufende_nummer: number
+          laufende_nummer?: number | null
           organization_id: string
           override_category_id?: string | null
           saldo_cents?: number | null
@@ -478,9 +492,10 @@ export type Database = {
           betrag_cents?: number
           buchungstag?: string
           created_at?: string
+          external_tx_id?: string | null
           gegenpartei?: string
           id?: string
-          laufende_nummer?: number
+          laufende_nummer?: number | null
           organization_id?: string
           override_category_id?: string | null
           saldo_cents?: number | null
