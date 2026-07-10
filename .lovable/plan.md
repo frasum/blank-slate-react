@@ -1,46 +1,30 @@
-## Ziel
+## Problem
 
-pdfjs-dist-Dublette im Client-Bundle beseitigen: alle vier Aufrufstellen auf den Legacy-Build vereinheitlichen (Safari-Kompatibilitäts-Obermenge). Erster formaler Feature-Branch nach §77.
+Beim Klick auf „Öffnen" in `/lohn` erscheint im Vordergrund ein leerer Tab, im Hintergrund lädt die PDF.
 
-## Branch
+Ursache in `src/routes/_authenticated/lohn.tsx` (`open`-Handler):
+1. Wir öffnen **synchron** `window.open("about:blank", "_blank")` — nötig als iOS-Safari-Workaround, damit der Popup nicht als „nach `await` = keine User-Geste" blockiert wird.
+2. Danach holen wir per `await` die Signed-URL und setzen `win.location.href = res.url`.
 
-- Neuer Branch von `main`: **`feature/bundle-diet`**
-- Solange offen: keine parallele Arbeit auf `main`.
+Auf Desktop-Browsern (Chrome/Safari/Firefox) fokussiert der Browser den frisch geöffneten Tab **sofort** — der Nutzer sieht kurz `about:blank`, dann lädt die PDF darin. Das wirkt wie „leere Seite im Vordergrund".
 
-## Änderungen (genau 4 Zeilen in 2 Dateien)
+## Fix
 
-**`src/components/cash/PdfCanvasPreview.tsx`**
-- Z2: `pdfjs-dist/build/pdf.worker.min.mjs?url` → `pdfjs-dist/legacy/build/pdf.worker.min.mjs?url`
-- Z25: `await import("pdfjs-dist")` → `await import("pdfjs-dist/legacy/build/pdf.mjs")`
+Den `about:blank`-Trick nur dort einsetzen, wo er wirklich gebraucht wird (iOS Safari / iPadOS). Auf allen anderen Plattformen zuerst die Signed-URL holen und dann `window.open(res.url, "_blank", "noopener")` mit der echten URL öffnen — dann gibt es keinen leeren Zwischenschritt.
 
-**`src/lib/payslips/split-combined.ts`**
-- Z7: `pdfjs-dist/build/pdf.worker.min.mjs?url` → `pdfjs-dist/legacy/build/pdf.worker.min.mjs?url`
-- Z30: `await import("pdfjs-dist")` → `await import("pdfjs-dist/legacy/build/pdf.mjs")`
+### Änderungen (nur `src/routes/_authenticated/lohn.tsx`, `open`-Funktion)
 
-## Nicht anfassen
+1. Kleine Helper-Funktion `isIosSafari()`: prüft `navigator.userAgent` auf iPhone/iPad/iPod **und** Safari (ohne CriOS/FxiOS/EdgiOS).
+2. Zwei Pfade:
+   - **iOS Safari:** wie bisher — `window.open("about:blank", "_blank", "noopener")` sofort, dann URL setzen. (Ist dort akzeptabel, da mobil ohnehin Tab-Wechsel-Animation.)
+   - **Sonst:** erst `callOpen(...)` awaiten, dann `window.open(res.url, "_blank", "noopener")`. Fallback auf `location.href = res.url`, wenn `window.open` `null` liefert (Popup-Blocker).
+3. Fehlerbehandlung bleibt (`try/catch`, `alert`). Im iOS-Pfad bei Fehler weiterhin `win.close()`.
 
-- `bwa.tsx`, `bilanz.tsx` (bereits Legacy).
-- `PdfCanvasPreview.tsx` NICHT löschen, auch wenn aktuell ungenutzt — Toten-Code-Entfernung ist separate Entscheidung.
-- Keine Dependency-Änderungen, keine Migrationen, keine weiteren Dateien.
+Keine anderen Dateien betroffen. Keine Server- oder Businesslogik-Änderung. Reines UX-Polishing im Frontend.
 
-## Vor dem Commit
+## Erfolgs-Kriterien
 
-- `npx prettier --write .`
-- `npx eslint --fix` auf den geänderten Dateien.
-
-## Erfolgs-Gate (automatisch)
-
-- `bun run tsc --noEmit` → 0 Fehler
-- `npx eslint .` → 0 Fehler
-- `npx prettier --check .` → sauber
-- `npx vitest run` → 1628 grün
-- Build: nur noch **ein** `pdf.worker.min-*.mjs` im Output.
-
-## Erfolgs-Gate (manuell, vor Merge — Pflicht)
-
-Frank testet auf dem Branch mit echten Daten in Safari UND Chrome:
-1. `/admin/lohn-verteilung` → Sammel-PDF aufteilen → „N Seiten → M Mitarbeiter" korrekt, kein splitError.
-2. DevTools → Netzwerk → Filter „worker": genau ein `pdf.worker.min-*.mjs` geladen.
-3. `/admin/bwa` und `/admin/bilanz` — PDF-Textimport funktioniert unverändert.
-
-Erst nach grünem Manuell-Test: PR → Claude-Review → Merge nach `main`.
+- Desktop (Chrome/Safari/Firefox): Klick auf „Öffnen" → neuer Tab öffnet direkt mit PDF-URL, kein leerer Zwischen-Tab.
+- iOS Safari: unverändert funktional (Regression-Schutz — der Grund für den ursprünglichen Workaround bleibt dokumentiert im Kommentar).
+- Popup-Blocker-Fall: PDF öffnet im aktuellen Tab statt lautlos zu scheitern.
+- Prettier/ESLint sauber.

@@ -19,6 +19,14 @@ function fmtDate(iso: string | null): string {
   return d.toLocaleDateString("de-DE", { year: "numeric", month: "2-digit", day: "2-digit" });
 }
 
+function isIosSafari(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  const isIos = /iPhone|iPad|iPod/.test(ua);
+  const isSafari = /Safari\//.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
+  return isIos && isSafari;
+}
+
 function LohnPage() {
   const callOpen = useServerFn(getPayslipSignedUrl);
   const q = useQuery({
@@ -27,15 +35,27 @@ function LohnPage() {
   });
 
   async function open(entry: PayslipEntry) {
-    // iOS-Safari verwirft window.open nach await als non-user-gesture.
-    // Tab-Handle synchron im Click öffnen, dann URL setzen; sonst gleicher Tab.
-    const win = window.open("about:blank", "_blank", "noopener");
+    // iOS-Safari verwirft window.open nach await als non-user-gesture — dort
+    // muss das Tab-Handle synchron im Click geöffnet werden. Auf allen anderen
+    // Browsern führt das zu einem sichtbaren leeren Vordergrund-Tab, deshalb
+    // dort erst die Signed-URL holen und den Tab direkt mit der Ziel-URL öffnen.
+    if (isIosSafari()) {
+      const win = window.open("about:blank", "_blank", "noopener");
+      try {
+        const res = await callOpen({ data: { path: entry.path } });
+        if (win && !win.closed) win.location.href = res.url;
+        else window.location.href = res.url;
+      } catch (e) {
+        if (win && !win.closed) win.close();
+        alert(e instanceof Error ? e.message : "Öffnen fehlgeschlagen.");
+      }
+      return;
+    }
     try {
       const res = await callOpen({ data: { path: entry.path } });
-      if (win && !win.closed) win.location.href = res.url;
-      else window.location.href = res.url;
+      const win = window.open(res.url, "_blank", "noopener");
+      if (!win) window.location.href = res.url; // Popup-Blocker: gleicher Tab.
     } catch (e) {
-      if (win && !win.closed) win.close();
       alert(e instanceof Error ? e.message : "Öffnen fehlgeschlagen.");
     }
   }
