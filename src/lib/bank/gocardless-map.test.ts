@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { mapGcTransactionsResponse, type GcTransactionsResponse } from "./gocardless-map";
-
-function tx(over: Partial<GcTransactionsResponse["transactions"] extends infer T ? T extends { booked?: (infer U)[] | null } ? U : never : never>) {
-  return over as never;
-}
+// GcTransactionsResponse wird direkt konstruiert; keine Fabrik nötig.
+void ({} as GcTransactionsResponse);
 
 describe("mapGcTransactionsResponse", () => {
   it("verarbeitet nur booked, verwirft pending (skippedPending zählt)", () => {
