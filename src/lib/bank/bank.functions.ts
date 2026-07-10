@@ -15,6 +15,16 @@ import {
 } from "./bank-categorize";
 import { buildBankStats, type BankStats, type StatsTx } from "./bank-stats-core";
 import { chunk } from "./bank-import-helpers";
+import { computeDateFrom } from "./date-from";
+import {
+  fingerprint as fpOf,
+  findCrossAccountMatches,
+  summarizeCrossAccountHits,
+  type CandidateRow,
+  type CrossAccountSummary,
+  type ExistingRow,
+} from "./cross-account-duplicates";
+import { mapGcTransactionsResponse } from "./gocardless-map";
 
 // ==== Typen für die UI ================================================
 
