@@ -33,6 +33,7 @@ describe("fillDailyGaps", () => {
       houseCents: 0,
       takeawayCents: 0,
       totalCents: 0,
+      cardCents: 0,
     });
     expect(out[2].totalCents).toBe(0);
   });
