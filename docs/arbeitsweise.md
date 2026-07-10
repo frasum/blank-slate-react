@@ -3888,6 +3888,26 @@ Anker: `5657ce69`, vier Gates grün, **1662 Tests**.
 
 **Offen:** SD4 („Rolle & Aktiv": Deaktivieren in die Liste umziehen, dann Tab entfernen — NICHT ersatzlos) · Gerätetests ausstehend: iPhone-Payslip (noopener-Fix), Safari-Splitter mit echtem Lohn-PDF, SD3-Popover/Farben, drei KI4-Testfragen · toter `PdfCanvasPreview` (Produktentscheidung) · WebKit-CI-Job beobachten · PL3 (bereit) · Backup-Strategie Stufe 2 · Security-Scanner-Review · Cutover-Planung als nächster großer Block.
 
+## 81. 10.07.2026 (Nachmittag/Abend) — BK1 Bankkonto-Modul, SD4, Direkt-Commits geprüft
+
+Anker: `ec785c5e` (Review-Fix-Commit von Claude), vier Gates grün, **1689 Tests**.
+
+**Direkt-Commits vom Vormittag (ohne Claude, alle geprüft, sauber):** (1) **SD4 umgesetzt** (`5dbfac9d`): „Rolle & Aktiv"-Tab im Stammblatt entfernt — korrekt MIT Umzug: Deaktivieren/Aktivieren sitzt jetzt im Stammblatt-Kopf mit Bestätigungsdialog (`setStaffActive` unverändert), Rolle-Dropdown trägt die Personalliste (`staff.index.tsx`, §80-Auflage erfüllt). (2) Roter Punkt-Badge auf dem Urlaubsanträge-Tab bei offenen Anträgen (`urlaub.tsx`). (3) Wein-Beschreibungen mit Thai-Zeichen per Migration `20260710142642` genullt (idempotentes UPDATE, replayfähig).
+
+**BK1 — Bankkonto unter Auswertungen (`a17dd3e1`→`a17f4ed9` + Review-Fixes `ec785c5e`).** Admin-only Sub-Nav-Eintrag (Muster BWA), Route `/admin/bankkonto` mit vier Bereichen: Übersicht (Kopfkarten, Monats-Chart, Kategorie×Monat-Matrix mit „Ohne Kategorie" oben, Top-Gegenparteien), Buchungen (Filter + Override-Popover), Regeln (Kategorien-CRUD, Trefferzähler), Import (CSV im Browser geparst, Review mit Saldo-Abgleich).
+
+- **DB** (Migration `20260710154305`, BWA-RLS-Muster, Seeds idempotent): `bank_accounts` (UNIQUE org+iban), `bank_categories`, `bank_category_rules` (match_field name|zweck, case-insensitiver Substring, priority), `bank_transactions` — Geld BIGINT cents, **UNIQUE (account_id, laufende_nummer) = Idempotenz-Anker**. Seed: YUM-Konto (`DE53700700240052787900` → Location YUM) + 19 Kategorien + 49 Regeln.
+- **Kern-Lektion Deutsche-Bank-CSV:** Windows-1252 (nicht UTF-8), Sammelbuchungen stehen **mehrfach im Export** (je Einzelumsatz, voller Betrag) — stumpfe Betrag-Summe liefert Unsinn (−6,9 Mio. statt −237 T€). Dedupe ausschließlich über `Laufende Nummer`; Beträge string-basiert → cents (kein parseFloat). Kategorisierung zur LESEZEIT (Override > Regel > „Ohne Kategorie"; Bank-Kategorie nur Info, kein Fallback) — Regeländerungen wirken rückwirkend ohne Reimport.
+- **Verifikation:** vier Gates grün; echter Parser gegen beide Echtdateien: YUM 1221 Zeilen→1101 Buchungen, Netto −237.326,35 € == Saldo-Delta cent-genau; Spicery 906→813, Netto −4.493,40 € == Saldo-Delta. Review-Fixes durch Claude (`ec785c5e`): Prettier-Nachzieher auf 8 bank-Dateien, prefer-const, Parser-Fehlermeldung nennt CSV-Spaltennamen statt interner Keys (einziger roter Test).
+
+**Offene BK1-Befunde (P1 zuerst, Prompt folgt als BK1b):**
+
+1. **P1 — IBAN-Vorbelegungs-Falle im Import-Tab:** Das IBAN-Feld ist frei editierbar und mit dem ERSTEN Konto vorbelegt; die IBAN aus den geparsten Zeilen wird beim Import ignoriert. Lädt man die Spicery-CSV, während die YUM-IBAN im Feld steht, landen 813 Buchungen im falschen Konto. Fix: IBAN aus der Datei übernehmen (readonly), Fehler bei >1 IBAN in einer Datei, Import blockieren bei Feld↔Datei-Mismatch.
+2. **Spicery-Nachtrag nicht umgesetzt:** Seed für Spicery-Konto (`DE26700700240052787901` → Location Spicery) fehlt, ebenso die Regeln `staatsoberkasse`→Steuern und `Otto Pachmayr`→Wareneinsatz. In BK1b-Migration nachziehen.
+3. Kleiner: Kategorie-Filter in `listBankTransactions` filtert NACH dem DB-Limit (neueste 500) → ältere Treffer unsichtbar; `importBankTransactions` prüft Bestand per `.in()` über alle laufenden Nummern (bei Jahres-Exporten >>1000 Werte → URL-Länge, chunken).
+
+**Offen (Gesamtliste):** BK1b-Fixes (P1!) · Gerätetests (iPhone-Payslip, Safari-Splitter, SD3, drei KI4-Fragen, jetzt + BK1-Import am Gerät) · toter `PdfCanvasPreview` · WebKit-CI beobachten · PL3 (bereit) · Backup-Strategie Stufe 2 · Security-Scanner-Review · `wine-research.functions.ts` undokumentiert · Cutover-Planung.
+
 ## 82. 10.07.2026 (Nachmittag) — BK1b Import-Härtung Bankkonto
 
 Anker: `963aa0e8`, vier Gates grün.
