@@ -20,12 +20,25 @@ import {
   type RennerRawRow,
 } from "@/lib/pos/renner-penner-core";
 import { aggregatePersonnel, type CompRow, type WorkEntry } from "@/lib/statistics/personnel-core";
-import { aggregateByBusinessDate, summarize } from "@/lib/statistics/revenue-core";
+import {
+  aggregateByBusinessDate,
+  groupTakeawayByChannel,
+  summarize,
+  type TakeawayChannel,
+} from "@/lib/statistics/revenue-core";
 import {
   mapToSessionInputs,
   type ChannelAmountRow,
   type SessionRow,
 } from "@/lib/statistics/revenue-map";
+import {
+  computeSessionTipPoolCore,
+  loadTipSettings,
+  type LoadedSession,
+} from "@/lib/cash/cash.functions";
+import type { TipSettings } from "@/lib/cash/tip-settings";
+import { aggregateTips, type SessionTipResult } from "@/lib/statistics/tip-aggregate";
+import type { AdminCaller } from "@/lib/admin/admin-context";
 import { computePresets } from "./period-resolver";
 import type { ToolName } from "./tools";
 import { pseudonymizeDeep, type PseudonymMap } from "./pseudonym";
@@ -42,6 +55,9 @@ type Admin = SupabaseClient<Database>;
 export type ToolContext = {
   admin: Admin;
   organizationId: string;
+  /** Aufruferkontext — für Kern-Module wie computeSessionTipPoolCore, die
+   *  organizationId + Rolle des Admins erwarten. */
+  caller: AdminCaller;
   /** Pseudonymisierungs-Map — Tools mit Personenbezug (arbeitsstunden,
    *  abwesenheiten) wenden sie auf ihr Ergebnis an, damit der Modell-Input
    *  garantiert keine Klarnamen enthält. */
@@ -146,6 +162,8 @@ export async function runTool(
       return branchenbenchmarkLookup(input);
     case "personal_bestand":
       return await personalBestand(ctx, input);
+    case "trinkgeld_aggregat":
+      return await trinkgeldAggregat(ctx, input);
   }
 }
 
