@@ -320,6 +320,11 @@ export const listBankTransactions = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, ["admin"]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // Wenn nach Kategorie gefiltert wird, geschieht das erst nach dem
+    // Auflösen im Node-Prozess (Regeln + Overrides). Damit data.limit nicht
+    // fälschlich schon serverseitig zuschlägt und die Ergebnisliste leer
+    // wirkt, holen wir intern mehr Kandidaten und schneiden erst am Ende.
+    const fetchLimit = data.categoryId ? Math.max(data.limit, 5000) : data.limit;
     let q = supabaseAdmin
       .from("bank_transactions")
       .select(
@@ -328,7 +333,7 @@ export const listBankTransactions = createServerFn({ method: "POST" })
       .eq("organization_id", caller.organizationId)
       .order("buchungstag", { ascending: false })
       .order("laufende_nummer", { ascending: false })
-      .limit(data.limit);
+      .limit(fetchLimit);
     q = applyFilterToQuery(q, data) as typeof q;
     if (data.search && data.search.length > 0) {
       const like = `%${data.search.replace(/[%_]/g, (m) => `\\${m}`)}%`;
@@ -369,6 +374,7 @@ export const listBankTransactions = createServerFn({ method: "POST" })
         resolvedCategoryId: res.categoryId,
         resolvedSource: res.source,
       });
+      if (out.length >= data.limit) break;
     }
     return out;
   });
