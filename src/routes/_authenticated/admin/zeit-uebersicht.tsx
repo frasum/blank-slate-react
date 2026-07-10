@@ -1897,6 +1897,8 @@ type WeeklyData = {
   }[];
   // Z4b — Dienstplan-Realität der Woche je Mitarbeiter (aus roster_shifts).
   rosterByStaff?: Record<string, { areas: Department[]; skillIds: string[] }>;
+  // Z3b — Per-Tag-Roster-Area je Mitarbeiter (Attribution NULL-Einträge).
+  rosterAreaByStaffDate?: Record<string, Record<string, Department>>;
 };
 
 function fmtDec(n: number): string {
