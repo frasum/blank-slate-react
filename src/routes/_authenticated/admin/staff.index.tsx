@@ -467,7 +467,7 @@ function StaffMatrixRow({
   deptPending,
   skillPending,
   onToggleDept,
-  onToggleSkill,
+  onSaveSkills,
   employmentStartDate,
   dateOfBirth,
 }: {
@@ -484,7 +484,7 @@ function StaffMatrixRow({
     department: StaffDepartment,
     active: boolean,
   ) => void;
-  onToggleSkill: (staffId: string, skillId: string, has: boolean, currentIds: string[]) => void;
+  onSaveSkills: (staffId: string, skillIds: string[]) => void;
   employmentStartDate: string | null;
   dateOfBirth: string | null;
 }) {
@@ -498,15 +498,6 @@ function StaffMatrixRow({
   );
 
   const isPayroll = staff.role === "payroll";
-  const visibleSkills = useMemo(
-    () =>
-      skills.filter(
-        (sk) =>
-          (sk.category !== "other" && staff.departments.includes(sk.category as StaffDepartment)) ||
-          staff.skillIds.includes(sk.id),
-      ),
-    [skills, staff.departments, staff.skillIds],
-  );
 
   return (
     <TableRow className={cn("group", !staff.isActive && "opacity-50")}>
