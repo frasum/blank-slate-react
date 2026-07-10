@@ -61,6 +61,11 @@ function AdminUrlaubPage() {
     queryKey: ["admin-leave-requests", filter],
     queryFn: () => fetchList({ data: { status: filter } }),
   });
+  const openLeaveQ = useQuery({
+    queryKey: ["admin-leave-requests", "offen-count"],
+    queryFn: () => fetchList({ data: { status: "offen" } }),
+  });
+  const pendingLeave = (openLeaveQ.data ?? []).length;
   const swapsQ = useQuery({
     queryKey: ["admin", "swap-requests"],
     queryFn: () => listPendingSwaps(),
@@ -117,7 +122,15 @@ function AdminUrlaubPage() {
 
       <Tabs defaultValue="urlaub" className="w-full">
         <TabsList>
-          <TabsTrigger value="urlaub">Urlaubsanträge</TabsTrigger>
+          <TabsTrigger value="urlaub">
+            Urlaubsanträge
+            {pendingLeave > 0 && (
+              <span
+                className="ml-1.5 inline-block h-2 w-2 rounded-full bg-destructive align-middle"
+                aria-label={`${pendingLeave} offene Urlaubsanträge`}
+              />
+            )}
+          </TabsTrigger>
           <TabsTrigger value="tausch">
             Schichttausch
             {pendingSwaps > 0 && (
