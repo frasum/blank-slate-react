@@ -6,7 +6,7 @@ SaaS-Vorbereitung: Readiness-Audit und Modul-Katalog stehen in docs/saas-vorbere
 
 Produktionsreife-Review: docs/produktionsreife-review.md (Stand 07.07.2026, HEAD 8cfdbc1d, inkl. Patch-Plan P0–P7) — kritischer Pfad vor dem Kassen-Go-live: Monitoring (P1) → Finalize-E2E (P2) → Restore-Probe (P3) → Cutover.
 
-Stand: 09.07.2026 (§78: P3 Restore-Probe BESTANDEN)
+Stand: 10.07.2026 (§80: Statistik-Ausbau, Stammblatt-Diät, KI4)
 
 TH1 — Standort-Farbthema: LocationThemeProvider im \_authenticated-Layout hält den themeKey (spicery/yum/neutral).
 LocationPills melden die Auswahl per useLocationThemeSync; Mapping: Name enthält „spicery" → spicery, „yum" → yum, sonst neutral (auch TSB/„Alle"/leer).
@@ -3857,3 +3857,33 @@ Durchführung Frank (Terminal + Dashboard) mit Claude (Befehle, Prüf-SQL, Abgle
 **Wegwerf-Projekt:** gelöscht (09.07.2026, nach bestandenem Abgleich; Neuaufbau bei Bedarf in <15 min per Runbook). Lokale Dump-Datei ebenfalls entsorgt bzw. bewusst als Offsite-Kopie verwahrt (Frank).
 
 **Damit offen vor Cutover:** nur noch die Cutover-Planung selbst (§5-Voll-Reimport aus tagesabrechnung, YUM-Kassen-Anker, Testdaten-Bereinigung inkl. der 46 Test-Bestellungen). Übrige Liste: PL3 (bereit) · Bundle-Verschlankung (Branch-Übung) · Security-Scanner-Review · Backup-Strategie Stufe 2 (neu) · Heim-Terminal-404 verifizieren.
+
+## 79. 09.07.2026 (Nachmittag) — Claude-Code-Sandbox, Bundle-Diet Schritt 1, iOS-Payslip-Fix, Branch-Mechanik
+
+Anker: `b79cc08d` (vier Gates grün, 1628 Tests).
+
+**Claude-Code-Sandbox etabliert (Werkzeug Nr. 3, nur Analyse/Übung).** Isolierte COCO-Kopie auf Franks Mac: Klon mit gekapptem origin (`git remote remove origin`), lokaler Supabase-Stack (Docker, leere DB), eigene `.env` auf 127.0.0.1 — Kontrolle: `grep gyvblrdhutztbkoynnrq .env` muss leer sein. **Einbahnstraßen-Regel:** aus der Sandbox wandern nur ERKENNTNISSE zurück, nie Code. Erste Ernte: Bundle-Analyse (Build braucht >4 GB Heap; große Brocken sauber lazy-geladen, Erst-Ladepfad ~212 kB gzip → Bundle-Diet ist Hygiene, kein Akutproblem; pdfjs-dist doppelt gebündelt).
+
+**Bundle-Diet Schritt 1:** `PdfCanvasPreview.tsx` + `split-combined.ts` von Standard- auf Legacy-pdfjs vereinheitlicht (4 Zeilen) → nur noch EIN Worker-Chunk (~0,5 MB gzip gespart), Payslip-Splitter auf Safari-sicherem Pfad. Nebenbefund: `PdfCanvasPreview` ist seit KAB2 toter Code — bewusst belassen (separate Produktentscheidung, offen). Über den Plan hinaus (nachträglich abgenommen): E2E-Spec `lohn-split-worker.spec.ts` (Test-PDF in-place, prüft „genau ein Worker") + Playwright-WebKit-Projekt nur für diesen Spec.
+
+**iOS-Payslip-Fix:** iOS-Safari verwirft `window.open` nach `await` → Tab synchron im Klick öffnen. Erstversuch scheiterte am Feature-String `"noopener"` (gibt per Spez. null zurück → weiße Seite); Fix `b79cc08d`. **Merksatz (dritter Beleg der Woche): Gates grün ≠ Browser funktioniert — Gerätetests sind bei Browser-API-Änderungen Pflicht-Gate.**
+
+**Branch-Mechanik gelernt:** `feature/bundle-diet` wurde nie angelegt, alles landete auf main, Scope wuchs von 4 Zeilen auf E2E+CI+iOS-Fix (Scope-Drift ohne Branch-Leitplanke). Ursache: **Lovable kann Branches weder anlegen noch wechseln.** Regel: (1) Frank wechselt im Lovable-Branch-Selector, (2) Wechsel verifizieren, (3) erst dann der Prompt. PR/Merge über GitHub/Lovable-UI.
+
+## 80. 10.07.2026 — Statistik-Ausbau (U2/U3), Stammblatt-Diät (SD2/SD3), Frag-COCO-Erweiterung (KI4)
+
+Anker: `5657ce69`, vier Gates grün, **1662 Tests**.
+
+**STAT-U2 — Umsatz-Tab:** Umsatzverlauf als ComposedChart mit drei Serien (Tagesumsatz-Fläche, Kreditkarten gestrichelt via `waiter_settlements.card_total_cents`, Takeaway) + neue Karte „Take Away Kanäle" (Donut aus `session_channel_amounts`+`revenue_channels`, Namen aus der DB, keine Hartkodierung; `computeChannelPercents` mit Largest-Remainder, Σ=100). Neue reine Helfer + Tests in `revenue-core.ts`.
+
+**STAT-U3 — Standortvergleich-Tab:** Kopfkarte Gesamt, sechs ComparisonCards (Gesamtumsatz/Ø-Tag/Küchen-TG/Service-TG/Lieferumsatz/Ø-TG-Tag) mit `pctDiff`+`shareOf`-Balken, Fußkarte „Tage mit Daten"; `comparison-core.ts` getestet (pctDiff b=0→null, shareOf 0/0→0.5, pickTopTwoByTotal mit Namens-Tiebreak). **Akzeptierte Abweichung:** keine neue Server-Fn — Client-Komposition via `useQueries` über die BESTEHENDEN `getRevenueStats`/`getTipStats` (KGL-strenger: identische Zahlen wie die Nachbar-Tabs per Konstruktion; Preis: mehr Roundtrips, für Admin-Tab ok). `avgDaily` teilt bewusst durch Tage-mit-Daten. Hinweis: Charts zeigen bis zum §5-Cutover-Reimport Testdaten.
+
+**SD2 — Standorte-Tab entfernt (Datenverlust-Falle):** Der Tab rief `assignStaffLocations`→RPC `replace_staff_locations`, die ALLE staff_locations-Zeilen löschte und je Standort eine Zeile mit fest `department='service'` neu anlegte — ein Klick vernichtete Küchen-/GL-Zuordnungen. UI+Server-Fn entfernt, RPC per Migration `20260710110213` gedroppt (Ehrlichkeits-Kommentar). Einziger Schreibpfad ist die abteilungsgenaue Pflege in der Personalliste (`setStaffLocationDepartment`).
+
+**SD3 — Skill-Pflege an die richtigen Orte:** Zuweisung → `SkillAssignPopover` in der Personalliste; Farb-Verwaltung (global!) → `SkillsSection` als Skills-Tab der Einstellungen; Skills-Tab im Stammblatt entfernt. `assignStaffSkills`/`updateSkillColor` unverändert, je genau ein Aufrufer (KGL). Erkenntnis der zwei Umbauten: Vor dem Entfernen eines „redundanten" UI IMMER prüfen, ob es eine Alleinfunktion trägt (Skills-Tab war einziger Zuweisungsort; „Rolle & Aktiv" trägt mit `setStaffActive` die einzige Deaktivierung → SD4 nur mit Umzug, nicht ersatzlos).
+
+**KI4 — Frag COCO A1′+A4:** `umsatz_zeitraum` liefert Zahlungswege (Karte aus Settlements, Gutscheine verkauft/eingelöst aus Sessions, `barCentsRechnerisch` = kassiert−Karte als gekennzeichnete Restgröße, Takeaway-Kanäle via `groupTakeawayByChannel`) — **bewusst OHNE Servicezeit** (Sessions sind Tages-Einheiten; Tool-Beschreibung weist das Modell an, ehrlich zu passen). Neues Tool `trinkgeld_aggregat` über `computeSessionTipPoolCore`+`aggregateTips`, nur Aggregatfelder. **Datenschutz-Kanon kanonisiert** (Kopfkommentar tools.ts): Werte, die nur für ≤3 Personen aussagekräftig sind, gelten als personenbezogen → aggregieren/weglassen; ein Test bewacht, dass kein `shares`-Feld in Tool-Antworten auftaucht.
+
+**Betriebsnotizen:** Lovable-Preview zeigte „Konfiguration unvollständig" (Sandbox-.env von Lovable zerlegt; Produktion/`.env.production` intakt — der ENV1-Wächter funktionierte wie gebaut). Secrets-Prüfung: `GOOGLE_MAPS_BROWSER_KEY`/`_TRACKING_ID` ungenutzt, aber Connection-verwaltet → bewusst belassen; `GOOGLE_MAPS_API_KEY` wird von `geocoding.server.ts` genutzt (Korrektur früherer Annahme). Fund: `wine-research.functions.ts` (Firecrawl, Welle 3-C) existiert undokumentiert — Doku-Punkt offen.
+
+**Offen:** SD4 („Rolle & Aktiv": Deaktivieren in die Liste umziehen, dann Tab entfernen — NICHT ersatzlos) · Gerätetests ausstehend: iPhone-Payslip (noopener-Fix), Safari-Splitter mit echtem Lohn-PDF, SD3-Popover/Farben, drei KI4-Testfragen · toter `PdfCanvasPreview` (Produktentscheidung) · WebKit-CI-Job beobachten · PL3 (bereit) · Backup-Strategie Stufe 2 · Security-Scanner-Review · Cutover-Planung als nächster großer Block.
