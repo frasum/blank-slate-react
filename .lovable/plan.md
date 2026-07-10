@@ -1,32 +1,30 @@
-## Plan: Trinkgeld-Anzeige im Standortvergleich prüfen
+# Lücken-Kartierung „Frag COCO"
 
-### Diagnose zuerst — keine Code-Änderung ohne Faktenlage
+Ziel: **Erst verstehen, wo COCO blind ist — dann priorisieren.** Kein Code in diesem Schritt, sondern ein Dokument, das jedes Modul den aktuellen 17 Tools gegenüberstellt.
 
-Die Vergleichskarten holen ihre Zahlen 1:1 aus `getTipStats` (dieselbe Server-Fn, die auch der Trinkgeld-Tab nutzt). Bevor wir „reparieren", muss klar sein, ob die Zahl schon in der Quelle falsch ist oder erst in der Darstellung.
+## Heute verdrahtet (17 Tools)
 
-### Schritt 1 — DB-Realität abgleichen (nur Lesen)
+Stammdaten · Getränke-Ranking · Umsatz-Zeitraum · Arbeitsstunden · Abwesenheiten · Personalkostenquote · Kasse-Tagesabschluss · Bestellungen · Inventur · BWA · Bilanz · Dienstplan · Aufgaben · Tausch · Urlaub · Branchenbenchmark · Personalbestand.
 
-Für den aktuell im UI eingestellten Zeitraum (bitte kurz nennen: Monat oder Von/Bis) prüfe ich:
+## Vorgehen
 
-- `sessions` je Standort: Anzahl, Status, `business_date`-Spanne.
-- `waiter_settlements` je Standort: `card_total_cents`, `tip_cash_cents`, `tip_card_cents` — Roh-Trinkgeld vor Pool-Verteilung.
-- Vergleich mit dem, was `computeSessionTipPoolCore` als `serviceRemainder + kitchenRemainder + Σ shares` liefert (das ist, was `getTipStats` summiert).
+1. **Modul-Inventur.** Ich gehe jede Domäne im Repo durch (Kasse, Lohn, Bestellung, Dienstplan, Zeit, Aufgaben, Verkaufsartikel, Trinkgeld, Sofortmeldung, Migration, Dokumente, Statistik, Wein-Quiz, TRMNL/Display, Telegram, Bilanz/BWA, Personalstamm) und liste je Modul auf:
+   - welche typischen Fragen ein Betreiber stellt,
+   - welches vorhandene Tool sie beantwortet,
+   - welche **konkreten Lücken** offen sind.
+2. **Prüfen, wo bestehende Tools zu grob sind** — z. B. Umsatz ohne Kanal-Detail, Personalkosten ohne SFN/AG-Anteil, Bestellungen ohne Artikelebene, Aufgaben ohne Zuständigkeitsfrage.
+3. **Datenschutz-Grenzen markieren.** Was darf ein Tool ausliefern (Aggregat, pseudonymisiert) und was nicht (Lohnhöhe pro Person, Personaldetails, Sofortmeldungs-Rohdaten). Regel bleibt: Pseudonymisierung MA-1/MA-2, keine Rohnamen an die KI.
+4. **Priorisierung.** Je Lücke: Nutzen (wie oft gefragt) × Aufwand (Schema vorhanden? Aggregation trivial?) × Risiko (Datenschutz). Ergebnis: A/B/C-Liste.
+5. **Deliverable.** Eine neue Datei `docs/frag-coco-luecken.md` mit
+   - Tabelle „Modul → vorhandenes Tool → offene Frage",
+   - A/B/C-Liste mit kurzem Vorschlag pro Lücke (welches neue Tool, welche Tabelle, welche Aggregation),
+   - Absatz zu Datenschutz-Regeln und was bewusst NICHT ins Tool wandert.
 
-Ziel: eine Tabelle „Standort | Roh-Trinkgeld (waiter_settlements) | Trinkgeld laut getTipStats | Delta".
+## Was in diesem Schritt NICHT passiert
 
-### Schritt 2 — Ursache benennen, dann erst entscheiden
+- Keine neuen Tools, kein Dispatcher-Umbau, keine Migrationen.
+- Kein Auto-Discovery/Meta-Tool. Wenn nach der Kartierung viele Tools entstehen sollen, machen wir das als eigenen Bauplan-Schritt (dann ggf. mit Tool-Deferral-Muster).
 
-Je nach Befund einer von drei Fixes (kein Blindfix):
+## Nach der Freigabe
 
-- **A) Roh-Trinkgeld in Spicery ist wirklich so niedrig** → kein Bug. Ggf. Hinweis „Spicery hat im Zeitraum nur X abgerechnete Tage" in der Vergleichskarte ergänzen.
-- **B) getTipStats untertreibt Spicery** (z. B. `tip_pool_settlement_only`-Flag, Sessions ohne Settlement, Standort-Vererbung greift nicht) → gezielter Fix in `getTipStats` oder `computeSessionTipPoolCore`, mit Charakterisierungstest gegen die DB-Werte aus Schritt 1.
-- **C) Nur die Vergleichs-Anzeige irritiert** (Balken/Badge) → kosmetischer Fix: bei extremen Differenzen `+…%` durch „×N" ersetzen oder Balken mit Minimum-Breite anzeigen. Beträge unverändert.
-
-### Nicht Teil dieses Schritts
-
-- Keine Änderungen an `revQueries`, `tipQueries` oder anderen Tabs.
-- Keine neue Trinkgeld-Formel, keine Migration.
-
-### Kurze Rückfrage vor Start
-
-Damit ich in Schritt 1 den richtigen Zeitraum abfrage: welcher Monat / welches Datumsfenster ist im Screenshot gerade eingestellt? Und öffnest du den Trinkgeld-Tab einmal mit Standortfilter „Spicery" — steht dort dieselbe **20,10 €** wie in der Vergleichskarte, oder ein anderer Wert?
+Du entscheidest anhand der A/B/C-Liste, welche Lücken wir zuerst schließen. Jede neue Werkzeug-Erweiterung läuft dann als eigener kleiner Prompt (Tool-Definition in `src/lib/ki/tools.ts`, Handler in `tool-dispatcher.server.ts`, Test, Doku-Nachzug).
