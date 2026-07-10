@@ -264,66 +264,73 @@ function BasicsTab({
   );
 }
 
-function RoleTab({ staff }: { staff: { id: string; role: AppRole | null; isActive: boolean } }) {
+function ActiveToggleButton({
+  staffId,
+  displayName,
+  isActive,
+}: {
+  staffId: string;
+  displayName: string;
+  isActive: boolean;
+}) {
   const queryClient = useQueryClient();
-  const callSetRole = useServerFn(setStaffRole);
   const callSetActive = useServerFn(setStaffActive);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
-  const refresh = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["admin", "staff"] });
-  };
-
-  const roleMutation = useMutation({
-    mutationFn: (role: AppRole | null) => callSetRole({ data: { staffId: staff.id, role } }),
-    onSuccess: refresh,
-    onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
-  });
-  const activeMutation = useMutation({
-    mutationFn: (isActive: boolean) => callSetActive({ data: { staffId: staff.id, isActive } }),
-    onSuccess: refresh,
-    onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
+  const mutation = useMutation({
+    mutationFn: () => callSetActive({ data: { staffId, isActive: !isActive } }),
+    onSuccess: async () => {
+      setErr(null);
+      setOpen(false);
+      await queryClient.invalidateQueries({ queryKey: ["admin", "staff"] });
+    },
+    onError: (e: unknown) => setErr(e instanceof Error ? e.message : "Fehler."),
   });
 
   return (
-    <div className="max-w-lg space-y-6">
-      <div className="space-y-2">
-        <div className="text-xs font-medium text-muted-foreground">Rolle</div>
-        <div className="flex flex-wrap gap-2">
-          {(["admin", "manager", "planer", "staff", "payroll", null] as const).map((r) => (
-            <button
-              key={r ?? "none"}
-              onClick={() => {
-                setMsg(null);
-                roleMutation.mutate(r);
-              }}
-              disabled={roleMutation.isPending}
-              className={`rounded-md border px-3 py-1.5 text-sm ${
-                staff.role === r
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-input bg-background text-foreground hover:bg-accent"
-              }`}
-            >
-              {r === "payroll" ? "Lohnbüro" : r === "planer" ? "Planer" : (r ?? "Keine")}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="space-y-2">
-        <div className="text-xs font-medium text-muted-foreground">Status</div>
+    <AlertDialog
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (!v) setErr(null);
+      }}
+    >
+      <AlertDialogTrigger asChild>
         <button
-          onClick={() => {
-            setMsg(null);
-            activeMutation.mutate(!staff.isActive);
-          }}
-          disabled={activeMutation.isPending}
+          type="button"
           className="rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground hover:bg-accent"
         >
-          {staff.isActive ? "Deaktivieren" : "Aktivieren"}
+          {isActive ? "Deaktivieren" : "Aktivieren"}
         </button>
-      </div>
-      {msg && <p className="text-sm text-destructive">{msg}</p>}
-    </div>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            {isActive ? `${displayName} deaktivieren?` : `${displayName} aktivieren?`}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {isActive
+              ? "Erscheint nicht mehr im Dienstplan und kann sich nicht mehr anmelden. Alle Daten bleiben erhalten; Reaktivierung jederzeit möglich."
+              : "Erscheint wieder in aktiven Listen und im Dienstplan; ein bestehendes Login wird wieder nutzbar."}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        {err && <p className="text-sm text-destructive">{err}</p>}
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={mutation.isPending}>Abbrechen</AlertDialogCancel>
+          <AlertDialogAction
+            disabled={mutation.isPending}
+            onClick={(e) => {
+              e.preventDefault();
+              setErr(null);
+              mutation.mutate();
+            }}
+          >
+            {isActive ? "Deaktivieren" : "Aktivieren"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
