@@ -41,6 +41,23 @@ function LohnPage() {
     // dort erst die Signed-URL holen und den Tab direkt mit der Ziel-URL öffnen.
     if (isIosSafari()) {
       const win = window.open("about:blank", "_blank", "noopener");
+      // Sichtbarer Hinweis, damit der Zwischen-Tab nicht leer wirkt.
+      if (win && !win.closed) {
+        try {
+          win.document.write(
+            '<!doctype html><meta charset="utf-8">' +
+              "<title>Lohnabrechnung wird geladen…</title>" +
+              "<style>html,body{height:100%;margin:0;" +
+              "font:16px -apple-system,system-ui,sans-serif;" +
+              "background:#fff;color:#111;display:flex;" +
+              "align-items:center;justify-content:center}</style>" +
+              "<p>Öffne PDF…</p>",
+          );
+          win.document.close();
+        } catch {
+          /* cross-origin nach location-Wechsel: ignorieren */
+        }
+      }
       try {
         const res = await callOpen({ data: { path: entry.path } });
         if (win && !win.closed) win.location.href = res.url;
