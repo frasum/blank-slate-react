@@ -1,0 +1,1 @@
+UPDATE public.articles SET description = NULL WHERE category = 'Wein' AND description ~ '[\u0E00-\u0E7F]';
