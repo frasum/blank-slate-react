@@ -322,9 +322,8 @@ function StaffListPage() {
     deptMutation.mutate({ staffId, locationId, department, enabled: !active });
   }
 
-  function toggleSkill(staffId: string, skillId: string, has: boolean, currentIds: string[]) {
-    const next = has ? currentIds.filter((id) => id !== skillId) : [...currentIds, skillId];
-    skillMutation.mutate({ staffId, skillIds: next });
+  function saveSkills(staffId: string, skillIds: string[]) {
+    skillMutation.mutate({ staffId, skillIds });
   }
 
   return (
@@ -434,7 +433,7 @@ function StaffListPage() {
                       deptPending={deptMutation.isPending}
                       skillPending={skillMutation.isPending}
                       onToggleDept={toggleDept}
-                      onToggleSkill={toggleSkill}
+                      onSaveSkills={saveSkills}
                       employmentStartDate={personalByStaff.get(s.id)?.employmentStartDate ?? null}
                       dateOfBirth={personalByStaff.get(s.id)?.dateOfBirth ?? null}
                     />
