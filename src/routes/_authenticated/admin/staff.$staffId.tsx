@@ -15,21 +15,12 @@ import {
   getStaffAccountStatus,
   resetStaffPassword,
 } from "@/lib/admin/account.functions";
-import {
-  assignStaffSkills,
-  getStaffSkills,
-  listSkills,
-  updateSkillColor,
-  type SkillCategory,
-} from "@/lib/admin/skills.functions";
 import { TabButton } from "@/components/ui/nav-tab";
 import { PersonalDetailsTab } from "@/components/admin/PersonalDetailsTab";
 import { PermissionsTab } from "@/components/admin/PermissionsTab";
 import { SofortmeldungBanner } from "@/components/admin/SofortmeldungBanner";
 import { DokumenteTab } from "@/components/admin/DokumenteTab";
 import type { AppRole } from "@/lib/admin/role-guard";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
 import {
   deletePayslip,
   getPayslipSignedUrl,
@@ -45,7 +36,6 @@ export const Route = createFileRoute("/_authenticated/admin/staff/$staffId")({
 
 type Tab =
   | "basics"
-  | "skills"
   | "personal"
   | "role"
   | "pin"
@@ -90,7 +80,6 @@ function StaffDetailPage() {
         {(
           [
             ["basics", "Stammdaten"],
-            ["skills", "Skills"],
             ...(showPersonal ? ([["personal", "Personaldaten"]] as [Tab, string][]) : []),
             ["role", "Rolle & Aktiv"],
             ["pin", "PIN"],
@@ -112,7 +101,6 @@ function StaffDetailPage() {
           <BasicsTab staff={s} />
         </div>
       )}
-      {tab === "skills" && <SkillsTab staffId={s.id} isAdmin={isAdmin} />}
       {tab === "personal" && showPersonal && (
         <PersonalDetailsTab
           staffId={s.id}
