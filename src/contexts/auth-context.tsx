@@ -56,8 +56,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signOut: async () => {
       await queryClient.cancelQueries();
       queryClient.clear();
-      await supabase.auth.signOut();
       await router.navigate({ to: "/auth", replace: true });
+      await supabase.auth.signOut();
     },
   };
 
