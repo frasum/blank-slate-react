@@ -22,9 +22,24 @@ describe("buildBankStats", () => {
     const s = buildBankStats(
       [
         tx({ buchungstag: "2026-01-05", betragCents: 10_000, gegenpartei: "TSB" }),
-        tx({ buchungstag: "2026-01-10", betragCents: -3_000, gegenpartei: "KAO", categoryId: "c-ware" }),
-        tx({ buchungstag: "2026-02-01", betragCents: -1_500, gegenpartei: "KAO", categoryId: "c-ware" }),
-        tx({ buchungstag: "2026-02-15", betragCents: 5_000, gegenpartei: "First Data", categoryId: "c-karte" }),
+        tx({
+          buchungstag: "2026-01-10",
+          betragCents: -3_000,
+          gegenpartei: "KAO",
+          categoryId: "c-ware",
+        }),
+        tx({
+          buchungstag: "2026-02-01",
+          betragCents: -1_500,
+          gegenpartei: "KAO",
+          categoryId: "c-ware",
+        }),
+        tx({
+          buchungstag: "2026-02-15",
+          betragCents: 5_000,
+          gegenpartei: "First Data",
+          categoryId: "c-karte",
+        }),
       ],
       cats,
     );
@@ -39,7 +54,12 @@ describe("buildBankStats", () => {
     const s = buildBankStats(
       [
         tx({ buchungstag: "2026-01-05", betragCents: 100, categoryId: null, gegenpartei: "X" }),
-        tx({ buchungstag: "2026-01-06", betragCents: -50, categoryId: "c-ware", gegenpartei: "KAO" }),
+        tx({
+          buchungstag: "2026-01-06",
+          betragCents: -50,
+          categoryId: "c-ware",
+          gegenpartei: "KAO",
+        }),
       ],
       cats,
     );

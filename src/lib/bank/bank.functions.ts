@@ -130,7 +130,7 @@ async function loadCategoriesAndRules(
 function applyFilterToQuery(
   q: ReturnType<
     Awaited<
-      ReturnType<typeof import("@/integrations/supabase/client.server")["supabaseAdmin"]["from"]>
+      ReturnType<(typeof import("@/integrations/supabase/client.server"))["supabaseAdmin"]["from"]>
     >["select"]
   >,
   filter: Filter,
@@ -177,7 +177,8 @@ export const listBankCategoriesAndRules = createServerFn({ method: "GET" })
         },
         sortedRules,
       );
-      if (res.source === "rule" && res.ruleId) ruleHits[res.ruleId] = (ruleHits[res.ruleId] ?? 0) + 1;
+      if (res.source === "rule" && res.ruleId)
+        ruleHits[res.ruleId] = (ruleHits[res.ruleId] ?? 0) + 1;
     }
     return { ...cats, ruleHits };
   });
@@ -280,12 +281,10 @@ export const importBankTransactions = createServerFn({ method: "POST" })
         bank_unterkategorie: r.bankUnterkategorie,
       }));
       // ignoreDuplicates: erneuter/überlappender Upload ist idempotent.
-      const up = await supabaseAdmin
-        .from("bank_transactions")
-        .upsert(payload as never, {
-          onConflict: "account_id,laufende_nummer",
-          ignoreDuplicates: true,
-        });
+      const up = await supabaseAdmin.from("bank_transactions").upsert(payload as never, {
+        onConflict: "account_id,laufende_nummer",
+        ignoreDuplicates: true,
+      });
       if (up.error) throw up.error;
     }
     const inserted = data.rows.length - existingCount;

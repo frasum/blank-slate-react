@@ -19,10 +19,8 @@ describe("extractSingleIban", () => {
       { iban: "DE53700700240052787900" },
     ]);
     expect(res.ok).toBe(false);
-    if (!res.ok) expect(res.ibans.sort()).toEqual([
-      "DE26700700240052787901",
-      "DE53700700240052787900",
-    ]);
+    if (!res.ok)
+      expect(res.ibans.sort()).toEqual(["DE26700700240052787901", "DE53700700240052787900"]);
   });
   it("leere Eingabe: keine IBAN", () => {
     const res = extractSingleIban([]);

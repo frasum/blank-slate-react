@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { countRuleHits, resolveCategory, sortRules, type CategoryRuleLite } from "./bank-categorize";
+import {
+  countRuleHits,
+  resolveCategory,
+  sortRules,
+  type CategoryRuleLite,
+} from "./bank-categorize";
 
 const rules: CategoryRuleLite[] = [
   { id: "r1", categoryId: "c-karte", matchField: "name", pattern: "First Data", priority: 100 },
