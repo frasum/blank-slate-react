@@ -3922,4 +3922,4 @@ Nachzug zu §81: Die drei BK1-Befunde sind mit BK1b geschlossen.
 
 **Nebenarbeiten:** Parser-Fehlermeldungen nennen jetzt die deutschen Spaltennamen („Buchungstag", „Laufende Nummer"); vorhandene `prefer-const`-Lints gefixt; Prettier grün. Cent-genauer Abgleich gegen echte YUM- und Spicery-Exporte bestanden.
 
-**Offen bleibt** wie in §80 gelistet; zusätzlich der Alt-Test zur cp1252-€-Dekodierung (unabhängig von BK1b, weiter rot).
+**Offen bleibt** wie in §81 gelistet. **Korrektur (Claude-Prüfung, gleicher Abend):** Der hier zuvor erwähnte „weiter rote cp1252-€-Alt-Test" existiert im Repo-Stand `120daf2f` NICHT — alle vier Gates grün, **1696 Tests**, vermutlich ein Artefakt der Lovable-Sandbox. Echtdaten-Verifikation auf `120daf2f` wiederholt: YUM 1101 Buchungen/Saldo-Abgleich ok, Spicery 813 Buchungen/Saldo-Abgleich ok, `extractSingleIban` erkennt beide Konten korrekt und lehnt gemischte Dateien ab. §81-P1/P2/P3 damit bestätigt geschlossen.
