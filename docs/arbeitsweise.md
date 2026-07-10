@@ -3923,3 +3923,13 @@ Nachzug zu §81: Die drei BK1-Befunde sind mit BK1b geschlossen.
 **Nebenarbeiten:** Parser-Fehlermeldungen nennen jetzt die deutschen Spaltennamen („Buchungstag", „Laufende Nummer"); vorhandene `prefer-const`-Lints gefixt; Prettier grün. Cent-genauer Abgleich gegen echte YUM- und Spicery-Exporte bestanden.
 
 **Offen bleibt** wie in §81 gelistet. **Korrektur (Claude-Prüfung, gleicher Abend):** Der hier zuvor erwähnte „weiter rote cp1252-€-Alt-Test" existiert im Repo-Stand `120daf2f` NICHT — alle vier Gates grün, **1696 Tests**, vermutlich ein Artefakt der Lovable-Sandbox. Echtdaten-Verifikation auf `120daf2f` wiederholt: YUM 1101 Buchungen/Saldo-Abgleich ok, Spicery 813 Buchungen/Saldo-Abgleich ok, `extractSingleIban` erkennt beide Konten korrekt und lehnt gemischte Dateien ab. §81-P1/P2/P3 damit bestätigt geschlossen.
+
+## §83 — Bank-Bestand bereinigt (Fehl-Import YUM→Spicery), BK2 vorbereitet (10.07.)
+
+**Was passiert war.** Der Dubletten-Check zur BK2-Vorbereitung zeigte 19 doppelte Buchungsgruppen am 29./30.06. Vier Theorien nacheinander (Export-Überlappung → Parser-Differenz vor/nach BK1b → Konto-Dublette → Fehl-Import), drei davon durch Lese-Selects widerlegt. Tatsächliche Ursache: Um 16:40 war die **komplette YUM-CSV (1101 Zeilen, Jan–Jun) versehentlich ins Spicery-Konto** importiert worden (Dropdown-Auswahl, keine IBAN-Prüfung) — 24 sichtbare Dubletten an zwei Tagen verdeckten 1099 Fremdzeilen über sechs Monate. Überführt per Arithmetik: 1912 = 813 (Spicery echt) + 1101 − 2. Bereinigung: kompletter 16:40-Lauf gelöscht. Kollateralschaden: Ein DELETE aus der zuvor gestoppten YUM-Hypothese war mitgelaufen und hatte 24 echte YUM-Zeilen (29./30.06.) entfernt — geheilt durch idempotenten Re-Import derselben Datei ins richtige Konto. Endstand verifiziert: Spicery 813, YUM 1101, Cross-Konto-Check zeigt nur noch legitime gemeinsame Lieferanten (Focus, Knebl, Bleyle …).
+
+**Regel A — Lösch-Hypothesen erst per Lese-Select beweisen.** Hat zweimal vor dem Löschen legitimer Daten gerettet (YUM-15:52-Lauf war der Voll-Import, nicht das vermutete Delta). Kein DELETE ohne vorherigen SELECT mit identischem WHERE, dessen Ergebnis Frank freigibt.
+
+**Regel B — Destruktives SQL nie in derselben Lieferung wie seine Vorbedingung.** Das mitgelaufene DELETE stand im selben Block wie sein Kontroll-SELECT; Mehrfach-Statements laufen praktisch am Stück. Getrennte Lieferungen mit Zwischenprüfung. (Regel stammt aus einem Fehler des Prüfers, nicht des Baumeisters.)
+
+**Konsequenz für BK2:** Punkt 7 (Cross-Account-Duplikatswarnung, Fingerprint ohne Zweck-Text) und Punkt 8 (IBAN-Zwang statt Dropdown) sind direkt aus diesem Vorfall geboren. Der BK2-Bauplan implementiert die acht Anpassungen — Bau-Reihenfolge steht in `.lovable/plan.md`.
