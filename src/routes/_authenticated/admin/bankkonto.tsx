@@ -53,6 +53,7 @@ import {
   type BankTxRow,
 } from "@/lib/bank/bank.functions";
 import { parseBankCsv } from "@/lib/bank/bank-csv-parser";
+import { extractSingleIban } from "@/lib/bank/bank-import-helpers";
 
 function formatCentsEUR(cents: number): string {
   return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(cents / 100);
@@ -145,7 +146,7 @@ function BankkontoPage() {
       {tab === "overview" && <OverviewTab filter={filter} />}
       {tab === "transactions" && <TransactionsTab filter={filter} />}
       {tab === "rules" && <RulesTab />}
-      {tab === "import" && <ImportTab defaultIban={accounts[0]?.iban ?? ""} />}
+      {tab === "import" && <ImportTab knownAccounts={accounts} />}
     </div>
   );
 }
@@ -687,9 +688,13 @@ function CategoryCard({
 
 // ============================================================ Import
 
-function ImportTab({ defaultIban }: { defaultIban: string }) {
+function ImportTab({
+  knownAccounts,
+}: {
+  knownAccounts: ReadonlyArray<{ id: string; iban: string; name: string }>;
+}) {
   const qc = useQueryClient();
-  const [iban, setIban] = useState(defaultIban);
+  const [iban, setIban] = useState<string>("");
   const [name, setName] = useState("");
   const [parseInfo, setParseInfo] = useState<{
     rows: number;
@@ -700,6 +705,11 @@ function ImportTab({ defaultIban }: { defaultIban: string }) {
   } | null>(null);
   const [parsedRows, setParsedRows] = useState<Array<Record<string, unknown>> | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const knownAccount = useMemo(
+    () => (iban ? (knownAccounts.find((a) => a.iban === iban) ?? null) : null),
+    [iban, knownAccounts],
+  );
 
   const importFn = useServerFn(importBankTransactions);
   const importM = useMutation({
@@ -732,6 +742,21 @@ function ImportTab({ defaultIban }: { defaultIban: string }) {
       const decoder = new TextDecoder("windows-1252");
       const text = decoder.decode(buf);
       const res = parseBankCsv(text);
+      // IBAN kommt aus der Datei. Mehr-Konten-Files werden abgelehnt, damit
+      // Buchungen nie im falschen Konto landen.
+      const ibanRes = extractSingleIban(res.rows);
+      if (!ibanRes.ok) {
+        setParsedRows(null);
+        setParseInfo(null);
+        setIban("");
+        toast.error(
+          ibanRes.ibans.length === 0
+            ? "Keine IBAN in der Datei gefunden — bitte Original-Export der Deutschen Bank verwenden."
+            : `Datei enthält mehrere IBANs (${ibanRes.ibans.join(", ")}). Bitte pro Konto exportieren.`,
+        );
+        return;
+      }
+      setIban(ibanRes.iban);
       setParsedRows(res.rows as unknown as Array<Record<string, unknown>>);
       setParseInfo({
         rows: res.rows.length,
@@ -740,8 +765,6 @@ function ImportTab({ defaultIban }: { defaultIban: string }) {
         to: res.zeitraum?.to ?? null,
         saldoOk: res.saldoAbgleichOk,
       });
-      const firstIban = res.rows[0]?.iban;
-      if (!iban && firstIban) setIban(firstIban);
       toast.success(`Datei geparst: ${res.rows.length} Buchungen.`);
     } catch (e) {
       toast.error(`Parse-Fehler: ${(e as Error).message}`);
@@ -762,14 +785,6 @@ function ImportTab({ defaultIban }: { defaultIban: string }) {
 
         <div className="flex flex-wrap items-end gap-3">
           <div>
-            <Label>IBAN</Label>
-            <Input value={iban} onChange={(e) => setIban(e.target.value)} className="w-72 font-mono" />
-          </div>
-          <div>
-            <Label>Konto-Name (optional)</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} className="w-64" />
-          </div>
-          <div>
             <Label>CSV-Datei</Label>
             <Input
               ref={fileRef}
@@ -781,7 +796,31 @@ function ImportTab({ defaultIban }: { defaultIban: string }) {
               }}
             />
           </div>
+          {iban && !knownAccount && (
+            <div>
+              <Label>Konto-Name (neu, optional)</Label>
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-64"
+                placeholder={`Konto ${iban.slice(-4)}`}
+              />
+            </div>
+          )}
         </div>
+
+        {iban && (
+          <div className="rounded border bg-muted/30 p-3 text-sm">
+            <div>
+              IBAN aus Datei: <span className="font-mono">{iban}</span>
+            </div>
+            <div>
+              {knownAccount
+                ? `Zuordnung: bekanntes Konto „${knownAccount.name}“.`
+                : "Zuordnung: neues Konto — wird beim Import angelegt."}
+            </div>
+          </div>
+        )}
 
         {parseInfo && (
           <div className="rounded border bg-muted/30 p-3 text-sm">
