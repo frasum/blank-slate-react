@@ -2,7 +2,7 @@
 // Reines Frontend. Konsumiert `getRevenueStats` (Kalendermonat, S-3).
 // Keine neuen Server-Fns, kein Schema, keine Logik in src/lib/statistics/.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQueries, useQuery, type UseQueryResult } from "@tanstack/react-query";
 import {
@@ -28,14 +28,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { LocationPills } from "@/components/shared/LocationPills";
 import { MonthNav } from "@/components/shared/MonthNav";
 import { Input } from "@/components/ui/input";
@@ -45,6 +37,7 @@ import { getTipStats } from "@/lib/statistics/tip-stats.functions";
 import { getPersonnelStats } from "@/lib/statistics/personnel-stats.functions";
 import { personnelRatioPct } from "@/lib/statistics/personnel-core";
 import { computeChannelPercents } from "@/lib/statistics/revenue-core";
+import { pctDiff, shareOf, pickTopTwoByTotal } from "@/lib/statistics/comparison-core";
 import { generateStatistikPdf, type StatistikPdfData } from "@/lib/statistics/statistik-pdf";
 import { currentMonth, monthRange } from "@/lib/statistics/period-window";
 import { fillDailyGaps } from "@/lib/statistics/chart-fill";
@@ -968,13 +961,26 @@ function StaffWithoutRateBanner({
   );
 }
 
-// ---------- Standort-Vergleich-Section ----------
+// ---------- Standort-Vergleich-Section (STAT-U3) ----------
+
+type CompareLocation = {
+  id: string;
+  name: string;
+  totalCents: number;
+  avgDailyCents: number;
+  takeawayCents: number;
+  kitchenTipCents: number;
+  serviceTipCents: number;
+  avgTipPerDayCents: number;
+  daysWithData: number;
+  tipTotalCents: number;
+};
 
 function LocationCompareSection({
   locations,
   revQueries,
   tipQueries,
-  perQueries,
+  perQueries: _perQueries,
   isLoading,
   firstError,
 }: {
@@ -985,10 +991,89 @@ function LocationCompareSection({
   isLoading: boolean;
   firstError: unknown;
 }) {
+  // Standorte mit vollständig geladenen Daten in vergleichsfähige Zeilen
+  // reduzieren. `daysWithData` = Tage mit Umsatz > 0 (Definition analog
+  // `summarize.daysWithRevenue`, S-6-konform: Sessions in allen Status).
+  const rows: CompareLocation[] = useMemo(() => {
+    const list: CompareLocation[] = [];
+    locations.forEach((loc, i) => {
+      const rev = revQueries[i]?.data;
+      const tip = tipQueries[i]?.data;
+      if (!rev || !tip) return;
+      const daysWithData = rev.daily.filter((d) => d.totalCents > 0).length;
+      const total = rev.summary.totalCents;
+      const tipTotal = tip.totals.totalCents;
+      list.push({
+        id: loc.id,
+        name: loc.name,
+        totalCents: total,
+        avgDailyCents: daysWithData > 0 ? Math.round(total / daysWithData) : 0,
+        takeawayCents: rev.summary.takeawayCents,
+        kitchenTipCents: tip.totals.kitchenCents,
+        serviceTipCents: tip.totals.serviceCents,
+        avgTipPerDayCents: daysWithData > 0 ? Math.round(tipTotal / daysWithData) : 0,
+        daysWithData,
+        tipTotalCents: tipTotal,
+      });
+    });
+    return list;
+  }, [locations, revQueries, tipQueries]);
+
+  // Kopfkarte „Gesamt (alle Standorte)": Summen über alle Standorte, Ø auf
+  // Basis der Vereinigung aller Tage mit Umsatz (kein Doppelzählen).
+  const overall = useMemo(() => {
+    const allDays = new Set<string>();
+    let total = 0;
+    let tipTotal = 0;
+    locations.forEach((_loc, i) => {
+      const rev = revQueries[i]?.data;
+      const tip = tipQueries[i]?.data;
+      if (rev) {
+        total += rev.summary.totalCents;
+        for (const d of rev.daily) {
+          if (d.totalCents > 0) allDays.add(d.businessDate);
+        }
+      }
+      if (tip) tipTotal += tip.totals.totalCents;
+    });
+    const days = allDays.size;
+    return {
+      totalCents: total,
+      avgDailyCents: days > 0 ? Math.round(total / days) : 0,
+      tipTotalCents: tipTotal,
+      daysWithData: days,
+    };
+  }, [locations, revQueries, tipQueries]);
+
+  const withData = useMemo(() => rows.filter((r) => r.daysWithData > 0), [rows]);
+  const defaultPair = useMemo(() => pickTopTwoByTotal(withData), [withData]);
+  const [pairIds, setPairIds] = useState<[string | null, string | null]>([null, null]);
+
+  // Auswahl an Datenlage koppeln: bei jeder relevanten Änderung Default
+  // (Top-2 nach Umsatz) neu setzen; manuelle Auswahl bleibt bestehen,
+  // solange beide IDs weiterhin verfügbar sind.
+  useEffect(() => {
+    const available = new Set(withData.map((r) => r.id));
+    const [a, b] = pairIds;
+    const stillValid = a && b && a !== b && available.has(a) && available.has(b);
+    if (stillValid) return;
+    const nextA = defaultPair[0]?.id ?? null;
+    const nextB = defaultPair[1]?.id ?? null;
+    setPairIds([nextA, nextB]);
+    // pairIds als Dep ist bewusst weggelassen — Reset nur auf Datenwechsel.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [withData, defaultPair]);
+
+  const a = pairIds[0] ? (withData.find((r) => r.id === pairIds[0]) ?? null) : null;
+  const b = pairIds[1] ? (withData.find((r) => r.id === pairIds[1]) ?? null) : null;
+
   return (
-    <section className="space-y-3">
-      <h2 className="text-lg font-semibold tracking-tight text-foreground">Standort-Vergleich</h2>
-      <p className="text-xs text-muted-foreground">Alle Standorte, unabhängig vom Filter oben.</p>
+    <section className="space-y-4">
+      <div>
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">Standortvergleich</h2>
+        <p className="text-xs text-muted-foreground">Alle Standorte, unabhängig vom Filter oben.</p>
+      </div>
+
       {locations.length === 0 ? (
         <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
           Keine Standorte vorhanden.
@@ -996,81 +1081,275 @@ function LocationCompareSection({
       ) : firstError ? (
         <ErrorState message={(firstError as Error)?.message ?? "Unbekannter Fehler"} />
       ) : isLoading ? (
-        <Skeleton className="h-48" />
+        <Skeleton className="h-64" />
       ) : (
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Standort</TableHead>
-                    <TableHead className="text-right">Umsatz</TableHead>
-                    <TableHead className="text-right">Trinkgeld</TableHead>
-                    <TableHead className="text-right">Personalquote</TableHead>
-                    <TableHead className="text-right">Netto-Std.</TableHead>
-                    <TableHead className="text-right">Basis-Lohnkosten</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {locations.map((loc, i) => {
-                    const rev = revQueries[i]?.data;
-                    const tip = tipQueries[i]?.data;
-                    const per = perQueries[i]?.data;
-                    if (!rev || !tip || !per) {
-                      return (
-                        <TableRow key={loc.id}>
-                          <TableCell>{loc.name}</TableCell>
-                          <TableCell className="text-right text-muted-foreground">—</TableCell>
-                          <TableCell className="text-right text-muted-foreground">—</TableCell>
-                          <TableCell className="text-right text-muted-foreground">—</TableCell>
-                          <TableCell className="text-right text-muted-foreground">—</TableCell>
-                          <TableCell className="text-right text-muted-foreground">—</TableCell>
-                        </TableRow>
-                      );
-                    }
-                    const ratio = personnelRatioPct(
-                      per.totals.laborCostCents,
-                      rev.summary.totalCents,
-                    );
-                    const missing = per.staffWithoutRate.length;
-                    return (
-                      <TableRow key={loc.id}>
-                        <TableCell className="font-medium">{loc.name}</TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {fmtEuro(rev.summary.totalCents)}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {fmtEuro(tip.totals.totalCents)}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          <span className="inline-flex items-center justify-end gap-1">
-                            {ratio === null ? "—" : `${ratio.toFixed(1)} %`}
-                            {missing > 0 ? (
-                              <span
-                                title={`${missing} ohne Stundenlohn — Quote untertreibt`}
-                                className="inline-flex"
-                              >
-                                <AlertTriangle className="h-3.5 w-3.5 text-amber-600" aria-hidden />
-                              </span>
-                            ) : null}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {per.totals.netHours.toFixed(2)}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {fmtEuro(per.totals.laborCostCents)}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+        <>
+          {/* Kopfkarte */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Gesamt (alle Standorte)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <OverallMetric label="Gesamtumsatz" value={fmtEuro(overall.totalCents)} />
+                <OverallMetric label="Ø Tagesumsatz" value={fmtEuro(overall.avgDailyCents)} />
+                <OverallMetric label="Trinkgeld gesamt" value={fmtEuro(overall.tipTotalCents)} />
+              </div>
+            </CardContent>
+          </Card>
+
+          {withData.length === 0 ? (
+            <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
+              Kein Standort hat im gewählten Zeitraum Umsatzdaten.
             </div>
-          </CardContent>
-        </Card>
+          ) : withData.length === 1 ? (
+            <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
+              Nur ein Standort mit Daten im Zeitraum ({withData[0].name}) — Vergleich benötigt zwei
+              Standorte.
+            </div>
+          ) : a && b ? (
+            <>
+              {/* Standort-Umschalter erscheint erst ab drei Standorten mit Daten */}
+              {withData.length > 2 ? (
+                <Card className="p-3">
+                  <div className="flex flex-wrap items-center gap-4">
+                    <PairSelector
+                      label="Standort A"
+                      value={a.id}
+                      exclude={b.id}
+                      options={withData}
+                      onChange={(id) => setPairIds([id, b.id])}
+                    />
+                    <PairSelector
+                      label="Standort B"
+                      value={b.id}
+                      exclude={a.id}
+                      options={withData}
+                      onChange={(id) => setPairIds([a.id, id])}
+                    />
+                  </div>
+                </Card>
+              ) : null}
+
+              {/* Sechs Vergleichskarten */}
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <ComparisonCard
+                  title="Gesamtumsatz"
+                  a={a}
+                  b={b}
+                  valueOf={(r) => r.totalCents}
+                />
+                <ComparisonCard
+                  title="Ø Tagesumsatz"
+                  a={a}
+                  b={b}
+                  valueOf={(r) => r.avgDailyCents}
+                />
+                <ComparisonCard
+                  title="Küchen-Trinkgeld"
+                  a={a}
+                  b={b}
+                  valueOf={(r) => r.kitchenTipCents}
+                />
+                <ComparisonCard
+                  title="Service-Trinkgeld"
+                  a={a}
+                  b={b}
+                  valueOf={(r) => r.serviceTipCents}
+                />
+                <ComparisonCard
+                  title="Lieferumsatz"
+                  a={a}
+                  b={b}
+                  valueOf={(r) => r.takeawayCents}
+                />
+                <ComparisonCard
+                  title="Ø Trinkgeld / Tag"
+                  a={a}
+                  b={b}
+                  valueOf={(r) => r.avgTipPerDayCents}
+                />
+              </div>
+            </>
+          ) : null}
+
+          {/* Fußkarte „Tage mit Daten" */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Tage mit Daten
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+                {rows.map((r) => (
+                  <div
+                    key={r.id}
+                    className="flex items-center justify-between rounded-md border border-border px-3 py-2"
+                  >
+                    <span className="text-sm text-foreground">{r.name}</span>
+                    <span className="text-sm font-medium tabular-nums text-foreground">
+                      {r.daysWithData}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </>
       )}
     </section>
+  );
+}
+
+function OverallMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="mt-1 text-2xl font-semibold tabular-nums text-foreground">{value}</div>
+    </div>
+  );
+}
+
+function PairSelector({
+  label,
+  value,
+  exclude,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  exclude: string;
+  options: CompareLocation[];
+  onChange: (id: string) => void;
+}) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </Label>
+      <div className="flex flex-wrap gap-1">
+        {options.map((opt) => {
+          const active = opt.id === value;
+          const disabled = opt.id === exclude;
+          return (
+            <Button
+              key={opt.id}
+              type="button"
+              size="sm"
+              variant={active ? "default" : "outline"}
+              disabled={disabled}
+              onClick={() => onChange(opt.id)}
+            >
+              {opt.name}
+            </Button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ComparisonCard({
+  title,
+  a,
+  b,
+  valueOf,
+}: {
+  title: string;
+  a: CompareLocation;
+  b: CompareLocation;
+  valueOf: (row: CompareLocation) => number;
+}) {
+  const av = valueOf(a);
+  const bv = valueOf(b);
+  const share = shareOf(av, bv);
+  const aPct = Math.round(share * 100);
+  const bPct = 100 - aPct;
+  const aDiff = pctDiff(av, bv);
+  const bDiff = pctDiff(bv, av);
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <ComparisonSide name={a.name} value={av} diff={aDiff} align="left" tone="a" />
+          <div className="mt-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            VS
+          </div>
+          <ComparisonSide name={b.name} value={bv} diff={bDiff} align="right" tone="b" />
+        </div>
+        <div>
+          <div className="flex h-2 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full bg-chart-1"
+              style={{ width: `${aPct}%` }}
+              aria-label={`${a.name} Anteil ${aPct} %`}
+            />
+            <div
+              className="h-full bg-chart-2"
+              style={{ width: `${bPct}%` }}
+              aria-label={`${b.name} Anteil ${bPct} %`}
+            />
+          </div>
+          <div className="mt-1 flex justify-between text-[11px] tabular-nums text-muted-foreground">
+            <span>{aPct} %</span>
+            <span>{bPct} %</span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ComparisonSide({
+  name,
+  value,
+  diff,
+  align,
+  tone,
+}: {
+  name: string;
+  value: number;
+  diff: number | null;
+  align: "left" | "right";
+  tone: "a" | "b";
+}) {
+  const isPos = diff !== null && diff > 0;
+  const isNeg = diff !== null && diff < 0;
+  const badgeCls = cn(
+    "inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+    isPos
+      ? "bg-emerald-50 text-emerald-700"
+      : isNeg
+        ? "bg-rose-50 text-rose-700"
+        : "bg-muted text-muted-foreground",
+  );
+  const dotCls = tone === "a" ? "bg-chart-1" : "bg-chart-2";
+  const diffLabel =
+    diff === null ? "—" : `${diff > 0 ? "+" : diff < 0 ? "−" : "±"}${Math.abs(diff).toFixed(1)} %`;
+  return (
+    <div className={cn("flex-1 min-w-0", align === "right" ? "text-right" : "text-left")}>
+      <div
+        className={cn(
+          "flex items-center gap-1.5 text-xs text-muted-foreground",
+          align === "right" ? "justify-end" : "",
+        )}
+      >
+        <span className={cn("h-2 w-2 rounded-full", dotCls)} aria-hidden />
+        <span className="truncate">{name}</span>
+      </div>
+      <div className="mt-0.5 text-lg font-semibold tabular-nums text-foreground">
+        {fmtEuro(value)}
+      </div>
+      <div className={cn("mt-1", align === "right" ? "flex justify-end" : "")}>
+        <span className={badgeCls}>{diffLabel}</span>
+      </div>
+    </div>
   );
 }

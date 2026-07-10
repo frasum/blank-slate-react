@@ -1,52 +1,54 @@
-# STAT-U2 — Umsatzentwicklung (3 Serien) + Take-Away-Kanäle-Donut
+## STAT-U3 — Standortvergleich-Tab
 
-Erweitert die bestehende Statistik-Seite (Umsatz-Tab) um zwei aus der Alt-App `tagesabrechnung` bewährte Auswertungen — rein aus COCO-Daten (Sessions, Channel-Amounts, Waiter-Settlements). Kein Schema-Change.
+Neuer Tab „Standortvergleich" auf `/admin/statistik`, gespeist ausschließlich aus bestehenden COCO-Bausteinen (kein Neubau von Umsatz-/Trinkgeld-Formeln, keine Migrationen, keine neuen Deps).
 
-## Umfang
+### 1) Reine Vergleichs-Helfer + Tests
+**Neu:** `src/lib/statistics/comparison-core.ts` mit
+- `pctDiff(a, b)` — relative Abweichung von `a` ggü. `b` (mit Vorzeichen); `b === 0` → `null`.
+- `shareOf(a, b)` — Anteil `a/(a+b)` als 0..1; `a+b === 0` → `0.5` (neutrale Aufteilung).
+- Optional: `pickTopTwoByTotal(rows)` — deterministische Auswahl der zwei umsatzstärksten Standorte (bei Gleichstand nach Name).
 
-1. **Server + reine Logik**
-   - `revenue-core.ts` erweitern:
-     - `DailyRevenue` bekommt Feld `cardCents: number`.
-     - `sessionRevenue`/`aggregateByBusinessDate` bleiben rückwärts­kompatibel; Kreditkarten fließen als separater Aggregations-Parameter (Map `sessionId → cardCents`) über `aggregateByBusinessDate(sessions, cardBySession?)` ein — Default 0.
-     - Neue reine Helfer:
-       - `groupTakeawayByChannel(rows: { name: string; amountCents: number }[]) → { name, amountCents }[]` (Summe pro Name, absteigend sortiert).
-       - `computeChannelPercents(items) → { name, amountCents, pct }[]` mit Largest-Remainder-Runden, sodass Σ pct = 100 (bzw. 0 bei leerer Liste).
-   - `revenue-stats.functions.ts` erweitern:
-     - Zusätzliche Query `waiter_settlements` (org + Zeitraum + optional `location_id`, `card_total_cents` je `business_date`/`session_id`) → in `aggregateByBusinessDate` einspeisen.
-     - Zusätzliche Query `session_channel_amounts` mit Join `revenue_channels(name, is_takeaway)` filtert `is_takeaway=true` und liefert pro Kanalname die Summe. Ergebnis `takeawayByChannel` (sortiert abst.) im Response ergänzen.
-     - Vorperiode: Nur Basis-Summary (kein Kanal-Split, keine Card-Serie) — wie bisher.
-   - `revenue-map.ts` ggf. minimal anpassen, falls Card-Merge dort besser aufgehoben ist (bevorzugt reine Aggregation in `revenue-core`).
+**Neu:** `src/lib/statistics/comparison-core.test.ts` (Vorzeichen, 0-Randfälle, Rundung, Top-2-Auswahl inkl. Gleichstand).
 
-2. **UI — `/admin/statistik` Umsatz-Tab (`statistik.tsx`)**
-   - **Karte „Umsatzverlauf"**: bestehendes `BarChart` durch `ComposedChart` mit drei Serien ersetzen:
-     - `Area` Tagesumsatz (blau, gefüllt)
-     - `Line` Kreditkarten (orange, gestrichelt)
-     - `Line` Takeaway (grün)
-     - Gemeinsame `Tooltip` in € (de-DE via bestehende `fmtCents`), Legende unter dem Chart.
-     - Vergleich/Trend-Kopfteil der Karte unverändert.
-   - **Neue Karte „Take Away Kanäle"** direkt darunter:
-     - `PieChart` (Donut, `innerRadius`) aus `takeawayByChannel` + `computeChannelPercents`.
-     - Segment-Labels mit Prozent, Legende `Name — X,XX € (yy %)`, Fußzeile `Gesamt Takeaway: … €` = bereits vorhandene `summary.takeawayCents`.
-     - Leerer Zeitraum / keine Takeaway-Umsätze → dezenter Leer-Zustand (Text), kein leerer Donut.
+### 2) Server-Fn `getLocationComparison`
+**Neu:** `src/lib/statistics/comparison-stats.functions.ts` (Muster wie `getRevenueStats`/`getTipStats`):
+- Input: `{ month? | startDate?+endDate? }` — **kein** `locationId` (immer alle aktiven Standorte der Org).
+- Caller-/Rollen-Behandlung identisch (`loadAdminCaller` → `manager|admin|payroll`).
+- Umsatz je Standort: **ein** Read über `sessions` + `session_channel_amounts` + `waiter_settlements` für den Zeitraum ohne `location_id`-Filter, dann per `location_id` gruppiert und je Gruppe durch `aggregateByBusinessDate` + `summarize` (bestehende Bausteine aus `revenue-core.ts`) — liefert `totalCents`, `takeawayCents`, `daysWithData`.
+  - `avgDailyCents = totalCents / daysWithData` (0 bei `daysWithData === 0`).
+- Trinkgeld je Standort: `computeSessionTipPoolCore` je Session (Kernpfad aus `tip-stats.functions.ts` wiederverwenden), Ergebnisse per `location_id` gruppiert durch `aggregateTips` → `serviceCents`/`kitchenCents`.
+  - `avgTipPerDayCents = (service+kitchen) / daysWithData`.
+- Return-Shape:
+  ```ts
+  {
+    range: { startDate, endDate, label },
+    overall: { totalCents, avgDailyCents, tipTotalCents, daysWithData },
+    perLocation: Array<{
+      locationId, name,
+      totalCents, avgDailyCents, takeawayCents,
+      kitchenTipCents, serviceTipCents, avgTipPerDayCents,
+      daysWithData
+    }>
+  }
+  ```
+- **KGL:** keine Formel-Duplikate — nur Gruppierung um die bestehenden Bausteine. Falls nötig, minimale optionale Gruppierungs-Helfer in `revenue-core.ts`/`tip-aggregate.ts` ergänzen (additiv, bestehende Aufrufer bleiben grün).
 
-3. **Tests (Vitest)** — `revenue-core.test.ts` erweitern:
-   - `aggregateByBusinessDate` mergt `cardCents` korrekt (mit/ohne Map).
-   - `groupTakeawayByChannel` summiert, sortiert.
-   - `computeChannelPercents` Σ = 100 bei Rundungskanten (z. B. drei Kanäle mit 1/3), leere Liste → [].
+### 3) UI-Tab in `statistik.tsx`
+- Vierter `TabsTrigger` „Standortvergleich" neben Umsatz/Trinkgeld/Personal; nutzt dieselbe Zeitraum-Auswahl.
+- Query auf `getLocationComparison` (analog zu den bestehenden Stats-Queries).
+- **Kopfkarte „Gesamt (alle Standorte)":** Gesamtumsatz · Ø Tagesumsatz · Trinkgeld gesamt (via `fmtCents`).
+- **Standortauswahl:** Wenn > 2 Standorte mit Daten, schlichter Pills-Umschalter A/B (Default: die zwei umsatzstärksten). Bei genau 1 Standort: Hinweistext statt Vergleichskarten. Bei 0: Leerzustand.
+- **Sechs Vergleichskarten** (eine wiederverwendbare Komponente `ComparisonCard` lokal im File):
+  Gesamtumsatz · Ø Tagesumsatz · Küchen-Trinkgeld · Service-Trinkgeld · Lieferumsatz (`takeawayCents`) · Ø Trinkgeld/Tag.
+  Layout je Karte: links A (Betrag + `pctDiff`-Badge grün/rot), „VS", rechts B spiegelbildlich; darunter zweifarbiger Anteilsbalken (`shareOf`) in stabilen Standortfarben (Zuordnung nach `locationId`-Reihenfolge, konsistent über alle Karten).
+- **Fußkarte „Tage mit Daten"** je Standort.
+- Keine hartkodierten Standortnamen — alles aus `locations`/Response.
 
-## Nicht anfassen
+### Nicht angefasst
+- Umsatz-/Trinkgeld-/Personal-Tab-Inhalte, `tip-stats`/`revenue-stats`/`personnel-stats`.
+- Migrationen, RLS, Deps.
 
-- Trinkgeld-/Personal-Tabs, `tip-stats.functions.ts`, `personnel-stats.functions.ts`.
-- Keine Migrationen / RLS-Änderungen.
-- `revenue-core.ts` Bestandslogik (Haus/Takeaway, vectron/pos-Sonderfälle) — nur erweitern.
-- Keine hartkodierten Kanalnamen — alles aus `channels.name`.
-
-## Vor dem Commit
-
-`npx prettier --write .` und `npx eslint --fix` auf die geänderten Dateien; Erfolgs-Gate: `tsc --noEmit`, `eslint .`, `prettier --check .`, `vitest run` alle grün.
-
-## Technische Notizen
-
-- `waiter_settlements` liefert card-Beträge pro Session; Zuordnung Session → `business_date` bereits über die Sessions-Query. Card-Map wird als `Record<sessionId, number>` an `aggregateByBusinessDate` gereicht, damit `revenue-core` rein bleibt.
-- `takeawayByChannel` wird über denselben `session_channel_amounts`-Read gewonnen, den `loadWindow` schon macht — nur mit zusätzlichem `revenue_channels(name)` im Select und einer zweiten Gruppierung; keine zweite Roundtrip-Query nötig.
-- `ComposedChart` ist Teil von `recharts` und benötigt keinen neuen Import auf Package-Ebene.
+### Technische Details
+- Farbwahl: zwei Tokens aus dem bestehenden Chart-Farbraum wiederverwenden (kein neuer Design-Token). Zuordnung stabil per sortierter `locationId`.
+- Vor Commit: `npx prettier --write .` + `npx eslint --fix` auf geänderten Dateien.
+- Gates: `bun run tsc --noEmit` · `npx eslint .` · `npx prettier --check .` · `npx vitest run` (1641 + neue comparison-Tests).
