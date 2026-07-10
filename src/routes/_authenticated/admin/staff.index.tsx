@@ -9,7 +9,7 @@ import {
   setStaffRole,
   setStaffLocationDepartment,
 } from "@/lib/admin/staff.functions";
-import { assignStaffSkills, listSkills, type SkillCategory } from "@/lib/admin/skills.functions";
+import { assignStaffSkills, listSkills } from "@/lib/admin/skills.functions";
 import { listLocations } from "@/lib/admin/locations.functions";
 import {
   getSofortmeldungOverview,
@@ -19,7 +19,6 @@ import type { SofortmeldungStatus } from "@/lib/sofortmeldung/sofortmeldung-rule
 import {
   distinctDepartments,
   ineligibleSkills,
-  isSkillCategoryEligible,
   type StaffDepartment,
 } from "@/lib/admin/skill-eligibility";
 import {
@@ -39,6 +38,7 @@ import { Search, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AppRole } from "@/lib/admin/role-guard";
 import { computeAgeYears } from "@/lib/profile/age";
+import { SkillAssignPopover } from "@/components/admin/SkillAssignPopover";
 
 function formatTenure(startDate: string | null | undefined): string | null {
   if (!startDate) return null;
@@ -68,13 +68,6 @@ const ROLE_OPTIONS: { value: AppRole | ""; label: string }[] = [
   { value: "payroll", label: "Payroll" },
   { value: "staff", label: "Staff" },
 ];
-
-const CATEGORY_LABEL: Record<SkillCategory, string> = {
-  kitchen: "Küche",
-  service: "Service",
-  gl: "Geschäftsleitung",
-  other: "Sonstiges",
-};
 
 const DEPARTMENT_ORDER: StaffDepartment[] = ["service", "kitchen", "gl"];
 const DEPARTMENT_SHORT: Record<StaffDepartment, string> = {
