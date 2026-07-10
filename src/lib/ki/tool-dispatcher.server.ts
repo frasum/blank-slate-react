@@ -24,7 +24,6 @@ import {
   aggregateByBusinessDate,
   groupTakeawayByChannel,
   summarize,
-  type TakeawayChannel,
 } from "@/lib/statistics/revenue-core";
 import {
   mapToSessionInputs,
