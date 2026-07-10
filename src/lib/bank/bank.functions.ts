@@ -17,7 +17,6 @@ import { buildBankStats, type BankStats, type StatsTx } from "./bank-stats-core"
 import { chunk } from "./bank-import-helpers";
 import { computeDateFrom } from "./date-from";
 import {
-  fingerprint as fpOf,
   findCrossAccountMatches,
   summarizeCrossAccountHits,
   type CandidateRow,
@@ -866,6 +865,19 @@ export async function runSyncForAccount(
   const skipped = mapped.skippedNoId + mapped.skippedNoEur + mapped.skippedNoDate;
   let inserted = 0;
   if (mapped.rows.length > 0) {
+    // Vor dem Upsert: welche external_tx_ids gibt es bereits? Damit können wir
+    // 'inserted' präzise ausweisen (partial unique-index verhindert Dubletten).
+    const incomingIds = mapped.rows.map((r) => r.externalTxId);
+    const existingIds = new Set<string>();
+    for (const part of chunk(incomingIds, 500)) {
+      const { data: ex, error: exErr } = await supabaseAdmin
+        .from("bank_transactions")
+        .select("external_tx_id")
+        .eq("account_id", accountId)
+        .in("external_tx_id", part);
+      if (exErr) throw exErr;
+      for (const row of ex ?? []) if (row.external_tx_id) existingIds.add(row.external_tx_id);
+    }
     const payload = mapped.rows.map((r) => ({
       organization_id: organizationId,
       account_id: accountId,
@@ -884,27 +896,7 @@ export async function runSyncForAccount(
       .from("bank_transactions")
       .upsert(payload as never, { onConflict: "account_id,external_tx_id", ignoreDuplicates: true });
     if (up.error) throw up.error;
-    // Wie viele wirklich neu? Postgrest liefert die Info nicht direkt. Wir
-    // zählen die vorher vorhandenen external_tx_ids und ziehen ab.
-    const ids = mapped.rows.map((r) => r.externalTxId);
-    let existed = 0;
-    for (const part of chunk(ids, 500)) {
-      const { data: ex, error: exErr } = await supabaseAdmin
-        .from("bank_transactions")
-        .select("external_tx_id")
-        .eq("account_id", accountId)
-        .in("external_tx_id", part);
-      if (exErr) throw exErr;
-      // Nach dem Upsert existieren alle — wir approximieren „neu" durch
-      // Zeilen mit created_at innerhalb der letzten Minute. Für den Audit
-      // reicht das; die Anzeige nutzt inserted als Best-Effort.
-      existed += ex?.length ?? 0;
-    }
-    inserted = Math.max(0, mapped.rows.length - Math.max(0, existed - mapped.rows.length));
-    // Wenn nichts vorher da war, ist inserted = rows. Bei Zweit-Sync liegt
-    // existed ≈ rows.length, dann inserted ≈ 0. Konservativ nach oben
-    // begrenzen.
-    inserted = Math.min(inserted, mapped.rows.length);
+    inserted = incomingIds.filter((id) => !existingIds.has(id)).length;
   }
   if (audit) {
     await audit({
@@ -998,7 +990,5 @@ export const findCrossAccountDuplicates = createServerFn({ method: "POST" })
         meta: { candidate_iban: candIban, hits: summary },
       });
     }
-    // fpOf/computeDateFrom-Zusatzverwendung nur intern; export existiert für Tests
-    void fpOf;
     return summary;
   });
