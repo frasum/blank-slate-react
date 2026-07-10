@@ -40,7 +40,12 @@ function LohnPage() {
     // Browsern führt das zu einem sichtbaren leeren Vordergrund-Tab, deshalb
     // dort erst die Signed-URL holen und den Tab direkt mit der Ziel-URL öffnen.
     if (isIosSafari()) {
-      const win = window.open("about:blank", "_blank", "noopener");
+      // Bewusst OHNE "noopener": mit diesem Feature-String liefert window.open
+      // per Spezifikation null zurück, dann verlieren wir das Tab-Handle und
+      // können weder den Hinweistext schreiben noch später die Ziel-URL setzen.
+      // Ziel ist ausschließlich unsere eigene signierte Storage-URL
+      // (vertrauenswürdig, kein Fremdinhalt), daher unbedenklich.
+      const win = window.open("about:blank", "_blank");
       // Sichtbarer Hinweis, damit der Zwischen-Tab nicht leer wirkt.
       if (win && !win.closed) {
         try {
