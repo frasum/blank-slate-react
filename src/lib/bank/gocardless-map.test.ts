@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapGcTransactionsResponse, type GcTransactionsResponse } from "./gocardless-map";
-// GcTransactionsResponse wird direkt konstruiert; keine Fabrik nötig.
-void ({} as GcTransactionsResponse);
+import { mapGcTransactionsResponse } from "./gocardless-map";
 
 describe("mapGcTransactionsResponse", () => {
   it("verarbeitet nur booked, verwirft pending (skippedPending zählt)", () => {
