@@ -311,6 +311,207 @@ export type Database = {
           },
         ]
       }
+      bank_accounts: {
+        Row: {
+          created_at: string
+          iban: string
+          id: string
+          location_id: string | null
+          name: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          iban: string
+          id?: string
+          location_id?: string | null
+          name: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          iban?: string
+          id?: string
+          location_id?: string | null
+          name?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_accounts_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_accounts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bank_categories: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          organization_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          organization_id: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          organization_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_categories_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bank_category_rules: {
+        Row: {
+          category_id: string
+          created_at: string
+          id: string
+          match_field: string
+          organization_id: string
+          pattern: string
+          priority: number
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          id?: string
+          match_field: string
+          organization_id: string
+          pattern: string
+          priority?: number
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          id?: string
+          match_field?: string
+          organization_id?: string
+          pattern?: string
+          priority?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_category_rules_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "bank_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_category_rules_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bank_transactions: {
+        Row: {
+          account_id: string
+          bank_kategorie: string
+          bank_unterkategorie: string
+          betrag_cents: number
+          buchungstag: string
+          created_at: string
+          gegenpartei: string
+          id: string
+          laufende_nummer: number
+          organization_id: string
+          override_category_id: string | null
+          saldo_cents: number | null
+          updated_at: string
+          verwendungszweck: string
+          wertstellungstag: string | null
+        }
+        Insert: {
+          account_id: string
+          bank_kategorie?: string
+          bank_unterkategorie?: string
+          betrag_cents: number
+          buchungstag: string
+          created_at?: string
+          gegenpartei?: string
+          id?: string
+          laufende_nummer: number
+          organization_id: string
+          override_category_id?: string | null
+          saldo_cents?: number | null
+          updated_at?: string
+          verwendungszweck?: string
+          wertstellungstag?: string | null
+        }
+        Update: {
+          account_id?: string
+          bank_kategorie?: string
+          bank_unterkategorie?: string
+          betrag_cents?: number
+          buchungstag?: string
+          created_at?: string
+          gegenpartei?: string
+          id?: string
+          laufende_nummer?: number
+          organization_id?: string
+          override_category_id?: string | null
+          saldo_cents?: number | null
+          updated_at?: string
+          verwendungszweck?: string
+          wertstellungstag?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_transactions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_override_category_id_fkey"
+            columns: ["override_category_id"]
+            isOneToOne: false
+            referencedRelation: "bank_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bilanz_konten: {
         Row: {
           betrag_cents: number
