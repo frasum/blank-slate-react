@@ -52,7 +52,15 @@ import {
   type BankRuleRow,
   type BankTxRow,
 } from "@/lib/bank/bank.functions";
-import { parseBankCsv, formatCentsEUR, formatDateDE } from "@/lib/bank/bank-csv-parser";
+import { parseBankCsv } from "@/lib/bank/bank-csv-parser";
+
+function formatCentsEUR(cents: number): string {
+  return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(cents / 100);
+}
+function formatDateDE(iso: string): string {
+  const [y, m, d] = iso.split("-");
+  return `${d}.${m}.${y}`;
+}
 
 export const Route = createFileRoute("/_authenticated/admin/bankkonto")({
   beforeLoad: async ({ context }) => {
@@ -125,6 +133,7 @@ function BankkontoPage() {
       <PillSelect
         value={tab}
         onChange={(v) => setTab(v as Tab)}
+        ariaLabel="Bankkonto-Ansicht"
         options={[
           { value: "overview", label: "Übersicht" },
           { value: "transactions", label: "Buchungen" },
