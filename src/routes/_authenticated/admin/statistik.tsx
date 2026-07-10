@@ -5,7 +5,20 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQueries, useQuery, type UseQueryResult } from "@tanstack/react-query";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  Area,
+  CartesianGrid,
+  Cell,
+  ComposedChart,
+  Legend,
+  Line,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { AlertTriangle, ArrowDown, ArrowUp, Download } from "lucide-react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
@@ -31,6 +44,7 @@ import { getRevenueStats } from "@/lib/statistics/revenue-stats.functions";
 import { getTipStats } from "@/lib/statistics/tip-stats.functions";
 import { getPersonnelStats } from "@/lib/statistics/personnel-stats.functions";
 import { personnelRatioPct } from "@/lib/statistics/personnel-core";
+import { computeChannelPercents } from "@/lib/statistics/revenue-core";
 import { generateStatistikPdf, type StatistikPdfData } from "@/lib/statistics/statistik-pdf";
 import { currentMonth, monthRange } from "@/lib/statistics/period-window";
 import { fillDailyGaps } from "@/lib/statistics/chart-fill";
