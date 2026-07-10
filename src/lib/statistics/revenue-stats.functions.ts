@@ -23,8 +23,10 @@ import { loadAdminCaller } from "@/lib/admin/admin-context";
 import {
   aggregateByBusinessDate,
   computeTrend,
+  groupTakeawayByChannel,
   summarize,
   type DailyRevenue,
+  type TakeawayChannel,
   type PeriodSummary,
   type Trend,
 } from "./revenue-core";
@@ -42,7 +44,7 @@ const MONTH_RE = /^\d{4}-\d{2}$/;
 type ChannelAmountQueryRow = {
   session_id: string;
   amount_cents: number;
-  revenue_channels: { is_takeaway: boolean } | null;
+  revenue_channels: { is_takeaway: boolean; name: string } | null;
 };
 
 type Window = { startDate: string; endDate: string };
@@ -101,7 +103,11 @@ export const getRevenueStats = createServerFn({ method: "GET" })
     // 3) Fenster laden: Sessions + Channel-Amounts.
     async function loadWindow(
       win: Window,
-    ): Promise<{ daily: DailyRevenue[]; summary: PeriodSummary }> {
+    ): Promise<{
+      daily: DailyRevenue[];
+      summary: PeriodSummary;
+      takeawayByChannel: TakeawayChannel[];
+    }> {
       let sessionQuery = supabaseAdmin
         .from("sessions")
         .select("id, business_date, location_id, vectron_daily_total_cents")
@@ -122,6 +128,8 @@ export const getRevenueStats = createServerFn({ method: "GET" })
       }));
 
       let channels: ChannelAmountRow[] = [];
+      const takeawayRaw: { name: string; amountCents: number }[] = [];
+      const cardBySession = new Map<string, number>();
       if (sessions.length > 0) {
         const ids = sessions.map((s) => s.id);
         // TSB-Hinweis (offen): pos-Kanal „Kasse" wird hier mitgeliefert, falls
@@ -129,7 +137,7 @@ export const getRevenueStats = createServerFn({ method: "GET" })
         // ausgeschlossen, bis TSB-Daten verifiziert sind.
         const { data: chRows, error: chErr } = await supabaseAdmin
           .from("session_channel_amounts")
-          .select("session_id, amount_cents, revenue_channels(is_takeaway)")
+          .select("session_id, amount_cents, revenue_channels(is_takeaway, name)")
           .eq("organization_id", org)
           .in("session_id", ids)
           .returns<ChannelAmountQueryRow[]>();
@@ -139,11 +147,39 @@ export const getRevenueStats = createServerFn({ method: "GET" })
           amountCents: r.amount_cents,
           isTakeaway: r.revenue_channels?.is_takeaway ?? false,
         }));
+        for (const r of chRows ?? []) {
+          if (r.revenue_channels?.is_takeaway) {
+            takeawayRaw.push({
+              name: r.revenue_channels.name,
+              amountCents: r.amount_cents,
+            });
+          }
+        }
+
+        // STAT-U2 — Kreditkartensummen pro Session aus waiter_settlements
+        // (nur aktive, d.h. status != 'superseded'). Reine Aggregation zur
+        // Laufzeit, keine Persistenz.
+        const { data: wsRows, error: wsErr } = await supabaseAdmin
+          .from("waiter_settlements")
+          .select("session_id, card_total_cents, status")
+          .eq("organization_id", org)
+          .in("session_id", ids)
+          .neq("status", "superseded");
+        if (wsErr) throw wsErr;
+        for (const r of wsRows ?? []) {
+          const sid = r.session_id as string;
+          const cents = (r.card_total_cents as number | null) ?? 0;
+          cardBySession.set(sid, (cardBySession.get(sid) ?? 0) + cents);
+        }
       }
 
       const inputs = mapToSessionInputs(sessions, channels);
-      const daily = aggregateByBusinessDate(inputs);
-      return { daily, summary: summarize(daily) };
+      const daily = aggregateByBusinessDate(inputs, cardBySession);
+      return {
+        daily,
+        summary: summarize(daily),
+        takeawayByChannel: groupTakeawayByChannel(takeawayRaw),
+      };
     }
 
     const cur = await loadWindow(current);
@@ -179,6 +215,7 @@ export const getRevenueStats = createServerFn({ method: "GET" })
       range: { startDate: current.startDate, endDate: current.endDate, label },
       daily: cur.daily,
       summary: cur.summary,
+      takeawayByChannel: cur.takeawayByChannel,
       previous: prev ? prev.summary : null,
       trend,
       coverage: { lastDataDay, isPartial },
