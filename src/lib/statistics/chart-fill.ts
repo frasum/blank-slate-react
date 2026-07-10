@@ -9,6 +9,7 @@ export type DailyPoint = {
   houseCents: number;
   takeawayCents: number;
   totalCents: number;
+  cardCents?: number;
 };
 
 function pad2(n: number): string {
@@ -42,7 +43,13 @@ export function fillDailyGaps(daily: DailyPoint[]): DailyPoint[] {
     if (existing) {
       out.push(existing);
     } else {
-      out.push({ businessDate: iso, houseCents: 0, takeawayCents: 0, totalCents: 0 });
+      out.push({
+        businessDate: iso,
+        houseCents: 0,
+        takeawayCents: 0,
+        totalCents: 0,
+        cardCents: 0,
+      });
     }
   }
   return out;
