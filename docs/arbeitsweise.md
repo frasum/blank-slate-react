@@ -6,7 +6,7 @@ SaaS-Vorbereitung: Readiness-Audit und Modul-Katalog stehen in docs/saas-vorbere
 
 Produktionsreife-Review: docs/produktionsreife-review.md (Stand 07.07.2026, HEAD 8cfdbc1d, inkl. Patch-Plan P0–P7) — kritischer Pfad vor dem Kassen-Go-live: Monitoring (P1) → Finalize-E2E (P2) → Restore-Probe (P3) → Cutover.
 
-Stand: 11.07.2026 (§83: Bank-Bestand bereinigt, BK2 vorbereitet)
+Stand: 12.07.2026 (§85: BK2 abgenommen — Inbetriebnahme vertagt)
 
 TH1 — Standort-Farbthema: LocationThemeProvider im \_authenticated-Layout hält den themeKey (spicery/yum/neutral).
 LocationPills melden die Auswahl per useLocationThemeSync; Mapping: Name enthält „spicery" → spicery, „yum" → yum, sonst neutral (auch TSB/„Alle"/leer).
@@ -3971,3 +3971,27 @@ SELECT cron.schedule(
 **Secrets, die noch fehlen:** `GOCARDLESS_SECRET_ID`, `GOCARDLESS_SECRET_KEY`, `CRON_SECRET`. Setzen erfolgt durch Frank; Lovable erzeugt sie nicht selbst.
 
 **Offen bleibt** wie in §83 gelistet, plus: `finalizeBankConnectByAccount` nachziehen · Secrets setzen · Cron-SQL im Supabase-Editor ausführen · produktiver Erst-Connect Spicery.
+
+## §85 — BK2 abgenommen, Inbetriebnahme vertagt; Auth-Doppel-Fix mit Sentry-Erstbewährung (12.07.)
+
+Abnahme-Anker: `0c46d3a1`, vier Gates grün, **1709 Tests** (+13 BK2: gocardless-map inkl. booked-only und Skip-ohne-ID, date-from, cross-account-duplicates).
+
+**BK2-Abnahme.** Alle acht Anpassungen im Code verifiziert: Migration replayfähig (laufende_nummer nullable, partielle Unique-Indizes, GoCardless-Spalten), Sync-Route mit timingSafeEqual gegen CRON_SECRET, Mapper booked-only mit skipped-Zähler, date_from-Naht-Formel (drei Fälle), IBAN-Zwang inkl. Ablehnung gemischter Dateien, keine Secrets im Code. Prettier fehlte anfangs auf allen 11 BK2-Dateien (wiederkehrendes Lovable-Muster, per Micro-Fix nachgezogen; Fix-Commit war verifiziert reine Formatierung). Falsch betitelter Commit „GoCardless-Edge-Fns": tatsächlich reguläre Server-Fns, kein Edge-Functions-Ordner.
+
+**BK2-Inbetriebnahme BEWUSST VERTAGT (Frank).** Code ist produktionsbereit, aber unverbunden — kein GoCardless-Konto, keine Secrets, kein Consent, kein Cron. Wiedereinstiegs-Checkliste (in dieser Reihenfolge):
+
+1. Konto bei bankaccountdata.gocardless.com anlegen, Secret-Paar erzeugen.
+
+2. `GOCARDLESS_BAD_SECRET_ID` + `GOCARDLESS_BAD_SECRET_KEY` von Frank direkt in Lovables Secrets-UI eintragen (nie via Chat/Prompt).
+
+3. Publish, dann `/admin/bankkonto` → „Deutsche Bank verbinden" → PSD2-Consent; IBAN-Match muss Spicery (…7901) automatisch treffen.
+
+4. „Jetzt Umsätze abrufen" (Hand-Sync): erwartet neue Zeilen ab 01.07. (Naht: CSV-Bestand endet 30.06.), Dubletten-Check bleibt leer.
+
+5. ERST nach sauberem Hand-Sync: `cron.schedule`-SQL aus §84 (Platzhalter durch echten CRON_SECRET ersetzen, Frank führt aus).
+
+Hinweis: 90-Tage-Consent läuft ab Verbindungsdatum; Status-Chip warnt <14 Tage.
+
+**Auth-Doppel-Fix mit Sentry-Erstbewährung.** Logout-Fix (`eaf89258`, signOut-Reihenfolge) erzeugte eine Redirect-Schleife: navigate zu /auth VOR signOut → /auth leitet bei gültiger Session zurück → Endlosschleife. Sentry fing den Ernstfall (COCO-3 „Error: Aa", COCO-4 „RangeError: Maximum call stack size exceeded", beide 11.07. 23:48 auf /auth, 10 s auseinander = ein Vorfall) — erster echter Fang des P1-Monitorings. Fix (`4f7a153f`): Reihenfolge queries stoppen → Cache leeren → signOut → navigate. Sentry-Issues auf Resolved gesetzt; Wiederauftreten würde automatisch re-openen. Gerätetest Login→Logout→Login (Desktop + iPhone) Teil der offenen Testliste. Merksatz bestätigt: Auth-nahe Einzeiler sind nie „nur ein Einzeiler" — Gerätetest ist Pflicht-Gate.
+
+**Offen:** BK2-Inbetriebnahme (Checkliste oben) · Gerätetests gesammelt: Logout-Zyklus, iPhone-Payslip, Safari-Splitter mit echtem Lohn-PDF, SD3-Popover/Farben, SD4 Deaktivieren/Reaktivieren, drei KI4-Testfragen, roter Urlaubs-Punkt · PL3 (Prompt bereit) · Backup-Strategie Stufe 2 · Security-Scanner-Review · toter PdfCanvasPreview (Produktentscheidung) · WebKit-CI beobachten · Cutover-Planung als nächster großer Block (§5-Voll-Reimport nicht vergessen).
