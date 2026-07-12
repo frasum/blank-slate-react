@@ -1,64 +1,27 @@
-# Fix: Logout-Schleife auf /auth (Maximum call stack size exceeded)
+## Warum du das siehst
 
-## Bestätigte Ursache
+- **Published (`cocoplatform.online`)** liest die Supabase-Werte aus `.env.production` — die Datei ist im Repo eingecheckt (bewusste Ausnahme zu ENV1, dokumentiert in `docs/code-review-2026-07.md`). Deshalb baut die Produktion sauber → Login-Screen erscheint.
+- **Live-Preview** baut in der Lovable-Sandbox. Dort gilt `.env.production` **nicht** (Vite liest sie nur bei `mode=production`). Die Sandbox braucht ein `.env` — und das ist per `.gitignore` ausgeschlossen und aktuell **nicht vorhanden** (`ls -la .env*` zeigt nur `.env.example` und `.env.production`). Ohne `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` wirft `src/integrations/supabase/client.ts` beim ersten Zugriff → deine freundliche Fehlerseite „Konfiguration unvollständig".
 
-In `src/contexts/auth-context.tsx` (Zeilen 56–61) navigiert `signOut` **vor** `supabase.auth.signOut()` nach `/auth`:
+Genau dieselbe Ursache wie am 09.07. schon einmal — die Sandbox wurde seither neu aufgesetzt, das damals angelegte `.env` ist mit weg.
 
-```ts
-await router.navigate({ to: "/auth", replace: true });
-await supabase.auth.signOut();
+## Fix (minimal)
+
+Ein `.env` in der Sandbox anlegen mit den drei publishable Werten aus `.env.production`:
+
+```
+VITE_SUPABASE_PROJECT_ID=gyvblrdhutztbkoynnrq
+VITE_SUPABASE_URL=https://gyvblrdhutztbkoynnrq.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=<anon key aus .env.production>
 ```
 
-Zu diesem Zeitpunkt hält Supabase die Session noch. Die Route `/auth` hat in `src/routes/auth.tsx` einen `beforeLoad`-Guard, der bei aktiver Session hart auf `/` umleitet. `/` liegt unter `_authenticated/route.tsx`, dessen `beforeLoad` wiederum bei fehlender Session auf `/auth` umleitet — sobald direkt danach `supabase.auth.signOut()` ausgeführt wird, feuert `onAuthStateChange` (`SIGNED_OUT`) und der Provider ruft `queryClient.clear()`. Kombination aus laufender Navigation, konkurrierendem State-Wechsel und den beiden gegenläufigen `beforeLoad`-Redirects erzeugt die Redirect-/Invalidierungs-Schleife, die Sentry als `Maximum call stack size exceeded` meldet. Genau dieses Muster steht auch in der Lovable-Stack-Overflow-Notiz zu diesem Repo.
+Danach Dev-Server neu starten. Kein Code-Change, keine Repo-Änderung (`.env` bleibt in `.gitignore`), Published verhält sich unverändert.
 
-## Minimalfix
+## Was ich NICHT anfasse
 
-Reihenfolge in `src/contexts/auth-context.tsx` zurückdrehen — sonst nichts:
+- `.env.production`, `client.ts`, Fehlerseite, Auth-Flow — alles korrekt, kein Bug.
+- Keine Secrets in git, keine Änderung an Doku/CI.
 
-```ts
-signOut: async () => {
-  await queryClient.cancelQueries();
-  queryClient.clear();
-  await supabase.auth.signOut();               // 1) Session zuverlässig beenden
-  await router.navigate({ to: "/auth", replace: true }); // 2) danach navigieren
-},
-```
+## Nach dem Fix
 
-Damit:
-- Wenn `/auth` erreicht wird, ist die Session bereits weg → `beforeLoad` lässt die Seite normal rendern, kein Redirect nach `/`.
-- `_authenticated`-Guards sehen keine Session mehr und leiten nicht mehr konkurrierend nach `/auth`.
-- `onAuthStateChange` (`SIGNED_OUT`) im Provider bleibt unverändert; `queryClient.clear()` wurde bereits vor `signOut()` gemacht, die zusätzliche Cache-Invalidierung im Listener ist harmlos.
-
-Passwort-Login, PIN-Login, `beforeLoad`-Guards, RLS, Rollen, DB, Supabase-Konfig — nichts davon wird angefasst.
-
-## Regressionstest
-
-Kleiner Unit-Test für den Provider-Kontrakt, ohne Router-Umbauten:
-
-- Datei: `src/contexts/auth-context.test.tsx` (neu).
-- Rendert `<AuthProvider>` mit gemockten `supabase.auth`, `useRouter`, `useQueryClient`, `getMyIdentity`.
-- Ruft `signOut()` und prüft die Aufrufreihenfolge über ein gemeinsames `calls[]`-Array: `supabase.auth.signOut` **vor** `router.navigate`.
-- Sichert die Regression („navigate before signOut") gegen Wiedereinführung ab.
-
-Wenn das Mocken der TanStack-Router-/Query-Provider im vorhandenen Setup nicht ohne Zusatz-Infrastruktur klappt, wird der Test übersprungen (Vorgabe: keine größeren Umbauten) und im Bericht ehrlich vermerkt.
-
-## Änderungsumfang
-
-- `src/contexts/auth-context.tsx` — zwei Zeilen tauschen.
-- `src/contexts/auth-context.test.tsx` — neuer, kleiner Reihenfolge-Test (nur wenn ohne Umbau möglich).
-
-Keine weiteren Dateien.
-
-## Verifikation
-
-- `bunx tsgo --noEmit`
-- `bunx vitest run` (gezielt auf neue/betroffene Tests, plus voller Lauf)
-- `bun run build`
-
-## Bericht danach
-
-- Bestätigte Ursache (Reihenfolge signOut/navigate + gegenläufige `beforeLoad`-Guards)
-- Geänderte Dateien + Diff der zwei Zeilen
-- Testergebnisse (tsc/vitest/build)
-- Ob der Regressionstest hinzugefügt werden konnte
-- Hinweis auf verbliebene Auth-Risiken, falls beim Lesen aufgefallen — ohne sie in diesem PR anzufassen
+Preview zeigt wieder den Login-Screen wie Published. Wenn die Sandbox erneut neu aufgesetzt wird, kommt derselbe Zustand zurück — ehrlich benannt: das ist ein wiederkehrender Sandbox-Reset-Effekt, kein App-Fehler.
