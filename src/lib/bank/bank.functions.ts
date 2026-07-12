@@ -894,12 +894,10 @@ export async function runSyncForAccount(
       bank_unterkategorie: "",
       external_tx_id: r.externalTxId,
     }));
-    const up = await supabaseAdmin
-      .from("bank_transactions")
-      .upsert(payload as never, {
-        onConflict: "account_id,external_tx_id",
-        ignoreDuplicates: true,
-      });
+    const up = await supabaseAdmin.from("bank_transactions").upsert(payload as never, {
+      onConflict: "account_id,external_tx_id",
+      ignoreDuplicates: true,
+    });
     if (up.error) throw up.error;
     inserted = incomingIds.filter((id) => !existingIds.has(id)).length;
   }
