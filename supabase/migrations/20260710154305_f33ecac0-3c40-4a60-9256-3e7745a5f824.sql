@@ -105,6 +105,20 @@ CREATE INDEX IF NOT EXISTS bank_transactions_org_override_idx
   ON public.bank_transactions (organization_id, override_category_id);
 
 
+-- ==== Stamm-Organisation + Standorte (Fix) ==========================
+-- Ohne diese Zeilen scheitert die Migration auf einer frischen DB
+-- (lokaler Stack / CI) an der FK bank_accounts.organization_id ->
+-- organizations. Idempotent; auf Produktion ein No-Op, da die Zeilen
+-- dort bereits existieren (Namen werden NICHT ueberschrieben).
+INSERT INTO public.organizations (id, name)
+VALUES ('77838674-26c1-40dd-9b74-eb1041e79b95', 'YUM')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public.locations (id, organization_id, name)
+VALUES ('14c2d773-6c5f-4a24-ba00-1c726f277091','77838674-26c1-40dd-9b74-eb1041e79b95','YUM'),
+       ('44a99e7e-93be-44b1-89ab-38e364a02ddc','77838674-26c1-40dd-9b74-eb1041e79b95','Spicery')
+ON CONFLICT (id) DO NOTHING;
+
 -- ==== Seed für YUM ====================================================
 -- Idempotent: ON CONFLICT DO NOTHING.
 
