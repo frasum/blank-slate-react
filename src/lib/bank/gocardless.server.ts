@@ -35,7 +35,8 @@ async function fetchAccessToken(): Promise<CachedToken> {
   if (!j.access) throw new Error("GoCardless-Token-Antwort ohne 'access'-Feld.");
   // access_expires ist in Sekunden. 60s Puffer, damit ein Aufruf nicht mit
   // einem bereits abgelaufenen Token in die API läuft.
-  const ttlSec = typeof j.access_expires === "number" && j.access_expires > 120 ? j.access_expires : 3600;
+  const ttlSec =
+    typeof j.access_expires === "number" && j.access_expires > 120 ? j.access_expires : 3600;
   return { token: j.access, expiresAt: Date.now() + (ttlSec - 60) * 1000 };
 }
 
@@ -73,7 +74,8 @@ async function gcFetch(path: string, init?: RequestInit): Promise<Response> {
 
 async function gcJson<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await gcFetch(path, init);
-  if (res.status === 429) throw new Error("GoCardless-Rate-Limit erreicht (429). Bitte später erneut versuchen.");
+  if (res.status === 429)
+    throw new Error("GoCardless-Rate-Limit erreicht (429). Bitte später erneut versuchen.");
   if (!res.ok) {
     let detail = "";
     try {

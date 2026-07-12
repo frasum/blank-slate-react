@@ -26,7 +26,11 @@ export function fingerprint(row: FingerprintInput): string {
 }
 
 export type CandidateRow = FingerprintInput & { key?: string };
-export type ExistingRow = FingerprintInput & { accountId: string; accountName: string; iban: string };
+export type ExistingRow = FingerprintInput & {
+  accountId: string;
+  accountName: string;
+  iban: string;
+};
 
 export type CrossAccountHit = {
   candidate: CandidateRow;

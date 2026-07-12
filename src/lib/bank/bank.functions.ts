@@ -751,9 +751,7 @@ export const startBankConnect = createServerFn({ method: "POST" })
 /** Nach Consent-Rückkehr: verknüpft gocardless_account_id STRIKT per IBAN. */
 export const finalizeBankConnect = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) =>
-    z.object({ requisitionId: z.string().min(1).max(200) }).parse(i),
-  )
+  .inputValidator((i: unknown) => z.object({ requisitionId: z.string().min(1).max(200) }).parse(i))
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, ["admin"]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -801,7 +799,11 @@ export const finalizeBankConnect = createServerFn({ method: "POST" })
       action: "bank.connect.finalize",
       entity: "bank_accounts",
       entityId: acct.id,
-      meta: { requisition_id: data.requisitionId, gocardless_account_id: matched.gcAccountId, iban: matched.iban },
+      meta: {
+        requisition_id: data.requisitionId,
+        gocardless_account_id: matched.gcAccountId,
+        iban: matched.iban,
+      },
     });
     return { ok: true as const, accountId: acct.id };
   });
@@ -892,9 +894,10 @@ export async function runSyncForAccount(
       bank_unterkategorie: "",
       external_tx_id: r.externalTxId,
     }));
-    const up = await supabaseAdmin
-      .from("bank_transactions")
-      .upsert(payload as never, { onConflict: "account_id,external_tx_id", ignoreDuplicates: true });
+    const up = await supabaseAdmin.from("bank_transactions").upsert(payload as never, {
+      onConflict: "account_id,external_tx_id",
+      ignoreDuplicates: true,
+    });
     if (up.error) throw up.error;
     inserted = incomingIds.filter((id) => !existingIds.has(id)).length;
   }
