@@ -1,48 +1,64 @@
-## Beide Punkte — Status und Auslieferung
+# Fix: Logout-Schleife auf /auth (Maximum call stack size exceeded)
 
-### Punkt 1 — Cron-SQL als Vorab-Skizze (nicht via Lovable-DB-Werkzeug)
+## Bestätigte Ursache
 
-Bestätigt: Die Cron-Route zeigt bereits auf den Custom-Domain-Pfad `/api/public/bank/sync-spicery` mit `x-cron-secret`-Header und Timing-safe-Compare. Was noch fehlt, ist die SQL-Skizze — die liefere ich als Chat-Ausgabe, du führst sie selbst im Supabase-Editor aus.
+In `src/contexts/auth-context.tsx` (Zeilen 56–61) navigiert `signOut` **vor** `supabase.auth.signOut()` nach `/auth`:
 
-Skizze (Platzhalter `<CRON_SECRET>` durch den Wert aus dem Supabase-Vault ersetzen — steht dort schon):
-
-```sql
--- BK2 — Täglicher Bank-Sync Spicery, 06:00 Europe/Berlin (=04:00 UTC im Sommer, 05:00 im Winter).
--- pg_cron läuft in UTC; wir wählen 05:00 UTC als Kompromiss (dt. 06:00 bzw. 07:00).
--- Voraussetzung: extensions pg_cron und pg_net sind aktiv.
-
-select cron.schedule(
-  'bk2-sync-spicery-daily',
-  '0 5 * * *',
-  $$
-  select net.http_post(
-    url    := 'https://cocoplatform.online/api/public/bank/sync-spicery',
-    headers:= jsonb_build_object(
-      'Content-Type',  'application/json',
-      'x-cron-secret', '<CRON_SECRET>'
-    ),
-    body   := '{}'::jsonb
-  ) as request_id;
-  $$
-);
+```ts
+await router.navigate({ to: "/auth", replace: true });
+await supabase.auth.signOut();
 ```
 
-Rollback:
-```sql
-select cron.unschedule('bk2-sync-spicery-daily');
+Zu diesem Zeitpunkt hält Supabase die Session noch. Die Route `/auth` hat in `src/routes/auth.tsx` einen `beforeLoad`-Guard, der bei aktiver Session hart auf `/` umleitet. `/` liegt unter `_authenticated/route.tsx`, dessen `beforeLoad` wiederum bei fehlender Session auf `/auth` umleitet — sobald direkt danach `supabase.auth.signOut()` ausgeführt wird, feuert `onAuthStateChange` (`SIGNED_OUT`) und der Provider ruft `queryClient.clear()`. Kombination aus laufender Navigation, konkurrierendem State-Wechsel und den beiden gegenläufigen `beforeLoad`-Redirects erzeugt die Redirect-/Invalidierungs-Schleife, die Sentry als `Maximum call stack size exceeded` meldet. Genau dieses Muster steht auch in der Lovable-Stack-Overflow-Notiz zu diesem Repo.
+
+## Minimalfix
+
+Reihenfolge in `src/contexts/auth-context.tsx` zurückdrehen — sonst nichts:
+
+```ts
+signOut: async () => {
+  await queryClient.cancelQueries();
+  queryClient.clear();
+  await supabase.auth.signOut();               // 1) Session zuverlässig beenden
+  await router.navigate({ to: "/auth", replace: true }); // 2) danach navigieren
+},
 ```
 
-### Punkt 2 — Mapper-Randfall (transactionId + internalTransactionId beide leer)
+Damit:
+- Wenn `/auth` erreicht wird, ist die Session bereits weg → `beforeLoad` lässt die Seite normal rendern, kein Redirect nach `/`.
+- `_authenticated`-Guards sehen keine Session mehr und leiten nicht mehr konkurrierend nach `/auth`.
+- `onAuthStateChange` (`SIGNED_OUT`) im Provider bleibt unverändert; `queryClient.clear()` wurde bereits vor `signOut()` gemacht, die zusätzliche Cache-Invalidierung im Listener ist harmlos.
 
-Bereits erledigt in der aktuellen Codebasis — Bestandsprüfung im Plan-Modus (kein Fund/kein Fix nötig):
+Passwort-Login, PIN-Login, `beforeLoad`-Guards, RLS, Rollen, DB, Supabase-Konfig — nichts davon wird angefasst.
 
-- `src/lib/bank/gocardless-map.ts` Zeilen 6-9 dokumentieren die Regel im Header-Kommentar, Zeilen 89-93 implementieren sie: leerer `externalTxId` → `skippedNoId++; continue;` — die Zeile wird nie mit NULL-ID geschrieben.
-- `src/lib/bank/gocardless-map.test.ts` Zeilen 39-58 enthalten den passenden Testfall („überspringt Zeilen ohne transactionId UND ohne internalTransactionId"): zwei booked-Zeilen, eine ohne beide IDs, eine mit `internalTransactionId` — erwartet `skippedNoId === 1` und `rows.length === 1`.
+## Regressionstest
 
-Nichts weiter zu bauen. Wenn du möchtest, kann ich beim Build in §84 einen Halbsatz nachziehen, der Cron-Skizze + Mapper-Randfall aktenkundig macht — sag Bescheid, ob das mit rein soll.
+Kleiner Unit-Test für den Provider-Kontrakt, ohne Router-Umbauten:
 
-### Was der Plan im Build-Modus ausführt
+- Datei: `src/contexts/auth-context.test.tsx` (neu).
+- Rendert `<AuthProvider>` mit gemockten `supabase.auth`, `useRouter`, `useQueryClient`, `getMyIdentity`.
+- Ruft `signOut()` und prüft die Aufrufreihenfolge über ein gemeinsames `calls[]`-Array: `supabase.auth.signOut` **vor** `router.navigate`.
+- Sichert die Regression („navigate before signOut") gegen Wiedereinführung ab.
 
-1. Diese Cron-SQL-Skizze wörtlich in einer Chat-Nachricht an dich ausliefern (kein DB-Tool, kein `supabase--insert`).
-2. Optional: `docs/arbeitsweise.md` — Kurzeintrag §84 mit den zwei Punkten (Cron-Domain-Korrektur, Mapper-Randfall bestätigt). Nur wenn du zustimmst.
-3. Keine weiteren Codeänderungen — Mapper und Test sind bereits konform.
+Wenn das Mocken der TanStack-Router-/Query-Provider im vorhandenen Setup nicht ohne Zusatz-Infrastruktur klappt, wird der Test übersprungen (Vorgabe: keine größeren Umbauten) und im Bericht ehrlich vermerkt.
+
+## Änderungsumfang
+
+- `src/contexts/auth-context.tsx` — zwei Zeilen tauschen.
+- `src/contexts/auth-context.test.tsx` — neuer, kleiner Reihenfolge-Test (nur wenn ohne Umbau möglich).
+
+Keine weiteren Dateien.
+
+## Verifikation
+
+- `bunx tsgo --noEmit`
+- `bunx vitest run` (gezielt auf neue/betroffene Tests, plus voller Lauf)
+- `bun run build`
+
+## Bericht danach
+
+- Bestätigte Ursache (Reihenfolge signOut/navigate + gegenläufige `beforeLoad`-Guards)
+- Geänderte Dateien + Diff der zwei Zeilen
+- Testergebnisse (tsc/vitest/build)
+- Ob der Regressionstest hinzugefügt werden konnte
+- Hinweis auf verbliebene Auth-Risiken, falls beim Lesen aufgefallen — ohne sie in diesem PR anzufassen
