@@ -3995,3 +3995,29 @@ Hinweis: 90-Tage-Consent läuft ab Verbindungsdatum; Status-Chip warnt <14 Tage.
 **Auth-Doppel-Fix mit Sentry-Erstbewährung.** Logout-Fix (`eaf89258`, signOut-Reihenfolge) erzeugte eine Redirect-Schleife: navigate zu /auth VOR signOut → /auth leitet bei gültiger Session zurück → Endlosschleife. Sentry fing den Ernstfall (COCO-3 „Error: Aa", COCO-4 „RangeError: Maximum call stack size exceeded", beide 11.07. 23:48 auf /auth, 10 s auseinander = ein Vorfall) — erster echter Fang des P1-Monitorings. Fix (`4f7a153f`): Reihenfolge queries stoppen → Cache leeren → signOut → navigate. Sentry-Issues auf Resolved gesetzt; Wiederauftreten würde automatisch re-openen. Gerätetest Login→Logout→Login (Desktop + iPhone) Teil der offenen Testliste. Merksatz bestätigt: Auth-nahe Einzeiler sind nie „nur ein Einzeiler" — Gerätetest ist Pflicht-Gate.
 
 **Offen:** BK2-Inbetriebnahme (Checkliste oben) · Gerätetests gesammelt: Logout-Zyklus, iPhone-Payslip, Safari-Splitter mit echtem Lohn-PDF, SD3-Popover/Farben, SD4 Deaktivieren/Reaktivieren, drei KI4-Testfragen, roter Urlaubs-Punkt · PL3 (Prompt bereit) · Backup-Strategie Stufe 2 · Security-Scanner-Review · toter PdfCanvasPreview (Produktentscheidung) · WebKit-CI beobachten · Cutover-Planung als nächster großer Block (§5-Voll-Reimport nicht vergessen).
+
+## §86 — „COCO 2"-Frage geprüft und verworfen; Roadmap-Konvergenz zweier unabhängiger Modelle (12.07.)
+
+**Anlass.** Frank erwog eine Überarbeitung und holte extern (ChatGPT, zunächst ohne Repo-Kenntnis) eine Einschätzung ein; Empfehlung dort: „COCO 2" als kontrollierter Neubau (Plattformkern zuerst, Module schrittweise übernehmen). Claude widersprach mit Faktenlage; ChatGPT erhielt daraufhin ein Briefing mit Repo-Zugriff, verifizierte die Behauptungen selbst und **zog die COCO-2-Empfehlung zurück**: Der empfohlene Plattformkern (organizations/locations/staff/Rollen/RLS) IST COCOs Fundament, das empfohlene Pflichtenheft IST das Gründungsdokument, der empfohlene Prüfprozess IST das Drei-Rollen-Modell mit vier Gates. Keine klassische Rewrite-Indikation trifft zu; ein Parallel-Neubau würde die doppelte Wahrheit neu erschaffen, zu deren Abschaffung COCO gebaut wurde.
+
+**Entscheidung (Frank): Kein COCO 2. Weiterentwicklung und gezielte Renovierung auf dem Bestand.** Ein separates Neuprojekt wäre nur bei fundamental neuem Geschäftsziel gerechtfertigt (z. B. standardisiertes SaaS für viele Fremdbetriebe, Self-Service-Onboarding, Plattformwechsel) — und selbst dann erst nach Prüfung inkrementeller Plattformisierung.
+
+**Korrekturen am eigenen Briefing (von ChatGPT zu Recht angemerkt, übernommen):**
+
+- Präzision: Die COCO-_Produktfamilie_ und ihre Fachlogik sind ~1 Jahr gereift; die vereinte Plattform in DIESEM Repo wurde im **Juni 2026** gegründet (Gründungsdokument 12.06.2026). Macht das Anti-Rewrite-Argument eher stärker.
+
+- Testzahl/Deployment-Details von außen nicht vollständig verifizierbar — Ankerzahlen gelten je Abnahme-SHA (aktuell 1709 auf `0c46d3a1`).
+
+**Wertvollster externer Befund — NEUER MUSS-PUNKT für den Cutover: Betriebsmodell-Härtung.** Der heutige Modus (Lovable committet auf main; Migrationen laufen automatisch auf die einzige Supabase-Instanz; „prüfe" ist Nachkontrolle statt vorgeschaltetes Tor) war für das TEST-System ein bewusster Kompromiss — für den Live-Betrieb ist er zu riskant. Vor bzw. mit dem Cutover: Feature-Branches als Regelfall (Mechanik seit §79 bekannt), PR-Review vor Merge, Migrations-Freigabe VOR Anwendung (Ausbaustufe — reine Freigabe-Disziplin vs. separates Staging-Projekt — wird bei der Cutover-Planung entschieden).
+
+**Bestätigte Roadmap (Konvergenz beider Modelle), in dieser Reihenfolge:**
+
+1. **Cutover/Produktionsreife abschließen** (§5-Voll-Reimport; ergänzt um: definierte Abbruchkriterien für den Umschalttag, täglicher Alt/Neu-Summenvergleich in der Übergangsphase).
+
+2. **Betriebsmodell-Härtung** (neuer Muss-Punkt, s. o.).
+
+3. **Mandanten-/Standort-Audit** der indirekt gescopten Kassentabellen (waiter_settlements, tip_pool_entries, session_channels, session_terminals) als **Befundmatrix**: Tabelle × Org-Scope × Location-Scope × indirekter Anker × RLS-Abdeckung × Risiko × Maßnahme. Merksatz: Fehlendes location_id ist KEIN automatischer Fehler — bei echten Kindtabellen kann der erzwungene Session-FK der sauberere Scope sein; entscheidend ist, ob die Invariante technisch erzwungen wird und alle Policies sie nutzen.
+
+4. **Hygiene mit Budgets:** Dead-Code-Inventur mit Verbleibsbegründung je Kandidat (PdfCanvasPreview zuerst); die 5 tolerierten exhaustive-deps-Warnungen einzeln charakterisieren; **Bundle-Budget in der CI** (Erst-Chunk, größter Route-Chunk, PDF-/Excel-Chunks) — zunächst als Vergleichs-Gate gegen unbemerkte Verschlechterung, nicht als sofortige Verkleinerung.
+
+**Methodische Notiz.** Das Vier-Augen-Prinzip wurde hier auf die Architekturebene angewandt: zwei unabhängige Modelle (eines mit Systemhistorie, eines mit frischem Repo-Blick), konvergentes Urteil. Zweitmeinungen mit Prüfauftrag („verifiziere selbst, widersprich mit Belegen") liefern brauchbare Ergebnisse; Zweitmeinungen ohne Faktenzugang bleiben generisch.
