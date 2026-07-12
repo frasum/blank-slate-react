@@ -33,7 +33,12 @@ export const Route = createFileRoute("/api/public/bank/sync-spicery")({
         if (spicery.length === 0) {
           return Response.json({ ok: true, note: "kein verbundenes Spicery-Konto gefunden" });
         }
-        const results: Array<{ accountId: string; inserted?: number; skipped?: number; error?: string }> = [];
+        const results: Array<{
+          accountId: string;
+          inserted?: number;
+          skipped?: number;
+          error?: string;
+        }> = [];
         for (const a of spicery) {
           try {
             const r = await runSyncForAccount(a.organization_id, a.id);

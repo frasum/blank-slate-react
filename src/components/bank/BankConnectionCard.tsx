@@ -89,8 +89,8 @@ export function BankConnectionCard({
         ) : (
           <>
             <div className="text-muted-foreground">
-              Verbinde das Konto direkt mit der Deutschen Bank (GoCardless PSD2, 90 Tage
-              Consent). Nach Rückkehr wird die Zuordnung strikt per IBAN geprüft.
+              Verbinde das Konto direkt mit der Deutschen Bank (GoCardless PSD2, 90 Tage Consent).
+              Nach Rückkehr wird die Zuordnung strikt per IBAN geprüft.
             </div>
             <Button onClick={() => startM.mutate()} disabled={startM.isPending} size="sm">
               {startM.isPending ? "Weiter zur Bank…" : "Bank verbinden"}

@@ -50,7 +50,9 @@ describe("findCrossAccountMatches", () => {
     const hits = findCrossAccountMatches(candidates, spiceryTxs);
     expect(hits).toHaveLength(2);
     const summary = summarizeCrossAccountHits(hits);
-    expect(summary).toEqual([{ accountId: "sp-1", accountName: "Spicery", iban: "DE01", count: 2 }]);
+    expect(summary).toEqual([
+      { accountId: "sp-1", accountName: "Spicery", iban: "DE01", count: 2 },
+    ]);
   });
 
   it("keine Treffer wenn Beträge abweichen", () => {

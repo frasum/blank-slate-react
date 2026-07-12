@@ -68,9 +68,7 @@ function formatDateDE(iso: string): string {
 
 export const Route = createFileRoute("/_authenticated/admin/bankkonto")({
   validateSearch: (s) =>
-    z
-      .object({ bk2Return: z.string().uuid().optional(), ref: z.string().optional() })
-      .parse(s),
+    z.object({ bk2Return: z.string().uuid().optional(), ref: z.string().optional() }).parse(s),
   beforeLoad: async ({ context }) => {
     const id = await context.queryClient.ensureQueryData({
       queryKey: ["identity", null],

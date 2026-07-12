@@ -74,7 +74,11 @@ function pickZweck(tx: GcTransaction): string {
   const s = tx.remittanceInformationUnstructured?.trim();
   if (s) return s;
   const arr = tx.remittanceInformationUnstructuredArray;
-  if (arr && arr.length > 0) return arr.map((x) => x?.trim() ?? "").filter(Boolean).join(" · ");
+  if (arr && arr.length > 0)
+    return arr
+      .map((x) => x?.trim() ?? "")
+      .filter(Boolean)
+      .join(" · ");
   return "";
 }
 
