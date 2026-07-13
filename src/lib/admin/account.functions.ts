@@ -93,7 +93,7 @@ export const createStaffAccount = createServerFn({ method: "POST" })
       if (staffErr) throw staffErr;
       if (!staff) throw new Error("Mitarbeiter nicht gefunden.");
 
-      const existingLink = expectMaybe(
+      const existingLink = expectMaybe<{ user_id: string }>(
         await supabaseAdmin
           .from("user_links")
           .select("user_id")
@@ -156,7 +156,7 @@ export const resetStaffPassword = createServerFn({ method: "POST" })
     return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-      const link = expectMaybe(
+      const link = expectMaybe<{ user_id: string; organization_id: string }>(
         await supabaseAdmin
           .from("user_links")
           .select("user_id, organization_id")
