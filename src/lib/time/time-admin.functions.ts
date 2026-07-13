@@ -573,11 +573,10 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
     ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    // weekEnd = weekStart + 6 Tage (Sonntag)
-    const start = new Date(`${data.weekStart}T12:00:00Z`);
-    const end = new Date(start);
-    end.setUTCDate(end.getUTCDate() + 6);
-    const weekEnd = end.toISOString().slice(0, 10);
+    // N12 (Nachprüfung 13.07.): Übergebenes Startdatum auf den Montag
+    // derselben Woche normalisieren — statt einen Nicht-Montag stumm
+    // abzulehnen. Danach weekEnd = normalisierter Montag + 6 Tage.
+    const { weekStart, weekEnd } = normalizeIsoWeek(data.weekStart);
 
     // 1. Einträge am Zielstandort.
     const { data: rows, error } = await supabaseAdmin
@@ -587,7 +586,7 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
       )
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId)
-      .gte("business_date", data.weekStart)
+      .gte("business_date", weekStart)
       .lte("business_date", weekEnd)
       .not("ended_at", "is", null)
       .order("started_at", { ascending: true });
@@ -599,7 +598,7 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
       .select("staff_id, business_date, location_id")
       .eq("organization_id", caller.organizationId)
       .neq("location_id", data.locationId)
-      .gte("business_date", data.weekStart)
+      .gte("business_date", weekStart)
       .lte("business_date", weekEnd)
       .not("ended_at", "is", null);
     if (crossErr) throw crossErr;
@@ -650,7 +649,7 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
       .select("staff_id, area, skill_id, shift_date")
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId)
-      .gte("shift_date", data.weekStart)
+      .gte("shift_date", weekStart)
       .lte("shift_date", weekEnd);
     if (rosterErr) throw rosterErr;
     // Z3b — Per-Tag-Roster-Area je Mitarbeiter: erlaubt der Client-
@@ -713,7 +712,7 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
     }
 
     return {
-      weekStart: data.weekStart,
+      weekStart,
       weekEnd,
       entries: (rows ?? []).map((r) => ({
         id: r.id as string,
