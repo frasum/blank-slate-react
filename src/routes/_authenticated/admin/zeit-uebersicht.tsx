@@ -86,6 +86,7 @@ import {
   buildShiftIsosOrThrow,
   buildWeekColumns,
   ddmm,
+  dayHeader,
   DEPT_BG,
   DEPT_HEADER_LABEL,
   DEPT_LABEL,
@@ -97,15 +98,11 @@ import {
   fmtIso,
   isoWeek,
   mondayOf,
-  nextPeriodFromLast,
   parseIsoDate,
-  periodDefaultEnd,
-  periodDefaultStart,
-  periodLabelForEnd,
 } from "@/lib/time/zeit-uebersicht-core";
 import { PayrollTab } from "@/components/zeit/PayrollTab";
 import { WeeklyPlan } from "@/components/zeit/WeeklyPlan";
-import { PeriodsPanel, type Period } from "@/components/zeit/PeriodsPanel";
+import { PeriodsPanel } from "@/components/zeit/PeriodsPanel";
 
 export const Route = createFileRoute("/_authenticated/admin/zeit-uebersicht")({
   head: () => ({ meta: [{ title: "Arbeitszeiten" }] }),
