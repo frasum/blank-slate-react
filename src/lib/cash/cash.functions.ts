@@ -2049,12 +2049,18 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
   let autoClockoutId: string | null = null;
   let noOpenTimeEntry = false;
   if (!alreadyAutoClockedOut) {
-    const { data: openTE } = await supabaseAdmin
+    const { data: openTE, error: openTEErr } = await supabaseAdmin
       .from("time_entries")
       .select("id, started_at")
       .eq("staff_id", caller.staffId)
       .is("ended_at", null)
       .maybeSingle();
+    if (openTEErr) {
+      console.error("[settlement.autoclock] open time_entries lookup failed", openTEErr);
+      throw new Error(
+        `Auto-Ausstempeln fehlgeschlagen: ${openTEErr.message ?? "DB-Fehler"}`,
+      );
+    }
     if (openTE) {
       const gross = grossMinutesBetween(new Date(openTE.started_at), new Date());
       const breakMinutes = arbzgMinimumBreak(gross);
