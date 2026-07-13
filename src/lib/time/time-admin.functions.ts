@@ -77,7 +77,7 @@ export async function _loadTimeEntriesForOverviewBatch(
     supabaseAdmin
       .from("time_entries")
       .select(
-        "id, location_id, staff_id, business_date, started_at, ended_at, source, staff(display_name)",
+        "id, location_id, staff_id, business_date, started_at, ended_at, source, department, staff(display_name)",
       )
       .eq("organization_id", organizationId)
       .in("location_id", locationIds)
