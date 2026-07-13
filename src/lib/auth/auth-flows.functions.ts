@@ -174,8 +174,7 @@ export const validatePin = createServerFn({ method: "POST" })
       // konnten N parallele Versuche gemeinsam den Zähler zurück auf < MAX
       // lesen und alle bcrypt.compare durchlaufen). Nur einfügen, wenn wir
       // überhaupt vergleichen — also Hash vorhanden und Limit noch offen.
-      const willCompare =
-        !!pinRow?.pin_hash && isCredentialAttemptAllowed(count ?? 0);
+      const willCompare = !!pinRow?.pin_hash && isCredentialAttemptAllowed(count ?? 0);
       let preId: string | null = null;
       if (willCompare) {
         const { data: preRow, error: preErr } = await supabaseAdmin
