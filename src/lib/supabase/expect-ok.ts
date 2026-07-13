@@ -16,9 +16,10 @@
 // - `expectVoid` ist für schreibende Aufrufe ohne Rückgabewert.
 // Alle drei loggen den Fehler mit Kontext, bevor sie werfen.
 
+export type SupabaseErrorLike = { message: string; code?: string | null };
 export type SupabaseResultLike<T> = {
   data: T | null | undefined;
-  error: { message: string; code?: string | null } | null;
+  error: SupabaseErrorLike | null;
 };
 
 function logFailure(context: string, error: { message: string; code?: string | null }): void {
@@ -28,7 +29,10 @@ function logFailure(context: string, error: { message: string; code?: string | n
   console.error(`[${context}] Supabase: ${error.message}${error.code ? ` (${error.code})` : ""}`);
 }
 
-export function expectOk<T>(result: SupabaseResultLike<T>, context: string): T {
+export function expectOk<T>(
+  result: { data: T | null | undefined; error: SupabaseErrorLike | null } & Record<string, unknown>,
+  context: string,
+): T {
   if (result.error) {
     logFailure(context, result.error);
     throw new Error(`[${context}] Supabase: ${result.error.message}`);
@@ -39,7 +43,10 @@ export function expectOk<T>(result: SupabaseResultLike<T>, context: string): T {
   return result.data;
 }
 
-export function expectMaybe<T>(result: SupabaseResultLike<T>, context: string): T | null {
+export function expectMaybe<T>(
+  result: { data: T | null | undefined; error: SupabaseErrorLike | null } & Record<string, unknown>,
+  context: string,
+): T | null {
   if (result.error) {
     // PGRST116 = „no rows returned" bei .single() — erlaubtes „nicht gefunden".
     if (result.error.code === "PGRST116") return null;
@@ -50,7 +57,7 @@ export function expectMaybe<T>(result: SupabaseResultLike<T>, context: string): 
 }
 
 export function expectVoid(
-  result: { error: { message: string; code?: string | null } | null },
+  result: { error: SupabaseErrorLike | null } & Record<string, unknown>,
   context: string,
 ): void {
   if (result.error) {
