@@ -50,7 +50,12 @@ export const listStaffForImpersonation = createServerFn({ method: "GET" })
     if (!orgId) return [];
 
     const staff = expectOk<
-      { id: string; display_name: string | null; first_name: string | null; last_name: string | null }[]
+      {
+        id: string;
+        display_name: string | null;
+        first_name: string | null;
+        last_name: string | null;
+      }[]
     >(
       await supabaseAdmin
         .from("staff")

@@ -55,7 +55,9 @@ export async function runImportPersonalCore(
   const { admin, organizationId } = input;
 
   // 1) identity_map: altStaffId → staffId
-  const mapRows = expectOk<{ alt_id: string; staff_id: string | null; confirmed_at: string | null }[]>(
+  const mapRows = expectOk<
+    { alt_id: string; staff_id: string | null; confirmed_at: string | null }[]
+  >(
     await admin
       .from("staff_identity_map")
       .select("alt_id, staff_id, confirmed_at")

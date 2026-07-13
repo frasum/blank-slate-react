@@ -46,7 +46,9 @@ export type ImportCoreResult = {
 export async function runImportAssignmentsCore(input: ImportCoreInput): Promise<ImportCoreResult> {
   const { admin, organizationId } = input;
 
-  const mapRows = expectOk<{ alt_id: string; staff_id: string | null; confirmed_at: string | null }[]>(
+  const mapRows = expectOk<
+    { alt_id: string; staff_id: string | null; confirmed_at: string | null }[]
+  >(
     await admin
       .from("staff_identity_map")
       .select("alt_id, staff_id, confirmed_at")
@@ -73,10 +75,7 @@ export async function runImportAssignmentsCore(input: ImportCoreInput): Promise<
   }
 
   const skillRows = expectOk<{ id: string; name: string }[]>(
-    await admin
-      .from("skills")
-      .select("id, name")
-      .eq("organization_id", organizationId),
+    await admin.from("skills").select("id, name").eq("organization_id", organizationId),
     "runImportAssignmentsCore.skills",
   );
   const skillMap = new Map<string, string>();

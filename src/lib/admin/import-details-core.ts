@@ -33,10 +33,7 @@ export async function runImportDetailsCore(
 
   // 1) staff in der Org laden (id, perso_nr) → Map<perso_nr, staff_id>.
   const staffRows = expectOk<{ id: string; perso_nr: number | null }[]>(
-    await admin
-      .from("staff")
-      .select("id, perso_nr")
-      .eq("organization_id", organizationId),
+    await admin.from("staff").select("id, perso_nr").eq("organization_id", organizationId),
     "runImportDetailsCore.staff",
   );
 

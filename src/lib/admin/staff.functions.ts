@@ -45,9 +45,7 @@ const DEPARTMENT_LABEL: Record<StaffDepartment, string> = {
 
 async function loadAdminSnapshot(organizationId: string): Promise<AdminSnapshotEntry[]> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const data = expectOk<
-    { id: string; is_active: boolean; role_assignments: unknown }[]
-  >(
+  const data = expectOk<{ id: string; is_active: boolean; role_assignments: unknown }[]>(
     await supabaseAdmin
       .from("staff")
       .select("id, is_active, role_assignments(role)")
