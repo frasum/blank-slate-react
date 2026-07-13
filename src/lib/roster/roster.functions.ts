@@ -1191,9 +1191,7 @@ export const setAbsenceRange = createServerFn({ method: "POST" })
           .gte("end_date", data.fromDate);
         if (perErr) throw perErr;
         if (lockedPeriods && lockedPeriods.length > 0) {
-          const spans = lockedPeriods
-            .map((p) => `${p.start_date}–${p.end_date}`)
-            .join(", ");
+          const spans = lockedPeriods.map((p) => `${p.start_date}–${p.end_date}`).join(", ");
           throw new Error(
             `Periode gesperrt: Der Zeitraum ${data.fromDate}–${data.toDate} ` +
               `überschneidet gesperrte Periode(n) (${spans}). ` +
