@@ -179,15 +179,12 @@ function AdminUrlaubPage() {
                     </div>
                     <div className="text-sm">
                       {formatDate(r.startDate)} – {formatDate(r.endDate)}{" "}
-                      <span className="text-xs text-muted-foreground">
-                        ({r.days} {r.days === 1 ? "Tag" : "Tage"})
+                      <span
+                        className="text-xs text-muted-foreground"
+                        title="Urlaubstage (Mo–Fr) — Wochenenden und Feiertage werden nach dem 5-Tage-Modell nicht abgezogen"
+                      >
+                        ({r.days} {r.days === 1 ? "Urlaubstag (Mo–Fr)" : "Urlaubstage (Mo–Fr)"})
                       </span>
-                      {r.holidaysSkipped > 0 ? (
-                        <span className="ml-1 text-xs text-muted-foreground">
-                          · {r.holidaysSkipped} {r.holidaysSkipped === 1 ? "Feiertag" : "Feiertage"}{" "}
-                          nicht gezählt
-                        </span>
-                      ) : null}
                     </div>
                     <div>{statusBadge(r.status)}</div>
                     {r.reason ? (

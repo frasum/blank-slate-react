@@ -22,29 +22,11 @@ import {
   isValidLeaveRange,
   type LeaveStatus,
 } from "./leave-requests";
-import { bavarianLegalHolidaysBetween } from "./holiday-utils";
-import { countHolidaysInRange } from "./leave-requests";
 
-async function loadCountHolidays(
-  admin: import("@supabase/supabase-js").SupabaseClient<
-    import("@/integrations/supabase/types").Database
-  >,
-  organizationId: string,
-): Promise<boolean> {
-  const { data } = await admin
-    .from("organization_settings")
-    .select("count_holidays_as_leave")
-    .eq("organization_id", organizationId)
-    .maybeSingle();
-  return Boolean(data?.count_holidays_as_leave ?? false);
-}
-
-function holidaySetIfSkip(skip: boolean, start: string, end: string): Set<string> | undefined {
-  // Nur gesetzliche Feiertage überspringen. Heiligabend (24.12.) ist
-  // KEIN gesetzlicher Feiertag und darf nicht abgezogen werden — sonst
-  // wird Weihnachtsurlaub einen Tag zu klein gerechnet.
-  return skip ? bavarianLegalHolidaysBetween(start, end) : undefined;
-}
+// N6 — Urlaubszählung folgt strikt dem 5-Tage-Modell (Mo–Fr, siehe
+// leave-requests.ts). Feiertage werden NICHT mehr abgezogen, die
+// organization_settings-Spalte `count_holidays_as_leave` bleibt aus
+// Kompatibilitätsgründen bestehen, hat auf die Zählung aber keinen Effekt.
 
 // PL1 — planer wird als Rollen-Whitelist zugelassen; feingranulare Rechte-
 // Prüfung übernimmt weiterhin has_permission (roster.leave.view_all/decide),
@@ -97,7 +79,6 @@ export type LeaveRequestRow = {
   decidedAt: string | null;
   createdAt: string;
   days: number;
-  holidaysSkipped: number;
 };
 
 // =========================================================================
@@ -123,12 +104,7 @@ export const requestLeave = createServerFn({ method: "POST" })
       throw new Error("Bis-Datum muss am Von-Datum oder danach liegen.");
     }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const skip = !(await loadCountHolidays(supabaseAdmin, caller.organizationId));
-    const days = countLeaveDays(
-      data.start_date,
-      data.end_date,
-      holidaySetIfSkip(skip, data.start_date, data.end_date),
-    );
+    const days = countLeaveDays(data.start_date, data.end_date);
 
     // Überschneidung mit eigenem offenem/genehmigtem Antrag?
     const { data: overlaps, error: overlapErr } = await supabaseAdmin
@@ -178,7 +154,6 @@ export const getMyLeaveRequests = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<LeaveRequestRow[]> => {
     const caller = await loadStaffCaller(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const skipHolidays = !(await loadCountHolidays(supabaseAdmin, caller.organizationId));
     const { data, error } = await supabaseAdmin
       .from("leave_requests")
       .select(
@@ -189,7 +164,6 @@ export const getMyLeaveRequests = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false });
     if (error) throw error;
     return (data ?? []).map((r) => {
-      const hset = holidaySetIfSkip(skipHolidays, r.start_date as string, r.end_date as string);
       return {
         id: r.id as string,
         staffId: r.staff_id as string,
@@ -201,10 +175,7 @@ export const getMyLeaveRequests = createServerFn({ method: "GET" })
         decisionNote: (r.decision_note as string | null) ?? null,
         decidedAt: (r.decided_at as string | null) ?? null,
         createdAt: r.created_at as string,
-        days: countLeaveDays(r.start_date as string, r.end_date as string, hset),
-        holidaysSkipped: hset
-          ? countHolidaysInRange(r.start_date as string, r.end_date as string, hset)
-          : 0,
+        days: countLeaveDays(r.start_date as string, r.end_date as string),
       };
     });
   });
@@ -269,7 +240,6 @@ export const listLeaveRequests = createServerFn({ method: "GET" })
   .handler(async ({ data, context }): Promise<LeaveRequestRow[]> => {
     const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const skipHolidays = !(await loadCountHolidays(supabaseAdmin, caller.organizationId));
     const status = data.status ?? "offen";
     let q = supabaseAdmin
       .from("leave_requests")
@@ -300,7 +270,6 @@ export const listLeaveRequests = createServerFn({ method: "GET" })
     return (rows ?? [])
       .filter((r) => inScope.has(r.staff_id as string))
       .map((r) => {
-        const hset = holidaySetIfSkip(skipHolidays, r.start_date as string, r.end_date as string);
         return {
           id: r.id as string,
           staffId: r.staff_id as string,
@@ -312,10 +281,7 @@ export const listLeaveRequests = createServerFn({ method: "GET" })
           decisionNote: (r.decision_note as string | null) ?? null,
           decidedAt: (r.decided_at as string | null) ?? null,
           createdAt: r.created_at as string,
-          days: countLeaveDays(r.start_date as string, r.end_date as string, hset),
-          holidaysSkipped: hset
-            ? countHolidaysInRange(r.start_date as string, r.end_date as string, hset)
-            : 0,
+          days: countLeaveDays(r.start_date as string, r.end_date as string),
         };
       });
   });
@@ -407,12 +373,7 @@ export const decideLeaveRequest = createServerFn({ method: "POST" })
         });
         if (rpcErr) throw rpcErr;
 
-        const skipHolidays = !(await loadCountHolidays(supabaseAdmin, caller.organizationId));
-        const tage = countLeaveDays(
-          snap.start_date as string,
-          snap.end_date as string,
-          holidaySetIfSkip(skipHolidays, snap.start_date as string, snap.end_date as string),
-        );
+        const tage = countLeaveDays(snap.start_date as string, snap.end_date as string);
         return {
           result: { ok: true as const },
           audit: {
