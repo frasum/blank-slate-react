@@ -12,6 +12,7 @@ import { runGuarded } from "./admin-call";
 import { writeAuditLog } from "./audit";
 import { distinctDepartments, ineligibleSkills, type StaffDepartment } from "./skill-eligibility";
 import type { SkillCategory } from "@/lib/staff-domain";
+import { expectOk, expectVoid } from "@/lib/supabase/expect-ok";
 export type { SkillCategory };
 
 export const listSkills = createServerFn({ method: "GET" })
@@ -23,13 +24,17 @@ export const listSkills = createServerFn({ method: "GET" })
       "planer",
     ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await supabaseAdmin
-      .from("skills")
-      .select("id, name, category, color, sort_order")
-      .eq("organization_id", caller.organizationId)
-      .order("sort_order")
-      .order("name");
-    if (error) throw error;
+    const data = expectOk<
+      { id: string; name: string; category: string; color: string | null; sort_order: number }[]
+    >(
+      await supabaseAdmin
+        .from("skills")
+        .select("id, name, category, color, sort_order")
+        .eq("organization_id", caller.organizationId)
+        .order("sort_order")
+        .order("name"),
+      "listSkills",
+    );
     return (data ?? []).map((s) => ({
       id: s.id,
       name: s.name,
@@ -45,12 +50,14 @@ export const getStaffSkills = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: rows, error } = await supabaseAdmin
-      .from("staff_skills")
-      .select("skill_id")
-      .eq("staff_id", data.staffId)
-      .eq("organization_id", caller.organizationId);
-    if (error) throw error;
+    const rows = expectOk<{ skill_id: string }[]>(
+      await supabaseAdmin
+        .from("staff_skills")
+        .select("skill_id")
+        .eq("staff_id", data.staffId)
+        .eq("organization_id", caller.organizationId),
+      "getStaffSkills",
+    );
     return (rows ?? []).map((r) => r.skill_id);
   });
 
@@ -85,21 +92,26 @@ export const assignStaffSkills = createServerFn({ method: "POST" })
 
         if (data.skillIds.length > 0) {
           // Eligibility-Check vor dem Schreiben: keine Skills ohne passende Abteilung.
-          const [{ data: locRows, error: locErr }, { data: skillRows, error: skillErr }] =
-            await Promise.all([
-              supabaseAdmin
-                .from("staff_locations")
-                .select("department")
-                .eq("staff_id", data.staffId)
-                .eq("organization_id", caller.organizationId),
-              supabaseAdmin
-                .from("skills")
-                .select("id, name, category")
-                .eq("organization_id", caller.organizationId)
-                .in("id", data.skillIds),
-            ]);
-          if (locErr) throw locErr;
-          if (skillErr) throw skillErr;
+          const [locRes, skillRes] = await Promise.all([
+            supabaseAdmin
+              .from("staff_locations")
+              .select("department")
+              .eq("staff_id", data.staffId)
+              .eq("organization_id", caller.organizationId),
+            supabaseAdmin
+              .from("skills")
+              .select("id, name, category")
+              .eq("organization_id", caller.organizationId)
+              .in("id", data.skillIds),
+          ]);
+          const locRows = expectOk<{ department: StaffDepartment }[]>(
+            locRes,
+            "assignStaffSkills.staff_locations",
+          );
+          const skillRows = expectOk<{ id: string; name: string; category: string }[]>(
+            skillRes,
+            "assignStaffSkills.skills",
+          );
           const departments = distinctDepartments(
             (locRows ?? []) as { department: StaffDepartment }[],
           );
@@ -116,12 +128,14 @@ export const assignStaffSkills = createServerFn({ method: "POST" })
           }
         }
 
-        const { error: rpcErr } = await supabaseAdmin.rpc("replace_staff_skills", {
-          p_staff_id: data.staffId,
-          p_organization_id: caller.organizationId,
-          p_skill_ids: data.skillIds,
-        });
-        if (rpcErr) throw rpcErr;
+        expectVoid(
+          await supabaseAdmin.rpc("replace_staff_skills", {
+            p_staff_id: data.staffId,
+            p_organization_id: caller.organizationId,
+            p_skill_ids: data.skillIds,
+          }),
+          "assignStaffSkills.rpc",
+        );
         return {
           result: { ok: true as const },
           audit: {
@@ -166,12 +180,14 @@ export const updateSkillColor = createServerFn({ method: "POST" })
       },
       async () => {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { error } = await supabaseAdmin
-          .from("skills")
-          .update({ color: data.color })
-          .eq("id", data.skillId)
-          .eq("organization_id", caller.organizationId);
-        if (error) throw error;
+        expectVoid(
+          await supabaseAdmin
+            .from("skills")
+            .update({ color: data.color })
+            .eq("id", data.skillId)
+            .eq("organization_id", caller.organizationId),
+          "updateSkillColor.update",
+        );
         return {
           result: { ok: true as const },
           audit: {
