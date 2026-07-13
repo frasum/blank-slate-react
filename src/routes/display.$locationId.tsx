@@ -18,6 +18,7 @@ import {
 } from "@/lib/display/reminders";
 import { businessDateOf } from "@/lib/business-date";
 import { DISPLAY_PERIOD_SWITCH_HOUR, PERIOD_FRUEH_BIS } from "@/lib/time/period-label";
+import { getHolidayName } from "@/lib/roster/holidays-display";
 
 type DisplayCell = {
   k: "shift" | "urlaub" | "krank" | "wish" | "available" | "empty";
