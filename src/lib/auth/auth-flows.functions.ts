@@ -197,9 +197,10 @@ export const validatePin = createServerFn({ method: "POST" })
       const outcome = await evaluatePin({
         storedHash: pinRow?.pin_hash ?? null,
         providedPin: data.pin,
-        // +1 wegen der eben eingefügten spekulativen Zeile — wir wollen
-        // dieselbe Rate-Limit-Entscheidung wie ohne Pre-Insert.
-        recentFailuresInWindow: willCompare ? (count ?? 0) : (count ?? 0),
+        // Wir übergeben den Zähler VOR dem Pre-Insert. Die Rate-Limit-
+        // Entscheidung haben wir oben (willCompare) bereits getroffen;
+        // evaluatePin läuft dann nur noch den no_pin/mismatch-Pfad.
+        recentFailuresInWindow: count ?? 0,
         compare: (pin, hash) => bcrypt.compare(pin, hash),
       });
 
