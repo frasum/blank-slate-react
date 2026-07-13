@@ -58,7 +58,7 @@ const SPECS: Spec[] = [
     name: "MAILERSEND_FROM_NAME",
     critical: false,
     group: "mail",
-    purpose: 'Absender-Anzeigename (Fallback: „Bestellung COCO“).',
+    purpose: "Absender-Anzeigename (Fallback: „Bestellung COCO“).",
   },
   {
     name: "LOVABLE_API_KEY",
