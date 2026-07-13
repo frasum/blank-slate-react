@@ -20,6 +20,7 @@ const startDevServer = !process.env.E2E_BASE_URL;
 
 export default defineConfig({
   testDir: "./e2e",
+  globalSetup: "./e2e/global-setup.ts",
   timeout: 60_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,
@@ -49,6 +50,13 @@ export default defineConfig({
         url: baseURL,
         reuseExistingServer: true,
         timeout: 120_000,
+        // Explizit schlägt vererbt: Der Dev-Server MUSS dieselben lokalen
+        // Supabase-Werte sehen, sonst greift der Publishable-Fallback (ENV2)
+        // und E2E liefe stumm gegen Produktion.
+        env: {
+          VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL ?? "",
+          VITE_SUPABASE_PUBLISHABLE_KEY: process.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
+        },
       }
     : undefined,
 });
