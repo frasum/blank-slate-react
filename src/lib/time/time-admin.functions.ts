@@ -24,6 +24,24 @@ import { computeStaffSfn } from "@/lib/lohn/compute-staff-sfn";
 import { primaryDepartment, type Department } from "./primary-department";
 import { selectAllPaged } from "@/lib/supabase/select-all";
 
+// N12: Wochenstart auf Montag derselben ISO-Woche normalisieren.
+// Übergibt ein Client einen Mittwoch, kommt die Woche Mo–So zurück — statt
+// einen kryptischen 400-Fehler zu werfen.
+function normalizeIsoWeek(isoDate: string): { weekStart: string; weekEnd: string } {
+  const anchor = new Date(`${isoDate}T12:00:00Z`);
+  // getUTCDay: 0=So..6=Sa. Montag-Offset = (dow+6)%7 (Mo=0..So=6).
+  const mondayOffset = (anchor.getUTCDay() + 6) % 7;
+  const monday = new Date(anchor);
+  monday.setUTCDate(monday.getUTCDate() - mondayOffset);
+  const sunday = new Date(monday);
+  sunday.setUTCDate(sunday.getUTCDate() + 6);
+  return {
+    weekStart: monday.toISOString().slice(0, 10),
+    weekEnd: sunday.toISOString().slice(0, 10),
+  };
+}
+export const _normalizeIsoWeekForTest = normalizeIsoWeek;
+
 // N1 (Nachprüfung 13.07.): Zentrale, paginierte time_entries-Loader für die
 // Batch-Server-Functions. PostgREST kappt Selects still bei 1000 Zeilen —
 // ohne Pagination würde ein Monat über mehrere Standorte in Lohn/SFN stumm
