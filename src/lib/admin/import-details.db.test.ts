@@ -168,10 +168,18 @@ describe.skipIf(!dbTestsEnabled)("importStaffPersonalDetails — DB (Welle 2)", 
     expect(insErr).not.toBeNull();
   });
 
-  it("Manager kann lesen (SELECT-Policy greift)", async () => {
+  it("Manager sieht KEINE Personaldaten (M4: payroll.personal.view fehlt)", async () => {
     const mgrUser = await org.mkUser("manager");
     const mClient = await signInAsUser(mgrUser.email, mgrUser.password);
     const { data, error } = await mClient.from("staff_personal_details").select("id");
+    expect(error).toBeNull();
+    expect((data ?? []).length).toBe(0);
+  });
+
+  it("Payroll-Rolle kann lesen (SELECT-Policy greift)", async () => {
+    const payrollUser = await org.mkUser("payroll");
+    const pClient = await signInAsUser(payrollUser.email, payrollUser.password);
+    const { data, error } = await pClient.from("staff_personal_details").select("id");
     expect(error).toBeNull();
     expect((data ?? []).length).toBeGreaterThan(0);
   });
