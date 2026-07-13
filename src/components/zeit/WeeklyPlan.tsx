@@ -14,7 +14,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ZeitSkeleton } from "@/components/ui/page-skeletons";
-import type { WeeklyExportInput } from "@/lib/time/weekly-export";
+import type {
+  WeeklyExportInput,
+  WeeklyExportRow,
+} from "@/lib/time/weekly-export";
 import {
   bavarianHolidayName,
   isBavarianHoliday,
