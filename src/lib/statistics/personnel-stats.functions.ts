@@ -15,6 +15,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { grossMinutesBetween } from "@/lib/time/break-rules";
+import { selectAllPaged } from "@/lib/supabase/select-all";
 import { computeTrend, type Trend } from "./revenue-core";
 import {
   currentMonth,
