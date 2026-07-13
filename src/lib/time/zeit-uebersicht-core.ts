@@ -122,3 +122,120 @@ export function buildWeekColumns(fromIso: string, toIso: string): WeekCol[] {
   }
   return cols;
 }
+
+// G1a Scheibe 2 — Gemeinsam genutzte Konstanten/Typen/Helfer für die
+// Zeit-Übersicht-Route und ihre ausgelagerten Unterkomponenten. 1:1
+// verschoben aus src/routes/_authenticated/admin/zeit-uebersicht.tsx.
+
+import { berlinLocalToIso } from "@/lib/time/shift-hours";
+
+export const DEPT_LABEL: Record<Department, string> = {
+  kitchen: "Küche",
+  service: "Service",
+  gl: "Geschäftsleitung",
+};
+export const DEPT_BG: Record<Department, string> = {
+  kitchen: "bg-orange-50",
+  service: "bg-blue-50",
+  gl: "bg-gray-50",
+};
+export const DEPT_BAR: Record<Department, string> = {
+  kitchen: "bg-orange-400",
+  service: "bg-blue-400",
+  gl: "bg-gray-400",
+};
+export const DEPT_HEADER_LABEL: Record<Department, string> = {
+  kitchen: "KÜCHE",
+  service: "SERVICE",
+  gl: "GESCHÄFTSLEITUNG",
+};
+export const DEPT_ORDER: Department[] = ["kitchen", "service", "gl"];
+
+export type WeeklyEntry = {
+  id: string;
+  staffId: string;
+  displayName: string;
+  department: Department;
+  // Z3 — Roh-Abteilung des Eintrags (NULL = unbestimmt/Bestandsdaten).
+  rawDepartment?: Department | null;
+  businessDate: string;
+  startedAt: string;
+  endedAt: string;
+};
+
+export type WeeklyData = {
+  weekStart: string;
+  weekEnd: string;
+  entries: WeeklyEntry[];
+  crossLocationDates: Record<string, string[]>;
+  assignedStaff?: {
+    staffId: string;
+    displayName: string;
+    department: Department;
+    isActive: boolean;
+    isPrimary?: boolean;
+    // Z3 — alle Abteilungen der Person am Standort (Attribution im Grid).
+    staffDepts?: Department[];
+    // Z4 — Skill-IDs der Person (Wochenplan-Skill-Filter).
+    skillIds?: string[];
+  }[];
+  // Z4b — Dienstplan-Realität der Woche je Mitarbeiter (aus roster_shifts).
+  rosterByStaff?: Record<string, { areas: Department[]; skillIds: string[] }>;
+  // Z3b — Per-Tag-Roster-Area je Mitarbeiter (Attribution NULL-Einträge).
+  rosterAreaByStaffDate?: Record<string, Record<string, Department>>;
+};
+
+export function fmtDec(n: number): string {
+  return n.toFixed(2).replace(".", ",");
+}
+
+export function fmtHHMM(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleTimeString("de-DE", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/Berlin",
+  });
+}
+
+// Baut einen ISO-Timestamp aus Geschäftsdatum + HH:MM. Die Uhrzeit wird
+// IMMER als Europe/Berlin-Wanduhrzeit interpretiert (unabhängig von der
+// Browser-Zeitzone), sonst hätten manuelle Korrekturen aus einer anderen
+// TZ eine falsche UTC-Zeit ergeben. `fromHHMM` markiert den Start —
+// wenn die End-Uhrzeit ECHT KLEINER ist, rollt der Tag um 1 (Mitternachts-
+// Wrap). Ende == Start ergibt bewusst KEINEN 24-h-Wrap (siehe
+// buildShiftIsosOrThrow unten).
+export function buildIsoFromLocal(dateIso: string, hhmm: string, fromHHMM?: string): string {
+  const [h, m] = hhmm.split(":").map((v) => Number.parseInt(v, 10));
+  let effectiveDate = dateIso;
+  if (fromHHMM) {
+    const [fh, fm] = fromHHMM.split(":").map((v) => Number.parseInt(v, 10));
+    if (h * 60 + m < fh * 60 + fm) {
+      const d = new Date(`${dateIso}T12:00:00Z`);
+      d.setUTCDate(d.getUTCDate() + 1);
+      effectiveDate = d.toISOString().slice(0, 10);
+    }
+  }
+  return berlinLocalToIso(effectiveDate, h, m);
+}
+
+// Liefert Start/Ende als ISO oder wirft, wenn Ende == Start (der Server
+// würde sonst einen 24-h-Eintrag anlegen).
+export function buildShiftIsosOrThrow(
+  dateIso: string,
+  from: string,
+  to: string,
+): { startedAt: string; endedAt: string } {
+  if (from === to) {
+    throw new Error("Ende darf nicht gleich Start sein.");
+  }
+  return {
+    startedAt: buildIsoFromLocal(dateIso, from),
+    endedAt: buildIsoFromLocal(dateIso, to, from),
+  };
+}
+
+export function dayHeader(d: Date): string {
+  const names = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+  return `${names[d.getUTCDay()]} ${ddmm(d)}`;
+}
