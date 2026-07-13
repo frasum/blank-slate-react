@@ -16,6 +16,10 @@ import {
   sendOrderEmail,
 } from "@/lib/bestellung/orders.functions";
 import { listSuppliers } from "@/lib/bestellung/suppliers.functions";
+import {
+  listOrderEmailLog,
+  getOrderEmailLogEntry,
+} from "@/lib/bestellung/order-email-log.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/bestellung/bestellungen")({
   head: () => ({ meta: [{ title: "Bestellhistorie · Bestellung" }] }),
@@ -278,6 +282,7 @@ function BestellungenPage() {
                           messageId={o.email_message_id}
                           error={o.email_error}
                         />
+                        <EmailSendHistory orderId={o.id} />
                       </td>
                     </tr>,
                   );
