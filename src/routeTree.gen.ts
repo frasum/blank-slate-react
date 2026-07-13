@@ -55,6 +55,7 @@ import { Route as AuthenticatedAdminFragCocoRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminEinstellungenRouteImport } from './routes/_authenticated/admin/einstellungen'
 import { Route as AuthenticatedAdminDokumenteRouteImport } from './routes/_authenticated/admin/dokumente'
 import { Route as AuthenticatedAdminDienstplanRouteImport } from './routes/_authenticated/admin/dienstplan'
+import { Route as AuthenticatedAdminConfigCheckRouteImport } from './routes/_authenticated/admin/config-check'
 import { Route as AuthenticatedAdminBwaRouteImport } from './routes/_authenticated/admin/bwa'
 import { Route as AuthenticatedAdminBilanzRouteImport } from './routes/_authenticated/admin/bilanz'
 import { Route as AuthenticatedAdminBestellungRouteImport } from './routes/_authenticated/admin/bestellung'
@@ -336,6 +337,12 @@ const AuthenticatedAdminDienstplanRoute =
     path: '/dienstplan',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminConfigCheckRoute =
+  AuthenticatedAdminConfigCheckRouteImport.update({
+    id: '/config-check',
+    path: '/config-check',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminBwaRoute = AuthenticatedAdminBwaRouteImport.update({
   id: '/bwa',
   path: '/bwa',
@@ -484,6 +491,7 @@ export interface FileRoutesByFullPath {
   '/admin/bestellung': typeof AuthenticatedAdminBestellungRouteWithChildren
   '/admin/bilanz': typeof AuthenticatedAdminBilanzRoute
   '/admin/bwa': typeof AuthenticatedAdminBwaRoute
+  '/admin/config-check': typeof AuthenticatedAdminConfigCheckRoute
   '/admin/dienstplan': typeof AuthenticatedAdminDienstplanRoute
   '/admin/dokumente': typeof AuthenticatedAdminDokumenteRoute
   '/admin/einstellungen': typeof AuthenticatedAdminEinstellungenRouteWithChildren
@@ -551,6 +559,7 @@ export interface FileRoutesByTo {
   '/admin/bankkonto': typeof AuthenticatedAdminBankkontoRoute
   '/admin/bilanz': typeof AuthenticatedAdminBilanzRoute
   '/admin/bwa': typeof AuthenticatedAdminBwaRoute
+  '/admin/config-check': typeof AuthenticatedAdminConfigCheckRoute
   '/admin/dienstplan': typeof AuthenticatedAdminDienstplanRoute
   '/admin/dokumente': typeof AuthenticatedAdminDokumenteRoute
   '/admin/frag-coco': typeof AuthenticatedAdminFragCocoRoute
@@ -620,6 +629,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/bestellung': typeof AuthenticatedAdminBestellungRouteWithChildren
   '/_authenticated/admin/bilanz': typeof AuthenticatedAdminBilanzRoute
   '/_authenticated/admin/bwa': typeof AuthenticatedAdminBwaRoute
+  '/_authenticated/admin/config-check': typeof AuthenticatedAdminConfigCheckRoute
   '/_authenticated/admin/dienstplan': typeof AuthenticatedAdminDienstplanRoute
   '/_authenticated/admin/dokumente': typeof AuthenticatedAdminDokumenteRoute
   '/_authenticated/admin/einstellungen': typeof AuthenticatedAdminEinstellungenRouteWithChildren
@@ -691,6 +701,7 @@ export interface FileRouteTypes {
     | '/admin/bestellung'
     | '/admin/bilanz'
     | '/admin/bwa'
+    | '/admin/config-check'
     | '/admin/dienstplan'
     | '/admin/dokumente'
     | '/admin/einstellungen'
@@ -758,6 +769,7 @@ export interface FileRouteTypes {
     | '/admin/bankkonto'
     | '/admin/bilanz'
     | '/admin/bwa'
+    | '/admin/config-check'
     | '/admin/dienstplan'
     | '/admin/dokumente'
     | '/admin/frag-coco'
@@ -826,6 +838,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/bestellung'
     | '/_authenticated/admin/bilanz'
     | '/_authenticated/admin/bwa'
+    | '/_authenticated/admin/config-check'
     | '/_authenticated/admin/dienstplan'
     | '/_authenticated/admin/dokumente'
     | '/_authenticated/admin/einstellungen'
@@ -1218,6 +1231,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminDienstplanRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/config-check': {
+      id: '/_authenticated/admin/config-check'
+      path: '/config-check'
+      fullPath: '/admin/config-check'
+      preLoaderRoute: typeof AuthenticatedAdminConfigCheckRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/bwa': {
       id: '/_authenticated/admin/bwa'
       path: '/bwa'
@@ -1442,6 +1462,7 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminBestellungRoute: typeof AuthenticatedAdminBestellungRouteWithChildren
   AuthenticatedAdminBilanzRoute: typeof AuthenticatedAdminBilanzRoute
   AuthenticatedAdminBwaRoute: typeof AuthenticatedAdminBwaRoute
+  AuthenticatedAdminConfigCheckRoute: typeof AuthenticatedAdminConfigCheckRoute
   AuthenticatedAdminDienstplanRoute: typeof AuthenticatedAdminDienstplanRoute
   AuthenticatedAdminDokumenteRoute: typeof AuthenticatedAdminDokumenteRoute
   AuthenticatedAdminEinstellungenRoute: typeof AuthenticatedAdminEinstellungenRouteWithChildren
@@ -1479,6 +1500,7 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
       AuthenticatedAdminBestellungRouteWithChildren,
     AuthenticatedAdminBilanzRoute: AuthenticatedAdminBilanzRoute,
     AuthenticatedAdminBwaRoute: AuthenticatedAdminBwaRoute,
+    AuthenticatedAdminConfigCheckRoute: AuthenticatedAdminConfigCheckRoute,
     AuthenticatedAdminDienstplanRoute: AuthenticatedAdminDienstplanRoute,
     AuthenticatedAdminDokumenteRoute: AuthenticatedAdminDokumenteRoute,
     AuthenticatedAdminEinstellungenRoute:

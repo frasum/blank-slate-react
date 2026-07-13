@@ -197,6 +197,7 @@ const SYSTEM_SUB: { to: string; label: string }[] = [
   { to: "/admin/migration", label: "Migration" },
   { to: "/admin/import-zuordnungen", label: "Zuordnungen" },
   { to: "/admin/lohn-verteilung", label: "Lohn PDF Import" },
+  { to: "/admin/config-check", label: "Config-Check" },
 ];
 
 // Sub-Sub-Nav für „Einstellungen → Allgemein" (?tab=…). Wird nur auf
