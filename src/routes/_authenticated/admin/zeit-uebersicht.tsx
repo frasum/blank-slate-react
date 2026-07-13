@@ -351,10 +351,7 @@ function ZeitUebersichtPage() {
   // Abrechnungsperiode. Aggregation nach staffId (Zeilen mit gleicher Person
   // und unterschiedlicher Abteilung zeigen dieselbe Perioden-Summe).
   const periodTotalsByStaff = useMemo(() => {
-    const m = new Map<
-      string,
-      { total: number; evening: number; night: number; sunHol: number }
-    >();
+    const m = new Map<string, { total: number; evening: number; night: number; sunHol: number }>();
     for (const e of overviewEntries) {
       if (!e.startedAt || !e.endedAt) continue;
       const h = computeShiftHours(e.startedAt, e.endedAt, e.businessDate);
