@@ -84,6 +84,29 @@ async function resolveAllowedStaffScope(
   return { locationId: null, area: null };
 }
 
+// Fachregel „Vergangenheit im Dienstplan" (N19, 13.07.2026):
+// -------------------------------------------------------------
+// Admin und Manager dürfen im Dienstplan JEDEN Tag der aktuell OFFENEN
+// Periode bearbeiten — auch bereits vergangene Tage (z. B. 26.06. am
+// heutigen 13.07.). Grenze ist ausschließlich der Perioden-Status:
+//
+//   status = 'open'   → editierbar (Vergangenheit wie Zukunft)
+//   status = 'locked' → gesperrt für alle (auch Admin muss zuerst
+//                       die Sperre über Periodenwechsel zurückziehen)
+//
+// Es gibt bewusst KEINEN „Wasserlinien"-Vergleich `shift_date < today`
+// für den Dienstplan — der wäre eine stille Zusatzregel gegen die
+// Fachvorgabe. Für die Zeiterfassung (`time_locked_through_date`) und
+// den Schichttausch (`shift_date > today`) gelten eigene Regeln, die
+// hier nicht mitrasieren dürfen. Wer diese Funktion refactort: den
+// Vergleich `status === 'locked'` nicht zu `status !== 'open'` oder
+// „< today" umbauen.
+function assertPeriodStatusAllowsWrite(status: string | null | undefined): void {
+  if (status === "locked") {
+    throw new Error("Periode gesperrt");
+  }
+}
+
 async function assertShiftDateUnlocked(
   admin: import("@supabase/supabase-js").SupabaseClient<
     import("@/integrations/supabase/types").Database
@@ -99,10 +122,11 @@ async function assertShiftDateUnlocked(
     .gte("end_date", shiftDate)
     .maybeSingle();
   if (error) throw error;
-  if (data?.status === "locked") {
-    throw new Error("Periode gesperrt");
-  }
+  assertPeriodStatusAllowsWrite(data?.status);
 }
+
+// Nur für Tests exportiert — kein öffentlicher API-Vertrag.
+export const __test_assertPeriodStatusAllowsWrite = assertPeriodStatusAllowsWrite;
 
 export type RosterShift = {
   id: string;
@@ -1071,6 +1095,9 @@ export const setAbsence = createServerFn({ method: "POST" })
       makeAuditWriter(caller),
       async () => {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        // N19: Absenzen dürfen nicht in eine gesperrte Periode geschrieben
+        // werden — analog zu allen roster_shifts-Schreibpfaden.
+        await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, data.date);
         const { error } = await supabaseAdmin.from("roster_absence").upsert(
           {
             organization_id: caller.organizationId,
@@ -1118,6 +1145,9 @@ export const clearAbsence = createServerFn({ method: "POST" })
       makeAuditWriter(caller),
       async () => {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        // N19: Absenzen dürfen nicht in einer gesperrten Periode entfernt
+        // werden — analog zu allen roster_shifts-Schreibpfaden.
+        await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, data.date);
         const { error } = await supabaseAdmin
           .from("roster_absence")
           .delete()

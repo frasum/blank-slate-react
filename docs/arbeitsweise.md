@@ -6,7 +6,7 @@ SaaS-Vorbereitung: Readiness-Audit und Modul-Katalog stehen in docs/saas-vorbere
 
 Produktionsreife-Review: docs/produktionsreife-review.md (Stand 07.07.2026, HEAD 8cfdbc1d, inkl. Patch-Plan P0–P7) — kritischer Pfad vor dem Kassen-Go-live: Monitoring (P1) → Finalize-E2E (P2) → Restore-Probe (P3) → Cutover.
 
-Stand: 13.07.2026 (§90: Urlaub auf 5-Tage-Modell, Feiertage im Planer)
+Stand: 13.07.2026 (§91: Vergangenheit im Dienstplan innerhalb offener Periode editierbar)
 
 TH1 — Standort-Farbthema: LocationThemeProvider im \_authenticated-Layout hält den themeKey (spicery/yum/neutral).
 LocationPills melden die Auswahl per useLocationThemeSync; Mapping: Name enthält „spicery" → spicery, „yum" → yum, sonst neutral (auch TSB/„Alle"/leer).
@@ -4113,3 +4113,19 @@ Anker N6: `d3b5d1d1` (1725 Tests) · Anker FT1: `75307f24` (1731 Tests), vier Ch
 **G1-Einordnung (Monolith-Dateien, aus externem Bericht):** Entscheidung dokumentiert — G1a `zeit-uebersicht.tsx` als risikoarmer Pilot MÖGLICH vor dem Cutover (Anzeige-Datei, kein Geld-Pfad), G1b `cash.functions.ts` erst NACH dem Cutover (keine zwei Großbewegungen gleichzeitig; Datei ist Cutover-Herzstück). Kein Beschluss zur Ausführung — Priorität liegt beim Cutover-Block.
 
 **Offen:** Publish + Kontrollrunde (Bestandsantrag mit Feiertagswoche = 5 · Restkonten gestiegen · Feiertag im Planer/TRMNL sichtbar, z. B. 15.08.) · Team-Info Urlaubskonten · danach Cutover-Block als nächstes Groß-Thema (Härtung → Mapping → Reimport) · e2e-Zehner-Serie beobachten.
+
+## §91 — Vergangenheit im Dienstplan: Regel geschärft, Absenzen konsistent gemacht (N19, 13.07. spät)
+
+Anlass: Nachfrage, warum Admin/Manager rückwirkend keine Änderungen im Dienstplan machen könnten. Audit-Befund: sie können — nur war die Regel weder dokumentiert noch konsistent, und `setAbsence`/`clearAbsence` hatten die Sperrprüfung überhaupt nicht.
+
+**Fachregel N19 (Frank bestätigt):** Admin und Manager dürfen im Dienstplan JEDEN Tag der aktuell offenen Periode bearbeiten — auch bereits vergangene. Grenze ist ausschließlich `periods.status`: `open` = editierbar, `locked` = für alle gesperrt (auch Admin muss die Sperre über Periodenwechsel zurückziehen). Kein „Wasserlinien"-Vergleich `shift_date < today` im Dienstplan; solche Regeln gelten separat für **Zeiterfassung** (`time_locked_through_date`) und **Schichttausch** (`shift_date > today`) und dürfen nicht mitrasieren.
+
+**Was geändert wurde:**
+
+1. `assertShiftDateUnlocked` mit Fachregel-Docblock versehen und um einen reinen Helfer `assertPeriodStatusAllowsWrite(status)` ergänzt (via `__test_assertPeriodStatusAllowsWrite` testbar). Refactor-Wächter: Wer den Vergleich zu `status !== 'open'` oder auf `today` umbaut, macht den neuen Test rot.
+2. **Konsistenz-Fix:** `setAbsence` und `clearAbsence` prüften bislang GAR NICHT gegen den Periodenstatus — theoretisch konnte man Urlaub/Krank in eine gesperrte Periode schreiben oder daraus löschen. Beide rufen jetzt `assertShiftDateUnlocked` auf, wie alle `roster_shifts`-Schreibpfade und wie `setAbsenceRange` bereits (per Overlap-Check) tat.
+3. Neuer Vitest `roster-past-in-open-period.test.ts` (4 Fälle): `open` erlaubt · `null/undefined` erlaubt · `locked` wirft „Periode gesperrt" · Regressions-Fall `draft` erlaubt (kein „open-only"-Refactor).
+
+**Bewusst NICHT geändert:** Schichttausch-Regel (`swap.functions.ts`: `shift_date > today`) bleibt — eigene Fachregel. Keine UI-Änderung (Grid und DayEditSheet hingen bereits nur an `canEdit` und `periodLocked`). Kein neuer „Sperre aufheben"-Knopf.
+
+**Konfliktmeldung statt stiller Lösung:** Die Regel „locked bleibt locked" wurde nicht heimlich aufgeweicht. Umgekehrt wurde die frühere stille Lücke bei Einzel-Absenzen als Bug offengelegt und geschlossen — Ehrlichkeitsregel angewandt.
