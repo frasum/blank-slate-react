@@ -658,18 +658,34 @@ export function WeeklyPlan({
                           {row.displayName}
                         </span>
                       </TableCell>
-                      <TableCell className="px-1 text-xs text-right tabular-nums font-medium">
-                        {fmtDec(row.totals.total)}
-                      </TableCell>
-                      <TableCell className="px-1 text-xs text-right tabular-nums">
-                        {fmtDec(row.totals.evening)}
-                      </TableCell>
-                      <TableCell className="px-1 text-xs text-right tabular-nums">
-                        {fmtDec(row.totals.night)}
-                      </TableCell>
-                      <TableCell className="px-1 text-xs text-right tabular-nums">
-                        {fmtDec(row.totals.sunHol)}
-                      </TableCell>
+                      {(() => {
+                        const pt = periodTotalsByStaff?.get(row.staffId);
+                        const t =
+                          totalsScope === "period" && pt
+                            ? pt
+                            : {
+                                total: row.totals.total,
+                                evening: row.totals.evening,
+                                night: row.totals.night,
+                                sunHol: row.totals.sunHol,
+                              };
+                        return (
+                          <>
+                            <TableCell className="px-1 text-xs text-right tabular-nums font-medium">
+                              {fmtDec(t.total)}
+                            </TableCell>
+                            <TableCell className="px-1 text-xs text-right tabular-nums">
+                              {fmtDec(t.evening)}
+                            </TableCell>
+                            <TableCell className="px-1 text-xs text-right tabular-nums">
+                              {fmtDec(t.night)}
+                            </TableCell>
+                            <TableCell className="px-1 text-xs text-right tabular-nums">
+                              {fmtDec(t.sunHol)}
+                            </TableCell>
+                          </>
+                        );
+                      })()}
                       {(() => {
                         const s = shiftsByStaff.get(row.staffId) ?? 0;
                         return (
