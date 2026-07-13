@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { fmtCents } from "@/lib/format";
 import { parseEuroToCents, focusNextInput } from "@/lib/cash/kasse-helpers";
 import type { Overview } from "@/lib/cash/kasse-types";
+import { sessionHouseCentsFromKasse } from "@/lib/statistics/revenue-core";
 import { AdvanceForm } from "./AdvanceForm";
 import { ExpenseForm } from "./ExpenseForm";
 import { CashSummaryBlock } from "./CashSummaryBlock";
@@ -16,7 +17,6 @@ type UpdatePayload = {
   vouchersSoldCents: number;
   vouchersRedeemedCents: number;
   finedineVouchersCents: number;
-  opentabsDeductionCents: number;
   vorschussCents: number;
   einladungCents: number;
   sonstigeEinnahmeCents: number;
@@ -85,7 +85,6 @@ export function SessionFieldsCard({
     vouchersSold: string;
     vouchersRedeemed: string;
     finedineVouchers: string;
-    opentabs: string;
     vorschuss: string;
     einladung: string;
     sonstige: string;
@@ -98,7 +97,6 @@ export function SessionFieldsCard({
     vouchersSold: (Number(sess.vouchers_sold_cents ?? 0) / 100).toFixed(2),
     vouchersRedeemed: (Number(sess.vouchers_redeemed_cents ?? 0) / 100).toFixed(2),
     finedineVouchers: (Number(sess.finedine_vouchers_cents ?? 0) / 100).toFixed(2),
-    opentabs: (Number(sess.opentabs_deduction_cents ?? 0) / 100).toFixed(2),
     vorschuss: (Number(sess.vorschuss_cents ?? 0) / 100).toFixed(2),
     einladung: (Number(sess.einladung_cents ?? 0) / 100).toFixed(2),
     sonstige: (Number(sess.sonstige_einnahme_cents ?? 0) / 100).toFixed(2),
@@ -151,7 +149,6 @@ export function SessionFieldsCard({
     const vs = parseEuroToCents(misc.vouchersSold);
     const vr = parseEuroToCents(misc.vouchersRedeemed);
     const fv = parseEuroToCents(misc.finedineVouchers);
-    const ot = parseEuroToCents(misc.opentabs);
     const vo = parseEuroToCents(misc.vorschuss);
     const ei = parseEuroToCents(misc.einladung);
     const so = parseEuroToCents(misc.sonstige);
@@ -164,7 +161,6 @@ export function SessionFieldsCard({
       vs === null ||
       vr === null ||
       fv === null ||
-      ot === null ||
       vo === null ||
       ei === null ||
       so === null ||
@@ -180,7 +176,6 @@ export function SessionFieldsCard({
       vouchersSoldCents: vs,
       vouchersRedeemedCents: vr,
       finedineVouchersCents: fv,
-      opentabsDeductionCents: ot,
       vorschussCents: vo,
       einladungCents: ei,
       sonstigeEinnahmeCents: so,
@@ -287,8 +282,21 @@ export function SessionFieldsCard({
       : null;
 
   const guestNum = parseInt(misc.guestCount || "0", 10);
+  // N14 (Fachentscheidung Frank 13.07.): ⌀ pro Gast IMMER auf Haus-Umsatz —
+  // Nenner (Gäste) zählt nur Im-Haus-Gäste, also gehört Wolt/SoUse/eigener
+  // Außer-Haus-Verkauf raus. Gemeinsamer Helfer mit PDF + Druckansicht,
+  // damit Bildschirm, PDF und Druck garantiert dieselbe Zahl zeigen.
+  const houseCentsForAvg = sessionHouseCentsFromKasse({
+    vectronCents: parseEuroToCents(misc.vectron) ?? 0,
+    channels: chRows.map((r) => ({
+      kind: channelById[r.id]?.kind ?? "",
+      amountCents: parseEuroToCents(r.euro) ?? 0,
+    })),
+  });
   const avgPerGuest =
-    guestNum > 0 && posEuroTotal > 0 ? fmtCents(Math.round(posEuroTotal / guestNum)) + " €" : null;
+    guestNum > 0 && houseCentsForAvg > 0
+      ? fmtCents(Math.round(houseCentsForAvg / guestNum)) + " €"
+      : null;
 
   const staffName = (id: string) => staff.find((s) => s.id === id)?.displayName ?? id.slice(0, 8);
 
@@ -325,7 +333,7 @@ export function SessionFieldsCard({
                   Gästeanzahl
                   {avgPerGuest && (
                     <span className="ml-2 text-xs text-muted-foreground whitespace-nowrap">
-                      ⌀ {avgPerGuest}
+                      ⌀ pro Gast (Haus) {avgPerGuest}
                     </span>
                   )}
                 </td>
