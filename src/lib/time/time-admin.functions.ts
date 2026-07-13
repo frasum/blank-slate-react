@@ -55,7 +55,7 @@ export async function _loadTimeEntriesForOverviewBatch(
   fromDate: string,
   toDate: string,
 ): Promise<TimeEntryOverviewRow[]> {
-  return selectAllPaged<TimeEntryOverviewRow>((from, to) =>
+  return selectAllPaged<TimeEntryOverviewRow>(() =>
     supabaseAdmin
       .from("time_entries")
       .select(
@@ -66,8 +66,7 @@ export async function _loadTimeEntriesForOverviewBatch(
       .gte("business_date", fromDate)
       .lte("business_date", toDate)
       .not("ended_at", "is", null)
-      .order("id", { ascending: true })
-      .range(from, to),
+      .order("id", { ascending: true }),
   );
 }
 
@@ -88,7 +87,7 @@ export async function _loadTimeEntriesForSfnBatch(
   fromDate: string,
   toDate: string,
 ): Promise<TimeEntrySfnRow[]> {
-  return selectAllPaged<TimeEntrySfnRow>((from, to) =>
+  return selectAllPaged<TimeEntrySfnRow>(() =>
     supabaseAdmin
       .from("time_entries")
       .select(
@@ -99,8 +98,7 @@ export async function _loadTimeEntriesForSfnBatch(
       .gte("business_date", fromDate)
       .lte("business_date", toDate)
       .not("ended_at", "is", null)
-      .order("id", { ascending: true })
-      .range(from, to),
+      .order("id", { ascending: true }),
   );
 }
 
@@ -122,7 +120,7 @@ export async function _loadTimeEntriesForWeeklyBatch(
   weekStart: string,
   weekEnd: string,
 ): Promise<TimeEntryWeeklyRow[]> {
-  return selectAllPaged<TimeEntryWeeklyRow>((from, to) =>
+  return selectAllPaged<TimeEntryWeeklyRow>(() =>
     supabaseAdmin
       .from("time_entries")
       .select(
@@ -133,8 +131,7 @@ export async function _loadTimeEntriesForWeeklyBatch(
       .gte("business_date", weekStart)
       .lte("business_date", weekEnd)
       .not("ended_at", "is", null)
-      .order("id", { ascending: true })
-      .range(from, to),
+      .order("id", { ascending: true }),
   );
 }
 
@@ -153,7 +150,7 @@ export async function _loadRosterShiftsForWeeklyBatch(
   weekStart: string,
   weekEnd: string,
 ): Promise<WeeklyRosterRow[]> {
-  return selectAllPaged<WeeklyRosterRow>((from, to) =>
+  return selectAllPaged<WeeklyRosterRow>(() =>
     supabaseAdmin
       .from("roster_shifts")
       .select("location_id, staff_id, area, skill_id, shift_date")
@@ -161,10 +158,9 @@ export async function _loadRosterShiftsForWeeklyBatch(
       .in("location_id", locationIds)
       .gte("shift_date", weekStart)
       .lte("shift_date", weekEnd)
-      // Deterministische Paginierung: id als Tiebreaker, shift_date für Lesbarkeit.
+      // Deterministische Paginierung: shift_date + staff_id als Tiebreaker.
       .order("shift_date", { ascending: true })
-      .order("staff_id", { ascending: true })
-      .range(from, to),
+      .order("staff_id", { ascending: true }),
   );
 }
 
