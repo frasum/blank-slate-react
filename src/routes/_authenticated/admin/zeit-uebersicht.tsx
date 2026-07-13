@@ -1215,6 +1215,8 @@ function ZeitUebersichtPage() {
             }, [weeklyData])}
             shiftsByStaff={shiftsByStaff}
             absencesByStaff={absencesByStaff}
+            totalsScope={totalsScope}
+            periodTotalsByStaff={periodTotalsByStaff}
           />
         </TabsContent>
 
