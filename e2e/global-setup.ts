@@ -6,8 +6,7 @@
 
 export default async function globalSetup(): Promise<void> {
   const url = process.env.VITE_SUPABASE_URL ?? "";
-  const isLocal =
-    url.startsWith("http://127.0.0.1") || url.startsWith("http://localhost");
+  const isLocal = url.startsWith("http://127.0.0.1") || url.startsWith("http://localhost");
   if (!isLocal) {
     throw new Error(
       `E2E-Schutzriegel: VITE_SUPABASE_URL="${url || "<leer>"}" ist keine lokale URL. ` +

@@ -55,8 +55,7 @@ export default defineConfig({
         // und E2E liefe stumm gegen Produktion.
         env: {
           VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL ?? "",
-          VITE_SUPABASE_PUBLISHABLE_KEY:
-            process.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
+          VITE_SUPABASE_PUBLISHABLE_KEY: process.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
         },
       }
     : undefined,
