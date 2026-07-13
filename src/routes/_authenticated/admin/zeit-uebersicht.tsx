@@ -239,6 +239,10 @@ function ZeitUebersichtPage() {
   const fetchAdvances = useServerFn(listAdvancesByStaff);
   const fetchAbsences = useServerFn(listAbsencesByStaff);
   const fetchSfn = useServerFn(getSfnOverview);
+  const fetchOverviewBatch = useServerFn(getTimeOverviewBatch);
+  const fetchWeeklyBatch = useServerFn(getWeeklyTimeEntriesBatch);
+  const fetchNotesBatch = useServerFn(listPayrollNotesBatch);
+  const fetchSfnBatch = useServerFn(getSfnOverviewBatch);
   const callUpsert = useServerFn(upsertPayrollNote);
   const callSetShift = useServerFn(setTimeEntryShift);
   const callCreateShift = useServerFn(createTimeEntryShift);
