@@ -10,6 +10,9 @@ export type Entry = {
   department: Department;
   businessDate: string;
   hoursWorked: number;
+  startedAt?: string;
+  endedAt?: string;
+  rawDepartment?: Department | null;
 };
 
 // TODO G1a: mögliche Dublette zu business-date/format-date — Konsolidierung als eigene Entscheidung

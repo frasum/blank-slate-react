@@ -174,6 +174,9 @@ function ZeitUebersichtPage() {
   const [deptFilter, setDeptFilter] = useState<Department | "all">("all");
   const [skillFilter, setSkillFilter] = useState<string>("all");
   const [activeTab, setActiveTab] = useState<string>("weekly");
+  // Summen-Skope für die rechte Kennzahlen-Spalte im Wochenplan:
+  // "week" = aktuelle Woche (Grid-Daten), "period" = Abrechnungsperiode (Overview-Daten).
+  const [totalsScope, setTotalsScope] = useState<"week" | "period">("week");
   // Buchhaltung-Tab: §3b-Toggle + eigene Suche.
   const [payrollMode, setPayrollMode] = useState<BuchhaltungMode>("simple");
   const [payrollSearch, setPayrollSearch] = useState<string>("");
@@ -341,6 +344,29 @@ function ZeitUebersichtPage() {
     return overviewQ.data?.entries ?? [];
   }, [isAllLocations, overviewBatchQ.data, allLocationIds, overviewQ.data]);
   const overviewLoading = isAllLocations ? overviewBatchQ.isLoading : overviewQ.isLoading;
+
+  // N-Toggle — Perioden-Summen (Ges/20–24/24–x/SF) je Mitarbeiter für den
+  // Wochenplan-Header-Switch. Nutzt dieselbe Schichten-Zerlegung wie der
+  // Buchhaltung-Tab (computeShiftHours), aggregiert über die ganze
+  // Abrechnungsperiode. Aggregation nach staffId (Zeilen mit gleicher Person
+  // und unterschiedlicher Abteilung zeigen dieselbe Perioden-Summe).
+  const periodTotalsByStaff = useMemo(() => {
+    const m = new Map<
+      string,
+      { total: number; evening: number; night: number; sunHol: number }
+    >();
+    for (const e of overviewEntries) {
+      if (!e.startedAt || !e.endedAt) continue;
+      const h = computeShiftHours(e.startedAt, e.endedAt, e.businessDate);
+      const cur = m.get(e.staffId) ?? { total: 0, evening: 0, night: 0, sunHol: 0 };
+      cur.total += h.totalHours;
+      cur.evening += h.eveningHours;
+      cur.night += h.nightHours;
+      cur.sunHol += h.sundayHolidayHours;
+      m.set(e.staffId, cur);
+    }
+    return m;
+  }, [overviewEntries]);
 
   const notesQ = useQuery({
     queryKey: ["payroll-notes", effectiveLocationId, fromDate, toDate],
@@ -1008,6 +1034,16 @@ function ZeitUebersichtPage() {
                 allValue="all"
               />
               <div className="ml-auto flex items-center gap-2">
+                <PillSelect<"week" | "period">
+                  ariaLabel="Summen-Bezug"
+                  size="sm"
+                  options={[
+                    { value: "week", label: "Woche" },
+                    { value: "period", label: "Abrechnungsmonat" },
+                  ]}
+                  value={totalsScope}
+                  onChange={setTotalsScope}
+                />
                 <Button variant="outline" size="sm" onClick={handleExportPdf}>
                   <FileDown className="mr-1 h-4 w-4" /> PDF
                 </Button>
@@ -1179,6 +1215,8 @@ function ZeitUebersichtPage() {
             }, [weeklyData])}
             shiftsByStaff={shiftsByStaff}
             absencesByStaff={absencesByStaff}
+            totalsScope={totalsScope}
+            periodTotalsByStaff={periodTotalsByStaff}
           />
         </TabsContent>
 
