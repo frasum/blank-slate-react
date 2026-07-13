@@ -453,7 +453,7 @@ export function WeeklyPlan({
                       key={`${row.staffId}:${row.department}`}
                       className="even:bg-muted/70"
                     >
-                      <TableCell className="group relative px-1 font-medium align-middle text-center text-xs w-[56px] min-w-[56px] max-w-[56px]">
+                      <TableCell className="group relative px-1 font-bold align-middle text-center text-[10px] w-[56px] min-w-[56px] max-w-[56px]">
                         <span
                           className={`absolute left-0 top-0 bottom-0 w-[2px] ${DEPT_BAR[row.department]}`}
                         />
@@ -623,7 +623,7 @@ export function WeeklyPlan({
                           </Fragment>
                         );
                       })}
-                      <TableCell className="font-medium align-middle border-l text-center text-xs px-1 w-[56px] min-w-[56px] max-w-[56px]">
+                      <TableCell className="font-bold align-middle border-l text-center text-[10px] px-1 w-[56px] min-w-[56px] max-w-[56px]">
                         <span className="block truncate" title={row.displayName}>
                           {row.displayName}
                         </span>
