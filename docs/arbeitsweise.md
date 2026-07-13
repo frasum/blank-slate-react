@@ -6,7 +6,7 @@ SaaS-Vorbereitung: Readiness-Audit und Modul-Katalog stehen in docs/saas-vorbere
 
 Produktionsreife-Review: docs/produktionsreife-review.md (Stand 07.07.2026, HEAD 8cfdbc1d, inkl. Patch-Plan P0–P7) — kritischer Pfad vor dem Kassen-Go-live: Monitoring (P1) → Finalize-E2E (P2) → Restore-Probe (P3) → Cutover.
 
-Stand: 12.07.2026 (§86: COCO-2-Frage verworfen, Roadmap bestätigt)
+Stand: 13.07.2026 (§87: Sicherheitspaket + Hygiene-Batch, Verfahrensregel Gutachter-Pipeline)
 
 TH1 — Standort-Farbthema: LocationThemeProvider im \_authenticated-Layout hält den themeKey (spicery/yum/neutral).
 LocationPills melden die Auswahl per useLocationThemeSync; Mapping: Name enthält „spicery" → spicery, „yum" → yum, sonst neutral (auch TSB/„Alle"/leer).
@@ -4021,3 +4021,26 @@ Hinweis: 90-Tage-Consent läuft ab Verbindungsdatum; Status-Chip warnt <14 Tage.
 4. **Hygiene mit Budgets:** Dead-Code-Inventur mit Verbleibsbegründung je Kandidat (PdfCanvasPreview zuerst); die 5 tolerierten exhaustive-deps-Warnungen einzeln charakterisieren; **Bundle-Budget in der CI** (Erst-Chunk, größter Route-Chunk, PDF-/Excel-Chunks) — zunächst als Vergleichs-Gate gegen unbemerkte Verschlechterung, nicht als sofortige Verkleinerung.
 
 **Methodische Notiz.** Das Vier-Augen-Prinzip wurde hier auf die Architekturebene angewandt: zwei unabhängige Modelle (eines mit Systemhistorie, eines mit frischem Repo-Blick), konvergentes Urteil. Zweitmeinungen mit Prüfauftrag („verifiziere selbst, widersprich mit Belegen") liefern brauchbare Ergebnisse; Zweitmeinungen ohne Faktenzugang bleiben generisch.
+
+## §87 — Nacht-Sessions 13.07.: Versand-Log, ENV2, Config-Check, Sicherheitspaket, Hygiene-Batch; Verfahrensregel für Gutachter-Vorschläge (13.07.)
+
+Abnahme-Anker: `f1783a90`, vier Gates grün, **1717 Tests** (+8 seit BK2).
+
+**Block 1 — Bestellwesen-Nacht (direkt mit Lovable):** `order_email_log` — persistenter Versand-Log je Bestellung (Zeitpunkt, Modus Test/Echt, Empfänger, MailerSend-Antwort, Erfolg wie Fehler; eigene Migration). Nachvollziehbarkeit vor dem Testmodus-Umschalter beim Cutover. Dazu **Config-Check** (Admin-Seite: Konfigurationsstand als ok/fehlt, nur Booleans). Erstfassung riss die CI komplett rot: `config-check.functions.ts` referenzierte den Service-Role-Key außerhalb `*.server.ts` → **Wächter-Test `server-boundary.test.ts` löste pflichtgemäß aus** (ein Verstoß, vier rote Jobs — Kaskade ist Absicht). Fix: Secret-Berührung nach `config-check.server.ts` verschoben; Regel bestätigt: Der Code passt sich dem Wächter-Test an, nie umgekehrt.
+
+**Block 2 — ENV2:** Wiederkehrende Preview-Ausfälle („Konfiguration unvollständig") dauerhaft behoben: Publishable-Fallback (URL + Anon-Key als Konstanten, identisch zu `.env.production` — öffentliche Werte) im Supabase-Client, **Env gewinnt immer** (Claude-Code-Sandbox auf 127.0.0.1 und Produktion unberührt; nur die env-lose Lovable-Sandbox nach Recycling fällt zurück). Bewusst KEINE committete `.env.development` (hätte via Vite-Präzedenz die isolierte Sandbox auf Produktion gebogen). Service-Role ohne jeden Fallback. ENV1-Wächter bleibt (meldet fortan echte Build-Defekte).
+
+**Block 3 — Gutachter-Pipeline (Claude Code → Lovable), Sicherheits- und Hygiene-Batch:** Frank ließ Claude Code das Repo begutachten und gab die Vorschläge als Prompts an Lovable — Einbahnstraßen-Regel korrekt gelebt (nur Erkenntnisse wanderten, kein Code). Ergebnis inhaltlich stark (79 Dateien, netto −1117 Zeilen):
+
+- **SEC-Token:** Langlebige Zugriffs-Tokens (access_tokens/Kalender, display_settings, organizations.trmnl, telegram-links) als **SHA-256-Hash** statt Klartext; In-Place-Migration (Geräte-URLs bleiben unverändert gültig, Server hasht beim Lookup). Verhaltensänderung: bestehende Tokens im Admin nicht mehr ablesbar — bei URL-Verlust neuen Token generieren (One-Shot-Anzeige).
+- **SEC-PIN:** IP-Rate-Limit am PIN-Login (30/15 min, bewusst über dem Staff-Limit — NAT/gemeinsame Kasse), neue Spalte `pin_attempts.ip`; neue PINs ≥ 6 Stellen, Bestands-PINs (4/5) bleiben am Login gültig.
+- **SEC-Headers:** Erzwungenes `frame-ancestors 'self' + lovable.dev` (Clickjacking-Schutz; blockiert keine Ressourcen, Kiosks laden direkt). Haus-Test „nur Report-Only-CSP" präzisiert statt aufgeweicht: erzwungene CSP darf AUSSCHLIESSLICH frame-ancestors enthalten (Prüfer-Abnahme 13.07.). Dazu `REVOKE SELECT ON leave_requests FROM anon` (Altgrant, nur durch RLS entschärft).
+- **Hygiene:** 10 ungenutzte UI-Komponenten samt Radix-Dependencies entfernt (u. a. sidebar 744 Z., chart, carousel); Batch-Server-Fns gegen N+1 (zeit-uebersicht); 5 Roster-Fixe.
+
+**Zwischenfall daraus — Veröffentlichungs-Lücke:** Lovable wendet Migrationen sofort an; der Hash-Umbau lief in der Produktions-DB, während der alte Build noch Klartext-Spalten las → Kalender-Feeds/Display-Routen bis zum Publish gestört (E-Ink-Force-Refresh nötig wegen eingefrorener Fehlerbilder). Rückbau-Wunsch geprüft und verworfen: Hashes sind nicht zurückrechenbar, Geräte-URLs blieben gültig, Publish war die Kur. **Bestätigt §86-Härtung: Migration und Deploy gehören gekoppelt.**
+
+**NEUE VERFAHRENSREGEL — Gutachter-Vorschläge:** Vorschlagslisten externer Gutachter (Claude Code, ChatGPT o. a.) gehen VOR der Umsetzung als Liste an den Prüfer („prüfe die Vorschläge"), dann themenweise einzeln an Lovable mit „prüfe" dazwischen — nie als Gesamt-Batch auf main. Begründung aus diesem Fall: Der Gutachter kennt weder Publish-Kopplung noch Test-Kanon; die Zwischenstation hätte Feed-Lücke und CSP-Test-Kollision vorab gefangen. (Beide Wächter — server-boundary, security-headers-Test — haben ihre Existenz doppelt gerechtfertigt.)
+
+**Sandbox-Umgebungsnotiz:** `bank-csv-parser.test` schlägt in Lovables Sandbox fehl (Node ohne volle ICU → Windows-1252/€-Dekodierung), in CI und Prüfer-Umgebung grün — kein Code-Problem; Lovable meldete korrekt statt zu fixen.
+
+**Offen:** Gerätetests nach Publish (Displays + Force-Refresh, Kalender-Feed, Login-Zyklus) · restliche Offen-Liste unverändert (§85/§86: BK2-Inbetriebnahme, Gerätetest-Stapel, PL3, Backup Stufe 2, Cutover-Block mit Härtung).
