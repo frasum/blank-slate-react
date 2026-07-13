@@ -70,21 +70,35 @@ export const listStaff = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await supabaseAdmin
-      .from("staff")
-      .select(
-        // SD1 — email/phone bewusst NICHT im Select: listStaff ist manager-lesbar,
-        // Kontaktdaten sind Personalverwaltung (admin/payroll) und werden über
-        // getStaff bereitgestellt.
-        "id, first_name, last_name, display_name, is_active, role_assignments(role), staff_locations(location_id, department), staff_skills(skill_id, skills(category)), staff_pins(id)",
-      )
-      .eq("organization_id", caller.organizationId)
-      .order("display_name");
-    if (error) throw error;
+    // SD1 — email/phone bewusst NICHT im Select (siehe getStaff).
+    const data = expectOk<
+      {
+        id: string;
+        first_name: string;
+        last_name: string;
+        display_name: string;
+        is_active: boolean;
+        role_assignments: unknown;
+        staff_locations: unknown;
+        staff_skills: unknown;
+        staff_pins: unknown;
+      }[]
+    >(
+      await supabaseAdmin
+        .from("staff")
+        .select(
+          "id, first_name, last_name, display_name, is_active, role_assignments(role), staff_locations(location_id, department), staff_skills(skill_id, skills(category)), staff_pins(id)",
+        )
+        .eq("organization_id", caller.organizationId)
+        .order("display_name"),
+      "listStaff",
+    );
     return (data ?? []).map((s) => {
       const ra = s.role_assignments as { role: AppRole }[] | null;
       const role = ra && ra.length > 0 ? ra[0].role : null;
-      const locations = (s.staff_locations ?? []).map((l) => l.location_id);
+      const locations = ((s.staff_locations ?? []) as { location_id: string }[]).map(
+        (l) => l.location_id,
+      );
       const locDeptRows = (s.staff_locations ?? []) as unknown as {
         location_id: string;
         department: StaffDepartment;
@@ -134,15 +148,23 @@ export const listStaffPersonalSummary = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, ["admin", "payroll"]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await supabaseAdmin
-      .from("staff_personal_details")
-      .select("staff_id, employment_start_date, date_of_birth")
-      .eq("organization_id", caller.organizationId);
-    if (error) throw error;
+    const data = expectOk<
+      {
+        staff_id: string;
+        employment_start_date: string | null;
+        date_of_birth: string | null;
+      }[]
+    >(
+      await supabaseAdmin
+        .from("staff_personal_details")
+        .select("staff_id, employment_start_date, date_of_birth")
+        .eq("organization_id", caller.organizationId),
+      "listStaffPersonalSummary",
+    );
     return (data ?? []).map((r) => ({
-      staffId: r.staff_id as string,
-      employmentStartDate: (r.employment_start_date as string | null) ?? null,
-      dateOfBirth: (r.date_of_birth as string | null) ?? null,
+      staffId: r.staff_id,
+      employmentStartDate: r.employment_start_date ?? null,
+      dateOfBirth: r.date_of_birth ?? null,
     }));
   });
 
@@ -166,35 +188,43 @@ export const setStaffLocationDepartment = createServerFn({ method: "POST" })
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
       if (data.enabled) {
-        const { error } = await supabaseAdmin.from("staff_locations").upsert(
-          {
-            staff_id: data.staffId,
-            organization_id: caller.organizationId,
-            location_id: data.locationId,
-            department: data.department,
-          },
-          { onConflict: "staff_id,location_id,department", ignoreDuplicates: true },
+        expectVoid(
+          await supabaseAdmin.from("staff_locations").upsert(
+            {
+              staff_id: data.staffId,
+              organization_id: caller.organizationId,
+              location_id: data.locationId,
+              department: data.department,
+            },
+            { onConflict: "staff_id,location_id,department", ignoreDuplicates: true },
+          ),
+          "setStaffLocationDepartment.upsert",
         );
-        if (error) throw error;
       } else {
         // Regel a: Entzug nur, wenn dadurch kein gehaltener Skill seine Grundlage verliert.
-        const { data: locRows, error: locErr } = await supabaseAdmin
-          .from("staff_locations")
-          .select("location_id, department")
-          .eq("staff_id", data.staffId)
-          .eq("organization_id", caller.organizationId);
-        if (locErr) throw locErr;
+        const locRows = expectOk<{ location_id: string; department: StaffDepartment }[]>(
+          await supabaseAdmin
+            .from("staff_locations")
+            .select("location_id, department")
+            .eq("staff_id", data.staffId)
+            .eq("organization_id", caller.organizationId),
+          "setStaffLocationDepartment.locRows",
+        );
         const rowsAfter = (locRows ?? []).filter(
           (r) => !(r.location_id === data.locationId && r.department === data.department),
-        ) as { location_id: string; department: StaffDepartment }[];
+        );
         const departmentsAfter = distinctDepartments(rowsAfter);
 
-        const { data: skillRows, error: skillErr } = await supabaseAdmin
-          .from("staff_skills")
-          .select("skill_id, skills(name, category)")
-          .eq("staff_id", data.staffId)
-          .eq("organization_id", caller.organizationId);
-        if (skillErr) throw skillErr;
+        const skillRows = expectOk<
+          { skill_id: string; skills: { name: string | null; category: string | null } | null }[]
+        >(
+          await supabaseAdmin
+            .from("staff_skills")
+            .select("skill_id, skills(name, category)")
+            .eq("staff_id", data.staffId)
+            .eq("organization_id", caller.organizationId),
+          "setStaffLocationDepartment.skillRows",
+        );
         const held = (skillRows ?? [])
           .map((r) => {
             const sk = r.skills as { name: string | null; category: string | null } | null;
@@ -211,14 +241,16 @@ export const setStaffLocationDepartment = createServerFn({ method: "POST" })
           );
         }
 
-        const { error: delErr } = await supabaseAdmin
-          .from("staff_locations")
-          .delete()
-          .eq("staff_id", data.staffId)
-          .eq("organization_id", caller.organizationId)
-          .eq("location_id", data.locationId)
-          .eq("department", data.department);
-        if (delErr) throw delErr;
+        expectVoid(
+          await supabaseAdmin
+            .from("staff_locations")
+            .delete()
+            .eq("staff_id", data.staffId)
+            .eq("organization_id", caller.organizationId)
+            .eq("location_id", data.locationId)
+            .eq("department", data.department),
+          "setStaffLocationDepartment.delete",
+        );
       }
 
       return {
@@ -244,15 +276,30 @@ export const getStaff = createServerFn({ method: "GET" })
     // SD1 — Personalverwaltung admin/payroll-only (Manager haben keinen Zutritt).
     const caller = await loadAdminCaller(context.supabase, context.userId, ["admin", "payroll"]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: staff, error } = await supabaseAdmin
-      .from("staff")
-      .select(
-        "id, organization_id, first_name, last_name, display_name, email, phone, is_active, participates_in_pool, role_assignments(role), staff_locations(location_id), staff_pins(id)",
-      )
-      .eq("id", data.staffId)
-      .eq("organization_id", caller.organizationId)
-      .maybeSingle();
-    if (error) throw error;
+    const staff = expectMaybe<{
+      id: string;
+      organization_id: string;
+      first_name: string;
+      last_name: string;
+      display_name: string;
+      email: string | null;
+      phone: string | null;
+      is_active: boolean;
+      participates_in_pool: boolean;
+      role_assignments: unknown;
+      staff_locations: unknown;
+      staff_pins: unknown;
+    }>(
+      await supabaseAdmin
+        .from("staff")
+        .select(
+          "id, organization_id, first_name, last_name, display_name, email, phone, is_active, participates_in_pool, role_assignments(role), staff_locations(location_id), staff_pins(id)",
+        )
+        .eq("id", data.staffId)
+        .eq("organization_id", caller.organizationId)
+        .maybeSingle(),
+      "getStaff",
+    );
     if (!staff) throw new Error("Mitarbeiter nicht gefunden");
     const ra = staff.role_assignments as { role: AppRole }[] | null;
     return {
@@ -265,7 +312,9 @@ export const getStaff = createServerFn({ method: "GET" })
       isActive: staff.is_active,
       participatesInPool: staff.participates_in_pool,
       role: (ra && ra.length > 0 ? ra[0].role : null) as AppRole | null,
-      locationIds: (staff.staff_locations ?? []).map((l) => l.location_id),
+      locationIds: ((staff.staff_locations ?? []) as { location_id: string }[]).map(
+        (l) => l.location_id,
+      ),
       hasPin: staff.staff_pins !== null,
     };
   });
@@ -289,20 +338,22 @@ export const createStaff = createServerFn({ method: "POST" })
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
     return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: created, error } = await supabaseAdmin
-        .from("staff")
-        .insert({
-          organization_id: caller.organizationId,
-          first_name: data.firstName,
-          last_name: data.lastName,
-          display_name: data.displayName,
-          email: data.email ?? null,
-          phone: data.phone ?? null,
-          is_active: true,
-        })
-        .select("id")
-        .single();
-      if (error) throw error;
+      const created = expectOk<{ id: string }>(
+        await supabaseAdmin
+          .from("staff")
+          .insert({
+            organization_id: caller.organizationId,
+            first_name: data.firstName,
+            last_name: data.lastName,
+            display_name: data.displayName,
+            email: data.email ?? null,
+            phone: data.phone ?? null,
+            is_active: true,
+          })
+          .select("id")
+          .single(),
+        "createStaff",
+      );
       return {
         result: { id: created.id },
         audit: {
@@ -324,18 +375,20 @@ export const updateStaffBasics = createServerFn({ method: "POST" })
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
     return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { error } = await supabaseAdmin
-        .from("staff")
-        .update({
-          first_name: data.firstName,
-          last_name: data.lastName,
-          display_name: data.displayName,
-          email: data.email ?? null,
-          phone: data.phone ?? null,
-        })
-        .eq("id", data.staffId)
-        .eq("organization_id", caller.organizationId);
-      if (error) throw error;
+      expectVoid(
+        await supabaseAdmin
+          .from("staff")
+          .update({
+            first_name: data.firstName,
+            last_name: data.lastName,
+            display_name: data.displayName,
+            email: data.email ?? null,
+            phone: data.phone ?? null,
+          })
+          .eq("id", data.staffId)
+          .eq("organization_id", caller.organizationId),
+        "updateStaffBasics",
+      );
       return {
         result: { ok: true as const },
         audit: { action: "staff.update", entity: "staff", entityId: data.staffId },
@@ -359,12 +412,14 @@ export const setStaffActive = createServerFn({ method: "POST" })
         throw new Error("Mindestens ein aktiver Admin muss erhalten bleiben.");
       }
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { error } = await supabaseAdmin
-        .from("staff")
-        .update({ is_active: data.isActive })
-        .eq("id", data.staffId)
-        .eq("organization_id", caller.organizationId);
-      if (error) throw error;
+      expectVoid(
+        await supabaseAdmin
+          .from("staff")
+          .update({ is_active: data.isActive })
+          .eq("id", data.staffId)
+          .eq("organization_id", caller.organizationId),
+        "setStaffActive",
+      );
       return {
         result: { ok: true as const },
         audit: {
@@ -395,13 +450,15 @@ export const setStaffRole = createServerFn({ method: "POST" })
       }
       await assertStaffInOrg(data.staffId, caller.organizationId);
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { error: rpcErr } = await supabaseAdmin.rpc("replace_staff_role", {
-        p_staff_id: data.staffId,
-        p_organization_id: caller.organizationId,
-        // RPC akzeptiert NULL = Rolle entfernen; generierter Typ ist nicht-nullbar.
-        p_role: data.role as AppRole,
-      });
-      if (rpcErr) throw rpcErr;
+      expectVoid(
+        await supabaseAdmin.rpc("replace_staff_role", {
+          p_staff_id: data.staffId,
+          p_organization_id: caller.organizationId,
+          // RPC akzeptiert NULL = Rolle entfernen; generierter Typ ist nicht-nullbar.
+          p_role: data.role as AppRole,
+        }),
+        "setStaffRole.rpc",
+      );
       return {
         result: { ok: true as const },
         audit: {
@@ -424,12 +481,14 @@ export const setStaffParticipatesInPool = createServerFn({ method: "POST" })
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
     return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { error } = await supabaseAdmin
-        .from("staff")
-        .update({ participates_in_pool: data.participates })
-        .eq("id", data.staffId)
-        .eq("organization_id", caller.organizationId);
-      if (error) throw error;
+      expectVoid(
+        await supabaseAdmin
+          .from("staff")
+          .update({ participates_in_pool: data.participates })
+          .eq("id", data.staffId)
+          .eq("organization_id", caller.organizationId),
+        "setStaffParticipatesInPool",
+      );
       return {
         result: { ok: true as const },
         audit: {
