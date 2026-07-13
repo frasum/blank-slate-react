@@ -22,29 +22,11 @@ import {
   isValidLeaveRange,
   type LeaveStatus,
 } from "./leave-requests";
-import { bavarianLegalHolidaysBetween } from "./holiday-utils";
-import { countHolidaysInRange } from "./leave-requests";
 
-async function loadCountHolidays(
-  admin: import("@supabase/supabase-js").SupabaseClient<
-    import("@/integrations/supabase/types").Database
-  >,
-  organizationId: string,
-): Promise<boolean> {
-  const { data } = await admin
-    .from("organization_settings")
-    .select("count_holidays_as_leave")
-    .eq("organization_id", organizationId)
-    .maybeSingle();
-  return Boolean(data?.count_holidays_as_leave ?? false);
-}
-
-function holidaySetIfSkip(skip: boolean, start: string, end: string): Set<string> | undefined {
-  // Nur gesetzliche Feiertage überspringen. Heiligabend (24.12.) ist
-  // KEIN gesetzlicher Feiertag und darf nicht abgezogen werden — sonst
-  // wird Weihnachtsurlaub einen Tag zu klein gerechnet.
-  return skip ? bavarianLegalHolidaysBetween(start, end) : undefined;
-}
+// N6 — Urlaubszählung folgt strikt dem 5-Tage-Modell (Mo–Fr, siehe
+// leave-requests.ts). Feiertage werden NICHT mehr abgezogen, die
+// organization_settings-Spalte `count_holidays_as_leave` bleibt aus
+// Kompatibilitätsgründen bestehen, hat auf die Zählung aber keinen Effekt.
 
 // PL1 — planer wird als Rollen-Whitelist zugelassen; feingranulare Rechte-
 // Prüfung übernimmt weiterhin has_permission (roster.leave.view_all/decide),
@@ -97,7 +79,6 @@ export type LeaveRequestRow = {
   decidedAt: string | null;
   createdAt: string;
   days: number;
-  holidaysSkipped: number;
 };
 
 // =========================================================================
