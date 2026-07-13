@@ -5,8 +5,7 @@
 // verglichen). Bei jedem Fehler generisch 404 — kein Hinweis, warum.
 
 import { createFileRoute } from "@tanstack/react-router";
-import { Buffer } from "node:buffer";
-import { timingSafeEqual } from "node:crypto";
+import { createHash } from "node:crypto";
 import { buildRosterIcs, type RosterIcsEvent } from "@/lib/calendar/roster-ics";
 import { poolLocalTimeToIso } from "@/lib/cash/pool-time-writeback";
 import { mergeAbsenceRanges } from "@/lib/roster/vacation-planner";
@@ -18,11 +17,8 @@ function notFound(): Response {
   });
 }
 
-function safeCompare(a: string, b: string): boolean {
-  const aBuf = Buffer.from(a);
-  const bBuf = Buffer.from(b);
-  if (aBuf.length !== bBuf.length) return false;
-  return timingSafeEqual(aBuf, bBuf);
+function sha256Hex(input: string): string {
+  return createHash("sha256").update(input).digest("hex");
 }
 
 function todayIso(): string {
@@ -51,16 +47,16 @@ export const Route = createFileRoute("/api/public/calendar/$token")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-        // Kandidat über indizierten Lookup holen; dann timing-safe vergleichen.
+        // Lookup ausschließlich über den Hash — der Klartext existiert
+        // nirgends in der DB.
         const { data: tokenRow, error: tokenErr } = await supabaseAdmin
           .from("access_tokens")
-          .select("token, staff_id, organization_id, expires_at, used_at")
+          .select("staff_id, organization_id, expires_at, used_at")
           .eq("token_type", "calendar_feed")
-          .eq("token", token)
+          .eq("token_hash", sha256Hex(token))
           .is("used_at", null)
           .maybeSingle();
         if (tokenErr || !tokenRow) return notFound();
-        if (!safeCompare(tokenRow.token, token)) return notFound();
         if (tokenRow.expires_at && new Date(tokenRow.expires_at).getTime() < Date.now()) {
           return notFound();
         }
