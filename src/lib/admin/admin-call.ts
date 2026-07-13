@@ -10,6 +10,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import type { AppPermission } from "./permissions-catalog";
 import type { StaffDepartment } from "@/lib/staff-domain";
+import { expectMaybe } from "@/lib/supabase/expect-ok";
 
 export type AuditEntry = {
   action: string;
@@ -103,15 +104,22 @@ export async function assertPermission(
   locationId: string | null = null,
   area: StaffDepartment | null = null,
 ): Promise<void> {
-  const { data, error } = await supabase.rpc("has_permission", {
-    _perm: permission,
-    ...(locationId !== null ? { _location: locationId } : {}),
-    ...(area !== null ? { _area: area } : {}),
-  });
-  if (error) {
-    throw new ForbiddenError(`Rechte-Check fehlgeschlagen: ${error.message}`);
+  let allowed: boolean | null;
+  try {
+    allowed = expectMaybe<boolean>(
+      await supabase.rpc("has_permission", {
+        _perm: permission,
+        ...(locationId !== null ? { _location: locationId } : {}),
+        ...(area !== null ? { _area: area } : {}),
+      }),
+      "assertPermission.has_permission",
+    );
+  } catch (err) {
+    throw new ForbiddenError(
+      `Rechte-Check fehlgeschlagen: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
-  if (!data) {
+  if (!allowed) {
     throw new ForbiddenError(`Fehlende Berechtigung: ${permission}`);
   }
 }

@@ -8,6 +8,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "./admin-context";
 import { runGuarded } from "./admin-call";
 import { makeAuditWriter } from "./audit";
+import { expectMaybe, expectOk, expectVoid } from "@/lib/supabase/expect-ok";
 
 // Optionales Freitext-Feld: leere Strings → null, sonst getrimmt.
 const optText = (max: number) =>
@@ -54,7 +55,7 @@ export const listLocations = createServerFn({ method: "GET" })
       .eq("organization_id", caller.organizationId)
       .order("name");
     if (!includeInactive) query = query.eq("is_active", true);
-    const [{ data: rows, error }, { data: org, error: orgErr }] = await Promise.all([
+    const [rowsRes, orgRes] = await Promise.all([
       query,
       supabaseAdmin
         .from("organizations")
@@ -62,8 +63,15 @@ export const listLocations = createServerFn({ method: "GET" })
         .eq("id", caller.organizationId)
         .maybeSingle(),
     ]);
-    if (error) throw error;
-    if (orgErr) throw orgErr;
+    if (rowsRes.error) {
+      console.error("[listLocations.rows] Supabase:", rowsRes.error);
+      throw new Error(`[listLocations.rows] Supabase: ${rowsRes.error.message}`);
+    }
+    const rows = rowsRes.data;
+    const org = expectMaybe<{ cash_balance_target_cents: number | string | null }>(
+      orgRes,
+      "listLocations.org",
+    );
     const orgTarget = Number(org?.cash_balance_target_cents ?? 200_000);
     return (rows ?? []).map((row) => {
       const raw =
@@ -86,22 +94,24 @@ export const createLocation = createServerFn({ method: "POST" })
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
     return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: row, error } = await supabaseAdmin
-        .from("locations")
-        .insert({
-          organization_id: caller.organizationId,
-          name: data.name,
-          street: data.street,
-          postal_code: data.postal_code,
-          city: data.city,
-          delivery_notes: data.delivery_notes,
-          phone: data.phone,
-          contact_name: data.contact_name,
-          contact_phone: data.contact_phone,
-        })
-        .select("id")
-        .single();
-      if (error) throw error;
+      const row = expectOk<{ id: string }>(
+        await supabaseAdmin
+          .from("locations")
+          .insert({
+            organization_id: caller.organizationId,
+            name: data.name,
+            street: data.street,
+            postal_code: data.postal_code,
+            city: data.city,
+            delivery_notes: data.delivery_notes,
+            phone: data.phone,
+            contact_name: data.contact_name,
+            contact_phone: data.contact_phone,
+          })
+          .select("id")
+          .single(),
+        "createLocation",
+      );
       return {
         result: { id: row.id },
         audit: {
@@ -130,23 +140,25 @@ export const updateLocation = createServerFn({ method: "POST" })
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
     return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { error } = await supabaseAdmin
-        .from("locations")
-        .update({
-          name: data.name,
-          street: data.street,
-          postal_code: data.postal_code,
-          city: data.city,
-          delivery_notes: data.delivery_notes,
-          phone: data.phone,
-          contact_name: data.contact_name,
-          contact_phone: data.contact_phone,
-          cash_balance_target_cents:
-            data.cashBalanceTargetCents === undefined ? undefined : data.cashBalanceTargetCents,
-        })
-        .eq("id", data.locationId)
-        .eq("organization_id", caller.organizationId);
-      if (error) throw error;
+      expectVoid(
+        await supabaseAdmin
+          .from("locations")
+          .update({
+            name: data.name,
+            street: data.street,
+            postal_code: data.postal_code,
+            city: data.city,
+            delivery_notes: data.delivery_notes,
+            phone: data.phone,
+            contact_name: data.contact_name,
+            contact_phone: data.contact_phone,
+            cash_balance_target_cents:
+              data.cashBalanceTargetCents === undefined ? undefined : data.cashBalanceTargetCents,
+          })
+          .eq("id", data.locationId)
+          .eq("organization_id", caller.organizationId),
+        "updateLocation",
+      );
       return {
         result: { ok: true as const },
         audit: {
@@ -167,21 +179,24 @@ export const deleteLocation = createServerFn({ method: "POST" })
     return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       // Block, falls Mitarbeiter noch zugeordnet sind.
-      const { count, error: countErr } = await supabaseAdmin
+      const countRes = await supabaseAdmin
         .from("staff_locations")
         .select("id", { count: "exact", head: true })
         .eq("organization_id", caller.organizationId)
         .eq("location_id", data.locationId);
-      if (countErr) throw countErr;
+      if (countRes.error) throw countRes.error;
+      const count = countRes.count;
       if ((count ?? 0) > 0) {
         throw new Error("Standort kann nicht gelöscht werden: noch Mitarbeiter zugeordnet.");
       }
-      const { error } = await supabaseAdmin
-        .from("locations")
-        .delete()
-        .eq("id", data.locationId)
-        .eq("organization_id", caller.organizationId);
-      if (error) throw error;
+      expectVoid(
+        await supabaseAdmin
+          .from("locations")
+          .delete()
+          .eq("id", data.locationId)
+          .eq("organization_id", caller.organizationId),
+        "deleteLocation",
+      );
       return {
         result: { ok: true as const },
         audit: { action: "location.delete", entity: "location", entityId: data.locationId },
@@ -200,21 +215,25 @@ export const setLocationActive = createServerFn({ method: "POST" })
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
     return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: loc, error: loadErr } = await supabaseAdmin
-        .from("locations")
-        .select("id, name, is_active")
-        .eq("id", data.locationId)
-        .eq("organization_id", caller.organizationId)
-        .maybeSingle();
-      if (loadErr) throw loadErr;
+      const loc = expectMaybe<{ id: string; name: string; is_active: boolean | null }>(
+        await supabaseAdmin
+          .from("locations")
+          .select("id, name, is_active")
+          .eq("id", data.locationId)
+          .eq("organization_id", caller.organizationId)
+          .maybeSingle(),
+        "setLocationActive.load",
+      );
       if (!loc) throw new Error("Standort nicht gefunden.");
       const alreadyInState = Boolean(loc.is_active) === data.isActive;
-      const { error } = await supabaseAdmin
-        .from("locations")
-        .update({ is_active: data.isActive })
-        .eq("id", data.locationId)
-        .eq("organization_id", caller.organizationId);
-      if (error) throw error;
+      expectVoid(
+        await supabaseAdmin
+          .from("locations")
+          .update({ is_active: data.isActive })
+          .eq("id", data.locationId)
+          .eq("organization_id", caller.organizationId),
+        "setLocationActive.update",
+      );
       return {
         result: { ok: true as const, changed: !alreadyInState },
         audit: {
@@ -248,13 +267,20 @@ export const geocodeLocation = createServerFn({ method: "POST" })
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
     return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: loc, error: loadErr } = await supabaseAdmin
-        .from("locations")
-        .select("id, street, postal_code, city")
-        .eq("id", data.locationId)
-        .eq("organization_id", caller.organizationId)
-        .maybeSingle();
-      if (loadErr) throw loadErr;
+      const loc = expectMaybe<{
+        id: string;
+        street: string | null;
+        postal_code: string | null;
+        city: string | null;
+      }>(
+        await supabaseAdmin
+          .from("locations")
+          .select("id, street, postal_code, city")
+          .eq("id", data.locationId)
+          .eq("organization_id", caller.organizationId)
+          .maybeSingle(),
+        "geocodeLocation.load",
+      );
       if (!loc) throw new Error("Standort nicht gefunden.");
       const address = buildAddress(loc);
       if (!address) throw new Error("Bitte zuerst Straße/PLZ/Ort am Standort eintragen.");
@@ -262,17 +288,19 @@ export const geocodeLocation = createServerFn({ method: "POST" })
       const { geocodeAddress } = await import("@/lib/geo/geocoding.server");
       const geo = await geocodeAddress(address);
 
-      const { error: updErr } = await supabaseAdmin
-        .from("locations")
-        .update({
-          latitude: geo.latitude,
-          longitude: geo.longitude,
-          geocoded_at: new Date().toISOString(),
-          geocoded_address: geo.formattedAddress,
-        })
-        .eq("id", data.locationId)
-        .eq("organization_id", caller.organizationId);
-      if (updErr) throw updErr;
+      expectVoid(
+        await supabaseAdmin
+          .from("locations")
+          .update({
+            latitude: geo.latitude,
+            longitude: geo.longitude,
+            geocoded_at: new Date().toISOString(),
+            geocoded_address: geo.formattedAddress,
+          })
+          .eq("id", data.locationId)
+          .eq("organization_id", caller.organizationId),
+        "geocodeLocation.update",
+      );
 
       return {
         result: {
@@ -310,20 +338,20 @@ export const updateLocationGeo = createServerFn({ method: "POST" })
       if ((data.latitude == null) !== (data.longitude == null)) {
         throw new Error("Breiten- und Längengrad nur gemeinsam setzen oder gemeinsam leeren.");
       }
-      const { error } = await supabaseAdmin
-        .from("locations")
-        .update({
-          latitude: data.latitude,
-          longitude: data.longitude,
-          geofence_radius_m: data.geofenceRadiusM,
-          // Manuelles Override: Geocode-Zeitstempel zurücksetzen, damit klar ist,
-          // dass die Koordinaten nicht aus Google stammen.
-          geocoded_at: null,
-          geocoded_address: null,
-        })
-        .eq("id", data.locationId)
-        .eq("organization_id", caller.organizationId);
-      if (error) throw error;
+      expectVoid(
+        await supabaseAdmin
+          .from("locations")
+          .update({
+            latitude: data.latitude,
+            longitude: data.longitude,
+            geofence_radius_m: data.geofenceRadiusM,
+            geocoded_at: null,
+            geocoded_address: null,
+          })
+          .eq("id", data.locationId)
+          .eq("organization_id", caller.organizationId),
+        "updateLocationGeo",
+      );
       return {
         result: { ok: true as const },
         audit: {
@@ -375,23 +403,31 @@ export const setLocationEnabledServicePeriods = createServerFn({ method: "POST" 
       if (periods.length === 0) {
         throw new Error("Mindestens ein Planungsfenster muss aktiv bleiben.");
       }
-      const { data: loc, error: loadErr } = await supabaseAdmin
-        .from("locations")
-        .select("id, name, enabled_service_periods")
-        .eq("id", data.locationId)
-        .eq("organization_id", caller.organizationId)
-        .maybeSingle();
-      if (loadErr) throw loadErr;
+      const loc = expectMaybe<{
+        id: string;
+        name: string;
+        enabled_service_periods: string[] | null;
+      }>(
+        await supabaseAdmin
+          .from("locations")
+          .select("id, name, enabled_service_periods")
+          .eq("id", data.locationId)
+          .eq("organization_id", caller.organizationId)
+          .maybeSingle(),
+        "setLocationEnabledServicePeriods.load",
+      );
       if (!loc) throw new Error("Standort nicht gefunden.");
       const before = normalizePeriods((loc.enabled_service_periods as string[] | null) ?? []);
       const changed = before.length !== periods.length || before.some((p, i) => p !== periods[i]);
       if (changed) {
-        const { error } = await supabaseAdmin
-          .from("locations")
-          .update({ enabled_service_periods: periods })
-          .eq("id", data.locationId)
-          .eq("organization_id", caller.organizationId);
-        if (error) throw error;
+        expectVoid(
+          await supabaseAdmin
+            .from("locations")
+            .update({ enabled_service_periods: periods })
+            .eq("id", data.locationId)
+            .eq("organization_id", caller.organizationId),
+          "setLocationEnabledServicePeriods.update",
+        );
       }
       return {
         result: { ok: true as const, changed, periods },
@@ -426,24 +462,32 @@ export const setLocationDayServiceEnabled = createServerFn({ method: "POST" })
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
     return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: loc, error: loadErr } = await supabaseAdmin
-        .from("locations")
-        .select("id, name, enabled_service_periods")
-        .eq("id", data.locationId)
-        .eq("organization_id", caller.organizationId)
-        .maybeSingle();
-      if (loadErr) throw loadErr;
+      const loc = expectMaybe<{
+        id: string;
+        name: string;
+        enabled_service_periods: string[] | null;
+      }>(
+        await supabaseAdmin
+          .from("locations")
+          .select("id, name, enabled_service_periods")
+          .eq("id", data.locationId)
+          .eq("organization_id", caller.organizationId)
+          .maybeSingle(),
+        "setLocationDayServiceEnabled.load",
+      );
       if (!loc) throw new Error("Standort nicht gefunden.");
       const before = normalizePeriods((loc.enabled_service_periods as string[] | null) ?? []);
       const target: ServicePeriod[] = data.enabled ? ["mittag", "abend"] : ["abend"];
       const already = before.length === target.length && before.every((p, i) => p === target[i]);
       if (!already) {
-        const { error } = await supabaseAdmin
-          .from("locations")
-          .update({ enabled_service_periods: target })
-          .eq("id", data.locationId)
-          .eq("organization_id", caller.organizationId);
-        if (error) throw error;
+        expectVoid(
+          await supabaseAdmin
+            .from("locations")
+            .update({ enabled_service_periods: target })
+            .eq("id", data.locationId)
+            .eq("organization_id", caller.organizationId),
+          "setLocationDayServiceEnabled.update",
+        );
       }
       return {
         result: { ok: true as const, changed: !already },
@@ -476,27 +520,38 @@ export const updateLocationTipSettings = createServerFn({ method: "POST" })
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
     return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: loc, error: loadErr } = await supabaseAdmin
-        .from("locations")
-        .select(
-          "id, name, tip_service_pool_enabled, kitchen_tip_rate_override, tip_pool_min_hours_override, kitchen_manual_only_override",
-        )
-        .eq("id", data.locationId)
-        .eq("organization_id", caller.organizationId)
-        .maybeSingle();
-      if (loadErr) throw loadErr;
+      const loc = expectMaybe<{
+        id: string;
+        name: string;
+        tip_service_pool_enabled: boolean | null;
+        kitchen_tip_rate_override: number | string | null;
+        tip_pool_min_hours_override: number | string | null;
+        kitchen_manual_only_override: boolean | null;
+      }>(
+        await supabaseAdmin
+          .from("locations")
+          .select(
+            "id, name, tip_service_pool_enabled, kitchen_tip_rate_override, tip_pool_min_hours_override, kitchen_manual_only_override",
+          )
+          .eq("id", data.locationId)
+          .eq("organization_id", caller.organizationId)
+          .maybeSingle(),
+        "updateLocationTipSettings.load",
+      );
       if (!loc) throw new Error("Standort nicht gefunden.");
-      const { error } = await supabaseAdmin
-        .from("locations")
-        .update({
-          tip_service_pool_enabled: data.tipServicePoolEnabled,
-          kitchen_tip_rate_override: data.kitchenTipRateOverride,
-          tip_pool_min_hours_override: data.tipPoolMinHoursOverride,
-          kitchen_manual_only_override: data.kitchenManualOnlyOverride,
-        })
-        .eq("id", data.locationId)
-        .eq("organization_id", caller.organizationId);
-      if (error) throw error;
+      expectVoid(
+        await supabaseAdmin
+          .from("locations")
+          .update({
+            tip_service_pool_enabled: data.tipServicePoolEnabled,
+            kitchen_tip_rate_override: data.kitchenTipRateOverride,
+            tip_pool_min_hours_override: data.tipPoolMinHoursOverride,
+            kitchen_manual_only_override: data.kitchenManualOnlyOverride,
+          })
+          .eq("id", data.locationId)
+          .eq("organization_id", caller.organizationId),
+        "updateLocationTipSettings.update",
+      );
       return {
         result: { ok: true as const },
         audit: {
@@ -530,12 +585,18 @@ export const getOrgTipDefaults = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await supabaseAdmin
-      .from("organization_settings")
-      .select("kitchen_tip_rate, tip_pool_min_hours, kitchen_manual_only")
-      .eq("organization_id", caller.organizationId)
-      .maybeSingle();
-    if (error) throw error;
+    const data = expectMaybe<{
+      kitchen_tip_rate: number | string | null;
+      tip_pool_min_hours: number | string | null;
+      kitchen_manual_only: boolean | null;
+    }>(
+      await supabaseAdmin
+        .from("organization_settings")
+        .select("kitchen_tip_rate, tip_pool_min_hours, kitchen_manual_only")
+        .eq("organization_id", caller.organizationId)
+        .maybeSingle(),
+      "getOrgTipDefaults",
+    );
     return {
       kitchenTipRate: Number(data?.kitchen_tip_rate ?? 0.02),
       tipPoolMinHours: Number(data?.tip_pool_min_hours ?? 2.5),

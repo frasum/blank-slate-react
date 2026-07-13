@@ -9,6 +9,7 @@ import { writeAuditLog } from "./audit";
 import { assertStaffInOrg } from "./org-guards";
 import type { AppPermission, PermissionEffect } from "./permissions-catalog";
 import type { StaffDepartment } from "@/lib/staff-domain";
+import { expectMaybe, expectOk, expectVoid } from "@/lib/supabase/expect-ok";
 
 type RoleKey = "admin" | "manager" | "staff" | "payroll" | "planer";
 
@@ -34,18 +35,20 @@ export type StaffPermissionsResult = {
 async function assertRealAdmin(supabase: {
   rpc: (fn: string) => Promise<{ data: unknown; error: { message: string } | null }>;
 }): Promise<void> {
-  const { data, error } = await supabase.rpc("is_real_admin");
-  if (error) throw new Error(`is_real_admin failed: ${error.message}`);
+  const data = expectMaybe<unknown>(
+    await supabase.rpc("is_real_admin"),
+    "permissions.assertRealAdmin",
+  );
   if (data !== true) throw new Error("Forbidden");
 }
 
 export const listPermissionDefaults = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<RoleDefault[]> => {
-    const { data, error } = await context.supabase
-      .from("permission_role_defaults")
-      .select("role, permission");
-    if (error) throw new Error(error.message);
+    const data = expectOk<{ role: string; permission: string }[]>(
+      await context.supabase.from("permission_role_defaults").select("role, permission"),
+      "listPermissionDefaults",
+    );
     return (data ?? []).map((r) => ({
       role: r.role as RoleKey,
       permission: r.permission as AppPermission,
@@ -62,12 +65,14 @@ export const getStaffPermissions = createServerFn({ method: "GET" })
     await assertRealAdmin(context.supabase as never);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: role, error: roleErr } = await supabaseAdmin
-      .from("role_assignments")
-      .select("role")
-      .eq("staff_id", data.staffId)
-      .maybeSingle();
-    if (roleErr) throw new Error(roleErr.message);
+    const role = expectMaybe<{ role: string }>(
+      await supabaseAdmin
+        .from("role_assignments")
+        .select("role")
+        .eq("staff_id", data.staffId)
+        .maybeSingle(),
+      "getStaffPermissions.role",
+    );
 
     const roleKey = (role?.role ?? null) as RoleKey | null;
 
@@ -127,19 +132,22 @@ export const setPermissionOverride = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
     await assertRealAdmin(context.supabase as never);
-    const { data: orgRow, error: orgErr } = await context.supabase.rpc("current_organization_id");
-    if (orgErr) throw new Error(`org lookup failed: ${orgErr.message}`);
-    const callerOrgId = orgRow as string | null;
+    const callerOrgId = expectMaybe<string>(
+      await context.supabase.rpc("current_organization_id"),
+      "setPermissionOverride.orgId",
+    );
     if (!callerOrgId) throw new Error("Keine Organisation für den Aufrufer.");
     await assertStaffInOrg(data.staffId, callerOrgId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: staffRow, error: staffErr } = await supabaseAdmin
-      .from("staff")
-      .select("id, organization_id")
-      .eq("id", data.staffId)
-      .maybeSingle();
-    if (staffErr) throw new Error(staffErr.message);
+    const staffRow = expectMaybe<{ id: string; organization_id: string }>(
+      await supabaseAdmin
+        .from("staff")
+        .select("id, organization_id")
+        .eq("id", data.staffId)
+        .maybeSingle(),
+      "setPermissionOverride.staff",
+    );
     if (!staffRow) throw new Error("Mitarbeiter nicht gefunden");
 
     // Manuelles Upsert via delete+insert, weil die Unique-Indizes partial sind
@@ -153,18 +161,20 @@ export const setPermissionOverride = createServerFn({ method: "POST" })
       ? delQ.eq("location_id", data.locationId)
       : delQ.is("location_id", null);
     const del = await (data.area ? delLoc.eq("area", data.area) : delLoc.is("area", null));
-    if (del.error) throw new Error(del.error.message);
+    expectVoid(del, "setPermissionOverride.delete");
 
-    const { error: insErr } = await supabaseAdmin.from("permission_overrides").insert({
-      organization_id: staffRow.organization_id,
-      staff_id: data.staffId,
-      permission: data.permission,
-      effect: data.effect,
-      location_id: data.locationId,
-      area: data.area,
-      created_by: context.userId,
-    });
-    if (insErr) throw new Error(insErr.message);
+    expectVoid(
+      await supabaseAdmin.from("permission_overrides").insert({
+        organization_id: staffRow.organization_id,
+        staff_id: data.staffId,
+        permission: data.permission,
+        effect: data.effect,
+        location_id: data.locationId,
+        area: data.area,
+        created_by: context.userId,
+      }),
+      "setPermissionOverride.insert",
+    );
 
     await writeAuditLog({
       organizationId: staffRow.organization_id,
@@ -199,19 +209,22 @@ export const clearPermissionOverride = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
     await assertRealAdmin(context.supabase as never);
-    const { data: orgRow, error: orgErr } = await context.supabase.rpc("current_organization_id");
-    if (orgErr) throw new Error(`org lookup failed: ${orgErr.message}`);
-    const callerOrgId = orgRow as string | null;
+    const callerOrgId = expectMaybe<string>(
+      await context.supabase.rpc("current_organization_id"),
+      "clearPermissionOverride.orgId",
+    );
     if (!callerOrgId) throw new Error("Keine Organisation für den Aufrufer.");
     await assertStaffInOrg(data.staffId, callerOrgId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: staffRow, error: staffErr } = await supabaseAdmin
-      .from("staff")
-      .select("id, organization_id")
-      .eq("id", data.staffId)
-      .maybeSingle();
-    if (staffErr) throw new Error(staffErr.message);
+    const staffRow = expectMaybe<{ id: string; organization_id: string }>(
+      await supabaseAdmin
+        .from("staff")
+        .select("id, organization_id")
+        .eq("id", data.staffId)
+        .maybeSingle(),
+      "clearPermissionOverride.staff",
+    );
     if (!staffRow) throw new Error("Mitarbeiter nicht gefunden");
 
     const delQ = supabaseAdmin
@@ -223,7 +236,7 @@ export const clearPermissionOverride = createServerFn({ method: "POST" })
       ? delQ.eq("location_id", data.locationId)
       : delQ.is("location_id", null);
     const del = await (data.area ? delLoc.eq("area", data.area) : delLoc.is("area", null));
-    if (del.error) throw new Error(del.error.message);
+    expectVoid(del, "clearPermissionOverride.delete");
 
     await writeAuditLog({
       organizationId: staffRow.organization_id,

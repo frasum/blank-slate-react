@@ -28,6 +28,10 @@ export async function loadAdminCaller(
   userId: string,
   minRoleOrAllowed: AppRole | readonly AppRole[],
 ): Promise<AdminCaller> {
+  // H2-BEFUND: Auth-Bootstrap. Fehler und fehlende Verknüpfung MÜSSEN identisch
+  // als ForbiddenError beantwortet werden, um einen Unterscheidungs-Oracle zu
+  // vermeiden. Deshalb bewusst nicht auf expectMaybe umgestellt (dessen Wurf
+  // würde die Fehlermeldung aus Postgrest an den Client durchreichen).
   const { data: link, error: linkErr } = await supabase
     .from("user_links")
     .select("staff_id, organization_id")
@@ -75,6 +79,9 @@ export async function loadAdminCaller(
     impersonatedBy = link.staff_id as string;
   }
 
+  // H2-BEFUND: Auth-Bootstrap — analog zum link-Lookup. Ein Postgrest-Fehler
+  // darf hier keine differenzierte Fehlermeldung erzeugen; ForbiddenError ist
+  // die einzige Ausgabe.
   const { data: roleRow, error: roleErr } = await supabaseAdmin
     .from("role_assignments")
     .select("role")
