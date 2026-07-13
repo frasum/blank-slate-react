@@ -7,6 +7,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { businessDateOf } from "@/lib/business-date";
+import { todayIso } from "@/lib/format";
 import { resolveCellKind } from "@/lib/display/cell";
 import { currentPeriodEnd, nextPeriodEnd, periodLabel } from "@/lib/display/period-split";
 import {
@@ -73,10 +74,9 @@ export type BuildResult =
   | { ok: true; data: DisplayData }
   | { ok: false; status: 404 | 500; message: string };
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
+// N18a (13.07.): Berlin-„Heute" zentral aus `@/lib/format` — die alte
+// UTC-Variante rechnete zwischen 00:00 und 02:00 Ortszeit bereits den
+// nächsten Tag und ließ das Display eine Zeile zu früh weiterrutschen.
 function rollingDays(startIso: string, count: number): string[] {
   const out: string[] = [];
   const d = new Date(startIso + "T00:00:00Z");
