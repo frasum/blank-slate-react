@@ -130,7 +130,6 @@ describe.skipIf(!dbTestsEnabled)("cash lock — Session-Sperre + Wasserlinie (DB
       guestCount: 0,
       vouchersRedeemedCents: 0,
       finedineVouchersCents: 0,
-      opentabsDeductionCents: 0,
       vorschussCents: 0,
       einladungCents: 0,
       sonstigeEinnahmeCents: 0,
