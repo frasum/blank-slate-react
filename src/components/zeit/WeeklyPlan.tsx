@@ -68,6 +68,7 @@ export function WeeklyPlan({
   shiftsByStaff: Map<string, number>;
   absencesByStaff: Map<string, { krankDays: number; urlaubDays: number; absenceNote?: string }>;
   totalsScope?: "week" | "period";
+  onTotalsScopeChange?: (v: "week" | "period") => void;
   periodTotalsByStaff?: Map<
     string,
     { total: number; evening: number; night: number; sunHol: number }
