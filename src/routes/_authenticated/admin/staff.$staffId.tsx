@@ -366,11 +366,11 @@ function PinTab({ staffId, hasPin }: { staffId: string; hasPin: boolean }) {
         }}
       >
         <label className="block space-y-1">
-          <span className="text-xs font-medium text-muted-foreground">Neuer PIN (4–8 Ziffern)</span>
+          <span className="text-xs font-medium text-muted-foreground">Neuer PIN (6–8 Ziffern)</span>
           <input
             type="password"
             inputMode="numeric"
-            pattern="\d{4,8}"
+            pattern="\d{6,8}"
             required
             value={pin}
             onChange={(e) => setPinVal(e.target.value)}

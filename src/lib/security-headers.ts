@@ -2,6 +2,12 @@
 // CSP bewusst NUR Report-Only: eine scharfe CSP kann Inline-Styles/Scripts des
 // SSR-React-Apps brechen. Scharfschalten ist ein separater, späterer Schritt
 // nach Auswertung der Violation-Reports.
+//
+// SEC-HDR2: `frame-ancestors` ist die EINZIGE Direktive, die schon jetzt
+// scharfgeschaltet wird (separater, enforced CSP-Header). Grund: keine
+// Inline-Style-/Script-Kollisionen, aber sie schützt Kasse/Lohn/Admin
+// zuverlässig vor Framing durch Dritte (Clickjacking). Der Lovable-Editor
+// (lovable.dev + *.lovable.dev) bleibt weiterhin framing-fähig.
 const CSP = [
   "default-src 'self'",
   "img-src 'self' data: https:",
@@ -18,6 +24,14 @@ const CSP = [
   "frame-ancestors 'self' https://lovable.dev https://*.lovable.dev",
 ].join("; ");
 
+// Enforced-Only-Header: NUR frame-ancestors, sonst nichts. Damit bleibt der
+// Report-Only-Rest oben unverändert (kein Style-/Script-Bruch), aber Framing
+// durch fremde Origins wird jetzt tatsächlich blockiert. X-Frame-Options
+// nutzen wir absichtlich nicht — es ist all-or-nothing und würde das
+// legitime Lovable-Editor-iframe (lovable.dev) mitblockieren.
+const CSP_ENFORCED_FRAME_ANCESTORS =
+  "frame-ancestors 'self' https://lovable.dev https://*.lovable.dev";
+
 export function withSecurityHeaders(response: Response): Response {
   const contentType = response.headers.get("content-type") ?? "";
   if (!contentType.includes("text/html")) return response; // nur HTML
@@ -28,13 +42,17 @@ export function withSecurityHeaders(response: Response): Response {
   };
 
   // KEIN X-Frame-Options: DENY — würde das Lovable-Editor-iframe blockieren.
-  // Ein evtl. vorgelagert gesetztes aktiv entfernen.
+  // Ein evtl. vorgelagert gesetztes aktiv entfernen; die Framing-Kontrolle
+  // übernimmt der enforced CSP-Header unten (frame-ancestors).
   headers.delete("X-Frame-Options");
 
   set("Strict-Transport-Security", "max-age=63072000; includeSubDomains");
   set("X-Content-Type-Options", "nosniff");
   set("Referrer-Policy", "strict-origin-when-cross-origin");
   set("Permissions-Policy", "geolocation=(self), camera=(), microphone=()");
+  // Scharf: NUR frame-ancestors (Clickjacking-Schutz). Rest der CSP bleibt
+  // Report-Only bis wir Inline-Styles/Scripts der SSR-App aufgeräumt haben.
+  set("Content-Security-Policy", CSP_ENFORCED_FRAME_ANCESTORS);
   set("Content-Security-Policy-Report-Only", CSP);
 
   // Neues Response-Objekt: Worker-Response-Header können immutable sein.
