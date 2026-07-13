@@ -54,9 +54,7 @@ export function expectVoid(
   context: string,
 ): void {
   if (result.error) {
-    logFailure(result.error && (result.error as { code?: string }).code === "PGRST116"
-      ? context
-      : context, result.error);
+    logFailure(context, result.error);
     throw new Error(`[${context}] Supabase: ${result.error.message}`);
   }
 }
