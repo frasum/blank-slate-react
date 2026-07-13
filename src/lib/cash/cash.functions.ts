@@ -25,7 +25,7 @@ import {
   computeTipPool,
   computeTipTotalCents,
   effectiveParticipation,
-  poolNeedsHoursWarning,
+  poolFullyUnallocated,
   resolvePoolTimeEntries,
   type TipPoolResult,
   type StaffDepartment,
@@ -1370,14 +1370,27 @@ export async function finalizeSessionCore(
         blockIfFinalized: true, // Doppel-Finalize verboten.
       });
 
-      // TG1 — Abschluss-Warnung: Pool > 0 € bei 0 anrechenbaren Minuten.
+      // TG1 — Abschluss-Warnung: aktiver Pool, dessen Geld nicht verteilt
+      // wird (voller Pool bliebe als Rest liegen). Wahrheit aus derselben
+      // Quelle wie die Verteilung — sonst schlüpfen Fälle durch wie
+      // „Küchen-Pool hat Geld, aber nur Service hat Stunden" oder
+      // `tip_pool_settlement_only` ohne Settlement-Minuten (Lehre
+      // 02.07.2026, 423-€-Vorfall).
       const tipSettings = await loadTipSettings(caller.organizationId, session.location_id);
       const pool = await computeSessionTipPoolCore(caller, session, tipSettings);
+      const kitchenDistributed = pool.shares
+        .filter((sh) => sh.department === "kitchen")
+        .reduce((sum, sh) => sum + sh.shareCents, 0);
+      const serviceDistributed = pool.shares
+        .filter((sh) => sh.department === "service")
+        .reduce((sum, sh) => sum + sh.shareCents, 0);
+      const kitchenWarn = poolFullyUnallocated(pool.kitchenPoolCents, kitchenDistributed);
+      const serviceWarn = poolFullyUnallocated(pool.servicePoolCents, serviceDistributed);
+      // Nur informativ für Meldung/Audit; die Entscheidung selbst
+      // kommt aus der Verteilung, nicht aus den Minuten.
       const eligibleMinutes = pool.poolEntries
         .filter((p) => p.participates)
         .reduce((s, p) => s + p.hoursMinutes, 0);
-      const kitchenWarn = poolNeedsHoursWarning(pool.kitchenPoolCents, eligibleMinutes);
-      const serviceWarn = poolNeedsHoursWarning(pool.servicePoolCents, eligibleMinutes);
       if ((kitchenWarn || serviceWarn) && data.confirmPoolWarning !== true) {
         throw new PoolHoursWarningError(
           pool.servicePoolCents,
