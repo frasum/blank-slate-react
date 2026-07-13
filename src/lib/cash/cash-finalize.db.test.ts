@@ -64,7 +64,6 @@ describe.skipIf(!dbTestsEnabled)("finalize → update vs. correct (DB)", () => {
       guestCount: 0,
       vouchersRedeemedCents: 0,
       finedineVouchersCents: 0,
-      opentabsDeductionCents: 0,
       vorschussCents: 0,
       einladungCents: 0,
       sonstigeEinnahmeCents: 0,

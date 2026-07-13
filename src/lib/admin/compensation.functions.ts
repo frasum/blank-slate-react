@@ -8,6 +8,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "./admin-context";
 import { assertPermission, runWithPermission } from "./admin-call";
 import { writeAuditLog } from "./audit";
+import { todayIso } from "@/lib/format";
 
 const staffIdInput = z.object({ staffId: z.string().uuid() });
 
@@ -29,9 +30,10 @@ const upsertInput = z.object({
     .transform((v) => (v ? v : null)),
 });
 
-function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
-}
+// N18a (13.07.): zentrale Berlin-„Heute"-Ableitung — nachts (00:00–02:00
+// MEZ) lieferte die UTC-Variante bereits den nächsten Kalendertag, was den
+// Gültigkeits-Cutoff der Lohnsatz-Historie um einen Tag verrutschen ließ.
+const todayISO = todayIso;
 
 export const getStaffCompensation = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

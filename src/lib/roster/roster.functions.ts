@@ -16,6 +16,7 @@ import { resolvePlanerScope } from "@/lib/roster/scope-util";
 import { assertDayOpen } from "@/lib/roster/business-calendar.server";
 import { selectAllPaged } from "@/lib/supabase/select-all";
 import { shiftMatesKey, type ShiftMate } from "@/lib/roster/shift-mates";
+import { todayIso } from "@/lib/format";
 
 // SP2 — Helper: gewähltes Planungsfenster muss in enabled_service_periods
 // des Standorts liegen. Ersetzt den früheren Boolean-Check (day_service_enabled).
@@ -1318,7 +1319,10 @@ export const getMyDayOffWishes = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<MyDayOffWishRow[]> => {
     const caller = await loadStaffCaller(context.supabase, context.userId);
-    const today = new Date().toISOString().slice(0, 10);
+    // N18a (13.07.): zentrale Berlin-„Heute"-Funktion — sonst würde die
+    // Wunschfrei-Liste zwischen 00:00 und 02:00 Ortszeit den heutigen
+    // Wunsch fälschlich als „vergangen" wegfiltern.
+    const today = todayIso();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: rows, error } = await supabaseAdmin
       .from("day_off_wishes")

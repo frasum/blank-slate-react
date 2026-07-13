@@ -4,6 +4,7 @@
 import type ExcelJS from "exceljs";
 import type { Entgeltzeile, LohnErgebnis, PersonenParameter } from "./types";
 import type { SfnGeldErgebnis } from "./sfn-geld/types";
+import { zeitlohnKategorie } from "./kategorie";
 
 export interface LohnExportInput {
   staffLabel: string;
@@ -70,13 +71,15 @@ export async function buildLohnXlsx(d: LohnExportInput): Promise<Blob> {
   sectionHeader(s, r++, "Periode");
   setKv(s, r++, "Stunden gesamt", d.totalHours, HRS);
   setKv(s, r++, "Stundensatz", d.hourlyRateCents / 100, EUR);
-  setKv(
-    s,
-    r++,
-    "Zeitlohn (Stunden × Satz)",
-    Math.round(d.totalHours * d.hourlyRateCents) / 100,
-    EUR,
-  );
+  // N16 (13.07.): Zeitlohn NICHT hier zweitberechnen — den bereits vom
+  // Lohn-Kern erzeugten Betrag der Entgeltzeile ausgeben. Eine Lohnformel,
+  // ein Ort (`lohn-rechner.functions.ts`); der Excel-Export ist reine
+  // Ausgabe. Regressionstest: `lohn-excel-export.regression.test.ts`.
+  const zeitlohnKat = zeitlohnKategorie(d.person.beschaeftigung);
+  const zeitlohnCent = d.zeilen
+    .filter((z) => z.kategorie === zeitlohnKat)
+    .reduce((sum, z) => sum + z.betragCent, 0);
+  setKv(s, r++, "Zeitlohn (Stunden × Satz)", zeitlohnCent / 100, EUR);
   setKv(s, r++, "SFN-Zuschläge", d.zuschlagCents / 100, EUR);
   r++;
 

@@ -7,6 +7,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { todayIso } from "@/lib/format";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -84,7 +85,9 @@ export function LohnrechnerPanel() {
     if (periodId) return;
     const list = periodsQ.data;
     if (!list || list.length === 0) return;
-    const today = new Date().toISOString().slice(0, 10);
+    // N18a (13.07.): Berlin-„Heute" — sonst würde die Vorschau nachts
+    // (00:00–02:00 MEZ) bereits die nächste Periode auswählen.
+    const today = todayIso();
     const current = list.find((p) => p.startDate <= today && today <= p.endDate);
     const pastLatest = list.find((p) => p.endDate <= today);
     const chosen = current ?? pastLatest ?? list[0];
