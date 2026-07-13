@@ -66,7 +66,7 @@ export const Route = createFileRoute("/api/public/calendar/$token")({
 
         const { data: shifts, error: shiftErr } = await supabaseAdmin
           .from("roster_shifts")
-          .select("id, shift_date, area, location_id, skill_id")
+          .select("id, shift_date, area, location_id, skill_id, service_period")
           .eq("organization_id", orgId)
           .eq("staff_id", staffId)
           .gte("shift_date", windowStart)
@@ -118,13 +118,22 @@ export const Route = createFileRoute("/api/public/calendar/$token")({
         for (const s of shifts ?? []) {
           const areaLabel = AREA_LABEL[s.area] ?? s.area;
           const skillName = s.skill_id ? (skillMap.get(s.skill_id) ?? null) : null;
-          const summary = skillName ? `${areaLabel} · ${skillName}` : areaLabel;
+          const period = (s as { service_period?: string | null }).service_period ?? "abend";
+          const periodLabel =
+            period === "frueh" ? "Früh" : period === "mittag" ? "Mittag" : "Abend";
+          const baseLabel = `${areaLabel} · ${periodLabel}`;
+          const summary = skillName ? `${baseLabel} · ${skillName}` : baseLabel;
           const location = locMap.get(s.location_id) ?? "";
           const uid = `roster-${s.id}@coco`;
           const def = defaults.get(`${s.location_id}|${s.area}`);
           const checkin = def?.checkin ? def.checkin.slice(0, 5) : null;
           const checkout = def?.checkout ? def.checkout.slice(0, 5) : null;
-          if (checkin && checkout) {
+          // Die location_department_defaults sind Abend-Defaults. Für
+          // Früh-/Mittag-Schichten gibt es (noch) keine Fenster-Defaults —
+          // solange fallen wir auf ein Ganztags-Event zurück, damit die
+          // Abend-Uhrzeit nicht fälschlich einer Mittag-Schicht angehängt
+          // wird.
+          if (period === "abend" && checkin && checkout) {
             const crossesMidnight = checkout < checkin;
             events.push({
               uid,
