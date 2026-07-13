@@ -960,6 +960,7 @@ function EmptyCell({
       onClearAbsence={onClearAbsence}
       defaultDate={defaultDate}
       staffShiftDates={staffShiftDates}
+      staffId={row.staffId}
       hasWish={hasWish}
       onSetWish={onSetWish}
       onClearWish={onClearWish}

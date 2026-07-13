@@ -1239,6 +1239,38 @@ export const setAbsenceRange = createServerFn({ method: "POST" })
     );
   });
 
+// Zählt alle Dienstplan-Schichten eines Mitarbeiters im Zeitraum
+// [fromDate, toDate] (inklusiv, über ALLE Standorte/Bereiche). Wird vom
+// Abwesenheits-Formular als Vorab-Warnung benutzt — der Server löscht
+// beim Anlegen einer Range genau diese Schichten, das Grid zeigt aber
+// nur ein 4-Wochen-Fenster; ohne diesen Aufruf wäre die Warnzahl
+// systematisch zu klein.
+export const countStaffShiftsInRange = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        staffId: z.string().uuid(),
+        fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .refine((v) => v.toDate >= v.fromDate, { message: "toDate muss >= fromDate sein" })
+      .parse(input),
+  )
+  .handler(async ({ data, context }): Promise<{ count: number }> => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, WRITE_ROLES);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { count, error } = await supabaseAdmin
+      .from("roster_shifts")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", caller.organizationId)
+      .eq("staff_id", data.staffId)
+      .gte("shift_date", data.fromDate)
+      .lte("shift_date", data.toDate);
+    if (error) throw error;
+    return { count: count ?? 0 };
+  });
+
 // =========================================================================
 // Welle B — Freier-Tag-Wünsche (lila Herz)
 // Tabelle day_off_wishes existiert bereits (Migration separat).

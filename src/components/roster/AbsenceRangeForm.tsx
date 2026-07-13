@@ -3,11 +3,14 @@
 // Nutzer einen Abwesenheitstyp gewählt hat.
 import * as React from "react";
 import { CalendarIcon, Umbrella, HeartPulse } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { formatShortDate } from "@/lib/format-date";
+import { countStaffShiftsInRange } from "@/lib/roster/roster.functions";
 
 function isoFromDate(d: Date): string {
   // lokale Tagesgrenze beibehalten — der Picker liefert Tage in lokaler Zeitzone.
@@ -34,6 +37,11 @@ type Props = {
   type: "urlaub" | "krank";
   defaultDate: string;
   staffShiftDates: string[];
+  /** Wenn gesetzt, wird die Konfliktzahl serverseitig über die volle
+   *  Range ermittelt (Server löscht bis zu 92 Tage; das Grid kennt aber
+   *  nur ein 4-Wochen-Fenster). Ohne staffId fällt die Warnung auf die
+   *  lokal bekannten Schichttage zurück. */
+  staffId?: string;
   busy: boolean;
   onCancel: () => void;
   onSubmit: (fromIso: string, toIso: string) => void | Promise<void>;
@@ -43,6 +51,7 @@ export function AbsenceRangeForm({
   type,
   defaultDate,
   staffShiftDates,
+  staffId,
   busy,
   onCancel,
   onSubmit,
@@ -53,7 +62,17 @@ export function AbsenceRangeForm({
   const [toOpen, setToOpen] = React.useState(false);
 
   const valid = toIso >= fromIso;
-  const conflictCount = valid ? countShiftsInRange(staffShiftDates, fromIso, toIso) : 0;
+  const localCount = valid ? countShiftsInRange(staffShiftDates, fromIso, toIso) : 0;
+
+  const countFn = useServerFn(countStaffShiftsInRange);
+  const serverCountQ = useQuery({
+    queryKey: ["absence-range-conflict-count", staffId, fromIso, toIso],
+    queryFn: () => countFn({ data: { staffId: staffId as string, fromDate: fromIso, toDate: toIso } }),
+    enabled: Boolean(staffId) && valid,
+    staleTime: 15_000,
+  });
+  const conflictCount = staffId ? (serverCountQ.data?.count ?? localCount) : localCount;
+  const countLoading = Boolean(staffId) && serverCountQ.isFetching && serverCountQ.data === undefined;
 
   const label = type === "urlaub" ? "Urlaub eintragen" : "Krank eintragen";
   const Icon = type === "urlaub" ? Umbrella : HeartPulse;
@@ -122,7 +141,9 @@ export function AbsenceRangeForm({
           </PopoverContent>
         </Popover>
       </div>
-      {conflictCount > 0 ? (
+      {countLoading ? (
+        <p className="text-[11px] text-muted-foreground">Konflikte werden geprüft …</p>
+      ) : conflictCount > 0 ? (
         <p className="text-[11px] text-amber-600">
           Hinweis: {conflictCount} {conflictCount === 1 ? "Schicht wird" : "Schichten werden"} im
           Zeitraum entfernt.

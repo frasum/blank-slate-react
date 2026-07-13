@@ -74,6 +74,7 @@ export function PillConfirmPopover({
             type={mode}
             defaultDate={shift.shiftDate}
             staffShiftDates={staffShiftDates}
+            staffId={shift.staffId}
             busy={busy}
             onCancel={() => setMode("menu")}
             onSubmit={async (from, to) => {

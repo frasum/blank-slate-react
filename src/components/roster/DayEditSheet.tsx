@@ -314,6 +314,7 @@ export function DayEditSheet({
               type={inner.type}
               defaultDate={target.date}
               staffShiftDates={todaysShiftDates(currentStaffId)}
+              staffId={currentStaffId}
               busy={busy}
               onCancel={() =>
                 setInner(target.mode === "add" ? { view: "add-pick-staff" } : { view: "menu" })

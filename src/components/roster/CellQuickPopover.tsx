@@ -27,6 +27,7 @@ type Props = {
   onClearAbsence: () => void;
   defaultDate: string;
   staffShiftDates: string[];
+  staffId?: string;
   hasWish: boolean;
   onSetWish: () => void;
   onClearWish: () => void;
@@ -47,6 +48,7 @@ export function CellQuickPopover({
   onClearAbsence,
   defaultDate,
   staffShiftDates,
+  staffId,
   hasWish,
   onSetWish,
   onClearWish,
@@ -69,6 +71,7 @@ export function CellQuickPopover({
             type={mode}
             defaultDate={defaultDate}
             staffShiftDates={staffShiftDates}
+            staffId={staffId}
             busy={busy}
             onCancel={() => setMode("menu")}
             onSubmit={async (from, to) => {
