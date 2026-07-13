@@ -35,6 +35,7 @@ function emptyAgg(): CashDayAgg {
     cashActualSum: 0,
     cashActualCount: 0,
     sessionCount: 0,
+    cashTargetSum: 0,
   };
 }
 
