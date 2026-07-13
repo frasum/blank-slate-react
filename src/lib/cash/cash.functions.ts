@@ -2726,6 +2726,35 @@ export async function loadCashDayAggregates(
 
   const sessionIds = sessions.map((s) => s.id);
 
+  // Location- und Org-Ziel für die per-Session-Auflösung "Location ?? Org"
+  // laden — dieselbe Regel wie überall sonst in der Kassen-Logik.
+  const locationIds = Array.from(new Set(sessions.map((s) => s.location_id).filter(Boolean)));
+  const [locRes, orgRes] = await Promise.all([
+    locationIds.length
+      ? supabaseAdmin
+          .from("locations")
+          .select("id, cash_balance_target_cents")
+          .eq("organization_id", caller.organizationId)
+          .in("id", locationIds)
+      : Promise.resolve({ data: [], error: null } as { data: Array<{ id: string; cash_balance_target_cents: number | null }>; error: null }),
+    supabaseAdmin
+      .from("organizations")
+      .select("cash_balance_target_cents")
+      .eq("id", caller.organizationId)
+      .maybeSingle(),
+  ]);
+  if (locRes.error) throw locRes.error;
+  if (orgRes.error) throw orgRes.error;
+  const orgTargetCents = Number(orgRes.data?.cash_balance_target_cents ?? 200_000);
+  const locTargetById = new Map<string, number>(
+    (locRes.data ?? []).map((l) => [
+      l.id as string,
+      l.cash_balance_target_cents == null
+        ? orgTargetCents
+        : Number(l.cash_balance_target_cents),
+    ]),
+  );
+
   const [chRes, tRes, expRes, advRes, depRes, trRes, wsRes] = await Promise.all([
     supabaseAdmin
       .from("session_channel_amounts")
@@ -2802,6 +2831,7 @@ export async function loadCashDayAggregates(
     a.sonstige += Number(s.sonstige_einnahme_cents ?? 0);
     a.vorschuss += Number(s.vorschuss_cents ?? 0);
     a.vectronDailyTotal += Number(s.vectron_daily_total_cents ?? 0);
+    a.cashTargetSum += locTargetById.get(s.location_id as string) ?? orgTargetCents;
     if (s.business_date === firstDate) {
       a.openingBalance += Number(s.opening_balance_cents ?? 0);
     }
