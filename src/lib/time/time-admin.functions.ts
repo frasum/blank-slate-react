@@ -1179,7 +1179,7 @@ export const getWeeklyTimeEntriesBatch = createServerFn({ method: "GET" })
       // sparen. Der Merge-Reducer (weeklyData in zeit-uebersicht) verwendet
       // dieses Feld ohnehin nicht, wenn isAllLocations aktiv ist.
       byLocation[lid] = {
-        weekStart: data.weekStart,
+        weekStart,
         weekEnd,
         entries,
         crossLocationDates: {},
