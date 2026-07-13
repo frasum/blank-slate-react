@@ -416,6 +416,7 @@ function renderPage(input: RenderInput): string {
   .card-title { font-weight: 700; font-size: 22px; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .card-meta { font-size: 18px; margin-top: 4px; opacity: 0.8; }
   .overflow { font-size: 20px; font-weight: 600; text-align: center; padding: 4px; border-top: 1px dashed #000; }
+  .holiday-note { font-size: 22px; font-weight: 600; border: 2px solid #000; padding: 4px 10px; margin: 4px 0 10px 0; display: inline-block; }
   .footer { position: absolute; left: 40px; right: 40px; bottom: 20px; border-top: 2px solid #000; padding-top: 8px; font-size: 20px; display: flex; justify-content: space-between; }
 </style>
 </head>
