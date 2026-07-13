@@ -5,6 +5,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { expectOk, expectVoid } from "@/lib/supabase/expect-ok";
 import {
   computeDetailsPlan,
   type CurrentDetailsRow,
@@ -31,11 +32,13 @@ export async function runImportDetailsCore(
   const { admin, organizationId } = input;
 
   // 1) staff in der Org laden (id, perso_nr) → Map<perso_nr, staff_id>.
-  const { data: staffRows, error: sErr } = await admin
-    .from("staff")
-    .select("id, perso_nr")
-    .eq("organization_id", organizationId);
-  if (sErr) throw sErr;
+  const staffRows = expectOk<{ id: string; perso_nr: number | null }[]>(
+    await admin
+      .from("staff")
+      .select("id, perso_nr")
+      .eq("organization_id", organizationId),
+    "runImportDetailsCore.staff",
+  );
 
   const staffByPersoNr = new Map<number, string>();
   const seenPersoNrs = new Map<number, number>();
@@ -66,12 +69,14 @@ export async function runImportDetailsCore(
 
   const currentDetails = new Map<string, CurrentDetailsRow>();
   if (targetStaffIds.length > 0) {
-    const { data: detailRows, error: dErr } = await admin
-      .from("staff_personal_details")
-      .select("*")
-      .eq("organization_id", organizationId)
-      .in("staff_id", targetStaffIds);
-    if (dErr) throw dErr;
+    const detailRows = expectOk<CurrentDetailsRow[]>(
+      await admin
+        .from("staff_personal_details")
+        .select("*")
+        .eq("organization_id", organizationId)
+        .in("staff_id", targetStaffIds),
+      "runImportDetailsCore.details",
+    );
     for (const r of detailRows ?? []) {
       currentDetails.set(r.staff_id, r as unknown as CurrentDetailsRow);
     }
@@ -96,15 +101,19 @@ export async function runImportDetailsCore(
         staff_id: op.staffId,
         ...(op.fields as Partial<DetailsDbFields>),
       };
-      const { error } = await admin.from("staff_personal_details").insert(insertRow);
-      if (error) throw new Error(`staff_personal_details insert failed: ${error.message}`);
+      expectVoid(
+        await admin.from("staff_personal_details").insert(insertRow),
+        "runImportDetailsCore.details.insert",
+      );
     } else {
-      const { error } = await admin
-        .from("staff_personal_details")
-        .update(op.fields as Partial<DetailsDbFields>)
-        .eq("organization_id", organizationId)
-        .eq("staff_id", op.staffId);
-      if (error) throw new Error(`staff_personal_details update failed: ${error.message}`);
+      expectVoid(
+        await admin
+          .from("staff_personal_details")
+          .update(op.fields as Partial<DetailsDbFields>)
+          .eq("organization_id", organizationId)
+          .eq("staff_id", op.staffId),
+        "runImportDetailsCore.details.update",
+      );
     }
   }
 

@@ -5,6 +5,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { expectOk, expectVoid } from "@/lib/supabase/expect-ok";
 import {
   computePersonalPlan,
   type CurrentCompRow,
@@ -54,12 +55,14 @@ export async function runImportPersonalCore(
   const { admin, organizationId } = input;
 
   // 1) identity_map: altStaffId → staffId
-  const { data: mapRows, error: mapErr } = await admin
-    .from("staff_identity_map")
-    .select("alt_id, staff_id, confirmed_at")
-    .eq("organization_id", organizationId)
-    .eq("source_system", input.sourceSystem);
-  if (mapErr) throw mapErr;
+  const mapRows = expectOk<{ alt_id: string; staff_id: string | null; confirmed_at: string | null }[]>(
+    await admin
+      .from("staff_identity_map")
+      .select("alt_id, staff_id, confirmed_at")
+      .eq("organization_id", organizationId)
+      .eq("source_system", input.sourceSystem),
+    "runImportPersonalCore.identityMap",
+  );
   const staffMap = new Map<string, string>();
   for (const r of mapRows ?? []) {
     if (!r.confirmed_at || !r.staff_id) continue;
@@ -75,12 +78,22 @@ export async function runImportPersonalCore(
   const currentComp = new Map<string, CurrentCompRow>();
 
   if (targetStaffIds.length > 0) {
-    const { data: staffRows, error: sErr } = await admin
-      .from("staff")
-      .select("id, first_name, last_name, display_name, perso_nr")
-      .eq("organization_id", organizationId)
-      .in("id", targetStaffIds);
-    if (sErr) throw sErr;
+    const staffRows = expectOk<
+      {
+        id: string;
+        first_name: string | null;
+        last_name: string | null;
+        display_name: string | null;
+        perso_nr: number | null;
+      }[]
+    >(
+      await admin
+        .from("staff")
+        .select("id, first_name, last_name, display_name, perso_nr")
+        .eq("organization_id", organizationId)
+        .in("id", targetStaffIds),
+      "runImportPersonalCore.staff",
+    );
     for (const r of staffRows ?? []) {
       currentStaff.set(r.id, {
         staffId: r.id,
@@ -91,12 +104,16 @@ export async function runImportPersonalCore(
       });
     }
 
-    const { data: compRows, error: cErr } = await admin
-      .from("staff_compensation")
-      .select("staff_id, hourly_rate, valid_from")
-      .eq("organization_id", organizationId)
-      .in("staff_id", targetStaffIds);
-    if (cErr) throw cErr;
+    const compRows = expectOk<
+      { staff_id: string; hourly_rate: number | string | null; valid_from: string }[]
+    >(
+      await admin
+        .from("staff_compensation")
+        .select("staff_id, hourly_rate, valid_from")
+        .eq("organization_id", organizationId)
+        .in("staff_id", targetStaffIds),
+      "runImportPersonalCore.compensation",
+    );
     for (const r of compRows ?? []) {
       currentComp.set(r.staff_id, {
         staffId: r.staff_id,
@@ -123,31 +140,37 @@ export async function runImportPersonalCore(
 
   // --- Commit: staff-Updates ---
   for (const u of plan.staffUpdates) {
-    const { error } = await admin
-      .from("staff")
-      .update(u.fields)
-      .eq("organization_id", organizationId)
-      .eq("id", u.staffId);
-    if (error) throw new Error(`staff update failed: ${error.message}`);
+    expectVoid(
+      await admin
+        .from("staff")
+        .update(u.fields)
+        .eq("organization_id", organizationId)
+        .eq("id", u.staffId),
+      "runImportPersonalCore.staff.update",
+    );
   }
 
   // --- Commit: staff_compensation Insert / Update ---
   for (const op of plan.compOps) {
     if (op.op === "insert") {
-      const { error } = await admin.from("staff_compensation").insert({
-        organization_id: organizationId,
-        staff_id: op.staffId,
-        hourly_rate: op.hourly_rate,
-        valid_from: op.valid_from,
-      });
-      if (error) throw new Error(`staff_compensation insert failed: ${error.message}`);
+      expectVoid(
+        await admin.from("staff_compensation").insert({
+          organization_id: organizationId,
+          staff_id: op.staffId,
+          hourly_rate: op.hourly_rate,
+          valid_from: op.valid_from,
+        }),
+        "runImportPersonalCore.compensation.insert",
+      );
     } else {
-      const { error } = await admin
-        .from("staff_compensation")
-        .update({ hourly_rate: op.hourly_rate, valid_from: op.valid_from })
-        .eq("organization_id", organizationId)
-        .eq("staff_id", op.staffId);
-      if (error) throw new Error(`staff_compensation update failed: ${error.message}`);
+      expectVoid(
+        await admin
+          .from("staff_compensation")
+          .update({ hourly_rate: op.hourly_rate, valid_from: op.valid_from })
+          .eq("organization_id", organizationId)
+          .eq("staff_id", op.staffId),
+        "runImportPersonalCore.compensation.update",
+      );
     }
   }
 
