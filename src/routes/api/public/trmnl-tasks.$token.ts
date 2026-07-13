@@ -427,6 +427,10 @@ function renderPage(input: RenderInput): string {
   <div class="action-strip">${badgesHtml}</div>
   <section class="roster">
     <div class="roster-header"><h2>${escapeHtml(input.targetLabel)}</h2><div class="date">${escapeHtml(input.targetDateHuman)}</div></div>
+    ${(() => {
+      const h = getHolidayName(input.targetIso);
+      return h ? `<div class="holiday-note"><b>Feiertag:</b> ${escapeHtml(h)}</div>` : "";
+    })()}
     <div class="roster-grid">${rosterHtml}</div>
   </section>
   <div class="board">${columnsHtml}</div>
