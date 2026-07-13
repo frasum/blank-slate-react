@@ -10,7 +10,6 @@ type CashSummaryMisc = {
   vouchersSold: string;
   vouchersRedeemed: string;
   finedineVouchers: string;
-  opentabs: string;
   vorschuss: string;
   einladung: string;
   sonstige: string;
