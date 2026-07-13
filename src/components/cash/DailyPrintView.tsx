@@ -14,6 +14,7 @@ import { computeDailyCash, type DayInput } from "@/lib/cash/cash-ledger";
 import { computeWechselgeld } from "@/lib/cash/cash-summary";
 import { sessionToDayInput } from "@/lib/cash/session-day-input";
 import { sumNonGlTerminalCents } from "@/lib/cash/session-channels";
+import { sessionHouseCentsFromKasse } from "@/lib/statistics/revenue-core";
 import { computeTipTotalCents } from "@/lib/cash/tip-pool";
 import type { PdfExportData } from "@/lib/cash/pdfExport";
 
