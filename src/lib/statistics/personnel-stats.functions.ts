@@ -91,18 +91,31 @@ export const getPersonnelStats = createServerFn({ method: "GET" })
     }
 
     async function loadWindow(win: Window): Promise<WindowResult> {
-      let q = supabaseAdmin
-        .from("time_entries")
-        .select("staff_id, started_at, ended_at, break_minutes, business_date, location_id")
-        .eq("organization_id", org)
-        .gte("business_date", win.startDate)
-        .lte("business_date", win.endDate)
-        .not("ended_at", "is", null);
-      if (data.locationId) {
-        q = q.eq("location_id", data.locationId);
-      }
-      const { data: rows, error } = await q;
-      if (error) throw error;
+      // BFIX3: PostgREST kappt bei 1000 Zeilen — paginieren, sonst fehlen
+      // Zeilen bei größeren Zeiträumen/Belegschaften und die Statistik
+      // wird still unvollständig.
+      const rows = await selectAllPaged<{
+        staff_id: string | null;
+        started_at: string | null;
+        ended_at: string | null;
+        break_minutes: number | null;
+        business_date: string | null;
+        location_id: string | null;
+        id: string;
+      }>((from, to) => {
+        let q = supabaseAdmin
+          .from("time_entries")
+          .select(
+            "id, staff_id, started_at, ended_at, break_minutes, business_date, location_id",
+          )
+          .eq("organization_id", org)
+          .gte("business_date", win.startDate)
+          .lte("business_date", win.endDate)
+          .not("ended_at", "is", null)
+          .order("id", { ascending: true });
+        if (data.locationId) q = q.eq("location_id", data.locationId);
+        return q.range(from, to);
+      });
 
       const entries: WorkEntry[] = [];
       const staffIdSet = new Set<string>();
