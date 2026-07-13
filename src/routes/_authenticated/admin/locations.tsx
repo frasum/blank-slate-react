@@ -753,6 +753,9 @@ function DisplayPanel({ locationId }: { locationId: string }) {
   const callRegen = useServerFn(regenerateDisplayToken);
   const [msg, setMsg] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  // Klartext-Token aus dem letzten Mutation-Response — nur diese Session
+  // sichtbar. Nach Reload muss neu erzeugt werden.
+  const [oneTimeToken, setOneTimeToken] = useState<string | null>(null);
 
   const settingsQ = useQuery({
     queryKey: ["display-settings", locationId],
@@ -772,8 +775,9 @@ function DisplayPanel({ locationId }: { locationId: string }) {
       showFooter?: boolean;
       customMessage?: string | null;
     }) => callUpsert({ data: { locationId, ...input } }),
-    onSuccess: () => {
+    onSuccess: (res) => {
       setMsg(null);
+      if (res?.oneTimeToken) setOneTimeToken(res.oneTimeToken);
       return refresh();
     },
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
@@ -781,8 +785,9 @@ function DisplayPanel({ locationId }: { locationId: string }) {
 
   const regenMut = useMutation({
     mutationFn: () => callRegen({ data: { locationId } }),
-    onSuccess: () => {
+    onSuccess: (res) => {
       setMsg("Neuer Token generiert. Alte URLs sind ungültig.");
+      if (res?.oneTimeToken) setOneTimeToken(res.oneTimeToken);
       return refresh();
     },
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
@@ -811,9 +816,12 @@ function DisplayPanel({ locationId }: { locationId: string }) {
   }
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const displayUrl = `${origin}/display/${settings.location_id}?token=${settings.display_token}`;
+  const displayUrl = oneTimeToken
+    ? `${origin}/display/${settings.location_id}?token=${oneTimeToken}`
+    : null;
 
   const copy = async () => {
+    if (!displayUrl) return;
     try {
       await navigator.clipboard.writeText(displayUrl);
       setCopied(true);
@@ -855,33 +863,47 @@ function DisplayPanel({ locationId }: { locationId: string }) {
 
       <div className="space-y-1">
         <p className="text-xs uppercase tracking-wide text-muted-foreground">Anzeige-URL</p>
-        <div className="flex items-center gap-2">
-          <input
-            readOnly
-            value={displayUrl}
-            className="flex-1 rounded border border-input bg-background px-2 py-1 font-mono text-xs"
-            onFocus={(e) => e.currentTarget.select()}
-          />
-          <button
-            onClick={copy}
-            className="rounded border border-input bg-background px-3 py-1 hover:bg-accent"
-          >
-            {copied ? "Kopiert" : "Kopieren"}
-          </button>
-          <a
-            href={displayUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded border border-input bg-background px-3 py-1 hover:bg-accent"
-          >
-            Öffnen
-          </a>
-        </div>
-        <div className="pt-2">
-          <div className="inline-block rounded bg-white p-2">
-            <QRCodeSVG value={displayUrl} size={140} />
-          </div>
-        </div>
+        {displayUrl ? (
+          <>
+            <div className="flex items-center gap-2">
+              <input
+                readOnly
+                value={displayUrl}
+                className="flex-1 rounded border border-input bg-background px-2 py-1 font-mono text-xs"
+                onFocus={(e) => e.currentTarget.select()}
+              />
+              <button
+                onClick={copy}
+                className="rounded border border-input bg-background px-3 py-1 hover:bg-accent"
+              >
+                {copied ? "Kopiert" : "Kopieren"}
+              </button>
+              <a
+                href={displayUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded border border-input bg-background px-3 py-1 hover:bg-accent"
+              >
+                Öffnen
+              </a>
+            </div>
+            <div className="pt-2">
+              <div className="inline-block rounded bg-white p-2">
+                <QRCodeSVG value={displayUrl} size={140} />
+              </div>
+            </div>
+            <p className="pt-1 text-xs text-muted-foreground">
+              Diese URL ist nur jetzt sichtbar. Kopieren oder QR-Code direkt aufs Display —
+              beim nächsten Öffnen kann sie nicht mehr angezeigt werden.
+            </p>
+          </>
+        ) : (
+          <p className="rounded-md bg-muted p-2 text-xs text-muted-foreground">
+            Die Anzeige-URL ist aus Sicherheitsgründen nur direkt nach dem Erzeugen sichtbar.
+            Klick auf „Token neu generieren", um eine neue URL zu erhalten (das Display muss
+            danach mit der neuen URL neu geladen werden).
+          </p>
+        )}
       </div>
 
       <DisplayOptions settings={settings} onChange={(input) => upsertMut.mutate(input)} />

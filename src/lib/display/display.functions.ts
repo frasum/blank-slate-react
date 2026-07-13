@@ -4,6 +4,7 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { createHash } from "node:crypto";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 
@@ -11,7 +12,6 @@ export type DisplaySettings = {
   id: string;
   organization_id: string;
   location_id: string;
-  display_token: string;
   is_enabled: boolean;
   refresh_interval_seconds: number;
   created_at: string;
@@ -23,6 +23,18 @@ export type DisplaySettings = {
   show_footer: boolean;
   custom_message: string | null;
 };
+
+// Antwort für Mutationen, die den (nur einmalig sichtbaren) Klartext-Token
+// liefern können. `oneTimeToken` ist NUR unmittelbar nach dem Erzeugen
+// gesetzt — bei allen weiteren Reads liegt in der DB nur der Hash.
+export type DisplaySettingsWithToken = {
+  settings: DisplaySettings;
+  oneTimeToken: string | null;
+};
+
+function sha256Hex(input: string): string {
+  return createHash("sha256").update(input).digest("hex");
+}
 
 const ALLOWED_ROLES = ["manager", "admin"] as const;
 
@@ -75,9 +87,13 @@ export const upsertDisplaySettings = createServerFn({ method: "POST" })
       .maybeSingle();
 
     if (!existing) {
+      // Erst-Anlage: gleich einen frischen Token erzeugen — Klartext einmalig
+      // an den Aufrufer, in der DB nur der Hash.
+      const freshToken = generateToken();
       const payload: Record<string, unknown> = {
         organization_id: caller.organizationId,
         location_id: data.locationId,
+        display_token_hash: sha256Hex(freshToken),
       };
       if (data.isEnabled !== undefined) payload.is_enabled = data.isEnabled;
       if (data.refreshIntervalSeconds !== undefined)
@@ -95,7 +111,10 @@ export const upsertDisplaySettings = createServerFn({ method: "POST" })
         .select("*")
         .single();
       if (error) throw error;
-      return row as DisplaySettings;
+      return {
+        settings: row as DisplaySettings,
+        oneTimeToken: freshToken,
+      } as DisplaySettingsWithToken;
     }
 
     const patch: Record<string, unknown> = {};
@@ -117,7 +136,10 @@ export const upsertDisplaySettings = createServerFn({ method: "POST" })
         .eq("id", (existing as { id: string }).id)
         .single();
       if (error) throw error;
-      return row as DisplaySettings;
+      return {
+        settings: row as DisplaySettings,
+        oneTimeToken: null,
+      } as DisplaySettingsWithToken;
     }
 
     const { data: row, error } = await supabaseAdmin
@@ -128,7 +150,10 @@ export const upsertDisplaySettings = createServerFn({ method: "POST" })
       .select("*")
       .single();
     if (error) throw error;
-    return row as DisplaySettings;
+    return {
+      settings: row as DisplaySettings,
+      oneTimeToken: null,
+    } as DisplaySettingsWithToken;
   });
 
 function generateToken(): string {
@@ -148,11 +173,14 @@ export const regenerateDisplayToken = createServerFn({ method: "POST" })
     const newToken = generateToken();
     const { data: row, error } = await supabaseAdmin
       .from("display_settings" as never)
-      .update({ display_token: newToken } as never)
+      .update({ display_token_hash: sha256Hex(newToken) } as never)
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId)
       .select("*")
       .single();
     if (error) throw error;
-    return row as DisplaySettings;
+    return {
+      settings: row as DisplaySettings,
+      oneTimeToken: newToken,
+    } as DisplaySettingsWithToken;
   });

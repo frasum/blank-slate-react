@@ -21,7 +21,7 @@ export type Database = {
           id: string
           organization_id: string
           staff_id: string | null
-          token: string
+          token_hash: string
           token_type: Database["public"]["Enums"]["token_type"]
           used_at: string | null
         }
@@ -31,7 +31,7 @@ export type Database = {
           id?: string
           organization_id: string
           staff_id?: string | null
-          token: string
+          token_hash: string
           token_type: Database["public"]["Enums"]["token_type"]
           used_at?: string | null
         }
@@ -41,7 +41,7 @@ export type Database = {
           id?: string
           organization_id?: string
           staff_id?: string | null
-          token?: string
+          token_hash?: string
           token_type?: Database["public"]["Enums"]["token_type"]
           used_at?: string | null
         }
@@ -1124,7 +1124,7 @@ export type Database = {
         Row: {
           created_at: string
           custom_message: string | null
-          display_token: string
+          display_token_hash: string
           id: string
           is_enabled: boolean
           location_id: string
@@ -1140,7 +1140,7 @@ export type Database = {
         Insert: {
           created_at?: string
           custom_message?: string | null
-          display_token?: string
+          display_token_hash: string
           id?: string
           is_enabled?: boolean
           location_id: string
@@ -1156,7 +1156,7 @@ export type Database = {
         Update: {
           created_at?: string
           custom_message?: string | null
-          display_token?: string
+          display_token_hash?: string
           id?: string
           is_enabled?: boolean
           location_id?: string
@@ -2253,7 +2253,7 @@ export type Database = {
           id: string
           name: string
           opening_safe_balance_cents: number
-          trmnl_token: string | null
+          trmnl_token_hash: string | null
           updated_at: string
         }
         Insert: {
@@ -2262,7 +2262,7 @@ export type Database = {
           id?: string
           name: string
           opening_safe_balance_cents?: number
-          trmnl_token?: string | null
+          trmnl_token_hash?: string | null
           updated_at?: string
         }
         Update: {
@@ -2271,7 +2271,7 @@ export type Database = {
           id?: string
           name?: string
           opening_safe_balance_cents?: number
-          trmnl_token?: string | null
+          trmnl_token_hash?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -4722,7 +4722,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
-          link_token: string
+          link_token_hash: string | null
           linked_at: string | null
           organization_id: string
           receives_daily_report: boolean
@@ -4735,7 +4735,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
-          link_token: string
+          link_token_hash?: string | null
           linked_at?: string | null
           organization_id: string
           receives_daily_report?: boolean
@@ -4748,7 +4748,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
-          link_token?: string
+          link_token_hash?: string | null
           linked_at?: string | null
           organization_id?: string
           receives_daily_report?: boolean

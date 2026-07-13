@@ -15,7 +15,7 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { randomBytes } from "node:crypto";
+import { randomBytes, createHash } from "node:crypto";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { assertRealIdentity, resolveActiveImpersonation } from "@/lib/admin/impersonation";
@@ -40,6 +40,10 @@ export type MyTelegramLinkStatus =
 function makeToken(): string {
   // 32 zufällige Bytes → base64url (kein Padding), ~43 Zeichen.
   return randomBytes(32).toString("base64url");
+}
+
+function sha256Hex(input: string): string {
+  return createHash("sha256").update(input).digest("hex");
 }
 
 function deepLinkFor(botUsername: string | null, token: string): string | null {
@@ -72,7 +76,7 @@ export const getMyTelegramLink = createServerFn({ method: "GET" })
     const [linkRes, settingsRes] = await Promise.all([
       supabaseAdmin
         .from("staff_telegram_links")
-        .select("telegram_chat_id, telegram_username, link_token, token_expires_at, linked_at")
+        .select("telegram_chat_id, telegram_username, token_expires_at, linked_at")
         .eq("staff_id", caller.staffId)
         .maybeSingle(),
       supabaseAdmin
@@ -103,12 +107,11 @@ export const getMyTelegramLink = createServerFn({ method: "GET" })
     if (!expiresAt || new Date(expiresAt).getTime() < Date.now()) {
       return { status: "none", botUsername };
     }
-    return {
-      status: "pending",
-      botUsername,
-      deepLink: deepLinkFor(botUsername, row.link_token as string),
-      expiresAt,
-    };
+    // Deep-Link ist nach dem Erzeugen (startTelegramLink) einmalig sichtbar
+    // und wird nicht wieder aus der DB rekonstruiert — der Klartext-Token
+    // wird als Hash gespeichert. Für pending-Zustände nach Reload muss der
+    // Mitarbeiter „Neu starten" wählen.
+    return { status: "pending", botUsername, deepLink: null, expiresAt };
   });
 
 export const startTelegramLink = createServerFn({ method: "POST" })
@@ -144,7 +147,7 @@ export const startTelegramLink = createServerFn({ method: "POST" })
         {
           organization_id: caller.organizationId,
           staff_id: caller.staffId,
-          link_token: token,
+          link_token_hash: sha256Hex(token),
           token_expires_at: expiresAt,
           telegram_chat_id: null,
           telegram_username: null,

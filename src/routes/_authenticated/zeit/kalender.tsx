@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Copy, ExternalLink, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  getOrCreateMyCalendarToken,
+  getMyCalendarTokenStatus,
+  rotateMyCalendarToken,
   revokeMyCalendarToken,
 } from "@/lib/calendar/calendar-token.functions";
 
@@ -45,33 +46,60 @@ export const Route = createFileRoute("/_authenticated/zeit/kalender")({
 
 function KalenderPage() {
   const qc = useQueryClient();
-  const fnGet = useServerFn(getOrCreateMyCalendarToken);
+  const fnStatus = useServerFn(getMyCalendarTokenStatus);
+  const fnRotate = useServerFn(rotateMyCalendarToken);
   const fnRevoke = useServerFn(revokeMyCalendarToken);
 
+  // Der Klartext-Token verlässt den Server nur einmalig (Rotate). Er lebt
+  // ausschließlich in dieser Session-State-Variable — nach Reload nicht
+  // mehr sichtbar; wer die URL verloren hat, muss neu rotieren.
+  const [freshFeedPath, setFreshFeedPath] = useState<string | null>(null);
+
   const q = useQuery({
-    queryKey: ["zeit", "calendar-token"],
-    queryFn: () => fnGet(),
+    queryKey: ["zeit", "calendar-token-status"],
+    queryFn: () => fnStatus(),
     staleTime: 5 * 60 * 1000,
+  });
+
+  const rotateMut = useMutation({
+    mutationFn: () => fnRotate(),
+    onSuccess: async (res) => {
+      setFreshFeedPath(res.feedPath);
+      await qc.invalidateQueries({ queryKey: ["zeit", "calendar-token-status"] });
+      toast.success("Neuer Abo-Link erzeugt.");
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const revokeMut = useMutation({
     mutationFn: async () => {
       await fnRevoke();
-      await qc.invalidateQueries({ queryKey: ["zeit", "calendar-token"] });
-      await q.refetch();
+      setFreshFeedPath(null);
+      await qc.invalidateQueries({ queryKey: ["zeit", "calendar-token-status"] });
     },
-    onSuccess: () =>
-      toast.success("Alter Link deaktiviert — bitte Abo mit dem neuen Link neu einrichten."),
+    onSuccess: () => toast.success("Abo-Link deaktiviert."),
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // Wenn noch nie ein Feed existiert, einmalig automatisch anlegen —
+  // damit der Erst-Besuch die URL direkt zeigt.
+  const didAutoRotate = useRef(false);
+  useEffect(() => {
+    if (didAutoRotate.current) return;
+    if (q.isLoading) return;
+    if (q.data?.hasActive === false && !rotateMut.isPending) {
+      didAutoRotate.current = true;
+      rotateMut.mutate();
+    }
+  }, [q.isLoading, q.data, rotateMut]);
+
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const urls = useMemo(() => {
-    if (!q.data?.feedPath || !origin) return null;
-    const httpsUrl = origin + q.data.feedPath;
-    const webcalUrl = origin.replace(/^https?:/, "webcal:") + q.data.feedPath;
+    if (!freshFeedPath || !origin) return null;
+    const httpsUrl = origin + freshFeedPath;
+    const webcalUrl = origin.replace(/^https?:/, "webcal:") + freshFeedPath;
     return { httpsUrl, webcalUrl };
-  }, [q.data, origin]);
+  }, [freshFeedPath, origin]);
 
   const [copied, setCopied] = useState(false);
   const copy = async () => {
@@ -99,14 +127,7 @@ function KalenderPage() {
       <Card className="space-y-4 p-5">
         {q.isLoading ? (
           <div className="text-sm text-muted-foreground">Lädt…</div>
-        ) : q.error || !urls ? (
-          <div className="space-y-2">
-            <div className="text-sm text-destructive">Link konnte nicht geladen werden.</div>
-            <Button variant="outline" size="sm" onClick={() => q.refetch()}>
-              Erneut versuchen
-            </Button>
-          </div>
-        ) : (
+        ) : urls ? (
           <>
             <div>
               <a href={urls.webcalUrl}>
@@ -138,9 +159,34 @@ function KalenderPage() {
             </div>
 
             <p className="text-xs text-muted-foreground">
-              Dieser Link ist persönlich — nicht weitergeben. Wer ihn hat, sieht deinen Dienstplan.
+              Dieser Link wird aus Sicherheitsgründen nur jetzt einmal angezeigt. Richte dein Abo
+              gleich ein — beim nächsten Öffnen der Seite ist er nicht mehr sichtbar. Nicht
+              weitergeben, wer ihn hat, sieht deinen Dienstplan.
             </p>
           </>
+        ) : q.data?.hasActive ? (
+          <div className="space-y-3">
+            <p className="text-sm text-foreground">
+              Es existiert bereits ein aktives Kalender-Abo. Der Link kann aus Sicherheitsgründen
+              nicht erneut angezeigt werden. Nutze dein bestehendes Abo weiter — oder erzeuge
+              unten einen neuen Link (das bestehende Abo bricht dann).
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => rotateMut.mutate()}
+              disabled={rotateMut.isPending}
+            >
+              <RefreshCw className="mr-2 h-4 w-4" aria-hidden />
+              Neuen Link erzeugen (bestehendes Abo bricht)
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <div className="text-sm text-destructive">Link konnte nicht geladen werden.</div>
+            <Button variant="outline" size="sm" onClick={() => q.refetch()}>
+              Erneut versuchen
+            </Button>
+          </div>
         )}
       </Card>
 
@@ -168,31 +214,30 @@ function KalenderPage() {
 
       <Card className="space-y-3 p-5">
         <div>
-          <div className="text-sm font-medium">Link zurückziehen</div>
+          <div className="text-sm font-medium">Link deaktivieren</div>
           <div className="text-xs text-muted-foreground">
-            Erstellt einen neuen Link. Der alte hört auf zu funktionieren — bestehende Abos brechen
-            und müssen mit dem neuen Link neu eingerichtet werden.
+            Deaktiviert den aktiven Abo-Link. Bestehende Kalender-Abos hören auf zu
+            aktualisieren. Danach kannst du oben einen neuen Link erzeugen.
           </div>
         </div>
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button variant="outline" disabled={revokeMut.isPending || q.isLoading}>
               <RefreshCw className="mr-2 h-4 w-4" aria-hidden />
-              Link zurückziehen & neuen erstellen
+              Link deaktivieren
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Wirklich zurückziehen?</AlertDialogTitle>
+              <AlertDialogTitle>Wirklich deaktivieren?</AlertDialogTitle>
               <AlertDialogDescription>
-                Bestehende Abos in deinem Kalender hören auf zu aktualisieren. Du musst danach den
-                neuen Link erneut einrichten.
+                Bestehende Abos in deinem Kalender hören auf zu aktualisieren.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Abbrechen</AlertDialogCancel>
               <AlertDialogAction onClick={() => revokeMut.mutate()}>
-                Ja, zurückziehen
+                Ja, deaktivieren
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

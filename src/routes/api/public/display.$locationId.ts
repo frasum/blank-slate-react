@@ -3,8 +3,7 @@
 // Token wird timing-safe verglichen; bei jedem Fehler 401/403 ohne Details.
 
 import { createFileRoute } from "@tanstack/react-router";
-import { Buffer } from "node:buffer";
-import { timingSafeEqual } from "node:crypto";
+import { createHash } from "node:crypto";
 import { buildDisplayData } from "@/lib/display/display-data.server";
 
 function jsonError(status: number, error: string) {
@@ -14,11 +13,8 @@ function jsonError(status: number, error: string) {
   });
 }
 
-function safeCompare(a: string, b: string): boolean {
-  const aBuf = Buffer.from(a);
-  const bBuf = Buffer.from(b);
-  if (aBuf.length !== bBuf.length) return false;
-  return timingSafeEqual(aBuf, bBuf);
+function sha256Hex(input: string): string {
+  return createHash("sha256").update(input).digest("hex");
 }
 
 export const Route = createFileRoute("/api/public/display/$locationId")({
@@ -41,7 +37,7 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
         const { data: settings, error: settingsErr } = await supabaseAdmin
           .from("display_settings" as never)
           .select(
-            "display_token, is_enabled, refresh_interval_seconds, organization_id, rotation_enabled, rotation_interval_seconds, show_areas, show_header, show_footer, custom_message",
+            "display_token_hash, is_enabled, refresh_interval_seconds, organization_id, rotation_enabled, rotation_interval_seconds, show_areas, show_header, show_footer, custom_message",
           )
           .eq("location_id", locationId)
           .maybeSingle();
@@ -51,7 +47,7 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
         }
 
         const s = settings as {
-          display_token: string;
+          display_token_hash: string;
           is_enabled: boolean;
           refresh_interval_seconds: number;
           organization_id: string;
@@ -63,7 +59,7 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
           custom_message: string | null;
         };
 
-        if (!safeCompare(s.display_token, token)) {
+        if (s.display_token_hash !== sha256Hex(token)) {
           return jsonError(401, "Ungültiger Sicherheits-Token.");
         }
         if (!s.is_enabled) {

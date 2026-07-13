@@ -14,8 +14,6 @@
 // Reine Aufbereitung liegt in src/lib/trmnl/board.ts (mit Vitest getestet).
 
 import { createFileRoute } from "@tanstack/react-router";
-import { Buffer } from "node:buffer";
-import { timingSafeEqual } from "node:crypto";
 import { TASK_CATEGORY_LABEL, TASK_STATUS_LABEL, type Task } from "@/lib/aufgaben/types";
 import { selectAllPaged } from "@/lib/supabase/select-all";
 import {
@@ -36,12 +34,7 @@ function notFound(): Response {
   });
 }
 
-function safeCompare(a: string, b: string): boolean {
-  const aBuf = Buffer.from(a);
-  const bBuf = Buffer.from(b);
-  if (aBuf.length !== bBuf.length) return false;
-  return timingSafeEqual(aBuf, bBuf);
-}
+// Hash-Lookup ersetzt den früheren timing-safe Klartext-Vergleich.
 
 function escapeHtml(s: string): string {
   return s
@@ -101,10 +94,11 @@ export const Route = createFileRoute("/api/public/trmnl-tasks/$token")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-        // Spalte `trmnl_token` wurde per Migration ergänzt; die generierten
-        // Types werden erst nach Approval regeneriert — bis dahin schmaler
-        // Cast auf die zwei benötigten Zugriffe (kein `any`).
-        type OrgTokenRow = { id: string; name: string; trmnl_token: string | null };
+        // Lookup ausschließlich über den Hash — der Klartext liegt nicht
+        // mehr in der DB.
+        const { createHash } = await import("node:crypto");
+        const tokenHash = createHash("sha256").update(token).digest("hex");
+        type OrgTokenRow = { id: string; name: string };
         type OrgQuery = {
           select: (cols: string) => {
             eq: (
@@ -120,11 +114,10 @@ export const Route = createFileRoute("/api/public/trmnl-tasks/$token")({
         };
         const orgQ = supabaseAdmin.from("organizations") as unknown as OrgQuery;
         const { data: orgRow, error: orgErr } = await orgQ
-          .select("id, name, trmnl_token")
-          .eq("trmnl_token", token)
+          .select("id, name")
+          .eq("trmnl_token_hash", tokenHash)
           .maybeSingle();
-        if (orgErr || !orgRow || !orgRow.trmnl_token) return notFound();
-        if (!safeCompare(orgRow.trmnl_token, token)) return notFound();
+        if (orgErr || !orgRow) return notFound();
 
         const orgId = orgRow.id;
         const orgName = orgRow.name;

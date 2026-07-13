@@ -8,8 +8,7 @@
 // gehören wie das Token. Kein Default — falsche/fehlende Location = 404.
 
 import { createFileRoute } from "@tanstack/react-router";
-import { Buffer } from "node:buffer";
-import { timingSafeEqual } from "node:crypto";
+import { createHash } from "node:crypto";
 import { buildDisplayData } from "@/lib/display/display-data.server";
 import { buildRosterGrid, EMPTY_MARKER, type Grid } from "@/lib/trmnl/roster-grid";
 
@@ -20,11 +19,8 @@ function notFound(): Response {
   });
 }
 
-function safeCompare(a: string, b: string): boolean {
-  const aBuf = Buffer.from(a);
-  const bBuf = Buffer.from(b);
-  if (aBuf.length !== bBuf.length) return false;
-  return timingSafeEqual(aBuf, bBuf);
+function sha256Hex(input: string): string {
+  return createHash("sha256").update(input).digest("hex");
 }
 
 function escapeHtml(s: string): string {
@@ -77,8 +73,8 @@ export const Route = createFileRoute("/api/public/trmnl-dienstplan/$token")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-        // Org via Token (Muster TRMNL1).
-        type OrgTokenRow = { id: string; name: string; trmnl_token: string | null };
+        // Org via Token — Hash-Lookup (Klartext existiert nur auf dem Gerät).
+        type OrgTokenRow = { id: string; name: string };
         type OrgQuery = {
           select: (cols: string) => {
             eq: (
@@ -94,11 +90,10 @@ export const Route = createFileRoute("/api/public/trmnl-dienstplan/$token")({
         };
         const orgQ = supabaseAdmin.from("organizations") as unknown as OrgQuery;
         const { data: orgRow, error: orgErr } = await orgQ
-          .select("id, name, trmnl_token")
-          .eq("trmnl_token", token)
+          .select("id, name")
+          .eq("trmnl_token_hash", sha256Hex(token))
           .maybeSingle();
-        if (orgErr || !orgRow || !orgRow.trmnl_token) return notFound();
-        if (!safeCompare(orgRow.trmnl_token, token)) return notFound();
+        if (orgErr || !orgRow) return notFound();
 
         const orgId = orgRow.id;
 
