@@ -4129,3 +4129,21 @@ Anlass: Nachfrage, warum Admin/Manager rückwirkend keine Änderungen im Dienstp
 **Bewusst NICHT geändert:** Schichttausch-Regel (`swap.functions.ts`: `shift_date > today`) bleibt — eigene Fachregel. Keine UI-Änderung (Grid und DayEditSheet hingen bereits nur an `canEdit` und `periodLocked`). Kein neuer „Sperre aufheben"-Knopf.
 
 **Konfliktmeldung statt stiller Lösung:** Die Regel „locked bleibt locked" wurde nicht heimlich aufgeweicht. Umgekehrt wurde die frühere stille Lücke bei Einzel-Absenzen als Bug offengelegt und geschlossen — Ehrlichkeitsregel angewandt.
+
+## §92 — Hygiene-2 in vier Runden: Autoformat, Fehler-Helfer, Cast-Abbau, Dubletten-Urteil (13.07. nachts)
+
+Abnahme-Anker je Runde: A `5c4ac220` · B `30f3c4cd` · C `4620b862` · D `2ee7406d`. Vier Check-Gates je Runde grün, Endstand **1758 Tests**.
+
+**Prozess-Meilenstein zuerst:** Auf den Fünf-Block-Prompt antwortete der Baumeister mit einer **Konflikt-Meldung nach Projektregel** („melden statt still lösen"): Ein Turn = ein Commit → fünf Blöcke wären ein Sammel-Commit ohne Rollback-Punkte; types.ts ist Plattform-Artefakt (kein Datei-Edit); H2-Blast-Radius ehrlich beziffert (~37 Callsites). Prüfer-Entscheid: vier Runden (H1+H4 zusammen, da beide nur ci.yml), je eigener Commit + Gate + Freigabe. Die Regel-Kultur wirkt inzwischen in beide Richtungen.
+
+**Runde A — H1 Autoformat-Wächter + H4 CI-Robustheit (nur ci.yml):** Befund: husky+lint-staged waren korrekt konfiguriert, Lovables Commit-Weg läuft an lokalen Hooks vorbei (~14 dokumentierte Prettier-Nachzügler). Lösung: CI-Job `autoformat` auf main — formatiert nach, committet als `style: prettier autofix [bot]`, doppelter Schleifenschutz (Message-Check); der blockierende format-Job bleibt Zeuge. Dazu: `supabase start` in beiden Stack-Jobs mit 3-Versuche-Retry (stop + 30 s Pause; gegen ghcr-Rate-Limit) und `needs: db-integration` am e2e-Job (serialisierte Docker-Pulls).
+
+**Runde B — H2 Fehler-Helfer (N9):** Neues Modul `src/lib/supabase/expect-ok.ts` mit DREI Varianten (expectOk / expectMaybe mit PGRST116-Pfad / expectVoid für Schreibpfade), getestet. Anwendung in src/lib/admin/ (erster Durchgang): **19 Dateien** umgestellt; **6 dokumentierte `H2-BEFUND`-Ausnahmen**, wo stilles Weiterlaufen bewusste Kante ist (Auth-Bootstrap in admin-context: Fehler MUSS sich identisch zu „keine Verknüpfung" verhalten; Anzeige-Ränder; best-effort-Cleanup). Erste Lieferung deckte nur die zwei Startdateien — per Nachforderung mit gemessenen Zahlen je Datei vervollständigt (Lehre: Vollständigkeits-Ansage braucht Mess-Gate). cash/, lohn/, roster/ bewusst NICHT (eigene Durchgänge).
+
+**Runde C — H3 Cast-Abbau (N18b):** **16** `as never`-Casts in **11** Dateien entfernt (3 mehr als kartiert — profile, bwa, profile-admin selbst gefunden), Ersatz durch echte Typen; bei dynamisch gebauten Payloads (bwa-Upsert, personal-details-Upsert) ehrliche Casts auf die konkreten `Insert`-Typen mit Begründung. `types.ts`-Regeneration war unnötig (Typen aktuell). Beweis: `grep "as never"` im Produktionscode → 0. H3-BEFUNDE: keine.
+
+**Runde D — H5 Dubletten-Urteil:** Ergebnis **0 konsolidiert, 4 erklärt** — die G1a-TODOs erzwangen die Einzelprüfung; keine der vier Core-Funktionen hat ein zentrales Pendant mit identischem Verhalten (parseIsoDate/fmtIso: UTC-Mittag-Verankerung für DST-freie Wochen-Arithmetik; firstOfMonthIso: Kalendermonatsanfang ≠ Geschäftstag; periodLabelForEnd: „Monat Jahr" ≠ period-split-/Tageszeit-Label). TODOs durch `// bewusst eigenständig: <Grund>` ersetzt; Diff nachweislich kommentar-only. Merksatz: **Ein Dubletten-Verdacht endet entweder in Konsolidierung oder in einer dokumentierten Begründung — nie im Vergessen.**
+
+**Betriebsnotizen (Direktarbeit im selben Zeitraum, abgenommen):** WeeklyPlan-Kosmetik (feste Spaltenbreiten, Zebra, Toggle im Tabellenkopf, Perioden-Anpassung) — reine UI.
+
+**Offen/Roadmap unverändert:** H2-Folgedurchgänge für cash/ lohn/ roster/ (eigene Runden, Blast-Radius) · FK-Indizes als eigener Mini-Block (vor Cutover-Datenwachstum) · e2e-Zehner-Serie → dann blockierend · Publish + Kontrollrunde (N6/FT1/G1a/N19/Hygiene-2 gesammelt) · danach Cutover-Block.
