@@ -60,6 +60,10 @@ function KalenderPage() {
   // mehr sichtbar; wer die URL verloren hat, muss neu rotieren.
   const [freshFeedPath, setFreshFeedPath] = useState<string | null>(null);
 
+  // Ref oben deklariert, damit revokeMut das Flag setzen kann (bevor der
+  // Effekt weiter unten es liest).
+  const didAutoRotate = useRef(false);
+
   const q = useQuery({
     queryKey: ["zeit", "calendar-token-status"],
     queryFn: () => fnStatus(),
@@ -96,7 +100,6 @@ function KalenderPage() {
   // die Lebensdauer der Seite gesetzt; Reaktivierung nur über den expliziten
   // „Neuen Link erzeugen"-Button. Ebenfalls unterdrückt in der Admin-
   // Vorschau (isPreview).
-  const didAutoRotate = useRef(false);
   useEffect(() => {
     if (didAutoRotate.current) return;
     if (isPreview) return;
