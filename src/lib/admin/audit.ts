@@ -42,6 +42,11 @@ export function makeAuditWriter(caller: {
   organizationId: string;
   userId: string;
   staffId: string | null;
+  // IMP1: Bei aktiver Admin-Vorschau steht hier die staff_id des echten
+  // Admins. Wird ins meta übernommen, damit im audit_log sichtbar ist,
+  // wer die Aktion tatsächlich ausgelöst hat — actor_staff_id spiegelt
+  // sonst nur den Vorschau-Ziel-Mitarbeiter.
+  impersonatedBy?: string | null;
 }) {
   return async (entry: {
     action: string;
@@ -49,6 +54,10 @@ export function makeAuditWriter(caller: {
     entityId?: string;
     meta?: Record<string, unknown>;
   }) => {
+    const meta: Record<string, unknown> = { ...(entry.meta ?? {}) };
+    if (caller.impersonatedBy) {
+      meta.impersonated_by = caller.impersonatedBy;
+    }
     await writeAuditLog({
       organizationId: caller.organizationId,
       actorUserId: caller.userId,
@@ -56,7 +65,7 @@ export function makeAuditWriter(caller: {
       action: entry.action,
       entity: entry.entity,
       entityId: entry.entityId ?? null,
-      meta: entry.meta,
+      meta,
     });
   };
 }
