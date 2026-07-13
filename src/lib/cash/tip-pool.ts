@@ -260,3 +260,20 @@ export function resolvePoolTimeEntries(input: {
 export function poolNeedsHoursWarning(poolCents: number, totalEligibleMinutes: number): boolean {
   return poolCents > 0 && totalEligibleMinutes <= 0;
 }
+
+/**
+ * Verteilungsnahe Variante der TG1-Warnung: warnt, wenn der jeweilige Pool
+ * Geld enthält, das Verteilungs-Ergebnis aber 0 Cent zuweist (voller Pool
+ * bleibt als Rest übrig). Zieht die Wahrheit aus derselben Quelle wie die
+ * Auszahlung — deckt daher auch die Fälle ab, die
+ * `poolNeedsHoursWarning` (aggregierte Minuten über beide Abteilungen)
+ * übersieht: z. B. Küchen-Pool mit Geld, aber nur Service-Stunden, oder
+ * `tip_pool_settlement_only`-Ausschluss trotz vorhandener Roh-Minuten
+ * (Lehre 02.07.2026, 423-€-Vorfall).
+ */
+export function poolFullyUnallocated(
+  poolCents: number,
+  distributedCents: number,
+): boolean {
+  return poolCents > 0 && distributedCents <= 0;
+}
