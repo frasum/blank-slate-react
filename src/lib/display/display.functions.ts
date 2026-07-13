@@ -45,7 +45,7 @@ export const getDisplaySettings = createServerFn({ method: "GET" })
     const caller = await loadAdminCaller(context.supabase, context.userId, ALLOWED_ROLES);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row, error } = await supabaseAdmin
-      .from("display_settings" as never)
+      .from("display_settings")
       .select("*")
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId)
@@ -80,7 +80,7 @@ export const upsertDisplaySettings = createServerFn({ method: "POST" })
 
     // Bestehende Settings holen oder neu anlegen.
     const { data: existing } = await supabaseAdmin
-      .from("display_settings" as never)
+      .from("display_settings")
       .select("id")
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId)
@@ -106,7 +106,7 @@ export const upsertDisplaySettings = createServerFn({ method: "POST" })
       if (data.showFooter !== undefined) payload.show_footer = data.showFooter;
       if (data.customMessage !== undefined) payload.custom_message = data.customMessage;
       const { data: row, error } = await supabaseAdmin
-        .from("display_settings" as never)
+        .from("display_settings")
         .insert(payload as never)
         .select("*")
         .single();
@@ -131,7 +131,7 @@ export const upsertDisplaySettings = createServerFn({ method: "POST" })
 
     if (Object.keys(patch).length === 0) {
       const { data: row, error } = await supabaseAdmin
-        .from("display_settings" as never)
+        .from("display_settings")
         .select("*")
         .eq("id", (existing as { id: string }).id)
         .single();
@@ -143,7 +143,7 @@ export const upsertDisplaySettings = createServerFn({ method: "POST" })
     }
 
     const { data: row, error } = await supabaseAdmin
-      .from("display_settings" as never)
+      .from("display_settings")
       .update(patch as never)
       .eq("id", (existing as { id: string }).id)
       .eq("organization_id", caller.organizationId)
@@ -172,7 +172,7 @@ export const regenerateDisplayToken = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const newToken = generateToken();
     const { data: row, error } = await supabaseAdmin
-      .from("display_settings" as never)
+      .from("display_settings")
       .update({ display_token_hash: sha256Hex(newToken) } as never)
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId)
