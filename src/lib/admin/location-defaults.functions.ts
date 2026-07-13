@@ -9,6 +9,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "./admin-context";
 import { runGuarded } from "./admin-call";
 import { makeAuditWriter } from "./audit";
+import { expectMaybe, expectOk, expectVoid } from "@/lib/supabase/expect-ok";
 
 const HHMM = /^([01]?\d|2[0-3]):([0-5]\d)$/;
 const optTime = z
@@ -31,13 +32,22 @@ export const listLocationDepartmentDefaults = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<LocationDepartmentDefaultRow[]> => {
     const caller = await loadAdminCaller(context.supabase, context.userId, ["manager", "admin"]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await supabaseAdmin
-      .from("location_department_defaults")
-      .select(
-        "location_id, department, default_checkin, default_checkout, locations!inner(organization_id)",
-      )
-      .eq("locations.organization_id", caller.organizationId);
-    if (error) throw error;
+    const data = expectOk<
+      {
+        location_id: string;
+        department: string;
+        default_checkin: string | null;
+        default_checkout: string | null;
+      }[]
+    >(
+      await supabaseAdmin
+        .from("location_department_defaults")
+        .select(
+          "location_id, department, default_checkin, default_checkout, locations!inner(organization_id)",
+        )
+        .eq("locations.organization_id", caller.organizationId),
+      "listLocationDepartmentDefaults",
+    );
     return (data ?? []).map((r) => ({
       locationId: r.location_id as string,
       department: r.department as "kitchen" | "service" | "gl",
@@ -62,27 +72,31 @@ export const upsertLocationDepartmentDefault = createServerFn({ method: "POST" }
     return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       // Standort-Org prüfen (RLS-Ersatz auf Service-Role-Pfad).
-      const { data: loc, error: locErr } = await supabaseAdmin
-        // ST1: bewusst ungefiltert — Daten-Zugriff (Org-Check by id).
-        .from("locations")
-        .select("organization_id")
-        .eq("id", data.locationId)
-        .maybeSingle();
-      if (locErr) throw locErr;
+      // ST1: bewusst ungefiltert — Daten-Zugriff (Org-Check by id).
+      const loc = expectMaybe<{ organization_id: string }>(
+        await supabaseAdmin
+          .from("locations")
+          .select("organization_id")
+          .eq("id", data.locationId)
+          .maybeSingle(),
+        "upsertLocationDepartmentDefault.loadLocation",
+      );
       if (!loc || loc.organization_id !== caller.organizationId) {
         throw new Error("Standort nicht in deiner Organisation.");
       }
-      const { error } = await supabaseAdmin.from("location_department_defaults").upsert(
-        {
-          organization_id: caller.organizationId,
-          location_id: data.locationId,
-          department: data.department,
-          default_checkin: data.defaultCheckin,
-          default_checkout: data.defaultCheckout,
-        },
-        { onConflict: "location_id,department" },
+      expectVoid(
+        await supabaseAdmin.from("location_department_defaults").upsert(
+          {
+            organization_id: caller.organizationId,
+            location_id: data.locationId,
+            department: data.department,
+            default_checkin: data.defaultCheckin,
+            default_checkout: data.defaultCheckout,
+          },
+          { onConflict: "location_id,department" },
+        ),
+        "upsertLocationDepartmentDefault.upsert",
       );
-      if (error) throw error;
       return {
         result: { ok: true as const },
         audit: {

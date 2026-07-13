@@ -12,6 +12,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { writeAuditLog } from "./audit";
 import { resolveActiveImpersonation } from "./impersonation";
+import { expectMaybe, expectOk, expectVoid } from "@/lib/supabase/expect-ok";
 
 export type ImpersonationStaffOption = {
   staffId: string;
@@ -31,8 +32,7 @@ export type ImpersonationStatus = {
 async function assertRealAdmin(supabase: {
   rpc: (fn: string) => Promise<{ data: unknown; error: { message: string } | null }>;
 }): Promise<void> {
-  const { data, error } = await supabase.rpc("is_real_admin");
-  if (error) throw new Error(`is_real_admin failed: ${error.message}`);
+  const data = expectMaybe<unknown>(await supabase.rpc("is_real_admin"), "assertRealAdmin");
   if (data !== true) throw new Error("Forbidden");
 }
 
@@ -43,22 +43,27 @@ export const listStaffForImpersonation = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // Aktive Mitarbeiter der Org des Admins.
-    const { data: orgRow, error: orgErr } = await context.supabase.rpc("current_organization_id");
-    if (orgErr) throw new Error(`org lookup failed: ${orgErr.message}`);
-    const orgId = orgRow as string | null;
+    const orgId = expectMaybe<string>(
+      await context.supabase.rpc("current_organization_id"),
+      "listStaffForImpersonation.orgId",
+    );
     if (!orgId) return [];
 
-    const { data: staff, error: staffErr } = await supabaseAdmin
-      .from("staff")
-      .select("id, display_name, first_name, last_name")
-      .eq("organization_id", orgId)
-      .order("display_name", { ascending: true });
-    if (staffErr) throw new Error(`staff list failed: ${staffErr.message}`);
+    const staff = expectOk<
+      { id: string; display_name: string | null; first_name: string | null; last_name: string | null }[]
+    >(
+      await supabaseAdmin
+        .from("staff")
+        .select("id, display_name, first_name, last_name")
+        .eq("organization_id", orgId)
+        .order("display_name", { ascending: true }),
+      "listStaffForImpersonation.staff",
+    );
 
     const ids = (staff ?? []).map((s) => s.id);
     if (ids.length === 0) return [];
 
-    const [{ data: links }, { data: roles }] = await Promise.all([
+    const [linksRes, rolesRes] = await Promise.all([
       supabaseAdmin
         .from("user_links")
         .select("staff_id, user_id, organization_id")
@@ -70,6 +75,14 @@ export const listStaffForImpersonation = createServerFn({ method: "GET" })
         .eq("organization_id", orgId)
         .in("staff_id", ids),
     ]);
+    const links = expectOk<{ staff_id: string; user_id: string; organization_id: string }[]>(
+      linksRes,
+      "listStaffForImpersonation.links",
+    );
+    const roles = expectOk<{ staff_id: string; role: string }[]>(
+      rolesRes,
+      "listStaffForImpersonation.roles",
+    );
 
     const linkByStaff = new Map<string, string>();
     for (const l of links ?? []) linkByStaff.set(l.staff_id, l.user_id);
@@ -105,6 +118,9 @@ export const getImpersonationStatus = createServerFn({ method: "GET" })
       return { active: false, asStaffId: null, asDisplayName: null, since: null };
     }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // H2-BEFUND: reine Anzeige-Kante (Impersonations-Banner-Text). Ein
+    // Postgrest-Ausfall darf die aktive Vorschau nicht scheinbar deaktivieren
+    // — Fallback ist die id-Slice als Anzeige-Name.
     const { data: staff } = await supabaseAdmin
       .from("staff")
       .select("display_name, first_name, last_name")
@@ -135,51 +151,61 @@ export const startImpersonation = createServerFn({ method: "POST" })
     await assertRealAdmin(context.supabase as never);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: orgRow, error: orgErr } = await context.supabase.rpc("current_organization_id");
-    if (orgErr) throw new Error(`org lookup failed: ${orgErr.message}`);
-    const orgId = orgRow as string | null;
+    const orgId = expectMaybe<string>(
+      await context.supabase.rpc("current_organization_id"),
+      "startImpersonation.orgId",
+    );
     if (!orgId) throw new Error("Keine Organisation gefunden.");
 
     // Ziel-Staff muss in derselben Org liegen und einen verknüpften User haben.
-    const { data: staff, error: staffErr } = await supabaseAdmin
-      .from("staff")
-      .select("id, organization_id")
-      .eq("id", data.staffId)
-      .maybeSingle();
-    if (staffErr || !staff) throw new Error("Mitarbeiter nicht gefunden.");
+    const staff = expectMaybe<{ id: string; organization_id: string }>(
+      await supabaseAdmin
+        .from("staff")
+        .select("id, organization_id")
+        .eq("id", data.staffId)
+        .maybeSingle(),
+      "startImpersonation.staff",
+    );
+    if (!staff) throw new Error("Mitarbeiter nicht gefunden.");
     if (staff.organization_id !== orgId)
       throw new Error("Mitarbeiter gehört nicht zur Organisation.");
 
-    const { data: link } = await supabaseAdmin
-      .from("user_links")
-      .select("user_id")
-      .eq("staff_id", data.staffId)
-      .eq("organization_id", orgId)
-      .maybeSingle();
+    const link = expectMaybe<{ user_id: string }>(
+      await supabaseAdmin
+        .from("user_links")
+        .select("user_id")
+        .eq("staff_id", data.staffId)
+        .eq("organization_id", orgId)
+        .maybeSingle(),
+      "startImpersonation.link",
+    );
     if (!link?.user_id) {
       throw new Error("Dieser Mitarbeiter hat keinen Account – Impersonate nicht möglich.");
     }
 
-    // Vorhandene offene Sitzung dieses Admins beenden.
+    // H2-BEFUND: best-effort Cleanup vorheriger offener Sitzungen. Ein Fehler
+    // hier darf den Start der neuen Sitzung nicht blockieren (der Insert unten
+    // ist die eigentliche Wahrheit); deshalb bewusst kein expectVoid.
     await supabaseAdmin
       .from("admin_impersonations")
       .update({ ended_at: new Date().toISOString() })
       .eq("admin_user_id", context.userId)
       .is("ended_at", null);
 
-    const { data: inserted, error: insErr } = await supabaseAdmin
-      .from("admin_impersonations")
-      .insert({
-        organization_id: orgId,
-        admin_user_id: context.userId,
-        target_staff_id: data.staffId,
-        target_user_id: link.user_id,
-        reason: data.reason,
-      })
-      .select("id")
-      .single();
-    if (insErr || !inserted)
-      throw new Error(`impersonation insert failed: ${insErr?.message ?? "unknown"}`);
+    const inserted = expectOk<{ id: string }>(
+      await supabaseAdmin
+        .from("admin_impersonations")
+        .insert({
+          organization_id: orgId,
+          admin_user_id: context.userId,
+          target_staff_id: data.staffId,
+          target_user_id: link.user_id,
+          reason: data.reason,
+        })
+        .select("id")
+        .single(),
+      "startImpersonation.insert",
+    );
 
     await writeAuditLog({
       organizationId: orgId,
@@ -200,19 +226,24 @@ export const stopImpersonation = createServerFn({ method: "POST" })
     // KEIN is_real_admin-Check: wer eine offene Sitzung hat, muss sie auch beenden
     // können (selbst wenn die effektive Rolle gerade nicht admin ist).
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: open } = await supabaseAdmin
-      .from("admin_impersonations")
-      .select("id, organization_id, target_staff_id")
-      .eq("admin_user_id", context.userId)
-      .is("ended_at", null)
-      .maybeSingle();
+    const open = expectMaybe<{ id: string; organization_id: string; target_staff_id: string }>(
+      await supabaseAdmin
+        .from("admin_impersonations")
+        .select("id, organization_id, target_staff_id")
+        .eq("admin_user_id", context.userId)
+        .is("ended_at", null)
+        .maybeSingle(),
+      "stopImpersonation.open",
+    );
     if (!open) return { ok: true, wasActive: false };
 
-    const { error: updErr } = await supabaseAdmin
-      .from("admin_impersonations")
-      .update({ ended_at: new Date().toISOString() })
-      .eq("id", open.id);
-    if (updErr) throw new Error(`impersonation stop failed: ${updErr.message}`);
+    expectVoid(
+      await supabaseAdmin
+        .from("admin_impersonations")
+        .update({ ended_at: new Date().toISOString() })
+        .eq("id", open.id),
+      "stopImpersonation.update",
+    );
 
     await writeAuditLog({
       organizationId: open.organization_id,

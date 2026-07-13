@@ -14,6 +14,7 @@ import {
   redactForAudit,
   type PersonalDetailsFields,
 } from "./personal-details.schema";
+import { expectMaybe, expectVoid } from "@/lib/supabase/expect-ok";
 
 const staffIdInput = z.object({ staffId: z.string().uuid() });
 
@@ -56,15 +57,17 @@ export const getStaffPersonalDetails = createServerFn({ method: "GET" })
     await assertPermission(context.supabase, "payroll.personal.view");
     const caller = await loadAdminCaller(context.supabase, context.userId, ["admin", "payroll"]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: row, error } = await supabaseAdmin
-      .from("staff_personal_details")
-      .select(
-        "salutation, phone, email, address, date_of_birth, place_of_birth, nationality, tax_class, tax_id, social_security_number, is_minijob, is_sv_exempt, health_insurance, church_tax_liable, child_tax_allowances, iban, bank_name, account_holder, employment_start_date, employment_end_date, personnel_group, job_title, vacation_days_contractual, vacation_days_previous_year, vacation_days_current_year, vacation_days_taken",
-      )
-      .eq("staff_id", data.staffId)
-      .eq("organization_id", caller.organizationId)
-      .maybeSingle();
-    if (error) throw error;
+    const row = expectMaybe<PersonalDetailsFields>(
+      await supabaseAdmin
+        .from("staff_personal_details")
+        .select(
+          "salutation, phone, email, address, date_of_birth, place_of_birth, nationality, tax_class, tax_id, social_security_number, is_minijob, is_sv_exempt, health_insurance, church_tax_liable, child_tax_allowances, iban, bank_name, account_holder, employment_start_date, employment_end_date, personnel_group, job_title, vacation_days_contractual, vacation_days_previous_year, vacation_days_current_year, vacation_days_taken",
+        )
+        .eq("staff_id", data.staffId)
+        .eq("organization_id", caller.organizationId)
+        .maybeSingle(),
+      "getStaffPersonalDetails",
+    );
     if (!row) return { ...EMPTY, exists: false };
     return {
       ...EMPTY,
@@ -107,24 +110,28 @@ export const upsertStaffPersonalDetails = createServerFn({ method: "POST" })
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
         // Staff muss zur eigenen Org gehören — sonst Forbidden (defense in depth).
-        const { data: staffRow, error: staffErr } = await supabaseAdmin
-          .from("staff")
-          .select("id")
-          .eq("id", data.staffId)
-          .eq("organization_id", caller.organizationId)
-          .maybeSingle();
-        if (staffErr) throw staffErr;
+        const staffRow = expectMaybe<{ id: string }>(
+          await supabaseAdmin
+            .from("staff")
+            .select("id")
+            .eq("id", data.staffId)
+            .eq("organization_id", caller.organizationId)
+            .maybeSingle(),
+          "upsertStaffPersonalDetails.loadStaff",
+        );
         if (!staffRow) throw new Error("Mitarbeiter nicht gefunden");
 
-        const { error: upsertErr } = await supabaseAdmin.from("staff_personal_details").upsert(
-          {
-            staff_id: data.staffId,
-            organization_id: caller.organizationId,
-            ...data.fields,
-          },
-          { onConflict: "staff_id" },
+        expectVoid(
+          await supabaseAdmin.from("staff_personal_details").upsert(
+            {
+              staff_id: data.staffId,
+              organization_id: caller.organizationId,
+              ...data.fields,
+            },
+            { onConflict: "staff_id" },
+          ),
+          "upsertStaffPersonalDetails.upsert",
         );
-        if (upsertErr) throw upsertErr;
 
         return {
           result: { ok: true as const },

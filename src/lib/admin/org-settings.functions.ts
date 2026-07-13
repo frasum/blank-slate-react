@@ -15,6 +15,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "./admin-context";
 import { runGuarded } from "./admin-call";
 import { writeAuditLog } from "./audit";
+import { expectMaybe, expectVoid } from "@/lib/supabase/expect-ok";
 
 export type OrgSettings = {
   kitchenTipRate: number; // 0..1, z. B. 0.02
@@ -58,14 +59,27 @@ export const getOrgSettings = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<OrgSettings> => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await supabaseAdmin
-      .from("organization_settings")
-      .select(
-        "kitchen_tip_rate, tip_pool_min_hours, kitchen_manual_only, test_mode_enabled, test_mode_email, betriebsnummer, arbeitgeber_name, arbeitgeber_adresse, arbeitgeber_vertreter, telegram_bot_username",
-      )
-      .eq("organization_id", caller.organizationId)
-      .maybeSingle();
-    if (error) throw error;
+    const data = expectMaybe<{
+      kitchen_tip_rate: number | string | null;
+      tip_pool_min_hours: number | string | null;
+      kitchen_manual_only: boolean | null;
+      test_mode_enabled: boolean | null;
+      test_mode_email: string | null;
+      betriebsnummer: string | null;
+      arbeitgeber_name: string | null;
+      arbeitgeber_adresse: string | null;
+      arbeitgeber_vertreter: string | null;
+      telegram_bot_username: string | null;
+    }>(
+      await supabaseAdmin
+        .from("organization_settings")
+        .select(
+          "kitchen_tip_rate, tip_pool_min_hours, kitchen_manual_only, test_mode_enabled, test_mode_email, betriebsnummer, arbeitgeber_name, arbeitgeber_adresse, arbeitgeber_vertreter, telegram_bot_username",
+        )
+        .eq("organization_id", caller.organizationId)
+        .maybeSingle(),
+      "getOrgSettings",
+    );
     return {
       kitchenTipRate: Number(data?.kitchen_tip_rate ?? 0.02),
       tipPoolMinHours: Number(data?.tip_pool_min_hours ?? 2.5),
@@ -101,17 +115,19 @@ export const updateOrgSettings = createServerFn({ method: "POST" })
       },
       async () => {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { error } = await supabaseAdmin
-          .from("organization_settings")
-          .update({
-            kitchen_tip_rate: data.kitchenTipRate,
-            tip_pool_min_hours: data.tipPoolMinHours,
-            kitchen_manual_only: data.kitchenManualOnly,
-            test_mode_enabled: data.testModeEnabled,
-            test_mode_email: data.testModeEmail,
-          })
-          .eq("organization_id", caller.organizationId);
-        if (error) throw error;
+        expectVoid(
+          await supabaseAdmin
+            .from("organization_settings")
+            .update({
+              kitchen_tip_rate: data.kitchenTipRate,
+              tip_pool_min_hours: data.tipPoolMinHours,
+              kitchen_manual_only: data.kitchenManualOnly,
+              test_mode_enabled: data.testModeEnabled,
+              test_mode_email: data.testModeEmail,
+            })
+            .eq("organization_id", caller.organizationId),
+          "updateOrgSettings.update",
+        );
         return {
           result: { ok: true as const },
           audit: {
@@ -177,15 +193,17 @@ export const setArbeitgeberStammdaten = createServerFn({ method: "POST" })
       },
       async () => {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { error } = await supabaseAdmin
-          .from("organization_settings")
-          .update({
-            arbeitgeber_name: data.arbeitgeberName,
-            arbeitgeber_adresse: data.arbeitgeberAdresse,
-            arbeitgeber_vertreter: data.arbeitgeberVertreter,
-          })
-          .eq("organization_id", caller.organizationId);
-        if (error) throw error;
+        expectVoid(
+          await supabaseAdmin
+            .from("organization_settings")
+            .update({
+              arbeitgeber_name: data.arbeitgeberName,
+              arbeitgeber_adresse: data.arbeitgeberAdresse,
+              arbeitgeber_vertreter: data.arbeitgeberVertreter,
+            })
+            .eq("organization_id", caller.organizationId),
+          "setArbeitgeberStammdaten.update",
+        );
         return {
           result: { ok: true as const },
           audit: {
@@ -241,11 +259,13 @@ export const setTelegramBotUsername = createServerFn({ method: "POST" })
       },
       async () => {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { error } = await supabaseAdmin
-          .from("organization_settings")
-          .update({ telegram_bot_username: data.telegramBotUsername })
-          .eq("organization_id", caller.organizationId);
-        if (error) throw error;
+        expectVoid(
+          await supabaseAdmin
+            .from("organization_settings")
+            .update({ telegram_bot_username: data.telegramBotUsername })
+            .eq("organization_id", caller.organizationId),
+          "setTelegramBotUsername.update",
+        );
         return {
           result: { ok: true as const },
           audit: {

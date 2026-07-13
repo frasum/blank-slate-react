@@ -9,6 +9,7 @@ import { runGuarded } from "./admin-call";
 import { makeAuditWriter } from "./audit";
 import { assertValidPinFormat } from "./pin-format";
 import { assertStaffInOrg } from "./org-guards";
+import { expectVoid } from "@/lib/supabase/expect-ok";
 
 export const setPin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -22,16 +23,18 @@ export const setPin = createServerFn({ method: "POST" })
       const hash = await bcrypt.hash(data.pin, 10);
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       // Atomares Upsert auf UNIQUE(staff_id) — kein Zeitfenster ohne PIN.
-      const { error: upsertErr } = await supabaseAdmin.from("staff_pins").upsert(
-        {
-          staff_id: data.staffId,
-          organization_id: caller.organizationId,
-          pin_hash: hash,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "staff_id" },
+      expectVoid(
+        await supabaseAdmin.from("staff_pins").upsert(
+          {
+            staff_id: data.staffId,
+            organization_id: caller.organizationId,
+            pin_hash: hash,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "staff_id" },
+        ),
+        "setPin.upsert",
       );
-      if (upsertErr) throw upsertErr;
       return {
         result: { ok: true as const },
         audit: {
@@ -52,12 +55,14 @@ export const clearPin = createServerFn({ method: "POST" })
     return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
       await assertStaffInOrg(data.staffId, caller.organizationId);
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { error } = await supabaseAdmin
-        .from("staff_pins")
-        .delete()
-        .eq("staff_id", data.staffId)
-        .eq("organization_id", caller.organizationId);
-      if (error) throw error;
+      expectVoid(
+        await supabaseAdmin
+          .from("staff_pins")
+          .delete()
+          .eq("staff_id", data.staffId)
+          .eq("organization_id", caller.organizationId),
+        "clearPin.delete",
+      );
       return {
         result: { ok: true as const },
         audit: { action: "staff.clear_pin", entity: "staff", entityId: data.staffId },

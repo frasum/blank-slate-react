@@ -13,6 +13,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { resolveActiveImpersonation } from "./impersonation";
+import { expectMaybe } from "@/lib/supabase/expect-ok";
 
 export type StaffCaller = {
   userId: string;
@@ -28,6 +29,9 @@ export async function loadStaffCaller(
   supabase: SupabaseClient<Database>,
   userId: string,
 ): Promise<StaffCaller> {
+  // H2-BEFUND: Auth-Bootstrap (Portal-Identität). Fehler und fehlende Verknüpfung
+  // liefern bewusst dieselbe generische Meldung, um DB-Details nicht an den
+  // Client zu leaken.
   const { data: link, error: linkErr } = await supabase
     .from("user_links")
     .select("staff_id, organization_id")
@@ -43,20 +47,26 @@ export async function loadStaffCaller(
   const organizationId = link.organization_id as string;
   let impersonatedBy: string | null = null;
   if (imp) {
-    const { data: adminRole } = await supabaseAdmin
-      .from("role_assignments")
-      .select("role")
-      .eq("staff_id", link.staff_id)
-      .eq("organization_id", link.organization_id)
-      .maybeSingle();
+    const adminRole = expectMaybe<{ role: string }>(
+      await supabaseAdmin
+        .from("role_assignments")
+        .select("role")
+        .eq("staff_id", link.staff_id)
+        .eq("organization_id", link.organization_id)
+        .maybeSingle(),
+      "loadStaffCaller.impersonation.adminRole",
+    );
     if ((adminRole?.role as string | undefined) !== "admin") {
       throw new Error("Vorschau nicht erlaubt (Aufrufer ist kein Admin).");
     }
-    const { data: target } = await supabaseAdmin
-      .from("staff")
-      .select("id, organization_id")
-      .eq("id", imp.targetStaffId)
-      .maybeSingle();
+    const target = expectMaybe<{ id: string; organization_id: string }>(
+      await supabaseAdmin
+        .from("staff")
+        .select("id, organization_id")
+        .eq("id", imp.targetStaffId)
+        .maybeSingle(),
+      "loadStaffCaller.impersonation.target",
+    );
     if (!target || target.organization_id !== link.organization_id) {
       throw new Error("Vorschau-Ziel ist nicht in derselben Organisation.");
     }
@@ -64,13 +74,16 @@ export async function loadStaffCaller(
     impersonatedBy = link.staff_id as string;
   }
 
-  const { data: staff, error: staffErr } = await supabaseAdmin
-    .from("staff")
-    .select("is_active")
-    .eq("id", effectiveStaffId)
-    .eq("organization_id", organizationId)
-    .maybeSingle();
-  if (staffErr || !staff) throw new Error("Mitarbeiter nicht gefunden.");
+  const staff = expectMaybe<{ is_active: boolean }>(
+    await supabaseAdmin
+      .from("staff")
+      .select("is_active")
+      .eq("id", effectiveStaffId)
+      .eq("organization_id", organizationId)
+      .maybeSingle(),
+    "loadStaffCaller.staff",
+  );
+  if (!staff) throw new Error("Mitarbeiter nicht gefunden.");
   return {
     userId,
     staffId: effectiveStaffId,
