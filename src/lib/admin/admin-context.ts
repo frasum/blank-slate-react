@@ -11,6 +11,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { assertMinRole, assertRoleAllowed, ForbiddenError, type AppRole } from "./role-guard";
 import { resolveActiveImpersonation } from "./impersonation";
+import { expectMaybe } from "@/lib/supabase/expect-ok";
 
 export type AdminCaller = {
   userId: string;
@@ -47,20 +48,26 @@ export async function loadAdminCaller(
   let effectiveStaffId = link.staff_id as string;
   let impersonatedBy: string | null = null;
   if (imp) {
-    const { data: adminRole } = await supabaseAdmin
-      .from("role_assignments")
-      .select("role")
-      .eq("staff_id", link.staff_id)
-      .eq("organization_id", link.organization_id)
-      .maybeSingle();
+    const adminRole = expectMaybe<{ role: string }>(
+      await supabaseAdmin
+        .from("role_assignments")
+        .select("role")
+        .eq("staff_id", link.staff_id)
+        .eq("organization_id", link.organization_id)
+        .maybeSingle(),
+      "loadAdminCaller.impersonation.adminRole",
+    );
     if ((adminRole?.role as string | undefined) !== "admin") {
       throw new ForbiddenError();
     }
-    const { data: target } = await supabaseAdmin
-      .from("staff")
-      .select("id, organization_id")
-      .eq("id", imp.targetStaffId)
-      .maybeSingle();
+    const target = expectMaybe<{ id: string; organization_id: string }>(
+      await supabaseAdmin
+        .from("staff")
+        .select("id, organization_id")
+        .eq("id", imp.targetStaffId)
+        .maybeSingle(),
+      "loadAdminCaller.impersonation.target",
+    );
     if (!target || target.organization_id !== link.organization_id) {
       throw new ForbiddenError();
     }
