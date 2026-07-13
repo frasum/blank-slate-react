@@ -23,7 +23,7 @@
 //     (clock/manual/import), werden die Pool-Zeilen jenes Tages
 //     verworfen.
 
-import { berlinOffsetMinutes, offsetString } from "@/lib/time/shift-hours";
+import { berlinLocalToIso } from "@/lib/time/shift-hours";
 import { kitchenShiftMinutes } from "./kitchen-shift-hours";
 
 export type PoolWritebackEntry = {
@@ -119,8 +119,8 @@ export function poolLocalTimeToIso(businessDate: string, hhmm: string, dayOffset
       next.getUTCDate(),
     ).padStart(2, "0")}`;
   }
-  const off = offsetString(berlinOffsetMinutes(isoDate));
-  return new Date(`${isoDate}T${hhmm}:00${off}`).toISOString();
+  const [hhStr, mmStr] = hhmm.split(":");
+  return berlinLocalToIso(isoDate, Number(hhStr), Number(mmStr));
 }
 
 // Lohn-Nachrangigkeit: pro businessDate werden alle 'pool'-Zeilen
