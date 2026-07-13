@@ -17,6 +17,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { TASK_CATEGORY_LABEL, TASK_STATUS_LABEL, type Task } from "@/lib/aufgaben/types";
 import { todayIso as todayIsoBerlin } from "@/lib/format";
 import { selectAllPaged } from "@/lib/supabase/select-all";
+import { getHolidayName } from "@/lib/roster/holidays-display";
 import {
   actionBadges,
   buildBoard,
