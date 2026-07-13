@@ -1,7 +1,7 @@
 // B6 — Arbeitszeitübersicht (Zusammenfassung + Buchhaltung), 1:1 nach tagesabrechnung.
 
 import { createFileRoute } from "@tanstack/react-router";
-import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -32,6 +32,10 @@ import {
   getTimeOverview,
   getWeeklyTimeEntries,
   getSfnOverview,
+  getTimeOverviewBatch,
+  getWeeklyTimeEntriesBatch,
+  getSfnOverviewBatch,
+  listPayrollNotesBatch,
   listPeriods,
   listPayrollNotes,
   listAdvancesByStaff,
@@ -235,6 +239,10 @@ function ZeitUebersichtPage() {
   const fetchAdvances = useServerFn(listAdvancesByStaff);
   const fetchAbsences = useServerFn(listAbsencesByStaff);
   const fetchSfn = useServerFn(getSfnOverview);
+  const fetchOverviewBatch = useServerFn(getTimeOverviewBatch);
+  const fetchWeeklyBatch = useServerFn(getWeeklyTimeEntriesBatch);
+  const fetchNotesBatch = useServerFn(listPayrollNotesBatch);
+  const fetchSfnBatch = useServerFn(getSfnOverviewBatch);
   const callUpsert = useServerFn(upsertPayrollNote);
   const callSetShift = useServerFn(setTimeEntryShift);
   const callCreateShift = useServerFn(createTimeEntryShift);
@@ -318,15 +326,16 @@ function ZeitUebersichtPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectivePeriodId]);
 
-  // Wenn "Alle Standorte" gewählt: pro Location parallel laden + clientseitig mergen.
-  const allLocationQueries = useQueries({
-    queries: isAllLocations
-      ? locations.map((l) => ({
-          queryKey: ["weekly-entries", l.id, weekStart],
-          queryFn: () => fetchWeekly({ data: { locationId: l.id, weekStart } }),
-          enabled: Boolean(weekStart),
-        }))
-      : [],
+  // Wenn "Alle Standorte" gewählt: ein einziger Batch-Request statt N Fanouts.
+  // Der Batch-Endpoint deduped locationIds und liefert Record<id, WeeklyData>.
+  // crossLocationDates bleibt im Multi-Modus bewusst leer (Single-Location-Feature).
+  const allLocationIds = useMemo(() => locations.map((l) => l.id), [locations]);
+  const allLocationsKey = useMemo(() => [...allLocationIds].sort().join(","), [allLocationIds]);
+  const weeklyBatchQ = useQuery({
+    queryKey: ["weekly-entries", "batch", allLocationsKey, weekStart],
+    queryFn: () =>
+      fetchWeeklyBatch({ data: { locationIds: allLocationIds, weekStart } }),
+    enabled: isAllLocations && allLocationIds.length > 0 && Boolean(weekStart),
   });
 
   const weeklyQSingle = useQuery({
@@ -347,8 +356,9 @@ function ZeitUebersichtPage() {
         rosterByStaff: {},
         rosterAreaByStaffDate: {},
       };
-      for (const q of allLocationQueries) {
-        const d = q.data as WeeklyData | undefined;
+      const byLoc = weeklyBatchQ.data?.byLocation ?? {};
+      for (const lid of allLocationIds) {
+        const d = byLoc[lid] as WeeklyData | undefined;
         if (!d) continue;
         merged.entries.push(...d.entries);
         for (const s of d.assignedStaff ?? []) {
@@ -392,10 +402,15 @@ function ZeitUebersichtPage() {
       return merged;
     }
     return weeklyQSingle.data;
-  }, [isAllLocations, allLocationQueries, weeklyQSingle.data, weekStart, weekStartDate]);
-  const weeklyLoading = isAllLocations
-    ? allLocationQueries.some((q) => q.isLoading)
-    : weeklyQSingle.isLoading;
+  }, [
+    isAllLocations,
+    weeklyBatchQ.data,
+    weeklyQSingle.data,
+    weekStart,
+    weekStartDate,
+    allLocationIds,
+  ]);
+  const weeklyLoading = isAllLocations ? weeklyBatchQ.isLoading : weeklyQSingle.isLoading;
 
   const overviewQ = useQuery({
     queryKey: ["time-overview", effectiveLocationId, fromDate, toDate],
@@ -403,20 +418,20 @@ function ZeitUebersichtPage() {
     enabled: Boolean(effectiveLocationId) && !isAllLocations,
   });
 
-  // Schichten (Periode) — standortübergreifend zählen: pro Standort Overview laden
-  // und Kalender-Tage pro Mitarbeiter zu einem Set mergen (mehrere Einsätze am
-  // selben Tag = 1 Schicht).
-  const shiftCountQueries = useQueries({
-    queries: locations.map((l) => ({
-      queryKey: ["time-overview", l.id, fromDate, toDate],
-      queryFn: () => fetchOverview({ data: { locationId: l.id, fromDate, toDate } }),
-      enabled: Boolean(l.id) && Boolean(fromDate) && Boolean(toDate),
-    })),
+  // Schichten (Periode) — standortübergreifend: ein Batch-Request über alle Locations.
+  // Wird sowohl für shiftsByStaff (immer) als auch für den Overview-Merge im
+  // "Alle Standorte"-Modus genutzt.
+  const overviewBatchQ = useQuery({
+    queryKey: ["time-overview", "batch", allLocationsKey, fromDate, toDate],
+    queryFn: () =>
+      fetchOverviewBatch({ data: { locationIds: allLocationIds, fromDate, toDate } }),
+    enabled: allLocationIds.length > 0 && Boolean(fromDate) && Boolean(toDate),
   });
   const shiftsByStaff = useMemo(() => {
     const days = new Map<string, Set<string>>();
-    for (const q of shiftCountQueries) {
-      const entries = (q.data as { entries?: Entry[] } | undefined)?.entries ?? [];
+    const byLoc = overviewBatchQ.data?.byLocation ?? {};
+    for (const lid of allLocationIds) {
+      const entries = (byLoc[lid] as { entries?: Entry[] } | undefined)?.entries ?? [];
       for (const e of entries) {
         let set = days.get(e.staffId);
         if (!set) {
@@ -429,27 +444,25 @@ function ZeitUebersichtPage() {
     const counts = new Map<string, number>();
     for (const [staffId, set] of days) counts.set(staffId, set.size);
     return counts;
-  }, [shiftCountQueries]);
+  }, [overviewBatchQ.data, allLocationIds]);
 
-  // Bei "Alle Standorte": Overview aus den bereits pro Standort geladenen
-  // shiftCountQueries mergen (jeder time_entry hat genau einen Standort → keine
-  // Duplikate). Bei Bereichs-Konflikt eines Mitarbeiters (z. B. an Standort A
-  // Küche, an B Service) gewinnt in staffAggs unten das ERSTE Vorkommen in der
-  // festen `locations`-Reihenfolge — die Person erscheint einmal mit der Summe.
+  // Bei "Alle Standorte": Overview aus dem Batch-Request mergen (jeder
+  // time_entry hat genau einen Standort → keine Duplikate). Bei Bereichs-
+  // Konflikt eines Mitarbeiters gewinnt in staffAggs unten das ERSTE Vorkommen
+  // in der festen `locations`-Reihenfolge — die Person erscheint einmal mit der Summe.
   const overviewEntries = useMemo<Entry[]>(() => {
     if (isAllLocations) {
       const out: Entry[] = [];
-      for (const q of shiftCountQueries) {
-        const entries = (q.data as { entries?: Entry[] } | undefined)?.entries ?? [];
+      const byLoc = overviewBatchQ.data?.byLocation ?? {};
+      for (const lid of allLocationIds) {
+        const entries = (byLoc[lid] as { entries?: Entry[] } | undefined)?.entries ?? [];
         out.push(...entries);
       }
       return out;
     }
     return overviewQ.data?.entries ?? [];
-  }, [isAllLocations, shiftCountQueries, overviewQ.data]);
-  const overviewLoading = isAllLocations
-    ? shiftCountQueries.some((q) => q.isLoading)
-    : overviewQ.isLoading;
+  }, [isAllLocations, overviewBatchQ.data, allLocationIds, overviewQ.data]);
+  const overviewLoading = isAllLocations ? overviewBatchQ.isLoading : overviewQ.isLoading;
 
   const notesQ = useQuery({
     queryKey: ["payroll-notes", effectiveLocationId, fromDate, toDate],
@@ -459,16 +472,18 @@ function ZeitUebersichtPage() {
       }),
     enabled: Boolean(effectiveLocationId) && !isAllLocations,
   });
-  // Bei "Alle Standorte": Notes je Standort parallel laden.
-  const notesAllQueries = useQueries({
-    queries: isAllLocations
-      ? locations.map((l) => ({
-          queryKey: ["payroll-notes", l.id, fromDate, toDate],
-          queryFn: () =>
-            fetchNotes({ data: { locationId: l.id, periodStart: fromDate, periodEnd: toDate } }),
-          enabled: Boolean(l.id) && Boolean(fromDate) && Boolean(toDate),
-        }))
-      : [],
+  // Bei "Alle Standorte": Notes in einem Batch-Request laden.
+  const notesBatchQ = useQuery({
+    queryKey: ["payroll-notes", "batch", allLocationsKey, fromDate, toDate],
+    queryFn: () =>
+      fetchNotesBatch({
+        data: { locationIds: allLocationIds, periodStart: fromDate, periodEnd: toDate },
+      }),
+    enabled:
+      isAllLocations &&
+      allLocationIds.length > 0 &&
+      Boolean(fromDate) &&
+      Boolean(toDate),
   });
 
   const advancesQ = useQuery({
@@ -486,15 +501,16 @@ function ZeitUebersichtPage() {
     queryFn: () => fetchSfn({ data: { locationId: effectiveLocationId, fromDate, toDate } }),
     enabled: Boolean(effectiveLocationId) && !isAllLocations,
   });
-  // Bei "Alle Standorte": SFN je Standort parallel laden.
-  const sfnAllQueries = useQueries({
-    queries: isAllLocations
-      ? locations.map((l) => ({
-          queryKey: ["payroll-sfn", l.id, fromDate, toDate],
-          queryFn: () => fetchSfn({ data: { locationId: l.id, fromDate, toDate } }),
-          enabled: Boolean(l.id) && Boolean(fromDate) && Boolean(toDate),
-        }))
-      : [],
+  // Bei "Alle Standorte": SFN in einem Batch-Request laden.
+  const sfnBatchQ = useQuery({
+    queryKey: ["payroll-sfn", "batch", allLocationsKey, fromDate, toDate],
+    queryFn: () =>
+      fetchSfnBatch({ data: { locationIds: allLocationIds, fromDate, toDate } }),
+    enabled:
+      isAllLocations &&
+      allLocationIds.length > 0 &&
+      Boolean(fromDate) &&
+      Boolean(toDate),
   });
 
   const weekCols = useMemo(() => buildWeekColumns(fromDate, toDate), [fromDate, toDate]);
@@ -551,12 +567,12 @@ function ZeitUebersichtPage() {
     if (isAllLocations) {
       // Pro Standort mergen: Vorschüsse summieren, Besonderheiten mit Standort-
       // Präfix konkatenieren (z. B. "spicery: … · YUM: …").
-      for (let i = 0; i < notesAllQueries.length; i++) {
-        const loc = locations[i];
-        const data = notesAllQueries[i]?.data as
+      const byLoc = notesBatchQ.data?.byLocation ?? {};
+      for (const loc of locations) {
+        const data = byLoc[loc.id] as
           | Array<{ staffId: string; vorschuss: number; besonderheiten: string }>
           | undefined;
-        if (!loc || !data) continue;
+        if (!data) continue;
         for (const n of data) {
           const prev = m.get(n.staffId);
           const noteText = n.besonderheiten?.trim() ? `${loc.name}: ${n.besonderheiten}` : "";
@@ -578,7 +594,7 @@ function ZeitUebersichtPage() {
       }
     }
     return m;
-  }, [isAllLocations, notesQ.data, notesAllQueries, locations]);
+  }, [isAllLocations, notesQ.data, notesBatchQ.data, locations]);
 
   const advanceCentsByStaff = useMemo(() => {
     const m = new Map<string, number>();
@@ -637,15 +653,16 @@ function ZeitUebersichtPage() {
       prev.zuschlagCents += s.zuschlagCents;
     };
     if (isAllLocations) {
-      for (const q of sfnAllQueries) {
-        const data = q.data as { sfn?: Array<Parameters<typeof addOne>[0]> } | undefined;
+      const byLoc = sfnBatchQ.data?.byLocation ?? {};
+      for (const lid of allLocationIds) {
+        const data = byLoc[lid] as { sfn?: Array<Parameters<typeof addOne>[0]> } | undefined;
         for (const s of data?.sfn ?? []) addOne(s);
       }
     } else {
       for (const s of sfnQ.data?.sfn ?? []) addOne(s);
     }
     return m;
-  }, [isAllLocations, sfnQ.data, sfnAllQueries]);
+  }, [isAllLocations, sfnQ.data, sfnBatchQ.data, allLocationIds]);
 
   const upsertMut = useMutation({
     mutationFn: (vars: { staffId: string; vorschuss: number; besonderheiten: string | null }) =>
@@ -660,17 +677,16 @@ function ZeitUebersichtPage() {
         },
       }),
     onSuccess: () => {
-      void qc.invalidateQueries({
-        queryKey: ["payroll-notes", effectiveLocationId, fromDate, toDate],
-      });
+      // Deckt sowohl Single- als auch Batch-Key ab.
+      void qc.invalidateQueries({ queryKey: ["payroll-notes"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
   function invalidateWeekly() {
-    void qc.invalidateQueries({
-      queryKey: ["weekly-entries", effectiveLocationId, weekStart],
-    });
+    // Deckt Single- (["weekly-entries", locId, weekStart]) und Batch-Key
+    // (["weekly-entries", "batch", …]) ab.
+    void qc.invalidateQueries({ queryKey: ["weekly-entries"] });
   }
 
   const setShiftMut = useMutation({
