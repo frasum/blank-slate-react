@@ -88,6 +88,11 @@ export function isSundayOrHoliday(date: Date): boolean {
 export function berlinOffsetMinutes(dateIso: string): number {
   // Bestimmt den Europe/Berlin-Offset (in Minuten) zum Mittag des angegebenen Tages.
   const ref = new Date(`${dateIso}T12:00:00Z`);
+  return berlinOffsetMinutesAt(ref);
+}
+
+// DST-korrekt: Offset (in Minuten) für Europe/Berlin zu EINEM konkreten Instant.
+export function berlinOffsetMinutesAt(instant: Date): number {
   const dtf = new Intl.DateTimeFormat("en-US", {
     timeZone: "Europe/Berlin",
     hour12: false,
@@ -98,7 +103,7 @@ export function berlinOffsetMinutes(dateIso: string): number {
     minute: "2-digit",
     second: "2-digit",
   });
-  const parts = dtf.formatToParts(ref);
+  const parts = dtf.formatToParts(instant);
   const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? "0");
   const asUtc = Date.UTC(
     get("year"),
@@ -108,7 +113,28 @@ export function berlinOffsetMinutes(dateIso: string): number {
     get("minute"),
     get("second"),
   );
-  return Math.round((asUtc - ref.getTime()) / 60000);
+  return Math.round((asUtc - instant.getTime()) / 60000);
+}
+
+// DST-sichere Umwandlung einer Europe/Berlin-Wanduhrzeit (dateIso + HH:MM[:SS])
+// in einen UTC-ISO-Instant. Kritisch für die Umstellungsnächte: zwischen
+// 00:00 und 03:00 unterscheidet sich der Offset vom Mittags-Offset desselben
+// Tages. Vorgehen: 1) Instant mit Mittags-Offset schätzen, 2) tatsächlichen
+// Offset AN DIESEM INSTANT bestimmen, 3) Instant damit korrigieren.
+export function berlinLocalToIso(
+  dateIso: string,
+  hh: number,
+  mm: number,
+  ss = 0,
+): string {
+  const year = Number(dateIso.slice(0, 4));
+  const month = Number(dateIso.slice(5, 7)) - 1;
+  const day = Number(dateIso.slice(8, 10));
+  const localAsUtcMs = Date.UTC(year, month, day, hh, mm, ss);
+  const guessOffset = berlinOffsetMinutes(dateIso);
+  const guessInstant = new Date(localAsUtcMs - guessOffset * 60_000);
+  const realOffset = berlinOffsetMinutesAt(guessInstant);
+  return new Date(localAsUtcMs - realOffset * 60_000).toISOString();
 }
 
 export function offsetString(minutes: number): string {
@@ -136,10 +162,8 @@ export function computeShiftHours(
     const n = addUTCDays(businessDay, 1);
     return `${n.getUTCFullYear()}-${String(n.getUTCMonth() + 1).padStart(2, "0")}-${String(n.getUTCDate()).padStart(2, "0")}`;
   })();
-  const off = offsetString(berlinOffsetMinutes(businessDate));
-  const offNext = offsetString(berlinOffsetMinutes(nextIso));
-  const eveningStartMs = new Date(`${businessDate}T20:00:00${off}`).getTime();
-  const midnightMs = new Date(`${nextIso}T00:00:00${offNext}`).getTime();
+  const eveningStartMs = new Date(berlinLocalToIso(businessDate, 20, 0)).getTime();
+  const midnightMs = new Date(berlinLocalToIso(nextIso, 0, 0)).getTime();
   // Endpunkt für Nachtfenster: bis 24h nach Mitternacht ist mehr als genug.
   const nightEndCapMs = midnightMs + 24 * 3_600_000;
 
