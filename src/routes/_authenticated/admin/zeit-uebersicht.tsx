@@ -3,16 +3,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { todayIso } from "@/lib/format";
-import { berlinLocalToIso } from "@/lib/time/shift-hours";
 import { ZeitSkeleton } from "@/components/ui/page-skeletons";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -45,9 +43,7 @@ import {
   upsertPayrollNote,
 } from "@/lib/time/time-admin.functions";
 import {
-  bavarianHolidayName,
   computeShiftHours,
-  isBavarianHoliday,
   isSundayOrHoliday,
 } from "@/lib/time/shift-hours";
 import {
@@ -66,7 +62,7 @@ import {
   type BuchhaltungExportRow,
   type BuchhaltungMode,
 } from "@/lib/time/buchhaltung-export";
-import { CalendarDays, FileDown, FileSpreadsheet, Search } from "lucide-react";
+import { FileDown, FileSpreadsheet, Search } from "lucide-react";
 import { ProvisionTab } from "@/components/lohn/ProvisionTab";
 import { LohnrechnerPanel } from "@/components/lohn/LohnrechnerPanel";
 import { BatchTimesCard } from "@/components/zeit/BatchTimesCard";
@@ -74,7 +70,6 @@ import { entryRowDepartment } from "@/lib/time/primary-department";
 import { filterWeeklyRows } from "@/lib/time/weekly-filter";
 import { listSkills, type SkillCategory } from "@/lib/admin/skills.functions";
 import { PillSelect } from "@/components/ui/pill-select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -85,11 +80,19 @@ import {
 import {
   type Department,
   type Entry,
+  type WeeklyData,
+  type WeeklyEntry,
   addDays,
+  buildShiftIsosOrThrow,
   buildWeekColumns,
   ddmm,
+  DEPT_BG,
+  DEPT_HEADER_LABEL,
+  DEPT_LABEL,
+  DEPT_ORDER,
   firstOfMonthIso,
   fmtDDMM,
+  fmtHHMM,
   fmtHm,
   fmtIso,
   isoWeek,
@@ -100,6 +103,9 @@ import {
   periodDefaultStart,
   periodLabelForEnd,
 } from "@/lib/time/zeit-uebersicht-core";
+import { PayrollTab } from "@/components/zeit/PayrollTab";
+import { WeeklyPlan } from "@/components/zeit/WeeklyPlan";
+import { PeriodsPanel, type Period } from "@/components/zeit/PeriodsPanel";
 
 export const Route = createFileRoute("/_authenticated/admin/zeit-uebersicht")({
   head: () => ({ meta: [{ title: "Arbeitszeiten" }] }),
