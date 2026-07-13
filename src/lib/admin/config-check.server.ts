@@ -17,8 +17,6 @@ export type ConfigVarStatus = {
 
 type Spec = Omit<ConfigVarStatus, "present" | "hint">;
 
-const SERVICE_ROLE_ENV_NAME = ["SUPABASE", "SERVICE", "ROLE", "KEY"].join("_");
-
 const SPECS: Spec[] = [
   {
     name: "SUPABASE_URL",
@@ -33,7 +31,7 @@ const SPECS: Spec[] = [
     purpose: "Publishable-Key für user-scoped server functions (RLS aktiv).",
   },
   {
-    name: SERVICE_ROLE_ENV_NAME,
+    name: "SUPABASE_SERVICE_ROLE_KEY",
     critical: true,
     group: "supabase",
     purpose: "Service-Role-Key für supabaseAdmin (RLS-Bypass, nur Server).",
