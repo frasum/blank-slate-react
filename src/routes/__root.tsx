@@ -73,6 +73,10 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
           <p className="mt-3 text-xs text-muted-foreground/80">
             Ein Neuladen behebt das Problem nicht, solange die Variablen fehlen.
           </p>
+          <p className="mt-3 text-xs text-muted-foreground/80">
+            Seit ENV2 existiert ein Publishable-Fallback; erscheint diese Seite dennoch, liegt ein
+            Build-Defekt vor (nicht nur fehlende Env).
+          </p>
         </div>
       </div>
     );
