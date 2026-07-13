@@ -339,10 +339,12 @@ export const listBankTransactions = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, ["admin"]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    // Wenn nach Kategorie gefiltert wird, geschieht das erst nach dem
-    // Auflösen im Node-Prozess (Regeln + Overrides). PostgREST kappt bei
-    // 1000 Zeilen; ein reines `.limit(5000)` bringt daher nichts. Wir
-    // paginieren stattdessen und schneiden nach dem Filtern auf data.limit.
+    // N10 (Nachprüfung 13.07.): Vollast-Pagination NUR wenn nach Kategorie
+    // gefiltert wird — die Auflösung passiert erst im Node-Prozess (Regeln
+    // + Overrides), und PostgREST würde ohne selectAllPaged die 1000
+    // sichtbaren Treffer stumm kappen, sodass seltene Kategorien fehlen.
+    // Ohne Kategoriefilter reicht der normale Seitenlimit, damit die Liste
+    // spürbar schnell bleibt (Bank-Ansicht: Standardpfad).
     type TxRow = {
       id: string;
       account_id: string;
@@ -361,9 +363,7 @@ export const listBankTransactions = createServerFn({ method: "POST" })
       data.search && data.search.length > 0
         ? `%${data.search.replace(/[%_]/g, (m) => `\\${m}`)}%`
         : null;
-    const txs = await selectAllPaged<
-      Omit<TxRow, "laufende_nummer"> & { laufende_nummer: number | null }
-    >((from, to) => {
+    const buildBaseQuery = () => {
       let q = supabaseAdmin
         .from("bank_transactions")
         .select(
@@ -375,8 +375,19 @@ export const listBankTransactions = createServerFn({ method: "POST" })
         .order("id", { ascending: false });
       q = applyFilterToQuery(q, data) as typeof q;
       if (like) q = q.or(`gegenpartei.ilike.${like},verwendungszweck.ilike.${like}`);
-      return q.range(from, to);
-    });
+      return q;
+    };
+    type PagedTx = Omit<TxRow, "laufende_nummer"> & { laufende_nummer: number | null };
+    const hasCategoryFilter =
+      data.categoryId === "_none" || (typeof data.categoryId === "string" && !!data.categoryId);
+    let txs: PagedTx[];
+    if (hasCategoryFilter) {
+      txs = await selectAllPaged<PagedTx>((from, to) => buildBaseQuery().range(from, to));
+    } else {
+      const { data: rows, error } = await buildBaseQuery().range(0, data.limit - 1);
+      if (error) throw error;
+      txs = (rows ?? []) as PagedTx[];
+    }
     const { rules } = await loadCategoriesAndRules(caller.organizationId);
     const sortedRules = sortRules(rules);
     const out: BankTxRow[] = [];
