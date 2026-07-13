@@ -998,18 +998,15 @@ export const getWeeklyTimeEntriesBatch = createServerFn({ method: "GET" })
     end.setUTCDate(end.getUTCDate() + 6);
     const weekEnd = end.toISOString().slice(0, 10);
 
-    const { data: entryRows, error: entryErr } = await supabaseAdmin
-      .from("time_entries")
-      .select(
-        "id, location_id, staff_id, started_at, ended_at, business_date, department, staff(display_name)",
-      )
-      .eq("organization_id", caller.organizationId)
-      .in("location_id", data.locationIds)
-      .gte("business_date", data.weekStart)
-      .lte("business_date", weekEnd)
-      .not("ended_at", "is", null)
-      .order("started_at", { ascending: true });
-    if (entryErr) throw entryErr;
+    // N1: paginierte Loader — 1 Woche × mehrere Standorte kann bei größeren
+    // Belegschaften die 1000-Zeilen-Grenze streifen.
+    const entryRows = await _loadTimeEntriesForWeeklyBatch(
+      supabaseAdmin,
+      caller.organizationId,
+      data.locationIds,
+      data.weekStart,
+      weekEnd,
+    );
 
     const { data: deptRows, error: deptErr } = await supabaseAdmin
       .from("staff_locations")
@@ -1036,14 +1033,13 @@ export const getWeeklyTimeEntriesBatch = createServerFn({ method: "GET" })
       }
     }
 
-    const { data: rosterRows, error: rosterErr } = await supabaseAdmin
-      .from("roster_shifts")
-      .select("location_id, staff_id, area, skill_id, shift_date")
-      .eq("organization_id", caller.organizationId)
-      .in("location_id", data.locationIds)
-      .gte("shift_date", data.weekStart)
-      .lte("shift_date", weekEnd);
-    if (rosterErr) throw rosterErr;
+    const rosterRows = await _loadRosterShiftsForWeeklyBatch(
+      supabaseAdmin,
+      caller.organizationId,
+      data.locationIds,
+      data.weekStart,
+      weekEnd,
+    );
 
     // Rows nach Location bucketen.
     type DeptRow = {
