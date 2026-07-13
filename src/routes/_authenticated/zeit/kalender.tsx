@@ -80,6 +80,10 @@ function KalenderPage() {
     mutationFn: async () => {
       await fnRevoke();
       setFreshFeedPath(null);
+      // N2: Auto-Rotate für den Rest dieses Seitenbesuchs unterbinden —
+      // sonst würde der Effekt weiter unten den soeben deaktivierten
+      // Link sofort neu anlegen.
+      didAutoRotate.current = true;
       await qc.invalidateQueries({ queryKey: ["zeit", "calendar-token-status"] });
     },
     onSuccess: () => toast.success("Abo-Link deaktiviert."),
