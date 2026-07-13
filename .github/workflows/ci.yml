@@ -148,7 +148,7 @@ jobs:
           version: latest
       - run: bun install --frozen-lockfile
       - name: Install Playwright browsers
-        run: bunx playwright install --with-deps chromium
+        run: bunx playwright install --with-deps chromium webkit
       - name: Start local Supabase stack
         run: supabase start --exclude studio,inbucket,storage-api,imgproxy,edge-runtime,logflare,vector
       - name: Wait for Supabase to be ready
@@ -167,6 +167,12 @@ jobs:
           SUPA_URL=$(supabase status -o env | grep '^API_URL=' | cut -d= -f2- | tr -d '"')
           SUPA_ANON=$(supabase status -o env | grep '^ANON_KEY=' | cut -d= -f2- | tr -d '"')
           SUPA_SVC=$(supabase status -o env | grep '^SERVICE_ROLE_KEY=' | cut -d= -f2- | tr -d '"')
+          # Fail fast: leere Werte dürfen NIE still in GITHUB_ENV landen —
+          # seit ENV2 (client.ts-Publishable-Fallback) hieße leer = Fallback
+          # auf PRODUKTIONS-Supabase, und E2E schreibt (Finalize!).
+          for v in SUPA_URL SUPA_ANON SUPA_SVC; do
+            [ -n "${!v}" ] || { echo "::error::supabase status Parsing lieferte leeres $v — Format geändert?"; exit 1; }
+          done
           {
             echo "SUPABASE_URL=$SUPA_URL"
             echo "SUPABASE_ANON_KEY=$SUPA_ANON"
