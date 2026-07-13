@@ -863,33 +863,47 @@ function DisplayPanel({ locationId }: { locationId: string }) {
 
       <div className="space-y-1">
         <p className="text-xs uppercase tracking-wide text-muted-foreground">Anzeige-URL</p>
-        <div className="flex items-center gap-2">
-          <input
-            readOnly
-            value={displayUrl}
-            className="flex-1 rounded border border-input bg-background px-2 py-1 font-mono text-xs"
-            onFocus={(e) => e.currentTarget.select()}
-          />
-          <button
-            onClick={copy}
-            className="rounded border border-input bg-background px-3 py-1 hover:bg-accent"
-          >
-            {copied ? "Kopiert" : "Kopieren"}
-          </button>
-          <a
-            href={displayUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded border border-input bg-background px-3 py-1 hover:bg-accent"
-          >
-            Öffnen
-          </a>
-        </div>
-        <div className="pt-2">
-          <div className="inline-block rounded bg-white p-2">
-            <QRCodeSVG value={displayUrl} size={140} />
-          </div>
-        </div>
+        {displayUrl ? (
+          <>
+            <div className="flex items-center gap-2">
+              <input
+                readOnly
+                value={displayUrl}
+                className="flex-1 rounded border border-input bg-background px-2 py-1 font-mono text-xs"
+                onFocus={(e) => e.currentTarget.select()}
+              />
+              <button
+                onClick={copy}
+                className="rounded border border-input bg-background px-3 py-1 hover:bg-accent"
+              >
+                {copied ? "Kopiert" : "Kopieren"}
+              </button>
+              <a
+                href={displayUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded border border-input bg-background px-3 py-1 hover:bg-accent"
+              >
+                Öffnen
+              </a>
+            </div>
+            <div className="pt-2">
+              <div className="inline-block rounded bg-white p-2">
+                <QRCodeSVG value={displayUrl} size={140} />
+              </div>
+            </div>
+            <p className="pt-1 text-xs text-muted-foreground">
+              Diese URL ist nur jetzt sichtbar. Kopieren oder QR-Code direkt aufs Display —
+              beim nächsten Öffnen kann sie nicht mehr angezeigt werden.
+            </p>
+          </>
+        ) : (
+          <p className="rounded-md bg-muted p-2 text-xs text-muted-foreground">
+            Die Anzeige-URL ist aus Sicherheitsgründen nur direkt nach dem Erzeugen sichtbar.
+            Klick auf „Token neu generieren", um eine neue URL zu erhalten (das Display muss
+            danach mit der neuen URL neu geladen werden).
+          </p>
+        )}
       </div>
 
       <DisplayOptions settings={settings} onChange={(input) => upsertMut.mutate(input)} />
