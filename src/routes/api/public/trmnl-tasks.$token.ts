@@ -14,8 +14,6 @@
 // Reine Aufbereitung liegt in src/lib/trmnl/board.ts (mit Vitest getestet).
 
 import { createFileRoute } from "@tanstack/react-router";
-import { Buffer } from "node:buffer";
-import { timingSafeEqual } from "node:crypto";
 import { TASK_CATEGORY_LABEL, TASK_STATUS_LABEL, type Task } from "@/lib/aufgaben/types";
 import { selectAllPaged } from "@/lib/supabase/select-all";
 import {
