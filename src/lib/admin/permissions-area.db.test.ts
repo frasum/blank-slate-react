@@ -81,7 +81,7 @@ describe.skipIf(!dbTestsEnabled)("has_permission area-Logik (P-1)", () => {
     expect(await rpcHasPermission("roster.shift.manage", locB, "service")).toBe(false);
   });
 
-  it("DENY schlägt ALLOW im selben Scope", async () => {
+  it("DENY schlägt ALLOW (breiter ALLOW + engerer DENY)", async () => {
     await org.service.from("permission_overrides").delete().eq("staff_id", planerStaffId);
     const { error: e1 } = await org.service.from("permission_overrides").insert({
       organization_id: org.orgId,
@@ -89,7 +89,7 @@ describe.skipIf(!dbTestsEnabled)("has_permission area-Logik (P-1)", () => {
       permission: "roster.shift.manage" as never,
       effect: "allow" as never,
       location_id: locA,
-      area: "kitchen" as never,
+      area: null as never,
     });
     if (e1) throw new Error(e1.message);
     const { error: e2 } = await org.service.from("permission_overrides").insert({
