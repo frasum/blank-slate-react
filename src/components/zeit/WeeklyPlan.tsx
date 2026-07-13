@@ -355,26 +355,49 @@ export function WeeklyPlan({
             <TableHead
               rowSpan={2}
               className="px-1 text-right text-xs align-middle whitespace-nowrap"
+              title={
+                totalsScope === "period"
+                  ? "Gesamt in der Abrechnungsperiode"
+                  : "Gesamt in dieser Woche"
+              }
             >
-              Ges
+              Ges{totalsScope === "period" ? "*" : ""}
+            </TableHead>
+            <TableHead
+              rowSpan={2}
+              className="px-1 text-right text-xs align-middle whitespace-nowrap"
+              title={
+                totalsScope === "period"
+                  ? "Abendzuschlag (20–24) in der Abrechnungsperiode"
+                  : "Abendzuschlag (20–24) in dieser Woche"
+              }
+            >
+              20–24{totalsScope === "period" ? "*" : ""}
+            </TableHead>
+            <TableHead
+              rowSpan={2}
+              className="px-1 text-right text-xs align-middle whitespace-nowrap"
+              title={
+                totalsScope === "period"
+                  ? "Nachtzuschlag (24–x) in der Abrechnungsperiode"
+                  : "Nachtzuschlag (24–x) in dieser Woche"
+              }
+            >
+              24–x{totalsScope === "period" ? "*" : ""}
             </TableHead>
             <TableHead
               rowSpan={2}
               className="px-1 text-right text-xs align-middle whitespace-nowrap"
             >
-              20–24
-            </TableHead>
-            <TableHead
-              rowSpan={2}
-              className="px-1 text-right text-xs align-middle whitespace-nowrap"
-            >
-              24–x
-            </TableHead>
-            <TableHead
-              rowSpan={2}
-              className="px-1 text-right text-xs align-middle whitespace-nowrap"
-            >
-              <span title="Sonntag/Feiertag">SF</span>
+              <span
+                title={
+                  totalsScope === "period"
+                    ? "Sonntag/Feiertag in der Abrechnungsperiode"
+                    : "Sonntag/Feiertag in dieser Woche"
+                }
+              >
+                SF{totalsScope === "period" ? "*" : ""}
+              </span>
             </TableHead>
             <TableHead
               rowSpan={2}
