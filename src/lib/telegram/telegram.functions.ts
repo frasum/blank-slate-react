@@ -18,6 +18,7 @@ import { z } from "zod";
 import { randomBytes } from "node:crypto";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
+import { assertRealIdentity, resolveActiveImpersonation } from "@/lib/admin/impersonation";
 
 const LINK_TOKEN_TTL_MS = 15 * 60 * 1000; // 15 min
 
@@ -53,13 +54,10 @@ export const getMyTelegramLink = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // Effektive Identität — bei aktiver Impersonation zeigt sie auf das Ziel,
-    // sonst auf den eingeloggten Nutzer (vgl. getMyIdentity).
-    const { data: imp } = await supabaseAdmin
-      .from("admin_impersonations")
-      .select("target_staff_id, organization_id")
-      .eq("admin_user_id", context.userId)
-      .is("ended_at", null)
-      .maybeSingle();
+    // sonst auf den eingeloggten Nutzer. Auflösung über die zentrale
+    // Impersonation-Helper, damit der IMP2-Expiry-Check greift (abgelaufene
+    // Sitzungen werden dort automatisch beendet und geaudited).
+    const imp = await resolveActiveImpersonation(context.supabase, context.userId);
     const { data: link } = await supabaseAdmin
       .from("user_links")
       .select("staff_id, organization_id")
@@ -67,9 +65,8 @@ export const getMyTelegramLink = createServerFn({ method: "GET" })
       .maybeSingle();
     if (!link) throw new Error("Kein Mitarbeiter-Konto verknüpft.");
     const caller = {
-      staffId: (imp?.target_staff_id as string | undefined) ?? (link.staff_id as string),
-      organizationId:
-        (imp?.organization_id as string | undefined) ?? (link.organization_id as string),
+      staffId: imp?.targetStaffId ?? (link.staff_id as string),
+      organizationId: link.organization_id as string,
     };
 
     const [linkRes, settingsRes] = await Promise.all([
@@ -121,6 +118,10 @@ export const startTelegramLink = createServerFn({ method: "POST" })
       context,
     }): Promise<{ deepLink: string | null; expiresAt: string; botUsername: string | null }> => {
       const caller = await loadAdminCaller(context.supabase, context.userId, "staff");
+      // Vorschau (Admin-Impersonation) ist schreibgeschützt — verhindert,
+      // dass ein impersonierender Admin einen Telegram-Chat mit dem Konto
+      // des Ziel-Mitarbeiters verknüpft.
+      assertRealIdentity(caller);
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
       const token = makeToken();
@@ -169,6 +170,10 @@ export const unlinkTelegram = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<{ ok: true }> => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "staff");
+    // Vorschau (Admin-Impersonation) ist schreibgeschützt — verhindert,
+    // dass ein impersonierender Admin den Telegram-Link des Ziel-Mitarbeiters
+    // kappt.
+    assertRealIdentity(caller);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("staff_telegram_links")
