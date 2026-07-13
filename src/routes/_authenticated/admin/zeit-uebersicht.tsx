@@ -85,7 +85,6 @@ import {
 import {
   type Department,
   type Entry,
-  type WeekCol,
   addDays,
   buildWeekColumns,
   ddmm,
