@@ -567,12 +567,12 @@ function ZeitUebersichtPage() {
     if (isAllLocations) {
       // Pro Standort mergen: Vorschüsse summieren, Besonderheiten mit Standort-
       // Präfix konkatenieren (z. B. "spicery: … · YUM: …").
-      for (let i = 0; i < notesAllQueries.length; i++) {
-        const loc = locations[i];
-        const data = notesAllQueries[i]?.data as
+      const byLoc = notesBatchQ.data?.byLocation ?? {};
+      for (const loc of locations) {
+        const data = byLoc[loc.id] as
           | Array<{ staffId: string; vorschuss: number; besonderheiten: string }>
           | undefined;
-        if (!loc || !data) continue;
+        if (!data) continue;
         for (const n of data) {
           const prev = m.get(n.staffId);
           const noteText = n.besonderheiten?.trim() ? `${loc.name}: ${n.besonderheiten}` : "";
@@ -594,7 +594,7 @@ function ZeitUebersichtPage() {
       }
     }
     return m;
-  }, [isAllLocations, notesQ.data, notesAllQueries, locations]);
+  }, [isAllLocations, notesQ.data, notesBatchQ.data, locations]);
 
   const advanceCentsByStaff = useMemo(() => {
     const m = new Map<string, number>();
@@ -653,15 +653,16 @@ function ZeitUebersichtPage() {
       prev.zuschlagCents += s.zuschlagCents;
     };
     if (isAllLocations) {
-      for (const q of sfnAllQueries) {
-        const data = q.data as { sfn?: Array<Parameters<typeof addOne>[0]> } | undefined;
+      const byLoc = sfnBatchQ.data?.byLocation ?? {};
+      for (const lid of allLocationIds) {
+        const data = byLoc[lid] as { sfn?: Array<Parameters<typeof addOne>[0]> } | undefined;
         for (const s of data?.sfn ?? []) addOne(s);
       }
     } else {
       for (const s of sfnQ.data?.sfn ?? []) addOne(s);
     }
     return m;
-  }, [isAllLocations, sfnQ.data, sfnAllQueries]);
+  }, [isAllLocations, sfnQ.data, sfnBatchQ.data, allLocationIds]);
 
   const upsertMut = useMutation({
     mutationFn: (vars: { staffId: string; vorschuss: number; besonderheiten: string | null }) =>
