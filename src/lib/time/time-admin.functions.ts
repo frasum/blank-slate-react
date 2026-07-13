@@ -765,18 +765,14 @@ export const getTimeOverviewBatch = createServerFn({ method: "GET" })
     ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: rows, error } = await supabaseAdmin
-      .from("time_entries")
-      .select(
-        "location_id, staff_id, business_date, started_at, ended_at, source, staff(display_name)",
-      )
-      .eq("organization_id", caller.organizationId)
-      .in("location_id", data.locationIds)
-      .gte("business_date", data.fromDate)
-      .lte("business_date", data.toDate)
-      .not("ended_at", "is", null)
-      .order("business_date", { ascending: true });
-    if (error) throw error;
+    // N1: paginierter Loader statt PostgREST-Default (1000-Zeilen-Kappung).
+    const rows = await _loadTimeEntriesForOverviewBatch(
+      supabaseAdmin,
+      caller.organizationId,
+      data.locationIds,
+      data.fromDate,
+      data.toDate,
+    );
 
     const { data: deptRows, error: deptErr } = await supabaseAdmin
       .from("staff_locations")
@@ -811,7 +807,7 @@ export const getTimeOverviewBatch = createServerFn({ method: "GET" })
     > = {};
     for (const lid of data.locationIds) byLocation[lid] = { entries: [] };
 
-    for (const r of rows ?? []) {
+    for (const r of rows) {
       const lid = r.location_id as string;
       const bucket = byLocation[lid];
       if (!bucket) continue;
