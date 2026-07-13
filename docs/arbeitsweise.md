@@ -6,7 +6,7 @@ SaaS-Vorbereitung: Readiness-Audit und Modul-Katalog stehen in docs/saas-vorbere
 
 Produktionsreife-Review: docs/produktionsreife-review.md (Stand 07.07.2026, HEAD 8cfdbc1d, inkl. Patch-Plan P0–P7) — kritischer Pfad vor dem Kassen-Go-live: Monitoring (P1) → Finalize-E2E (P2) → Restore-Probe (P3) → Cutover.
 
-Stand: 13.07.2026 (§87: Sicherheitspaket + Hygiene-Batch, Verfahrensregel Gutachter-Pipeline)
+Stand: 13.07.2026 (§88: Nachprüfung — 13 Fixes, 6 Roadmap-Einträge, 3 Fachentscheidungen)
 
 TH1 — Standort-Farbthema: LocationThemeProvider im \_authenticated-Layout hält den themeKey (spicery/yum/neutral).
 LocationPills melden die Auswahl per useLocationThemeSync; Mapping: Name enthält „spicery" → spicery, „yum" → yum, sonst neutral (auch TSB/„Alle"/leer).
@@ -4044,3 +4044,36 @@ Abnahme-Anker: `f1783a90`, vier Gates grün, **1717 Tests** (+8 seit BK2).
 **Sandbox-Umgebungsnotiz:** `bank-csv-parser.test` schlägt in Lovables Sandbox fehl (Node ohne volle ICU → Windows-1252/€-Dekodierung), in CI und Prüfer-Umgebung grün — kein Code-Problem; Lovable meldete korrekt statt zu fixen.
 
 **Offen:** Gerätetests nach Publish (Displays + Force-Refresh, Kalender-Feed, Login-Zyklus) · restliche Offen-Liste unverändert (§85/§86: BK2-Inbetriebnahme, Gerätetest-Stapel, PL3, Backup Stufe 2, Cutover-Block mit Härtung).
+
+## §88 — Gutachter-Nachprüfung (Claude Code, 2. Runde): 18 Befunde triagiert, 13 Fixes abgenommen (13.07.)
+
+Abnahme-Anker: `cf93f819`, vier Gates grün, **1727 Tests** (+10). Erste Anwendung der §87-Verfahrensregel: Gutachter-Liste → Prüfer-Triage (jeder Befund am Code verifiziert) → Fix-Runden per Prompt. Ergebnis der Nachprüfung selbst: alle kritischen Erst-Befunde bestätigt behoben (u. a. Sommerzeit-Rechnung über beide Umstellungsnächte 2026 nachgerechnet).
+
+**Umgesetzt und abgenommen (13):**
+
+- **N1** Batch-Server-Fns (Zeit/SFN/Woche) paginieren via `selectAllPaged` — die Fixes der Vorrunde hatten die 1000-Zeilen-Trunkierung in die neuen Fns kopiert; bei 3 Standorten × Monat real erreichbar → stille Lohnübersichts-Fehler. Trunkierungs-Regressionstests ergänzt.
+- **N2** Kalender-Feed: „Link deaktivieren" bleibt deaktiviert (Ref-Flag; Auto-Rotate nur beim Erst-Besuch). Impersonation-Verhalten: manueller Check offen (s. u.).
+- **N4** Security-Header-Test gehärtet: hartes Assert statt „falls vorhanden" — Korrektur an der Prüfer-eigenen Präzisierung aus §87 (der Prüfer wird geprüft; angenommen).
+- **N5** Tauschbörse: Client nutzt `businessDateOf` (Geschäftstag, 3-Uhr-Grenze) — Client/Server nachts nicht mehr uneins.
+- **N10** Bank-Liste: Vollpfad nur bei Kategorie-Filter, sonst serverseitiges Limit (Über-Korrektur der Pagination zurückgestutzt).
+- **N11** Batch-Zeiten: Validierung komplett VOR erstem Schreibvorgang — ganz oder gar nicht, kein Teilzustand.
+- **N12** Wochenabfragen normalisieren jedes Startdatum auf Montag (+Test).
+- **N13** `format-date`: Zeitstempel einheitlich Europe/Berlin in beiden Funktionen; reine Datums-Strings unverändert (+Tests inkl. beider Umstellungsnächte).
+- **N14** „⌀ pro Gast (Haus)": EINE Basis in allen vier Ansichten (Karte, Summary, PDF, Druck) über den kanonischen revenue-core-Haus-Helfer. **Fachregel Frank:** Gästezahl = Im-Haus-Gäste ⇒ Basis = Haus-Umsatz (ohne Wolt/SoUse/eigenen Außer-Haus-Verkauf). Kennzahl fällt an Takeaway-starken Tagen sichtbar niedriger aus — Korrektur, kein Fehler.
+- **N15a** Totes Feld „OpenTabs-Abzug" aus Code entfernt (Fachentscheidung: Konzept durch SoUse abgelöst). **DB-Spalte bewusst belassen** bis Cutover-Mapping verifiziert → N15b auf Cutover-Checkliste.
+- **N16** Excel-Lohn-Export: Zeitlohn aus vorhandenen Entgeltzeilen statt eigener Formel (KGL). Geforderter Vorher/Nachher-Regressionstest entfiel mit Prüfer-Begründung: Drift ist durch die Struktur (Summe der Zeilen) konstruktiv unmöglich; Stichprobe beim nächsten Echt-Export vereinbart.
+- **N17** ICS-Zeilenfaltung nach RFC 5545 (75/74-Oktett-Budget, UTF-8-sicher, +Tests) — strikte Clients lehnen den Feed nicht mehr ab.
+- **N18a** Vier UTC-„Heute"-Nachzügler auf zentrale Funktionen umgestellt; Display-Server bewusst auf `businessDateOf` (Wandtafel zeigt nachts den laufenden Abend).
+
+**Roadmap-Einträge aus der Nachprüfung (6):**
+
+- **N3** PIN-Rate-Limit atomar machen (Postgres-Funktion) → Sicherheitspass vor Cutover (bewusst vertagt: minimaler Angreifer-Nutzen vs. Eingriff in den Auth-Pfad).
+- **N6 — Urlaubszählung auf 5-Tage-Modell (VOR Cutover, Priorität hoch):** `countLeaveDays` zählt künftig Mo–Fr-Tage des Zeitraums. **Fachregeln Frank (13.07.):** Sonntage verbrauchen NIE Urlaub; **Feiertage zählen als normale Arbeitstage** (Woche mit Feiertag = 5 Tage); `holidayDates`-Parameter und Heiligabend-Sonderregel entfallen ersatzlos. Heutiges Kalendertage-Modell zählt ~2 Tage/Urlaubswoche zu viel (nur informativ — Lohn-Wahrheit läuft über Franks manuelle Zählung an edlohn). Offen: Stichtag vs. rückwirkende Neuberechnung (Tendenz rückwirkend).
+- **N7** Kalender-Token-Ablauf → Produktentscheidung im Sicherheitspass (Preis: jährliche Neueinrichtung auf allen Handys; Alternativen: Ablauf mit Erinnerung ODER bewusst kein Ablauf, dokumentiert).
+- **N8** Login-Kandidatensuche org-scopen (Slug/Subdomain) → SaaS-/Mandanten-Spur (§86 P3); heute eine Org live, Risiko real null.
+- **N9 + N18b** Hygiene-2: zentraler DB-Fehler-Helfer (verschluckte Fehler in Admin-Fns) + Supabase-Typen regenerieren, 15 Rest-Casts entfernen — eigener Durchgang.
+- **N15b** `sessions.opentabs_deduction_cents` droppen — Cutover-Checkliste, nach Mapping-Verifikation.
+
+**Vom Tisch (mit Begründung):** N6-Erstfassung des Gutachters („Feiertag auf Sonntag doppelt") beruhte auf der Annahme eines Werktage-Modells — der Prüfer-Check am Code zeigte das Kalendertage-Modell; die daraus gestellte Fachfrage führte zur ECHTEN Abweichung (Modell ≠ Betriebsregel) und damit zum größeren, richtigen Roadmap-Umbau. Lehre: Ein Fehlbefund kann die richtige Frage stellen.
+
+**Abnahme-Fußnoten / offene Handgriffe (Frank):** Impersonation + Kalender-Seite öffnen (kein Toast/kein Auto-Link erwartet) · nächsten Echt-Lohn-Export stichprobenartig gegen App halten · ⌀ pro Gast (Haus) an einem Takeaway-Tag plausibilisieren · ICS einmal in strengem Client. **Prozessnotiz:** Die drei vereinbarten Fix-Runden landeten als EIN Batch auf main — ging diesmal gut (enge Prompts, Gates hielten), Gesamt-Abnahme war aber unschärfer als drei kleine; Takt-Disziplin bleibt Ziel (§86-Härtung).
