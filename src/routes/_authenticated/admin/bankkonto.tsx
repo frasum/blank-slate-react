@@ -756,7 +756,9 @@ function ImportTab({
     to: string | null;
     saldoOk: boolean;
   } | null>(null);
-  const [parsedRows, setParsedRows] = useState<Array<Record<string, unknown>> | null>(null);
+  const [parsedRows, setParsedRows] = useState<
+    import("@/lib/bank/bank-csv-parser").BankTxRaw[] | null
+  >(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const knownAccount = useMemo(
@@ -771,7 +773,7 @@ function ImportTab({
         data: {
           accountIban: iban.replace(/\s+/g, ""),
           accountName: name || undefined,
-          rows: parsedRows! as never,
+          rows: parsedRows!,
         },
       }),
     onSuccess: (res) => {
@@ -810,7 +812,7 @@ function ImportTab({
         return;
       }
       setIban(ibanRes.iban);
-      setParsedRows(res.rows as unknown as Array<Record<string, unknown>>);
+      setParsedRows(res.rows);
       setParseInfo({
         rows: res.rows.length,
         rohZeilen: res.rohZeilen,

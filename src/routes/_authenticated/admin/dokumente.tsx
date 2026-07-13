@@ -29,7 +29,7 @@ const DOC_TYPE_ORDER: DocType[] = [
   "arbeitsbescheinigung",
 ];
 
-const CATALOG_KEYS = new Set(PLACEHOLDER_CATALOG.map((p) => p.key));
+const CATALOG_KEYS = new Set<string>(PLACEHOLDER_CATALOG.map((p) => p.key));
 
 export const Route = createFileRoute("/_authenticated/admin/dokumente")({
   beforeLoad: ({ context }) => {
@@ -292,7 +292,7 @@ function TemplateEditor({
               ) : (
                 <div className="flex flex-wrap gap-1.5">
                   {usedKeys.map((k) => {
-                    const known = CATALOG_KEYS.has(k as never);
+                    const known = CATALOG_KEYS.has(k);
                     return (
                       <span
                         key={k}

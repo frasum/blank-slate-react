@@ -9,6 +9,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Database } from "@/integrations/supabase/types";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { makeAuditWriter } from "@/lib/admin/audit";
 import { deriveBwa, validateBwaMonth, type BwaMonthInput } from "./bwa-core";
@@ -200,7 +201,7 @@ export const upsertBwaMonth = createServerFn({ method: "POST" })
 
     const { data: saved, error: upErr } = await supabaseAdmin
       .from("bwa_monthly")
-      .upsert(payload as never, {
+      .upsert(payload as Database["public"]["Tables"]["bwa_monthly"]["Insert"], {
         onConflict: "organization_id,entity,cost_center,month",
       })
       .select(SELECT_COLS)

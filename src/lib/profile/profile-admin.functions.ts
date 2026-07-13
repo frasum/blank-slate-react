@@ -7,6 +7,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Database } from "@/integrations/supabase/types";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { runGuarded } from "@/lib/admin/admin-call";
 import { makeAuditWriter } from "@/lib/admin/audit";
@@ -187,7 +188,10 @@ export const decideChangeRequest = createServerFn({ method: "POST" })
             }
             const { error: upErr } = await supabaseAdmin
               .from("staff_personal_details")
-              .upsert(upsertRow as never, { onConflict: "staff_id" });
+              .upsert(
+                upsertRow as Database["public"]["Tables"]["staff_personal_details"]["Insert"],
+                { onConflict: "staff_id" },
+              );
             if (upErr) throw new Error(upErr.message);
 
             const { error: statusErr } = await supabaseAdmin

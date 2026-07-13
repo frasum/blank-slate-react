@@ -155,6 +155,9 @@ export async function buildWeeklyXlsx(input: WeeklyExportInput): Promise<Blob> {
 export async function buildWeeklyPdf(input: WeeklyExportInput): Promise<Blob> {
   const { default: jsPDF } = await import("jspdf");
   const { default: autoTable } = await import("jspdf-autotable");
+  type RowInput = Parameters<typeof autoTable>[1]["body"] extends ReadonlyArray<infer R> | undefined
+    ? R
+    : never;
   const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
   doc.setFontSize(14);
   doc.text(
@@ -239,8 +242,8 @@ export async function buildWeeklyPdf(input: WeeklyExportInput): Promise<Blob> {
   }
 
   autoTable(doc, {
-    head: [head1 as never, head2 as never],
-    body: body as never,
+    head: [head1, head2] as RowInput[],
+    body: body as RowInput[],
     startY: 56,
     styles: { fontSize: 8, cellPadding: 3 },
     headStyles: { fillColor: [230, 230, 230], textColor: 20 },
