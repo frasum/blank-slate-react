@@ -16,14 +16,12 @@ describe("expect-ok helpers", () => {
       expect(out).toEqual({ id: "x" });
     });
     it("wirft mit Kontext bei error", () => {
-      expect(() =>
-        expectOk({ data: null, error: { message: "boom" } }, "loadStaff"),
-      ).toThrow(/\[loadStaff\] Supabase: boom/);
+      expect(() => expectOk({ data: null, error: { message: "boom" } }, "loadStaff")).toThrow(
+        /\[loadStaff\] Supabase: boom/,
+      );
     });
     it("wirft, wenn data null ist", () => {
-      expect(() => expectOk({ data: null, error: null }, "ctx")).toThrow(
-        /kein Ergebnis/,
-      );
+      expect(() => expectOk({ data: null, error: null }, "ctx")).toThrow(/kein Ergebnis/);
     });
   });
 

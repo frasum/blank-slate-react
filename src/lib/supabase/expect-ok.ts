@@ -56,10 +56,7 @@ export function expectMaybe<T>(
   return result.data ?? null;
 }
 
-export function expectVoid(
-  result: { error: SupabaseErrorLike | null },
-  context: string,
-): void {
+export function expectVoid(result: { error: SupabaseErrorLike | null }, context: string): void {
   if (result.error) {
     logFailure(context, result.error);
     throw new Error(`[${context}] Supabase: ${result.error.message}`);
