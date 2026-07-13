@@ -1178,6 +1178,28 @@ export const setAbsenceRange = createServerFn({ method: "POST" })
           throw new Error("Zeitraum darf maximal 92 Tage umfassen.");
         }
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        // Wasserlinie: Wenn der Zeitraum in eine gesperrte Periode ragt,
+        // dürfen wir dort weder Absence upserten noch die Schichten löschen.
+        // Analog zu den Einzel-Schreibpfaden brechen wir mit klarem Fehler ab,
+        // statt still Schichten zu entfernen.
+        const { data: lockedPeriods, error: perErr } = await supabaseAdmin
+          .from("periods")
+          .select("start_date, end_date, status")
+          .eq("organization_id", caller.organizationId)
+          .eq("status", "locked")
+          .lte("start_date", data.toDate)
+          .gte("end_date", data.fromDate);
+        if (perErr) throw perErr;
+        if (lockedPeriods && lockedPeriods.length > 0) {
+          const spans = lockedPeriods
+            .map((p) => `${p.start_date}–${p.end_date}`)
+            .join(", ");
+          throw new Error(
+            `Periode gesperrt: Der Zeitraum ${data.fromDate}–${data.toDate} ` +
+              `überschneidet gesperrte Periode(n) (${spans}). ` +
+              `Ein Admin muss die Sperre zuerst zurückziehen.`,
+          );
+        }
         const rows = days.map((d) => ({
           organization_id: caller.organizationId,
           staff_id: data.staffId,
