@@ -44,6 +44,7 @@ export function WeeklyPlan({
   shiftsByStaff,
   absencesByStaff,
   totalsScope = "week",
+  onTotalsScopeChange,
   periodTotalsByStaff,
 }: {
   input: WeeklyExportInput | null;
