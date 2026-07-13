@@ -74,6 +74,40 @@ export function sessionRevenue(input: SessionRevenueInput): SessionRevenue {
   };
 }
 
+/**
+ * Kasse-Adapter (N14, Fachentscheidung Frank 13.07.):
+ * „Take-Away" heißt im Kasse-/Sessions-Modell konsistent: der Kanal-`kind`
+ * beginnt mit `"delivery_"` (SoUse, Wolt, eigener Vectron-Außer-Haus-Kanal).
+ * Alles andere (POS-Kanäle und Vectron-Direktumsatz) ist Haus-Umsatz.
+ * Bewusst nur EINE Ableitung — Statistik und Kasse dürfen hier nicht
+ * auseinanderlaufen.
+ */
+export function isTakeawayKind(kind: string): boolean {
+  return kind.startsWith("delivery_");
+}
+
+/**
+ * Reiner Helfer für Kassen-UI/PDF/Print (N14): berechnet den Haus-Umsatz
+ * einer Session direkt aus Vectron + Kanal-Beträgen mit `kind`, damit alle
+ * drei Ausgabepfade denselben ⌀-pro-Gast-Nenner nutzen. Delegiert an
+ * `sessionRevenue`, damit hier KEINE zweite Formel entsteht.
+ */
+export function sessionHouseCentsFromKasse(input: {
+  vectronCents: number;
+  channels: { kind: string; amountCents: number }[];
+}): number {
+  return sessionRevenue({
+    sessionId: "-",
+    businessDate: "-",
+    locationId: "-",
+    vectronCents: input.vectronCents,
+    channels: input.channels.map((c) => ({
+      amountCents: c.amountCents,
+      isTakeaway: isTakeawayKind(c.kind),
+    })),
+  }).houseCents;
+}
+
 export function aggregateByBusinessDate(
   sessions: SessionRevenueInput[],
   cardBySession?: ReadonlyMap<string, number> | Record<string, number>,
