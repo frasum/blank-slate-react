@@ -24,7 +24,6 @@ import { SofortmeldungSection } from "@/components/settings/SofortmeldungSection
 import { ArbeitgeberSection } from "@/components/settings/ArbeitgeberSection";
 import { TelegramBotSection } from "@/components/settings/TelegramBotSection";
 import { TelegramTagesberichtSection } from "@/components/settings/TelegramTagesberichtSection";
-import { UrlaubsregelnSection } from "@/components/settings/UrlaubsregelnSection";
 import { SkillsSection } from "@/components/settings/SkillsSection";
 
 const SUB_TABS = [
@@ -32,7 +31,6 @@ const SUB_TABS = [
   { key: "bestellungen", label: "Bestellungen" },
   { key: "sofortmeldung", label: "Sofortmeldung & Arbeitgeber" },
   { key: "telegram", label: "Telegram" },
-  { key: "urlaub", label: "Urlaub & Feiertage" },
   { key: "skills", label: "Skills" },
 ] as const;
 
@@ -189,8 +187,6 @@ function OrgSettingsPage() {
             <TelegramTagesberichtSection canEdit={canEdit} />
           </>
         )}
-
-        {tab === "urlaub" && <UrlaubsregelnSection canEdit={canEdit} />}
 
         {tab === "skills" && <SkillsSection canEdit={canEdit} />}
       </div>
