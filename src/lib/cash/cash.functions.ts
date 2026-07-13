@@ -3626,8 +3626,11 @@ export async function getPreviousOperativeDeficitCore(
     ensure(r.session_id).advancesCents.push(Number(r.amount_cents));
   }
 
-  let bal = 0;
-  let lastDeficitDate: string | null = null;
+  // rawBargeld pro Session in chronologischer Reihenfolge sammeln — Endsaldo
+  // kommt aus der getesteten Helper-Funktion, für sourceDate wird derselbe
+  // Fold nachgerechnet.
+  const rawByDay: number[] = [];
+  const datesByDay: string[] = [];
   for (const sess of sessions) {
     const b = ensure(sess.id);
     const dayInput = sessionToDayInput(
@@ -3650,11 +3653,22 @@ export async function getPreviousOperativeDeficitCore(
         advancesCents: b.advancesCents,
       },
     );
-    bal += computeDailyCash(dayInput);
-    bal -= Math.max(0, bal);
-    if (bal < 0) lastDeficitDate = sess.business_date;
+    rawByDay.push(computeDailyCash(dayInput));
+    datesByDay.push(sess.business_date);
   }
 
-  const sourceDate = bal < 0 ? lastDeficitDate : sessions[sessions.length - 1].business_date;
-  return { deficitCents: bal, sourceDate };
+  const deficitCents = rollOperativeDeficitCents(rawByDay);
+
+  // sourceDate: letzter Tag, an dem der rollende Saldo < 0 blieb;
+  // sonst die letzte Session im Fenster.
+  let running = 0;
+  let lastDeficitDate: string | null = null;
+  for (let i = 0; i < rawByDay.length; i++) {
+    running += rawByDay[i];
+    running -= Math.max(0, running);
+    if (running < 0) lastDeficitDate = datesByDay[i];
+  }
+  const sourceDate =
+    deficitCents < 0 ? lastDeficitDate : datesByDay[datesByDay.length - 1];
+  return { deficitCents, sourceDate };
 }
