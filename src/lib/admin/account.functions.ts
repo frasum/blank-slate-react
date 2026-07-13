@@ -18,7 +18,7 @@ import { loadAdminCaller } from "./admin-context";
 import { runGuarded } from "./admin-call";
 import { makeAuditWriter } from "./audit";
 import { generateStandardPassword } from "./password-generator";
-import { expectMaybe } from "@/lib/supabase/expect-ok";
+import { expectMaybe, expectVoid } from "@/lib/supabase/expect-ok";
 
 // =========================================================================
 // Status lesen (admin/manager)
@@ -84,13 +84,15 @@ export const createStaffAccount = createServerFn({ method: "POST" })
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
       // Verifizieren: staff gehört zur Org und hat noch kein Konto.
-      const { data: staff, error: staffErr } = await supabaseAdmin
-        .from("staff")
-        .select("id, organization_id")
-        .eq("id", data.staffId)
-        .eq("organization_id", caller.organizationId)
-        .maybeSingle();
-      if (staffErr) throw staffErr;
+      const staff = expectMaybe(
+        await supabaseAdmin
+          .from("staff")
+          .select("id, organization_id")
+          .eq("id", data.staffId)
+          .eq("organization_id", caller.organizationId)
+          .maybeSingle(),
+        "createStaffAccount.loadStaff",
+      );
       if (!staff) throw new Error("Mitarbeiter nicht gefunden.");
 
       const existingLink = expectMaybe<{ user_id: string }>(
@@ -174,11 +176,13 @@ export const resetStaffPassword = createServerFn({ method: "POST" })
       });
       if (updErr) throw updErr;
 
-      const { error: flagErr } = await supabaseAdmin
-        .from("staff")
-        .update({ must_change_password: true })
-        .eq("id", data.staffId);
-      if (flagErr) throw flagErr;
+      expectVoid(
+        await supabaseAdmin
+          .from("staff")
+          .update({ must_change_password: true })
+          .eq("id", data.staffId),
+        "resetStaffPassword.setMustChange",
+      );
 
       return {
         result: { password },
