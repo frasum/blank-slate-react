@@ -1,25 +1,54 @@
+
 ## Ziel
-In `src/components/zeit/WeeklyPlan.tsx` (Arbeitszeit-Wochenansicht) zwei rein visuelle Änderungen:
 
-1. **Zebra-Look** für die Mitarbeiter-Zeilen zur besseren Lesbarkeit.
-2. **Farbige Zahlen** in den drei Kennzahl-Spalten am rechten Rand:
-   - **S** (Schichten) → rot
-   - **U** (Urlaub) → grün
-   - **K** (Krank) → blau
+Oben im Wochenplan (Reiter „Wochenplan" der Zeit-/Arbeitszeit-Übersicht) einen kleinen Umschalter einbauen, der bestimmt, worauf sich die vier Zuschlagsspalten am rechten Tabellenrand beziehen:
 
-## Umsetzung
+- **Woche** (heute): Summen der aktuell gewählten Kalenderwoche (unverändert).
+- **Abrechnungsmonat**: Summen der gesamten aktuell gewählten Abrechnungsperiode.
 
-**Zebra**
-- Auf `<TableRow>` der Mitarbeiterzeilen (Zeile 452) die Klasse `odd:bg-muted/30` ergänzen. Die Abteilungs-Trennzeilen (`DEPT_BG[grp.dept]`, Zeile 439) bleiben unverändert; die Zebra-Zählung startet innerhalb jeder Abteilungs-Gruppe bei 1, sodass die erste Datenzeile jeweils schattiert ist.
-- Die bestehenden Tages-Hintergründe (Sonntag `bg-gray-50`, Feiertag `bg-yellow-50`, außerhalb Periode `bg-muted/40`) bleiben, weil sie an den Tages-`TableCell`s hängen und den Zeilen-Hintergrund überschreiben.
+Das Tages-Grid (Mo–So mit Anf./Ende) bleibt in beiden Modi die aktuelle Woche — der Toggle ändert ausschließlich die vier Summenspalten. Die bereits period-basierten Spalten **S / U / K** bleiben ebenfalls unverändert.
 
-**Farbige S/U/K-Zahlen**
-- Zelle **S** (Zeile 640-642): `text-red-600` (bzw. `text-muted-foreground/50` wenn 0 wie bisher bei U/K — für S bisher immer normal; wir zeigen die Zahl bei 0 gedämpft, bei >0 rot).
-- Zelle **U** (Zeile 649-653): bei >0 `text-green-600`, sonst weiterhin gedimmt.
-- Zelle **K** (Zeile 654-658): bei >0 `text-blue-600`, sonst weiterhin gedimmt.
-- Nur die Zahl bekommt Farbe, Alignment/Font unverändert.
+## Betroffene Spalten (Kopfzeile)
+
+```text
+… | Ges | 20–24 | 24–x | SF | S | U | K
+       ^^^^^^^^^^^^^^^^^^^^^   (nur diese vier reagieren auf den Toggle)
+```
+
+## UI
+
+- Neuer kompakter Umschalter in `src/routes/_authenticated/admin/zeit-uebersicht.tsx`, im Header-Card des Wochenplan-Tabs, in derselben Zeile wie „Heute" (rechts). Zwei Pills: **Woche** / **Abrechnungsmonat** (Default: Woche, kein Persist).
+- Wenn „Abrechnungsmonat" aktiv:
+  - Kleines Badge/Label über der Tabelle: „Summen: Abrechnungsperiode {fromDate}–{toDate}".
+  - Tooltips der vier Spalten-Header wechseln entsprechend („… in der Abrechnungsperiode").
+
+## Datenquelle
+
+- `getTimeOverview` und `getTimeOverviewBatch` liefern bereits alle Einträge der Abrechnungsperiode (period-scoped) inkl. `started_at`/`ended_at` in der DB-Selektion.
+- Rückgabeform um `startedAt`, `endedAt` und `rawDepartment` erweitern (Single- und Batch-Variante, verhaltensgleich für alle bestehenden Aufrufe — nur zusätzliche Felder).
+- Client aggregiert in `zeit-uebersicht.tsx` eine neue Map:
+  `periodTotalsByRow: Map<"staffId:dept", { total, evening, night, sunHol }>`
+  durch Iteration über `overviewEntries`, mit `computeShiftHours(startedAt, endedAt, businessDate)` und derselben Zeilen-Attribution wie im Wochen-Aggregat (`entryRowDepartment(rawDepartment, staffDepts)` — ohne `rosterArea`-Boost, da für die ganze Periode nicht verfügbar; Fallback auf Primär-Abteilung).
+
+## Übergabe an WeeklyPlan
+
+- Zwei neue Props (optional, additiv):
+  - `totalsScope: "week" | "period"`
+  - `periodTotalsByRow: Map<string, { total; evening; night; sunHol }>`
+- In `WeeklyPlan.tsx` in der Tabellen-Body-Zeile: statt `row.totals` bei `scope==="period"` den Wert aus `periodTotalsByRow.get(\`${row.staffId}:${row.department}\`)` (Fallback 0). Spalten-Header-Tooltips analog wechseln.
 
 ## Nicht enthalten
-- Keine Änderungen an Kopfzeilen, Spaltenbreiten, Logik oder anderen Ansichten.
-- Keine Farb-Änderungen an SF/Ges/20–24/24–x.
-- Keine neuen Design-Tokens; die Farben werden direkt als Tailwind-Utility gesetzt, da es sich um eine einzelne interne Admin-Tabelle handelt (analog zum bestehenden `text-amber-600`, `bg-yellow-50` im gleichen File).
+
+- Kein Persist des Toggles über Session-Wechsel.
+- Keine Änderung an Tages-Grid, Buchhaltungs-Tab, Exporten, S/U/K-Spalten oder anderen Aggregaten.
+
+## Technische Notizen
+
+- Server-Fn-Rückgabe additiv → keine Anpassung anderer Aufrufer nötig.
+- Keine neuen Requests: `overviewQ`/`overviewBatchQ` sind im Wochenplan-Tab bereits mit derselben Periode aktiv (werden vom Buchhaltungs-Tab geteilt) — Toggle nutzt nur den bereits vorhandenen Cache-Eintrag.
+- Reine UI/Client-Aggregation, keine Migration.
+
+## Verifikation
+
+- `bun run typecheck`, ESLint, Vitest.
+- Manuell im Preview: In Wochenplan (spicery, aktuelle Periode) zwischen „Woche" und „Abrechnungsmonat" umschalten; Ges/20–24/24–x/SF müssen sich sichtbar erhöhen (Periode ≥ Woche); Tages-Grid und S/U/K unverändert.
