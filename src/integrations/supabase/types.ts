@@ -2512,18 +2512,21 @@ export type Database = {
         Row: {
           attempted_at: string
           id: string
+          ip: string | null
           organization_id: string
           staff_id: string
         }
         Insert: {
           attempted_at?: string
           id?: string
+          ip?: string | null
           organization_id: string
           staff_id: string
         }
         Update: {
           attempted_at?: string
           id?: string
+          ip?: string | null
           organization_id?: string
           staff_id?: string
         }
