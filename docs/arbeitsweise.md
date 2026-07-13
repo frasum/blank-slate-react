@@ -6,7 +6,7 @@ SaaS-Vorbereitung: Readiness-Audit und Modul-Katalog stehen in docs/saas-vorbere
 
 Produktionsreife-Review: docs/produktionsreife-review.md (Stand 07.07.2026, HEAD 8cfdbc1d, inkl. Patch-Plan P0–P7) — kritischer Pfad vor dem Kassen-Go-live: Monitoring (P1) → Finalize-E2E (P2) → Restore-Probe (P3) → Cutover.
 
-Stand: 13.07.2026 (§88: Nachprüfung — 13 Fixes, 6 Roadmap-Einträge, 3 Fachentscheidungen)
+Stand: 13.07.2026 (§89: CI entstummt — db-integration blockierend grün, E2E-Schutzriegel)
 
 TH1 — Standort-Farbthema: LocationThemeProvider im \_authenticated-Layout hält den themeKey (spicery/yum/neutral).
 LocationPills melden die Auswahl per useLocationThemeSync; Mapping: Name enthält „spicery" → spicery, „yum" → yum, sonst neutral (auch TSB/„Alle"/leer).
@@ -4077,3 +4077,25 @@ Abnahme-Anker: `cf93f819`, vier Gates grün, **1727 Tests** (+10). Erste Anwendu
 **Vom Tisch (mit Begründung):** N6-Erstfassung des Gutachters („Feiertag auf Sonntag doppelt") beruhte auf der Annahme eines Werktage-Modells — der Prüfer-Check am Code zeigte das Kalendertage-Modell; die daraus gestellte Fachfrage führte zur ECHTEN Abweichung (Modell ≠ Betriebsregel) und damit zum größeren, richtigen Roadmap-Umbau. Lehre: Ein Fehlbefund kann die richtige Frage stellen.
 
 **Abnahme-Fußnoten / offene Handgriffe (Frank):** Impersonation + Kalender-Seite öffnen (kein Toast/kein Auto-Link erwartet) · nächsten Echt-Lohn-Export stichprobenartig gegen App halten · ⌀ pro Gast (Haus) an einem Takeaway-Tag plausibilisieren · ICS einmal in strengem Client. **Prozessnotiz:** Die drei vereinbarten Fix-Runden landeten als EIN Batch auf main — ging diesmal gut (enge Prompts, Gates hielten), Gesamt-Abnahme war aber unschärfer als drei kleine; Takt-Disziplin bleibt Ziel (§86-Härtung).
+
+## §89 — CI-Ehrlichkeit wiederhergestellt: Entstummung, sechs Test-Heilungen, E2E-Diagnose mit Produktions-Schutzriegel (13.07. abends)
+
+Anker: `9b3bc7c8`. Erster vollständig ehrlicher CI-Lauf: format/check/**db-integration (blockierend!)** grün; e2e grün im Re-Run und weiter im dokumentierten Promotions-Modus.
+
+**Auslöser — die Abnahme des Prüfers wurde geprüft.** Der Gutachter (Claude Code) verifizierte die §88-Abnahme und fand einen blinden Fleck: „CI grün" in den Erfolgs-Gates war nominell — die Jobs db-integration und e2e waren dauerhaft rot, aber per `continue-on-error` stummgeschaltet; der Workflow-Kommentar („alle Fehlschläge sind Schema-Cache") war inzwischen falsch und verdeckte echte Logik-Fehler. **Neue Gate-Sprache des Prüfers:** In Abnahmen zählt „check-Gates grün" (tsc/eslint/prettier/vitest); CI-Jobs werden einzeln mit Status benannt — pauschales „CI grün" nur, wenn kein Job stummgeschaltet ist.
+
+**Sechs DB-Test-Heilungen (Produktivcode fast unangetastet):**
+
+1. Pool-Warnungs-Test modernisiert: erwartet explizit `PoolHoursWarningError`, bestätigt mit `confirmPoolWarning: true`, läuft in den `CashLockedError`-Fall weiter. **Fachregel Frank:** Warnung mit Bestätigungspflicht gilt auch bei NEGATIVEM Abteilungs-Pool (Warnlogik unverändert — sie stammt aus dem 423-€-Vorfall 02.07.).
+2. Steuerklassen-Seed: Constraint verlangt RÖMISCHE Ziffern ('I'–'VI') — Seed korrigiert. (Fund kam doppelt: Claude Code meldete den Constraint-Bruch, ein zweiter externer Bericht lieferte das Römisch/Arabisch-Detail — komplementäre Gutachter.)
+3. permission_overrides-Duplicate-Key: Wurzel verstanden statt überdeckt — der Unique-Index **coalesciert `area IS NULL` zu 'kitchen'**; enger Küchen-DENY kollidiert daher mit breitem NULL-ALLOW. Test nutzt 'service' (gleiche Semantik, keine Kollision). Index-Eigenheit hiermit dokumentiert.
+4. Fehlertyp vereinheitlicht (KGL): zweite Wurf-Stelle nutzt jetzt die typisierte `WaiterSettlementAlreadyExistsError` statt generischem Error.
+5. - 6. **Alt-Test aus Welle 2 prüfte Vor-M4-Verhalten:** „Manager kann lesen" war seit der M4-Migration ZWANGSLÄUFIG rot (SELECT auf staff_personal_details verlangt `payroll.personal.view`; Default-Matrix: NUR admin+payroll — bewusste Personaldaten-Grenze). Er lief unter der Stummschaltung als „Schema-Cache-Flake" mit — war aber ein Feature, das auf seinen Test wartete. Umbau in zwei Fälle: Manager sieht 0 Zeilen (Negativ-Test, RLS filtert still) + Payroll liest (Positiv-Test). **Fachbestätigung Frank: Manager sehen keine Personaldaten — bleibt so.**
+
+**Entstummung:** `continue-on-error` am db-integration-Job ENTFERNT; neuer Kommentar: „Blockierend seit 13.07. Bei PostgREST-Schema-Cache-Flake im Setup: Job re-runnen; NICHT wieder stummschalten ohne Prüfer-Entscheid." e2e-Job bleibt bewusst non-blocking bis Promotions-Kriterium (10 grüne Läufe in Folge).
+
+**E2E-Diagnose (Playwright-Artefakte gesichtet):** Kein einziger App-Fehler. 4 Szenarien scheiterten an der ENV-Wächter-Seite (Build ohne Supabase-Werte), 1 an fehlendem WebKit-Browser. Fixes: WebKit im Install (`--with-deps chromium webkit`), Env-Export mit Fail-Fast (leere Werte brechen den Job laut ab). **Wichtigster Ertrag — Produktions-Schutzriegel `e2e/global-setup.ts`:** Seit ENV2 fiele ein env-loser Build STILL auf Produktionswerte zurück — E2E finalisiert Kassen und darf deshalb ausschließlich gegen 127.0.0.1/localhost laufen; der Riegel bricht jeden anders konfigurierten Lauf ab. Merksatz: **ENV-Fallbacks und schreibende Test-Suiten brauchen immer einen Ziel-Riegel.** Zweitbefund desselben Laufs: ghcr-Docker-Rate-Limit beim parallelen Stack-Pull beider Jobs (reiner Infrastruktur-Flake, per Re-Run bestätigt).
+
+**Prozess-Lehren:** (a) Beim Eindampfen von Reparatur-Prompts gingen nummerierte Blöcke verloren (halber Prompt umgesetzt, Commit-Message überbehauptete) — nummerierte Fix-Listen ungekürzt senden. (b) Die Gutachter-Pipeline trägt: Abnahme-der-Abnahme fand den blinden Fleck des Prüfers; komplementäre Zweitberichte lieferten Detail-Ursachen.
+
+**Roadmap-Nachträge (CI-Robustheit, Hygiene-Schiene):** Stack-Start mit Retry-Schleife · e2e-Job per `needs: db-integration` serialisieren (entschärft ghcr-Rate-Limit strukturell) · e2e-Promotion beobachten (Zehner-Serie), dann blockierend.
