@@ -1,0 +1,672 @@
+// G1a Scheibe 2 — 1:1 aus src/routes/_authenticated/admin/zeit-uebersicht.tsx
+// extrahiert. Verhaltensgleich; Props-Verträge unverändert.
+
+import type React from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import { Card } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { ZeitSkeleton } from "@/components/ui/page-skeletons";
+import type { WeeklyExportInput } from "@/lib/time/weekly-export";
+import { bavarianHolidayName, isBavarianHoliday, isSundayOrHoliday } from "@/lib/time/shift-hours";
+import {
+  DEPT_BAR,
+  DEPT_BG,
+  dayHeader,
+  fmtDec,
+  fmtHHMM,
+  fmtIso,
+  type Department,
+  type WeeklyEntry,
+} from "@/lib/time/zeit-uebersicht-core";
+import { ReassignPopover } from "./ReassignPopover";
+
+export function WeeklyPlan({
+  input,
+  isLoading,
+  weekDays,
+  isAdmin,
+  entriesById,
+  pending,
+  onUpdateInline,
+  onCreateInline,
+  onReassign,
+  staffDeptsByStaff,
+  periodStart,
+  periodEnd,
+  shiftsByStaff,
+  absencesByStaff,
+}: {
+  input: WeeklyExportInput | null;
+  isLoading: boolean;
+  weekDays: Date[];
+  isAdmin: boolean;
+  entriesById: Map<string, WeeklyEntry>;
+  pending: boolean;
+  onUpdateInline: (id: string, iso: string, from: string, to: string) => void;
+  onCreateInline: (
+    staffId: string,
+    iso: string,
+    from: string,
+    to: string,
+    department: Department,
+  ) => void;
+  // Z3 — Abteilung eines bestehenden Eintrags umhängen.
+  onReassign: (id: string, department: Department | null) => void;
+  staffDeptsByStaff: Map<string, Department[]>;
+  periodStart?: string;
+  periodEnd?: string;
+  shiftsByStaff: Map<string, number>;
+  absencesByStaff: Map<string, { krankDays: number; urlaubDays: number; absenceNote?: string }>;
+}) {
+  // Header-Tagesmeta (Wochentag-Label + Feiertags-Hint)
+  const dayMeta = weekDays.map((d) => {
+    const iso = fmtIso(d);
+    return {
+      date: d,
+      iso,
+      isSun: d.getUTCDay() === 0,
+      isHol: isBavarianHoliday(d),
+      isSunOrHol: isSundayOrHoliday(d),
+      holidayName: bavarianHolidayName(d),
+      outOfPeriod: periodStart && periodEnd ? iso < periodStart || iso > periodEnd : false,
+    };
+  });
+
+  // Spalten: Mitarbeiter (links) + 7 Tage × (Anf. | Ende)
+  // + Mitarbeiter (rechts) + 4 Zeit-Summen + S + U + K
+  const totalCols = 1 + 7 * 2 + 1 + 4 + 3;
+
+  const groups = useMemo(() => input?.rowsByDept ?? [], [input?.rowsByDept]);
+  const anyRows = groups.some((g) => g.rows.length > 0);
+
+  // Hilfsfunktion: aus staffId + ISO → die echten WeeklyEntry-Objekte
+  // (für onEdit/onCreate, da WeeklyExportRow nur Strings hält).
+  const findEntries = (staffId: string, iso: string): WeeklyEntry[] => {
+    const out: WeeklyEntry[] = [];
+    for (const e of entriesById.values()) {
+      if (e.staffId === staffId && e.businessDate === iso) out.push(e);
+    }
+    return out;
+  };
+
+  type EditState = {
+    staffId: string;
+    iso: string;
+    field: "from" | "to";
+    from: string;
+    to: string;
+    existingId: string | null;
+    origFrom: string;
+    origTo: string;
+    // Z3 — Abteilung der Zeile (für Create-Pfad; Updates lassen die Spalte
+    // unverändert, damit ein Time-Edit keinen Umhänge-Effekt hat).
+    department: Department;
+  };
+  const [edit, setEdit] = useState<EditState | null>(null);
+  const editStaffId = edit?.staffId;
+  const editIso = edit?.iso;
+  const editField = edit?.field;
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const navigatingRef = useRef(false);
+  const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+  // Fokus + Selektion nur, wenn eine NEUE Zielzelle aktiv wird
+  // (nicht bei jedem Tastenanschlag → kein Cursor-Flackern).
+  useEffect(() => {
+    if (!editStaffId) return;
+    const el = inputRef.current;
+    if (!el) return;
+    el.focus();
+    el.select();
+  }, [editStaffId, editIso, editField]);
+
+  // Akzeptiert freie Ziffern-Eingaben und normalisiert zu HH:MM.
+  // Beispiele: "1530" → "15:30", "930" → "09:30", "9" → "09:00",
+  // "15:3" → "15:03", "15.30" → "15:30". Ungültig → null.
+  const parseHHMM = (raw: string): string | null => {
+    const s = raw.trim().replace(/[.\-\s]/g, ":");
+    let h: string;
+    let m: string;
+    if (s.includes(":")) {
+      const [hp, mp = ""] = s.split(":");
+      if (!/^\d{1,2}$/.test(hp) || !/^\d{1,2}$/.test(mp)) return null;
+      h = hp.padStart(2, "0");
+      m = mp.padStart(2, "0");
+    } else {
+      if (!/^\d+$/.test(s)) return null;
+      if (s.length <= 2) {
+        h = s.padStart(2, "0");
+        m = "00";
+      } else if (s.length === 3) {
+        h = s.slice(0, 1).padStart(2, "0");
+        m = s.slice(1);
+      } else if (s.length === 4) {
+        h = s.slice(0, 2);
+        m = s.slice(2);
+      } else {
+        return null;
+      }
+    }
+    const out = `${h}:${m}`;
+    return HHMM.test(out) ? out : null;
+  };
+
+  const startEdit = (
+    staffId: string,
+    iso: string,
+    field: "from" | "to",
+    department: Department,
+  ) => {
+    if (!isAdmin) return;
+    const found = findEntries(staffId, iso);
+    if (found.length > 1) return;
+    if (found.length === 1) {
+      const f = fmtHHMM(found[0].startedAt);
+      const t = fmtHHMM(found[0].endedAt);
+      setEdit({
+        staffId,
+        iso,
+        field,
+        from: f,
+        to: t,
+        existingId: found[0].id,
+        origFrom: f,
+        origTo: t,
+        department,
+      });
+    } else {
+      setEdit({
+        staffId,
+        iso,
+        field,
+        from: "15:00",
+        to: "23:00",
+        existingId: null,
+        origFrom: "",
+        origTo: "",
+        department,
+      });
+    }
+  };
+
+  const cellKey = (staffId: string, iso: string) => `${staffId}|${iso}`;
+
+  const commit = (e: EditState) => {
+    const from = parseHHMM(e.from);
+    const to = parseHHMM(e.to);
+    if (!from || !to) {
+      toast.error("Ungültige Uhrzeit.");
+      return false;
+    }
+    if (e.existingId) {
+      if (from === e.origFrom && to === e.origTo) return true;
+      onUpdateInline(e.existingId, e.iso, from, to);
+    } else {
+      onCreateInline(e.staffId, e.iso, from, to, e.department);
+    }
+    return true;
+  };
+
+  const handleBlur = (ev: React.FocusEvent<HTMLInputElement>, current: EditState) => {
+    if (navigatingRef.current) {
+      navigatingRef.current = false;
+      return;
+    }
+    const next = ev.relatedTarget as HTMLElement | null;
+    const nextKey = next?.getAttribute?.("data-edit-key");
+    if (nextKey === cellKey(current.staffId, current.iso)) return;
+    commit(current);
+    setEdit((cur) =>
+      cur &&
+      cur.staffId === current.staffId &&
+      cur.iso === current.iso &&
+      cur.field === current.field
+        ? null
+        : cur,
+    );
+  };
+
+  // Flache Liste aller sichtbaren Mitarbeiter-Zeilen (für Tab/Pfeil-Navigation).
+  const flatRows = useMemo(() => groups.flatMap((g) => g.rows), [groups]);
+  const isCellEditable = (row: (typeof flatRows)[number] | undefined, dayIdx: number): boolean => {
+    if (!row || !isAdmin) return false;
+    // Z3 — alle Zeilen editierbar. Neu erstellte Einträge tragen die
+    // Abteilung ihrer Zeile und bleiben nach dem Refetch dort.
+    const dm = dayMeta[dayIdx];
+    if (!dm || dm.outOfPeriod) return false;
+    const day = row.days[dayIdx];
+    if (!day || day.shifts.length > 1) return false;
+    return true;
+  };
+
+  // Nächste editierbare Zelle in einer der beiden Richtungen.
+  const findNextRow = (
+    rowIdx: number,
+    dayIdx: number,
+    dir: 1 | -1,
+  ): { rowIdx: number; dayIdx: number } | null => {
+    let r = rowIdx + dir;
+    while (r >= 0 && r < flatRows.length) {
+      if (isCellEditable(flatRows[r], dayIdx)) return { rowIdx: r, dayIdx };
+      r += dir;
+    }
+    return null;
+  };
+
+  // Nächste editierbare Zelle in Leserichtung über Tag/Feld-Grenzen hinweg.
+  const findNextField = (
+    rowIdx: number,
+    dayIdx: number,
+    field: "from" | "to",
+    dir: 1 | -1,
+  ): { rowIdx: number; dayIdx: number; field: "from" | "to" } | null => {
+    let d = dayIdx;
+    let f: "from" | "to" = field;
+    for (let guard = 0; guard < 20; guard++) {
+      if (dir === 1) {
+        if (f === "from") f = "to";
+        else {
+          f = "from";
+          d += 1;
+        }
+      } else {
+        if (f === "to") f = "from";
+        else {
+          f = "to";
+          d -= 1;
+        }
+      }
+      if (d < 0 || d >= dayMeta.length) return null;
+      if (isCellEditable(flatRows[rowIdx], d)) return { rowIdx, dayIdx: d, field: f };
+    }
+    return null;
+  };
+
+  // Wechselt die aktive Edit-Zelle. Committed die aktuelle, wenn wir das Feld/die Zelle verlassen.
+  const navigateTo = (
+    current: EditState,
+    nextStaffId: string,
+    nextIso: string,
+    nextField: "from" | "to",
+    nextDepartment: Department = current.department,
+  ) => {
+    const sameCell = nextStaffId === current.staffId && nextIso === current.iso;
+    if (!sameCell) {
+      if (!commit(current)) return; // ungültig → abbrechen, Zelle bleibt offen
+    }
+    navigatingRef.current = true;
+    if (sameCell) {
+      setEdit({ ...current, field: nextField });
+    } else {
+      startEdit(nextStaffId, nextIso, nextField, nextDepartment);
+    }
+  };
+
+  return (
+    <Card className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead
+              rowSpan={2}
+              className="w-[68px] min-w-[68px] px-1 align-middle text-center text-xs"
+            />
+            {dayMeta.map((dm) => (
+              <TableHead
+                key={dm.iso}
+                colSpan={2}
+                className={`text-center whitespace-nowrap border-l ${
+                  dm.outOfPeriod
+                    ? "bg-muted/40 text-muted-foreground/60"
+                    : dm.isHol
+                      ? "bg-yellow-50"
+                      : dm.isSun
+                        ? "bg-gray-100"
+                        : ""
+                }`}
+              >
+                {dayHeader(dm.date)}
+                {dm.holidayName && (
+                  <span className="block text-[10px] font-normal text-muted-foreground">
+                    {dm.holidayName}
+                  </span>
+                )}
+              </TableHead>
+            ))}
+            <TableHead
+              rowSpan={2}
+              className="w-[68px] min-w-[68px] px-1 align-middle border-l text-center text-xs"
+            />
+            <TableHead
+              rowSpan={2}
+              className="px-1 text-right text-xs align-middle whitespace-nowrap"
+            >
+              Ges
+            </TableHead>
+            <TableHead
+              rowSpan={2}
+              className="px-1 text-right text-xs align-middle whitespace-nowrap"
+            >
+              20–24
+            </TableHead>
+            <TableHead
+              rowSpan={2}
+              className="px-1 text-right text-xs align-middle whitespace-nowrap"
+            >
+              24–x
+            </TableHead>
+            <TableHead
+              rowSpan={2}
+              className="px-1 text-right text-xs align-middle whitespace-nowrap"
+            >
+              <span title="Sonntag/Feiertag">SF</span>
+            </TableHead>
+            <TableHead
+              rowSpan={2}
+              className="px-1 text-right text-xs align-middle whitespace-nowrap"
+              title="Schichten in der Abrechnungsperiode"
+            >
+              S
+            </TableHead>
+            <TableHead
+              rowSpan={2}
+              className="px-1 text-right text-xs align-middle whitespace-nowrap"
+              title="Urlaubstage in der Abrechnungsperiode"
+            >
+              U
+            </TableHead>
+            <TableHead
+              rowSpan={2}
+              className="px-1 text-right text-xs align-middle whitespace-nowrap"
+              title="Kranktage in der Abrechnungsperiode"
+            >
+              K
+            </TableHead>
+          </TableRow>
+          <TableRow>
+            {dayMeta.map((dm) => {
+              const bg = dm.outOfPeriod
+                ? "bg-muted/40 text-muted-foreground/60"
+                : dm.isHol
+                  ? "bg-yellow-50"
+                  : dm.isSun
+                    ? "bg-gray-100"
+                    : "";
+              return (
+                <Fragment key={`sub-${dm.iso}`}>
+                  <TableHead
+                    className={`w-[62px] min-w-[62px] border-l text-center text-[11px] font-normal ${bg}`}
+                  >
+                    Anf.
+                  </TableHead>
+                  <TableHead
+                    className={`w-[62px] min-w-[62px] text-center text-[11px] font-normal ${bg}`}
+                  >
+                    Ende
+                  </TableHead>
+                </Fragment>
+              );
+            })}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {isLoading && (
+            <TableRow>
+              <TableCell colSpan={totalCols} className="text-center text-muted-foreground">
+                <ZeitSkeleton />
+              </TableCell>
+            </TableRow>
+          )}
+          {!isLoading && !anyRows && (
+            <TableRow>
+              <TableCell colSpan={totalCols} className="text-center text-muted-foreground">
+                Keine Einträge in dieser Woche.
+              </TableCell>
+            </TableRow>
+          )}
+          {groups.map((grp) => {
+            if (grp.rows.length === 0) return null;
+            return (
+              <Fragment key={`w-${grp.dept}`}>
+                <TableRow className={DEPT_BG[grp.dept]}>
+                  <TableCell colSpan={totalCols} className="font-semibold text-foreground">
+                    {grp.deptLabel}
+                  </TableCell>
+                </TableRow>
+                {grp.rows.map((row) => {
+                  // Z3 — Warnung, wenn ein Eintrag eine Abteilung trägt, die
+                  // der Person am Standort nicht (mehr) zugeordnet ist. Er
+                  // erscheint dann auf der Primär-Zeile.
+                  const mismatchedTitle = (row as { mismatched?: boolean }).mismatched
+                    ? "Achtung: mindestens ein Eintrag trägt eine Abteilung, die der Person am Standort nicht zugeordnet ist — er wird hier auf der Primär-Zeile angezeigt."
+                    : undefined;
+                  return (
+                    <TableRow key={`${row.staffId}:${row.department}`}>
+                      <TableCell className="group relative px-1 font-medium align-middle text-center text-xs w-[68px] min-w-[68px] max-w-[68px]">
+                        <span
+                          className={`absolute left-0 top-0 bottom-0 w-[2px] ${DEPT_BAR[row.department]}`}
+                        />
+                        <span className="block truncate" title={mismatchedTitle ?? row.displayName}>
+                          {row.displayName}
+                          {mismatchedTitle ? (
+                            <span className="ml-0.5 text-amber-600">⚠</span>
+                          ) : null}
+                        </span>
+                        {isAdmin && (staffDeptsByStaff.get(row.staffId)?.length ?? 0) > 1 ? (
+                          <ReassignPopover
+                            row={row}
+                            entriesById={entriesById}
+                            onReassign={onReassign}
+                            pending={pending}
+                            staffDeptsByStaff={staffDeptsByStaff}
+                          />
+                        ) : null}
+                      </TableCell>
+                      {row.days.map((day, idx) => {
+                        const dm = dayMeta[idx];
+                        const cellBg = dm.outOfPeriod
+                          ? "bg-muted/40"
+                          : dm.isHol
+                            ? "bg-yellow-50"
+                            : dm.isSun
+                              ? "bg-gray-50"
+                              : "";
+                        const empty = day.shifts.length === 0;
+                        // Z3 — alle Zeilen sind editierbar; das Grid attribuiert
+                        // Einträge über entryRowDepartment.
+                        const clickable = isAdmin && !dm.outOfPeriod;
+                        const multi = day.shifts.length > 1;
+                        const isEditingCell =
+                          edit !== null && edit.staffId === row.staffId && edit.iso === day.iso;
+                        const editable = clickable && !multi;
+                        const handleCellClick = (which: "from" | "to") => {
+                          if (!editable) return;
+                          if (isEditingCell) return;
+                          startEdit(row.staffId, day.iso, which, row.department);
+                        };
+                        const renderShift = (which: "from" | "to") => {
+                          if (isEditingCell && edit.field === which) {
+                            const val = which === "from" ? edit.from : edit.to;
+                            return (
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                maxLength={5}
+                                value={val}
+                                disabled={pending}
+                                data-edit-key={cellKey(row.staffId, day.iso)}
+                                ref={inputRef}
+                                onChange={(ev) =>
+                                  setEdit({
+                                    ...edit,
+                                    [which]: ev.target.value,
+                                  } as EditState)
+                                }
+                                onKeyDown={(ev) => {
+                                  if (ev.key === "Enter") {
+                                    ev.preventDefault();
+                                    if (commit(edit)) setEdit(null);
+                                    return;
+                                  }
+                                  if (ev.key === "Escape") {
+                                    ev.preventDefault();
+                                    navigatingRef.current = true;
+                                    setEdit(null);
+                                    return;
+                                  }
+                                  const rIdx = flatRows.findIndex(
+                                    (r) => r.staffId === edit.staffId,
+                                  );
+                                  const dIdx = dayMeta.findIndex((d) => d.iso === edit.iso);
+                                  if (rIdx < 0 || dIdx < 0) return;
+                                  if (ev.key === "Tab") {
+                                    ev.preventDefault();
+                                    const t = findNextRow(rIdx, dIdx, ev.shiftKey ? -1 : 1);
+                                    if (t)
+                                      navigateTo(
+                                        edit,
+                                        flatRows[t.rowIdx].staffId,
+                                        dayMeta[t.dayIdx].iso,
+                                        edit.field,
+                                        flatRows[t.rowIdx].department,
+                                      );
+                                    return;
+                                  }
+                                  if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
+                                    ev.preventDefault();
+                                    const t = findNextRow(
+                                      rIdx,
+                                      dIdx,
+                                      ev.key === "ArrowDown" ? 1 : -1,
+                                    );
+                                    if (t)
+                                      navigateTo(
+                                        edit,
+                                        flatRows[t.rowIdx].staffId,
+                                        dayMeta[t.dayIdx].iso,
+                                        edit.field,
+                                        flatRows[t.rowIdx].department,
+                                      );
+                                    return;
+                                  }
+                                  if (ev.key === "ArrowRight" || ev.key === "ArrowLeft") {
+                                    ev.preventDefault();
+                                    const t = findNextField(
+                                      rIdx,
+                                      dIdx,
+                                      edit.field,
+                                      ev.key === "ArrowRight" ? 1 : -1,
+                                    );
+                                    if (t)
+                                      navigateTo(
+                                        edit,
+                                        flatRows[t.rowIdx].staffId,
+                                        dayMeta[t.dayIdx].iso,
+                                        t.field,
+                                      );
+                                    return;
+                                  }
+                                }}
+                                onBlur={(ev) => handleBlur(ev, edit)}
+                                className={`block w-full h-6 min-w-0 px-0 text-center tabular-nums text-sm rounded border border-primary/50 bg-background box-border ${pending ? "opacity-60" : ""}`}
+                              />
+                            );
+                          }
+                          if (isEditingCell) {
+                            const val = which === "from" ? edit.from : edit.to;
+                            return <span className="tabular-nums">{val}</span>;
+                          }
+                          if (empty) {
+                            if (day.crossLocation && which === "from" && !dm.outOfPeriod)
+                              return <span className="text-muted-foreground">×</span>;
+                            if (editable && which === "from")
+                              return <span className="text-muted-foreground/40">+</span>;
+                            return "";
+                          }
+                          return (
+                            <div className="flex flex-col divide-y divide-border/60">
+                              {day.shifts.map((s, i) => (
+                                <span key={i} className="tabular-nums">
+                                  {s[which]}
+                                </span>
+                              ))}
+                            </div>
+                          );
+                        };
+                        return (
+                          <Fragment key={day.iso}>
+                            <TableCell
+                              onClick={() => handleCellClick("from")}
+                              title={mismatchedTitle}
+                              className={`w-[62px] min-w-[62px] border-l px-1 py-1 text-center align-middle tabular-nums text-sm ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
+                            >
+                              {renderShift("from")}
+                            </TableCell>
+                            <TableCell
+                              onClick={() => handleCellClick("to")}
+                              title={mismatchedTitle}
+                              className={`w-[62px] min-w-[62px] px-1 py-1 text-center align-middle tabular-nums text-sm ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
+                            >
+                              {renderShift("to")}
+                            </TableCell>
+                          </Fragment>
+                        );
+                      })}
+                      <TableCell className="font-medium align-middle border-l text-center text-xs px-1 w-[68px] min-w-[68px] max-w-[68px]">
+                        <span className="block truncate" title={row.displayName}>
+                          {row.displayName}
+                        </span>
+                      </TableCell>
+                      <TableCell className="px-1 text-xs text-right tabular-nums font-medium">
+                        {fmtDec(row.totals.total)}
+                      </TableCell>
+                      <TableCell className="px-1 text-xs text-right tabular-nums">
+                        {fmtDec(row.totals.evening)}
+                      </TableCell>
+                      <TableCell className="px-1 text-xs text-right tabular-nums">
+                        {fmtDec(row.totals.night)}
+                      </TableCell>
+                      <TableCell className="px-1 text-xs text-right tabular-nums">
+                        {fmtDec(row.totals.sunHol)}
+                      </TableCell>
+                      <TableCell className="px-1 text-xs text-right tabular-nums">
+                        {shiftsByStaff.get(row.staffId) ?? 0}
+                      </TableCell>
+                      {(() => {
+                        const abs = absencesByStaff.get(row.staffId);
+                        const u = abs?.urlaubDays ?? 0;
+                        const k = abs?.krankDays ?? 0;
+                        return (
+                          <>
+                            <TableCell
+                              className={`px-1 text-xs text-right tabular-nums ${u > 0 ? "" : "text-muted-foreground/50"}`}
+                            >
+                              {u > 0 ? u : "–"}
+                            </TableCell>
+                            <TableCell
+                              className={`px-1 text-xs text-right tabular-nums ${k > 0 ? "" : "text-muted-foreground/50"}`}
+                            >
+                              {k > 0 ? k : "–"}
+                            </TableCell>
+                          </>
+                        );
+                      })()}
+                    </TableRow>
+                  );
+                })}
+              </Fragment>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </Card>
+  );
+}
