@@ -121,12 +121,7 @@ export function berlinOffsetMinutesAt(instant: Date): number {
 // 00:00 und 03:00 unterscheidet sich der Offset vom Mittags-Offset desselben
 // Tages. Vorgehen: 1) Instant mit Mittags-Offset schätzen, 2) tatsächlichen
 // Offset AN DIESEM INSTANT bestimmen, 3) Instant damit korrigieren.
-export function berlinLocalToIso(
-  dateIso: string,
-  hh: number,
-  mm: number,
-  ss = 0,
-): string {
+export function berlinLocalToIso(dateIso: string, hh: number, mm: number, ss = 0): string {
   const year = Number(dateIso.slice(0, 4));
   const month = Number(dateIso.slice(5, 7)) - 1;
   const day = Number(dateIso.slice(8, 10));

@@ -361,7 +361,9 @@ export const listBankTransactions = createServerFn({ method: "POST" })
       data.search && data.search.length > 0
         ? `%${data.search.replace(/[%_]/g, (m) => `\\${m}`)}%`
         : null;
-    const txs = await selectAllPaged<Omit<TxRow, "laufende_nummer"> & { laufende_nummer: number | null }>((from, to) => {
+    const txs = await selectAllPaged<
+      Omit<TxRow, "laufende_nummer"> & { laufende_nummer: number | null }
+    >((from, to) => {
       let q = supabaseAdmin
         .from("bank_transactions")
         .select(

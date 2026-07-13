@@ -271,9 +271,6 @@ export function poolNeedsHoursWarning(poolCents: number, totalEligibleMinutes: n
  * `tip_pool_settlement_only`-Ausschluss trotz vorhandener Roh-Minuten
  * (Lehre 02.07.2026, 423-€-Vorfall).
  */
-export function poolFullyUnallocated(
-  poolCents: number,
-  distributedCents: number,
-): boolean {
+export function poolFullyUnallocated(poolCents: number, distributedCents: number): boolean {
   return poolCents > 0 && distributedCents <= 0;
 }

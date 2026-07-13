@@ -67,12 +67,14 @@ export function AbsenceRangeForm({
   const countFn = useServerFn(countStaffShiftsInRange);
   const serverCountQ = useQuery({
     queryKey: ["absence-range-conflict-count", staffId, fromIso, toIso],
-    queryFn: () => countFn({ data: { staffId: staffId as string, fromDate: fromIso, toDate: toIso } }),
+    queryFn: () =>
+      countFn({ data: { staffId: staffId as string, fromDate: fromIso, toDate: toIso } }),
     enabled: Boolean(staffId) && valid,
     staleTime: 15_000,
   });
   const conflictCount = staffId ? (serverCountQ.data?.count ?? localCount) : localCount;
-  const countLoading = Boolean(staffId) && serverCountQ.isFetching && serverCountQ.data === undefined;
+  const countLoading =
+    Boolean(staffId) && serverCountQ.isFetching && serverCountQ.data === undefined;
 
   const label = type === "urlaub" ? "Urlaub eintragen" : "Krank eintragen";
   const Icon = type === "urlaub" ? Umbrella : HeartPulse;
