@@ -12,6 +12,7 @@ import { createHash } from "node:crypto";
 import { buildDisplayData } from "@/lib/display/display-data.server";
 import { buildRosterGrid, EMPTY_MARKER, type Grid } from "@/lib/trmnl/roster-grid";
 import { todayIso as todayIsoBerlin } from "@/lib/format";
+import { getHolidayName } from "@/lib/roster/holidays-display";
 
 function notFound(): Response {
   return new Response("Not found", {
@@ -149,8 +150,12 @@ function renderPage(input: {
       const { wd, dm, dow } = formatDayHeader(iso);
       const we = dow === 0 || dow === 6;
       const today = iso === input.todayIso;
-      const cls = ["day-head", we ? "we" : "", today ? "today" : ""].filter(Boolean).join(" ");
-      return `<th class="${cls}"><div class="wd">${escapeHtml(wd)}</div><div class="dm">${escapeHtml(dm)}</div></th>`;
+      const holiday = getHolidayName(iso);
+      const cls = ["day-head", we ? "we" : "", today ? "today" : "", holiday ? "holiday" : ""]
+        .filter(Boolean)
+        .join(" ");
+      const holidayHtml = holiday ? `<div class="hol">${escapeHtml(holiday)}</div>` : "";
+      return `<th class="${cls}"><div class="wd">${escapeHtml(wd)}</div><div class="dm">${escapeHtml(dm)}</div>${holidayHtml}</th>`;
     })
     .join("");
 
@@ -211,6 +216,8 @@ function renderPage(input: {
   table.grid th.today, table.grid td.today { outline: 4px solid #000; outline-offset: -4px; }
   table.grid td.cell { height: 72px; font-size: 34px; font-weight: 800; }
   table.grid td.cell.empty { color: #888; font-weight: 400; font-size: 26px; }
+  table.grid th.day-head .hol { font-size: 14px; font-weight: 600; margin-top: 2px; line-height: 1.1; }
+  table.grid th.holiday { background: #eee; }
   .footer { position: absolute; left: 40px; right: 40px; bottom: 20px; border-top: 2px solid #000; padding-top: 8px; font-size: 20px; display: flex; justify-content: space-between; }
 </style>
 </head>

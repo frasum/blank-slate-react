@@ -23,6 +23,7 @@ import { ShiftPill } from "./ShiftPill";
 import { CellQuickPopover } from "./CellQuickPopover";
 import { PillConfirmPopover } from "./PillConfirmPopover";
 import type { PaintSelection } from "./PaintToolbar";
+import { getHolidayName } from "@/lib/roster/holidays-display";
 import type {
   RosterShift,
   RosterSkill,
@@ -314,6 +315,7 @@ export function RosterGrid({
                 const isToday = iso === today;
                 const cnt = dayCount.get(iso) ?? 0;
                 const { dow, dm } = dayHeader(iso);
+                const holiday = getHolidayName(iso);
                 return (
                   <th
                     key={iso}
@@ -321,14 +323,24 @@ export function RosterGrid({
                       "text-center font-medium",
                       isFit ? "px-0.5 py-1" : "px-1 py-1.5",
                       we && "bg-muted-foreground/25 text-foreground",
+                      holiday && "bg-amber-100/60 text-foreground",
                       isToday && "bg-yellow-200/70 ring-2 ring-yellow-400 ring-inset",
                     )}
+                    title={holiday ?? undefined}
                   >
                     <div className="flex flex-col items-center leading-tight">
                       <span className={cn("uppercase", isFit ? "text-[9px]" : "text-[10px]")}>
                         {dow}
                       </span>
                       <span className={cn(isFit && "text-[10px]")}>{dm}</span>
+                      {holiday && !isFit && (
+                        <span
+                          className="max-w-full truncate text-[9px] font-medium text-amber-800"
+                          title={holiday}
+                        >
+                          {holiday}
+                        </span>
+                      )}
                       <span
                         className={cn(
                           "font-semibold tabular-nums",

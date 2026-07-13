@@ -17,6 +17,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { TASK_CATEGORY_LABEL, TASK_STATUS_LABEL, type Task } from "@/lib/aufgaben/types";
 import { todayIso as todayIsoBerlin } from "@/lib/format";
 import { selectAllPaged } from "@/lib/supabase/select-all";
+import { getHolidayName } from "@/lib/roster/holidays-display";
 import {
   actionBadges,
   buildBoard,
@@ -270,6 +271,7 @@ export const Route = createFileRoute("/api/public/trmnl-tasks/$token")({
           orgName,
           nowIso,
           targetLabel: target.label,
+          targetIso: target.iso,
           targetDateHuman: formatDate(target.iso),
           badges,
           rosterBlocks,
@@ -297,6 +299,7 @@ type RenderInput = {
   orgName: string;
   nowIso: string;
   targetLabel: string;
+  targetIso: string;
   targetDateHuman: string;
   badges: ReturnType<typeof actionBadges>;
   rosterBlocks: ReturnType<typeof groupRosterByLocation>;
@@ -413,6 +416,7 @@ function renderPage(input: RenderInput): string {
   .card-title { font-weight: 700; font-size: 22px; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .card-meta { font-size: 18px; margin-top: 4px; opacity: 0.8; }
   .overflow { font-size: 20px; font-weight: 600; text-align: center; padding: 4px; border-top: 1px dashed #000; }
+  .holiday-note { font-size: 22px; font-weight: 600; border: 2px solid #000; padding: 4px 10px; margin: 4px 0 10px 0; display: inline-block; }
   .footer { position: absolute; left: 40px; right: 40px; bottom: 20px; border-top: 2px solid #000; padding-top: 8px; font-size: 20px; display: flex; justify-content: space-between; }
 </style>
 </head>
@@ -424,6 +428,10 @@ function renderPage(input: RenderInput): string {
   <div class="action-strip">${badgesHtml}</div>
   <section class="roster">
     <div class="roster-header"><h2>${escapeHtml(input.targetLabel)}</h2><div class="date">${escapeHtml(input.targetDateHuman)}</div></div>
+    ${(() => {
+      const h = getHolidayName(input.targetIso);
+      return h ? `<div class="holiday-note"><b>Feiertag:</b> ${escapeHtml(h)}</div>` : "";
+    })()}
     <div class="roster-grid">${rosterHtml}</div>
   </section>
   <div class="board">${columnsHtml}</div>

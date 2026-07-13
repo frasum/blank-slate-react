@@ -26,6 +26,7 @@ import { pillStyle } from "@/lib/roster/pill-style";
 import { buildDayView, type DayViewEntry } from "@/lib/roster/day-view";
 import { formatShortDate } from "@/lib/format-date";
 import { todayIso } from "@/lib/format";
+import { getHolidayName } from "@/lib/roster/holidays-display";
 import { DayEditSheet, type DayEditTarget } from "./DayEditSheet";
 
 type Props = {
@@ -178,7 +179,10 @@ export function RosterDayView({ date, onDateChange }: Props) {
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <div className="min-w-0 flex-1 text-center text-base font-medium">
-          {formatShortDate(date)}
+          <div>{formatShortDate(date)}</div>
+          {getHolidayName(date) && (
+            <div className="text-xs font-medium text-amber-700">{getHolidayName(date)}</div>
+          )}
         </div>
         <Button
           size="icon"
