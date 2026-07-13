@@ -32,11 +32,10 @@ export const Route = createFileRoute("/auth")({
 type Tab = "password" | "pin";
 
 function AuthPage() {
-  // ssr:false rendert serverseitig nur die Suspense-Hülle. Damit die erste
-  // Client-Render-Runde HTML-strukturell identisch zur SSR-Ausgabe ist
-  // (kein Hydration-Mismatch → kein Error-Boundary-Flash, kein Weißblitz),
-  // rendern wir vor dem ersten Effekt eine leere <main>-Hülle und blenden
-  // den eigentlichen Inhalt erst nach dem Mount ein.
+  // ssr:false rendert serverseitig nur die Suspense-Hülle/Fallback-Struktur.
+  // Damit die erste Client-Render-Runde HTML-strukturell identisch bleibt,
+  // rendern wir vor dem ersten Effekt nichts und blenden den Inhalt erst
+  // nach dem Mount ein.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
@@ -50,11 +49,7 @@ function AuthPage() {
     await navigate({ to: "/" });
   };
 
-  if (!mounted) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-background px-4 py-12" />
-    );
-  }
+  if (!mounted) return null;
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
