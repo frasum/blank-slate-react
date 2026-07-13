@@ -24,6 +24,7 @@ import {
   type ExistingRow,
 } from "./cross-account-duplicates";
 import { mapGcTransactionsResponse } from "./gocardless-map";
+import { selectAllPaged } from "@/lib/supabase/select-all";
 
 // ==== Typen für die UI ================================================
 
@@ -168,15 +169,25 @@ export const listBankCategoriesAndRules = createServerFn({ method: "GET" })
     // Aktuelle Trefferzähler je Regel — an dieser Stelle laden wir NUR die
     // eindeutigen Buchungen der Org (ohne Override) und rechnen.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: txs, error } = await supabaseAdmin
-      .from("bank_transactions")
-      .select("gegenpartei, verwendungszweck, override_category_id")
-      .eq("organization_id", caller.organizationId);
-    if (error) throw error;
+    // BFIX3: PostgREST kappt bei 1000 Zeilen — paginieren, sonst zählt die
+    // Regel-Trefferliste ab der ersten Seite still falsch.
+    const txs = await selectAllPaged<{
+      gegenpartei: string | null;
+      verwendungszweck: string | null;
+      override_category_id: string | null;
+      id: string;
+    }>((from, to) =>
+      supabaseAdmin
+        .from("bank_transactions")
+        .select("id, gegenpartei, verwendungszweck, override_category_id")
+        .eq("organization_id", caller.organizationId)
+        .order("id", { ascending: true })
+        .range(from, to),
+    );
     const sortedRules = sortRules(cats.rules);
     const ruleHits: Record<string, number> = {};
     for (const r of sortedRules) ruleHits[r.id] = 0;
-    for (const t of txs ?? []) {
+    for (const t of txs) {
       if (t.override_category_id) continue;
       const res = resolveCategory(
         {
@@ -329,30 +340,45 @@ export const listBankTransactions = createServerFn({ method: "POST" })
     const caller = await loadAdminCaller(context.supabase, context.userId, ["admin"]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // Wenn nach Kategorie gefiltert wird, geschieht das erst nach dem
-    // Auflösen im Node-Prozess (Regeln + Overrides). Damit data.limit nicht
-    // fälschlich schon serverseitig zuschlägt und die Ergebnisliste leer
-    // wirkt, holen wir intern mehr Kandidaten und schneiden erst am Ende.
-    const fetchLimit = data.categoryId ? Math.max(data.limit, 5000) : data.limit;
-    let q = supabaseAdmin
-      .from("bank_transactions")
-      .select(
-        "id, account_id, laufende_nummer, buchungstag, wertstellungstag, betrag_cents, saldo_cents, gegenpartei, verwendungszweck, bank_kategorie, bank_unterkategorie, override_category_id",
-      )
-      .eq("organization_id", caller.organizationId)
-      .order("buchungstag", { ascending: false })
-      .order("laufende_nummer", { ascending: false })
-      .limit(fetchLimit);
-    q = applyFilterToQuery(q, data) as typeof q;
-    if (data.search && data.search.length > 0) {
-      const like = `%${data.search.replace(/[%_]/g, (m) => `\\${m}`)}%`;
-      q = q.or(`gegenpartei.ilike.${like},verwendungszweck.ilike.${like}`);
-    }
-    const { data: txs, error } = await q;
-    if (error) throw error;
+    // Auflösen im Node-Prozess (Regeln + Overrides). PostgREST kappt bei
+    // 1000 Zeilen; ein reines `.limit(5000)` bringt daher nichts. Wir
+    // paginieren stattdessen und schneiden nach dem Filtern auf data.limit.
+    type TxRow = {
+      id: string;
+      account_id: string;
+      laufende_nummer: number;
+      buchungstag: string;
+      wertstellungstag: string | null;
+      betrag_cents: number;
+      saldo_cents: number | null;
+      gegenpartei: string | null;
+      verwendungszweck: string | null;
+      bank_kategorie: string | null;
+      bank_unterkategorie: string | null;
+      override_category_id: string | null;
+    };
+    const like =
+      data.search && data.search.length > 0
+        ? `%${data.search.replace(/[%_]/g, (m) => `\\${m}`)}%`
+        : null;
+    const txs = await selectAllPaged<Omit<TxRow, "laufende_nummer"> & { laufende_nummer: number | null }>((from, to) => {
+      let q = supabaseAdmin
+        .from("bank_transactions")
+        .select(
+          "id, account_id, laufende_nummer, buchungstag, wertstellungstag, betrag_cents, saldo_cents, gegenpartei, verwendungszweck, bank_kategorie, bank_unterkategorie, override_category_id",
+        )
+        .eq("organization_id", caller.organizationId)
+        .order("buchungstag", { ascending: false })
+        .order("laufende_nummer", { ascending: false })
+        .order("id", { ascending: false });
+      q = applyFilterToQuery(q, data) as typeof q;
+      if (like) q = q.or(`gegenpartei.ilike.${like},verwendungszweck.ilike.${like}`);
+      return q.range(from, to);
+    });
     const { rules } = await loadCategoriesAndRules(caller.organizationId);
     const sortedRules = sortRules(rules);
     const out: BankTxRow[] = [];
-    for (const t of txs ?? []) {
+    for (const t of txs) {
       const res = resolveCategory(
         {
           gegenpartei: t.gegenpartei ?? "",
