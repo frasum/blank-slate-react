@@ -19,6 +19,7 @@ import { listSuppliers } from "@/lib/bestellung/suppliers.functions";
 import {
   listOrderEmailLog,
   getOrderEmailLogEntry,
+  type OrderEmailLogRow,
 } from "@/lib/bestellung/order-email-log.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/bestellung/bestellungen")({
