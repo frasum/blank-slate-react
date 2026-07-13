@@ -1095,6 +1095,9 @@ export const setAbsence = createServerFn({ method: "POST" })
       makeAuditWriter(caller),
       async () => {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        // N19: Absenzen dürfen nicht in eine gesperrte Periode geschrieben
+        // werden — analog zu allen roster_shifts-Schreibpfaden.
+        await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, data.date);
         const { error } = await supabaseAdmin.from("roster_absence").upsert(
           {
             organization_id: caller.organizationId,
@@ -1142,6 +1145,9 @@ export const clearAbsence = createServerFn({ method: "POST" })
       makeAuditWriter(caller),
       async () => {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        // N19: Absenzen dürfen nicht in einer gesperrten Periode entfernt
+        // werden — analog zu allen roster_shifts-Schreibpfaden.
+        await assertShiftDateUnlocked(supabaseAdmin, caller.organizationId, data.date);
         const { error } = await supabaseAdmin
           .from("roster_absence")
           .delete()
