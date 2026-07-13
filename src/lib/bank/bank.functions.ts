@@ -169,15 +169,25 @@ export const listBankCategoriesAndRules = createServerFn({ method: "GET" })
     // Aktuelle Trefferzähler je Regel — an dieser Stelle laden wir NUR die
     // eindeutigen Buchungen der Org (ohne Override) und rechnen.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: txs, error } = await supabaseAdmin
-      .from("bank_transactions")
-      .select("gegenpartei, verwendungszweck, override_category_id")
-      .eq("organization_id", caller.organizationId);
-    if (error) throw error;
+    // BFIX3: PostgREST kappt bei 1000 Zeilen — paginieren, sonst zählt die
+    // Regel-Trefferliste ab der ersten Seite still falsch.
+    const txs = await selectAllPaged<{
+      gegenpartei: string | null;
+      verwendungszweck: string | null;
+      override_category_id: string | null;
+      id: string;
+    }>((from, to) =>
+      supabaseAdmin
+        .from("bank_transactions")
+        .select("id, gegenpartei, verwendungszweck, override_category_id")
+        .eq("organization_id", caller.organizationId)
+        .order("id", { ascending: true })
+        .range(from, to),
+    );
     const sortedRules = sortRules(cats.rules);
     const ruleHits: Record<string, number> = {};
     for (const r of sortedRules) ruleHits[r.id] = 0;
-    for (const t of txs ?? []) {
+    for (const t of txs) {
       if (t.override_category_id) continue;
       const res = resolveCategory(
         {
