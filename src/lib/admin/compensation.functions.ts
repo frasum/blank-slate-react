@@ -9,6 +9,7 @@ import { loadAdminCaller } from "./admin-context";
 import { assertPermission, runWithPermission } from "./admin-call";
 import { writeAuditLog } from "./audit";
 import { todayIso } from "@/lib/format";
+import { expectMaybe, expectVoid } from "@/lib/supabase/expect-ok";
 
 const staffIdInput = z.object({ staffId: z.string().uuid() });
 
@@ -42,13 +43,15 @@ export const getStaffCompensation = createServerFn({ method: "GET" })
     await assertPermission(context.supabase, "payroll.compensation.view");
     const caller = await loadAdminCaller(context.supabase, context.userId, ["admin", "payroll"]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: row, error } = await supabaseAdmin
-      .from("staff_compensation")
-      .select("hourly_rate, valid_from")
-      .eq("staff_id", data.staffId)
-      .eq("organization_id", caller.organizationId)
-      .maybeSingle();
-    if (error) throw error;
+    const row = expectMaybe<{ hourly_rate: number | string | null; valid_from: string | null }>(
+      await supabaseAdmin
+        .from("staff_compensation")
+        .select("hourly_rate, valid_from")
+        .eq("staff_id", data.staffId)
+        .eq("organization_id", caller.organizationId)
+        .maybeSingle(),
+      "getStaffCompensation.load",
+    );
     if (!row) return { exists: false, hourlyRate: null, validFrom: null };
     return {
       exists: true,
@@ -81,23 +84,27 @@ export const upsertStaffCompensation = createServerFn({ method: "POST" })
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
         // Staff muss zur eigenen Org gehören.
-        const { data: staffRow, error: staffErr } = await supabaseAdmin
-          .from("staff")
-          .select("id")
-          .eq("id", data.staffId)
-          .eq("organization_id", caller.organizationId)
-          .maybeSingle();
-        if (staffErr) throw staffErr;
+        const staffRow = expectMaybe<{ id: string }>(
+          await supabaseAdmin
+            .from("staff")
+            .select("id")
+            .eq("id", data.staffId)
+            .eq("organization_id", caller.organizationId)
+            .maybeSingle(),
+          "upsertStaffCompensation.loadStaff",
+        );
         if (!staffRow) throw new Error("Mitarbeiter nicht gefunden");
 
         // Null = Eintrag löschen.
         if (data.hourlyRate === null) {
-          const { error: delErr } = await supabaseAdmin
-            .from("staff_compensation")
-            .delete()
-            .eq("staff_id", data.staffId)
-            .eq("organization_id", caller.organizationId);
-          if (delErr) throw delErr;
+          expectVoid(
+            await supabaseAdmin
+              .from("staff_compensation")
+              .delete()
+              .eq("staff_id", data.staffId)
+              .eq("organization_id", caller.organizationId),
+            "upsertStaffCompensation.delete",
+          );
           return {
             result: { ok: true as const },
             audit: {
@@ -110,16 +117,18 @@ export const upsertStaffCompensation = createServerFn({ method: "POST" })
         }
 
         const validFrom = data.validFrom ?? todayISO();
-        const { error: upsertErr } = await supabaseAdmin.from("staff_compensation").upsert(
-          {
-            staff_id: data.staffId,
-            organization_id: caller.organizationId,
-            hourly_rate: data.hourlyRate,
-            valid_from: validFrom,
-          },
-          { onConflict: "staff_id" },
+        expectVoid(
+          await supabaseAdmin.from("staff_compensation").upsert(
+            {
+              staff_id: data.staffId,
+              organization_id: caller.organizationId,
+              hourly_rate: data.hourlyRate,
+              valid_from: validFrom,
+            },
+            { onConflict: "staff_id" },
+          ),
+          "upsertStaffCompensation.upsert",
         );
-        if (upsertErr) throw upsertErr;
 
         return {
           result: { ok: true as const },
