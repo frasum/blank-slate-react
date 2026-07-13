@@ -23,7 +23,7 @@ describe("N19 — Vergangenheit in offener Periode ist editierbar", () => {
     expect(() => check(undefined)).not.toThrow();
   });
 
-  it("locked: wirft „Periode gesperrt"", () => {
+  it("locked: wirft Periode-gesperrt", () => {
     expect(() => check("locked")).toThrow(/Periode gesperrt/);
   });
 
