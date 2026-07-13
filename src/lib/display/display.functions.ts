@@ -7,6 +7,7 @@ import { z } from "zod";
 import { createHash } from "node:crypto";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
+import type { TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 
 export type DisplaySettings = {
   id: string;
@@ -45,7 +46,7 @@ export const getDisplaySettings = createServerFn({ method: "GET" })
     const caller = await loadAdminCaller(context.supabase, context.userId, ALLOWED_ROLES);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row, error } = await supabaseAdmin
-      .from("display_settings" as never)
+      .from("display_settings")
       .select("*")
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId)
@@ -80,7 +81,7 @@ export const upsertDisplaySettings = createServerFn({ method: "POST" })
 
     // Bestehende Settings holen oder neu anlegen.
     const { data: existing } = await supabaseAdmin
-      .from("display_settings" as never)
+      .from("display_settings")
       .select("id")
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId)
@@ -90,7 +91,7 @@ export const upsertDisplaySettings = createServerFn({ method: "POST" })
       // Erst-Anlage: gleich einen frischen Token erzeugen — Klartext einmalig
       // an den Aufrufer, in der DB nur der Hash.
       const freshToken = generateToken();
-      const payload: Record<string, unknown> = {
+      const payload: TablesInsert<"display_settings"> = {
         organization_id: caller.organizationId,
         location_id: data.locationId,
         display_token_hash: sha256Hex(freshToken),
@@ -106,8 +107,8 @@ export const upsertDisplaySettings = createServerFn({ method: "POST" })
       if (data.showFooter !== undefined) payload.show_footer = data.showFooter;
       if (data.customMessage !== undefined) payload.custom_message = data.customMessage;
       const { data: row, error } = await supabaseAdmin
-        .from("display_settings" as never)
-        .insert(payload as never)
+        .from("display_settings")
+        .insert(payload)
         .select("*")
         .single();
       if (error) throw error;
@@ -117,7 +118,7 @@ export const upsertDisplaySettings = createServerFn({ method: "POST" })
       } as DisplaySettingsWithToken;
     }
 
-    const patch: Record<string, unknown> = {};
+    const patch: TablesUpdate<"display_settings"> = {};
     if (data.isEnabled !== undefined) patch.is_enabled = data.isEnabled;
     if (data.refreshIntervalSeconds !== undefined)
       patch.refresh_interval_seconds = data.refreshIntervalSeconds;
@@ -131,7 +132,7 @@ export const upsertDisplaySettings = createServerFn({ method: "POST" })
 
     if (Object.keys(patch).length === 0) {
       const { data: row, error } = await supabaseAdmin
-        .from("display_settings" as never)
+        .from("display_settings")
         .select("*")
         .eq("id", (existing as { id: string }).id)
         .single();
@@ -143,8 +144,8 @@ export const upsertDisplaySettings = createServerFn({ method: "POST" })
     }
 
     const { data: row, error } = await supabaseAdmin
-      .from("display_settings" as never)
-      .update(patch as never)
+      .from("display_settings")
+      .update(patch)
       .eq("id", (existing as { id: string }).id)
       .eq("organization_id", caller.organizationId)
       .select("*")
@@ -172,8 +173,8 @@ export const regenerateDisplayToken = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const newToken = generateToken();
     const { data: row, error } = await supabaseAdmin
-      .from("display_settings" as never)
-      .update({ display_token_hash: sha256Hex(newToken) } as never)
+      .from("display_settings")
+      .update({ display_token_hash: sha256Hex(newToken) })
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId)
       .select("*")

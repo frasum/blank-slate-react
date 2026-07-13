@@ -138,7 +138,7 @@ export async function buildDisplayData(
 
   // Reminders — Client entscheidet über Fälligkeit anhand fromTime.
   const { data: reminderRows } = await supabaseAdmin
-    .from("display_reminders" as never)
+    .from("display_reminders")
     .select(
       "id, title, emoji, color, weekday, interval_weeks, anchor_date, from_time, until_time, sort_order",
     )

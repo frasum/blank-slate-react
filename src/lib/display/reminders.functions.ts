@@ -136,7 +136,7 @@ export const listDisplayReminders = createServerFn({ method: "GET" })
     await assertLocationInOrg(caller.organizationId, data.locationId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: rows, error } = await supabaseAdmin
-      .from("display_reminders" as never)
+      .from("display_reminders")
       .select("*")
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId)
@@ -169,8 +169,8 @@ export const createDisplayReminder = createServerFn({ method: "POST" })
         sort_order: data.sortOrder ?? 0,
       };
       const { data: row, error } = await supabaseAdmin
-        .from("display_reminders" as never)
-        .insert(payload as never)
+        .from("display_reminders")
+        .insert(payload)
         .select("*")
         .single();
       if (error) throw error;
@@ -207,8 +207,8 @@ export const updateDisplayReminder = createServerFn({ method: "POST" })
         sort_order: data.sortOrder ?? 0,
       };
       const { data: row, error } = await supabaseAdmin
-        .from("display_reminders" as never)
-        .update(patch as never)
+        .from("display_reminders")
+        .update(patch)
         .eq("id", data.id)
         .eq("organization_id", caller.organizationId)
         .select("*")
@@ -235,7 +235,7 @@ export const deleteDisplayReminder = createServerFn({ method: "POST" })
     return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { error } = await supabaseAdmin
-        .from("display_reminders" as never)
+        .from("display_reminders")
         .delete()
         .eq("id", data.id)
         .eq("organization_id", caller.organizationId);
