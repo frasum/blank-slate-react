@@ -62,6 +62,7 @@ export type TimeEntryOverviewRow = {
   started_at: string;
   ended_at: string;
   source: string;
+  department: Department | null;
   staff: { display_name: string } | null;
   id: string;
 };
