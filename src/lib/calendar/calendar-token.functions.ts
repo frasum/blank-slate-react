@@ -87,20 +87,3 @@ export const revokeMyCalendarToken = createServerFn({ method: "POST" })
     if (error) throw error;
     return { ok: true as const };
   });
-
-export const revokeMyCalendarToken = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const caller = await loadStaffCaller(context.supabase, context.userId);
-    assertRealIdentity(caller);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin
-      .from("access_tokens")
-      .update({ used_at: new Date().toISOString() })
-      .eq("organization_id", caller.organizationId)
-      .eq("staff_id", caller.staffId)
-      .eq("token_type", "calendar_feed")
-      .is("used_at", null);
-    if (error) throw error;
-    return { ok: true as const };
-  });
