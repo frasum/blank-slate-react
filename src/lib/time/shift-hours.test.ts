@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { computeShiftHours, isBavarianHoliday, isSundayOrHoliday } from "./shift-hours";
+import {
+  berlinLocalToIso,
+  berlinOffsetMinutesAt,
+  computeShiftHours,
+  isBavarianHoliday,
+  isSundayOrHoliday,
+} from "./shift-hours";
 
 // Hinweis: ISO-Strings mit explizitem Berlin-Offset (Sommerzeit "+02:00", Winterzeit "+01:00").
 // 15.06.2026 ist ein Montag (Sommerzeit).
@@ -63,5 +69,53 @@ describe("shift-hours", () => {
     expect(r.nightHours).toBe(0);
     expect(r.eveningHours).toBe(0);
     expect(r.totalHours).toBeCloseTo(8, 5);
+  });
+
+  // DST-Umstellungsnächte: 2026-03-29 (CET→CEST) und 2026-10-25 (CEST→CET).
+  it("(g) DST März: Mitternacht am Umstellungstag ist CET (+01:00)", () => {
+    // 00:00 Berlin am 2026-03-29 liegt VOR der 02:00→03:00-Umstellung,
+    // also noch Winterzeit (+01:00) = 2026-03-28T23:00:00Z.
+    expect(berlinLocalToIso("2026-03-29", 0, 0)).toBe("2026-03-28T23:00:00.000Z");
+    // 12:00 desselben Tages ist bereits Sommerzeit (+02:00).
+    expect(berlinLocalToIso("2026-03-29", 12, 0)).toBe("2026-03-29T10:00:00.000Z");
+  });
+
+  it("(h) DST Oktober: Mitternacht am Umstellungstag ist CEST (+02:00)", () => {
+    // 00:00 Berlin am 2026-10-25 liegt VOR der 03:00→02:00-Umstellung,
+    // also noch Sommerzeit (+02:00) = 2026-10-24T22:00:00Z.
+    expect(berlinLocalToIso("2026-10-25", 0, 0)).toBe("2026-10-24T22:00:00.000Z");
+    // 12:00 desselben Tages ist bereits Winterzeit (+01:00).
+    expect(berlinLocalToIso("2026-10-25", 12, 0)).toBe("2026-10-25T11:00:00.000Z");
+  });
+
+  it("(i) Schicht Sa 17:00 → So 01:00 über Oktober-Umstellung: 9h (nicht 8h)", () => {
+    // Sa 2026-10-24 17:00 CEST = 15:00Z. So 2026-10-25 01:00 CEST = 23:00Z (Vortag).
+    // Zwischen 01:00 CEST und 01:00 CET liegt eine Wiederholung → real 9h.
+    const startedAt = berlinLocalToIso("2026-10-24", 17, 0);
+    const endedAt = berlinLocalToIso("2026-10-25", 1, 0);
+    const r = computeShiftHours(startedAt, endedAt, "2026-10-24");
+    expect(r.totalHours).toBeCloseTo(9, 5);
+    // Abend = 20:00–24:00 Berlin (Sa), Mitternacht = 00:00 CEST = 22:00Z.
+    expect(r.eveningHours).toBeCloseTo(4, 5);
+    // Nachtstunden = tatsächliche Minuten nach Mitternacht bis end.
+    expect(r.nightHours).toBeCloseTo(1, 5);
+  });
+
+  it("(j) Schicht Sa 17:00 → So 01:00 über März-Umstellung: 7h (nicht 8h)", () => {
+    // Sa 2026-03-28 17:00 CET = 16:00Z. So 2026-03-29 01:00 CET = 00:00Z.
+    const startedAt = berlinLocalToIso("2026-03-28", 17, 0);
+    const endedAt = berlinLocalToIso("2026-03-29", 1, 0);
+    const r = computeShiftHours(startedAt, endedAt, "2026-03-28");
+    expect(r.totalHours).toBeCloseTo(8, 5);
+    expect(r.eveningHours).toBeCloseTo(4, 5);
+    expect(r.nightHours).toBeCloseTo(1, 5);
+  });
+
+  it("(k) berlinOffsetMinutesAt liefert Instant-genauen Offset", () => {
+    // 2026-10-25T00:30:00Z liegt zwischen den 02:00-CEST-Wiederholungen,
+    // hier ist Berlin bereits auf +02:00 (00:30Z = 02:30 CEST).
+    expect(berlinOffsetMinutesAt(new Date("2026-10-25T00:30:00Z"))).toBe(120);
+    // 2026-10-25T02:00:00Z = 03:00 CET (nach Umstellung).
+    expect(berlinOffsetMinutesAt(new Date("2026-10-25T02:00:00Z"))).toBe(60);
   });
 });
