@@ -120,7 +120,16 @@ export function batchTimestamps(
   const e = toHm(end);
   const startMinutes = s.h * 60 + s.m;
   const endMinutes = e.h * 60 + e.m;
-  const wraps = endMinutes <= startMinutes;
+  // Konsistenz zu kitchenShiftMinutes: end === start ist KEINE 24-h-Schicht,
+  // sondern eine Fehleingabe. Ohne diesen Guard hätte der Wrap unten
+  // stillschweigend einen 24-h-Eintrag erzeugt.
+  if (endMinutes === startMinutes) {
+    throw new Error(
+      `Standard-Schichtzeiten: Ende (${end}) gleich Start (${start}) — ` +
+        `bitte in den Einstellungen korrigieren (keine 24-h-Schicht).`,
+    );
+  }
+  const wraps = endMinutes < startMinutes;
   const endDateIso = wraps ? nextIsoDate(dateIso) : dateIso;
 
   const startedAtIso = berlinLocalToIso(dateIso, s.h, s.m);

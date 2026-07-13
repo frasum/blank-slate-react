@@ -22,7 +22,7 @@ import {
   isValidLeaveRange,
   type LeaveStatus,
 } from "./leave-requests";
-import { bavarianHolidaysBetween } from "./holiday-utils";
+import { bavarianLegalHolidaysBetween } from "./holiday-utils";
 import { countHolidaysInRange } from "./leave-requests";
 
 async function loadCountHolidays(
@@ -40,7 +40,10 @@ async function loadCountHolidays(
 }
 
 function holidaySetIfSkip(skip: boolean, start: string, end: string): Set<string> | undefined {
-  return skip ? bavarianHolidaysBetween(start, end) : undefined;
+  // Nur gesetzliche Feiertage überspringen. Heiligabend (24.12.) ist
+  // KEIN gesetzlicher Feiertag und darf nicht abgezogen werden — sonst
+  // wird Weihnachtsurlaub einen Tag zu klein gerechnet.
+  return skip ? bavarianLegalHolidaysBetween(start, end) : undefined;
 }
 
 // PL1 — planer wird als Rollen-Whitelist zugelassen; feingranulare Rechte-
