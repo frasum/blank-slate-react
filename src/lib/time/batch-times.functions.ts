@@ -208,6 +208,21 @@ export const runBatchTimes = createServerFn({ method: "POST" })
 
       // 5. Iteration.
       const dates = iterateDates(data.periodStart, data.periodEnd);
+
+      // N11 (Nachprüfung 13.07.): Standard-Schichtzeiten VOR dem ersten
+      // Schreibvorgang für ALLE betroffenen Tage validieren. Wirft
+      // batchTimestamps für irgendeine Kombination (z. B. Ende = Start),
+      // bricht der Lauf hier ab — kein halb-geschriebener Zustand. Der
+      // Fehlertext nennt weiterhin die konkrete fehlerhafte HH:MM.
+      const timestampsByDate = new Map<
+        string,
+        { startedAtIso: string; endedAtIso: string; breakMinutes: number }
+      >();
+      for (const dateIso of dates) {
+        const std = standardTimesFor(dateIso, settings);
+        timestampsByDate.set(dateIso, batchTimestamps(dateIso, std.start, std.end));
+      }
+
       const skipped: SkipCounts = {
         locked: 0,
         absence: 0,
@@ -240,8 +255,8 @@ export const runBatchTimes = createServerFn({ method: "POST" })
             continue;
           }
 
-          const std = standardTimesFor(dateIso, settings);
-          const ts = batchTimestamps(dateIso, std.start, std.end);
+          // N11: Timestamps stammen aus der oben validierten Sammelphase.
+          const ts = timestampsByDate.get(dateIso)!;
 
           if (result.action === "update") {
             const before = ownRow!;

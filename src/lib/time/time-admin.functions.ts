@@ -24,6 +24,24 @@ import { computeStaffSfn } from "@/lib/lohn/compute-staff-sfn";
 import { primaryDepartment, type Department } from "./primary-department";
 import { selectAllPaged } from "@/lib/supabase/select-all";
 
+// N12: Wochenstart auf Montag derselben ISO-Woche normalisieren.
+// Übergibt ein Client einen Mittwoch, kommt die Woche Mo–So zurück — statt
+// einen kryptischen 400-Fehler zu werfen.
+function normalizeIsoWeek(isoDate: string): { weekStart: string; weekEnd: string } {
+  const anchor = new Date(`${isoDate}T12:00:00Z`);
+  // getUTCDay: 0=So..6=Sa. Montag-Offset = (dow+6)%7 (Mo=0..So=6).
+  const mondayOffset = (anchor.getUTCDay() + 6) % 7;
+  const monday = new Date(anchor);
+  monday.setUTCDate(monday.getUTCDate() - mondayOffset);
+  const sunday = new Date(monday);
+  sunday.setUTCDate(sunday.getUTCDate() + 6);
+  return {
+    weekStart: monday.toISOString().slice(0, 10),
+    weekEnd: sunday.toISOString().slice(0, 10),
+  };
+}
+export const _normalizeIsoWeekForTest = normalizeIsoWeek;
+
 // N1 (Nachprüfung 13.07.): Zentrale, paginierte time_entries-Loader für die
 // Batch-Server-Functions. PostgREST kappt Selects still bei 1000 Zeilen —
 // ohne Pagination würde ein Monat über mehrere Standorte in Lohn/SFN stumm
@@ -90,9 +108,7 @@ export async function _loadTimeEntriesForSfnBatch(
   return selectAllPaged<TimeEntrySfnRow>(() =>
     supabaseAdmin
       .from("time_entries")
-      .select(
-        "id, location_id, staff_id, business_date, started_at, ended_at, break_minutes",
-      )
+      .select("id, location_id, staff_id, business_date, started_at, ended_at, break_minutes")
       .eq("organization_id", organizationId)
       .in("location_id", locationIds)
       .gte("business_date", fromDate)
@@ -573,11 +589,10 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
     ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    // weekEnd = weekStart + 6 Tage (Sonntag)
-    const start = new Date(`${data.weekStart}T12:00:00Z`);
-    const end = new Date(start);
-    end.setUTCDate(end.getUTCDate() + 6);
-    const weekEnd = end.toISOString().slice(0, 10);
+    // N12 (Nachprüfung 13.07.): Übergebenes Startdatum auf den Montag
+    // derselben Woche normalisieren — statt einen Nicht-Montag stumm
+    // abzulehnen. Danach weekEnd = normalisierter Montag + 6 Tage.
+    const { weekStart, weekEnd } = normalizeIsoWeek(data.weekStart);
 
     // 1. Einträge am Zielstandort.
     const { data: rows, error } = await supabaseAdmin
@@ -587,7 +602,7 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
       )
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId)
-      .gte("business_date", data.weekStart)
+      .gte("business_date", weekStart)
       .lte("business_date", weekEnd)
       .not("ended_at", "is", null)
       .order("started_at", { ascending: true });
@@ -599,7 +614,7 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
       .select("staff_id, business_date, location_id")
       .eq("organization_id", caller.organizationId)
       .neq("location_id", data.locationId)
-      .gte("business_date", data.weekStart)
+      .gte("business_date", weekStart)
       .lte("business_date", weekEnd)
       .not("ended_at", "is", null);
     if (crossErr) throw crossErr;
@@ -650,7 +665,7 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
       .select("staff_id, area, skill_id, shift_date")
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId)
-      .gte("shift_date", data.weekStart)
+      .gte("shift_date", weekStart)
       .lte("shift_date", weekEnd);
     if (rosterErr) throw rosterErr;
     // Z3b — Per-Tag-Roster-Area je Mitarbeiter: erlaubt der Client-
@@ -713,7 +728,7 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
     }
 
     return {
-      weekStart: data.weekStart,
+      weekStart,
       weekEnd,
       entries: (rows ?? []).map((r) => ({
         id: r.id as string,
@@ -989,10 +1004,10 @@ export const getWeeklyTimeEntriesBatch = createServerFn({ method: "GET" })
     ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const start = new Date(`${data.weekStart}T12:00:00Z`);
-    const end = new Date(start);
-    end.setUTCDate(end.getUTCDate() + 6);
-    const weekEnd = end.toISOString().slice(0, 10);
+    // N12: Wochenstart auf Montag normalisieren (Nicht-Montag → derselbe
+    // Wochen-Montag), damit clientseitige Off-by-one-Rundungen die
+    // Batch-Ansicht nicht verstellen.
+    const { weekStart, weekEnd } = normalizeIsoWeek(data.weekStart);
 
     // N1: paginierte Loader — 1 Woche × mehrere Standorte kann bei größeren
     // Belegschaften die 1000-Zeilen-Grenze streifen.
@@ -1000,7 +1015,7 @@ export const getWeeklyTimeEntriesBatch = createServerFn({ method: "GET" })
       supabaseAdmin,
       caller.organizationId,
       data.locationIds,
-      data.weekStart,
+      weekStart,
       weekEnd,
     );
 
@@ -1033,7 +1048,7 @@ export const getWeeklyTimeEntriesBatch = createServerFn({ method: "GET" })
       supabaseAdmin,
       caller.organizationId,
       data.locationIds,
-      data.weekStart,
+      weekStart,
       weekEnd,
     );
 
@@ -1162,7 +1177,7 @@ export const getWeeklyTimeEntriesBatch = createServerFn({ method: "GET" })
       // sparen. Der Merge-Reducer (weeklyData in zeit-uebersicht) verwendet
       // dieses Feld ohnehin nicht, wenn isAllLocations aktiv ist.
       byLocation[lid] = {
-        weekStart: data.weekStart,
+        weekStart,
         weekEnd,
         entries,
         crossLocationDates: {},
