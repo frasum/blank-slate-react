@@ -13,6 +13,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { writeAuditLog } from "./audit";
 import { resolveActiveImpersonation } from "./impersonation";
 import { expectMaybe, expectOk, expectVoid } from "@/lib/supabase/expect-ok";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 
 export type ImpersonationStaffOption = {
   staffId: string;
@@ -29,9 +31,7 @@ export type ImpersonationStatus = {
   since: string | null;
 };
 
-async function assertRealAdmin(supabase: {
-  rpc: (fn: string) => Promise<{ data: unknown; error: { message: string } | null }>;
-}): Promise<void> {
+async function assertRealAdmin(supabase: SupabaseClient<Database>): Promise<void> {
   const data = expectMaybe<unknown>(await supabase.rpc("is_real_admin"), "assertRealAdmin");
   if (data !== true) throw new Error("Forbidden");
 }
@@ -39,7 +39,7 @@ async function assertRealAdmin(supabase: {
 export const listStaffForImpersonation = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<ImpersonationStaffOption[]> => {
-    await assertRealAdmin(context.supabase as never);
+    await assertRealAdmin(context.supabase);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // Aktive Mitarbeiter der Org des Admins.
@@ -92,7 +92,8 @@ export const listStaffForImpersonation = createServerFn({ method: "GET" })
     const linkByStaff = new Map<string, string>();
     for (const l of links ?? []) linkByStaff.set(l.staff_id, l.user_id);
     const roleByStaff = new Map<string, ImpersonationStaffOption["role"]>();
-    for (const r of roles ?? []) roleByStaff.set(r.staff_id, r.role as never);
+    for (const r of roles ?? [])
+      roleByStaff.set(r.staff_id, r.role as ImpersonationStaffOption["role"]);
 
     return (staff ?? [])
       .filter((s) => s.id !== null)
@@ -153,7 +154,7 @@ export const startImpersonation = createServerFn({ method: "POST" })
     return { staffId: input.staffId, reason };
   })
   .handler(async ({ data, context }) => {
-    await assertRealAdmin(context.supabase as never);
+    await assertRealAdmin(context.supabase);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const orgId = expectMaybe<string>(

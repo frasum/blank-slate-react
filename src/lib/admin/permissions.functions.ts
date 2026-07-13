@@ -10,6 +10,8 @@ import { assertStaffInOrg } from "./org-guards";
 import type { AppPermission, PermissionEffect } from "./permissions-catalog";
 import type { StaffDepartment } from "@/lib/staff-domain";
 import { expectMaybe, expectOk, expectVoid } from "@/lib/supabase/expect-ok";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 
 type RoleKey = "admin" | "manager" | "staff" | "payroll" | "planer";
 
@@ -32,9 +34,7 @@ export type StaffPermissionsResult = {
   overrides: StaffOverride[];
 };
 
-async function assertRealAdmin(supabase: {
-  rpc: (fn: string) => Promise<{ data: unknown; error: { message: string } | null }>;
-}): Promise<void> {
+async function assertRealAdmin(supabase: SupabaseClient<Database>): Promise<void> {
   const data = expectMaybe<unknown>(
     await supabase.rpc("is_real_admin"),
     "permissions.assertRealAdmin",
@@ -62,7 +62,7 @@ export const getStaffPermissions = createServerFn({ method: "GET" })
     return input;
   })
   .handler(async ({ data, context }): Promise<StaffPermissionsResult> => {
-    await assertRealAdmin(context.supabase as never);
+    await assertRealAdmin(context.supabase);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const role = expectMaybe<{ role: string }>(
@@ -131,7 +131,7 @@ export const setPermissionOverride = createServerFn({ method: "POST" })
     },
   )
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
-    await assertRealAdmin(context.supabase as never);
+    await assertRealAdmin(context.supabase);
     const callerOrgId = expectMaybe<string>(
       await context.supabase.rpc("current_organization_id"),
       "setPermissionOverride.orgId",
@@ -208,7 +208,7 @@ export const clearPermissionOverride = createServerFn({ method: "POST" })
     },
   )
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
-    await assertRealAdmin(context.supabase as never);
+    await assertRealAdmin(context.supabase);
     const callerOrgId = expectMaybe<string>(
       await context.supabase.rpc("current_organization_id"),
       "clearPermissionOverride.orgId",
