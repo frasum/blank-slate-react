@@ -103,11 +103,14 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-        // Token nachschlagen. Nur nicht-abgelaufene, noch nicht verlinkte Zeilen.
+        // Token nachschlagen — ausschließlich per Hash (der Klartext liegt
+        // nirgends in der DB). Nur nicht-abgelaufene, noch nicht verlinkte
+        // Zeilen werden angenommen.
+        const tokenHash = createHash("sha256").update(token).digest("hex");
         const { data: row, error: findErr } = await supabaseAdmin
           .from("staff_telegram_links")
           .select("id, organization_id, staff_id, token_expires_at, linked_at")
-          .eq("link_token", token)
+          .eq("link_token_hash", tokenHash)
           .maybeSingle();
         if (findErr) {
           return Response.json({ ok: true, ignored: "lookup-error" });
