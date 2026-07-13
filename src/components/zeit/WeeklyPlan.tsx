@@ -510,10 +510,7 @@ export function WeeklyPlan({
                     ? "Achtung: mindestens ein Eintrag trägt eine Abteilung, die der Person am Standort nicht zugeordnet ist — er wird hier auf der Primär-Zeile angezeigt."
                     : undefined;
                   return (
-                    <TableRow
-                      key={`${row.staffId}:${row.department}`}
-                      className="even:bg-muted/70"
-                    >
+                    <TableRow key={`${row.staffId}:${row.department}`} className="even:bg-muted/70">
                       <TableCell className="group relative px-1 font-bold align-middle text-center text-[10px] w-[56px] min-w-[56px] max-w-[56px]">
                         <span
                           className={`absolute left-0 top-0 bottom-0 w-[2px] ${DEPT_BAR[row.department]}`}
