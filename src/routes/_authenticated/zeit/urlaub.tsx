@@ -173,7 +173,7 @@ function UrlaubPage() {
                   {formatDate(r.startDate)} – {formatDate(r.endDate)}
                   <span
                     className="text-xs text-muted-foreground"
-                    title="Urlaubstage (Mo–Fr) — Wochenenden und Feiertage werden nach dem 5-Tage-Modell nicht abgezogen"
+                    title="Urlaubstage (Mo–Fr) — Samstage und Sonntage zählen nicht (5-Tage-Modell)"
                   >
                     ({r.days} {r.days === 1 ? "Urlaubstag (Mo–Fr)" : "Urlaubstage (Mo–Fr)"})
                   </span>
