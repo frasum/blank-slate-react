@@ -11,6 +11,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createHash } from "node:crypto";
 import { buildDisplayData } from "@/lib/display/display-data.server";
 import { buildRosterGrid, EMPTY_MARKER, type Grid } from "@/lib/trmnl/roster-grid";
+import { todayIso as todayIsoBerlin } from "@/lib/format";
 
 function notFound(): Response {
   return new Response("Not found", {
@@ -37,17 +38,6 @@ function formatDayHeader(iso: string): { wd: string; dm: string; dow: number } {
   const wd = d.toLocaleDateString("de-DE", { weekday: "short", timeZone: "UTC" });
   const dm = `${String(d.getUTCDate()).padStart(2, "0")}.`;
   return { wd, dm, dow: d.getUTCDay() };
-}
-
-function todayIsoBerlin(): string {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/Berlin",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date());
-  const get = (t: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === t)?.value ?? "";
-  return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
 function formatDateHuman(iso: string): string {

@@ -9,6 +9,7 @@ import { createHash } from "node:crypto";
 import { buildRosterIcs, type RosterIcsEvent } from "@/lib/calendar/roster-ics";
 import { poolLocalTimeToIso } from "@/lib/cash/pool-time-writeback";
 import { mergeAbsenceRanges } from "@/lib/roster/vacation-planner";
+import { todayIso } from "@/lib/format";
 
 function notFound(): Response {
   return new Response("Not found", {
@@ -19,10 +20,6 @@ function notFound(): Response {
 
 function sha256Hex(input: string): string {
   return createHash("sha256").update(input).digest("hex");
-}
-
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
 }
 
 function shiftIso(iso: string, deltaDays: number): string {

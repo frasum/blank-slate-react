@@ -881,7 +881,8 @@ export async function runSyncForAccount(
   ]);
   if (extRes.error) throw extRes.error;
   if (anyRes.error) throw anyRes.error;
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const { todayIso: todayIsoFn } = await import("@/lib/format");
+  const todayIso = todayIsoFn();
   const dateFromUsed = computeDateFrom({
     today: todayIso,
     maxBookingDateWithExternalTxId: extRes.data?.[0]?.buchungstag ?? null,

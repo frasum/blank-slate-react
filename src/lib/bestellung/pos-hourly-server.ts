@@ -2,6 +2,7 @@
 // Ausgelagert für Vitest ohne DB (spiegelt pos-report-server.ts, PV2).
 
 import { z } from "zod";
+import { todayIso as todayIsoBerlin } from "@/lib/format";
 
 export const PosHourlyRowSchema = z.object({
   hour: z.number().int().min(0).max(23),
@@ -11,10 +12,6 @@ export const PosHourlyRowSchema = z.object({
 export type PosHourlyRow = z.infer<typeof PosHourlyRowSchema>;
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Datum im Format YYYY-MM-DD erwartet.");
-
-function todayIsoBerlin(): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin" }).format(new Date());
-}
 
 export const ReplacePosHourlyStatsInput = z
   .object({

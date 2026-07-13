@@ -15,6 +15,7 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import { TASK_CATEGORY_LABEL, TASK_STATUS_LABEL, type Task } from "@/lib/aufgaben/types";
+import { todayIso as todayIsoBerlin } from "@/lib/format";
 import { selectAllPaged } from "@/lib/supabase/select-all";
 import {
   actionBadges,
@@ -43,17 +44,6 @@ function escapeHtml(s: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
-}
-
-function todayIsoBerlin(): string {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/Berlin",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date());
-  const get = (t: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === t)?.value ?? "";
-  return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
 function formatDate(iso: string): string {

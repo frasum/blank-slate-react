@@ -12,6 +12,7 @@ import {
 } from "@/lib/roster/roster.functions";
 import { groupMyShiftsByDate } from "@/lib/roster/my-shifts";
 import { formatShiftMatesLine, MATES_LINE_PREFIX, shiftMatesKey } from "@/lib/roster/shift-mates";
+import { todayIso } from "@/lib/format";
 import {
   createSwapRequest,
   listMySwapRequests,
@@ -144,7 +145,7 @@ function MyShiftsPage() {
 
   const [offerShiftId, setOfferShiftId] = useState<string | null>(null);
   const [note, setNote] = useState("");
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const todayIsoStr = todayIso();
 
   const createMutation = useMutation({
     mutationFn: (input: { shiftId: string; note?: string }) => createSwap({ data: input }),
@@ -240,7 +241,7 @@ function MyShiftsPage() {
                   const shownMatesKeys = new Set<string>();
                   return day.shifts.map((s) => {
                     const swap = swapByShift.get(s.id);
-                    const isFuture = s.shift_date > todayIso;
+                    const isFuture = s.shift_date > todayIsoStr;
                     const mateKey = shiftMatesKey(s.shift_date, s.locationId);
                     const matesLine =
                       !matesQuery.isError && matesQuery.data
