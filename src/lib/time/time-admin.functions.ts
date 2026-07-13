@@ -846,15 +846,14 @@ export const getSfnOverviewBatch = createServerFn({ method: "GET" })
     ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: rows, error } = await supabaseAdmin
-      .from("time_entries")
-      .select("location_id, staff_id, business_date, started_at, ended_at, break_minutes")
-      .eq("organization_id", caller.organizationId)
-      .in("location_id", data.locationIds)
-      .gte("business_date", data.fromDate)
-      .lte("business_date", data.toDate)
-      .not("ended_at", "is", null);
-    if (error) throw error;
+    // N1: paginierter Loader (1000-Zeilen-Trunkierung kappt sonst SFN-Summen still).
+    const rows = await _loadTimeEntriesForSfnBatch(
+      supabaseAdmin,
+      caller.organizationId,
+      data.locationIds,
+      data.fromDate,
+      data.toDate,
+    );
 
     const { data: comps, error: compErr } = await supabaseAdmin
       .from("staff_compensation")
@@ -887,7 +886,7 @@ export const getSfnOverviewBatch = createServerFn({ method: "GET" })
     // Pro Standort → Rows nach staff bucketen und SFN je Mitarbeiter berechnen.
     const rowsByLocStaff = new Map<string, Map<string, SfnShiftRow[]>>();
     for (const lid of data.locationIds) rowsByLocStaff.set(lid, new Map());
-    for (const r of rows ?? []) {
+    for (const r of rows) {
       const lid = r.location_id as string;
       const bucket = rowsByLocStaff.get(lid);
       if (!bucket) continue;
