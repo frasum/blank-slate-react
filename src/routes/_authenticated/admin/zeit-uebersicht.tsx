@@ -174,6 +174,9 @@ function ZeitUebersichtPage() {
   const [deptFilter, setDeptFilter] = useState<Department | "all">("all");
   const [skillFilter, setSkillFilter] = useState<string>("all");
   const [activeTab, setActiveTab] = useState<string>("weekly");
+  // Summen-Skope für die rechte Kennzahlen-Spalte im Wochenplan:
+  // "week" = aktuelle Woche (Grid-Daten), "period" = Abrechnungsperiode (Overview-Daten).
+  const [totalsScope, setTotalsScope] = useState<"week" | "period">("week");
   // Buchhaltung-Tab: §3b-Toggle + eigene Suche.
   const [payrollMode, setPayrollMode] = useState<BuchhaltungMode>("simple");
   const [payrollSearch, setPayrollSearch] = useState<string>("");
