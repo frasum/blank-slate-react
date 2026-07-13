@@ -340,30 +340,45 @@ export const listBankTransactions = createServerFn({ method: "POST" })
     const caller = await loadAdminCaller(context.supabase, context.userId, ["admin"]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // Wenn nach Kategorie gefiltert wird, geschieht das erst nach dem
-    // Auflösen im Node-Prozess (Regeln + Overrides). Damit data.limit nicht
-    // fälschlich schon serverseitig zuschlägt und die Ergebnisliste leer
-    // wirkt, holen wir intern mehr Kandidaten und schneiden erst am Ende.
-    const fetchLimit = data.categoryId ? Math.max(data.limit, 5000) : data.limit;
-    let q = supabaseAdmin
-      .from("bank_transactions")
-      .select(
-        "id, account_id, laufende_nummer, buchungstag, wertstellungstag, betrag_cents, saldo_cents, gegenpartei, verwendungszweck, bank_kategorie, bank_unterkategorie, override_category_id",
-      )
-      .eq("organization_id", caller.organizationId)
-      .order("buchungstag", { ascending: false })
-      .order("laufende_nummer", { ascending: false })
-      .limit(fetchLimit);
-    q = applyFilterToQuery(q, data) as typeof q;
-    if (data.search && data.search.length > 0) {
-      const like = `%${data.search.replace(/[%_]/g, (m) => `\\${m}`)}%`;
-      q = q.or(`gegenpartei.ilike.${like},verwendungszweck.ilike.${like}`);
-    }
-    const { data: txs, error } = await q;
-    if (error) throw error;
+    // Auflösen im Node-Prozess (Regeln + Overrides). PostgREST kappt bei
+    // 1000 Zeilen; ein reines `.limit(5000)` bringt daher nichts. Wir
+    // paginieren stattdessen und schneiden nach dem Filtern auf data.limit.
+    type TxRow = {
+      id: string;
+      account_id: string;
+      laufende_nummer: number;
+      buchungstag: string;
+      wertstellungstag: string | null;
+      betrag_cents: number;
+      saldo_cents: number | null;
+      gegenpartei: string | null;
+      verwendungszweck: string | null;
+      bank_kategorie: string | null;
+      bank_unterkategorie: string | null;
+      override_category_id: string | null;
+    };
+    const like =
+      data.search && data.search.length > 0
+        ? `%${data.search.replace(/[%_]/g, (m) => `\\${m}`)}%`
+        : null;
+    const txs = await selectAllPaged<TxRow>((from, to) => {
+      let q = supabaseAdmin
+        .from("bank_transactions")
+        .select(
+          "id, account_id, laufende_nummer, buchungstag, wertstellungstag, betrag_cents, saldo_cents, gegenpartei, verwendungszweck, bank_kategorie, bank_unterkategorie, override_category_id",
+        )
+        .eq("organization_id", caller.organizationId)
+        .order("buchungstag", { ascending: false })
+        .order("laufende_nummer", { ascending: false })
+        .order("id", { ascending: false });
+      q = applyFilterToQuery(q, data) as typeof q;
+      if (like) q = q.or(`gegenpartei.ilike.${like},verwendungszweck.ilike.${like}`);
+      return q.range(from, to);
+    });
     const { rules } = await loadCategoriesAndRules(caller.organizationId);
     const sortedRules = sortRules(rules);
     const out: BankTxRow[] = [];
-    for (const t of txs ?? []) {
+    for (const t of txs) {
       const res = resolveCategory(
         {
           gegenpartei: t.gegenpartei ?? "",
