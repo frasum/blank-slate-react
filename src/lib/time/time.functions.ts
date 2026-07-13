@@ -120,7 +120,7 @@ export const getMyPeriodEntries = createServerFn({ method: "GET" })
       .order("start_date", { ascending: false });
     if (pErr) throw pErr;
     const all = periods ?? [];
-    const today = new Date().toISOString().slice(0, 10);
+    const today = businessDateOf(new Date());
     const currentIdx = all.findIndex(
       (p) => (p.start_date as string) <= today && (p.end_date as string) >= today,
     );

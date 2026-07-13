@@ -15,6 +15,7 @@ import {
 import { listLocations } from "@/lib/admin/locations.functions";
 import { LocationPills } from "@/components/shared/LocationPills";
 import { SalesGroupFilter } from "@/components/bestellung/SalesGroupFilter";
+import { todayIso } from "@/lib/format";
 import {
   ALL,
   deriveWgOptions,
@@ -441,11 +442,6 @@ type ReplaceInput = {
   rows: { nummer: number; name: string; verkaufCount: number; umsatzCents: number }[];
   footer: { verkaufCount: number; umsatzCents: number };
 };
-
-function todayIso(): string {
-  const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin" });
-  return fmt.format(new Date());
-}
 
 async function extractSheetRows(file: File): Promise<(string | number | null)[][]> {
   const ExcelJS = (await import("exceljs")).default;

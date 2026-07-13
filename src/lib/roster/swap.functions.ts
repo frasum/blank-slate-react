@@ -23,6 +23,7 @@ import { writeAuditLog } from "@/lib/admin/audit";
 import { ForbiddenError } from "@/lib/admin/role-guard";
 import { resolvePlanerScope, scopeIncludes, assertScopeNotEmpty } from "./scope-util";
 import { sendTelegramToStaff } from "@/lib/telegram/telegram.functions";
+import { businessDateOf } from "@/lib/business-date";
 import {
   canAcceptCounterShift,
   canOfferShift,
@@ -36,8 +37,11 @@ import {
 // Hilfen
 // ---------------------------------------------------------------------------
 
+// "Heute" für Schichttausch-Regeln = aktueller Geschäftstag (Europe/Berlin,
+// 3-Uhr-Cutoff). Damit gilt eine bereits laufende Spätschicht nachts nicht
+// als „zukünftig".
 function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+  return businessDateOf(new Date());
 }
 
 async function assertShiftDateUnlocked(

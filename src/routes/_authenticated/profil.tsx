@@ -55,6 +55,7 @@ import {
   validateChildTaxAllowances,
 } from "@/lib/profile/profile-fields";
 import { DOC_TYPES, type StaffDocumentType } from "@/lib/profile/staff-document-path";
+import { todayIso } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/profil")({
   head: () => ({
@@ -97,14 +98,6 @@ function fmtDate(iso: string | null | undefined): string {
   const d = new Date(iso.length === 10 ? iso + "T00:00:00Z" : iso);
   if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleDateString("de-DE", { year: "numeric", month: "2-digit", day: "2-digit" });
-}
-
-function todayIso(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
 }
 
 function fileToBase64(file: File): Promise<string> {

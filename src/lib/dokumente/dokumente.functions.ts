@@ -238,7 +238,8 @@ async function loadPlaceholderInput(
         }
       : null;
 
-  const today = new Date().toISOString().slice(0, 10);
+  const { todayIso } = await import("@/lib/format");
+  const today = todayIso();
   const hourlyRate = compRes.data?.hourly_rate ?? null;
 
   return {

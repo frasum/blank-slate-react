@@ -11,7 +11,7 @@ import { getTipRemainderByPeriod } from "@/lib/cash/cash.functions";
 import { listLocations } from "@/lib/admin/locations.functions";
 import { listPeriods } from "@/lib/time/time-admin.functions";
 import { LocationPills } from "@/components/shared/LocationPills";
-import { fmtCents } from "@/lib/format";
+import { fmtCents, todayIso } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/admin/trinkgeld-rest")({
   head: () => ({ meta: [{ title: "Trinkgeld-Rest · Verwaltung" }] }),
@@ -45,7 +45,7 @@ function TipRemainderPage() {
   }, [locationId, locationsQ.data]);
   useEffect(() => {
     if (!periodId && periodsQ.data && periodsQ.data.length > 0) {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = todayIso();
       const current = periodsQ.data.find((p) => p.startDate <= today && today <= p.endDate);
       setPeriodId((current ?? periodsQ.data[0]).id);
     }

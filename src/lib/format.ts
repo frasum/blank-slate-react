@@ -11,8 +11,19 @@ export function parseIso(iso: string): Date {
   return new Date(`${iso}T12:00:00Z`);
 }
 
+/**
+ * Wall-clock „heute" in Europe/Berlin als YYYY-MM-DD.
+ * Zwischen 00:00 und 02:00 Ortszeit liegt UTC noch im Vortag — deshalb
+ * bewusst Berlin und nicht UTC oder Browser-Lokalzeit.
+ * Für Geschäftstag-Logik (3-Uhr-Cutoff) siehe `businessDateOf`.
+ */
 export function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Berlin",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 }
 
 export type ParseEuroOptions = {

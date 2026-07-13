@@ -5,6 +5,7 @@
 // sales-stats.functions.ts und ruft diese Helfer zuerst.
 
 import { z } from "zod";
+import { todayIso as todayIsoBerlin } from "@/lib/format";
 
 /** Ein importierter Artikel (nach Parser + Klammer-Strip). */
 export const PosRowSchema = z.object({
@@ -16,13 +17,6 @@ export const PosRowSchema = z.object({
 export type PosRow = z.infer<typeof PosRowSchema>;
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Datum im Format YYYY-MM-DD erwartet.");
-
-function todayIsoBerlin(): string {
-  // Europe/Berlin-Datum (die App arbeitet konsistent in dieser Zone; siehe
-  // current_business_date()). Locale/de mit Intl deckt Sommerzeit korrekt ab.
-  const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin" });
-  return fmt.format(new Date());
-}
 
 export const ReplacePosSalesStatsInput = z
   .object({
