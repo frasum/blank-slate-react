@@ -2587,6 +2587,7 @@ import {
   type TransferDirection,
 } from "./cash-ledger";
 import { computeSafeChain, type SafeDayInput } from "./safe-balance";
+import { rollOperativeDeficitCents } from "./cash-summary";
 
 // Pro Tag aggregierter Roh-Datensatz. Wird sowohl von getCashLedgerCore
 // (Saldokette) als auch von getCashDailyBreakdownCore (Bargeldübersicht)
