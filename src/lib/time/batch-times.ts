@@ -14,7 +14,7 @@
 // Pausen: ArbZG-Empfehlung (0/30/45 min) über `arbzgMinimumBreak`.
 
 import { arbzgMinimumBreak } from "./break-rules";
-import { berlinOffsetMinutes, isBavarianHoliday, offsetString } from "./shift-hours";
+import { berlinLocalToIso, isBavarianHoliday } from "./shift-hours";
 
 export type BatchMode = "override" | "create_weekdays" | "create_daily";
 
@@ -123,14 +123,8 @@ export function batchTimestamps(
   const wraps = endMinutes <= startMinutes;
   const endDateIso = wraps ? nextIsoDate(dateIso) : dateIso;
 
-  const offStart = offsetString(berlinOffsetMinutes(dateIso));
-  const offEnd = offsetString(berlinOffsetMinutes(endDateIso));
-  const startedAtIso = new Date(
-    `${dateIso}T${String(s.h).padStart(2, "0")}:${String(s.m).padStart(2, "0")}:00${offStart}`,
-  ).toISOString();
-  const endedAtIso = new Date(
-    `${endDateIso}T${String(e.h).padStart(2, "0")}:${String(e.m).padStart(2, "0")}:00${offEnd}`,
-  ).toISOString();
+  const startedAtIso = berlinLocalToIso(dateIso, s.h, s.m);
+  const endedAtIso = berlinLocalToIso(endDateIso, e.h, e.m);
 
   const grossMinutes = Math.round(
     (new Date(endedAtIso).getTime() - new Date(startedAtIso).getTime()) / 60000,
