@@ -279,7 +279,9 @@ export const getTimeOverview = createServerFn({ method: "GET" })
 
     const { data: rows, error } = await supabaseAdmin
       .from("time_entries")
-      .select("staff_id, business_date, started_at, ended_at, source, staff(display_name)")
+      .select(
+        "staff_id, business_date, started_at, ended_at, source, department, staff(display_name)",
+      )
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId)
       .gte("business_date", data.fromDate)
@@ -304,7 +306,10 @@ export const getTimeOverview = createServerFn({ method: "GET" })
         staffId: r.staff_id,
         displayName: (r.staff as { display_name: string } | null)?.display_name ?? "—",
         department: deptByStaff.get(r.staff_id) ?? ("service" as const),
+        rawDepartment: (r.department as Department | null) ?? null,
         businessDate: r.business_date as string,
+        startedAt: r.started_at as string,
+        endedAt: r.ended_at as string,
         hoursWorked,
         source: r.source as string,
       };
