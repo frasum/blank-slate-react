@@ -99,6 +99,8 @@ function fmtDate(iso: string | null | undefined): string {
   return d.toLocaleDateString("de-DE", { year: "numeric", month: "2-digit", day: "2-digit" });
 }
 
+import { todayIso } from "@/lib/format";
+
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
