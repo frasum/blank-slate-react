@@ -13,6 +13,7 @@
 //   * Reine Validierungslogik ist in pin-validation.ts isoliert getestet.
 
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import {
   evaluatePin,
   isCredentialAttemptAllowed,
@@ -27,7 +28,35 @@ import {
   validatePinLoginName,
 } from "./auth-flows.server";
 
+// SEC-PIN2: PIN-Klassifikation weiterhin ab 4 Ziffern, damit bestehende
+// 4-/5-stellige PINs (vor der Umstellung auf Mindestlänge 6) am Login
+// nicht plötzlich als Passwort interpretiert werden und in den bcrypt-
+// Fallback fallen. Neue PINs werden über pin-format.ts (>= 6) erzwungen.
 const PIN_CREDENTIAL_PATTERN = /^\d{4,8}$/;
+
+// SEC-RL2: IP-basiertes Limit über alle Login-Versuche im 15-Min-Fenster.
+// Höher als das Staff-Limit (5), weil eine IP legitim mehrere Mitarbeiter
+// bedienen kann (gemeinsame Kasse hinter NAT). Schlägt an, bevor überhaupt
+// eine Kandidatensuche läuft, und erzeugt selbst keinen Log-Eintrag.
+const PIN_IP_RATE_LIMIT_MAX = 30;
+
+/** Best-effort Client-IP: Cloudflare > X-Forwarded-For (erster Eintrag) > null. */
+function extractClientIp(): string | null {
+  try {
+    const req = getRequest();
+    const h = req?.headers;
+    if (!h) return null;
+    const cf = h.get("cf-connecting-ip");
+    if (cf) return cf.trim().slice(0, 64);
+    const xff = h.get("x-forwarded-for");
+    if (xff) return xff.split(",")[0]?.trim().slice(0, 64) || null;
+    const xr = h.get("x-real-ip");
+    if (xr) return xr.trim().slice(0, 64);
+  } catch {
+    // getRequest() nicht verfügbar (z. B. Test) — ohne IP arbeiten.
+  }
+  return null;
+}
 
 // =========================================================================
 // PIN-Login
@@ -49,6 +78,27 @@ export const validatePin = createServerFn({ method: "POST" })
       console.error("[pin-login] invalid name input");
       failed();
     }
+
+    const sinceIso = new Date(Date.now() - PIN_RATE_LIMIT_WINDOW_MS).toISOString();
+    const clientIp = extractClientIp();
+
+    // SEC-RL2: IP-Limit ZUERST — noch vor Kandidatensuche / bcrypt.
+    if (clientIp) {
+      const { count: ipCount } = await supabaseAdmin
+        .from("pin_attempts")
+        .select("id", { count: "exact", head: true })
+        .eq("ip", clientIp)
+        .gte("attempted_at", sinceIso);
+      if ((ipCount ?? 0) >= PIN_IP_RATE_LIMIT_MAX) {
+        console.error("[pin-login] ip rate-limited");
+        failed();
+      }
+    }
+
+    // SEC-ORG-LOGIN: Kandidatensuche läuft absichtlich ohne organization_id-
+    // Filter — vor dem Login gibt es keine Session und die Login-UI kennt
+    // die Organisation nicht. Eine Einschränkung wäre erst möglich, wenn
+    // der Login-Flow einen Org-Selektor bekommt (offener Punkt).
     const { data: candidates, error: staffErr } = await supabaseAdmin
       .from("staff")
       .select("id, organization_id, is_active, first_name")
@@ -56,15 +106,19 @@ export const validatePin = createServerFn({ method: "POST" })
       .eq("is_active", true);
     if (staffErr) console.error("[pin-login] candidate query error:", staffErr);
     if (staffErr) failed();
-    if (!candidates || candidates.length === 0)
-      console.error("[pin-login] keine Kandidaten für Name:", data.firstName.trim());
-    if (!candidates || candidates.length === 0) failed();
-
-    const sinceIso = new Date(Date.now() - PIN_RATE_LIMIT_WINDOW_MS).toISOString();
+    if (!candidates || candidates.length === 0) {
+      // SEC-PIN2: KEIN Klartext-Name mehr im Log — nur die Länge, damit
+      // wir massenhaften Enumerations-Traffic weiterhin erkennen können.
+      console.error("[pin-login] keine Kandidaten (name-len=%d)", term?.length ?? 0);
+      failed();
+    }
 
     if (!PIN_CREDENTIAL_PATTERN.test(data.pin)) {
-      const sessions = [];
-      const attemptedCandidates: { id: string; organization_id: string }[] = [];
+      // Passwort-Fallback (Eingabe ist keine reine Ziffernfolge).
+      // SEC-RL1: Fehlversuch VOR dem bcrypt-Aufruf loggen, damit parallele
+      // Requests das Limit nicht umgehen können. Bei Erfolg wird die
+      // spekulative Zeile wieder entfernt (Erfolg zählt nicht als Fehler).
+      const sessions: { access_token: string; refresh_token: string }[] = [];
       for (const cand of candidates) {
         const { count } = await supabaseAdmin
           .from("pin_attempts")
@@ -72,16 +126,26 @@ export const validatePin = createServerFn({ method: "POST" })
           .eq("staff_id", cand.id)
           .gte("attempted_at", sinceIso);
         if (!isCredentialAttemptAllowed(count ?? 0)) continue;
-        attemptedCandidates.push({ id: cand.id, organization_id: cand.organization_id });
-        const session = await tryStaffPasswordLogin(cand.id, data.pin);
-        if (session) sessions.push(session);
-      }
-      if (sessions.length === 0) {
-        for (const cand of attemptedCandidates) {
-          await supabaseAdmin.from("pin_attempts").insert({
+
+        const { data: preRow, error: preErr } = await supabaseAdmin
+          .from("pin_attempts")
+          .insert({
             organization_id: cand.organization_id,
             staff_id: cand.id,
-          });
+            ip: clientIp,
+          })
+          .select("id")
+          .single();
+        if (preErr || !preRow) {
+          console.error("[password-login] pre-insert error:", preErr);
+          continue;
+        }
+
+        const session = await tryStaffPasswordLogin(cand.id, data.pin);
+        if (session) {
+          sessions.push(session);
+          // Erfolg → spekulative Fail-Zeile zurücknehmen.
+          await supabaseAdmin.from("pin_attempts").delete().eq("id", preRow.id);
         }
       }
       if (sessions.length !== 1) console.error("[password-login] matches.length:", sessions.length);
@@ -105,22 +169,48 @@ export const validatePin = createServerFn({ method: "POST" })
         .eq("staff_id", cand.id)
         .gte("attempted_at", sinceIso);
 
+      // SEC-RL1: Spekulative Fail-Zeile VOR dem bcrypt-Vergleich schreiben,
+      // damit parallele Requests im selben Fenster das Limit sehen (vorher
+      // konnten N parallele Versuche gemeinsam den Zähler zurück auf < MAX
+      // lesen und alle bcrypt.compare durchlaufen). Nur einfügen, wenn wir
+      // überhaupt vergleichen — also Hash vorhanden und Limit noch offen.
+      const willCompare =
+        !!pinRow?.pin_hash && isCredentialAttemptAllowed(count ?? 0);
+      let preId: string | null = null;
+      if (willCompare) {
+        const { data: preRow, error: preErr } = await supabaseAdmin
+          .from("pin_attempts")
+          .insert({
+            organization_id: cand.organization_id,
+            staff_id: cand.id,
+            ip: clientIp,
+          })
+          .select("id")
+          .single();
+        if (preErr || !preRow) {
+          console.error("[pin-login] pre-insert error:", preErr);
+          continue;
+        }
+        preId = preRow.id;
+      }
+
       const outcome = await evaluatePin({
         storedHash: pinRow?.pin_hash ?? null,
         providedPin: data.pin,
-        recentFailuresInWindow: count ?? 0,
+        // +1 wegen der eben eingefügten spekulativen Zeile — wir wollen
+        // dieselbe Rate-Limit-Entscheidung wie ohne Pre-Insert.
+        recentFailuresInWindow: willCompare ? (count ?? 0) : (count ?? 0),
         compare: (pin, hash) => bcrypt.compare(pin, hash),
       });
 
       if (outcome.kind === "ok") {
         matches.push({ id: cand.id, organization_id: cand.organization_id });
-      } else if (outcome.reasonCode === "mismatch") {
-        // Fehlversuch nur loggen, wenn ein Hash existiert und nicht passt.
-        await supabaseAdmin.from("pin_attempts").insert({
-          organization_id: cand.organization_id,
-          staff_id: cand.id,
-        });
+        // Erfolg → spekulative Fail-Zeile wieder entfernen.
+        if (preId) {
+          await supabaseAdmin.from("pin_attempts").delete().eq("id", preId);
+        }
       }
+      // outcome=rejected → Zeile bleibt stehen (das ist der Fehlversuch).
     }
 
     // Eindeutig genau einer? Sonst generische Ablehnung (keine Auskunft,
