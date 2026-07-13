@@ -301,7 +301,7 @@ export const importBankTransactions = createServerFn({ method: "POST" })
         bank_unterkategorie: r.bankUnterkategorie,
       }));
       // ignoreDuplicates: erneuter/überlappender Upload ist idempotent.
-      const up = await supabaseAdmin.from("bank_transactions").upsert(payload as never, {
+      const up = await supabaseAdmin.from("bank_transactions").upsert(payload, {
         onConflict: "account_id,laufende_nummer",
         ignoreDuplicates: true,
       });
@@ -934,7 +934,7 @@ export async function runSyncForAccount(
       bank_unterkategorie: "",
       external_tx_id: r.externalTxId,
     }));
-    const up = await supabaseAdmin.from("bank_transactions").upsert(payload as never, {
+    const up = await supabaseAdmin.from("bank_transactions").upsert(payload, {
       onConflict: "account_id,external_tx_id",
       ignoreDuplicates: true,
     });

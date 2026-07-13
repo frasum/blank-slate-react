@@ -35,7 +35,7 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
         const { data: settings, error: settingsErr } = await supabaseAdmin
-          .from("display_settings" as never)
+          .from("display_settings")
           .select(
             "display_token_hash, is_enabled, refresh_interval_seconds, organization_id, rotation_enabled, rotation_interval_seconds, show_areas, show_header, show_footer, custom_message",
           )

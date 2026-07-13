@@ -18,6 +18,7 @@ import {
   validateChangeRequestPayload,
   validateDirectEditPayload,
   type DirectEditField,
+  type RequestField,
 } from "./profile-fields";
 import {
   ALLOWED_DOC_MIME,
@@ -164,7 +165,7 @@ export const submitChangeRequest = createServerFn({ method: "POST" })
     }
     const normalized: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(validation.value)) {
-      normalized[k] = normalizeRequestValue(k as never, v);
+      normalized[k] = normalizeRequestValue(k as RequestField, v);
     }
     return runGuarded(caller.role, "staff", makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
