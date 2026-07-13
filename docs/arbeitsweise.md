@@ -6,7 +6,7 @@ SaaS-Vorbereitung: Readiness-Audit und Modul-Katalog stehen in docs/saas-vorbere
 
 Produktionsreife-Review: docs/produktionsreife-review.md (Stand 07.07.2026, HEAD 8cfdbc1d, inkl. Patch-Plan P0–P7) — kritischer Pfad vor dem Kassen-Go-live: Monitoring (P1) → Finalize-E2E (P2) → Restore-Probe (P3) → Cutover.
 
-Stand: 13.07.2026 (§89: CI entstummt — db-integration blockierend grün, E2E-Schutzriegel)
+Stand: 13.07.2026 (§90: Urlaub auf 5-Tage-Modell, Feiertage im Planer)
 
 TH1 — Standort-Farbthema: LocationThemeProvider im \_authenticated-Layout hält den themeKey (spicery/yum/neutral).
 LocationPills melden die Auswahl per useLocationThemeSync; Mapping: Name enthält „spicery" → spicery, „yum" → yum, sonst neutral (auch TSB/„Alle"/leer).
@@ -4099,3 +4099,17 @@ Anker: `9b3bc7c8`. Erster vollständig ehrlicher CI-Lauf: format/check/**db-inte
 **Prozess-Lehren:** (a) Beim Eindampfen von Reparatur-Prompts gingen nummerierte Blöcke verloren (halber Prompt umgesetzt, Commit-Message überbehauptete) — nummerierte Fix-Listen ungekürzt senden. (b) Die Gutachter-Pipeline trägt: Abnahme-der-Abnahme fand den blinden Fleck des Prüfers; komplementäre Zweitberichte lieferten Detail-Ursachen.
 
 **Roadmap-Nachträge (CI-Robustheit, Hygiene-Schiene):** Stack-Start mit Retry-Schleife · e2e-Job per `needs: db-integration` serialisieren (entschärft ghcr-Rate-Limit strukturell) · e2e-Promotion beobachten (Zehner-Serie), dann blockierend.
+
+## §90 — Urlaubszählung auf 5-Tage-Modell (N6) + Feiertage im Dienstplan sichtbar (FT1) (13.07. abends)
+
+Anker N6: `d3b5d1d1` (1725 Tests) · Anker FT1: `75307f24` (1731 Tests), vier Check-Gates jeweils grün.
+
+**N6 — Urlaubszählung umgestellt (erster Cutover-Baustein).** Fachregel Frank (§88): Urlaubsanspruch ist auf die 5-Tage-Woche normiert — `countLeaveDays` zählt jetzt die **Mo–Fr-Tage** des Zeitraums; Sonntage/Samstage nie, **Feiertage zählen als normale Arbeitstage** (Woche mit Pfingstmontag = 5). Signatur ohne `holidayDates`; `holiday-utils.ts` komplett entfernt (kein verwaister Import). **Rückwirkung automatisch:** `leave_requests` speichert keine Tageszahl, gezählt wird beim Lesen — Bestandsanträge und Restkonten korrigierten sich mit dem Publish (Konten steigen ~2 Tage/Urlaubswoche; Team wurde informiert: Korrektur, kein Geschenk). **UZ1-Schalter `count_holidays_as_leave` gegenstandslos:** UI (`UrlaubsregelnSection`) und alle Leser entfernt; DB-Spalte bleibt nach dem opentabs-Muster bis zur Cutover-Aufräumung (nur Kommentare verweisen darauf). **SFN-Brandmauer bewiesen:** `shift-hours.ts` mit null Diff-Zeilen — Feiertagszuschläge (125/150 %) und `bavarianHolidayMap` unberührt. Kanonische Testfälle: Mo–So=5 · Di–Do=3 · 2 Wochen=10 · Feiertagswoche=5 · Sa–So=0 · einzelner Feiertag (Mi)=1 · Mo–Mo=6.
+
+**FT1 — Feiertage im Dienstplan (thaitime-Paritätslücke geschlossen).** Befund: thaitime zeigte Feiertage im Plan, COCO nie (dreifach verifiziert: keine Tabelle, keine Planer-Komponente, keine Anzeige). Neu: reines Modul `holidays-display.ts` mit `getHolidayName(dateIso, region = "BY")` — liest die BESTEHENDE `bavarianHolidayMap` (Import, kein Umzug). Anzeige: Planer-Grid + Tagesansicht (markierte Spalte + Name), großes Display und BEIDE TRMNL-Routen (Dienstplan + Tasks). Bewusst NICHT in diesem Schritt: Schichten-Seite, ICS-Feed (spätere Runde bei Bedarf), keine Einstellungs-UI.
+
+**SaaS-Weiche dokumentiert (Fachentscheidung Frank):** Kein Bundesland-Toggle heute (ein Mandant, drei Standorte in Bayern; deutsches Feiertagsrecht braucht gepflegte Regionsdaten, nicht nur einen Schalter). Stattdessen: Region-Parameter als typisierte Erweiterungsstelle (`HolidayRegion`-Union) im Helfer; künftig `holiday_region` **je Standort** (nicht je Org — Ketten können Länder mischen). Roadmap-Eintrag SaaS-Spur (§86 P3): „Feiertags-Regionen: holiday_region je Standort + Regionsdaten weiterer Länder + ggf. Einstellungs-UI — bei erstem Nicht-Bayern-Mandanten. Betrifft Anzeige UND SFN-Zuschläge (gleiche Quelle)."
+
+**G1-Einordnung (Monolith-Dateien, aus externem Bericht):** Entscheidung dokumentiert — G1a `zeit-uebersicht.tsx` als risikoarmer Pilot MÖGLICH vor dem Cutover (Anzeige-Datei, kein Geld-Pfad), G1b `cash.functions.ts` erst NACH dem Cutover (keine zwei Großbewegungen gleichzeitig; Datei ist Cutover-Herzstück). Kein Beschluss zur Ausführung — Priorität liegt beim Cutover-Block.
+
+**Offen:** Publish + Kontrollrunde (Bestandsantrag mit Feiertagswoche = 5 · Restkonten gestiegen · Feiertag im Planer/TRMNL sichtbar, z. B. 15.08.) · Team-Info Urlaubskonten · danach Cutover-Block als nächstes Groß-Thema (Härtung → Mapping → Reimport) · e2e-Zehner-Serie beobachten.
