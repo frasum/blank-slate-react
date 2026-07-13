@@ -84,7 +84,7 @@ export const createStaffAccount = createServerFn({ method: "POST" })
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
       // Verifizieren: staff gehört zur Org und hat noch kein Konto.
-      const staff = expectMaybe(
+      const staff = expectMaybe<{ id: string; organization_id: string }>(
         await supabaseAdmin
           .from("staff")
           .select("id, organization_id")
