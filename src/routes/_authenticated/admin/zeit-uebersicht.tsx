@@ -1206,6 +1206,7 @@ function ZeitUebersichtPage() {
             shiftsByStaff={shiftsByStaff}
             absencesByStaff={absencesByStaff}
             totalsScope={totalsScope}
+            onTotalsScopeChange={setTotalsScope}
             periodTotalsByStaff={periodTotalsByStaff}
           />
         </TabsContent>
