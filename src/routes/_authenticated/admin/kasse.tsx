@@ -405,6 +405,8 @@ function KassePage() {
       cashBalanceTargetCents: cashBalanceTargetResolvedCents,
       previousDeficitCents,
       previousDeficitSourceDate,
+      servicePoolEnabled: poolQ.data?.servicePoolEnabled,
+      servicePoolCents: poolQ.data?.servicePoolCents,
     });
   }
 

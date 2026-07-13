@@ -2049,12 +2049,18 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
   let autoClockoutId: string | null = null;
   let noOpenTimeEntry = false;
   if (!alreadyAutoClockedOut) {
-    const { data: openTE } = await supabaseAdmin
+    const { data: openTE, error: openTEErr } = await supabaseAdmin
       .from("time_entries")
       .select("id, started_at")
       .eq("staff_id", caller.staffId)
       .is("ended_at", null)
       .maybeSingle();
+    if (openTEErr) {
+      console.error("[settlement.autoclock] open time_entries lookup failed", openTEErr);
+      throw new Error(
+        `Auto-Ausstempeln fehlgeschlagen: ${openTEErr.message ?? "DB-Fehler"}`,
+      );
+    }
     if (openTE) {
       const gross = grossMinutesBetween(new Date(openTE.started_at), new Date());
       const breakMinutes = arbzgMinimumBreak(gross);
@@ -2116,12 +2122,17 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
   const submissionIso = new Date().toISOString();
   for (const partnerStaffId of partnerStaffIds) {
     try {
-      const { data: openPartnerTE } = await supabaseAdmin
+      const { data: openPartnerTE, error: openPartnerErr } = await supabaseAdmin
         .from("time_entries")
         .select("id, started_at")
         .eq("staff_id", partnerStaffId)
         .is("ended_at", null)
         .maybeSingle();
+      if (openPartnerErr) {
+        throw new Error(
+          `Partner-Auto-Ausstempeln: DB-Lookup fehlgeschlagen (${openPartnerErr.message ?? "unbekannt"})`,
+        );
+      }
       let partnerEndedAt: string = submissionIso;
       if (openPartnerTE) {
         const gross = grossMinutesBetween(new Date(openPartnerTE.started_at), new Date());
@@ -2608,6 +2619,13 @@ export type CashDayAgg = {
   cashActualSum: number;
   cashActualCount: number;
   sessionCount: number;
+  /**
+   * Summe der Soll-Wechselgeld-Ziele der Sessions dieses Tages, aufgelöst
+   * nach "Location-Ziel ?? Org-Ziel". Wird von getCashLedgerCore statt
+   * `orgTarget * sessionCount` verwendet, damit Standorte mit abweichendem
+   * Ziel den Tresor-/Kassenbuch-Verlauf korrekt beeinflussen.
+   */
+  cashTargetSum: number;
 };
 
 export type CashDayAggregates = {
@@ -2644,6 +2662,7 @@ function makeEmptyAgg(): CashDayAgg {
     cashActualSum: 0,
     cashActualCount: 0,
     sessionCount: 0,
+    cashTargetSum: 0,
   };
 }
 
@@ -2717,6 +2736,35 @@ export async function loadCashDayAggregates(
   }
 
   const sessionIds = sessions.map((s) => s.id);
+
+  // Location- und Org-Ziel für die per-Session-Auflösung "Location ?? Org"
+  // laden — dieselbe Regel wie überall sonst in der Kassen-Logik.
+  const locationIds = Array.from(new Set(sessions.map((s) => s.location_id).filter(Boolean)));
+  const [locRes, orgRes] = await Promise.all([
+    locationIds.length
+      ? supabaseAdmin
+          .from("locations")
+          .select("id, cash_balance_target_cents")
+          .eq("organization_id", caller.organizationId)
+          .in("id", locationIds)
+      : Promise.resolve({ data: [], error: null } as { data: Array<{ id: string; cash_balance_target_cents: number | null }>; error: null }),
+    supabaseAdmin
+      .from("organizations")
+      .select("cash_balance_target_cents")
+      .eq("id", caller.organizationId)
+      .maybeSingle(),
+  ]);
+  if (locRes.error) throw locRes.error;
+  if (orgRes.error) throw orgRes.error;
+  const orgTargetCents = Number(orgRes.data?.cash_balance_target_cents ?? 200_000);
+  const locTargetById = new Map<string, number>(
+    (locRes.data ?? []).map((l) => [
+      l.id as string,
+      l.cash_balance_target_cents == null
+        ? orgTargetCents
+        : Number(l.cash_balance_target_cents),
+    ]),
+  );
 
   const [chRes, tRes, expRes, advRes, depRes, trRes, wsRes] = await Promise.all([
     supabaseAdmin
@@ -2794,6 +2842,7 @@ export async function loadCashDayAggregates(
     a.sonstige += Number(s.sonstige_einnahme_cents ?? 0);
     a.vorschuss += Number(s.vorschuss_cents ?? 0);
     a.vectronDailyTotal += Number(s.vectron_daily_total_cents ?? 0);
+    a.cashTargetSum += locTargetById.get(s.location_id as string) ?? orgTargetCents;
     if (s.business_date === firstDate) {
       a.openingBalance += Number(s.opening_balance_cents ?? 0);
     }
@@ -2923,7 +2972,6 @@ export async function getCashLedgerCore(
     .eq("id", caller.organizationId)
     .maybeSingle();
   if (orgErr) throw orgErr;
-  const cashTarget = Number(org?.cash_balance_target_cents ?? 200_000);
   const openingSafe = Number(org?.opening_safe_balance_cents ?? 200_000);
 
   const days: DayInput[] = sortedDates.map((date) => aggToDayInput(date, byDate.get(date)!));
@@ -2936,7 +2984,10 @@ export async function getCashLedgerCore(
     return {
       businessDate: date,
       cashActualCents: a.cashActualCount > 0 ? a.cashActualSum : null,
-      cashTargetCents: cashTarget * Math.max(1, a.sessionCount),
+      // Pro-Session aufgelöst nach "Location-Ziel ?? Org-Ziel" (siehe
+      // loadCashDayAggregates). Fällt auf den Org-Wert zurück, wenn ein Tag
+      // keine Sessions hat (sollte durch sortedDates ohnehin ausgeschlossen sein).
+      cashTargetCents: a.sessionCount > 0 ? a.cashTargetSum : 200_000,
       bankDepositsCents: a.bankDeposits,
     };
   });

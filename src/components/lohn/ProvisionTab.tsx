@@ -640,7 +640,10 @@ function SettingsDialog(props: SettingsDialogProps) {
       setPctErr("0–100, max. 2 Dezimalen.");
       return;
     }
-    if (Math.round(pct * 100) !== pct * 100) {
+    // String-basierte Validierung — Float-tolerant. `Math.round(1.1*100) !== 110`
+    // wegen Float-Ungenauigkeit; die Regex prüft „max. 2 Dezimalen" direkt am
+    // eingegebenen Text.
+    if (!/^\d+(?:\.\d{1,2})?$/.test(pctNormalized === "" ? "0" : pctNormalized)) {
       setPctErr("Maximal 2 Dezimalen.");
       return;
     }

@@ -246,7 +246,9 @@ const updateSchema = z.object({
     .number()
     .min(0)
     .max(100)
-    .refine((v) => Math.round(v * 100) === v * 100, "max. 2 Dezimalen"),
+    // Float-tolerant: 1.1 → 110.00000000000001. Epsilon-Vergleich statt
+    // striktem `===`, sonst würden gültige Sätze wie 1,1 % abgelehnt.
+    .refine((v) => Math.abs(Math.round(v * 100) - v * 100) < 1e-6, "max. 2 Dezimalen"),
 });
 
 export const updateCommissionSettings = createServerFn({ method: "POST" })

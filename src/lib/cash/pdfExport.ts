@@ -80,6 +80,19 @@ export interface PdfExportData {
   previousDeficitCents?: Cents;
   /** Datum, das in der Summary-Zeile "Fehlbetrag Vortag (…)" angezeigt wird. */
   previousDeficitSourceDate?: string | null;
+  /**
+   * Ob am Standort ein Mitarbeiter-/Service-Trinkgeldpool aktiv ist. Wird für
+   * die Anzeige der Pool-Zeile im Tagesbeleg gebraucht: an Standorten ohne
+   * Service-Pool (z. B. YUM) wird "Mitarbeiter-Pool" NICHT gedruckt.
+   */
+  servicePoolEnabled?: boolean;
+  /**
+   * Kanonischer Service-Pool-Wert (aus dem Trinkgeld-Pool-Overview). Nur
+   * gesetzt, wenn der Aufrufer den echten Wert liefern kann. Wenn nicht
+   * gesetzt, fällt der Beleg auf die frühere Näherung
+   * `max(0, tipAll − kitchen)` zurück (Legacy-Verhalten).
+   */
+  servicePoolCents?: Cents;
 }
 
 function fmtEur(cents: Cents | null | undefined): string {
@@ -471,7 +484,14 @@ export async function generateDailySummaryPdf(data: PdfExportData): Promise<{
         kassiertBruttoCents: s.kassiert_brutto_cents ?? s.pos_sales_cents,
       })),
     );
-    const sumServicePool = Math.max(0, sumTipAll - sumKitchenTip);
+    const servicePoolEnabled = data.servicePoolEnabled !== false;
+    // Kanonischer Service-Pool aus dem Overview bevorzugen; nur wenn der
+    // Aufrufer keinen Wert durchreicht, auf die frühere Näherung
+    // `max(0, tipAll − kitchen)` zurückfallen (kann negativ werden, wurde
+    // historisch auf 0 geklippt — bewusst gleiches Verhalten wie zuvor).
+    const sumServicePool = servicePoolEnabled
+      ? (data.servicePoolCents ?? Math.max(0, sumTipAll - sumKitchenTip))
+      : 0;
     const tipPercent = sumPos > 0 ? (sumTipAll / sumPos) * 100 : 0;
 
     rightEndY += 4;
@@ -479,7 +499,9 @@ export async function generateDailySummaryPdf(data: PdfExportData): Promise<{
     doc.setFont("helvetica", "normal");
     doc.setTextColor(0);
     doc.text(
-      `Mitarbeiter-Pool: ${fmtEur(sumServicePool)}  ·  Küchen-Pool: ${fmtEur(sumKitchenTip)}`,
+      servicePoolEnabled
+        ? `Mitarbeiter-Pool: ${fmtEur(sumServicePool)}  ·  Küchen-Pool: ${fmtEur(sumKitchenTip)}`
+        : `Küchen-Pool: ${fmtEur(sumKitchenTip)}`,
       rightX + 2,
       rightEndY,
     );

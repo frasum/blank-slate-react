@@ -21,6 +21,10 @@ export interface BuildDailySummaryDataInput {
   cashBalanceTargetCents: number;
   previousDeficitCents: number;
   previousDeficitSourceDate: string | null;
+  /** Standort-Regel „Service-Pool aktiv?" (aus dem Tip-Pool-Overview). */
+  servicePoolEnabled?: boolean;
+  /** Kanonischer Service-Pool-Wert (aus dem Tip-Pool-Overview). */
+  servicePoolCents?: number;
 }
 
 export function buildDailySummaryData(input: BuildDailySummaryDataInput): PdfExportData {
@@ -80,5 +84,7 @@ export function buildDailySummaryData(input: BuildDailySummaryDataInput): PdfExp
     cashBalanceTargetCents: input.cashBalanceTargetCents,
     previousDeficitCents: input.previousDeficitCents,
     previousDeficitSourceDate: input.previousDeficitSourceDate,
+    servicePoolEnabled: input.servicePoolEnabled,
+    servicePoolCents: input.servicePoolCents,
   };
 }
