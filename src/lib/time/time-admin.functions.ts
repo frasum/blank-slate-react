@@ -816,7 +816,10 @@ export const getTimeOverviewBatch = createServerFn({ method: "GET" })
           staffId: string;
           displayName: string;
           department: Department;
+          rawDepartment: Department | null;
           businessDate: string;
+          startedAt: string;
+          endedAt: string;
           hoursWorked: number;
           source: string;
         }>;
@@ -836,7 +839,10 @@ export const getTimeOverviewBatch = createServerFn({ method: "GET" })
         staffId: r.staff_id as string,
         displayName: (r.staff as { display_name: string } | null)?.display_name ?? "—",
         department: deptMap?.get(r.staff_id as string) ?? ("service" as const),
+        rawDepartment: (r.department as Department | null) ?? null,
         businessDate: r.business_date as string,
+        startedAt: r.started_at as string,
+        endedAt: r.ended_at as string,
         hoursWorked,
         source: r.source as string,
       });
