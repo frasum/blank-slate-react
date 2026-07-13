@@ -524,3 +524,146 @@ function EmailDeliveryTimeline(props: {
     </div>
   );
 }
+
+// Versand-Historie aus order_email_log — zeigt jeden einzelnen Sendeversuch
+// (Live/Test, Empfänger, Status, HTTP-Status, Message-ID, Fehler). Details
+// (MailerSend-Response-Body) werden erst auf Klick nachgeladen, damit große
+// Payloads nicht standardmäßig im Frontend landen.
+function EmailSendHistory({ orderId }: { orderId: string }) {
+  const q = useQuery({
+    queryKey: ["bestellung", "order-email-log", orderId],
+    queryFn: () => listOrderEmailLog({ data: { orderId } }),
+  });
+  const [openId, setOpenId] = useState<string | null>(null);
+  if (q.isLoading) {
+    return <p className="mt-3 text-xs text-muted-foreground">Lade Versand-Historie …</p>;
+  }
+  const rows = q.data ?? [];
+  if (rows.length === 0) {
+    return (
+      <p className="mt-3 text-xs text-muted-foreground">
+        Noch keine Versand-Einträge — die Historie wird ab dem ersten Sendeversuch geführt.
+      </p>
+    );
+  }
+  return (
+    <div className="mt-4 space-y-2 text-xs">
+      <p className="font-medium uppercase tracking-wide text-muted-foreground">Versand-Historie</p>
+      <div className="overflow-hidden rounded border border-border">
+        <table className="w-full">
+          <thead className="bg-muted/40 text-left uppercase tracking-wide text-muted-foreground">
+            <tr>
+              <th className="px-2 py-1">Zeitpunkt</th>
+              <th className="px-2 py-1">Modus</th>
+              <th className="px-2 py-1">Empfänger</th>
+              <th className="px-2 py-1">Status</th>
+              <th className="px-2 py-1">HTTP</th>
+              <th className="px-2 py-1">Message-ID</th>
+              <th className="px-2 py-1"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r: OrderEmailLogRow) => {
+              const open = openId === r.id;
+              return (
+                <>
+                  <tr key={r.id} className="border-t border-border align-top">
+                    <td className="px-2 py-1 text-muted-foreground">
+                      {formatShortDateTime(r.sent_at)}
+                    </td>
+                    <td className="px-2 py-1">
+                      <span
+                        className={
+                          "rounded px-1.5 py-0.5 text-[10px] uppercase " +
+                          (r.mode === "test"
+                            ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
+                            : "bg-muted text-muted-foreground")
+                        }
+                      >
+                        {r.mode === "test" ? "Test" : "Live"}
+                      </span>
+                      {r.is_resend && (
+                        <span className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">
+                          Resend
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-2 py-1 font-mono text-foreground">
+                      {r.recipient_email}
+                      {r.mode === "test" && r.supplier_email_snapshot && (
+                        <div className="text-[10px] text-muted-foreground">
+                          statt: {r.supplier_email_snapshot}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-2 py-1">
+                      <span
+                        className={
+                          "rounded px-1.5 py-0.5 text-[10px] uppercase " +
+                          (r.status === "sent"
+                            ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                            : "bg-destructive/10 text-destructive")
+                        }
+                      >
+                        {r.status === "sent" ? "OK" : "Fehler"}
+                      </span>
+                    </td>
+                    <td className="px-2 py-1 text-muted-foreground">{r.http_status ?? "—"}</td>
+                    <td className="px-2 py-1 font-mono text-[10px] text-muted-foreground">
+                      {r.provider_message_id ?? "—"}
+                    </td>
+                    <td className="px-2 py-1 text-right">
+                      <button
+                        type="button"
+                        onClick={() => setOpenId(open ? null : r.id)}
+                        className="rounded border border-input bg-background px-2 py-0.5 text-[10px] hover:bg-accent"
+                      >
+                        {open ? "Zu" : "Details"}
+                      </button>
+                    </td>
+                  </tr>
+                  {open && (
+                    <tr key={r.id + "-d"} className="border-t border-border bg-background/60">
+                      <td colSpan={7} className="px-2 py-2">
+                        <EmailLogDetail id={r.id} errorMessage={r.error_message} />
+                      </td>
+                    </tr>
+                  )}
+                </>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function EmailLogDetail({ id, errorMessage }: { id: string; errorMessage: string | null }) {
+  const q = useQuery({
+    queryKey: ["bestellung", "order-email-log-entry", id],
+    queryFn: () => getOrderEmailLogEntry({ data: { id } }),
+  });
+  if (q.isLoading) return <p className="text-muted-foreground">Lade Details …</p>;
+  const row = q.data;
+  if (!row) return <p className="text-muted-foreground">Kein Detail gefunden.</p>;
+  return (
+    <div className="space-y-2">
+      <p className="text-muted-foreground">
+        Betreff: <span className="text-foreground">{row.subject}</span>
+      </p>
+      {errorMessage && (
+        <pre className="whitespace-pre-wrap rounded border border-destructive/40 bg-destructive/5 px-2 py-1 font-mono text-destructive">
+          {errorMessage}
+        </pre>
+      )}
+      {row.response_body ? (
+        <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded border border-border bg-muted/30 px-2 py-1 font-mono text-[10px] text-foreground">
+          {row.response_body}
+        </pre>
+      ) : (
+        <p className="text-muted-foreground">Keine Response-Payload gespeichert.</p>
+      )}
+    </div>
+  );
+}
