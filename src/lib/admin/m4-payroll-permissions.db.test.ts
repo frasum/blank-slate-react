@@ -120,7 +120,7 @@ describe.skipIf(!dbTestsEnabled)("M4 Lohn/HR — Permissions & RLS pro Rolle", (
       const { error } = await org.service.from("staff_personal_details").insert({
         organization_id: org.orgId,
         staff_id: targetStaffId,
-        tax_class: "1",
+        tax_class: "I",
         social_security_number: "12345678A901",
       });
       if (error) throw new Error(`seed staff_personal_details: ${error.message}`);
