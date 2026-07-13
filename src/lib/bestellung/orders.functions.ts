@@ -284,6 +284,7 @@ export const sendOrderEmail = createServerFn({ method: "POST" })
           supabaseAdmin,
           caller.organizationId,
           data.orderId,
+          context.userId,
         );
         return {
           result: { ok: true as const, orderId: sent.orderId, wasResend: sent.wasResend },
