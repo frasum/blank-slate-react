@@ -3,6 +3,7 @@ import {
   computeTipPool,
   computeTipTotalCents,
   effectiveParticipation,
+  poolFullyUnallocated,
   poolNeedsHoursWarning,
   resolvePoolTimeEntries,
 } from "./tip-pool";
@@ -485,5 +486,27 @@ describe("poolNeedsHoursWarning", () => {
   });
   it("Pool negativ (überzogener Pool) → nicht warnen (anderes Problem)", () => {
     expect(poolNeedsHoursWarning(-100, 0)).toBe(false);
+  });
+});
+
+describe("poolFullyUnallocated (verteilungsnahe TG1-Warnung)", () => {
+  it("Pool > 0 + 0 verteilt → warnen (voller Rest liegt liegen)", () => {
+    expect(poolFullyUnallocated(42_307, 0)).toBe(true);
+  });
+  it("Pool > 0 + irgendwas verteilt → nicht warnen", () => {
+    expect(poolFullyUnallocated(42_307, 1)).toBe(false);
+  });
+  it("Pool = 0 → nie warnen", () => {
+    expect(poolFullyUnallocated(0, 0)).toBe(false);
+  });
+  it("Küchen-Pool mit Geld, aber nur Service hat Stunden → Küche warnt (423-€-Vorfall)", () => {
+    // Realistischer Fall: der aggregierte poolNeedsHoursWarning sieht
+    // Service-Minuten und schweigt — die verteilungsnahe Variante prüft
+    // pro Abteilung und schlägt korrekt an.
+    const kitchenPoolCents = 42_300;
+    const kitchenDistributed = 0; // keine Küchen-Stunden → alles bleibt Rest
+    const serviceEligibleMinutes = 480; // Service hat 8h
+    expect(poolNeedsHoursWarning(kitchenPoolCents, serviceEligibleMinutes)).toBe(false);
+    expect(poolFullyUnallocated(kitchenPoolCents, kitchenDistributed)).toBe(true);
   });
 });
