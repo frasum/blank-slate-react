@@ -36,12 +36,7 @@ function notFound(): Response {
   });
 }
 
-function safeCompare(a: string, b: string): boolean {
-  const aBuf = Buffer.from(a);
-  const bBuf = Buffer.from(b);
-  if (aBuf.length !== bBuf.length) return false;
-  return timingSafeEqual(aBuf, bBuf);
-}
+// Hash-Lookup ersetzt den früheren timing-safe Klartext-Vergleich.
 
 function escapeHtml(s: string): string {
   return s
