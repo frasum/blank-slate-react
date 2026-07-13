@@ -24,13 +24,12 @@ describe("withSecurityHeaders", () => {
   });
 
   it("erzwingt CSP ausschließlich für frame-ancestors (Rest nur Report-Only)", () => {
-    // Präzisiert 13.07. nach SEC-Härtung: frame-ancestors erzwungen erlaubt
-    // (Prüfer-Abnahme), alle anderen Direktiven weiterhin nur Report-Only.
+    // Gehärtet 13.07. (Nachprüfung): Header ist Pflicht — Entfernen wäre
+    // eine stille Clickjacking-Regression.
     const out = withSecurityHeaders(htmlResponse());
     const enforced = out.headers.get("Content-Security-Policy");
-    if (enforced !== null) {
-      expect(enforced.trim()).toMatch(/^frame-ancestors [^;]+$/);
-    }
+    expect(enforced).not.toBeNull();
+    expect(enforced!.trim()).toMatch(/^frame-ancestors [^;]+$/);
     const reportOnly = out.headers.get("Content-Security-Policy-Report-Only") ?? "";
     expect(reportOnly).toContain("script-src");
     expect(reportOnly).toContain("default-src");

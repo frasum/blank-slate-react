@@ -30,6 +30,7 @@ import {
   rotateMyCalendarToken,
   revokeMyCalendarToken,
 } from "@/lib/calendar/calendar-token.functions";
+import { useIsPreview } from "@/hooks/use-is-preview";
 
 export const Route = createFileRoute("/_authenticated/zeit/kalender")({
   head: () => ({
@@ -49,11 +50,19 @@ function KalenderPage() {
   const fnStatus = useServerFn(getMyCalendarTokenStatus);
   const fnRotate = useServerFn(rotateMyCalendarToken);
   const fnRevoke = useServerFn(revokeMyCalendarToken);
+  // N2 (Nachprüfung 13.07.): In der Admin-Vorschau NIE automatisch rotieren —
+  // sonst würde ein bloßer Seitenaufruf durch einen Admin den Token des
+  // vorgeschauten Mitarbeiters anfassen.
+  const isPreview = useIsPreview();
 
   // Der Klartext-Token verlässt den Server nur einmalig (Rotate). Er lebt
   // ausschließlich in dieser Session-State-Variable — nach Reload nicht
   // mehr sichtbar; wer die URL verloren hat, muss neu rotieren.
   const [freshFeedPath, setFreshFeedPath] = useState<string | null>(null);
+
+  // Ref oben deklariert, damit revokeMut das Flag setzen kann (bevor der
+  // Effekt weiter unten es liest).
+  const didAutoRotate = useRef(false);
 
   const q = useQuery({
     queryKey: ["zeit", "calendar-token-status"],
@@ -75,23 +84,31 @@ function KalenderPage() {
     mutationFn: async () => {
       await fnRevoke();
       setFreshFeedPath(null);
+      // N2: Auto-Rotate für den Rest dieses Seitenbesuchs unterbinden —
+      // sonst würde der Effekt weiter unten den soeben deaktivierten
+      // Link sofort neu anlegen.
+      didAutoRotate.current = true;
       await qc.invalidateQueries({ queryKey: ["zeit", "calendar-token-status"] });
     },
     onSuccess: () => toast.success("Abo-Link deaktiviert."),
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // Wenn noch nie ein Feed existiert, einmalig automatisch anlegen —
-  // damit der Erst-Besuch die URL direkt zeigt.
-  const didAutoRotate = useRef(false);
+  // Wenn noch nie ein Feed existiert, einmalig beim Erst-Besuch automatisch
+  // anlegen — damit die URL sofort sichtbar ist. NIE nach einem bewussten
+  // Deaktivieren: ein einmal gesetztes Ref-Flag (didAutoRotate) bleibt für
+  // die Lebensdauer der Seite gesetzt; Reaktivierung nur über den expliziten
+  // „Neuen Link erzeugen"-Button. Ebenfalls unterdrückt in der Admin-
+  // Vorschau (isPreview).
   useEffect(() => {
     if (didAutoRotate.current) return;
+    if (isPreview) return;
     if (q.isLoading) return;
     if (q.data?.hasActive === false && !rotateMut.isPending) {
       didAutoRotate.current = true;
       rotateMut.mutate();
     }
-  }, [q.isLoading, q.data, rotateMut]);
+  }, [q.isLoading, q.data, rotateMut, isPreview]);
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const urls = useMemo(() => {

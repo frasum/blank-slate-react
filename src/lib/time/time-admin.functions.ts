@@ -22,6 +22,147 @@ import { formatAbsenceNote } from "./absence-note";
 import type { SfnShiftRow } from "@/lib/lohn/sfn-geld/types";
 import { computeStaffSfn } from "@/lib/lohn/compute-staff-sfn";
 import { primaryDepartment, type Department } from "./primary-department";
+import { selectAllPaged } from "@/lib/supabase/select-all";
+
+// N1 (Nachprüfung 13.07.): Zentrale, paginierte time_entries-Loader für die
+// Batch-Server-Functions. PostgREST kappt Selects still bei 1000 Zeilen —
+// ohne Pagination würde ein Monat über mehrere Standorte in Lohn/SFN stumm
+// unvollständig laufen. Exportiert (unterstrich-Prefix), damit die Tests
+// die Trunkierungs-Regression ohne Middleware-Plumbing absichern können.
+
+type PagedAdmin = {
+  from: (t: "time_entries" | "roster_shifts") => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    select: (cols: string) => any;
+  };
+};
+
+export type TimeEntryOverviewRow = {
+  location_id: string;
+  staff_id: string;
+  business_date: string;
+  started_at: string;
+  ended_at: string;
+  source: string;
+  staff: { display_name: string } | null;
+  id: string;
+};
+
+export async function _loadTimeEntriesForOverviewBatch(
+  supabaseAdmin: PagedAdmin,
+  organizationId: string,
+  locationIds: readonly string[],
+  fromDate: string,
+  toDate: string,
+): Promise<TimeEntryOverviewRow[]> {
+  return selectAllPaged<TimeEntryOverviewRow>(() =>
+    supabaseAdmin
+      .from("time_entries")
+      .select(
+        "id, location_id, staff_id, business_date, started_at, ended_at, source, staff(display_name)",
+      )
+      .eq("organization_id", organizationId)
+      .in("location_id", locationIds)
+      .gte("business_date", fromDate)
+      .lte("business_date", toDate)
+      .not("ended_at", "is", null)
+      .order("id", { ascending: true }),
+  );
+}
+
+export type TimeEntrySfnRow = {
+  location_id: string;
+  staff_id: string;
+  business_date: string;
+  started_at: string;
+  ended_at: string;
+  break_minutes: number | null;
+  id: string;
+};
+
+export async function _loadTimeEntriesForSfnBatch(
+  supabaseAdmin: PagedAdmin,
+  organizationId: string,
+  locationIds: readonly string[],
+  fromDate: string,
+  toDate: string,
+): Promise<TimeEntrySfnRow[]> {
+  return selectAllPaged<TimeEntrySfnRow>(() =>
+    supabaseAdmin
+      .from("time_entries")
+      .select(
+        "id, location_id, staff_id, business_date, started_at, ended_at, break_minutes",
+      )
+      .eq("organization_id", organizationId)
+      .in("location_id", locationIds)
+      .gte("business_date", fromDate)
+      .lte("business_date", toDate)
+      .not("ended_at", "is", null)
+      .order("id", { ascending: true }),
+  );
+}
+
+export type TimeEntryWeeklyRow = {
+  id: string;
+  location_id: string;
+  staff_id: string;
+  started_at: string;
+  ended_at: string;
+  business_date: string;
+  department: Department | null;
+  staff: { display_name: string } | null;
+};
+
+export async function _loadTimeEntriesForWeeklyBatch(
+  supabaseAdmin: PagedAdmin,
+  organizationId: string,
+  locationIds: readonly string[],
+  weekStart: string,
+  weekEnd: string,
+): Promise<TimeEntryWeeklyRow[]> {
+  return selectAllPaged<TimeEntryWeeklyRow>(() =>
+    supabaseAdmin
+      .from("time_entries")
+      .select(
+        "id, location_id, staff_id, started_at, ended_at, business_date, department, staff(display_name)",
+      )
+      .eq("organization_id", organizationId)
+      .in("location_id", locationIds)
+      .gte("business_date", weekStart)
+      .lte("business_date", weekEnd)
+      .not("ended_at", "is", null)
+      .order("id", { ascending: true }),
+  );
+}
+
+type WeeklyRosterRow = {
+  location_id: string;
+  staff_id: string;
+  area: Department | null;
+  skill_id: string | null;
+  shift_date: string;
+};
+
+export async function _loadRosterShiftsForWeeklyBatch(
+  supabaseAdmin: PagedAdmin,
+  organizationId: string,
+  locationIds: readonly string[],
+  weekStart: string,
+  weekEnd: string,
+): Promise<WeeklyRosterRow[]> {
+  return selectAllPaged<WeeklyRosterRow>(() =>
+    supabaseAdmin
+      .from("roster_shifts")
+      .select("location_id, staff_id, area, skill_id, shift_date")
+      .eq("organization_id", organizationId)
+      .in("location_id", locationIds)
+      .gte("shift_date", weekStart)
+      .lte("shift_date", weekEnd)
+      // Deterministische Paginierung: shift_date + staff_id als Tiebreaker.
+      .order("shift_date", { ascending: true })
+      .order("staff_id", { ascending: true }),
+  );
+}
 
 // Batch-Zod-Schema: nicht-leerer, deduplizierter Array von Location-UUIDs.
 // Begrenzt die IN-Liste auf 50, damit ein Client-Bug nicht die ganze
@@ -620,18 +761,14 @@ export const getTimeOverviewBatch = createServerFn({ method: "GET" })
     ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: rows, error } = await supabaseAdmin
-      .from("time_entries")
-      .select(
-        "location_id, staff_id, business_date, started_at, ended_at, source, staff(display_name)",
-      )
-      .eq("organization_id", caller.organizationId)
-      .in("location_id", data.locationIds)
-      .gte("business_date", data.fromDate)
-      .lte("business_date", data.toDate)
-      .not("ended_at", "is", null)
-      .order("business_date", { ascending: true });
-    if (error) throw error;
+    // N1: paginierter Loader statt PostgREST-Default (1000-Zeilen-Kappung).
+    const rows = await _loadTimeEntriesForOverviewBatch(
+      supabaseAdmin,
+      caller.organizationId,
+      data.locationIds,
+      data.fromDate,
+      data.toDate,
+    );
 
     const { data: deptRows, error: deptErr } = await supabaseAdmin
       .from("staff_locations")
@@ -666,7 +803,7 @@ export const getTimeOverviewBatch = createServerFn({ method: "GET" })
     > = {};
     for (const lid of data.locationIds) byLocation[lid] = { entries: [] };
 
-    for (const r of rows ?? []) {
+    for (const r of rows) {
       const lid = r.location_id as string;
       const bucket = byLocation[lid];
       if (!bucket) continue;
@@ -705,15 +842,14 @@ export const getSfnOverviewBatch = createServerFn({ method: "GET" })
     ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: rows, error } = await supabaseAdmin
-      .from("time_entries")
-      .select("location_id, staff_id, business_date, started_at, ended_at, break_minutes")
-      .eq("organization_id", caller.organizationId)
-      .in("location_id", data.locationIds)
-      .gte("business_date", data.fromDate)
-      .lte("business_date", data.toDate)
-      .not("ended_at", "is", null);
-    if (error) throw error;
+    // N1: paginierter Loader (1000-Zeilen-Trunkierung kappt sonst SFN-Summen still).
+    const rows = await _loadTimeEntriesForSfnBatch(
+      supabaseAdmin,
+      caller.organizationId,
+      data.locationIds,
+      data.fromDate,
+      data.toDate,
+    );
 
     const { data: comps, error: compErr } = await supabaseAdmin
       .from("staff_compensation")
@@ -746,7 +882,7 @@ export const getSfnOverviewBatch = createServerFn({ method: "GET" })
     // Pro Standort → Rows nach staff bucketen und SFN je Mitarbeiter berechnen.
     const rowsByLocStaff = new Map<string, Map<string, SfnShiftRow[]>>();
     for (const lid of data.locationIds) rowsByLocStaff.set(lid, new Map());
-    for (const r of rows ?? []) {
+    for (const r of rows) {
       const lid = r.location_id as string;
       const bucket = rowsByLocStaff.get(lid);
       if (!bucket) continue;
@@ -858,18 +994,15 @@ export const getWeeklyTimeEntriesBatch = createServerFn({ method: "GET" })
     end.setUTCDate(end.getUTCDate() + 6);
     const weekEnd = end.toISOString().slice(0, 10);
 
-    const { data: entryRows, error: entryErr } = await supabaseAdmin
-      .from("time_entries")
-      .select(
-        "id, location_id, staff_id, started_at, ended_at, business_date, department, staff(display_name)",
-      )
-      .eq("organization_id", caller.organizationId)
-      .in("location_id", data.locationIds)
-      .gte("business_date", data.weekStart)
-      .lte("business_date", weekEnd)
-      .not("ended_at", "is", null)
-      .order("started_at", { ascending: true });
-    if (entryErr) throw entryErr;
+    // N1: paginierte Loader — 1 Woche × mehrere Standorte kann bei größeren
+    // Belegschaften die 1000-Zeilen-Grenze streifen.
+    const entryRows = await _loadTimeEntriesForWeeklyBatch(
+      supabaseAdmin,
+      caller.organizationId,
+      data.locationIds,
+      data.weekStart,
+      weekEnd,
+    );
 
     const { data: deptRows, error: deptErr } = await supabaseAdmin
       .from("staff_locations")
@@ -896,14 +1029,13 @@ export const getWeeklyTimeEntriesBatch = createServerFn({ method: "GET" })
       }
     }
 
-    const { data: rosterRows, error: rosterErr } = await supabaseAdmin
-      .from("roster_shifts")
-      .select("location_id, staff_id, area, skill_id, shift_date")
-      .eq("organization_id", caller.organizationId)
-      .in("location_id", data.locationIds)
-      .gte("shift_date", data.weekStart)
-      .lte("shift_date", weekEnd);
-    if (rosterErr) throw rosterErr;
+    const rosterRows = await _loadRosterShiftsForWeeklyBatch(
+      supabaseAdmin,
+      caller.organizationId,
+      data.locationIds,
+      data.weekStart,
+      weekEnd,
+    );
 
     // Rows nach Location bucketen.
     type DeptRow = {
