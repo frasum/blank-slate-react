@@ -10,6 +10,7 @@ import { computeWechselgeld } from "./cash-summary";
 import { sessionToDayInput } from "./session-day-input";
 import { sumNonGlTerminalCents } from "./session-channels";
 import { computeTipTotalCents } from "./tip-pool";
+import { sessionHouseCentsFromKasse } from "@/lib/statistics/revenue-core";
 
 type Cents = number;
 
@@ -225,6 +226,17 @@ export async function generateDailySummaryPdf(data: PdfExportData): Promise<{
   // POS-Umsatz kommt aus dem Session-Feld vectron_daily_total_cents
   // (NICHT aus den Channels — YUM/Spicery hat keinen pos-Channel).
   const posTotal = Number(sess.vectron_daily_total_cents ?? 0);
+  // N14 (Fachentscheidung Frank 13.07.): ⌀ pro Gast IMMER auf den
+  // Haus-Umsatz (ohne Wolt/SoUse/eigener Außer-Haus-Verkauf) — identische
+  // Ableitung wie Bildschirm und Druckansicht.
+  const kindById = new Map(data.channels.map((c) => [c.id, c.kind]));
+  const houseCentsForAvg = sessionHouseCentsFromKasse({
+    vectronCents: posTotal,
+    channels: data.channelAmounts.map((a) => ({
+      kind: kindById.get(a.channelId) ?? "",
+      amountCents: a.amountCents,
+    })),
+  });
   // §33 (KGL-2): GL-Terminals sind Kontrollposten und dürfen den Kartenabzug
   // NICHT erhöhen. Join Terminal-Beträge ↔ Terminals (isGl) und Summe über
   // die zentrale Regel `sumNonGlTerminalCents` — identisch zum Bildschirm-
@@ -264,10 +276,10 @@ export async function generateDailySummaryPdf(data: PdfExportData): Promise<{
   summaryRows.push(sectionHeader("Umsatz"));
   summaryRows.push(["POS-Umsatz", fmtEur(posTotal)]);
   if ((sess.guest_count ?? 0) > 0) {
-    const avg = posTotal / sess.guest_count!;
+    const avg = houseCentsForAvg / sess.guest_count!;
     summaryRows.push([
       {
-        content: `Gäste: ${sess.guest_count}  ·  ⌀ ${fmtEur(avg)} / Gast`,
+        content: `Gäste: ${sess.guest_count}  ·  ⌀ pro Gast (Haus) ${fmtEur(avg)}`,
         colSpan: 2,
         styles: { fontSize: 6.5, textColor: [100, 116, 139] },
       },
