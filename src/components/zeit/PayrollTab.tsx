@@ -15,10 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CalendarDays, FileDown, FileSpreadsheet, Search } from "lucide-react";
-import type {
-  BuchhaltungExportRow,
-  BuchhaltungMode,
-} from "@/lib/time/buchhaltung-export";
+import type { BuchhaltungExportRow, BuchhaltungMode } from "@/lib/time/buchhaltung-export";
 import {
   DEPT_BG,
   DEPT_LABEL,

@@ -42,10 +42,7 @@ import {
   togglePeriodLock,
   upsertPayrollNote,
 } from "@/lib/time/time-admin.functions";
-import {
-  computeShiftHours,
-  isSundayOrHoliday,
-} from "@/lib/time/shift-hours";
+import { computeShiftHours, isSundayOrHoliday } from "@/lib/time/shift-hours";
 import {
   buildFileBaseName,
   buildWeeklyPdf,
@@ -108,7 +105,6 @@ export const Route = createFileRoute("/_authenticated/admin/zeit-uebersicht")({
   head: () => ({ meta: [{ title: "Arbeitszeiten" }] }),
   component: ZeitUebersichtPage,
 });
-
 
 function ZeitUebersichtPage() {
   const qc = useQueryClient();
@@ -1424,4 +1420,3 @@ function ZeitUebersichtPage() {
     </div>
   );
 }
-

@@ -15,11 +15,7 @@ import {
 } from "@/components/ui/table";
 import { ZeitSkeleton } from "@/components/ui/page-skeletons";
 import type { WeeklyExportInput } from "@/lib/time/weekly-export";
-import {
-  bavarianHolidayName,
-  isBavarianHoliday,
-  isSundayOrHoliday,
-} from "@/lib/time/shift-hours";
+import { bavarianHolidayName, isBavarianHoliday, isSundayOrHoliday } from "@/lib/time/shift-hours";
 import {
   DEPT_BAR,
   DEPT_BG,

@@ -10,11 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { WeeklyExportRow } from "@/lib/time/weekly-export";
-import {
-  DEPT_LABEL,
-  type Department,
-  type WeeklyEntry,
-} from "@/lib/time/zeit-uebersicht-core";
+import { DEPT_LABEL, type Department, type WeeklyEntry } from "@/lib/time/zeit-uebersicht-core";
 
 // Z3 — Umhängen-Popover je Zeile: listet alle Einträge der Person in dieser
 // Woche mit einem Abteilungs-Select (begrenzt auf ihre Zuordnungen am
