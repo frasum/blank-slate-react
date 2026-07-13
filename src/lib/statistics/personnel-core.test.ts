@@ -15,18 +15,17 @@ describe("selectHourlyRateEur", () => {
     { validFrom: "2026-06-15", hourlyRateEur: 14 },
   ];
 
-  it("wählt den jüngsten gültigen Satz", () => {
+  it("nimmt den zuletzt bekannten Satz (größtes validFrom) unabhängig vom workDate", () => {
+    // Semantik-Wechsel: staff_compensation hat keine echte Historie,
+    // valid_from ist nur „zuletzt geändert am" → Statistik darf für
+    // Tage VOR dem Update nicht still auf 0 fallen.
     expect(selectHourlyRateEur(rows, "2026-06-20")).toBe(14);
-    expect(selectHourlyRateEur(rows, "2026-06-14")).toBe(13.5);
-    expect(selectHourlyRateEur(rows, "2025-12-31")).toBe(12);
+    expect(selectHourlyRateEur(rows, "2026-06-14")).toBe(14);
+    expect(selectHourlyRateEur(rows, "2025-12-31")).toBe(14);
+    expect(selectHourlyRateEur(rows, "2024-01-01")).toBe(14);
   });
 
-  it("validFrom == workDate ist gültig", () => {
-    expect(selectHourlyRateEur(rows, "2026-06-15")).toBe(14);
-  });
-
-  it("keiner gültig → null", () => {
-    expect(selectHourlyRateEur(rows, "2024-12-31")).toBeNull();
+  it("keine Zeile → null", () => {
     expect(selectHourlyRateEur([], "2026-06-15")).toBeNull();
   });
 });

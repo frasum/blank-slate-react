@@ -42,13 +42,23 @@ function round2(n: number): number {
 }
 
 /**
- * Gültigkeitsdatierte Satz-Wahl: größtes `validFrom <= workDate`.
- * Grenzfall `validFrom == workDate` ist gültig. Keiner gültig → null.
+ * Satz-Wahl.
+ *
+ * Semantik-Vereinheitlichung (Konflikt-Auflösung, siehe §…):
+ * `staff_compensation` hat KEINE echte Historie — es gibt pro Mitarbeiter
+ * genau eine Zeile, die per Upsert überschrieben wird; `valid_from` ist
+ * dabei nur ein Marker für „zuletzt geändert am". Der Lohnrechner
+ * (lohn-period.functions.ts) ignoriert `valid_from` ebenfalls.
+ *
+ * Damit die Statistik für Arbeitstage VOR dem letzten Update nicht
+ * still auf 0 fällt, wählen wir hier den zuletzt bekannten Satz
+ * (größtes `validFrom`) UNABHÄNGIG vom `workDate`. Nur wenn es gar
+ * keine Zeile gibt, gilt „kein Satz" → null.
  */
 export function selectHourlyRateEur(rows: CompRow[], workDate: string): number | null {
+  void workDate;
   let best: CompRow | null = null;
   for (const r of rows) {
-    if (r.validFrom > workDate) continue;
     if (!best || r.validFrom > best.validFrom) best = r;
   }
   return best ? best.hourlyRateEur : null;
