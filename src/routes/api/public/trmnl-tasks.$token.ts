@@ -271,6 +271,7 @@ export const Route = createFileRoute("/api/public/trmnl-tasks/$token")({
           orgName,
           nowIso,
           targetLabel: target.label,
+          targetIso: target.iso,
           targetDateHuman: formatDate(target.iso),
           badges,
           rosterBlocks,
