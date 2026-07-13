@@ -160,6 +160,17 @@ export function renderDailyPrintHtml(data: PdfExportData): string {
   const active = data.settlements.filter((s) => s.status !== "superseded");
 
   const posTotal = Number(sess.vectron_daily_total_cents ?? 0);
+  // N14 (Fachentscheidung Frank 13.07.): ⌀ pro Gast = Haus-Umsatz / Gäste
+  // — Wolt/SoUse/eigener Außer-Haus raus. Gemeinsamer Helfer mit
+  // Bildschirm und PDF.
+  const kindById = new Map(data.channels.map((c) => [c.id, c.kind]));
+  const houseCentsForAvg = sessionHouseCentsFromKasse({
+    vectronCents: posTotal,
+    channels: data.channelAmounts.map((a) => ({
+      kind: kindById.get(a.channelId) ?? "",
+      amountCents: a.amountCents,
+    })),
+  });
 
   // §33: GL-Terminals mindern das Bargeld nicht → identische Regel wie im PDF.
   const terminalGlById = new Map(data.terminals.map((t) => [t.id, t.isGl]));
@@ -230,9 +241,9 @@ export function renderDailyPrintHtml(data: PdfExportData): string {
   leftRows.push(`<h2>Umsatz</h2><table>`);
   leftRows.push(rowKV("POS-Umsatz", fmtEur(posTotal)));
   if ((sess.guest_count ?? 0) > 0) {
-    const avg = posTotal / sess.guest_count!;
+    const avg = houseCentsForAvg / sess.guest_count!;
     leftRows.push(
-      `<tr class="row"><td colspan="2" style="font-size:8pt;color:#64748b;">Gäste: ${sess.guest_count} · ⌀ ${fmtEur(avg)} / Gast</td></tr>`,
+      `<tr class="row"><td colspan="2" style="font-size:8pt;color:#64748b;">Gäste: ${sess.guest_count} · ⌀ pro Gast (Haus) ${fmtEur(avg)}</td></tr>`,
     );
   }
   leftRows.push(`</table>`);
