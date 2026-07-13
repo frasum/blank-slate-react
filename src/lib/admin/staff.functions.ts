@@ -20,17 +20,20 @@ import {
   type StaffDepartment,
   type SkillCategory,
 } from "./skill-eligibility";
+import { expectMaybe, expectOk, expectVoid } from "@/lib/supabase/expect-ok";
 
 async function assertLocationInOrg(locationId: string, organizationId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin
-    // ST1: bewusst ungefiltert — Daten-Zugriff (assertLocationInOrg by id).
-    .from("locations")
-    .select("id")
-    .eq("id", locationId)
-    .eq("organization_id", organizationId)
-    .maybeSingle();
-  if (error) throw error;
+  // ST1: bewusst ungefiltert — Daten-Zugriff (assertLocationInOrg by id).
+  const data = expectMaybe<{ id: string }>(
+    await supabaseAdmin
+      .from("locations")
+      .select("id")
+      .eq("id", locationId)
+      .eq("organization_id", organizationId)
+      .maybeSingle(),
+    "assertLocationInOrg",
+  );
   if (!data) throw new Error("Standort nicht in dieser Organisation.");
 }
 
@@ -42,11 +45,15 @@ const DEPARTMENT_LABEL: Record<StaffDepartment, string> = {
 
 async function loadAdminSnapshot(organizationId: string): Promise<AdminSnapshotEntry[]> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin
-    .from("staff")
-    .select("id, is_active, role_assignments(role)")
-    .eq("organization_id", organizationId);
-  if (error) throw error;
+  const data = expectOk<
+    { id: string; is_active: boolean; role_assignments: unknown }[]
+  >(
+    await supabaseAdmin
+      .from("staff")
+      .select("id, is_active, role_assignments(role)")
+      .eq("organization_id", organizationId),
+    "loadAdminSnapshot",
+  );
   return (data ?? []).map((row) => {
     const ra = row.role_assignments as { role: AppRole }[] | { role: AppRole } | null;
     const role = Array.isArray(ra) ? (ra[0]?.role ?? null) : (ra?.role ?? null);
