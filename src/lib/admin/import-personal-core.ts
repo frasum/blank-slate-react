@@ -81,9 +81,9 @@ export async function runImportPersonalCore(
     const staffRows = expectOk<
       {
         id: string;
-        first_name: string | null;
-        last_name: string | null;
-        display_name: string | null;
+        first_name: string;
+        last_name: string;
+        display_name: string;
         perso_nr: number | null;
       }[]
     >(
@@ -97,9 +97,9 @@ export async function runImportPersonalCore(
     for (const r of staffRows ?? []) {
       currentStaff.set(r.id, {
         staffId: r.id,
-        firstName: r.first_name ?? "",
-        lastName: r.last_name ?? "",
-        displayName: r.display_name ?? "",
+        firstName: r.first_name,
+        lastName: r.last_name,
+        displayName: r.display_name,
         persoNr: (r as { perso_nr: number | null }).perso_nr ?? null,
       });
     }
