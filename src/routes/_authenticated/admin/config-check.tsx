@@ -56,18 +56,11 @@ const GROUP_LABEL: Record<ConfigVarStatus["group"], string> = {
 };
 
 function StatusDot({ ok, critical }: { ok: boolean; critical: boolean }) {
-  const color = ok
-    ? "bg-emerald-500"
-    : critical
-      ? "bg-destructive"
-      : "bg-amber-500";
+  const color = ok ? "bg-emerald-500" : critical ? "bg-destructive" : "bg-amber-500";
   const label = ok ? "gesetzt" : critical ? "fehlt (kritisch)" : "fehlt (optional)";
   return (
     <span className="inline-flex items-center gap-2 text-xs">
-      <span
-        className={`inline-block h-2.5 w-2.5 rounded-full ${color}`}
-        aria-hidden
-      />
+      <span className={`inline-block h-2.5 w-2.5 rounded-full ${color}`} aria-hidden />
       <span className="text-muted-foreground">{label}</span>
     </span>
   );
@@ -90,9 +83,9 @@ function ConfigCheckPage() {
       <div>
         <h1 className="text-xl font-semibold text-foreground">Config-Check</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Präsenz-Status aller relevanten Umgebungsvariablen. Werte werden aus
-          Sicherheitsgründen niemals angezeigt — nur ob sie gesetzt sind, plus
-          formale Hinweise (Länge, URL-Host, E-Mail-Format).
+          Präsenz-Status aller relevanten Umgebungsvariablen. Werte werden aus Sicherheitsgründen
+          niemals angezeigt — nur ob sie gesetzt sind, plus formale Hinweise (Länge, URL-Host,
+          E-Mail-Format).
         </p>
       </div>
 
@@ -116,9 +109,7 @@ function ConfigCheckPage() {
                     Kritisch fehlend: {q.data.summary.missingCritical.join(", ")}
                   </span>
                 ) : (
-                  <span className="ml-3 text-emerald-600">
-                    Alle kritischen Variablen gesetzt.
-                  </span>
+                  <span className="ml-3 text-emerald-600">Alle kritischen Variablen gesetzt.</span>
                 )}
                 <div className="mt-1 text-xs text-muted-foreground">
                   Geprüft: {new Date(q.data.checkedAt).toLocaleString("de-DE")}
@@ -141,15 +132,18 @@ function ConfigCheckPage() {
         <div className="border-b border-border px-4 py-3">
           <h2 className="text-sm font-semibold text-foreground">Browser (VITE_*)</h2>
           <p className="text-xs text-muted-foreground">
-            Werden ins Bundle eingebettet. Fehlen sie, zeigt die App den
-            Konfigurationsfehler-Screen statt Login.
+            Werden ins Bundle eingebettet. Fehlen sie, zeigt die App den Konfigurationsfehler-Screen
+            statt Login.
           </p>
         </div>
         <ul className="divide-y divide-border">
           {CLIENT_VARS.map((v) => {
             const ok = !!v.value && v.value.length > 0;
             return (
-              <li key={v.name} className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <li
+                key={v.name}
+                className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+              >
                 <div>
                   <div className="font-mono text-sm text-foreground">{v.name}</div>
                   <div className="text-xs text-muted-foreground">{v.purpose}</div>
@@ -175,9 +169,7 @@ function ConfigCheckPage() {
             return (
               <section key={group} className="rounded-lg border border-border bg-card">
                 <div className="border-b border-border px-4 py-3">
-                  <h2 className="text-sm font-semibold text-foreground">
-                    {GROUP_LABEL[group]}
-                  </h2>
+                  <h2 className="text-sm font-semibold text-foreground">{GROUP_LABEL[group]}</h2>
                 </div>
                 <ul className="divide-y divide-border">
                   {rows.map((v) => (
@@ -189,9 +181,7 @@ function ConfigCheckPage() {
                         <div className="font-mono text-sm text-foreground">{v.name}</div>
                         <div className="text-xs text-muted-foreground">{v.purpose}</div>
                         {v.present && v.hint && (
-                          <div className="text-[11px] text-muted-foreground/80">
-                            {v.hint}
-                          </div>
+                          <div className="text-[11px] text-muted-foreground/80">{v.hint}</div>
                         )}
                       </div>
                       <StatusDot ok={v.present} critical={v.critical} />
@@ -205,9 +195,9 @@ function ConfigCheckPage() {
       )}
 
       <p className="text-xs text-muted-foreground">
-        Hinweis: Diese Seite ist Admin-only. Server-Werte verlassen den Server
-        nie — es wird ausschließlich <em>Anwesenheit</em> und ein formaler
-        Hinweis (Länge, Host, Format) zurückgegeben.
+        Hinweis: Diese Seite ist Admin-only. Server-Werte verlassen den Server nie — es wird
+        ausschließlich <em>Anwesenheit</em> und ein formaler Hinweis (Länge, Host, Format)
+        zurückgegeben.
       </p>
     </div>
   );
