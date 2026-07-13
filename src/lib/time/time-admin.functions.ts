@@ -1006,10 +1006,10 @@ export const getWeeklyTimeEntriesBatch = createServerFn({ method: "GET" })
     ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const start = new Date(`${data.weekStart}T12:00:00Z`);
-    const end = new Date(start);
-    end.setUTCDate(end.getUTCDate() + 6);
-    const weekEnd = end.toISOString().slice(0, 10);
+    // N12: Wochenstart auf Montag normalisieren (Nicht-Montag → derselbe
+    // Wochen-Montag), damit clientseitige Off-by-one-Rundungen die
+    // Batch-Ansicht nicht verstellen.
+    const { weekStart, weekEnd } = normalizeIsoWeek(data.weekStart);
 
     // N1: paginierte Loader — 1 Woche × mehrere Standorte kann bei größeren
     // Belegschaften die 1000-Zeilen-Grenze streifen.
@@ -1017,7 +1017,7 @@ export const getWeeklyTimeEntriesBatch = createServerFn({ method: "GET" })
       supabaseAdmin,
       caller.organizationId,
       data.locationIds,
-      data.weekStart,
+      weekStart,
       weekEnd,
     );
 
@@ -1050,7 +1050,7 @@ export const getWeeklyTimeEntriesBatch = createServerFn({ method: "GET" })
       supabaseAdmin,
       caller.organizationId,
       data.locationIds,
-      data.weekStart,
+      weekStart,
       weekEnd,
     );
 
