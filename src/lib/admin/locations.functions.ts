@@ -63,15 +63,11 @@ export const listLocations = createServerFn({ method: "GET" })
         .eq("id", caller.organizationId)
         .maybeSingle(),
     ]);
-    const rows = expectOk<
-      Array<{
-        id: string;
-        name: string;
-        is_active: boolean | null;
-        cash_balance_target_cents: number | string | null;
-        [key: string]: unknown;
-      }>
-    >(rowsRes, "listLocations.rows");
+    if (rowsRes.error) {
+      console.error("[listLocations.rows] Supabase:", rowsRes.error);
+      throw new Error(`[listLocations.rows] Supabase: ${rowsRes.error.message}`);
+    }
+    const rows = rowsRes.data;
     const org = expectMaybe<{ cash_balance_target_cents: number | string | null }>(
       orgRes,
       "listLocations.org",
