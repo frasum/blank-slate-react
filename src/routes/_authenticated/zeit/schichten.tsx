@@ -12,7 +12,7 @@ import {
 } from "@/lib/roster/roster.functions";
 import { groupMyShiftsByDate } from "@/lib/roster/my-shifts";
 import { formatShiftMatesLine, MATES_LINE_PREFIX, shiftMatesKey } from "@/lib/roster/shift-mates";
-import { todayIso } from "@/lib/format";
+import { businessDateOf } from "@/lib/business-date";
 import {
   createSwapRequest,
   listMySwapRequests,
@@ -145,7 +145,12 @@ function MyShiftsPage() {
 
   const [offerShiftId, setOfferShiftId] = useState<string | null>(null);
   const [note, setNote] = useState("");
-  const todayIsoStr = todayIso();
+  // N5 (Nachprüfung 13.07.): Client nutzt den Geschäftstag (3-Uhr-Cutoff)
+  // aus @/lib/business-date — dieselbe Definition wie die Server-Regeln
+  // in swap.functions.ts. Sonst würde eine noch laufende Spätschicht
+  // nachts nach 00:00 im Client stumm als „vergangen" ausgeblendet, obwohl
+  // der Server sie weiterhin als tauschbar akzeptiert.
+  const todayIsoStr = businessDateOf(new Date());
 
   const createMutation = useMutation({
     mutationFn: (input: { shiftId: string; note?: string }) => createSwap({ data: input }),
