@@ -19,6 +19,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { writeAuditLog } from "./audit";
 import { isImpersonationExpired } from "./impersonation-expiry";
+import { expectMaybe, expectVoid } from "@/lib/supabase/expect-ok";
 
 export type ActiveImpersonation = {
   targetStaffId: string;
@@ -29,12 +30,20 @@ export async function resolveActiveImpersonation(
   supabase: SupabaseClient<Database>,
   adminUserId: string,
 ): Promise<ActiveImpersonation | null> {
-  const { data } = await supabase
-    .from("admin_impersonations")
-    .select("id, organization_id, target_staff_id, started_at")
-    .eq("admin_user_id", adminUserId)
-    .is("ended_at", null)
-    .maybeSingle();
+  const data = expectMaybe<{
+    id: string;
+    organization_id: string;
+    target_staff_id: string;
+    started_at: string;
+  }>(
+    await supabase
+      .from("admin_impersonations")
+      .select("id, organization_id, target_staff_id, started_at")
+      .eq("admin_user_id", adminUserId)
+      .is("ended_at", null)
+      .maybeSingle(),
+    "resolveActiveImpersonation.load",
+  );
   if (!data) return null;
   const startedAt = data.started_at as string;
   if (isImpersonationExpired(startedAt, new Date().toISOString())) {
@@ -44,12 +53,20 @@ export async function resolveActiveImpersonation(
     const impId = data.id as string;
     const orgId = data.organization_id as string;
     const targetStaffId = data.target_staff_id as string;
-    const { error: updErr } = await supabaseAdmin
-      .from("admin_impersonations")
-      .update({ ended_at: new Date().toISOString() })
-      .eq("id", impId)
-      .is("ended_at", null);
-    if (!updErr) {
+    let updOk = true;
+    try {
+      expectVoid(
+        await supabaseAdmin
+          .from("admin_impersonations")
+          .update({ ended_at: new Date().toISOString() })
+          .eq("id", impId)
+          .is("ended_at", null),
+        "resolveActiveImpersonation.autoEnd",
+      );
+    } catch {
+      updOk = false;
+    }
+    if (updOk) {
       await writeAuditLog({
         organizationId: orgId,
         actorUserId: adminUserId,
