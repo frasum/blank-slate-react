@@ -200,7 +200,7 @@ export const upsertBwaMonth = createServerFn({ method: "POST" })
 
     const { data: saved, error: upErr } = await supabaseAdmin
       .from("bwa_monthly")
-      .upsert(payload as never, {
+      .upsert(payload as Database["public"]["Tables"]["bwa_monthly"]["Insert"], {
         onConflict: "organization_id,entity,cost_center,month",
       })
       .select(SELECT_COLS)

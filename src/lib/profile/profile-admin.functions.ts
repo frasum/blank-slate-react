@@ -187,7 +187,10 @@ export const decideChangeRequest = createServerFn({ method: "POST" })
             }
             const { error: upErr } = await supabaseAdmin
               .from("staff_personal_details")
-              .upsert(upsertRow as never, { onConflict: "staff_id" });
+              .upsert(
+                upsertRow as Database["public"]["Tables"]["staff_personal_details"]["Insert"],
+                { onConflict: "staff_id" },
+              );
             if (upErr) throw new Error(upErr.message);
 
             const { error: statusErr } = await supabaseAdmin

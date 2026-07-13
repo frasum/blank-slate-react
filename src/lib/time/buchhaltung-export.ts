@@ -173,6 +173,11 @@ export async function buildBuchhaltungXlsx(input: BuchhaltungExportInput): Promi
 export async function buildBuchhaltungPdf(input: BuchhaltungExportInput): Promise<Blob> {
   const { default: jsPDF } = await import("jspdf");
   const { default: autoTable } = await import("jspdf-autotable");
+  type RowInput = Parameters<typeof autoTable>[1]["body"] extends
+    | ReadonlyArray<infer R>
+    | undefined
+    ? R
+    : never;
   const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
   doc.setFontSize(14);
   doc.text(
@@ -216,8 +221,8 @@ export async function buildBuchhaltungPdf(input: BuchhaltungExportInput): Promis
   }
 
   autoTable(doc, {
-    head: head as never,
-    body: body as never,
+    head: head as RowInput[],
+    body: body as RowInput[],
     startY: 56,
     styles: { fontSize: 8, cellPadding: 3 },
     headStyles: { fillColor: [230, 230, 230], textColor: 20, halign: "center" },
