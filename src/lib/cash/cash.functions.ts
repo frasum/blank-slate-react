@@ -1237,6 +1237,10 @@ const updateSessionSchema = z.object({
   vouchersSoldCents: z.number().int().default(0),
   vouchersRedeemedCents: z.number().int().default(0),
   finedineVouchersCents: z.number().int().default(0),
+  // N15a (Fachentscheidung 13.07.): kein Client-Feld mehr — das Konzept
+  // OpenTabs-Abzug ist durch SoUse abgelöst. Die DB-Spalte
+  // `sessions.opentabs_deduction_cents` bleibt bewusst belassen bis
+  // Cutover-Mapping verifiziert (§88, N15b).
   vorschussCents: z.number().int().default(0),
   einladungCents: z.number().int().default(0),
   sonstigeEinnahmeCents: z.number().int().default(0),
