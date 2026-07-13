@@ -299,6 +299,7 @@ type RenderInput = {
   orgName: string;
   nowIso: string;
   targetLabel: string;
+  targetIso: string;
   targetDateHuman: string;
   badges: ReturnType<typeof actionBadges>;
   rosterBlocks: ReturnType<typeof groupRosterByLocation>;
