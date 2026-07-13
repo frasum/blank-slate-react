@@ -170,7 +170,7 @@ export const createDisplayReminder = createServerFn({ method: "POST" })
       };
       const { data: row, error } = await supabaseAdmin
         .from("display_reminders")
-        .insert(payload as never)
+        .insert(payload)
         .select("*")
         .single();
       if (error) throw error;
@@ -208,7 +208,7 @@ export const updateDisplayReminder = createServerFn({ method: "POST" })
       };
       const { data: row, error } = await supabaseAdmin
         .from("display_reminders")
-        .update(patch as never)
+        .update(patch)
         .eq("id", data.id)
         .eq("organization_id", caller.organizationId)
         .select("*")

@@ -107,7 +107,7 @@ export const upsertDisplaySettings = createServerFn({ method: "POST" })
       if (data.customMessage !== undefined) payload.custom_message = data.customMessage;
       const { data: row, error } = await supabaseAdmin
         .from("display_settings")
-        .insert(payload as never)
+        .insert(payload)
         .select("*")
         .single();
       if (error) throw error;
@@ -144,7 +144,7 @@ export const upsertDisplaySettings = createServerFn({ method: "POST" })
 
     const { data: row, error } = await supabaseAdmin
       .from("display_settings")
-      .update(patch as never)
+      .update(patch)
       .eq("id", (existing as { id: string }).id)
       .eq("organization_id", caller.organizationId)
       .select("*")
@@ -173,7 +173,7 @@ export const regenerateDisplayToken = createServerFn({ method: "POST" })
     const newToken = generateToken();
     const { data: row, error } = await supabaseAdmin
       .from("display_settings")
-      .update({ display_token_hash: sha256Hex(newToken) } as never)
+      .update({ display_token_hash: sha256Hex(newToken) })
       .eq("organization_id", caller.organizationId)
       .eq("location_id", data.locationId)
       .select("*")
