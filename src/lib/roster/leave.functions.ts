@@ -104,12 +104,7 @@ export const requestLeave = createServerFn({ method: "POST" })
       throw new Error("Bis-Datum muss am Von-Datum oder danach liegen.");
     }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const skip = !(await loadCountHolidays(supabaseAdmin, caller.organizationId));
-    const days = countLeaveDays(
-      data.start_date,
-      data.end_date,
-      holidaySetIfSkip(skip, data.start_date, data.end_date),
-    );
+    const days = countLeaveDays(data.start_date, data.end_date);
 
     // Überschneidung mit eigenem offenem/genehmigtem Antrag?
     const { data: overlaps, error: overlapErr } = await supabaseAdmin
@@ -159,7 +154,6 @@ export const getMyLeaveRequests = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<LeaveRequestRow[]> => {
     const caller = await loadStaffCaller(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const skipHolidays = !(await loadCountHolidays(supabaseAdmin, caller.organizationId));
     const { data, error } = await supabaseAdmin
       .from("leave_requests")
       .select(
@@ -170,7 +164,6 @@ export const getMyLeaveRequests = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false });
     if (error) throw error;
     return (data ?? []).map((r) => {
-      const hset = holidaySetIfSkip(skipHolidays, r.start_date as string, r.end_date as string);
       return {
         id: r.id as string,
         staffId: r.staff_id as string,
@@ -182,10 +175,7 @@ export const getMyLeaveRequests = createServerFn({ method: "GET" })
         decisionNote: (r.decision_note as string | null) ?? null,
         decidedAt: (r.decided_at as string | null) ?? null,
         createdAt: r.created_at as string,
-        days: countLeaveDays(r.start_date as string, r.end_date as string, hset),
-        holidaysSkipped: hset
-          ? countHolidaysInRange(r.start_date as string, r.end_date as string, hset)
-          : 0,
+        days: countLeaveDays(r.start_date as string, r.end_date as string),
       };
     });
   });
