@@ -22,6 +22,151 @@ import { formatAbsenceNote } from "./absence-note";
 import type { SfnShiftRow } from "@/lib/lohn/sfn-geld/types";
 import { computeStaffSfn } from "@/lib/lohn/compute-staff-sfn";
 import { primaryDepartment, type Department } from "./primary-department";
+import { selectAllPaged } from "@/lib/supabase/select-all";
+
+// N1 (Nachprüfung 13.07.): Zentrale, paginierte time_entries-Loader für die
+// Batch-Server-Functions. PostgREST kappt Selects still bei 1000 Zeilen —
+// ohne Pagination würde ein Monat über mehrere Standorte in Lohn/SFN stumm
+// unvollständig laufen. Exportiert (unterstrich-Prefix), damit die Tests
+// die Trunkierungs-Regression ohne Middleware-Plumbing absichern können.
+
+type PagedAdmin = {
+  from: (t: "time_entries" | "roster_shifts") => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    select: (cols: string) => any;
+  };
+};
+
+export type TimeEntryOverviewRow = {
+  location_id: string;
+  staff_id: string;
+  business_date: string;
+  started_at: string;
+  ended_at: string;
+  source: string;
+  staff: { display_name: string } | null;
+  id: string;
+};
+
+export async function _loadTimeEntriesForOverviewBatch(
+  supabaseAdmin: PagedAdmin,
+  organizationId: string,
+  locationIds: readonly string[],
+  fromDate: string,
+  toDate: string,
+): Promise<TimeEntryOverviewRow[]> {
+  return selectAllPaged<TimeEntryOverviewRow>((from, to) =>
+    supabaseAdmin
+      .from("time_entries")
+      .select(
+        "id, location_id, staff_id, business_date, started_at, ended_at, source, staff(display_name)",
+      )
+      .eq("organization_id", organizationId)
+      .in("location_id", locationIds)
+      .gte("business_date", fromDate)
+      .lte("business_date", toDate)
+      .not("ended_at", "is", null)
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
+}
+
+export type TimeEntrySfnRow = {
+  location_id: string;
+  staff_id: string;
+  business_date: string;
+  started_at: string;
+  ended_at: string;
+  break_minutes: number | null;
+  id: string;
+};
+
+export async function _loadTimeEntriesForSfnBatch(
+  supabaseAdmin: PagedAdmin,
+  organizationId: string,
+  locationIds: readonly string[],
+  fromDate: string,
+  toDate: string,
+): Promise<TimeEntrySfnRow[]> {
+  return selectAllPaged<TimeEntrySfnRow>((from, to) =>
+    supabaseAdmin
+      .from("time_entries")
+      .select(
+        "id, location_id, staff_id, business_date, started_at, ended_at, break_minutes",
+      )
+      .eq("organization_id", organizationId)
+      .in("location_id", locationIds)
+      .gte("business_date", fromDate)
+      .lte("business_date", toDate)
+      .not("ended_at", "is", null)
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
+}
+
+export type TimeEntryWeeklyRow = {
+  id: string;
+  location_id: string;
+  staff_id: string;
+  started_at: string;
+  ended_at: string;
+  business_date: string;
+  department: Department | null;
+  staff: { display_name: string } | null;
+};
+
+export async function _loadTimeEntriesForWeeklyBatch(
+  supabaseAdmin: PagedAdmin,
+  organizationId: string,
+  locationIds: readonly string[],
+  weekStart: string,
+  weekEnd: string,
+): Promise<TimeEntryWeeklyRow[]> {
+  return selectAllPaged<TimeEntryWeeklyRow>((from, to) =>
+    supabaseAdmin
+      .from("time_entries")
+      .select(
+        "id, location_id, staff_id, started_at, ended_at, business_date, department, staff(display_name)",
+      )
+      .eq("organization_id", organizationId)
+      .in("location_id", locationIds)
+      .gte("business_date", weekStart)
+      .lte("business_date", weekEnd)
+      .not("ended_at", "is", null)
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
+}
+
+type WeeklyRosterRow = {
+  location_id: string;
+  staff_id: string;
+  area: Department | null;
+  skill_id: string | null;
+  shift_date: string;
+};
+
+export async function _loadRosterShiftsForWeeklyBatch(
+  supabaseAdmin: PagedAdmin,
+  organizationId: string,
+  locationIds: readonly string[],
+  weekStart: string,
+  weekEnd: string,
+): Promise<WeeklyRosterRow[]> {
+  return selectAllPaged<WeeklyRosterRow>((from, to) =>
+    supabaseAdmin
+      .from("roster_shifts")
+      .select("location_id, staff_id, area, skill_id, shift_date")
+      .eq("organization_id", organizationId)
+      .in("location_id", locationIds)
+      .gte("shift_date", weekStart)
+      .lte("shift_date", weekEnd)
+      // Deterministische Paginierung: id als Tiebreaker, shift_date für Lesbarkeit.
+      .order("shift_date", { ascending: true })
+      .order("staff_id", { ascending: true })
+      .range(from, to),
+  );
+}
 
 // Batch-Zod-Schema: nicht-leerer, deduplizierter Array von Location-UUIDs.
 // Begrenzt die IN-Liste auf 50, damit ein Client-Bug nicht die ganze
