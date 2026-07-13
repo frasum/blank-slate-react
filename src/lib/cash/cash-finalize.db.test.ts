@@ -16,6 +16,7 @@ import {
   updateSessionCore,
   correctWaiterSettlementCore,
   lockSessionCore,
+  PoolHoursWarningError,
 } from "./cash.functions";
 import { CashLockedError } from "./cash-lock";
 import type { StaffCaller } from "@/lib/time/time.functions";
@@ -93,7 +94,11 @@ describe.skipIf(!dbTestsEnabled)("finalize → update vs. correct (DB)", () => {
       cardTotalCents: 20000,
       hilfMahlCents: 0,
       openInvoicesCents: 0,
-      cashHandedInCents: 80000,
+      // Tip = pos - card - cash = 1000 cents. Ohne Time-Entries in dieser
+      // Session sind 0 Minuten anrechenbar → Service- und Küchen-Pool
+      // enthalten Geld, aber nichts wird verteilt → finalize MUSS eine
+      // PoolHoursWarningError werfen, bevor confirmPoolWarning bestätigt.
+      cashHandedInCents: 79000,
     });
     settlementId = r.settlementId;
   });
@@ -101,8 +106,22 @@ describe.skipIf(!dbTestsEnabled)("finalize → update vs. correct (DB)", () => {
     await org.cleanup();
   });
 
-  it("(1) finalize gelingt; Status='finalized'", async () => {
-    await finalizeSessionCore(mgr(), { sessionId });
+  it("(1) finalize wirft PoolHoursWarningError; mit confirmPoolWarning finalisiert", async () => {
+    // Erster Aufruf ohne Bestätigung: Pool hat Geld, 0 anrechenbare Minuten.
+    await expect(finalizeSessionCore(mgr(), { sessionId })).rejects.toBeInstanceOf(
+      PoolHoursWarningError,
+    );
+    // Status noch offen, nichts geschrieben.
+    const { data: pre } = await org.service
+      .from("sessions")
+      .select("status, finalized_at")
+      .eq("id", sessionId)
+      .single();
+    expect(pre?.status).toBe("open");
+    expect(pre?.finalized_at).toBeNull();
+
+    // Zweiter Aufruf mit Bestätigung: geht durch.
+    await finalizeSessionCore(mgr(), { sessionId, confirmPoolWarning: true });
     const { data: sess } = await org.service
       .from("sessions")
       .select("status, finalized_at, finalized_by")

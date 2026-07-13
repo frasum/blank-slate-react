@@ -259,9 +259,11 @@ export async function assertPartnersFree(
       (s.partner_staff_id && uniqueIds.includes(s.partner_staff_id)),
   );
   if (hit) {
-    throw new Error(
-      "Kellner hat bereits eine aktive Abrechnung in dieser Session oder ist bereits Partner einer anderen Abrechnung.",
-    );
+    // Typisierter Fehler statt generischer Error — sonst wird der Aufrufer
+    // im Neuanlage-Pfad (createWaiterSettlement) daran gehindert,
+    // WaiterSettlementAlreadyExistsError zu unterscheiden (Nachforderung
+    // §88, Punkt 2).
+    throw new WaiterSettlementAlreadyExistsError(sessionId, hit.staff_id);
   }
 
   // 2) settlement_partners aktiver Abrechnungen.
