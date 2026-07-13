@@ -677,17 +677,16 @@ function ZeitUebersichtPage() {
         },
       }),
     onSuccess: () => {
-      void qc.invalidateQueries({
-        queryKey: ["payroll-notes", effectiveLocationId, fromDate, toDate],
-      });
+      // Deckt sowohl Single- als auch Batch-Key ab.
+      void qc.invalidateQueries({ queryKey: ["payroll-notes"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
   function invalidateWeekly() {
-    void qc.invalidateQueries({
-      queryKey: ["weekly-entries", effectiveLocationId, weekStart],
-    });
+    // Deckt Single- (["weekly-entries", locId, weekStart]) und Batch-Key
+    // (["weekly-entries", "batch", …]) ab.
+    void qc.invalidateQueries({ queryKey: ["weekly-entries"] });
   }
 
   const setShiftMut = useMutation({
