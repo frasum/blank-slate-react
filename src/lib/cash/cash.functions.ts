@@ -2484,16 +2484,13 @@ export async function adminCreateWaiterSettlementCore(
       }
       await assertStaffBoundToLocation(caller.organizationId, pid, session.location_id);
     }
-    await assertPartnersFree(
-      caller.organizationId,
-      session.id,
-      [data.staffId, ...partnerStaffIds],
-      null,
-    );
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // Duplikate verhindern — falls bereits aktive Zeile, Korrektur-Pfad nutzen.
+    // WICHTIG: Diese typisierte Prüfung MUSS vor assertPartnersFree laufen,
+    // sonst schluckt der generische Doppelbelegungs-Fehler den typisierten
+    // WaiterSettlementAlreadyExistsError (Nachprüfung §88, Fund 4).
     const { data: existing, error: exErr } = await supabaseAdmin
       .from("waiter_settlements")
       .select("id, status")
@@ -2504,6 +2501,13 @@ export async function adminCreateWaiterSettlementCore(
       .maybeSingle();
     if (exErr) throw exErr;
     if (existing) throw new WaiterSettlementAlreadyExistsError(session.id, data.staffId);
+
+    await assertPartnersFree(
+      caller.organizationId,
+      session.id,
+      [data.staffId, ...partnerStaffIds],
+      null,
+    );
 
     const settings = await loadTipSettings(caller.organizationId, session.location_id);
     const kassiertBruttoCents = data.kassiertBruttoCents ?? data.posSalesCents;
