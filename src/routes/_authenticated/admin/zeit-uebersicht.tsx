@@ -345,6 +345,29 @@ function ZeitUebersichtPage() {
   }, [isAllLocations, overviewBatchQ.data, allLocationIds, overviewQ.data]);
   const overviewLoading = isAllLocations ? overviewBatchQ.isLoading : overviewQ.isLoading;
 
+  // N-Toggle — Perioden-Summen (Ges/20–24/24–x/SF) je Mitarbeiter für den
+  // Wochenplan-Header-Switch. Nutzt dieselbe Schichten-Zerlegung wie der
+  // Buchhaltung-Tab (computeShiftHours), aggregiert über die ganze
+  // Abrechnungsperiode. Aggregation nach staffId (Zeilen mit gleicher Person
+  // und unterschiedlicher Abteilung zeigen dieselbe Perioden-Summe).
+  const periodTotalsByStaff = useMemo(() => {
+    const m = new Map<
+      string,
+      { total: number; evening: number; night: number; sunHol: number }
+    >();
+    for (const e of overviewEntries) {
+      if (!e.startedAt || !e.endedAt) continue;
+      const h = computeShiftHours(e.startedAt, e.endedAt, e.businessDate);
+      const cur = m.get(e.staffId) ?? { total: 0, evening: 0, night: 0, sunHol: 0 };
+      cur.total += h.totalHours;
+      cur.evening += h.eveningHours;
+      cur.night += h.nightHours;
+      cur.sunHol += h.sundayHolidayHours;
+      m.set(e.staffId, cur);
+    }
+    return m;
+  }, [overviewEntries]);
+
   const notesQ = useQuery({
     queryKey: ["payroll-notes", effectiveLocationId, fromDate, toDate],
     queryFn: () =>
