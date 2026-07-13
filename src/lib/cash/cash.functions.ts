@@ -2122,12 +2122,17 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
   const submissionIso = new Date().toISOString();
   for (const partnerStaffId of partnerStaffIds) {
     try {
-      const { data: openPartnerTE } = await supabaseAdmin
+      const { data: openPartnerTE, error: openPartnerErr } = await supabaseAdmin
         .from("time_entries")
         .select("id, started_at")
         .eq("staff_id", partnerStaffId)
         .is("ended_at", null)
         .maybeSingle();
+      if (openPartnerErr) {
+        throw new Error(
+          `Partner-Auto-Ausstempeln: DB-Lookup fehlgeschlagen (${openPartnerErr.message ?? "unbekannt"})`,
+        );
+      }
       let partnerEndedAt: string = submissionIso;
       if (openPartnerTE) {
         const gross = grossMinutesBetween(new Date(openPartnerTE.started_at), new Date());
