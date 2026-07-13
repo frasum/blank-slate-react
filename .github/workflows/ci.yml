@@ -6,6 +6,49 @@ on:
   pull_request:
 
 jobs:
+  autoformat:
+    # H1 — Struktureller Prettier-Auffang: läuft NUR auf push nach main,
+    # nicht in PRs. Wenn der Working-Tree nach `prettier --write .` nicht
+    # sauber ist, committet der Bot den Fix als eigenen Commit zurück auf
+    # main. Der bestehende `format`-Job bleibt blockierender Zeuge und
+    # sollte künftig nie wieder feuern.
+    #
+    # Schleifenschutz doppelt:
+    #   (a) `if:` überspringt Läufe, deren Auslöse-Commit-Message bereits
+    #       "prettier autofix" enthält.
+    #   (b) Der Push-Schritt setzt Author/Committer auf den Actions-Bot;
+    #       ein zweiter Trigger durch denselben Bot-Push wird über (a)
+    #       erneut ausgefiltert.
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      !contains(github.event.head_commit.message, 'prettier autofix')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Prettier autofix
+        run: npx --yes prettier@3.7.3 --write .
+      - name: Commit & push, falls Diff
+        run: |
+          if git diff --quiet; then
+            echo "Kein Diff — nichts zu committen."
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "style: prettier autofix [bot]"
+          git push origin HEAD:main
+
   format:
     runs-on: ubuntu-latest
     steps:
@@ -66,8 +109,26 @@ jobs:
         with:
           version: latest
       - run: bun install --frozen-lockfile
-      - name: Start local Supabase stack
-        run: supabase start --exclude studio,inbucket,storage-api,imgproxy,edge-runtime,logflare,vector
+      - name: Start local Supabase stack (mit Retry gegen ghcr-Rate-Limit)
+        # H4 — bis zu 3 Versuche mit 30 s Pause. Zwischen Versuchen
+        # `supabase stop --no-backup` (silent), damit halb gestartete
+        # Stacks nicht den zweiten Anlauf blockieren.
+        run: |
+          set +e
+          for i in 1 2 3; do
+            echo "supabase start (Versuch $i/3)…"
+            supabase start --exclude studio,inbucket,storage-api,imgproxy,edge-runtime,logflare,vector
+            rc=$?
+            if [ $rc -eq 0 ]; then
+              echo "supabase start ok (Versuch $i)."
+              exit 0
+            fi
+            echo "::warning::supabase start fehlgeschlagen (rc=$rc), Aufräumen und in 30 s erneut…"
+            supabase stop --no-backup >/dev/null 2>&1 || true
+            sleep 30
+          done
+          echo "::error::supabase start nach 3 Versuchen weiterhin fehlgeschlagen."
+          exit 1
       - name: Wait for Supabase to be ready
         run: |
           for i in $(seq 1 30); do
@@ -133,6 +194,9 @@ jobs:
     # Stack-Flakiness-Risiken (PostgREST-Cache-Reload, Dev-Server-Start).
     # Promotions-Kriterium: blocking, sobald 10 Läufe in Folge grün.
     runs-on: ubuntu-latest
+    # H4 — serialisiert die Docker-Pulls hinter db-integration; e2e bleibt
+    # NON-BLOCKING bis zur Zehner-Serie (continue-on-error).
+    needs: db-integration
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
@@ -145,8 +209,24 @@ jobs:
       - run: bun install --frozen-lockfile
       - name: Install Playwright browsers
         run: bunx playwright install --with-deps chromium webkit
-      - name: Start local Supabase stack
-        run: supabase start --exclude studio,inbucket,storage-api,imgproxy,edge-runtime,logflare,vector
+      - name: Start local Supabase stack (mit Retry gegen ghcr-Rate-Limit)
+        # H4 — identischer Retry wie im db-integration-Job.
+        run: |
+          set +e
+          for i in 1 2 3; do
+            echo "supabase start (Versuch $i/3)…"
+            supabase start --exclude studio,inbucket,storage-api,imgproxy,edge-runtime,logflare,vector
+            rc=$?
+            if [ $rc -eq 0 ]; then
+              echo "supabase start ok (Versuch $i)."
+              exit 0
+            fi
+            echo "::warning::supabase start fehlgeschlagen (rc=$rc), Aufräumen und in 30 s erneut…"
+            supabase stop --no-backup >/dev/null 2>&1 || true
+            sleep 30
+          done
+          echo "::error::supabase start nach 3 Versuchen weiterhin fehlgeschlagen."
+          exit 1
       - name: Wait for Supabase to be ready
         run: |
           for i in $(seq 1 30); do
