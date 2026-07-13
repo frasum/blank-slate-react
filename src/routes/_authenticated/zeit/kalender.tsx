@@ -30,6 +30,7 @@ import {
   rotateMyCalendarToken,
   revokeMyCalendarToken,
 } from "@/lib/calendar/calendar-token.functions";
+import { useIsPreview } from "@/hooks/use-is-preview";
 
 export const Route = createFileRoute("/_authenticated/zeit/kalender")({
   head: () => ({
@@ -49,6 +50,10 @@ function KalenderPage() {
   const fnStatus = useServerFn(getMyCalendarTokenStatus);
   const fnRotate = useServerFn(rotateMyCalendarToken);
   const fnRevoke = useServerFn(revokeMyCalendarToken);
+  // N2 (Nachprüfung 13.07.): In der Admin-Vorschau NIE automatisch rotieren —
+  // sonst würde ein bloßer Seitenaufruf durch einen Admin den Token des
+  // vorgeschauten Mitarbeiters anfassen.
+  const isPreview = useIsPreview();
 
   // Der Klartext-Token verlässt den Server nur einmalig (Rotate). Er lebt
   // ausschließlich in dieser Session-State-Variable — nach Reload nicht
@@ -81,17 +86,22 @@ function KalenderPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // Wenn noch nie ein Feed existiert, einmalig automatisch anlegen —
-  // damit der Erst-Besuch die URL direkt zeigt.
+  // Wenn noch nie ein Feed existiert, einmalig beim Erst-Besuch automatisch
+  // anlegen — damit die URL sofort sichtbar ist. NIE nach einem bewussten
+  // Deaktivieren: ein einmal gesetztes Ref-Flag (didAutoRotate) bleibt für
+  // die Lebensdauer der Seite gesetzt; Reaktivierung nur über den expliziten
+  // „Neuen Link erzeugen"-Button. Ebenfalls unterdrückt in der Admin-
+  // Vorschau (isPreview).
   const didAutoRotate = useRef(false);
   useEffect(() => {
     if (didAutoRotate.current) return;
+    if (isPreview) return;
     if (q.isLoading) return;
     if (q.data?.hasActive === false && !rotateMut.isPending) {
       didAutoRotate.current = true;
       rotateMut.mutate();
     }
-  }, [q.isLoading, q.data, rotateMut]);
+  }, [q.isLoading, q.data, rotateMut, isPreview]);
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const urls = useMemo(() => {
