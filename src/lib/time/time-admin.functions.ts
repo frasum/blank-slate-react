@@ -594,6 +594,454 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
     };
   });
 
+// =========================================================================
+// Batch-Varianten: nehmen locationIds[] und liefern Record<locationId, Shape>.
+// Ersetzen im "Alle Standorte"-Modus N useQueries-Fanouts durch 1 Request pro
+// Query-Familie. Die Single-Location-Varianten bleiben unverändert, damit die
+// bestehenden queryKeys ["…", locationId, …] und Invalidierungen funktionieren.
+// =========================================================================
+
+export const getTimeOverviewBatch = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        locationIds: locationIdsSchema,
+        fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "manager",
+      "admin",
+      "payroll",
+    ]);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: rows, error } = await supabaseAdmin
+      .from("time_entries")
+      .select(
+        "location_id, staff_id, business_date, started_at, ended_at, source, staff(display_name)",
+      )
+      .eq("organization_id", caller.organizationId)
+      .in("location_id", data.locationIds)
+      .gte("business_date", data.fromDate)
+      .lte("business_date", data.toDate)
+      .not("ended_at", "is", null)
+      .order("business_date", { ascending: true });
+    if (error) throw error;
+
+    const { data: deptRows, error: deptErr } = await supabaseAdmin
+      .from("staff_locations")
+      .select("location_id, staff_id, department")
+      .eq("organization_id", caller.organizationId)
+      .in("location_id", data.locationIds);
+    if (deptErr) throw deptErr;
+
+    // Pro Standort die Primary-Dept-Map bauen (Priorität kitchen>service>gl).
+    const deptByLoc = new Map<string, Map<string, Department>>();
+    const rowsByLoc = new Map<string, Array<{ staff_id: string; department: string }>>();
+    for (const r of deptRows ?? []) {
+      const lid = r.location_id as string;
+      const arr = rowsByLoc.get(lid) ?? [];
+      arr.push({ staff_id: r.staff_id as string, department: r.department as string });
+      rowsByLoc.set(lid, arr);
+    }
+    for (const [lid, arr] of rowsByLoc) deptByLoc.set(lid, buildPrimaryDeptMap(arr));
+
+    const byLocation: Record<
+      string,
+      {
+        entries: Array<{
+          staffId: string;
+          displayName: string;
+          department: Department;
+          businessDate: string;
+          hoursWorked: number;
+          source: string;
+        }>;
+      }
+    > = {};
+    for (const lid of data.locationIds) byLocation[lid] = { entries: [] };
+
+    for (const r of rows ?? []) {
+      const lid = r.location_id as string;
+      const bucket = byLocation[lid];
+      if (!bucket) continue;
+      const started = new Date(r.started_at as string).getTime();
+      const ended = new Date(r.ended_at as string).getTime();
+      const hoursWorked = Math.max(0, (ended - started) / 3_600_000);
+      const deptMap = deptByLoc.get(lid);
+      bucket.entries.push({
+        staffId: r.staff_id as string,
+        displayName: (r.staff as { display_name: string } | null)?.display_name ?? "—",
+        department: deptMap?.get(r.staff_id as string) ?? ("service" as const),
+        businessDate: r.business_date as string,
+        hoursWorked,
+        source: r.source as string,
+      });
+    }
+    return { byLocation };
+  });
+
+export const getSfnOverviewBatch = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        locationIds: locationIdsSchema,
+        fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "manager",
+      "admin",
+      "payroll",
+    ]);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: rows, error } = await supabaseAdmin
+      .from("time_entries")
+      .select("location_id, staff_id, business_date, started_at, ended_at, break_minutes")
+      .eq("organization_id", caller.organizationId)
+      .in("location_id", data.locationIds)
+      .gte("business_date", data.fromDate)
+      .lte("business_date", data.toDate)
+      .not("ended_at", "is", null);
+    if (error) throw error;
+
+    const { data: comps, error: compErr } = await supabaseAdmin
+      .from("staff_compensation")
+      .select("staff_id, hourly_rate, valid_from")
+      .eq("organization_id", caller.organizationId)
+      .lte("valid_from", data.toDate)
+      .order("valid_from", { ascending: false });
+    if (compErr) throw compErr;
+    const rateByStaff = new Map<string, number>();
+    for (const c of comps ?? []) {
+      if (!rateByStaff.has(c.staff_id)) {
+        rateByStaff.set(c.staff_id, Math.round(Number(c.hourly_rate ?? 0) * 100));
+      }
+    }
+
+    type SfnEntry = {
+      staffId: string;
+      hourlyRateCents: number;
+      zuschlagCents: number;
+      simple: { night25Hours: number; night40Hours: number; sundayHours: number };
+      extended: {
+        night25Hours: number;
+        night40Hours: number;
+        sundayHours: number;
+        holidayHours: number;
+        holiday150Hours: number;
+      };
+    };
+
+    // Pro Standort → Rows nach staff bucketen und SFN je Mitarbeiter berechnen.
+    const rowsByLocStaff = new Map<string, Map<string, SfnShiftRow[]>>();
+    for (const lid of data.locationIds) rowsByLocStaff.set(lid, new Map());
+    for (const r of rows ?? []) {
+      const lid = r.location_id as string;
+      const bucket = rowsByLocStaff.get(lid);
+      if (!bucket) continue;
+      const sfnRow = timeEntryToSfnRow({
+        startedAt: r.started_at as string,
+        endedAt: r.ended_at as string,
+        businessDate: r.business_date as string,
+        breakMinutes: Number(r.break_minutes ?? 0),
+      });
+      const arr = bucket.get(r.staff_id as string) ?? [];
+      arr.push(sfnRow);
+      bucket.set(r.staff_id as string, arr);
+    }
+
+    const byLocation: Record<string, { sfn: SfnEntry[] }> = {};
+    for (const lid of data.locationIds) {
+      const staffMap = rowsByLocStaff.get(lid) ?? new Map<string, SfnShiftRow[]>();
+      const sfn: SfnEntry[] = Array.from(staffMap.entries()).map(([staffId, sfnRows]) => {
+        const rate = rateByStaff.get(staffId) ?? 0;
+        const { simple, extended, zuschlagCents } = computeStaffSfn(sfnRows, rate);
+        return {
+          staffId,
+          hourlyRateCents: rate,
+          zuschlagCents,
+          simple: {
+            night25Hours: simple.night25Hours,
+            night40Hours: simple.night40Hours,
+            sundayHours: simple.sundayHours,
+          },
+          extended: {
+            night25Hours: extended.night25Hours,
+            night40Hours: extended.night40Hours,
+            sundayHours: extended.sundayHours,
+            holidayHours: extended.holidayHours,
+            holiday150Hours: extended.holiday150Hours,
+          },
+        };
+      });
+      byLocation[lid] = { sfn };
+    }
+    return { byLocation };
+  });
+
+export const listPayrollNotesBatch = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        locationIds: locationIdsSchema,
+        periodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        periodEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "manager",
+      "admin",
+      "payroll",
+    ]);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin
+      .from("payroll_notes")
+      .select("location_id, staff_id, vorschuss, besonderheiten")
+      .eq("organization_id", caller.organizationId)
+      .in("location_id", data.locationIds)
+      .eq("period_start", data.periodStart)
+      .eq("period_end", data.periodEnd);
+    if (error) throw error;
+
+    const byLocation: Record<
+      string,
+      Array<{ staffId: string; vorschuss: number; besonderheiten: string }>
+    > = {};
+    for (const lid of data.locationIds) byLocation[lid] = [];
+    for (const r of rows ?? []) {
+      const lid = r.location_id as string;
+      const bucket = byLocation[lid];
+      if (!bucket) continue;
+      bucket.push({
+        staffId: r.staff_id as string,
+        vorschuss: Number(r.vorschuss ?? 0),
+        besonderheiten: r.besonderheiten ?? "",
+      });
+    }
+    return { byLocation };
+  });
+
+export const getWeeklyTimeEntriesBatch = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        locationIds: locationIdsSchema,
+        weekStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "manager",
+      "admin",
+      "payroll",
+    ]);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const start = new Date(`${data.weekStart}T12:00:00Z`);
+    const end = new Date(start);
+    end.setUTCDate(end.getUTCDate() + 6);
+    const weekEnd = end.toISOString().slice(0, 10);
+
+    const { data: entryRows, error: entryErr } = await supabaseAdmin
+      .from("time_entries")
+      .select(
+        "id, location_id, staff_id, started_at, ended_at, business_date, department, staff(display_name)",
+      )
+      .eq("organization_id", caller.organizationId)
+      .in("location_id", data.locationIds)
+      .gte("business_date", data.weekStart)
+      .lte("business_date", weekEnd)
+      .not("ended_at", "is", null)
+      .order("started_at", { ascending: true });
+    if (entryErr) throw entryErr;
+
+    const { data: deptRows, error: deptErr } = await supabaseAdmin
+      .from("staff_locations")
+      .select("location_id, staff_id, department, staff(display_name, is_active)")
+      .eq("organization_id", caller.organizationId)
+      .in("location_id", data.locationIds);
+    if (deptErr) throw deptErr;
+
+    // Skills-Stammdaten für alle betroffenen Staff-IDs in einem Query.
+    const allStaffIds = Array.from(new Set((deptRows ?? []).map((d) => d.staff_id as string)));
+    const skillsByStaff = new Map<string, string[]>();
+    if (allStaffIds.length > 0) {
+      const { data: skillRows, error: skillErr } = await supabaseAdmin
+        .from("staff_skills")
+        .select("staff_id, skill_id")
+        .eq("organization_id", caller.organizationId)
+        .in("staff_id", allStaffIds);
+      if (skillErr) throw skillErr;
+      for (const r of skillRows ?? []) {
+        const sid = r.staff_id as string;
+        const arr = skillsByStaff.get(sid) ?? [];
+        arr.push(r.skill_id as string);
+        skillsByStaff.set(sid, arr);
+      }
+    }
+
+    const { data: rosterRows, error: rosterErr } = await supabaseAdmin
+      .from("roster_shifts")
+      .select("location_id, staff_id, area, skill_id, shift_date")
+      .eq("organization_id", caller.organizationId)
+      .in("location_id", data.locationIds)
+      .gte("shift_date", data.weekStart)
+      .lte("shift_date", weekEnd);
+    if (rosterErr) throw rosterErr;
+
+    // Rows nach Location bucketen.
+    type DeptRow = {
+      location_id: string;
+      staff_id: string;
+      department: string;
+      staff: { display_name: string; is_active: boolean } | null;
+    };
+    const deptByLoc = new Map<string, DeptRow[]>();
+    for (const lid of data.locationIds) deptByLoc.set(lid, []);
+    for (const r of deptRows ?? []) {
+      const arr = deptByLoc.get(r.location_id as string);
+      if (arr) arr.push(r as unknown as DeptRow);
+    }
+
+    type RosterRow = {
+      location_id: string;
+      staff_id: string;
+      area: Department | null;
+      skill_id: string | null;
+      shift_date: string;
+    };
+    const rosterByLoc = new Map<string, RosterRow[]>();
+    for (const lid of data.locationIds) rosterByLoc.set(lid, []);
+    for (const r of rosterRows ?? []) {
+      const arr = rosterByLoc.get(r.location_id as string);
+      if (arr) arr.push(r as unknown as RosterRow);
+    }
+
+    type EntryRow = (typeof entryRows extends (infer U)[] | null ? U : never) & {
+      location_id: string;
+    };
+    const entriesByLoc = new Map<string, EntryRow[]>();
+    for (const lid of data.locationIds) entriesByLoc.set(lid, []);
+    for (const r of entryRows ?? []) {
+      const arr = entriesByLoc.get(r.location_id as string);
+      if (arr) arr.push(r as unknown as EntryRow);
+    }
+
+    const byLocation: Record<
+      string,
+      {
+        weekStart: string;
+        weekEnd: string;
+        entries: Array<{
+          id: string;
+          staffId: string;
+          displayName: string;
+          department: Department;
+          rawDepartment: Department | null;
+          businessDate: string;
+          startedAt: string;
+          endedAt: string;
+        }>;
+        crossLocationDates: Record<string, string[]>;
+        assignedStaff: Array<{
+          staffId: string;
+          displayName: string;
+          department: Department;
+          isActive: boolean;
+          isPrimary: boolean;
+          staffDepts: Department[];
+          skillIds: string[];
+        }>;
+        rosterByStaff: Record<string, { areas: Department[]; skillIds: string[] }>;
+        rosterAreaByStaffDate: Record<string, Record<string, Department>>;
+      }
+    > = {};
+
+    for (const lid of data.locationIds) {
+      const locDeptRows = deptByLoc.get(lid) ?? [];
+      const deptByStaff = buildPrimaryDeptMap(
+        locDeptRows.map((d) => ({ staff_id: d.staff_id, department: d.department })),
+      );
+      const staffDeptsByStaff = buildStaffDeptsMap(
+        locDeptRows.map((d) => ({ staff_id: d.staff_id, department: d.department })),
+      );
+
+      const rosterByStaff: Record<string, { areas: Department[]; skillIds: string[] }> = {};
+      const rosterAreaByStaffDate: Record<string, Record<string, Department>> = {};
+      for (const r of rosterByLoc.get(lid) ?? []) {
+        const bucket = rosterByStaff[r.staff_id] ?? { areas: [], skillIds: [] };
+        if (r.area && !bucket.areas.includes(r.area)) bucket.areas.push(r.area);
+        if (r.skill_id && !bucket.skillIds.includes(r.skill_id)) bucket.skillIds.push(r.skill_id);
+        rosterByStaff[r.staff_id] = bucket;
+        if (r.area) {
+          const perStaff = rosterAreaByStaffDate[r.staff_id] ?? {};
+          const existing = perStaff[r.shift_date];
+          perStaff[r.shift_date] = existing ? primaryDepartment([existing, r.area]) : r.area;
+          rosterAreaByStaffDate[r.staff_id] = perStaff;
+        }
+      }
+
+      const assignedStaff = locDeptRows
+        .map((d) => {
+          const dept = d.department as Department;
+          const staffId = d.staff_id;
+          return {
+            staffId,
+            displayName: d.staff?.display_name ?? "—",
+            department: dept,
+            isActive: d.staff?.is_active ?? true,
+            isPrimary: deptByStaff.get(staffId) === dept,
+            staffDepts: staffDeptsByStaff.get(staffId) ?? [],
+            skillIds: skillsByStaff.get(staffId) ?? [],
+          };
+        })
+        .filter((s) => s.isActive);
+
+      const entries = (entriesByLoc.get(lid) ?? []).map((r) => ({
+        id: r.id as string,
+        staffId: r.staff_id as string,
+        displayName: (r.staff as { display_name: string } | null)?.display_name ?? "—",
+        department: deptByStaff.get(r.staff_id as string) ?? ("service" as const),
+        rawDepartment: (r.department as Department | null) ?? null,
+        businessDate: r.business_date as string,
+        startedAt: r.started_at as string,
+        endedAt: r.ended_at as string,
+      }));
+
+      // crossLocationDates wird im „Alle Standorte"-Mode client-seitig nicht
+      // gemergt (nur die Single-Location-Variante braucht das für die
+      // Kollegen-Anzeige). Für Batch → leer, um zusätzliche Cross-Queries zu
+      // sparen. Der Merge-Reducer (weeklyData in zeit-uebersicht) verwendet
+      // dieses Feld ohnehin nicht, wenn isAllLocations aktiv ist.
+      byLocation[lid] = {
+        weekStart: data.weekStart,
+        weekEnd,
+        entries,
+        crossLocationDates: {},
+        assignedStaff,
+        rosterByStaff,
+        rosterAreaByStaffDate,
+      };
+    }
+    return { byLocation };
+  });
+
 // B6c — Inline-Edit/Create für Wochenplan (Admin)
 // Schmaler Wrapper, der nur Start/Ende setzt und break_minutes erhält bzw. 0 setzt.
 
