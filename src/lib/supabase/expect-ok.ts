@@ -30,7 +30,7 @@ function logFailure(context: string, error: { message: string; code?: string | n
 }
 
 export function expectOk<T>(
-  result: { data: T | null | undefined; error: SupabaseErrorLike | null } & Record<string, unknown>,
+  result: { data: T | null | undefined; error: SupabaseErrorLike | null },
   context: string,
 ): T {
   if (result.error) {
@@ -44,7 +44,7 @@ export function expectOk<T>(
 }
 
 export function expectMaybe<T>(
-  result: { data: T | null | undefined; error: SupabaseErrorLike | null } & Record<string, unknown>,
+  result: { data: T | null | undefined; error: SupabaseErrorLike | null },
   context: string,
 ): T | null {
   if (result.error) {
@@ -57,7 +57,7 @@ export function expectMaybe<T>(
 }
 
 export function expectVoid(
-  result: { error: SupabaseErrorLike | null } & Record<string, unknown>,
+  result: { error: SupabaseErrorLike | null },
   context: string,
 ): void {
   if (result.error) {
