@@ -86,7 +86,9 @@ export async function runImportAssignmentsCore(input: ImportCoreInput): Promise<
   let currentLocations: CurrentLocationRow[] = [];
   let currentSkills: CurrentSkillRow[] = [];
   if (staffIds.length > 0) {
-    const slRows = expectOk<{ staff_id: string; location_id: string; department: string }[]>(
+    const slRows = expectOk<
+      { staff_id: string; location_id: string; department: CurrentLocationRow["department"] }[]
+    >(
       await admin
         .from("staff_locations")
         .select("staff_id, location_id, department")

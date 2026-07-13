@@ -97,9 +97,9 @@ export async function runImportPersonalCore(
     for (const r of staffRows ?? []) {
       currentStaff.set(r.id, {
         staffId: r.id,
-        firstName: r.first_name,
-        lastName: r.last_name,
-        displayName: r.display_name,
+        firstName: r.first_name ?? "",
+        lastName: r.last_name ?? "",
+        displayName: r.display_name ?? "",
         persoNr: (r as { perso_nr: number | null }).perso_nr ?? null,
       });
     }

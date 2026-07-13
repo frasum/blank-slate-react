@@ -69,7 +69,7 @@ export async function runImportDetailsCore(
 
   const currentDetails = new Map<string, CurrentDetailsRow>();
   if (targetStaffIds.length > 0) {
-    const detailRows = expectOk<CurrentDetailsRow[]>(
+    const detailRows = expectOk<Array<Record<string, unknown> & { staff_id: string }>>(
       await admin
         .from("staff_personal_details")
         .select("*")
