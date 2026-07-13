@@ -340,10 +340,18 @@ export function renderDailyPrintHtml(data: PdfExportData): string {
           s.pos_sales_cents,
       })),
     );
-    const sumServicePool = Math.max(0, sumTipAll - sumKitchenTip);
+    const servicePoolEnabled = data.servicePoolEnabled !== false;
+    // Kanonischen Service-Pool bevorzugen (siehe pdfExport.ts). An Standorten
+    // ohne Service-Pool wird die Zeile weggelassen — ein „Mitarbeiter-Pool:
+    // 0,00 €" wäre irreführend.
+    const sumServicePool = servicePoolEnabled
+      ? (data.servicePoolCents ?? Math.max(0, sumTipAll - sumKitchenTip))
+      : 0;
     const tipPercent = sumPos > 0 ? (sumTipAll / sumPos) * 100 : 0;
     rightParts.push(
-      `<p style="font-size:9pt;margin:2mm 0 0;">Mitarbeiter-Pool: ${fmtEur(sumServicePool)} · Küchen-Pool: ${fmtEur(sumKitchenTip)}</p>`,
+      servicePoolEnabled
+        ? `<p style="font-size:9pt;margin:2mm 0 0;">Mitarbeiter-Pool: ${fmtEur(sumServicePool)} · Küchen-Pool: ${fmtEur(sumKitchenTip)}</p>`
+        : `<p style="font-size:9pt;margin:2mm 0 0;">Küchen-Pool: ${fmtEur(sumKitchenTip)}</p>`,
       `<p style="font-size:9pt;margin:1mm 0 0;font-weight:700;">Ø Trinkgeld: ${fmtEur(sumTipAll)} von ${fmtEur(sumPos)} Umsatz = ${tipPercent.toFixed(1).replace(".", ",")}%</p>`,
       `</section>`,
     );
