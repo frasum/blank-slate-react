@@ -2608,6 +2608,13 @@ export type CashDayAgg = {
   cashActualSum: number;
   cashActualCount: number;
   sessionCount: number;
+  /**
+   * Summe der Soll-Wechselgeld-Ziele der Sessions dieses Tages, aufgelöst
+   * nach "Location-Ziel ?? Org-Ziel". Wird von getCashLedgerCore statt
+   * `orgTarget * sessionCount` verwendet, damit Standorte mit abweichendem
+   * Ziel den Tresor-/Kassenbuch-Verlauf korrekt beeinflussen.
+   */
+  cashTargetSum: number;
 };
 
 export type CashDayAggregates = {
@@ -2644,6 +2651,7 @@ function makeEmptyAgg(): CashDayAgg {
     cashActualSum: 0,
     cashActualCount: 0,
     sessionCount: 0,
+    cashTargetSum: 0,
   };
 }
 
