@@ -18,6 +18,7 @@ import { loadAdminCaller } from "./admin-context";
 import { runGuarded } from "./admin-call";
 import { makeAuditWriter } from "./audit";
 import { generateStandardPassword } from "./password-generator";
+import { expectMaybe } from "@/lib/supabase/expect-ok";
 
 // =========================================================================
 // Status lesen (admin/manager)
@@ -30,6 +31,10 @@ export const getStaffAccountStatus = createServerFn({ method: "GET" })
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+    // H2-BEFUND: reine Anzeige-Kante — Fehler werden bewusst still gerendert
+    // („kein Konto verknüpft"). Nicht auf expectMaybe umgestellt, weil ein
+    // PostgREST-Ausfall hier die Status-Kachel leer lassen soll, statt die
+    // Verwaltung-Übersicht mit einem harten Fehler zu blockieren.
     const { data: link } = await supabaseAdmin
       .from("user_links")
       .select("user_id")
@@ -37,6 +42,7 @@ export const getStaffAccountStatus = createServerFn({ method: "GET" })
       .eq("organization_id", caller.organizationId)
       .maybeSingle();
 
+    // H2-BEFUND: siehe oben — Anzeige-Kante, absichtlich still.
     const { data: staff } = await supabaseAdmin
       .from("staff")
       .select("email, must_change_password")
@@ -46,6 +52,8 @@ export const getStaffAccountStatus = createServerFn({ method: "GET" })
 
     let authEmail: string | null = null;
     if (link?.user_id) {
+      // H2-BEFUND: Auth-Admin-Read für Anzeige; Fehler dürfen den Status
+      // nicht kippen (E-Mail wird dann als null angezeigt).
       const { data: u } = await supabaseAdmin.auth.admin.getUserById(link.user_id);
       authEmail = u?.user?.email ?? null;
     }
@@ -85,11 +93,14 @@ export const createStaffAccount = createServerFn({ method: "POST" })
       if (staffErr) throw staffErr;
       if (!staff) throw new Error("Mitarbeiter nicht gefunden.");
 
-      const { data: existingLink } = await supabaseAdmin
-        .from("user_links")
-        .select("user_id")
-        .eq("staff_id", data.staffId)
-        .maybeSingle();
+      const existingLink = expectMaybe<{ user_id: string }>(
+        await supabaseAdmin
+          .from("user_links")
+          .select("user_id")
+          .eq("staff_id", data.staffId)
+          .maybeSingle(),
+        "createStaffAccount.checkExistingLink",
+      );
       if (existingLink?.user_id) {
         throw new Error("Dieser Mitarbeiter hat bereits ein Konto.");
       }
@@ -145,11 +156,14 @@ export const resetStaffPassword = createServerFn({ method: "POST" })
     return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-      const { data: link } = await supabaseAdmin
-        .from("user_links")
-        .select("user_id, organization_id")
-        .eq("staff_id", data.staffId)
-        .maybeSingle();
+      const link = expectMaybe<{ user_id: string; organization_id: string }>(
+        await supabaseAdmin
+          .from("user_links")
+          .select("user_id, organization_id")
+          .eq("staff_id", data.staffId)
+          .maybeSingle(),
+        "resetStaffPassword.loadLink",
+      );
       if (!link?.user_id || link.organization_id !== caller.organizationId) {
         throw new Error("Mitarbeiter hat noch kein Konto.");
       }
