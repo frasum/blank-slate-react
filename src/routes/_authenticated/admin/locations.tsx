@@ -753,6 +753,9 @@ function DisplayPanel({ locationId }: { locationId: string }) {
   const callRegen = useServerFn(regenerateDisplayToken);
   const [msg, setMsg] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  // Klartext-Token aus dem letzten Mutation-Response — nur diese Session
+  // sichtbar. Nach Reload muss neu erzeugt werden.
+  const [oneTimeToken, setOneTimeToken] = useState<string | null>(null);
 
   const settingsQ = useQuery({
     queryKey: ["display-settings", locationId],
@@ -772,8 +775,9 @@ function DisplayPanel({ locationId }: { locationId: string }) {
       showFooter?: boolean;
       customMessage?: string | null;
     }) => callUpsert({ data: { locationId, ...input } }),
-    onSuccess: () => {
+    onSuccess: (res) => {
       setMsg(null);
+      if (res?.oneTimeToken) setOneTimeToken(res.oneTimeToken);
       return refresh();
     },
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
@@ -781,8 +785,9 @@ function DisplayPanel({ locationId }: { locationId: string }) {
 
   const regenMut = useMutation({
     mutationFn: () => callRegen({ data: { locationId } }),
-    onSuccess: () => {
+    onSuccess: (res) => {
       setMsg("Neuer Token generiert. Alte URLs sind ungültig.");
+      if (res?.oneTimeToken) setOneTimeToken(res.oneTimeToken);
       return refresh();
     },
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
@@ -811,9 +816,12 @@ function DisplayPanel({ locationId }: { locationId: string }) {
   }
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const displayUrl = `${origin}/display/${settings.location_id}?token=${settings.display_token}`;
+  const displayUrl = oneTimeToken
+    ? `${origin}/display/${settings.location_id}?token=${oneTimeToken}`
+    : null;
 
   const copy = async () => {
+    if (!displayUrl) return;
     try {
       await navigator.clipboard.writeText(displayUrl);
       setCopied(true);
