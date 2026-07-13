@@ -398,6 +398,7 @@ function BlockTable({
                 const today = i === 0;
                 const we = isWeekend(iso);
                 const cnt = block.dayCounts[i] ?? 0;
+                const holiday = getHolidayName(iso);
                 return (
                   <th
                     key={iso}
@@ -408,10 +409,17 @@ function BlockTable({
                         : we
                           ? "bg-slate-900/80 text-slate-400"
                           : "bg-slate-900 text-slate-300",
+                      holiday && !today ? "bg-amber-950/60 text-amber-100" : "",
                     ].join(" ")}
+                    title={holiday ?? undefined}
                   >
                     <div className="leading-tight">{wd}</div>
                     <div className="leading-tight tabular-nums">{dm}</div>
+                    {holiday && (
+                      <div className="truncate text-[9px] font-semibold leading-tight text-amber-200">
+                        {holiday}
+                      </div>
+                    )}
                     <div
                       className={[
                         "leading-tight tabular-nums text-[10px] font-semibold",
