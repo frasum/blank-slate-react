@@ -98,10 +98,17 @@ describe.skipIf(!dbTestsEnabled)("has_permission area-Logik (P-1)", () => {
       permission: "roster.shift.manage" as never,
       effect: "deny" as never,
       location_id: locA,
-      area: "kitchen" as never,
+      // WICHTIG: Der Unique-Index `permission_overrides_unique_scoped`
+      // coalesciert area IS NULL zu 'kitchen'. Ein enger DENY mit
+      // area='kitchen' würde daher mit dem breiten ALLOW (area=NULL)
+      // kollidieren. 'service' vermeidet die Kollision und prüft dieselbe
+      // Semantik (breiter ALLOW + engerer DENY am gleichen Standort).
+      area: "service" as never,
     });
     if (e2) throw new Error(e2.message);
-    expect(await rpcHasPermission("roster.shift.manage", locA, "kitchen")).toBe(false);
+    expect(await rpcHasPermission("roster.shift.manage", locA, "service")).toBe(false);
+    // Der breite ALLOW gilt weiterhin für andere Bereiche an locA.
+    expect(await rpcHasPermission("roster.shift.manage", locA, "kitchen")).toBe(true);
   });
 
   it("Lese-Default für planer greift global (ohne Scope)", async () => {
