@@ -449,7 +449,10 @@ export function WeeklyPlan({
                     ? "Achtung: mindestens ein Eintrag trägt eine Abteilung, die der Person am Standort nicht zugeordnet ist — er wird hier auf der Primär-Zeile angezeigt."
                     : undefined;
                   return (
-                    <TableRow key={`${row.staffId}:${row.department}`}>
+                    <TableRow
+                      key={`${row.staffId}:${row.department}`}
+                      className="odd:bg-muted/30"
+                    >
                       <TableCell className="group relative px-1 font-medium align-middle text-center text-xs w-[56px] min-w-[56px] max-w-[56px]">
                         <span
                           className={`absolute left-0 top-0 bottom-0 w-[2px] ${DEPT_BAR[row.department]}`}
@@ -637,9 +640,16 @@ export function WeeklyPlan({
                       <TableCell className="px-1 text-xs text-right tabular-nums">
                         {fmtDec(row.totals.sunHol)}
                       </TableCell>
-                      <TableCell className="px-1 text-xs text-right tabular-nums">
-                        {shiftsByStaff.get(row.staffId) ?? 0}
-                      </TableCell>
+                      {(() => {
+                        const s = shiftsByStaff.get(row.staffId) ?? 0;
+                        return (
+                          <TableCell
+                            className={`px-1 text-xs text-right tabular-nums ${s > 0 ? "text-red-600 font-medium" : "text-muted-foreground/50"}`}
+                          >
+                            {s > 0 ? s : "–"}
+                          </TableCell>
+                        );
+                      })()}
                       {(() => {
                         const abs = absencesByStaff.get(row.staffId);
                         const u = abs?.urlaubDays ?? 0;
@@ -647,12 +657,12 @@ export function WeeklyPlan({
                         return (
                           <>
                             <TableCell
-                              className={`px-1 text-xs text-right tabular-nums ${u > 0 ? "" : "text-muted-foreground/50"}`}
+                              className={`px-1 text-xs text-right tabular-nums ${u > 0 ? "text-green-600 font-medium" : "text-muted-foreground/50"}`}
                             >
                               {u > 0 ? u : "–"}
                             </TableCell>
                             <TableCell
-                              className={`px-1 text-xs text-right tabular-nums ${k > 0 ? "" : "text-muted-foreground/50"}`}
+                              className={`px-1 text-xs text-right tabular-nums ${k > 0 ? "text-blue-600 font-medium" : "text-muted-foreground/50"}`}
                             >
                               {k > 0 ? k : "–"}
                             </TableCell>
