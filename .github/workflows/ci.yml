@@ -55,12 +55,8 @@ jobs:
     # `*.db.test.ts`-Suiten gegen ihn aus. KEINE Tests gegen die
     # Produktiv-Datenbank. Siehe docs/gruendungsdokument.md (Erfolgs-Gate B2a).
     runs-on: ubuntu-latest
-    # db-integration is non-blocking due to a known PostgREST schema-cache
-    # reload issue in the Supabase CLI under CI (PGRST204/PGRST205 on freshly
-    # migrated tables/columns). 75/79 DB tests pass; the 4 failures are all
-    # schema-cache, not logic. Revisit when the Supabase CLI fixes cache reload
-    # after `db reset`, then remove continue-on-error.
-    continue-on-error: true
+    # Blockierend seit 13.07. Bei PostgREST-Schema-Cache-Flake im Setup: Job
+    # re-runnen; NICHT wieder stummschalten ohne Prüfer-Entscheid.
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
