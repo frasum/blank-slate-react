@@ -893,15 +893,15 @@ function DisplayPanel({ locationId }: { locationId: string }) {
               </div>
             </div>
             <p className="pt-1 text-xs text-muted-foreground">
-              Diese URL ist nur jetzt sichtbar. Kopieren oder QR-Code direkt aufs Display —
-              beim nächsten Öffnen kann sie nicht mehr angezeigt werden.
+              Diese URL ist nur jetzt sichtbar. Kopieren oder QR-Code direkt aufs Display — beim
+              nächsten Öffnen kann sie nicht mehr angezeigt werden.
             </p>
           </>
         ) : (
           <p className="rounded-md bg-muted p-2 text-xs text-muted-foreground">
-            Die Anzeige-URL ist aus Sicherheitsgründen nur direkt nach dem Erzeugen sichtbar.
-            Klick auf „Token neu generieren", um eine neue URL zu erhalten (das Display muss
-            danach mit der neuen URL neu geladen werden).
+            Die Anzeige-URL ist aus Sicherheitsgründen nur direkt nach dem Erzeugen sichtbar. Klick
+            auf „Token neu generieren", um eine neue URL zu erhalten (das Display muss danach mit
+            der neuen URL neu geladen werden).
           </p>
         )}
       </div>

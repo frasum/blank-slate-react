@@ -333,8 +333,7 @@ function ZeitUebersichtPage() {
   const allLocationsKey = useMemo(() => [...allLocationIds].sort().join(","), [allLocationIds]);
   const weeklyBatchQ = useQuery({
     queryKey: ["weekly-entries", "batch", allLocationsKey, weekStart],
-    queryFn: () =>
-      fetchWeeklyBatch({ data: { locationIds: allLocationIds, weekStart } }),
+    queryFn: () => fetchWeeklyBatch({ data: { locationIds: allLocationIds, weekStart } }),
     enabled: isAllLocations && allLocationIds.length > 0 && Boolean(weekStart),
   });
 
@@ -423,8 +422,7 @@ function ZeitUebersichtPage() {
   // "Alle Standorte"-Modus genutzt.
   const overviewBatchQ = useQuery({
     queryKey: ["time-overview", "batch", allLocationsKey, fromDate, toDate],
-    queryFn: () =>
-      fetchOverviewBatch({ data: { locationIds: allLocationIds, fromDate, toDate } }),
+    queryFn: () => fetchOverviewBatch({ data: { locationIds: allLocationIds, fromDate, toDate } }),
     enabled: allLocationIds.length > 0 && Boolean(fromDate) && Boolean(toDate),
   });
   const shiftsByStaff = useMemo(() => {
@@ -479,11 +477,7 @@ function ZeitUebersichtPage() {
       fetchNotesBatch({
         data: { locationIds: allLocationIds, periodStart: fromDate, periodEnd: toDate },
       }),
-    enabled:
-      isAllLocations &&
-      allLocationIds.length > 0 &&
-      Boolean(fromDate) &&
-      Boolean(toDate),
+    enabled: isAllLocations && allLocationIds.length > 0 && Boolean(fromDate) && Boolean(toDate),
   });
 
   const advancesQ = useQuery({
@@ -504,13 +498,8 @@ function ZeitUebersichtPage() {
   // Bei "Alle Standorte": SFN in einem Batch-Request laden.
   const sfnBatchQ = useQuery({
     queryKey: ["payroll-sfn", "batch", allLocationsKey, fromDate, toDate],
-    queryFn: () =>
-      fetchSfnBatch({ data: { locationIds: allLocationIds, fromDate, toDate } }),
-    enabled:
-      isAllLocations &&
-      allLocationIds.length > 0 &&
-      Boolean(fromDate) &&
-      Boolean(toDate),
+    queryFn: () => fetchSfnBatch({ data: { locationIds: allLocationIds, fromDate, toDate } }),
+    enabled: isAllLocations && allLocationIds.length > 0 && Boolean(fromDate) && Boolean(toDate),
   });
 
   const weekCols = useMemo(() => buildWeekColumns(fromDate, toDate), [fromDate, toDate]);

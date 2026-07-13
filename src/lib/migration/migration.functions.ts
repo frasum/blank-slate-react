@@ -211,15 +211,13 @@ export const proposeIdentityMappings = createServerFn({ method: "POST" })
           .eq("id", existing.id);
         if (updErr) throw updErr;
       } else {
-        const { error: insErr } = await supabaseAdmin
-          .from("staff_identity_map")
-          .insert({
-            organization_id: caller.organizationId,
-            source_system: data.sourceSystem,
-            alt_id: p.altId,
-            alt_name: p.altName,
-            staff_id: p.proposedStaffId,
-          });
+        const { error: insErr } = await supabaseAdmin.from("staff_identity_map").insert({
+          organization_id: caller.organizationId,
+          source_system: data.sourceSystem,
+          alt_id: p.altId,
+          alt_name: p.altName,
+          staff_id: p.proposedStaffId,
+        });
         if (insErr) throw insErr;
       }
     }

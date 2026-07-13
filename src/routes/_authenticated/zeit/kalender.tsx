@@ -168,8 +168,8 @@ function KalenderPage() {
           <div className="space-y-3">
             <p className="text-sm text-foreground">
               Es existiert bereits ein aktives Kalender-Abo. Der Link kann aus Sicherheitsgründen
-              nicht erneut angezeigt werden. Nutze dein bestehendes Abo weiter — oder erzeuge
-              unten einen neuen Link (das bestehende Abo bricht dann).
+              nicht erneut angezeigt werden. Nutze dein bestehendes Abo weiter — oder erzeuge unten
+              einen neuen Link (das bestehende Abo bricht dann).
             </p>
             <Button
               variant="outline"
@@ -216,8 +216,8 @@ function KalenderPage() {
         <div>
           <div className="text-sm font-medium">Link deaktivieren</div>
           <div className="text-xs text-muted-foreground">
-            Deaktiviert den aktiven Abo-Link. Bestehende Kalender-Abos hören auf zu
-            aktualisieren. Danach kannst du oben einen neuen Link erzeugen.
+            Deaktiviert den aktiven Abo-Link. Bestehende Kalender-Abos hören auf zu aktualisieren.
+            Danach kannst du oben einen neuen Link erzeugen.
           </div>
         </div>
         <AlertDialog>

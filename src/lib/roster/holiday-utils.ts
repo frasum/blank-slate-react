@@ -23,10 +23,7 @@ export function bavarianHolidaysBetween(startIso: string, endIso: string): Set<s
 // Feiertag. Für den Urlaubsabzug (`countLeaveDays`) muss der Tag deshalb
 // als normaler Werktag zählen, sonst wird Weihnachtsurlaub systematisch
 // einen Tag zu kurz gerechnet.
-export function bavarianLegalHolidaysBetween(
-  startIso: string,
-  endIso: string,
-): Set<string> {
+export function bavarianLegalHolidaysBetween(startIso: string, endIso: string): Set<string> {
   const all = bavarianHolidaysBetween(startIso, endIso);
   const out = new Set<string>();
   for (const iso of all) {

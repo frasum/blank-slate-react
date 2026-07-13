@@ -2057,9 +2057,7 @@ export async function submitWaiterSettlementCore(caller: StaffCaller, data: Subm
       .maybeSingle();
     if (openTEErr) {
       console.error("[settlement.autoclock] open time_entries lookup failed", openTEErr);
-      throw new Error(
-        `Auto-Ausstempeln fehlgeschlagen: ${openTEErr.message ?? "DB-Fehler"}`,
-      );
+      throw new Error(`Auto-Ausstempeln fehlgeschlagen: ${openTEErr.message ?? "DB-Fehler"}`);
     }
     if (openTE) {
       const gross = grossMinutesBetween(new Date(openTE.started_at), new Date());
@@ -2748,7 +2746,10 @@ export async function loadCashDayAggregates(
           .select("id, cash_balance_target_cents")
           .eq("organization_id", caller.organizationId)
           .in("id", locationIds)
-      : Promise.resolve({ data: [], error: null } as { data: Array<{ id: string; cash_balance_target_cents: number | null }>; error: null }),
+      : Promise.resolve({ data: [], error: null } as {
+          data: Array<{ id: string; cash_balance_target_cents: number | null }>;
+          error: null;
+        }),
     supabaseAdmin
       .from("organizations")
       .select("cash_balance_target_cents")
@@ -2761,9 +2762,7 @@ export async function loadCashDayAggregates(
   const locTargetById = new Map<string, number>(
     (locRes.data ?? []).map((l) => [
       l.id as string,
-      l.cash_balance_target_cents == null
-        ? orgTargetCents
-        : Number(l.cash_balance_target_cents),
+      l.cash_balance_target_cents == null ? orgTargetCents : Number(l.cash_balance_target_cents),
     ]),
   );
 
@@ -3669,7 +3668,6 @@ export async function getPreviousOperativeDeficitCore(
     running -= Math.max(0, running);
     if (running < 0) lastDeficitDate = datesByDay[i];
   }
-  const sourceDate =
-    deficitCents < 0 ? lastDeficitDate : datesByDay[datesByDay.length - 1];
+  const sourceDate = deficitCents < 0 ? lastDeficitDate : datesByDay[datesByDay.length - 1];
   return { deficitCents, sourceDate };
 }

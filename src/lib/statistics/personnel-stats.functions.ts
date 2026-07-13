@@ -106,9 +106,7 @@ export const getPersonnelStats = createServerFn({ method: "GET" })
       }>((from, to) => {
         let q = supabaseAdmin
           .from("time_entries")
-          .select(
-            "id, staff_id, started_at, ended_at, break_minutes, business_date, location_id",
-          )
+          .select("id, staff_id, started_at, ended_at, break_minutes, business_date, location_id")
           .eq("organization_id", org)
           .gte("business_date", win.startDate)
           .lte("business_date", win.endDate)
