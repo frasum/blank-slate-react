@@ -2,12 +2,24 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
 
+// ENV2: Publishable-Fallback. URL + Anon-Key sind ÖFFENTLICHE Werte
+// (identisch zu .env.production; Sicherheit liegt bei RLS, nie beim Key).
+// Env gewinnt IMMER — Claude-Code-Sandbox (.env → 127.0.0.1) und Prod
+// (.env.production) bleiben unberührt; nur eine env-lose Lovable-Preview
+// fällt hierauf zurück.
+const FALLBACK_SUPABASE_URL = "https://gyvblrdhutztbkoynnrq.supabase.co";
+const FALLBACK_SUPABASE_PUBLISHABLE_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5dmJscmRodXR6dGJrb3lubnJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzg4MjQsImV4cCI6MjA5Njg1NDgyNH0.JI3GJWhSMmvEdk75IZb5QVAmAYAzsQ8Pez1TO1x5ChI";
+
 function createSupabaseClient() {
   // Use import.meta.env for client-side (Vite build-time replacement)
   // Fall back to process.env for SSR (server-side rendering)
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+  const SUPABASE_URL =
+    import.meta.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || FALLBACK_SUPABASE_URL;
   const SUPABASE_PUBLISHABLE_KEY =
-    import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
+    import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.SUPABASE_PUBLISHABLE_KEY ||
+    FALLBACK_SUPABASE_PUBLISHABLE_KEY;
 
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
     const missing = [
