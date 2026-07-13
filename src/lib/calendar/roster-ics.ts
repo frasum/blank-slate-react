@@ -55,6 +55,34 @@ function dateBasic(isoDate: string): string {
   return isoDate.replace(/-/g, "");
 }
 
+/**
+ * N17 (13.07.): RFC-5545-Zeilenfaltung. Lange Content-Zeilen (> 75 Oktette
+ * in UTF-8) werden mit CRLF + führendem Leerzeichen umgebrochen; der Cut
+ * darf nie mitten in einem Mehrbyte-Zeichen liegen (sonst mojibake in
+ * strengen Clients wie Outlook).
+ */
+export function foldIcsLine(line: string): string {
+  const bytes = new TextEncoder().encode(line);
+  if (bytes.length <= 75) return line;
+  const decoder = new TextDecoder("utf-8");
+  const chunks: string[] = [];
+  let start = 0;
+  while (start < bytes.length) {
+    const isFirst = chunks.length === 0;
+    // Fortsetzungszeile beginnt mit einem WS-Oktett → dessen Budget ist 74.
+    const budget = isFirst ? 75 : 74;
+    let end = Math.min(start + budget, bytes.length);
+    // Nicht mitten in einem UTF-8-Continuation-Byte (10xxxxxx) trennen.
+    if (end < bytes.length) {
+      while (end > start && (bytes[end] & 0xc0) === 0x80) end--;
+    }
+    const slice = bytes.slice(start, end);
+    chunks.push((isFirst ? "" : " ") + decoder.decode(slice));
+    start = end;
+  }
+  return chunks.join("\r\n");
+}
+
 export function buildRosterIcs(input: BuildRosterIcsInput): string {
   const now = input.now ?? new Date();
   const dtstamp = utcBasicFromIso(now.toISOString());
@@ -84,5 +112,5 @@ export function buildRosterIcs(input: BuildRosterIcsInput): string {
     lines.push("END:VEVENT");
   }
   lines.push("END:VCALENDAR");
-  return lines.join("\r\n") + "\r\n";
+  return lines.map(foldIcsLine).join("\r\n") + "\r\n";
 }
