@@ -214,31 +214,30 @@ function KalenderPage() {
 
       <Card className="space-y-3 p-5">
         <div>
-          <div className="text-sm font-medium">Link zurückziehen</div>
+          <div className="text-sm font-medium">Link deaktivieren</div>
           <div className="text-xs text-muted-foreground">
-            Erstellt einen neuen Link. Der alte hört auf zu funktionieren — bestehende Abos brechen
-            und müssen mit dem neuen Link neu eingerichtet werden.
+            Deaktiviert den aktiven Abo-Link. Bestehende Kalender-Abos hören auf zu
+            aktualisieren. Danach kannst du oben einen neuen Link erzeugen.
           </div>
         </div>
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button variant="outline" disabled={revokeMut.isPending || q.isLoading}>
               <RefreshCw className="mr-2 h-4 w-4" aria-hidden />
-              Link zurückziehen & neuen erstellen
+              Link deaktivieren
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Wirklich zurückziehen?</AlertDialogTitle>
+              <AlertDialogTitle>Wirklich deaktivieren?</AlertDialogTitle>
               <AlertDialogDescription>
-                Bestehende Abos in deinem Kalender hören auf zu aktualisieren. Du musst danach den
-                neuen Link erneut einrichten.
+                Bestehende Abos in deinem Kalender hören auf zu aktualisieren.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Abbrechen</AlertDialogCancel>
               <AlertDialogAction onClick={() => revokeMut.mutate()}>
-                Ja, zurückziehen
+                Ja, deaktivieren
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
