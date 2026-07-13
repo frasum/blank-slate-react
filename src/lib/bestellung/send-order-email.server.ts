@@ -33,6 +33,7 @@ export async function sendOrderEmailWithAdmin(
   admin: Admin,
   organizationId: string,
   orderId: string,
+  triggeredByUserId?: string,
 ): Promise<SendOrderEmailResult> {
   const apiKey = process.env.MAILERSEND_API_KEY;
   const fromEmail = process.env.MAILERSEND_FROM_EMAIL;
@@ -140,6 +141,11 @@ export async function sendOrderEmailWithAdmin(
     totalAmountCents: Number(order.total_amount_cents),
   };
 
+  const subject = buildOrderEmailSubject(emailData, testCtx);
+  const recipientEmail = testCtx ? testEmail : supplier.email;
+  const mode: "test" | "production" = testCtx ? "test" : "production";
+  const wasResend = order.status === "sent";
+
   const res = await fetch("https://api.mailersend.com/v1/email", {
     method: "POST",
     headers: {
@@ -152,17 +158,59 @@ export async function sendOrderEmailWithAdmin(
       to: testCtx
         ? [{ email: testEmail, name: `TEST – ${supplier.name}` }]
         : [{ email: supplier.email, name: supplier.name }],
-      subject: buildOrderEmailSubject(emailData, testCtx),
+      subject,
       html: buildOrderEmailHtml(emailData, testCtx),
       text: buildOrderEmailText(emailData, testCtx),
     }),
   });
+  const responseBodyText = await res.text().catch(() => "");
+  const providerMessageId =
+    res.headers.get("x-message-id") ??
+    (() => {
+      try {
+        const parsed = JSON.parse(responseBodyText) as { message_id?: string };
+        return parsed.message_id ?? null;
+      } catch {
+        return null;
+      }
+    })();
+
   if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`Mailversand fehlgeschlagen (${res.status}). ${body.slice(0, 300)}`);
+    const errorMessage = `Mailversand fehlgeschlagen (${res.status}). ${responseBodyText.slice(0, 300)}`;
+    await admin.from("order_email_log").insert({
+      organization_id: organizationId,
+      order_id: order.id,
+      mode,
+      recipient_email: recipientEmail,
+      supplier_email_snapshot: supplier.email,
+      subject,
+      status: "failed",
+      http_status: res.status,
+      provider_message_id: providerMessageId,
+      response_body: responseBodyText.slice(0, 2000),
+      error_message: errorMessage,
+      triggered_by_user_id: triggeredByUserId ?? null,
+      is_resend: wasResend,
+    });
+    throw new Error(errorMessage);
   }
 
-  const wasResend = order.status === "sent";
+  await admin.from("order_email_log").insert({
+    organization_id: organizationId,
+    order_id: order.id,
+    mode,
+    recipient_email: recipientEmail,
+    supplier_email_snapshot: supplier.email,
+    subject,
+    status: "sent",
+    http_status: res.status,
+    provider_message_id: providerMessageId,
+    response_body: responseBodyText.slice(0, 2000),
+    error_message: null,
+    triggered_by_user_id: triggeredByUserId ?? null,
+    is_resend: wasResend,
+  });
+
   const { error: upErr } = await admin
     .from("orders")
     .update({

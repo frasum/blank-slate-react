@@ -1925,6 +1925,71 @@ export type Database = {
           },
         ]
       }
+      order_email_log: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          http_status: number | null
+          id: string
+          is_resend: boolean
+          mode: string
+          order_id: string
+          organization_id: string
+          provider_message_id: string | null
+          recipient_email: string
+          response_body: string | null
+          sent_at: string
+          status: string
+          subject: string
+          supplier_email_snapshot: string | null
+          triggered_by_user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          http_status?: number | null
+          id?: string
+          is_resend?: boolean
+          mode: string
+          order_id: string
+          organization_id: string
+          provider_message_id?: string | null
+          recipient_email: string
+          response_body?: string | null
+          sent_at?: string
+          status: string
+          subject: string
+          supplier_email_snapshot?: string | null
+          triggered_by_user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          http_status?: number | null
+          id?: string
+          is_resend?: boolean
+          mode?: string
+          order_id?: string
+          organization_id?: string
+          provider_message_id?: string | null
+          recipient_email?: string
+          response_body?: string | null
+          sent_at?: string
+          status?: string
+          subject?: string
+          supplier_email_snapshot?: string | null
+          triggered_by_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_email_log_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           article_id: string | null

@@ -342,7 +342,12 @@ export async function placeEasyOrderCore(
     const { sendOrderEmailWithAdmin } = await import("./send-order-email.server");
     for (const orderId of createdIds) {
       try {
-        const r = await sendOrderEmailWithAdmin(admin, caller.organizationId, orderId);
+        const r = await sendOrderEmailWithAdmin(
+          admin,
+          caller.organizationId,
+          orderId,
+          caller.userId,
+        );
         sendResults.push({ orderId, ok: true, orderNumber: r.orderNumber });
       } catch (err) {
         sendResults.push({
