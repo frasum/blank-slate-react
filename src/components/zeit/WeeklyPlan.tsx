@@ -451,7 +451,7 @@ export function WeeklyPlan({
                   return (
                     <TableRow
                       key={`${row.staffId}:${row.department}`}
-                      className="odd:bg-muted/30"
+                      className="even:bg-muted/70"
                     >
                       <TableCell className="group relative px-1 font-medium align-middle text-center text-xs w-[56px] min-w-[56px] max-w-[56px]">
                         <span
