@@ -23,6 +23,16 @@ import type { SfnShiftRow } from "@/lib/lohn/sfn-geld/types";
 import { computeStaffSfn } from "@/lib/lohn/compute-staff-sfn";
 import { primaryDepartment, type Department } from "./primary-department";
 
+// Batch-Zod-Schema: nicht-leerer, deduplizierter Array von Location-UUIDs.
+// Begrenzt die IN-Liste auf 50, damit ein Client-Bug nicht die ganze
+// Organisation in einen Query zwingt (bisher gab es max. 3 Standorte;
+// 50 lässt Luft nach oben, ohne die Query zu sprengen).
+const locationIdsSchema = z
+  .array(z.string().uuid())
+  .min(1)
+  .max(50)
+  .transform((arr) => Array.from(new Set(arr)));
+
 // Reduziert staff_locations-Zeilen (eine pro Zuordnung) auf eine deterministische
 // Primär-Abteilung je staff_id (Priorität kitchen > service > gl). Wird von
 // getTimeOverview UND getWeeklyTimeEntries genutzt — keine Last-write-wins-Falle.
