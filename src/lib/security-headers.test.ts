@@ -23,9 +23,17 @@ describe("withSecurityHeaders", () => {
     expect(out.headers.get("Content-Security-Policy-Report-Only")).not.toBeNull();
   });
 
-  it("setzt keine scharfe Content-Security-Policy (nur Report-Only)", () => {
+  it("erzwingt CSP ausschließlich für frame-ancestors (Rest nur Report-Only)", () => {
+    // Präzisiert 13.07. nach SEC-Härtung: frame-ancestors erzwungen erlaubt
+    // (Prüfer-Abnahme), alle anderen Direktiven weiterhin nur Report-Only.
     const out = withSecurityHeaders(htmlResponse());
-    expect(out.headers.get("Content-Security-Policy")).toBeNull();
+    const enforced = out.headers.get("Content-Security-Policy");
+    if (enforced !== null) {
+      expect(enforced.trim()).toMatch(/^frame-ancestors [^;]+$/);
+    }
+    const reportOnly = out.headers.get("Content-Security-Policy-Report-Only") ?? "";
+    expect(reportOnly).toContain("script-src");
+    expect(reportOnly).toContain("default-src");
   });
 
   it("CSP-Report-Only enthält wss://*.supabase.co und frame-ancestors 'self' https://lovable.dev, und nicht frame-ancestors 'none'", () => {
