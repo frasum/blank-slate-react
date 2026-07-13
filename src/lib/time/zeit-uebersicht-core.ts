@@ -15,17 +15,25 @@ export type Entry = {
   rawDepartment?: Department | null;
 };
 
-// TODO G1a: mögliche Dublette zu business-date/format-date — Konsolidierung als eigene Entscheidung
+// bewusst eigenständig: liefert den 1. des LAUFENDEN Kalendermonats in der
+// Browser-Lokalzeit (Filter-Default der Zeit-Übersicht). business-date löst
+// „Geschäftstag mit 3-Uhr-Cutoff" — semantisch ein anderes Problem. Kein
+// zentraler Helfer hat dieselbe Aufgabe.
 export function firstOfMonthIso(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
 }
 
-// TODO G1a: mögliche Dublette zu business-date/format-date — Konsolidierung als eigene Entscheidung
+// bewusst eigenständig: verankert einen reinen YYYY-MM-DD-String auf UTC-Mittag,
+// damit die nachfolgende UTC-Tages-Arithmetik (addDays/mondayOf/isoWeek) DST-frei
+// bleibt. format-date.parseIsoDate ist modul-privat und liefert {y,m,d} statt Date;
+// business-date arbeitet auf Zeitstempeln in Europe/Berlin — beide passen nicht.
 export function parseIsoDate(iso: string): Date {
   return new Date(`${iso}T12:00:00Z`);
 }
-// TODO G1a: mögliche Dublette zu format-date — Konsolidierung als eigene Entscheidung
+// bewusst eigenständig: serialisiert ein UTC-Date zurück nach YYYY-MM-DD und ist
+// das Gegenstück zu parseIsoDate für die UTC-Wochen-Arithmetik. format-date liefert
+// Anzeige-Strings („Mi 01.06"), keinen ISO-Datumsteil — nicht austauschbar.
 export function fmtIso(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
@@ -83,7 +91,10 @@ export function periodDefaultEnd(): string {
   const m = d.getMonth() === 11 ? 1 : d.getMonth() + 2;
   return `${y}-${String(m).padStart(2, "0")}-25`;
 }
-// TODO G1a: mögliche Dublette zu period-label.ts — Konsolidierung als eigene Entscheidung
+// bewusst eigenständig: liefert „<Monat> <Jahr>" (z. B. „März 2026") für die
+// Perioden-Auswahl. display/period-split.periodLabel gibt nur den Monatsnamen
+// zurück; time/period-label.derivePeriodLabel meint Tageszeit-Fenster
+// („Früh/Mittag/Abend"). Beide decken diesen Anzeige-Fall nicht ab.
 export function periodLabelForEnd(endIso: string): string {
   const d = parseIsoDate(endIso);
   return `${MONTH_DE[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
