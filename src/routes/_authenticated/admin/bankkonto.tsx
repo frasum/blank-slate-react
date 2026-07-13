@@ -812,7 +812,7 @@ function ImportTab({
         return;
       }
       setIban(ibanRes.iban);
-      setParsedRows(res.rows as unknown as Array<Record<string, unknown>>);
+      setParsedRows(res.rows);
       setParseInfo({
         rows: res.rows.length,
         rohZeilen: res.rohZeilen,
