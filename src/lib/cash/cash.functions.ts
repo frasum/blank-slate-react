@@ -2961,7 +2961,6 @@ export async function getCashLedgerCore(
     .eq("id", caller.organizationId)
     .maybeSingle();
   if (orgErr) throw orgErr;
-  const cashTarget = Number(org?.cash_balance_target_cents ?? 200_000);
   const openingSafe = Number(org?.opening_safe_balance_cents ?? 200_000);
 
   const days: DayInput[] = sortedDates.map((date) => aggToDayInput(date, byDate.get(date)!));
@@ -2974,7 +2973,10 @@ export async function getCashLedgerCore(
     return {
       businessDate: date,
       cashActualCents: a.cashActualCount > 0 ? a.cashActualSum : null,
-      cashTargetCents: cashTarget * Math.max(1, a.sessionCount),
+      // Pro-Session aufgelöst nach "Location-Ziel ?? Org-Ziel" (siehe
+      // loadCashDayAggregates). Fällt auf den Org-Wert zurück, wenn ein Tag
+      // keine Sessions hat (sollte durch sortedDates ohnehin ausgeschlossen sein).
+      cashTargetCents: a.sessionCount > 0 ? a.cashTargetSum : 200_000,
       bankDepositsCents: a.bankDeposits,
     };
   });
