@@ -312,12 +312,12 @@ export function WeeklyPlan({
 
   return (
     <Card className="overflow-x-auto">
-      <Table>
+      <Table className="w-full table-fixed">
         <TableHeader>
           <TableRow>
             <TableHead
               rowSpan={2}
-              className="w-[68px] min-w-[68px] px-1 align-middle text-center text-xs"
+              className="w-[56px] min-w-[56px] px-1 align-middle text-center text-xs"
             />
             {dayMeta.map((dm) => (
               <TableHead
@@ -343,7 +343,7 @@ export function WeeklyPlan({
             ))}
             <TableHead
               rowSpan={2}
-              className="w-[68px] min-w-[68px] px-1 align-middle border-l text-center text-xs"
+              className="w-[56px] min-w-[56px] px-1 align-middle border-l text-center text-xs"
             />
             <TableHead
               rowSpan={2}
@@ -403,12 +403,12 @@ export function WeeklyPlan({
               return (
                 <Fragment key={`sub-${dm.iso}`}>
                   <TableHead
-                    className={`w-[62px] min-w-[62px] border-l text-center text-[11px] font-normal ${bg}`}
+                    className={`w-[44px] min-w-[44px] border-l text-center text-[11px] font-normal ${bg}`}
                   >
                     Anf.
                   </TableHead>
                   <TableHead
-                    className={`w-[62px] min-w-[62px] text-center text-[11px] font-normal ${bg}`}
+                    className={`w-[44px] min-w-[44px] text-center text-[11px] font-normal ${bg}`}
                   >
                     Ende
                   </TableHead>
@@ -450,7 +450,7 @@ export function WeeklyPlan({
                     : undefined;
                   return (
                     <TableRow key={`${row.staffId}:${row.department}`}>
-                      <TableCell className="group relative px-1 font-medium align-middle text-center text-xs w-[68px] min-w-[68px] max-w-[68px]">
+                      <TableCell className="group relative px-1 font-medium align-middle text-center text-xs w-[56px] min-w-[56px] max-w-[56px]">
                         <span
                           className={`absolute left-0 top-0 bottom-0 w-[2px] ${DEPT_BAR[row.department]}`}
                         />
@@ -606,21 +606,21 @@ export function WeeklyPlan({
                             <TableCell
                               onClick={() => handleCellClick("from")}
                               title={mismatchedTitle}
-                              className={`w-[62px] min-w-[62px] border-l px-1 py-1 text-center align-middle tabular-nums text-sm ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
+                              className={`w-[44px] min-w-[44px] border-l px-0.5 py-1 text-center align-middle tabular-nums text-xs ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
                             >
                               {renderShift("from")}
                             </TableCell>
                             <TableCell
                               onClick={() => handleCellClick("to")}
                               title={mismatchedTitle}
-                              className={`w-[62px] min-w-[62px] px-1 py-1 text-center align-middle tabular-nums text-sm ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
+                              className={`w-[44px] min-w-[44px] px-0.5 py-1 text-center align-middle tabular-nums text-xs ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
                             >
                               {renderShift("to")}
                             </TableCell>
                           </Fragment>
                         );
                       })}
-                      <TableCell className="font-medium align-middle border-l text-center text-xs px-1 w-[68px] min-w-[68px] max-w-[68px]">
+                      <TableCell className="font-medium align-middle border-l text-center text-xs px-1 w-[56px] min-w-[56px] max-w-[56px]">
                         <span className="block truncate" title={row.displayName}>
                           {row.displayName}
                         </span>
