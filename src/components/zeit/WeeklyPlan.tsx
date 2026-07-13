@@ -44,6 +44,7 @@ export function WeeklyPlan({
   shiftsByStaff,
   absencesByStaff,
   totalsScope = "week",
+  onTotalsScopeChange,
   periodTotalsByStaff,
 }: {
   input: WeeklyExportInput | null;
@@ -68,6 +69,7 @@ export function WeeklyPlan({
   shiftsByStaff: Map<string, number>;
   absencesByStaff: Map<string, { krankDays: number; urlaubDays: number; absenceNote?: string }>;
   totalsScope?: "week" | "period";
+  onTotalsScopeChange?: (v: "week" | "period") => void;
   periodTotalsByStaff?: Map<
     string,
     { total: number; evening: number; night: number; sunHol: number }
@@ -350,8 +352,37 @@ export function WeeklyPlan({
             ))}
             <TableHead
               rowSpan={2}
-              className="w-[56px] min-w-[56px] px-1 align-middle border-l text-center text-xs"
-            />
+              className="w-[72px] min-w-[72px] px-1 align-middle border-l text-center"
+            >
+              {onTotalsScopeChange ? (
+                <div className="flex flex-col gap-1" role="group" aria-label="Summen-Bezug">
+                  <button
+                    type="button"
+                    onClick={() => onTotalsScopeChange("week")}
+                    aria-pressed={totalsScope === "week"}
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-medium border transition ${
+                      totalsScope === "week"
+                        ? "bg-foreground text-background border-foreground"
+                        : "bg-background text-foreground border-border hover:bg-muted"
+                    }`}
+                  >
+                    Woche
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onTotalsScopeChange("period")}
+                    aria-pressed={totalsScope === "period"}
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-medium border transition ${
+                      totalsScope === "period"
+                        ? "bg-foreground text-background border-foreground"
+                        : "bg-background text-foreground border-border hover:bg-muted"
+                    }`}
+                  >
+                    Monat
+                  </button>
+                </div>
+              ) : null}
+            </TableHead>
             <TableHead
               rowSpan={2}
               className="px-1 text-right text-xs align-middle whitespace-nowrap"

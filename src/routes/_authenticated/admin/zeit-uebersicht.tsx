@@ -1034,16 +1034,6 @@ function ZeitUebersichtPage() {
                 allValue="all"
               />
               <div className="ml-auto flex items-center gap-2">
-                <PillSelect<"week" | "period">
-                  ariaLabel="Summen-Bezug"
-                  size="sm"
-                  options={[
-                    { value: "week", label: "Woche" },
-                    { value: "period", label: "Abrechnungsmonat" },
-                  ]}
-                  value={totalsScope}
-                  onChange={setTotalsScope}
-                />
                 <Button variant="outline" size="sm" onClick={handleExportPdf}>
                   <FileDown className="mr-1 h-4 w-4" /> PDF
                 </Button>
@@ -1216,6 +1206,7 @@ function ZeitUebersichtPage() {
             shiftsByStaff={shiftsByStaff}
             absencesByStaff={absencesByStaff}
             totalsScope={totalsScope}
+            onTotalsScopeChange={setTotalsScope}
             periodTotalsByStaff={periodTotalsByStaff}
           />
         </TabsContent>
