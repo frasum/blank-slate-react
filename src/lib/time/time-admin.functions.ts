@@ -108,9 +108,7 @@ export async function _loadTimeEntriesForSfnBatch(
   return selectAllPaged<TimeEntrySfnRow>(() =>
     supabaseAdmin
       .from("time_entries")
-      .select(
-        "id, location_id, staff_id, business_date, started_at, ended_at, break_minutes",
-      )
+      .select("id, location_id, staff_id, business_date, started_at, ended_at, break_minutes")
       .eq("organization_id", organizationId)
       .in("location_id", locationIds)
       .gte("business_date", fromDate)
