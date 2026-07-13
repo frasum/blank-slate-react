@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { todayIso } from "@/lib/format";
+import { berlinLocalToIso } from "@/lib/time/shift-hours";
 import { ZeitSkeleton } from "@/components/ui/page-skeletons";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -1250,24 +1251,30 @@ function ZeitUebersichtPage() {
             isAdmin={isAdmin}
             pending={setShiftMut.isPending || createShiftMut.isPending}
             onUpdateInline={(id, iso, from, to) => {
-              const startedAt = buildIsoFromLocal(iso, from);
-              const endedAt = buildIsoFromLocal(iso, to, from);
-              setShiftMut.mutate({ id, startedAt, endedAt });
+              try {
+                const { startedAt, endedAt } = buildShiftIsosOrThrow(iso, from, to);
+                setShiftMut.mutate({ id, startedAt, endedAt });
+              } catch (e) {
+                toast.error((e as Error).message);
+              }
             }}
             onCreateInline={(staffId, iso, from, to, department) => {
               if (!effectiveLocationId) {
                 toast.error("Bitte erst einen Standort wählen.");
                 return;
               }
-              const startedAt = buildIsoFromLocal(iso, from);
-              const endedAt = buildIsoFromLocal(iso, to, from);
-              createShiftMut.mutate({
-                staffId,
-                locationId: effectiveLocationId,
-                startedAt,
-                endedAt,
-                department,
-              });
+              try {
+                const { startedAt, endedAt } = buildShiftIsosOrThrow(iso, from, to);
+                createShiftMut.mutate({
+                  staffId,
+                  locationId: effectiveLocationId,
+                  startedAt,
+                  endedAt,
+                  department,
+                });
+              } catch (e) {
+                toast.error((e as Error).message);
+              }
             }}
             onReassign={(id, department) => {
               const entry = weeklyData?.entries.find((e) => e.id === id);
@@ -1932,20 +1939,41 @@ function fmtHHMM(iso: string): string {
   });
 }
 
-// Baut einen ISO-Timestamp aus Geschäftsdatum + HH:MM (Browser-/Lokalzeit).
-// `fromHHMM` wird mitgegeben, damit ein Mitternachts-Überlauf erkannt wird:
-// wenn die End-Uhrzeit kleiner als die Start-Uhrzeit ist, rollt der Tag um 1.
+// Baut einen ISO-Timestamp aus Geschäftsdatum + HH:MM. Die Uhrzeit wird
+// IMMER als Europe/Berlin-Wanduhrzeit interpretiert (unabhängig von der
+// Browser-Zeitzone), sonst hätten manuelle Korrekturen aus einer anderen
+// TZ eine falsche UTC-Zeit ergeben. `fromHHMM` markiert den Start —
+// wenn die End-Uhrzeit ECHT KLEINER ist, rollt der Tag um 1 (Mitternachts-
+// Wrap). Ende == Start ergibt bewusst KEINEN 24-h-Wrap (siehe
+// buildShiftIsosOrThrow unten).
 function buildIsoFromLocal(dateIso: string, hhmm: string, fromHHMM?: string): string {
   const [h, m] = hhmm.split(":").map((v) => Number.parseInt(v, 10));
-  const local = new Date(`${dateIso}T00:00:00`);
-  local.setHours(h, m, 0, 0);
+  let effectiveDate = dateIso;
   if (fromHHMM) {
     const [fh, fm] = fromHHMM.split(":").map((v) => Number.parseInt(v, 10));
-    if (h * 60 + m <= fh * 60 + fm) {
-      local.setDate(local.getDate() + 1);
+    if (h * 60 + m < fh * 60 + fm) {
+      const d = new Date(`${dateIso}T12:00:00Z`);
+      d.setUTCDate(d.getUTCDate() + 1);
+      effectiveDate = d.toISOString().slice(0, 10);
     }
   }
-  return local.toISOString();
+  return berlinLocalToIso(effectiveDate, h, m);
+}
+
+// Liefert Start/Ende als ISO oder wirft, wenn Ende == Start (der Server
+// würde sonst einen 24-h-Eintrag anlegen).
+function buildShiftIsosOrThrow(
+  dateIso: string,
+  from: string,
+  to: string,
+): { startedAt: string; endedAt: string } {
+  if (from === to) {
+    throw new Error("Ende darf nicht gleich Start sein.");
+  }
+  return {
+    startedAt: buildIsoFromLocal(dateIso, from),
+    endedAt: buildIsoFromLocal(dateIso, to, from),
+  };
 }
 
 function dayHeader(d: Date): string {
