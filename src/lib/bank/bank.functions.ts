@@ -24,6 +24,7 @@ import {
   type ExistingRow,
 } from "./cross-account-duplicates";
 import { mapGcTransactionsResponse } from "./gocardless-map";
+import { selectAllPaged } from "@/lib/supabase/select-all";
 
 // ==== Typen für die UI ================================================
 
