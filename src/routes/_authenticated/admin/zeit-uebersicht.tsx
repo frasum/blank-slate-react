@@ -1,7 +1,7 @@
 // B6 — Arbeitszeitübersicht (Zusammenfassung + Buchhaltung), 1:1 nach tagesabrechnung.
 
 import { createFileRoute } from "@tanstack/react-router";
-import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -32,6 +32,10 @@ import {
   getTimeOverview,
   getWeeklyTimeEntries,
   getSfnOverview,
+  getTimeOverviewBatch,
+  getWeeklyTimeEntriesBatch,
+  getSfnOverviewBatch,
+  listPayrollNotesBatch,
   listPeriods,
   listPayrollNotes,
   listAdvancesByStaff,
