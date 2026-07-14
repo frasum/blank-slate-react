@@ -57,13 +57,16 @@ describe.skipIf(!dbTestsEnabled)("MA2 — cross-location channel/terminal refs (
     admin = await org.mkUser("admin");
     locationB = await org.mkLocation("Standort B");
 
-    const mkChan = async (locId: string, label: string) => {
+    const getPosChannel = async (locId: string) => {
       const { data, error } = await org.service
         .from("revenue_channels")
-        .insert({ organization_id: org.orgId, location_id: locId, label, kind: "pos" })
         .select("id")
+        .eq("organization_id", org.orgId)
+        .eq("location_id", locId)
+        .eq("kind", "pos")
         .single();
-      if (error || !data) throw new Error(`channel seed ${label}: ${error?.message}`);
+      if (error || !data)
+        throw new Error(`Auto-Seed-Kanal fehlt (location ${locId}): ${error?.message}`);
       return data.id;
     };
     const mkTerm = async (locId: string, label: string) => {
@@ -75,8 +78,8 @@ describe.skipIf(!dbTestsEnabled)("MA2 — cross-location channel/terminal refs (
       if (error || !data) throw new Error(`terminal seed ${label}: ${error?.message}`);
       return data.id;
     };
-    channelA = await mkChan(org.defaultLocationId, "KanalA");
-    channelB = await mkChan(locationB, "KanalB");
+    channelA = await getPosChannel(org.defaultLocationId);
+    channelB = await getPosChannel(locationB);
     terminalA = await mkTerm(org.defaultLocationId, "TermA");
     terminalB = await mkTerm(locationB, "TermB");
 
