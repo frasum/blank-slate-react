@@ -4150,8 +4150,8 @@ Abnahme-Anker je Runde: A `5c4ac220` · B `30f3c4cd` · C `4620b862` · D `2ee74
 
 ## §93 — FK1: Foreign-Key-Indizes (Mini-Block vor Cutover) (14.07.)
 
-Lese-Inventur der Produktions-DB (13.07.) fand **90 FK-Spalten ohne Index** (führende Spalte). Vor dem Cutover-Datenwachstum wurden die fachlich relevanten indiziert: **~68 Indizes** per Migration angelegt (Namensschema `idx_<tabelle>_<spalte>`, alle `CREATE INDEX IF NOT EXISTS`, transaktional — kein `CONCURRENTLY`). FK-Indizes beschleunigen Joins/Filter UND die FK-Prüfung bei Parent-DELETEs (relevant für die anstehende Testdaten-Bereinigung).
+Lese-Inventur der Produktions-DB (13.07.) fand **88 FK-Spalten ohne Index** (führende Spalte). Vor dem Cutover-Datenwachstum wurden die fachlich relevanten indiziert: **66 Indizes** per Migration angelegt (Namensschema `idx_<tabelle>_<spalte>`, alle `CREATE INDEX IF NOT EXISTS`, transaktional — kein `CONCURRENTLY`), **22 `organization_id`-FKs bewusst ausgenommen** (88 = 66 + 22). FK-Indizes beschleunigen Joins/Filter UND die FK-Prüfung bei Parent-DELETEs (relevant für die anstehende Testdaten-Bereinigung).
 
 **Bewusste Ausnahme:** reine `organization_id`-FKs bleiben ohne Index — aktuell ein Mandant, keine Selektivität, der Planner würde sie nicht nutzen. Nachziehen beim ersten zweiten Mandanten (SaaS-Spur).
 
-**Invariante ab jetzt:** jede FK-Spalte außer `organization_id` hat einen Index. Prüfskript: `scripts/check-fk-indexes.sql` (rein lesend; erwartetes Ergebnis = nur `organization_id`-Zeilen, alles andere ist Regressions-Befund).
+**Invariante ab jetzt:** jede FK-Spalte außer `organization_id` hat einen Index. Prüfskript: `scripts/check-fk-indexes.sql` (rein lesend; erwartetes Ergebnis = nur `organization_id`-Zeilen, alles andere ist Regressions-Befund). Live-verifiziert 14.07.: Prüfskript liefert exakt die 22 `organization_id`-Zeilen.
