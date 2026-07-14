@@ -5517,6 +5517,21 @@ export type Database = {
         }
         Returns: undefined
       }
+      pin_attempt_register: {
+        Args: {
+          p_ip: string
+          p_ip_max: number
+          p_organization_id: string
+          p_staff_id: string
+          p_staff_max: number
+          p_window_ms: number
+        }
+        Returns: {
+          attempt_id: string
+          ip_failures: number
+          staff_failures: number
+        }[]
+      }
       reassign_task: {
         Args: {
           p_caller_staff_id: string
