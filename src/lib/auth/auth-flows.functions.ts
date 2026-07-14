@@ -15,6 +15,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { evaluatePin, PIN_RATE_LIMIT_MAX, PIN_RATE_LIMIT_WINDOW_MS } from "./pin-validation";
+import { captureServerError } from "@/lib/monitoring/sentry.server";
 import {
   ensureShadowUser,
   failed,
@@ -35,6 +36,27 @@ const PIN_CREDENTIAL_PATTERN = /^\d{4,8}$/;
 // bedienen kann (gemeinsame Kasse hinter NAT). Schlägt an, bevor überhaupt
 // eine Kandidatensuche läuft, und erzeugt selbst keinen Log-Eintrag.
 const PIN_IP_RATE_LIMIT_MAX = 30;
+
+// §95 — 42501-Vorfall: fehlender GRANT EXECUTE auf pin_attempt_register hat
+// den Login stumm auf 42501 laufen lassen. Damit so ein Regressions-Fehler
+// nie wieder unbemerkt bleibt, forwarden wir genau diesen Fall mit
+// eindeutigen Tags an Sentry — die Alerting-Regel filtert daraufhin
+// (siehe docs/sentry-alert-42501.md).
+function reportPinRpcPrivilegeError(
+  op: "pin-login" | "password-login",
+  err: { code?: string | null; message?: string } | null | undefined,
+): void {
+  if (!err || err.code !== "42501") return;
+  void captureServerError(new Error(`[${op}] pin_attempt_register 42501: ${err.message ?? ""}`), {
+    op,
+    critical: true,
+    tags: {
+      alert: "pin_rpc_privilege",
+      rpc: "pin_attempt_register",
+      pg_code: "42501",
+    },
+  });
+}
 
 /** Best-effort Client-IP: Cloudflare > X-Forwarded-For (erster Eintrag) > null. */
 function extractClientIp(): string | null {
@@ -130,6 +152,7 @@ export const validatePin = createServerFn({ method: "POST" })
         });
         if (regErr) {
           console.error("[password-login] pin_attempt_register error:", regErr);
+          reportPinRpcPrivilegeError("password-login", regErr);
           continue;
         }
         const row = Array.isArray(reg) ? reg[0] : reg;
@@ -172,6 +195,7 @@ export const validatePin = createServerFn({ method: "POST" })
         });
         if (regErr) {
           console.error("[pin-login] pin_attempt_register error:", regErr);
+          reportPinRpcPrivilegeError("pin-login", regErr);
           continue;
         }
         const row = Array.isArray(reg) ? reg[0] : reg;
