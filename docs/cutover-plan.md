@@ -15,9 +15,11 @@ P3 Restore-Probe ✅ · FK-Indizes (§93) ✅ · Generalprobe Kassen-Reimport = 
 
 ## Getroffene Entscheidungen (Frank, 14.07.2026)
 
-- **E1 Härtung:** Freigabe-Disziplin (Feature-Branches, PR-Review, Migrations-Sichtung
-  VOR Merge; Migration + Publish gekoppelt). KEIN Staging-Projekt — Neubewertung erst
-  mit SaaS-Spur.
+- **E1 Härtung (präzisiert 14.07.):** Freigabe-Disziplin als Vorab-SQL-Freigabe —
+  Lovable arbeitet nicht auf Feature-Branches, daher geht jeder migrations-tragende
+  Prompt erst nach Franks expliziter SQL-Freigabe an Lovable; destruktives SQL führt
+  Frank unverändert selbst aus (Regel A/B); Migration + Publish gekoppelt.
+  KEIN Staging-Projekt — Neubewertung erst mit SaaS-Spur.
 - **E2 PIN-Rate-Limit (N3):** wird JETZT atomar gemacht (Postgres-Funktion), Teil des
   Sicherheitspasses in Phase 0.
 - **E3 Kalender-Token (N7):** BEWUSST OHNE Ablauf. Begründung: jährliche Neueinrichtung
@@ -31,9 +33,10 @@ P3 Restore-Probe ✅ · FK-Indizes (§93) ✅ · Generalprobe Kassen-Reimport = 
 
 ## Phase 0 — Härtung (bis ~18.07.)
 
-1. **Betriebsmodell-Härtung (E1):** Ab sofort Feature-Branch + PR als Regelfall;
-   Migrations-Dateien werden im PR gesichtet und erst nach Freigabe gemergt; jeder
-   Migrations-Merge wird unmittelbar published (Lektion §87 Veröffentlichungs-Lücke).
+1. **Betriebsmodell-Härtung (E1):** Ab sofort Vorab-SQL-Freigabe als Regelfall —
+   jeder migrations-tragende Lovable-Block geht erst nach Franks explizitem „SQL ok"
+   raus (Lovable arbeitet nicht auf Feature-Branches); jeder Migrations-Merge wird
+   unmittelbar published (Lektion §87 Veröffentlichungs-Lücke).
 2. **N3 PIN-Rate-Limit atomar (E2):** Zählen+Prüfen als eine Postgres-Funktion statt
    Read-Modify-Write. Eigener Lovable-Block mit Vorab-SQL.
 3. **N7 dokumentiert (E3):** kein Code — Entscheidung steht oben.
