@@ -3610,6 +3610,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "session_tip_pool_entries_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "session_tip_pool_entries_session_id_fkey"
             columns: ["session_id"]
             isOneToOne: false
