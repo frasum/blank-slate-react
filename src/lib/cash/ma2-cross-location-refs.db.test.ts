@@ -60,7 +60,7 @@ describe.skipIf(!dbTestsEnabled)("MA2 — cross-location channel/terminal refs (
     const mkChan = async (locId: string, label: string) => {
       const { data, error } = await org.service
         .from("revenue_channels")
-        .insert({ organization_id: org.orgId, location_id: locId, label, kind: "card" })
+        .insert({ organization_id: org.orgId, location_id: locId, label, kind: "pos" })
         .select("id")
         .single();
       if (error || !data) throw new Error(`channel seed ${label}: ${error?.message}`);
