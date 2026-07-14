@@ -146,7 +146,8 @@ function installGlobalHandlers(): void {
   });
   window.addEventListener("unhandledrejection", (event) => {
     const reason = (event as PromiseRejectionEvent).reason;
-    const err = reason instanceof Error ? reason : new Error(String(reason ?? "unhandledrejection"));
+    const err =
+      reason instanceof Error ? reason : new Error(String(reason ?? "unhandledrejection"));
     void captureClientError(err, { mechanism: "unhandledrejection" });
   });
 }
