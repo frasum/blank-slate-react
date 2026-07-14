@@ -6,7 +6,7 @@ SaaS-Vorbereitung: Readiness-Audit und Modul-Katalog stehen in docs/saas-vorbere
 
 Produktionsreife-Review: docs/produktionsreife-review.md (Stand 07.07.2026, HEAD 8cfdbc1d, inkl. Patch-Plan P0–P7) — kritischer Pfad vor dem Kassen-Go-live: Monitoring (P1) → Finalize-E2E (P2) → Restore-Probe (P3) → Cutover.
 
-Stand: 14.07.2026 (§95 + E1-Mechanik: Vorab-SQL-Freigabe statt PR)
+Stand: 14.07.2026 (§96: Audit-Matrix + MA1/MA2 — Cutover-Phase 0 abgeschlossen)
 
 TH1 — Standort-Farbthema: LocationThemeProvider im \_authenticated-Layout hält den themeKey (spicery/yum/neutral).
 LocationPills melden die Auswahl per useLocationThemeSync; Mapping: Name enthält „spicery" → spicery, „yum" → yum, sonst neutral (auch TSB/„Alle"/leer).
@@ -261,6 +261,8 @@ Erst wenn ESLint 0 Fehler und alle Tests grün sind → ABGENOMMEN.
   Fehlermeldung, nur fehlende Daten.)
 - **REVOKE-from-PUBLIC auf RPC-Funktionen nie ohne `GRANT EXECUTE … TO service_role`** (42501-Vorfall §95). Trigger-Funktionen sind die Ausnahme — dort kein Grant nötig.
 - **E1-Freigabe-Disziplin (seit 14.07., Lovable kann keine Branches):** Jeder Lovable-Block, der eine MIGRATION trägt, geht erst an Lovable, nachdem Frank das Vorab-SQL explizit freigegeben hat („SQL ok"). Destruktives SQL läuft unverändert über Regel A/B (Frank führt selbst aus). Reine Code-Blöcke ohne Migration brauchen keine Vorab-Freigabe. Jeder Migrations-Merge wird unmittelbar published (Migration+Deploy gekoppelt, §87).
+- **SQL-Kennzeichnung Fall 1/2/3:** Jedes SQL vom Prüfer trägt im Kopf sein Ziel: **Fall 1** = von Frank in der COCO-DB ausführen · **Fall 2** = von Frank in bestellung.pro ausführen · **Fall 3** = NICHT ausführen, nur freigeben (Lovable-Migrations-Skizze, E1). Wird Fall-3-SQL versehentlich manuell angewandt, wird die Migration idempotent nachgezogen (MA1-Muster §96).
+- **Test-Seeds gegen das vollständige Schema-Verhalten prüfen** — Check-Constraints UND Trigger-Auto-Seeds (§89 Steuerklassen, §96 Kanäle). Wo ein Auto-Seed existiert: SELECTen statt INSERTen.
 
 ## 4. Stammdaten-Referenz (COCO Produktion)
 
@@ -4173,3 +4175,31 @@ Abnahme-Anker: `dfa6ec40`, vier Check-Gates grün (1758 Tests), **db-integration
 **NEUE MERKREGEL (Pflicht-Regeln §3):** REVOKE-from-PUBLIC auf RPC-gerufenen Funktionen braucht IMMER ein begleitendes `GRANT EXECUTE … TO service_role`. Trigger-Funktionen brauchen es nicht — das Muster ist NICHT übertragbar.
 
 **E1-Fehlstart — geklärt (14.07., Frank):** N3 sollte als erster Block der Freigabe-Disziplin auf Feature-Branch mit PR laufen — alle Commits landeten direkt auf main. Ursache: **Lovable arbeitet nicht auf Feature-Branches** (Antwort b). Der PR-Weg ist damit tot; die E1-Mechanik ist umgestellt auf **Vorab-SQL-Freigabe VOR Prompt-Versand** (siehe Pflicht-Regel §3). Der doppelte Boden bei N3 (Migration bewusst rein additiv) hat gehalten; die neue Mechanik schützt vor UNGESEHENEN Migrationen — vor Prüfer-Fehlern im SQL schützt weiterhin der blockierende db-integration-Job (§89/§95 bewiesen).
+
+## §96 — Mandanten-/Standort-Audit-Matrix (§86 P3) + MA1/MA2; Phase 0 komplett (14.07. abends)
+
+Abnahme-Anker: MA1 `84a826f9` · MA2 `c4642513`, je vier Check-Gates grün (1758) + db-integration blockierend grün (MA1: 3 DENY-ALL-Tests · MA2: 3 Cross-Location-Tests).
+
+**Matrix-Ergebnis (2 grün, 2 gelb, 0 rot).** Geprüft: Schema, RLS-Policies (inkl. Umbau 18.06.), alle Server-Schreibpfade.
+
+| Tabelle                  | Befund                                                                                                                                                                             | Maßnahme   |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| waiter_settlements       | ✅ Invariante beidseitig erzwungen: Policies mit Session-Org-Match im WITH CHECK; Server via loadSessionWithLock + assertStaffBoundToLocation (Standort-Bindung, strenger als Org) | keine      |
+| session_tip_pool_entries | 🟡 einzige Geld-Satellitentabelle mit Client-Schreibgrants (Legacy Welle 2; Schreibweg seit §21 server-only) und ohne Org-FK                                                       | **MA1** ✅ |
+| session_channel_amounts  | 🟡 channelId vom Client nicht gegen Org/Location des Kanals validiert (Cross-Location-Fehlbuchung möglich; Cross-Org erst mit 2. Mandant)                                          | **MA2** ✅ |
+| session_terminal_amounts | 🟡 analog Terminals (zusätzlich relevant wegen is_gl in der Terminal-Identität)                                                                                                    | **MA2** ✅ |
+
+§86-Merksatz bestätigt: Das fehlende location_id ist bei allen vieren KEIN Fehler — der erzwungene Session-FK ist der sauberere Scope; die Lücken lagen daneben (Legacy-Grants, Referenz-Validierung).
+
+**MA1** (`84a826f9`): REVOKE insert/update/delete für authenticated + drei Schreib-Policies gedroppt (stpe_select_manager bleibt) + Org-FK nachgezogen. Live per Policy-Query verifiziert (genau 1 Policy, polcmd=r). Besonderheit: Frank hatte das freigegebene SQL bereits manuell ausgeführt (Fall-Verwechslung, s. u.) — die Migration wurde deshalb IDEMPOTENT gebaut (drop constraint if exists + add) und lief auf der Live-DB als No-Op-Erneuerung, auf frischen CI-Stacks als Aufbau. Muster für künftige „schon manuell angewandt"-Fälle.
+
+**MA2** (`c4642513`): `assertChannelsAtLocation`/`assertTerminalsAtLocation` (Batch-Query, typisierter `CrossLocationRefError`) in `updateSessionCore` — nach Prüfer-Nachforderung VOR das sessions-UPDATE verschoben (N11 „ganz oder gar nicht": die Erstlieferung hätte bei ungültiger Referenz ein halb aktualisiertes Session-Objekt hinterlassen; Tests fehlten ebenfalls und wurden nachgefordert). DB-Tests beweisen: fremde Referenz → Fehler, Session UND Bestand unangetastet.
+
+**Prozess-Ernte des Tages:**
+
+1. **Baumeister-Konfliktmeldung korrigierte den Prüfer:** Der MA2-Prompt behauptete ≥2 Schreibstellen je Tabelle („~3540ff") — Lovable wies per rg nach: exakt 1, Rest sind Reads. Am Code verifiziert, Weg A mit korrigiertem Gate. Die Melde-Kultur trägt nachweislich in beide Richtungen; ein Mess-Gate kann auch falsche ANNAHMEN entlarven, nicht nur unvollständige Lieferungen.
+2. **SQL-Kennzeichnung Fall 1/2/3 (neue Pflicht-Regel, s. u.):** Ausgelöst durch zwei Verwechslungen am selben Tag (Fall-3-SQL manuell ausgeführt).
+3. **Test-Seed-Lehre verschärft (zwei CI-Runden):** Erst ungültiger Constraint-Wert (kind='card', Fehlerfamilie §89/Steuerklassen), dann Kollision mit Trigger-Auto-Seed (jeder Standort bekommt automatisch 4 Kanäle; Unique auf org/location/kind). Regel: **Test-Seeds gegen das VOLLSTÄNDIGE Schema-Verhalten prüfen — Constraints UND Trigger-Auto-Seeds; wo ein Auto-Seed existiert, wird geSELECTet, nicht geINSERTet.** (Der erste Fix „card→pos" war ein zu schneller Prüfer-Fix ohne Trigger-Blick.)
+4. **CI-Robustheits-Merkposten:** db-integration fiel einmal im Setup („Failed to resolve latest Supabase CLI release: rate limit exceeded" — Flake-Familie §89, eine Etage vor der §92-Retry-Schleife). Beim nächsten CI-Block: Supabase-CLI-Version PINNEN statt `latest` + `GITHUB_TOKEN` an setup-cli.
+
+**Status Cutover-Plan: Phase 0 KOMPLETT (14.07., Frist war ~18.07.)** — E1 mechanisiert (§95) · E2/N3 ✅ · E3 dokumentiert · Audit-Matrix ✅ MA1+MA2. Nächster Schritt: Phase 1 Mapping-Verifikation (Prüfer: §5-Kassen-Mapping gegen heutiges Schema; Frank: frischer Zeit-Export aus tagesabrechnung mit `restaurant`-Spalte).
