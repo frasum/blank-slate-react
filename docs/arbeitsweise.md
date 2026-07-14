@@ -6,7 +6,7 @@ SaaS-Vorbereitung: Readiness-Audit und Modul-Katalog stehen in docs/saas-vorbere
 
 Produktionsreife-Review: docs/produktionsreife-review.md (Stand 07.07.2026, HEAD 8cfdbc1d, inkl. Patch-Plan P0–P7) — kritischer Pfad vor dem Kassen-Go-live: Monitoring (P1) → Finalize-E2E (P2) → Restore-Probe (P3) → Cutover.
 
-Stand: 14.07.2026 (§94: Cutover-Plan freigegeben, T0 = 26.07.2026)
+Stand: 14.07.2026 (§95: N3 PIN-Rate-Limit atomar — abgenommen nach 42501-Vorfall)
 
 TH1 — Standort-Farbthema: LocationThemeProvider im \_authenticated-Layout hält den themeKey (spicery/yum/neutral).
 LocationPills melden die Auswahl per useLocationThemeSync; Mapping: Name enthält „spicery" → spicery, „yum" → yum, sonst neutral (auch TSB/„Alle"/leer).
@@ -259,6 +259,7 @@ Erst wenn ESLint 0 Fehler und alle Tests grün sind → ABGENOMMEN.
   (`id`-Tiebreaker). Unpaginierte Reads nur für ID-Lookups und hart
   begrenzte Mengen. (Lektion BFIX2: die Kappung schlägt still zu — keine
   Fehlermeldung, nur fehlende Daten.)
+- **REVOKE-from-PUBLIC auf RPC-Funktionen nie ohne `GRANT EXECUTE … TO service_role`** (42501-Vorfall §95). Trigger-Funktionen sind die Ausnahme — dort kein Grant nötig.
 
 ## 4. Stammdaten-Referenz (COCO Produktion)
 
@@ -4159,3 +4160,15 @@ Lese-Inventur der Produktions-DB (13.07.) fand **88 FK-Spalten ohne Index** (fü
 ## §94 — Cutover-Plan freigegeben: T0 = 26.07.2026 (14.07.)
 
 Der konsolidierte Cutover-Gesamtfahrplan steht in [`docs/cutover-plan.md`](./cutover-plan.md) — ab jetzt die EINE Cutover-Wahrheit (ältere Merkposten verweisen hierher). Alle fünf Entscheidungen sind getroffen (Frank, 14.07.): **E1** Härtung als Freigabe-Disziplin (kein Staging-Projekt vor SaaS) · **E2** N3 PIN-Rate-Limit wird jetzt atomar · **E3** Kalender-Token bewusst ohne Ablauf (gehasht, widerrufbar; jährliche Neueinrichtung wäre teurer als das Restrisiko) · **E4** Kassen-Anker = gezählter Tresor-Anfangsbestand je Standort am T0 (YUM zuerst) · **E5** T0 = 26.07.2026 (Periodengrenze). Phasen: 0 Härtung (bis ~18.07.) → 1 Mapping-Verifikation (bis ~21.07.) → 2 Generalprobe (19.–25.07.) → 3 Umschalttag (26.07., mit harten Abbruchkriterien) → 4 Nachlauf inkl. Spalten-Drops N15b/UZ1.
+
+## §95 — N3: PIN-Rate-Limit atomar; 42501-Vorfall; E1-Fehlstart (14.07.)
+
+Abnahme-Anker: `dfa6ec40`, vier Check-Gates grün (1758 Tests), **db-integration blockierend grün** inkl. der fünf neuen N3-DB-Tests (laufen NUR in CI — lokal per `SUPABASE_DB_TESTS` geskippt, die 1758 enthalten sie nicht).
+
+**Was gebaut wurde.** `public.pin_attempt_register(org, staff, ip, window_ms, staff_max, ip_max)`: Zählen + Einfügen des PIN-Fehlversuchs atomar in EINER SECURITY-DEFINER-Funktion, serialisiert per `pg_advisory_xact_lock` je `staff_id` — schließt das Read-Modify-Write-Fenster, das SEC-RL1 (spekulativer Pre-Insert) nur verengt hatte. Beide Login-Pfade (PIN + Passwort-Fallback) rufen den RPC; Erfolgs-Delete der spekulativen Zeile, generische Fehlermeldungen, IP-Vorab-Check (SEC-RL2) und Kandidatensuche unverändert. Limits (5/15 min Staff, 30/15 min IP) bleiben als TS-Konstanten einzige Wahrheit und werden an den RPC übergeben. Fünf DB-Tests: unter Limit / Staff-Limit / IP-Limit / REVOKE-Negativtest / Fenstergrenze.
+
+**42501-Vorfall (Prüfer-Fehler, ehrlich verbucht).** Das Vorab-SQL des Prüfers enthielt `revoke all … from public, anon, authenticated` OHNE begleitendes GRANT — Postgres vergibt EXECUTE auf Funktionen default an PUBLIC, der Revoke entzog damit auch service_role das Recht. Der blockierende db-integration-Job (seit §89 entstummt) fing den Bug: vier Tests rot mit `42501 insufficient_privilege`. Unter dem alten `continue-on-error` wäre das als „Schema-Cache-Flake" durchgerutscht — **die §89-Entstummung hat sich damit erstmals hart bezahlt gemacht.** Die Irreführung: Das Repo-Präzedenzmuster (`tg_inventory_items_assert_open`) ist eine Trigger-Funktion, die nie per RPC läuft. Fix: Migration `20260714105529` mit dem Grant; da Lovable Migrationen sofort anwendet, war die Produktions-DB automatisch geheilt (Login zu keinem Zeitpunkt gestört, solange kein Publish zwischen Bug- und Fix-Migration lag).
+
+**NEUE MERKREGEL (Pflicht-Regeln §3):** REVOKE-from-PUBLIC auf RPC-gerufenen Funktionen braucht IMMER ein begleitendes `GRANT EXECUTE … TO service_role`. Trigger-Funktionen brauchen es nicht — das Muster ist NICHT übertragbar.
+
+**E1-Fehlstart (offener Punkt).** N3 sollte als erster Block der Freigabe-Disziplin auf Feature-Branch `feat/n3-pin-rate-limit-atomic` mit PR laufen — alle Commits landeten direkt auf main, die Migration ungesichtet in der Produktions-DB. Der doppelte Boden (Migration bewusst rein additiv entworfen) hat gehalten; beim Cutover-Reimport existiert dieser Boden nicht. **Klärung offen:** Branch-Anweisung beim Prompt-Eindampfen verloren ODER Lovable arbeitet nicht auf Branches? Falls Letzteres: E1-Mechanik wird umgestellt auf „Vorab-SQL-Freigabe durch Frank VOR Prompt-Versand" statt PR-Sichtung.
