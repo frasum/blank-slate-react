@@ -14,11 +14,7 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
-import {
-  evaluatePin,
-  isCredentialAttemptAllowed,
-  PIN_RATE_LIMIT_WINDOW_MS,
-} from "./pin-validation";
+import { evaluatePin, PIN_RATE_LIMIT_MAX, PIN_RATE_LIMIT_WINDOW_MS } from "./pin-validation";
 import {
   ensureShadowUser,
   failed,
@@ -115,37 +111,32 @@ export const validatePin = createServerFn({ method: "POST" })
 
     if (!PIN_CREDENTIAL_PATTERN.test(data.pin)) {
       // Passwort-Fallback (Eingabe ist keine reine Ziffernfolge).
-      // SEC-RL1: Fehlversuch VOR dem bcrypt-Aufruf loggen, damit parallele
-      // Requests das Limit nicht umgehen können. Bei Erfolg wird die
-      // spekulative Zeile wieder entfernt (Erfolg zählt nicht als Fehler).
+      // N3: Zählen + Insert atomar via pin_attempt_register (Advisory-Lock
+      // je staff_id). attempt_id === null → Limit erreicht, Kandidat
+      // überspringen. Bei Erfolg wird die spekulative Zeile wieder
+      // entfernt (Erfolg zählt nicht als Fehler).
       const sessions: { access_token: string; refresh_token: string }[] = [];
       for (const cand of candidates) {
-        const { count } = await supabaseAdmin
-          .from("pin_attempts")
-          .select("id", { count: "exact", head: true })
-          .eq("staff_id", cand.id)
-          .gte("attempted_at", sinceIso);
-        if (!isCredentialAttemptAllowed(count ?? 0)) continue;
-
-        const { data: preRow, error: preErr } = await supabaseAdmin
-          .from("pin_attempts")
-          .insert({
-            organization_id: cand.organization_id,
-            staff_id: cand.id,
-            ip: clientIp,
-          })
-          .select("id")
-          .single();
-        if (preErr || !preRow) {
-          console.error("[password-login] pre-insert error:", preErr);
+        const { data: reg, error: regErr } = await supabaseAdmin.rpc("pin_attempt_register", {
+          p_organization_id: cand.organization_id,
+          p_staff_id: cand.id,
+          p_ip: clientIp,
+          p_window_ms: PIN_RATE_LIMIT_WINDOW_MS,
+          p_staff_max: PIN_RATE_LIMIT_MAX,
+          p_ip_max: PIN_IP_RATE_LIMIT_MAX,
+        });
+        if (regErr) {
+          console.error("[password-login] pin_attempt_register error:", regErr);
           continue;
         }
+        const row = Array.isArray(reg) ? reg[0] : reg;
+        const attemptId = row?.attempt_id ?? null;
+        if (!attemptId) continue;
 
         const session = await tryStaffPasswordLogin(cand.id, data.pin);
         if (session) {
           sessions.push(session);
-          // Erfolg → spekulative Fail-Zeile zurücknehmen.
-          await supabaseAdmin.from("pin_attempts").delete().eq("id", preRow.id);
+          await supabaseAdmin.from("pin_attempts").delete().eq("id", attemptId);
         }
       }
       if (sessions.length !== 1) console.error("[password-login] matches.length:", sessions.length);
@@ -163,51 +154,44 @@ export const validatePin = createServerFn({ method: "POST" })
         .eq("staff_id", cand.id)
         .maybeSingle();
 
-      const { count } = await supabaseAdmin
-        .from("pin_attempts")
-        .select("id", { count: "exact", head: true })
-        .eq("staff_id", cand.id)
-        .gte("attempted_at", sinceIso);
-
-      // SEC-RL1: Spekulative Fail-Zeile VOR dem bcrypt-Vergleich schreiben,
-      // damit parallele Requests im selben Fenster das Limit sehen (vorher
-      // konnten N parallele Versuche gemeinsam den Zähler zurück auf < MAX
-      // lesen und alle bcrypt.compare durchlaufen). Nur einfügen, wenn wir
-      // überhaupt vergleichen — also Hash vorhanden und Limit noch offen.
-      const willCompare = !!pinRow?.pin_hash && isCredentialAttemptAllowed(count ?? 0);
-      let preId: string | null = null;
-      if (willCompare) {
-        const { data: preRow, error: preErr } = await supabaseAdmin
-          .from("pin_attempts")
-          .insert({
-            organization_id: cand.organization_id,
-            staff_id: cand.id,
-            ip: clientIp,
-          })
-          .select("id")
-          .single();
-        if (preErr || !preRow) {
-          console.error("[pin-login] pre-insert error:", preErr);
+      // N3: Zählen + Insert atomar (Advisory-Lock je staff_id). Nur
+      // registrieren, wenn wir überhaupt vergleichen — also Hash vorhanden.
+      let attemptId: string | null = null;
+      let staffFailures = 0;
+      if (pinRow?.pin_hash) {
+        const { data: reg, error: regErr } = await supabaseAdmin.rpc("pin_attempt_register", {
+          p_organization_id: cand.organization_id,
+          p_staff_id: cand.id,
+          p_ip: clientIp,
+          p_window_ms: PIN_RATE_LIMIT_WINDOW_MS,
+          p_staff_max: PIN_RATE_LIMIT_MAX,
+          p_ip_max: PIN_IP_RATE_LIMIT_MAX,
+        });
+        if (regErr) {
+          console.error("[pin-login] pin_attempt_register error:", regErr);
           continue;
         }
-        preId = preRow.id;
+        const row = Array.isArray(reg) ? reg[0] : reg;
+        attemptId = row?.attempt_id ?? null;
+        staffFailures = row?.staff_failures ?? 0;
+        // attemptId === null → Limit erreicht; evaluatePin unten liefert
+        // dann rate_limited (Zähler >= MAX) — Semantik unverändert.
       }
 
       const outcome = await evaluatePin({
         storedHash: pinRow?.pin_hash ?? null,
         providedPin: data.pin,
-        // Wir übergeben den Zähler VOR dem Pre-Insert. Die Rate-Limit-
-        // Entscheidung haben wir oben (willCompare) bereits getroffen;
-        // evaluatePin läuft dann nur noch den no_pin/mismatch-Pfad.
-        recentFailuresInWindow: count ?? 0,
+        // Zähler VOR dem eigenen Insert (aus dem RPC). Erreicht das Limit
+        // die Schwelle, liefert evaluatePin rate_limited — identisch zur
+        // vorherigen Übergabe.
+        recentFailuresInWindow: attemptId ? staffFailures : PIN_RATE_LIMIT_MAX,
         compare: (pin, hash) => bcrypt.compare(pin, hash),
       });
 
       if (outcome.kind === "ok") {
         matches.push({ id: cand.id, organization_id: cand.organization_id });
-        // Erfolg → spekulative Fail-Zeile wieder entfernen.
-        if (preId) {
-          await supabaseAdmin.from("pin_attempts").delete().eq("id", preId);
+        if (attemptId) {
+          await supabaseAdmin.from("pin_attempts").delete().eq("id", attemptId);
         }
       }
       // outcome=rejected → Zeile bleibt stehen (das ist der Fehlversuch).
