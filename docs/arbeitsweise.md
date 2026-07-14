@@ -259,6 +259,7 @@ Erst wenn ESLint 0 Fehler und alle Tests grün sind → ABGENOMMEN.
   (`id`-Tiebreaker). Unpaginierte Reads nur für ID-Lookups und hart
   begrenzte Mengen. (Lektion BFIX2: die Kappung schlägt still zu — keine
   Fehlermeldung, nur fehlende Daten.)
+- **REVOKE-from-PUBLIC auf RPC-Funktionen nie ohne `GRANT EXECUTE … TO service_role`** (42501-Vorfall §95). Trigger-Funktionen sind die Ausnahme — dort kein Grant nötig.
 
 ## 4. Stammdaten-Referenz (COCO Produktion)
 
