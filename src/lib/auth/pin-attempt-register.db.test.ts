@@ -100,9 +100,7 @@ describe.skipIf(!dbTestsEnabled)("N3 pin_attempt_register atomar", () => {
   it("(c) ip-Limit erreicht → attempt_id NULL", async () => {
     const ip = "10.0.0.3";
     // Wir setzen ip_max niedrig statt 30 Zeilen zu seeden.
-    await service
-      .from("pin_attempts")
-      .insert({ organization_id: org.orgId, staff_id: staffC, ip });
+    await service.from("pin_attempts").insert({ organization_id: org.orgId, staff_id: staffC, ip });
 
     const { data, error } = await register({
       p_organization_id: org.orgId,
@@ -119,11 +117,9 @@ describe.skipIf(!dbTestsEnabled)("N3 pin_attempt_register atomar", () => {
   });
 
   it("(d) anon/authenticated dürfen die Funktion nicht aufrufen", async () => {
-    const anon = createClient<Database>(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_ANON_KEY!,
-      { auth: { persistSession: false, autoRefreshToken: false } },
-    );
+    const anon = createClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
     const { error } = await anon.rpc("pin_attempt_register", {
       p_organization_id: org.orgId,
       p_staff_id: staffA,
@@ -144,10 +140,7 @@ describe.skipIf(!dbTestsEnabled)("N3 pin_attempt_register atomar", () => {
       .select("id")
       .single();
     expect(old?.id).toBeTruthy();
-    await service
-      .from("pin_attempts")
-      .update({ attempted_at: twoHoursAgo })
-      .eq("id", old!.id);
+    await service.from("pin_attempts").update({ attempted_at: twoHoursAgo }).eq("id", old!.id);
 
     const { data, error } = await register({
       p_organization_id: org.orgId,
