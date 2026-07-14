@@ -1355,6 +1355,19 @@ export async function updateSessionCore(caller: AdminCaller, data: UpdateSession
       .eq("organization_id", caller.organizationId);
     if (sErr) throw sErr;
 
+    // MA2 — Guards: Kanal/Terminal-Referenzen VOR delete+insert prüfen.
+    // Bei ungültiger Referenz wird geworfen und der Bestand bleibt unverändert.
+    await assertChannelsAtLocation(
+      caller.organizationId,
+      session.location_id,
+      data.channelAmounts.map((c) => c.channelId),
+    );
+    await assertTerminalsAtLocation(
+      caller.organizationId,
+      session.location_id,
+      data.terminalAmounts.map((t) => t.terminalId),
+    );
+
     // Kanal-Beträge: alte löschen, neue setzen (einfacher als Upsert+Diff).
     await supabaseAdmin
       .from("session_channel_amounts")
