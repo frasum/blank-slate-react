@@ -12,6 +12,7 @@ import { useRouter } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyIdentity } from "@/lib/auth/me.functions";
 import { AuthContext, type AuthContextValue } from "./auth-context-types";
+import { setSentryContext } from "@/lib/monitoring/sentry-client";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -47,6 +48,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     enabled: !!session,
     staleTime: 60_000,
   });
+
+  // P2 — Sentry-Kontext (org_id, role, user.id) an die laufende Session
+  // koppeln. Sign-out löscht den Kontext, damit Fehler-Cluster keine alten
+  // Tags erben.
+  useEffect(() => {
+    const identity = identityQuery.data;
+    if (!session || !identity) {
+      setSentryContext(null);
+      return;
+    }
+    setSentryContext({
+      userId: session.user.id,
+      staffId: identity.staffId,
+      orgId: identity.organizationId,
+      role: identity.role,
+      impersonating: identity.impersonation.active,
+    });
+  }, [session, identityQuery.data]);
 
   const value: AuthContextValue = {
     session,
