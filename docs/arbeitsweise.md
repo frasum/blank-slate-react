@@ -6,7 +6,7 @@ SaaS-Vorbereitung: Readiness-Audit und Modul-Katalog stehen in docs/saas-vorbere
 
 Produktionsreife-Review: docs/produktionsreife-review.md (Stand 07.07.2026, HEAD 8cfdbc1d, inkl. Patch-Plan P0–P7) — kritischer Pfad vor dem Kassen-Go-live: Monitoring (P1) → Finalize-E2E (P2) → Restore-Probe (P3) → Cutover.
 
-Stand: 14.07.2026 (§95: N3 PIN-Rate-Limit atomar — abgenommen nach 42501-Vorfall)
+Stand: 14.07.2026 (§95 + E1-Mechanik: Vorab-SQL-Freigabe statt PR)
 
 TH1 — Standort-Farbthema: LocationThemeProvider im \_authenticated-Layout hält den themeKey (spicery/yum/neutral).
 LocationPills melden die Auswahl per useLocationThemeSync; Mapping: Name enthält „spicery" → spicery, „yum" → yum, sonst neutral (auch TSB/„Alle"/leer).
@@ -260,6 +260,7 @@ Erst wenn ESLint 0 Fehler und alle Tests grün sind → ABGENOMMEN.
   begrenzte Mengen. (Lektion BFIX2: die Kappung schlägt still zu — keine
   Fehlermeldung, nur fehlende Daten.)
 - **REVOKE-from-PUBLIC auf RPC-Funktionen nie ohne `GRANT EXECUTE … TO service_role`** (42501-Vorfall §95). Trigger-Funktionen sind die Ausnahme — dort kein Grant nötig.
+- **E1-Freigabe-Disziplin (seit 14.07., Lovable kann keine Branches):** Jeder Lovable-Block, der eine MIGRATION trägt, geht erst an Lovable, nachdem Frank das Vorab-SQL explizit freigegeben hat („SQL ok"). Destruktives SQL läuft unverändert über Regel A/B (Frank führt selbst aus). Reine Code-Blöcke ohne Migration brauchen keine Vorab-Freigabe. Jeder Migrations-Merge wird unmittelbar published (Migration+Deploy gekoppelt, §87).
 
 ## 4. Stammdaten-Referenz (COCO Produktion)
 
@@ -4171,4 +4172,4 @@ Abnahme-Anker: `dfa6ec40`, vier Check-Gates grün (1758 Tests), **db-integration
 
 **NEUE MERKREGEL (Pflicht-Regeln §3):** REVOKE-from-PUBLIC auf RPC-gerufenen Funktionen braucht IMMER ein begleitendes `GRANT EXECUTE … TO service_role`. Trigger-Funktionen brauchen es nicht — das Muster ist NICHT übertragbar.
 
-**E1-Fehlstart (offener Punkt).** N3 sollte als erster Block der Freigabe-Disziplin auf Feature-Branch `feat/n3-pin-rate-limit-atomic` mit PR laufen — alle Commits landeten direkt auf main, die Migration ungesichtet in der Produktions-DB. Der doppelte Boden (Migration bewusst rein additiv entworfen) hat gehalten; beim Cutover-Reimport existiert dieser Boden nicht. **Klärung offen:** Branch-Anweisung beim Prompt-Eindampfen verloren ODER Lovable arbeitet nicht auf Branches? Falls Letzteres: E1-Mechanik wird umgestellt auf „Vorab-SQL-Freigabe durch Frank VOR Prompt-Versand" statt PR-Sichtung.
+**E1-Fehlstart — geklärt (14.07., Frank):** N3 sollte als erster Block der Freigabe-Disziplin auf Feature-Branch mit PR laufen — alle Commits landeten direkt auf main. Ursache: **Lovable arbeitet nicht auf Feature-Branches** (Antwort b). Der PR-Weg ist damit tot; die E1-Mechanik ist umgestellt auf **Vorab-SQL-Freigabe VOR Prompt-Versand** (siehe Pflicht-Regel §3). Der doppelte Boden bei N3 (Migration bewusst rein additiv) hat gehalten; die neue Mechanik schützt vor UNGESEHENEN Migrationen — vor Prüfer-Fehlern im SQL schützt weiterhin der blockierende db-integration-Job (§89/§95 bewiesen).
