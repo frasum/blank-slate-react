@@ -261,6 +261,8 @@ Erst wenn ESLint 0 Fehler und alle Tests grün sind → ABGENOMMEN.
   Fehlermeldung, nur fehlende Daten.)
 - **REVOKE-from-PUBLIC auf RPC-Funktionen nie ohne `GRANT EXECUTE … TO service_role`** (42501-Vorfall §95). Trigger-Funktionen sind die Ausnahme — dort kein Grant nötig.
 - **E1-Freigabe-Disziplin (seit 14.07., Lovable kann keine Branches):** Jeder Lovable-Block, der eine MIGRATION trägt, geht erst an Lovable, nachdem Frank das Vorab-SQL explizit freigegeben hat („SQL ok"). Destruktives SQL läuft unverändert über Regel A/B (Frank führt selbst aus). Reine Code-Blöcke ohne Migration brauchen keine Vorab-Freigabe. Jeder Migrations-Merge wird unmittelbar published (Migration+Deploy gekoppelt, §87).
+- **SQL-Kennzeichnung Fall 1/2/3:** Jedes SQL vom Prüfer trägt im Kopf sein Ziel: **Fall 1** = von Frank in der COCO-DB ausführen · **Fall 2** = von Frank in bestellung.pro ausführen · **Fall 3** = NICHT ausführen, nur freigeben (Lovable-Migrations-Skizze, E1). Wird Fall-3-SQL versehentlich manuell angewandt, wird die Migration idempotent nachgezogen (MA1-Muster §96).
+- **Test-Seeds gegen das vollständige Schema-Verhalten prüfen** — Check-Constraints UND Trigger-Auto-Seeds (§89 Steuerklassen, §96 Kanäle). Wo ein Auto-Seed existiert: SELECTen statt INSERTen.
 
 ## 4. Stammdaten-Referenz (COCO Produktion)
 
