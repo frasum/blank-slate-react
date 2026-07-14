@@ -90,7 +90,7 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run tsc --noEmit
       - run: bun run format:check
-      - run: bun run eslint .
+      - run: bun run eslint . --max-warnings=0
       - run: bun run vitest run
 
   db-integration:

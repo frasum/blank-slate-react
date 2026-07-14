@@ -53,7 +53,6 @@ function report(
 function logFailure(context: string, error: { message: string; code?: string | null }): void {
   // Serverseitige Fehler landen so in den Function-Logs; im Browser in der
   // DevTools-Konsole. Kein Zusatz-Framework, damit der Helfer überall läuft.
-  // eslint-disable-next-line no-console
   console.error(`[${context}] Supabase: ${error.message}${error.code ? ` (${error.code})` : ""}`);
 }
 
