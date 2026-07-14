@@ -120,7 +120,10 @@ export const validatePin = createServerFn({ method: "POST" })
         const { data: reg, error: regErr } = await supabaseAdmin.rpc("pin_attempt_register", {
           p_organization_id: cand.organization_id,
           p_staff_id: cand.id,
-          p_ip: clientIp,
+          // p_ip ist SQL-seitig nullable (behandelt NULL explizit), die
+          // generierte Signatur ist aber string. Cast auf unknown hält
+          // die Typprüfung ruhig, ohne die Laufzeit-Semantik zu ändern.
+          p_ip: clientIp as unknown as string,
           p_window_ms: PIN_RATE_LIMIT_WINDOW_MS,
           p_staff_max: PIN_RATE_LIMIT_MAX,
           p_ip_max: PIN_IP_RATE_LIMIT_MAX,
@@ -162,7 +165,7 @@ export const validatePin = createServerFn({ method: "POST" })
         const { data: reg, error: regErr } = await supabaseAdmin.rpc("pin_attempt_register", {
           p_organization_id: cand.organization_id,
           p_staff_id: cand.id,
-          p_ip: clientIp,
+          p_ip: clientIp as unknown as string,
           p_window_ms: PIN_RATE_LIMIT_WINDOW_MS,
           p_staff_max: PIN_RATE_LIMIT_MAX,
           p_ip_max: PIN_IP_RATE_LIMIT_MAX,
