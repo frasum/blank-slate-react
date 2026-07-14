@@ -1336,6 +1336,19 @@ export async function updateSessionCore(caller: AdminCaller, data: UpdateSession
       // einzelner Kellner-Abrechnungen laufen über correctWaiterSettlement.
       blockIfFinalized: true,
     });
+    // MA2 (N11 „ganz oder gar nicht") — Guards VOR sessions-UPDATE:
+    // Ungültige Kanal/Terminal-Referenzen dürfen kein halb aktualisiertes
+    // Session-Objekt hinterlassen.
+    await assertChannelsAtLocation(
+      caller.organizationId,
+      session.location_id,
+      data.channelAmounts.map((c) => c.channelId),
+    );
+    await assertTerminalsAtLocation(
+      caller.organizationId,
+      session.location_id,
+      data.terminalAmounts.map((t) => t.terminalId),
+    );
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error: sErr } = await supabaseAdmin
       .from("sessions")
@@ -1354,19 +1367,6 @@ export async function updateSessionCore(caller: AdminCaller, data: UpdateSession
       .eq("id", session.id)
       .eq("organization_id", caller.organizationId);
     if (sErr) throw sErr;
-
-    // MA2 — Guards: Kanal/Terminal-Referenzen VOR delete+insert prüfen.
-    // Bei ungültiger Referenz wird geworfen und der Bestand bleibt unverändert.
-    await assertChannelsAtLocation(
-      caller.organizationId,
-      session.location_id,
-      data.channelAmounts.map((c) => c.channelId),
-    );
-    await assertTerminalsAtLocation(
-      caller.organizationId,
-      session.location_id,
-      data.terminalAmounts.map((t) => t.terminalId),
-    );
 
     // Kanal-Beträge: alte löschen, neue setzen (einfacher als Upsert+Diff).
     await supabaseAdmin
