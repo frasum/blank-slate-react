@@ -52,8 +52,7 @@ P3 Restore-Probe ✅ · FK-Indizes (§93) ✅ · Generalprobe Kassen-Reimport = 
 2. **N15-Verifikation:** bestätigen, dass `opentabs_deduction_cents` und
    `count_holidays_as_leave` von keinem Import-Pfad gebraucht werden → gibt die
    Drop-Migrationen in Phase 4 frei.
-3. **Zeit-Import (B2c) auffrischen:** frischer Export aus tagesabrechnung (mit
-   16. Spalte `restaurant`), Dry-Run über /admin/migration, Sollwerte in
+3. **Zeit-Import (B2c) auffrischen:** frischer Export aus tagesabrechnung (mit 16. Spalte `restaurant`), Dry-Run über /admin/migration, Sollwerte in
    docs/migration-cutover-checklist.md aktualisieren.
 
 ## Phase 2 — Generalprobe (19.07.–25.07.)
