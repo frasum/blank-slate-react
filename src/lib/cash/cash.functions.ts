@@ -89,6 +89,67 @@ export class NoOpenSessionError extends Error {
   }
 }
 
+// ------------------------------------------------------------------------
+// MA2 — Guards: Kanal/Terminal muss zum Standort der Session gehören.
+// Verhindert, dass ein Manager per manipuliertem Payload Beträge auf
+// Kanäle/Terminals eines fremden Standorts (aber gleicher Organisation)
+// schreibt. Werfen ForbiddenError → Aufrufer bricht VOR delete+insert ab.
+// ------------------------------------------------------------------------
+
+export class CrossLocationRefError extends ForbiddenError {
+  constructor(
+    public readonly kind: "channel" | "terminal",
+    public readonly invalidIds: string[],
+  ) {
+    super(
+      kind === "channel"
+        ? `Kanal-Referenz(en) gehören nicht zum Session-Standort: ${invalidIds.join(", ")}`
+        : `Terminal-Referenz(en) gehören nicht zum Session-Standort: ${invalidIds.join(", ")}`,
+    );
+    this.name = "CrossLocationRefError";
+  }
+}
+
+async function assertChannelsAtLocation(
+  organizationId: string,
+  locationId: string,
+  channelIds: string[],
+): Promise<void> {
+  if (channelIds.length === 0) return;
+  const uniq = Array.from(new Set(channelIds));
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("revenue_channels")
+    .select("id")
+    .eq("organization_id", organizationId)
+    .eq("location_id", locationId)
+    .in("id", uniq);
+  if (error) throw error;
+  const found = new Set((data ?? []).map((r) => r.id));
+  const invalid = uniq.filter((id) => !found.has(id));
+  if (invalid.length > 0) throw new CrossLocationRefError("channel", invalid);
+}
+
+async function assertTerminalsAtLocation(
+  organizationId: string,
+  locationId: string,
+  terminalIds: string[],
+): Promise<void> {
+  if (terminalIds.length === 0) return;
+  const uniq = Array.from(new Set(terminalIds));
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("payment_terminals")
+    .select("id")
+    .eq("organization_id", organizationId)
+    .eq("location_id", locationId)
+    .in("id", uniq);
+  if (error) throw error;
+  const found = new Set((data ?? []).map((r) => r.id));
+  const invalid = uniq.filter((id) => !found.has(id));
+  if (invalid.length > 0) throw new CrossLocationRefError("terminal", invalid);
+}
+
 export class CashLockBackwardsError extends Error {
   constructor() {
     super("Wasserlinie darf nur vorwärts verschoben werden.");
