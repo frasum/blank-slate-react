@@ -6,7 +6,7 @@ SaaS-Vorbereitung: Readiness-Audit und Modul-Katalog stehen in docs/saas-vorbere
 
 Produktionsreife-Review: docs/produktionsreife-review.md (Stand 07.07.2026, HEAD 8cfdbc1d, inkl. Patch-Plan P0–P7) — kritischer Pfad vor dem Kassen-Go-live: Monitoring (P1) → Finalize-E2E (P2) → Restore-Probe (P3) → Cutover.
 
-Stand: 14.07.2026 (§93: FK1 — fehlende Foreign-Key-Indizes vor Cutover angelegt)
+Stand: 14.07.2026 (§94: Cutover-Plan freigegeben, T0 = 26.07.2026)
 
 TH1 — Standort-Farbthema: LocationThemeProvider im \_authenticated-Layout hält den themeKey (spicery/yum/neutral).
 LocationPills melden die Auswahl per useLocationThemeSync; Mapping: Name enthält „spicery" → spicery, „yum" → yum, sonst neutral (auch TSB/„Alle"/leer).
@@ -4155,3 +4155,7 @@ Lese-Inventur der Produktions-DB (13.07.) fand **88 FK-Spalten ohne Index** (fü
 **Bewusste Ausnahme:** reine `organization_id`-FKs bleiben ohne Index — aktuell ein Mandant, keine Selektivität, der Planner würde sie nicht nutzen. Nachziehen beim ersten zweiten Mandanten (SaaS-Spur).
 
 **Invariante ab jetzt:** jede FK-Spalte außer `organization_id` hat einen Index. Prüfskript: `scripts/check-fk-indexes.sql` (rein lesend; erwartetes Ergebnis = nur `organization_id`-Zeilen, alles andere ist Regressions-Befund). Live-verifiziert 14.07.: Prüfskript liefert exakt die 22 `organization_id`-Zeilen.
+
+## §94 — Cutover-Plan freigegeben: T0 = 26.07.2026 (14.07.)
+
+Der konsolidierte Cutover-Gesamtfahrplan steht in [`docs/cutover-plan.md`](./cutover-plan.md) — ab jetzt die EINE Cutover-Wahrheit (ältere Merkposten verweisen hierher). Alle fünf Entscheidungen sind getroffen (Frank, 14.07.): **E1** Härtung als Freigabe-Disziplin (kein Staging-Projekt vor SaaS) · **E2** N3 PIN-Rate-Limit wird jetzt atomar · **E3** Kalender-Token bewusst ohne Ablauf (gehasht, widerrufbar; jährliche Neueinrichtung wäre teurer als das Restrisiko) · **E4** Kassen-Anker = gezählter Tresor-Anfangsbestand je Standort am T0 (YUM zuerst) · **E5** T0 = 26.07.2026 (Periodengrenze). Phasen: 0 Härtung (bis ~18.07.) → 1 Mapping-Verifikation (bis ~21.07.) → 2 Generalprobe (19.–25.07.) → 3 Umschalttag (26.07., mit harten Abbruchkriterien) → 4 Nachlauf inkl. Spalten-Drops N15b/UZ1.
