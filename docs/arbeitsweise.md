@@ -6,7 +6,7 @@ SaaS-Vorbereitung: Readiness-Audit und Modul-Katalog stehen in docs/saas-vorbere
 
 Produktionsreife-Review: docs/produktionsreife-review.md (Stand 07.07.2026, HEAD 8cfdbc1d, inkl. Patch-Plan P0–P7) — kritischer Pfad vor dem Kassen-Go-live: Monitoring (P1) → Finalize-E2E (P2) → Restore-Probe (P3) → Cutover.
 
-Stand: 13.07.2026 (§92: Hygiene-2 komplett — Autoformat-Wächter, Fehler-Helfer, 0× as never)
+Stand: 14.07.2026 (§93: FK1 — fehlende Foreign-Key-Indizes vor Cutover angelegt)
 
 TH1 — Standort-Farbthema: LocationThemeProvider im \_authenticated-Layout hält den themeKey (spicery/yum/neutral).
 LocationPills melden die Auswahl per useLocationThemeSync; Mapping: Name enthält „spicery" → spicery, „yum" → yum, sonst neutral (auch TSB/„Alle"/leer).
@@ -4147,3 +4147,11 @@ Abnahme-Anker je Runde: A `5c4ac220` · B `30f3c4cd` · C `4620b862` · D `2ee74
 **Betriebsnotizen (Direktarbeit im selben Zeitraum, abgenommen):** WeeklyPlan-Kosmetik (feste Spaltenbreiten, Zebra, Toggle im Tabellenkopf, Perioden-Anpassung) — reine UI.
 
 **Offen/Roadmap unverändert:** H2-Folgedurchgänge für cash/ lohn/ roster/ (eigene Runden, Blast-Radius) · FK-Indizes als eigener Mini-Block (vor Cutover-Datenwachstum) · e2e-Zehner-Serie → dann blockierend · Publish + Kontrollrunde (N6/FT1/G1a/N19/Hygiene-2 gesammelt) · danach Cutover-Block.
+
+## §93 — FK1: Foreign-Key-Indizes (Mini-Block vor Cutover) (14.07.)
+
+Lese-Inventur der Produktions-DB (13.07.) fand **90 FK-Spalten ohne Index** (führende Spalte). Vor dem Cutover-Datenwachstum wurden die fachlich relevanten indiziert: **~68 Indizes** per Migration angelegt (Namensschema `idx_<tabelle>_<spalte>`, alle `CREATE INDEX IF NOT EXISTS`, transaktional — kein `CONCURRENTLY`). FK-Indizes beschleunigen Joins/Filter UND die FK-Prüfung bei Parent-DELETEs (relevant für die anstehende Testdaten-Bereinigung).
+
+**Bewusste Ausnahme:** reine `organization_id`-FKs bleiben ohne Index — aktuell ein Mandant, keine Selektivität, der Planner würde sie nicht nutzen. Nachziehen beim ersten zweiten Mandanten (SaaS-Spur).
+
+**Invariante ab jetzt:** jede FK-Spalte außer `organization_id` hat einen Index. Prüfskript: `scripts/check-fk-indexes.sql` (rein lesend; erwartetes Ergebnis = nur `organization_id`-Zeilen, alles andere ist Regressions-Befund).
