@@ -115,3 +115,31 @@ G1b cash.functions.ts-Aufteilung · H2-Folgedurchgänge cash/lohn/roster · Hygi
 CI-Budgets (§86 P4) · SaaS-Spur (N8, Feiertags-Regionen). Parallel, nicht blockierend:
 BK2-Inbetriebnahme, e2e-Zehner-Serie → blockierend, PL3, Backup-Strategie Stufe 2,
 Gerätetest-Stapel.
+
+### Datenmonolith-Fahrplan (Frank, 15.07. — Endziel Gründungsdokument: vier Wahrheiten → eine)
+
+Start frühestens ~11.08. (nach Abschluss Phase 4 / Nachlauf — keine Großbewegung parallel zur Beobachtungsphase). Methodik je Block wie beim Cutover erprobt: Export-SQLs mit Sanity → Prüfer-Diagnose → Dry-Run → Soll-Ist-Abgleich.
+
+- **K1 — HR-Tiefendaten (thaitime), Priorität hoch:** Lohnhistorie, generierte
+  Dokumente (Verträge/Zeugnisse), Onboarding-Historie, Abmahnungen. Einstieg über
+  die vorbereitete **Payslip-Welle D** (privater Storage-Bucket `payslips`
+  existiert). Begründung: Das Lohnmodul läuft produktiv in COCO — die
+  Personalakte gehört dazu.
+- **K2 — Bestellhistorie + B2B-Portale (bestellung.pro), Priorität mittel/nach
+  Betriebslage:** Alt-Bestellhistorie, Lieferanten-/Kunden-Portale (Magic-Link-
+  Umstellung). Kein Termindruck — bestellung.pro läuft als einzige Alt-App
+  solide autark (Gründungsdokument-Reihenfolge B6 bestätigt).
+- **A1 — Auswertungs-MCP (nach K1, Frank 15.07.):** Eigenes Schema `analytics`
+  mit kuratierten, PII-freien Views (Umsätze je Tag/Kanal/Standort,
+  Artikel-Verkäufe, Bestellvolumen, Gästezahlen, Inventurwerte) + read-only
+  MCP-Endpunkt für Ad-hoc-Auswertungen durch den Prüfer und n8n.
+  Sicherheitsmodell: PII-Grenze wird in der DB erzwungen (GRANT ausschließlich
+  auf die Views, kein Basistabellen-Zugriff — DENY-ALL als Fenster);
+  Personenbezogenes nur als Aggregat oberhalb Mindestgruppengröße (kleines
+  Team = re-identifizierbar); Token widerrufbar + gehasht (§87-Muster);
+  KEIN Schreibpfad. Frag COCO (KI1/KI2) bleibt davon unberührt.
+- **K3 — Archiv-Schnitt (alle vier Alt-Apps):** Read-only-Archivierung, finale
+  Exporte verschlüsselt EXTERN, Projekte pausieren. Folgt aus K1/K2.
+
+Dazwischen nach Kapazität die zurückgestellten Code-Blöcke (G1b, H2-Folgerunden,
+Hygiene mit CI-Budgets). Konkrete K1-Beauftragung: Frank-Entscheid Mitte August; A1-Beauftragung nach K1-Abschluss.
