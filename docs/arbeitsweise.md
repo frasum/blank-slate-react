@@ -6,7 +6,7 @@ SaaS-Vorbereitung: Readiness-Audit und Modul-Katalog stehen in docs/saas-vorbere
 
 Produktionsreife-Review: docs/produktionsreife-review.md (Stand 07.07.2026, HEAD 8cfdbc1d, inkl. Patch-Plan P0–P7) — kritischer Pfad vor dem Kassen-Go-live: Monitoring (P1) → Finalize-E2E (P2) → Restore-Probe (P3) → Cutover.
 
-Stand: 15.07.2026 (§97: Cutover-Phase 1 abgeschlossen — MIG1-Doppel-Import-Bug gefixt)
+Stand: 15.07.2026 (§98: Kassen-Generalprobe — Reimport ist No-Op; De-facto-Kassen-Cutover war der 02.07.)
 
 TH1 — Standort-Farbthema: LocationThemeProvider im \_authenticated-Layout hält den themeKey (spicery/yum/neutral).
 LocationPills melden die Auswahl per useLocationThemeSync; Mapping: Name enthält „spicery" → spicery, „yum" → yum, sonst neutral (auch TSB/„Alle"/leer).
@@ -4223,3 +4223,23 @@ _MIG1 — Doppel-Import-Bug (der Fund der Generalprobe):_ Der Idempotenz-Check l
 **Status Cutover-Plan: Phase 1 KOMPLETT (15.07. vormittags, Frist war ~21.07.).** Nächster Schritt: Phase 2 Generalprobe (Kassen-Dry-Run nach §37, Testdaten-Inventur) — Zeit-Strecke ist durch die drei Dry-Runs faktisch schon generalgeprobt.
 
 Nachtrag PLT1: Plattform-Update 2.7.3 deckte toten „urlaub"-Settings-Tab auf (stiller Fallback auf Trinkgeldpool) — Nav-Liste jetzt single-sourced aus der Zielroute (KGL).
+
+## §98 — Phase 2: Kassen-Generalprobe bestanden; Reimport-No-Op; Testdaten klassifiziert (15.07. nachmittags)
+
+**Verfahren:** Vier Quell-Exporte (Sanity + sessions + waiter_shifts + kitchen_shifts, alle Sanity-verifiziert bis auf den Cent: 295/943/1415, Σ pos_total 1.511.786,61 €) gegen COCO-Gegenexport (297 Sessions mit Kind-Zählern) gediffed — vollautomatische Prüfer-Diagnose ohne DB-Schreibzugriff.
+
+**Hauptbefund — der Kassen-Voll-Reimport am T0 entfällt:**
+
+1. Gemeinsamer Zeitraum 16.02.–01.07. (271 Sessions): **NULL Hüllen, NULL Betragsdifferenzen (vectron = pos_total×100 centgenau), NULL Kind-Differenzen** über Settlements, Pool (distinct-Personen-Logik — COCO führt Mehrfachrollen pro Session korrekt zusammen), Kanäle und Terminals. Der §37-Cleaning-Cut-Stand hat gehalten.
+2. **Seit 02.07. ist COCO nativ führend:** 26 native COCO-Sessions mit vollständigen Abrechnungen; die Altsystem-Zweitschrift derselben Tage (24 Sessions, andere IDs) degradiert nachweislich (05.07. YUM = 0-€-Hülle bei 5.063 € echt in COCO; 10.+12.07. YUM fehlen der Quelle komplett). **Der De-facto-Kassen-Cutover war der 02.07.**
+3. **Import-Verbot ab 02.07.:** Die 24 Quell-Sessions ab 02.07. dürfen NIE importiert werden — andere IDs, gleiche Geschäftstage → Umsatzverdopplung; `WHERE NOT EXISTS` auf id schützt hier NICHT. T0-Schritt 4 wird vom Voll-Reimport zum **Verifikationslauf** (identische Diagnose mit frischen Exporten; Erwartung: weiterhin null Differenzen ≤ 01.07.).
+
+**Betriebsmodell bis Stilllegung (Frank, 15.07.):** tagesabrechnung läuft bewusst als Kontroll-Parallelbetrieb bis zur endgültigen Stilllegung Ende Juli — KEIN vorzeitiger Stopp. Der Vergleich läuft dafür **wöchentlich** als wiederholbarer Ablauf (4 Export-SQLs + Prüfer-Diagnose) bis T0. Team-Hinweis ohne Alarm: YUM-Zweitschrift bröckelt (s. o.) — als Kontrolle nur wirksam, wenn geführt.
+
+**F3 (Frank): (a)** — die eine „Frank"-Zusatzkellner-Zeile (Q1-Preflight: einziger unaufgelöster Name in 943+1415 Schichten) wird bewusst NICHT importiert; deckungsgleich mit dem §37-Bestand (der Import ließ sie schon damals weg — per Distinct-Diff bewiesen).
+
+**Quell-Anomalien dokumentiert:** YUM-Session-Lücken 17.02. (Anlauf-Artefakt Systemtag 2), 10.07., 12.07. (COCO-nativ vorhanden). Soll-Matrix Monat×Standort im Prüfer-Besitz (Feb ab 16.02. anteilig, sonst lückenlos).
+
+**Testdaten-Klassifikation (Frank: K1+K2+K3 = ja, 15.07.):** Saubere zeitliche Trennung — alle 43 unversendeten Test-Bestellungen (sämtlich YUM, 360 Positionen, 12.449,26 €) liegen 29.12.2025–05.05.2026, die erste ECHTE versendete Bestellung kam am 05.05.; danach nur Echtbetrieb (9 versendete, bleiben unangetastet). Lösch-Umfang: 43 Test + 1 stornierte (Kriterium schlicht `email_sent = false`) + 8 carts/1 cart_item. **T0-Mappe liegt bereit:** `t0-testdaten-1-beweis` (Regel A, mit Erwartungswerten; bei Abweichung am T0 — z. B. echte frische unversendete EasyOrder-Bestellung — NICHT löschen, erst Detail-Liste prüfen) und `t0-testdaten-2-loeschen` (Regel B, Transaktion + §10-Rest-Check inkl. `echte_unveraendert`-Probe) — getrennte Dateien, Ausführung erst am 26.07.
+
+**T0-Restumfang (deutlich geschrumpft):** Alt-System einfrieren · Zeit-Export/Dry-Run/COMMIT (Referenz: 249 importierbar) + Wasserlinie · Kassen-VERIFIKATIONSLAUF (statt Import) · Testdaten-Mappe · Tresor-Anker je Standort (E4) · Bestell-Testmodus umschalten · Abbruchkriterien-Check.

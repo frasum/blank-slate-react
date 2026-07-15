@@ -65,7 +65,7 @@ P3 Restore-Probe ✅ · FK-Indizes (§93) ✅ · Generalprobe Kassen-Reimport = 
   Hüllen-Falle) → Batch-SQL mit WHERE NOT EXISTS (≤ ~2000–2500 Zeilen/Datei,
   Standortname prominent in Dateiname+Header) → Abschluss-Abgleich Soll/Ist je
   Monat × Standort (PFLICHT — fängt stille Namens-Drops). Laufenden Geschäftstag NIE
-  importieren (Stichtag = gestern). Mitternachts-Wrap: h<0 → h+24.
+  importieren (Stichtag = gestern). Mitternachts-Wrap: h<0 → h+24. — DURCHGEFÜHRT 15.07., bestanden (§98).
 - **Zeit:** CSV-Dry-Run mit Bilanz-Invariante read = imported + Σ skipped;
   Identitäts-Mapping bis „alle bestätigt"; Abgleichsbericht 26.–25. mit 0 unerklärten
   Differenzen.
@@ -80,7 +80,10 @@ P3 Restore-Probe ✅ · FK-Indizes (§93) ✅ · Generalprobe Kassen-Reimport = 
    abschließen, Read-only-Vermerk (Datum + Verweis auf COCO).
 2. Finale Exporte (Kasse + Zeit, bis einschließlich 25.07.).
 3. Testdaten-Bereinigung (Phase-2-Liste; DELETE + Rest-Check im SELBEN Editor-Lauf, §10).
-4. Kassen-Voll-Reimport (§37-Prozedur) → Abschluss-Abgleich Ist = Soll.
+4. Kassen-VERIFIKATIONSLAUF statt Voll-Reimport (§98: Bestand bis 01.07. byte-genau
+   vollständig, COCO seit 02.07. nativ führend): vier Quell-Exporte + COCO-Gegenexport
+   → Prüfer-Diagnose; Erwartung NULL Differenzen ≤ 01.07. Quell-Sessions ab 02.07.
+   werden NIE importiert (Umsatzverdopplungs-Verbot, andere IDs).
 5. Zeit-Import-Commit über /admin/migration → Run-ID + Wasserlinie notieren;
    Wasserlinie = höchster importierter Geschäftstag; Audit-Log prüfen.
 6. Tresor-Anker setzen (E4): gezählter Anfangsbestand je Standort, YUM zuerst.

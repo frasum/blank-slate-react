@@ -5,6 +5,14 @@ Einfrieren der Quelle. Diese Vorlage ist das Phase-1-Ergebnis (Mapping verifizie
 15.07. gegen Stand `6c1acdb3`); die konkreten Werte-Blöcke werden in Phase 2 aus den
 frischen Exporten generiert.
 
+> **§98-UPDATE (15.07.):** Die Schritte 2–5 dieser Vorlage kommen am T0 NICHT zur
+> Ausführung — die Generalprobe ergab: COCO ist bis 01.07. vollständig und seit
+> 02.07. nativ führend; Quell-Sessions ab 02.07. dürfen NIE importiert werden
+> (Umsatzverdopplung). Am T0 läuft stattdessen der Verifikationslauf (§98).
+> Die Vorlage bleibt als dokumentierte Methode erhalten (Referenz für künftige
+> Migrationen und den Verifikationslauf selbst). F3: „Frank"-Zusatzkellner-Zeile
+> bewusst ausgeschlossen.
+
 Verbindliche Rahmenregeln (aus §37, §5, §10, §96): ids 1:1 aus der Quelle · Geld ×100 →
 `*_cents` · Batches ≤ ~2000–2500 Zeilen/Datei · Standortname prominent in Dateiname UND
 Header jeder SQL-Datei · laufenden Geschäftstag NIE importieren (Stichtag = T0−1) ·
