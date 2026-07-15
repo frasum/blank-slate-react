@@ -26,7 +26,7 @@ import { TelegramBotSection } from "@/components/settings/TelegramBotSection";
 import { TelegramTagesberichtSection } from "@/components/settings/TelegramTagesberichtSection";
 import { SkillsSection } from "@/components/settings/SkillsSection";
 
-const SUB_TABS = [
+export const SUB_TABS = [
   { key: "trinkgeldpool", label: "Trinkgeldpool" },
   { key: "bestellungen", label: "Bestellungen" },
   { key: "sofortmeldung", label: "Sofortmeldung & Arbeitgeber" },
@@ -34,7 +34,7 @@ const SUB_TABS = [
   { key: "skills", label: "Skills" },
 ] as const;
 
-type TabKey = (typeof SUB_TABS)[number]["key"];
+export type TabKey = (typeof SUB_TABS)[number]["key"];
 const TAB_KEYS = SUB_TABS.map((t) => t.key) as readonly TabKey[];
 
 function isTabKey(value: unknown): value is TabKey {
