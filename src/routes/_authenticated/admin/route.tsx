@@ -11,7 +11,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { getMyIdentity } from "@/lib/auth/me.functions";
 import { getReviewPendingCounts } from "@/lib/profile/profile-admin.functions";
 import { useAuth } from "@/hooks/use-auth";
-import { SUB_TABS as EINSTELLUNGEN_SUB_TABS, type TabKey as EinstellungenTabKey } from "./einstellungen.index";
+import {
+  SUB_TABS as EINSTELLUNGEN_SUB_TABS,
+  type TabKey as EinstellungenTabKey,
+} from "./einstellungen.index";
 
 function SignOutLink() {
   const { signOut } = useAuth();
