@@ -30,15 +30,29 @@ Quellsystemen — die App tut hier nichts automatisch.
      `HH:MM:SS` oder `HH:MM` für Zeiten (`24:MM` als „Tagesende" wird auf
      `00:MM` Folgetag normalisiert). Abweichende Header werden vom Parser
      hart abgelehnt.
-2. **Dry-Run**: CSV hochladen → „Dry-Run". Sollwerte für den aktuellen
-   Export (Stand T-1, 3890 Zeilen):
-   - `read = 3890`
-   - `skipped.absence = 131` (Abwesenheitscodes wie `vacation`)
-   - `skipped.invalid_time = 58` (56 Zeilen ohne Start-/Endzeit + 2
-     Zeilen mit defektem Endwert `01:001`; siehe Notiz unten)
-   - vor Mapping-Bestätigung zusätzlich `skipped.unmapped_staff > 0`
-   - `read = imported + Σ skippedByReason` (Bilanz-Invariante, wird von der
-     App erzwungen).
+   - Referenz-Export-Query (siehe §97): `zt_shifts ⋈ staff ⋈ staff_restaurants`
+     (Join über `zt_department::text = department`) `⋈ restaurants`; Stichtag
+     `current_date - 1`. **Dedup-Pflicht per GROUP BY:** `restaurant` nur
+     setzen, wenn GENAU EIN Match existiert, sonst NULL (F2-Semantik
+     „Standort nur bei Eindeutigkeit"; Doppelhaus-Mitarbeiter wie SUMITR,
+     CHEFIN, MO, DEAU, EM, APPEL, NOK, Elson erzeugen sonst Join-Fan-Out).
+     **Sanity-Check (Zeilen quelle == Zeilen export) ist PFLICHT vor jedem
+     Export.**
+2. **Dry-Run**: CSV hochladen → „Dry-Run". Sollwert-**Struktur** (absolute
+   Zahlen wandern täglich, T0 zieht frische Werte — Referenz 15.07., Datei
+   4553 Zeilen):
+   - **Bilanz-Invariante** (App-seitig erzwungen, zusätzlich manuell
+     doppelt prüfen — Kandidaten − Bestand = importierbar):
+     `read = imported + absence + invalid_time + duplicate (+ unmapped_staff
+vor Mapping-Bestätigung)`.
+   - Referenz 15.07.: `read = 4553 = 249 (imported) + 131 (absence: 104
+Urlaub / 27 krank, by design → Leave-Modul) + 79 (invalid_time: leere
+0h-Artefakte, kein Stundenverlust) + 4094 (duplicate = exakt der
+Live-Bestand `source='import'`)`; zusätzlich 64 Zeilen ohne Standort
+     (F2, kein Skip).
+   - `existingKeyCount` im Run-Ergebnis MUSS dem Live-Count der
+     `time_entries` mit `source='import'` entsprechen (MIG1-Sichtsicherung
+     gegen PostgREST-Kappung, siehe §97).
    - `unmapped_staff = 0` _nach_ Mapping-Bestätigung.
 3. **Identitäts-Mapping**:
    - „Identitäten vorschlagen" laufen lassen → Vorschläge prüfen, jedes

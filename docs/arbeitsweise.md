@@ -4203,3 +4203,23 @@ Abnahme-Anker: MA1 `84a826f9` · MA2 `c4642513`, je vier Check-Gates grün (1758
 4. **CI-Robustheits-Merkposten:** db-integration fiel einmal im Setup („Failed to resolve latest Supabase CLI release: rate limit exceeded" — Flake-Familie §89, eine Etage vor der §92-Retry-Schleife). Beim nächsten CI-Block: Supabase-CLI-Version PINNEN statt `latest` + `GITHUB_TOKEN` an setup-cli.
 
 **Status Cutover-Plan: Phase 0 KOMPLETT (14.07., Frist war ~18.07.)** — E1 mechanisiert (§95) · E2/N3 ✅ · E3 dokumentiert · Audit-Matrix ✅ MA1+MA2. Nächster Schritt: Phase 1 Mapping-Verifikation (Prüfer: §5-Kassen-Mapping gegen heutiges Schema; Frank: frischer Zeit-Export aus tagesabrechnung mit `restaurant`-Spalte).
+
+**Verifizierter Stand:** 15.07.2026 (§97: Cutover-Phase 1 abgeschlossen — MIG1-Doppel-Import-Bug gefixt).
+
+## §97 — Cutover-Phase 1 abgeschlossen: Mapping verifiziert, Zeit-Import-Kette geprobt, MIG1-Bug (15.07.)
+
+**1.1 Kassen-Mapping ✅** gegen Stand `6c1acdb3` verifiziert. Drift seit 29.06.: drei neue Spalten, keine bricht den Import — `waiter_settlements.open_invoices_details` (Default '[]', wird nicht befüllt), `session_tip_pool_entries.shift_start/shift_end` + `participates`. **F1-Entscheidung (Frank): (b)** — Küchenzeiten werden beim Reimport aus der Quelle übernommen, `hours_minutes` DARAUS abgeleitet (Wrap h<0→+24, eine Wahrheit); Service bleibt Stunden-only; `participates` bleibt NULL. Vorlage: `docs/cutover-import-vorlage.md` (Anker `41c935d7`; MA2-konform: channel/terminal NUR per (location, kind/label)-Join).
+
+**1.2 N15 ✅** `opentabs_deduction_cents` und `count_holidays_as_leave` haben null Code-Leser (nur Kommentare) — Phase-4-Drops freigegeben.
+
+**1.3 Zeit-Import geprobt ✅** — mit drei Funden:
+
+_Export-Query (dokumentiert für T0):_ zt_shifts ⋈ staff ⋈ staff_restaurants (über `zt_department::text = department`) ⋈ restaurants; Stichtag `current_date - 1`. **Dedup-Pflicht:** 1115 Schichten von Doppelhaus-Mitarbeitern (SUMITR, CHEFIN, MO, DEAU, EM, APPEL, NOK, Elson) erzeugen Join-Fan-Out — Regel per GROUP BY: `restaurant` nur bei GENAU EINEM Match, sonst NULL (**F2, Frank bestätigt**: B2a-Semantik „Standort nur bei Eindeutigkeit"; die Quelle kennt das Haus wirklich nicht; nachträgliche Zuordnung via Manager-Korrektur möglich). Der Sanity-Check (quelle = export) ist PFLICHT vor jedem Export.
+
+_R2-Nachzügler GIG SERVICE:_ Anfang Juli im Altsystem neu angelegt (nach Map-Bau) → 8 Schichten unmapped. Identity-Map-Nachtrag per name-aufgelöstem INSERT; aufgelöste staff_id `93e44abe…` = identisch mit dem §5-Kassen-Override — beide Import-Ströme zeigen auf dieselbe Person. Lehre: der T0-Export ist IMMER jünger als jede Map — „Identitäten bis alle bestätigt" ist keine Formalie.
+
+_MIG1 — Doppel-Import-Bug (der Fund der Generalprobe):_ Der Idempotenz-Check lud Bestands-`import_key`s mit ungefiltertem `.select()` — **PostgREST kappt ohne `.range()` bei 1000 Zeilen.** Bei live 4094 importierten Altbeständen waren 3094 Schlüssel unsichtbar; ~3000 Überlappungs-Schichten galten als „importierbar" und wären beim T0-Commit DOPPELT gelandet (Zeitübersicht/Lohn verfälscht). Fingerabdruck: zwei Dry-Runs mit exakt `duplicate: 1000`. Fix `35813033`: generischer Helfer `src/lib/supabase/select-all.ts` (`selectAllPaged`, stabiles ORDER BY, Hard-Cap), `existingKeyCount` sichtbar im Run-Ergebnis, DB-Test mit 1005 Seeds (Schlüssel #1003 wird erkannt). **Sweep-Zweitfund:** der Perioden-Abgleichsbericht hätte bei >1000 Zeilen ebenfalls still trunkiert — ausgerechnet unser T0-Abbruchkriterium; ebenfalls paginiert. Sechs Kleinst-Listen als `<1000 by design` begründet.
+
+**Sollwert-Struktur Dry-Run (Referenz 15.07., Datei 4553 Zeilen — absolute Zahlen wandern täglich, T0 zieht frisch):** gelesen = importiert + absence + invalid_time + duplicate (Bilanz-Invariante, doppelt geprüft: Kandidaten − Bestand = importierbar). Referenz: 4553 = 249 + 131 (104 Urlaub/27 krank, by design → Leave-Modul) + 79 (leere 0h-Artefakte, kein Stundenverlust) + 4094 (= exakt der Live-Bestand `source='import'`); 64 ohne Standort (F2). `existingKeyCount` MUSS dem Live-Count entsprechen.
+
+**Status Cutover-Plan: Phase 1 KOMPLETT (15.07. vormittags, Frist war ~21.07.).** Nächster Schritt: Phase 2 Generalprobe (Kassen-Dry-Run nach §37, Testdaten-Inventur) — Zeit-Strecke ist durch die drei Dry-Runs faktisch schon generalgeprobt.
