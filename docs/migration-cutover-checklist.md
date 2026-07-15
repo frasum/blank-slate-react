@@ -44,11 +44,11 @@ Quellsystemen — die App tut hier nichts automatisch.
    - **Bilanz-Invariante** (App-seitig erzwungen, zusätzlich manuell
      doppelt prüfen — Kandidaten − Bestand = importierbar):
      `read = imported + absence + invalid_time + duplicate (+ unmapped_staff
-     vor Mapping-Bestätigung)`.
+vor Mapping-Bestätigung)`.
    - Referenz 15.07.: `read = 4553 = 249 (imported) + 131 (absence: 104
-     Urlaub / 27 krank, by design → Leave-Modul) + 79 (invalid_time: leere
-     0h-Artefakte, kein Stundenverlust) + 4094 (duplicate = exakt der
-     Live-Bestand `source='import'`)`; zusätzlich 64 Zeilen ohne Standort
+Urlaub / 27 krank, by design → Leave-Modul) + 79 (invalid_time: leere
+0h-Artefakte, kein Stundenverlust) + 4094 (duplicate = exakt der
+Live-Bestand `source='import'`)`; zusätzlich 64 Zeilen ohne Standort
      (F2, kein Skip).
    - `existingKeyCount` im Run-Ergebnis MUSS dem Live-Count der
      `time_entries` mit `source='import'` entsprechen (MIG1-Sichtsicherung
