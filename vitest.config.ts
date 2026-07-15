@@ -17,5 +17,7 @@ export default defineConfig({
       ? ["node_modules/**", "dist/**"]
       : ["node_modules/**", "dist/**", "src/**/*.db.test.ts"],
     testTimeout: includeDbTests ? 30_000 : 5_000,
+    // Upstream-Boot-Flake (§3/§97): einmalige Wiederholung nur für DB-Integrationstests.
+    retry: includeDbTests ? 1 : 0,
   },
 });
