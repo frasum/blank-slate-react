@@ -105,6 +105,8 @@ export async function executeImport(args: RunImportArgs): Promise<RunImportResul
   // 1) Bestätigte Identity-Map.
   const { data: mapRows, error: mapErr } = await admin
     .from("staff_identity_map")
+    // <1000 by design: eine Zeile je (org, sourceSystem, alt_id) — in der
+    // Praxis <200. Wächst nicht mit Import-Volumen.
     .select("alt_id, staff_id, confirmed_at")
     .eq("organization_id", organizationId)
     .eq("source_system", sourceSystem);
