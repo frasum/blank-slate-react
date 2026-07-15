@@ -269,5 +269,5 @@ export async function executeImport(args: RunImportArgs): Promise<RunImportResul
     }
   }
 
-  return { mode, fileHash, counters, runId, lockedThrough: newLock };
+  return { mode, fileHash, counters, runId, lockedThrough: newLock, existingKeyCount };
 }
