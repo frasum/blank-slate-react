@@ -40,6 +40,8 @@ export async function bootstrapMissingStaffCore(args: {
 
   const { data: openMappings, error: mapErr } = await admin
     .from("staff_identity_map")
+    // <1000 by design: offene Mappings je (org, sourceSystem) ~ Anzahl noch
+    // nicht zugeordneter Alt-Mitarbeiter, in der Praxis <200.
     .select("id, alt_id, alt_name")
     .eq("organization_id", organizationId)
     .eq("source_system", sourceSystem)
@@ -48,6 +50,7 @@ export async function bootstrapMissingStaffCore(args: {
 
   const { data: existingStaff, error: staffErr } = await admin
     .from("staff")
+    // <1000 by design: Staff je Organisation.
     .select("id, display_name")
     .eq("organization_id", organizationId);
   if (staffErr) throw staffErr;
