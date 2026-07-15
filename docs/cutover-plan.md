@@ -76,6 +76,9 @@ P3 Restore-Probe ✅ · FK-Indizes (§93) ✅ · Generalprobe Kassen-Reimport = 
 
 ## Phase 3 — Umschalttag T0 (26.07.)
 
+> **Ausführungs-Drehbuch:** [`docs/t0-laufkarte.md`](./t0-laufkarte.md) — Schritt für
+> Schritt mit Dateien, Erwartungswerten und Stopp-Regeln. Generalprobe: 22.07.
+
 1. tagesabrechnung einfrieren: Schreibrechte entziehen, laufende Stempelungen
    abschließen, Read-only-Vermerk (Datum + Verweis auf COCO).
 2. Finale Exporte (Kasse + Zeit, bis einschließlich 25.07.).
