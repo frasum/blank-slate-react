@@ -11,6 +11,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { getMyIdentity } from "@/lib/auth/me.functions";
 import { getReviewPendingCounts } from "@/lib/profile/profile-admin.functions";
 import { useAuth } from "@/hooks/use-auth";
+import {
+  SUB_TABS as EINSTELLUNGEN_SUB_TABS,
+  type TabKey as EinstellungenTabKey,
+} from "./einstellungen.index";
 
 function SignOutLink() {
   const { signOut } = useAuth();
@@ -203,17 +207,10 @@ const SYSTEM_SUB: { to: string; label: string }[] = [
 // Sub-Sub-Nav für „Einstellungen → Allgemein" (?tab=…). Wird nur auf
 // /admin/einstellungen gerendert und teilt sich Styling & Struktur mit
 // SYSTEM_SUB, damit die Optik 1:1 mit den anderen Tab-Leisten übereinstimmt.
-const EINSTELLUNGEN_ALLGEMEIN_SUB: {
-  tab: "trinkgeldpool" | "bestellungen" | "sofortmeldung" | "telegram" | "urlaub" | "skills";
-  label: string;
-}[] = [
-  { tab: "trinkgeldpool", label: "Trinkgeldpool" },
-  { tab: "bestellungen", label: "Bestellungen" },
-  { tab: "sofortmeldung", label: "Sofortmeldung & Arbeitgeber" },
-  { tab: "telegram", label: "Telegram" },
-  { tab: "urlaub", label: "Urlaub & Feiertage" },
-  { tab: "skills", label: "Skills" },
-];
+// KGL: Tab-Liste ist single-sourced aus der Zielroute (einstellungen.index),
+// damit Nav und validateSearch strukturell nicht mehr driften können.
+const EINSTELLUNGEN_ALLGEMEIN_SUB: { tab: EinstellungenTabKey; label: string }[] =
+  EINSTELLUNGEN_SUB_TABS.map((t) => ({ tab: t.key, label: t.label }));
 
 function isSystemPath(pathname: string): boolean {
   return SYSTEM_SUB.some((s) => pathname === s.to || pathname.startsWith(s.to + "/"));
