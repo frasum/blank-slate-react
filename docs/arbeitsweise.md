@@ -4229,6 +4229,7 @@ Nachtrag PLT1: Plattform-Update 2.7.3 deckte toten „urlaub"-Settings-Tab auf (
 **Verfahren:** Vier Quell-Exporte (Sanity + sessions + waiter_shifts + kitchen_shifts, alle Sanity-verifiziert bis auf den Cent: 295/943/1415, Σ pos_total 1.511.786,61 €) gegen COCO-Gegenexport (297 Sessions mit Kind-Zählern) gediffed — vollautomatische Prüfer-Diagnose ohne DB-Schreibzugriff.
 
 **Hauptbefund — der Kassen-Voll-Reimport am T0 entfällt:**
+
 1. Gemeinsamer Zeitraum 16.02.–01.07. (271 Sessions): **NULL Hüllen, NULL Betragsdifferenzen (vectron = pos_total×100 centgenau), NULL Kind-Differenzen** über Settlements, Pool (distinct-Personen-Logik — COCO führt Mehrfachrollen pro Session korrekt zusammen), Kanäle und Terminals. Der §37-Cleaning-Cut-Stand hat gehalten.
 2. **Seit 02.07. ist COCO nativ führend:** 26 native COCO-Sessions mit vollständigen Abrechnungen; die Altsystem-Zweitschrift derselben Tage (24 Sessions, andere IDs) degradiert nachweislich (05.07. YUM = 0-€-Hülle bei 5.063 € echt in COCO; 10.+12.07. YUM fehlen der Quelle komplett). **Der De-facto-Kassen-Cutover war der 02.07.**
 3. **Import-Verbot ab 02.07.:** Die 24 Quell-Sessions ab 02.07. dürfen NIE importiert werden — andere IDs, gleiche Geschäftstage → Umsatzverdopplung; `WHERE NOT EXISTS` auf id schützt hier NICHT. T0-Schritt 4 wird vom Voll-Reimport zum **Verifikationslauf** (identische Diagnose mit frischen Exporten; Erwartung: weiterhin null Differenzen ≤ 01.07.).
