@@ -6,7 +6,7 @@ SaaS-Vorbereitung: Readiness-Audit und Modul-Katalog stehen in docs/saas-vorbere
 
 Produktionsreife-Review: docs/produktionsreife-review.md (Stand 07.07.2026, HEAD 8cfdbc1d, inkl. Patch-Plan P0–P7) — kritischer Pfad vor dem Kassen-Go-live: Monitoring (P1) → Finalize-E2E (P2) → Restore-Probe (P3) → Cutover.
 
-Stand: 14.07.2026 (§96: Audit-Matrix + MA1/MA2 — Cutover-Phase 0 abgeschlossen)
+Stand: 15.07.2026 (§97: Cutover-Phase 1 abgeschlossen — MIG1-Doppel-Import-Bug gefixt)
 
 TH1 — Standort-Farbthema: LocationThemeProvider im \_authenticated-Layout hält den themeKey (spicery/yum/neutral).
 LocationPills melden die Auswahl per useLocationThemeSync; Mapping: Name enthält „spicery" → spicery, „yum" → yum, sonst neutral (auch TSB/„Alle"/leer).
@@ -4204,8 +4204,6 @@ Abnahme-Anker: MA1 `84a826f9` · MA2 `c4642513`, je vier Check-Gates grün (1758
 
 **Status Cutover-Plan: Phase 0 KOMPLETT (14.07., Frist war ~18.07.)** — E1 mechanisiert (§95) · E2/N3 ✅ · E3 dokumentiert · Audit-Matrix ✅ MA1+MA2. Nächster Schritt: Phase 1 Mapping-Verifikation (Prüfer: §5-Kassen-Mapping gegen heutiges Schema; Frank: frischer Zeit-Export aus tagesabrechnung mit `restaurant`-Spalte).
 
-**Verifizierter Stand:** 15.07.2026 (§97: Cutover-Phase 1 abgeschlossen — MIG1-Doppel-Import-Bug gefixt).
-
 ## §97 — Cutover-Phase 1 abgeschlossen: Mapping verifiziert, Zeit-Import-Kette geprobt, MIG1-Bug (15.07.)
 
 **1.1 Kassen-Mapping ✅** gegen Stand `6c1acdb3` verifiziert. Drift seit 29.06.: drei neue Spalten, keine bricht den Import — `waiter_settlements.open_invoices_details` (Default '[]', wird nicht befüllt), `session_tip_pool_entries.shift_start/shift_end` + `participates`. **F1-Entscheidung (Frank): (b)** — Küchenzeiten werden beim Reimport aus der Quelle übernommen, `hours_minutes` DARAUS abgeleitet (Wrap h<0→+24, eine Wahrheit); Service bleibt Stunden-only; `participates` bleibt NULL. Vorlage: `docs/cutover-import-vorlage.md` (Anker `41c935d7`; MA2-konform: channel/terminal NUR per (location, kind/label)-Join).
@@ -4223,3 +4221,5 @@ _MIG1 — Doppel-Import-Bug (der Fund der Generalprobe):_ Der Idempotenz-Check l
 **Sollwert-Struktur Dry-Run (Referenz 15.07., Datei 4553 Zeilen — absolute Zahlen wandern täglich, T0 zieht frisch):** gelesen = importiert + absence + invalid_time + duplicate (Bilanz-Invariante, doppelt geprüft: Kandidaten − Bestand = importierbar). Referenz: 4553 = 249 + 131 (104 Urlaub/27 krank, by design → Leave-Modul) + 79 (leere 0h-Artefakte, kein Stundenverlust) + 4094 (= exakt der Live-Bestand `source='import'`); 64 ohne Standort (F2). `existingKeyCount` MUSS dem Live-Count entsprechen.
 
 **Status Cutover-Plan: Phase 1 KOMPLETT (15.07. vormittags, Frist war ~21.07.).** Nächster Schritt: Phase 2 Generalprobe (Kassen-Dry-Run nach §37, Testdaten-Inventur) — Zeit-Strecke ist durch die drei Dry-Runs faktisch schon generalgeprobt.
+
+Nachtrag PLT1: Plattform-Update 2.7.3 deckte toten „urlaub"-Settings-Tab auf (stiller Fallback auf Trinkgeldpool) — Nav-Liste jetzt single-sourced aus der Zielroute (KGL).
