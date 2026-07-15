@@ -19,6 +19,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { runGuarded } from "@/lib/admin/admin-call";
 import { writeAuditLog } from "@/lib/admin/audit";
+import { selectAllPaged } from "@/lib/supabase/select-all";
 import { localTimesOf, sundayHolidayOf } from "./derivations";
 import { utcIsoToBerlinHHMM, isSundayDate } from "./normalize";
 import { aggregate, cycleKey, isoWeekKey, type ShiftSample } from "./aggregate-by-business-date";
@@ -163,6 +164,7 @@ export const proposeIdentityMappings = createServerFn({ method: "POST" })
 
     const { data: staffRows, error: staffErr } = await supabaseAdmin
       .from("staff")
+      // <1000 by design: aktive Mitarbeiter je Organisation liegen weit unter 1000.
       .select("id, display_name, first_name, last_name")
       .eq("organization_id", caller.organizationId)
       .eq("is_active", true);
@@ -254,6 +256,8 @@ export const listIdentityMappings = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: rows, error } = await supabaseAdmin
       .from("staff_identity_map")
+      // <1000 by design: Identity-Map je (org, sourceSystem) ~ Anzahl distinct
+      // Alt-Mitarbeiter, in der Praxis <200.
       .select("id, alt_id, alt_name, staff_id, confirmed_at, confirmed_by")
       .eq("organization_id", caller.organizationId)
       .eq("source_system", data.sourceSystem)
@@ -411,6 +415,7 @@ export const getReconciliationReport = createServerFn({ method: "POST" })
 
     const { data: mapRows, error: mapErr } = await supabaseAdmin
       .from("staff_identity_map")
+      // <1000 by design (siehe listIdentityMappings).
       .select("alt_id, staff_id, confirmed_at")
       .eq("organization_id", caller.organizationId)
       .eq("source_system", data.sourceSystem);
@@ -454,6 +459,7 @@ export const getReconciliationReportFromDb = createServerFn({ method: "POST" })
 
     const { data: mapRows, error: mapErr } = await supabaseAdmin
       .from("staff_identity_map")
+      // <1000 by design (siehe listIdentityMappings).
       .select("alt_id, staff_id, confirmed_at")
       .eq("organization_id", caller.organizationId)
       .eq("source_system", data.sourceSystem);
@@ -515,16 +521,27 @@ export const getReconciliationReportFromDb = createServerFn({ method: "POST" })
     // DB-Seite: importierte time_entries für scoped Staff & Datumsbereich.
     const samples: ShiftSample[] = [];
     if (scopedStaff.size > 0 && minDate && maxDate) {
-      const { data: rows, error: teErr } = await supabaseAdmin
-        .from("time_entries")
-        .select("staff_id, started_at, ended_at, business_date")
-        .eq("organization_id", caller.organizationId)
-        .eq("source", "import")
-        .in("staff_id", Array.from(scopedStaff))
-        .gte("business_date", minDate)
-        .lte("business_date", maxDate);
-      if (teErr) throw teErr;
-      for (const r of rows ?? []) {
+      // MIG1-Fix: seitenweise laden — Report kann über lange Perioden leicht
+      // >1000 Zeilen liefern; ohne Paginierung würden Buckets stumm trunkieren.
+      const scopedList = Array.from(scopedStaff);
+      const rows = await selectAllPaged<{
+        staff_id: string | null;
+        started_at: string | null;
+        ended_at: string | null;
+        business_date: string | null;
+      }>(() =>
+        supabaseAdmin
+          .from("time_entries")
+          .select("staff_id, started_at, ended_at, business_date")
+          .eq("organization_id", caller.organizationId)
+          .eq("source", "import")
+          .in("staff_id", scopedList)
+          .gte("business_date", minDate)
+          .lte("business_date", maxDate)
+          .order("business_date", { ascending: true })
+          .order("staff_id", { ascending: true }),
+      );
+      for (const r of rows) {
         if (!r.started_at || !r.ended_at || !r.staff_id || !r.business_date) continue;
         samples.push({
           staffId: r.staff_id,

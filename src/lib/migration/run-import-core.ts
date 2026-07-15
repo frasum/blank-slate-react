@@ -11,6 +11,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { writeAuditLog } from "@/lib/admin/audit";
 import { loadTimeLock } from "@/lib/time/time-lock";
+import { selectAllPaged } from "@/lib/supabase/select-all";
 import { parseBunkerCsv } from "./parse-bunker";
 import { parseTagesabrechnungCsv } from "./parse-tagesabrechnung";
 import { importKeyOf } from "./derivations";
@@ -71,6 +72,10 @@ export type RunImportResult = {
   counters: Counters;
   runId: string | null;
   lockedThrough: string | null;
+  /** MIG1-Fix: Anzahl der beim Idempotenz-Check geladenen Bestands-Import-Keys.
+   *  Sichtbar in Dry-Run/Commit-Ergebnissen — deckt eine wiederkehrende stille
+   *  1000er-Kappung von PostgREST sofort auf. */
+  existingKeyCount: number;
 };
 
 /**
@@ -100,6 +105,8 @@ export async function executeImport(args: RunImportArgs): Promise<RunImportResul
   // 1) Bestätigte Identity-Map.
   const { data: mapRows, error: mapErr } = await admin
     .from("staff_identity_map")
+    // <1000 by design: eine Zeile je (org, sourceSystem, alt_id) — in der
+    // Praxis <200. Wächst nicht mit Import-Volumen.
     .select("alt_id, staff_id, confirmed_at")
     .eq("organization_id", organizationId)
     .eq("source_system", sourceSystem);
@@ -108,19 +115,29 @@ export async function executeImport(args: RunImportArgs): Promise<RunImportResul
   for (const m of mapRows ?? []) if (m.confirmed_at) mapByAltId.set(m.alt_id, m.staff_id);
 
   // 2) Idempotenz-Check: bereits importierte import_keys.
-  const { data: existingRows, error: exErr } = await admin
-    .from("time_entries")
-    .select("import_key")
-    .eq("organization_id", organizationId)
-    .eq("source", "import")
-    .not("import_key", "is", null);
-  if (exErr) throw exErr;
+  //
+  // MIG1-Fix (15.07.): PostgREST kappt ohne `.range()` bei 1000 Zeilen. Bei
+  // >1000 bereits importierten Zeilen fielen Duplikate ab Position 1001 durch
+  // den Rost und würden beim Commit ein zweites Mal importiert. Wir laden
+  // deshalb konsequent seitenweise. Stabiles ORDER BY (import_key) sorgt für
+  // deterministische Paginierung.
+  const existingRows = await selectAllPaged<{ import_key: string | null }>(() =>
+    admin
+      .from("time_entries")
+      .select("import_key")
+      .eq("organization_id", organizationId)
+      .eq("source", "import")
+      .not("import_key", "is", null)
+      .order("import_key", { ascending: true }),
+  );
   const existingKeys = new Set<string>();
-  for (const r of existingRows ?? []) if (r.import_key) existingKeys.add(r.import_key);
+  for (const r of existingRows) if (r.import_key) existingKeys.add(r.import_key);
+  const existingKeyCount = existingKeys.size;
 
   // 2b) Standort-Namen → location_id (case-insensitiv). Quelle: optionale CSV-Spalte `restaurant`.
   const { data: locRows, error: locErr } = await admin
     // ST1: bewusst ungefiltert — Daten-Zugriff (Migrations-Import: Name → ID).
+    // <1000 by design: eine Organisation hat realistisch <50 Standorte.
     .from("locations")
     .select("id, name")
     .eq("organization_id", organizationId);
@@ -181,7 +198,7 @@ export async function executeImport(args: RunImportArgs): Promise<RunImportResul
   if (mode === "dry_run") {
     counters.imported = inserts.length;
     assertCounterBalance(counters);
-    return { mode, fileHash, counters, runId: null, lockedThrough: null };
+    return { mode, fileHash, counters, runId: null, lockedThrough: null, existingKeyCount };
   }
 
   // 3) Commit: import_runs anlegen.
@@ -254,5 +271,5 @@ export async function executeImport(args: RunImportArgs): Promise<RunImportResul
     }
   }
 
-  return { mode, fileHash, counters, runId, lockedThrough: newLock };
+  return { mode, fileHash, counters, runId, lockedThrough: newLock, existingKeyCount };
 }
