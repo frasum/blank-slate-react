@@ -107,7 +107,10 @@ jobs:
           bun-version: latest
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # Gepinnt gegen Rate-Limit-Flake (§96); bewusst manuell heben.
+          version: 2.109.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: bun install --frozen-lockfile
       - name: Start local Supabase stack (mit Retry gegen ghcr-Rate-Limit)
         # H4 — bis zu 3 Versuche mit 30 s Pause. Zwischen Versuchen
@@ -205,7 +208,10 @@ jobs:
           bun-version: latest
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # Gepinnt gegen Rate-Limit-Flake (§96); bewusst manuell heben.
+          version: 2.109.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: bun install --frozen-lockfile
       - name: Install Playwright browsers
         run: bunx playwright install --with-deps chromium webkit
