@@ -17,6 +17,8 @@ import { runWithPermission } from "@/lib/admin/admin-call";
 import { makeAuditWriter } from "@/lib/admin/audit";
 import { businessDateOf } from "@/lib/business-date";
 import { assertBusinessDateUnlocked } from "./time-lock";
+import { isInCurrentBillingCycle } from "./billing-cycle";
+import { todayIso } from "@/lib/format";
 import { timeEntryToSfnRow } from "@/lib/lohn/time-entry-sfn";
 import { formatAbsenceNote } from "./absence-note";
 import type { SfnShiftRow } from "@/lib/lohn/sfn-geld/types";
