@@ -192,8 +192,9 @@ const locationIdsSchema = z
   .transform((arr) => Array.from(new Set(arr)));
 
 // Reduziert staff_locations-Zeilen (eine pro Zuordnung) auf eine deterministische
-// Primär-Abteilung je staff_id (Priorität kitchen > service > gl). Wird von
-// getTimeOverview UND getWeeklyTimeEntries genutzt — keine Last-write-wins-Falle.
+// Primär-Abteilung je staff_id (WZ1/KGL: Priorität gl > kitchen > service).
+// Wird von getTimeOverview UND getWeeklyTimeEntries genutzt — keine
+// Last-write-wins-Falle.
 function buildPrimaryDeptMap(
   rows: ReadonlyArray<{ staff_id: string; department: string }>,
 ): Map<string, Department> {
@@ -263,7 +264,9 @@ export const getTimeOverview = createServerFn({ method: "GET" })
   .inputValidator((input) =>
     z
       .object({
-        locationId: z.string().uuid(),
+        // WZ1: locationId nullable — null = alle Standorte org-weit
+        // (inkl. Einträge mit location_id IS NULL).
+        locationId: z.string().uuid().nullable(),
         fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
         toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
       })
@@ -277,36 +280,50 @@ export const getTimeOverview = createServerFn({ method: "GET" })
     ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: rows, error } = await supabaseAdmin
+    // WZ1: bei locationId=null kein .eq()-Filter → org-weit inkl.
+    // location_id IS NULL (Bestandsdaten ohne Standort-Zuordnung).
+    let entriesQuery = supabaseAdmin
       .from("time_entries")
       .select(
         "staff_id, business_date, started_at, ended_at, source, department, staff(display_name)",
       )
       .eq("organization_id", caller.organizationId)
-      .eq("location_id", data.locationId)
       .gte("business_date", data.fromDate)
       .lte("business_date", data.toDate)
       .not("ended_at", "is", null)
       .order("business_date", { ascending: true });
+    if (data.locationId != null) {
+      entriesQuery = entriesQuery.eq("location_id", data.locationId);
+    }
+    const { data: rows, error } = await entriesQuery;
     if (error) throw error;
 
-    const { data: deptRows, error: deptErr } = await supabaseAdmin
+    let deptQuery = supabaseAdmin
       .from("staff_locations")
       .select("staff_id, department")
-      .eq("organization_id", caller.organizationId)
-      .eq("location_id", data.locationId);
+      .eq("organization_id", caller.organizationId);
+    if (data.locationId != null) {
+      deptQuery = deptQuery.eq("location_id", data.locationId);
+    }
+    const { data: deptRows, error: deptErr } = await deptQuery;
     if (deptErr) throw deptErr;
+    // WZ1: bei "Alle Standorte" reduziert buildPrimaryDeptMap je Mitarbeiter
+    // über ALLE Standort-Zuordnungen (gl > kitchen > service).
     const deptByStaff = buildPrimaryDeptMap(deptRows ?? []);
 
     const entries = (rows ?? []).map((r) => {
       const started = new Date(r.started_at).getTime();
       const ended = new Date(r.ended_at as string).getTime();
       const hoursWorked = Math.max(0, (ended - started) / 3_600_000);
+      const raw = (r.department as Department | null) ?? null;
+      const primary = deptByStaff.get(r.staff_id) ?? ("service" as const);
       return {
         staffId: r.staff_id,
         displayName: (r.staff as { display_name: string } | null)?.display_name ?? "—",
-        department: deptByStaff.get(r.staff_id) ?? ("service" as const),
-        rawDepartment: (r.department as Department | null) ?? null,
+        // WZ1/KGL: rawDepartment (Z3) hat Vorrang, primary nur Fallback
+        // für Einträge ohne gesetztes Department (Stempel/Bestandsdaten).
+        department: raw ?? primary,
+        rawDepartment: raw,
         businessDate: r.business_date as string,
         startedAt: r.started_at as string,
         endedAt: r.ended_at as string,
@@ -314,7 +331,34 @@ export const getTimeOverview = createServerFn({ method: "GET" })
         source: r.source as string,
       };
     });
-    return { entries };
+
+    // WZ1: Lücken-Counts nur bei konkreter Standort-Sicht (bei
+    // "Alle Standorte" sind sie per Definition bereits enthalten).
+    let gaps = { unlocatedShifts: 0, openShifts: 0 };
+    if (data.locationId != null) {
+      const [{ count: unlocatedShifts }, { count: openShifts }] = await Promise.all([
+        supabaseAdmin
+          .from("time_entries")
+          .select("id", { head: true, count: "exact" })
+          .eq("organization_id", caller.organizationId)
+          .is("location_id", null)
+          .gte("business_date", data.fromDate)
+          .lte("business_date", data.toDate),
+        supabaseAdmin
+          .from("time_entries")
+          .select("id", { head: true, count: "exact" })
+          .eq("organization_id", caller.organizationId)
+          .eq("location_id", data.locationId)
+          .gte("business_date", data.fromDate)
+          .lte("business_date", data.toDate)
+          .is("ended_at", null),
+      ]);
+      gaps = {
+        unlocatedShifts: unlocatedShifts ?? 0,
+        openShifts: openShifts ?? 0,
+      };
+    }
+    return { entries, gaps };
   });
 
 // SFN-Zuschlagsberechnung pro Mitarbeiter für Standort × Zeitraum.
