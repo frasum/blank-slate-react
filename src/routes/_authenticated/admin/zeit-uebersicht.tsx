@@ -27,6 +27,7 @@ import {
   createPeriod,
   createTimeEntryShift,
   deletePeriod,
+  deleteTimeEntry,
   getTimeOverview,
   getWeeklyTimeEntries,
   getSfnOverview,
@@ -126,6 +127,7 @@ function ZeitUebersichtPage() {
   const callUpsert = useServerFn(upsertPayrollNote);
   const callSetShift = useServerFn(setTimeEntryShift);
   const callCreateShift = useServerFn(createTimeEntryShift);
+  const callDeleteEntry = useServerFn(deleteTimeEntry);
   const fetchPeriods = useServerFn(listPeriods);
   const callCreatePeriod = useServerFn(createPeriod);
   const callToggleLock = useServerFn(togglePeriodLock);
