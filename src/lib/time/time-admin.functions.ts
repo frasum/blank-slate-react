@@ -1335,9 +1335,7 @@ export const setTimeEntryShift = createServerFn({ method: "POST" })
         !isInCurrentBillingCycle(before.business_date, today) ||
         !isInCurrentBillingCycle(newBusinessDate, today)
       ) {
-        throw new Error(
-          "Planer dürfen nur Einträge der laufenden Abrechnungsperiode ändern.",
-        );
+        throw new Error("Planer dürfen nur Einträge der laufenden Abrechnungsperiode ändern.");
       }
     }
     return runWithPermission(
@@ -1440,9 +1438,7 @@ export const createTimeEntryShift = createServerFn({ method: "POST" })
     if (caller.role === "planer") {
       const businessDate = businessDateOf(new Date(data.startedAt));
       if (!isInCurrentBillingCycle(businessDate, todayIso())) {
-        throw new Error(
-          "Planer dürfen nur Einträge der laufenden Abrechnungsperiode anlegen.",
-        );
+        throw new Error("Planer dürfen nur Einträge der laufenden Abrechnungsperiode anlegen.");
       }
     }
     return runWithPermission(
@@ -1604,9 +1600,7 @@ export const deleteTimeEntry = createServerFn({ method: "POST" })
     if (!pre) throw new Error("Eintrag nicht gefunden.");
     if (caller.role === "planer") {
       if (!isInCurrentBillingCycle(pre.business_date, todayIso())) {
-        throw new Error(
-          "Planer dürfen nur Einträge der laufenden Abrechnungsperiode löschen.",
-        );
+        throw new Error("Planer dürfen nur Einträge der laufenden Abrechnungsperiode löschen.");
       }
     }
     return runWithPermission(
