@@ -39,31 +39,50 @@ export function primaryDepartment(depts: readonly Department[]): Department {
 export function entryRowDepartment(
   entryDept: Department | null | undefined,
   staffDepts: readonly Department[],
-  opts?: { rosterArea?: Department | null },
+  opts?: {
+    rosterArea?: Department | null;
+    // WZ2 — Der Dienstplan-Skill des Tages hat Kategorie 'gl' (D-3: GL
+    // ist ein Skill, kein Bereich). Wenn true, ist die Schicht laut Plan
+    // eine GL-Schicht und routet abteilungslose Stempelungen zur GL-Zeile
+    // — unabhängig davon, ob die Person „GL-Person" ist.
+    rosterHasGlSkill?: boolean;
+    // WZ2 — Explizites „Es gibt einen Tagesplan"-Signal, damit die
+    // GL-Skill-Regel auch dann greift, wenn area=null (Skill-only)
+    // und Z3b keinen Bereich hätte. Default: abgeleitet aus
+    // rosterArea || rosterHasGlSkill.
+    rosterPlanned?: boolean;
+  },
 ): { department: Department; mismatched: boolean } {
   if (entryDept && staffDepts.includes(entryDept)) {
     return { department: entryDept, mismatched: false };
   }
-  // W2 — GL-Personen-Ausnahme: Wer der GL zugeordnet ist, wird per
-  // D-3-Hausregel im Dienstplan als Service eingeplant (GL ist kein
-  // Planbereich). Ohne explizite Eintrags-Abteilung würde Z3b diese
-  // Stempelungen sonst fälschlich in die SERVICE-Zeile routen. Bei
-  // GL-Mitgliedern gewinnt daher IMMER die GL-Zeile — der Roster-
-  // Service-Bereich ist bei ihnen ein Plan-Artefakt, keine Fach-
-  // Aussage. Explizit gesetzte Eintrags-Abteilung (rawDepartment)
-  // gewinnt weiterhin (siehe if oben) — das ist ab LG1 der Lohn-
-  // Schalter pro Schicht.
-  if (entryDept == null && staffDepts.includes("gl")) {
-    return { department: "gl", mismatched: false };
-  }
-  // Z3b — Wenn kein Eintrags-Department gesetzt ist (Stempel/Batch/Pool/
-  // Bestandsdaten), aber der Dienstplan an dem Tag eine passende Area
-  // gefahren hat, schlägt die Roster-Realität die statische kitchen>
-  // service>gl-Rangfolge. Verhindert, dass Mehrfach-Zuordnungen (z. B.
-  // kitchen + service) Stunden fälschlich in die Küche kippen, obwohl die
-  // Person laut Dienstplan Service war.
-  if (entryDept == null && opts?.rosterArea && staffDepts.includes(opts.rosterArea)) {
-    return { department: opts.rosterArea, mismatched: false };
+  // WZ2 — Die Schicht hat den Typ, nicht die Person (Frank 16.07.).
+  // Tages-Skill aus dem Dienstplan ist die Typ-Quelle; die W2-Personen-
+  // vermutung greift nur noch als Fallback ohne Tagesplan.
+  if (entryDept == null) {
+    const planned =
+      opts?.rosterPlanned ?? (Boolean(opts?.rosterArea) || Boolean(opts?.rosterHasGlSkill));
+    if (planned) {
+      // (1) Tages-Roster mit GL-Skill → GL. Die W2-Pauschal-Übersteuerung
+      // für GL-Personen entfällt hier: LAM in einer Service-Schicht ist
+      // Service, auch wenn LAM „GL-Person" ist.
+      if (opts?.rosterHasGlSkill) {
+        return { department: "gl", mismatched: false };
+      }
+      // (2) Tages-Roster ohne GL-Skill → Z3b: geplanter Bereich, sofern
+      // die Person diesen Bereich hat.
+      if (opts?.rosterArea && staffDepts.includes(opts.rosterArea)) {
+        return { department: opts.rosterArea, mismatched: false };
+      }
+      // (2b) Roster-Area nicht in staffDepts → fällt auf statische Priorität.
+    } else {
+      // (3) Kein Tages-Roster: W2-Rest — GL-Personen (GERARD/Andre) landen
+      // ohne Plan-Signal auf der GL-Zeile; andere fallen auf statische
+      // Priorität.
+      if (staffDepts.includes("gl")) {
+        return { department: "gl", mismatched: false };
+      }
+    }
   }
   return {
     department: primaryDepartment(staffDepts),
