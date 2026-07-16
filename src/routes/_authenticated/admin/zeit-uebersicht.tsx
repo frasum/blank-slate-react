@@ -1172,7 +1172,9 @@ function ZeitUebersichtPage() {
             periodStart={fromDate}
             periodEnd={toDate}
             isAdmin={isAdmin}
-            pending={setShiftMut.isPending || createShiftMut.isPending}
+            pending={
+              setShiftMut.isPending || createShiftMut.isPending || deleteEntryMut.isPending
+            }
             onUpdateInline={(id, iso, from, to) => {
               try {
                 const { startedAt, endedAt } = buildShiftIsosOrThrow(iso, from, to);
@@ -1208,6 +1210,9 @@ function ZeitUebersichtPage() {
                 endedAt: entry.endedAt,
                 department,
               });
+            }}
+            onDeleteEntry={(id, reason) => {
+              deleteEntryMut.mutate({ id, reason });
             }}
             staffDeptsByStaff={staffDeptsByStaff}
             entriesById={useMemo(() => {
