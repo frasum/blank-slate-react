@@ -1,35 +1,82 @@
-
 ## Ziel
+Pro Mitarbeiter kann für Service, Küche und GL jeweils ein eigener Stundenlohn hinterlegt werden. Die Lohnabrechnung nutzt den jeweiligen Bereichs-Satz je Zeiteintrag, sofort auch für die laufende (offene) Abrechnungsperiode. Der Lohnbüro-Export weist Stunden × Sätze getrennt je Bereich aus.
 
-Die Spalten **S** (Schichten), **U** (Urlaub), **K** (Krank) bekommen in allen drei Ansichten dieselbe Farbgebung wie im Wochenplan bereits etabliert:
+## Terminierung
+- **SQL-Freigabe:** jetzt möglich (additiv, harmlos).
+- **Bau-Ausführung:** erst nach T0 (26.07.2026). Grund: Verdrahtung berührt Lohn-/SFN-Aggregatoren, die als stabile Referenz für den T0-Abgleich benötigt werden. Kein Zeitdruck (Juli-Periode geht Anfang August ans Lohnbüro).
 
-- S → rot (`text-red-600`)
-- U → grün (`text-green-600`)
-- K → blau (`text-blue-600`)
+## 1. Datenmodell (E1 — Vorab-SQL-Freigabe erforderlich)
+Neue Tabelle `staff_compensation_rates` zusätzlich zum bestehenden Basiswert in `staff_compensation.hourly_rate` (Fallback bleibt).
 
-Und zwar sowohl in den **Spaltenüberschriften** (heute überall neutral) als auch in den **Werten** (heute nur im Wochenplan gefärbt).
+```text
+staff_compensation_rates
+  id uuid pk
+  organization_id uuid  NOT NULL  (FK organizations)
+  staff_id uuid          NOT NULL  (FK staff)
+  department staff_department NOT NULL   -- 'service' | 'kitchen' | 'gl'
+  hourly_rate numeric(10,2)   NOT NULL   -- dokumentierte Domänen-Ausnahme, s.u.
+  valid_from date              NOT NULL
+  created_at / updated_at
+  UNIQUE (staff_id, department, valid_from)
+  Index auf (organization_id), (staff_id, department, valid_from DESC)
+```
 
-## Betroffene Stellen
+### DENY-ALL für Client (Korrektur 1)
+Zugriff läuft ausschließlich über Server-Functions (`getStaffCompensation` / `upsertStaffCompensation`, beide mit `requireSupabaseAuth` + `has_permission`-Check). Deshalb:
+- `GRANT ALL ON public.staff_compensation_rates TO service_role;`
+- **Keine** Grants an `authenticated` (kein SELECT, kein Write).
+- **Keine** Write-Policies; RLS aktiviert, ohne dass der Client jemals direkt darauf schreibt/liest.
+- Konsistent mit MA1 (§96) und der Doktrin für Geld-Tabellen.
 
-1. **Wochenplan-Header** – `src/components/zeit/WeeklyPlan.tsx` (Zeilen 458–478)
-   S/U/K-`<TableHead>` bekommen die passende Textfarbe. Werte-Zellen (rot/grün/blau) bleiben unverändert.
+### Domänen-Ausnahme (Korrektur 2)
+`numeric(10,2)` in Euro widerspricht der BIGINT-Cents-Regel, ist hier aber die richtige Wahl, weil `staff_compensation.hourly_rate` bereits so modelliert ist (Domänen-Konsistenz > Neubeginn). **Wird im Migrations-Kommentar explizit als dokumentierte Ausnahme vermerkt.** Der Resolver liefert nach außen Cents.
 
-2. **Zusammenfassung** – `src/routes/_authenticated/admin/zeit-uebersicht.tsx` (Zeilen 1284–1288 Header; 1355–1367 Zeilen, 1381–1391 Dept-Summe, 1422–1432 Gesamt)
-   - Header S/U/K einfärben.
-   - Werte-Zellen (Zeilen, Dept-Summen, Gesamt-Zeile): bei Wert > 0 in der jeweiligen Farbe mit `font-medium`, sonst weiterhin `text-muted-foreground/50` (Analog zum Wochenplan).
+### Weiteres
+- Trigger `tg_set_updated_at`.
+- FK-Indizes gemäß FK1-Standard.
+- `hourly_rate_2` in `staff_compensation` bleibt als Legacy-Feld stehen, kein Drop in diesem Schritt.
 
-3. **Buchhaltung** – `src/components/zeit/PayrollTab.tsx` (Header 174–185; Zeilen 332/339/346; Totals 265/267/270)
-   - Header S/U/K einfärben (bleibt `uppercase tracking-wider`, nur Textfarbe wechselt).
-   - Werte-Zellen: gleiche Rot/Grün/Blau-Regel wie in der Zusammenfassung.
+## 2. Server-Logik
+- `src/lib/admin/compensation.functions.ts`:
+  - `getStaffCompensation` liefert zusätzlich `rates: { service?, kitchen?, gl? }` (jeweils aktueller Satz + `valid_from`).
+  - `upsertStaffCompensation` akzeptiert `rates`-Payload und schreibt pro Bereich einen neuen `valid_from`-Datensatz (Historie bleibt). Audit-Log-Eintrag pro Bereich mit `[REDACTED]`-Werten.
+- Neues, reines Modul `src/lib/lohn/rate-resolver.ts`:
+  - Input: `staff_id`, `department`, `date` → Output: `hourly_rate_cents`.
+  - Neuester passender Bereichs-Satz mit `valid_from <= date`; Fallback auf `staff_compensation.hourly_rate` zum Datum.
+- `src/lib/lohn/lohn-period.functions.ts` und alle Lohn-Aggregatoren (`personnel-stats`, SFN-Berechnung soweit lohnbezogen) rufen den Resolver pro Zeiteintrag mit der über `primary-department.ts` bestimmten Zeile (inkl. W2-GL-Regel). Damit greifen die neuen Sätze **sofort in der offenen Periode**; gesperrte Perioden bleiben unangetastet.
+
+## 3. UI
+`src/components/admin/PersonalDetailsTab.tsx` — Abschnitt „Vergütung":
+- Statt Einzelfeld ein 4-Felder-Block: Basis (Fallback), Service €/h, Küche €/h, GL €/h — Bereichsfelder optional (leer = Basis).
+- Gemeinsames „Gültig ab" (Default heute), pro Bereich individuell überschreibbar.
+- Hinweis: „Leer = Basis-Satz. Änderung greift sofort in der laufenden Abrechnungsperiode; gesperrte Perioden bleiben unberührt."
+- Read-only-Ansicht listet Basis + drei Bereichs-Sätze.
+
+## 4. Tests
+- Unit: `rate-resolver.test.ts` (Fallback, Bereichs-Match, Historien-Auswahl, GL-Sonderfall).
+- DB-Integration: `staff-compensation-rates.db.test.ts` — Insert via Server-Function, direkter Client-Zugriff verweigert (DENY-ALL-Nachweis), Cross-Org verweigert, Payroll-Aggregation mischt Bereichs-Sätze korrekt.
+- Charakterisierungstest Nettolohn: identisches Ergebnis, wenn keine Bereichs-Sätze gepflegt sind (Verhaltens-Neutralität bis zur Datenpflege).
+
+## 5. Doku
+`docs/arbeitsweise.md` §99 — LG1 abgeschlossen; Domänen-Ausnahme `numeric(10,2)` dokumentiert; DENY-ALL-Doktrin auch für neue Geld-Tabelle bestätigt.
+
+## 6. Lohnbüro-Export: Stunden-Split je Abteilung (Ergänzung)
+Der eigentliche LG1-Zweck. Im Buchhaltungs-Tab / Lohnbüro-Export (`personnel-stats` + PDF/CSV-Ausgang):
+- Pro Mitarbeiter und Periode drei Zeilen (Service / Küche / GL), jeweils **Stunden × Satz = Betrag**.
+- Summenzeile je Mitarbeiter unverändert (Gesamtbrutto).
+- Ohne gepflegte Bereichs-Sätze: eine Zeile mit Basis-Satz (Verhaltens-Neutralität).
+- Export-Header ergänzt um Spalten „Bereich", „Stunden", „Satz €/h", „Betrag €".
+- Test: Vergleichsdatensatz mit gemischten Bereichen liefert erwartete drei Zeilen; Summe = bisherige Einzelzeile.
+
+## Reihenfolge (E1-konform)
+1. **SQL-Freigabe abwarten** → Migration `staff_compensation_rates` (inkl. Kommentar zur Domänen-Ausnahme, nur `service_role`-Grants).
+2. Types-Regenerierung abwarten.
+3. Server: Resolver + `compensation.functions.ts` + Payroll-Wiring.
+4. UI-Umbau `PersonalDetailsTab`.
+5. Lohnbüro-Export-Split (Punkt 6).
+6. Tests + `prettier`/`eslint --fix` + Doku-Nachzug §99.
 
 ## Nicht enthalten
-
-- Keine neuen Design-Tokens in `src/styles.css`. Wir bleiben bei den bereits im Wochenplan verwendeten Tailwind-Farben `red-600` / `green-600` / `blue-600`, damit die Farbe 1:1 übereinstimmt und wir keinen zweiten Token-Pfad öffnen.
-- Keine Änderung an Werten, Aggregation, Exporten (PDF/XLSX), Sortierung.
-- Keine Änderung an Icons, Tooltips, Zeilenhöhen.
-- „S"-Bedeutung (Schichtenanzahl) und „SF"-Spalte (Sonntag/Feiertag) bleiben unangetastet.
-
-## Verifikation
-
-- `bunx tsgo --noEmit` grün.
-- Sichtprüfung Wochenplan / Zusammenfassung / Buchhaltung: Header S/U/K rot/grün/blau; Werte-Spalten in derselben Farbe (Null/„–" bleibt gedimmt).
+- Standort-abhängige Sätze.
+- Zeiterfassungs-UI-Änderungen (Bereichszuordnung weiter über `primary-department`).
+- `hourly_rate_2`-Drop (später separat).

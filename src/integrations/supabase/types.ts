@@ -4111,6 +4111,54 @@ export type Database = {
           },
         ]
       }
+      staff_compensation_rates: {
+        Row: {
+          created_at: string
+          department: Database["public"]["Enums"]["staff_department"]
+          hourly_rate: number
+          id: string
+          organization_id: string
+          staff_id: string
+          updated_at: string
+          valid_from: string
+        }
+        Insert: {
+          created_at?: string
+          department: Database["public"]["Enums"]["staff_department"]
+          hourly_rate: number
+          id?: string
+          organization_id: string
+          staff_id: string
+          updated_at?: string
+          valid_from: string
+        }
+        Update: {
+          created_at?: string
+          department?: Database["public"]["Enums"]["staff_department"]
+          hourly_rate?: number
+          id?: string
+          organization_id?: string
+          staff_id?: string
+          updated_at?: string
+          valid_from?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_compensation_rates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_compensation_rates_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_data_change_requests: {
         Row: {
           created_at: string
