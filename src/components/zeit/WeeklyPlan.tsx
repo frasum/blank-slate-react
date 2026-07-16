@@ -344,6 +344,7 @@ export function WeeklyPlan({
   };
 
   return (
+    <>
     <Card className="overflow-x-auto">
       <Table className="w-full table-fixed">
         <TableHeader>
