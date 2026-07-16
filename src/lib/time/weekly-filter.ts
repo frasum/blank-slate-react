@@ -41,6 +41,12 @@ export function filterWeeklyRows(
 
   const matchRosterDept = (staffId: string) => {
     if (!deptActive) return true;
+    // W2/D-3 — GL ist KEIN Planbereich (GL-Leute werden per D-3
+    // Hausregel als Service eingeplant). Die "Eingeplant-in-Bereich"-
+    // Semantik gilt daher nur für kitchen/service. Für den GL-Knopf
+    // reicht die Sektions-Zugehörigkeit (matchSectionDept) — die
+    // GL-Sektion enthält bereits genau die GL-attribuierten Zeilen.
+    if (filter.dept === "gl") return true;
     return (rosterByStaff.get(staffId)?.areas ?? []).includes(filter.dept as WeeklyDepartment);
   };
   const matchRosterSkill = (staffId: string) => {
