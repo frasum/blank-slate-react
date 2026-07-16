@@ -345,519 +345,521 @@ export function WeeklyPlan({
 
   return (
     <>
-    <Card className="overflow-x-auto">
-      <Table className="w-full table-fixed">
-        <TableHeader>
-          <TableRow>
-            <TableHead
-              rowSpan={2}
-              className="w-[56px] min-w-[56px] px-1 align-middle text-center text-xs"
-            />
-            {dayMeta.map((dm) => (
+      <Card className="overflow-x-auto">
+        <Table className="w-full table-fixed">
+          <TableHeader>
+            <TableRow>
               <TableHead
-                key={dm.iso}
-                colSpan={2}
-                className={`text-center whitespace-nowrap border-l ${
-                  dm.outOfPeriod
-                    ? "bg-muted/40 text-muted-foreground/60"
-                    : dm.isHol
-                      ? "bg-yellow-50"
-                      : dm.isSun
-                        ? "bg-gray-100"
-                        : ""
-                }`}
+                rowSpan={2}
+                className="w-[56px] min-w-[56px] px-1 align-middle text-center text-xs"
+              />
+              {dayMeta.map((dm) => (
+                <TableHead
+                  key={dm.iso}
+                  colSpan={2}
+                  className={`text-center whitespace-nowrap border-l ${
+                    dm.outOfPeriod
+                      ? "bg-muted/40 text-muted-foreground/60"
+                      : dm.isHol
+                        ? "bg-yellow-50"
+                        : dm.isSun
+                          ? "bg-gray-100"
+                          : ""
+                  }`}
+                >
+                  {dayHeader(dm.date)}
+                  {dm.holidayName && (
+                    <span className="block text-[10px] font-normal text-muted-foreground">
+                      {dm.holidayName}
+                    </span>
+                  )}
+                </TableHead>
+              ))}
+              <TableHead
+                rowSpan={2}
+                className="w-[72px] min-w-[72px] px-1 align-middle border-l text-center"
               >
-                {dayHeader(dm.date)}
-                {dm.holidayName && (
-                  <span className="block text-[10px] font-normal text-muted-foreground">
-                    {dm.holidayName}
-                  </span>
-                )}
+                {onTotalsScopeChange ? (
+                  <div className="flex flex-col gap-1" role="group" aria-label="Summen-Bezug">
+                    <button
+                      type="button"
+                      onClick={() => onTotalsScopeChange("week")}
+                      aria-pressed={totalsScope === "week"}
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-medium border transition ${
+                        totalsScope === "week"
+                          ? "bg-foreground text-background border-foreground"
+                          : "bg-background text-foreground border-border hover:bg-muted"
+                      }`}
+                    >
+                      Woche
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onTotalsScopeChange("period")}
+                      aria-pressed={totalsScope === "period"}
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-medium border transition ${
+                        totalsScope === "period"
+                          ? "bg-foreground text-background border-foreground"
+                          : "bg-background text-foreground border-border hover:bg-muted"
+                      }`}
+                    >
+                      Monat
+                    </button>
+                  </div>
+                ) : null}
               </TableHead>
-            ))}
-            <TableHead
-              rowSpan={2}
-              className="w-[72px] min-w-[72px] px-1 align-middle border-l text-center"
-            >
-              {onTotalsScopeChange ? (
-                <div className="flex flex-col gap-1" role="group" aria-label="Summen-Bezug">
-                  <button
-                    type="button"
-                    onClick={() => onTotalsScopeChange("week")}
-                    aria-pressed={totalsScope === "week"}
-                    className={`rounded-full px-2 py-0.5 text-[10px] font-medium border transition ${
-                      totalsScope === "week"
-                        ? "bg-foreground text-background border-foreground"
-                        : "bg-background text-foreground border-border hover:bg-muted"
-                    }`}
-                  >
-                    Woche
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onTotalsScopeChange("period")}
-                    aria-pressed={totalsScope === "period"}
-                    className={`rounded-full px-2 py-0.5 text-[10px] font-medium border transition ${
-                      totalsScope === "period"
-                        ? "bg-foreground text-background border-foreground"
-                        : "bg-background text-foreground border-border hover:bg-muted"
-                    }`}
-                  >
-                    Monat
-                  </button>
-                </div>
-              ) : null}
-            </TableHead>
-            <TableHead
-              rowSpan={2}
-              className="px-1 text-right text-xs align-middle whitespace-nowrap"
-              title={
-                totalsScope === "period"
-                  ? "Gesamt in der Abrechnungsperiode"
-                  : "Gesamt in dieser Woche"
-              }
-            >
-              Ges{totalsScope === "period" ? "*" : ""}
-            </TableHead>
-            <TableHead
-              rowSpan={2}
-              className="px-1 text-right text-xs align-middle whitespace-nowrap"
-              title={
-                totalsScope === "period"
-                  ? "Abendzuschlag (20–24) in der Abrechnungsperiode"
-                  : "Abendzuschlag (20–24) in dieser Woche"
-              }
-            >
-              20–24{totalsScope === "period" ? "*" : ""}
-            </TableHead>
-            <TableHead
-              rowSpan={2}
-              className="px-1 text-right text-xs align-middle whitespace-nowrap"
-              title={
-                totalsScope === "period"
-                  ? "Nachtzuschlag (24–x) in der Abrechnungsperiode"
-                  : "Nachtzuschlag (24–x) in dieser Woche"
-              }
-            >
-              24–x{totalsScope === "period" ? "*" : ""}
-            </TableHead>
-            <TableHead
-              rowSpan={2}
-              className="px-1 text-right text-xs align-middle whitespace-nowrap"
-            >
-              <span
+              <TableHead
+                rowSpan={2}
+                className="px-1 text-right text-xs align-middle whitespace-nowrap"
                 title={
                   totalsScope === "period"
-                    ? "Sonntag/Feiertag in der Abrechnungsperiode"
-                    : "Sonntag/Feiertag in dieser Woche"
+                    ? "Gesamt in der Abrechnungsperiode"
+                    : "Gesamt in dieser Woche"
                 }
               >
-                SF{totalsScope === "period" ? "*" : ""}
-              </span>
-            </TableHead>
-            <TableHead
-              rowSpan={2}
-              className="px-1 text-right text-xs align-middle whitespace-nowrap"
-              title="Schichten in der Abrechnungsperiode"
-            >
-              S
-            </TableHead>
-            <TableHead
-              rowSpan={2}
-              className="px-1 text-right text-xs align-middle whitespace-nowrap"
-              title="Urlaubstage in der Abrechnungsperiode"
-            >
-              U
-            </TableHead>
-            <TableHead
-              rowSpan={2}
-              className="px-1 text-right text-xs align-middle whitespace-nowrap"
-              title="Kranktage in der Abrechnungsperiode"
-            >
-              K
-            </TableHead>
-          </TableRow>
-          <TableRow>
-            {dayMeta.map((dm) => {
-              const bg = dm.outOfPeriod
-                ? "bg-muted/40 text-muted-foreground/60"
-                : dm.isHol
-                  ? "bg-yellow-50"
-                  : dm.isSun
-                    ? "bg-gray-100"
-                    : "";
+                Ges{totalsScope === "period" ? "*" : ""}
+              </TableHead>
+              <TableHead
+                rowSpan={2}
+                className="px-1 text-right text-xs align-middle whitespace-nowrap"
+                title={
+                  totalsScope === "period"
+                    ? "Abendzuschlag (20–24) in der Abrechnungsperiode"
+                    : "Abendzuschlag (20–24) in dieser Woche"
+                }
+              >
+                20–24{totalsScope === "period" ? "*" : ""}
+              </TableHead>
+              <TableHead
+                rowSpan={2}
+                className="px-1 text-right text-xs align-middle whitespace-nowrap"
+                title={
+                  totalsScope === "period"
+                    ? "Nachtzuschlag (24–x) in der Abrechnungsperiode"
+                    : "Nachtzuschlag (24–x) in dieser Woche"
+                }
+              >
+                24–x{totalsScope === "period" ? "*" : ""}
+              </TableHead>
+              <TableHead
+                rowSpan={2}
+                className="px-1 text-right text-xs align-middle whitespace-nowrap"
+              >
+                <span
+                  title={
+                    totalsScope === "period"
+                      ? "Sonntag/Feiertag in der Abrechnungsperiode"
+                      : "Sonntag/Feiertag in dieser Woche"
+                  }
+                >
+                  SF{totalsScope === "period" ? "*" : ""}
+                </span>
+              </TableHead>
+              <TableHead
+                rowSpan={2}
+                className="px-1 text-right text-xs align-middle whitespace-nowrap"
+                title="Schichten in der Abrechnungsperiode"
+              >
+                S
+              </TableHead>
+              <TableHead
+                rowSpan={2}
+                className="px-1 text-right text-xs align-middle whitespace-nowrap"
+                title="Urlaubstage in der Abrechnungsperiode"
+              >
+                U
+              </TableHead>
+              <TableHead
+                rowSpan={2}
+                className="px-1 text-right text-xs align-middle whitespace-nowrap"
+                title="Kranktage in der Abrechnungsperiode"
+              >
+                K
+              </TableHead>
+            </TableRow>
+            <TableRow>
+              {dayMeta.map((dm) => {
+                const bg = dm.outOfPeriod
+                  ? "bg-muted/40 text-muted-foreground/60"
+                  : dm.isHol
+                    ? "bg-yellow-50"
+                    : dm.isSun
+                      ? "bg-gray-100"
+                      : "";
+                return (
+                  <Fragment key={`sub-${dm.iso}`}>
+                    <TableHead
+                      className={`w-[44px] min-w-[44px] border-l text-center text-[11px] font-normal ${bg}`}
+                    >
+                      Anf.
+                    </TableHead>
+                    <TableHead
+                      className={`w-[44px] min-w-[44px] text-center text-[11px] font-normal ${bg}`}
+                    >
+                      Ende
+                    </TableHead>
+                  </Fragment>
+                );
+              })}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading && (
+              <TableRow>
+                <TableCell colSpan={totalCols} className="text-center text-muted-foreground">
+                  <ZeitSkeleton />
+                </TableCell>
+              </TableRow>
+            )}
+            {!isLoading && !anyRows && (
+              <TableRow>
+                <TableCell colSpan={totalCols} className="text-center text-muted-foreground">
+                  Keine Einträge in dieser Woche.
+                </TableCell>
+              </TableRow>
+            )}
+            {groups.map((grp) => {
+              if (grp.rows.length === 0) return null;
               return (
-                <Fragment key={`sub-${dm.iso}`}>
-                  <TableHead
-                    className={`w-[44px] min-w-[44px] border-l text-center text-[11px] font-normal ${bg}`}
-                  >
-                    Anf.
-                  </TableHead>
-                  <TableHead
-                    className={`w-[44px] min-w-[44px] text-center text-[11px] font-normal ${bg}`}
-                  >
-                    Ende
-                  </TableHead>
+                <Fragment key={`w-${grp.dept}`}>
+                  <TableRow className={DEPT_BG[grp.dept]}>
+                    <TableCell colSpan={totalCols} className="font-semibold text-foreground">
+                      {grp.deptLabel}
+                    </TableCell>
+                  </TableRow>
+                  {grp.rows.map((row) => {
+                    // Z3 — Warnung, wenn ein Eintrag eine Abteilung trägt, die
+                    // der Person am Standort nicht (mehr) zugeordnet ist. Er
+                    // erscheint dann auf der Primär-Zeile.
+                    const mismatchedTitle = (row as { mismatched?: boolean }).mismatched
+                      ? "Achtung: mindestens ein Eintrag trägt eine Abteilung, die der Person am Standort nicht zugeordnet ist — er wird hier auf der Primär-Zeile angezeigt."
+                      : undefined;
+                    return (
+                      <TableRow
+                        key={`${row.staffId}:${row.department}`}
+                        className="even:bg-muted/70"
+                      >
+                        <TableCell className="group relative px-1 font-bold align-middle text-center text-[10px] w-[56px] min-w-[56px] max-w-[56px]">
+                          <span
+                            className={`absolute left-0 top-0 bottom-0 w-[2px] ${DEPT_BAR[row.department]}`}
+                          />
+                          <span
+                            className="block truncate"
+                            title={mismatchedTitle ?? row.displayName}
+                          >
+                            {row.displayName}
+                            {mismatchedTitle ? (
+                              <span className="ml-0.5 text-amber-600">⚠</span>
+                            ) : null}
+                          </span>
+                          {isAdmin && (staffDeptsByStaff.get(row.staffId)?.length ?? 0) > 1 ? (
+                            <ReassignPopover
+                              row={row}
+                              entriesById={entriesById}
+                              onReassign={onReassign}
+                              pending={pending}
+                              staffDeptsByStaff={staffDeptsByStaff}
+                            />
+                          ) : null}
+                        </TableCell>
+                        {row.days.map((day, idx) => {
+                          const dm = dayMeta[idx];
+                          const cellBg = dm.outOfPeriod
+                            ? "bg-muted/40"
+                            : dm.isHol
+                              ? "bg-yellow-50"
+                              : dm.isSun
+                                ? "bg-gray-50"
+                                : "";
+                          const empty = day.shifts.length === 0;
+                          // Z3 — alle Zeilen sind editierbar; das Grid attribuiert
+                          // Einträge über entryRowDepartment.
+                          const clickable = isAdmin && !dm.outOfPeriod;
+                          const multi = day.shifts.length > 1;
+                          const isEditingCell =
+                            edit !== null && edit.staffId === row.staffId && edit.iso === day.iso;
+                          const editable = clickable && !multi;
+                          const handleCellClick = (which: "from" | "to") => {
+                            if (!editable) return;
+                            if (isEditingCell) return;
+                            startEdit(row.staffId, day.iso, which, row.department);
+                          };
+                          const singleExisting =
+                            !empty && day.shifts.length === 1 && !isEditingCell;
+                          const openDeleteFromCell = (ev: React.MouseEvent) => {
+                            ev.stopPropagation();
+                            const en = findEntries(row.staffId, day.iso)[0];
+                            if (!en) return;
+                            setDeleteReason("Wochenplan-Korrektur");
+                            setDeleteTarget({
+                              id: en.id,
+                              displayName: row.displayName,
+                              iso: day.iso,
+                              from: fmtHHMM(en.startedAt),
+                              to: fmtHHMM(en.endedAt),
+                            });
+                          };
+                          const renderShift = (which: "from" | "to") => {
+                            if (isEditingCell && edit.field === which) {
+                              const val = which === "from" ? edit.from : edit.to;
+                              return (
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  maxLength={5}
+                                  value={val}
+                                  placeholder={which === "from" ? "15:00" : "23:00"}
+                                  disabled={pending}
+                                  data-edit-key={cellKey(row.staffId, day.iso)}
+                                  ref={inputRef}
+                                  onChange={(ev) =>
+                                    setEdit({
+                                      ...edit,
+                                      [which]: ev.target.value,
+                                    } as EditState)
+                                  }
+                                  onKeyDown={(ev) => {
+                                    if (ev.key === "Enter") {
+                                      ev.preventDefault();
+                                      if (commit(edit)) setEdit(null);
+                                      return;
+                                    }
+                                    if (ev.key === "Escape") {
+                                      ev.preventDefault();
+                                      navigatingRef.current = true;
+                                      setEdit(null);
+                                      return;
+                                    }
+                                    const rIdx = flatRows.findIndex(
+                                      (r) => r.staffId === edit.staffId,
+                                    );
+                                    const dIdx = dayMeta.findIndex((d) => d.iso === edit.iso);
+                                    if (rIdx < 0 || dIdx < 0) return;
+                                    if (ev.key === "Tab") {
+                                      ev.preventDefault();
+                                      const t = findNextRow(rIdx, dIdx, ev.shiftKey ? -1 : 1);
+                                      if (t)
+                                        navigateTo(
+                                          edit,
+                                          flatRows[t.rowIdx].staffId,
+                                          dayMeta[t.dayIdx].iso,
+                                          edit.field,
+                                          flatRows[t.rowIdx].department,
+                                        );
+                                      return;
+                                    }
+                                    if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
+                                      ev.preventDefault();
+                                      const t = findNextRow(
+                                        rIdx,
+                                        dIdx,
+                                        ev.key === "ArrowDown" ? 1 : -1,
+                                      );
+                                      if (t)
+                                        navigateTo(
+                                          edit,
+                                          flatRows[t.rowIdx].staffId,
+                                          dayMeta[t.dayIdx].iso,
+                                          edit.field,
+                                          flatRows[t.rowIdx].department,
+                                        );
+                                      return;
+                                    }
+                                    if (ev.key === "ArrowRight" || ev.key === "ArrowLeft") {
+                                      ev.preventDefault();
+                                      const t = findNextField(
+                                        rIdx,
+                                        dIdx,
+                                        edit.field,
+                                        ev.key === "ArrowRight" ? 1 : -1,
+                                      );
+                                      if (t)
+                                        navigateTo(
+                                          edit,
+                                          flatRows[t.rowIdx].staffId,
+                                          dayMeta[t.dayIdx].iso,
+                                          t.field,
+                                        );
+                                      return;
+                                    }
+                                  }}
+                                  onBlur={(ev) => handleBlur(ev, edit)}
+                                  className={`block w-full h-6 min-w-0 px-0 text-center tabular-nums text-sm rounded border border-primary/50 bg-background box-border ${pending ? "opacity-60" : ""}`}
+                                />
+                              );
+                            }
+                            if (isEditingCell) {
+                              const val = which === "from" ? edit.from : edit.to;
+                              return <span className="tabular-nums">{val}</span>;
+                            }
+                            if (empty) {
+                              if (day.crossLocation && which === "from" && !dm.outOfPeriod)
+                                return <span className="text-muted-foreground">×</span>;
+                              if (editable && which === "from")
+                                return <span className="text-muted-foreground/40">+</span>;
+                              return "";
+                            }
+                            return (
+                              <div className="flex flex-col divide-y divide-border/60">
+                                {day.shifts.map((s, i) => (
+                                  <span key={i} className="tabular-nums">
+                                    {s[which]}
+                                  </span>
+                                ))}
+                              </div>
+                            );
+                          };
+                          return (
+                            <Fragment key={day.iso}>
+                              <TableCell
+                                onClick={() => handleCellClick("from")}
+                                title={mismatchedTitle}
+                                className={`group/cell relative w-[44px] min-w-[44px] border-l px-0.5 py-1 text-center align-middle tabular-nums text-xs ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
+                              >
+                                {renderShift("from")}
+                                {editable && singleExisting ? (
+                                  <button
+                                    type="button"
+                                    aria-label="Schicht löschen"
+                                    title="Schicht löschen"
+                                    onClick={openDeleteFromCell}
+                                    disabled={pending}
+                                    className="absolute top-0 right-0 hidden group-hover/cell:block text-[10px] leading-none px-0.5 text-muted-foreground hover:text-red-600 focus:block"
+                                  >
+                                    ×
+                                  </button>
+                                ) : null}
+                              </TableCell>
+                              <TableCell
+                                onClick={() => handleCellClick("to")}
+                                title={mismatchedTitle}
+                                className={`w-[44px] min-w-[44px] px-0.5 py-1 text-center align-middle tabular-nums text-xs ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
+                              >
+                                {renderShift("to")}
+                              </TableCell>
+                            </Fragment>
+                          );
+                        })}
+                        <TableCell className="font-bold align-middle border-l text-center text-[10px] px-1 w-[56px] min-w-[56px] max-w-[56px]">
+                          <span className="block truncate" title={row.displayName}>
+                            {row.displayName}
+                          </span>
+                        </TableCell>
+                        {(() => {
+                          const pt = periodTotalsByStaff?.get(row.staffId);
+                          const t =
+                            totalsScope === "period" && pt
+                              ? pt
+                              : {
+                                  total: row.totals.total,
+                                  evening: row.totals.evening,
+                                  night: row.totals.night,
+                                  sunHol: row.totals.sunHol,
+                                };
+                          return (
+                            <>
+                              <TableCell className="px-1 text-xs text-right tabular-nums font-medium">
+                                {fmtDec(t.total)}
+                              </TableCell>
+                              <TableCell className="px-1 text-xs text-right tabular-nums">
+                                {fmtDec(t.evening)}
+                              </TableCell>
+                              <TableCell className="px-1 text-xs text-right tabular-nums">
+                                {fmtDec(t.night)}
+                              </TableCell>
+                              <TableCell className="px-1 text-xs text-right tabular-nums">
+                                {fmtDec(t.sunHol)}
+                              </TableCell>
+                            </>
+                          );
+                        })()}
+                        {(() => {
+                          const s = shiftsByStaff.get(row.staffId) ?? 0;
+                          return (
+                            <TableCell
+                              className={`px-1 text-xs text-right tabular-nums ${s > 0 ? "text-red-600 font-medium" : "text-muted-foreground/50"}`}
+                            >
+                              {s > 0 ? s : "–"}
+                            </TableCell>
+                          );
+                        })()}
+                        {(() => {
+                          const abs = absencesByStaff.get(row.staffId);
+                          const u = abs?.urlaubDays ?? 0;
+                          const k = abs?.krankDays ?? 0;
+                          return (
+                            <>
+                              <TableCell
+                                className={`px-1 text-xs text-right tabular-nums ${u > 0 ? "text-green-600 font-medium" : "text-muted-foreground/50"}`}
+                              >
+                                {u > 0 ? u : "–"}
+                              </TableCell>
+                              <TableCell
+                                className={`px-1 text-xs text-right tabular-nums ${k > 0 ? "text-blue-600 font-medium" : "text-muted-foreground/50"}`}
+                              >
+                                {k > 0 ? k : "–"}
+                              </TableCell>
+                            </>
+                          );
+                        })()}
+                      </TableRow>
+                    );
+                  })}
                 </Fragment>
               );
             })}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {isLoading && (
-            <TableRow>
-              <TableCell colSpan={totalCols} className="text-center text-muted-foreground">
-                <ZeitSkeleton />
-              </TableCell>
-            </TableRow>
-          )}
-          {!isLoading && !anyRows && (
-            <TableRow>
-              <TableCell colSpan={totalCols} className="text-center text-muted-foreground">
-                Keine Einträge in dieser Woche.
-              </TableCell>
-            </TableRow>
-          )}
-          {groups.map((grp) => {
-            if (grp.rows.length === 0) return null;
-            return (
-              <Fragment key={`w-${grp.dept}`}>
-                <TableRow className={DEPT_BG[grp.dept]}>
-                  <TableCell colSpan={totalCols} className="font-semibold text-foreground">
-                    {grp.deptLabel}
-                  </TableCell>
-                </TableRow>
-                {grp.rows.map((row) => {
-                  // Z3 — Warnung, wenn ein Eintrag eine Abteilung trägt, die
-                  // der Person am Standort nicht (mehr) zugeordnet ist. Er
-                  // erscheint dann auf der Primär-Zeile.
-                  const mismatchedTitle = (row as { mismatched?: boolean }).mismatched
-                    ? "Achtung: mindestens ein Eintrag trägt eine Abteilung, die der Person am Standort nicht zugeordnet ist — er wird hier auf der Primär-Zeile angezeigt."
-                    : undefined;
-                  return (
-                    <TableRow key={`${row.staffId}:${row.department}`} className="even:bg-muted/70">
-                      <TableCell className="group relative px-1 font-bold align-middle text-center text-[10px] w-[56px] min-w-[56px] max-w-[56px]">
-                        <span
-                          className={`absolute left-0 top-0 bottom-0 w-[2px] ${DEPT_BAR[row.department]}`}
-                        />
-                        <span className="block truncate" title={mismatchedTitle ?? row.displayName}>
-                          {row.displayName}
-                          {mismatchedTitle ? (
-                            <span className="ml-0.5 text-amber-600">⚠</span>
-                          ) : null}
-                        </span>
-                        {isAdmin && (staffDeptsByStaff.get(row.staffId)?.length ?? 0) > 1 ? (
-                          <ReassignPopover
-                            row={row}
-                            entriesById={entriesById}
-                            onReassign={onReassign}
-                            pending={pending}
-                            staffDeptsByStaff={staffDeptsByStaff}
-                          />
-                        ) : null}
-                      </TableCell>
-                      {row.days.map((day, idx) => {
-                        const dm = dayMeta[idx];
-                        const cellBg = dm.outOfPeriod
-                          ? "bg-muted/40"
-                          : dm.isHol
-                            ? "bg-yellow-50"
-                            : dm.isSun
-                              ? "bg-gray-50"
-                              : "";
-                        const empty = day.shifts.length === 0;
-                        // Z3 — alle Zeilen sind editierbar; das Grid attribuiert
-                        // Einträge über entryRowDepartment.
-                        const clickable = isAdmin && !dm.outOfPeriod;
-                        const multi = day.shifts.length > 1;
-                        const isEditingCell =
-                          edit !== null && edit.staffId === row.staffId && edit.iso === day.iso;
-                        const editable = clickable && !multi;
-                        const handleCellClick = (which: "from" | "to") => {
-                          if (!editable) return;
-                          if (isEditingCell) return;
-                          startEdit(row.staffId, day.iso, which, row.department);
-                        };
-                        const singleExisting =
-                          !empty && day.shifts.length === 1 && !isEditingCell;
-                        const openDeleteFromCell = (ev: React.MouseEvent) => {
-                          ev.stopPropagation();
-                          const en = findEntries(row.staffId, day.iso)[0];
-                          if (!en) return;
-                          setDeleteReason("Wochenplan-Korrektur");
-                          setDeleteTarget({
-                            id: en.id,
-                            displayName: row.displayName,
-                            iso: day.iso,
-                            from: fmtHHMM(en.startedAt),
-                            to: fmtHHMM(en.endedAt),
-                          });
-                        };
-                        const renderShift = (which: "from" | "to") => {
-                          if (isEditingCell && edit.field === which) {
-                            const val = which === "from" ? edit.from : edit.to;
-                            return (
-                              <input
-                                type="text"
-                                inputMode="numeric"
-                                maxLength={5}
-                                value={val}
-                                placeholder={which === "from" ? "15:00" : "23:00"}
-                                disabled={pending}
-                                data-edit-key={cellKey(row.staffId, day.iso)}
-                                ref={inputRef}
-                                onChange={(ev) =>
-                                  setEdit({
-                                    ...edit,
-                                    [which]: ev.target.value,
-                                  } as EditState)
-                                }
-                                onKeyDown={(ev) => {
-                                  if (ev.key === "Enter") {
-                                    ev.preventDefault();
-                                    if (commit(edit)) setEdit(null);
-                                    return;
-                                  }
-                                  if (ev.key === "Escape") {
-                                    ev.preventDefault();
-                                    navigatingRef.current = true;
-                                    setEdit(null);
-                                    return;
-                                  }
-                                  const rIdx = flatRows.findIndex(
-                                    (r) => r.staffId === edit.staffId,
-                                  );
-                                  const dIdx = dayMeta.findIndex((d) => d.iso === edit.iso);
-                                  if (rIdx < 0 || dIdx < 0) return;
-                                  if (ev.key === "Tab") {
-                                    ev.preventDefault();
-                                    const t = findNextRow(rIdx, dIdx, ev.shiftKey ? -1 : 1);
-                                    if (t)
-                                      navigateTo(
-                                        edit,
-                                        flatRows[t.rowIdx].staffId,
-                                        dayMeta[t.dayIdx].iso,
-                                        edit.field,
-                                        flatRows[t.rowIdx].department,
-                                      );
-                                    return;
-                                  }
-                                  if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
-                                    ev.preventDefault();
-                                    const t = findNextRow(
-                                      rIdx,
-                                      dIdx,
-                                      ev.key === "ArrowDown" ? 1 : -1,
-                                    );
-                                    if (t)
-                                      navigateTo(
-                                        edit,
-                                        flatRows[t.rowIdx].staffId,
-                                        dayMeta[t.dayIdx].iso,
-                                        edit.field,
-                                        flatRows[t.rowIdx].department,
-                                      );
-                                    return;
-                                  }
-                                  if (ev.key === "ArrowRight" || ev.key === "ArrowLeft") {
-                                    ev.preventDefault();
-                                    const t = findNextField(
-                                      rIdx,
-                                      dIdx,
-                                      edit.field,
-                                      ev.key === "ArrowRight" ? 1 : -1,
-                                    );
-                                    if (t)
-                                      navigateTo(
-                                        edit,
-                                        flatRows[t.rowIdx].staffId,
-                                        dayMeta[t.dayIdx].iso,
-                                        t.field,
-                                      );
-                                    return;
-                                  }
-                                }}
-                                onBlur={(ev) => handleBlur(ev, edit)}
-                                className={`block w-full h-6 min-w-0 px-0 text-center tabular-nums text-sm rounded border border-primary/50 bg-background box-border ${pending ? "opacity-60" : ""}`}
-                              />
-                            );
-                          }
-                          if (isEditingCell) {
-                            const val = which === "from" ? edit.from : edit.to;
-                            return <span className="tabular-nums">{val}</span>;
-                          }
-                          if (empty) {
-                            if (day.crossLocation && which === "from" && !dm.outOfPeriod)
-                              return <span className="text-muted-foreground">×</span>;
-                            if (editable && which === "from")
-                              return <span className="text-muted-foreground/40">+</span>;
-                            return "";
-                          }
-                          return (
-                            <div className="flex flex-col divide-y divide-border/60">
-                              {day.shifts.map((s, i) => (
-                                <span key={i} className="tabular-nums">
-                                  {s[which]}
-                                </span>
-                              ))}
-                            </div>
-                          );
-                        };
-                        return (
-                          <Fragment key={day.iso}>
-                            <TableCell
-                              onClick={() => handleCellClick("from")}
-                              title={mismatchedTitle}
-                              className={`group/cell relative w-[44px] min-w-[44px] border-l px-0.5 py-1 text-center align-middle tabular-nums text-xs ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
-                            >
-                              {renderShift("from")}
-                              {editable && singleExisting ? (
-                                <button
-                                  type="button"
-                                  aria-label="Schicht löschen"
-                                  title="Schicht löschen"
-                                  onClick={openDeleteFromCell}
-                                  disabled={pending}
-                                  className="absolute top-0 right-0 hidden group-hover/cell:block text-[10px] leading-none px-0.5 text-muted-foreground hover:text-red-600 focus:block"
-                                >
-                                  ×
-                                </button>
-                              ) : null}
-                            </TableCell>
-                            <TableCell
-                              onClick={() => handleCellClick("to")}
-                              title={mismatchedTitle}
-                              className={`w-[44px] min-w-[44px] px-0.5 py-1 text-center align-middle tabular-nums text-xs ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
-                            >
-                              {renderShift("to")}
-                            </TableCell>
-                          </Fragment>
-                        );
-                      })}
-                      <TableCell className="font-bold align-middle border-l text-center text-[10px] px-1 w-[56px] min-w-[56px] max-w-[56px]">
-                        <span className="block truncate" title={row.displayName}>
-                          {row.displayName}
-                        </span>
-                      </TableCell>
-                      {(() => {
-                        const pt = periodTotalsByStaff?.get(row.staffId);
-                        const t =
-                          totalsScope === "period" && pt
-                            ? pt
-                            : {
-                                total: row.totals.total,
-                                evening: row.totals.evening,
-                                night: row.totals.night,
-                                sunHol: row.totals.sunHol,
-                              };
-                        return (
-                          <>
-                            <TableCell className="px-1 text-xs text-right tabular-nums font-medium">
-                              {fmtDec(t.total)}
-                            </TableCell>
-                            <TableCell className="px-1 text-xs text-right tabular-nums">
-                              {fmtDec(t.evening)}
-                            </TableCell>
-                            <TableCell className="px-1 text-xs text-right tabular-nums">
-                              {fmtDec(t.night)}
-                            </TableCell>
-                            <TableCell className="px-1 text-xs text-right tabular-nums">
-                              {fmtDec(t.sunHol)}
-                            </TableCell>
-                          </>
-                        );
-                      })()}
-                      {(() => {
-                        const s = shiftsByStaff.get(row.staffId) ?? 0;
-                        return (
-                          <TableCell
-                            className={`px-1 text-xs text-right tabular-nums ${s > 0 ? "text-red-600 font-medium" : "text-muted-foreground/50"}`}
-                          >
-                            {s > 0 ? s : "–"}
-                          </TableCell>
-                        );
-                      })()}
-                      {(() => {
-                        const abs = absencesByStaff.get(row.staffId);
-                        const u = abs?.urlaubDays ?? 0;
-                        const k = abs?.krankDays ?? 0;
-                        return (
-                          <>
-                            <TableCell
-                              className={`px-1 text-xs text-right tabular-nums ${u > 0 ? "text-green-600 font-medium" : "text-muted-foreground/50"}`}
-                            >
-                              {u > 0 ? u : "–"}
-                            </TableCell>
-                            <TableCell
-                              className={`px-1 text-xs text-right tabular-nums ${k > 0 ? "text-blue-600 font-medium" : "text-muted-foreground/50"}`}
-                            >
-                              {k > 0 ? k : "–"}
-                            </TableCell>
-                          </>
-                        );
-                      })()}
-                    </TableRow>
-                  );
-                })}
-              </Fragment>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </Card>
-    <Dialog
-      open={deleteTarget !== null}
-      onOpenChange={(open) => {
-        if (!open) setDeleteTarget(null);
-      }}
-    >
-      <DialogContent className="sm:max-w-[420px]">
-        <DialogHeader>
-          <DialogTitle>Schicht löschen?</DialogTitle>
-          <DialogDescription>
-            {deleteTarget
-              ? `${deleteTarget.displayName} · ${deleteTarget.iso} · ${deleteTarget.from}–${deleteTarget.to}`
-              : null}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-2">
-          <label htmlFor="wp1-delete-reason" className="text-xs text-muted-foreground">
-            Begründung (mind. 3 Zeichen — landet im Audit-Log)
-          </label>
-          <Textarea
-            id="wp1-delete-reason"
-            value={deleteReason}
-            onChange={(ev) => setDeleteReason(ev.target.value)}
-            rows={3}
-            autoFocus
-          />
-        </div>
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => setDeleteTarget(null)}
-            disabled={pending}
-          >
-            Abbrechen
-          </Button>
-          <Button
-            variant="destructive"
-            disabled={pending || deleteReason.trim().length < 3}
-            onClick={() => {
-              if (!deleteTarget) return;
-              if (deleteReason.trim().length < 3) {
-                toast.error("Bitte mindestens 3 Zeichen Begründung.");
-                return;
-              }
-              onDeleteEntry(deleteTarget.id, deleteReason.trim());
-              setDeleteTarget(null);
-            }}
-          >
-            Löschen
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </TableBody>
+        </Table>
+      </Card>
+      <Dialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Schicht löschen?</DialogTitle>
+            <DialogDescription>
+              {deleteTarget
+                ? `${deleteTarget.displayName} · ${deleteTarget.iso} · ${deleteTarget.from}–${deleteTarget.to}`
+                : null}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <label htmlFor="wp1-delete-reason" className="text-xs text-muted-foreground">
+              Begründung (mind. 3 Zeichen — landet im Audit-Log)
+            </label>
+            <Textarea
+              id="wp1-delete-reason"
+              value={deleteReason}
+              onChange={(ev) => setDeleteReason(ev.target.value)}
+              rows={3}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={pending}>
+              Abbrechen
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={pending || deleteReason.trim().length < 3}
+              onClick={() => {
+                if (!deleteTarget) return;
+                if (deleteReason.trim().length < 3) {
+                  toast.error("Bitte mindestens 3 Zeichen Begründung.");
+                  return;
+                }
+                onDeleteEntry(deleteTarget.id, deleteReason.trim());
+                setDeleteTarget(null);
+              }}
+            >
+              Löschen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

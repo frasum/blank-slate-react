@@ -1172,9 +1172,7 @@ function ZeitUebersichtPage() {
             periodStart={fromDate}
             periodEnd={toDate}
             isAdmin={isAdmin}
-            pending={
-              setShiftMut.isPending || createShiftMut.isPending || deleteEntryMut.isPending
-            }
+            pending={setShiftMut.isPending || createShiftMut.isPending || deleteEntryMut.isPending}
             onUpdateInline={(id, iso, from, to) => {
               try {
                 const { startedAt, endedAt } = buildShiftIsosOrThrow(iso, from, to);
