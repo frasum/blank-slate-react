@@ -457,21 +457,21 @@ export function WeeklyPlan({
               </TableHead>
               <TableHead
                 rowSpan={2}
-                className="px-1 text-right text-xs align-middle whitespace-nowrap"
+                className="px-1 text-right text-xs align-middle whitespace-nowrap text-red-600"
                 title="Schichten in der Abrechnungsperiode"
               >
                 S
               </TableHead>
               <TableHead
                 rowSpan={2}
-                className="px-1 text-right text-xs align-middle whitespace-nowrap"
+                className="px-1 text-right text-xs align-middle whitespace-nowrap text-green-600"
                 title="Urlaubstage in der Abrechnungsperiode"
               >
                 U
               </TableHead>
               <TableHead
                 rowSpan={2}
-                className="px-1 text-right text-xs align-middle whitespace-nowrap"
+                className="px-1 text-right text-xs align-middle whitespace-nowrap text-blue-600"
                 title="Kranktage in der Abrechnungsperiode"
               >
                 K
