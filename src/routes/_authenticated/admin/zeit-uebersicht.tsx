@@ -1281,11 +1281,14 @@ function ZeitUebersichtPage() {
                     </TableHead>
                   ))}
                   <TableHead className="text-right">Gesamt</TableHead>
-                  <TableHead className="text-right" title="Schichten in der Abrechnungsperiode">
+                  <TableHead
+                    className="text-right text-red-600"
+                    title="Schichten in der Abrechnungsperiode"
+                  >
                     S
                   </TableHead>
-                  <TableHead className="text-right">U</TableHead>
-                  <TableHead className="text-right">K</TableHead>
+                  <TableHead className="text-right text-green-600">U</TableHead>
+                  <TableHead className="text-right text-blue-600">K</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1352,16 +1355,18 @@ function ZeitUebersichtPage() {
                             <TableCell className="text-right tabular-nums font-medium">
                               {fmtHm(s.totalHours)}
                             </TableCell>
-                            <TableCell className="text-right tabular-nums">
+                            <TableCell
+                              className={`text-right tabular-nums ${s.shiftDates.size > 0 ? "text-red-600 font-medium" : "text-muted-foreground/50"}`}
+                            >
                               {s.shiftDates.size}
                             </TableCell>
                             <TableCell
-                              className={`text-right tabular-nums ${u > 0 ? "" : "text-muted-foreground/50"}`}
+                              className={`text-right tabular-nums ${u > 0 ? "text-green-600 font-medium" : "text-muted-foreground/50"}`}
                             >
                               {u > 0 ? u : "–"}
                             </TableCell>
                             <TableCell
-                              className={`text-right tabular-nums ${k > 0 ? "" : "text-muted-foreground/50"}`}
+                              className={`text-right tabular-nums ${k > 0 ? "text-blue-600 font-medium" : "text-muted-foreground/50"}`}
                             >
                               {k > 0 ? k : "–"}
                             </TableCell>
@@ -1378,14 +1383,18 @@ function ZeitUebersichtPage() {
                         <TableCell className="text-right tabular-nums">
                           {fmtHm(deptTotal)}
                         </TableCell>
-                        <TableCell className="text-right tabular-nums">{deptShifts}</TableCell>
                         <TableCell
-                          className={`text-right tabular-nums ${deptUrlaub > 0 ? "" : "text-muted-foreground/50"}`}
+                          className={`text-right tabular-nums ${deptShifts > 0 ? "text-red-600 font-medium" : "text-muted-foreground/50"}`}
+                        >
+                          {deptShifts}
+                        </TableCell>
+                        <TableCell
+                          className={`text-right tabular-nums ${deptUrlaub > 0 ? "text-green-600 font-medium" : "text-muted-foreground/50"}`}
                         >
                           {deptUrlaub > 0 ? deptUrlaub : "–"}
                         </TableCell>
                         <TableCell
-                          className={`text-right tabular-nums ${deptKrank > 0 ? "" : "text-muted-foreground/50"}`}
+                          className={`text-right tabular-nums ${deptKrank > 0 ? "text-blue-600 font-medium" : "text-muted-foreground/50"}`}
                         >
                           {deptKrank > 0 ? deptKrank : "–"}
                         </TableCell>
@@ -1419,14 +1428,18 @@ function ZeitUebersichtPage() {
                           </TableCell>
                         ))}
                         <TableCell className="text-right tabular-nums">{fmtHm(tot)}</TableCell>
-                        <TableCell className="text-right tabular-nums">{totShifts}</TableCell>
                         <TableCell
-                          className={`text-right tabular-nums ${totUrlaub > 0 ? "" : "text-muted-foreground/50"}`}
+                          className={`text-right tabular-nums ${totShifts > 0 ? "text-red-600 font-medium" : "text-muted-foreground/50"}`}
+                        >
+                          {totShifts}
+                        </TableCell>
+                        <TableCell
+                          className={`text-right tabular-nums ${totUrlaub > 0 ? "text-green-600 font-medium" : "text-muted-foreground/50"}`}
                         >
                           {totUrlaub > 0 ? totUrlaub : "–"}
                         </TableCell>
                         <TableCell
-                          className={`text-right tabular-nums ${totKrank > 0 ? "" : "text-muted-foreground/50"}`}
+                          className={`text-right tabular-nums ${totKrank > 0 ? "text-blue-600 font-medium" : "text-muted-foreground/50"}`}
                         >
                           {totKrank > 0 ? totKrank : "–"}
                         </TableCell>
