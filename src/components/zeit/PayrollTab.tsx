@@ -172,15 +172,15 @@ export function PayrollTab({
                 </>
               )}
               <TableHead
-                className="h-9 text-xs uppercase tracking-wider text-muted-foreground text-right w-16"
+                className="h-9 text-xs uppercase tracking-wider text-red-600 text-right w-16"
                 title="Schichten in der Abrechnungsperiode"
               >
                 S
               </TableHead>
-              <TableHead className="h-9 text-xs uppercase tracking-wider text-muted-foreground text-right w-12">
+              <TableHead className="h-9 text-xs uppercase tracking-wider text-green-600 text-right w-12">
                 U
               </TableHead>
-              <TableHead className="h-9 text-xs uppercase tracking-wider text-muted-foreground text-right w-12">
+              <TableHead className="h-9 text-xs uppercase tracking-wider text-blue-600 text-right w-12">
                 K
               </TableHead>
               <TableHead className="h-9 text-xs uppercase tracking-wider text-muted-foreground text-right w-28">
@@ -262,11 +262,19 @@ export function PayrollTab({
                     </TableCell>
                   </>
                 )}
-                <TableCell className="py-1.5 text-right tabular-nums">{totals.shifts}</TableCell>
-                <TableCell className="py-1.5 text-right tabular-nums">
+                <TableCell
+                  className={`py-1.5 text-right tabular-nums ${totals.shifts > 0 ? "text-red-600 font-medium" : "text-muted-foreground/50"}`}
+                >
+                  {totals.shifts}
+                </TableCell>
+                <TableCell
+                  className={`py-1.5 text-right tabular-nums ${totals.urlaubDays > 0 ? "text-green-600 font-medium" : "text-muted-foreground/50"}`}
+                >
                   {totals.urlaubDays > 0 ? totals.urlaubDays : "–"}
                 </TableCell>
-                <TableCell className="py-1.5 text-right tabular-nums">
+                <TableCell
+                  className={`py-1.5 text-right tabular-nums ${totals.krankDays > 0 ? "text-blue-600 font-medium" : "text-muted-foreground/50"}`}
+                >
                   {totals.krankDays > 0 ? totals.krankDays : "–"}
                 </TableCell>
                 <TableCell className="py-1.5 text-right tabular-nums">
@@ -328,19 +336,21 @@ function PayrollRow({
           <TableCell className="py-1.5 text-right">{numCell(row.feiertag150)}</TableCell>
         </>
       )}
-      <TableCell className="py-1.5 text-right tabular-nums text-muted-foreground">
+      <TableCell
+        className={`py-1.5 text-right tabular-nums ${row.shifts > 0 ? "text-red-600 font-medium" : "text-muted-foreground/50"}`}
+      >
         {row.shifts}
       </TableCell>
       <TableCell
         className={`py-1.5 text-right tabular-nums ${
-          row.urlaubDays > 0 ? "font-medium" : "text-muted-foreground/50"
+          row.urlaubDays > 0 ? "text-green-600 font-medium" : "text-muted-foreground/50"
         }`}
       >
         {row.urlaubDays > 0 ? row.urlaubDays : "–"}
       </TableCell>
       <TableCell
         className={`py-1.5 text-right tabular-nums ${
-          row.krankDays > 0 ? "font-medium" : "text-muted-foreground/50"
+          row.krankDays > 0 ? "text-blue-600 font-medium" : "text-muted-foreground/50"
         }`}
       >
         {row.krankDays > 0 ? row.krankDays : "–"}
