@@ -4,15 +4,19 @@
 // laufen daher immer auf genau EINER Zeile auf. Damit dieselbe Person nicht
 // je nach Row-Reihenfolge einmal unter KÜCHE, einmal unter GL landet, wird
 // die Primär-Abteilung aus den staff_locations-Zuordnungen deterministisch
-// gewählt: Fachbereich schlägt Geschäftsleitung, Küche schlägt Service.
+// gewählt.
 //
-// Reihenfolge: kitchen > service > gl. Fallback (leere Liste): "service"
+// WZ1/KGL — Reihenfolge: gl > kitchen > service. Deckungsgleich mit der
+// TP-GL-Hausregel in `src/lib/cash/roster-pool-snapshot.ts` (Franks
+// Referenz-Regel für den Kassen-Pool). Vorher lief hier
+// kitchen > service > gl — LAM (service+gl) erschien in der Zusammen-
+// fassung nie unter Geschäftsleitung. Fallback (leere Liste): "service"
 // — konsistent mit dem historischen Default in getTimeOverview /
 // getWeeklyTimeEntries.
 
 export type Department = "kitchen" | "service" | "gl";
 
-const PRIORITY: Department[] = ["kitchen", "service", "gl"];
+const PRIORITY: Department[] = ["gl", "kitchen", "service"];
 
 export function primaryDepartment(depts: readonly Department[]): Department {
   for (const d of PRIORITY) {
