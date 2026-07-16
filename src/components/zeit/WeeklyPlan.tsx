@@ -601,6 +601,7 @@ export function WeeklyPlan({
                                 inputMode="numeric"
                                 maxLength={5}
                                 value={val}
+                                placeholder={which === "from" ? "15:00" : "23:00"}
                                 disabled={pending}
                                 data-edit-key={cellKey(row.staffId, day.iso)}
                                 ref={inputRef}
