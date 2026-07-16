@@ -3,7 +3,12 @@
 
 export type SourceSystem = "tagesabrechnung" | "bunker";
 
-export type SkipReason = "absence" | "invalid_time" | "unmapped_staff" | "duplicate";
+export type SkipReason =
+  | "absence"
+  | "invalid_time"
+  | "unmapped_staff"
+  | "duplicate"
+  | "native_overlap";
 
 export type AltTotals = {
   totalHours: number;

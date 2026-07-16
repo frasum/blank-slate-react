@@ -31,7 +31,13 @@ export function emptyCounters(): Counters {
     read: 0,
     imported: 0,
     importedWithoutLocation: 0,
-    skippedByReason: { absence: 0, invalid_time: 0, unmapped_staff: 0, duplicate: 0 },
+    skippedByReason: {
+      absence: 0,
+      invalid_time: 0,
+      unmapped_staff: 0,
+      duplicate: 0,
+      native_overlap: 0,
+    },
   };
 }
 
@@ -76,7 +82,33 @@ export type RunImportResult = {
    *  Sichtbar in Dry-Run/Commit-Ergebnissen — deckt eine wiederkehrende stille
    *  1000er-Kappung von PostgREST sofort auf. */
   existingKeyCount: number;
+  /** MIG2: Erste 20 Kandidaten, die wegen Überlappung mit einem nativ
+   *  gestempelten Eintrag geskippt wurden. Für die Generalprobe-Sichtung. */
+  nativeOverlapSamples: NativeOverlapSample[];
 };
+
+export type NativeOverlapSample = {
+  staffId: string;
+  businessDate: string;
+  candidate: { startedAt: string; endedAt: string };
+  native: { startedAt: string; endedAt: string };
+  overlapMinutes: number;
+};
+
+/** MIG2: Mindest-Überlappung, ab der ein Kandidat als Doppel-Import gilt.
+ *  Bewusst 30 min — Randberührung/kleine Zeitdifferenzen zählen NICHT. */
+const NATIVE_OVERLAP_MIN_MINUTES = 30;
+
+/** Überlappungsdauer in Minuten (0 wenn disjunkt). */
+export function overlapMinutes(aStart: string, aEnd: string, bStart: string, bEnd: string): number {
+  const aS = Date.parse(aStart);
+  const aE = Date.parse(aEnd);
+  const bS = Date.parse(bStart);
+  const bE = Date.parse(bEnd);
+  if (Number.isNaN(aS) || Number.isNaN(aE) || Number.isNaN(bS) || Number.isNaN(bE)) return 0;
+  const overlapMs = Math.min(aE, bE) - Math.max(aS, bS);
+  return overlapMs > 0 ? overlapMs / 60000 : 0;
+}
 
 /**
  * Bilanz-Invariante: Jede gelesene Zeile landet entweder als Import oder als
@@ -134,6 +166,54 @@ export async function executeImport(args: RunImportArgs): Promise<RunImportResul
   for (const r of existingRows) if (r.import_key) existingKeys.add(r.import_key);
   const existingKeyCount = existingKeys.size;
 
+  // 2c) MIG2: nativ gestempelte Einträge (source <> 'import') im Datumsbereich
+  // der CSV laden. EIN paginierter Query, danach in-memory nach
+  // (staff_id, business_date) gruppiert — kein N+1.
+  //
+  // Datumsbereich wird aus den nicht-skip-Kandidaten abgeleitet; Mitternachts-
+  // Wrap ist bereits in startedAt/endedAt (ISO) enthalten, daher reicht der
+  // business_date-Filter für die Native-Auswahl.
+  const candidateDates = new Set<string>();
+  for (const s of shifts) {
+    if (s.skipReason === null && s.shiftDate) candidateDates.add(s.shiftDate);
+  }
+  const nativeByKey = new Map<string, { started_at: string; ended_at: string }[]>();
+  if (candidateDates.size > 0) {
+    const sortedDates = [...candidateDates].sort();
+    const minDate = sortedDates[0];
+    const maxDate = sortedDates[sortedDates.length - 1];
+    const nativeRows = await selectAllPaged<{
+      staff_id: string;
+      business_date: string;
+      started_at: string | null;
+      ended_at: string | null;
+    }>(() =>
+      admin
+        .from("time_entries")
+        .select("staff_id, business_date, started_at, ended_at")
+        .eq("organization_id", organizationId)
+        .neq("source", "import")
+        .gte("business_date", minDate)
+        .lte("business_date", maxDate)
+        .not("started_at", "is", null)
+        .not("ended_at", "is", null)
+        .order("staff_id", { ascending: true })
+        .order("business_date", { ascending: true })
+        .order("started_at", { ascending: true }),
+    );
+    for (const n of nativeRows) {
+      if (!n.started_at || !n.ended_at) continue;
+      const key = `${n.staff_id}|${n.business_date}`;
+      let list = nativeByKey.get(key);
+      if (!list) {
+        list = [];
+        nativeByKey.set(key, list);
+      }
+      list.push({ started_at: n.started_at, ended_at: n.ended_at });
+    }
+  }
+  const nativeOverlapSamples: NativeOverlapSample[] = [];
+
   // 2b) Standort-Namen → location_id (case-insensitiv). Quelle: optionale CSV-Spalte `restaurant`.
   const { data: locRows, error: locErr } = await admin
     // ST1: bewusst ungefiltert — Daten-Zugriff (Migrations-Import: Name → ID).
@@ -179,6 +259,35 @@ export async function executeImport(args: RunImportArgs): Promise<RunImportResul
       counters.skippedByReason.invalid_time++;
       continue;
     }
+    // MIG2: Überlappungs-Wächter NACH duplicate/invalid_time — die native
+    // Prüfung setzt gültige Zeitfenster auf beiden Seiten voraus.
+    const nativeList = nativeByKey.get(`${staffId}|${s.shiftDate}`);
+    if (nativeList && nativeList.length > 0) {
+      let hit: {
+        native: { started_at: string; ended_at: string };
+        overlap: number;
+      } | null = null;
+      for (const n of nativeList) {
+        const ov = overlapMinutes(s.startedAt, s.endedAt, n.started_at, n.ended_at);
+        if (ov >= NATIVE_OVERLAP_MIN_MINUTES) {
+          hit = { native: n, overlap: ov };
+          break;
+        }
+      }
+      if (hit) {
+        counters.skippedByReason.native_overlap++;
+        if (nativeOverlapSamples.length < 20) {
+          nativeOverlapSamples.push({
+            staffId,
+            businessDate: s.shiftDate,
+            candidate: { startedAt: s.startedAt, endedAt: s.endedAt },
+            native: { startedAt: hit.native.started_at, endedAt: hit.native.ended_at },
+            overlapMinutes: Math.round(hit.overlap),
+          });
+        }
+        continue;
+      }
+    }
     const locationId = resolveLocationId(s.locationName, locByName);
     if (locationId === null) counters.importedWithoutLocation++;
     inserts.push({
@@ -198,7 +307,15 @@ export async function executeImport(args: RunImportArgs): Promise<RunImportResul
   if (mode === "dry_run") {
     counters.imported = inserts.length;
     assertCounterBalance(counters);
-    return { mode, fileHash, counters, runId: null, lockedThrough: null, existingKeyCount };
+    return {
+      mode,
+      fileHash,
+      counters,
+      runId: null,
+      lockedThrough: null,
+      existingKeyCount,
+      nativeOverlapSamples,
+    };
   }
 
   // 3) Commit: import_runs anlegen.
@@ -271,5 +388,13 @@ export async function executeImport(args: RunImportArgs): Promise<RunImportResul
     }
   }
 
-  return { mode, fileHash, counters, runId, lockedThrough: newLock, existingKeyCount };
+  return {
+    mode,
+    fileHash,
+    counters,
+    runId,
+    lockedThrough: newLock,
+    existingKeyCount,
+    nativeOverlapSamples,
+  };
 }
