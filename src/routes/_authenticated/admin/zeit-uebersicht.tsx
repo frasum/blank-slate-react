@@ -640,6 +640,19 @@ function ZeitUebersichtPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // WP1 — Löschen eines Zeit-Eintrags aus dem Wochenplan. Ehrlichkeitsregel:
+  // die zugehörige Server-Fn deleteTimeEntry existierte bis WP1 nicht — jetzt
+  // schon (Audit "time_entry.manual_delete" mit vollständigem Row-Snapshot,
+  // Wasserlinien-Guard serverseitig).
+  const deleteEntryMut = useMutation({
+    mutationFn: (vars: { id: string; reason: string }) => callDeleteEntry({ data: vars }),
+    onSuccess: () => {
+      invalidateWeekly();
+      toast.success("Schicht gelöscht.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const invalidatePeriods = () => {
     void qc.invalidateQueries({ queryKey: ["periods"] });
   };
