@@ -231,6 +231,66 @@ export async function executeImport(args: RunImportArgs): Promise<RunImportResul
   const locByName = new Map<string, string>();
   for (const l of locRows ?? []) if (l.name) locByName.set(l.name.trim().toLowerCase(), l.id);
 
+  // 2d) MIG3: Standort-Anreicherung aus dem Dienstplan.
+  // Für alle nicht-skip-Kandidaten OHNE CSV-Standort: bestätigte Roster-
+  // Schichten desselben (staff_id, shift_date) laden und in-memory gruppieren.
+  // Genau EIN distinkter Standort am Tag → Anreicherung; sonst NULL
+  // (F2-Ehrlichkeit unverändert; die Absicherung leistet die Eindeutigkeits-
+  // Bedingung, nicht der Status).
+  //
+  // Statusmenge deckungsgleich mit Kassen-Pool-Snapshot (KGL) —
+  // Referenz cash.functions.ts (`applyRosterPoolSnapshot`,
+  // `.in("status", ["planned", "confirmed"])`). Ein Import betrifft
+  // vergangene Tage; dort ist der Plan gelebte Realität, und der
+  // Bestätigen-Klick ist Workflow-Rauschen. Kein roster_releases-Join.
+  const rosterCandidateStaffIds = new Set<string>();
+  const rosterCandidateDates = new Set<string>();
+  for (const s of shifts) {
+    if (s.skipReason !== null) continue;
+    if (s.locationName) continue; // CSV-Angabe hat Vorrang.
+    const altKey = s.altEmployeeId || s.altEmployeeName;
+    const staffId = altKey ? (mapByAltId.get(altKey) ?? null) : null;
+    if (!staffId) continue;
+    if (!s.shiftDate) continue;
+    rosterCandidateStaffIds.add(staffId);
+    rosterCandidateDates.add(s.shiftDate);
+  }
+  const rosterLocByKey = new Map<string, Set<string>>();
+  if (rosterCandidateStaffIds.size > 0 && rosterCandidateDates.size > 0) {
+    const sorted = [...rosterCandidateDates].sort();
+    const minRosterDate = sorted[0];
+    const maxRosterDate = sorted[sorted.length - 1];
+    const staffIdList = [...rosterCandidateStaffIds];
+    const rosterRows = await selectAllPaged<{
+      staff_id: string;
+      shift_date: string;
+      location_id: string | null;
+    }>(() =>
+      admin
+        .from("roster_shifts")
+        .select("staff_id, shift_date, location_id")
+        .eq("organization_id", organizationId)
+        .in("staff_id", staffIdList)
+        .gte("shift_date", minRosterDate)
+        .lte("shift_date", maxRosterDate)
+        .in("status", ["planned", "confirmed"])
+        .not("location_id", "is", null)
+        .order("staff_id", { ascending: true })
+        .order("shift_date", { ascending: true })
+        .order("location_id", { ascending: true }),
+    );
+    for (const r of rosterRows) {
+      if (!r.location_id) continue;
+      const key = `${r.staff_id}|${r.shift_date}`;
+      let set = rosterLocByKey.get(key);
+      if (!set) {
+        set = new Set<string>();
+        rosterLocByKey.set(key, set);
+      }
+      set.add(r.location_id);
+    }
+  }
+
   type Insertable = {
     organization_id: string;
     staff_id: string;
@@ -294,7 +354,16 @@ export async function executeImport(args: RunImportArgs): Promise<RunImportResul
         continue;
       }
     }
-    const locationId = resolveLocationId(s.locationName, locByName);
+    let locationId = resolveLocationId(s.locationName, locByName);
+    if (locationId === null) {
+      // MIG3: Anreicherung aus dem Dienstplan. Nur wenn die Quelle keinen
+      // Standort liefert — Quell-Angabe hat Vorrang.
+      const rosterSet = rosterLocByKey.get(`${staffId}|${s.shiftDate}`);
+      if (rosterSet && rosterSet.size === 1) {
+        locationId = rosterSet.values().next().value ?? null;
+        if (locationId !== null) counters.locationFromRoster++;
+      }
+    }
     if (locationId === null) counters.importedWithoutLocation++;
     inserts.push({
       organization_id: organizationId,
