@@ -197,6 +197,10 @@ export type WeeklyData = {
   rosterByStaff?: Record<string, { areas: Department[]; skillIds: string[] }>;
   // Z3b — Per-Tag-Roster-Area je Mitarbeiter (Attribution NULL-Einträge).
   rosterAreaByStaffDate?: Record<string, Record<string, Department>>;
+  // WZ2 — Per-Tag-GL-Skill-Flag je Mitarbeiter (Dienstplan-Skill = 'gl').
+  // „Die Schicht hat den Typ, nicht die Person" — GL-Skill-Tage routen zur
+  // GL-Zeile, auch wenn die Person sonst Service läuft (LAM-Fall).
+  rosterGlByStaffDate?: Record<string, Record<string, boolean>>;
 };
 
 export function fmtDec(n: number): string {
