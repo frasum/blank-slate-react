@@ -1586,18 +1586,29 @@ export const deleteTimeEntry = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "manager",
+      "admin",
+      "planer",
+    ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // Scope-Check: Standort des Eintrags vorladen, damit runWithPermission
     // die time.entry.edit-Berechtigung am korrekten Standort prüft.
     const { data: pre, error: preErr } = await supabaseAdmin
       .from("time_entries")
-      .select("location_id")
+      .select("location_id, business_date")
       .eq("id", data.id)
       .eq("organization_id", caller.organizationId)
       .maybeSingle();
     if (preErr) throw preErr;
     if (!pre) throw new Error("Eintrag nicht gefunden.");
+    if (caller.role === "planer") {
+      if (!isInCurrentBillingCycle(pre.business_date, todayIso())) {
+        throw new Error(
+          "Planer dürfen nur Einträge der laufenden Abrechnungsperiode löschen.",
+        );
+      }
+    }
     return runWithPermission(
       context.supabase,
       "time.entry.edit",
