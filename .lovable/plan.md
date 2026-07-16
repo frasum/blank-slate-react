@@ -1,74 +1,35 @@
-## WZ1 — Zeitübersicht: Alle-Standorte, sichtbare Lücken, GL-Priorität
 
-Ein Commit, keine Migration.
+## Ziel
 
-### 0. Vorab-Absicherung (Ergebnis in Commit-Ansage)
+Die Spalten **S** (Schichten), **U** (Urlaub), **K** (Krank) bekommen in allen drei Ansichten dieselbe Farbgebung wie im Wochenplan bereits etabliert:
 
-Vor dem ersten Edit: per `rg` bestätigen, dass `primaryDepartment` / die Abteilungs-Zuordnung ausschließlich Anzeige-Gruppierung ist. Prüfsuche in:
-- `src/lib/lohn/**` (Lohn-Pfade, Nettolohn, Provision)
-- `src/lib/time/**` speziell `getSfnOverview`, SFN-Berechnung
-- `src/lib/cash/**` (Trinkgeld-/Pool-Berechnung)
-- alle Aufrufer von `primaryDepartment`, `buildPrimaryDeptMap`, `entryRowDepartment`
+- S → rot (`text-red-600`)
+- U → grün (`text-green-600`)
+- K → blau (`text-blue-600`)
 
-**Erwartung:** Abteilung ist reine Darstellung, keine Verzweigung in Geld/SFN. Beträge ändern sich um null Cent.
+Und zwar sowohl in den **Spaltenüberschriften** (heute überall neutral) als auch in den **Werten** (heute nur im Wochenplan gefärbt).
 
-**Wenn doch Geld an der Abteilung hängt → STOPP, melden, nicht bauen.** Dann ist es keine Anzeige-Korrektur mehr, sondern eine Lohn-Änderung — Entscheidung Frank.
+## Betroffene Stellen
 
-### 1. Server: `locationId` optional in `getTimeOverview`
+1. **Wochenplan-Header** – `src/components/zeit/WeeklyPlan.tsx` (Zeilen 458–478)
+   S/U/K-`<TableHead>` bekommen die passende Textfarbe. Werte-Zellen (rot/grün/blau) bleiben unverändert.
 
-`src/lib/time/time-admin.functions.ts`
-- `inputValidator`: `locationId: z.string().uuid().nullable()`.
-- `null` ⇒ kein `.eq('location_id', …)` (org-weit, inkl. `location_id IS NULL`).
-- `staff_locations` bei `null` org-weit; `buildPrimaryDeptMap` reduziert je Mitarbeiter über alle Standorte.
-- Buchhaltungs-/SFN-Pfad mit gleichem Filter analog anpassen.
+2. **Zusammenfassung** – `src/routes/_authenticated/admin/zeit-uebersicht.tsx` (Zeilen 1284–1288 Header; 1355–1367 Zeilen, 1381–1391 Dept-Summe, 1422–1432 Gesamt)
+   - Header S/U/K einfärben.
+   - Werte-Zellen (Zeilen, Dept-Summen, Gesamt-Zeile): bei Wert > 0 in der jeweiligen Farbe mit `font-medium`, sonst weiterhin `text-muted-foreground/50` (Analog zum Wochenplan).
 
-### 2. Lücken-Counts im selben Handler
+3. **Buchhaltung** – `src/components/zeit/PayrollTab.tsx` (Header 174–185; Zeilen 332/339/346; Totals 265/267/270)
+   - Header S/U/K einfärben (bleibt `uppercase tracking-wider`, nur Textfarbe wechselt).
+   - Werte-Zellen: gleiche Rot/Grün/Blau-Regel wie in der Zusammenfassung.
 
-Nur bei `locationId != null`, zwei `head:true, count:'exact'` Queries:
-- `unlocatedShifts`: Zeitraum, `location_id IS NULL`, betroffene Mitarbeiter.
-- `openShifts`: Zeitraum, gewählter Standort, `ended_at IS NULL`.
+## Nicht enthalten
 
-Ergebnis-Shape um `gaps: { unlocatedShifts, openShifts }` erweitert. Summenquery bleibt bei `.not('ended_at','is',null)`.
+- Keine neuen Design-Tokens in `src/styles.css`. Wir bleiben bei den bereits im Wochenplan verwendeten Tailwind-Farben `red-600` / `green-600` / `blue-600`, damit die Farbe 1:1 übereinstimmt und wir keinen zweiten Token-Pfad öffnen.
+- Keine Änderung an Werten, Aggregation, Exporten (PDF/XLSX), Sortierung.
+- Keine Änderung an Icons, Tooltips, Zeilenhöhen.
+- „S"-Bedeutung (Schichtenanzahl) und „SF"-Spalte (Sonntag/Feiertag) bleiben unangetastet.
 
-### 3. GL-Priorität drehen (KGL)
+## Verifikation
 
-`src/lib/time/primary-department.ts`
-- `PRIORITY = ['gl','kitchen','service']`.
-- Kommentar mit Verweis auf `roster-pool-snapshot.ts` (TP-GL-Hausregel als Referenz).
-- Fallback leer bleibt `service`.
-
-Tests aktualisieren + LAM-Fall (service+gl → gl) explizit.
-
-Gruppierung im Handler: `rawDepartment` (Z3) hat Vorrang, `primaryDepartment` nur Fallback ohne `rawDepartment`. Unit-Test dazu.
-
-### 4. UI
-
-`src/routes/_authenticated/admin/zeit-uebersicht.tsx`
-- `LocationPills` mit oberster Option „Alle Standorte" (Sentinel `__all__` → Server: `null`).
-- **Default Zusammenfassungs-Tab:** „Alle Standorte".
-- Detail-Sichten (Wochenplan) unverändert, brauchen konkreten Standort.
-
-Zusammenfassungs-Panel: Hinweis-Balken oberhalb Tabelle, nur wenn Standort gewählt UND `gaps.unlocatedShifts + gaps.openShifts > 0`:
-> „X Schichten ohne Standort und Y offene Schichten werden hier nicht gezählt — ‚Alle Standorte' wählen bzw. Ausstempelung nachtragen."
-
-### 5. Tests
-
-- `primary-department.test.ts`: neue Priorität, LAM-Fall.
-- Neuer Unit-Test: `rawDepartment` wins, primary als Fallback.
-- DB-Integration `time-admin-all-locations.db.test.ts`:
-  (a) `locationId: null` summiert über zwei Standorte;
-  (b) `location_id IS NULL`-Einträge in Alle-Standorte-Sicht enthalten;
-  (c) Standort-Sicht liefert `gaps` korrekt.
-
-### Commit-Kommentar
-
-- Ein-Satz-Warnung: „Prioritätsumkehr wirkt rückwirkend auf Fallback-Gruppierung aller GL+Fachbereich-Personen."
-- Ergebnis der Vorab-Absicherung: „Abteilung nur Anzeige, Beträge unverändert."
-
-### Nicht anfassen
-
-`buildStaffDeptsMap`/Wochenplan-Grid (Z3), `roster-pool-snapshot.ts`, `deleteTimeEntry`/WP1, Import-Code, `pap-2026/**`.
-
-### Hygiene
-
-`npx prettier --write` + `npx eslint --fix`; vier Gates + db-integration grün.
+- `bunx tsgo --noEmit` grün.
+- Sichtprüfung Wochenplan / Zusammenfassung / Buchhaltung: Header S/U/K rot/grün/blau; Werte-Spalten in derselben Farbe (Null/„–" bleibt gedimmt).
