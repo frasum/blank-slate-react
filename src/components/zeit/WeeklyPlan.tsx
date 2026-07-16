@@ -13,6 +13,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { ZeitSkeleton } from "@/components/ui/page-skeletons";
 import type { WeeklyExportInput } from "@/lib/time/weekly-export";
 import { bavarianHolidayName, isBavarianHoliday, isSundayOrHoliday } from "@/lib/time/shift-hours";
@@ -27,6 +37,7 @@ import {
   type WeeklyEntry,
 } from "@/lib/time/zeit-uebersicht-core";
 import { ReassignPopover } from "./ReassignPopover";
+import { resolveEditorAction } from "@/lib/time/weekly-editor-actions";
 
 export function WeeklyPlan({
   input,
@@ -38,6 +49,7 @@ export function WeeklyPlan({
   onUpdateInline,
   onCreateInline,
   onReassign,
+  onDeleteEntry,
   staffDeptsByStaff,
   periodStart,
   periodEnd,
@@ -63,6 +75,10 @@ export function WeeklyPlan({
   ) => void;
   // Z3 — Abteilung eines bestehenden Eintrags umhängen.
   onReassign: (id: string, department: Department | null) => void;
+  // WP1 — Löschen eines einzelnen Eintrags aus dem Wochenplan.
+  // Aufrufer öffnet die eigentliche Server-Mutation; die UI hat die
+  // Begründung bereits per Popover eingesammelt (≥3 Zeichen).
+  onDeleteEntry: (id: string, reason: string) => void;
   staffDeptsByStaff: Map<string, Department[]>;
   periodStart?: string;
   periodEnd?: string;
@@ -120,12 +136,22 @@ export function WeeklyPlan({
     department: Department;
   };
   const [edit, setEdit] = useState<EditState | null>(null);
+  // WP1 — Lösch-Bestätigungs-Popover. Wird gefüllt, wenn beide Zellen-Felder
+  // geleert wurden (Blur/Enter) ODER das ✕ in der Zelle geklickt wird.
+  type DeleteTarget = {
+    id: string;
+    displayName: string;
+    iso: string;
+    from: string;
+    to: string;
+  };
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  const [deleteReason, setDeleteReason] = useState<string>("Wochenplan-Korrektur");
   const editStaffId = edit?.staffId;
   const editIso = edit?.iso;
   const editField = edit?.field;
   const inputRef = useRef<HTMLInputElement | null>(null);
   const navigatingRef = useRef(false);
-  const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 
   // Fokus + Selektion nur, wenn eine NEUE Zielzelle aktiv wird
   // (nicht bei jedem Tastenanschlag → kein Cursor-Flackern).
@@ -136,37 +162,6 @@ export function WeeklyPlan({
     el.focus();
     el.select();
   }, [editStaffId, editIso, editField]);
-
-  // Akzeptiert freie Ziffern-Eingaben und normalisiert zu HH:MM.
-  // Beispiele: "1530" → "15:30", "930" → "09:30", "9" → "09:00",
-  // "15:3" → "15:03", "15.30" → "15:30". Ungültig → null.
-  const parseHHMM = (raw: string): string | null => {
-    const s = raw.trim().replace(/[.\-\s]/g, ":");
-    let h: string;
-    let m: string;
-    if (s.includes(":")) {
-      const [hp, mp = ""] = s.split(":");
-      if (!/^\d{1,2}$/.test(hp) || !/^\d{1,2}$/.test(mp)) return null;
-      h = hp.padStart(2, "0");
-      m = mp.padStart(2, "0");
-    } else {
-      if (!/^\d+$/.test(s)) return null;
-      if (s.length <= 2) {
-        h = s.padStart(2, "0");
-        m = "00";
-      } else if (s.length === 3) {
-        h = s.slice(0, 1).padStart(2, "0");
-        m = s.slice(1);
-      } else if (s.length === 4) {
-        h = s.slice(0, 2);
-        m = s.slice(2);
-      } else {
-        return null;
-      }
-    }
-    const out = `${h}:${m}`;
-    return HHMM.test(out) ? out : null;
-  };
 
   const startEdit = (
     staffId: string,
@@ -192,12 +187,14 @@ export function WeeklyPlan({
         department,
       });
     } else {
+      // WP1 — Neue Zelle startet LEER. Die "15:00"/"23:00" erscheinen nur
+      // noch als placeholder-Attribut im Input; wegklicken erzeugt nichts.
       setEdit({
         staffId,
         iso,
         field,
-        from: "15:00",
-        to: "23:00",
+        from: "",
+        to: "",
         existingId: null,
         origFrom: "",
         origTo: "",
@@ -208,20 +205,45 @@ export function WeeklyPlan({
 
   const cellKey = (staffId: string, iso: string) => `${staffId}|${iso}`;
 
-  const commit = (e: EditState) => {
-    const from = parseHHMM(e.from);
-    const to = parseHHMM(e.to);
-    if (!from || !to) {
-      toast.error("Ungültige Uhrzeit.");
-      return false;
+  // WP1 — Ergebnis der zentralen Editor-Aktion. "closed" schließt den Editor,
+  // "kept-open" hält ihn offen (Ungültige Uhrzeit), "delete-pending" öffnet
+  // das Bestätigungs-Popover; der Aufrufer entscheidet, ob er dann schließt.
+  type CommitResult = "closed" | "kept-open" | "delete-pending";
+  const commit = (e: EditState): CommitResult => {
+    const action = resolveEditorAction({
+      from: e.from,
+      to: e.to,
+      existingId: e.existingId,
+      origFrom: e.origFrom,
+      origTo: e.origTo,
+    });
+    switch (action.kind) {
+      case "close":
+      case "noop":
+        return "closed";
+      case "create":
+        onCreateInline(e.staffId, e.iso, action.from, action.to, e.department);
+        return "closed";
+      case "update":
+        onUpdateInline(action.id, e.iso, action.from, action.to);
+        return "closed";
+      case "delete": {
+        const en = findEntries(e.staffId, e.iso).find((x) => x.id === action.id);
+        const row = flatRows.find((r) => r.staffId === e.staffId);
+        setDeleteReason("Wochenplan-Korrektur");
+        setDeleteTarget({
+          id: action.id,
+          displayName: row?.displayName ?? "",
+          iso: e.iso,
+          from: en ? fmtHHMM(en.startedAt) : e.origFrom,
+          to: en ? fmtHHMM(en.endedAt) : e.origTo,
+        });
+        return "delete-pending";
+      }
+      case "error":
+        toast.error("Ungültige Uhrzeit.");
+        return "kept-open";
     }
-    if (e.existingId) {
-      if (from === e.origFrom && to === e.origTo) return true;
-      onUpdateInline(e.existingId, e.iso, from, to);
-    } else {
-      onCreateInline(e.staffId, e.iso, from, to, e.department);
-    }
-    return true;
   };
 
   const handleBlur = (ev: React.FocusEvent<HTMLInputElement>, current: EditState) => {
@@ -232,7 +254,8 @@ export function WeeklyPlan({
     const next = ev.relatedTarget as HTMLElement | null;
     const nextKey = next?.getAttribute?.("data-edit-key");
     if (nextKey === cellKey(current.staffId, current.iso)) return;
-    commit(current);
+    const r = commit(current);
+    if (r === "kept-open") return;
     setEdit((cur) =>
       cur &&
       cur.staffId === current.staffId &&
@@ -309,7 +332,8 @@ export function WeeklyPlan({
   ) => {
     const sameCell = nextStaffId === current.staffId && nextIso === current.iso;
     if (!sameCell) {
-      if (!commit(current)) return; // ungültig → abbrechen, Zelle bleibt offen
+      const r = commit(current);
+      if (r !== "closed") return; // ungültig oder Lösch-Popover → aktuelle Zelle bleibt/wird über Popover-Flow zu
     }
     navigatingRef.current = true;
     if (sameCell) {
