@@ -370,7 +370,8 @@ export const getSfnOverview = createServerFn({ method: "GET" })
   .inputValidator((input) =>
     z
       .object({
-        locationId: z.string().uuid(),
+        // WZ1: locationId nullable — null = org-weit inkl. location_id IS NULL.
+        locationId: z.string().uuid().nullable(),
         fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
         toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
       })
@@ -384,14 +385,17 @@ export const getSfnOverview = createServerFn({ method: "GET" })
     ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: rows, error } = await supabaseAdmin
+    let sfnQuery = supabaseAdmin
       .from("time_entries")
       .select("staff_id, business_date, started_at, ended_at, break_minutes")
       .eq("organization_id", caller.organizationId)
-      .eq("location_id", data.locationId)
       .gte("business_date", data.fromDate)
       .lte("business_date", data.toDate)
       .not("ended_at", "is", null);
+    if (data.locationId != null) {
+      sfnQuery = sfnQuery.eq("location_id", data.locationId);
+    }
+    const { data: rows, error } = await sfnQuery;
     if (error) throw error;
 
     const { data: comps, error: compErr } = await supabaseAdmin
