@@ -27,6 +27,7 @@ import {
   createPeriod,
   createTimeEntryShift,
   deletePeriod,
+  deleteTimeEntry,
   getTimeOverview,
   getWeeklyTimeEntries,
   getSfnOverview,
@@ -126,6 +127,7 @@ function ZeitUebersichtPage() {
   const callUpsert = useServerFn(upsertPayrollNote);
   const callSetShift = useServerFn(setTimeEntryShift);
   const callCreateShift = useServerFn(createTimeEntryShift);
+  const callDeleteEntry = useServerFn(deleteTimeEntry);
   const fetchPeriods = useServerFn(listPeriods);
   const callCreatePeriod = useServerFn(createPeriod);
   const callToggleLock = useServerFn(togglePeriodLock);
@@ -634,6 +636,19 @@ function ZeitUebersichtPage() {
     }) => callCreateShift({ data: vars }),
     onSuccess: () => {
       invalidateWeekly();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // WP1 — Löschen eines Zeit-Eintrags aus dem Wochenplan. Ehrlichkeitsregel:
+  // die zugehörige Server-Fn deleteTimeEntry existierte bis WP1 nicht — jetzt
+  // schon (Audit "time_entry.manual_delete" mit vollständigem Row-Snapshot,
+  // Wasserlinien-Guard serverseitig).
+  const deleteEntryMut = useMutation({
+    mutationFn: (vars: { id: string; reason: string }) => callDeleteEntry({ data: vars }),
+    onSuccess: () => {
+      invalidateWeekly();
+      toast.success("Schicht gelöscht.");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -1157,7 +1172,7 @@ function ZeitUebersichtPage() {
             periodStart={fromDate}
             periodEnd={toDate}
             isAdmin={isAdmin}
-            pending={setShiftMut.isPending || createShiftMut.isPending}
+            pending={setShiftMut.isPending || createShiftMut.isPending || deleteEntryMut.isPending}
             onUpdateInline={(id, iso, from, to) => {
               try {
                 const { startedAt, endedAt } = buildShiftIsosOrThrow(iso, from, to);
@@ -1193,6 +1208,9 @@ function ZeitUebersichtPage() {
                 endedAt: entry.endedAt,
                 department,
               });
+            }}
+            onDeleteEntry={(id, reason) => {
+              deleteEntryMut.mutate({ id, reason });
             }}
             staffDeptsByStaff={staffDeptsByStaff}
             entriesById={useMemo(() => {

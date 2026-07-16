@@ -1395,6 +1395,105 @@ export const createTimeEntryShift = createServerFn({ method: "POST" })
     );
   });
 
+// WP1 — Löschen eines Einzel-Eintrags aus dem Wochenplan.
+//
+// Ehrlichkeitsregel: der Kopfkommentar (Zeile 9) beschreibt manual_delete +
+// Snapshot als Bestandteil von B2b. Bis WP1 gab es die Funktion nicht — jetzt
+// existiert sie und der Kommentar stimmt wieder mit dem Code überein.
+//
+// Ablauf: runWithPermission("time.entry.edit") → assertBusinessDateUnlocked →
+// DELETE → audit_log("time_entry.manual_delete") mit vollständigem Zeilen-
+// Snapshot. Ein gesperrter Geschäftstag bricht VOR dem DELETE ab (kein
+// audit_log-Eintrag).
+
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
+type SupabaseAdminLike = SupabaseClient<Database>;
+
+export async function _deleteTimeEntryCore(
+  supabaseAdmin: SupabaseAdminLike,
+  organizationId: string,
+  id: string,
+  reason: string,
+): Promise<{
+  locationId: string | null;
+  audit: {
+    action: string;
+    entity: string;
+    entityId: string;
+    meta: Record<string, unknown>;
+  };
+}> {
+  const { data: before, error: loadErr } = await supabaseAdmin
+    .from("time_entries")
+    .select("*")
+    .eq("id", id)
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+  if (loadErr) throw loadErr;
+  if (!before) throw new Error("Eintrag nicht gefunden.");
+  await assertBusinessDateUnlocked(supabaseAdmin, organizationId, before.business_date);
+  const { error: delErr } = await supabaseAdmin
+    .from("time_entries")
+    .delete()
+    .eq("id", id)
+    .eq("organization_id", organizationId);
+  if (delErr) throw delErr;
+  return {
+    locationId: before.location_id,
+    audit: {
+      action: "time_entry.manual_delete",
+      entity: "time_entry",
+      entityId: id,
+      meta: {
+        reason,
+        // Voller Snapshot — Rekonstruierbarkeit aus append-only Log (Gate e).
+        snapshot: before as Record<string, unknown>,
+      },
+    },
+  };
+}
+
+export const deleteTimeEntry = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        reason: z.string().trim().min(3, "Bitte mindestens 3 Zeichen Begründung.").max(500),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // Scope-Check: Standort des Eintrags vorladen, damit runWithPermission
+    // die time.entry.edit-Berechtigung am korrekten Standort prüft.
+    const { data: pre, error: preErr } = await supabaseAdmin
+      .from("time_entries")
+      .select("location_id")
+      .eq("id", data.id)
+      .eq("organization_id", caller.organizationId)
+      .maybeSingle();
+    if (preErr) throw preErr;
+    if (!pre) throw new Error("Eintrag nicht gefunden.");
+    return runWithPermission(
+      context.supabase,
+      "time.entry.edit",
+      pre.location_id,
+      makeAuditWriter(caller),
+      async () => {
+        const { audit } = await _deleteTimeEntryCore(
+          supabaseAdmin,
+          caller.organizationId,
+          data.id,
+          data.reason,
+        );
+        return { result: { ok: true as const }, audit };
+      },
+    );
+  });
+
 // =========================================================================
 // B7 — Periodenverwaltung (26.–25.)
 // =========================================================================
