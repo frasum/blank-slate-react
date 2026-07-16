@@ -112,6 +112,7 @@ function ZeitUebersichtPage() {
   const { identity } = useAuth();
   const isAdmin = identity?.role === "admin";
   const isPayroll = identity?.role === "payroll";
+  const isPlaner = identity?.role === "planer";
   const fetchLocations = useServerFn(listLocations);
   const fetchOverview = useServerFn(getTimeOverview);
   const fetchWeekly = useServerFn(getWeeklyTimeEntries);
@@ -993,14 +994,14 @@ function ZeitUebersichtPage() {
         </p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={isPlaner ? "weekly" : activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex-wrap">
           <TabsTrigger value="weekly">Wochenplan</TabsTrigger>
-          <TabsTrigger value="summary">Zusammenfassung</TabsTrigger>
-          <TabsTrigger value="payroll">Buchhaltung</TabsTrigger>
-          <TabsTrigger value="periods">Perioden</TabsTrigger>
-          <TabsTrigger value="lohnrechner">Brutto/Netto</TabsTrigger>
-          <TabsTrigger value="provision">Provision</TabsTrigger>
+          {!isPlaner && <TabsTrigger value="summary">Zusammenfassung</TabsTrigger>}
+          {!isPlaner && <TabsTrigger value="payroll">Buchhaltung</TabsTrigger>}
+          {!isPlaner && <TabsTrigger value="periods">Perioden</TabsTrigger>}
+          {!isPlaner && <TabsTrigger value="lohnrechner">Brutto/Netto</TabsTrigger>}
+          {!isPlaner && <TabsTrigger value="provision">Provision</TabsTrigger>}
         </TabsList>
 
         {(activeTab === "summary" || activeTab === "payroll" || activeTab === "provision") && (
