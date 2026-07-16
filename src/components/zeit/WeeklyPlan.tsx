@@ -577,6 +577,21 @@ export function WeeklyPlan({
                           if (isEditingCell) return;
                           startEdit(row.staffId, day.iso, which, row.department);
                         };
+                        const singleExisting =
+                          !empty && day.shifts.length === 1 && !isEditingCell;
+                        const openDeleteFromCell = (ev: React.MouseEvent) => {
+                          ev.stopPropagation();
+                          const en = findEntries(row.staffId, day.iso)[0];
+                          if (!en) return;
+                          setDeleteReason("Wochenplan-Korrektur");
+                          setDeleteTarget({
+                            id: en.id,
+                            displayName: row.displayName,
+                            iso: day.iso,
+                            from: fmtHHMM(en.startedAt),
+                            to: fmtHHMM(en.endedAt),
+                          });
+                        };
                         const renderShift = (which: "from" | "to") => {
                           if (isEditingCell && edit.field === which) {
                             const val = which === "from" ? edit.from : edit.to;
@@ -691,9 +706,21 @@ export function WeeklyPlan({
                             <TableCell
                               onClick={() => handleCellClick("from")}
                               title={mismatchedTitle}
-                              className={`w-[44px] min-w-[44px] border-l px-0.5 py-1 text-center align-middle tabular-nums text-xs ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
+                              className={`group/cell relative w-[44px] min-w-[44px] border-l px-0.5 py-1 text-center align-middle tabular-nums text-xs ${cellBg} ${editable ? "cursor-pointer hover:bg-muted/60" : ""}`}
                             >
                               {renderShift("from")}
+                              {editable && singleExisting ? (
+                                <button
+                                  type="button"
+                                  aria-label="Schicht löschen"
+                                  title="Schicht löschen"
+                                  onClick={openDeleteFromCell}
+                                  disabled={pending}
+                                  className="absolute top-0 right-0 hidden group-hover/cell:block text-[10px] leading-none px-0.5 text-muted-foreground hover:text-red-600 focus:block"
+                                >
+                                  ×
+                                </button>
+                              ) : null}
                             </TableCell>
                             <TableCell
                               onClick={() => handleCellClick("to")}
