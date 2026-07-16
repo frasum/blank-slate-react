@@ -1311,7 +1311,11 @@ export const setTimeEntryShift = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "manager",
+      "admin",
+      "planer",
+    ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // Standort des Eintrags für den Scope-Check vorladen.
     const { data: before, error: loadErr } = await supabaseAdmin
@@ -1322,6 +1326,20 @@ export const setTimeEntryShift = createServerFn({ method: "POST" })
       .maybeSingle();
     if (loadErr) throw loadErr;
     if (!before) throw new Error("Eintrag nicht gefunden.");
+    // Z5 — Planer dürfen nur Einträge innerhalb der LAUFENDEN Abrechnungsperiode
+    // (26.–25.) bearbeiten. Alte Perioden bleiben manager/admin-exklusiv.
+    if (caller.role === "planer") {
+      const today = todayIso();
+      const newBusinessDate = businessDateOf(new Date(data.startedAt));
+      if (
+        !isInCurrentBillingCycle(before.business_date, today) ||
+        !isInCurrentBillingCycle(newBusinessDate, today)
+      ) {
+        throw new Error(
+          "Planer dürfen nur Einträge der laufenden Abrechnungsperiode ändern.",
+        );
+      }
+    }
     return runWithPermission(
       context.supabase,
       "time.entry.edit",
@@ -1414,7 +1432,19 @@ export const createTimeEntryShift = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "manager",
+      "admin",
+      "planer",
+    ]);
+    if (caller.role === "planer") {
+      const businessDate = businessDateOf(new Date(data.startedAt));
+      if (!isInCurrentBillingCycle(businessDate, todayIso())) {
+        throw new Error(
+          "Planer dürfen nur Einträge der laufenden Abrechnungsperiode anlegen.",
+        );
+      }
+    }
     return runWithPermission(
       context.supabase,
       "time.entry.edit",
