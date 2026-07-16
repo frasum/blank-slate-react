@@ -805,5 +805,59 @@ export function WeeklyPlan({
         </TableBody>
       </Table>
     </Card>
+    <Dialog
+      open={deleteTarget !== null}
+      onOpenChange={(open) => {
+        if (!open) setDeleteTarget(null);
+      }}
+    >
+      <DialogContent className="sm:max-w-[420px]">
+        <DialogHeader>
+          <DialogTitle>Schicht löschen?</DialogTitle>
+          <DialogDescription>
+            {deleteTarget
+              ? `${deleteTarget.displayName} · ${deleteTarget.iso} · ${deleteTarget.from}–${deleteTarget.to}`
+              : null}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          <label htmlFor="wp1-delete-reason" className="text-xs text-muted-foreground">
+            Begründung (mind. 3 Zeichen — landet im Audit-Log)
+          </label>
+          <Textarea
+            id="wp1-delete-reason"
+            value={deleteReason}
+            onChange={(ev) => setDeleteReason(ev.target.value)}
+            rows={3}
+            autoFocus
+          />
+        </div>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => setDeleteTarget(null)}
+            disabled={pending}
+          >
+            Abbrechen
+          </Button>
+          <Button
+            variant="destructive"
+            disabled={pending || deleteReason.trim().length < 3}
+            onClick={() => {
+              if (!deleteTarget) return;
+              if (deleteReason.trim().length < 3) {
+                toast.error("Bitte mindestens 3 Zeichen Begründung.");
+                return;
+              }
+              onDeleteEntry(deleteTarget.id, deleteReason.trim());
+              setDeleteTarget(null);
+            }}
+          >
+            Löschen
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
