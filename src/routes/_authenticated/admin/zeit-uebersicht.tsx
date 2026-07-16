@@ -241,6 +241,7 @@ function ZeitUebersichtPage() {
         assignedStaff: [],
         rosterByStaff: {},
         rosterAreaByStaffDate: {},
+        rosterGlByStaffDate: {},
       };
       const byLoc = weeklyBatchQ.data?.byLocation ?? {};
       for (const lid of allLocationIds) {
@@ -283,6 +284,14 @@ function ZeitUebersichtPage() {
               : area;
           }
           merged.rosterAreaByStaffDate![sid] = cur;
+        }
+        // WZ2 — Per-Tag-GL-Skill-Flag über Standorte mergen (any-of).
+        for (const [sid, perDay] of Object.entries(d.rosterGlByStaffDate ?? {})) {
+          const cur = merged.rosterGlByStaffDate![sid] ?? {};
+          for (const [iso, flag] of Object.entries(perDay)) {
+            if (flag) cur[iso] = true;
+          }
+          merged.rosterGlByStaffDate![sid] = cur;
         }
       }
       return merged;
@@ -735,7 +744,17 @@ function ZeitUebersichtPage() {
       const rosterArea =
         (data.rosterAreaByStaffDate?.[e.staffId]?.[e.businessDate] as Department | undefined) ??
         null;
-      const attr = entryRowDepartment(e.rawDepartment ?? null, staffDepts, { rosterArea });
+      const rosterHasGlSkill = Boolean(data.rosterGlByStaffDate?.[e.staffId]?.[e.businessDate]);
+      // WZ2 — rosterPlanned darf NICHT allein aus rosterArea abgeleitet werden:
+      // GL-Schichten haben area=null (Skill-only, D-3). Ohne dieses Signal
+      // würde die W2-Fallback-Regel für GL-Personen an einem geplanten
+      // Service-Tag fälschlich greifen.
+      const rosterPlanned = Boolean(rosterArea) || rosterHasGlSkill;
+      const attr = entryRowDepartment(e.rawDepartment ?? null, staffDepts, {
+        rosterArea,
+        rosterHasGlSkill,
+        rosterPlanned,
+      });
       const key = rowKey(e.staffId, attr.department);
       let r = rowMap.get(key);
       if (!r) {
