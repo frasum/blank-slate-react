@@ -139,7 +139,9 @@ function ZeitUebersichtPage() {
   });
   const locations = useMemo(() => locationsQ.data ?? [], [locationsQ.data]);
   // Wochenplan-Location-Filter: konkrete Location-ID oder "all".
-  const [locationFilter, setLocationFilter] = useState<string>("");
+  // WZ1: Default "all" für Zusammenfassung/Buchhaltung (org-weite Sicht ohne
+  // Standort-blinde Flecken). Wochenplan-Batch trägt "all" ebenfalls.
+  const [locationFilter, setLocationFilter] = useState<string>("all");
   const effectiveLocationId =
     locationFilter && locationFilter !== "all" ? locationFilter : (locations[0]?.id ?? "");
   const isAllLocations = locationFilter === "all";
