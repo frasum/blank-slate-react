@@ -62,7 +62,7 @@ describe.skipIf(!dbTestsEnabled)(
           started_at: s1.toISOString(),
           ended_at: e1.toISOString(),
           business_date: "2027-08-05",
-          source: "manual",
+          source: "manual" as const,
           department: "service" as const,
         },
         {
@@ -72,7 +72,7 @@ describe.skipIf(!dbTestsEnabled)(
           started_at: s2.toISOString(),
           ended_at: e2.toISOString(),
           business_date: "2027-08-06",
-          source: "manual",
+          source: "manual" as const,
           department: "service" as const,
         },
         {
@@ -82,7 +82,7 @@ describe.skipIf(!dbTestsEnabled)(
           started_at: s3.toISOString(),
           ended_at: e3.toISOString(),
           business_date: "2027-08-07",
-          source: "manual",
+          source: "manual" as const,
           department: "service" as const,
         },
         {
@@ -92,7 +92,7 @@ describe.skipIf(!dbTestsEnabled)(
           started_at: s4.toISOString(),
           ended_at: null,
           business_date: "2027-08-08",
-          source: "clock",
+          source: "clock" as const,
           department: "service" as const,
         },
       ];
