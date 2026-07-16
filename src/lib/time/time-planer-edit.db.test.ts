@@ -126,11 +126,7 @@ describe.skipIf(!dbTestsEnabled)("time_entries — Planer-Editier-Guard (Z5)", (
   //   makeAuditWriter.
   async function runDeletePipeline(user: SeededUser, entryId: string): Promise<void> {
     const supabase = await signInAsUser(user.email, user.password);
-    const caller = await loadAdminCaller(supabase, user.userId, [
-      "manager",
-      "admin",
-      "planer",
-    ]);
+    const caller = await loadAdminCaller(supabase, user.userId, ["manager", "admin", "planer"]);
     const { data: pre, error: preErr } = await org.service
       .from("time_entries")
       .select("location_id, business_date")
@@ -141,9 +137,7 @@ describe.skipIf(!dbTestsEnabled)("time_entries — Planer-Editier-Guard (Z5)", (
     if (!pre) throw new Error("Eintrag nicht gefunden.");
     if (caller.role === "planer") {
       if (!isInCurrentBillingCycle(pre.business_date, todayIso())) {
-        throw new Error(
-          "Planer dürfen nur Einträge der laufenden Abrechnungsperiode löschen.",
-        );
+        throw new Error("Planer dürfen nur Einträge der laufenden Abrechnungsperiode löschen.");
       }
     }
     await runWithPermission(
