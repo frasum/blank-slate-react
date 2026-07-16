@@ -139,7 +139,9 @@ function ZeitUebersichtPage() {
   });
   const locations = useMemo(() => locationsQ.data ?? [], [locationsQ.data]);
   // Wochenplan-Location-Filter: konkrete Location-ID oder "all".
-  const [locationFilter, setLocationFilter] = useState<string>("");
+  // WZ1: Default "all" für Zusammenfassung/Buchhaltung (org-weite Sicht ohne
+  // Standort-blinde Flecken). Wochenplan-Batch trägt "all" ebenfalls.
+  const [locationFilter, setLocationFilter] = useState<string>("all");
   const effectiveLocationId =
     locationFilter && locationFilter !== "all" ? locationFilter : (locations[0]?.id ?? "");
   const isAllLocations = locationFilter === "all";
@@ -1016,6 +1018,32 @@ function ZeitUebersichtPage() {
             </div>
           </Card>
         )}
+
+        {/* WZ1: Lücken-Banner in Standort-Sicht (nicht bei "Alle Standorte").
+            unlocated = Einträge ohne location_id, open = laufende Schichten
+            im Zeitraum an DIESEM Standort. Rein informativ, keine Aktion. */}
+        {(activeTab === "summary" || activeTab === "payroll" || activeTab === "provision") &&
+          !isAllLocations &&
+          overviewQ.data?.gaps &&
+          (overviewQ.data.gaps.unlocatedShifts > 0 || overviewQ.data.gaps.openShifts > 0) && (
+            <div className="my-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-200">
+              Hinweis: In diesem Zeitraum{" "}
+              {overviewQ.data.gaps.unlocatedShifts > 0 && (
+                <>
+                  <strong>{overviewQ.data.gaps.unlocatedShifts}</strong> Einträge ohne Standort
+                </>
+              )}
+              {overviewQ.data.gaps.unlocatedShifts > 0 &&
+                overviewQ.data.gaps.openShifts > 0 &&
+                " und "}
+              {overviewQ.data.gaps.openShifts > 0 && (
+                <>
+                  <strong>{overviewQ.data.gaps.openShifts}</strong> offene Schichten
+                </>
+              )}
+              . Wechsel auf „Alle Standorte", um sie zu prüfen.
+            </div>
+          )}
 
         <TabsContent value="weekly">
           <Card className="p-4 mb-3 space-y-3">

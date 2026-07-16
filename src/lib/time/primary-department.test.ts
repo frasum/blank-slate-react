@@ -2,13 +2,17 @@ import { describe, expect, it } from "vitest";
 import { entryRowDepartment, primaryDepartment } from "./primary-department";
 
 describe("primaryDepartment", () => {
-  it("prefers kitchen over service and gl", () => {
-    expect(primaryDepartment(["kitchen", "service", "gl"])).toBe("kitchen");
-    expect(primaryDepartment(["gl", "kitchen"])).toBe("kitchen");
+  it("WZ1/KGL: prefers gl over kitchen and service", () => {
+    expect(primaryDepartment(["kitchen", "service", "gl"])).toBe("gl");
+    expect(primaryDepartment(["gl", "kitchen"])).toBe("gl");
   });
-  it("prefers service over gl", () => {
-    expect(primaryDepartment(["service", "gl"])).toBe("service");
-    expect(primaryDepartment(["gl", "service"])).toBe("service");
+  it("WZ1/KGL: LAM-Fall (service+gl) → gl", () => {
+    expect(primaryDepartment(["service", "gl"])).toBe("gl");
+    expect(primaryDepartment(["gl", "service"])).toBe("gl");
+  });
+  it("prefers kitchen over service when no gl", () => {
+    expect(primaryDepartment(["kitchen", "service"])).toBe("kitchen");
+    expect(primaryDepartment(["service", "kitchen"])).toBe("kitchen");
   });
   it("returns gl when only gl is assigned", () => {
     expect(primaryDepartment(["gl"])).toBe("gl");
@@ -20,16 +24,16 @@ describe("primaryDepartment", () => {
   it("falls back to service on empty input", () => {
     expect(primaryDepartment([])).toBe("service");
   });
-  it("is order-independent", () => {
-    expect(primaryDepartment(["service", "kitchen"])).toBe("kitchen");
-    expect(primaryDepartment(["kitchen", "service"])).toBe("kitchen");
+  it("is order-independent (gl priority)", () => {
+    expect(primaryDepartment(["service", "gl", "kitchen"])).toBe("gl");
+    expect(primaryDepartment(["kitchen", "gl"])).toBe("gl");
   });
 });
 
 describe("entryRowDepartment", () => {
   it("routes NULL entries to the primary row without warning", () => {
     expect(entryRowDepartment(null, ["kitchen", "gl"])).toEqual({
-      department: "kitchen",
+      department: "gl",
       mismatched: false,
     });
   });
@@ -73,8 +77,8 @@ describe("entryRowDepartment", () => {
     ).toEqual({ department: "kitchen", mismatched: false });
   });
   it("Z3b: rosterArea does not fire without staffDepts membership", () => {
-    expect(entryRowDepartment(null, ["kitchen"], { rosterArea: "service" })).toEqual({
-      department: "kitchen",
+    expect(entryRowDepartment(null, ["kitchen", "gl"], { rosterArea: "service" })).toEqual({
+      department: "gl",
       mismatched: false,
     });
   });
