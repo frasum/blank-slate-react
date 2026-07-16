@@ -82,4 +82,25 @@ describe("entryRowDepartment", () => {
       mismatched: false,
     });
   });
+  it("W2: GL-Person + NULL-Eintrag + service-rosterArea → GL-Zeile", () => {
+    expect(
+      entryRowDepartment(null, ["service", "gl"], { rosterArea: "service" }),
+    ).toEqual({ department: "gl", mismatched: false });
+  });
+  it("W2: GL-Person mit explizitem service-Eintrag → Service-Zeile (rawDepartment gewinnt)", () => {
+    expect(
+      entryRowDepartment("service", ["service", "gl"], { rosterArea: "service" }),
+    ).toEqual({ department: "service", mismatched: false });
+  });
+  it("W2: Nicht-GL-Person + rosterArea → Z3b unverändert", () => {
+    expect(
+      entryRowDepartment(null, ["kitchen", "service"], { rosterArea: "service" }),
+    ).toEqual({ department: "service", mismatched: false });
+  });
+  it("W2: GL-Person ohne Roster → GL-Zeile (Bestand)", () => {
+    expect(entryRowDepartment(null, ["service", "gl"])).toEqual({
+      department: "gl",
+      mismatched: false,
+    });
+  });
 });
