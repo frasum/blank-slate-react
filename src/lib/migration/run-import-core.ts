@@ -23,6 +23,11 @@ export type Counters = {
   /** Teilmenge von `imported`: importierte Zeilen ohne aufgelöste location_id.
    *  NICHT Teil der Bilanz-Invariante (`imported + skipped === read`). */
   importedWithoutLocation: number;
+  /** MIG3: Teilmenge von `imported`, deren location_id NICHT aus der CSV-Spalte
+   *  `restaurant` kam, sondern aus dem bestätigten Dienstplan angereichert wurde
+   *  (genau EIN distinkter Standort am Geschäftstag). NICHT Teil der Bilanz-
+   *  Invariante — die Zeilen werden ja importiert. */
+  locationFromRoster: number;
   skippedByReason: Record<SkipReason, number>;
 };
 
@@ -31,6 +36,7 @@ export function emptyCounters(): Counters {
     read: 0,
     imported: 0,
     importedWithoutLocation: 0,
+    locationFromRoster: 0,
     skippedByReason: {
       absence: 0,
       invalid_time: 0,
