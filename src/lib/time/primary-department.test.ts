@@ -60,10 +60,12 @@ describe("entryRowDepartment", () => {
     });
   });
   it("Z3b: NULL entry uses rosterArea over static kitchen>service>gl", () => {
-    // Mo-Fall: kitchen + service + gl zugeordnet, aber Dienstplan = service.
-    expect(
-      entryRowDepartment(null, ["kitchen", "service", "gl"], { rosterArea: "service" }),
-    ).toEqual({ department: "service", mismatched: false });
+    // Non-GL-Fall: kitchen + service zugeordnet, Dienstplan = service.
+    // (Der GL-Fall wird durch die W2-Ausnahme abgedeckt — siehe unten.)
+    expect(entryRowDepartment(null, ["kitchen", "service"], { rosterArea: "service" })).toEqual({
+      department: "service",
+      mismatched: false,
+    });
   });
   it("Z3b: rosterArea ignored when not in staffDepts", () => {
     expect(entryRowDepartment(null, ["service"], { rosterArea: "kitchen" })).toEqual({
@@ -78,6 +80,30 @@ describe("entryRowDepartment", () => {
   });
   it("Z3b: rosterArea does not fire without staffDepts membership", () => {
     expect(entryRowDepartment(null, ["kitchen", "gl"], { rosterArea: "service" })).toEqual({
+      department: "gl",
+      mismatched: false,
+    });
+  });
+  it("W2: GL-Person + NULL-Eintrag + service-rosterArea → GL-Zeile", () => {
+    expect(entryRowDepartment(null, ["service", "gl"], { rosterArea: "service" })).toEqual({
+      department: "gl",
+      mismatched: false,
+    });
+  });
+  it("W2: GL-Person mit explizitem service-Eintrag → Service-Zeile (rawDepartment gewinnt)", () => {
+    expect(entryRowDepartment("service", ["service", "gl"], { rosterArea: "service" })).toEqual({
+      department: "service",
+      mismatched: false,
+    });
+  });
+  it("W2: Nicht-GL-Person + rosterArea → Z3b unverändert", () => {
+    expect(entryRowDepartment(null, ["kitchen", "service"], { rosterArea: "service" })).toEqual({
+      department: "service",
+      mismatched: false,
+    });
+  });
+  it("W2: GL-Person ohne Roster → GL-Zeile (Bestand)", () => {
+    expect(entryRowDepartment(null, ["service", "gl"])).toEqual({
       department: "gl",
       mismatched: false,
     });

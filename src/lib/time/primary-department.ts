@@ -44,6 +44,18 @@ export function entryRowDepartment(
   if (entryDept && staffDepts.includes(entryDept)) {
     return { department: entryDept, mismatched: false };
   }
+  // W2 — GL-Personen-Ausnahme: Wer der GL zugeordnet ist, wird per
+  // D-3-Hausregel im Dienstplan als Service eingeplant (GL ist kein
+  // Planbereich). Ohne explizite Eintrags-Abteilung würde Z3b diese
+  // Stempelungen sonst fälschlich in die SERVICE-Zeile routen. Bei
+  // GL-Mitgliedern gewinnt daher IMMER die GL-Zeile — der Roster-
+  // Service-Bereich ist bei ihnen ein Plan-Artefakt, keine Fach-
+  // Aussage. Explizit gesetzte Eintrags-Abteilung (rawDepartment)
+  // gewinnt weiterhin (siehe if oben) — das ist ab LG1 der Lohn-
+  // Schalter pro Schicht.
+  if (entryDept == null && staffDepts.includes("gl")) {
+    return { department: "gl", mismatched: false };
+  }
   // Z3b — Wenn kein Eintrags-Department gesetzt ist (Stempel/Batch/Pool/
   // Bestandsdaten), aber der Dienstplan an dem Tag eine passende Area
   // gefahren hat, schlägt die Roster-Realität die statische kitchen>

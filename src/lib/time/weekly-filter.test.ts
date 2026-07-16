@@ -144,4 +144,20 @@ describe("filterWeeklyRows", () => {
     const out = filterWeeklyRows(rowsByDept, { dept: "gl", skillId: "spuelen", query: "" }, roster);
     expect(out).toEqual([]);
   });
+
+  it("W2/D-3: GL-Filter zeigt die GL-Sektions-Zeilen (Roster-Bedingung entfällt, da GL kein Planbereich)", () => {
+    // MO ist diese Woche nicht eingeplant, s3 (EM) hat nur eine kitchen-
+    // Schicht — beide müssen unter GL trotzdem erscheinen, weil GL kein
+    // Planbereich ist (D-3).
+    const out = filterWeeklyRows(rowsByDept, { dept: "gl", skillId: "all", query: "" }, roster);
+    expect(out).toHaveLength(1);
+    expect(out[0].dept).toBe("gl");
+    expect(out[0].rows.map((r) => r.staffId)).toEqual(["s1", "s3"]);
+  });
+
+  it("W2/D-3: GL-Filter filtert Nicht-GL-Sektionen weiterhin weg", () => {
+    // Die Service-/Kitchen-Sektionen dürfen unter GL-Filter nicht auftauchen.
+    const out = filterWeeklyRows(rowsByDept, { dept: "gl", skillId: "all", query: "" }, roster);
+    expect(out.some((g) => g.dept === "service" || g.dept === "kitchen")).toBe(false);
+  });
 });
