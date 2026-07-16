@@ -1125,6 +1125,18 @@ export const getWeeklyTimeEntriesBatch = createServerFn({ method: "GET" })
       }
     }
 
+    // WZ2 — GL-Skill-IDs (skills.category = 'gl') als Menge, ein Query.
+    const glSkillIds = new Set<string>();
+    {
+      const { data: glSkillRows, error: glSkillErr } = await supabaseAdmin
+        .from("skills")
+        .select("id")
+        .eq("organization_id", caller.organizationId)
+        .eq("category", "gl");
+      if (glSkillErr) throw glSkillErr;
+      for (const s of glSkillRows ?? []) glSkillIds.add(s.id as string);
+    }
+
     const rosterRows = await _loadRosterShiftsForWeeklyBatch(
       supabaseAdmin,
       caller.organizationId,
@@ -1198,6 +1210,7 @@ export const getWeeklyTimeEntriesBatch = createServerFn({ method: "GET" })
         }>;
         rosterByStaff: Record<string, { areas: Department[]; skillIds: string[] }>;
         rosterAreaByStaffDate: Record<string, Record<string, Department>>;
+        rosterGlByStaffDate: Record<string, Record<string, boolean>>;
       }
     > = {};
 
@@ -1212,6 +1225,7 @@ export const getWeeklyTimeEntriesBatch = createServerFn({ method: "GET" })
 
       const rosterByStaff: Record<string, { areas: Department[]; skillIds: string[] }> = {};
       const rosterAreaByStaffDate: Record<string, Record<string, Department>> = {};
+      const rosterGlByStaffDate: Record<string, Record<string, boolean>> = {};
       for (const r of rosterByLoc.get(lid) ?? []) {
         const bucket = rosterByStaff[r.staff_id] ?? { areas: [], skillIds: [] };
         if (r.area && !bucket.areas.includes(r.area)) bucket.areas.push(r.area);
@@ -1222,6 +1236,11 @@ export const getWeeklyTimeEntriesBatch = createServerFn({ method: "GET" })
           const existing = perStaff[r.shift_date];
           perStaff[r.shift_date] = existing ? primaryDepartment([existing, r.area]) : r.area;
           rosterAreaByStaffDate[r.staff_id] = perStaff;
+        }
+        if (r.skill_id && glSkillIds.has(r.skill_id)) {
+          const perStaff = rosterGlByStaffDate[r.staff_id] ?? {};
+          perStaff[r.shift_date] = true;
+          rosterGlByStaffDate[r.staff_id] = perStaff;
         }
       }
 
@@ -1265,6 +1284,7 @@ export const getWeeklyTimeEntriesBatch = createServerFn({ method: "GET" })
         assignedStaff,
         rosterByStaff,
         rosterAreaByStaffDate,
+        rosterGlByStaffDate,
       };
     }
     return { byLocation };
