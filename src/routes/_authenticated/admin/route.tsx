@@ -60,11 +60,13 @@ export const Route = createFileRoute("/_authenticated/admin")({
         throw redirect({ to: "/admin/zeit-uebersicht" });
       }
     }
-    // PL1 — Planer darf Dienstplan UND Urlaubsantrag/Schichttausch sehen.
+    // PL1 + Z5 — Planer darf Dienstplan, Urlaubsantrag/Schichttausch UND
+    // die Zeit-Übersicht (nur Wochenplan-Tab) sehen.
     if (
       identity.role === "planer" &&
       location.pathname !== "/admin/dienstplan" &&
-      location.pathname !== "/admin/urlaub"
+      location.pathname !== "/admin/urlaub" &&
+      location.pathname !== "/admin/zeit-uebersicht"
     ) {
       throw redirect({ to: "/admin/dienstplan" });
     }
@@ -297,6 +299,12 @@ function AdminLayout() {
             <nav className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border/60 pb-0 text-sm">
               <Link to="/admin/dienstplan" className={tabClass(pathname === "/admin/dienstplan")}>
                 Dienstplan
+              </Link>
+              <Link
+                to="/admin/zeit-uebersicht"
+                className={tabClass(pathname === "/admin/zeit-uebersicht")}
+              >
+                Wochenplan
               </Link>
               <Link
                 to="/admin/urlaub"

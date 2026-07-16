@@ -17,6 +17,8 @@ import { runWithPermission } from "@/lib/admin/admin-call";
 import { makeAuditWriter } from "@/lib/admin/audit";
 import { businessDateOf } from "@/lib/business-date";
 import { assertBusinessDateUnlocked } from "./time-lock";
+import { isInCurrentBillingCycle } from "./billing-cycle";
+import { todayIso } from "@/lib/format";
 import { timeEntryToSfnRow } from "@/lib/lohn/time-entry-sfn";
 import { formatAbsenceNote } from "./absence-note";
 import type { SfnShiftRow } from "@/lib/lohn/sfn-geld/types";
@@ -1309,7 +1311,11 @@ export const setTimeEntryShift = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "manager",
+      "admin",
+      "planer",
+    ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // Standort des Eintrags für den Scope-Check vorladen.
     const { data: before, error: loadErr } = await supabaseAdmin
@@ -1320,6 +1326,20 @@ export const setTimeEntryShift = createServerFn({ method: "POST" })
       .maybeSingle();
     if (loadErr) throw loadErr;
     if (!before) throw new Error("Eintrag nicht gefunden.");
+    // Z5 — Planer dürfen nur Einträge innerhalb der LAUFENDEN Abrechnungsperiode
+    // (26.–25.) bearbeiten. Alte Perioden bleiben manager/admin-exklusiv.
+    if (caller.role === "planer") {
+      const today = todayIso();
+      const newBusinessDate = businessDateOf(new Date(data.startedAt));
+      if (
+        !isInCurrentBillingCycle(before.business_date, today) ||
+        !isInCurrentBillingCycle(newBusinessDate, today)
+      ) {
+        throw new Error(
+          "Planer dürfen nur Einträge der laufenden Abrechnungsperiode ändern.",
+        );
+      }
+    }
     return runWithPermission(
       context.supabase,
       "time.entry.edit",
@@ -1412,7 +1432,19 @@ export const createTimeEntryShift = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "manager",
+      "admin",
+      "planer",
+    ]);
+    if (caller.role === "planer") {
+      const businessDate = businessDateOf(new Date(data.startedAt));
+      if (!isInCurrentBillingCycle(businessDate, todayIso())) {
+        throw new Error(
+          "Planer dürfen nur Einträge der laufenden Abrechnungsperiode anlegen.",
+        );
+      }
+    }
     return runWithPermission(
       context.supabase,
       "time.entry.edit",
@@ -1554,18 +1586,29 @@ export const deleteTimeEntry = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "manager",
+      "admin",
+      "planer",
+    ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // Scope-Check: Standort des Eintrags vorladen, damit runWithPermission
     // die time.entry.edit-Berechtigung am korrekten Standort prüft.
     const { data: pre, error: preErr } = await supabaseAdmin
       .from("time_entries")
-      .select("location_id")
+      .select("location_id, business_date")
       .eq("id", data.id)
       .eq("organization_id", caller.organizationId)
       .maybeSingle();
     if (preErr) throw preErr;
     if (!pre) throw new Error("Eintrag nicht gefunden.");
+    if (caller.role === "planer") {
+      if (!isInCurrentBillingCycle(pre.business_date, todayIso())) {
+        throw new Error(
+          "Planer dürfen nur Einträge der laufenden Abrechnungsperiode löschen.",
+        );
+      }
+    }
     return runWithPermission(
       context.supabase,
       "time.entry.edit",
