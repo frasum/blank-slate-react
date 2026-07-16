@@ -100,12 +100,7 @@ export type NativeOverlapSample = {
 const NATIVE_OVERLAP_MIN_MINUTES = 30;
 
 /** Überlappungsdauer in Minuten (0 wenn disjunkt). */
-export function overlapMinutes(
-  aStart: string,
-  aEnd: string,
-  bStart: string,
-  bEnd: string,
-): number {
+export function overlapMinutes(aStart: string, aEnd: string, bStart: string, bEnd: string): number {
   const aS = Date.parse(aStart);
   const aE = Date.parse(aEnd);
   const bS = Date.parse(bStart);
@@ -182,10 +177,7 @@ export async function executeImport(args: RunImportArgs): Promise<RunImportResul
   for (const s of shifts) {
     if (s.skipReason === null && s.shiftDate) candidateDates.add(s.shiftDate);
   }
-  const nativeByKey = new Map<
-    string,
-    { started_at: string; ended_at: string }[]
-  >();
+  const nativeByKey = new Map<string, { started_at: string; ended_at: string }[]>();
   if (candidateDates.size > 0) {
     const sortedDates = [...candidateDates].sort();
     const minDate = sortedDates[0];
