@@ -60,9 +60,10 @@ describe("entryRowDepartment", () => {
     });
   });
   it("Z3b: NULL entry uses rosterArea over static kitchen>service>gl", () => {
-    // Mo-Fall: kitchen + service + gl zugeordnet, aber Dienstplan = service.
+    // Non-GL-Fall: kitchen + service zugeordnet, Dienstplan = service.
+    // (Der GL-Fall wird durch die W2-Ausnahme abgedeckt — siehe unten.)
     expect(
-      entryRowDepartment(null, ["kitchen", "service", "gl"], { rosterArea: "service" }),
+      entryRowDepartment(null, ["kitchen", "service"], { rosterArea: "service" }),
     ).toEqual({ department: "service", mismatched: false });
   });
   it("Z3b: rosterArea ignored when not in staffDepts", () => {
