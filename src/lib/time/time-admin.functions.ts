@@ -722,12 +722,27 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
       .gte("shift_date", weekStart)
       .lte("shift_date", weekEnd);
     if (rosterErr) throw rosterErr;
+    // WZ2 — GL-Skill-IDs der Organisation (D-3: GL ist ein Skill der
+    // Kategorie 'gl', kein Roster-Bereich). Ein Query, danach im Speicher
+    // gejoint. Verwendet für rosterGlByStaffDate — die Tages-Typ-Quelle.
+    const glSkillIds = new Set<string>();
+    {
+      const { data: glSkillRows, error: glSkillErr } = await supabaseAdmin
+        .from("skills")
+        .select("id")
+        .eq("organization_id", caller.organizationId)
+        .eq("category", "gl");
+      if (glSkillErr) throw glSkillErr;
+      for (const s of glSkillRows ?? []) glSkillIds.add(s.id as string);
+    }
     // Z3b — Per-Tag-Roster-Area je Mitarbeiter: erlaubt der Client-
     // Attribution, NULL-Einträge auf die tatsächlich geplante Area des
     // Tages zu legen (statt hart kitchen>service>gl). Bei mehreren Areas
     // am selben Tag gewinnt die per primaryDepartment-Priorität — das
     // ist der historische Default und bleibt für Randfälle stabil.
     const rosterAreaByStaffDate: Record<string, Record<string, Department>> = {};
+    // WZ2 — Per-Tag-GL-Skill-Flag (any-of über mehrere Schichten desselben Tages).
+    const rosterGlByStaffDate: Record<string, Record<string, boolean>> = {};
     for (const r of rosterRows ?? []) {
       const sid = r.staff_id as string;
       const area = r.area as Department | null;
@@ -745,6 +760,11 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
         // unterschiedlichen Areas.
         perStaff[iso] = existing ? primaryDepartment([existing, area]) : area;
         rosterAreaByStaffDate[sid] = perStaff;
+      }
+      if (skillId && glSkillIds.has(skillId)) {
+        const perStaff = rosterGlByStaffDate[sid] ?? {};
+        perStaff[iso] = true;
+        rosterGlByStaffDate[sid] = perStaff;
       }
     }
 
@@ -801,6 +821,7 @@ export const getWeeklyTimeEntries = createServerFn({ method: "GET" })
       assignedStaff,
       rosterByStaff,
       rosterAreaByStaffDate,
+      rosterGlByStaffDate,
     };
   });
 
@@ -1104,6 +1125,18 @@ export const getWeeklyTimeEntriesBatch = createServerFn({ method: "GET" })
       }
     }
 
+    // WZ2 — GL-Skill-IDs (skills.category = 'gl') als Menge, ein Query.
+    const glSkillIds = new Set<string>();
+    {
+      const { data: glSkillRows, error: glSkillErr } = await supabaseAdmin
+        .from("skills")
+        .select("id")
+        .eq("organization_id", caller.organizationId)
+        .eq("category", "gl");
+      if (glSkillErr) throw glSkillErr;
+      for (const s of glSkillRows ?? []) glSkillIds.add(s.id as string);
+    }
+
     const rosterRows = await _loadRosterShiftsForWeeklyBatch(
       supabaseAdmin,
       caller.organizationId,
@@ -1177,6 +1210,7 @@ export const getWeeklyTimeEntriesBatch = createServerFn({ method: "GET" })
         }>;
         rosterByStaff: Record<string, { areas: Department[]; skillIds: string[] }>;
         rosterAreaByStaffDate: Record<string, Record<string, Department>>;
+        rosterGlByStaffDate: Record<string, Record<string, boolean>>;
       }
     > = {};
 
@@ -1191,6 +1225,7 @@ export const getWeeklyTimeEntriesBatch = createServerFn({ method: "GET" })
 
       const rosterByStaff: Record<string, { areas: Department[]; skillIds: string[] }> = {};
       const rosterAreaByStaffDate: Record<string, Record<string, Department>> = {};
+      const rosterGlByStaffDate: Record<string, Record<string, boolean>> = {};
       for (const r of rosterByLoc.get(lid) ?? []) {
         const bucket = rosterByStaff[r.staff_id] ?? { areas: [], skillIds: [] };
         if (r.area && !bucket.areas.includes(r.area)) bucket.areas.push(r.area);
@@ -1201,6 +1236,11 @@ export const getWeeklyTimeEntriesBatch = createServerFn({ method: "GET" })
           const existing = perStaff[r.shift_date];
           perStaff[r.shift_date] = existing ? primaryDepartment([existing, r.area]) : r.area;
           rosterAreaByStaffDate[r.staff_id] = perStaff;
+        }
+        if (r.skill_id && glSkillIds.has(r.skill_id)) {
+          const perStaff = rosterGlByStaffDate[r.staff_id] ?? {};
+          perStaff[r.shift_date] = true;
+          rosterGlByStaffDate[r.staff_id] = perStaff;
         }
       }
 
@@ -1244,6 +1284,7 @@ export const getWeeklyTimeEntriesBatch = createServerFn({ method: "GET" })
         assignedStaff,
         rosterByStaff,
         rosterAreaByStaffDate,
+        rosterGlByStaffDate,
       };
     }
     return { byLocation };

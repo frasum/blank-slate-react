@@ -84,13 +84,48 @@ describe("entryRowDepartment", () => {
       mismatched: false,
     });
   });
-  it("W2: GL-Person + NULL-Eintrag + service-rosterArea → GL-Zeile", () => {
-    expect(entryRowDepartment(null, ["service", "gl"], { rosterArea: "service" })).toEqual({
+  // WZ2 — Korrektur der W2-Regel: der DIENSTPLAN-SKILL des Tages bestimmt
+  // die GL-Attribution; die W2-Pauschal-Übersteuerung für GL-Personen fällt
+  // hier weg. Frank 16.07.: „Die Schicht hat den Typ, nicht die Person."
+  it("WZ2 (a): GL-Person + Tages-Roster mit Service-Skill → SERVICE-Zeile", () => {
+    expect(
+      entryRowDepartment(null, ["service", "gl"], {
+        rosterArea: "service",
+        rosterHasGlSkill: false,
+      }),
+    ).toEqual({ department: "service", mismatched: false });
+  });
+  it("WZ2 (b): GL-Person + Tages-Roster mit GL-Skill (area=null) → GL-Zeile", () => {
+    expect(
+      entryRowDepartment(null, ["service", "gl"], {
+        rosterArea: null,
+        rosterHasGlSkill: true,
+      }),
+    ).toEqual({ department: "gl", mismatched: false });
+  });
+  it("WZ2 (c): GL-Person ohne Tages-Roster → GL-Zeile (W2-Fallback, GERARD/Andre)", () => {
+    expect(entryRowDepartment(null, ["service", "gl"])).toEqual({
       department: "gl",
       mismatched: false,
     });
   });
-  it("W2: GL-Person mit explizitem service-Eintrag → Service-Zeile (rawDepartment gewinnt)", () => {
+  it("WZ2 (d): Nicht-GL-Person + Tages-Roster kitchen → kitchen (Z3b unverändert)", () => {
+    expect(
+      entryRowDepartment(null, ["kitchen", "service"], {
+        rosterArea: "kitchen",
+        rosterHasGlSkill: false,
+      }),
+    ).toEqual({ department: "kitchen", mismatched: false });
+  });
+  it("WZ2 (e): expliziter Eintrags-service schlägt GL-Skill-Roster (Vorrangordnung)", () => {
+    expect(
+      entryRowDepartment("service", ["service", "gl"], {
+        rosterArea: null,
+        rosterHasGlSkill: true,
+      }),
+    ).toEqual({ department: "service", mismatched: false });
+  });
+  it("WZ2: GL-Person mit explizitem service-Eintrag → Service-Zeile (rawDepartment gewinnt)", () => {
     expect(entryRowDepartment("service", ["service", "gl"], { rosterArea: "service" })).toEqual({
       department: "service",
       mismatched: false,
