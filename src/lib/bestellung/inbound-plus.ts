@@ -1,17 +1,17 @@
 // BM1/K2 — Plus-Adress-Parser für Inbound-Mails.
 //
-// Erwartetes Format: antwort+ORD-YYYY-MM-NNNN@inbound.cocoplatform.online
-// (Case-insensitiv im Plus-Teil; Bestellnummer wird immer UPPER-cased
-// zurückgegeben, da unser Schema ORD-… groß speichert.)
+// Erwartetes Format: antwort+<BESTELLNUMMER>@inbound.cocoplatform.online.
+// Die Bestellnummer ist präfix-agnostisch: sowohl ORD-… (Warenkorb) als
+// auch EO-… (EasyOrder) sind reale Präfixe. Wir nehmen den Plus-Teil
+// verbatim (nur Format-Sanity: [A-Z]+, Bindestrich, alphanumerische
+// Rest-Segmente ohne @/Whitespace) und liefern ihn UPPER-cased zurück —
+// die Formatwahrheit ist die DB (orders.order_number), nicht dieser Regex.
 //
 // Rückgabe:
-//   * matched Bestellnummer als String — oder null, wenn kein sauberes
-//     Match (kein Plus-Teil, Fremdformat, mehrere Empfänger).
-//
-// Bewusst tolerant gegenüber MailerSend-Payload-Varianten: `to` kann String
-// oder Array sein; wir prüfen alle Einträge und nehmen den ersten Treffer.
+//   * matched Bestellnummer als String — oder null, wenn kein Plus-Teil
+//     erkannt wurde.
 
-const PLUS_ORDER_RE = /^antwort\+(ord-\d{4}-\d{2}-\d{4})@/i;
+const PLUS_RE = /^antwort\+([A-Z0-9][A-Z0-9-]*)@/i;
 
 export type PlusAddrRecipient = string | { email?: string | null } | null | undefined;
 
