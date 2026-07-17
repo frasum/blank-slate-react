@@ -293,7 +293,7 @@ function BestellungenPage() {
                 if (emailLogOrder === o.id) {
                   extra.push(
                     <tr key={o.id + "-email"} className="border-t border-border bg-muted/10">
-                      <td colSpan={8} className="px-3 py-3">
+                      <td colSpan={9} className="px-3 py-3">
                         <EmailDeliveryTimeline
                           sent={o.email_sent}
                           sentAt={o.email_sent_at}
@@ -308,7 +308,7 @@ function BestellungenPage() {
                 if (expanded === o.id) {
                   extra.push(
                     <tr key={o.id + "-detail"} className="border-t border-border bg-muted/10">
-                      <td colSpan={8} className="px-3 py-4">
+                      <td colSpan={9} className="px-3 py-4">
                         <OrderDetail
                           orderId={o.id}
                           canCancel={o.status !== "cancelled"}
