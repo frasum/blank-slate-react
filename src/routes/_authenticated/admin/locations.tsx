@@ -238,7 +238,7 @@ function LocationsPage() {
             loc: "new" as string,
             tab: "allgemein" as SectionKey,
           })}
-          className={tabClass(activeLocId === "new")}
+          className="ml-auto inline-flex items-center rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background hover:bg-foreground/90"
         >
           + Neu
         </Link>
