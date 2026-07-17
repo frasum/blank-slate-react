@@ -68,6 +68,7 @@ function BestellungenPage() {
   const [msg, setMsg] = useState<string | null>(null);
 
   const onlyUnsent = statusFilter === "__unsent";
+  const onlyUnread = statusFilter === "__unread";
 
   const suppliersQ = useQuery({
     queryKey: ["bestellung", "suppliers", { includeInactive: true }],
@@ -77,16 +78,25 @@ function BestellungenPage() {
     queryKey: ["bestellung", "replies", "unread-by-order"],
     queryFn: () => countUnreadRepliesByOrder(),
   });
+  const unreadOrdersCount = useMemo(
+    () => Object.keys(unreadByOrderQ.data ?? {}).length,
+    [unreadByOrderQ.data],
+  );
   const ordersQ = useQuery({
     queryKey: [
       "bestellung",
       "orders",
-      { status: onlyUnsent ? "" : statusFilter, supplier: supplierFilter, onlyUnsent },
+      {
+        status: onlyUnsent || onlyUnread ? "" : statusFilter,
+        supplier: supplierFilter,
+        onlyUnsent,
+        onlyUnread,
+      },
     ],
     queryFn: () =>
       listOrders({
         data: {
-          status: (onlyUnsent ? undefined : statusFilter || undefined) as
+          status: (onlyUnsent || onlyUnread ? undefined : statusFilter || undefined) as
             | "pending"
             | "sent"
             | "confirmed"
@@ -94,6 +104,7 @@ function BestellungenPage() {
             | undefined,
           supplierId: supplierFilter || undefined,
           onlyUnsent: onlyUnsent ? true : undefined,
+          onlyWithUnreadReplies: onlyUnread ? true : undefined,
         },
       }),
   });
@@ -140,8 +151,10 @@ function BestellungenPage() {
               { v: "sent", label: "Versendet" },
               { v: "confirmed", label: "Bestätigt" },
               { v: "cancelled", label: "Storniert" },
+              { v: "__unread", label: "E-Mail-Eingang" },
             ].map((opt) => {
               const active = statusFilter === opt.v;
+              const showBadge = opt.v === "__unread" && unreadOrdersCount > 0;
               return (
                 <button
                   key={opt.v || "all"}
@@ -149,13 +162,23 @@ function BestellungenPage() {
                   aria-pressed={active}
                   onClick={() => setStatusFilter(opt.v)}
                   className={
-                    "rounded px-3 py-1 text-xs font-medium transition-colors " +
+                    "inline-flex items-center gap-1 rounded px-3 py-1 text-xs font-medium transition-colors " +
                     (active
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground")
                   }
                 >
                   {opt.label}
+                  {showBadge && (
+                    <span
+                      className={
+                        "ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold " +
+                        (active ? "bg-primary-foreground text-primary" : "bg-amber-500 text-white")
+                      }
+                    >
+                      {unreadOrdersCount}
+                    </span>
+                  )}
                 </button>
               );
             })}

@@ -63,6 +63,7 @@ export const listOrders = createServerFn({ method: "GET" })
           .regex(/^\d{4}-\d{2}-\d{2}$/)
           .optional(),
         onlyUnsent: z.boolean().optional(),
+        onlyWithUnreadReplies: z.boolean().optional(),
       })
       .partial()
       .parse(input ?? {}),
@@ -70,6 +71,32 @@ export const listOrders = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, READ_ROLES);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // BM1 — Filter „E-Mail-Eingang": Bestellungen mit ungelesenen Antworten.
+    // Wir ziehen zuerst die Order-IDs (+ jüngstes Antwort-Datum) und filtern
+    // die Historien-Query darauf ein. Ein einzelner Server-Roundtrip aus
+    // Client-Sicht — die UI stellt keine zweite Anfrage.
+    let unreadOrderIds: string[] | null = null;
+    let latestReplyByOrder: Map<string, string> | null = null;
+    if (data.onlyWithUnreadReplies) {
+      const { data: replies, error: rErr } = await supabaseAdmin
+        .from("order_replies")
+        .select("order_id, received_at")
+        .eq("organization_id", caller.organizationId)
+        .not("order_id", "is", null)
+        .is("read_at", null)
+        .limit(2000);
+      if (rErr) throw rErr;
+      latestReplyByOrder = new Map<string, string>();
+      for (const r of replies ?? []) {
+        const id = r.order_id as string | null;
+        if (!id) continue;
+        const cur = latestReplyByOrder.get(id);
+        const ts = r.received_at as string;
+        if (!cur || cur < ts) latestReplyByOrder.set(id, ts);
+      }
+      unreadOrderIds = [...latestReplyByOrder.keys()];
+      if (unreadOrderIds.length === 0) return [];
+    }
     let q = supabaseAdmin
       .from("orders")
       .select(
@@ -85,9 +112,20 @@ export const listOrders = createServerFn({ method: "GET" })
     // in src/routes/api/public/trmnl-tasks.$token.ts, damit die UI-Zahl 1:1
     // zur Badge auf dem E-Ink-Board passt.
     if (data.onlyUnsent) q = q.eq("email_sent", false).neq("status", "cancelled");
+    if (unreadOrderIds) q = q.in("id", unreadOrderIds);
     const { data: rows, error } = await q;
     if (error) throw error;
-    return rows ?? [];
+    const result = rows ?? [];
+    if (latestReplyByOrder) {
+      // Sortierung nach jüngstem Antwort-Eingang (desc), fallback auf created_at.
+      result.sort((a, b) => {
+        const ta = latestReplyByOrder!.get(a.id) ?? "";
+        const tb = latestReplyByOrder!.get(b.id) ?? "";
+        if (ta !== tb) return tb.localeCompare(ta);
+        return (b.created_at ?? "").localeCompare(a.created_at ?? "");
+      });
+    }
+    return result;
   });
 
 export const getOrder = createServerFn({ method: "GET" })
