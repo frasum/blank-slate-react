@@ -87,6 +87,92 @@ describe.skipIf(!dbTestsEnabled)("order-replies (Webhook-Kern + Assign)", () => 
     orderIdB = await mkOrder(orgB, supplierIdB, orderNumberB);
   });
 
+  it("(a2) präfix-agnostisch — EO-Nummer via Plus-Adresse UND Betreff", async () => {
+    const eoNumber = "EO-2026-05-0197";
+    const { data: eoOrder } = await org.service
+      .from("orders")
+      .insert({
+        organization_id: org.orgId,
+        supplier_id: supplierId,
+        location_id: org.defaultLocationId,
+        order_number: eoNumber,
+        status: "sent",
+        total_amount_cents: 0,
+      })
+      .select("id")
+      .single();
+    const eoId = eoOrder!.id as string;
+
+    // Plus-Adresse
+    const plusBody = makeBody({
+      to: `antwort+${eoNumber}@inbound.cocoplatform.online`,
+      from: { email: "eo-plus@example.com" },
+      subject: "Re: EasyOrder",
+      text: "ok",
+      message_id: `mid-eo-plus-${Date.now()}@mail`,
+    });
+    const r1 = await processInboundEmail({
+      rawBody: plusBody,
+      providedToken: SECRET,
+      secret: SECRET,
+      supabaseAdmin: org.service,
+      defaultOrgId: org.orgId,
+    });
+    expect(r1.status).toBe(200);
+    const { data: viaPlus } = await org.service
+      .from("order_replies")
+      .select("order_id")
+      .eq("from_email", "eo-plus@example.com");
+    expect(viaPlus).toHaveLength(1);
+    expect(viaPlus![0].order_id).toBe(eoId);
+
+    // Betreff (kein Plus-Teil)
+    const subjBody = makeBody({
+      to: "antwort@inbound.cocoplatform.online",
+      from: { email: "eo-subj@example.com" },
+      subject: `Re: Ihre Bestellung ${eoNumber} — Bestätigung`,
+      text: "ok",
+      message_id: `mid-eo-subj-${Date.now()}@mail`,
+    });
+    const r2 = await processInboundEmail({
+      rawBody: subjBody,
+      providedToken: SECRET,
+      secret: SECRET,
+      supabaseAdmin: org.service,
+      defaultOrgId: org.orgId,
+    });
+    expect(r2.status).toBe(200);
+    const { data: viaSubj } = await org.service
+      .from("order_replies")
+      .select("order_id")
+      .eq("from_email", "eo-subj@example.com");
+    expect(viaSubj).toHaveLength(1);
+    expect(viaSubj![0].order_id).toBe(eoId);
+
+    // Fantasie-Nummer bleibt unzugeordnet
+    const noneBody = makeBody({
+      to: "antwort+ZZ-2099-01-9999@inbound.cocoplatform.online",
+      from: { email: "eo-none@example.com" },
+      subject: "Re: irgendwas",
+      text: "?",
+      message_id: `mid-eo-none-${Date.now()}@mail`,
+    });
+    const r3 = await processInboundEmail({
+      rawBody: noneBody,
+      providedToken: SECRET,
+      secret: SECRET,
+      supabaseAdmin: org.service,
+      defaultOrgId: org.orgId,
+    });
+    expect(r3.status).toBe(200);
+    const { data: viaNone } = await org.service
+      .from("order_replies")
+      .select("order_id")
+      .eq("from_email", "eo-none@example.com");
+    expect(viaNone).toHaveLength(1);
+    expect(viaNone![0].order_id).toBeNull();
+  });
+
   afterAll(async () => {
     await org.service.from("order_replies").delete().eq("organization_id", org.orgId);
     await orgB.service.from("order_replies").delete().eq("organization_id", orgB.orgId);
