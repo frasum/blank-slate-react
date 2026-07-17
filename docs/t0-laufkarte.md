@@ -4,7 +4,7 @@ Drehbuch für Frank. Reihenfolge einhalten; jeder Schritt nennt Ort, Datei, Erwa
 **Generalprobe: Di 22.07.** (beschlossen 15.07.): Laufkarte physisch durchgehen —
 Block 2 nur bis 2.5 (KEIN Commit), Block 3 komplett (= Wochen-Parallel-Vergleich),
 Block 4 nur 4.1 (KEINE Löschung), Blöcke 1/5/6 nur lesen. Zeit stoppen.
- G6: komplette native_overlap-Liste wird am 22.07. voll geprüft (Eichung).
+G6: komplette native_overlap-Liste wird am 22.07. voll geprüft (Eichung).
 
 Bei JEDER unerwarteten Zahl: STOPP, Ergebnis in den Chat, Prüfer-Diagnose abwarten —
 kein Weiterwursteln (Abbruchkriterien E5, §98). Zeitbedarf gesamt: ~1,5–2 h.
