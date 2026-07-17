@@ -158,6 +158,27 @@ describe.skipIf(!dbTestsEnabled)("order-replies (Webhook-Kern + Assign)", () => 
     expect(count ?? 0).toBe(0);
   });
 
+  it("(b2) leerer POST → 200, keine Zeile (MailerSend-Validierungs-Ping)", async () => {
+    const beforeRes = await org.service
+      .from("order_replies")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", org.orgId);
+    const before = beforeRes.count ?? 0;
+    const res = await processInboundEmail({
+      rawBody: "",
+      signatureHeader: null,
+      secret: SECRET,
+      supabaseAdmin: org.service,
+      defaultOrgId: org.orgId,
+    });
+    expect(res.status).toBe(200);
+    const afterRes = await org.service
+      .from("order_replies")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", org.orgId);
+    expect(afterRes.count ?? 0).toBe(before);
+  });
+
   it("(c) doppelte message_id → idempotent (nur eine Zeile)", async () => {
     const mid = `mid-c-${Date.now()}@mail`;
     const body = makeBody({

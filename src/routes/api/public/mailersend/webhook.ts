@@ -47,8 +47,15 @@ async function forwardUnassigned(params: {
 export const Route = createFileRoute("/api/public/mailersend/webhook")({
   server: {
     handlers: {
+      GET: async () => Response.json({ status: "ok" }),
+      HEAD: async () => new Response(null, { status: 200 }),
       POST: async ({ request }) => {
         const rawBody = await request.text();
+        // MailerSend-Validierungs-Ping: leerer POST → 200, keine Verarbeitung.
+        // Nichts Unsigniertes wird je verarbeitet.
+        if (rawBody.trim().length === 0) {
+          return Response.json({ ok: true, ignored: "empty-body" });
+        }
         const signatureHeader =
           request.headers.get("signature") ?? request.headers.get("x-mailersend-signature");
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
