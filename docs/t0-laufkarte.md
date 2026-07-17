@@ -4,6 +4,7 @@ Drehbuch für Frank. Reihenfolge einhalten; jeder Schritt nennt Ort, Datei, Erwa
 **Generalprobe: Di 22.07.** (beschlossen 15.07.): Laufkarte physisch durchgehen —
 Block 2 nur bis 2.5 (KEIN Commit), Block 3 komplett (= Wochen-Parallel-Vergleich),
 Block 4 nur 4.1 (KEINE Löschung), Blöcke 1/5/6 nur lesen. Zeit stoppen.
+ G6: komplette native_overlap-Liste wird am 22.07. voll geprüft (Eichung).
 
 Bei JEDER unerwarteten Zahl: STOPP, Ergebnis in den Chat, Prüfer-Diagnose abwarten —
 kein Weiterwursteln (Abbruchkriterien E5, §98). Zeitbedarf gesamt: ~1,5–2 h.
@@ -15,11 +16,12 @@ kein Weiterwursteln (Abbruchkriterien E5, §98). Zeitbedarf gesamt: ~1,5–2 h.
 
 ## T0-Vormittag (Sa 26.07., NACH 03:00 Uhr — Geschäftstags-Cutoff)
 
-### Block 1 — Altsystem einfrieren (~10 min)
+### Block 1 — Kassen-Teil einfrieren (~10 min)
 
-- [ ] **1.1** Team-Bestätigung: keine laufenden Stempelungen mehr im Altsystem.
-- [ ] **1.2** Read-only-Vermerk im Altsystem hinterlassen (Notiz/Banner): „Eingefroren 26.07.2026 — alle Erfassung ab jetzt in COCO (cocoplatform.online)".
-- [ ] **1.3** Ab jetzt: KEINE Schreibvorgänge mehr in tagesabrechnung. (Endgültige Stilllegung folgt Ende Juli separat.)
+- [ ] **1.1** Team-Bestätigung: keine laufenden Stempelungen mehr im Altsystem (Kassen-/Abrechnungsteil).
+- [ ] **1.2** Read-only-Vermerk im Altsystem hinterlassen (Notiz/Banner): „Kassen-/Abrechnungsteil eingefroren 26.07.2026 — alle Erfassung ab jetzt in COCO (cocoplatform.online)".
+- [ ] **1.3** Ab jetzt: KEINE Schreibvorgänge mehr im Kassen-/Abrechnungsteil von tagesabrechnung. (Endgültige Stilllegung folgt Ende Juli separat.)
+- [ ] **1.4** Zeiterfassung läuft im Altsystem als Zweitschrift bis 31.07. weiter (G4); Alt-Zeit-Einträge ab 26.07. werden NIE importiert — reines Vergleichsmaterial.
 
 ### Block 2 — Zeit-Import: Export → Dry-Run → COMMIT (~30 min)
 
@@ -29,8 +31,9 @@ kein Weiterwursteln (Abbruchkriterien E5, §98). Zeitbedarf gesamt: ~1,5–2 h.
 - [ ] **2.4** → COCO `/admin/migration`: CSV hochladen → **„Identitäten vorschlagen"** → JEDEN neuen Namen bestätigen oder bewusst ablehnen (bis nichts Unbestätigtes bleibt — R2-Lektion GIG SERVICE).
 - [ ] **2.5** **Dry-Run** → Zahlen in den Chat. Prüfer-Freigabe abwarten. Erwartungsstruktur (§97): Bilanz `gelesen = importiert + absence + invalid_time + duplicate` · `unmapped_staff` fehlt/0 · `existingKeyCount` = Live-Count · importiert ≈ Neuzugänge seit 14.07. (Referenz 15.07.: 249; wächst um ~18/Tag).
 - [ ] **2.6** Nach Freigabe: **COMMIT** ausführen → **Run-ID und Wasserlinie notieren** (Wasserlinie = höchster importierter Geschäftstag = 25.07.).
+  - Hinweis (E-Q5b/G5): Der Import ist Verifikation + Lückenschluss für COCO — die Juli-LOHNQUELLE bleibt das Altsystem; Juli-Korrekturen nach dem T0 erfolgen NUR dort (Disziplin-Regel), Drift fängt der 31.07.-Abgleich.
 - [ ] **2.7** **Re-Import-Probe:** dieselbe CSV erneut als Dry-Run → `importiert = 0`, alles duplicate. Sonst STOPP (Abbruchkriterium 4).
-- [ ] **2.8** Wasserlinie setzen: `/admin/zeit` → Admin-Block → `time_locked_through_date = 2026-07-25`.
+- [ ] **2.8** Wasserlinie zurücksetzen (G1): Der Importer setzt sie beim Commit automatisch — direkt danach per bereitliegendem SQL (`t0-wasserlinie-null-COCO.sql`) auf NULL zurücksetzen. Es bleibt bewusst KEIN Tag gesperrt; Sperren übernimmt später die Perioden-Systematik.
 
 ### Block 3 — Kassen-Verifikationslauf (~20 min, §98: KEIN Import!)
 
@@ -50,12 +53,13 @@ kein Weiterwursteln (Abbruchkriterien E5, §98). Zeitbedarf gesamt: ~1,5–2 h.
 
 ### Block 6 — Abschluss (~10 min)
 
-- [ ] **6.1** **Abbruchkriterien-Check** (alle vier müssen bestanden sein): ① Kassen-Verifikation 0 Differenzen ≤ 01.07. ② Zeit-Bilanz-Invariante erfüllt ③ Wasserlinie = 25.07. gesetzt ④ Re-Import-Probe importiert = 0.
-- [ ] **6.2** Kurze Meldung in den Chat: „T0 vollzogen" + die notierten Werte (Run-ID, Wasserlinie, Tresor-Beträge) → Prüfer schreibt §99-Doku-Nachzug.
+- [ ] **6.1** **Abbruchkriterien-Check** (alle fünf müssen bestanden sein): ① Kassen-Verifikation 0 Differenzen ≤ 01.07. ② Zeit-Bilanz-Invariante erfüllt ③ Wasserlinie = NULL verifiziert (G1) ④ Re-Import-Probe importiert = 0 ⑤ native_overlap-Stichprobe (erste 20) ohne einen einzigen falschen Skip — Referenz: Voll-Eichung der Liste bei der Generalprobe 22.07. (G6); EIN nachgewiesen falscher Skip = STOPP.
+- [ ] **6.2** Kurze Meldung in den Chat: „T0 vollzogen" + die notierten Werte (Run-ID, Wasserlinie, Tresor-Beträge) → Prüfer schreibt §101-Doku-Nachzug.
 
 ## Nachlauf (ab 27.07., kein T0-Stress)
 
 - [ ] **N1** Erste echte COCO-only-Tage beobachten; bei Auffälligkeiten sofort melden.
+- [ ] **N1b** 31.07. — Finaler Zeit-Abgleich (G4/G5): Alt-Export 26.–31.07. + Juli-Spätkorrekturen gegen COCO (Prüfer-Diagnose); Differenzen aus Juli-Spätkorrekturen gezielt per Manager-Korrektur in COCO nachtragen; danach Stilllegung freigegeben.
 - [ ] **N2** Finale Export-CSVs verschlüsselt EXTERN archivieren (nicht Repo, nicht Projekt-Storage).
 - [ ] **N3** Aufräum-Migrationen beauftragen (Prüfer liefert Prompts): `sessions.opentabs_deduction_cents` (N15b) + `count_holidays_as_leave` (UZ1) droppen.
 - [ ] **N4** Endgültige Stilllegung tagesabrechnung (Ende Juli, dein Termin): Alt-Syncs/Cron aus, Projekt pausieren/archivieren.
