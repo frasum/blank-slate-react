@@ -69,8 +69,8 @@ describe("order-email", () => {
 
   it("text-Fallback: Freitext ohne Preis, Standard mit à/= Format", () => {
     const t = buildOrderEmailText(sample);
-    expect(t).toContain("- Tomaten rot [TOM-01]: 5 kg à 2,50 € = 12,50 €");
-    expect(t).toContain("- Sonderwunsch Kräuter: 2 Bund");
+    expect(t).toContain("- Tomaten rot [TOM-01]: 5 × kg à 2,50 € = 12,50 €");
+    expect(t).toContain("- Sonderwunsch Kräuter: 2 × Bund");
     expect(t).toContain("Gesamt: 12,50 €");
   });
 
