@@ -198,6 +198,73 @@ export const countUnassignedOrderReplies = createServerFn({ method: "GET" })
     return { count: count ?? 0 };
   });
 
+// Ungelesene Antworten pro Bestellung (Badge in der Bestellhistorie).
+export const countUnreadRepliesByOrder = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<Record<string, number>> => {
+    const { data, error } = await context.supabase
+      .from("order_replies")
+      .select("order_id")
+      .not("order_id", "is", null)
+      .is("read_at", null)
+      .limit(2000);
+    if (error) throw error;
+    const out: Record<string, number> = {};
+    for (const r of data ?? []) {
+      const id = r.order_id as string | null;
+      if (!id) continue;
+      out[id] = (out[id] ?? 0) + 1;
+    }
+    return out;
+  });
+
+// Verwerfen: löscht die Antwort inkl. Anhänge (Storage + DB) und schreibt
+// einen Audit-Eintrag order_reply.dismissed. Manager+ (RLS-Sichtbarkeit
+// stellt die Org-Zugehörigkeit sicher).
+export const dismissOrderReply = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ replyId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: reply, error: rErr } = await context.supabase
+      .from("order_replies")
+      .select("id, organization_id, from_email, subject, order_id")
+      .eq("id", data.replyId)
+      .maybeSingle();
+    if (rErr) throw rErr;
+    if (!reply) throw new Error("Antwort nicht gefunden");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: atts } = await supabaseAdmin
+      .from("order_reply_attachments")
+      .select("id, storage_path")
+      .eq("reply_id", data.replyId);
+    const paths = (atts ?? []).map((a) => a.storage_path as string);
+    if (paths.length > 0) {
+      await supabaseAdmin.storage.from("order-reply-attachments").remove(paths);
+      await supabaseAdmin.from("order_reply_attachments").delete().eq("reply_id", data.replyId);
+    }
+    const { error } = await supabaseAdmin
+      .from("order_replies")
+      .delete()
+      .eq("id", data.replyId);
+    if (error) throw error;
+    const staffId = (context.claims?.staff_id as string | undefined) ?? null;
+    await writeAuditLog({
+      organizationId: reply.organization_id as string,
+      actorUserId: context.userId,
+      actorStaffId: staffId,
+      action: "order_reply.dismissed",
+      entity: "order_replies",
+      entityId: data.replyId,
+      meta: {
+        from_email: reply.from_email,
+        subject: reply.subject,
+        order_id: reply.order_id,
+        attachments: paths.length,
+      },
+    });
+    return { ok: true };
+  });
+
 // Frische signierte URL für einen einzelnen Anhang (10 min TTL).
 // UI ruft dies bei Klick auf einen Anhang-Chip, damit URLs nicht in der
 // Liste veralten.
