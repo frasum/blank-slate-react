@@ -19,6 +19,7 @@ import {
   type TestModeContext,
 } from "./order-email";
 import { resolveCustomerNumber } from "./customer-number";
+import { buildReplyToForOrder } from "./inbound-plus";
 
 type Admin = SupabaseClient<Database>;
 
@@ -158,6 +159,13 @@ export async function sendOrderEmailWithAdmin(
       to: testCtx
         ? [{ email: testEmail, name: `TEST – ${supplier.name}` }]
         : [{ email: supplier.email, name: supplier.name }],
+      // BM1/K1: Reply-To pro Bestellung — Antworten laufen als Plus-Adresse
+      // an unseren Inbound-Endpunkt (auch im Testmodus, damit der Flow
+      // durchgängig testbar ist). Buchhaltungs-Postfach entfällt bewusst.
+      reply_to: {
+        email: buildReplyToForOrder(order.order_number),
+        name: `COCO Bestellung ${order.order_number}`,
+      },
       subject,
       html: buildOrderEmailHtml(emailData, testCtx),
       text: buildOrderEmailText(emailData, testCtx),
