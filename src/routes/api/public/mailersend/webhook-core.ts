@@ -1,11 +1,15 @@
 // BM1 — Kernlogik des MailerSend-Inbound-Webhooks als testbare Funktion.
 //
-// Der HTTP-Adapter in `webhook.ts` reicht Raw-Body/Signature/Env nur durch;
-// die Signaturprüfung, Zuordnungskette (K2), Default-Org (K3), Anhang-
+// Der HTTP-Adapter in `webhook.ts` reicht Raw-Body/URL-Token/Env nur durch;
+// die Token-Prüfung, Zuordnungskette (K2), Default-Org (K3), Anhang-
 // Filter (K4) und die optionale Weiterleitung (K5a) leben hier, damit
 // `order-replies.db.test.ts` sie ohne echten HTTP-Roundtrip fahren kann.
+//
+// Auth: URL-Query `?token=<MAILERSEND_WEBHOOK_SECRET>` (Telegram-Muster).
+// MailerSend-Inbound liefert keine HMAC-Signatur — die frühere Header-
+// Annahme war falsch und ist restlos entfernt.
 
-import { createHmac, timingSafeEqual, randomUUID } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { extractOrderNumberFromRecipients } from "@/lib/bestellung/inbound-plus";
 
@@ -41,24 +45,15 @@ export type InboundData = {
 export type InboundPayload = { type?: string; data?: InboundData } & InboundData;
 
 export type WebhookResult =
-  | { status: 401; reason: "invalid-signature" }
+  | { status: 401; reason: "invalid-token" }
   | { status: 503; reason: "not-configured" }
   | { status: 200; body: Record<string, unknown> };
 
-export function verifyMailerSendSignature(
-  rawBody: string,
-  signatureHeader: string | null,
-  secret: string,
-): boolean {
-  const signature = (signatureHeader ?? "").replace(/^sha256=/i, "").trim();
-  const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
-  try {
-    const left = Buffer.from(signature, "hex");
-    const right = Buffer.from(expected, "hex");
-    return left.length > 0 && left.length === right.length && timingSafeEqual(left, right);
-  } catch {
-    return false;
-  }
+export function verifyToken(providedToken: string | null | undefined, secret: string): boolean {
+  if (!providedToken) return false;
+  const left = Buffer.from(providedToken);
+  const right = Buffer.from(secret);
+  return left.length === right.length && timingSafeEqual(left, right);
 }
 
 function extractHeader(headers: InboundData["headers"] | undefined, name: string): string | null {
@@ -105,7 +100,7 @@ export type ForwardFn = (params: {
 
 export type ProcessInboundOptions = {
   rawBody: string;
-  signatureHeader: string | null;
+  providedToken: string | null;
   secret: string | undefined;
   supabaseAdmin: SupabaseClient;
   defaultOrgId: string | undefined;
@@ -114,23 +109,13 @@ export type ProcessInboundOptions = {
 
 export async function processInboundEmail(opts: ProcessInboundOptions): Promise<WebhookResult> {
   if (!opts.secret) return { status: 503, reason: "not-configured" };
-  // Leerer Body (MailerSend-Validierungs-Ping): 200, keine Verarbeitung.
-  // Signaturprüfung entfällt, weil nichts zu verarbeiten ist.
+  // Token-Auth: fehlender/falscher Token → 401, keine Verarbeitung.
+  if (!verifyToken(opts.providedToken, opts.secret)) {
+    return { status: 401, reason: "invalid-token" };
+  }
+  // Token korrekt + leerer Body → Probe/Validation-Ping, keine Verarbeitung.
   if (opts.rawBody.trim().length === 0) {
     return { status: 200, body: { ok: true, ignored: "empty-body" } };
-  }
-  // Fehlender Signatur-Header (null/undefined) ODER reiner Whitespace-Header:
-  // Probe/Health-Ping ohne Verarbeitung. Nur ein VORHANDENER, nicht-leerer,
-  // aber ungültiger Header führt zu 401.
-  if (
-    opts.signatureHeader === null ||
-    opts.signatureHeader === undefined ||
-    opts.signatureHeader.trim().length === 0
-  ) {
-    return { status: 200, body: { ok: true, ignored: "unsigned-probe" } };
-  }
-  if (!verifyMailerSendSignature(opts.rawBody, opts.signatureHeader, opts.secret)) {
-    return { status: 401, reason: "invalid-signature" };
   }
 
   let payload: InboundPayload;
