@@ -242,10 +242,7 @@ export const dismissOrderReply = createServerFn({ method: "POST" })
       await supabaseAdmin.storage.from("order-reply-attachments").remove(paths);
       await supabaseAdmin.from("order_reply_attachments").delete().eq("reply_id", data.replyId);
     }
-    const { error } = await supabaseAdmin
-      .from("order_replies")
-      .delete()
-      .eq("id", data.replyId);
+    const { error } = await supabaseAdmin.from("order_replies").delete().eq("id", data.replyId);
     if (error) throw error;
     const staffId = (context.claims?.staff_id as string | undefined) ?? null;
     await writeAuditLog({
