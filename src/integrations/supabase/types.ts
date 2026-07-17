@@ -2066,6 +2066,127 @@ export type Database = {
           },
         ]
       }
+      order_replies: {
+        Row: {
+          assigned_at: string | null
+          assigned_by: string | null
+          body_text: string | null
+          created_at: string
+          from_email: string
+          from_name: string | null
+          id: string
+          message_id: string | null
+          order_id: string | null
+          organization_id: string
+          read_at: string | null
+          received_at: string
+          subject: string | null
+          updated_at: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          body_text?: string | null
+          created_at?: string
+          from_email: string
+          from_name?: string | null
+          id?: string
+          message_id?: string | null
+          order_id?: string | null
+          organization_id: string
+          read_at?: string | null
+          received_at?: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          body_text?: string | null
+          created_at?: string
+          from_email?: string
+          from_name?: string | null
+          id?: string
+          message_id?: string | null
+          order_id?: string | null
+          organization_id?: string
+          read_at?: string | null
+          received_at?: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_replies_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_replies_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_replies_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_reply_attachments: {
+        Row: {
+          content_type: string
+          created_at: string
+          file_name: string
+          id: string
+          organization_id: string
+          reply_id: string
+          size_bytes: number
+          storage_path: string
+        }
+        Insert: {
+          content_type: string
+          created_at?: string
+          file_name: string
+          id?: string
+          organization_id: string
+          reply_id: string
+          size_bytes: number
+          storage_path: string
+        }
+        Update: {
+          content_type?: string
+          created_at?: string
+          file_name?: string
+          id?: string
+          organization_id?: string
+          reply_id?: string
+          size_bytes?: number
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_reply_attachments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_reply_attachments_reply_id_fkey"
+            columns: ["reply_id"]
+            isOneToOne: false
+            referencedRelation: "order_replies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           confirmation_token: string | null
@@ -2170,6 +2291,8 @@ export type Database = {
           kitchen_tip_rate: number
           order_email_bcc: string | null
           order_email_reply_to: string | null
+          order_reply_forward_unassigned: boolean
+          order_reply_telegram_enabled: boolean
           organization_id: string
           telegram_bot_username: string | null
           telegram_report_enabled: boolean
@@ -2197,6 +2320,8 @@ export type Database = {
           kitchen_tip_rate?: number
           order_email_bcc?: string | null
           order_email_reply_to?: string | null
+          order_reply_forward_unassigned?: boolean
+          order_reply_telegram_enabled?: boolean
           organization_id: string
           telegram_bot_username?: string | null
           telegram_report_enabled?: boolean
@@ -2224,6 +2349,8 @@ export type Database = {
           kitchen_tip_rate?: number
           order_email_bcc?: string | null
           order_email_reply_to?: string | null
+          order_reply_forward_unassigned?: boolean
+          order_reply_telegram_enabled?: boolean
           organization_id?: string
           telegram_bot_username?: string | null
           telegram_report_enabled?: boolean
