@@ -4297,3 +4297,19 @@ Abnahme-Anker: WZ2 `3732df31` · Z5 `a58f81fc` + DB-Test `5ccc8eb9` · Laufkarte
 **UI-Minis (Frank-Praxisblick):** Mengen als `{Menge} × {Einheit}` überall · Bestellhistorie-Filter „E-Mail-Eingang" mit Ungelesen-Badge (nutzt bestehende markRead-Mechanik, KGL) · Verwerfen im Unzugeordnet-Eingang mit Audit.
 
 **Randnotizen:** Neuer CI-Job `e2e` (H4, needs db-integration, continue-on-error — Direktarbeit; Zehner-Serie als Blocking-Kriterium notiert). `db-integration` ist inzwischen BLOCKING (continue-on-error aus §8 entfernt). LAM 12.07. auf echte 15:30–23:15 korrigiert (Editor-Default-Zeiten waren geblieben). DMARC-Reports (XML an buchhaltung@) sind Statistik, keine Aktion nötig.
+
+## §102 — Standorte-Tab-Layout, N3-Retry-Härtung, BM-A erledigt, Registry-Wechsel (17.07.)
+
+Abnahme-Anker: HEAD `ca9aa7fd` — vier Gates grün (tsc 0 · eslint 0 · prettier clean · vitest 1790/1790), Prüfer-Session 17.07. vormittags.
+
+**LOC1 — Standorte-Verwaltung als Tab-Layout (Direktarbeit Frank↔Lovable):** `admin/locations.tsx` in mehreren Runden auf ein Tab-Layout umgebaut (`1963cf4b` ff.), „+Neu"-Button nach rechts (`92661c43`), tsc-Fixes durch den Baumeister selbst (`43f34a9d`). Reine UI-Umgruppierung, keine Server-/Schema-Änderung. Vom Prüfer nachträglich abgenommen.
+
+**N3-Retry-Härtung (`ca9aa7fd`):** `pin-attempt-register.db.test.ts` erhält `resetAttempts(staffId)` als erste Zeile JEDES Tests (löscht `pin_attempts` der Org/Person via service_role). Anlass: Die §92-CI1-Retry-Schleife wiederholt fehlgeschlagene DB-Tests — aber `pin_attempts`-Zeilen aus dem Erstlauf blieben stehen und verfälschten im Retry die Limit-Zählung (Test (a) sah plötzlich vorbelastete Versuche). **Verallgemeinerte Regel:** DB-Tests, die Zeilen ANZÄHLEN oder Limits prüfen, stellen ihren Ausgangszustand am TEST-ANFANG selbst her (retry-fest) — `afterAll`-Cleanup allein reicht nicht, weil der Retry mitten in der Suite neu ansetzt.
+
+**BM-A erledigt:** Der in §101 offene Merkposten „CI-Fix ausstehend" ist geschlossen — fetch-Mock im DB-Test auf die Fremd-API-URL gescoped (`72218da4`), CI seither grün. Damit ist die BM1/BM-A-Kette komplett abgenommen.
+
+**Prüfer-Umgebungsnotiz — Lovable-Registry gewechselt:** `bun.lock` zeigt nicht mehr auf `npm-registry.lovable.dev`, sondern auf regionale Google-Artifact-Registry-URLs (`europe-westN-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache`, **mehrere Regionen in einer Lock-Datei**). Neuer Lokal-Install-Workaround für die Prüfer-Umgebung:
+
+    sed -i -E 's|https://europe-west[0-9]+-npm\.pkg\.dev/lovable-core-prod/sandbox-npm-cache|https://registry.npmjs.org|g' bun.lock
+
+danach `bun install`, danach `git checkout bun.lock` (Lock-Datei nie mitcommitten). Ersetzt den alten Ein-Domain-sed.
