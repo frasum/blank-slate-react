@@ -37,6 +37,7 @@ const SECTION_KEYS = SECTION_TABS.map((t) => t.key) as readonly SectionKey[];
 function isSectionKey(v: unknown): v is SectionKey {
   return typeof v === "string" && (SECTION_KEYS as readonly string[]).includes(v);
 }
+type LocSearch = { loc?: string; tab: SectionKey };
 
 export const Route = createFileRoute("/_authenticated/admin/locations")({
   head: () => ({ meta: [{ title: "Standorte · Verwaltung" }] }),
@@ -155,7 +156,7 @@ function LocationsPage() {
       // wieder den Default-Loc-Selector, den der Effekt unten setzt).
       await navigate({
         to: ".",
-        search: (p) => ({ ...p, loc: undefined, tab: "allgemein" as const }),
+        search: (p: LocSearch) => ({ ...p, loc: undefined, tab: "allgemein" as const }),
       });
     },
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
@@ -172,7 +173,7 @@ function LocationsPage() {
       setConfirmDelete(null);
       setDeleteInput("");
       await refresh();
-      await navigate({ to: ".", search: (p) => ({ ...p, loc: undefined }) });
+      await navigate({ to: ".", search: (p: LocSearch) => ({ ...p, loc: undefined }) });
     },
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
   });
@@ -199,7 +200,7 @@ function LocationsPage() {
     if (!locationsQ.data) return;
     if (locParam === "new") return;
     if (locParam && !locations.find((l) => l.id === locParam)) {
-      void navigate({ to: ".", search: (p) => ({ ...p, loc: undefined }) });
+      void navigate({ to: ".", search: (p: LocSearch) => ({ ...p, loc: undefined }) });
     }
     // `locations` is derived from `locationsQ.data` on every render; guarding
     // on `locationsQ.data` alone is sufficient here.
@@ -220,7 +221,7 @@ function LocationsPage() {
               key={l.id}
               from={Route.fullPath}
               to="."
-              search={(p) => ({ ...p, loc: l.id })}
+              search={(p: LocSearch) => ({ ...p, loc: l.id })}
               className={tabClass(active, inactive ? "opacity-60" : undefined)}
             >
               {l.name}
@@ -235,7 +236,7 @@ function LocationsPage() {
         <Link
           from={Route.fullPath}
           to="."
-          search={(p) => ({ ...p, loc: "new", tab: "allgemein" as const })}
+          search={(p: LocSearch) => ({ ...p, loc: "new", tab: "allgemein" as const })}
           className="ml-auto inline-flex items-center rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background hover:bg-foreground/90"
         >
           + Neu
@@ -282,7 +283,7 @@ function LocationsPage() {
                 setNewName("");
                 setNewDetails(emptyDetails);
                 setMsg(null);
-                void navigate({ to: ".", search: (p) => ({ ...p, loc: undefined }) });
+                void navigate({ to: ".", search: (p: LocSearch) => ({ ...p, loc: undefined }) });
               }}
               className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground hover:bg-accent"
             >
@@ -301,7 +302,7 @@ function LocationsPage() {
                 key={t.key}
                 from={Route.fullPath}
                 to="."
-                search={(p) => ({ ...p, tab: t.key })}
+                search={(p: LocSearch) => ({ ...p, tab: t.key })}
                 className={tabClass(tab === t.key)}
               >
                 {t.label}
