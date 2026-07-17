@@ -13,6 +13,7 @@ import {
   type OrderReplyRow,
 } from "@/lib/bestellung/order-replies.functions";
 import { listOrders } from "@/lib/bestellung/orders.functions";
+import { listSuppliers } from "@/lib/bestellung/suppliers.functions";
 import { ReplyCard } from "@/components/bestellung/OrderRepliesSection";
 
 export const Route = createFileRoute("/_authenticated/admin/bestellung/unzugeordnet")({
@@ -33,6 +34,12 @@ function UnzugeordnetPage() {
     queryKey: ["bestellung", "orders", { recent: true }],
     queryFn: () => listOrders({ data: {} }),
   });
+  const suppliersQ = useQuery({
+    queryKey: ["bestellung", "suppliers", { includeInactive: true }],
+    queryFn: () => listSuppliers({ data: { includeInactive: true } }),
+  });
+  const supplierName = (id: string) =>
+    suppliersQ.data?.find((s) => s.id === id)?.name ?? "—";
 
   const [selected, setSelected] = useState<OrderReplyRow | null>(null);
   const [orderQuery, setOrderQuery] = useState("");
@@ -53,10 +60,10 @@ function UnzugeordnetPage() {
       .filter(
         (o) =>
           o.order_number.toLowerCase().includes(q) ||
-          (o.supplier_name ?? "").toLowerCase().includes(q),
+          supplierName(o.supplier_id).toLowerCase().includes(q),
       )
       .slice(0, 30);
-  }, [ordersQ.data, orderQuery]);
+  }, [ordersQ.data, orderQuery, suppliersQ.data]);
 
   return (
     <div className="space-y-4">
@@ -134,7 +141,7 @@ function UnzugeordnetPage() {
                       >
                         <span className="font-mono text-foreground">{o.order_number}</span>
                         <span className="text-muted-foreground">
-                          {o.supplier_name} · {o.created_at?.slice(0, 10)}
+                          {supplierName(o.supplier_id)} · {o.created_at?.slice(0, 10)}
                         </span>
                       </button>
                     </li>
