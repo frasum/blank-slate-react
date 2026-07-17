@@ -10,7 +10,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { writeAuditLog } from "@/lib/admin/audit";
 
 export type OrderReplyAttachment = {
   id: string;
@@ -105,37 +107,65 @@ export const assignOrderReply = createServerFn({ method: "POST" })
     z.object({ replyId: z.string().uuid(), orderId: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    // Sichtbarkeitscheck: der Aufrufer muss die Zeile sehen können (RLS
-    // liefert nur eigene Org). Ohne Fund → Fehler.
-    const { data: reply, error: rErr } = await context.supabase
-      .from("order_replies")
-      .select("id, organization_id")
-      .eq("id", data.replyId)
-      .maybeSingle();
-    if (rErr) throw rErr;
-    if (!reply) throw new Error("Antwort nicht gefunden");
-    const { data: order, error: oErr } = await context.supabase
-      .from("orders")
-      .select("id, organization_id")
-      .eq("id", data.orderId)
-      .maybeSingle();
-    if (oErr) throw oErr;
-    if (!order || order.organization_id !== reply.organization_id) {
-      throw new Error("Bestellung nicht in derselben Organisation");
-    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const staffId = context.claims?.staff_id as string | undefined;
-    const { error } = await supabaseAdmin
-      .from("order_replies")
-      .update({
-        order_id: data.orderId,
-        assigned_at: new Date().toISOString(),
-        assigned_by: staffId ?? null,
-      })
-      .eq("id", data.replyId);
-    if (error) throw error;
-    return { ok: true };
+    const staffId = (context.claims?.staff_id as string | undefined) ?? null;
+    return assignOrderReplyCore({
+      authed: context.supabase,
+      admin: supabaseAdmin,
+      userId: context.userId,
+      staffId,
+      replyId: data.replyId,
+      orderId: data.orderId,
+    });
   });
+
+// Testbarer Kern von assignOrderReply (K6). Sichtbarkeit läuft über den
+// RLS-Client des Aufrufers; Cross-Org-Orders sind unsichtbar und der
+// Guard schlägt fehl. Audit-Log ausschließlich bei Erfolg.
+export async function assignOrderReplyCore(params: {
+  authed: SupabaseClient<Database>;
+  admin: SupabaseClient<Database>;
+  userId: string;
+  staffId: string | null;
+  replyId: string;
+  orderId: string;
+}): Promise<{ ok: true }> {
+  const { data: reply, error: rErr } = await params.authed
+    .from("order_replies")
+    .select("id, organization_id")
+    .eq("id", params.replyId)
+    .maybeSingle();
+  if (rErr) throw rErr;
+  if (!reply) throw new Error("Antwort nicht gefunden");
+  const { data: order, error: oErr } = await params.authed
+    .from("orders")
+    .select("id, organization_id")
+    .eq("id", params.orderId)
+    .maybeSingle();
+  if (oErr) throw oErr;
+  if (!order || order.organization_id !== reply.organization_id) {
+    throw new Error("Bestellung nicht in derselben Organisation");
+  }
+  const { error } = await params.admin
+    .from("order_replies")
+    .update({
+      order_id: params.orderId,
+      assigned_at: new Date().toISOString(),
+      assigned_by: params.staffId,
+    })
+    .eq("id", params.replyId);
+  if (error) throw error;
+  await writeAuditLog({
+    organizationId: reply.organization_id as string,
+    actorUserId: params.userId,
+    actorStaffId: params.staffId,
+    action: "order_reply.assign",
+    entity: "order_replies",
+    entityId: params.replyId,
+    meta: { order_id: params.orderId },
+  });
+  return { ok: true };
+}
 
 export const markOrderReplyRead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
