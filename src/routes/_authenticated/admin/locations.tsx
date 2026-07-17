@@ -117,7 +117,7 @@ function LocationsPage() {
   const callDelete = useServerFn(deleteLocation);
   const callSetActive = useServerFn(setLocationActive);
   const { loc: locParam, tab } = Route.useSearch();
-  const navigate = useNavigate({ from: "/_authenticated/admin/locations" });
+  const navigate = useNavigate({ from: Route.fullPath });
   const [newName, setNewName] = useState("");
   const [newDetails, setNewDetails] = useState<LocationDetails>(emptyDetails);
   const [msg, setMsg] = useState<string | null>(null);
@@ -155,7 +155,8 @@ function LocationsPage() {
       // ist typischerweise nun der einzige "neue" — wir wählen einfach
       // wieder den Default-Loc-Selector, den der Effekt unten setzt).
       await navigate({
-        search: (p: LocSearch) => ({ ...p, loc: undefined, tab: "allgemein" as SectionKey }),
+        to: ".",
+        search: (p) => ({ ...p, loc: undefined, tab: "allgemein" as const }),
       });
     },
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
@@ -172,7 +173,7 @@ function LocationsPage() {
       setConfirmDelete(null);
       setDeleteInput("");
       await refresh();
-      await navigate({ search: (p: LocSearch) => ({ ...p, loc: undefined }) });
+      await navigate({ to: ".", search: (p) => ({ ...p, loc: undefined }) });
     },
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
   });
@@ -199,7 +200,7 @@ function LocationsPage() {
     if (!locationsQ.data) return;
     if (locParam === "new") return;
     if (locParam && !locations.find((l) => l.id === locParam)) {
-      void navigate({ search: (p: LocSearch) => ({ ...p, loc: undefined }) });
+      void navigate({ to: ".", search: (p) => ({ ...p, loc: undefined }) });
     }
     // `locations` is derived from `locationsQ.data` on every render; guarding
     // on `locationsQ.data` alone is sufficient here.
@@ -219,7 +220,8 @@ function LocationsPage() {
             <Link
               key={l.id}
               from={Route.fullPath}
-              search={(p: LocSearch) => ({ ...p, loc: l.id })}
+              to="."
+              search={(p) => ({ ...p, loc: l.id })}
               className={tabClass(active, inactive ? "opacity-60" : undefined)}
             >
               {l.name}
@@ -233,11 +235,8 @@ function LocationsPage() {
         })}
         <Link
           from={Route.fullPath}
-          search={(p: LocSearch) => ({
-            ...p,
-            loc: "new" as string,
-            tab: "allgemein" as SectionKey,
-          })}
+          to="."
+          search={(p) => ({ ...p, loc: "new", tab: "allgemein" as const })}
           className="ml-auto inline-flex items-center rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background hover:bg-foreground/90"
         >
           + Neu
@@ -284,7 +283,7 @@ function LocationsPage() {
                 setNewName("");
                 setNewDetails(emptyDetails);
                 setMsg(null);
-                void navigate({ search: (p: LocSearch) => ({ ...p, loc: undefined }) });
+                void navigate({ to: ".", search: (p) => ({ ...p, loc: undefined }) });
               }}
               className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground hover:bg-accent"
             >
@@ -302,7 +301,8 @@ function LocationsPage() {
               <Link
                 key={t.key}
                 from={Route.fullPath}
-                search={(p: LocSearch) => ({ ...p, tab: t.key })}
+                to="."
+                search={(p) => ({ ...p, tab: t.key })}
                 className={tabClass(tab === t.key)}
               >
                 {t.label}
