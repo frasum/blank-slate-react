@@ -201,7 +201,10 @@ function LocationsPage() {
     if (locParam && !locations.find((l) => l.id === locParam)) {
       void navigate({ search: (p: LocSearch) => ({ ...p, loc: undefined }) });
     }
-  }, [locationsQ.data, locParam, locations, navigate]);
+    // `locations` is derived from `locationsQ.data` on every render; guarding
+    // on `locationsQ.data` alone is sufficient here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locationsQ.data, locParam, navigate]);
 
   return (
     <div className="space-y-6">
