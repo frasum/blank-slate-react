@@ -173,9 +173,7 @@ function BestellungenPage() {
                     <span
                       className={
                         "ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold " +
-                        (active
-                          ? "bg-primary-foreground text-primary"
-                          : "bg-amber-500 text-white")
+                        (active ? "bg-primary-foreground text-primary" : "bg-amber-500 text-white")
                       }
                     >
                       {unreadOrdersCount}
