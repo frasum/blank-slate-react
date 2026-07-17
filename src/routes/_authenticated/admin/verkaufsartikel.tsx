@@ -659,9 +659,11 @@ function PriceCell(props: {
   article: SalesArticle;
   field: PriceField;
   onSave: (cents: number | null) => void;
+  startEditing?: boolean;
+  onDone?: () => void;
 }) {
   const current = props.article[props.field];
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(!!props.startEditing);
   const [value, setValue] = useState(centsToEuroInput(current));
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -677,10 +679,12 @@ function PriceCell(props: {
     if (cents === "invalid") {
       setValue(centsToEuroInput(current));
       setEditing(false);
+      props.onDone?.();
       return;
     }
     if (cents !== current) props.onSave(cents);
     setEditing(false);
+    props.onDone?.();
   };
 
   if (!editing) {
@@ -713,6 +717,7 @@ function PriceCell(props: {
           e.preventDefault();
           setValue(centsToEuroInput(current));
           setEditing(false);
+          props.onDone?.();
         }
       }}
       className="w-full rounded border border-input bg-background px-2 py-1 text-sm"
