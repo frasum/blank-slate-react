@@ -70,7 +70,9 @@ export const listOrderReplies = createServerFn({ method: "GET" })
   .handler(async ({ data, context }): Promise<OrderReplyRow[]> => {
     let q = context.supabase
       .from("order_replies")
-      .select("id, order_id, from_email, from_name, subject, body_text, received_at, read_at, assigned_at")
+      .select(
+        "id, order_id, from_email, from_name, subject, body_text, received_at, read_at, assigned_at",
+      )
       .order("received_at", { ascending: false })
       .limit(200);
     if (data.orderId) q = q.eq("order_id", data.orderId);
@@ -79,7 +81,10 @@ export const listOrderReplies = createServerFn({ method: "GET" })
     if (error) throw error;
     if (!rows || rows.length === 0) return [];
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const attMap = await loadAttachments(supabaseAdmin, rows.map((r) => r.id as string));
+    const attMap = await loadAttachments(
+      supabaseAdmin,
+      rows.map((r) => r.id as string),
+    );
     return rows.map((r) => ({
       id: r.id as string,
       order_id: r.order_id as string | null,

@@ -56,10 +56,7 @@ function safeEqualHex(a: string, b: string): boolean {
   }
 }
 
-function extractHeader(
-  headers: InboundData["headers"] | undefined,
-  name: string,
-): string | null {
+function extractHeader(headers: InboundData["headers"] | undefined, name: string): string | null {
   if (!headers) return null;
   const lower = name.toLowerCase();
   if (Array.isArray(headers)) {
@@ -95,9 +92,7 @@ export const Route = createFileRoute("/api/public/mailersend/webhook")({
 
         const rawBody = await request.text();
         const signatureHeader =
-          request.headers.get("signature") ??
-          request.headers.get("x-mailersend-signature") ??
-          "";
+          request.headers.get("signature") ?? request.headers.get("x-mailersend-signature") ?? "";
         const signature = signatureHeader.replace(/^sha256=/i, "").trim();
         const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
         if (!safeEqualHex(signature, expected)) {
@@ -118,10 +113,7 @@ export const Route = createFileRoute("/api/public/mailersend/webhook")({
         const messageId = inbound.message_id ?? inbound.id ?? null;
         const inReplyToRaw = extractHeader(inbound.headers, "In-Reply-To");
         const referencesRaw = extractHeader(inbound.headers, "References");
-        const threadIds = [
-          ...extractMessageIds(inReplyToRaw),
-          ...extractMessageIds(referencesRaw),
-        ];
+        const threadIds = [...extractMessageIds(inReplyToRaw), ...extractMessageIds(referencesRaw)];
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
