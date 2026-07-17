@@ -191,7 +191,6 @@ export function SendOrderDialog({ open, onOpenChange, supplierId, onSent }: Prop
               <thead className="bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-3 py-2">Artikel</th>
-                  <th className="px-3 py-2">Einheit</th>
                   <th className="px-3 py-2 text-right">Menge</th>
                   <th className="px-3 py-2 text-right">Einzel</th>
                   <th className="px-3 py-2 text-right">Summe</th>
@@ -200,7 +199,7 @@ export function SendOrderDialog({ open, onOpenChange, supplierId, onSent }: Prop
               <tbody>
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-3 py-4 text-center text-sm text-muted-foreground">
+                    <td colSpan={4} className="px-3 py-4 text-center text-sm text-muted-foreground">
                       Keine Artikel für diesen Lieferanten im Warenkorb.
                     </td>
                   </tr>
@@ -215,8 +214,9 @@ export function SendOrderDialog({ open, onOpenChange, supplierId, onSent }: Prop
                           </span>
                         )}
                       </td>
-                      <td className="px-3 py-2 text-muted-foreground">{r.unit}</td>
-                      <td className="px-3 py-2 text-right">{r.quantity}</td>
+                      <td className="px-3 py-2 text-right whitespace-nowrap">
+                        {r.quantity} × {r.unit}
+                      </td>
                       <td className="px-3 py-2 text-right font-mono">
                         {r.isFreeText ? "—" : fmtEuro(r.unitPriceCents)}
                       </td>
@@ -229,7 +229,7 @@ export function SendOrderDialog({ open, onOpenChange, supplierId, onSent }: Prop
               </tbody>
               <tfoot>
                 <tr className="border-t border-border bg-muted/20">
-                  <td colSpan={4} className="px-3 py-2 text-right text-sm font-medium">
+                  <td colSpan={3} className="px-3 py-2 text-right text-sm font-medium">
                     Gesamt
                   </td>
                   <td className="px-3 py-2 text-right font-mono font-semibold">
