@@ -9,6 +9,7 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export type OrderReplyAttachment = {
@@ -33,11 +34,7 @@ export type OrderReplyRow = {
 };
 
 async function loadAttachments(
-  supabaseAdmin: Awaited<
-    ReturnType<typeof import("@/integrations/supabase/client.server").getAdminClient>
-  > extends never
-    ? never
-    : import("@supabase/supabase-js").SupabaseClient,
+  supabaseAdmin: SupabaseClient,
   replyIds: string[],
 ): Promise<Map<string, OrderReplyAttachment[]>> {
   const map = new Map<string, OrderReplyAttachment[]>();
