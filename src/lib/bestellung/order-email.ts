@@ -35,6 +35,20 @@ export type TestModeContext = {
   originalSupplierEmail: string;
 };
 
+// BM-A: Erstkontakt-Hinweis für die erste Echt-Bestellmail je Lieferant.
+// Wird nur im ECHTMODUS und nur beim ERSTEN Versand gerendert. Die Variante
+// mit Absenderadresse wird zur Laufzeit im Server-Helper gefüllt.
+export type FirstContactContext = {
+  fromEmail: string;
+};
+
+export const FIRST_CONTACT_NOTICE_TEMPLATE =
+  "Neue Absenderadresse: Unsere Bestellungen erreichen Sie ab sofort automatisch über dieses System (Absender {FROM_EMAIL}). Bitte speichern Sie die Adresse einmalig als Kontakt, damit unsere Bestellungen zuverlässig ankommen. Antworten auf diese E-Mail erreichen uns direkt am Bestellvorgang.";
+
+function firstContactNotice(fromEmail: string): string {
+  return FIRST_CONTACT_NOTICE_TEMPLATE.replace("{FROM_EMAIL}", fromEmail);
+}
+
 function fmtEur(cents: number): string {
   return (
     (cents / 100).toLocaleString("de-DE", {
@@ -63,7 +77,11 @@ export function buildOrderEmailSubject(d: OrderEmailData, test?: TestModeContext
   return `${prefix}Neue Bestellung ${d.orderNumber} von ${d.restaurantName}${suffix}`;
 }
 
-export function buildOrderEmailHtml(d: OrderEmailData, test?: TestModeContext): string {
+export function buildOrderEmailHtml(
+  d: OrderEmailData,
+  test?: TestModeContext,
+  firstContact?: FirstContactContext,
+): string {
   const rows = d.items
     .map((it) => {
       const name = escapeHtml(it.articleName);
@@ -102,6 +120,12 @@ export function buildOrderEmailHtml(d: OrderEmailData, test?: TestModeContext): 
     ? `<div style="margin:0 0 16px 0;padding:12px;background:#fee2e2;border-left:3px solid #dc2626;font-size:13px;color:#7f1d1d"><strong>Testbestellung</strong> — diese Mail würde regulär an <strong>${escapeHtml(test.originalSupplierEmail)}</strong> gehen. Der Lieferant erhält nichts.</div>`
     : "";
 
+  // BM-A: Erstkontakt-Kasten (dezent hell, KEIN Rot). Nur im Echtmodus.
+  const firstContactBlock =
+    firstContact && !test
+      ? `<div style="margin:0 0 16px 0;padding:12px;background:#f3f4f6;border-left:3px solid #9ca3af;font-size:13px;color:#374151">${escapeHtml(firstContactNotice(firstContact.fromEmail))}</div>`
+      : "";
+
   return `<!doctype html>
 <html lang="de"><head><meta charset="utf-8"></head>
 <body style="margin:0;padding:0;background:#f5f5f5;font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#222">
@@ -115,6 +139,7 @@ export function buildOrderEmailHtml(d: OrderEmailData, test?: TestModeContext): 
         </td></tr>
         <tr><td style="padding:16px 24px">
           ${testBanner}
+          ${firstContactBlock}
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0">${meta}</table>
           ${notesBlock}
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:12px;border-top:2px solid #111">
@@ -140,12 +165,20 @@ export function buildOrderEmailHtml(d: OrderEmailData, test?: TestModeContext): 
 </body></html>`;
 }
 
-export function buildOrderEmailText(d: OrderEmailData, test?: TestModeContext): string {
+export function buildOrderEmailText(
+  d: OrderEmailData,
+  test?: TestModeContext,
+  firstContact?: FirstContactContext,
+): string {
   const lines: string[] = [];
   if (test) {
     lines.push(
       `[TEST] Testbestellung — würde regulär an ${test.originalSupplierEmail} gehen. Der Lieferant erhält nichts.`,
     );
+    lines.push("");
+  }
+  if (firstContact && !test) {
+    lines.push(firstContactNotice(firstContact.fromEmail));
     lines.push("");
   }
   lines.push(`Neue Bestellung ${d.orderNumber}`);
