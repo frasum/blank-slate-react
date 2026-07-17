@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { QRCodeSVG } from "qrcode.react";
@@ -19,9 +19,31 @@ import {
 } from "@/lib/display/display.functions";
 import { LocationCalendarPanel } from "@/components/admin/LocationCalendarPanel";
 import { LocationTipPoolPanel } from "@/components/admin/LocationTipPoolPanel";
+import { tabClass } from "@/components/ui/nav-tab";
+
+// ST-Tabs (ein Commit, 17.07.): Standorte-Seite bekommt zweistufige
+// Tab-Optik (Standort-Tabs oben, Bereichs-Tabs innerhalb des Standorts) —
+// analog zu /admin/einstellungen. Reine UI-Umgruppierung; Server-Fns,
+// RLS, Panels bleiben unangetastet.
+const SECTION_TABS = [
+  { key: "allgemein", label: "Allgemein" },
+  { key: "display", label: "Display" },
+  { key: "kalender", label: "Kalender & Ruhetage" },
+  { key: "trinkgeld", label: "Trinkgeldpool" },
+  { key: "geofence", label: "Geofence" },
+] as const;
+type SectionKey = (typeof SECTION_TABS)[number]["key"];
+const SECTION_KEYS = SECTION_TABS.map((t) => t.key) as readonly SectionKey[];
+function isSectionKey(v: unknown): v is SectionKey {
+  return typeof v === "string" && (SECTION_KEYS as readonly string[]).includes(v);
+}
 
 export const Route = createFileRoute("/_authenticated/admin/locations")({
   head: () => ({ meta: [{ title: "Standorte · Verwaltung" }] }),
+  validateSearch: (search: Record<string, unknown>): { loc?: string; tab: SectionKey } => ({
+    loc: typeof search.loc === "string" && search.loc.length > 0 ? search.loc : undefined,
+    tab: isSectionKey(search.tab) ? search.tab : "allgemein",
+  }),
   component: LocationsPage,
 });
 
