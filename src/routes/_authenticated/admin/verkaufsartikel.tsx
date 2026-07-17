@@ -467,7 +467,11 @@ function currentEkMethod(a: SalesArticle): EkMethod | null {
 }
 
 function methodLabel(m: EkMethod): string {
-  return m === "direct" ? "Direkteingabe" : m === "purchase" ? "Einkaufsartikel + Portion" : "Rezept";
+  return m === "direct"
+    ? "Direkteingabe"
+    : m === "purchase"
+      ? "Einkaufsartikel + Portion"
+      : "Rezept";
 }
 
 function EkCell(props: {
@@ -619,7 +623,10 @@ function EkCell(props: {
         )}
       </div>
 
-      <AlertDialog open={confirmNext !== null} onOpenChange={(o) => (o ? undefined : setConfirmNext(null))}>
+      <AlertDialog
+        open={confirmNext !== null}
+        onOpenChange={(o) => (o ? undefined : setConfirmNext(null))}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Bestehende Verknüpfung lösen?</AlertDialogTitle>
