@@ -414,7 +414,6 @@ function OrderDetail(props: {
             <th className="px-2 py-1">Artikel</th>
             <th className="px-2 py-1">SKU</th>
             <th className="px-2 py-1 text-right">Menge</th>
-            <th className="px-2 py-1">Einheit</th>
             <th className="px-2 py-1 text-right">Einzel</th>
             <th className="px-2 py-1 text-right">Summe</th>
           </tr>
@@ -431,8 +430,9 @@ function OrderDetail(props: {
                 )}
               </td>
               <td className="px-2 py-1 text-muted-foreground">{it.sku ?? "—"}</td>
-              <td className="px-2 py-1 text-right">{it.quantity}</td>
-              <td className="px-2 py-1 text-muted-foreground">{it.unit}</td>
+              <td className="px-2 py-1 text-right whitespace-nowrap">
+                {it.quantity} × {it.unit}
+              </td>
               <td className="px-2 py-1 text-right font-mono">{fmtEuro(it.unit_price_cents)}</td>
               <td className="px-2 py-1 text-right font-mono">{fmtEuro(it.total_price_cents)}</td>
             </tr>

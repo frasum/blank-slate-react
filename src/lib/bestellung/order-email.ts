@@ -70,7 +70,7 @@ export function buildOrderEmailHtml(d: OrderEmailData, test?: TestModeContext): 
       const sku = it.sku
         ? `<div style="font-size:11px;color:#666">${escapeHtml(it.sku)}</div>`
         : "";
-      const qty = `${it.quantity} ${escapeHtml(it.unit)}`;
+      const qty = `${it.quantity} × ${escapeHtml(it.unit)}`;
       const unitP = it.isFreeText ? "—" : fmtEur(it.unitPriceCents);
       const lineT = it.isFreeText ? "—" : fmtEur(it.totalPriceCents);
       return `
@@ -161,10 +161,10 @@ export function buildOrderEmailText(d: OrderEmailData, test?: TestModeContext): 
   for (const it of d.items) {
     const sku = it.sku ? ` [${it.sku}]` : "";
     if (it.isFreeText) {
-      lines.push(`- ${it.articleName}${sku}: ${it.quantity} ${it.unit}`);
+      lines.push(`- ${it.articleName}${sku}: ${it.quantity} × ${it.unit}`);
     } else {
       lines.push(
-        `- ${it.articleName}${sku}: ${it.quantity} ${it.unit} à ${fmtEur(it.unitPriceCents)} = ${fmtEur(it.totalPriceCents)}`,
+        `- ${it.articleName}${sku}: ${it.quantity} × ${it.unit} à ${fmtEur(it.unitPriceCents)} = ${fmtEur(it.totalPriceCents)}`,
       );
     }
   }
