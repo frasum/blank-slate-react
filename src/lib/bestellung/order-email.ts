@@ -156,7 +156,7 @@ export function buildOrderEmailHtml(
             </tr></tfoot>
           </table>
         </td></tr>
-        <tr><td style="padding:20px 24px;background:#fafafa;text-align:center;font-size:20px;font-weight:700;color:#c00;border-top:1px solid #eee">
+        <tr><td style="padding:28px 24px;background:#fff5f5;text-align:center;font-size:26px;line-height:1.25;font-weight:800;color:#c00;border-top:3px solid #c00">
           Bitte bestätigen Sie den Eingang per Antwort.
         </td></tr>
       </table>
