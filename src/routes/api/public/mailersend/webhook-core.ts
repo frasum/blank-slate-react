@@ -22,10 +22,7 @@ export type InboundAttachment = {
   content?: string;
 };
 
-export type InboundRecipient =
-  | string
-  | { email?: string | null; name?: string | null }
-  | null;
+export type InboundRecipient = string | { email?: string | null; name?: string | null } | null;
 
 export type InboundData = {
   from?: { email?: string; name?: string } | string;
