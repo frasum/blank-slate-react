@@ -54,7 +54,7 @@ kein Weiterwursteln (Abbruchkriterien E5, §98). Zeitbedarf gesamt: ~1,5–2 h.
 ### Block 6 — Abschluss (~10 min)
 
 - [ ] **6.1** **Abbruchkriterien-Check** (alle fünf müssen bestanden sein): ① Kassen-Verifikation 0 Differenzen ≤ 01.07. ② Zeit-Bilanz-Invariante erfüllt ③ Wasserlinie = NULL verifiziert (G1) ④ Re-Import-Probe importiert = 0 ⑤ native_overlap-Stichprobe (erste 20) ohne einen einzigen falschen Skip — Referenz: Voll-Eichung der Liste bei der Generalprobe 22.07. (G6); EIN nachgewiesen falscher Skip = STOPP.
-- [ ] **6.2** Kurze Meldung in den Chat: „T0 vollzogen" + die notierten Werte (Run-ID, Wasserlinie, Tresor-Beträge) → Prüfer schreibt §101-Doku-Nachzug.
+- [ ] **6.2** Kurze Meldung in den Chat: „T0 vollzogen" + die notierten Werte (Run-ID, Wasserlinie, Tresor-Beträge) → Prüfer schreibt §102-Doku-Nachzug.
 
 ## Nachlauf (ab 27.07., kein T0-Stress)
 
