@@ -45,7 +45,17 @@ describe.skipIf(!dbTestsEnabled)("N3 pin_attempt_register atomar", () => {
     return service.rpc("pin_attempt_register", args as never);
   }
 
+  async function resetAttempts(staffId: string) {
+    const { error } = await service
+      .from("pin_attempts")
+      .delete()
+      .eq("organization_id", org.orgId)
+      .eq("staff_id", staffId);
+    expect(error).toBeNull();
+  }
+
   it("(a) unterhalb des Limits liefert attempt_id und legt Zeile an", async () => {
+    await resetAttempts(staffA);
     const { data, error } = await register({
       p_organization_id: org.orgId,
       p_staff_id: staffA,
@@ -65,6 +75,7 @@ describe.skipIf(!dbTestsEnabled)("N3 pin_attempt_register atomar", () => {
   });
 
   it("(b) staff-Limit erreicht → attempt_id NULL, kein neuer Insert", async () => {
+    await resetAttempts(staffB);
     // 5 Vorversuche seeden.
     for (let i = 0; i < STAFF_MAX; i += 1) {
       const { error } = await service
@@ -98,6 +109,7 @@ describe.skipIf(!dbTestsEnabled)("N3 pin_attempt_register atomar", () => {
   });
 
   it("(c) ip-Limit erreicht → attempt_id NULL", async () => {
+    await resetAttempts(staffC);
     const ip = "10.0.0.3";
     // Wir setzen ip_max niedrig statt 30 Zeilen zu seeden.
     await service.from("pin_attempts").insert({ organization_id: org.orgId, staff_id: staffC, ip });
@@ -117,6 +129,7 @@ describe.skipIf(!dbTestsEnabled)("N3 pin_attempt_register atomar", () => {
   });
 
   it("(d) anon/authenticated dürfen die Funktion nicht aufrufen", async () => {
+    await resetAttempts(staffA);
     const anon = createClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
@@ -132,6 +145,7 @@ describe.skipIf(!dbTestsEnabled)("N3 pin_attempt_register atomar", () => {
   });
 
   it("(e) Versuch außerhalb des Fensters zählt nicht", async () => {
+    await resetAttempts(staffD);
     // Alten Versuch (vor 2h) direkt setzen.
     const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
     const { data: old } = await service
