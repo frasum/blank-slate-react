@@ -155,3 +155,38 @@ export const markOrderReplyRead = createServerFn({ method: "POST" })
     if (error) throw error;
     return { ok: true };
   });
+
+// Anzahl unzugeordneter Antworten für Badge-Anzeige.
+export const countUnassignedOrderReplies = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ count: number }> => {
+    const { count, error } = await context.supabase
+      .from("order_replies")
+      .select("id", { count: "exact", head: true })
+      .is("order_id", null);
+    if (error) throw error;
+    return { count: count ?? 0 };
+  });
+
+// Frische signierte URL für einen einzelnen Anhang (10 min TTL).
+// UI ruft dies bei Klick auf einen Anhang-Chip, damit URLs nicht in der
+// Liste veralten.
+export const getReplyAttachmentUrl = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ attachmentId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }): Promise<{ url: string }> => {
+    // Sichtbarkeitscheck über RLS (Anhänge folgen der Sichtbarkeit der Reply).
+    const { data: row, error } = await context.supabase
+      .from("order_reply_attachments")
+      .select("storage_path")
+      .eq("id", data.attachmentId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!row) throw new Error("Anhang nicht gefunden");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: signed, error: sErr } = await supabaseAdmin.storage
+      .from("order-reply-attachments")
+      .createSignedUrl(row.storage_path as string, 60 * 10);
+    if (sErr || !signed?.signedUrl) throw sErr ?? new Error("Signierte URL fehlgeschlagen");
+    return { url: signed.signedUrl };
+  });
