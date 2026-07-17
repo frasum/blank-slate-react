@@ -40,10 +40,25 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { EkZuordnungTab } from "@/components/verkaufsartikel/EkZuordnungTab";
 import { RezepteTab } from "@/components/verkaufsartikel/RezepteTab";
+import { EkLinkDialog } from "@/components/verkaufsartikel/EkLinkDialog";
 import { SalesGroupFilter } from "@/components/bestellung/SalesGroupFilter";
 import { ALL, matchesHaupt, matchesUnter, matchesWg } from "@/lib/bestellung/sales-group-filter";
 import { wareneinsatzQuote, WE_GRUEN_BIS, WE_GELB_BIS } from "@/lib/bestellung/ek-linking";
 import { supabase } from "@/integrations/supabase/client";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+import { unlinkSalesArticleEk } from "@/lib/bestellung/ek-linking.functions";
+import { unlinkSalesArticleRecipe } from "@/lib/bestellung/recipes.functions";
 
 const WE_TOOLTIP =
   "Wareneinsatz = EK netto ÷ VK netto (VK ÷ 1,19). Grün ≤ 25 % · Gelb ≤ 35 % · Rot > 35 %";
@@ -114,9 +129,17 @@ function VerkaufsartikelPage() {
   // R2b — Cross-Tab-Übergabe: wenn gesetzt, öffnet der Rezepte-Tab beim
   // Wechsel den zweistufigen „+ Gericht"-Fluss mit diesem Artikel bereits gewählt.
   const [pendingRecipeForArticleId, setPendingRecipeForArticleId] = useState<string | null>(null);
+  const [pendingOpenRecipeId, setPendingOpenRecipeId] = useState<string | null>(null);
+  const [ekLinkFor, setEkLinkFor] = useState<SalesArticle | null>(null);
 
   function startRecipeForArticle(salesArticleId: string) {
     setPendingRecipeForArticleId(salesArticleId);
+    setTabValue("rezepte");
+    setSubtab("liste");
+  }
+
+  function openRecipeById(recipeId: string) {
+    setPendingOpenRecipeId(recipeId);
     setTabValue("rezepte");
     setSubtab("liste");
   }
@@ -211,6 +234,8 @@ function VerkaufsartikelPage() {
                 locationId={locationId}
                 initialCreateForSalesArticleId={pendingRecipeForArticleId}
                 onConsumedInitialCreate={() => setPendingRecipeForArticleId(null)}
+                initialOpenRecipeId={pendingOpenRecipeId}
+                onConsumedInitialOpen={() => setPendingOpenRecipeId(null)}
               />
             </TabsContent>
           )}
@@ -350,27 +375,17 @@ function VerkaufsartikelPage() {
                               : undefined
                           }
                         >
-                          <div className="flex flex-col">
-                            <PriceCell
-                              article={row}
-                              field="ekPriceCents"
-                              onSave={(cents) =>
-                                updateMut.mutate({ data: { id: row.id, ekPriceCents: cents } })
-                              }
-                            />
-                            {canManageRecipes.data &&
-                              row.ekPriceCents === null &&
-                              row.recipeId === null &&
-                              row.ekSourceArticleId === null && (
-                                <button
-                                  type="button"
-                                  onClick={() => startRecipeForArticle(row.id)}
-                                  className="mt-0.5 self-start px-2 text-[11px] text-muted-foreground underline hover:text-foreground"
-                                >
-                                  Rezept anlegen
-                                </button>
-                              )}
-                          </div>
+                          <EkCell
+                            article={row}
+                            canRecipe={!!canManageRecipes.data}
+                            onSaveDirect={(cents) =>
+                              updateMut.mutate({ data: { id: row.id, ekPriceCents: cents } })
+                            }
+                            onOpenLink={() => setEkLinkFor(row)}
+                            onCreateRecipe={() => startRecipeForArticle(row.id)}
+                            onOpenRecipe={(rid) => openRecipeById(rid)}
+                            onInvalidate={invalidate}
+                          />
                         </TableCell>
                       )}
                       {isAdmin && (
@@ -419,9 +434,220 @@ function VerkaufsartikelPage() {
               }}
             />
           )}
+          {ekLinkFor && (
+            <EkLinkDialog
+              sales={ekLinkFor}
+              onClose={() => setEkLinkFor(null)}
+              onLinked={() => {
+                setEkLinkFor(null);
+                invalidate();
+              }}
+            />
+          )}
         </>
       )}
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// EK-Zelle mit Popover: Direkt / Einkaufsartikel+Portion / Rezept.
+// Methodenwechsel und „Direkt eingeben" auf verknüpften Zeilen laufen
+// zwingend über Bestätigungsdialog + Unlink (XOR-Enforcement clientseitig,
+// serverseitiger CHECK bleibt zweite Verteidigungslinie).
+// ---------------------------------------------------------------------------
+
+type EkMethod = "direct" | "purchase" | "recipe";
+
+function currentEkMethod(a: SalesArticle): EkMethod | null {
+  if (a.recipeId !== null) return "recipe";
+  if (a.ekSourceArticleId !== null) return "purchase";
+  if (a.ekPriceCents !== null) return "direct";
+  return null;
+}
+
+function methodLabel(m: EkMethod): string {
+  return m === "direct" ? "Direkteingabe" : m === "purchase" ? "Einkaufsartikel + Portion" : "Rezept";
+}
+
+function EkCell(props: {
+  article: SalesArticle;
+  canRecipe: boolean;
+  onSaveDirect: (cents: number | null) => void;
+  onOpenLink: () => void;
+  onCreateRecipe: () => void;
+  onOpenRecipe: (recipeId: string) => void;
+  onInvalidate: () => void;
+}) {
+  const { article, canRecipe } = props;
+  const method = currentEkMethod(article);
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const [directEditing, setDirectEditing] = useState(false);
+  const [confirmNext, setConfirmNext] = useState<EkMethod | null>(null);
+  const [switching, setSwitching] = useState(false);
+
+  const callUnlinkEk = useServerFn(unlinkSalesArticleEk);
+  const callUnlinkRecipe = useServerFn(unlinkSalesArticleRecipe);
+
+  async function unlinkCurrent(keepEk: boolean) {
+    if (method === "purchase") {
+      await callUnlinkEk({ data: { salesArticleId: article.id, clearEk: !keepEk } });
+    } else if (method === "recipe") {
+      await callUnlinkRecipe({ data: { salesArticleId: article.id, clearEk: !keepEk } });
+    }
+  }
+
+  async function performSwitch(target: EkMethod) {
+    setSwitching(true);
+    try {
+      // Bei „direct" den bereits materialisierten EK vorerst behalten —
+      // der Nutzer setzt gleich einen expliziten Wert im Inline-Editor.
+      await unlinkCurrent(target === "direct");
+      props.onInvalidate();
+      setConfirmNext(null);
+      setPopoverOpen(false);
+      if (target === "direct") {
+        setDirectEditing(true);
+      } else if (target === "purchase") {
+        props.onOpenLink();
+      } else if (target === "recipe") {
+        props.onCreateRecipe();
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Umschalten fehlgeschlagen.");
+    } finally {
+      setSwitching(false);
+    }
+  }
+
+  function choose(target: EkMethod) {
+    if (method === null) {
+      // Zeile ohne Verknüpfung — direkt starten.
+      setPopoverOpen(false);
+      if (target === "direct") setDirectEditing(true);
+      else if (target === "purchase") props.onOpenLink();
+      else if (target === "recipe") props.onCreateRecipe();
+      return;
+    }
+    if (method === target) {
+      // Gleicher Weg → passenden Editor öffnen.
+      setPopoverOpen(false);
+      if (target === "direct") setDirectEditing(true);
+      else if (target === "purchase") props.onOpenLink();
+      else if (target === "recipe" && article.recipeId) props.onOpenRecipe(article.recipeId);
+      return;
+    }
+    // Methodenwechsel oder „Direkt" auf verknüpfter Zeile → bestätigen.
+    setConfirmNext(target);
+  }
+
+  const chipClass =
+    method === "recipe"
+      ? "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/40 dark:text-blue-200 dark:border-blue-800"
+      : method === "purchase"
+        ? "bg-violet-100 text-violet-800 border-violet-200 dark:bg-violet-900/40 dark:text-violet-200 dark:border-violet-800"
+        : "bg-muted text-muted-foreground border-border";
+
+  // Direkt-Inline-Editor (nur wenn keine Verknüpfung besteht oder frisch entknüpft).
+  if (directEditing) {
+    return (
+      <PriceCell
+        article={article}
+        field="ekPriceCents"
+        startEditing
+        onDone={() => setDirectEditing(false)}
+        onSave={(cents) => {
+          props.onSaveDirect(cents);
+          setDirectEditing(false);
+        }}
+      />
+    );
+  }
+
+  return (
+    <>
+      <div className="flex flex-col gap-1">
+        <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="w-full rounded px-2 py-1 text-left hover:bg-accent focus:outline-none focus:ring-1 focus:ring-ring"
+              aria-label="EK bearbeiten"
+            >
+              {article.ekPriceCents === null ? (
+                <span className="text-muted-foreground">—</span>
+              ) : (
+                formatEuro(article.ekPriceCents)
+              )}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-56 p-1" align="start">
+            <div className="px-2 py-1 text-[11px] text-muted-foreground">
+              {method ? `Quelle: ${methodLabel(method)}` : "Noch keine EK-Quelle"}
+            </div>
+            <button
+              type="button"
+              onClick={() => choose("direct")}
+              className="block w-full rounded px-2 py-1.5 text-left text-sm hover:bg-accent"
+            >
+              Direkt eingeben
+            </button>
+            <button
+              type="button"
+              onClick={() => choose("purchase")}
+              className="block w-full rounded px-2 py-1.5 text-left text-sm hover:bg-accent"
+            >
+              Aus Einkaufsartikel + Portion …
+            </button>
+            {canRecipe && (
+              <button
+                type="button"
+                onClick={() => choose("recipe")}
+                className="block w-full rounded px-2 py-1.5 text-left text-sm hover:bg-accent"
+              >
+                {method === "recipe" ? "Rezept öffnen …" : "Rezept anlegen …"}
+              </button>
+            )}
+          </PopoverContent>
+        </Popover>
+        {method && (
+          <span
+            className={`inline-flex w-fit items-center rounded border px-1.5 py-0 text-[10px] ${chipClass}`}
+          >
+            {methodLabel(method)}
+          </span>
+        )}
+      </div>
+
+      <AlertDialog open={confirmNext !== null} onOpenChange={(o) => (o ? undefined : setConfirmNext(null))}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Bestehende Verknüpfung lösen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {method && confirmNext && (
+                <>
+                  Aktuell: <strong>{methodLabel(method)}</strong>. Zum Wechsel auf{" "}
+                  <strong>{methodLabel(confirmNext)}</strong> wird die bestehende Verknüpfung
+                  gelöst.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={switching}>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={switching}
+              onClick={(e) => {
+                e.preventDefault();
+                if (confirmNext) void performSwitch(confirmNext);
+              }}
+            >
+              {switching ? "Löse …" : "Lösen & fortfahren"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
