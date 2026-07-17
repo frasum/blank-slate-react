@@ -153,7 +153,7 @@ function LocationsPage() {
       // Nach dem Anlegen zum ersten aktiven Standort springen (der neue
       // ist typischerweise nun der einzige "neue" — wir wählen einfach
       // wieder den Default-Loc-Selector, den der Effekt unten setzt).
-      await navigate({ search: (p) => ({ ...p, loc: undefined, tab: "allgemein" }) });
+      await navigate({ search: (p: LocSearch) => ({ ...p, loc: undefined, tab: "allgemein" as SectionKey }) });
     },
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
   });
@@ -169,7 +169,7 @@ function LocationsPage() {
       setConfirmDelete(null);
       setDeleteInput("");
       await refresh();
-      await navigate({ search: (p) => ({ ...p, loc: undefined }) });
+      await navigate({ search: (p: LocSearch) => ({ ...p, loc: undefined }) });
     },
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
   });
@@ -196,7 +196,7 @@ function LocationsPage() {
     if (!locationsQ.data) return;
     if (locParam === "new") return;
     if (locParam && !locations.find((l) => l.id === locParam)) {
-      void navigate({ search: (p) => ({ ...p, loc: undefined }) });
+      void navigate({ search: (p: LocSearch) => ({ ...p, loc: undefined }) });
     }
   }, [locationsQ.data, locParam, locations, navigate]);
 
@@ -213,7 +213,7 @@ function LocationsPage() {
             <Link
               key={l.id}
               from={Route.fullPath}
-              search={(p) => ({ ...p, loc: l.id })}
+              search={(p: LocSearch) => ({ ...p, loc: l.id })}
               className={tabClass(active, inactive ? "opacity-60" : undefined)}
             >
               {l.name}
@@ -227,7 +227,7 @@ function LocationsPage() {
         })}
         <Link
           from={Route.fullPath}
-          search={(p) => ({ ...p, loc: "new", tab: "allgemein" as SectionKey })}
+          search={(p: LocSearch) => ({ ...p, loc: "new" as string, tab: "allgemein" as SectionKey })}
           className={tabClass(activeLocId === "new")}
         >
           + Neu
@@ -274,7 +274,7 @@ function LocationsPage() {
                 setNewName("");
                 setNewDetails(emptyDetails);
                 setMsg(null);
-                void navigate({ search: (p) => ({ ...p, loc: undefined }) });
+                void navigate({ search: (p: LocSearch) => ({ ...p, loc: undefined }) });
               }}
               className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground hover:bg-accent"
             >
@@ -292,7 +292,7 @@ function LocationsPage() {
               <Link
                 key={t.key}
                 from={Route.fullPath}
-                search={(p) => ({ ...p, tab: t.key })}
+                search={(p: LocSearch) => ({ ...p, tab: t.key })}
                 className={tabClass(tab === t.key)}
               >
                 {t.label}
