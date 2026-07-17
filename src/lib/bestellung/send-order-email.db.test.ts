@@ -35,11 +35,7 @@ describe.skipIf(!dbTestsEnabled)("send-order-email · BM-A Erstkontakt", () => {
 
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.toString()
-            : input.url;
+        typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
       if (!url.includes("api.mailersend.com")) {
         return origFetch(input as Parameters<typeof fetch>[0], init);
       }
