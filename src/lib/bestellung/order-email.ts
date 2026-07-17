@@ -156,8 +156,8 @@ export function buildOrderEmailHtml(
             </tr></tfoot>
           </table>
         </td></tr>
-        <tr><td style="padding:16px 24px;background:#fafafa;font-size:11px;color:#888;border-top:1px solid #eee">
-          Diese Bestellung wurde automatisch von COCO erzeugt. Bitte bestätigen Sie den Eingang per Antwort.
+        <tr><td style="padding:20px 24px;background:#fafafa;text-align:center;font-size:20px;font-weight:700;color:#c00;border-top:1px solid #eee">
+          Bitte bestätigen Sie den Eingang per Antwort.
         </td></tr>
       </table>
     </td></tr>
