@@ -5020,6 +5020,7 @@ export type Database = {
           customer_number: string | null
           delivery_days: string[] | null
           email: string | null
+          first_live_order_email_at: string | null
           id: string
           is_active: boolean
           min_order_value_cents: number | null
@@ -5038,6 +5039,7 @@ export type Database = {
           customer_number?: string | null
           delivery_days?: string[] | null
           email?: string | null
+          first_live_order_email_at?: string | null
           id?: string
           is_active?: boolean
           min_order_value_cents?: number | null
@@ -5056,6 +5058,7 @@ export type Database = {
           customer_number?: string | null
           delivery_days?: string[] | null
           email?: string | null
+          first_live_order_email_at?: string | null
           id?: string
           is_active?: boolean
           min_order_value_cents?: number | null
