@@ -37,7 +37,6 @@ const SECTION_KEYS = SECTION_TABS.map((t) => t.key) as readonly SectionKey[];
 function isSectionKey(v: unknown): v is SectionKey {
   return typeof v === "string" && (SECTION_KEYS as readonly string[]).includes(v);
 }
-type LocSearch = { loc?: string; tab: SectionKey };
 
 export const Route = createFileRoute("/_authenticated/admin/locations")({
   head: () => ({ meta: [{ title: "Standorte · Verwaltung" }] }),
