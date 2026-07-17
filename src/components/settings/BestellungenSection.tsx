@@ -70,9 +70,9 @@ export function BestellungenSection({
       <div className="space-y-2 border-t border-border pt-4">
         <h3 className="text-sm font-semibold text-foreground">Lieferanten-Antworten</h3>
         <p className="text-xs text-muted-foreground">
-          Antworten kommen automatisch an der jeweiligen Bestellung an (Plus-Adresse).
-          Optional: Telegram-Ping bei neuen Antworten und Weiterleitung unzugeordneter
-          Mails an die Buchhaltung.
+          Antworten kommen automatisch an der jeweiligen Bestellung an (Plus-Adresse). Optional:
+          Telegram-Ping bei neuen Antworten und Weiterleitung unzugeordneter Mails an die
+          Buchhaltung.
         </p>
         <label className="flex items-center gap-3">
           <input

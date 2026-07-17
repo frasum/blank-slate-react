@@ -38,8 +38,7 @@ function UnzugeordnetPage() {
     queryKey: ["bestellung", "suppliers", { includeInactive: true }],
     queryFn: () => listSuppliers({ data: { includeInactive: true } }),
   });
-  const supplierName = (id: string) =>
-    suppliersQ.data?.find((s) => s.id === id)?.name ?? "—";
+  const supplierName = (id: string) => suppliersQ.data?.find((s) => s.id === id)?.name ?? "—";
 
   const [selected, setSelected] = useState<OrderReplyRow | null>(null);
   const [orderQuery, setOrderQuery] = useState("");
@@ -134,9 +133,7 @@ function UnzugeordnetPage() {
                       <button
                         type="button"
                         disabled={assign.isPending}
-                        onClick={() =>
-                          assign.mutate({ replyId: selected.id, orderId: o.id })
-                        }
+                        onClick={() => assign.mutate({ replyId: selected.id, orderId: o.id })}
                         className="flex w-full items-center justify-between px-3 py-2 text-left hover:bg-accent disabled:opacity-50"
                       >
                         <span className="font-mono text-foreground">{o.order_number}</span>
