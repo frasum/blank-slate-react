@@ -154,7 +154,9 @@ function LocationsPage() {
       // Nach dem Anlegen zum ersten aktiven Standort springen (der neue
       // ist typischerweise nun der einzige "neue" — wir wählen einfach
       // wieder den Default-Loc-Selector, den der Effekt unten setzt).
-      await navigate({ search: (p: LocSearch) => ({ ...p, loc: undefined, tab: "allgemein" as SectionKey }) });
+      await navigate({
+        search: (p: LocSearch) => ({ ...p, loc: undefined, tab: "allgemein" as SectionKey }),
+      });
     },
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
   });
@@ -228,7 +230,11 @@ function LocationsPage() {
         })}
         <Link
           from={Route.fullPath}
-          search={(p: LocSearch) => ({ ...p, loc: "new" as string, tab: "allgemein" as SectionKey })}
+          search={(p: LocSearch) => ({
+            ...p,
+            loc: "new" as string,
+            tab: "allgemein" as SectionKey,
+          })}
           className={tabClass(activeLocId === "new")}
         >
           + Neu
@@ -305,9 +311,7 @@ function LocationsPage() {
             key={activeLoc.id}
             loc={activeLoc}
             section={tab}
-            onSave={(name, details) =>
-              updateMut.mutate({ id: activeLoc.id, name, details })
-            }
+            onSave={(name, details) => updateMut.mutate({ id: activeLoc.id, name, details })}
             onDelete={() => {
               setMsg(null);
               setDeleteInput("");
@@ -653,9 +657,7 @@ function LocationSectionPanel(props: {
         initial={{
           tipServicePoolEnabled: loc.tip_service_pool_enabled !== false,
           kitchenTipRateOverride:
-            loc.kitchen_tip_rate_override == null
-              ? null
-              : Number(loc.kitchen_tip_rate_override),
+            loc.kitchen_tip_rate_override == null ? null : Number(loc.kitchen_tip_rate_override),
           tipPoolMinHoursOverride:
             loc.tip_pool_min_hours_override == null
               ? null
