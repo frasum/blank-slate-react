@@ -33,7 +33,16 @@ describe.skipIf(!dbTestsEnabled)("send-order-email · BM-A Erstkontakt", () => {
     process.env.MAILERSEND_API_KEY = "test-key";
     process.env.MAILERSEND_FROM_EMAIL = FROM_EMAIL;
 
-    globalThis.fetch = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.toString()
+            : input.url;
+      if (!url.includes("api.mailersend.com")) {
+        return origFetch(input as Parameters<typeof fetch>[0], init);
+      }
       const body = JSON.parse(String(init?.body ?? "{}")) as {
         html: string;
         text: string;
