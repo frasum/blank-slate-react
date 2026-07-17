@@ -2,7 +2,7 @@
 // Manager+ kann jede unzugeordnete Mail einer Bestellung der letzten 90
 // Tage manuell zuweisen (assignOrderReply).
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -38,7 +38,10 @@ function UnzugeordnetPage() {
     queryKey: ["bestellung", "suppliers", { includeInactive: true }],
     queryFn: () => listSuppliers({ data: { includeInactive: true } }),
   });
-  const supplierName = (id: string) => suppliersQ.data?.find((s) => s.id === id)?.name ?? "—";
+  const supplierName = useCallback(
+    (id: string) => suppliersQ.data?.find((s) => s.id === id)?.name ?? "—",
+    [suppliersQ.data],
+  );
 
   const [selected, setSelected] = useState<OrderReplyRow | null>(null);
   const [orderQuery, setOrderQuery] = useState("");
@@ -62,7 +65,7 @@ function UnzugeordnetPage() {
           supplierName(o.supplier_id).toLowerCase().includes(q),
       )
       .slice(0, 30);
-  }, [ordersQ.data, orderQuery, suppliersQ.data]);
+  }, [ordersQ.data, orderQuery, supplierName]);
 
   return (
     <div className="space-y-4">
