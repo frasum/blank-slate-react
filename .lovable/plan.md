@@ -1,82 +1,69 @@
+
 ## Ziel
-Pro Mitarbeiter kann für Service, Küche und GL jeweils ein eigener Stundenlohn hinterlegt werden. Die Lohnabrechnung nutzt den jeweiligen Bereichs-Satz je Zeiteintrag, sofort auch für die laufende (offene) Abrechnungsperiode. Der Lohnbüro-Export weist Stunden × Sätze getrennt je Bereich aus.
 
-## Terminierung
-- **SQL-Freigabe:** jetzt möglich (additiv, harmlos).
-- **Bau-Ausführung:** erst nach T0 (26.07.2026). Grund: Verdrahtung berührt Lohn-/SFN-Aggregatoren, die als stabile Referenz für den T0-Abgleich benötigt werden. Kein Zeitdruck (Juli-Periode geht Anfang August ans Lohnbüro).
+`/admin/locations` bekommt die gleiche zweistufige Tab-Optik wie `/admin/einstellungen`:
 
-## 1. Datenmodell (E1 — Vorab-SQL-Freigabe erforderlich)
-Neue Tabelle `staff_compensation_rates` zusätzlich zum bestehenden Basiswert in `staff_compensation.hourly_rate` (Fallback bleibt).
+- **Ebene 1 — Standort-Tabs** (oben, horizontal): ein Tab pro Standort statt der Karten-Liste. Deaktivierte Standorte bleiben sichtbar (gedämpft mit „deaktiviert"-Badge).
+- **Ebene 2 — Einstellungs-Tabs** (innerhalb des gewählten Standorts): eine Tab-Leiste für die verschiedenen Bereiche.
+
+Reine UI-Umgruppierung. Keine Änderung an Server-Fns, RLS, Daten oder an den Panel-Komponenten selbst (`LocationCalendarPanel`, `LocationTipPoolPanel`, `DisplayPanel`, `GeofencePanel`).
+
+## Neue Struktur
 
 ```text
-staff_compensation_rates
-  id uuid pk
-  organization_id uuid  NOT NULL  (FK organizations)
-  staff_id uuid          NOT NULL  (FK staff)
-  department staff_department NOT NULL   -- 'service' | 'kitchen' | 'gl'
-  hourly_rate numeric(10,2)   NOT NULL   -- dokumentierte Domänen-Ausnahme, s.u.
-  valid_from date              NOT NULL
-  created_at / updated_at
-  UNIQUE (staff_id, department, valid_from)
-  Index auf (organization_id), (staff_id, department, valid_from DESC)
+[ spicery ] [ TSB (deaktiviert) ] [ YUM ] [ + Neu ]      ← Ebene 1 (Standort)
+
+  Allgemein | Display | Kalender & Ruhetage | Trinkgeldpool | Geofence
+  ───────────────────────────────────────────────────────    ← Ebene 2 (Bereich)
+
+  <Inhalt des gewählten Bereichs>
 ```
 
-### DENY-ALL für Client (Korrektur 1)
-Zugriff läuft ausschließlich über Server-Functions (`getStaffCompensation` / `upsertStaffCompensation`, beide mit `requireSupabaseAuth` + `has_permission`-Check). Deshalb:
-- `GRANT ALL ON public.staff_compensation_rates TO service_role;`
-- **Keine** Grants an `authenticated` (kein SELECT, kein Write).
-- **Keine** Write-Policies; RLS aktiviert, ohne dass der Client jemals direkt darauf schreibt/liest.
-- Konsistent mit MA1 (§96) und der Doktrin für Geld-Tabellen.
+**Ebene 2 — Tab-Aufteilung:**
 
-### Domänen-Ausnahme (Korrektur 2)
-`numeric(10,2)` in Euro widerspricht der BIGINT-Cents-Regel, ist hier aber die richtige Wahl, weil `staff_compensation.hourly_rate` bereits so modelliert ist (Domänen-Konsistenz > Neubeginn). **Wird im Migrations-Kommentar explizit als dokumentierte Ausnahme vermerkt.** Der Resolver liefert nach außen Cents.
+| Tab | Inhalt (heute im aufgeklappten Row-Panel) |
+| --- | --- |
+| Allgemein | Name, Adresse, Kontakt, Lieferhinweise, Soll-Wechselgeld · unten: Speichern + Aktionen „Deaktivieren / Aktivieren" und „Löschen" |
+| Display | `DisplayPanel` (heute per Button „Display" ein-/ausgeblendet) |
+| Kalender & Ruhetage | `LocationCalendarPanel` |
+| Trinkgeldpool | `LocationTipPoolPanel` |
+| Geofence | `GeofencePanel` (Adresse geokodieren, Radius) |
 
-### Weiteres
-- Trigger `tg_set_updated_at`.
-- FK-Indizes gemäß FK1-Standard.
-- `hourly_rate_2` in `staff_compensation` bleibt als Legacy-Feld stehen, kein Drop in diesem Schritt.
+**„+ Neu"** ersetzt den heutigen „Neu"-Button oben rechts: der letzte Eintrag der Standort-Tab-Leiste öffnet das bestehende Anlege-Formular in der Inhaltsfläche. Nach erfolgreichem Anlegen springt die Auswahl auf den neuen Standort.
 
-## 2. Server-Logik
-- `src/lib/admin/compensation.functions.ts`:
-  - `getStaffCompensation` liefert zusätzlich `rates: { service?, kitchen?, gl? }` (jeweils aktueller Satz + `valid_from`).
-  - `upsertStaffCompensation` akzeptiert `rates`-Payload und schreibt pro Bereich einen neuen `valid_from`-Datensatz (Historie bleibt). Audit-Log-Eintrag pro Bereich mit `[REDACTED]`-Werten.
-- Neues, reines Modul `src/lib/lohn/rate-resolver.ts`:
-  - Input: `staff_id`, `department`, `date` → Output: `hourly_rate_cents`.
-  - Neuester passender Bereichs-Satz mit `valid_from <= date`; Fallback auf `staff_compensation.hourly_rate` zum Datum.
-- `src/lib/lohn/lohn-period.functions.ts` und alle Lohn-Aggregatoren (`personnel-stats`, SFN-Berechnung soweit lohnbezogen) rufen den Resolver pro Zeiteintrag mit der über `primary-department.ts` bestimmten Zeile (inkl. W2-GL-Regel). Damit greifen die neuen Sätze **sofort in der offenen Periode**; gesperrte Perioden bleiben unangetastet.
+## URL & Persistenz
 
-## 3. UI
-`src/components/admin/PersonalDetailsTab.tsx` — Abschnitt „Vergütung":
-- Statt Einzelfeld ein 4-Felder-Block: Basis (Fallback), Service €/h, Küche €/h, GL €/h — Bereichsfelder optional (leer = Basis).
-- Gemeinsames „Gültig ab" (Default heute), pro Bereich individuell überschreibbar.
-- Hinweis: „Leer = Basis-Satz. Änderung greift sofort in der laufenden Abrechnungsperiode; gesperrte Perioden bleiben unberührt."
-- Read-only-Ansicht listet Basis + drei Bereichs-Sätze.
+Zwei Search-Params, damit Reload und Verlinkung die Position halten — analog zu `einstellungen.index.tsx`:
 
-## 4. Tests
-- Unit: `rate-resolver.test.ts` (Fallback, Bereichs-Match, Historien-Auswahl, GL-Sonderfall).
-- DB-Integration: `staff-compensation-rates.db.test.ts` — Insert via Server-Function, direkter Client-Zugriff verweigert (DENY-ALL-Nachweis), Cross-Org verweigert, Payroll-Aggregation mischt Bereichs-Sätze korrekt.
-- Charakterisierungstest Nettolohn: identisches Ergebnis, wenn keine Bereichs-Sätze gepflegt sind (Verhaltens-Neutralität bis zur Datenpflege).
+- `?loc=<uuid>` — aktiver Standort. Default: erster aktiver Standort. Ungültig/leer → Default.
+- `?tab=<key>` — aktiver Bereich (`allgemein` | `display` | `kalender` | `trinkgeld` | `geofence`). Default: `allgemein`.
+- Sonderwert `?loc=new` für den „+ Neu"-Tab.
 
-## 5. Doku
-`docs/arbeitsweise.md` §99 — LG1 abgeschlossen; Domänen-Ausnahme `numeric(10,2)` dokumentiert; DENY-ALL-Doktrin auch für neue Geld-Tabelle bestätigt.
+`validateSearch` in `createFileRoute` sichert beide Werte typseitig ab (KGL-konform: Tab-Keys aus einer einzigen `SUB_TABS`-Konstante).
 
-## 6. Lohnbüro-Export: Stunden-Split je Abteilung (Ergänzung)
-Der eigentliche LG1-Zweck. Im Buchhaltungs-Tab / Lohnbüro-Export (`personnel-stats` + PDF/CSV-Ausgang):
-- Pro Mitarbeiter und Periode drei Zeilen (Service / Küche / GL), jeweils **Stunden × Satz = Betrag**.
-- Summenzeile je Mitarbeiter unverändert (Gesamtbrutto).
-- Ohne gepflegte Bereichs-Sätze: eine Zeile mit Basis-Satz (Verhaltens-Neutralität).
-- Export-Header ergänzt um Spalten „Bereich", „Stunden", „Satz €/h", „Betrag €".
-- Test: Vergleichsdatensatz mit gemischten Bereichen liefert erwartete drei Zeilen; Summe = bisherige Einzelzeile.
+## Bestätigungs-Dialoge, Toast, Cache
 
-## Reihenfolge (E1-konform)
-1. **SQL-Freigabe abwarten** → Migration `staff_compensation_rates` (inkl. Kommentar zur Domänen-Ausnahme, nur `service_role`-Grants).
-2. Types-Regenerierung abwarten.
-3. Server: Resolver + `compensation.functions.ts` + Payroll-Wiring.
-4. UI-Umbau `PersonalDetailsTab`.
-5. Lohnbüro-Export-Split (Punkt 6).
-6. Tests + `prettier`/`eslint --fix` + Doku-Nachzug §99.
+- Bestehende `confirmDelete` / `confirmActive` Modals und Cache-Invalidierung mit Prefix `["admin","locations"]` bleiben 1:1 erhalten.
+- Nach Löschen: Auswahl wechselt automatisch auf den ersten verbleibenden Standort (oder `?loc=new`, falls keiner mehr existiert).
 
-## Nicht enthalten
-- Standort-abhängige Sätze.
-- Zeiterfassungs-UI-Änderungen (Bereichszuordnung weiter über `primary-department`).
-- `hourly_rate_2`-Drop (später separat).
+## Was nicht angefasst wird
+
+- Server-Funktionen (`listLocations`, `updateLocation`, `setLocationActive`, `deleteLocation`, `createLocation`, Geo-/Display-/Kalender-/Tip-Pool-Fns) bleiben unverändert.
+- `LocationCalendarPanel`, `LocationTipPoolPanel`, `DisplayPanel`, `GeofencePanel`, `DetailsFields` werden nur verschoben, nicht umgebaut.
+- Admin-Layout-Navigation (`route.tsx`) bleibt unverändert — „Standorte" bleibt ein Punkt unter „Einstellungen".
+- `standortzeiten.tsx`, `einstellungen.index.tsx`, `einstellungen.easyorder-verwaltung.tsx` bleiben unangetastet.
+
+## Technische Notizen
+
+- Betroffene Datei: `src/routes/_authenticated/admin/locations.tsx` (die heutige `LocationRow`-Komponente wird durch einen Tab-Container ersetzt, ihre Teile werden auf die Sub-Tabs verteilt).
+- Tab-Styling exakt wie `EINSTELLUNGEN_ALLGEMEIN_SUB` in `route.tsx` (`SYSTEM_SUB`-Optik) übernommen, damit die Konsistenz gewahrt bleibt.
+- Nach der Umstellung ist der Editier-State pro Standort auf den `?loc`-Wechsel gebunden (State wird beim Tabwechsel neu aus Server-Daten geseedet — analog zum bisherigen `useEffect([props.loc])`).
+- Prettier/ESLint vor Commit; Vier Check-Gates grün.
+
+## Erfolgs-Gate
+
+- Standort-Tab-Leiste zeigt alle Standorte inkl. Deaktivierte + „+ Neu".
+- Wechsel zwischen Standorten aktualisiert `?loc`, Reload behält Auswahl.
+- Innerhalb eines Standorts wechseln die fünf Bereichs-Tabs den Inhalt und schreiben `?tab`.
+- Speichern (Allgemein), Display-Token-Regen, Kalender-Edit, Tip-Pool-Override und Geofence-Aktionen funktionieren wie bisher.
+- Deaktivieren/Aktivieren/Löschen funktionieren aus dem „Allgemein"-Tab und aktualisieren die Tab-Leiste sofort.

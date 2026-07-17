@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { QRCodeSVG } from "qrcode.react";
@@ -19,9 +19,32 @@ import {
 } from "@/lib/display/display.functions";
 import { LocationCalendarPanel } from "@/components/admin/LocationCalendarPanel";
 import { LocationTipPoolPanel } from "@/components/admin/LocationTipPoolPanel";
+import { tabClass } from "@/components/ui/nav-tab";
+
+// ST-Tabs (ein Commit, 17.07.): Standorte-Seite bekommt zweistufige
+// Tab-Optik (Standort-Tabs oben, Bereichs-Tabs innerhalb des Standorts) —
+// analog zu /admin/einstellungen. Reine UI-Umgruppierung; Server-Fns,
+// RLS, Panels bleiben unangetastet.
+const SECTION_TABS = [
+  { key: "allgemein", label: "Allgemein" },
+  { key: "display", label: "Display" },
+  { key: "kalender", label: "Kalender & Ruhetage" },
+  { key: "trinkgeld", label: "Trinkgeldpool" },
+  { key: "geofence", label: "Geofence" },
+] as const;
+type SectionKey = (typeof SECTION_TABS)[number]["key"];
+const SECTION_KEYS = SECTION_TABS.map((t) => t.key) as readonly SectionKey[];
+function isSectionKey(v: unknown): v is SectionKey {
+  return typeof v === "string" && (SECTION_KEYS as readonly string[]).includes(v);
+}
+type LocSearch = { loc?: string; tab: SectionKey };
 
 export const Route = createFileRoute("/_authenticated/admin/locations")({
   head: () => ({ meta: [{ title: "Standorte · Verwaltung" }] }),
+  validateSearch: (search: Record<string, unknown>): { loc?: string; tab: SectionKey } => ({
+    loc: typeof search.loc === "string" && search.loc.length > 0 ? search.loc : undefined,
+    tab: isSectionKey(search.tab) ? search.tab : "allgemein",
+  }),
   component: LocationsPage,
 });
 
@@ -93,10 +116,11 @@ function LocationsPage() {
   const callUpdate = useServerFn(updateLocation);
   const callDelete = useServerFn(deleteLocation);
   const callSetActive = useServerFn(setLocationActive);
+  const { loc: locParam, tab } = Route.useSearch();
+  const navigate = useNavigate({ from: "/_authenticated/admin/locations" });
   const [newName, setNewName] = useState("");
   const [newDetails, setNewDetails] = useState<LocationDetails>(emptyDetails);
   const [msg, setMsg] = useState<string | null>(null);
-  const [createOpen, setCreateOpen] = useState(false);
   // ST1: Bestätigungs-Dialoge (Löschen mit Namens-Eingabe; Deaktivieren/Aktivieren)
   const [confirmDelete, setConfirmDelete] = useState<LocationRowData | null>(null);
   const [deleteInput, setDeleteInput] = useState("");
@@ -122,12 +146,17 @@ function LocationsPage() {
 
   const createMut = useMutation({
     mutationFn: () => callCreate({ data: { name: newName, ...toPayload(newDetails) } }),
-    onSuccess: () => {
+    onSuccess: async () => {
       setNewName("");
       setNewDetails(emptyDetails);
       setMsg(null);
-      setCreateOpen(false);
-      return refresh();
+      await refresh();
+      // Nach dem Anlegen zum ersten aktiven Standort springen (der neue
+      // ist typischerweise nun der einzige "neue" — wir wählen einfach
+      // wieder den Default-Loc-Selector, den der Effekt unten setzt).
+      await navigate({
+        search: (p: LocSearch) => ({ ...p, loc: undefined, tab: "allgemein" as SectionKey }),
+      });
     },
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
   });
@@ -139,10 +168,11 @@ function LocationsPage() {
   });
   const deleteMut = useMutation({
     mutationFn: (id: string) => callDelete({ data: { locationId: id } }),
-    onSuccess: () => {
+    onSuccess: async () => {
       setConfirmDelete(null);
       setDeleteInput("");
-      return refresh();
+      await refresh();
+      await navigate({ search: (p: LocSearch) => ({ ...p, loc: undefined }) });
     },
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
   });
@@ -156,25 +186,71 @@ function LocationsPage() {
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
   });
 
+  const locations = locationsQ.data ?? [];
+  // Default-Auswahl: erster aktiver Standort, sonst erster überhaupt.
+  const defaultLocId =
+    locations.find((l) => l.isActive !== false)?.id ?? locations[0]?.id ?? undefined;
+  const activeLocId = locParam === "new" ? "new" : (locParam ?? defaultLocId);
+  const activeLoc =
+    activeLocId && activeLocId !== "new" ? locations.find((l) => l.id === activeLocId) : undefined;
+
+  // Falls der URL-Loc ungültig (gelöscht/inaktiv nicht existent), auf Default umlenken.
+  useEffect(() => {
+    if (!locationsQ.data) return;
+    if (locParam === "new") return;
+    if (locParam && !locations.find((l) => l.id === locParam)) {
+      void navigate({ search: (p: LocSearch) => ({ ...p, loc: undefined }) });
+    }
+    // `locations` is derived from `locationsQ.data` on every render; guarding
+    // on `locationsQ.data` alone is sufficient here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locationsQ.data, locParam, navigate]);
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Standorte</h1>
-        {!createOpen && (
-          <button
-            type="button"
-            onClick={() => {
-              setMsg(null);
-              setCreateOpen(true);
-            }}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            Neu
-          </button>
-        )}
-      </div>
+      <h1 className="text-2xl font-semibold tracking-tight text-foreground">Standorte</h1>
 
-      {createOpen && (
+      {/* Ebene 1: Standort-Tabs */}
+      <nav className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border/60 text-sm">
+        {locations.map((l) => {
+          const active = activeLocId === l.id;
+          const inactive = l.isActive === false;
+          return (
+            <Link
+              key={l.id}
+              from={Route.fullPath}
+              search={(p: LocSearch) => ({ ...p, loc: l.id })}
+              className={tabClass(active, inactive ? "opacity-60" : undefined)}
+            >
+              {l.name}
+              {inactive && (
+                <span className="ml-1 rounded bg-muted px-1 py-0.5 text-[10px] font-normal uppercase tracking-wide text-muted-foreground">
+                  deaktiviert
+                </span>
+              )}
+            </Link>
+          );
+        })}
+        <Link
+          from={Route.fullPath}
+          search={(p: LocSearch) => ({
+            ...p,
+            loc: "new" as string,
+            tab: "allgemein" as SectionKey,
+          })}
+          className={tabClass(activeLocId === "new")}
+        >
+          + Neu
+        </Link>
+      </nav>
+
+      {msg && <p className="text-sm text-destructive">{msg}</p>}
+
+      {locations.length === 0 && activeLocId !== "new" && (
+        <p className="text-sm text-muted-foreground">Noch keine Standorte.</p>
+      )}
+
+      {activeLocId === "new" && (
         <form
           className="max-w-2xl space-y-3 rounded-md border border-input bg-muted/30 p-4"
           onSubmit={(e) => {
@@ -205,10 +281,10 @@ function LocationsPage() {
             <button
               type="button"
               onClick={() => {
-                setCreateOpen(false);
                 setNewName("");
                 setNewDetails(emptyDetails);
                 setMsg(null);
+                void navigate({ search: (p: LocSearch) => ({ ...p, loc: undefined }) });
               }}
               className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground hover:bg-accent"
             >
@@ -218,31 +294,39 @@ function LocationsPage() {
         </form>
       )}
 
-      {msg && <p className="text-sm text-destructive">{msg}</p>}
+      {activeLoc && (
+        <>
+          {/* Ebene 2: Bereichs-Tabs innerhalb des Standorts */}
+          <nav className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border/60 pt-1 text-xs">
+            {SECTION_TABS.map((t) => (
+              <Link
+                key={t.key}
+                from={Route.fullPath}
+                search={(p: LocSearch) => ({ ...p, tab: t.key })}
+                className={tabClass(tab === t.key)}
+              >
+                {t.label}
+              </Link>
+            ))}
+          </nav>
 
-      {locationsQ.data && (
-        <div className="space-y-3">
-          {locationsQ.data.map((loc) => (
-            <LocationRow
-              key={loc.id}
-              loc={loc}
-              onSave={(name, details) => updateMut.mutate({ id: loc.id, name, details })}
-              onDelete={() => {
-                setMsg(null);
-                setDeleteInput("");
-                setConfirmDelete(loc);
-              }}
-              onToggleActive={(next) => {
-                setMsg(null);
-                setConfirmActive({ loc, next });
-              }}
-              onGeoChanged={refresh}
-            />
-          ))}
-          {locationsQ.data.length === 0 && (
-            <p className="text-sm text-muted-foreground">Noch keine Standorte.</p>
-          )}
-        </div>
+          <LocationSectionPanel
+            key={activeLoc.id}
+            loc={activeLoc}
+            section={tab}
+            onSave={(name, details) => updateMut.mutate({ id: activeLoc.id, name, details })}
+            onDelete={() => {
+              setMsg(null);
+              setDeleteInput("");
+              setConfirmDelete(activeLoc);
+            }}
+            onToggleActive={(next) => {
+              setMsg(null);
+              setConfirmActive({ loc: activeLoc, next });
+            }}
+            onGeoChanged={refresh}
+          />
+        </>
       )}
 
       {/* ST1: Bestätigungs-Dialog „Deaktivieren/Aktivieren" */}
@@ -486,171 +570,113 @@ type LocationRowData = {
   kitchen_manual_only_override?: boolean | null;
 };
 
-function LocationRow(props: {
+function LocationSectionPanel(props: {
   loc: LocationRowData;
+  section: SectionKey;
   onSave: (name: string, details: LocationDetails) => void;
   onDelete: () => void;
   onToggleActive: (next: boolean) => void;
   onGeoChanged: () => void;
 }) {
-  const [name, setName] = useState(props.loc.name);
-  const [details, setDetails] = useState<LocationDetails>(() => detailsFromLoc(props.loc));
-  const [open, setOpen] = useState(false);
-  const [displayOpen, setDisplayOpen] = useState(false);
+  const { loc, section } = props;
+  const [name, setName] = useState(loc.name);
+  const [details, setDetails] = useState<LocationDetails>(() => detailsFromLoc(loc));
 
-  // Wenn der Server-State sich ändert (z. B. nach Refresh), lokalen State synchronisieren.
+  // Wenn der Server-State sich ändert oder der Standort gewechselt wird,
+  // lokalen State synchronisieren.
   useEffect(() => {
-    setName(props.loc.name);
-    setDetails(detailsFromLoc(props.loc));
-  }, [props.loc]);
+    setName(loc.name);
+    setDetails(detailsFromLoc(loc));
+  }, [loc]);
 
   const dirty =
-    name !== props.loc.name ||
-    details.street !== (props.loc.street ?? "") ||
-    details.postal_code !== (props.loc.postal_code ?? "") ||
-    details.city !== (props.loc.city ?? "") ||
-    details.delivery_notes !== (props.loc.delivery_notes ?? "") ||
-    details.phone !== (props.loc.phone ?? "") ||
-    details.contact_name !== (props.loc.contact_name ?? "") ||
-    details.cash_balance_target_euro !== centsToEuroInput(props.loc.cashBalanceTargetCents) ||
-    details.contact_phone !== (props.loc.contact_phone ?? "");
+    name !== loc.name ||
+    details.street !== (loc.street ?? "") ||
+    details.postal_code !== (loc.postal_code ?? "") ||
+    details.city !== (loc.city ?? "") ||
+    details.delivery_notes !== (loc.delivery_notes ?? "") ||
+    details.phone !== (loc.phone ?? "") ||
+    details.contact_name !== (loc.contact_name ?? "") ||
+    details.cash_balance_target_euro !== centsToEuroInput(loc.cashBalanceTargetCents) ||
+    details.contact_phone !== (loc.contact_phone ?? "");
 
-  const summary = [
-    [props.loc.street, [props.loc.postal_code, props.loc.city].filter(Boolean).join(" ")]
-      .filter(Boolean)
-      .join(", "),
-    props.loc.phone,
-    props.loc.contact_name &&
-      `${props.loc.contact_name}${props.loc.contact_phone ? ` (${props.loc.contact_phone})` : ""}`,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const isActive = loc.isActive !== false;
 
-  const isActive = props.loc.isActive !== false;
-  return (
-    <div
-      className={
-        "max-w-2xl space-y-2 rounded-md border border-input bg-background p-3 " +
-        (isActive ? "" : "opacity-60")
-      }
-    >
-      <div className="flex items-start gap-2">
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="-m-1 flex flex-1 items-start gap-2 rounded-md p-1 text-left hover:bg-accent/40"
-          aria-expanded={open}
-          aria-controls={`loc-panel-${props.loc.id}`}
-        >
-          <span
-            aria-hidden="true"
-            className={`mt-0.5 inline-block text-muted-foreground transition-transform duration-150 ${
-              open ? "rotate-90" : ""
-            }`}
+  if (section === "allgemein") {
+    return (
+      <div className="max-w-2xl space-y-3 rounded-md border border-input bg-background p-4">
+        <Field label="Name *">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          />
+        </Field>
+        <DetailsFields value={details} onChange={setDetails} />
+        <div className="flex flex-wrap items-center gap-2 border-t border-input pt-3">
+          <button
+            onClick={() => props.onSave(name, details)}
+            disabled={!dirty || name.trim() === ""}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
-            ▸
-          </span>
-          <span className="flex-1">
-            <span className="flex items-center gap-2 text-sm font-medium text-foreground">
-              {props.loc.name}
-              {!isActive && (
-                <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-normal uppercase tracking-wide text-muted-foreground">
-                  deaktiviert
-                </span>
-              )}
-            </span>
-            {summary ? (
-              <span className="block text-xs text-muted-foreground">{summary}</span>
-            ) : (
-              <span className="block text-xs italic text-muted-foreground">
-                Noch keine Adresse hinterlegt
-              </span>
-            )}
-          </span>
-        </button>
-        <button
-          onClick={() => setDisplayOpen((v) => !v)}
-          className="rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground hover:bg-accent"
-        >
-          Display
-        </button>
-        <button
-          onClick={() => props.onToggleActive(!isActive)}
-          className="rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground hover:bg-accent"
-        >
-          {isActive ? "Deaktivieren" : "Aktivieren"}
-        </button>
-        <button
-          onClick={() => props.onDelete()}
-          className="rounded-md px-3 py-1.5 text-sm text-destructive hover:underline"
-        >
-          Löschen
-        </button>
-      </div>
-      {open && (
-        <div
-          id={`loc-panel-${props.loc.id}`}
-          role="region"
-          aria-label={props.loc.name}
-          className="space-y-3 border-t border-input pt-3"
-        >
-          <Field label="Name *">
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            />
-          </Field>
-          <DetailsFields value={details} onChange={setDetails} />
-          <div className="flex items-center gap-2">
+            Speichern
+          </button>
+          <div className="ml-auto flex items-center gap-2">
             <button
-              onClick={() => props.onSave(name, details)}
-              disabled={!dirty || name.trim() === ""}
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              onClick={() => props.onToggleActive(!isActive)}
+              className="rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground hover:bg-accent"
             >
-              Speichern
+              {isActive ? "Deaktivieren" : "Aktivieren"}
             </button>
             <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground hover:bg-accent"
+              onClick={() => props.onDelete()}
+              className="rounded-md px-3 py-1.5 text-sm text-destructive hover:underline"
             >
-              Zuklappen
+              Löschen
             </button>
           </div>
         </div>
-      )}
-      {displayOpen && <DisplayPanel locationId={props.loc.id} />}
-      {open && <GeofencePanel loc={props.loc} onChanged={props.onGeoChanged} />}
-      {open && (
-        <LocationCalendarPanel
-          locationId={props.loc.id}
-          dayServiceEnabled={(props.loc.enabled_service_periods ?? []).length > 1}
-        />
-      )}
-      {open && (
-        <LocationTipPoolPanel
-          locationId={props.loc.id}
-          initial={{
-            tipServicePoolEnabled: props.loc.tip_service_pool_enabled !== false,
-            kitchenTipRateOverride:
-              props.loc.kitchen_tip_rate_override == null
-                ? null
-                : Number(props.loc.kitchen_tip_rate_override),
-            tipPoolMinHoursOverride:
-              props.loc.tip_pool_min_hours_override == null
-                ? null
-                : Number(props.loc.tip_pool_min_hours_override),
-            kitchenManualOnlyOverride:
-              props.loc.kitchen_manual_only_override == null
-                ? null
-                : Boolean(props.loc.kitchen_manual_only_override),
-          }}
-          onSaved={props.onGeoChanged}
-        />
-      )}
-    </div>
-  );
+      </div>
+    );
+  }
+
+  if (section === "display") {
+    return <DisplayPanel locationId={loc.id} />;
+  }
+
+  if (section === "kalender") {
+    return (
+      <LocationCalendarPanel
+        locationId={loc.id}
+        dayServiceEnabled={(loc.enabled_service_periods ?? []).length > 1}
+      />
+    );
+  }
+
+  if (section === "trinkgeld") {
+    return (
+      <LocationTipPoolPanel
+        locationId={loc.id}
+        initial={{
+          tipServicePoolEnabled: loc.tip_service_pool_enabled !== false,
+          kitchenTipRateOverride:
+            loc.kitchen_tip_rate_override == null ? null : Number(loc.kitchen_tip_rate_override),
+          tipPoolMinHoursOverride:
+            loc.tip_pool_min_hours_override == null
+              ? null
+              : Number(loc.tip_pool_min_hours_override),
+          kitchenManualOnlyOverride:
+            loc.kitchen_manual_only_override == null
+              ? null
+              : Boolean(loc.kitchen_manual_only_override),
+        }}
+        onSaved={props.onGeoChanged}
+      />
+    );
+  }
+
+  // geofence
+  return <GeofencePanel loc={loc} onChanged={props.onGeoChanged} />;
 }
 
 function GeofencePanel({ loc, onChanged }: { loc: LocationRowData; onChanged: () => void }) {
