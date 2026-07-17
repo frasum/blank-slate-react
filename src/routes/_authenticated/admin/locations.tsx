@@ -116,7 +116,7 @@ function LocationsPage() {
   const callDelete = useServerFn(deleteLocation);
   const callSetActive = useServerFn(setLocationActive);
   const { loc: locParam, tab } = Route.useSearch();
-  const navigate = useNavigate({ from: Route.fullPath });
+  const navigate = useNavigate({ from: "/admin/locations" });
   const [newName, setNewName] = useState("");
   const [newDetails, setNewDetails] = useState<LocationDetails>(emptyDetails);
   const [msg, setMsg] = useState<string | null>(null);
