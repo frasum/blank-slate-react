@@ -115,10 +115,11 @@ function LocationsPage() {
   const callUpdate = useServerFn(updateLocation);
   const callDelete = useServerFn(deleteLocation);
   const callSetActive = useServerFn(setLocationActive);
+  const { loc: locParam, tab } = Route.useSearch();
+  const navigate = useNavigate({ from: "/_authenticated/admin/locations" });
   const [newName, setNewName] = useState("");
   const [newDetails, setNewDetails] = useState<LocationDetails>(emptyDetails);
   const [msg, setMsg] = useState<string | null>(null);
-  const [createOpen, setCreateOpen] = useState(false);
   // ST1: Bestätigungs-Dialoge (Löschen mit Namens-Eingabe; Deaktivieren/Aktivieren)
   const [confirmDelete, setConfirmDelete] = useState<LocationRowData | null>(null);
   const [deleteInput, setDeleteInput] = useState("");
@@ -144,12 +145,15 @@ function LocationsPage() {
 
   const createMut = useMutation({
     mutationFn: () => callCreate({ data: { name: newName, ...toPayload(newDetails) } }),
-    onSuccess: () => {
+    onSuccess: async () => {
       setNewName("");
       setNewDetails(emptyDetails);
       setMsg(null);
-      setCreateOpen(false);
-      return refresh();
+      await refresh();
+      // Nach dem Anlegen zum ersten aktiven Standort springen (der neue
+      // ist typischerweise nun der einzige "neue" — wir wählen einfach
+      // wieder den Default-Loc-Selector, den der Effekt unten setzt).
+      await navigate({ search: (p) => ({ ...p, loc: undefined, tab: "allgemein" }) });
     },
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
   });
@@ -161,10 +165,11 @@ function LocationsPage() {
   });
   const deleteMut = useMutation({
     mutationFn: (id: string) => callDelete({ data: { locationId: id } }),
-    onSuccess: () => {
+    onSuccess: async () => {
       setConfirmDelete(null);
       setDeleteInput("");
-      return refresh();
+      await refresh();
+      await navigate({ search: (p) => ({ ...p, loc: undefined }) });
     },
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
   });
@@ -178,25 +183,64 @@ function LocationsPage() {
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
   });
 
+  const locations = locationsQ.data ?? [];
+  // Default-Auswahl: erster aktiver Standort, sonst erster überhaupt.
+  const defaultLocId =
+    locations.find((l) => l.isActive !== false)?.id ?? locations[0]?.id ?? undefined;
+  const activeLocId = locParam === "new" ? "new" : (locParam ?? defaultLocId);
+  const activeLoc =
+    activeLocId && activeLocId !== "new" ? locations.find((l) => l.id === activeLocId) : undefined;
+
+  // Falls der URL-Loc ungültig (gelöscht/inaktiv nicht existent), auf Default umlenken.
+  useEffect(() => {
+    if (!locationsQ.data) return;
+    if (locParam === "new") return;
+    if (locParam && !locations.find((l) => l.id === locParam)) {
+      void navigate({ search: (p) => ({ ...p, loc: undefined }) });
+    }
+  }, [locationsQ.data, locParam, locations, navigate]);
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Standorte</h1>
-        {!createOpen && (
-          <button
-            type="button"
-            onClick={() => {
-              setMsg(null);
-              setCreateOpen(true);
-            }}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            Neu
-          </button>
-        )}
-      </div>
+      <h1 className="text-2xl font-semibold tracking-tight text-foreground">Standorte</h1>
 
-      {createOpen && (
+      {/* Ebene 1: Standort-Tabs */}
+      <nav className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border/60 text-sm">
+        {locations.map((l) => {
+          const active = activeLocId === l.id;
+          const inactive = l.isActive === false;
+          return (
+            <Link
+              key={l.id}
+              from={Route.fullPath}
+              search={(p) => ({ ...p, loc: l.id })}
+              className={tabClass(active, inactive ? "opacity-60" : undefined)}
+            >
+              {l.name}
+              {inactive && (
+                <span className="ml-1 rounded bg-muted px-1 py-0.5 text-[10px] font-normal uppercase tracking-wide text-muted-foreground">
+                  deaktiviert
+                </span>
+              )}
+            </Link>
+          );
+        })}
+        <Link
+          from={Route.fullPath}
+          search={(p) => ({ ...p, loc: "new", tab: "allgemein" as SectionKey })}
+          className={tabClass(activeLocId === "new")}
+        >
+          + Neu
+        </Link>
+      </nav>
+
+      {msg && <p className="text-sm text-destructive">{msg}</p>}
+
+      {locations.length === 0 && activeLocId !== "new" && (
+        <p className="text-sm text-muted-foreground">Noch keine Standorte.</p>
+      )}
+
+      {activeLocId === "new" && (
         <form
           className="max-w-2xl space-y-3 rounded-md border border-input bg-muted/30 p-4"
           onSubmit={(e) => {
@@ -227,10 +271,10 @@ function LocationsPage() {
             <button
               type="button"
               onClick={() => {
-                setCreateOpen(false);
                 setNewName("");
                 setNewDetails(emptyDetails);
                 setMsg(null);
+                void navigate({ search: (p) => ({ ...p, loc: undefined }) });
               }}
               className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground hover:bg-accent"
             >
@@ -240,31 +284,41 @@ function LocationsPage() {
         </form>
       )}
 
-      {msg && <p className="text-sm text-destructive">{msg}</p>}
+      {activeLoc && (
+        <>
+          {/* Ebene 2: Bereichs-Tabs innerhalb des Standorts */}
+          <nav className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border/60 pt-1 text-xs">
+            {SECTION_TABS.map((t) => (
+              <Link
+                key={t.key}
+                from={Route.fullPath}
+                search={(p) => ({ ...p, tab: t.key })}
+                className={tabClass(tab === t.key)}
+              >
+                {t.label}
+              </Link>
+            ))}
+          </nav>
 
-      {locationsQ.data && (
-        <div className="space-y-3">
-          {locationsQ.data.map((loc) => (
-            <LocationRow
-              key={loc.id}
-              loc={loc}
-              onSave={(name, details) => updateMut.mutate({ id: loc.id, name, details })}
-              onDelete={() => {
-                setMsg(null);
-                setDeleteInput("");
-                setConfirmDelete(loc);
-              }}
-              onToggleActive={(next) => {
-                setMsg(null);
-                setConfirmActive({ loc, next });
-              }}
-              onGeoChanged={refresh}
-            />
-          ))}
-          {locationsQ.data.length === 0 && (
-            <p className="text-sm text-muted-foreground">Noch keine Standorte.</p>
-          )}
-        </div>
+          <LocationSectionPanel
+            key={activeLoc.id}
+            loc={activeLoc}
+            section={tab}
+            onSave={(name, details) =>
+              updateMut.mutate({ id: activeLoc.id, name, details })
+            }
+            onDelete={() => {
+              setMsg(null);
+              setDeleteInput("");
+              setConfirmDelete(activeLoc);
+            }}
+            onToggleActive={(next) => {
+              setMsg(null);
+              setConfirmActive({ loc: activeLoc, next });
+            }}
+            onGeoChanged={refresh}
+          />
+        </>
       )}
 
       {/* ST1: Bestätigungs-Dialog „Deaktivieren/Aktivieren" */}
