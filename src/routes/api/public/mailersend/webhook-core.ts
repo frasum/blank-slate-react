@@ -13,7 +13,10 @@ import { randomUUID, timingSafeEqual } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { extractOrderNumberFromRecipients } from "@/lib/bestellung/inbound-plus";
 
-const ORDER_NUMBER_RE = /ORD-\d{4}-\d{2}-\d{4}/i;
+// Präfix-agnostisch: ORD-…, EO-…, andere 2–4-Buchstaben-Präfixe. Die
+// Formatwahrheit ist orders.order_number in der DB — der Regex ist nur
+// eine Betreff-Sanity-Prüfung.
+const ORDER_NUMBER_RE = /[A-Z]{2,4}-\d{4}-\d{2}-\d{4}/i;
 const ALLOWED_MIME = new Set(["application/pdf", "image/jpeg", "image/png"]);
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 

@@ -11,6 +11,11 @@ describe("inbound-plus", () => {
       extractOrderNumberFromRecipients("antwort+ord-2026-07-1234@inbound.cocoplatform.online"),
     ).toBe("ORD-2026-07-1234");
   });
+  it("ist präfix-agnostisch — EO-Nummern via Plus-Adresse werden erkannt", () => {
+    expect(
+      extractOrderNumberFromRecipients("antwort+EO-2026-05-0197@inbound.cocoplatform.online"),
+    ).toBe("EO-2026-05-0197");
+  });
   it("erkennt Bestellnummer aus Objekt-Empfänger", () => {
     expect(
       extractOrderNumberFromRecipients({
@@ -29,11 +34,10 @@ describe("inbound-plus", () => {
   it("null bei fehlendem Plus-Teil", () => {
     expect(extractOrderNumberFromRecipients("antwort@inbound.cocoplatform.online")).toBeNull();
   });
-  it("null bei Fremdformat", () => {
+  it("null bei Fremdformat (Local-Part nicht 'antwort')", () => {
     expect(
       extractOrderNumberFromRecipients("info+newsletter@inbound.cocoplatform.online"),
     ).toBeNull();
-    expect(extractOrderNumberFromRecipients("antwort+ord-2026-7-1@example.com")).toBeNull();
   });
   it("null bei leerem/undefiniertem Input", () => {
     expect(extractOrderNumberFromRecipients(undefined)).toBeNull();

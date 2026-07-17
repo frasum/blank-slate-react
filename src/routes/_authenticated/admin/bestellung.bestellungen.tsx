@@ -22,6 +22,7 @@ import {
   type OrderEmailLogRow,
 } from "@/lib/bestellung/order-email-log.functions";
 import { OrderRepliesSection } from "@/components/bestellung/OrderRepliesSection";
+import { countUnreadRepliesByOrder } from "@/lib/bestellung/order-replies.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/bestellung/bestellungen")({
   head: () => ({ meta: [{ title: "Bestellhistorie · Bestellung" }] }),
@@ -71,6 +72,10 @@ function BestellungenPage() {
   const suppliersQ = useQuery({
     queryKey: ["bestellung", "suppliers", { includeInactive: true }],
     queryFn: () => listSuppliers({ data: { includeInactive: true } }),
+  });
+  const unreadByOrderQ = useQuery({
+    queryKey: ["bestellung", "replies", "unread-by-order"],
+    queryFn: () => countUnreadRepliesByOrder(),
   });
   const ordersQ = useQuery({
     queryKey: [
@@ -193,6 +198,7 @@ function BestellungenPage() {
             <thead className="bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th className="px-3 py-2">Nr.</th>
+                <th className="px-3 py-2"></th>
                 <th className="px-3 py-2">Datum</th>
                 <th className="px-3 py-2">Lieferant</th>
                 <th className="px-3 py-2">Status</th>
@@ -207,6 +213,16 @@ function BestellungenPage() {
                 const row = (
                   <tr key={o.id} className="border-t border-border align-top">
                     <td className="px-3 py-2 font-mono">{o.order_number}</td>
+                    <td className="px-3 py-2">
+                      {(unreadByOrderQ.data?.[o.id] ?? 0) > 0 && (
+                        <span
+                          title={`${unreadByOrderQ.data?.[o.id]} ungelesene Antwort(en)`}
+                          className="rounded bg-amber-500 px-1.5 py-0.5 text-[10px] font-semibold text-white"
+                        >
+                          {unreadByOrderQ.data?.[o.id]} neu
+                        </span>
+                      )}
+                    </td>
                     <td className="px-3 py-2 text-muted-foreground">
                       {formatShortDateTime(o.created_at)}
                     </td>
@@ -277,7 +293,7 @@ function BestellungenPage() {
                 if (emailLogOrder === o.id) {
                   extra.push(
                     <tr key={o.id + "-email"} className="border-t border-border bg-muted/10">
-                      <td colSpan={8} className="px-3 py-3">
+                      <td colSpan={9} className="px-3 py-3">
                         <EmailDeliveryTimeline
                           sent={o.email_sent}
                           sentAt={o.email_sent_at}
@@ -292,7 +308,7 @@ function BestellungenPage() {
                 if (expanded === o.id) {
                   extra.push(
                     <tr key={o.id + "-detail"} className="border-t border-border bg-muted/10">
-                      <td colSpan={8} className="px-3 py-4">
+                      <td colSpan={9} className="px-3 py-4">
                         <OrderDetail
                           orderId={o.id}
                           canCancel={o.status !== "cancelled"}
