@@ -198,6 +198,7 @@ function BestellungenPage() {
             <thead className="bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th className="px-3 py-2">Nr.</th>
+                <th className="px-3 py-2"></th>
                 <th className="px-3 py-2">Datum</th>
                 <th className="px-3 py-2">Lieferant</th>
                 <th className="px-3 py-2">Status</th>
