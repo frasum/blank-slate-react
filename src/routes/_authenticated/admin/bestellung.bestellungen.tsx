@@ -21,6 +21,7 @@ import {
   getOrderEmailLogEntry,
   type OrderEmailLogRow,
 } from "@/lib/bestellung/order-email-log.functions";
+import { OrderRepliesSection } from "@/components/bestellung/OrderRepliesSection";
 
 export const Route = createFileRoute("/_authenticated/admin/bestellung/bestellungen")({
   head: () => ({ meta: [{ title: "Bestellhistorie · Bestellung" }] }),
@@ -390,6 +391,7 @@ function OrderDetail(props: {
           <p className="text-foreground">{order.notes}</p>
         </div>
       )}
+      <OrderRepliesSection orderId={props.orderId} />
       <table className="w-full text-sm">
         <thead className="text-left text-xs uppercase tracking-wide text-muted-foreground">
           <tr>
