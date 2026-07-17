@@ -22,7 +22,7 @@ export function extractOrderNumberFromRecipients(
   for (const r of list) {
     const email = typeof r === "string" ? r : (r?.email ?? "");
     if (!email) continue;
-    const m = PLUS_ORDER_RE.exec(email.trim());
+    const m = PLUS_RE.exec(email.trim());
     if (m) return m[1].toUpperCase();
   }
   return null;
