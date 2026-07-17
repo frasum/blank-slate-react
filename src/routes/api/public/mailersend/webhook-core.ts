@@ -119,6 +119,11 @@ export async function processInboundEmail(opts: ProcessInboundOptions): Promise<
   if (opts.rawBody.trim().length === 0) {
     return { status: 200, body: { ok: true, ignored: "empty-body" } };
   }
+  // Fehlender Signatur-Header: Probe/Health-Ping ohne Verarbeitung.
+  // Nur ein VORHANDENER, aber ungültiger Header führt zu 401.
+  if (opts.signatureHeader === null || opts.signatureHeader === undefined) {
+    return { status: 200, body: { ok: true, ignored: "unsigned-probe" } };
+  }
   if (!verifyMailerSendSignature(opts.rawBody, opts.signatureHeader, opts.secret)) {
     return { status: 401, reason: "invalid-signature" };
   }

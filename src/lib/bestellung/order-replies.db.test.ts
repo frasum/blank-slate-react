@@ -127,7 +127,7 @@ describe.skipIf(!dbTestsEnabled)("order-replies (Webhook-Kern + Assign)", () => 
     expect(data![0].order_id).toBe(orderIdA);
   });
 
-  it("(b) fehlende/ungültige Signatur → 401, keine Zeile", async () => {
+  it("(b) fehlender Header → 200 unsigned-probe, ungültiger Header → 401; keine Zeile", async () => {
     const body = makeBody({
       to: `antwort+${orderNumberA}@inbound.cocoplatform.online`,
       from: { email: "attacker@example.com" },
@@ -142,7 +142,7 @@ describe.skipIf(!dbTestsEnabled)("order-replies (Webhook-Kern + Assign)", () => 
       supabaseAdmin: org.service,
       defaultOrgId: undefined,
     });
-    expect(missing.status).toBe(401);
+    expect(missing.status).toBe(200);
     const wrong = await processInboundEmail({
       rawBody: body,
       signatureHeader: "deadbeef",
