@@ -403,7 +403,7 @@ function EasyOrderCart(props: {
                     className="flex items-center justify-between rounded border border-border bg-background px-3 py-2"
                   >
                     <span>
-                      {fi.quantity} {fi.unit ?? "Stk"} · {fi.name}{" "}
+                      {fi.quantity} × {fi.unit ?? "Stk"} · {fi.name}{" "}
                       <span className="text-xs text-muted-foreground">({sup?.name ?? "?"})</span>
                     </span>
                     <button
