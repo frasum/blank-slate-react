@@ -51,23 +51,17 @@ export const Route = createFileRoute("/api/public/mailersend/webhook")({
       HEAD: async () => new Response(null, { status: 200 }),
       POST: async ({ request }) => {
         const rawBody = await request.text();
-        // MailerSend-Validierungs-Ping: leerer POST → 200, keine Verarbeitung.
-        // Nichts Unsigniertes wird je verarbeitet.
-        if (rawBody.trim().length === 0) {
-          return Response.json({ ok: true, ignored: "empty-body" });
-        }
-        const signatureHeader =
-          request.headers.get("signature") ?? request.headers.get("x-mailersend-signature");
+        const providedToken = new URL(request.url).searchParams.get("token");
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const result = await processInboundEmail({
           rawBody,
-          signatureHeader,
+          providedToken,
           secret: process.env.MAILERSEND_WEBHOOK_SECRET,
           supabaseAdmin,
           defaultOrgId: process.env.INBOUND_DEFAULT_ORGANIZATION_ID,
           forward: forwardUnassigned,
         });
-        if (result.status === 401) return new Response("Invalid signature", { status: 401 });
+        if (result.status === 401) return new Response("Invalid token", { status: 401 });
         if (result.status === 503)
           return new Response("Webhook nicht konfiguriert", { status: 503 });
         return Response.json(result.body);
