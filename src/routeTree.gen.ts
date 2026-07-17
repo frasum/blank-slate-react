@@ -76,6 +76,7 @@ import { Route as ApiPublicBankSyncSpiceryRouteImport } from './routes/api/publi
 import { Route as AuthenticatedAdminStaffNewRouteImport } from './routes/_authenticated/admin/staff.new'
 import { Route as AuthenticatedAdminStaffStaffIdRouteImport } from './routes/_authenticated/admin/staff.$staffId'
 import { Route as AuthenticatedAdminEinstellungenEasyorderVerwaltungRouteImport } from './routes/_authenticated/admin/einstellungen.easyorder-verwaltung'
+import { Route as AuthenticatedAdminBestellungUnzugeordnetRouteImport } from './routes/_authenticated/admin/bestellung.unzugeordnet'
 import { Route as AuthenticatedAdminBestellungLieferantenRouteImport } from './routes/_authenticated/admin/bestellung.lieferanten'
 import { Route as AuthenticatedAdminBestellungInventurRouteImport } from './routes/_authenticated/admin/bestellung.inventur'
 import { Route as AuthenticatedAdminBestellungBestellungenRouteImport } from './routes/_authenticated/admin/bestellung.bestellungen'
@@ -462,6 +463,12 @@ const AuthenticatedAdminEinstellungenEasyorderVerwaltungRoute =
     path: '/easyorder-verwaltung',
     getParentRoute: () => AuthenticatedAdminEinstellungenRoute,
   } as any)
+const AuthenticatedAdminBestellungUnzugeordnetRoute =
+  AuthenticatedAdminBestellungUnzugeordnetRouteImport.update({
+    id: '/unzugeordnet',
+    path: '/unzugeordnet',
+    getParentRoute: () => AuthenticatedAdminBestellungRoute,
+  } as any)
 const AuthenticatedAdminBestellungLieferantenRoute =
   AuthenticatedAdminBestellungLieferantenRouteImport.update({
     id: '/lieferanten',
@@ -537,6 +544,7 @@ export interface FileRoutesByFullPath {
   '/admin/bestellung/bestellungen': typeof AuthenticatedAdminBestellungBestellungenRoute
   '/admin/bestellung/inventur': typeof AuthenticatedAdminBestellungInventurRoute
   '/admin/bestellung/lieferanten': typeof AuthenticatedAdminBestellungLieferantenRoute
+  '/admin/bestellung/unzugeordnet': typeof AuthenticatedAdminBestellungUnzugeordnetRoute
   '/admin/einstellungen/easyorder-verwaltung': typeof AuthenticatedAdminEinstellungenEasyorderVerwaltungRoute
   '/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
   '/admin/staff/new': typeof AuthenticatedAdminStaffNewRoute
@@ -604,6 +612,7 @@ export interface FileRoutesByTo {
   '/admin/bestellung/bestellungen': typeof AuthenticatedAdminBestellungBestellungenRoute
   '/admin/bestellung/inventur': typeof AuthenticatedAdminBestellungInventurRoute
   '/admin/bestellung/lieferanten': typeof AuthenticatedAdminBestellungLieferantenRoute
+  '/admin/bestellung/unzugeordnet': typeof AuthenticatedAdminBestellungUnzugeordnetRoute
   '/admin/einstellungen/easyorder-verwaltung': typeof AuthenticatedAdminEinstellungenEasyorderVerwaltungRoute
   '/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
   '/admin/staff/new': typeof AuthenticatedAdminStaffNewRoute
@@ -677,6 +686,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/bestellung/bestellungen': typeof AuthenticatedAdminBestellungBestellungenRoute
   '/_authenticated/admin/bestellung/inventur': typeof AuthenticatedAdminBestellungInventurRoute
   '/_authenticated/admin/bestellung/lieferanten': typeof AuthenticatedAdminBestellungLieferantenRoute
+  '/_authenticated/admin/bestellung/unzugeordnet': typeof AuthenticatedAdminBestellungUnzugeordnetRoute
   '/_authenticated/admin/einstellungen/easyorder-verwaltung': typeof AuthenticatedAdminEinstellungenEasyorderVerwaltungRoute
   '/_authenticated/admin/staff/$staffId': typeof AuthenticatedAdminStaffStaffIdRoute
   '/_authenticated/admin/staff/new': typeof AuthenticatedAdminStaffNewRoute
@@ -750,6 +760,7 @@ export interface FileRouteTypes {
     | '/admin/bestellung/bestellungen'
     | '/admin/bestellung/inventur'
     | '/admin/bestellung/lieferanten'
+    | '/admin/bestellung/unzugeordnet'
     | '/admin/einstellungen/easyorder-verwaltung'
     | '/admin/staff/$staffId'
     | '/admin/staff/new'
@@ -817,6 +828,7 @@ export interface FileRouteTypes {
     | '/admin/bestellung/bestellungen'
     | '/admin/bestellung/inventur'
     | '/admin/bestellung/lieferanten'
+    | '/admin/bestellung/unzugeordnet'
     | '/admin/einstellungen/easyorder-verwaltung'
     | '/admin/staff/$staffId'
     | '/admin/staff/new'
@@ -889,6 +901,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/bestellung/bestellungen'
     | '/_authenticated/admin/bestellung/inventur'
     | '/_authenticated/admin/bestellung/lieferanten'
+    | '/_authenticated/admin/bestellung/unzugeordnet'
     | '/_authenticated/admin/einstellungen/easyorder-verwaltung'
     | '/_authenticated/admin/staff/$staffId'
     | '/_authenticated/admin/staff/new'
@@ -1392,6 +1405,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminEinstellungenEasyorderVerwaltungRouteImport
       parentRoute: typeof AuthenticatedAdminEinstellungenRoute
     }
+    '/_authenticated/admin/bestellung/unzugeordnet': {
+      id: '/_authenticated/admin/bestellung/unzugeordnet'
+      path: '/unzugeordnet'
+      fullPath: '/admin/bestellung/unzugeordnet'
+      preLoaderRoute: typeof AuthenticatedAdminBestellungUnzugeordnetRouteImport
+      parentRoute: typeof AuthenticatedAdminBestellungRoute
+    }
     '/_authenticated/admin/bestellung/lieferanten': {
       id: '/_authenticated/admin/bestellung/lieferanten'
       path: '/lieferanten'
@@ -1420,6 +1440,7 @@ interface AuthenticatedAdminBestellungRouteChildren {
   AuthenticatedAdminBestellungBestellungenRoute: typeof AuthenticatedAdminBestellungBestellungenRoute
   AuthenticatedAdminBestellungInventurRoute: typeof AuthenticatedAdminBestellungInventurRoute
   AuthenticatedAdminBestellungLieferantenRoute: typeof AuthenticatedAdminBestellungLieferantenRoute
+  AuthenticatedAdminBestellungUnzugeordnetRoute: typeof AuthenticatedAdminBestellungUnzugeordnetRoute
   AuthenticatedAdminBestellungIndexRoute: typeof AuthenticatedAdminBestellungIndexRoute
 }
 
@@ -1431,6 +1452,8 @@ const AuthenticatedAdminBestellungRouteChildren: AuthenticatedAdminBestellungRou
       AuthenticatedAdminBestellungInventurRoute,
     AuthenticatedAdminBestellungLieferantenRoute:
       AuthenticatedAdminBestellungLieferantenRoute,
+    AuthenticatedAdminBestellungUnzugeordnetRoute:
+      AuthenticatedAdminBestellungUnzugeordnetRoute,
     AuthenticatedAdminBestellungIndexRoute:
       AuthenticatedAdminBestellungIndexRoute,
   }

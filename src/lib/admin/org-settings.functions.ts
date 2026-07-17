@@ -28,6 +28,8 @@ export type OrgSettings = {
   arbeitgeberAdresse: string | null;
   arbeitgeberVertreter: string | null;
   telegramBotUsername: string | null;
+  orderReplyTelegramEnabled: boolean;
+  orderReplyForwardUnassigned: boolean;
 };
 
 const updateSchema = z
@@ -43,6 +45,8 @@ const updateSchema = z
       .email("Ungültige E-Mail-Adresse.")
       .nullable()
       .or(z.literal("").transform(() => null)),
+    orderReplyTelegramEnabled: z.boolean().optional(),
+    orderReplyForwardUnassigned: z.boolean().optional(),
   })
   .superRefine((v, ctx) => {
     if (v.testModeEnabled && !v.testModeEmail) {
@@ -70,11 +74,13 @@ export const getOrgSettings = createServerFn({ method: "GET" })
       arbeitgeber_adresse: string | null;
       arbeitgeber_vertreter: string | null;
       telegram_bot_username: string | null;
+      order_reply_telegram_enabled: boolean | null;
+      order_reply_forward_unassigned: boolean | null;
     }>(
       await supabaseAdmin
         .from("organization_settings")
         .select(
-          "kitchen_tip_rate, tip_pool_min_hours, kitchen_manual_only, test_mode_enabled, test_mode_email, betriebsnummer, arbeitgeber_name, arbeitgeber_adresse, arbeitgeber_vertreter, telegram_bot_username",
+          "kitchen_tip_rate, tip_pool_min_hours, kitchen_manual_only, test_mode_enabled, test_mode_email, betriebsnummer, arbeitgeber_name, arbeitgeber_adresse, arbeitgeber_vertreter, telegram_bot_username, order_reply_telegram_enabled, order_reply_forward_unassigned",
         )
         .eq("organization_id", caller.organizationId)
         .maybeSingle(),
@@ -91,6 +97,8 @@ export const getOrgSettings = createServerFn({ method: "GET" })
       arbeitgeberAdresse: data?.arbeitgeber_adresse ?? null,
       arbeitgeberVertreter: data?.arbeitgeber_vertreter ?? null,
       telegramBotUsername: data?.telegram_bot_username ?? null,
+      orderReplyTelegramEnabled: Boolean(data?.order_reply_telegram_enabled ?? false),
+      orderReplyForwardUnassigned: Boolean(data?.order_reply_forward_unassigned ?? false),
     };
   });
 
@@ -124,6 +132,12 @@ export const updateOrgSettings = createServerFn({ method: "POST" })
               kitchen_manual_only: data.kitchenManualOnly,
               test_mode_enabled: data.testModeEnabled,
               test_mode_email: data.testModeEmail,
+              ...(data.orderReplyTelegramEnabled !== undefined
+                ? { order_reply_telegram_enabled: data.orderReplyTelegramEnabled }
+                : {}),
+              ...(data.orderReplyForwardUnassigned !== undefined
+                ? { order_reply_forward_unassigned: data.orderReplyForwardUnassigned }
+                : {}),
             })
             .eq("organization_id", caller.organizationId),
           "updateOrgSettings.update",
@@ -140,6 +154,8 @@ export const updateOrgSettings = createServerFn({ method: "POST" })
               kitchenManualOnly: data.kitchenManualOnly,
               testModeEnabled: data.testModeEnabled,
               testModeEmail: data.testModeEmail,
+              orderReplyTelegramEnabled: data.orderReplyTelegramEnabled ?? null,
+              orderReplyForwardUnassigned: data.orderReplyForwardUnassigned ?? null,
             },
           },
         };

@@ -8,6 +8,10 @@ type Props = {
   setTestModeEnabled: (value: boolean) => void;
   testModeEmail: string;
   setTestModeEmail: (value: string) => void;
+  orderReplyTelegramEnabled: boolean;
+  setOrderReplyTelegramEnabled: (value: boolean) => void;
+  orderReplyForwardUnassigned: boolean;
+  setOrderReplyForwardUnassigned: (value: boolean) => void;
   msg: string | null;
   err: string | null;
   isPending: boolean;
@@ -20,6 +24,10 @@ export function BestellungenSection({
   setTestModeEnabled,
   testModeEmail,
   setTestModeEmail,
+  orderReplyTelegramEnabled,
+  setOrderReplyTelegramEnabled,
+  orderReplyForwardUnassigned,
+  setOrderReplyForwardUnassigned,
   msg,
   err,
   isPending,
@@ -58,6 +66,37 @@ export function BestellungenSection({
           className="w-full max-w-md rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-60"
         />
       </label>
+
+      <div className="space-y-2 border-t border-border pt-4">
+        <h3 className="text-sm font-semibold text-foreground">Lieferanten-Antworten</h3>
+        <p className="text-xs text-muted-foreground">
+          Antworten kommen automatisch an der jeweiligen Bestellung an (Plus-Adresse).
+          Optional: Telegram-Ping bei neuen Antworten und Weiterleitung unzugeordneter
+          Mails an die Buchhaltung.
+        </p>
+        <label className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={orderReplyTelegramEnabled}
+            onChange={(e) => setOrderReplyTelegramEnabled(e.target.checked)}
+            disabled={!canEdit}
+            className="h-4 w-4 rounded border-input"
+          />
+          <span className="text-sm text-foreground">Telegram-Ping bei neuen Antworten</span>
+        </label>
+        <label className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={orderReplyForwardUnassigned}
+            onChange={(e) => setOrderReplyForwardUnassigned(e.target.checked)}
+            disabled={!canEdit}
+            className="h-4 w-4 rounded border-input"
+          />
+          <span className="text-sm text-foreground">
+            Unzugeordnete Mails an buchhaltung@yum-thai.de weiterleiten
+          </span>
+        </label>
+      </div>
 
       {msg && <p className="text-xs text-muted-foreground">{msg}</p>}
       {err && <p className="text-xs text-destructive">{err}</p>}

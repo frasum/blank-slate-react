@@ -1,24 +1,37 @@
 // MailerSend Inbound-Webhook (BM1): Lieferanten-Antworten am Bestellvorgang.
 //
-// Endpunkt: /api/public/mailersend/webhook. Absicherung: MailerSend sendet den
-// Header `signature` (HMAC-SHA256(hex) über den Raw-Body mit dem in MailerSend
-// hinterlegten Signing-Secret). Wir vergleichen timing-safe gegen
-// MAILERSEND_WEBHOOK_SECRET. Kein Signaturheader → 401. Kein Retry-Loop:
-// alle unbekannten Fehler enden in einer 200er-Antwort mit Diagnose-Payload,
-// damit MailerSend nicht endlos zustellt; harte Signaturfehler sind 401.
+// Endpunkt: /api/public/mailersend/webhook. Absicherung: HMAC-SHA256(hex)
+// über den Raw-Body mit MAILERSEND_WEBHOOK_SECRET, timing-safe verglichen.
+// Kein Signaturheader / falsche Signatur → 401. Nach erfolgreicher Prüfung
+// antwortet der Endpunkt IMMER 200, damit MailerSend nicht endlos retriet;
+// Diagnose-Informationen wandern in den Response-Body.
 //
-// Zuordnung:
-//  1) In-Reply-To/References-Header → order_email_log.provider_message_id.
-//  2) Fallback: Regex ORD-YYYY-MM-NNNN im Subject.
-//  3) Keine Zuordnung → Ablage mit order_id = NULL (Postfach-Inbox).
+// Zuordnungskette (BM1/K2):
+//   1) Plus-Adresse im Empfänger (antwort+ORD-YYYY-MM-NNNN@…) — Primärweg.
+//   2) Thread-Header (In-Reply-To/References → order_email_log.provider_message_id).
+//   3) Bestellnummer im Subject (Regex).
+//   4) Keine Zuordnung → Ablage mit order_id = NULL unter der Default-Org
+//      aus INBOUND_DEFAULT_ORGANIZATION_ID (K3). Fehlt das Env, wird die Mail
+//      mit 200 verworfen und ein Warn-Log ausgegeben — NIE „erste Org raten".
 //
-// Anhänge werden base64-dekodiert und in den privaten Bucket
-// `order-reply-attachments` unter <org>/<reply_id>/<uuid>-<name> geschrieben.
+// Anhänge (K4): nur PDF/JPEG/PNG, je ≤ 10 MB. Übersprungene Anhänge werden
+// als kurzer Vermerk an body_text angehängt.
+//
+// Weiterleitung (K5a): unzugeordnete Mails werden per MailerSend an
+// buchhaltung@yum-thai.de weitergeleitet, wenn
+// organization_settings.order_reply_forward_unassigned = true.
+// K5b (Telegram-Ping) ist bewusst noch nicht verdrahtet: weder Location-
+// Chat noch Admin-Chat existieren in der DB, und orders trägt kein
+// created_by — daher separater Folge-Prompt.
 
 import { createFileRoute } from "@tanstack/react-router";
 import { createHmac, timingSafeEqual, randomUUID } from "node:crypto";
+import { extractOrderNumberFromRecipients } from "@/lib/bestellung/inbound-plus";
 
-const ORDER_NUMBER_RE = /ORD-\d{4}-\d{2}-\d{4}/;
+const ORDER_NUMBER_RE = /ORD-\d{4}-\d{2}-\d{4}/i;
+const ALLOWED_MIME = new Set(["application/pdf", "image/jpeg", "image/png"]);
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+const FORWARD_TO_EMAIL = "buchhaltung@yum-thai.de";
 
 type InboundAttachment = {
   file_name?: string;
@@ -26,12 +39,16 @@ type InboundAttachment = {
   content_type?: string;
   contentType?: string;
   size?: number;
-  content?: string; // base64
+  content?: string;
 };
+
+type InboundRecipient = string | { email?: string | null; name?: string | null } | null;
 
 type InboundData = {
   from?: { email?: string; name?: string } | string;
   sender?: string;
+  to?: InboundRecipient | InboundRecipient[];
+  recipients?: InboundRecipient[];
   subject?: string;
   text?: string;
   html?: string;
@@ -41,10 +58,7 @@ type InboundData = {
   message_id?: string;
 };
 
-type InboundPayload = {
-  type?: string;
-  data?: InboundData;
-} & InboundData;
+type InboundPayload = { type?: string; data?: InboundData } & InboundData;
 
 function safeEqualHex(a: string, b: string): boolean {
   try {
@@ -83,6 +97,48 @@ function extractMessageIds(raw: string | null): string[] {
   return Array.from(raw.matchAll(/<([^<>\s]+)>/g)).map((m) => m[1]);
 }
 
+function collectRecipients(inbound: InboundData): InboundRecipient[] {
+  const out: InboundRecipient[] = [];
+  if (Array.isArray(inbound.to)) out.push(...inbound.to);
+  else if (inbound.to) out.push(inbound.to);
+  if (Array.isArray(inbound.recipients)) out.push(...inbound.recipients);
+  return out;
+}
+
+async function forwardUnassigned(params: {
+  fromName: string | null;
+  fromEmail: string;
+  subject: string;
+  bodyText: string;
+}): Promise<void> {
+  const apiKey = process.env.MAILERSEND_API_KEY;
+  const senderEmail = process.env.MAILERSEND_FROM_EMAIL;
+  const senderName = process.env.MAILERSEND_FROM_NAME ?? "COCO Bestellung";
+  if (!apiKey || !senderEmail) return;
+  const body = {
+    from: { email: senderEmail, name: senderName },
+    to: [{ email: FORWARD_TO_EMAIL, name: "Buchhaltung" }],
+    subject: `[COCO unzugeordnet] ${params.subject || "(ohne Betreff)"}`,
+    text: [
+      `Absender: ${params.fromName ? `${params.fromName} <${params.fromEmail}>` : params.fromEmail}`,
+      `Betreff: ${params.subject || "(leer)"}`,
+      "",
+      params.bodyText || "(kein Textkörper)",
+    ].join("\n"),
+  };
+  await fetch("https://api.mailersend.com/v1/email", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "X-Requested-With": "XMLHttpRequest",
+    },
+    body: JSON.stringify(body),
+  }).catch(() => {
+    /* best-effort */
+  });
+}
+
 export const Route = createFileRoute("/api/public/mailersend/webhook")({
   server: {
     handlers: {
@@ -109,7 +165,7 @@ export const Route = createFileRoute("/api/public/mailersend/webhook")({
         const inbound: InboundData = payload.data ?? payload;
         const from = parseFrom(inbound.from, inbound.sender);
         const subject = (inbound.subject ?? "").trim();
-        const bodyText = inbound.text ?? "";
+        let bodyText = inbound.text ?? "";
         const messageId = inbound.message_id ?? inbound.id ?? null;
         const inReplyToRaw = extractHeader(inbound.headers, "In-Reply-To");
         const referencesRaw = extractHeader(inbound.headers, "References");
@@ -117,10 +173,25 @@ export const Route = createFileRoute("/api/public/mailersend/webhook")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-        // Zuordnung 1: Thread-Header → order_email_log
         let orderId: string | null = null;
         let organizationId: string | null = null;
-        if (threadIds.length > 0) {
+
+        // Stufe 1: Plus-Adresse.
+        const plusOrderNumber = extractOrderNumberFromRecipients(collectRecipients(inbound));
+        if (plusOrderNumber) {
+          const { data: order } = await supabaseAdmin
+            .from("orders")
+            .select("id, organization_id")
+            .eq("order_number", plusOrderNumber)
+            .maybeSingle();
+          if (order) {
+            orderId = order.id;
+            organizationId = order.organization_id;
+          }
+        }
+
+        // Stufe 2: Thread-Header.
+        if (!orderId && threadIds.length > 0) {
           const { data: logRow } = await supabaseAdmin
             .from("order_email_log")
             .select("order_id, organization_id")
@@ -133,14 +204,14 @@ export const Route = createFileRoute("/api/public/mailersend/webhook")({
           }
         }
 
-        // Zuordnung 2: Bestellnummer im Subject
+        // Stufe 3: Bestellnummer im Subject.
         if (!orderId) {
           const m = ORDER_NUMBER_RE.exec(subject);
           if (m) {
             const { data: order } = await supabaseAdmin
               .from("orders")
               .select("id, organization_id")
-              .eq("order_number", m[0])
+              .eq("order_number", m[0].toUpperCase())
               .maybeSingle();
             if (order) {
               orderId = order.id;
@@ -149,16 +220,39 @@ export const Route = createFileRoute("/api/public/mailersend/webhook")({
           }
         }
 
-        // Fallback-Org: erste Organisation (Postfach-Inbox).
+        // K3 — Default-Org aus Env; NIE „erste Org raten".
         if (!organizationId) {
-          const { data: anyOrg } = await supabaseAdmin
-            .from("organizations")
-            .select("id")
-            .order("created_at", { ascending: true })
-            .limit(1)
-            .maybeSingle();
-          if (!anyOrg) return Response.json({ ok: true, ignored: "no-organization" });
-          organizationId = anyOrg.id;
+          const defaultOrg = process.env.INBOUND_DEFAULT_ORGANIZATION_ID?.trim();
+          if (!defaultOrg) {
+            console.warn(
+              "[mailersend/webhook] Unzugeordnete Mail verworfen: INBOUND_DEFAULT_ORGANIZATION_ID fehlt.",
+            );
+            return Response.json({ ok: true, ignored: "no-default-org" });
+          }
+          organizationId = defaultOrg;
+        }
+
+        // Anhang-Vorprüfung + Skip-Vermerke (K4).
+        const rawAttachments = inbound.attachments ?? [];
+        const attachmentsToStore: { name: string; type: string; bytes: Buffer }[] = [];
+        const skipNotes: string[] = [];
+        for (const att of rawAttachments) {
+          const name = att.file_name ?? att.filename ?? "attachment";
+          const type = (att.content_type ?? att.contentType ?? "").toLowerCase();
+          if (!att.content) continue;
+          if (!ALLOWED_MIME.has(type)) {
+            skipNotes.push(`[Anhang übersprungen: ${name} (Typ ${type || "unbekannt"})]`);
+            continue;
+          }
+          const bytes = Buffer.from(att.content, "base64");
+          if (bytes.byteLength > MAX_ATTACHMENT_BYTES) {
+            skipNotes.push(`[Anhang übersprungen: ${name} (> 10 MB)]`);
+            continue;
+          }
+          attachmentsToStore.push({ name, type, bytes });
+        }
+        if (skipNotes.length > 0) {
+          bodyText = `${bodyText}${bodyText ? "\n\n" : ""}${skipNotes.join("\n")}`;
         }
 
         // Idempotenz via UNIQUE(organization_id, message_id).
@@ -182,27 +276,37 @@ export const Route = createFileRoute("/api/public/mailersend/webhook")({
           return Response.json({ ok: true, ignored: "insert-error", error: insertErr?.message });
         }
 
-        // Anhänge in Bucket + Metadaten
-        const attachments = inbound.attachments ?? [];
-        for (const att of attachments) {
-          const name = att.file_name ?? att.filename ?? "attachment";
-          const type = att.content_type ?? att.contentType ?? "application/octet-stream";
-          const content = att.content;
-          if (!content) continue;
-          const bytes = Buffer.from(content, "base64");
-          const path = `${organizationId}/${reply.id}/${randomUUID()}-${name.replace(/[^A-Za-z0-9._-]/g, "_")}`;
+        for (const att of attachmentsToStore) {
+          const path = `${organizationId}/${reply.id}/${randomUUID()}-${att.name.replace(/[^A-Za-z0-9._-]/g, "_")}`;
           const { error: upErr } = await supabaseAdmin.storage
             .from("order-reply-attachments")
-            .upload(path, bytes, { contentType: type, upsert: false });
+            .upload(path, att.bytes, { contentType: att.type, upsert: false });
           if (upErr) continue;
           await supabaseAdmin.from("order_reply_attachments").insert({
             organization_id: organizationId,
             reply_id: reply.id,
-            file_name: name,
-            content_type: type,
-            size_bytes: att.size ?? bytes.byteLength,
+            file_name: att.name,
+            content_type: att.type,
+            size_bytes: att.bytes.byteLength,
             storage_path: path,
           });
+        }
+
+        // K5a — Weiterleitung bei unzugeordneten Mails.
+        if (!orderId) {
+          const { data: setting } = await supabaseAdmin
+            .from("organization_settings")
+            .select("order_reply_forward_unassigned")
+            .eq("organization_id", organizationId)
+            .maybeSingle();
+          if (setting?.order_reply_forward_unassigned) {
+            await forwardUnassigned({
+              fromName: from.name,
+              fromEmail: from.email,
+              subject,
+              bodyText,
+            });
+          }
         }
 
         return Response.json({ ok: true, reply_id: reply.id, assigned: Boolean(orderId) });

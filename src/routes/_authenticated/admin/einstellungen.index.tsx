@@ -67,6 +67,8 @@ function OrgSettingsPage() {
   const [kitchenManualOnly, setKitchenManualOnly] = useState(false);
   const [testModeEnabled, setTestModeEnabled] = useState(false);
   const [testModeEmail, setTestModeEmail] = useState("");
+  const [orderReplyTelegramEnabled, setOrderReplyTelegramEnabled] = useState(false);
+  const [orderReplyForwardUnassigned, setOrderReplyForwardUnassigned] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -77,6 +79,8 @@ function OrgSettingsPage() {
     setKitchenManualOnly(settingsQ.data.kitchenManualOnly);
     setTestModeEnabled(settingsQ.data.testModeEnabled);
     setTestModeEmail(settingsQ.data.testModeEmail ?? "");
+    setOrderReplyTelegramEnabled(settingsQ.data.orderReplyTelegramEnabled);
+    setOrderReplyForwardUnassigned(settingsQ.data.orderReplyForwardUnassigned);
   }, [settingsQ.data]);
 
   const mutation = useMutation({
@@ -103,6 +107,8 @@ function OrgSettingsPage() {
           kitchenManualOnly,
           testModeEnabled,
           testModeEmail: trimmedEmail === "" ? null : trimmedEmail,
+          orderReplyTelegramEnabled,
+          orderReplyForwardUnassigned,
         },
       });
     },
@@ -167,6 +173,10 @@ function OrgSettingsPage() {
             setTestModeEnabled={setTestModeEnabled}
             testModeEmail={testModeEmail}
             setTestModeEmail={setTestModeEmail}
+            orderReplyTelegramEnabled={orderReplyTelegramEnabled}
+            setOrderReplyTelegramEnabled={setOrderReplyTelegramEnabled}
+            orderReplyForwardUnassigned={orderReplyForwardUnassigned}
+            setOrderReplyForwardUnassigned={setOrderReplyForwardUnassigned}
             msg={msg}
             err={err}
             isPending={mutation.isPending}
