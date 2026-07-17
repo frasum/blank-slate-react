@@ -114,6 +114,11 @@ export type ProcessInboundOptions = {
 
 export async function processInboundEmail(opts: ProcessInboundOptions): Promise<WebhookResult> {
   if (!opts.secret) return { status: 503, reason: "not-configured" };
+  // Leerer Body (MailerSend-Validierungs-Ping): 200, keine Verarbeitung.
+  // Signaturprüfung entfällt, weil nichts zu verarbeiten ist.
+  if (opts.rawBody.trim().length === 0) {
+    return { status: 200, body: { ok: true, ignored: "empty-body" } };
+  }
   if (!verifyMailerSendSignature(opts.rawBody, opts.signatureHeader, opts.secret)) {
     return { status: 401, reason: "invalid-signature" };
   }
