@@ -64,10 +64,14 @@ export function RezepteTab({
   locationId,
   initialCreateForSalesArticleId,
   onConsumedInitialCreate,
+  initialOpenRecipeId,
+  onConsumedInitialOpen,
 }: {
   locationId: string;
   initialCreateForSalesArticleId?: string | null;
   onConsumedInitialCreate?: () => void;
+  initialOpenRecipeId?: string | null;
+  onConsumedInitialOpen?: () => void;
 }) {
   const qc = useQueryClient();
   const callList = useServerFn(listRecipes);
@@ -118,6 +122,15 @@ export function RezepteTab({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialCreateForSalesArticleId]);
+
+  // VA-EK-Inline — Öffnen eines bestehenden Rezepts aus der Verkaufsartikel-Liste.
+  useEffect(() => {
+    if (initialOpenRecipeId) {
+      setOpenId(initialOpenRecipeId);
+      onConsumedInitialOpen?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialOpenRecipeId]);
 
   const rows = recipesQ.data ?? [];
   const dishes = rows.filter((r) => r.kind === "dish");
