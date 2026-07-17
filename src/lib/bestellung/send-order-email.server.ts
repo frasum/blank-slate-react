@@ -15,6 +15,7 @@ import {
   buildOrderEmailHtml,
   buildOrderEmailSubject,
   buildOrderEmailText,
+  type FirstContactContext,
   type OrderEmailData,
   type TestModeContext,
 } from "./order-email";
@@ -71,7 +72,7 @@ export async function sendOrderEmailWithAdmin(
 
   const { data: supplier, error: sErr } = await admin
     .from("suppliers")
-    .select("id, name, email, customer_number")
+    .select("id, name, email, customer_number, first_live_order_email_at")
     .eq("id", order.supplier_id)
     .eq("organization_id", organizationId)
     .maybeSingle();
@@ -100,6 +101,10 @@ export async function sendOrderEmailWithAdmin(
   const testCtx: TestModeContext | undefined = testEnabled
     ? { originalSupplierEmail: supplier.email }
     : undefined;
+
+  // BM-A: Erstkontakt-Hinweis nur im Echtmodus, nur wenn noch nie versendet.
+  const firstContactCtx: FirstContactContext | undefined =
+    !testCtx && supplier.first_live_order_email_at == null ? { fromEmail } : undefined;
 
   let restaurantName = "";
   if (order.location_id) {
@@ -167,8 +172,8 @@ export async function sendOrderEmailWithAdmin(
         name: `COCO Bestellung ${order.order_number}`,
       },
       subject,
-      html: buildOrderEmailHtml(emailData, testCtx),
-      text: buildOrderEmailText(emailData, testCtx),
+      html: buildOrderEmailHtml(emailData, testCtx, firstContactCtx),
+      text: buildOrderEmailText(emailData, testCtx, firstContactCtx),
     }),
   });
   const responseBodyText = await res.text().catch(() => "");
@@ -229,6 +234,17 @@ export async function sendOrderEmailWithAdmin(
     .eq("id", order.id)
     .eq("organization_id", organizationId);
   if (upErr) throw upErr;
+
+  // BM-A: Erstkontakt-Zeitstempel setzen — nur beim ersten Echtversand.
+  // Guard mit .is(...null) verhindert Race-Overwrite bei parallelen Sendern.
+  if (firstContactCtx) {
+    await admin
+      .from("suppliers")
+      .update({ first_live_order_email_at: new Date().toISOString() })
+      .eq("id", supplier.id)
+      .eq("organization_id", organizationId)
+      .is("first_live_order_email_at", null);
+  }
 
   return { ok: true, orderId: order.id, orderNumber: order.order_number, wasResend };
 }
