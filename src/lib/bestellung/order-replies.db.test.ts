@@ -158,6 +158,29 @@ describe.skipIf(!dbTestsEnabled)("order-replies (Webhook-Kern + Assign)", () => 
     expect(count ?? 0).toBe(0);
   });
 
+  it("(b3) Whitespace-Signatur-Header → 200 unsigned-probe, keine Zeile", async () => {
+    const body = makeBody({
+      to: `antwort+${orderNumberA}@inbound.cocoplatform.online`,
+      from: { email: "whitespace@example.com" },
+      subject: "probe",
+      text: "no",
+      message_id: `mid-b3-${Date.now()}@mail`,
+    });
+    const res = await processInboundEmail({
+      rawBody: body,
+      signatureHeader: "   ",
+      secret: SECRET,
+      supabaseAdmin: org.service,
+      defaultOrgId: undefined,
+    });
+    expect(res.status).toBe(200);
+    const { count } = await org.service
+      .from("order_replies")
+      .select("id", { count: "exact", head: true })
+      .eq("from_email", "whitespace@example.com");
+    expect(count ?? 0).toBe(0);
+  });
+
   it("(b2) leerer POST → 200, keine Zeile (MailerSend-Validierungs-Ping)", async () => {
     const beforeRes = await org.service
       .from("order_replies")
