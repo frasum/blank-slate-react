@@ -2,9 +2,10 @@
 // die Zuordnungs-Serverfunktion. Läuft nur unter `SUPABASE_DB_TESTS=1`
 // (siehe src/test/db-setup.ts).
 //
-// Abgedeckt:
-//   (a) gültige Signatur + Plus-Adresse → Zuordnung an die Bestellung
-//   (b) ungültige / fehlende Signatur → 401, keine Zeile
+// Auth: URL-Token (?token=...). Abgedeckt:
+//   (a) korrekter Token + Plus-Adresse → Zuordnung an die Bestellung
+//   (b) falscher/fehlender Token → 401, keine Zeile
+//   (b2) korrekter Token + leerer Body → 200, keine Zeile (Probe)
 //   (c) doppelte message_id → idempotent (UNIQUE(org, message_id))
 //   (d) unbekannte Bestellnummer → order_id NULL unter Default-Org
 //   (e) DENY-ALL: authenticated darf nicht in order_replies inserten
@@ -12,7 +13,6 @@
 //   (g) Erfolgreiche Zuordnung → genau ein audit_log-Eintrag
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { createHmac } from "node:crypto";
 import {
   dbTestsEnabled,
   seedOrg,
@@ -24,10 +24,6 @@ import { processInboundEmail } from "@/routes/api/public/mailersend/webhook-core
 import { assignOrderReplyCore } from "./order-replies.functions";
 
 const SECRET = "test-webhook-secret-please-ignore";
-
-function sign(rawBody: string): string {
-  return createHmac("sha256", SECRET).update(rawBody).digest("hex");
-}
 
 type InboundBody = {
   to?: unknown;
@@ -112,7 +108,7 @@ describe.skipIf(!dbTestsEnabled)("order-replies (Webhook-Kern + Assign)", () => 
     });
     const res = await processInboundEmail({
       rawBody: body,
-      signatureHeader: sign(body),
+      providedToken: SECRET,
       secret: SECRET,
       supabaseAdmin: org.service,
       defaultOrgId: undefined,
@@ -137,15 +133,15 @@ describe.skipIf(!dbTestsEnabled)("order-replies (Webhook-Kern + Assign)", () => 
     });
     const missing = await processInboundEmail({
       rawBody: body,
-      signatureHeader: null,
+      providedToken: null,
       secret: SECRET,
       supabaseAdmin: org.service,
       defaultOrgId: undefined,
     });
-    expect(missing.status).toBe(200);
+    expect(missing.status).toBe(401);
     const wrong = await processInboundEmail({
       rawBody: body,
-      signatureHeader: "deadbeef",
+      providedToken: "deadbeef",
       secret: SECRET,
       supabaseAdmin: org.service,
       defaultOrgId: undefined,
@@ -158,30 +154,7 @@ describe.skipIf(!dbTestsEnabled)("order-replies (Webhook-Kern + Assign)", () => 
     expect(count ?? 0).toBe(0);
   });
 
-  it("(b3) Whitespace-Signatur-Header → 200 unsigned-probe, keine Zeile", async () => {
-    const body = makeBody({
-      to: `antwort+${orderNumberA}@inbound.cocoplatform.online`,
-      from: { email: "whitespace@example.com" },
-      subject: "probe",
-      text: "no",
-      message_id: `mid-b3-${Date.now()}@mail`,
-    });
-    const res = await processInboundEmail({
-      rawBody: body,
-      signatureHeader: "   ",
-      secret: SECRET,
-      supabaseAdmin: org.service,
-      defaultOrgId: undefined,
-    });
-    expect(res.status).toBe(200);
-    const { count } = await org.service
-      .from("order_replies")
-      .select("id", { count: "exact", head: true })
-      .eq("from_email", "whitespace@example.com");
-    expect(count ?? 0).toBe(0);
-  });
-
-  it("(b2) leerer POST → 200, keine Zeile (MailerSend-Validierungs-Ping)", async () => {
+  it("(b2) korrekter Token + leerer POST → 200, keine Zeile (Validierungs-Ping)", async () => {
     const beforeRes = await org.service
       .from("order_replies")
       .select("id", { count: "exact", head: true })
@@ -189,7 +162,7 @@ describe.skipIf(!dbTestsEnabled)("order-replies (Webhook-Kern + Assign)", () => 
     const before = beforeRes.count ?? 0;
     const res = await processInboundEmail({
       rawBody: "",
-      signatureHeader: null,
+      providedToken: SECRET,
       secret: SECRET,
       supabaseAdmin: org.service,
       defaultOrgId: org.orgId,
@@ -211,17 +184,16 @@ describe.skipIf(!dbTestsEnabled)("order-replies (Webhook-Kern + Assign)", () => 
       text: "hi",
       message_id: mid,
     });
-    const sig = sign(body);
     const r1 = await processInboundEmail({
       rawBody: body,
-      signatureHeader: sig,
+      providedToken: SECRET,
       secret: SECRET,
       supabaseAdmin: org.service,
       defaultOrgId: undefined,
     });
     const r2 = await processInboundEmail({
       rawBody: body,
-      signatureHeader: sig,
+      providedToken: SECRET,
       secret: SECRET,
       supabaseAdmin: org.service,
       defaultOrgId: undefined,
@@ -246,7 +218,7 @@ describe.skipIf(!dbTestsEnabled)("order-replies (Webhook-Kern + Assign)", () => 
     });
     const res = await processInboundEmail({
       rawBody: body,
-      signatureHeader: sign(body),
+      providedToken: SECRET,
       secret: SECRET,
       supabaseAdmin: org.service,
       defaultOrgId: org.orgId,
