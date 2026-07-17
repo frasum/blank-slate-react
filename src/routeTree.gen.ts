@@ -69,7 +69,6 @@ import { Route as ApiPublicTrmnlTasksTokenRouteImport } from './routes/api/publi
 import { Route as ApiPublicTrmnlDienstplanTokenRouteImport } from './routes/api/public/trmnl-dienstplan.$token'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
 import { Route as ApiPublicTelegramDailyReportRouteImport } from './routes/api/public/telegram/daily-report'
-import { Route as ApiPublicMailersendWebhookRouteImport } from './routes/api/public/mailersend/webhook'
 import { Route as ApiPublicDisplayLocationIdRouteImport } from './routes/api/public/display.$locationId'
 import { Route as ApiPublicCalendarTokenRouteImport } from './routes/api/public/calendar.$token'
 import { Route as ApiPublicBankSyncSpiceryRouteImport } from './routes/api/public/bank/sync-spicery'
@@ -421,12 +420,6 @@ const ApiPublicTelegramDailyReportRoute =
     path: '/api/public/telegram/daily-report',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicMailersendWebhookRoute =
-  ApiPublicMailersendWebhookRouteImport.update({
-    id: '/api/public/mailersend/webhook',
-    path: '/api/public/mailersend/webhook',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const ApiPublicDisplayLocationIdRoute =
   ApiPublicDisplayLocationIdRouteImport.update({
     id: '/api/public/display/$locationId',
@@ -543,7 +536,6 @@ export interface FileRoutesByFullPath {
   '/api/public/bank/sync-spicery': typeof ApiPublicBankSyncSpiceryRoute
   '/api/public/calendar/$token': typeof ApiPublicCalendarTokenRoute
   '/api/public/display/$locationId': typeof ApiPublicDisplayLocationIdRoute
-  '/api/public/mailersend/webhook': typeof ApiPublicMailersendWebhookRoute
   '/api/public/telegram/daily-report': typeof ApiPublicTelegramDailyReportRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/api/public/trmnl-dienstplan/$token': typeof ApiPublicTrmnlDienstplanTokenRoute
@@ -610,7 +602,6 @@ export interface FileRoutesByTo {
   '/api/public/bank/sync-spicery': typeof ApiPublicBankSyncSpiceryRoute
   '/api/public/calendar/$token': typeof ApiPublicCalendarTokenRoute
   '/api/public/display/$locationId': typeof ApiPublicDisplayLocationIdRoute
-  '/api/public/mailersend/webhook': typeof ApiPublicMailersendWebhookRoute
   '/api/public/telegram/daily-report': typeof ApiPublicTelegramDailyReportRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/api/public/trmnl-dienstplan/$token': typeof ApiPublicTrmnlDienstplanTokenRoute
@@ -683,7 +674,6 @@ export interface FileRoutesById {
   '/api/public/bank/sync-spicery': typeof ApiPublicBankSyncSpiceryRoute
   '/api/public/calendar/$token': typeof ApiPublicCalendarTokenRoute
   '/api/public/display/$locationId': typeof ApiPublicDisplayLocationIdRoute
-  '/api/public/mailersend/webhook': typeof ApiPublicMailersendWebhookRoute
   '/api/public/telegram/daily-report': typeof ApiPublicTelegramDailyReportRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/api/public/trmnl-dienstplan/$token': typeof ApiPublicTrmnlDienstplanTokenRoute
@@ -756,7 +746,6 @@ export interface FileRouteTypes {
     | '/api/public/bank/sync-spicery'
     | '/api/public/calendar/$token'
     | '/api/public/display/$locationId'
-    | '/api/public/mailersend/webhook'
     | '/api/public/telegram/daily-report'
     | '/api/public/telegram/webhook'
     | '/api/public/trmnl-dienstplan/$token'
@@ -823,7 +812,6 @@ export interface FileRouteTypes {
     | '/api/public/bank/sync-spicery'
     | '/api/public/calendar/$token'
     | '/api/public/display/$locationId'
-    | '/api/public/mailersend/webhook'
     | '/api/public/telegram/daily-report'
     | '/api/public/telegram/webhook'
     | '/api/public/trmnl-dienstplan/$token'
@@ -895,7 +883,6 @@ export interface FileRouteTypes {
     | '/api/public/bank/sync-spicery'
     | '/api/public/calendar/$token'
     | '/api/public/display/$locationId'
-    | '/api/public/mailersend/webhook'
     | '/api/public/telegram/daily-report'
     | '/api/public/telegram/webhook'
     | '/api/public/trmnl-dienstplan/$token'
@@ -914,7 +901,6 @@ export interface RootRouteChildren {
   ApiPublicBankSyncSpiceryRoute: typeof ApiPublicBankSyncSpiceryRoute
   ApiPublicCalendarTokenRoute: typeof ApiPublicCalendarTokenRoute
   ApiPublicDisplayLocationIdRoute: typeof ApiPublicDisplayLocationIdRoute
-  ApiPublicMailersendWebhookRoute: typeof ApiPublicMailersendWebhookRoute
   ApiPublicTelegramDailyReportRoute: typeof ApiPublicTelegramDailyReportRoute
   ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
   ApiPublicTrmnlDienstplanTokenRoute: typeof ApiPublicTrmnlDienstplanTokenRoute
@@ -1343,13 +1329,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicTelegramDailyReportRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/mailersend/webhook': {
-      id: '/api/public/mailersend/webhook'
-      path: '/api/public/mailersend/webhook'
-      fullPath: '/api/public/mailersend/webhook'
-      preLoaderRoute: typeof ApiPublicMailersendWebhookRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/display/$locationId': {
       id: '/api/public/display/$locationId'
       path: '/api/public/display/$locationId'
@@ -1613,7 +1592,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicBankSyncSpiceryRoute: ApiPublicBankSyncSpiceryRoute,
   ApiPublicCalendarTokenRoute: ApiPublicCalendarTokenRoute,
   ApiPublicDisplayLocationIdRoute: ApiPublicDisplayLocationIdRoute,
-  ApiPublicMailersendWebhookRoute: ApiPublicMailersendWebhookRoute,
   ApiPublicTelegramDailyReportRoute: ApiPublicTelegramDailyReportRoute,
   ApiPublicTelegramWebhookRoute: ApiPublicTelegramWebhookRoute,
   ApiPublicTrmnlDienstplanTokenRoute: ApiPublicTrmnlDienstplanTokenRoute,
