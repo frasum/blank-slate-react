@@ -8,6 +8,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   assignOrderReply,
+  dismissOrderReply,
   listOrderReplies,
   markOrderReplyRead,
   type OrderReplyRow,
@@ -25,6 +26,7 @@ function UnzugeordnetPage() {
   const qc = useQueryClient();
   const callAssign = useServerFn(assignOrderReply);
   const callMarkRead = useServerFn(markOrderReplyRead);
+  const callDismiss = useServerFn(dismissOrderReply);
 
   const repliesQ = useQuery({
     queryKey: ["bestellung", "replies", { unassigned: true }],
@@ -51,6 +53,12 @@ function UnzugeordnetPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["bestellung", "replies"] });
       setSelected(null);
+    },
+  });
+  const dismiss = useMutation({
+    mutationFn: (replyId: string) => callDismiss({ data: { replyId } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["bestellung", "replies"] });
     },
   });
 
@@ -86,7 +94,23 @@ function UnzugeordnetPage() {
                   if (!r.read_at) callMarkRead({ data: { replyId: r.id } });
                 }}
               />
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  disabled={dismiss.isPending}
+                  onClick={() => {
+                    if (
+                      window.confirm(
+                        `Antwort von „${r.from_email}" verwerfen? Der Eintrag wird gelöscht.`,
+                      )
+                    ) {
+                      dismiss.mutate(r.id);
+                    }
+                  }}
+                  className="rounded border border-destructive/40 bg-background px-2 py-1 text-xs text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                >
+                  Verwerfen
+                </button>
                 <button
                   type="button"
                   onClick={() => setSelected(r)}
