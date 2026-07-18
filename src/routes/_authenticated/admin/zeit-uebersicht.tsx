@@ -163,8 +163,44 @@ function ZeitUebersichtPage() {
   // Fallback: freie Daten, wenn keine Periode existiert.
   const [manualFrom] = useState<string>(firstOfMonthIso());
   const [manualTo] = useState<string>(todayIso());
-  const fromDate = selectedPeriod ? selectedPeriod.startDate : manualFrom;
-  const toDate = selectedPeriod ? selectedPeriod.endDate : manualTo;
+  // Kalendermonat-Override für Buchhaltung/Zusammenfassung (Payroll-Wunsch 18.07.):
+  // `YYYY-MM` überschreibt Periode und schaltet fromDate/toDate auf Monatsgrenzen.
+  const [selectedMonth, setSelectedMonth] = useState<string>("");
+  const monthRange = useMemo(() => {
+    if (!selectedMonth) return null;
+    const m = /^(\d{4})-(\d{2})$/.exec(selectedMonth);
+    if (!m) return null;
+    const y = Number(m[1]);
+    const mo = Number(m[2]);
+    const start = new Date(Date.UTC(y, mo - 1, 1));
+    const end = new Date(Date.UTC(y, mo, 0));
+    return { start: fmtIso(start), end: fmtIso(end) };
+  }, [selectedMonth]);
+  const fromDate = monthRange
+    ? monthRange.start
+    : selectedPeriod
+      ? selectedPeriod.startDate
+      : manualFrom;
+  const toDate = monthRange
+    ? monthRange.end
+    : selectedPeriod
+      ? selectedPeriod.endDate
+      : manualTo;
+  // Letzte 24 Monate + aktueller Monat als Auswahl.
+  const monthOptions = useMemo(() => {
+    const now = new Date();
+    const opts: { value: string; label: string }[] = [];
+    for (let i = 0; i < 24; i++) {
+      const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+      const y = d.getUTCFullYear();
+      const mo = d.getUTCMonth() + 1;
+      opts.push({
+        value: `${y}-${String(mo).padStart(2, "0")}`,
+        label: d.toLocaleDateString("de-DE", { month: "long", year: "numeric", timeZone: "UTC" }),
+      });
+    }
+    return opts;
+  }, []);
 
   // Wochenplan: aktuelle Woche (Periode kommt aus selectedPeriodId).
   const [weekStart, setWeekStart] = useState<string>(() =>
