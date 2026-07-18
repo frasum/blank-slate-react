@@ -3336,6 +3336,11 @@ export async function upsertSessionTipPoolEntryCore(
       }
     } catch (err) {
       console.error("[pool-time-sync] failed", err);
+      void captureServerError(err, {
+        op: "cash.pool_time_sync",
+        orgId: caller.organizationId,
+        extra: { sessionId: session.id, staffId: data.staffId },
+      });
       // §51: sichtbare Spur, ohne die Korrektur zu kippen.
       try {
         await writeAuditLog({
