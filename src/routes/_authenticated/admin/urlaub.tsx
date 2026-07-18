@@ -24,6 +24,8 @@ import {
 import { VacationPlannerSection } from "@/components/urlaub/VacationPlannerSection";
 import { AdminSwapsPanel } from "@/components/tausch/AdminSwapsPanel";
 import { listPendingSwaps } from "@/lib/roster/swap.functions";
+import { listOrgLocationsForAdmin } from "@/lib/admin/staff.functions";
+import { LocationPills } from "@/components/shared/LocationPills";
 
 type Filter = "offen" | "genehmigt" | "abgelehnt" | "alle";
 
@@ -53,6 +55,7 @@ function AdminUrlaubPage() {
   const decideFn = useServerFn(decideLeaveRequest);
 
   const [filter, setFilter] = useState<Filter>("offen");
+  const [locationFilter, setLocationFilter] = useState<string>("__all__");
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectNote, setRejectNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -61,6 +64,13 @@ function AdminUrlaubPage() {
     queryKey: ["admin-leave-requests", filter],
     queryFn: () => fetchList({ data: { status: filter } }),
   });
+  const fetchLocations = useServerFn(listOrgLocationsForAdmin);
+  const locationsQ = useQuery({
+    queryKey: ["admin", "locations"],
+    queryFn: () => fetchLocations(),
+  });
+  const locations = locationsQ.data ?? [];
+  const locationName = new Map(locations.map((l) => [l.id, l.name] as const));
   const openLeaveQ = useQuery({
     queryKey: ["admin-leave-requests", "offen-count"],
     queryFn: () => fetchList({ data: { status: "offen" } }),
@@ -103,7 +113,11 @@ function AdminUrlaubPage() {
     }
   }
 
-  const rows = query.data ?? [];
+  const allRows = query.data ?? [];
+  const rows =
+    locationFilter === "__all__"
+      ? allRows
+      : allRows.filter((r) => r.locationIds.includes(locationFilter));
   const FILTERS: { key: Filter; label: string }[] = [
     { key: "offen", label: "Offen" },
     { key: "genehmigt", label: "Genehmigt" },
@@ -143,6 +157,16 @@ function AdminUrlaubPage() {
         </TabsList>
 
         <TabsContent value="urlaub" className="mt-4 space-y-6">
+          {locations.length > 1 ? (
+            <LocationPills
+              locations={locations}
+              value={locationFilter}
+              onChange={setLocationFilter}
+              includeAll
+              size="sm"
+              ariaLabel="Standort filtern"
+            />
+          ) : null}
           <div className="flex flex-wrap gap-2">
             {FILTERS.map((f) => (
               <Button
@@ -186,7 +210,17 @@ function AdminUrlaubPage() {
                         ({r.days} {r.days === 1 ? "Urlaubstag (Mo–Fr)" : "Urlaubstage (Mo–Fr)"})
                       </span>
                     </div>
-                    <div>{statusBadge(r.status)}</div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {statusBadge(r.status)}
+                      {r.locationIds
+                        .map((id) => ({ id, name: locationName.get(id) }))
+                        .filter((x): x is { id: string; name: string } => !!x.name)
+                        .map((x) => (
+                          <Badge key={x.id} variant="outline">
+                            {x.name}
+                          </Badge>
+                        ))}
+                    </div>
                     {r.reason ? (
                       <div className="text-xs text-muted-foreground">Grund: {r.reason}</div>
                     ) : null}
