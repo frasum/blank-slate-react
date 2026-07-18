@@ -1,26 +1,11 @@
-## Änderung (Minimal-Fix, nur Portal-Navigation)
+## Ziel
+Payroll-Nutzer landen nach dem Login direkt auf `/admin/zeit-uebersicht` (Arbeitszeiten) statt auf der Portal-Startseite mit Kacheln.
 
-Datei: `src/lib/nav/portal-nav.ts`
+## Änderung
+In `src/routes/_authenticated/index.tsx` den `beforeLoad`-Hook erweitern: wenn `identity.role === "payroll"`, `throw redirect({ to: "/admin/zeit-uebersicht" })`. Analog zur bestehenden `planer`-Weiche direkt darüber.
 
-1. `payroll` in den persönlichen Mitarbeiter-Zweig aufnehmen — damit Viktoria wie jede/r Mitarbeiter/in „Mein COCO", „Abrechnung", „Lohn" und „Meine Daten" sieht:
+Das Admin-Gate in `src/routes/_authenticated/admin/route.tsx` erlaubt payroll bereits auf dieser Route und lenkt sonstige `/admin/*`-Aufrufe ohnehin auf `/admin/zeit-uebersicht` — keine weitere Anpassung nötig.
 
-   ```ts
-   if (role === "admin" || role === "manager" || role === "payroll" || role === "staff") {
-     // Mein COCO / Abrechnung / Lohn / Meine Daten
-   }
-   ```
-
-2. `payroll` in den Backoffice-Zweig aufnehmen — damit die Kachel „Backoffice" erscheint:
-
-   ```ts
-   if (role === "admin" || role === "manager" || role === "payroll")
-     items.push({ to: "/admin", label: "Backoffice", icon: LayoutDashboard });
-   ```
-
-Kein Eingriff in `admin/route.tsx`: das Gate leitet `payroll` bereits automatisch auf `/admin/zeit-uebersicht` um und zeigt dort die Payroll-Tab-Leiste mit „Arbeitszeiten" und „Mitarbeiter" (SD1). Keine RLS-/Rechte-Änderung, keine neuen Seiten, keine Freischaltung von BWA/Bilanz/Bankkonto/Statistik.
-
-## Ergebnis
-
-Viktoria sieht auf `/`:
-- Mein COCO, Abrechnung, Lohn, Meine Daten (persönliche Kacheln)
-- Backoffice → landet auf Arbeitszeiten mit Zugriff auf Mitarbeiter-Stammdaten
+## Nicht enthalten
+- Keine Änderung an der Portal-Navigation (payroll sieht bei manuellem Aufruf von `/` weiterhin die Kacheln — nur der Auto-Redirect nach Login ändert sich).
+- Keine Rechte-Änderungen.
