@@ -380,10 +380,7 @@ export const updateStaffBasics = createServerFn({ method: "POST" })
     z.object({ staffId: z.string().uuid() }).merge(staffBasicsSchema).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, [
-      "admin",
-      "payroll",
-    ]);
+    const caller = await loadAdminCaller(context.supabase, context.userId, ["admin", "payroll"]);
     return runAllowed(caller.role, ["admin", "payroll"], makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       expectVoid(
@@ -413,10 +410,7 @@ export const setStaffActive = createServerFn({ method: "POST" })
     z.object({ staffId: z.string().uuid(), isActive: z.boolean() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, [
-      "admin",
-      "payroll",
-    ]);
+    const caller = await loadAdminCaller(context.supabase, context.userId, ["admin", "payroll"]);
     return runAllowed(caller.role, ["admin", "payroll"], makeAuditWriter(caller), async () => {
       const snapshot = await loadAdminSnapshot(caller.organizationId);
       if (
@@ -492,10 +486,7 @@ export const setStaffParticipatesInPool = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     // SD1 — Einzig-Verwendung ist die Personalverwaltung; admin + payroll.
-    const caller = await loadAdminCaller(context.supabase, context.userId, [
-      "admin",
-      "payroll",
-    ]);
+    const caller = await loadAdminCaller(context.supabase, context.userId, ["admin", "payroll"]);
     return runAllowed(caller.role, ["admin", "payroll"], makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       expectVoid(

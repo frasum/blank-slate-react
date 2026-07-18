@@ -78,10 +78,7 @@ export const assignStaffSkills = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, [
-      "admin",
-      "payroll",
-    ]);
+    const caller = await loadAdminCaller(context.supabase, context.userId, ["admin", "payroll"]);
     return runAllowed(
       caller.role,
       ["admin", "payroll"],
