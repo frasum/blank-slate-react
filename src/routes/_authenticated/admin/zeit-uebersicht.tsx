@@ -55,6 +55,7 @@ import {
 import {
   buildBuchhaltungPdf,
   buildBuchhaltungXlsx,
+  buildBuchhaltungCsv,
   buildBuchhaltungFileBase,
   type BuchhaltungExportInput,
   type BuchhaltungExportRow,
@@ -985,6 +986,17 @@ function ZeitUebersichtPage() {
       toast.error((e as Error).message || "Excel-Export fehlgeschlagen");
     }
   };
+  const handlePayrollExportCsv = () => {
+    try {
+      const csv = buildBuchhaltungCsv(buchhaltungExportInput);
+      downloadBlob(
+        new Blob([csv], { type: "text/csv;charset=utf-8" }),
+        `${buildBuchhaltungFileBase(buchhaltungExportInput)}.csv`,
+      );
+    } catch (e) {
+      toast.error((e as Error).message || "CSV-Export fehlgeschlagen");
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -1496,6 +1508,7 @@ function ZeitUebersichtPage() {
             }
             onExportPdf={handlePayrollExportPdf}
             onExportXlsx={handlePayrollExportXlsx}
+            onExportCsv={isPayroll ? handlePayrollExportCsv : undefined}
           />
         </TabsContent>
 

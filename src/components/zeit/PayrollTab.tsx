@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { CalendarDays, FileDown, FileSpreadsheet, Search } from "lucide-react";
+import { CalendarDays, Download, FileDown, FileSpreadsheet, Search } from "lucide-react";
 import type { BuchhaltungExportRow, BuchhaltungMode } from "@/lib/time/buchhaltung-export";
 import {
   DEPT_BG,
@@ -38,6 +38,7 @@ export function PayrollTab({
   onSaveNote,
   onExportPdf,
   onExportXlsx,
+  onExportCsv,
 }: {
   mode: BuchhaltungMode;
   onModeChange: (m: BuchhaltungMode) => void;
@@ -63,6 +64,7 @@ export function PayrollTab({
   onSaveNote: (staffId: string, besonderheiten: string) => void;
   onExportPdf: () => void;
   onExportXlsx: () => void;
+  onExportCsv?: () => void;
 }) {
   const is3b = mode === "section3b";
   // Spaltenanzahl für colSpan: Name + Gesamt + Schichten + (3 SFN | 5 §3b) + U + K + Vorschuss + Besonderheiten
@@ -106,6 +108,11 @@ export function PayrollTab({
             <Button variant="outline" size="sm" onClick={onExportXlsx}>
               <FileSpreadsheet className="mr-1 h-4 w-4" /> Excel
             </Button>
+            {onExportCsv && (
+              <Button variant="outline" size="sm" onClick={onExportCsv}>
+                <Download className="mr-1 h-4 w-4" /> CSV
+              </Button>
+            )}
           </div>
         </div>
         <div className="relative mt-3 max-w-xs">

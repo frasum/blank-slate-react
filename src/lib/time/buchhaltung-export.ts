@@ -126,6 +126,54 @@ export function buildBuchhaltungFileBase(input: BuchhaltungExportInput): string 
   return `Buchhaltung_${loc}_${per}${suffix}`;
 }
 
+// ---------- CSV ----------
+//
+// Reine Serialisierung analog `lohn-csv-export.ts`: UTF-8 BOM, Trenner `;`,
+// Zeilenende `\r\n`. Zahlen in deutscher Notation (Komma). Abteilungs-
+// Zwischenüberschriften als Kommentarzeile (`# …`). Für Payroll gedacht,
+// damit die Werte 1:1 in Excel/edlohn übernommen werden können.
+
+const CSV_SEP = ";";
+const CSV_EOL = "\r\n";
+const CSV_BOM = "\uFEFF";
+
+function csvEscape(v: string | number): string {
+  const s = String(v);
+  if (/[;"\r\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+export function buildBuchhaltungCsv(input: BuchhaltungExportInput): string {
+  const cols = columns(input.mode);
+  const lines: string[] = [];
+
+  const modeLabel = input.mode === "section3b" ? "§3b" : "Einfach";
+  lines.push(
+    `# COCO Buchhaltung${CSV_SEP} Standort=${input.locationLabel}${CSV_SEP} Periode=${input.periodLabel}${CSV_SEP} Zeitraum=${input.rangeLabel}${CSV_SEP} Modus=${modeLabel}`,
+  );
+  lines.push(cols.map((c) => csvEscape(c.label)).join(CSV_SEP));
+
+  const allRows: BuchhaltungExportRow[] = [];
+  for (const grp of input.rowsByDept) {
+    if (grp.rows.length === 0) continue;
+    lines.push(`# ${grp.deptLabel.toUpperCase()}`);
+    for (const row of grp.rows) {
+      lines.push(cols.map((c) => csvEscape(cellValue(row, c.key as string))).join(CSV_SEP));
+      allRows.push(row);
+    }
+  }
+
+  if (allRows.length > 0) {
+    const sum = totals(allRows);
+    const sumCells = cols.map((c, idx) =>
+      csvEscape(idx === 0 ? "Summe" : cellValue(sum, c.key as string)),
+    );
+    lines.push(sumCells.join(CSV_SEP));
+  }
+
+  return CSV_BOM + lines.join(CSV_EOL) + CSV_EOL;
+}
+
 // ---------- Excel ----------
 
 export async function buildBuchhaltungXlsx(input: BuchhaltungExportInput): Promise<Blob> {
