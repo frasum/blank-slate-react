@@ -256,14 +256,27 @@ export async function buildWeeklyPdf(input: WeeklyExportInput): Promise<Blob> {
 // ---------- Browser-Download ----------
 
 export function downloadBlob(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
+  downloadBlobWithAnchor(blob, filename, document.createElement("a"));
+}
+
+export function prepareDownloadAnchor(filename: string): HTMLAnchorElement {
   const a = document.createElement("a");
+  a.download = filename;
+  a.style.display = "none";
+  document.body.appendChild(a);
+  return a;
+}
+
+export function downloadBlobWithAnchor(blob: Blob, filename: string, a: HTMLAnchorElement): void {
+  const url = URL.createObjectURL(blob);
   a.href = url;
   a.download = filename;
-  a.rel = "noopener";
-  a.target = "_blank";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  a.style.display = "none";
+  if (!document.body.contains(a)) document.body.appendChild(a);
+  a.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+
+  window.setTimeout(() => {
+    a.remove();
+    URL.revokeObjectURL(url);
+  }, 60_000);
 }
