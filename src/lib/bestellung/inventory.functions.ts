@@ -243,7 +243,17 @@ export const getInventorySession = createServerFn({ method: "GET" })
       };
     });
 
-    return { session, rows };
+    const suppliers = await selectAllPaged<{ id: string; name: string }>(() =>
+      supabaseAdmin
+        .from("suppliers")
+        .select("id, name")
+        .eq("organization_id", caller.organizationId)
+        .order("name"),
+    );
+    const supplierById = new Map(suppliers.map((s) => [s.id, s.name]));
+
+    return { session, rows, suppliers: suppliers.map((s) => ({ id: s.id, name: s.name })) };
+    void supplierById;
   });
 
 export const upsertInventoryItem = createServerFn({ method: "POST" })
