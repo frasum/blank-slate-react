@@ -163,40 +163,8 @@ function ZeitUebersichtPage() {
   // Fallback: freie Daten, wenn keine Periode existiert.
   const [manualFrom] = useState<string>(firstOfMonthIso());
   const [manualTo] = useState<string>(todayIso());
-  // Kalendermonat-Override für Buchhaltung/Zusammenfassung (Payroll-Wunsch 18.07.):
-  // `YYYY-MM` überschreibt Periode und schaltet fromDate/toDate auf Monatsgrenzen.
-  const [selectedMonth, setSelectedMonth] = useState<string>("");
-  const monthRange = useMemo(() => {
-    if (!selectedMonth) return null;
-    const m = /^(\d{4})-(\d{2})$/.exec(selectedMonth);
-    if (!m) return null;
-    const y = Number(m[1]);
-    const mo = Number(m[2]);
-    const start = new Date(Date.UTC(y, mo - 1, 1));
-    const end = new Date(Date.UTC(y, mo, 0));
-    return { start: fmtIso(start), end: fmtIso(end) };
-  }, [selectedMonth]);
-  const fromDate = monthRange
-    ? monthRange.start
-    : selectedPeriod
-      ? selectedPeriod.startDate
-      : manualFrom;
-  const toDate = monthRange ? monthRange.end : selectedPeriod ? selectedPeriod.endDate : manualTo;
-  // Letzte 24 Monate + aktueller Monat als Auswahl.
-  const monthOptions = useMemo(() => {
-    const now = new Date();
-    const opts: { value: string; label: string }[] = [];
-    for (let i = 0; i < 24; i++) {
-      const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
-      const y = d.getUTCFullYear();
-      const mo = d.getUTCMonth() + 1;
-      opts.push({
-        value: `${y}-${String(mo).padStart(2, "0")}`,
-        label: d.toLocaleDateString("de-DE", { month: "long", year: "numeric", timeZone: "UTC" }),
-      });
-    }
-    return opts;
-  }, []);
+  const fromDate = selectedPeriod ? selectedPeriod.startDate : manualFrom;
+  const toDate = selectedPeriod ? selectedPeriod.endDate : manualTo;
 
   // Wochenplan: aktuelle Woche (Periode kommt aus selectedPeriodId).
   const [weekStart, setWeekStart] = useState<string>(() =>
@@ -980,10 +948,7 @@ function ZeitUebersichtPage() {
 
   const buchhaltungExportInput = useMemo<BuchhaltungExportInput>(() => {
     const locLabel = locations.find((l) => l.id === effectiveLocationId)?.name ?? "";
-    const monthLabel = monthRange
-      ? (monthOptions.find((m) => m.value === selectedMonth)?.label ?? selectedMonth)
-      : null;
-    const perLabel = monthLabel ?? selectedPeriod?.label ?? `${fromDate}_${toDate}`;
+    const perLabel = selectedPeriod?.label ?? `${fromDate}_${toDate}`;
     return {
       locationLabel: locLabel,
       periodLabel: perLabel,
@@ -999,9 +964,6 @@ function ZeitUebersichtPage() {
     locations,
     effectiveLocationId,
     selectedPeriod,
-    selectedMonth,
-    monthRange,
-    monthOptions,
     fromDate,
     toDate,
     payrollMode,
@@ -1076,32 +1038,12 @@ function ZeitUebersichtPage() {
                   id="period"
                   className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                   value={effectivePeriodId}
-                  onChange={(e) => {
-                    setSelectedPeriodId(e.target.value);
-                    if (e.target.value) setSelectedMonth("");
-                  }}
-                  disabled={Boolean(selectedMonth)}
+                  onChange={(e) => setSelectedPeriodId(e.target.value)}
                 >
                   <option value="">— freie Auswahl —</option>
                   {periods.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.label} {p.status === "locked" ? "🔒" : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="month">Monat (überschreibt Periode)</Label>
-                <select
-                  id="month"
-                  className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
-                >
-                  <option value="">— Periode verwenden —</option>
-                  {monthOptions.map((m) => (
-                    <option key={m.value} value={m.value}>
-                      {m.label}
                     </option>
                   ))}
                 </select>
