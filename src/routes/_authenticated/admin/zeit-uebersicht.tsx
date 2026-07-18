@@ -1074,12 +1074,32 @@ function ZeitUebersichtPage() {
                   id="period"
                   className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                   value={effectivePeriodId}
-                  onChange={(e) => setSelectedPeriodId(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedPeriodId(e.target.value);
+                    if (e.target.value) setSelectedMonth("");
+                  }}
+                  disabled={Boolean(selectedMonth)}
                 >
                   <option value="">— freie Auswahl —</option>
                   {periods.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.label} {p.status === "locked" ? "🔒" : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="month">Monat (überschreibt Periode)</Label>
+                <select
+                  id="month"
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                >
+                  <option value="">— Periode verwenden —</option>
+                  {monthOptions.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
                     </option>
                   ))}
                 </select>
