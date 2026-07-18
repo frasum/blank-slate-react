@@ -77,6 +77,7 @@ kein Weiterwursteln (Abbruchkriterien E5, §98). Zeitbedarf gesamt: ~1,5–2 h.
                           and te.business_date = se.business_date))
   order by l.name, st.display_name;
   ```
+
 - [ ] **N1b** 31.07. — Finaler Zeit-Abgleich (G4/G5): Alt-Export 26.–31.07. + Juli-Spätkorrekturen gegen COCO (Prüfer-Diagnose); Differenzen aus Juli-Spätkorrekturen gezielt per Manager-Korrektur in COCO nachtragen; danach Stilllegung freigegeben.
 - [ ] **N2** Finale Export-CSVs verschlüsselt EXTERN archivieren (nicht Repo, nicht Projekt-Storage).
 - [ ] **N3** Aufräum-Migrationen beauftragen (Prüfer liefert Prompts): `sessions.opentabs_deduction_cents` (N15b) + `count_holidays_as_leave` (UZ1) droppen.
