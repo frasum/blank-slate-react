@@ -253,7 +253,6 @@ export const getInventorySession = createServerFn({ method: "GET" })
     const supplierById = new Map(suppliers.map((s) => [s.id, s.name]));
 
     return { session, rows, suppliers: suppliers.map((s) => ({ id: s.id, name: s.name })) };
-    void supplierById;
   });
 
 export const upsertInventoryItem = createServerFn({ method: "POST" })
