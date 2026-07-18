@@ -78,10 +78,10 @@ export const assignStaffSkills = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, ["admin", "payroll"]);
-    return runAllowed(
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    return runGuarded(
       caller.role,
-      ["admin", "payroll"],
+      "admin",
       async (entry) => {
         await writeAuditLog({
           organizationId: caller.organizationId,
