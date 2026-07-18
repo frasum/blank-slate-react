@@ -177,6 +177,7 @@ export const getMyLeaveRequests = createServerFn({ method: "GET" })
         decidedAt: (r.decided_at as string | null) ?? null,
         createdAt: r.created_at as string,
         days: countLeaveDays(r.start_date as string, r.end_date as string),
+        locationIds: [],
       };
     });
   });
