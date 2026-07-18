@@ -16,6 +16,9 @@ export const Route = createFileRoute("/_authenticated/")({
     if (identity.role === "planer") {
       throw redirect({ to: "/admin/dienstplan" });
     }
+    if (identity.role === "payroll") {
+      throw redirect({ to: "/admin/zeit-uebersicht" });
+    }
   },
   head: () => ({
     meta: [
