@@ -53,6 +53,7 @@ function StaffDetailPage() {
   const canEditPersonal = identity.role === "admin";
   const canEditVacation = identity.role === "admin" || identity.role === "payroll";
   const isAdmin = identity.role === "admin";
+  const isPayroll = identity.role === "payroll";
 
   const staffQ = useQuery({
     queryKey: ["admin", "staff", staffId],
@@ -89,7 +90,7 @@ function StaffDetailPage() {
           [
             ["basics", "Stammdaten"],
             ...(showPersonal ? ([["personal", "Personaldaten"]] as [Tab, string][]) : []),
-            ["pin", "PIN"],
+            ...(!isPayroll ? ([["pin", "PIN"]] as [Tab, string][]) : []),
             ...(isAdmin ? ([["account", "Login"]] as [Tab, string][]) : []),
             ...(isAdmin ? ([["permissions", "Rechte"]] as [Tab, string][]) : []),
             ...(isAdmin ? ([["dokumente", "Dokumente"]] as [Tab, string][]) : []),
@@ -105,7 +106,7 @@ function StaffDetailPage() {
       {tab === "basics" && (
         <div className="space-y-4">
           {isAdmin && <SofortmeldungBanner staffId={s.id} />}
-          <BasicsTab staff={s} />
+          <BasicsTab staff={s} showPool={!isPayroll} />
         </div>
       )}
       {tab === "personal" && showPersonal && (
@@ -115,7 +116,7 @@ function StaffDetailPage() {
           canEditVacation={canEditVacation}
         />
       )}
-      {tab === "pin" && <PinTab staffId={s.id} hasPin={s.hasPin} />}
+      {tab === "pin" && !isPayroll && <PinTab staffId={s.id} hasPin={s.hasPin} />}
       {tab === "account" && isAdmin && <AccountTab staffId={s.id} staffEmail={s.email} />}
       {tab === "permissions" && isAdmin && <PermissionsTab staffId={s.id} />}
       {tab === "dokumente" && isAdmin && <DokumenteTab staffId={s.id} staffName={s.displayName} />}
@@ -126,6 +127,7 @@ function StaffDetailPage() {
 
 function BasicsTab({
   staff,
+  showPool,
 }: {
   staff: {
     id: string;
@@ -136,6 +138,7 @@ function BasicsTab({
     phone: string | null;
     participatesInPool: boolean;
   };
+  showPool: boolean;
 }) {
   const queryClient = useQueryClient();
   const callUpdate = useServerFn(updateStaffBasics);
@@ -225,6 +228,7 @@ function BasicsTab({
       >
         {mutation.isPending ? "Speichern…" : "Speichern"}
       </button>
+      {showPool && (
       <div className="mt-4 space-y-2 border-t border-border pt-4">
         <label className="flex items-start gap-2 text-sm">
           <input
@@ -247,6 +251,7 @@ function BasicsTab({
         </label>
         {poolMsg && <p className="text-xs text-muted-foreground">{poolMsg}</p>}
       </div>
+      )}
     </form>
   );
 }
