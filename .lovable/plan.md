@@ -1,19 +1,25 @@
-## Ursache
-`listStaff` (src/lib/admin/staff.functions.ts) verlangt `manager+` via `loadAdminCaller(..., "manager")`. Payroll ist Seitenrolle und erfüllt keine Mindesthierarchie → `ForbiddenError`, die Liste im Mitarbeiter-Tab bleibt leer. Auch alle schreibenden Staff-Funktionen (`updateStaff`, `replaceRole`, `replaceSkills`, `setActive`, `resetPassword`, `linkAccount` etc.) laufen über `manager+` bzw. `admin` und sperren Payroll aus.
+## Ziel
+CSV-Export für den Buchhaltungs-Tab in der Zeit-Übersicht — sichtbar **nur für die Rolle payroll** (Admin sieht ihn nicht).
 
-## Fix (ein Commit)
-- In `src/lib/admin/staff.functions.ts` alle Rollenchecks für Staff-CRUD von Hierarchie auf Allow-List umstellen:
-  - Lesen (`listStaff`, `getStaff`): `admin | manager | planer | payroll`.
-  - Bearbeiten der Stammdaten und Personal-Details (`updateStaff`, `upsertPersonalDetails`, `replaceSkills`, `setActive`, evtl. Notizen): `admin | manager | payroll`.
-  - Reserviert bleiben admin-only: Anlegen/Löschen von Accounts, Passwort-Reset, Rollenwechsel, PIN-Reset (Core-Regel „Account-Anlage & Passwort-Reset nur Admin").
-- Umsetzung: statt `loadAdminCaller(..., "manager")` neutral laden und danach `assertRoleAllowed(caller.role, [...])` mit der jeweiligen Liste.
-- Keine Schema-/Grants-/RLS-Änderung. `staff` und Kindtabellen laufen weiterhin über `supabaseAdmin` im Server-Fn nach Rollencheck.
+## Umsetzung
 
-## Sichtbarkeit
-- Portal-Nav und `admin/route.tsx` bleiben unverändert (Payroll sieht Backoffice → Mitarbeiter). Keine UI-Änderung am Mitarbeiter-Tab.
+1. **`src/lib/time/buchhaltung-export.ts`** — neue reine Funktion `buildBuchhaltungCsv(input: BuchhaltungExportInput): string`
+   - Gleiche Spalten wie PDF/Excel (dynamisch je §3b-Modus), gleiche Aggregation.
+   - Format analog `lohn-csv-export.ts`: UTF-8 BOM, Trenner `;`, Zeilenende `\r\n`, Excel-kompatibel.
+   - Kopfkommentar mit Standort, Periode, Range, Modus.
+   - Abteilungs-Zwischenüberschriften als eigene Kommentarzeile pro Abteilungsblock.
+   - Zahlen deutsch (Komma), `besonderheiten` inkl. `absenceNote` gequotet.
+   - Dateiname über bestehendes `buildBuchhaltungFileBase(...) + ".csv"`.
 
-## Doku
-- `docs/arbeitsweise.md` §104: Payroll-Rechte auf Mitarbeitern — Lesen + Bearbeiten der Stammdaten/Personaldetails; Account/Passwort/Rolle/PIN bleiben admin-only.
+2. **`src/routes/_authenticated/admin/zeit-uebersicht.tsx`**
+   - Import `buildBuchhaltungCsv`.
+   - Neuen Handler `handleExportCsv` neben `handleExportPdf` / `handleExportXlsx` (gleiche Fehler-Toast-Behandlung).
+   - In der Buchhaltungs-Karte (Zeilen 1097–1104) einen dritten Button „CSV" nur rendern, wenn `isPayroll` — Admin/Manager sehen weiterhin nur PDF + Excel.
 
-## Nicht enthalten
-- Keine Änderungen an anderen Modulen, keine Rechte-Matrix-Umbauten, kein Umschalten auf `permission_role_defaults`.
+## Was NICHT geändert wird
+- Keine Server-Fn, keine DB, keine Rechten-Änderung — CSV wird clientseitig aus derselben Aggregation gebaut, die Buchhaltung heute schon rendert.
+- PDF-/Excel-Buttons und deren Sichtbarkeit bleiben unverändert.
+- Andere Tabs (Wochenplan, Zusammenfassung, Perioden, Brutto/Netto, Provision) unverändert.
+
+## Testhinweis
+Ein kleiner Unit-Test für `buildBuchhaltungCsv` (Header + eine Zeile pro Modus, BOM/Trenner) analog zu `lohn-csv-export`-Konvention wird mitgeliefert.
