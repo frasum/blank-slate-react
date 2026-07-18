@@ -150,28 +150,29 @@ export const getInventorySession = createServerFn({ method: "GET" })
 
     // BFIX2: paginiert — Katalog kann > 1000 Zeilen erreichen; sonst fehlen
     // Artikel in der Inventur-Maske.
-    const articles = activeSupplierIds.length === 0
-      ? []
-      : await selectAllPaged<{
-      id: string;
-      name: string;
-      sku: string | null;
-      unit: string;
-      price_cents: number;
-      category: string | null;
-      supplier_id: string;
-      sort_order: number;
-    }>(() =>
-      supabaseAdmin
-        .from("articles")
-        .select("id, name, sku, unit, price_cents, category, supplier_id, sort_order")
-        .eq("organization_id", caller.organizationId)
-        .eq("is_active", true)
-        .in("supplier_id", activeSupplierIds)
-        .order("sort_order")
-        .order("name")
-        .order("id"),
-    );
+    const articles =
+      activeSupplierIds.length === 0
+        ? []
+        : await selectAllPaged<{
+            id: string;
+            name: string;
+            sku: string | null;
+            unit: string;
+            price_cents: number;
+            category: string | null;
+            supplier_id: string;
+            sort_order: number;
+          }>(() =>
+            supabaseAdmin
+              .from("articles")
+              .select("id, name, sku, unit, price_cents, category, supplier_id, sort_order")
+              .eq("organization_id", caller.organizationId)
+              .eq("is_active", true)
+              .in("supplier_id", activeSupplierIds)
+              .order("sort_order")
+              .order("name")
+              .order("id"),
+          );
 
     const articleUnits = await selectAllPaged<{
       id: string;
