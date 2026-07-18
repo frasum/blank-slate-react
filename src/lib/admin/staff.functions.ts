@@ -142,6 +142,30 @@ export const listStaff = createServerFn({ method: "GET" })
     });
   });
 
+// Aktive Standorte der Org (leichtgewichtiger Reader für Admin-Panels wie
+// die Urlaub-/Antragsübersicht, die einen LocationPills-Filter zeigen).
+export const listOrgLocationsForAdmin = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ id: string; name: string }[]> => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "admin",
+      "manager",
+      "planer",
+      "payroll",
+    ]);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const data = expectOk<{ id: string; name: string }[]>(
+      await supabaseAdmin
+        .from("locations")
+        .select("id, name")
+        .eq("organization_id", caller.organizationId)
+        .eq("is_active", true)
+        .order("name"),
+      "listOrgLocationsForAdmin",
+    );
+    return (data ?? []).map((l) => ({ id: l.id, name: l.name }));
+  });
+
 // SD1b — Separater Reader für Tenure/Alter in der Staff-Verwaltung.
 // Manager-lesbare Reader dürfen weder Geburts- noch Eintrittsdatum liefern
 // (Datensparsamkeit + PII-Minimierung). Deshalb hier ein eigener Endpoint
