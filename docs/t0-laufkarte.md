@@ -59,6 +59,25 @@ kein Weiterwursteln (Abbruchkriterien E5, §98). Zeitbedarf gesamt: ~1,5–2 h.
 ## Nachlauf (ab 27.07., kein T0-Stress)
 
 - [ ] **N1** Erste echte COCO-only-Tage beobachten; bei Auffälligkeiten sofort melden.
+- [ ] **N1a — Zeit-Vollständigkeit Vortag (täglich, ~30 s):** Fall-1-Abfrage im Supabase-Editor — alle Service-Pool-Zeilen des Vortags müssen `shift_end` UND irgendeinen `time_entries`-Eintrag (beliebige source, NICHT auf 'pool' filtern!) haben. Null Zeilen = ok; jede Treffer-Zeile ist ein Einspringer ohne Zeiten → sofort in der Kassen-UI nachtragen. Abfrage: siehe §105 PZ1 / Prüfer-Chat 18.07.
+
+  ```sql
+  select se.business_date, l.name as standort, st.display_name as person,
+         pool.shift_start, pool.shift_end
+  from session_tip_pool_entries pool
+  join sessions se on se.id = pool.session_id
+  left join locations l on l.id = se.location_id
+  join staff st on st.id = pool.staff_id
+  where pool.department = 'service'
+    and se.organization_id = '77838674-26c1-40dd-9b74-eb1041e79b95'
+    and se.business_date = current_date - 1
+    and (pool.shift_end is null
+         or not exists (select 1 from time_entries te
+                        where te.staff_id = pool.staff_id
+                          and te.business_date = se.business_date))
+  order by l.name, st.display_name;
+  ```
+
 - [ ] **N1b** 31.07. — Finaler Zeit-Abgleich (G4/G5): Alt-Export 26.–31.07. + Juli-Spätkorrekturen gegen COCO (Prüfer-Diagnose); Differenzen aus Juli-Spätkorrekturen gezielt per Manager-Korrektur in COCO nachtragen; danach Stilllegung freigegeben.
 - [ ] **N2** Finale Export-CSVs verschlüsselt EXTERN archivieren (nicht Repo, nicht Projekt-Storage).
 - [ ] **N3** Aufräum-Migrationen beauftragen (Prüfer liefert Prompts): `sessions.opentabs_deduction_cents` (N15b) + `count_holidays_as_leave` (UZ1) droppen.
