@@ -26,14 +26,14 @@ export function usePortalNav(): { items: PortalNavItem[]; isLoading: boolean } {
   const hasEasyOrder = (eoQ.data?.locations.length ?? 0) > 0;
 
   const items: PortalNavItem[] = [{ to: "/", label: "Start", icon: Home }];
-  if (role === "admin" || role === "manager" || role === "staff") {
+  if (role === "admin" || role === "manager" || role === "payroll" || role === "staff") {
     items.push({ to: "/zeit", label: "Mein COCO", icon: Clock });
     items.push({ to: "/zeit/abrechnung", label: "Abrechnung", icon: Receipt });
     items.push({ to: "/lohn", label: "Lohn", icon: FileText });
     items.push({ to: "/profil", label: "Meine Daten", icon: UserRound });
   }
   if (hasEasyOrder) items.push({ to: "/easyorder", label: "Bestellung", icon: ShoppingCart });
-  if (role === "admin" || role === "manager")
+  if (role === "admin" || role === "manager" || role === "payroll")
     items.push({ to: "/admin", label: "Backoffice", icon: LayoutDashboard });
 
   return { items, isLoading: eoQ.isLoading };

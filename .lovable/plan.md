@@ -1,25 +1,26 @@
-## Ziel
-Reiner Doku-Commit §103 in `docs/arbeitsweise.md`. Keine Code-Änderungen.
+## Änderung (Minimal-Fix, nur Portal-Navigation)
 
-## Änderungen (nur `docs/arbeitsweise.md`)
+Datei: `src/lib/nav/portal-nav.ts`
 
-**1. Stand-Zeile ersetzen**
-- alt: `Stand: 17.07.2026 (§102: Standorte-Tab-Layout + N3-Retry-Härtung + BM-A erledigt + Registry-Wechsel)`
-- neu: `Stand: 18.07.2026 (§103: Standort-Tests CI-bewiesen + VA-EK-Inline + Abweichungs-Doppelfund + H1b)`
+1. `payroll` in den persönlichen Mitarbeiter-Zweig aufnehmen — damit Viktoria wie jede/r Mitarbeiter/in „Mein COCO", „Abrechnung", „Lohn" und „Meine Daten" sieht:
 
-**2. §3-Regel ergänzen**
-- Schluss `Erst dann committen."` ersetzen durch `Erst dann committen. Jede Abweichung vom freigegebenen Plan wird im Chat gemeldet, BEVOR committet wird."`
-- Rest der Regel unverändert.
+   ```ts
+   if (role === "admin" || role === "manager" || role === "payroll" || role === "staff") {
+     // Mein COCO / Abrechnung / Lohn / Meine Daten
+   }
+   ```
 
-**3. §103 wortgleich am Dateiende anhängen**
-(Vollständiger Textblock aus dem Prompt: SL2, VA-EK1, Abweichungs-Doppelfund, H1b — inkl. Merkposten SL2-R.)
+2. `payroll` in den Backoffice-Zweig aufnehmen — damit die Kachel „Backoffice" erscheint:
 
-## Vor Commit
-`npx prettier --write docs/arbeitsweise.md`; vier Gates grün.
+   ```ts
+   if (role === "admin" || role === "manager" || role === "payroll")
+     items.push({ to: "/admin", label: "Backoffice", icon: LayoutDashboard });
+   ```
 
-## Erfolgs-Gate
-- Nur `docs/arbeitsweise.md` im Diff
-- Stand-Zeile auf §103
-- §3-Regel enthält Meldepflicht-Satz an der genannten Stelle
-- §103 vollständig und wortgleich am Dateiende
-- CI `check` grün
+Kein Eingriff in `admin/route.tsx`: das Gate leitet `payroll` bereits automatisch auf `/admin/zeit-uebersicht` um und zeigt dort die Payroll-Tab-Leiste mit „Arbeitszeiten" und „Mitarbeiter" (SD1). Keine RLS-/Rechte-Änderung, keine neuen Seiten, keine Freischaltung von BWA/Bilanz/Bankkonto/Statistik.
+
+## Ergebnis
+
+Viktoria sieht auf `/`:
+- Mein COCO, Abrechnung, Lohn, Meine Daten (persönliche Kacheln)
+- Backoffice → landet auf Arbeitszeiten mit Zugriff auf Mitarbeiter-Stammdaten
