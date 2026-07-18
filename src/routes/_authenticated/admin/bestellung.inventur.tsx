@@ -3,7 +3,7 @@
 // in offener Session: Tabelle aller aktiven Artikel mit zwei Lager-Inputs,
 // debounced autosave per Zeile, Live-Summen, Abschluss-Button.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -363,8 +363,8 @@ function SupplierGroupedTable({
         {groups.map((g) => {
           const isCollapsed = collapsed.has(g.id);
           return (
-            <>
-              <tr key={`h-${g.id}`} className="border-t border-border bg-muted/40">
+            <Fragment key={g.id}>
+              <tr className="border-t border-border bg-muted/40">
                 <td colSpan={6} className="px-3 py-2">
                   <button
                     type="button"
@@ -394,7 +394,7 @@ function SupplierGroupedTable({
                     onSave={(s1, s2) => onSave(row.article.id, s1, s2)}
                   />
                 ))}
-            </>
+            </Fragment>
           );
         })}
       </tbody>
