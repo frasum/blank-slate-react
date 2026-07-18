@@ -190,6 +190,11 @@
   --loc-accent-fg: #111111;
   --loc-page: #fbeeea;
 }
+[data-loc-theme="tsb"] {
+  --loc-accent: #3b82f6;
+  --loc-accent-fg: #ffffff;
+  --loc-page: #e8f1fc;
+}
 [data-loc-theme="neutral"] {
   /* keine Overrides — Fallbacks in var(..., default) greifen */
 }
