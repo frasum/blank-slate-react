@@ -4,19 +4,26 @@ import { Link } from "@tanstack/react-router";
 import { Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getMyTelegramLink } from "@/lib/telegram/telegram.functions";
+import { useAuth } from "@/hooks/use-auth";
 
 // Dezenter Hinweis-Banner: erscheint solange kein Telegram-Chat verknuepft ist.
 // Query-Key identisch zu TelegramCard in /profil → gemeinsamer Cache,
 // nach erfolgreicher Verknuepfung verschwindet der Banner automatisch.
 export function TelegramLinkBanner() {
   const [dismissed, setDismissed] = useState(false);
+  const { session } = useAuth();
   const q = useQuery({
     queryKey: ["profile", "telegram-link"],
     queryFn: () => getMyTelegramLink(),
     staleTime: 60_000,
+    // Ohne Session hat der Aufruf keinen Bearer-Token → Server-Fn wuerde
+    // 401 werfen und den Root-Error-Boundary blanken (z. B. waehrend Logout
+    // oder in der kurzen Luecke vor _authenticated-Redirect).
+    enabled: !!session?.access_token,
   });
 
   if (dismissed) return null;
+  if (!session?.access_token) return null;
   if (q.isLoading || q.isError || !q.data) return null;
   if (q.data.status === "linked") return null;
   // Ohne konfigurierten Bot kann der Mitarbeiter nichts tun → nicht nerven.
