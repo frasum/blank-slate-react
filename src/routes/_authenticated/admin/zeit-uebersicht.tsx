@@ -625,6 +625,7 @@ function ZeitUebersichtPage() {
   const skillsQ = useQuery({
     queryKey: ["skills-list"],
     queryFn: () => fetchSkills(),
+    enabled: !isPayroll,
   });
   const skills = useMemo(() => skillsQ.data ?? [], [skillsQ.data]);
 
