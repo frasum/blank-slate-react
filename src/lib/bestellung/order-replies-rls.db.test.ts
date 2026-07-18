@@ -64,10 +64,7 @@ describe.skipIf(!dbTestsEnabled)("order-replies RLS (SEC-02)", () => {
 
   it("(a) staff sieht KEINE order_replies der eigenen Org", async () => {
     const client = await signInAsUser(staffEmail, staffPassword);
-    const { data, error } = await client
-      .from("order_replies")
-      .select("id")
-      .eq("id", replyId);
+    const { data, error } = await client.from("order_replies").select("id").eq("id", replyId);
     expect(error).toBeNull();
     expect(data ?? []).toHaveLength(0);
   });
