@@ -6,7 +6,7 @@ SaaS-Vorbereitung: Readiness-Audit und Modul-Katalog stehen in docs/saas-vorbere
 
 Produktionsreife-Review: docs/produktionsreife-review.md (Stand 07.07.2026, HEAD 8cfdbc1d, inkl. Patch-Plan P0–P7) — kritischer Pfad vor dem Kassen-Go-live: Monitoring (P1) → Finalize-E2E (P2) → Restore-Probe (P3) → Cutover.
 
-Stand: 18.07.2026 (§103: Standort-Tests CI-bewiesen + VA-EK-Inline + Abweichungs-Doppelfund + H1b)
+Stand: 18.07.2026 (§104: Rollen-Nachschärfung — payroll bleibt lesend, SD1-Erweiterung manager/planer)
 
 TH1 — Standort-Farbthema: LocationThemeProvider im \_authenticated-Layout hält den themeKey (spicery/yum/neutral).
 LocationPills melden die Auswahl per useLocationThemeSync; Mapping: Name enthält „spicery" → spicery, „yum" → yum, sonst neutral (auch TSB/„Alle"/leer).
@@ -4330,3 +4330,15 @@ Abnahme-Anker: HEAD `5bf0bafe` — vier Gates grün (tsc 0 · eslint 0 · pretti
 Konsequenz: §3-Regel um den Satz „Jede Abweichung vom freigegebenen Plan wird im Chat gemeldet, BEVOR committet wird." ergänzt — keine neue Regel, sondern die Ehrlichkeitsregel des Gründungsdokuments am Ort des Geschehens.
 
 **H1b — CI-Selbstauslösung nach Prettier-Autofix (`5bf0bafe`):** Befund aus Run #1171: Der Autoformat-Bot pusht mit `GITHUB_TOKEN`; GitHubs Rekursionsschutz unterdrückt Folge-Runs → der Fix-Commit (= main-HEAD) blieb ohne CI-Run, der letzte sichtbare main-Status rot. Fix: `workflow_dispatch`-Trigger + `actions: write` + `gh workflow run ci.yml --ref main` nach dem Bot-Push. Schleifensicher, weil die `autoformat`-`if:`-Bedingung (`github.event_name == 'push'`) in dispatchten Runs false ist. Praxis-Beweis steht aus: Beim nächsten „prettier autofix [bot]"-Commit prüfen, ob der dispatchte Voll-Run existiert und grün ist.
+
+## §104 — Rollen-Nachschärfung nach Payroll-UX-Ausbau (18.07.)
+
+Prüfbefund zum Direktarbeits-Block „Payroll-Kacheln/Zeitübersicht" (bis `f5b4da2d`), Entscheidungen Frank:
+
+**Zurückgedreht:** `assignStaffSkills` war versehentlich für `payroll` schreibbar geworden (`runAllowed(["admin","payroll"])`). Die §4-Invariante gilt unverändert: **payroll ist reine Leserolle** (externes Lohnbüro), Schreibrecht hat sie nirgends. Funktion wieder admin-only via `runGuarded`.
+
+**Bewusst erweitert (SD1-Erweiterung):** `getStaff` ist lesend auch für `manager` und `planer` zugänglich, **inklusive email/phone** (Kontaktdaten für Führung/Planung — Entscheidung Frank 18.07.). Unverändert: `listStaff` liefert weiterhin KEINE email/phone; schreibende Personalverwaltung bleibt admin/payroll-only. Die frühere SD1-Formulierung „Manager haben keinen Zutritt" ist damit für den LESE-Pfad von `getStaff` offiziell aufgehoben.
+
+**Neues Guard-Muster:** `runAllowed(callerRole, allowedRoles, …)` + `assertRoleAllowed` ergänzen `runGuarded` für Seitenrollen ohne Hierarchie-Rang (payroll/planer): explizite Allow-List statt Mindestrolle, sonst identische Semantik (ForbiddenError vor der Operation, Audit nur bei Erfolg). Bei jeder künftigen `runAllowed`-Verwendung mit Schreibzugriff gilt: §4-Rollendefinition gegenprüfen — Seitenrollen in einer Schreib-Allow-List sind meldepflichtige Ausnahmen, keine Routine.
+
+**Payroll-UX (abgenommen):** payroll landet nach Login auf `/zeit-uebersicht` (Redirect), Nav-Freigaben entsprechend; Skill-Filter und ausgeblendeter „Heute"-Block in der Zeitübersicht; Logout-401-Fix im TelegramLinkBanner (Query nur bei vorhandenem Access-Token — verhindert blanke Error-Boundary in der Logout-Lücke).

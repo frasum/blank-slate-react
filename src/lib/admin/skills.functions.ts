@@ -8,7 +8,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "./admin-context";
-import { runAllowed, runGuarded } from "./admin-call";
+import { runGuarded } from "./admin-call";
 import { writeAuditLog } from "./audit";
 import { distinctDepartments, ineligibleSkills, type StaffDepartment } from "./skill-eligibility";
 import type { SkillCategory } from "@/lib/staff-domain";
@@ -78,10 +78,10 @@ export const assignStaffSkills = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, ["admin", "payroll"]);
-    return runAllowed(
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    return runGuarded(
       caller.role,
-      ["admin", "payroll"],
+      "admin",
       async (entry) => {
         await writeAuditLog({
           organizationId: caller.organizationId,
