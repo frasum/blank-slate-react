@@ -1127,46 +1127,46 @@ function ZeitUebersichtPage() {
                 onChange={setDeptFilter}
               />
               {!isPayroll && (
-              <label className="flex items-center gap-2 text-sm">
-                <span className="text-muted-foreground">Skill:</span>
-                <Select value={skillFilter} onValueChange={setSkillFilter}>
-                  <SelectTrigger className="h-8 w-[180px]">
-                    <SelectValue placeholder="Alle" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Alle</SelectItem>
-                    {(
-                      [
-                        { key: "kitchen", label: "Küche" },
-                        { key: "service", label: "Service" },
-                        { key: "gl", label: "Geschäftsleitung" },
-                        { key: "other", label: "Sonstige" },
-                      ] as { key: SkillCategory; label: string }[]
-                    ).map((cat) => {
-                      const items = skills.filter((s) => s.category === cat.key);
-                      if (items.length === 0) return null;
-                      return (
-                        <div key={cat.key}>
-                          <div className="px-2 pt-1 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                            {cat.label}
+                <label className="flex items-center gap-2 text-sm">
+                  <span className="text-muted-foreground">Skill:</span>
+                  <Select value={skillFilter} onValueChange={setSkillFilter}>
+                    <SelectTrigger className="h-8 w-[180px]">
+                      <SelectValue placeholder="Alle" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Alle</SelectItem>
+                      {(
+                        [
+                          { key: "kitchen", label: "Küche" },
+                          { key: "service", label: "Service" },
+                          { key: "gl", label: "Geschäftsleitung" },
+                          { key: "other", label: "Sonstige" },
+                        ] as { key: SkillCategory; label: string }[]
+                      ).map((cat) => {
+                        const items = skills.filter((s) => s.category === cat.key);
+                        if (items.length === 0) return null;
+                        return (
+                          <div key={cat.key}>
+                            <div className="px-2 pt-1 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              {cat.label}
+                            </div>
+                            {items.map((s) => (
+                              <SelectItem key={s.id} value={s.id}>
+                                <span className="inline-flex items-center gap-2">
+                                  <span
+                                    className="inline-block h-2 w-2 rounded-full"
+                                    style={{ backgroundColor: s.color ?? "#cbd5e1" }}
+                                  />
+                                  {s.name}
+                                </span>
+                              </SelectItem>
+                            ))}
                           </div>
-                          {items.map((s) => (
-                            <SelectItem key={s.id} value={s.id}>
-                              <span className="inline-flex items-center gap-2">
-                                <span
-                                  className="inline-block h-2 w-2 rounded-full"
-                                  style={{ backgroundColor: s.color ?? "#cbd5e1" }}
-                                />
-                                {s.name}
-                              </span>
-                            </SelectItem>
-                          ))}
-                        </div>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              </label>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </label>
               )}
               {(deptFilter !== "all" || skillFilter !== "all") && (
                 <span
@@ -1200,20 +1200,20 @@ function ZeitUebersichtPage() {
                 );
               })}
               {!isPayroll && (
-              <button
-                type="button"
-                onClick={() => {
-                  const today = todayIso();
-                  const containing = periods.find(
-                    (p) => p.startDate <= today && today <= p.endDate,
-                  );
-                  if (containing) setSelectedPeriodId(containing.id);
-                  setWeekStart(fmtIso(mondayOf(parseIsoDate(today))));
-                }}
-                className="ml-auto h-8 rounded-md border border-input bg-background px-3 text-xs hover:bg-muted"
-              >
-                Heute
-              </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const today = todayIso();
+                    const containing = periods.find(
+                      (p) => p.startDate <= today && today <= p.endDate,
+                    );
+                    if (containing) setSelectedPeriodId(containing.id);
+                    setWeekStart(fmtIso(mondayOf(parseIsoDate(today))));
+                  }}
+                  className="ml-auto h-8 rounded-md border border-input bg-background px-3 text-xs hover:bg-muted"
+                >
+                  Heute
+                </button>
               )}
             </div>
           </Card>
