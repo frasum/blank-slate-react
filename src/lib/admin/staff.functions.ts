@@ -276,7 +276,10 @@ export const getStaff = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({ staffId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    // SD1 — Personalverwaltung admin/payroll-only + Manager/Planer lesend.
+    // SD1-Erweiterung (18.07.2026, Entscheidung Frank): getStaff lesend auch für
+    // manager/planer, INKL. email/phone (Kontaktdaten für Führung/Planung).
+    // Schreibende Personalverwaltung bleibt admin/payroll-only.
+    // listStaff bleibt bewusst OHNE email/phone (Listenansicht braucht sie nicht).
     const caller = await loadAdminCaller(context.supabase, context.userId, [
       "admin",
       "manager",
