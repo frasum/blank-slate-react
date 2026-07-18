@@ -6,7 +6,7 @@ SaaS-Vorbereitung: Readiness-Audit und Modul-Katalog stehen in docs/saas-vorbere
 
 Produktionsreife-Review: docs/produktionsreife-review.md (Stand 07.07.2026, HEAD 8cfdbc1d, inkl. Patch-Plan P0–P7) — kritischer Pfad vor dem Kassen-Go-live: Monitoring (P1) → Finalize-E2E (P2) → Restore-Probe (P3) → Cutover.
 
-Stand: 17.07.2026 (§102: Standorte-Tab-Layout + N3-Retry-Härtung + BM-A erledigt + Registry-Wechsel)
+Stand: 18.07.2026 (§103: Standort-Tests CI-bewiesen + VA-EK-Inline + Abweichungs-Doppelfund + H1b)
 
 TH1 — Standort-Farbthema: LocationThemeProvider im \_authenticated-Layout hält den themeKey (spicery/yum/neutral).
 LocationPills melden die Auswahl per useLocationThemeSync; Mapping: Name enthält „spicery" → spicery, „yum" → yum, sonst neutral (auch TSB/„Alle"/leer).
@@ -210,7 +210,7 @@ Erst wenn ESLint 0 Fehler und alle Tests grün sind → ABGENOMMEN.
 
 ## 3. Pflicht-Regeln (aus Erfahrung teuer gelernt)
 
-- **Prettier/ESLint VOR jedem Commit.** Die CI fährt `prettier --check` über das **ganze Repo** (inkl. `docs/`), nicht nur `src/` — genau daran hingen mehrfach rote Runs (tsc/vitest grün, nur Format rot). Jeder Lovable-Prompt endet daher mit diesem Pflicht-Block: „Vor dem Commit: `npx prettier --write .` + `npx eslint --fix src/` über alle geänderten Dateien. Danach müssen `npx tsc --noEmit` (0 Fehler), `npx eslint . --max-warnings=5` (0 Fehler), `npx vitest run` (grün) und `npx prettier --check .` (sauber, **ganzes Repo**) alle durchlaufen. Erst dann committen." → Spart die wiederkehrenden Formatierungs-Nachzieher.
+- **Prettier/ESLint VOR jedem Commit.** Die CI fährt `prettier --check` über das **ganze Repo** (inkl. `docs/`), nicht nur `src/` — genau daran hingen mehrfach rote Runs (tsc/vitest grün, nur Format rot). Jeder Lovable-Prompt endet daher mit diesem Pflicht-Block: „Vor dem Commit: `npx prettier --write .` + `npx eslint --fix src/` über alle geänderten Dateien. Danach müssen `npx tsc --noEmit` (0 Fehler), `npx eslint . --max-warnings=5` (0 Fehler), `npx vitest run` (grün) und `npx prettier --check .` (sauber, **ganzes Repo**) alle durchlaufen. Erst dann committen. Jede Abweichung vom freigegebenen Plan wird im Chat gemeldet, BEVOR committet wird." → Spart die wiederkehrenden Formatierungs-Nachzieher.
 - **CI nach JEDEM Commit prüfen**, nicht erst wenn rote Runs auflaufen. (Lektion: zwischen CI #75 und #88 waren ~13 rote Runs unbemerkt.)
 - **Migrationen immer als Vorab-SQL-Skizze im Prompt mitgeben** — nicht Lovable raten lassen. Reduziert Schema-Fehler erheblich.
 - **Massen-SQL in Batches** (max. ~2000–2500 Zeilen pro Datei), sonst bricht der Supabase-Editor mit Connection-Fehler ab. Bei Fehler einfach nochmal „Run".
