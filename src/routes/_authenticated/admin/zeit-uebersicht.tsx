@@ -181,11 +181,7 @@ function ZeitUebersichtPage() {
     : selectedPeriod
       ? selectedPeriod.startDate
       : manualFrom;
-  const toDate = monthRange
-    ? monthRange.end
-    : selectedPeriod
-      ? selectedPeriod.endDate
-      : manualTo;
+  const toDate = monthRange ? monthRange.end : selectedPeriod ? selectedPeriod.endDate : manualTo;
   // Letzte 24 Monate + aktueller Monat als Auswahl.
   const monthOptions = useMemo(() => {
     const now = new Date();
