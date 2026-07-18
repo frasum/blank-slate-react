@@ -4,6 +4,13 @@ on:
   push:
     branches: [main]
   pull_request:
+  # H1b — dokumentierter Ausweg aus GitHubs GITHUB_TOKEN-Rekursionsschutz:
+  # der autoformat-Job stößt nach seinem Bot-Push per `gh workflow run` einen
+  # workflow_dispatch-Lauf an, damit der Fix-Commit einen eigenen vollen
+  # CI-Run bekommt. Der autoformat-Job selbst ist per `if:` auf
+  # `github.event_name == 'push'` beschränkt und wird in dispatchten Runs
+  # übersprungen — keine Endlosschleife möglich.
+  workflow_dispatch:
 
 jobs:
   autoformat:
@@ -26,6 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -48,6 +56,10 @@ jobs:
           git add -A
           git commit -m "style: prettier autofix [bot]"
           git push origin HEAD:main
+      - name: Frischen CI-Run auf gefixtem HEAD anstoßen (H1b)
+        run: gh workflow run ci.yml --ref main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   format:
     runs-on: ubuntu-latest
