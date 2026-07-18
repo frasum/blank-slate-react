@@ -269,6 +269,23 @@ export const listLeaveRequests = createServerFn({ method: "GET" })
       staffIds,
       scope,
     );
+    // Standort-Zuordnung je Antragsteller (aus staff_locations abgeleitet;
+    // ein Antrag „gehört" damit zu allen Standorten des Mitarbeiters).
+    const locByStaff = new Map<string, Set<string>>();
+    if (staffIds.length > 0) {
+      const { data: locRows, error: locErr } = await supabaseAdmin
+        .from("staff_locations")
+        .select("staff_id, location_id")
+        .eq("organization_id", caller.organizationId)
+        .in("staff_id", staffIds);
+      if (locErr) throw locErr;
+      for (const row of locRows ?? []) {
+        const sid = row.staff_id as string;
+        const lid = row.location_id as string;
+        if (!locByStaff.has(sid)) locByStaff.set(sid, new Set());
+        locByStaff.get(sid)!.add(lid);
+      }
+    }
     return (rows ?? [])
       .filter((r) => inScope.has(r.staff_id as string))
       .map((r) => {
@@ -284,6 +301,7 @@ export const listLeaveRequests = createServerFn({ method: "GET" })
           decidedAt: (r.decided_at as string | null) ?? null,
           createdAt: r.created_at as string,
           days: countLeaveDays(r.start_date as string, r.end_date as string),
+          locationIds: Array.from(locByStaff.get(r.staff_id as string) ?? []),
         };
       });
   });
