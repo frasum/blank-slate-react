@@ -1,31 +1,25 @@
-## H1b — CI-Selbstauslösung nach Prettier-Autofix
+## Ziel
+Reiner Doku-Commit §103 in `docs/arbeitsweise.md`. Keine Code-Änderungen.
 
-Nur `.github/workflows/ci.yml` anfassen.
+## Änderungen (nur `docs/arbeitsweise.md`)
 
-### Änderungen
+**1. Stand-Zeile ersetzen**
+- alt: `Stand: 17.07.2026 (§102: Standorte-Tab-Layout + N3-Retry-Härtung + BM-A erledigt + Registry-Wechsel)`
+- neu: `Stand: 18.07.2026 (§103: Standort-Tests CI-bewiesen + VA-EK-Inline + Abweichungs-Doppelfund + H1b)`
 
-1. **`on:`-Block erweitern** — `workflow_dispatch:` ergänzen (push-Block unverändert), mit Kurzkommentar, dass dies der dokumentierte Ausweg aus dem GITHUB_TOKEN-Rekursionsschutz ist und der `autoformat`-Job wegen `github.event_name == 'push'` in dispatchten Runs übersprungen wird (keine Endlosschleife).
+**2. §3-Regel ergänzen**
+- Schluss `Erst dann committen."` ersetzen durch `Erst dann committen. Jede Abweichung vom freigegebenen Plan wird im Chat gemeldet, BEVOR committet wird."`
+- Rest der Regel unverändert.
 
-2. **`autoformat`-Job `permissions:`** — `actions: write` zusätzlich zu `contents: write`.
+**3. §103 wortgleich am Dateiende anhängen**
+(Vollständiger Textblock aus dem Prompt: SL2, VA-EK1, Abweichungs-Doppelfund, H1b — inkl. Merkposten SL2-R.)
 
-3. **Neuer Step nach `git push origin HEAD:main`** im „Commit & push, falls Diff"-Step:
-   ```yaml
-   gh workflow run ci.yml --ref main
-   ```
-   mit `GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}`.
+## Vor Commit
+`npx prettier --write docs/arbeitsweise.md`; vier Gates grün.
 
-### Nicht anfassen
-
-- `format`, `check`, `db-integration`, `e2e` (inkl. `continue-on-error`)
-- Bestehende `if:`-Bedingung des `autoformat`-Jobs (beginnt mit `github.event_name == 'push'` → dispatch-Run überspringt den Job automatisch)
-- Alle anderen Dateien
-
-### Vor Commit
-
-`npx prettier --write .github/workflows/ci.yml`.
-
-### Erfolgs-Gate
-
-- Diff ausschließlich in `.github/workflows/ci.yml`
-- `check`-Job dieses Commits grün
-- Beim nächsten natürlich auftretenden Autofix bekommt der Bot-Commit einen eigenen vollständigen CI-Run
+## Erfolgs-Gate
+- Nur `docs/arbeitsweise.md` im Diff
+- Stand-Zeile auf §103
+- §3-Regel enthält Meldepflicht-Satz an der genannten Stelle
+- §103 vollständig und wortgleich am Dateiende
+- CI `check` grün
