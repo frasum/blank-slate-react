@@ -229,9 +229,7 @@ function OpenSession({
   const data = sessionQ.data;
   if (!data) return null;
   const readOnly = data.session.status === "completed";
-  const supplierName = new Map<string, string>(
-    (data.suppliers ?? []).map((s) => [s.id, s.name]),
-  );
+  const supplierName = new Map<string, string>((data.suppliers ?? []).map((s) => [s.id, s.name]));
 
   return (
     <section className="rounded-md border border-border bg-card">
