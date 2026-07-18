@@ -984,7 +984,10 @@ function ZeitUebersichtPage() {
 
   const buchhaltungExportInput = useMemo<BuchhaltungExportInput>(() => {
     const locLabel = locations.find((l) => l.id === effectiveLocationId)?.name ?? "";
-    const perLabel = selectedPeriod?.label ?? `${fromDate}_${toDate}`;
+    const monthLabel = monthRange
+      ? (monthOptions.find((m) => m.value === selectedMonth)?.label ?? selectedMonth)
+      : null;
+    const perLabel = monthLabel ?? selectedPeriod?.label ?? `${fromDate}_${toDate}`;
     return {
       locationLabel: locLabel,
       periodLabel: perLabel,
@@ -1000,6 +1003,9 @@ function ZeitUebersichtPage() {
     locations,
     effectiveLocationId,
     selectedPeriod,
+    selectedMonth,
+    monthRange,
+    monthOptions,
     fromDate,
     toDate,
     payrollMode,
