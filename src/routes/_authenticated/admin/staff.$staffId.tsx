@@ -229,28 +229,28 @@ function BasicsTab({
         {mutation.isPending ? "Speichern…" : "Speichern"}
       </button>
       {showPool && (
-      <div className="mt-4 space-y-2 border-t border-border pt-4">
-        <label className="flex items-start gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={staff.participatesInPool}
-            disabled={poolMutation.isPending}
-            onChange={(e) => {
-              setPoolMsg(null);
-              poolMutation.mutate(e.target.checked);
-            }}
-            className="mt-0.5"
-          />
-          <span>
-            <span className="text-foreground">Am Trinkgeldpool teilnehmen</span>
-            <span className="block text-xs text-muted-foreground">
-              Deaktivieren schließt diesen Mitarbeiter aus Küchen- und Service-Pool aus.
-              Geschäftsleitung ist strukturell ausgeschlossen.
+        <div className="mt-4 space-y-2 border-t border-border pt-4">
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={staff.participatesInPool}
+              disabled={poolMutation.isPending}
+              onChange={(e) => {
+                setPoolMsg(null);
+                poolMutation.mutate(e.target.checked);
+              }}
+              className="mt-0.5"
+            />
+            <span>
+              <span className="text-foreground">Am Trinkgeldpool teilnehmen</span>
+              <span className="block text-xs text-muted-foreground">
+                Deaktivieren schließt diesen Mitarbeiter aus Küchen- und Service-Pool aus.
+                Geschäftsleitung ist strukturell ausgeschlossen.
+              </span>
             </span>
-          </span>
-        </label>
-        {poolMsg && <p className="text-xs text-muted-foreground">{poolMsg}</p>}
-      </div>
+          </label>
+          {poolMsg && <p className="text-xs text-muted-foreground">{poolMsg}</p>}
+        </div>
       )}
     </form>
   );
