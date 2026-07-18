@@ -6,7 +6,7 @@ SaaS-Vorbereitung: Readiness-Audit und Modul-Katalog stehen in docs/saas-vorbere
 
 Produktionsreife-Review: docs/produktionsreife-review.md (Stand 07.07.2026, HEAD 8cfdbc1d, inkl. Patch-Plan P0–P7) — kritischer Pfad vor dem Kassen-Go-live: Monitoring (P1) → Finalize-E2E (P2) → Restore-Probe (P3) → Cutover.
 
-Stand: 17.07.2026 (§102: Standorte-Tab-Layout + N3-Retry-Härtung + BM-A erledigt + Registry-Wechsel)
+Stand: 18.07.2026 (§103: Standort-Tests CI-bewiesen + VA-EK-Inline + Abweichungs-Doppelfund + H1b)
 
 TH1 — Standort-Farbthema: LocationThemeProvider im \_authenticated-Layout hält den themeKey (spicery/yum/neutral).
 LocationPills melden die Auswahl per useLocationThemeSync; Mapping: Name enthält „spicery" → spicery, „yum" → yum, sonst neutral (auch TSB/„Alle"/leer).
@@ -210,7 +210,7 @@ Erst wenn ESLint 0 Fehler und alle Tests grün sind → ABGENOMMEN.
 
 ## 3. Pflicht-Regeln (aus Erfahrung teuer gelernt)
 
-- **Prettier/ESLint VOR jedem Commit.** Die CI fährt `prettier --check` über das **ganze Repo** (inkl. `docs/`), nicht nur `src/` — genau daran hingen mehrfach rote Runs (tsc/vitest grün, nur Format rot). Jeder Lovable-Prompt endet daher mit diesem Pflicht-Block: „Vor dem Commit: `npx prettier --write .` + `npx eslint --fix src/` über alle geänderten Dateien. Danach müssen `npx tsc --noEmit` (0 Fehler), `npx eslint . --max-warnings=5` (0 Fehler), `npx vitest run` (grün) und `npx prettier --check .` (sauber, **ganzes Repo**) alle durchlaufen. Erst dann committen." → Spart die wiederkehrenden Formatierungs-Nachzieher.
+- **Prettier/ESLint VOR jedem Commit.** Die CI fährt `prettier --check` über das **ganze Repo** (inkl. `docs/`), nicht nur `src/` — genau daran hingen mehrfach rote Runs (tsc/vitest grün, nur Format rot). Jeder Lovable-Prompt endet daher mit diesem Pflicht-Block: „Vor dem Commit: `npx prettier --write .` + `npx eslint --fix src/` über alle geänderten Dateien. Danach müssen `npx tsc --noEmit` (0 Fehler), `npx eslint . --max-warnings=5` (0 Fehler), `npx vitest run` (grün) und `npx prettier --check .` (sauber, **ganzes Repo**) alle durchlaufen. Erst dann committen. Jede Abweichung vom freigegebenen Plan wird im Chat gemeldet, BEVOR committet wird." → Spart die wiederkehrenden Formatierungs-Nachzieher.
 - **CI nach JEDEM Commit prüfen**, nicht erst wenn rote Runs auflaufen. (Lektion: zwischen CI #75 und #88 waren ~13 rote Runs unbemerkt.)
 - **Migrationen immer als Vorab-SQL-Skizze im Prompt mitgeben** — nicht Lovable raten lassen. Reduziert Schema-Fehler erheblich.
 - **Massen-SQL in Batches** (max. ~2000–2500 Zeilen pro Datei), sonst bricht der Supabase-Editor mit Connection-Fehler ab. Bei Fehler einfach nochmal „Run".
@@ -4313,3 +4313,20 @@ Abnahme-Anker: HEAD `ca9aa7fd` — vier Gates grün (tsc 0 · eslint 0 · pretti
     sed -i -E 's|https://europe-west[0-9]+-npm\.pkg\.dev/lovable-core-prod/sandbox-npm-cache|https://registry.npmjs.org|g' bun.lock
 
 danach `bun install`, danach `git checkout bun.lock` (Lock-Datei nie mitcommitten). Ersetzt den alten Ein-Domain-sed.
+
+## §103 — Standort-Tests CI-bewiesen, VA-EK-Inline, Abweichungs-Doppelfund, H1b (18.07.)
+
+Abnahme-Anker: HEAD `5bf0bafe` — vier Gates grün (tsc 0 · eslint 0 · prettier clean inkl. `.github/` · vitest 1790/1790).
+
+**SL2 — Standortgebundenheits-Tests in CI bewiesen (Direktarbeit):** Zwei neue DB-Test-Suiten (`send-order-email-per-location.db.test.ts`, `order-replies-per-location.db.test.ts`): (a) je Standort landen korrekte Kundennummer + Lieferadresse im Bestell-Mail-Body (mit bewusst „falscher" org-weiter Fallback-Nummer im Seed als Gegenprobe), (b) Inbound-Antworten werden über Plus-Adresse UND Betreff dem richtigen Standort/Auftrag zugeordnet, inkl. Parallel-Test gegen Kreuz-Kontamination. Der fetch-Mock ist nach der BM-A-Lehre auf `api.mailersend.com` gescoped (Pass-through für alles andere, Restore in `afterAll`). `db-integration` in CI grün → real bewiesen. Nebenbei: Bestell-Mail-Footer zweistufig verstärkt (rot/fett/größer, „Bitte bestätigen Sie den Eingang per Antwort."). **Merkposten SL2-R:** Tests (a)/(b) der Reply-Suite nutzen feste `from_email`-Adressen und erzeugen `message_id` per `Date.now()` im Test-Body — bei CI-Retry nach Teilfehler entsteht eine zweite Reply-Zeile und `toHaveLength(1)` reißt. Fix nach §102-Regel (Zustand am Test-Anfang selbst herstellen oder per-Run-eindeutige from_emails wie in Test (c)) — als Einzeiler in den nächsten Testblock aufnehmen.
+
+**VA-EK1 — EK-Spalte inline pflegbar (`/admin/verkaufsartikel`):** Preis/Mitnahme/EK je Zeile per Klick editierbar. EK-Zelle: Chip zeigt aktive Quelle (Rezept / EK-Zuordnung / frei), Klick öffnet Popover mit drei Wegen. XOR-Enforcement clientseitig VOR dem Server: Zeile ohne Verknüpfung → direkt in den Editor; gleiche Methode → Editor ohne Dialog; Methodenwechsel (inkl. „Direkt" auf verknüpfter Zeile) → Bestätigungsdialog → `unlinkSalesArticleEk`/`unlinkSalesArticleRecipe` → Zieleditor. `clearEk`-Semantik: Wechsel auf „Direkt" behält den materialisierten EK als ehrlichen freien Startwert (`clearEk:false`), Wechsel auf Einkaufsartikel/Rezept räumt ihn (`clearEk:true`, Zelle zeigt „—" bis die neue Quelle speichert). Neue Datei nur `EkLinkDialog.tsx` (ruft `searchPurchaseArticlesForEk` + `linkSalesArticleEk` direkt, Vorbelegung aus Namens-Parsern, Live-Vorschau via `computeEkFromLink`); `EkCell` lebt inline in `verkaufsartikel.tsx` (Split-Kandidat bei weiterem Wachstum). Keine Server-Fn geändert. Akzeptierter Randfall: Lösen bestätigt + Folgedialog abgebrochen = Zeile ehrlich unverknüpft mit letztem Wert.
+
+**Abweichungs-Doppelfund (Ehrlichkeitsregel, ohne Code-Folge):**
+
+1. Der freigegebene Plan versprach einen `RecipeEditorDialog` (Modal-Wrapper) mit Stopp-und-melde-Klausel. Gebaut wurde stattdessen ein Tab-Wechsel in den Rezepte-Tab (+`initialOpenRecipeId`-Props in `RezepteTab.tsx`, außerhalb der „nur neue Dateien"-Zusage) — fachlich die BESSERE Lösung (kein Extraktions-Risiko, kein Zweit-Editor), aber ungemeldet umgesetzt. Vom Prüfer nachträglich abgenommen.
+2. Lovable meldete auf Nachfrage selbst die `clearEk:false`-Entscheidung beim „Direkt"-Wechsel als vermeintliche Abweichung — Prüfung ergab: keine Plan-Verletzung (der Plan spezifizierte keine clearEk-Semantik), Verhalten ist fachlich richtig (Wert-Leeren würde bei Abbruch Information vernichten und die WE-Ampel blenden). **Entscheidung Frank: Verhalten bleibt.**
+
+Konsequenz: §3-Regel um den Satz „Jede Abweichung vom freigegebenen Plan wird im Chat gemeldet, BEVOR committet wird." ergänzt — keine neue Regel, sondern die Ehrlichkeitsregel des Gründungsdokuments am Ort des Geschehens.
+
+**H1b — CI-Selbstauslösung nach Prettier-Autofix (`5bf0bafe`):** Befund aus Run #1171: Der Autoformat-Bot pusht mit `GITHUB_TOKEN`; GitHubs Rekursionsschutz unterdrückt Folge-Runs → der Fix-Commit (= main-HEAD) blieb ohne CI-Run, der letzte sichtbare main-Status rot. Fix: `workflow_dispatch`-Trigger + `actions: write` + `gh workflow run ci.yml --ref main` nach dem Bot-Push. Schleifensicher, weil die `autoformat`-`if:`-Bedingung (`github.event_name == 'push'`) in dispatchten Runs false ist. Praxis-Beweis steht aus: Beim nächsten „prettier autofix [bot]"-Commit prüfen, ob der dispatchte Voll-Run existiert und grün ist.
