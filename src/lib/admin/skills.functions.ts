@@ -8,7 +8,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "./admin-context";
-import { runGuarded } from "./admin-call";
+import { runAllowed, runGuarded } from "./admin-call";
 import { writeAuditLog } from "./audit";
 import { distinctDepartments, ineligibleSkills, type StaffDepartment } from "./skill-eligibility";
 import type { SkillCategory } from "@/lib/staff-domain";
@@ -22,6 +22,7 @@ export const listSkills = createServerFn({ method: "GET" })
       "manager",
       "admin",
       "planer",
+      "payroll",
     ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const data = expectOk<
@@ -48,7 +49,12 @@ export const getStaffSkills = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({ staffId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "admin",
+      "manager",
+      "planer",
+      "payroll",
+    ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const rows = expectOk<{ skill_id: string }[]>(
       await supabaseAdmin
@@ -72,10 +78,13 @@ export const assignStaffSkills = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
-    return runGuarded(
-      caller.role,
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
       "admin",
+      "payroll",
+    ]);
+    return runAllowed(
+      caller.role,
+      ["admin", "payroll"],
       async (entry) => {
         await writeAuditLog({
           organizationId: caller.organizationId,

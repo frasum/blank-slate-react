@@ -9,7 +9,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "./admin-context";
-import { runGuarded } from "./admin-call";
+import { runAllowed, runGuarded } from "./admin-call";
 import { makeAuditWriter } from "./audit";
 import { wouldRemoveLastActiveAdmin, type AdminSnapshotEntry } from "./last-admin-rule";
 import type { AppRole } from "./role-guard";
@@ -66,7 +66,12 @@ async function loadAdminSnapshot(organizationId: string): Promise<AdminSnapshotE
 export const listStaff = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "admin",
+      "manager",
+      "planer",
+      "payroll",
+    ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // SD1 — email/phone bewusst NICHT im Select (siehe getStaff).
     const data = expectOk<
@@ -271,8 +276,13 @@ export const getStaff = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({ staffId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    // SD1 — Personalverwaltung admin/payroll-only (Manager haben keinen Zutritt).
-    const caller = await loadAdminCaller(context.supabase, context.userId, ["admin", "payroll"]);
+    // SD1 — Personalverwaltung admin/payroll-only + Manager/Planer lesend.
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "admin",
+      "manager",
+      "planer",
+      "payroll",
+    ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const staff = expectMaybe<{
       id: string;
@@ -370,8 +380,11 @@ export const updateStaffBasics = createServerFn({ method: "POST" })
     z.object({ staffId: z.string().uuid() }).merge(staffBasicsSchema).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
-    return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "admin",
+      "payroll",
+    ]);
+    return runAllowed(caller.role, ["admin", "payroll"], makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       expectVoid(
         await supabaseAdmin
@@ -400,8 +413,11 @@ export const setStaffActive = createServerFn({ method: "POST" })
     z.object({ staffId: z.string().uuid(), isActive: z.boolean() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
-    return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "admin",
+      "payroll",
+    ]);
+    return runAllowed(caller.role, ["admin", "payroll"], makeAuditWriter(caller), async () => {
       const snapshot = await loadAdminSnapshot(caller.organizationId);
       if (
         !data.isActive &&
@@ -475,9 +491,12 @@ export const setStaffParticipatesInPool = createServerFn({ method: "POST" })
     z.object({ staffId: z.string().uuid(), participates: z.boolean() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    // SD1 — Einzig-Verwendung ist die Personalverwaltung; admin-only.
-    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
-    return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
+    // SD1 — Einzig-Verwendung ist die Personalverwaltung; admin + payroll.
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "admin",
+      "payroll",
+    ]);
+    return runAllowed(caller.role, ["admin", "payroll"], makeAuditWriter(caller), async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       expectVoid(
         await supabaseAdmin

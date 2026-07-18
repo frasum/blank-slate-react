@@ -5,7 +5,7 @@
 // Wenn die Rolle nicht ausreicht: ForbiddenError fliegt — writeAudit wird
 // nicht aufgerufen (Negativtest b in docs/gruendungsdokument.md).
 
-import { assertMinRole, ForbiddenError, type AppRole } from "./role-guard";
+import { assertMinRole, assertRoleAllowed, ForbiddenError, type AppRole } from "./role-guard";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import type { AppPermission } from "./permissions-catalog";
@@ -80,6 +80,31 @@ export async function runGuarded<T>(
   ctx?: GuardedCallContext,
 ): Promise<T> {
   assertMinRole(callerRole, minRole);
+  let result: T;
+  let audit: AuditEntry;
+  try {
+    ({ result, audit } = await op());
+  } catch (err) {
+    await reportGuardedFailure(err, callerRole, ctx);
+    throw err;
+  }
+  await writeAudit(audit);
+  return result;
+}
+
+/**
+ * Wie `runGuarded`, aber statt Mindestrolle eine explizite Allow-List.
+ * Nötig für Seitenrollen (payroll, planer), die keine Hierarchie erfüllen
+ * und trotzdem gezielt bestimmte Aktionen ausführen dürfen.
+ */
+export async function runAllowed<T>(
+  callerRole: AppRole | null,
+  allowedRoles: readonly AppRole[],
+  writeAudit: AuditWriter,
+  op: () => Promise<{ result: T; audit: AuditEntry }>,
+  ctx?: GuardedCallContext,
+): Promise<T> {
+  assertRoleAllowed(callerRole, allowedRoles);
   let result: T;
   let audit: AuditEntry;
   try {
