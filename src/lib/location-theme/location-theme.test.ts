@@ -12,8 +12,12 @@ describe("locationThemeKey", () => {
     expect(locationThemeKey("Yum")).toBe("yum");
     expect(locationThemeKey("yum ")).toBe("yum");
   });
-  it("liefert neutral für TSB, Alle und leere Namen", () => {
-    expect(locationThemeKey("TSB")).toBe("neutral");
+  it("erkennt TSB", () => {
+    expect(locationThemeKey("TSB")).toBe("tsb");
+    expect(locationThemeKey("tsb")).toBe("tsb");
+    expect(locationThemeKey(" TSB ")).toBe("tsb");
+  });
+  it("liefert neutral für Alle und leere Namen", () => {
     expect(locationThemeKey("Alle")).toBe("neutral");
     expect(locationThemeKey("")).toBe("neutral");
     expect(locationThemeKey(null)).toBe("neutral");
