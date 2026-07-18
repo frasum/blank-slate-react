@@ -19,6 +19,7 @@ import { runGuarded } from "@/lib/admin/admin-call";
 import { writeAuditLog, makeAuditWriter } from "@/lib/admin/audit";
 import { arbzgMinimumBreak, grossMinutesBetween } from "@/lib/time/break-rules";
 import { syncPoolTimeEntry } from "./pool-time-writeback";
+import { captureServerError } from "@/lib/monitoring/sentry.server";
 import { assertBusinessDateUnlocked, TimeLockedError } from "@/lib/time/time-lock";
 import { calcWaiterSettlement } from "./waiter-settlement";
 import {
@@ -3335,6 +3336,11 @@ export async function upsertSessionTipPoolEntryCore(
       }
     } catch (err) {
       console.error("[pool-time-sync] failed", err);
+      void captureServerError(err, {
+        op: "cash.pool_time_sync",
+        orgId: caller.organizationId,
+        extra: { sessionId: session.id, staffId: data.staffId },
+      });
       // §51: sichtbare Spur, ohne die Korrektur zu kippen.
       try {
         await writeAuditLog({
@@ -3502,7 +3508,14 @@ async function applyServicePoolEnd(input: {
     .eq("session_id", input.sessionId)
     .eq("staff_id", input.staffId)
     .maybeSingle();
-  if (!entry || entry.department !== "service") return;
+  if (!entry || entry.department !== "service") {
+    void captureServerError(new Error("applyServicePoolEnd: no pool entry"), {
+      op: "cash.applyServicePoolEnd",
+      orgId: input.organizationId,
+      extra: { sessionId: input.sessionId, staffId: input.staffId, reason: "no_pool_entry" },
+    });
+    return;
+  }
   if (entry.shift_end) return; // schon gesetzt (manuell oder früherer Lauf)
   const startHHMM = entry.shift_start ? (entry.shift_start as string).slice(0, 5) : null;
   const resolved = resolveServicePoolEnd({
@@ -3510,13 +3523,21 @@ async function applyServicePoolEnd(input: {
     submissionIso: input.submissionIso,
     businessDate: input.businessDate,
   });
-  if (!resolved) return;
-  await supabaseAdmin
+  if (!resolved) {
+    void captureServerError(new Error("applyServicePoolEnd: no resolved end"), {
+      op: "cash.applyServicePoolEnd",
+      orgId: input.organizationId,
+      extra: { sessionId: input.sessionId, staffId: input.staffId, reason: "no_resolved_end" },
+    });
+    return;
+  }
+  const { error: endErr } = await supabaseAdmin
     .from("session_tip_pool_entries")
     .update({ shift_end: resolved.shiftEndHHMM, hours_minutes: resolved.hoursMinutes })
     .eq("organization_id", input.organizationId)
     .eq("session_id", input.sessionId)
     .eq("staff_id", input.staffId);
+  if (endErr) throw endErr;
 }
 
 // Manueller „Aus Dienstplan ergänzen"-Knopf — idempotent, überschreibt
