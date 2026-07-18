@@ -1126,6 +1126,7 @@ function ZeitUebersichtPage() {
                 value={deptFilter}
                 onChange={setDeptFilter}
               />
+              {!isPayroll && (
               <label className="flex items-center gap-2 text-sm">
                 <span className="text-muted-foreground">Skill:</span>
                 <Select value={skillFilter} onValueChange={setSkillFilter}>
@@ -1166,6 +1167,7 @@ function ZeitUebersichtPage() {
                   </SelectContent>
                 </Select>
               </label>
+              )}
               {(deptFilter !== "all" || skillFilter !== "all") && (
                 <span
                   className="text-xs text-muted-foreground"
@@ -1197,6 +1199,7 @@ function ZeitUebersichtPage() {
                   </button>
                 );
               })}
+              {!isPayroll && (
               <button
                 type="button"
                 onClick={() => {
@@ -1211,6 +1214,7 @@ function ZeitUebersichtPage() {
               >
                 Heute
               </button>
+              )}
             </div>
           </Card>
           <WeeklyPlan
