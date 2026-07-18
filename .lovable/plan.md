@@ -1,11 +1,19 @@
-## Ziel
-Payroll-Nutzer landen nach dem Login direkt auf `/admin/zeit-uebersicht` (Arbeitszeiten) statt auf der Portal-Startseite mit Kacheln.
+## Ursache
+`listStaff` (src/lib/admin/staff.functions.ts) verlangt `manager+` via `loadAdminCaller(..., "manager")`. Payroll ist Seitenrolle und erfüllt keine Mindesthierarchie → `ForbiddenError`, die Liste im Mitarbeiter-Tab bleibt leer. Auch alle schreibenden Staff-Funktionen (`updateStaff`, `replaceRole`, `replaceSkills`, `setActive`, `resetPassword`, `linkAccount` etc.) laufen über `manager+` bzw. `admin` und sperren Payroll aus.
 
-## Änderung
-In `src/routes/_authenticated/index.tsx` den `beforeLoad`-Hook erweitern: wenn `identity.role === "payroll"`, `throw redirect({ to: "/admin/zeit-uebersicht" })`. Analog zur bestehenden `planer`-Weiche direkt darüber.
+## Fix (ein Commit)
+- In `src/lib/admin/staff.functions.ts` alle Rollenchecks für Staff-CRUD von Hierarchie auf Allow-List umstellen:
+  - Lesen (`listStaff`, `getStaff`): `admin | manager | planer | payroll`.
+  - Bearbeiten der Stammdaten und Personal-Details (`updateStaff`, `upsertPersonalDetails`, `replaceSkills`, `setActive`, evtl. Notizen): `admin | manager | payroll`.
+  - Reserviert bleiben admin-only: Anlegen/Löschen von Accounts, Passwort-Reset, Rollenwechsel, PIN-Reset (Core-Regel „Account-Anlage & Passwort-Reset nur Admin").
+- Umsetzung: statt `loadAdminCaller(..., "manager")` neutral laden und danach `assertRoleAllowed(caller.role, [...])` mit der jeweiligen Liste.
+- Keine Schema-/Grants-/RLS-Änderung. `staff` und Kindtabellen laufen weiterhin über `supabaseAdmin` im Server-Fn nach Rollencheck.
 
-Das Admin-Gate in `src/routes/_authenticated/admin/route.tsx` erlaubt payroll bereits auf dieser Route und lenkt sonstige `/admin/*`-Aufrufe ohnehin auf `/admin/zeit-uebersicht` — keine weitere Anpassung nötig.
+## Sichtbarkeit
+- Portal-Nav und `admin/route.tsx` bleiben unverändert (Payroll sieht Backoffice → Mitarbeiter). Keine UI-Änderung am Mitarbeiter-Tab.
+
+## Doku
+- `docs/arbeitsweise.md` §104: Payroll-Rechte auf Mitarbeitern — Lesen + Bearbeiten der Stammdaten/Personaldetails; Account/Passwort/Rolle/PIN bleiben admin-only.
 
 ## Nicht enthalten
-- Keine Änderung an der Portal-Navigation (payroll sieht bei manuellem Aufruf von `/` weiterhin die Kacheln — nur der Auto-Redirect nach Login ändert sich).
-- Keine Rechte-Änderungen.
+- Keine Änderungen an anderen Modulen, keine Rechte-Matrix-Umbauten, kein Umschalten auf `permission_role_defaults`.
