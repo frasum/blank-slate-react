@@ -137,9 +137,22 @@ export const getInventorySession = createServerFn({ method: "GET" })
       .eq("organization_id", caller.organizationId);
     if (iErr) throw iErr;
 
+    // Nur aktive Lieferanten in der Inventur berücksichtigen.
+    const activeSuppliers = await selectAllPaged<{ id: string; name: string }>(() =>
+      supabaseAdmin
+        .from("suppliers")
+        .select("id, name")
+        .eq("organization_id", caller.organizationId)
+        .eq("is_active", true)
+        .order("name"),
+    );
+    const activeSupplierIds = activeSuppliers.map((s) => s.id);
+
     // BFIX2: paginiert — Katalog kann > 1000 Zeilen erreichen; sonst fehlen
     // Artikel in der Inventur-Maske.
-    const articles = await selectAllPaged<{
+    const articles = activeSupplierIds.length === 0
+      ? []
+      : await selectAllPaged<{
       id: string;
       name: string;
       sku: string | null;
@@ -154,6 +167,7 @@ export const getInventorySession = createServerFn({ method: "GET" })
         .select("id, name, sku, unit, price_cents, category, supplier_id, sort_order")
         .eq("organization_id", caller.organizationId)
         .eq("is_active", true)
+        .in("supplier_id", activeSupplierIds)
         .order("sort_order")
         .order("name")
         .order("id"),
@@ -243,14 +257,11 @@ export const getInventorySession = createServerFn({ method: "GET" })
       };
     });
 
-    const suppliers = await selectAllPaged<{ id: string; name: string }>(() =>
-      supabaseAdmin
-        .from("suppliers")
-        .select("id, name")
-        .eq("organization_id", caller.organizationId)
-        .order("name"),
-    );
-    return { session, rows, suppliers: suppliers.map((s) => ({ id: s.id, name: s.name })) };
+    return {
+      session,
+      rows,
+      suppliers: activeSuppliers.map((s) => ({ id: s.id, name: s.name })),
+    };
   });
 
 export const upsertInventoryItem = createServerFn({ method: "POST" })
