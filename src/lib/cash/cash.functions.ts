@@ -19,6 +19,7 @@ import { runGuarded } from "@/lib/admin/admin-call";
 import { writeAuditLog, makeAuditWriter } from "@/lib/admin/audit";
 import { arbzgMinimumBreak, grossMinutesBetween } from "@/lib/time/break-rules";
 import { syncPoolTimeEntry } from "./pool-time-writeback";
+import { captureServerError } from "@/lib/monitoring/sentry.server";
 import { assertBusinessDateUnlocked, TimeLockedError } from "@/lib/time/time-lock";
 import { calcWaiterSettlement } from "./waiter-settlement";
 import {
