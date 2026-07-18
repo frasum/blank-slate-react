@@ -3,7 +3,7 @@
 // in offener Session: Tabelle aller aktiven Artikel mit zwei Lager-Inputs,
 // debounced autosave per Zeile, Live-Summen, Abschluss-Button.
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -229,6 +229,9 @@ function OpenSession({
   const data = sessionQ.data;
   if (!data) return null;
   const readOnly = data.session.status === "completed";
+  const supplierName = new Map<string, string>(
+    (data.suppliers ?? []).map((s) => [s.id, s.name]),
+  );
 
   return (
     <section className="rounded-md border border-border bg-card">
@@ -265,37 +268,137 @@ function OpenSession({
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="text-left text-xs uppercase tracking-wide text-muted-foreground">
-            <tr>
-              <th className="px-3 py-2">Artikel</th>
-              <th className="px-3 py-2">Inventureinheit</th>
-              <th className="px-3 py-2 text-right">Einzelwert</th>
-              <th className="px-3 py-2 text-center">Bar</th>
-              <th className="px-3 py-2 text-center">Trockenlager</th>
-              <th className="px-3 py-2 text-right">Gesamt</th>
-              <th className="px-3 py-2 text-right">Gesamtwert</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.rows.map((row) => (
-              <ArticleRow
-                key={row.article.id}
-                article={row.article}
-                item={row.item}
-                readOnly={readOnly}
-                onSave={(s1, s2) =>
-                  upsertMut.mutate({ articleId: row.article.id, storage1: s1, storage2: s2 })
-                }
-              />
-            ))}
-          </tbody>
-        </table>
+        <SupplierGroupedTable
+          rows={data.rows}
+          supplierName={supplierName}
+          readOnly={readOnly}
+          onSave={(articleId, s1, s2) =>
+            upsertMut.mutate({ articleId, storage1: s1, storage2: s2 })
+          }
+        />
         {data.rows.length === 0 && (
           <p className="px-3 py-3 text-sm text-muted-foreground">Keine aktiven Artikel.</p>
         )}
       </div>
     </section>
+  );
+}
+
+type InventoryRow = {
+  article: {
+    id: string;
+    name: string;
+    unit: string;
+    price_cents: number;
+    supplier_id: string;
+    order_unit?: string;
+    inventory_unit?: string;
+    order_to_inventory_factor?: number;
+  };
+  item: {
+    storage_1: number;
+    storage_2: number;
+    total_qty: number;
+    line_value_cents: number;
+    article_name_snapshot?: string | null;
+    inventory_unit_snapshot?: string | null;
+    normalized_price_per_inventory_unit_cents?: number | null;
+  } | null;
+};
+
+function SupplierGroupedTable({
+  rows,
+  supplierName,
+  readOnly,
+  onSave,
+}: {
+  rows: InventoryRow[];
+  supplierName: Map<string, string>;
+  readOnly: boolean;
+  onSave: (articleId: string, s1: number, s2: number) => void;
+}) {
+  const groups = useMemo(() => {
+    const byId = new Map<string, InventoryRow[]>();
+    for (const r of rows) {
+      const key = r.article.supplier_id ?? "";
+      const list = byId.get(key);
+      if (list) list.push(r);
+      else byId.set(key, [r]);
+    }
+    const arr = Array.from(byId.entries()).map(([id, items]) => ({
+      id,
+      name: supplierName.get(id) ?? "Ohne Lieferant",
+      items,
+      total: items.reduce((s, r) => s + (r.item?.line_value_cents ?? 0), 0),
+    }));
+    arr.sort((a, b) => a.name.localeCompare(b.name, "de"));
+    return arr;
+  }, [rows, supplierName]);
+
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(groups.map((g) => g.id)));
+
+  function toggle(id: string) {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  return (
+    <table className="w-full text-sm">
+      <thead className="text-left text-xs uppercase tracking-wide text-muted-foreground">
+        <tr>
+          <th className="px-3 py-2">Artikel</th>
+          <th className="px-3 py-2">Inventureinheit</th>
+          <th className="px-3 py-2 text-right">Einzelwert</th>
+          <th className="px-3 py-2 text-center">Bar</th>
+          <th className="px-3 py-2 text-center">Trockenlager</th>
+          <th className="px-3 py-2 text-right">Gesamt</th>
+          <th className="px-3 py-2 text-right">Gesamtwert</th>
+        </tr>
+      </thead>
+      <tbody>
+        {groups.map((g) => {
+          const isCollapsed = collapsed.has(g.id);
+          return (
+            <Fragment key={g.id}>
+              <tr className="border-t border-border bg-muted/40">
+                <td colSpan={6} className="px-3 py-2">
+                  <button
+                    type="button"
+                    onClick={() => toggle(g.id)}
+                    className="flex items-center gap-2 text-left text-sm font-semibold text-foreground hover:text-primary"
+                  >
+                    <span className="inline-block w-3 text-muted-foreground">
+                      {isCollapsed ? "▸" : "▾"}
+                    </span>
+                    <span>{g.name}</span>
+                    <span className="text-xs font-normal text-muted-foreground">
+                      ({g.items.length})
+                    </span>
+                  </button>
+                </td>
+                <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">
+                  {fmtEuro(g.total)}
+                </td>
+              </tr>
+              {!isCollapsed &&
+                g.items.map((row) => (
+                  <ArticleRow
+                    key={row.article.id}
+                    article={row.article}
+                    item={row.item}
+                    readOnly={readOnly}
+                    onSave={(s1, s2) => onSave(row.article.id, s1, s2)}
+                  />
+                ))}
+            </Fragment>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }
 
