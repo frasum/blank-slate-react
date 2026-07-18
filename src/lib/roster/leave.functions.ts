@@ -79,6 +79,7 @@ export type LeaveRequestRow = {
   decidedAt: string | null;
   createdAt: string;
   days: number;
+  locationIds: string[];
 };
 
 // =========================================================================
