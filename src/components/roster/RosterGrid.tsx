@@ -112,6 +112,12 @@ type Props = {
   onClearAbsence: (staffId: string, iso: string) => Promise<void> | void;
   onSetWish: (staffId: string, iso: string) => Promise<void> | void;
   onClearWish: (staffId: string, iso: string) => Promise<void> | void;
+  /**
+   * Optionaler Render-Slot für den Mitarbeiter-Namen (linke/rechte
+   * Sticky-Spalte). Wird u. a. genutzt, um für Admin/Payroll einen
+   * Link auf die Stammdaten zu setzen.
+   */
+  renderStaffName?: (row: RosterStaffRow) => React.ReactNode;
 };
 
 export function RosterGrid({
@@ -144,6 +150,7 @@ export function RosterGrid({
   onClearAbsence,
   onSetWish,
   onClearWish,
+  renderStaffName,
 }: Props) {
   const [openCell, setOpenCell] = React.useState<string | null>(null);
   const [openPill, setOpenPill] = React.useState<string | null>(null);
