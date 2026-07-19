@@ -3,7 +3,7 @@
 // Erhaltungs-Constraints: Realtime, Cross-Booking-Markierung, Service-Marker,
 // GL→Service-Mapping bleiben funktional erhalten (vgl. .lovable/plan.md).
 
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -178,6 +178,9 @@ function ViewToggle({ current }: { current: "grid" | "tag" }) {
 function AdminManagerDienstplan() {
   const today = todayIso();
   const qc = useQueryClient();
+  const { identity } = Route.useRouteContext();
+  const canOpenStaff = identity.role === "admin" || identity.role === "payroll";
+  const currentHref = useRouterState({ select: (s) => s.location.href });
 
   const periodsQ = useQuery({ queryKey: ["periods"], queryFn: () => listPeriods() });
   const locationsQ = useQuery({ queryKey: ["locations"], queryFn: () => listLocations() });
@@ -918,6 +921,20 @@ function AdminManagerDienstplan() {
               onClearAbsence={handleClearAbsence}
               onSetWish={handleSetWish}
               onClearWish={handleClearWish}
+              renderStaffName={
+                canOpenStaff
+                  ? (row) => (
+                      <Link
+                        to="/admin/staff/$staffId"
+                        params={{ staffId: row.staffId }}
+                        search={{ from: currentHref }}
+                        className="hover:underline"
+                      >
+                        {row.displayName}
+                      </Link>
+                    )
+                  : undefined
+              }
             />
           </DndContext>
         )}
