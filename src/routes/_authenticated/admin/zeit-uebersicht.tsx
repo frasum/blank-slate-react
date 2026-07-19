@@ -561,6 +561,20 @@ function ZeitUebersichtPage() {
     return m;
   }, [absencesQ.data]);
 
+  // Anzeige-Ergänzung: voller Name (Vor- + Nachname) je Mitarbeiter für die
+  // zweizeilige Darstellung unter dem Rufnamen in Zusammenfassung + Buchhaltung.
+  // Nur Anzeige — Exporte bleiben unverändert.
+  const fullNameByStaffId = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const s of staffAllQ.data ?? []) {
+      const full = [s.firstName, s.lastName].filter(Boolean).join(" ").trim();
+      if (full && full.toLowerCase() !== (s.displayName ?? "").toLowerCase()) {
+        m.set(s.id, full);
+      }
+    }
+    return m;
+  }, [staffAllQ.data]);
+
   type SfnAgg = {
     simple: { night25Hours: number; night40Hours: number; sundayHours: number };
     extended: {
