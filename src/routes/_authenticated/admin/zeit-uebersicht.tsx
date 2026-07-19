@@ -74,7 +74,15 @@ import { LohnrechnerPanel } from "@/components/lohn/LohnrechnerPanel";
 import { BatchTimesCard } from "@/components/zeit/BatchTimesCard";
 import { entryRowDepartment } from "@/lib/time/primary-department";
 import { filterWeeklyRows } from "@/lib/time/weekly-filter";
+import { listSkills, type SkillCategory } from "@/lib/admin/skills.functions";
 import { PillSelect } from "@/components/ui/pill-select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   type Department,
   type Entry,
@@ -120,6 +128,7 @@ function ZeitUebersichtPage() {
   const fetchStaffAll = useServerFn(listStaff);
   const fetchOverview = useServerFn(getTimeOverview);
   const fetchWeekly = useServerFn(getWeeklyTimeEntries);
+  const fetchSkills = useServerFn(listSkills);
   const fetchNotes = useServerFn(listPayrollNotes);
   const fetchAdvances = useServerFn(listAdvancesByStaff);
   const fetchAbsences = useServerFn(listAbsencesByStaff);
@@ -189,6 +198,7 @@ function ZeitUebersichtPage() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   // Z4 — Wochenplan-Filter (nur Anzeige, nicht Export/Buchhaltung).
   const [deptFilter, setDeptFilter] = useState<Department | "all">("all");
+  const [skillFilter, setSkillFilter] = useState<string>("all");
   const [activeTab, setActiveTab] = useState<string>("weekly");
   // Summen-Skope für die rechte Kennzahlen-Spalte im Wochenplan:
   // "week" = aktuelle Woche (Grid-Daten), "period" = Abrechnungsperiode (Overview-Daten).
@@ -752,6 +762,15 @@ function ZeitUebersichtPage() {
     return m;
   }, [weeklyData]);
 
+  // Z4 — Skills-Stammdaten nur noch für die Filter-UI (Kategorisierung/Anzeige).
+  // Das Matching selbst passiert seit Z4b gegen die Dienstplan-Realität der Woche.
+  const skillsQ = useQuery({
+    queryKey: ["skills-list"],
+    queryFn: () => fetchSkills(),
+    enabled: !isPayroll,
+  });
+  const skills = useMemo(() => skillsQ.data ?? [], [skillsQ.data]);
+
   // Z4b — Dienstplan-Realität der angezeigten Woche je Mitarbeiter
   // (aus roster_shifts). Filtergrundlage für Bereich und Skill.
   const rosterByStaffMap = useMemo(() => {
@@ -996,11 +1015,11 @@ function ZeitUebersichtPage() {
       ...weeklyExportInput,
       rowsByDept: filterWeeklyRows(
         weeklyExportInput.rowsByDept,
-        { dept: deptFilter, skillId: "all", query: "" },
+        { dept: deptFilter, skillId: skillFilter, query: "" },
         rosterByStaffMap,
       ),
     };
-  }, [weeklyExportInput, deptFilter, rosterByStaffMap]);
+  }, [weeklyExportInput, deptFilter, skillFilter, rosterByStaffMap]);
 
   // ============ Buchhaltung-Aggregation (Render + Export) ============
   const payrollRowsByStaff = useMemo(() => {
@@ -1318,10 +1337,52 @@ function ZeitUebersichtPage() {
                 value={deptFilter}
                 onChange={setDeptFilter}
               />
-              {deptFilter !== "all" && (
+              {!isPayroll && (
+                <label className="flex items-center gap-2 text-sm">
+                  <span className="text-muted-foreground">Skill:</span>
+                  <Select value={skillFilter} onValueChange={setSkillFilter}>
+                    <SelectTrigger className="h-8 w-[180px]">
+                      <SelectValue placeholder="Alle" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Alle</SelectItem>
+                      {(
+                        [
+                          { key: "kitchen", label: "Küche" },
+                          { key: "service", label: "Service" },
+                          { key: "gl", label: "Geschäftsleitung" },
+                          { key: "other", label: "Sonstige" },
+                        ] as { key: SkillCategory; label: string }[]
+                      ).map((cat) => {
+                        const items = skills.filter((s) => s.category === cat.key);
+                        if (items.length === 0) return null;
+                        return (
+                          <div key={cat.key}>
+                            <div className="px-2 pt-1 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              {cat.label}
+                            </div>
+                            {items.map((s) => (
+                              <SelectItem key={s.id} value={s.id}>
+                                <span className="inline-flex items-center gap-2">
+                                  <span
+                                    className="inline-block h-2 w-2 rounded-full"
+                                    style={{ backgroundColor: s.color ?? "#cbd5e1" }}
+                                  />
+                                  {s.name}
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </div>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </label>
+              )}
+              {(deptFilter !== "all" || skillFilter !== "all") && (
                 <span
                   className="text-xs text-muted-foreground"
-                  title="Bereichsfilter matcht die Dienstplan-Realität der angezeigten Woche (roster_shifts)."
+                  title="Bereich- und Skill-Filter matchen die Dienstplan-Realität der angezeigten Woche (roster_shifts), nicht die Skill-Stammdaten."
                 >
                   Zeigt nur in dieser Woche entsprechend Eingeplante
                 </span>
