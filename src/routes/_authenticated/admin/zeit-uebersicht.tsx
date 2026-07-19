@@ -120,7 +120,6 @@ function ZeitUebersichtPage() {
   const fetchStaffAll = useServerFn(listStaff);
   const fetchOverview = useServerFn(getTimeOverview);
   const fetchWeekly = useServerFn(getWeeklyTimeEntries);
-  const fetchSkills = useServerFn(listSkills);
   const fetchNotes = useServerFn(listPayrollNotes);
   const fetchAdvances = useServerFn(listAdvancesByStaff);
   const fetchAbsences = useServerFn(listAbsencesByStaff);
