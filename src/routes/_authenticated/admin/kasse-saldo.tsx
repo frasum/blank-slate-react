@@ -253,6 +253,7 @@ function KasseSaldoPage() {
                   <TableHead className="text-right px-2 py-2 text-xs">Vorsch.</TableHead>
                   <TableHead className="text-right px-2 py-2 text-xs">Ausg.</TableHead>
                   <TableHead className="text-right px-2 py-2 text-xs">Bargeld</TableHead>
+                  <TableHead className="text-right px-2 py-2 text-xs">TG-Rest</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -301,6 +302,9 @@ function KasseSaldoPage() {
                     </TableCell>
                     <TableCell className={bargeldClass(r.bargeldCents)}>
                       {fmtEuro(r.bargeldCents)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
+                      {fmtEuro(r.tipRemainderCents)}
                     </TableCell>
                   </TableRow>
                 ))}
