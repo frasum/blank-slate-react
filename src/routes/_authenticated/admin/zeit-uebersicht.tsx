@@ -1182,7 +1182,10 @@ function ZeitUebersichtPage() {
 
       <Tabs value={isPlaner ? "weekly" : activeTab} onValueChange={setActiveTab}>
         <div className="mb-4 flex flex-wrap gap-1 border-b border-border">
-          <TabButton active={isPlaner || activeTab === "weekly"} onClick={() => setActiveTab("weekly")}>
+          <TabButton
+            active={isPlaner || activeTab === "weekly"}
+            onClick={() => setActiveTab("weekly")}
+          >
             Wochenplan
           </TabButton>
           {!isPlaner && (
@@ -1196,10 +1199,16 @@ function ZeitUebersichtPage() {
               <TabButton active={activeTab === "periods"} onClick={() => setActiveTab("periods")}>
                 Perioden
               </TabButton>
-              <TabButton active={activeTab === "lohnrechner"} onClick={() => setActiveTab("lohnrechner")}>
+              <TabButton
+                active={activeTab === "lohnrechner"}
+                onClick={() => setActiveTab("lohnrechner")}
+              >
                 Brutto/Netto
               </TabButton>
-              <TabButton active={activeTab === "provision"} onClick={() => setActiveTab("provision")}>
+              <TabButton
+                active={activeTab === "provision"}
+                onClick={() => setActiveTab("provision")}
+              >
                 Provision
               </TabButton>
             </>
