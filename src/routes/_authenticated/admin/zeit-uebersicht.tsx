@@ -74,15 +74,7 @@ import { LohnrechnerPanel } from "@/components/lohn/LohnrechnerPanel";
 import { BatchTimesCard } from "@/components/zeit/BatchTimesCard";
 import { entryRowDepartment } from "@/lib/time/primary-department";
 import { filterWeeklyRows } from "@/lib/time/weekly-filter";
-import { listSkills, type SkillCategory } from "@/lib/admin/skills.functions";
 import { PillSelect } from "@/components/ui/pill-select";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   type Department,
   type Entry,
@@ -198,7 +190,7 @@ function ZeitUebersichtPage() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   // Z4 — Wochenplan-Filter (nur Anzeige, nicht Export/Buchhaltung).
   const [deptFilter, setDeptFilter] = useState<Department | "all">("all");
-  const [skillFilter, setSkillFilter] = useState<string>("all");
+  const skillFilter = "all";
   const [activeTab, setActiveTab] = useState<string>("weekly");
   // Summen-Skope für die rechte Kennzahlen-Spalte im Wochenplan:
   // "week" = aktuelle Woche (Grid-Daten), "period" = Abrechnungsperiode (Overview-Daten).
@@ -761,15 +753,6 @@ function ZeitUebersichtPage() {
     }
     return m;
   }, [weeklyData]);
-
-  // Z4 — Skills-Stammdaten nur noch für die Filter-UI (Kategorisierung/Anzeige).
-  // Das Matching selbst passiert seit Z4b gegen die Dienstplan-Realität der Woche.
-  const skillsQ = useQuery({
-    queryKey: ["skills-list"],
-    queryFn: () => fetchSkills(),
-    enabled: !isPayroll,
-  });
-  const skills = useMemo(() => skillsQ.data ?? [], [skillsQ.data]);
 
   // Z4b — Dienstplan-Realität der angezeigten Woche je Mitarbeiter
   // (aus roster_shifts). Filtergrundlage für Bereich und Skill.
