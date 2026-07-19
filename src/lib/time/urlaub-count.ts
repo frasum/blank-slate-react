@@ -1,4 +1,4 @@
-// UZ1 — Zählung Urlaubstage nach 5-Tage-Modell (nur Mo–Fr).
+// UZ1 — Zählung Urlaubs- UND Krank-Tage nach 5-Tage-Modell (nur Mo–Fr).
 // Reine Funktion, ohne IO. Wird von listAbsencesByStaff genutzt und ist
 // die EINE Zählquelle für Zeitübersicht und Buchhaltungs-Export.
 // Feiertage zählen bewusst als normale Arbeitstage und werden NICHT
@@ -7,12 +7,17 @@
 
 import { isoWeekday } from "@/lib/roster/business-calendar";
 
-export function isUrlaubWorkday(dateIso: string): boolean {
+/** Mo–Fr? Gilt gleichermaßen für Urlaub und Krank (5-Tage-Modell). */
+export function isAbsenceWorkday(dateIso: string): boolean {
   return isoWeekday(dateIso) <= 5;
 }
 
-export function countUrlaubWorkdays(dates: readonly string[]): number {
+export function countAbsenceWorkdays(dates: readonly string[]): number {
   let n = 0;
-  for (const d of dates) if (isUrlaubWorkday(d)) n += 1;
+  for (const d of dates) if (isAbsenceWorkday(d)) n += 1;
   return n;
 }
+
+// Rückwärts-Aliase (falls externer Aufrufer noch die alten Namen nutzt).
+export const isUrlaubWorkday = isAbsenceWorkday;
+export const countUrlaubWorkdays = countAbsenceWorkdays;
