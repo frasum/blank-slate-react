@@ -1031,6 +1031,9 @@ function ZeitUebersichtPage() {
       const note = notesByStaff.get(s.staffId);
       const advCents = advanceCentsByStaff.get(s.staffId) ?? 0;
       const abs = absencesByStaff.get(s.staffId);
+      const recur = activeRecurringByStaff.get(s.staffId) ?? [];
+      const recurText = recur.map((r) => r.display).join(" · ");
+      const merged = [note?.besonderheiten ?? "", recurText].filter(Boolean).join(" · ");
       m.set(s.staffId, {
         staffId: s.staffId,
         department: s.department,
@@ -1046,12 +1049,20 @@ function ZeitUebersichtPage() {
         urlaubDays: abs?.urlaubDays ?? 0,
         krankDays: abs?.krankDays ?? 0,
         vorschussEUR: advCents / 100,
-        besonderheiten: note?.besonderheiten ?? "",
+        besonderheiten: merged,
         absenceNote: abs?.absenceNote ?? "",
       });
     }
     return m;
-  }, [staffAggs, sfnByStaff, notesByStaff, advanceCentsByStaff, absencesByStaff, payrollMode]);
+  }, [
+    staffAggs,
+    sfnByStaff,
+    notesByStaff,
+    advanceCentsByStaff,
+    absencesByStaff,
+    payrollMode,
+    activeRecurringByStaff,
+  ]);
 
   const payrollSearchActive = payrollSearch.trim().length > 0;
   const payrollFilteredByDept = useMemo(() => {
