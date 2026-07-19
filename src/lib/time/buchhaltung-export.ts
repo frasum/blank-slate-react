@@ -36,7 +36,7 @@ function fmtEUR(n: number): string {
   return n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function columns(
+export function columns(
   mode: BuchhaltungMode,
 ): { key: keyof BuchhaltungExportRow | "name"; label: string }[] {
   const base: { key: keyof BuchhaltungExportRow | "name"; label: string }[] = [

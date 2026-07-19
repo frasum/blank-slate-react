@@ -21,6 +21,7 @@ import { isInCurrentBillingCycle } from "./billing-cycle";
 import { todayIso } from "@/lib/format";
 import { timeEntryToSfnRow } from "@/lib/lohn/time-entry-sfn";
 import { formatAbsenceNote } from "./absence-note";
+import { isUrlaubWorkday } from "./urlaub-count";
 import type { SfnShiftRow } from "@/lib/lohn/sfn-geld/types";
 import { computeStaffSfn } from "@/lib/lohn/compute-staff-sfn";
 import { primaryDepartment, type Department } from "./primary-department";
@@ -555,7 +556,12 @@ export const listAbsencesByStaff = createServerFn({ method: "GET" })
         entry.krankDays += 1;
         entry.items.push({ date: r.date, type: "krank" });
       } else if (r.type === "urlaub") {
-        entry.urlaubDays += 1;
+        // UZ1: Urlaubs-Zählung folgt dem 5-Tage-Modell (nur Mo–Fr).
+        // roster_absence-Daten bleiben unverändert; die Note (items) zeigt
+        // weiterhin ALLE Urlaubs-Kalendertage — nur die Zählung filtert.
+        if (isUrlaubWorkday(r.date)) {
+          entry.urlaubDays += 1;
+        }
         entry.items.push({ date: r.date, type: "urlaub" });
       }
       map.set(r.staff_id, entry);
