@@ -146,6 +146,7 @@ function KasseSaldoPage() {
       vorschuss: 0,
       expenses: 0,
       bargeld: 0,
+      tipRemainder: 0,
     };
     for (const r of rows) {
       t.tagesumsatz += r.tagesumsatzCents;
@@ -161,6 +162,7 @@ function KasseSaldoPage() {
       t.vorschuss += r.vorschussCents;
       t.expenses += r.expensesCents;
       t.bargeld += r.bargeldCents;
+      t.tipRemainder += r.tipRemainderCents;
     }
     return t;
   }, [rows]);
