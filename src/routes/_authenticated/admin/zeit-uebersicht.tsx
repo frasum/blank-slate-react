@@ -1,6 +1,6 @@
 // B6 — Arbeitszeitübersicht (Zusammenfassung + Buchhaltung), 1:1 nach tagesabrechnung.
 
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouterState } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Fragment, useEffect, useMemo, useState } from "react";
@@ -121,6 +121,8 @@ function ZeitUebersichtPage() {
   const isAdmin = identity?.role === "admin";
   const isPayroll = identity?.role === "payroll";
   const isPlaner = identity?.role === "planer";
+  const canOpenStaff = isAdmin || isPayroll;
+  const currentHref = useRouterState({ select: (s) => s.location.href });
   const fetchLocations = useServerFn(listLocations);
   const fetchStaffAll = useServerFn(listStaff);
   const fetchOverview = useServerFn(getTimeOverview);
@@ -1554,7 +1556,20 @@ function ZeitUebersichtPage() {
                         return (
                           <TableRow key={s.staffId}>
                             <TableCell>
-                              <div>{s.displayName}</div>
+                              <div>
+                                {canOpenStaff ? (
+                                  <Link
+                                    to="/admin/staff/$staffId"
+                                    params={{ staffId: s.staffId }}
+                                    search={{ from: currentHref }}
+                                    className="hover:underline"
+                                  >
+                                    {s.displayName}
+                                  </Link>
+                                ) : (
+                                  s.displayName
+                                )}
+                              </div>
                               {fullNameByStaffId.get(s.staffId) && (
                                 <div className="text-xs text-muted-foreground">
                                   {fullNameByStaffId.get(s.staffId)}
@@ -1690,6 +1705,20 @@ function ZeitUebersichtPage() {
             onExportPdf={handlePayrollExportPdf}
             onExportXlsx={handlePayrollExportXlsx}
             onExportCsv={isPayroll ? handlePayrollExportCsv : undefined}
+            renderStaffName={
+              canOpenStaff
+                ? (staffId, displayName) => (
+                    <Link
+                      to="/admin/staff/$staffId"
+                      params={{ staffId }}
+                      search={{ from: currentHref }}
+                      className="hover:underline"
+                    >
+                      {displayName}
+                    </Link>
+                  )
+                : undefined
+            }
           />
         </TabsContent>
 

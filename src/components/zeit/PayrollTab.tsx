@@ -1,7 +1,7 @@
 // G1a Scheibe 2 — 1:1 aus src/routes/_authenticated/admin/zeit-uebersicht.tsx
 // extrahiert. Verhaltensgleich; Props-Verträge unverändert.
 
-import { Fragment, useState } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -56,6 +56,7 @@ export function PayrollTab({
   recurringByStaff,
   onAddRecurring,
   onCancelRecurring,
+  renderStaffName,
 }: {
   mode: BuchhaltungMode;
   onModeChange: (m: BuchhaltungMode) => void;
@@ -86,6 +87,7 @@ export function PayrollTab({
   recurringByStaff?: Map<string, PayrollRecurringEntry[]>;
   onAddRecurring?: (vars: CreateRecurringVars) => void;
   onCancelRecurring?: (id: string) => void;
+  renderStaffName?: (staffId: string, displayName: string) => ReactNode;
 }) {
   const is3b = mode === "section3b";
   // Spaltenanzahl für colSpan: Name + Gesamt + Schichten + (3 SFN | 5 §3b) + U + K + Vorschuss + Besonderheiten
@@ -255,6 +257,7 @@ export function PayrollTab({
                         readOnly={readOnly}
                         fullName={fullNameByStaffId?.get(staffId)}
                         onSave={(b) => onSaveNote(staffId, b)}
+                        nameSlot={renderStaffName?.(staffId, r.displayName)}
                         recurring={recurringByStaff?.get(staffId) ?? []}
                         onAddRecurring={
                           onAddRecurring
@@ -337,6 +340,7 @@ function PayrollRow({
   readOnly,
   onSave,
   fullName,
+  nameSlot,
   recurring,
   onAddRecurring,
   onCancelRecurring,
@@ -346,6 +350,7 @@ function PayrollRow({
   readOnly: boolean;
   onSave: (besonderheiten: string) => void;
   fullName?: string;
+  nameSlot?: ReactNode;
   recurring?: PayrollRecurringEntry[];
   onAddRecurring?: (vars: {
     kind: "rate" | "dauer";
@@ -381,7 +386,7 @@ function PayrollRow({
   return (
     <TableRow className="group">
       <TableCell className="py-1.5 font-medium">
-        <div>{row.displayName}</div>
+        <div>{nameSlot ?? row.displayName}</div>
         {fullName && <div className="text-xs font-normal text-muted-foreground">{fullName}</div>}
       </TableCell>
       <TableCell className="py-1.5 text-right tabular-nums font-medium">

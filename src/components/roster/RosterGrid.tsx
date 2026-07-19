@@ -112,6 +112,12 @@ type Props = {
   onClearAbsence: (staffId: string, iso: string) => Promise<void> | void;
   onSetWish: (staffId: string, iso: string) => Promise<void> | void;
   onClearWish: (staffId: string, iso: string) => Promise<void> | void;
+  /**
+   * Optionaler Render-Slot für den Mitarbeiter-Namen (linke/rechte
+   * Sticky-Spalte). Wird u. a. genutzt, um für Admin/Payroll einen
+   * Link auf die Stammdaten zu setzen.
+   */
+  renderStaffName?: (row: RosterStaffRow) => React.ReactNode;
 };
 
 export function RosterGrid({
@@ -144,6 +150,7 @@ export function RosterGrid({
   onClearAbsence,
   onSetWish,
   onClearWish,
+  renderStaffName,
 }: Props) {
   const [openCell, setOpenCell] = React.useState<string | null>(null);
   const [openPill, setOpenPill] = React.useState<string | null>(null);
@@ -410,7 +417,7 @@ export function RosterGrid({
                         isFit ? "truncate px-2 py-0.5 text-[11px]" : "px-3 py-1",
                       )}
                     >
-                      {row.displayName}
+                      {renderStaffName ? renderStaffName(row) : row.displayName}
                     </td>
                     {days.map((iso) => {
                       const shift = shiftIndex.get(`${row.staffId}|${iso}|${activeArea}`);
@@ -573,7 +580,7 @@ export function RosterGrid({
                       )}
                       style={{ right: isFit ? 32 : 48 }}
                     >
-                      {row.displayName}
+                      {renderStaffName ? renderStaffName(row) : row.displayName}
                     </td>
                     <td className="sticky right-0 z-10 border-l bg-muted px-1 py-1 text-center font-mono text-xs tabular-nums group-even/row:bg-muted-foreground/20">
                       <Tooltip>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { createFileRoute, useRouteContext } from "@tanstack/react-router";
+import { createFileRoute, useRouteContext, useRouter } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -40,6 +40,9 @@ import {
 
 export const Route = createFileRoute("/_authenticated/admin/staff/$staffId")({
   head: () => ({ meta: [{ title: "Mitarbeiter · Verwaltung" }] }),
+  validateSearch: (search: Record<string, unknown>) => ({
+    from: typeof search.from === "string" ? search.from : undefined,
+  }),
   component: StaffDetailPage,
 });
 
@@ -47,6 +50,8 @@ type Tab = "basics" | "personal" | "pin" | "account" | "permissions" | "dokument
 
 function StaffDetailPage() {
   const { staffId } = Route.useParams();
+  const { from } = Route.useSearch();
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>("basics");
   const { identity } = useRouteContext({ from: "/_authenticated/admin" });
   const showPersonal = identity.role === "admin" || identity.role === "payroll";
@@ -68,6 +73,21 @@ function StaffDetailPage() {
 
   return (
     <div className="space-y-6">
+      <div>
+        <button
+          type="button"
+          onClick={() => {
+            if (from && from.startsWith("/") && !from.startsWith("//")) {
+              router.history.push(from);
+            } else {
+              router.history.push("/admin/staff");
+            }
+          }}
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground hover:underline"
+        >
+          ← Zurück
+        </button>
+      </div>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">{s.displayName}</h1>
