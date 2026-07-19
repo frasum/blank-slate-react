@@ -2515,6 +2515,80 @@ export type Database = {
           },
         ]
       }
+      payroll_recurring_notes: {
+        Row: {
+          canceled_at: string | null
+          created_at: string
+          created_by_staff_id: string | null
+          first_period_start: string
+          id: string
+          kind: string
+          location_id: string | null
+          organization_id: string
+          periods_total: number | null
+          staff_id: string
+          text: string
+          updated_at: string
+        }
+        Insert: {
+          canceled_at?: string | null
+          created_at?: string
+          created_by_staff_id?: string | null
+          first_period_start: string
+          id?: string
+          kind: string
+          location_id?: string | null
+          organization_id: string
+          periods_total?: number | null
+          staff_id: string
+          text: string
+          updated_at?: string
+        }
+        Update: {
+          canceled_at?: string | null
+          created_at?: string
+          created_by_staff_id?: string | null
+          first_period_start?: string
+          id?: string
+          kind?: string
+          location_id?: string | null
+          organization_id?: string
+          periods_total?: number | null
+          staff_id?: string
+          text?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_recurring_notes_created_by_staff_id_fkey"
+            columns: ["created_by_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_recurring_notes_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_recurring_notes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_recurring_notes_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       periods: {
         Row: {
           created_at: string
