@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { createFileRoute, useNavigate, useRouteContext } from "@tanstack/react-router";
+import { createFileRoute, useRouteContext, useRouter } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -51,7 +51,7 @@ type Tab = "basics" | "personal" | "pin" | "account" | "permissions" | "dokument
 function StaffDetailPage() {
   const { staffId } = Route.useParams();
   const { from } = Route.useSearch();
-  const navigate = useNavigate();
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>("basics");
   const { identity } = useRouteContext({ from: "/_authenticated/admin" });
   const showPersonal = identity.role === "admin" || identity.role === "payroll";
@@ -77,10 +77,10 @@ function StaffDetailPage() {
         <button
           type="button"
           onClick={() => {
-            if (from && from.startsWith("/")) {
-              void navigate({ to: from });
+            if (from && from.startsWith("/") && !from.startsWith("//")) {
+              router.history.push(from);
             } else {
-              void navigate({ to: "/admin/staff" });
+              router.history.push("/admin/staff");
             }
           }}
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground hover:underline"
