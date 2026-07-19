@@ -22,6 +22,7 @@ import { todayIso } from "@/lib/format";
 import { timeEntryToSfnRow } from "@/lib/lohn/time-entry-sfn";
 import { formatAbsenceNote } from "./absence-note";
 import { isAbsenceWorkday } from "./urlaub-count";
+import type { RecurringNote, RecurringNoteKind } from "./recurring-notes";
 import type { SfnShiftRow } from "@/lib/lohn/sfn-geld/types";
 import { computeStaffSfn } from "@/lib/lohn/compute-staff-sfn";
 import { primaryDepartment, type Department } from "./primary-department";
