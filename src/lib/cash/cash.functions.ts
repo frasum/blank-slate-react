@@ -3379,11 +3379,13 @@ export async function upsertSessionTipPoolEntryCore(
       }
     } catch (err) {
       console.error("[pool-time-sync] failed", err);
-      void captureServerError(err, {
-        op: "cash.pool_time_sync",
-        orgId: caller.organizationId,
-        extra: { sessionId: session.id, staffId: data.staffId },
-      });
+      void import("@/lib/monitoring/sentry.server").then((m) =>
+        m.captureServerError(err, {
+          op: "cash.pool_time_sync",
+          orgId: caller.organizationId,
+          extra: { sessionId: session.id, staffId: data.staffId },
+        }),
+      );
       // §51: sichtbare Spur, ohne die Korrektur zu kippen.
       try {
         await writeAuditLog({
@@ -3552,11 +3554,13 @@ async function applyServicePoolEnd(input: {
     .eq("staff_id", input.staffId)
     .maybeSingle();
   if (!entry || entry.department !== "service") {
-    void captureServerError(new Error("applyServicePoolEnd: no pool entry"), {
-      op: "cash.applyServicePoolEnd",
-      orgId: input.organizationId,
-      extra: { sessionId: input.sessionId, staffId: input.staffId, reason: "no_pool_entry" },
-    });
+    void import("@/lib/monitoring/sentry.server").then((m) =>
+      m.captureServerError(new Error("applyServicePoolEnd: no pool entry"), {
+        op: "cash.applyServicePoolEnd",
+        orgId: input.organizationId,
+        extra: { sessionId: input.sessionId, staffId: input.staffId, reason: "no_pool_entry" },
+      }),
+    );
     return;
   }
   if (entry.shift_end) return; // schon gesetzt (manuell oder früherer Lauf)
@@ -3567,11 +3571,13 @@ async function applyServicePoolEnd(input: {
     businessDate: input.businessDate,
   });
   if (!resolved) {
-    void captureServerError(new Error("applyServicePoolEnd: no resolved end"), {
-      op: "cash.applyServicePoolEnd",
-      orgId: input.organizationId,
-      extra: { sessionId: input.sessionId, staffId: input.staffId, reason: "no_resolved_end" },
-    });
+    void import("@/lib/monitoring/sentry.server").then((m) =>
+      m.captureServerError(new Error("applyServicePoolEnd: no resolved end"), {
+        op: "cash.applyServicePoolEnd",
+        orgId: input.organizationId,
+        extra: { sessionId: input.sessionId, staffId: input.staffId, reason: "no_resolved_end" },
+      }),
+    );
     return;
   }
   const { error: endErr } = await supabaseAdmin
