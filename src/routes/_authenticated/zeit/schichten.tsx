@@ -137,8 +137,11 @@ function MyShiftsPage() {
   );
 
   const query = useQuery({
-    queryKey: ["my-shifts", from, to],
-    queryFn: () => fetchShifts({ data: { from, to } }),
+    queryKey: ["my-shifts", range, from, to],
+    queryFn: () =>
+      fetchShifts({
+        data: range === "released" ? { mode: "released" } : { from, to },
+      }),
   });
   const absencesQuery = useQuery({
     queryKey: ["my-absences", from, to],
