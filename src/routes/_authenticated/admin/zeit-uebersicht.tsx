@@ -1705,6 +1705,20 @@ function ZeitUebersichtPage() {
             onExportPdf={handlePayrollExportPdf}
             onExportXlsx={handlePayrollExportXlsx}
             onExportCsv={isPayroll ? handlePayrollExportCsv : undefined}
+            renderStaffName={
+              canOpenStaff
+                ? (staffId, displayName) => (
+                    <Link
+                      to="/admin/staff/$staffId"
+                      params={{ staffId }}
+                      search={{ from: currentHref }}
+                      className="hover:underline"
+                    >
+                      {displayName}
+                    </Link>
+                  )
+                : undefined
+            }
           />
         </TabsContent>
 
