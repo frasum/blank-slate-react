@@ -555,7 +555,12 @@ export const listAbsencesByStaff = createServerFn({ method: "GET" })
         entry.krankDays += 1;
         entry.items.push({ date: r.date, type: "krank" });
       } else if (r.type === "urlaub") {
-        entry.urlaubDays += 1;
+        // UZ1: Urlaubs-Zählung folgt dem 5-Tage-Modell (nur Mo–Fr).
+        // roster_absence-Daten bleiben unverändert; die Note (items) zeigt
+        // weiterhin ALLE Urlaubs-Kalendertage — nur die Zählung filtert.
+        if (isoWeekday(r.date) <= 5) {
+          entry.urlaubDays += 1;
+        }
         entry.items.push({ date: r.date, type: "urlaub" });
       }
       map.set(r.staff_id, entry);
