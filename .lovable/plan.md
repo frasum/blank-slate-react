@@ -1,66 +1,30 @@
 ## Ziel
-1. Standort-Präfix (`spicery:`, `yum:`, `tsb:`) aus dem Besonderheiten-Feld entfernen — Zusammenfassung + Buchhaltung.
-2. Zwei neue Notiz-Arten neben der bestehenden Freitext-Notiz je Periode:
-   - **Ratennotiz** — läuft über N Abrechnungsperioden und verschwindet danach automatisch (z.B. „Darlehen 500 €/Monat, 6 Raten").
-   - **Dauer-Notiz** — bleibt permanent bei jedem Lohnlauf sichtbar, bis sie aktiv beendet wird (z.B. „Pfändung", „Lohnabtretung", „VWL 40 €").
+Payroll und Admin können in Wochenplan, Zusammenfassung und Buchhaltung auf den Mitarbeiternamen klicken und landen direkt in den Stammdaten des Mitarbeiters. Auf der Stammdaten-Seite erscheint ein „Zurück"-Button, der zurück zur vorherigen Ansicht führt.
 
-## Änderung 1 — Standort-Präfix raus
-`src/routes/_authenticated/admin/zeit-uebersicht.tsx`, Merge in `notesByStaff` (~Z. 512): beim „Alle Standorte"-Zusammenführen KEIN `${loc.name}: …` mehr. Mehrere nicht-leere Notizen weiterhin mit ` · ` verbunden. Vorschuss-Summe unverändert. Kein Server-/Schema-Eingriff.
+## Umsetzung
 
-## Änderung 2 — Wiederkehrende und Dauer-Notizen
+**1. Rollen-Gate**  
+Nur Rollen `admin` und `payroll` erhalten den Klick-Link. Andere Rollen (manager, staff …) sehen den Namen unverändert als Text — kein Rechtebruch.
 
-### Datenmodell (eine Tabelle für beide Arten)
-Neue Tabelle `public.payroll_recurring_notes`:
-- `id uuid pk`, `organization_id uuid`, `staff_id uuid`, `location_id uuid null` (null = alle Standorte)
-- `kind text check (kind in ('rate','dauer'))`
-- `text text not null` (max 200), z.B. „Darlehen Rate 500 €" oder „Pfändung Amtsgericht Köln"
-- `first_period_start date not null` — ab welcher Periode erstmals anzeigen
-- `periods_total int null` — nur für `kind='rate'` gesetzt (1–60); bei `kind='dauer'` NULL = unbegrenzt
-- `canceled_at timestamptz null` — beendet die Notiz vorzeitig (für beide Arten)
-- Audit-Felder + Constraint: `(kind='rate' and periods_total is not null) or (kind='dauer' and periods_total is null)`
+**2. Rücksprung-Mechanik**  
+Route `/_authenticated/admin/staff/$staffId` bekommt einen optionalen Search-Parameter `from` (String, URL-kodierter Rücksprung-Pfad inkl. Query). Beim Klick auf einen Namen setzen wir `from=<aktuelle URL inkl. Search>`. Ein neuer Zurück-Button (oben links auf der Stammdaten-Seite) navigiert per `useNavigate` auf `from`, wenn vorhanden; sonst Fallback auf `/admin/staff`.
 
-RLS: `organization_id`-Scoping analog `payroll_notes`; SELECT für manager/admin/payroll, INSERT/UPDATE (cancel) nur manager/admin. GRANTs authenticated + service_role.
+**3. Klickbare Namen**
+- `src/routes/_authenticated/admin/dienstplan.tsx` (Wochenplan): Zellen mit `r.displayName` in der Mitarbeiter-Spalte → `<Link>` (nur wenn admin/payroll).
+- `src/routes/_authenticated/admin/zeit-uebersicht.tsx` (Zusammenfassung, Zeile ~1557): `s.displayName` → `<Link>`.
+- `src/components/zeit/PayrollTab.tsx` (Buchhaltung, Zeile 384 `PayrollRow`): `row.displayName` → `<Link>`. Rollen-Flag als Prop `canOpenStaff` durchreichen (aus `zeit-uebersicht.tsx`, wo `identity` bereits verfügbar ist).
 
-### Aktive-Berechnung (rein)
-Neues Modul `src/lib/time/recurring-notes.ts`:
-- `isActive(rec, currentPeriodStart, periodsElapsed)`:
-  - `canceled_at` gesetzt → inaktiv
-  - `currentPeriodStart < first_period_start` → inaktiv
-  - `kind='dauer'` → aktiv
-  - `kind='rate'` → aktiv, solange `periodsElapsed < periods_total`
-- `periodsElapsed` = Index der aktuellen Periode zwischen `first_period_start` und heute, abgeleitet aus dem bestehenden Perioden-Generator (5/24–5/23), damit unregelmäßige Längen egal sind.
-- Anzeige-Format:
-  - `rate` → `"<text> · <n>/<total>"`
-  - `dauer` → `"<text>"` (kein Zähler)
-- Tests: Rate 1/6, 6/6, 7/6 = inaktiv; Dauer bleibt aktiv über beliebig viele Perioden; canceled = inaktiv; Standortbindung respektiert.
+Optik: identisch zur bestehenden Konvention aus `staff.index.tsx` (`className="font-medium text-foreground hover:underline"`). Der zweizeilige „Vor- und Nachname"-Untertext bleibt Text.
 
-### Server-Funktionen (in `time-admin.functions.ts`)
-- `listRecurringNotes({ periodStart, periodEnd, locationId? })` — liefert alle aktiven Einträge inkl. `displayText`, `kind`, `remainingPeriods|null`.
-- `createRecurringNote({ staffId, locationId|null, kind, text, firstPeriodStart, periodsTotal? })` — Zod-validiert, Audit `payroll_recurring_note.create`.
-- `cancelRecurringNote({ id })` — setzt `canceled_at`, Audit `payroll_recurring_note.cancel`.
-Alle nur manager/admin.
+**4. Zurück-Button auf Stammdaten**
+`src/routes/_authenticated/admin/staff.$staffId.tsx`:
+- `validateSearch: (s) => ({ from: typeof s.from === "string" ? s.from : undefined })`.
+- Oben im Header (vor `<h1>`) neuer Button „← Zurück" mit `useNavigate({ from })` — falls `from` fehlt, Link zu `/admin/staff`. Immer sichtbar, damit auch der bisherige Einstieg über die Mitarbeiterliste unverändert funktioniert (führt dann zur Liste zurück).
 
-### UI in `PayrollTab`
-Im Besonderheiten-Cell drei Schichten übereinander:
-1. Aktive Ratennotizen als Badge mit Zähler `3/6`.
-2. Dauer-Notizen als Badge in klar unterscheidbarer Optik (z.B. anderer Ton + Icon „Pin"), damit „läuft dauerhaft" auf einen Blick erkennbar ist.
-3. Editierbares Freitext-Feld wie bisher.
+## Nicht angefasst
+- Keine Änderungen an bestehendem Rechte-Modell, keine Server-Funktionen, keine DB-Migrationen.
+- Rendering des Namens in anderen Bereichen (Kasse, Urlaub etc.) bleibt unverändert — der Auftrag adressiert nur die drei genannten Ansichten.
+- Der bestehende Einstieg über `staff.index.tsx` bleibt gleich (Zurück-Button geht dann zur Liste).
 
-Kleiner „+"-Button öffnet Popover mit Auswahl **Rate | Dauer**:
-- Rate: Text, Anzahl Perioden (1–24), Startperiode (default aktuelle).
-- Dauer: Text, Startperiode (default aktuelle) — kein Perioden-Feld.
-„X" pro Chip → cancel (mit Bestätigungsdialog bei Dauer-Notizen, um versehentliches Beenden zu vermeiden).
-
-Für payroll-Rolle: nur Anzeige, kein +/X.
-
-### Zusammenfassung + Buchhaltungs-Export
-- `buchhaltung-export.ts`, `besonderheiten`-Feld: bestehende Kombination `absenceNote` + Freitext um `recurringText` ergänzen (` · `-getrennt); Rate und Dauer werden dabei gleich behandelt — Unterscheidung ist rein UI, für den Lohnbüro-Export zählt der Textinhalt.
-- Zusammenfassungs-Tab in `zeit-uebersicht.tsx` analog anzeigen.
-
-## Betroffene Dateien
-- Migration: neue Tabelle + RLS + Grants + Check-Constraint
-- `src/lib/time/recurring-notes.ts` (neu) + Test
-- `src/lib/time/time-admin.functions.ts` (list/create/cancel)
-- `src/lib/time/buchhaltung-export.ts` (zusätzlicher Textteil)
-- `src/routes/_authenticated/admin/zeit-uebersicht.tsx` (Präfix raus, Notes-Merge, Zusammenfassung)
-- `src/components/zeit/PayrollTab.tsx` (Chips Rate/Dauer + Popover)
+## Offene Klärung
+Soll der Zurück-Button auch dann erscheinen, wenn man die Stammdaten wie bisher direkt über „Mitarbeiter" öffnet (dann Fallback auf `/admin/staff`), oder nur, wenn der Nutzer wirklich aus Wochenplan/Zusammenfassung/Buchhaltung kommt (also `from` gesetzt ist)? Ich schlage Variante 1 (immer sichtbar mit Fallback) vor — okay?
