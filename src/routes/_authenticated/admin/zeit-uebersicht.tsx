@@ -43,6 +43,9 @@ import {
   setTimeEntryShift,
   togglePeriodLock,
   upsertPayrollNote,
+  listRecurringNotes,
+  createRecurringNote,
+  cancelRecurringNote,
 } from "@/lib/time/time-admin.functions";
 import { computeShiftHours, isSundayOrHoliday } from "@/lib/time/shift-hours";
 import {
@@ -103,6 +106,10 @@ import {
   parseIsoDate,
 } from "@/lib/time/zeit-uebersicht-core";
 import { PayrollTab } from "@/components/zeit/PayrollTab";
+import {
+  activeNotesForPeriod,
+  type RecurringNote,
+} from "@/lib/time/recurring-notes";
 import { WeeklyPlan } from "@/components/zeit/WeeklyPlan";
 import { PeriodsPanel } from "@/components/zeit/PeriodsPanel";
 
@@ -138,6 +145,9 @@ function ZeitUebersichtPage() {
   const callCreatePeriod = useServerFn(createPeriod);
   const callToggleLock = useServerFn(togglePeriodLock);
   const callDeletePeriod = useServerFn(deletePeriod);
+  const fetchRecurring = useServerFn(listRecurringNotes);
+  const callCreateRecurring = useServerFn(createRecurringNote);
+  const callCancelRecurring = useServerFn(cancelRecurringNote);
 
   const locationsQ = useQuery({
     queryKey: ["admin-locations"],
@@ -512,8 +522,9 @@ function ZeitUebersichtPage() {
   const notesByStaff = useMemo(() => {
     const m = new Map<string, { vorschuss: number; besonderheiten: string }>();
     if (isAllLocations) {
-      // Pro Standort mergen: Vorschüsse summieren, Besonderheiten mit Standort-
-      // Präfix konkatenieren (z. B. "spicery: … · YUM: …").
+      // Pro Standort mergen: Vorschüsse summieren, Besonderheiten mit ` · `
+      // konkatenieren — OHNE Standort-Präfix (Frank 19.07.: Präfix stört den
+      // Lesefluss im Lohnbüro-Export).
       const byLoc = notesBatchQ.data?.byLocation ?? {};
       for (const loc of locations) {
         const data = byLoc[loc.id] as
@@ -522,7 +533,7 @@ function ZeitUebersichtPage() {
         if (!data) continue;
         for (const n of data) {
           const prev = m.get(n.staffId);
-          const noteText = n.besonderheiten?.trim() ? `${loc.name}: ${n.besonderheiten}` : "";
+          const noteText = n.besonderheiten?.trim() ?? "";
           const merged = prev
             ? {
                 vorschuss: prev.vorschuss + n.vorschuss,
@@ -643,6 +654,82 @@ function ZeitUebersichtPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  // Recurring Notes (Rate / Dauer) — pro Standort ODER org-weit.
+  const recurringQ = useQuery({
+    queryKey: ["payroll-recurring", isAllLocations ? "all" : effectiveLocationId],
+    queryFn: () =>
+      fetchRecurring({
+        data: { locationId: isAllLocations ? null : (effectiveLocationId || null) },
+      }),
+    enabled: isAllLocations || Boolean(effectiveLocationId),
+  });
+  const invalidateRecurring = () => {
+    void qc.invalidateQueries({ queryKey: ["payroll-recurring"] });
+  };
+  const createRecurringMut = useMutation({
+    mutationFn: (vars: {
+      staffId: string;
+      kind: "rate" | "dauer";
+      text: string;
+      periodsTotal: number | null;
+    }) =>
+      callCreateRecurring({
+        data: {
+          staffId: vars.staffId,
+          locationId: isAllLocations ? null : (effectiveLocationId || null),
+          kind: vars.kind,
+          text: vars.text,
+          firstPeriodStart: fromDate,
+          periodsTotal: vars.periodsTotal,
+        },
+      }),
+    onSuccess: invalidateRecurring,
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const cancelRecurringMut = useMutation({
+    mutationFn: (id: string) => callCancelRecurring({ data: { id } }),
+    onSuccess: invalidateRecurring,
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Aktive Notizen pro Mitarbeiter für die aktuell gewählte Periode.
+  const activeRecurringByStaff = useMemo(() => {
+    const m = new Map<
+      string,
+      Array<{ id: string; kind: "rate" | "dauer"; display: string; canceled: boolean }>
+    >();
+    const notes = (recurringQ.data ?? []) as RecurringNote[];
+    const periodList = periods.map((p) => ({ startDate: p.startDate, endDate: p.endDate }));
+    const currentStart = fromDate;
+    if (!currentStart) return m;
+    // Group by staff
+    const byStaff = new Map<string, RecurringNote[]>();
+    for (const n of notes) {
+      const arr = byStaff.get(n.staffId) ?? [];
+      arr.push(n);
+      byStaff.set(n.staffId, arr);
+    }
+    for (const [staffId, list] of byStaff) {
+      const active = activeNotesForPeriod(
+        list,
+        periodList,
+        currentStart,
+        isAllLocations ? null : (effectiveLocationId || null),
+      );
+      if (active.length === 0) continue;
+      m.set(
+        staffId,
+        active.map((a) => ({
+          id: a.note.id,
+          kind: a.note.kind,
+          display: a.display,
+          canceled: Boolean(a.note.canceledAt),
+        })),
+      );
+    }
+    return m;
+  }, [recurringQ.data, periods, fromDate, isAllLocations, effectiveLocationId]);
 
   function invalidateWeekly() {
     // Deckt Single- (["weekly-entries", locId, weekStart]) und Batch-Key
@@ -944,6 +1031,8 @@ function ZeitUebersichtPage() {
       const note = notesByStaff.get(s.staffId);
       const advCents = advanceCentsByStaff.get(s.staffId) ?? 0;
       const abs = absencesByStaff.get(s.staffId);
+      const recur = activeRecurringByStaff.get(s.staffId) ?? [];
+      void recur; // rendered separately in PayrollTab; export mergt weiter unten.
       m.set(s.staffId, {
         staffId: s.staffId,
         department: s.department,
@@ -964,7 +1053,15 @@ function ZeitUebersichtPage() {
       });
     }
     return m;
-  }, [staffAggs, sfnByStaff, notesByStaff, advanceCentsByStaff, absencesByStaff, payrollMode]);
+  }, [
+    staffAggs,
+    sfnByStaff,
+    notesByStaff,
+    advanceCentsByStaff,
+    absencesByStaff,
+    payrollMode,
+    activeRecurringByStaff,
+  ]);
 
   const payrollSearchActive = payrollSearch.trim().length > 0;
   const payrollFilteredByDept = useMemo(() => {
@@ -1009,6 +1106,17 @@ function ZeitUebersichtPage() {
   const buchhaltungExportInput = useMemo<BuchhaltungExportInput>(() => {
     const locLabel = locations.find((l) => l.id === effectiveLocationId)?.name ?? "";
     const perLabel = selectedPeriod?.label ?? `${fromDate}_${toDate}`;
+    const mergeRecurring = (
+      rows: BuchhaltungExportRow[],
+    ): BuchhaltungExportRow[] =>
+      rows.map((r) => {
+        const staffId = (r as BuchhaltungExportRow & { staffId?: string }).staffId;
+        const recur = staffId ? activeRecurringByStaff.get(staffId) : undefined;
+        if (!recur || recur.length === 0) return r;
+        const recurText = recur.map((x) => x.display).join(" · ");
+        const combined = [r.besonderheiten ?? "", recurText].filter(Boolean).join(" · ");
+        return { ...r, besonderheiten: combined };
+      });
     return {
       locationLabel: locLabel,
       periodLabel: perLabel,
@@ -1017,7 +1125,7 @@ function ZeitUebersichtPage() {
       rowsByDept: DEPT_ORDER.map((dept) => ({
         dept,
         deptLabel: DEPT_HEADER_LABEL[dept],
-        rows: payrollFilteredByDept.get(dept) ?? [],
+        rows: mergeRecurring(payrollFilteredByDept.get(dept) ?? []),
       })),
     };
   }, [
@@ -1028,6 +1136,7 @@ function ZeitUebersichtPage() {
     toDate,
     payrollMode,
     payrollFilteredByDept,
+    activeRecurringByStaff,
   ]);
 
   const handlePayrollExportPdf = async () => {
@@ -1580,6 +1689,9 @@ function ZeitUebersichtPage() {
                 besonderheiten: besonderheiten.trim() === "" ? null : besonderheiten,
               })
             }
+            recurringByStaff={activeRecurringByStaff}
+            onAddRecurring={(vars) => createRecurringMut.mutate(vars)}
+            onCancelRecurring={(id) => cancelRecurringMut.mutate(id)}
             onExportPdf={handlePayrollExportPdf}
             onExportXlsx={handlePayrollExportXlsx}
             onExportCsv={isPayroll ? handlePayrollExportCsv : undefined}

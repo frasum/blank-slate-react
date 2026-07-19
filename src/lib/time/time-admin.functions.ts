@@ -633,6 +633,150 @@ export const upsertPayrollNote = createServerFn({ method: "POST" })
   });
 
 // =========================================================================
+// Payroll Recurring Notes — Raten- und Dauer-Notizen (§105-Nachzug 19.07.)
+// =========================================================================
+
+export const listRecurringNotes = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        locationId: z.string().uuid().nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, [
+      "manager",
+      "admin",
+      "payroll",
+    ]);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    let q = supabaseAdmin
+      .from("payroll_recurring_notes")
+      .select(
+        "id, staff_id, location_id, kind, text, first_period_start, periods_total, canceled_at",
+      )
+      .eq("organization_id", caller.organizationId);
+    if (data.locationId) {
+      q = q.or(`location_id.is.null,location_id.eq.${data.locationId}`);
+    }
+    const { data: rows, error } = await q;
+    if (error) throw error;
+    return (rows ?? []).map((r) => ({
+      id: r.id as string,
+      staffId: r.staff_id as string,
+      locationId: (r.location_id as string | null) ?? null,
+      kind: r.kind as "rate" | "dauer",
+      text: r.text as string,
+      firstPeriodStart: r.first_period_start as string,
+      periodsTotal: (r.periods_total as number | null) ?? null,
+      canceledAt: (r.canceled_at as string | null) ?? null,
+    }));
+  });
+
+export const createRecurringNote = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        staffId: z.string().uuid(),
+        locationId: z.string().uuid().nullable(),
+        kind: z.enum(["rate", "dauer"]),
+        text: z.string().min(1).max(500),
+        firstPeriodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        periodsTotal: z.number().int().min(1).max(120).nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    if (data.kind === "rate" && data.periodsTotal == null) {
+      throw new Error("periodsTotal ist bei kind='rate' Pflicht.");
+    }
+    return runWithPermission(
+      context.supabase,
+      "time.payroll_note.edit",
+      data.locationId,
+      makeAuditWriter(caller),
+      async () => {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: row, error } = await supabaseAdmin
+          .from("payroll_recurring_notes")
+          .insert({
+            organization_id: caller.organizationId,
+            staff_id: data.staffId,
+            location_id: data.locationId,
+            kind: data.kind,
+            text: data.text,
+            first_period_start: data.firstPeriodStart,
+            periods_total: data.kind === "rate" ? data.periodsTotal : null,
+            created_by_staff_id: caller.staffId,
+          })
+          .select("id")
+          .single();
+        if (error) throw error;
+        return {
+          result: { id: row.id as string },
+          audit: {
+            action: "payroll_recurring_note.create",
+            entity: "payroll_recurring_note",
+            entityId: row.id as string,
+            meta: {
+              staffId: data.staffId,
+              locationId: data.locationId,
+              kind: data.kind,
+              periodsTotal: data.periodsTotal,
+              firstPeriodStart: data.firstPeriodStart,
+            },
+          },
+        };
+      },
+    );
+  });
+
+export const cancelRecurringNote = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({ id: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: existing, error: readErr } = await supabaseAdmin
+      .from("payroll_recurring_notes")
+      .select("id, organization_id, location_id")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (readErr) throw readErr;
+    if (!existing || existing.organization_id !== caller.organizationId) {
+      throw new Error("Notiz nicht gefunden.");
+    }
+    return runWithPermission(
+      context.supabase,
+      "time.payroll_note.edit",
+      (existing.location_id as string | null) ?? null,
+      makeAuditWriter(caller),
+      async () => {
+        const { error } = await supabaseAdmin
+          .from("payroll_recurring_notes")
+          .update({ canceled_at: new Date().toISOString() })
+          .eq("id", data.id)
+          .is("canceled_at", null);
+        if (error) throw error;
+        return {
+          result: { ok: true as const },
+          audit: {
+            action: "payroll_recurring_note.cancel",
+            entity: "payroll_recurring_note",
+            entityId: data.id,
+          },
+        };
+      },
+    );
+  });
+
+// =========================================================================
 // B6b — Wochenplan (Wochen-Ansicht für genau eine ISO-Woche)
 // =========================================================================
 
