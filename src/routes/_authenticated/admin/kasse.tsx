@@ -58,6 +58,7 @@ import { LocationPills } from "@/components/shared/LocationPills";
 import { parseEuroToCents } from "@/lib/cash/kasse-helpers";
 import { SettlementWarningsBanner } from "@/components/cash/SettlementWarningsBanner";
 import type { OpenInvoiceEntry } from "@/lib/cash/open-invoices";
+import { sessionHouseCentsFromKasse } from "@/lib/statistics/revenue-core";
 
 // Übersetzt die Roheingabe aus dem Korrektur-/Anlage-Dialog in
 // OpenInvoiceEntry[]. Regel (analog Kellner-UI, siehe open-invoices.ts):
@@ -638,12 +639,15 @@ function KassePage() {
               const channelKindById = new Map(
                 (channelsQ.data ?? []).map((c) => [c.id, c.kind] as const),
               );
-              const deliveryVectron = (ovQ.data.channelAmounts ?? []).reduce(
-                (s, c) =>
-                  channelKindById.get(c.channelId) === "delivery_vectron" ? s + c.amountCents : s,
-                0,
-              );
-              const inHouseCents = Math.max(0, vectronTotal - deliveryVectron);
+              // N14b: gemeinsame Haus-Umsatz-Definition (Kasse-Modell) —
+              // dieselbe Größe wie Inline (SessionFieldsCard), PDF und Druck.
+              const inHouseCents = sessionHouseCentsFromKasse({
+                vectronCents: vectronTotal,
+                channels: (ovQ.data.channelAmounts ?? []).map((c) => ({
+                  kind: channelKindById.get(c.channelId) ?? "",
+                  amountCents: c.amountCents,
+                })),
+              });
               const tipCents = computeTipTotalCents(
                 ovQ.data.settlements.map((s) => ({
                   cardTotalCents: Number(s.card_total_cents),
