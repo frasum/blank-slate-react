@@ -150,6 +150,7 @@ function LieferantenPage() {
   const callCreateArt = useServerFn(createArticle);
   const callUpdateArt = useServerFn(updateArticle);
   const callToggleArt = useServerFn(setArticleActive);
+  const callSetArticleLocations = useServerFn(setArticleLocations);
   const callAdd = useServerFn(addCartItem);
   const callUpdateCart = useServerFn(updateCartItem);
   const callRemove = useServerFn(removeCartItem);
