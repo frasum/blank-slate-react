@@ -422,3 +422,68 @@ export const setArticleActive = createServerFn({ method: "POST" })
       };
     });
   });
+
+// BL1 — Standort-Zuordnung eines Artikels setzen (inline-Toggle im Katalog).
+// Server ist die Autorität für „mindestens ein Standort" — die UI-Regel darf
+// nicht die einzige Barriere sein. Audit `article.locations_set` mit
+// before/after, damit die Zuordnungsänderung im Log rekonstruierbar ist.
+export const setArticleLocations = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => SetArticleLocationsInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+      // Artikel muss zur Caller-Org gehören.
+      const { data: art, error: artErr } = await supabaseAdmin
+        .from("articles")
+        .select("id")
+        .eq("id", data.articleId)
+        .eq("organization_id", caller.organizationId)
+        .maybeSingle();
+      if (artErr) throw artErr;
+      if (!art) throw new Error("Artikel gehört nicht zur Organisation.");
+
+      // Alle übergebenen Locations müssen zur Caller-Org gehören.
+      const uniqueIds = Array.from(new Set(data.locationIds));
+      const { data: validLocs, error: locErr } = await supabaseAdmin
+        // ST1: bewusst ungefiltert — Daten-Zugriff (Org-Validierung übergebener IDs).
+        .from("locations")
+        .select("id")
+        .eq("organization_id", caller.organizationId)
+        .in("id", uniqueIds);
+      if (locErr) throw locErr;
+      const validSet = new Set((validLocs ?? []).map((l) => l.id));
+      if (validSet.size !== uniqueIds.length) {
+        throw new Error("Mindestens ein Standort gehört nicht zur Organisation.");
+      }
+
+      // Ist-Stand für Audit (before).
+      const { data: beforeRows, error: beforeErr } = await supabaseAdmin
+        .from("article_locations")
+        .select("location_id")
+        .eq("organization_id", caller.organizationId)
+        .eq("article_id", data.articleId);
+      if (beforeErr) throw beforeErr;
+      const before = (beforeRows ?? []).map((r) => r.location_id).sort();
+      const after = [...uniqueIds].sort();
+
+      await replaceArticleLocations(
+        supabaseAdmin,
+        caller.organizationId,
+        data.articleId,
+        uniqueIds,
+      );
+
+      return {
+        result: { ok: true as const, locationIds: uniqueIds },
+        audit: {
+          action: "article.locations_set",
+          entity: "article",
+          entityId: data.articleId,
+          meta: { before, after },
+        },
+      };
+    });
+  });
