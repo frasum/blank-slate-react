@@ -4,11 +4,15 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { runGuarded } from "@/lib/admin/admin-call";
 import { makeAuditWriter } from "@/lib/admin/audit";
 import { selectAllPaged } from "@/lib/supabase/select-all";
+
+type Admin = SupabaseClient<Database>;
 
 /**
  * Reduziert einen Suchbegriff auf eine sichere Allowlist (Unicode-Buchstaben,
@@ -25,22 +29,7 @@ export function sanitizeArticleSearchTerm(value: string): string {
 // Erwartet, dass die IDs bereits gegen die Caller-Organisation validiert wurden.
 // Gemeinsame Ersetzen-Logik für `updateArticle` und `setArticleLocations` (KGL).
 async function replaceArticleLocations(
-  admin: Awaited<
-    ReturnType<typeof import("@/integrations/supabase/client.server")>["supabaseAdmin"] extends infer T
-      ? never
-      : never
-  >,
-  organizationId: string,
-  articleId: string,
-  locationIds: string[],
-): Promise<void>;
-async function replaceArticleLocations(
-  admin: {
-    from: (table: string) => {
-      delete: () => { eq: (c: string, v: string) => { eq: (c: string, v: string) => Promise<{ error: { message: string } | null }> } };
-      insert: (rows: unknown) => Promise<{ error: { message: string } | null }>;
-    };
-  },
+  admin: Admin,
   organizationId: string,
   articleId: string,
   locationIds: string[],
@@ -50,7 +39,7 @@ async function replaceArticleLocations(
     .delete()
     .eq("organization_id", organizationId)
     .eq("article_id", articleId);
-  if (delErr) throw new Error(delErr.message);
+  if (delErr) throw delErr;
   const { error: insErr } = await admin.from("article_locations").insert(
     locationIds.map((locationId) => ({
       organization_id: organizationId,
@@ -58,7 +47,7 @@ async function replaceArticleLocations(
       location_id: locationId,
     })),
   );
-  if (insErr) throw new Error(insErr.message);
+  if (insErr) throw insErr;
 }
 
 // BL1 — Server-Autorität für die „mindestens ein Standort"-Regel.
