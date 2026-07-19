@@ -257,6 +257,7 @@ export function PayrollTab({
                         readOnly={readOnly}
                         fullName={fullNameByStaffId?.get(staffId)}
                         onSave={(b) => onSaveNote(staffId, b)}
+                        nameSlot={renderStaffName?.(staffId, r.displayName)}
                         recurring={recurringByStaff?.get(staffId) ?? []}
                         onAddRecurring={
                           onAddRecurring
@@ -339,6 +340,7 @@ function PayrollRow({
   readOnly,
   onSave,
   fullName,
+  nameSlot,
   recurring,
   onAddRecurring,
   onCancelRecurring,
@@ -348,6 +350,7 @@ function PayrollRow({
   readOnly: boolean;
   onSave: (besonderheiten: string) => void;
   fullName?: string;
+  nameSlot?: React.ReactNode;
   recurring?: PayrollRecurringEntry[];
   onAddRecurring?: (vars: {
     kind: "rate" | "dauer";
@@ -383,7 +386,7 @@ function PayrollRow({
   return (
     <TableRow className="group">
       <TableCell className="py-1.5 font-medium">
-        <div>{row.displayName}</div>
+        <div>{nameSlot ?? row.displayName}</div>
         {fullName && <div className="text-xs font-normal text-muted-foreground">{fullName}</div>}
       </TableCell>
       <TableCell className="py-1.5 text-right tabular-nums font-medium">
