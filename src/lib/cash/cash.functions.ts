@@ -3213,11 +3213,7 @@ async function computeTipRemaindersByDate(
       settings = await loadTipSettings(caller.organizationId, locId);
       settingsCache.set(locId, settings);
     }
-    const res = await computeSessionTipPoolCore(
-      caller,
-      s as unknown as LoadedSession,
-      settings,
-    );
+    const res = await computeSessionTipPoolCore(caller, s as unknown as LoadedSession, settings);
     const date = s.business_date as string;
     out.set(date, (out.get(date) ?? 0) + res.kitchenRemainder + res.serviceRemainder);
   }
