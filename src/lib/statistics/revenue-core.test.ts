@@ -6,6 +6,7 @@ import {
   computeTrend,
   groupTakeawayByChannel,
   computeChannelPercents,
+  sessionHouseCentsFromKasse,
   type SessionRevenueInput,
 } from "./revenue-core";
 
