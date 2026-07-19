@@ -1448,15 +1448,15 @@ function ZeitUebersichtPage() {
                         const u = abs?.urlaubDays ?? 0;
                         const k = abs?.krankDays ?? 0;
                         return (
-                           <TableRow key={s.staffId}>
-                             <TableCell>
-                               <div>{s.displayName}</div>
-                               {fullNameByStaffId.get(s.staffId) && (
-                                 <div className="text-xs text-muted-foreground">
-                                   {fullNameByStaffId.get(s.staffId)}
-                                 </div>
-                               )}
-                             </TableCell>
+                          <TableRow key={s.staffId}>
+                            <TableCell>
+                              <div>{s.displayName}</div>
+                              {fullNameByStaffId.get(s.staffId) && (
+                                <div className="text-xs text-muted-foreground">
+                                  {fullNameByStaffId.get(s.staffId)}
+                                </div>
+                              )}
+                            </TableCell>
                             {weekCols.map((w) => (
                               <TableCell key={w.key} className="text-right tabular-nums">
                                 {fmtHm(s.perWeek.get(w.key) ?? 0)}
