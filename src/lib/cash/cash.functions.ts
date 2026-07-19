@@ -19,17 +19,6 @@ import { runGuarded } from "@/lib/admin/admin-call";
 import { writeAuditLog, makeAuditWriter } from "@/lib/admin/audit";
 import { arbzgMinimumBreak, grossMinutesBetween } from "@/lib/time/break-rules";
 import { syncPoolTimeEntry } from "./pool-time-writeback";
-// Lazy-loaded inside handlers to keep this .functions.ts module client-safe.
-// Top-level import would pull sentry.server.ts (which dynamic-imports
-// @tanstack/react-start/server) into the client module graph.
-async function captureServerError(
-  ...args: Parameters<
-    typeof import("@/lib/monitoring/sentry.server").captureServerError
-  >
-): Promise<void> {
-  const mod = await import("@/lib/monitoring/sentry.server");
-  await mod.captureServerError(...args);
-}
 import { assertBusinessDateUnlocked, TimeLockedError } from "@/lib/time/time-lock";
 import { calcWaiterSettlement } from "./waiter-settlement";
 import {
