@@ -3000,6 +3000,7 @@ export function aggToDayInput(date: string, a: CashDayAgg): DayInput {
     openInvoicesCents: a.openInvoices,
     sonstigeEinnahmeCents: a.sonstige,
     vorschussCents: a.vorschuss,
+    tipRemainderCents: 0,
     satellites: {
       expensesCents: a.expenses,
       advancesCents: a.advances,
@@ -3123,6 +3124,13 @@ export type CashDailyRow = {
   expensesCents: number;
   sonstigeEinnahmeCents: number;
   bargeldCents: number;
+  /**
+   * Trinkgeld-Rest des Tages (kitchen + service). Selbe Quelle wie
+   * `getTipRemainderByPeriod` — beide Sichten müssen zwangsläufig
+   * denselben Wert zeigen (identische Berechnung via
+   * `computeSessionTipPoolCore`).
+   */
+  tipRemainderCents: number;
 };
 
 export const getCashDailyBreakdown = createServerFn({ method: "GET" })
@@ -3150,6 +3158,7 @@ export async function getCashDailyBreakdownCore(
   data: { fromDate: string; toDate: string; locationId?: string },
 ): Promise<CashDailyRow[]> {
   const { sortedDates, byDate } = await loadCashDayAggregates(caller, data);
+  const tipByDate = await computeTipRemaindersByDate(caller, data);
   return sortedDates.map((date) => {
     const a = byDate.get(date)!;
     const day: DayInput = {
@@ -3172,8 +3181,43 @@ export async function getCashDailyBreakdownCore(
       expensesCents: a.expenses.reduce((s, x) => s + x, 0),
       sonstigeEinnahmeCents: a.sonstige,
       bargeldCents: computeDailyCash(day),
+      tipRemainderCents: tipByDate.get(date) ?? 0,
     };
   });
+}
+
+// Aggregiert den Trinkgeld-Rest pro Geschäftstag über alle Sessions im
+// Zeitraum. Nutzt EXAKT dieselbe Berechnung wie `getTipRemainderByPeriod`
+// (computeSessionTipPoolCore + loadTipSettings pro Session-Location) —
+// keine Duplikation der Rest-Formel.
+async function computeTipRemaindersByDate(
+  caller: AdminCaller,
+  data: { fromDate: string; toDate: string; locationId?: string },
+): Promise<Map<string, number>> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  let q = supabaseAdmin
+    .from("sessions")
+    .select("id, business_date, status, locked_at, location_id, tip_pool_settlement_only")
+    .eq("organization_id", caller.organizationId)
+    .gte("business_date", data.fromDate)
+    .lte("business_date", data.toDate);
+  if (data.locationId) q = q.eq("location_id", data.locationId);
+  const { data: sessions, error } = await q;
+  if (error) throw error;
+  const out = new Map<string, number>();
+  const settingsCache = new Map<string, Awaited<ReturnType<typeof loadTipSettings>>>();
+  for (const s of sessions ?? []) {
+    const locId = s.location_id as string;
+    let settings = settingsCache.get(locId);
+    if (!settings) {
+      settings = await loadTipSettings(caller.organizationId, locId);
+      settingsCache.set(locId, settings);
+    }
+    const res = await computeSessionTipPoolCore(caller, s as unknown as LoadedSession, settings);
+    const date = s.business_date as string;
+    out.set(date, (out.get(date) ?? 0) + res.kitchenRemainder + res.serviceRemainder);
+  }
+  return out;
 }
 
 // ------------------------------------------------------------------------

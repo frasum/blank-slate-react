@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   accumulateChain,
   computeDailyCash,
+  computeDailyCashWithTipRemainder,
   computeTransferEffect,
   effectiveVorschussCents,
   type DayInput,
@@ -21,6 +22,7 @@ function emptyDay(over: Partial<DayInput> = {}): DayInput {
     openInvoicesCents: [],
     sonstigeEinnahmeCents: 0,
     vorschussCents: 0,
+    tipRemainderCents: 0,
     satellites: {
       expensesCents: [],
       advancesCents: [],
@@ -117,6 +119,21 @@ describe("computeDailyCash — Alt-Modell-Formel (Befund 2)", () => {
       expect(effectiveVorschussCents(d)).toBe(30_00);
       expect(computeDailyCash(d)).toBe(170_00);
     });
+  });
+});
+
+describe("computeDailyCashWithTipRemainder — Tages-Bargeld inkl. Restcent", () => {
+  it("tipRemainder = 0 → identisch zu computeDailyCash", () => {
+    const d = emptyDay({ grossRevenueCents: 1000_00, cardTotalCents: 600_00 });
+    expect(computeDailyCashWithTipRemainder(d)).toBe(computeDailyCash(d));
+  });
+  it("tipRemainder > 0 wird addiert (physische Kassenlage)", () => {
+    const d = emptyDay({ grossRevenueCents: 200_00, tipRemainderCents: 427 });
+    expect(computeDailyCashWithTipRemainder(d)).toBe(computeDailyCash(d) + 427);
+  });
+  it("Verweigert nicht-ganzzahligen Restcent", () => {
+    const d = emptyDay({ tipRemainderCents: 1.5 as unknown as number });
+    expect(() => computeDailyCashWithTipRemainder(d)).toThrow(/tipRemainder/);
   });
 });
 

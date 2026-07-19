@@ -146,6 +146,7 @@ function KasseSaldoPage() {
       vorschuss: 0,
       expenses: 0,
       bargeld: 0,
+      tipRemainder: 0,
     };
     for (const r of rows) {
       t.tagesumsatz += r.tagesumsatzCents;
@@ -161,6 +162,7 @@ function KasseSaldoPage() {
       t.vorschuss += r.vorschussCents;
       t.expenses += r.expensesCents;
       t.bargeld += r.bargeldCents;
+      t.tipRemainder += r.tipRemainderCents;
     }
     return t;
   }, [rows]);
@@ -251,6 +253,7 @@ function KasseSaldoPage() {
                   <TableHead className="text-right px-2 py-2 text-xs">Vorsch.</TableHead>
                   <TableHead className="text-right px-2 py-2 text-xs">Ausg.</TableHead>
                   <TableHead className="text-right px-2 py-2 text-xs">Bargeld</TableHead>
+                  <TableHead className="text-right px-2 py-2 text-xs">TG-Rest</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -300,6 +303,9 @@ function KasseSaldoPage() {
                     <TableCell className={bargeldClass(r.bargeldCents)}>
                       {fmtEuro(r.bargeldCents)}
                     </TableCell>
+                    <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
+                      {fmtEuro(r.tipRemainderCents)}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -346,6 +352,9 @@ function KasseSaldoPage() {
                   </TableCell>
                   <TableCell className={bargeldClass(totals.bargeld)}>
                     {fmtEuro(totals.bargeld)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
+                    {fmtEuro(totals.tipRemainder)}
                   </TableCell>
                 </TableRow>
               </TableFooter>

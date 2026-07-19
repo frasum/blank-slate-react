@@ -61,6 +61,14 @@ export type DayInput = {
    * ignoriert (Alt-Modell hat die beiden Eingaben nie additiv).
    */
   vorschussCents: number;
+  /**
+   * Trinkgeld-Restcent des Tages (Summe kitchenRemainder + serviceRemainder
+   * aus computeSessionTipPoolCore). Wird von `computeDailyCash` bewusst
+   * IGNORIERT — die Formel bleibt exakt wie im Alt-Modell. Nur die
+   * abgeleitete `computeDailyCashWithTipRemainder` addiert diesen Wert
+   * für die physische Kassenlage der Tagesabrechnung. Tage ohne Pool = 0.
+   */
+  tipRemainderCents: number;
   satellites: DaySatellites;
 };
 
@@ -103,6 +111,16 @@ export function computeDailyCash(day: DayInput): number {
     effectiveVorschussCents(day) -
     sumExp
   );
+}
+
+/**
+ * Tages-Bargeld inkl. Trinkgeld-Restcent (physische Kassenlage der
+ * Tagesabrechnung). EINZIGE Stelle, an der der Rest addiert wird —
+ * `computeDailyCash` selbst bleibt unverändert (Quelle für die
+ * rechnerische Zerlegung der Bargeld-Übersicht).
+ */
+export function computeDailyCashWithTipRemainder(day: DayInput): number {
+  return computeDailyCash(day) + asInt(day.tipRemainderCents, "tipRemainder");
 }
 
 export function computeTransferEffect(day: DayInput): number {

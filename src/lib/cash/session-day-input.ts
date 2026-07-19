@@ -25,6 +25,13 @@ export type SessionDayInputArgs = {
   expensesCents: number[];
   advancesCents: number[];
   openInvoicesCents: number[];
+  /**
+   * Trinkgeld-Rest des Tages (Summe kitchen+service). Optional — Aufrufer
+   * ohne Pool-Kontext (z. B. PDF, Telegram-Report) übergeben nichts, dann
+   * gilt 0. `computeDailyCash` ignoriert das Feld ohnehin; nur
+   * `computeDailyCashWithTipRemainder` addiert es.
+   */
+  tipRemainderCents?: number;
 };
 
 export function sessionToDayInput(sess: SessionDayFields, args: SessionDayInputArgs): DayInput {
@@ -41,6 +48,7 @@ export function sessionToDayInput(sess: SessionDayFields, args: SessionDayInputA
     openInvoicesCents: args.openInvoicesCents,
     sonstigeEinnahmeCents: Number(sess.sonstige_einnahme_cents ?? 0),
     vorschussCents: Number(sess.vorschuss_cents ?? 0),
+    tipRemainderCents: args.tipRemainderCents ?? 0,
     satellites: {
       expensesCents: args.expensesCents,
       advancesCents: args.advancesCents,

@@ -628,6 +628,9 @@ function KassePage() {
             writable={writable}
             cashBalanceTargetCents={cashBalanceTargetResolvedCents}
             locationName={currentLocation?.name}
+            tipRemainderCents={
+              (poolQ.data?.kitchenRemainder ?? 0) + (poolQ.data?.serviceRemainder ?? 0)
+            }
             kpiSlot={(() => {
               const sess = ovQ.data.session;
               if (!sess) return null;

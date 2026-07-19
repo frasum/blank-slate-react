@@ -48,6 +48,7 @@ function makeDays(n: number, rnd: () => number): DayInput[] {
       sonstigeEinnahmeCents: positive(5_000),
       // Quirk: niemals beide gleichzeitig.
       vorschussCents: useList ? 0 : positive(50_000),
+      tipRemainderCents: 0,
       satellites: {
         expensesCents: [positive(20_000)],
         advancesCents: useList ? [positive(40_000)] : [],

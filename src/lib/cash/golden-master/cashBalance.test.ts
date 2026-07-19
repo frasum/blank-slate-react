@@ -61,6 +61,7 @@ describe(`Golden Master: cashBalance (${fx.meta.source})`, () => {
       openInvoicesCents: d.openInvoicesCents,
       sonstigeEinnahmeCents: d.sonstigeEinnahmeCents,
       vorschussCents: d.vorschussCents,
+      tipRemainderCents: 0,
       satellites: d.satellites,
     }));
     const result = accumulateChain(fx.openingBalanceCents, days);

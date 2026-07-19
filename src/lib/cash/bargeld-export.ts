@@ -25,6 +25,7 @@ export async function buildBargeldXlsx(rows: CashDailyRow[], monthLabel: string)
     "Vorschuss",
     "Ausgaben",
     "Bargeld",
+    "TG-Rest",
   ]);
   ws.getRow(1).font = { bold: true };
 
@@ -45,6 +46,7 @@ export async function buildBargeldXlsx(rows: CashDailyRow[], monthLabel: string)
       money(r.vorschussCents),
       money(r.expensesCents),
       money(r.bargeldCents),
+      money(r.tipRemainderCents),
     ]);
   }
 
@@ -64,10 +66,11 @@ export async function buildBargeldXlsx(rows: CashDailyRow[], monthLabel: string)
     sum((r) => r.vorschussCents),
     sum((r) => r.expensesCents),
     sum((r) => r.bargeldCents),
+    sum((r) => r.tipRemainderCents),
   ]);
   ws.lastRow!.font = { bold: true };
 
-  for (let col = 2; col <= 14; col++) {
+  for (let col = 2; col <= 15; col++) {
     ws.getColumn(col).numFmt = '#,##0.00 "€"';
     ws.getColumn(col).width = 13;
   }
