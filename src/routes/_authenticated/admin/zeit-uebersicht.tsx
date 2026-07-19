@@ -145,6 +145,9 @@ function ZeitUebersichtPage() {
   const callCreatePeriod = useServerFn(createPeriod);
   const callToggleLock = useServerFn(togglePeriodLock);
   const callDeletePeriod = useServerFn(deletePeriod);
+  const fetchRecurring = useServerFn(listRecurringNotes);
+  const callCreateRecurring = useServerFn(createRecurringNote);
+  const callCancelRecurring = useServerFn(cancelRecurringNote);
 
   const locationsQ = useQuery({
     queryKey: ["admin-locations"],
