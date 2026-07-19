@@ -752,6 +752,47 @@ function LieferantenPage() {
                               </td>
                               <td className="px-3 py-2 text-right">
                                 <div className="flex items-center justify-end gap-1">
+                                  {/* BL1 — Standort-Chips: Toggle je Standort. */}
+                                  {activeLocations.length > 0 && (
+                                    <div className="mr-1 flex items-center gap-1">
+                                      {activeLocations.map((loc) => {
+                                        const enabled = (a.locationIds ?? []).includes(loc.id);
+                                        const label = locationShortLabels.get(loc.id) ?? "?";
+                                        return (
+                                          <button
+                                            key={loc.id}
+                                            type="button"
+                                            title={loc.name}
+                                            aria-label={`${loc.name} ${enabled ? "aktiv" : "inaktiv"}`}
+                                            aria-pressed={enabled}
+                                            disabled={setArtLocsMut.isPending}
+                                            onClick={() => {
+                                              const current = a.locationIds ?? [];
+                                              if (enabled && current.length <= 1) {
+                                                setMsg("Mindestens ein Standort erforderlich.");
+                                                return;
+                                              }
+                                              const next = enabled
+                                                ? current.filter((id) => id !== loc.id)
+                                                : [...current, loc.id];
+                                              setMsg(null);
+                                              setArtLocsMut.mutate({
+                                                articleId: a.id,
+                                                locationIds: next,
+                                              });
+                                            }}
+                                            className={
+                                              enabled
+                                                ? "rounded-full border border-primary bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground hover:bg-primary/90"
+                                                : "rounded-full border border-input bg-background px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:bg-accent"
+                                            }
+                                          >
+                                            {label}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
                                   <button
                                     onClick={() =>
                                       setArticleDialog({
