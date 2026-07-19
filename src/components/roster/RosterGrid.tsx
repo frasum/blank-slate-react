@@ -580,7 +580,7 @@ export function RosterGrid({
                       )}
                       style={{ right: isFit ? 32 : 48 }}
                     >
-                      {row.displayName}
+                      {renderStaffName ? renderStaffName(row) : row.displayName}
                     </td>
                     <td className="sticky right-0 z-10 border-l bg-muted px-1 py-1 text-center font-mono text-xs tabular-nums group-even/row:bg-muted-foreground/20">
                       <Tooltip>
