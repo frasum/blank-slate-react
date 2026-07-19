@@ -118,10 +118,7 @@ function TipRemainderPage() {
     }
   }, [locationId, locationsQ.data]);
 
-  const allLocationIds = useMemo(
-    () => (locationsQ.data ?? []).map((l) => l.id),
-    [locationsQ.data],
-  );
+  const allLocationIds = useMemo(() => (locationsQ.data ?? []).map((l) => l.id), [locationsQ.data]);
   const isAll = locationId === "";
   const targetLocationIds = isAll ? allLocationIds : locationId ? [locationId] : [];
 
@@ -183,8 +180,8 @@ function TipRemainderPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Trinkgeld-Rest</h1>
           <p className="text-sm text-muted-foreground">
-            Aufgelaufener Restcent durch die Euro-Abrundung im Bargeld — pro Tag und
-            Küche/Service getrennt.
+            Aufgelaufener Restcent durch die Euro-Abrundung im Bargeld — pro Tag und Küche/Service
+            getrennt.
           </p>
         </div>
         <div className="flex flex-wrap items-end gap-3">
