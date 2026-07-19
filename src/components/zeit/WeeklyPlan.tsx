@@ -564,7 +564,7 @@ export function WeeklyPlan({
                             ? "bg-muted/40"
                             : dm.isHol || dm.isSun
                               ? "bg-yellow-50"
-                                : "";
+                              : "";
                           const empty = day.shifts.length === 0;
                           // Z3 — alle Zeilen sind editierbar; das Grid attribuiert
                           // Einträge über entryRowDepartment.
