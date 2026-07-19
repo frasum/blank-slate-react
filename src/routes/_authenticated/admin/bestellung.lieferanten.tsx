@@ -22,6 +22,7 @@ import {
   createArticle,
   listArticles,
   setArticleActive,
+  setArticleLocations,
   updateArticle,
 } from "@/lib/bestellung/articles.functions";
 import {
@@ -149,6 +150,7 @@ function LieferantenPage() {
   const callCreateArt = useServerFn(createArticle);
   const callUpdateArt = useServerFn(updateArticle);
   const callToggleArt = useServerFn(setArticleActive);
+  const callSetArticleLocations = useServerFn(setArticleLocations);
   const callAdd = useServerFn(addCartItem);
   const callUpdateCart = useServerFn(updateCartItem);
   const callRemove = useServerFn(removeCartItem);
@@ -205,6 +207,30 @@ function LieferantenPage() {
     () => (locationsQ.data ?? []).filter((l) => l.isActive !== false),
     [locationsQ.data],
   );
+
+  // BL1 — Kurzlabel je Standort (erster Buchstabe; bei Kollision zwei Buchstaben).
+  // Dynamisch aus den geladenen Locations — keine Hartkodierung.
+  const locationShortLabels = useMemo(() => {
+    const labels = new Map<string, string>();
+    const oneChar = new Map<string, string[]>();
+    for (const loc of activeLocations) {
+      const key = (loc.name.trim().charAt(0) || "?").toUpperCase();
+      const arr = oneChar.get(key) ?? [];
+      arr.push(loc.id);
+      oneChar.set(key, arr);
+    }
+    for (const loc of activeLocations) {
+      const first = (loc.name.trim().charAt(0) || "?").toUpperCase();
+      const ids = oneChar.get(first) ?? [];
+      if (ids.length <= 1) {
+        labels.set(loc.id, first);
+      } else {
+        const two = (loc.name.trim().slice(0, 2) || "?").toUpperCase();
+        labels.set(loc.id, two);
+      }
+    }
+    return labels;
+  }, [activeLocations]);
 
   // SL1: Standort-Pill = Warenkorb-Standort. Fallback: erster aktiver Standort.
   const activeLocationId: string | null =
@@ -432,6 +458,38 @@ function LieferantenPage() {
       callToggleArt({ data: { articleId: input.id, isActive: input.isActive } }),
     onSuccess: refreshArticles,
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
+  });
+
+  // BL1 — Standort-Toggle je Artikelzeile mit optimistischem Update + Rollback.
+  // Der Server ist Autorität für „mindestens ein Standort" — die UI-Regel
+  // (Klick auf letzten Chip ignorieren) ist nur die kurze Rückmeldeschleife.
+  type ArticleT = NonNullable<typeof articlesQ.data>[number];
+  const articlesQueryKey = [
+    "bestellung",
+    "articles",
+    { includeInactive: showInactive, all: true },
+  ] as const;
+  const setArtLocsMut = useMutation({
+    mutationFn: (input: { articleId: string; locationIds: string[] }) =>
+      callSetArticleLocations({ data: input }),
+    onMutate: async (input) => {
+      await qc.cancelQueries({ queryKey: ["bestellung", "articles"] });
+      const previous = qc.getQueryData<ArticleT[]>(articlesQueryKey);
+      if (previous) {
+        qc.setQueryData<ArticleT[]>(
+          articlesQueryKey,
+          previous.map((a) =>
+            a.id === input.articleId ? { ...a, locationIds: input.locationIds } : a,
+          ),
+        );
+      }
+      return { previous };
+    },
+    onError: (e: unknown, _input, ctx) => {
+      if (ctx?.previous) qc.setQueryData(articlesQueryKey, ctx.previous);
+      setMsg(e instanceof Error ? e.message : "Fehler.");
+    },
+    onSettled: refreshArticles,
   });
 
   const addCartMut = useMutation({
@@ -694,6 +752,47 @@ function LieferantenPage() {
                               </td>
                               <td className="px-3 py-2 text-right">
                                 <div className="flex items-center justify-end gap-1">
+                                  {/* BL1 — Standort-Chips: Toggle je Standort. */}
+                                  {activeLocations.length > 0 && (
+                                    <div className="mr-1 flex items-center gap-1">
+                                      {activeLocations.map((loc) => {
+                                        const enabled = (a.locationIds ?? []).includes(loc.id);
+                                        const label = locationShortLabels.get(loc.id) ?? "?";
+                                        return (
+                                          <button
+                                            key={loc.id}
+                                            type="button"
+                                            title={loc.name}
+                                            aria-label={`${loc.name} ${enabled ? "aktiv" : "inaktiv"}`}
+                                            aria-pressed={enabled}
+                                            disabled={setArtLocsMut.isPending}
+                                            onClick={() => {
+                                              const current = a.locationIds ?? [];
+                                              if (enabled && current.length <= 1) {
+                                                setMsg("Mindestens ein Standort erforderlich.");
+                                                return;
+                                              }
+                                              const next = enabled
+                                                ? current.filter((id) => id !== loc.id)
+                                                : [...current, loc.id];
+                                              setMsg(null);
+                                              setArtLocsMut.mutate({
+                                                articleId: a.id,
+                                                locationIds: next,
+                                              });
+                                            }}
+                                            className={
+                                              enabled
+                                                ? "rounded-full border border-primary bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground hover:bg-primary/90"
+                                                : "rounded-full border border-input bg-background px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:bg-accent"
+                                            }
+                                          >
+                                            {label}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
                                   <button
                                     onClick={() =>
                                       setArticleDialog({

@@ -4,11 +4,15 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { runGuarded } from "@/lib/admin/admin-call";
 import { makeAuditWriter } from "@/lib/admin/audit";
 import { selectAllPaged } from "@/lib/supabase/select-all";
+
+type Admin = SupabaseClient<Database>;
 
 /**
  * Reduziert einen Suchbegriff auf eine sichere Allowlist (Unicode-Buchstaben,
@@ -20,6 +24,37 @@ import { selectAllPaged } from "@/lib/supabase/select-all";
 export function sanitizeArticleSearchTerm(value: string): string {
   return value.replace(/[^\p{L}\p{N} -]/gu, "").trim();
 }
+
+// BL1 — Ersetzt die Standort-Zuordnung eines Artikels atomar (delete + insert).
+// Erwartet, dass die IDs bereits gegen die Caller-Organisation validiert wurden.
+// Gemeinsame Ersetzen-Logik für `updateArticle` und `setArticleLocations` (KGL).
+async function replaceArticleLocations(
+  admin: Admin,
+  organizationId: string,
+  articleId: string,
+  locationIds: string[],
+): Promise<void> {
+  const { error: delErr } = await admin
+    .from("article_locations")
+    .delete()
+    .eq("organization_id", organizationId)
+    .eq("article_id", articleId);
+  if (delErr) throw delErr;
+  const { error: insErr } = await admin.from("article_locations").insert(
+    locationIds.map((locationId) => ({
+      organization_id: organizationId,
+      article_id: articleId,
+      location_id: locationId,
+    })),
+  );
+  if (insErr) throw insErr;
+}
+
+// BL1 — Server-Autorität für die „mindestens ein Standort"-Regel.
+export const SetArticleLocationsInput = z.object({
+  articleId: z.string().uuid(),
+  locationIds: z.array(z.string().uuid()).min(1, "Mindestens ein Standort erforderlich."),
+});
 
 const ArticleInput = z.object({
   supplierId: z.string().uuid(),
@@ -341,21 +376,13 @@ export const updateArticle = createServerFn({ method: "POST" })
         .eq("id", data.articleId)
         .eq("organization_id", caller.organizationId);
       if (error) throw error;
-      // Standort-Zuordnung ersetzen.
-      const { error: delErr } = await supabaseAdmin
-        .from("article_locations")
-        .delete()
-        .eq("organization_id", caller.organizationId)
-        .eq("article_id", data.articleId);
-      if (delErr) throw delErr;
-      const { error: insErr } = await supabaseAdmin.from("article_locations").insert(
-        data.locationIds.map((locationId) => ({
-          organization_id: caller.organizationId,
-          article_id: data.articleId,
-          location_id: locationId,
-        })),
+      // BL1 — Standort-Zuordnung ersetzen (gemeinsamer Helper).
+      await replaceArticleLocations(
+        supabaseAdmin,
+        caller.organizationId,
+        data.articleId,
+        data.locationIds,
       );
-      if (insErr) throw insErr;
       return {
         result: { ok: true as const },
         audit: {
@@ -389,6 +416,71 @@ export const setArticleActive = createServerFn({ method: "POST" })
           action: data.isActive ? "article.activate" : "article.deactivate",
           entity: "article",
           entityId: data.articleId,
+        },
+      };
+    });
+  });
+
+// BL1 — Standort-Zuordnung eines Artikels setzen (inline-Toggle im Katalog).
+// Server ist die Autorität für „mindestens ein Standort" — die UI-Regel darf
+// nicht die einzige Barriere sein. Audit `article.locations_set` mit
+// before/after, damit die Zuordnungsänderung im Log rekonstruierbar ist.
+export const setArticleLocations = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => SetArticleLocationsInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
+    return runGuarded(caller.role, "manager", makeAuditWriter(caller), async () => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+      // Artikel muss zur Caller-Org gehören.
+      const { data: art, error: artErr } = await supabaseAdmin
+        .from("articles")
+        .select("id")
+        .eq("id", data.articleId)
+        .eq("organization_id", caller.organizationId)
+        .maybeSingle();
+      if (artErr) throw artErr;
+      if (!art) throw new Error("Artikel gehört nicht zur Organisation.");
+
+      // Alle übergebenen Locations müssen zur Caller-Org gehören.
+      const uniqueIds = Array.from(new Set(data.locationIds));
+      const { data: validLocs, error: locErr } = await supabaseAdmin
+        // ST1: bewusst ungefiltert — Daten-Zugriff (Org-Validierung übergebener IDs).
+        .from("locations")
+        .select("id")
+        .eq("organization_id", caller.organizationId)
+        .in("id", uniqueIds);
+      if (locErr) throw locErr;
+      const validSet = new Set((validLocs ?? []).map((l) => l.id));
+      if (validSet.size !== uniqueIds.length) {
+        throw new Error("Mindestens ein Standort gehört nicht zur Organisation.");
+      }
+
+      // Ist-Stand für Audit (before).
+      const { data: beforeRows, error: beforeErr } = await supabaseAdmin
+        .from("article_locations")
+        .select("location_id")
+        .eq("organization_id", caller.organizationId)
+        .eq("article_id", data.articleId);
+      if (beforeErr) throw beforeErr;
+      const before = (beforeRows ?? []).map((r) => r.location_id).sort();
+      const after = [...uniqueIds].sort();
+
+      await replaceArticleLocations(
+        supabaseAdmin,
+        caller.organizationId,
+        data.articleId,
+        uniqueIds,
+      );
+
+      return {
+        result: { ok: true as const, locationIds: uniqueIds },
+        audit: {
+          action: "article.locations_set",
+          entity: "article",
+          entityId: data.articleId,
+          meta: { before, after },
         },
       };
     });
