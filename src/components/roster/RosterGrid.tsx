@@ -417,7 +417,7 @@ export function RosterGrid({
                         isFit ? "truncate px-2 py-0.5 text-[11px]" : "px-3 py-1",
                       )}
                     >
-                      {row.displayName}
+                      {renderStaffName ? renderStaffName(row) : row.displayName}
                     </td>
                     {days.map((iso) => {
                       const shift = shiftIndex.get(`${row.staffId}|${iso}|${activeArea}`);
