@@ -87,25 +87,44 @@ export function isTakeawayKind(kind: string): boolean {
 }
 
 /**
- * Reiner Helfer für Kassen-UI/PDF/Print (N14): berechnet den Haus-Umsatz
- * einer Session direkt aus Vectron + Kanal-Beträgen mit `kind`, damit alle
- * drei Ausgabepfade denselben ⌀-pro-Gast-Nenner nutzen. Delegiert an
- * `sessionRevenue`, damit hier KEINE zweite Formel entsteht.
+ * Reiner Helfer für Kassen-UI/PDF/Print (N14, N14b — Kanal-Modell 19.07.):
+ * `vectronCents` ist der komplette Vectron-Tagesregisterumsatz und enthält
+ * Wolt und SoUse bereits, weil beide an der Vectron gebont werden. Der
+ * Marker `delivery_vectron` deckt den eigenen Vectron-Außer-Haus-Anteil
+ * PLUS die Wolt-Beträge ab; `delivery_souse` markiert SoUse separat und
+ * ist NICHT in `delivery_vectron` enthalten. `delivery_wolt` wird deshalb
+ * NICHT abgezogen — der Wolt-Anteil steckt bereits in `delivery_vectron`
+ * und ein weiterer Abzug wäre Doppelabzug. `pos` bleibt Haus (TSB).
+ * Unbekannte/leere `kind` werfen absichtlich — kein stilles No-op.
+ * `sessionRevenue` (Statistik-Modell) bleibt unangetastet.
  */
 export function sessionHouseCentsFromKasse(input: {
   vectronCents: number;
   channels: { kind: string; amountCents: number }[];
 }): number {
-  return sessionRevenue({
-    sessionId: "-",
-    businessDate: "-",
-    locationId: "-",
-    vectronCents: input.vectronCents,
-    channels: input.channels.map((c) => ({
-      amountCents: c.amountCents,
-      isTakeaway: isTakeawayKind(c.kind),
-    })),
-  }).houseCents;
+  let posSum = 0;
+  let vectronMarkerSum = 0;
+  let souseSum = 0;
+  for (const c of input.channels) {
+    switch (c.kind) {
+      case "pos":
+        posSum += c.amountCents;
+        break;
+      case "delivery_vectron":
+        vectronMarkerSum += c.amountCents;
+        break;
+      case "delivery_souse":
+        souseSum += c.amountCents;
+        break;
+      case "delivery_wolt":
+        // Bewusst kein Abzug: Wolt steckt bereits im delivery_vectron-Marker.
+        break;
+      default:
+        throw new Error(`sessionHouseCentsFromKasse: unbekannter kind "${c.kind}"`);
+    }
+  }
+  const vectronHouse = Math.max(0, input.vectronCents - vectronMarkerSum - souseSum);
+  return posSum + vectronHouse;
 }
 
 export function aggregateByBusinessDate(
