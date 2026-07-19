@@ -310,11 +310,13 @@ function PayrollRow({
   is3b,
   readOnly,
   onSave,
+  fullName,
 }: {
   row: BuchhaltungExportRow;
   is3b: boolean;
   readOnly: boolean;
   onSave: (besonderheiten: string) => void;
+  fullName?: string;
 }) {
   const [besonderheiten, setBesonderheiten] = useState<string>(row.besonderheiten ?? "");
   const vorschussLabel =
@@ -332,7 +334,10 @@ function PayrollRow({
     );
   return (
     <TableRow className="group">
-      <TableCell className="py-1.5 font-medium">{row.displayName}</TableCell>
+      <TableCell className="py-1.5 font-medium">
+        <div>{row.displayName}</div>
+        {fullName && <div className="text-xs font-normal text-muted-foreground">{fullName}</div>}
+      </TableCell>
       <TableCell className="py-1.5 text-right tabular-nums font-medium">
         {fmtHm(row.totalHours)}
       </TableCell>
