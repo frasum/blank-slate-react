@@ -43,6 +43,9 @@ import {
   setTimeEntryShift,
   togglePeriodLock,
   upsertPayrollNote,
+  listRecurringNotes,
+  createRecurringNote,
+  cancelRecurringNote,
 } from "@/lib/time/time-admin.functions";
 import { computeShiftHours, isSundayOrHoliday } from "@/lib/time/shift-hours";
 import {
@@ -103,6 +106,10 @@ import {
   parseIsoDate,
 } from "@/lib/time/zeit-uebersicht-core";
 import { PayrollTab } from "@/components/zeit/PayrollTab";
+import {
+  activeNotesForPeriod,
+  type RecurringNote,
+} from "@/lib/time/recurring-notes";
 import { WeeklyPlan } from "@/components/zeit/WeeklyPlan";
 import { PeriodsPanel } from "@/components/zeit/PeriodsPanel";
 
