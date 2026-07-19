@@ -208,6 +208,30 @@ function LieferantenPage() {
     [locationsQ.data],
   );
 
+  // BL1 — Kurzlabel je Standort (erster Buchstabe; bei Kollision zwei Buchstaben).
+  // Dynamisch aus den geladenen Locations — keine Hartkodierung.
+  const locationShortLabels = useMemo(() => {
+    const labels = new Map<string, string>();
+    const oneChar = new Map<string, string[]>();
+    for (const loc of activeLocations) {
+      const key = (loc.name.trim().charAt(0) || "?").toUpperCase();
+      const arr = oneChar.get(key) ?? [];
+      arr.push(loc.id);
+      oneChar.set(key, arr);
+    }
+    for (const loc of activeLocations) {
+      const first = (loc.name.trim().charAt(0) || "?").toUpperCase();
+      const ids = oneChar.get(first) ?? [];
+      if (ids.length <= 1) {
+        labels.set(loc.id, first);
+      } else {
+        const two = (loc.name.trim().slice(0, 2) || "?").toUpperCase();
+        labels.set(loc.id, two);
+      }
+    }
+    return labels;
+  }, [activeLocations]);
+
   // SL1: Standort-Pill = Warenkorb-Standort. Fallback: erster aktiver Standort.
   const activeLocationId: string | null =
     cartQ.data?.cart.location_id ?? activeLocations[0]?.id ?? null;
