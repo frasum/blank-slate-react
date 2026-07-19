@@ -1556,7 +1556,20 @@ function ZeitUebersichtPage() {
                         return (
                           <TableRow key={s.staffId}>
                             <TableCell>
-                              <div>{s.displayName}</div>
+                              <div>
+                                {canOpenStaff ? (
+                                  <Link
+                                    to="/admin/staff/$staffId"
+                                    params={{ staffId: s.staffId }}
+                                    search={{ from: currentHref }}
+                                    className="hover:underline"
+                                  >
+                                    {s.displayName}
+                                  </Link>
+                                ) : (
+                                  s.displayName
+                                )}
+                              </div>
                               {fullNameByStaffId.get(s.staffId) && (
                                 <div className="text-xs text-muted-foreground">
                                   {fullNameByStaffId.get(s.staffId)}
