@@ -8,7 +8,8 @@ import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { TabButton } from "@/components/ui/nav-tab";
 import { Button } from "@/components/ui/button";
 import { todayIso } from "@/lib/format";
 import { ZeitSkeleton } from "@/components/ui/page-skeletons";
@@ -1180,14 +1181,30 @@ function ZeitUebersichtPage() {
       </div>
 
       <Tabs value={isPlaner ? "weekly" : activeTab} onValueChange={setActiveTab}>
-        <TabsList className="flex-wrap">
-          <TabsTrigger value="weekly">Wochenplan</TabsTrigger>
-          {!isPlaner && <TabsTrigger value="summary">Zusammenfassung</TabsTrigger>}
-          {!isPlaner && <TabsTrigger value="payroll">Buchhaltung</TabsTrigger>}
-          {!isPlaner && <TabsTrigger value="periods">Perioden</TabsTrigger>}
-          {!isPlaner && <TabsTrigger value="lohnrechner">Brutto/Netto</TabsTrigger>}
-          {!isPlaner && <TabsTrigger value="provision">Provision</TabsTrigger>}
-        </TabsList>
+        <div className="mb-4 flex flex-wrap gap-1 border-b border-border">
+          <TabButton active={isPlaner || activeTab === "weekly"} onClick={() => setActiveTab("weekly")}>
+            Wochenplan
+          </TabButton>
+          {!isPlaner && (
+            <>
+              <TabButton active={activeTab === "summary"} onClick={() => setActiveTab("summary")}>
+                Zusammenfassung
+              </TabButton>
+              <TabButton active={activeTab === "payroll"} onClick={() => setActiveTab("payroll")}>
+                Buchhaltung
+              </TabButton>
+              <TabButton active={activeTab === "periods"} onClick={() => setActiveTab("periods")}>
+                Perioden
+              </TabButton>
+              <TabButton active={activeTab === "lohnrechner"} onClick={() => setActiveTab("lohnrechner")}>
+                Brutto/Netto
+              </TabButton>
+              <TabButton active={activeTab === "provision"} onClick={() => setActiveTab("provision")}>
+                Provision
+              </TabButton>
+            </>
+          )}
+        </div>
 
         {(activeTab === "summary" || activeTab === "payroll" || activeTab === "provision") && (
           <Card className="my-3 p-3">
