@@ -21,6 +21,54 @@ export function sanitizeArticleSearchTerm(value: string): string {
   return value.replace(/[^\p{L}\p{N} -]/gu, "").trim();
 }
 
+// BL1 — Ersetzt die Standort-Zuordnung eines Artikels atomar (delete + insert).
+// Erwartet, dass die IDs bereits gegen die Caller-Organisation validiert wurden.
+// Gemeinsame Ersetzen-Logik für `updateArticle` und `setArticleLocations` (KGL).
+async function replaceArticleLocations(
+  admin: Awaited<
+    ReturnType<typeof import("@/integrations/supabase/client.server")>["supabaseAdmin"] extends infer T
+      ? never
+      : never
+  >,
+  organizationId: string,
+  articleId: string,
+  locationIds: string[],
+): Promise<void>;
+async function replaceArticleLocations(
+  admin: {
+    from: (table: string) => {
+      delete: () => { eq: (c: string, v: string) => { eq: (c: string, v: string) => Promise<{ error: { message: string } | null }> } };
+      insert: (rows: unknown) => Promise<{ error: { message: string } | null }>;
+    };
+  },
+  organizationId: string,
+  articleId: string,
+  locationIds: string[],
+): Promise<void> {
+  const { error: delErr } = await admin
+    .from("article_locations")
+    .delete()
+    .eq("organization_id", organizationId)
+    .eq("article_id", articleId);
+  if (delErr) throw new Error(delErr.message);
+  const { error: insErr } = await admin.from("article_locations").insert(
+    locationIds.map((locationId) => ({
+      organization_id: organizationId,
+      article_id: articleId,
+      location_id: locationId,
+    })),
+  );
+  if (insErr) throw new Error(insErr.message);
+}
+
+// BL1 — Server-Autorität für die „mindestens ein Standort"-Regel.
+export const SetArticleLocationsInput = z.object({
+  articleId: z.string().uuid(),
+  locationIds: z
+    .array(z.string().uuid())
+    .min(1, "Mindestens ein Standort erforderlich."),
+});
+
 const ArticleInput = z.object({
   supplierId: z.string().uuid(),
   name: z.string().trim().min(1).max(200),
