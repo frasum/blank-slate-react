@@ -44,6 +44,7 @@ export function SessionFieldsCard({
   previousDeficitCents,
   previousDeficitSourceDate,
   locationName,
+  tipRemainderCents,
 }: {
   sessionId: string;
   overview: Overview;
@@ -68,6 +69,7 @@ export function SessionFieldsCard({
   previousDeficitCents: number;
   previousDeficitSourceDate: string | null;
   locationName?: string;
+  tipRemainderCents: number;
 }) {
   type Row = { id: string; euro: string };
   type TerminalRow = Row & { isGl: boolean };
@@ -486,6 +488,7 @@ export function SessionFieldsCard({
             cashBalanceTargetCents={cashBalanceTargetCents}
             previousDeficitCents={previousDeficitCents}
             previousDeficitSourceDate={previousDeficitSourceDate}
+            tipRemainderCents={tipRemainderCents}
           />
         </div>
 
