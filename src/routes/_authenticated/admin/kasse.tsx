@@ -58,6 +58,7 @@ import { LocationPills } from "@/components/shared/LocationPills";
 import { parseEuroToCents } from "@/lib/cash/kasse-helpers";
 import { SettlementWarningsBanner } from "@/components/cash/SettlementWarningsBanner";
 import type { OpenInvoiceEntry } from "@/lib/cash/open-invoices";
+import { sessionHouseCentsFromKasse } from "@/lib/statistics/revenue-core";
 
 // Übersetzt die Roheingabe aus dem Korrektur-/Anlage-Dialog in
 // OpenInvoiceEntry[]. Regel (analog Kellner-UI, siehe open-invoices.ts):
