@@ -40,9 +40,8 @@ import {
 
 export const Route = createFileRoute("/_authenticated/admin/staff/$staffId")({
   head: () => ({ meta: [{ title: "Mitarbeiter · Verwaltung" }] }),
-  validateSearch: (search: Record<string, unknown>) => ({
-    from: typeof search.from === "string" ? search.from : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): { from?: string } =>
+    typeof search.from === "string" ? { from: search.from } : {},
   component: StaffDetailPage,
 });
 
