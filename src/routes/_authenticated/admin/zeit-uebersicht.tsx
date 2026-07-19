@@ -655,6 +655,82 @@ function ZeitUebersichtPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // Recurring Notes (Rate / Dauer) — pro Standort ODER org-weit.
+  const recurringQ = useQuery({
+    queryKey: ["payroll-recurring", isAllLocations ? "all" : effectiveLocationId],
+    queryFn: () =>
+      fetchRecurring({
+        data: { locationId: isAllLocations ? null : (effectiveLocationId || null) },
+      }),
+    enabled: isAllLocations || Boolean(effectiveLocationId),
+  });
+  const invalidateRecurring = () => {
+    void qc.invalidateQueries({ queryKey: ["payroll-recurring"] });
+  };
+  const createRecurringMut = useMutation({
+    mutationFn: (vars: {
+      staffId: string;
+      kind: "rate" | "dauer";
+      text: string;
+      periodsTotal: number | null;
+    }) =>
+      callCreateRecurring({
+        data: {
+          staffId: vars.staffId,
+          locationId: isAllLocations ? null : (effectiveLocationId || null),
+          kind: vars.kind,
+          text: vars.text,
+          firstPeriodStart: fromDate,
+          periodsTotal: vars.periodsTotal,
+        },
+      }),
+    onSuccess: invalidateRecurring,
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const cancelRecurringMut = useMutation({
+    mutationFn: (id: string) => callCancelRecurring({ data: { id } }),
+    onSuccess: invalidateRecurring,
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Aktive Notizen pro Mitarbeiter für die aktuell gewählte Periode.
+  const activeRecurringByStaff = useMemo(() => {
+    const m = new Map<
+      string,
+      Array<{ id: string; kind: "rate" | "dauer"; display: string; canceled: boolean }>
+    >();
+    const notes = (recurringQ.data ?? []) as RecurringNote[];
+    const periodList = periods.map((p) => ({ startDate: p.startDate, endDate: p.endDate }));
+    const currentStart = fromDate;
+    if (!currentStart) return m;
+    // Group by staff
+    const byStaff = new Map<string, RecurringNote[]>();
+    for (const n of notes) {
+      const arr = byStaff.get(n.staffId) ?? [];
+      arr.push(n);
+      byStaff.set(n.staffId, arr);
+    }
+    for (const [staffId, list] of byStaff) {
+      const active = activeNotesForPeriod(
+        list,
+        periodList,
+        currentStart,
+        isAllLocations ? null : (effectiveLocationId || null),
+      );
+      if (active.length === 0) continue;
+      m.set(
+        staffId,
+        active.map((a) => ({
+          id: a.note.id,
+          kind: a.note.kind,
+          display: a.display,
+          canceled: Boolean(a.note.canceledAt),
+        })),
+      );
+    }
+    return m;
+  }, [recurringQ.data, periods, fromDate, isAllLocations, effectiveLocationId]);
+
   function invalidateWeekly() {
     // Deckt Single- (["weekly-entries", locId, weekStart]) und Batch-Key
     // (["weekly-entries", "batch", …]) ab.
