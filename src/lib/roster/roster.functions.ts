@@ -241,6 +241,7 @@ export const getMyShifts = createServerFn({ method: "GET" })
           .string()
           .regex(/^\d{4}-\d{2}-\d{2}$/)
           .optional(),
+        mode: z.enum(["range", "released"]).optional(),
       })
       .parse(input ?? {}),
   )
@@ -257,6 +258,49 @@ export const getMyShifts = createServerFn({ method: "GET" })
     }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Modus "released": Fenster & Sichtbarkeit ergeben sich aus den
+    // Freigaben an den Standorten des Mitarbeiters. Nur (Standort × Bereich)-
+    // Kombinationen, die als roster_release existieren, sind sichtbar.
+    let releasedPairs: Array<{ locationId: string; area: "kitchen" | "service" | "gl" }> | null =
+      null;
+    if (data.mode === "released") {
+      const { data: staffLocs } = await supabaseAdmin
+        .from("staff_locations")
+        .select("location_id")
+        .eq("staff_id", caller.staffId)
+        .eq("organization_id", caller.organizationId);
+      const locIds = Array.from(new Set((staffLocs ?? []).map((r) => r.location_id as string)));
+      if (locIds.length === 0) return [];
+
+      const { data: releases } = await supabaseAdmin
+        .from("roster_releases")
+        .select("location_id, area, period_id")
+        .eq("organization_id", caller.organizationId)
+        .in("location_id", locIds);
+      const rels = releases ?? [];
+      if (rels.length === 0) return [];
+
+      const periodIds = Array.from(new Set(rels.map((r) => r.period_id as string)));
+      const { data: periods } = await supabaseAdmin
+        .from("periods")
+        .select("id, end_date")
+        .in("id", periodIds);
+      const endByPeriod = new Map<string, string>();
+      for (const p of periods ?? []) endByPeriod.set(p.id as string, p.end_date as string);
+
+      let maxEnd = from;
+      for (const r of rels) {
+        const e = endByPeriod.get(r.period_id as string);
+        if (e && e > maxEnd) maxEnd = e;
+      }
+      to = maxEnd;
+      releasedPairs = rels.map((r) => ({
+        locationId: r.location_id as string,
+        area: r.area as "kitchen" | "service" | "gl",
+      }));
+    }
+
     const { data: rows, error } = await supabaseAdmin
       .from("roster_shifts")
       .select(
@@ -270,7 +314,15 @@ export const getMyShifts = createServerFn({ method: "GET" })
       .order("area", { ascending: true });
     if (error) throw error;
 
-    return (rows ?? []).map((r) => {
+    const filtered = releasedPairs
+      ? (rows ?? []).filter((r) =>
+          releasedPairs!.some(
+            (p) => p.locationId === (r.location_id as string) && p.area === (r.area as string),
+          ),
+        )
+      : (rows ?? []);
+
+    return filtered.map((r) => {
       const skill = r.skills as { name: string; category: string } | null;
       const loc = r.locations as {
         name: string;
@@ -299,6 +351,42 @@ export const getMyShifts = createServerFn({ method: "GET" })
         locationDayServiceEnabled: enabledPeriods.length > 1,
       };
     });
+  });
+
+// UA2 — Freigabe-Horizont für den eingeloggten Mitarbeiter: spätestes
+// end_date aller Perioden, die an einem seiner Standorte in mindestens
+// einem Bereich freigegeben sind. Null, wenn keine Freigabe existiert.
+export const getMyReleaseHorizon = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ maxEnd: string | null }> => {
+    const caller = await loadStaffCaller(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: staffLocs } = await supabaseAdmin
+      .from("staff_locations")
+      .select("location_id")
+      .eq("staff_id", caller.staffId)
+      .eq("organization_id", caller.organizationId);
+    const locIds = Array.from(new Set((staffLocs ?? []).map((r) => r.location_id as string)));
+    if (locIds.length === 0) return { maxEnd: null };
+
+    const { data: releases } = await supabaseAdmin
+      .from("roster_releases")
+      .select("period_id")
+      .eq("organization_id", caller.organizationId)
+      .in("location_id", locIds);
+    const periodIds = Array.from(new Set((releases ?? []).map((r) => r.period_id as string)));
+    if (periodIds.length === 0) return { maxEnd: null };
+
+    const { data: periods } = await supabaseAdmin
+      .from("periods")
+      .select("end_date")
+      .in("id", periodIds);
+    let maxEnd: string | null = null;
+    for (const p of periods ?? []) {
+      const e = p.end_date as string;
+      if (!maxEnd || e > maxEnd) maxEnd = e;
+    }
+    return { maxEnd };
   });
 
 // UA1 — Self-Service: eigene Abwesenheits-Ranges im Zeitfenster.
