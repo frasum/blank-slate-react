@@ -39,6 +39,7 @@ export function PayrollTab({
   onExportPdf,
   onExportXlsx,
   onExportCsv,
+  fullNameByStaffId,
 }: {
   mode: BuchhaltungMode;
   onModeChange: (m: BuchhaltungMode) => void;
@@ -65,6 +66,7 @@ export function PayrollTab({
   onExportPdf: () => void;
   onExportXlsx: () => void;
   onExportCsv?: () => void;
+  fullNameByStaffId?: Map<string, string>;
 }) {
   const is3b = mode === "section3b";
   // Spaltenanzahl für colSpan: Name + Gesamt + Schichten + (3 SFN | 5 §3b) + U + K + Vorschuss + Besonderheiten
@@ -232,6 +234,7 @@ export function PayrollTab({
                         row={r}
                         is3b={is3b}
                         readOnly={readOnly}
+                        fullName={fullNameByStaffId?.get(staffId)}
                         onSave={(b) => onSaveNote(staffId, b)}
                       />
                     );
@@ -307,11 +310,13 @@ function PayrollRow({
   is3b,
   readOnly,
   onSave,
+  fullName,
 }: {
   row: BuchhaltungExportRow;
   is3b: boolean;
   readOnly: boolean;
   onSave: (besonderheiten: string) => void;
+  fullName?: string;
 }) {
   const [besonderheiten, setBesonderheiten] = useState<string>(row.besonderheiten ?? "");
   const vorschussLabel =
@@ -329,7 +334,10 @@ function PayrollRow({
     );
   return (
     <TableRow className="group">
-      <TableCell className="py-1.5 font-medium">{row.displayName}</TableCell>
+      <TableCell className="py-1.5 font-medium">
+        <div>{row.displayName}</div>
+        {fullName && <div className="text-xs font-normal text-muted-foreground">{fullName}</div>}
+      </TableCell>
       <TableCell className="py-1.5 text-right tabular-nums font-medium">
         {fmtHm(row.totalHours)}
       </TableCell>

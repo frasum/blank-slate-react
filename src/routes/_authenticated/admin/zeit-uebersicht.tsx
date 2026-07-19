@@ -561,6 +561,20 @@ function ZeitUebersichtPage() {
     return m;
   }, [absencesQ.data]);
 
+  // Anzeige-Ergänzung: voller Name (Vor- + Nachname) je Mitarbeiter für die
+  // zweizeilige Darstellung unter dem Rufnamen in Zusammenfassung + Buchhaltung.
+  // Nur Anzeige — Exporte bleiben unverändert.
+  const fullNameByStaffId = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const s of staffAllQ.data ?? []) {
+      const full = [s.firstName, s.lastName].filter(Boolean).join(" ").trim();
+      if (full && full.toLowerCase() !== (s.displayName ?? "").toLowerCase()) {
+        m.set(s.id, full);
+      }
+    }
+    return m;
+  }, [staffAllQ.data]);
+
   type SfnAgg = {
     simple: { night25Hours: number; night40Hours: number; sundayHours: number };
     extended: {
@@ -1434,8 +1448,15 @@ function ZeitUebersichtPage() {
                         const u = abs?.urlaubDays ?? 0;
                         const k = abs?.krankDays ?? 0;
                         return (
-                          <TableRow key={s.staffId}>
-                            <TableCell>{s.displayName}</TableCell>
+                           <TableRow key={s.staffId}>
+                             <TableCell>
+                               <div>{s.displayName}</div>
+                               {fullNameByStaffId.get(s.staffId) && (
+                                 <div className="text-xs text-muted-foreground">
+                                   {fullNameByStaffId.get(s.staffId)}
+                                 </div>
+                               )}
+                             </TableCell>
                             {weekCols.map((w) => (
                               <TableCell key={w.key} className="text-right tabular-nums">
                                 {fmtHm(s.perWeek.get(w.key) ?? 0)}
@@ -1551,6 +1572,7 @@ function ZeitUebersichtPage() {
             staffRows={payrollRowsByStaff}
             totals={payrollTotals}
             readOnly={isPayroll}
+            fullNameByStaffId={fullNameByStaffId}
             onSaveNote={(staffId, besonderheiten) =>
               upsertMut.mutate({
                 staffId,
