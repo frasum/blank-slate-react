@@ -22,6 +22,7 @@ import {
   createArticle,
   listArticles,
   setArticleActive,
+  setArticleLocations,
   updateArticle,
 } from "@/lib/bestellung/articles.functions";
 import {
