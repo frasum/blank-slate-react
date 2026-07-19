@@ -1689,6 +1689,9 @@ function ZeitUebersichtPage() {
                 besonderheiten: besonderheiten.trim() === "" ? null : besonderheiten,
               })
             }
+            recurringByStaff={activeRecurringByStaff}
+            onAddRecurring={(vars) => createRecurringMut.mutate(vars)}
+            onCancelRecurring={(id) => cancelRecurringMut.mutate(id)}
             onExportPdf={handlePayrollExportPdf}
             onExportXlsx={handlePayrollExportXlsx}
             onExportCsv={isPayroll ? handlePayrollExportCsv : undefined}
