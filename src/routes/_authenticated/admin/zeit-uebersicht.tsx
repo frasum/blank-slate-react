@@ -22,6 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { listLocations } from "@/lib/admin/locations.functions";
+import { listStaff } from "@/lib/admin/staff.functions";
 import { LocationPills } from "@/components/shared/LocationPills";
 import {
   createPeriod,
@@ -117,6 +118,7 @@ function ZeitUebersichtPage() {
   const isPayroll = identity?.role === "payroll";
   const isPlaner = identity?.role === "planer";
   const fetchLocations = useServerFn(listLocations);
+  const fetchStaffAll = useServerFn(listStaff);
   const fetchOverview = useServerFn(getTimeOverview);
   const fetchWeekly = useServerFn(getWeeklyTimeEntries);
   const fetchSkills = useServerFn(listSkills);
@@ -142,6 +144,12 @@ function ZeitUebersichtPage() {
     queryFn: () => fetchLocations(),
   });
   const locations = useMemo(() => locationsQ.data ?? [], [locationsQ.data]);
+  // WZ3 — Vollständige aktive Mitarbeiterliste (mit locationDepartments), damit
+  // Zusammenfassung + Buchhaltung auch Personen ohne Zeit-Einträge zeigen.
+  const staffAllQ = useQuery({
+    queryKey: ["admin-staff-all"],
+    queryFn: () => fetchStaffAll(),
+  });
   // Wochenplan-Location-Filter: konkrete Location-ID oder "all".
   // WZ1: Default "all" für Zusammenfassung/Buchhaltung (org-weite Sicht ohne
   // Standort-blinde Flecken). Wochenplan-Batch trägt "all" ebenfalls.
@@ -436,6 +444,36 @@ function ZeitUebersichtPage() {
   const staffAggs = useMemo(() => {
     const entries: Entry[] = overviewEntries;
     const map = new Map<string, StaffAgg>();
+    // WZ3 — Seed: alle aktiven Mitarbeiter aus dem Standort-Filter anlegen,
+    // damit Personen ohne time_entries in der Periode trotzdem erscheinen
+    // (0:00, keine Notizen). Der Aggregations-Key bleibt `staffId` — kommen
+    // Einträge dazu, gewinnt (wie bisher) die Abteilung des ersten Entry.
+    for (const s of staffAllQ.data ?? []) {
+      if (!s.isActive) continue;
+      const deps = isAllLocations
+        ? Array.from(new Set(s.locationDepartments.map((ld) => ld.department)))
+        : Array.from(
+            new Set(
+              s.locationDepartments
+                .filter((ld) => ld.locationId === effectiveLocationId)
+                .map((ld) => ld.department),
+            ),
+          );
+      if (deps.length === 0) continue;
+      // Genau eine Zeile pro Mitarbeiter (Key = staffId); als Startabteilung
+      // die erste zugeordnete — konsistent mit dem Verhalten heute (Einträge
+      // überschreiben nicht, sie erweitern).
+      if (!map.has(s.id)) {
+        map.set(s.id, {
+          staffId: s.id,
+          displayName: s.displayName,
+          department: deps[0] as Department,
+          perWeek: new Map(),
+          totalHours: 0,
+          shiftDates: new Set(),
+        });
+      }
+    }
     for (const e of entries) {
       let agg = map.get(e.staffId);
       if (!agg) {
@@ -458,7 +496,7 @@ function ZeitUebersichtPage() {
     return Array.from(map.values()).sort((a, b) =>
       a.displayName.localeCompare(b.displayName, "de"),
     );
-  }, [overviewEntries]);
+  }, [overviewEntries, staffAllQ.data, isAllLocations, effectiveLocationId]);
 
   const byDept = useMemo(() => {
     const m = new Map<Department, StaffAgg[]>();
