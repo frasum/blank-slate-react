@@ -353,6 +353,9 @@ function KasseSaldoPage() {
                   <TableCell className={bargeldClass(totals.bargeld)}>
                     {fmtEuro(totals.bargeld)}
                   </TableCell>
+                  <TableCell className="text-right tabular-nums whitespace-nowrap px-2 py-1.5 text-xs">
+                    {fmtEuro(totals.tipRemainder)}
+                  </TableCell>
                 </TableRow>
               </TableFooter>
             </Table>
