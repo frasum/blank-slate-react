@@ -1,7 +1,7 @@
 import { fmtCents } from "@/lib/format";
 import { parseEuroToCents } from "@/lib/cash/kasse-helpers";
 import { computeWechselgeld } from "@/lib/cash/cash-summary";
-import { computeDailyCash } from "@/lib/cash/cash-ledger";
+import { computeDailyCashWithTipRemainder } from "@/lib/cash/cash-ledger";
 import { sessionToDayInput } from "@/lib/cash/session-day-input";
 import { cardDeductionFromTerminalRows } from "@/lib/cash/session-channels";
 import type { Overview } from "@/lib/cash/kasse-types";
@@ -31,6 +31,7 @@ export function CashSummaryBlock({
   cashBalanceTargetCents,
   previousDeficitCents,
   previousDeficitSourceDate,
+  tipRemainderCents,
 }: {
   misc: CashSummaryMisc;
   writable: boolean;
@@ -43,6 +44,11 @@ export function CashSummaryBlock({
   cashBalanceTargetCents: number;
   previousDeficitCents: number;
   previousDeficitSourceDate: string | null;
+  /**
+   * Trinkgeld-Rest des Tages (kitchen + service). Wird in „Tages-Bargeld"
+   * einbezogen — physische Kassenlage. Ohne Pool = 0.
+   */
+  tipRemainderCents: number;
 }) {
   void writable;
   const sess = overview.session!;
@@ -74,10 +80,11 @@ export function CashSummaryBlock({
       openInvoicesCents,
       expensesCents: expenses.map((e) => e.amountCents),
       advancesCents: advances.map((a) => a.amountCents),
+      tipRemainderCents,
     },
   );
 
-  const tagesBargeldCents = computeDailyCash(dayInput);
+  const tagesBargeldCents = computeDailyCashWithTipRemainder(dayInput);
   const { tresorCents, wechselgeldbestandCents } = computeWechselgeld({
     tagesBargeldCents,
     previousDeficitCents,
