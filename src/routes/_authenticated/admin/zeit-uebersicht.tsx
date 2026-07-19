@@ -106,10 +106,7 @@ import {
   parseIsoDate,
 } from "@/lib/time/zeit-uebersicht-core";
 import { PayrollTab } from "@/components/zeit/PayrollTab";
-import {
-  activeNotesForPeriod,
-  type RecurringNote,
-} from "@/lib/time/recurring-notes";
+import { activeNotesForPeriod, type RecurringNote } from "@/lib/time/recurring-notes";
 import { WeeklyPlan } from "@/components/zeit/WeeklyPlan";
 import { PeriodsPanel } from "@/components/zeit/PeriodsPanel";
 
@@ -660,7 +657,7 @@ function ZeitUebersichtPage() {
     queryKey: ["payroll-recurring", isAllLocations ? "all" : effectiveLocationId],
     queryFn: () =>
       fetchRecurring({
-        data: { locationId: isAllLocations ? null : (effectiveLocationId || null) },
+        data: { locationId: isAllLocations ? null : effectiveLocationId || null },
       }),
     enabled: isAllLocations || Boolean(effectiveLocationId),
   });
@@ -677,7 +674,7 @@ function ZeitUebersichtPage() {
       callCreateRecurring({
         data: {
           staffId: vars.staffId,
-          locationId: isAllLocations ? null : (effectiveLocationId || null),
+          locationId: isAllLocations ? null : effectiveLocationId || null,
           kind: vars.kind,
           text: vars.text,
           firstPeriodStart: fromDate,
@@ -715,7 +712,7 @@ function ZeitUebersichtPage() {
         list,
         periodList,
         currentStart,
-        isAllLocations ? null : (effectiveLocationId || null),
+        isAllLocations ? null : effectiveLocationId || null,
       );
       if (active.length === 0) continue;
       m.set(
@@ -1106,9 +1103,7 @@ function ZeitUebersichtPage() {
   const buchhaltungExportInput = useMemo<BuchhaltungExportInput>(() => {
     const locLabel = locations.find((l) => l.id === effectiveLocationId)?.name ?? "";
     const perLabel = selectedPeriod?.label ?? `${fromDate}_${toDate}`;
-    const mergeRecurring = (
-      rows: BuchhaltungExportRow[],
-    ): BuchhaltungExportRow[] =>
+    const mergeRecurring = (rows: BuchhaltungExportRow[]): BuchhaltungExportRow[] =>
       rows.map((r) => {
         const staffId = (r as BuchhaltungExportRow & { staffId?: string }).staffId;
         const recur = staffId ? activeRecurringByStaff.get(staffId) : undefined;

@@ -67,11 +67,7 @@ export function activeNotesForPeriod(
   const out: Array<{ note: RecurringNote; elapsed: number; display: string }> = [];
   for (const n of notes) {
     // Standort-Filter: locationId=null gilt für alle Standorte des Mitarbeiters.
-    if (
-      filterLocationId != null &&
-      n.locationId != null &&
-      n.locationId !== filterLocationId
-    ) {
+    if (filterLocationId != null && n.locationId != null && n.locationId !== filterLocationId) {
       continue;
     }
     const elapsed = periodsElapsed(periods, n.firstPeriodStart, currentPeriodStart);

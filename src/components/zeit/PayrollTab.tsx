@@ -347,7 +347,11 @@ function PayrollRow({
   onSave: (besonderheiten: string) => void;
   fullName?: string;
   recurring?: PayrollRecurringEntry[];
-  onAddRecurring?: (vars: { kind: "rate" | "dauer"; text: string; periodsTotal: number | null }) => void;
+  onAddRecurring?: (vars: {
+    kind: "rate" | "dauer";
+    text: string;
+    periodsTotal: number | null;
+  }) => void;
   onCancelRecurring?: (id: string) => void;
 }) {
   const [besonderheiten, setBesonderheiten] = useState<string>(row.besonderheiten ?? "");
