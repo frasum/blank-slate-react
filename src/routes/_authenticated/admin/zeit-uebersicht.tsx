@@ -1,6 +1,6 @@
 // B6 — Arbeitszeitübersicht (Zusammenfassung + Buchhaltung), 1:1 nach tagesabrechnung.
 
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouterState } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Fragment, useEffect, useMemo, useState } from "react";
@@ -121,6 +121,8 @@ function ZeitUebersichtPage() {
   const isAdmin = identity?.role === "admin";
   const isPayroll = identity?.role === "payroll";
   const isPlaner = identity?.role === "planer";
+  const canOpenStaff = isAdmin || isPayroll;
+  const currentHref = useRouterState({ select: (s) => s.location.href });
   const fetchLocations = useServerFn(listLocations);
   const fetchStaffAll = useServerFn(listStaff);
   const fetchOverview = useServerFn(getTimeOverview);
