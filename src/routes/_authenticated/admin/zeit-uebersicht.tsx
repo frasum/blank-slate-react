@@ -1106,6 +1106,17 @@ function ZeitUebersichtPage() {
   const buchhaltungExportInput = useMemo<BuchhaltungExportInput>(() => {
     const locLabel = locations.find((l) => l.id === effectiveLocationId)?.name ?? "";
     const perLabel = selectedPeriod?.label ?? `${fromDate}_${toDate}`;
+    const mergeRecurring = (
+      rows: BuchhaltungExportRow[],
+    ): BuchhaltungExportRow[] =>
+      rows.map((r) => {
+        const staffId = (r as BuchhaltungExportRow & { staffId?: string }).staffId;
+        const recur = staffId ? activeRecurringByStaff.get(staffId) : undefined;
+        if (!recur || recur.length === 0) return r;
+        const recurText = recur.map((x) => x.display).join(" · ");
+        const combined = [r.besonderheiten ?? "", recurText].filter(Boolean).join(" · ");
+        return { ...r, besonderheiten: combined };
+      });
     return {
       locationLabel: locLabel,
       periodLabel: perLabel,
@@ -1114,7 +1125,7 @@ function ZeitUebersichtPage() {
       rowsByDept: DEPT_ORDER.map((dept) => ({
         dept,
         deptLabel: DEPT_HEADER_LABEL[dept],
-        rows: payrollFilteredByDept.get(dept) ?? [],
+        rows: mergeRecurring(payrollFilteredByDept.get(dept) ?? []),
       })),
     };
   }, [
@@ -1125,6 +1136,7 @@ function ZeitUebersichtPage() {
     toDate,
     payrollMode,
     payrollFilteredByDept,
+    activeRecurringByStaff,
   ]);
 
   const handlePayrollExportPdf = async () => {
