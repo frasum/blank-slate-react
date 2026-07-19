@@ -1,41 +1,40 @@
 ## Ziel
-In `/admin/urlaub` (Tab „Urlaubsanträge") die Anträge den Standorten des jeweiligen Mitarbeiters zuordnen: sichtbar als Badges am Antrag und filterbar per LocationPills. Keine Änderung am Antragsformular für Mitarbeiter, keine neue DB-Spalte.
 
-Grundlage: Ein Mitarbeiter kann mehreren Standorten zugewiesen sein (`staff_locations` — bereits vorhanden). Der Antrag selbst hat keinen Standort; die Zuordnung ergibt sich aus dem Mitarbeiter.
+In den Tabs **Zusammenfassung** und **Buchhaltung** (`/admin/zeit-uebersicht`) sollen alle aktiven Mitarbeiter des jeweiligen Standort-Filters angezeigt werden — auch wenn sie in der Periode keine `time_entries` und keine `roster_shifts` haben (also 0 h, keine SFN, keine Notizen). Heute erscheinen nur Personen, die mindestens einen Zeit-Eintrag in der Periode haben.
 
-## Änderungen
+## Aktueller Stand
 
-### 1) `src/lib/roster/leave.functions.ts`
-- `LeaveRequestRow` um `locationIds: string[]` erweitern.
-- In `listLeaveRequests`-Handler:
-  - Nach dem bestehenden Select zusätzlich per `supabaseAdmin` `staff_locations` für die betroffenen `staff_id`s laden (org-scoped): `select("staff_id, location_id").in("staff_id", staffIds).eq("organization_id", ...)`.
-  - Map `staffId → Set<location_id>` bauen, `locationIds` je Zeile ergänzen. Kein neuer RLS-Bezug, keine Migration.
-- `getMyLeaveRequests` bleibt unverändert (Mitarbeiter-Sicht braucht die Info nicht).
+- `staffAggs` in `src/routes/_authenticated/admin/zeit-uebersicht.tsx` (Zeile ~436) wird ausschließlich aus `overviewEntries` (= `time_entries` der Periode) aufgebaut. Wer nichts gestempelt hat, fehlt in beiden Tabs.
+- `byDept` (Zusammenfassung) und `buchhaltungStaffRows` (Buchhaltung) leiten sich direkt aus `staffAggs` ab.
+- `listStaff()` liefert bereits alle aktiven Mitarbeiter mit `isActive` und `locationDepartments: { locationId, department }[]` — genau die Granularität, die die Tabellen brauchen (eine Zeile pro Mitarbeiter × Abteilung).
 
-### 2) Neue Server-Fn `listOrgLocationsForAdmin` in `src/lib/admin/staff.functions.ts`
-- Kleine `createServerFn({ method: "GET" })` mit `requireSupabaseAuth` + Rolle ≥ `manager` (Muster wie andere Admin-Fns in der Datei), liefert `{ id, name }[]` der **aktiven** Standorte der Org, sortiert wie in vergleichbaren Panels.
-- Grund: `/admin/urlaub` hat aktuell keine Standort-Liste; diese Fn wird auch anderswo im Admin-Bereich wiederverwendbar sein.
+## Änderungen (nur Frontend, ein File)
 
-### 3) `src/routes/_authenticated/admin/urlaub.tsx`
-- Import `LocationPills` und die neue `listOrgLocationsForAdmin`.
-- Zusätzliche Query `["admin", "locations"]` für die Standort-Liste.
-- Über dem Status-Filter (`FILTERS`) eine Zeile mit `LocationPills` einfügen: `includeAll`, Default „Alle".
-- State `locationFilter` (String, `"__all__"` = alle).
-- Client-seitig `rows` zusätzlich filtern: `locationFilter === "__all__" || r.locationIds.includes(locationFilter)`.
-- Pro Antrag rechts neben Name/Status kleine Standort-Badges rendern (`Badge variant="outline"`, Name aus Locations-Map). Bei mehreren Standorten mehrere Badges; bei keinem („—") nichts.
-- Der offen-Zähler (`openLeaveQ`) bleibt unverändert (globaler Hinweis über alle Standorte); der Filter wirkt nur auf die sichtbare Liste.
+**Datei:** `src/routes/_authenticated/admin/zeit-uebersicht.tsx`
 
-### 4) Tests
-- `leave.functions.ts`: bestehende Reihen-Mapping-Tests bleiben grün. Kein neuer DB-Test nötig (rein additive Ableitung aus `staff_locations`).
-- Kein UI-Test-Zwang; TS/eslint/prettier über die drei geänderten Dateien.
+1. **Zusätzliche Query** `staffAllQ` via bestehender `listStaff` Server-Fn (Query-Key `["admin-staff-all"]`). Kein neuer Server-Endpoint.
 
-## Nicht Teil dieses Schritts
-- Keine Migration, keine neue Spalte `leave_requests.location_id`.
-- Kein Filter/Badges auf der Mitarbeiter-Seite (`/zeit/urlaub`).
-- Kein Schichttausch-Tab (bleibt wie ist).
-- Keine Änderung am Vacation-Planner darunter.
+2. **`staffAggs` seedet aus `listStaff` vor dem Einlesen der Einträge:**
+   - Kandidatenmenge: alle `isActive === true` Mitarbeiter.
+   - Standort-Filter:
+     - `isAllLocations`: alle aktiven Mitarbeiter mit mindestens einem `locationDepartments`-Eintrag; pro Kombination `(staffId, department)` (dedupliziert über alle Standorte) wird eine leere `StaffAgg`-Zeile angelegt.
+     - Konkreter Standort: nur `locationDepartments`-Zeilen mit `locationId === effectiveLocationId`; eine Zeile je vorkommender `department` dort.
+   - Anschließend werden `overviewEntries` wie bisher in die Map einsortiert; der Key bleibt `staffId` (konsistent mit dem heutigen Verhalten, das die Abteilung des ersten Entry-Vorkommens beibehält). Wenn eine Person Einträge in einer anderen Abteilung als der Stammdaten-Zuordnung hat, gewinnt weiterhin die aus den Einträgen abgeleitete Abteilung (kein Regressions-Risiko für heute sichtbare Zeilen).
+   - Ergebnis: Personen ohne Einträge erscheinen mit `totalHours = 0`, leerer `perWeek`, leerem `shiftDates`. Sortierung nach `displayName` bleibt.
 
-## Erfolgs-Gate
-- Filter „Alle / spicery / TSB / YUM" oben im Urlaub-Tab funktioniert und färbt den Header via bestehendem Location-Theme.
-- Jeder Antrag zeigt die Standort-Zugehörigkeit(en) des Mitarbeiters als Badge.
-- `tsc`, `eslint --max-warnings=0`, `vitest run`, `prettier --check` grün.
+3. **Buchhaltung:** `buchhaltungStaffRows` (~Zeile 888) läuft bereits über `staffAggs`. `sfnByStaff`, `notesByStaff`, `advanceCentsByStaff`, `absencesByStaff` liefern via `Map.get(...)` sauber `undefined`/0-Fallbacks — Zeilen ohne Daten zeigen also Nullen. Keine weitere Anpassung nötig.
+
+4. **Wochenplan-Tab bleibt unberührt** — dort ist die Roster-Sicht bereits standardmäßig kompletter (`assignedStaff` aus `weeklyData`). Der Fix zielt bewusst nur auf Zusammenfassung + Buchhaltung, wie beauftragt.
+
+5. **Empty-State-Zeile** ("keine Daten") bleibt logisch: entfällt implizit, sobald Mitarbeiter existieren; die Meldung erscheint nur noch, wenn die Org gar keine aktiven Mitarbeiter für den Filter hat.
+
+## Nicht enthalten
+
+- Keine Änderungen an Server-Funktionen, Exporten (`buildBuchhaltungXlsx/Pdf/Csv` bekommen weiterhin dieselben Row-Shapes), Tests-Fixtures oder Datenbank.
+- CP1/BL1/PY2-T bleiben unberührt.
+
+## Abnahme
+
+- `/admin/zeit-uebersicht`, "Alle Standorte", aktuelle Periode: Personen wie z. B. PIM (die im Screenshot mit 8:00 h nur wegen eines Eintrags erscheinen) und Kollegen ohne jegliche Einträge sind sichtbar (0:00, „—").
+- Standort-Filter Spicery/YUM/TSB: pro Standort erscheinen alle dort zugeordneten aktiven Mitarbeiter (mit ihren dortigen Abteilungen), auch ohne Einträge.
+- `tsgo`, `eslint`, `prettier`: 0.
