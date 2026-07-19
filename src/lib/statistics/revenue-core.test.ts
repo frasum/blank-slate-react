@@ -287,3 +287,67 @@ describe("computeChannelPercents", () => {
     expect(out.every((i) => i.pct === 0)).toBe(true);
   });
 });
+
+describe("sessionHouseCentsFromKasse — Kasse-Modell (N14b, 19.07.)", () => {
+  it("Spicery 18.07.: Wolt-Zeile wird ignoriert (kein Doppelabzug)", () => {
+    expect(
+      sessionHouseCentsFromKasse({
+        vectronCents: 667_250,
+        channels: [
+          { kind: "delivery_vectron", amountCents: 36_510 },
+          { kind: "delivery_wolt", amountCents: 17_210 },
+          { kind: "delivery_souse", amountCents: 0 },
+        ],
+      }),
+    ).toBe(630_740);
+  });
+
+  it("Spicery 17.07. (SoUse-Fall): SoUse wird abgezogen", () => {
+    expect(
+      sessionHouseCentsFromKasse({
+        vectronCents: 690_840,
+        channels: [
+          { kind: "delivery_vectron", amountCents: 34_030 },
+          { kind: "delivery_wolt", amountCents: 28_750 },
+          { kind: "delivery_souse", amountCents: 15_040 },
+        ],
+      }),
+    ).toBe(641_770);
+  });
+
+  it("TSB-Stil: vectron=0, pos zählt, delivery_wolt ignoriert", () => {
+    expect(
+      sessionHouseCentsFromKasse({
+        vectronCents: 0,
+        channels: [
+          { kind: "pos", amountCents: 200_000 },
+          { kind: "delivery_wolt", amountCents: 50_000 },
+        ],
+      }),
+    ).toBe(200_000);
+  });
+
+  it("Vectron ohne Kanäle → Vectron unverändert", () => {
+    expect(
+      sessionHouseCentsFromKasse({ vectronCents: 100_000, channels: [] }),
+    ).toBe(100_000);
+  });
+
+  it("unbekannter kind wirft (kein stilles No-op)", () => {
+    expect(() =>
+      sessionHouseCentsFromKasse({
+        vectronCents: 100_000,
+        channels: [{ kind: "voucher_sold", amountCents: 500 }],
+      }),
+    ).toThrow();
+  });
+
+  it("leerer kind wirft", () => {
+    expect(() =>
+      sessionHouseCentsFromKasse({
+        vectronCents: 100_000,
+        channels: [{ kind: "", amountCents: 0 }],
+      }),
+    ).toThrow();
+  });
+});
