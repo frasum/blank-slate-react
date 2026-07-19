@@ -3379,7 +3379,7 @@ export async function upsertSessionTipPoolEntryCore(
       }
     } catch (err) {
       console.error("[pool-time-sync] failed", err);
-      void import("@/lib/monitoring/sentry.server").then((m) =>
+      void import(/* @vite-ignore */ "@/lib/monitoring/sentry.server").then((m) =>
         m.captureServerError(err, {
           op: "cash.pool_time_sync",
           orgId: caller.organizationId,
@@ -3554,7 +3554,7 @@ async function applyServicePoolEnd(input: {
     .eq("staff_id", input.staffId)
     .maybeSingle();
   if (!entry || entry.department !== "service") {
-    void import("@/lib/monitoring/sentry.server").then((m) =>
+    void import(/* @vite-ignore */ "@/lib/monitoring/sentry.server").then((m) =>
       m.captureServerError(new Error("applyServicePoolEnd: no pool entry"), {
         op: "cash.applyServicePoolEnd",
         orgId: input.organizationId,
@@ -3571,7 +3571,7 @@ async function applyServicePoolEnd(input: {
     businessDate: input.businessDate,
   });
   if (!resolved) {
-    void import("@/lib/monitoring/sentry.server").then((m) =>
+    void import(/* @vite-ignore */ "@/lib/monitoring/sentry.server").then((m) =>
       m.captureServerError(new Error("applyServicePoolEnd: no resolved end"), {
         op: "cash.applyServicePoolEnd",
         orgId: input.organizationId,

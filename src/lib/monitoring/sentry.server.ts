@@ -112,7 +112,7 @@ function parseStack(stack: string) {
 
 async function currentRequestUrl(): Promise<string | null> {
   try {
-    const mod = (await import("@tanstack/react-start/server")) as {
+    const mod = (await import(/* @vite-ignore */ "@tanstack/react-start/server")) as {
       getRequest?: () => Request | undefined;
     };
     const req = mod.getRequest?.();
