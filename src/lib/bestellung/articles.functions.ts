@@ -53,9 +53,7 @@ async function replaceArticleLocations(
 // BL1 — Server-Autorität für die „mindestens ein Standort"-Regel.
 export const SetArticleLocationsInput = z.object({
   articleId: z.string().uuid(),
-  locationIds: z
-    .array(z.string().uuid())
-    .min(1, "Mindestens ein Standort erforderlich."),
+  locationIds: z.array(z.string().uuid()).min(1, "Mindestens ein Standort erforderlich."),
 });
 
 const ArticleInput = z.object({

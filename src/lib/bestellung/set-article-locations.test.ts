@@ -14,9 +14,9 @@ describe("SetArticleLocationsInput", () => {
   });
 
   it("lehnt leere locationIds ab (Mindest-Regel serverseitig)", () => {
-    expect(() =>
-      SetArticleLocationsInput.parse({ articleId, locationIds: [] }),
-    ).toThrow(/Mindestens ein Standort/);
+    expect(() => SetArticleLocationsInput.parse({ articleId, locationIds: [] })).toThrow(
+      /Mindestens ein Standort/,
+    );
   });
 
   it("lehnt Nicht-UUIDs ab", () => {
