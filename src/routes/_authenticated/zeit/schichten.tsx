@@ -133,10 +133,7 @@ function MyShiftsPage() {
     }
   }, [rangeTouched, hasExtendedHorizon, range]);
 
-  const { from, to } = useMemo(
-    () => computeRange(range, releasedTo),
-    [range, releasedTo],
-  );
+  const { from, to } = useMemo(() => computeRange(range, releasedTo), [range, releasedTo]);
 
   const query = useQuery({
     queryKey: ["my-shifts", range, from, to],
