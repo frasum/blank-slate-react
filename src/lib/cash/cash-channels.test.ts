@@ -82,6 +82,7 @@ describe("computeDailyCash — Mo 01.06 YUM Referenzfall", () => {
         bankDepositsCents: [],
         registerTransfers: [],
       },
+      tipRemainderCents: 0,
     };
     expect(computeDailyCash(day)).toBe(33646);
   });
