@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { CalendarDays, Download, FileDown, FileSpreadsheet, Search } from "lucide-react";
+import { CalendarDays, Download, FileDown, FileSpreadsheet, Plus, Search, X } from "lucide-react";
 import type { BuchhaltungExportRow, BuchhaltungMode } from "@/lib/time/buchhaltung-export";
 import {
   DEPT_BG,
@@ -24,6 +24,19 @@ import {
   fmtHm,
   type Department,
 } from "@/lib/time/zeit-uebersicht-core";
+
+export type PayrollRecurringEntry = {
+  id: string;
+  kind: "rate" | "dauer";
+  display: string;
+  canceled: boolean;
+};
+export type CreateRecurringVars = {
+  staffId: string;
+  kind: "rate" | "dauer";
+  text: string;
+  periodsTotal: number | null;
+};
 
 export function PayrollTab({
   mode,
@@ -40,6 +53,9 @@ export function PayrollTab({
   onExportXlsx,
   onExportCsv,
   fullNameByStaffId,
+  recurringByStaff,
+  onAddRecurring,
+  onCancelRecurring,
 }: {
   mode: BuchhaltungMode;
   onModeChange: (m: BuchhaltungMode) => void;
@@ -67,6 +83,9 @@ export function PayrollTab({
   onExportXlsx: () => void;
   onExportCsv?: () => void;
   fullNameByStaffId?: Map<string, string>;
+  recurringByStaff?: Map<string, PayrollRecurringEntry[]>;
+  onAddRecurring?: (vars: CreateRecurringVars) => void;
+  onCancelRecurring?: (id: string) => void;
 }) {
   const is3b = mode === "section3b";
   // Spaltenanzahl für colSpan: Name + Gesamt + Schichten + (3 SFN | 5 §3b) + U + K + Vorschuss + Besonderheiten
@@ -236,6 +255,13 @@ export function PayrollTab({
                         readOnly={readOnly}
                         fullName={fullNameByStaffId?.get(staffId)}
                         onSave={(b) => onSaveNote(staffId, b)}
+                        recurring={recurringByStaff?.get(staffId) ?? []}
+                        onAddRecurring={
+                          onAddRecurring
+                            ? (vars) => onAddRecurring({ ...vars, staffId })
+                            : undefined
+                        }
+                        onCancelRecurring={onCancelRecurring}
                       />
                     );
                   })}
