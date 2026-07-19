@@ -172,7 +172,7 @@ function ZeitUebersichtPage() {
     queryKey: ["periods"],
     queryFn: () => fetchPeriods(),
   });
-  const periods = periodsQ.data ?? [];
+  const periods = useMemo(() => periodsQ.data ?? [], [periodsQ.data]);
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>("");
   const today = todayIso();
   const periodContainingToday = periods.find((p) => p.startDate <= today && p.endDate >= today);
