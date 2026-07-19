@@ -378,21 +378,13 @@ export const updateArticle = createServerFn({ method: "POST" })
         .eq("id", data.articleId)
         .eq("organization_id", caller.organizationId);
       if (error) throw error;
-      // Standort-Zuordnung ersetzen.
-      const { error: delErr } = await supabaseAdmin
-        .from("article_locations")
-        .delete()
-        .eq("organization_id", caller.organizationId)
-        .eq("article_id", data.articleId);
-      if (delErr) throw delErr;
-      const { error: insErr } = await supabaseAdmin.from("article_locations").insert(
-        data.locationIds.map((locationId) => ({
-          organization_id: caller.organizationId,
-          article_id: data.articleId,
-          location_id: locationId,
-        })),
+      // BL1 — Standort-Zuordnung ersetzen (gemeinsamer Helper).
+      await replaceArticleLocations(
+        supabaseAdmin,
+        caller.organizationId,
+        data.articleId,
+        data.locationIds,
       );
-      if (insErr) throw insErr;
       return {
         result: { ok: true as const },
         audit: {
