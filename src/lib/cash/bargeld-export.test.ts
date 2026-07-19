@@ -18,6 +18,7 @@ const row: CashDailyRow = {
   expensesCents: 3971,
   sonstigeEinnahmeCents: 0,
   bargeldCents: 16040,
+  tipRemainderCents: 0,
 };
 
 describe("buildBargeldXlsx", () => {
