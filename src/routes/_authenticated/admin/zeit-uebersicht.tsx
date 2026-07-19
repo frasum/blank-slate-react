@@ -1032,8 +1032,7 @@ function ZeitUebersichtPage() {
       const advCents = advanceCentsByStaff.get(s.staffId) ?? 0;
       const abs = absencesByStaff.get(s.staffId);
       const recur = activeRecurringByStaff.get(s.staffId) ?? [];
-      const recurText = recur.map((r) => r.display).join(" · ");
-      const merged = [note?.besonderheiten ?? "", recurText].filter(Boolean).join(" · ");
+      void recur; // rendered separately in PayrollTab; export mergt weiter unten.
       m.set(s.staffId, {
         staffId: s.staffId,
         department: s.department,
@@ -1049,7 +1048,7 @@ function ZeitUebersichtPage() {
         urlaubDays: abs?.urlaubDays ?? 0,
         krankDays: abs?.krankDays ?? 0,
         vorschussEUR: advCents / 100,
-        besonderheiten: merged,
+        besonderheiten: note?.besonderheiten ?? "",
         absenceNote: abs?.absenceNote ?? "",
       });
     }
