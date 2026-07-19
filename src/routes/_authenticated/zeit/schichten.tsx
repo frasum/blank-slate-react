@@ -8,6 +8,7 @@ import {
   getMyShifts,
   getMyAbsences,
   getMyShiftMates,
+  getMyReleaseHorizon,
   type MyAbsenceRange,
 } from "@/lib/roster/roster.functions";
 import { groupMyShiftsByDate } from "@/lib/roster/my-shifts";
@@ -40,7 +41,7 @@ export const Route = createFileRoute("/_authenticated/zeit/schichten")({
   component: MyShiftsPage,
 });
 
-type RangeKey = "month" | "week";
+type RangeKey = "month" | "week" | "released";
 
 const AREA_LABEL: Record<"kitchen" | "service" | "gl", string> = {
   kitchen: "Küche",
@@ -55,7 +56,7 @@ function isoDate(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-function computeRange(key: RangeKey): { from: string; to: string } {
+function computeRange(key: RangeKey, releasedTo?: string | null): { from: string; to: string } {
   const now = new Date();
   const from = isoDate(now);
   if (key === "week") {
@@ -64,6 +65,9 @@ function computeRange(key: RangeKey): { from: string; to: string } {
     const dow = (end.getDay() + 6) % 7; // Mo=0..So=6
     end.setDate(end.getDate() + (6 - dow));
     return { from, to: isoDate(end) };
+  }
+  if (key === "released" && releasedTo) {
+    return { from, to: releasedTo };
   }
   const end = new Date(now);
   end.setDate(end.getDate() + 27);
@@ -100,14 +104,37 @@ function absenceLabel(r: MyAbsenceRange): string {
 
 function MyShiftsPage() {
   const [range, setRange] = useState<RangeKey>("month");
+  const [rangeTouched, setRangeTouched] = useState(false);
   const fetchShifts = useServerFn(getMyShifts);
   const fetchAbsences = useServerFn(getMyAbsences);
   const fetchMates = useServerFn(getMyShiftMates);
+  const fetchHorizon = useServerFn(getMyReleaseHorizon);
   const fetchSwaps = useServerFn(listMySwapRequests);
   const fetchOpen = useServerFn(listOpenSwapsForMe);
   const createSwap = useServerFn(createSwapRequest);
   const qc = useQueryClient();
-  const { from, to } = useMemo(() => computeRange(range), [range]);
+  const horizonQuery = useQuery({
+    queryKey: ["my-release-horizon"],
+    queryFn: () => fetchHorizon(),
+  });
+  const releasedTo = horizonQuery.data?.maxEnd ?? null;
+  const todayPlus27 = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 27);
+    return isoDate(d);
+  }, []);
+  const hasExtendedHorizon = !!releasedTo && releasedTo > todayPlus27;
+
+  // Auto-Default auf „Bis Ende Freigabe", wenn Freigabe über die 4 Wochen
+  // hinausreicht und der User noch nichts angeklickt hat.
+  if (!rangeTouched && hasExtendedHorizon && range !== "released") {
+    setRange("released");
+  }
+
+  const { from, to } = useMemo(
+    () => computeRange(range, releasedTo),
+    [range, releasedTo],
+  );
 
   const query = useQuery({
     queryKey: ["my-shifts", from, to],
@@ -196,17 +223,35 @@ function MyShiftsPage() {
         <Button
           size="sm"
           variant={range === "month" ? "default" : "outline"}
-          onClick={() => setRange("month")}
+          onClick={() => {
+            setRangeTouched(true);
+            setRange("month");
+          }}
         >
           4 Wochen
         </Button>
         <Button
           size="sm"
           variant={range === "week" ? "default" : "outline"}
-          onClick={() => setRange("week")}
+          onClick={() => {
+            setRangeTouched(true);
+            setRange("week");
+          }}
         >
           Diese Woche
         </Button>
+        {hasExtendedHorizon && (
+          <Button
+            size="sm"
+            variant={range === "released" ? "default" : "outline"}
+            onClick={() => {
+              setRangeTouched(true);
+              setRange("released");
+            }}
+          >
+            Bis Ende Freigabe
+          </Button>
+        )}
       </div>
 
       {(absencesQuery.data ?? []).length > 0 && (
