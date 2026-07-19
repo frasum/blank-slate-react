@@ -1,16 +1,17 @@
 // Admin-only: aufgelaufener Trinkgeld-Restcent je Geschäftstag
 // (Euro-Abrundung im Bargeld). Read-only. Zahlen kommen live aus
 // getTipRemainderByPeriod und sind identisch mit dem „Rest", den die
-// Kasse-Ansicht pro Tag zeigt.
+// Kasse-Ansicht pro Tag zeigt. Zeitraum: Kalendermonat.
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useRouteContext } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getTipRemainderByPeriod } from "@/lib/cash/cash.functions";
 import { listLocations } from "@/lib/admin/locations.functions";
-import { listPeriods } from "@/lib/time/time-admin.functions";
 import { LocationPills } from "@/components/shared/LocationPills";
+import { MonthNav } from "@/components/shared/MonthNav";
+import { currentMonth, monthRange } from "@/lib/statistics/period-window";
 import { fmtCents, todayIso } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/admin/trinkgeld-rest")({
@@ -21,20 +22,14 @@ export const Route = createFileRoute("/_authenticated/admin/trinkgeld-rest")({
 function TipRemainderPage() {
   const { identity } = useRouteContext({ from: "/_authenticated/admin" });
   const fetchLocations = useServerFn(listLocations);
-  const fetchPeriods = useServerFn(listPeriods);
   const fetchRemainder = useServerFn(getTipRemainderByPeriod);
 
   const [locationId, setLocationId] = useState<string>("");
-  const [periodId, setPeriodId] = useState<string>("");
+  const [month, setMonth] = useState<string>(() => currentMonth());
 
   const locationsQ = useQuery({
     queryKey: ["admin-locations"],
     queryFn: () => fetchLocations(),
-    enabled: identity.role === "admin",
-  });
-  const periodsQ = useQuery({
-    queryKey: ["admin-periods"],
-    queryFn: () => fetchPeriods(),
     enabled: identity.role === "admin",
   });
 
@@ -43,27 +38,24 @@ function TipRemainderPage() {
       setLocationId(locationsQ.data[0].id);
     }
   }, [locationId, locationsQ.data]);
-  useEffect(() => {
-    if (!periodId && periodsQ.data && periodsQ.data.length > 0) {
-      const today = todayIso();
-      const current = periodsQ.data.find((p) => p.startDate <= today && today <= p.endDate);
-      setPeriodId((current ?? periodsQ.data[0]).id);
-    }
-  }, [periodId, periodsQ.data]);
 
-  const period = periodsQ.data?.find((p) => p.id === periodId) ?? null;
+  const range = useMemo(() => {
+    const { startDate, endDate } = monthRange(month);
+    const today = todayIso();
+    return { startDate, endDate: endDate > today ? today : endDate };
+  }, [month]);
 
   const remainderQ = useQuery({
-    queryKey: ["admin", "tip-remainder", locationId, period?.startDate, period?.endDate],
+    queryKey: ["admin", "tip-remainder", locationId, range.startDate, range.endDate],
     queryFn: () =>
       fetchRemainder({
         data: {
           locationId,
-          startDate: period!.startDate,
-          endDate: period!.endDate,
+          startDate: range.startDate,
+          endDate: range.endDate,
         },
       }),
-    enabled: identity.role === "admin" && locationId !== "" && period !== null,
+    enabled: identity.role === "admin" && locationId !== "",
   });
 
   if (identity.role !== "admin") {
@@ -75,7 +67,7 @@ function TipRemainderPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Trinkgeld-Rest</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Aufgelaufener Restcent durch die Euro-Abrundung im Bargeld — je Periode (26.–25.) und
+          Aufgelaufener Restcent durch die Euro-Abrundung im Bargeld — je Kalendermonat und
           Standort, pro Tag und Küche/Service getrennt. Read-only.
         </p>
       </div>
@@ -89,20 +81,10 @@ function TipRemainderPage() {
             onChange={setLocationId}
           />
         </div>
-        <label className="block space-y-1">
-          <span className="text-xs font-medium text-muted-foreground">Periode</span>
-          <select
-            value={periodId}
-            onChange={(e) => setPeriodId(e.target.value)}
-            className="rounded-md border border-input bg-background px-3 py-2 text-sm"
-          >
-            {(periodsQ.data ?? []).map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.label} ({p.startDate} – {p.endDate})
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="space-y-1">
+          <span className="block text-xs font-medium text-muted-foreground">Monat</span>
+          <MonthNav value={month} onChange={setMonth} />
+        </div>
       </div>
 
       {remainderQ.isLoading && <p className="text-sm text-muted-foreground">Lade…</p>}
@@ -152,7 +134,7 @@ function TipRemainderPage() {
             </tbody>
             <tfoot className="bg-muted/30 text-sm font-semibold">
               <tr className="border-t border-border">
-                <td className="px-4 py-2">Periode gesamt</td>
+                <td className="px-4 py-2">Monat gesamt</td>
                 <td className="px-4 py-2 text-right font-mono tabular-nums">
                   {fmtCents(remainderQ.data.totals.kitchenCents)} €
                 </td>
