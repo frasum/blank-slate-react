@@ -21,6 +21,7 @@ function emptyDay(over: Partial<DayInput> = {}): DayInput {
     openInvoicesCents: [],
     sonstigeEinnahmeCents: 0,
     vorschussCents: 0,
+    tipRemainderCents: 0,
     satellites: {
       expensesCents: [],
       advancesCents: [],
