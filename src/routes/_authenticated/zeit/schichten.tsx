@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -127,9 +127,11 @@ function MyShiftsPage() {
 
   // Auto-Default auf „Bis Ende Freigabe", wenn Freigabe über die 4 Wochen
   // hinausreicht und der User noch nichts angeklickt hat.
-  if (!rangeTouched && hasExtendedHorizon && range !== "released") {
-    setRange("released");
-  }
+  useEffect(() => {
+    if (!rangeTouched && hasExtendedHorizon && range !== "released") {
+      setRange("released");
+    }
+  }, [rangeTouched, hasExtendedHorizon, range]);
 
   const { from, to } = useMemo(
     () => computeRange(range, releasedTo),
