@@ -360,11 +360,9 @@ export function WeeklyPlan({
                   className={`text-center whitespace-nowrap border-l ${
                     dm.outOfPeriod
                       ? "bg-muted/40 text-muted-foreground/60"
-                      : dm.isHol
+                      : dm.isHol || dm.isSun
                         ? "bg-yellow-50"
-                        : dm.isSun
-                          ? "bg-gray-100"
-                          : ""
+                        : ""
                   }`}
                 >
                   {dayHeader(dm.date)}
@@ -481,10 +479,8 @@ export function WeeklyPlan({
               {dayMeta.map((dm) => {
                 const bg = dm.outOfPeriod
                   ? "bg-muted/40 text-muted-foreground/60"
-                  : dm.isHol
+                  : dm.isHol || dm.isSun
                     ? "bg-yellow-50"
-                    : dm.isSun
-                      ? "bg-gray-100"
                       : "";
                 return (
                   <Fragment key={`sub-${dm.iso}`}>
@@ -566,10 +562,8 @@ export function WeeklyPlan({
                           const dm = dayMeta[idx];
                           const cellBg = dm.outOfPeriod
                             ? "bg-muted/40"
-                            : dm.isHol
+                            : dm.isHol || dm.isSun
                               ? "bg-yellow-50"
-                              : dm.isSun
-                                ? "bg-gray-50"
                                 : "";
                           const empty = day.shifts.length === 0;
                           // Z3 — alle Zeilen sind editierbar; das Grid attribuiert
