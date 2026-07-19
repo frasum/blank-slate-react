@@ -512,8 +512,9 @@ function ZeitUebersichtPage() {
   const notesByStaff = useMemo(() => {
     const m = new Map<string, { vorschuss: number; besonderheiten: string }>();
     if (isAllLocations) {
-      // Pro Standort mergen: Vorschüsse summieren, Besonderheiten mit Standort-
-      // Präfix konkatenieren (z. B. "spicery: … · YUM: …").
+      // Pro Standort mergen: Vorschüsse summieren, Besonderheiten mit ` · `
+      // konkatenieren — OHNE Standort-Präfix (Frank 19.07.: Präfix stört den
+      // Lesefluss im Lohnbüro-Export).
       const byLoc = notesBatchQ.data?.byLocation ?? {};
       for (const loc of locations) {
         const data = byLoc[loc.id] as
@@ -522,7 +523,7 @@ function ZeitUebersichtPage() {
         if (!data) continue;
         for (const n of data) {
           const prev = m.get(n.staffId);
-          const noteText = n.besonderheiten?.trim() ? `${loc.name}: ${n.besonderheiten}` : "";
+          const noteText = n.besonderheiten?.trim() ?? "";
           const merged = prev
             ? {
                 vorschuss: prev.vorschuss + n.vorschuss,
