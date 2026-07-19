@@ -481,7 +481,7 @@ export function WeeklyPlan({
                   ? "bg-muted/40 text-muted-foreground/60"
                   : dm.isHol || dm.isSun
                     ? "bg-yellow-50"
-                      : "";
+                    : "";
                 return (
                   <Fragment key={`sub-${dm.iso}`}>
                     <TableHead
