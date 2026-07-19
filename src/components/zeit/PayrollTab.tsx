@@ -87,7 +87,7 @@ export function PayrollTab({
   recurringByStaff?: Map<string, PayrollRecurringEntry[]>;
   onAddRecurring?: (vars: CreateRecurringVars) => void;
   onCancelRecurring?: (id: string) => void;
-  renderStaffName?: (staffId: string, displayName: string) => React.ReactNode;
+  renderStaffName?: (staffId: string, displayName: string) => ReactNode;
 }) {
   const is3b = mode === "section3b";
   // Spaltenanzahl für colSpan: Name + Gesamt + Schichten + (3 SFN | 5 §3b) + U + K + Vorschuss + Besonderheiten
@@ -350,7 +350,7 @@ function PayrollRow({
   readOnly: boolean;
   onSave: (besonderheiten: string) => void;
   fullName?: string;
-  nameSlot?: React.ReactNode;
+  nameSlot?: ReactNode;
   recurring?: PayrollRecurringEntry[];
   onAddRecurring?: (vars: {
     kind: "rate" | "dauer";
