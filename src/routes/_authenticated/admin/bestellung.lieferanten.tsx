@@ -460,6 +460,38 @@ function LieferantenPage() {
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Fehler."),
   });
 
+  // BL1 — Standort-Toggle je Artikelzeile mit optimistischem Update + Rollback.
+  // Der Server ist Autorität für „mindestens ein Standort" — die UI-Regel
+  // (Klick auf letzten Chip ignorieren) ist nur die kurze Rückmeldeschleife.
+  type ArticleT = NonNullable<typeof articlesQ.data>[number];
+  const articlesQueryKey = [
+    "bestellung",
+    "articles",
+    { includeInactive: showInactive, all: true },
+  ] as const;
+  const setArtLocsMut = useMutation({
+    mutationFn: (input: { articleId: string; locationIds: string[] }) =>
+      callSetArticleLocations({ data: input }),
+    onMutate: async (input) => {
+      await qc.cancelQueries({ queryKey: ["bestellung", "articles"] });
+      const previous = qc.getQueryData<ArticleT[]>(articlesQueryKey);
+      if (previous) {
+        qc.setQueryData<ArticleT[]>(
+          articlesQueryKey,
+          previous.map((a) =>
+            a.id === input.articleId ? { ...a, locationIds: input.locationIds } : a,
+          ),
+        );
+      }
+      return { previous };
+    },
+    onError: (e: unknown, _input, ctx) => {
+      if (ctx?.previous) qc.setQueryData(articlesQueryKey, ctx.previous);
+      setMsg(e instanceof Error ? e.message : "Fehler.");
+    },
+    onSettled: refreshArticles,
+  });
+
   const addCartMut = useMutation({
     mutationFn: (articleId: string) => callAdd({ data: { articleId, quantity: 1 } }),
     onSuccess: refreshCart,
