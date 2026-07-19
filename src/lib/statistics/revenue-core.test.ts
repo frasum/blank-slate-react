@@ -328,9 +328,7 @@ describe("sessionHouseCentsFromKasse — Kasse-Modell (N14b, 19.07.)", () => {
   });
 
   it("Vectron ohne Kanäle → Vectron unverändert", () => {
-    expect(
-      sessionHouseCentsFromKasse({ vectronCents: 100_000, channels: [] }),
-    ).toBe(100_000);
+    expect(sessionHouseCentsFromKasse({ vectronCents: 100_000, channels: [] })).toBe(100_000);
   });
 
   it("unbekannter kind wirft (kein stilles No-op)", () => {
