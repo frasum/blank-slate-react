@@ -39,6 +39,7 @@ export function PayrollTab({
   onExportPdf,
   onExportXlsx,
   onExportCsv,
+  fullNameByStaffId,
 }: {
   mode: BuchhaltungMode;
   onModeChange: (m: BuchhaltungMode) => void;
@@ -65,6 +66,7 @@ export function PayrollTab({
   onExportPdf: () => void;
   onExportXlsx: () => void;
   onExportCsv?: () => void;
+  fullNameByStaffId?: Map<string, string>;
 }) {
   const is3b = mode === "section3b";
   // Spaltenanzahl für colSpan: Name + Gesamt + Schichten + (3 SFN | 5 §3b) + U + K + Vorschuss + Besonderheiten
@@ -232,6 +234,7 @@ export function PayrollTab({
                         row={r}
                         is3b={is3b}
                         readOnly={readOnly}
+                        fullName={fullNameByStaffId?.get(staffId)}
                         onSave={(b) => onSaveNote(staffId, b)}
                       />
                     );
