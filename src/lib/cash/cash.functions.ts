@@ -3000,6 +3000,7 @@ export function aggToDayInput(date: string, a: CashDayAgg): DayInput {
     openInvoicesCents: a.openInvoices,
     sonstigeEinnahmeCents: a.sonstige,
     vorschussCents: a.vorschuss,
+    tipRemainderCents: 0,
     satellites: {
       expensesCents: a.expenses,
       advancesCents: a.advances,
