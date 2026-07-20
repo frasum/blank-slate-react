@@ -7,7 +7,7 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Pencil, Plus, Archive, RotateCcw } from "lucide-react";
+import { Pencil, Plus, Archive, RotateCcw, Printer } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatShortDate } from "@/lib/format-date";
 import { parseEuroToCents } from "@/lib/format";
@@ -40,6 +40,7 @@ import {
   setSupplierLocation,
 } from "@/lib/bestellung/supplier-locations.functions";
 import { LocationPills } from "@/components/shared/LocationPills";
+import { PrintOrderListsDialog } from "@/components/bestellung/PrintOrderListsDialog";
 
 export const Route = createFileRoute("/_authenticated/admin/bestellung/lieferanten")({
   head: () => ({ meta: [{ title: "Lieferanten · Bestellung" }] }),
