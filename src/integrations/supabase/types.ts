@@ -5098,6 +5098,7 @@ export type Database = {
           id: string
           is_active: boolean
           min_order_value_cents: number | null
+          mobile: string | null
           name: string
           notes: string | null
           order_deadline: string | null
@@ -5117,6 +5118,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           min_order_value_cents?: number | null
+          mobile?: string | null
           name: string
           notes?: string | null
           order_deadline?: string | null
@@ -5136,6 +5138,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           min_order_value_cents?: number | null
+          mobile?: string | null
           name?: string
           notes?: string | null
           order_deadline?: string | null
