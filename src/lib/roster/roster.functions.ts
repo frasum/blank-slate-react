@@ -1020,6 +1020,21 @@ export const moveRosterShift = createServerFn({ method: "POST" })
           .eq("organization_id", caller.organizationId);
         if (error) throw error;
 
+        await syncOpenSessionsPoolAfterRosterWrite({
+          organizationId: caller.organizationId,
+          targets: [
+            {
+              locationId: snap.location_id as string,
+              businessDate: snap.shift_date as string,
+            },
+            {
+              locationId: snap.location_id as string,
+              businessDate: data.shiftDate,
+            },
+          ],
+          op: "roster.shift.move",
+        });
+
         return {
           result: { ok: true as const },
           audit: {
