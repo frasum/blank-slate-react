@@ -205,6 +205,14 @@ function LieferantenPage() {
     staleTime: 60 * 1000,
   });
 
+  // AK2: Bestands-Einheiten (order_unit ∪ inventory_unit) für die Comboboxen
+  // im Artikel-Dialog. Gleiche Feld-Komponente wie AK1, gemeinsame Liste.
+  const unitsQ = useQuery({
+    queryKey: ["bestellung", "article-units"],
+    queryFn: () => listArticleCategories({ data: { kind: "units" } }),
+    staleTime: 60 * 1000,
+  });
+
   // SL1: Standort-Deaktivierungen für Katalog-Filter (nur is_active=false Rows).
   const supplierLocationsQ = useQuery({
     queryKey: ["bestellung", "supplier-locations", "all"],
