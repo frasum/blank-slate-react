@@ -90,7 +90,6 @@ type ArticleDraft = {
   category: string;
   unit: string;
   priceEuro: string;
-  packagingUnit: string;
   orderUnit: string;
   inventoryUnit: string;
   orderToInventoryFactor: string;
@@ -108,7 +107,6 @@ const EMPTY_ARTICLE_DRAFT: ArticleDraft = {
   category: "",
   unit: "Stk",
   priceEuro: "",
-  packagingUnit: "",
   orderUnit: "Stk",
   inventoryUnit: "Stk",
   orderToInventoryFactor: "1",
@@ -408,9 +406,6 @@ function LieferantenPage() {
           category: input.draft.category,
           unit: input.draft.orderUnit || input.draft.unit,
           priceCents: parseEuroToCents(input.draft.priceEuro) ?? 0,
-          packagingUnit: input.draft.packagingUnit
-            ? Math.max(1, Math.round(Number(input.draft.packagingUnit)))
-            : null,
           orderUnit: input.draft.orderUnit || undefined,
           inventoryUnit: input.draft.inventoryUnit || undefined,
           orderToInventoryFactor: parseNumberDe(input.draft.orderToInventoryFactor) ?? undefined,
@@ -447,9 +442,6 @@ function LieferantenPage() {
           category: input.draft.category,
           unit: input.draft.orderUnit || input.draft.unit,
           priceCents: parseEuroToCents(input.draft.priceEuro) ?? 0,
-          packagingUnit: input.draft.packagingUnit
-            ? Math.max(1, Math.round(Number(input.draft.packagingUnit)))
-            : null,
           orderUnit: input.draft.orderUnit || undefined,
           inventoryUnit: input.draft.inventoryUnit || undefined,
           orderToInventoryFactor: parseNumberDe(input.draft.orderToInventoryFactor) ?? undefined,
@@ -722,7 +714,6 @@ function LieferantenPage() {
                                   a.price_cents != null
                                     ? (a.price_cents / 100).toFixed(2).replace(".", ",")
                                     : "",
-                                packagingUnit: a.packaging_unit?.toString() ?? "",
                                 orderUnit: a.order_unit ?? a.unit ?? "Stk",
                                 inventoryUnit: a.inventory_unit ?? a.unit ?? "Stk",
                                 orderToInventoryFactor: String(
@@ -1433,15 +1424,6 @@ function ArticleForm(props: {
             />
             Ja (E1: nur Vormerkung, Bestellung akzeptiert weiterhin Ganzzahlen)
           </label>
-        </Field>
-        <Field label="Stk/BE (Legacy)">
-          <input
-            type="number"
-            min={1}
-            value={d.packagingUnit}
-            onChange={(e) => set("packagingUnit", e.target.value)}
-            className={inputCls}
-          />
         </Field>
       </div>
       {livePreview && (
