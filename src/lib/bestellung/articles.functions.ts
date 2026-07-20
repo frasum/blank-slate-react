@@ -245,7 +245,7 @@ export const listArticleCategories = createServerFn({ method: "GET" })
       return Array.from(set).sort((a, b) => a.localeCompare(b, "de"));
     }
     // BFIX2: paginiert — lädt category über alle Artikel; kappt sonst bei ~1000.
-    const data = await selectAllPaged<{ category: string | null }>(() =>
+    const catRows = await selectAllPaged<{ category: string | null }>(() =>
       supabaseAdmin
         .from("articles")
         .select("category")
@@ -254,7 +254,7 @@ export const listArticleCategories = createServerFn({ method: "GET" })
         .order("id"),
     );
     const set = new Set<string>();
-    for (const r of data) {
+    for (const r of catRows) {
       const c = r.category;
       if (c && c.trim()) set.add(c.trim());
     }
