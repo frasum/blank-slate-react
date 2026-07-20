@@ -198,6 +198,13 @@ function LieferantenPage() {
     queryFn: () => listLocations(),
   });
 
+  // AK1: Bestandskategorien für die Combobox im Artikel-Dialog.
+  const categoriesQ = useQuery({
+    queryKey: ["bestellung", "article-categories"],
+    queryFn: () => listArticleCategories(),
+    staleTime: 60 * 1000,
+  });
+
   // SL1: Standort-Deaktivierungen für Katalog-Filter (nur is_active=false Rows).
   const supplierLocationsQ = useQuery({
     queryKey: ["bestellung", "supplier-locations", "all"],
