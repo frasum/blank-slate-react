@@ -996,6 +996,30 @@ function LieferantenPage() {
           )}
         </DialogContent>
       </Dialog>
+      <PrintOrderListsDialog
+        open={printDialogOpen}
+        onClose={() => setPrintDialogOpen(false)}
+        suppliers={(suppliersQ.data ?? []).map((s) => ({
+          id: s.id,
+          name: s.name,
+          is_active: s.is_active,
+        }))}
+        articles={(articlesQ.data ?? []).map((a) => ({
+          id: a.id,
+          supplier_id: a.supplier_id,
+          name: a.name,
+          category: a.category ?? null,
+          order_unit: a.order_unit ?? a.unit,
+          unit: a.unit,
+          is_active: a.is_active,
+          locationIds: a.locationIds,
+        }))}
+        lastOrderByArticle={lastOrderQ.data ?? {}}
+        locationId={activeLocationId}
+        locationName={
+          activeLocations.find((l) => l.id === activeLocationId)?.name ?? ""
+        }
+      />
     </div>
   );
 }
