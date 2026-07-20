@@ -17,6 +17,7 @@ import { assertDayOpen } from "@/lib/roster/business-calendar.server";
 import { selectAllPaged } from "@/lib/supabase/select-all";
 import { shiftMatesKey, type ShiftMate } from "@/lib/roster/shift-mates";
 import { todayIso } from "@/lib/format";
+import { syncOpenSessionsPoolAfterRosterWrite } from "@/lib/cash/roster-pool-sync";
 
 // SP2 — Helper: gewähltes Planungsfenster muss in enabled_service_periods
 // des Standorts liegen. Ersetzt den früheren Boolean-Check (day_service_enabled).
