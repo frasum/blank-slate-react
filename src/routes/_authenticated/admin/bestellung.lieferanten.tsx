@@ -90,7 +90,6 @@ type ArticleDraft = {
   category: string;
   unit: string;
   priceEuro: string;
-  packagingUnit: string;
   orderUnit: string;
   inventoryUnit: string;
   orderToInventoryFactor: string;
@@ -108,7 +107,6 @@ const EMPTY_ARTICLE_DRAFT: ArticleDraft = {
   category: "",
   unit: "Stk",
   priceEuro: "",
-  packagingUnit: "",
   orderUnit: "Stk",
   inventoryUnit: "Stk",
   orderToInventoryFactor: "1",
@@ -408,9 +406,6 @@ function LieferantenPage() {
           category: input.draft.category,
           unit: input.draft.orderUnit || input.draft.unit,
           priceCents: parseEuroToCents(input.draft.priceEuro) ?? 0,
-          packagingUnit: input.draft.packagingUnit
-            ? Math.max(1, Math.round(Number(input.draft.packagingUnit)))
-            : null,
           orderUnit: input.draft.orderUnit || undefined,
           inventoryUnit: input.draft.inventoryUnit || undefined,
           orderToInventoryFactor: parseNumberDe(input.draft.orderToInventoryFactor) ?? undefined,
@@ -447,9 +442,6 @@ function LieferantenPage() {
           category: input.draft.category,
           unit: input.draft.orderUnit || input.draft.unit,
           priceCents: parseEuroToCents(input.draft.priceEuro) ?? 0,
-          packagingUnit: input.draft.packagingUnit
-            ? Math.max(1, Math.round(Number(input.draft.packagingUnit)))
-            : null,
           orderUnit: input.draft.orderUnit || undefined,
           inventoryUnit: input.draft.inventoryUnit || undefined,
           orderToInventoryFactor: parseNumberDe(input.draft.orderToInventoryFactor) ?? undefined,
