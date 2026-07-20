@@ -205,6 +205,14 @@ function LieferantenPage() {
     staleTime: 60 * 1000,
   });
 
+  // AK2: Bestands-Einheiten (order_unit ∪ inventory_unit) für die Comboboxen
+  // im Artikel-Dialog. Gleiche Feld-Komponente wie AK1, gemeinsame Liste.
+  const unitsQ = useQuery({
+    queryKey: ["bestellung", "article-units"],
+    queryFn: () => listArticleCategories({ data: { kind: "units" } }),
+    staleTime: 60 * 1000,
+  });
+
   // SL1: Standort-Deaktivierungen für Katalog-Filter (nur is_active=false Rows).
   const supplierLocationsQ = useQuery({
     queryKey: ["bestellung", "supplier-locations", "all"],
@@ -918,6 +926,7 @@ function LieferantenPage() {
               initialSupplierId={articleDialog.supplierId}
               locations={(locationsQ.data ?? []).map((l) => ({ id: l.id, name: l.name }))}
               categories={categoriesQ.data ?? []}
+              units={unitsQ.data ?? []}
               initialLocationIds={
                 articleDialog.mode === "edit"
                   ? articleDialog.initialLocationIds
@@ -1259,6 +1268,7 @@ function ArticleForm(props: {
   locations: { id: string; name: string }[];
   initialLocationIds: string[];
   categories: string[];
+  units: string[];
   submitLabel: string;
   submitting: boolean;
   onSubmit: (d: ArticleDraft, supplierId: string, locationIds: string[]) => void;
@@ -1364,6 +1374,8 @@ function ArticleForm(props: {
         <Field label="Bestelleinheit *">
           <input
             required
+            list="ak2-article-units"
+            autoComplete="off"
             placeholder="Kiste, Sack, kg …"
             value={d.orderUnit}
             onChange={(e) => set("orderUnit", e.target.value)}
@@ -1373,11 +1385,18 @@ function ArticleForm(props: {
         <Field label="Inventureinheit *">
           <input
             required
+            list="ak2-article-units"
+            autoComplete="off"
             placeholder="Flasche, kg, Liter …"
             value={d.inventoryUnit}
             onChange={(e) => set("inventoryUnit", e.target.value)}
             className={inputCls}
           />
+          <datalist id="ak2-article-units">
+            {props.units.map((u) => (
+              <option key={u} value={u} />
+            ))}
+          </datalist>
         </Field>
         <Field
           label={`1 ${d.orderUnit || "Bestelleinheit"} = X ${d.inventoryUnit || "Inventureinheit"}`}
