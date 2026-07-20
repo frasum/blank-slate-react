@@ -36,7 +36,13 @@ describe("renderOrderListsHtml", () => {
             {
               supplierName: "Fideser",
               articles: [
-                { id: "w1", name: "Riesling", category: "Wein", orderUnit: "Fl", lastOrderIso: null },
+                {
+                  id: "w1",
+                  name: "Riesling",
+                  category: "Wein",
+                  orderUnit: "Fl",
+                  lastOrderIso: null,
+                },
               ],
             },
           ],

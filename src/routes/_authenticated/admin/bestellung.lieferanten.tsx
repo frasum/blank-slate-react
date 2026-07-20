@@ -1016,9 +1016,7 @@ function LieferantenPage() {
         }))}
         lastOrderByArticle={lastOrderQ.data ?? {}}
         locationId={activeLocationId}
-        locationName={
-          activeLocations.find((l) => l.id === activeLocationId)?.name ?? ""
-        }
+        locationName={activeLocations.find((l) => l.id === activeLocationId)?.name ?? ""}
       />
     </div>
   );

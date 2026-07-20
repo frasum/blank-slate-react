@@ -39,9 +39,7 @@ export function PrintOrderListsDialog(props: {
   // Nur aktive Lieferanten + aktive, für den Standort freigegebene Artikel.
   const activeArticlesByLoc = useMemo(() => {
     return props.articles.filter(
-      (a) =>
-        a.is_active &&
-        (!props.locationId || (a.locationIds ?? []).includes(props.locationId)),
+      (a) => a.is_active && (!props.locationId || (a.locationIds ?? []).includes(props.locationId)),
     );
   }, [props.articles, props.locationId]);
 
@@ -110,9 +108,7 @@ export function PrintOrderListsDialog(props: {
     // Lieferanten-Abschnitte in alphabetischer Reihenfolge.
     for (const s of activeSuppliers) {
       if (!selected.has(s.id)) continue;
-      const arts = activeArticlesByLoc
-        .filter((a) => a.supplier_id === s.id)
-        .map(toPrintArticle);
+      const arts = activeArticlesByLoc.filter((a) => a.supplier_id === s.id).map(toPrintArticle);
       sections.push({ kind: "supplier", supplierName: s.name, articles: arts });
     }
     if (sections.length === 0) return;
@@ -129,18 +125,12 @@ export function PrintOrderListsDialog(props: {
           <DialogTitle>Drucklisten – Bestandsaufnahme</DialogTitle>
         </DialogHeader>
         {!props.locationId ? (
-          <p className="text-sm text-destructive">
-            Bitte zuerst oben einen Standort wählen.
-          </p>
+          <p className="text-sm text-destructive">Bitte zuerst oben einen Standort wählen.</p>
         ) : (
           <>
             <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
               <span>Standort: {props.locationName}</span>
-              <button
-                type="button"
-                onClick={clearAll}
-                className="text-primary hover:underline"
-              >
+              <button type="button" onClick={clearAll} className="text-primary hover:underline">
                 Alle abwählen
               </button>
             </div>
@@ -153,9 +143,7 @@ export function PrintOrderListsDialog(props: {
                       checked={selected.has(WINE_KEY)}
                       onChange={() => toggle(WINE_KEY)}
                     />
-                    <span className="flex-1 font-medium">
-                      Wein-Sammelliste (alle Lieferanten)
-                    </span>
+                    <span className="flex-1 font-medium">Wein-Sammelliste (alle Lieferanten)</span>
                     <span className="text-xs text-muted-foreground">{wineCount}</span>
                   </label>
                   <div className="my-2 border-t border-border" />

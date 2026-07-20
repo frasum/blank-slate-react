@@ -147,10 +147,11 @@ function renderSupplierBody(articles: PrintArticle[]): string {
   const cats = [...byCat.keys()].sort((a, b) => a.localeCompare(b, "de"));
   const blocks: string[] = [];
   for (const cat of cats) {
-    const list = byCat.get(cat)!.slice().sort((a, b) => a.name.localeCompare(b.name, "de"));
-    blocks.push(
-      `<div class="grp"><h3>${esc(cat)}</h3>${list.map(renderRow).join("")}</div>`,
-    );
+    const list = byCat
+      .get(cat)!
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name, "de"));
+    blocks.push(`<div class="grp"><h3>${esc(cat)}</h3>${list.map(renderRow).join("")}</div>`);
   }
   return blocks.join("");
 }
@@ -190,12 +191,12 @@ export function renderOrderListsHtml(input: {
     parts.push(
       `<section class="dl">` +
         `<header class="dl-head">` +
-          `<h1>${esc(title)}</h1>` +
-          `<div class="meta">${esc(input.locationName)} · ${esc(today)} · ${count} Artikel</div>` +
+        `<h1>${esc(title)}</h1>` +
+        `<div class="meta">${esc(input.locationName)} · ${esc(today)} · ${count} Artikel</div>` +
         `</header>` +
         `<div class="${colsCls}">${body}</div>` +
         renderSonstiges() +
-      `</section>`,
+        `</section>`,
     );
   }
 
@@ -215,10 +216,7 @@ ${parts.join("")}
 // Öffnet den System-Druckdialog Safari-fest via unsichtbarem srcdoc-iframe.
 // Kopie des Musters aus DailyPrintView.printDailySummary — keine window.open,
 // kein Download.
-export function printOrderLists(input: {
-  locationName: string;
-  sections: PrintSection[];
-}): void {
+export function printOrderLists(input: { locationName: string; sections: PrintSection[] }): void {
   if (typeof window === "undefined" || typeof document === "undefined") return;
   const html = renderOrderListsHtml(input);
   const iframe = document.createElement("iframe");
