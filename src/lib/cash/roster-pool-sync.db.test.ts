@@ -54,18 +54,16 @@ describe.skipIf(!dbTestsEnabled)("Roster-Pool Nach-Sync (RS1)", () => {
     staffA = await org.mkUser("staff");
     staffB = await org.mkUser("staff");
     // Service-Default checkin, damit Snapshot einen shift_start setzt.
-    await org.service
-      .from("location_department_defaults")
-      .upsert(
-        {
-          organization_id: org.orgId,
-          location_id: org.defaultLocationId,
-          department: "service",
-          default_checkin: "16:00",
-          default_checkout: null,
-        },
-        { onConflict: "location_id,department" },
-      );
+    await org.service.from("location_department_defaults").upsert(
+      {
+        organization_id: org.orgId,
+        location_id: org.defaultLocationId,
+        department: "service",
+        default_checkin: "16:00",
+        default_checkout: null,
+      },
+      { onConflict: "location_id,department" },
+    );
   });
   afterAll(async () => {
     await org.cleanup();
@@ -153,10 +151,7 @@ describe.skipIf(!dbTestsEnabled)("Roster-Pool Nach-Sync (RS1)", () => {
 
   it("geschlossene Session ⇒ kein Nach-Sync", async () => {
     const sessionId = await freshOpenSession();
-    await org.service
-      .from("sessions")
-      .update({ status: "finalized" })
-      .eq("id", sessionId);
+    await org.service.from("sessions").update({ status: "finalized" }).eq("id", sessionId);
     await seedShift(staffA.staffId, "service");
     await syncOpenSessionsPoolAfterRosterWrite({
       organizationId: org.orgId,
