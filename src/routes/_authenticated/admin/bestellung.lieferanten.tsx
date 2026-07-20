@@ -21,6 +21,7 @@ import {
 import {
   createArticle,
   listArticles,
+  listArticleCategories,
   setArticleActive,
   setArticleLocations,
   updateArticle,
@@ -195,6 +196,13 @@ function LieferantenPage() {
   const locationsQ = useQuery({
     queryKey: ["admin", "locations"],
     queryFn: () => listLocations(),
+  });
+
+  // AK1: Bestandskategorien für die Combobox im Artikel-Dialog.
+  const categoriesQ = useQuery({
+    queryKey: ["bestellung", "article-categories"],
+    queryFn: () => listArticleCategories(),
+    staleTime: 60 * 1000,
   });
 
   // SL1: Standort-Deaktivierungen für Katalog-Filter (nur is_active=false Rows).
@@ -887,6 +895,7 @@ function LieferantenPage() {
               suppliers={(suppliersQ.data ?? []).map((s) => ({ id: s.id, name: s.name }))}
               initialSupplierId={articleDialog.supplierId}
               locations={(locationsQ.data ?? []).map((l) => ({ id: l.id, name: l.name }))}
+              categories={categoriesQ.data ?? []}
               initialLocationIds={
                 articleDialog.mode === "edit"
                   ? articleDialog.initialLocationIds
@@ -1227,6 +1236,7 @@ function ArticleForm(props: {
   initialSupplierId: string;
   locations: { id: string; name: string }[];
   initialLocationIds: string[];
+  categories: string[];
   submitLabel: string;
   submitting: boolean;
   onSubmit: (d: ArticleDraft, supplierId: string, locationIds: string[]) => void;
@@ -1307,10 +1317,17 @@ function ArticleForm(props: {
         </Field>
         <Field label="Kategorie">
           <input
+            list="ak1-article-categories"
+            autoComplete="off"
             value={d.category}
             onChange={(e) => set("category", e.target.value)}
             className={inputCls}
           />
+          <datalist id="ak1-article-categories">
+            {props.categories.map((c) => (
+              <option key={c} value={c} />
+            ))}
+          </datalist>
         </Field>
         <Field label="Preis pro Bestelleinheit (€) *">
           <input
