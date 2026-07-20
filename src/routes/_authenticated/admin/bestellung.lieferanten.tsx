@@ -714,7 +714,6 @@ function LieferantenPage() {
                                   a.price_cents != null
                                     ? (a.price_cents / 100).toFixed(2).replace(".", ",")
                                     : "",
-                                packagingUnit: a.packaging_unit?.toString() ?? "",
                                 orderUnit: a.order_unit ?? a.unit ?? "Stk",
                                 inventoryUnit: a.inventory_unit ?? a.unit ?? "Stk",
                                 orderToInventoryFactor: String(
@@ -1425,15 +1424,6 @@ function ArticleForm(props: {
             />
             Ja (E1: nur Vormerkung, Bestellung akzeptiert weiterhin Ganzzahlen)
           </label>
-        </Field>
-        <Field label="Stk/BE (Legacy)">
-          <input
-            type="number"
-            min={1}
-            value={d.packagingUnit}
-            onChange={(e) => set("packagingUnit", e.target.value)}
-            className={inputCls}
-          />
         </Field>
       </div>
       {livePreview && (
