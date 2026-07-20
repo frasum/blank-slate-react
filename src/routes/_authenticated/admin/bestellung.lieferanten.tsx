@@ -895,6 +895,7 @@ function LieferantenPage() {
               suppliers={(suppliersQ.data ?? []).map((s) => ({ id: s.id, name: s.name }))}
               initialSupplierId={articleDialog.supplierId}
               locations={(locationsQ.data ?? []).map((l) => ({ id: l.id, name: l.name }))}
+              categories={categoriesQ.data ?? []}
               initialLocationIds={
                 articleDialog.mode === "edit"
                   ? articleDialog.initialLocationIds
