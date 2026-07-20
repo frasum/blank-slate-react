@@ -705,6 +705,13 @@ export const createRosterShift = createServerFn({ method: "POST" })
               servicePeriod: data.servicePeriod,
             },
           },
+          afterCommit: async () => {
+            await syncOpenSessionsPoolAfterRosterWrite({
+              organizationId: caller.organizationId,
+              targets: [{ locationId: data.locationId, businessDate: data.shiftDate }],
+              op: "roster.shift.create",
+            });
+          },
         };
       },
     );
@@ -758,6 +765,18 @@ export const deleteRosterShift = createServerFn({ method: "POST" })
               },
             },
           },
+          afterCommit: async () => {
+            await syncOpenSessionsPoolAfterRosterWrite({
+              organizationId: caller.organizationId,
+              targets: [
+                {
+                  locationId: snap.location_id as string,
+                  businessDate: snap.shift_date as string,
+                },
+              ],
+              op: "roster.shift.delete",
+            });
+          },
         };
       },
     );
@@ -807,6 +826,18 @@ export const updateRosterShiftStatus = createServerFn({ method: "POST" })
             entity: "roster_shift",
             entityId: data.id,
             meta: { before: snap.status, after: data.status },
+          },
+          afterCommit: async () => {
+            await syncOpenSessionsPoolAfterRosterWrite({
+              organizationId: caller.organizationId,
+              targets: [
+                {
+                  locationId: snap.location_id as string,
+                  businessDate: snap.shift_date as string,
+                },
+              ],
+              op: "roster.shift.status",
+            });
           },
         };
       },
