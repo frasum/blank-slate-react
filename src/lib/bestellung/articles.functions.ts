@@ -386,7 +386,10 @@ export const updateArticle = createServerFn({ method: "POST" })
           category: data.category,
           unit: data.unit,
           price_cents: data.priceCents,
-          packaging_unit: data.packagingUnit ?? null,
+          // AK3: `packaging_unit` (Legacy-Import-Feld) nur überschreiben, wenn
+          // der Aufrufer explizit einen Wert schickt. Sonst bleibt der DB-Wert
+          // erhalten — der UI-Dialog sendet das Feld nicht mehr.
+          ...(data.packagingUnit !== undefined ? { packaging_unit: data.packagingUnit } : {}),
           order_unit: data.orderUnit ?? data.unit,
           inventory_unit: data.inventoryUnit ?? data.unit,
           order_to_inventory_factor: data.orderToInventoryFactor ?? 1,
