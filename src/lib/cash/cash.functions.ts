@@ -3468,71 +3468,10 @@ export async function deleteSessionTipPoolEntryCore(
   });
 }
 
-// ------------------------------------------------------------------------
-// Plan-Snapshot in den Pool (bei Session-Eröffnung + manueller Nachzug)
-// ------------------------------------------------------------------------
-//
-// Liest die BESTÄTIGTEN Plan-Schichten eines Geschäftstags an einem
-// Standort und schreibt sie idempotent als Pool-Zeilen. Idempotenz über
-// das vorhandene `unique(session_id, staff_id)` — wir setzen
-// `onConflict: 'session_id,staff_id'` mit `ignoreDuplicates:true`.
-//
-// GL-Einträge werden mitgeschrieben (als Arbeitszeit-Anker), bekommen
-// aber via computeTipPool keinen Trinkgeld-Anteil.
-async function applyRosterPoolSnapshot(input: {
-  organizationId: string;
-  sessionId: string;
-  locationId: string;
-  businessDate: string;
-}): Promise<number> {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const [shiftsRes, defaultsRes] = await Promise.all([
-    supabaseAdmin
-      .from("roster_shifts")
-      .select("staff_id, area")
-      .eq("organization_id", input.organizationId)
-      .eq("location_id", input.locationId)
-      .eq("shift_date", input.businessDate)
-      .in("status", ["planned", "confirmed"]),
-    supabaseAdmin
-      .from("location_department_defaults")
-      .select("department, default_checkin, default_checkout")
-      .eq("location_id", input.locationId),
-  ]);
-  if (shiftsRes.error) throw shiftsRes.error;
-  if (defaultsRes.error) throw defaultsRes.error;
-
-  const defaultsByArea: Record<string, { checkin: string | null; checkout: string | null }> = {};
-  for (const d of defaultsRes.data ?? []) {
-    defaultsByArea[d.department as string] = {
-      checkin: (d.default_checkin as string | null) ?? null,
-      checkout: (d.default_checkout as string | null) ?? null,
-    };
-  }
-  const snapshot = buildRosterPoolSnapshot({
-    rosterShifts: (shiftsRes.data ?? []).map((r) => ({
-      staffId: r.staff_id as string,
-      area: r.area as StaffDepartment,
-    })),
-    defaultsByArea,
-  });
-  if (snapshot.length === 0) return 0;
-
-  const rows = snapshot.map((e) => ({
-    organization_id: input.organizationId,
-    session_id: input.sessionId,
-    staff_id: e.staffId,
-    department: e.department,
-    hours_minutes: e.hoursMinutes,
-    shift_start: e.shiftStart,
-    shift_end: e.shiftEnd,
-  }));
-  const { error, count } = await supabaseAdmin
-    .from("session_tip_pool_entries")
-    .upsert(rows, { onConflict: "session_id,staff_id", ignoreDuplicates: true, count: "exact" });
-  if (error) throw error;
-  return count ?? 0;
-}
+// Plan-Snapshot in den Pool: siehe `./roster-pool-sync` — dort liegt
+// `applyRosterPoolSnapshot` (Eröffnung + manueller Nachzug) und der
+// neue `syncOpenSessionsPoolAfterRosterWrite` (RS1, Nach-Sync bei
+// Dienstplan-Änderungen an offenen Sessions).
 
 // Service-Pool-Ende aus dem Abgabezeitpunkt setzen — ohne Bindung an
 // `default_checkout` (Service hat kein festes Ende). Nur wenn der
