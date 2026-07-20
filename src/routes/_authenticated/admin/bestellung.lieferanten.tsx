@@ -1115,7 +1115,7 @@ function SupplierForm(props: {
       }}
     >
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <Field label="Name *">
+        <Field label="Name">
           <input
             required
             value={d.name}
@@ -1387,7 +1387,7 @@ function ArticleForm(props: {
             ))}
           </datalist>
         </Field>
-        <Field label="Preis pro Bestelleinheit (€) *">
+        <Field label="€ pro Bestelleinheit">
           <input
             required
             inputMode="decimal"
@@ -1397,7 +1397,7 @@ function ArticleForm(props: {
             className={inputCls}
           />
         </Field>
-        <Field label="Bestelleinheit *">
+        <Field label="Bestelleinheit">
           <input
             required
             list="ak2-article-units"
@@ -1408,7 +1408,7 @@ function ArticleForm(props: {
             className={inputCls}
           />
         </Field>
-        <Field label="Inventureinheit *">
+        <Field label="Inventureinheit">
           <input
             required
             list="ak2-article-units"
