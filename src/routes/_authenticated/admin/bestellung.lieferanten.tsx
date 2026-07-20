@@ -581,6 +581,31 @@ function LieferantenPage() {
         {filteredSuppliers.map((s) => {
           const arts = articlesBySupplier.get(s.id) ?? [];
           const isOpen = effectivelyExpanded.has(s.id);
+          // LA1 — gemeinsamer Öffner für den Lieferanten-Bearbeiten-Dialog
+          // (wiederverwendet vom Stift-Button UND vom Namens-Shortcut).
+          const openEditSupplier = () => {
+            setSupplierDialog({
+              mode: "edit",
+              supplierId: s.id,
+              initial: {
+                name: s.name,
+                email: s.email ?? "",
+                phone: s.phone ?? "",
+                address: s.address ?? "",
+                customerNumber: s.customer_number ?? "",
+                contactPerson: s.contact_person ?? "",
+                notes: s.notes ?? "",
+                deliveryDays: s.delivery_days ?? [],
+                orderDeadline: s.order_deadline ? s.order_deadline.slice(0, 5) : "",
+                minOrderValueEuro:
+                  s.min_order_value_cents != null
+                    ? (s.min_order_value_cents / 100).toFixed(2).replace(".", ",")
+                    : "",
+                sortOrder: s.sort_order ?? 0,
+              },
+            });
+            setMsg(null);
+          };
           return (
             <div key={s.id} className="overflow-hidden rounded-md border border-border bg-card">
               {/* Header */}
@@ -594,7 +619,18 @@ function LieferantenPage() {
                   <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                     {arts.length}
                   </span>
-                  <span className="font-medium text-foreground">{s.name}</span>
+                </button>
+                {/* LA1 — Name als Bearbeiten-Shortcut; stoppt das Auf-/Zuklappen. */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openEditSupplier();
+                  }}
+                  className="cursor-pointer font-medium text-foreground hover:underline"
+                  title="Lieferant bearbeiten"
+                >
+                  {s.name}
                 </button>
                 <span className="text-xs text-muted-foreground">{s.phone ?? s.email ?? ""}</span>
                 <span className="text-xs text-muted-foreground">
@@ -623,29 +659,7 @@ function LieferantenPage() {
                     {s.is_active ? "aktiv" : "inaktiv"}
                   </span>
                   <button
-                    onClick={() => {
-                      setSupplierDialog({
-                        mode: "edit",
-                        supplierId: s.id,
-                        initial: {
-                          name: s.name,
-                          email: s.email ?? "",
-                          phone: s.phone ?? "",
-                          address: s.address ?? "",
-                          customerNumber: s.customer_number ?? "",
-                          contactPerson: s.contact_person ?? "",
-                          notes: s.notes ?? "",
-                          deliveryDays: s.delivery_days ?? [],
-                          orderDeadline: s.order_deadline ? s.order_deadline.slice(0, 5) : "",
-                          minOrderValueEuro:
-                            s.min_order_value_cents != null
-                              ? (s.min_order_value_cents / 100).toFixed(2).replace(".", ",")
-                              : "",
-                          sortOrder: s.sort_order ?? 0,
-                        },
-                      });
-                      setMsg(null);
-                    }}
+                    onClick={openEditSupplier}
                     className="rounded border border-input bg-background p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
                     title="Bearbeiten"
                   >
