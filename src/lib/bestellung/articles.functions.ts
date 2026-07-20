@@ -214,9 +214,36 @@ export const listArticles = createServerFn({ method: "GET" })
 
 export const listArticleCategories = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((input) =>
+    z
+      .object({ kind: z.enum(["categories", "units"]).optional() })
+      .partial()
+      .parse(input ?? {}),
+  )
+  .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "manager");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const kind = data?.kind ?? "categories";
+    if (kind === "units") {
+      // AK2: vereinigte Distinct-Menge aus order_unit + inventory_unit aller
+      // Artikel der Organisation (eine gemeinsame Einheiten-Welt für beide
+      // Combobox-Felder). Paginiert wie categories.
+      const rows = await selectAllPaged<{ order_unit: string | null; inventory_unit: string | null }>(
+        () =>
+          supabaseAdmin
+            .from("articles")
+            .select("order_unit, inventory_unit")
+            .eq("organization_id", caller.organizationId)
+            .order("id"),
+      );
+      const set = new Set<string>();
+      for (const r of rows) {
+        for (const v of [r.order_unit, r.inventory_unit]) {
+          if (v && v.trim()) set.add(v.trim());
+        }
+      }
+      return Array.from(set).sort((a, b) => a.localeCompare(b, "de"));
+    }
     // BFIX2: paginiert — lädt category über alle Artikel; kappt sonst bei ~1000.
     const data = await selectAllPaged<{ category: string | null }>(() =>
       supabaseAdmin
