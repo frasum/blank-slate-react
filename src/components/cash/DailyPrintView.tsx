@@ -10,7 +10,7 @@
 // erneut mit denselben reinen Modulen berechnet — also KEIN eigenständiger
 // Ledger-Pfad, sondern derselbe wie im PDF (KGL-Lektion).
 
-import { computeDailyCash, type DayInput } from "@/lib/cash/cash-ledger";
+import { computeDailyCashWithTipRemainder, type DayInput } from "@/lib/cash/cash-ledger";
 import { computeWechselgeld } from "@/lib/cash/cash-summary";
 import { sessionToDayInput } from "@/lib/cash/session-day-input";
 import { sumNonGlTerminalCents } from "@/lib/cash/session-channels";
@@ -199,8 +199,9 @@ export function renderDailyPrintHtml(data: PdfExportData): string {
     openInvoicesCents: active.map((s) => s.open_invoices_cents),
     expensesCents: data.expenses.map((e) => e.amountCents),
     advancesCents: data.advances.map((a) => a.amountCents),
+    tipRemainderCents: data.tipRemainderCents ?? 0,
   });
-  const bargeldCents = computeDailyCash(dayInput);
+  const bargeldCents = computeDailyCashWithTipRemainder(dayInput);
 
   const cashTarget = data.cashBalanceTargetCents ?? 200_000;
   const previousDeficit = data.previousDeficitCents ?? 0;
