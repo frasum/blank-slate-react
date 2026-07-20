@@ -23,6 +23,7 @@ import { writeAuditLog } from "@/lib/admin/audit";
 import { ForbiddenError } from "@/lib/admin/role-guard";
 import { resolvePlanerScope, scopeIncludes, assertScopeNotEmpty } from "./scope-util";
 import { sendTelegramToStaff } from "@/lib/telegram/telegram.functions";
+import { syncOpenSessionsPoolAfterRosterWrite } from "@/lib/cash/roster-pool-sync";
 import { businessDateOf } from "@/lib/business-date";
 import {
   canAcceptCounterShift,
@@ -1213,6 +1214,18 @@ export const decideSwapRequest = createServerFn({ method: "POST" })
         if (rpcErr) {
           throw new Error(`Vollzug fehlgeschlagen: ${rpcErr.message}`);
         }
+
+        // RS1 — Nach-Sync für offene Sessions an beiden getauschten Tagen.
+        await syncOpenSessionsPoolAfterRosterWrite({
+          organizationId: caller.organizationId,
+          targets: [
+            { locationId: reqShift.location_id, businessDate: reqShift.shift_date },
+            ...(peerShift
+              ? [{ locationId: peerShift.location_id, businessDate: peerShift.shift_date }]
+              : []),
+          ],
+          op: "roster.swap.decide",
+        });
 
         return {
           result: { ok: true as const, decision: "approved" as const },

@@ -1,9 +1,11 @@
 // Reine Funktion: erzeugt aus den BESTÄTIGTEN Dienstplan-Schichten eines
 // Geschäftstags + den standort-spezifischen Standardzeiten einen Snapshot
 // für `session_tip_pool_entries`. Wird bei der Eröffnung einer Session
-// einmalig in die DB geschrieben (Idempotenz über
-// `on conflict (session_id, staff_id) do nothing`) — spätere
-// Plan-Änderungen wirken NICHT mehr.
+// in die DB geschrieben und seit RS1 zusätzlich additiv nach jeder
+// Dienstplan-Änderung an einer offenen Session (Bestätigen/Ändern/Tauschen)
+// erneut ausgeführt. Idempotenz über `on conflict (session_id, staff_id)
+// do nothing` — bestehende Einträge (Zeiten, Trinkgeld, shift_end) bleiben
+// unverändert; nur fehlende Zeilen kommen hinzu.
 //
 // Regeln:
 //   * Bereichs-Priorität pro Mitarbeiter: gl (Ausschluss) > kitchen > service.
