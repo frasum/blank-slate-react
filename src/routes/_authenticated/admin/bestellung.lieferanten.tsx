@@ -7,7 +7,7 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Pencil, Plus, Archive, RotateCcw } from "lucide-react";
+import { Pencil, Plus, Archive, RotateCcw, Printer } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatShortDate } from "@/lib/format-date";
 import { parseEuroToCents } from "@/lib/format";
@@ -40,6 +40,7 @@ import {
   setSupplierLocation,
 } from "@/lib/bestellung/supplier-locations.functions";
 import { LocationPills } from "@/components/shared/LocationPills";
+import { PrintOrderListsDialog } from "@/components/bestellung/PrintOrderListsDialog";
 
 export const Route = createFileRoute("/_authenticated/admin/bestellung/lieferanten")({
   head: () => ({ meta: [{ title: "Lieferanten · Bestellung" }] }),
@@ -158,6 +159,7 @@ function LieferantenPage() {
 
   const [showInactive, setShowInactive] = useState(false);
   const [search, setSearch] = useState("");
+  const [printDialogOpen, setPrintDialogOpen] = useState(false);
   const [supplierDialog, setSupplierDialog] = useState<
     { mode: "create" } | { mode: "edit"; supplierId: string; initial: SupplierDraft } | null
   >(null);
@@ -555,6 +557,17 @@ function LieferantenPage() {
           Inaktive zeigen
         </label>
         <div className="ml-auto">
+          <button
+            onClick={() => {
+              setPrintDialogOpen(true);
+              setMsg(null);
+            }}
+            className="mr-2 inline-flex items-center gap-1 rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-accent"
+            title="Druckbare Bestelllisten (Keller-Laufzettel)"
+          >
+            <Printer className="h-4 w-4" />
+            Drucklisten
+          </button>
           <button
             onClick={() => {
               setSupplierDialog({ mode: "create" });
@@ -983,6 +996,28 @@ function LieferantenPage() {
           )}
         </DialogContent>
       </Dialog>
+      <PrintOrderListsDialog
+        open={printDialogOpen}
+        onClose={() => setPrintDialogOpen(false)}
+        suppliers={(suppliersQ.data ?? []).map((s) => ({
+          id: s.id,
+          name: s.name,
+          is_active: s.is_active,
+        }))}
+        articles={(articlesQ.data ?? []).map((a) => ({
+          id: a.id,
+          supplier_id: a.supplier_id,
+          name: a.name,
+          category: a.category ?? null,
+          order_unit: a.order_unit ?? a.unit,
+          unit: a.unit,
+          is_active: a.is_active,
+          locationIds: a.locationIds,
+        }))}
+        lastOrderByArticle={lastOrderQ.data ?? {}}
+        locationId={activeLocationId}
+        locationName={activeLocations.find((l) => l.id === activeLocationId)?.name ?? ""}
+      />
     </div>
   );
 }
