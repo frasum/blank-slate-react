@@ -698,6 +698,48 @@ function LieferantenPage() {
                         {arts.map((a) => {
                           const cart = cartByArticle.get(a.id);
                           const last = lastOrderQ.data?.[a.id];
+                          // LA1 — gemeinsamer Öffner für Artikel-Bearbeiten-Dialog.
+                          const openEditArticle = () => {
+                            setArticleDialog({
+                              mode: "edit",
+                              supplierId: s.id,
+                              articleId: a.id,
+                              initial: {
+                                name: a.name,
+                                sku: a.sku ?? "",
+                                description: a.description ?? "",
+                                category: a.category ?? "",
+                                unit: a.unit,
+                                priceEuro:
+                                  a.price_cents != null
+                                    ? (a.price_cents / 100).toFixed(2).replace(".", ",")
+                                    : "",
+                                packagingUnit: a.packaging_unit?.toString() ?? "",
+                                orderUnit: a.order_unit ?? a.unit ?? "Stk",
+                                inventoryUnit: a.inventory_unit ?? a.unit ?? "Stk",
+                                orderToInventoryFactor: String(
+                                  a.order_to_inventory_factor ?? 1,
+                                ).replace(".", ","),
+                                minOrderQuantity: String(a.min_order_quantity ?? 1).replace(
+                                  ".",
+                                  ",",
+                                ),
+                                quantityStep: String(a.quantity_step ?? 1).replace(".", ","),
+                                allowDecimalOrderQuantity: !!a.allow_decimal_order_quantity,
+                                targetStockTotal:
+                                  a.target_stock_total != null
+                                    ? String(a.target_stock_total).replace(".", ",")
+                                    : "",
+                                targetStockBar:
+                                  a.target_stock_bar != null
+                                    ? String(a.target_stock_bar).replace(".", ",")
+                                    : "",
+                              },
+                              initialLocationIds:
+                                a.locationIds ?? (locationsQ.data ?? []).map((l) => l.id),
+                            });
+                            setMsg(null);
+                          };
                           return (
                             <tr key={a.id} className="border-t border-border align-top">
                               <td className="px-3 py-2">
@@ -746,7 +788,15 @@ function LieferantenPage() {
                               </td>
                               <td className="px-3 py-2">
                                 <div className="font-medium text-foreground">
-                                  {a.name}
+                                  {/* LA1 — Artikelname als Bearbeiten-Shortcut. */}
+                                  <button
+                                    type="button"
+                                    onClick={openEditArticle}
+                                    className="cursor-pointer text-left hover:underline"
+                                    title="Artikel bearbeiten"
+                                  >
+                                    {a.name}
+                                  </button>
                                   {a.sku ? (
                                     <span className="ml-1 text-xs text-muted-foreground">
                                       [{a.sku}]
@@ -816,49 +866,7 @@ function LieferantenPage() {
                                     </div>
                                   )}
                                   <button
-                                    onClick={() =>
-                                      setArticleDialog({
-                                        mode: "edit",
-                                        supplierId: s.id,
-                                        articleId: a.id,
-                                        initial: {
-                                          name: a.name,
-                                          sku: a.sku ?? "",
-                                          description: a.description ?? "",
-                                          category: a.category ?? "",
-                                          unit: a.unit,
-                                          priceEuro:
-                                            a.price_cents != null
-                                              ? (a.price_cents / 100).toFixed(2).replace(".", ",")
-                                              : "",
-                                          packagingUnit: a.packaging_unit?.toString() ?? "",
-                                          orderUnit: a.order_unit ?? a.unit ?? "Stk",
-                                          inventoryUnit: a.inventory_unit ?? a.unit ?? "Stk",
-                                          orderToInventoryFactor: String(
-                                            a.order_to_inventory_factor ?? 1,
-                                          ).replace(".", ","),
-                                          minOrderQuantity: String(
-                                            a.min_order_quantity ?? 1,
-                                          ).replace(".", ","),
-                                          quantityStep: String(a.quantity_step ?? 1).replace(
-                                            ".",
-                                            ",",
-                                          ),
-                                          allowDecimalOrderQuantity:
-                                            !!a.allow_decimal_order_quantity,
-                                          targetStockTotal:
-                                            a.target_stock_total != null
-                                              ? String(a.target_stock_total).replace(".", ",")
-                                              : "",
-                                          targetStockBar:
-                                            a.target_stock_bar != null
-                                              ? String(a.target_stock_bar).replace(".", ",")
-                                              : "",
-                                        },
-                                        initialLocationIds:
-                                          a.locationIds ?? (locationsQ.data ?? []).map((l) => l.id),
-                                      })
-                                    }
+                                    onClick={openEditArticle}
                                     className="rounded border border-input bg-background p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
                                     title="Bearbeiten"
                                   >
