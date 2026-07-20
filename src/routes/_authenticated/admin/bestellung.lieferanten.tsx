@@ -1236,6 +1236,7 @@ function ArticleForm(props: {
   initialSupplierId: string;
   locations: { id: string; name: string }[];
   initialLocationIds: string[];
+  categories: string[];
   submitLabel: string;
   submitting: boolean;
   onSubmit: (d: ArticleDraft, supplierId: string, locationIds: string[]) => void;
@@ -1316,10 +1317,17 @@ function ArticleForm(props: {
         </Field>
         <Field label="Kategorie">
           <input
+            list="ak1-article-categories"
+            autoComplete="off"
             value={d.category}
             onChange={(e) => set("category", e.target.value)}
             className={inputCls}
           />
+          <datalist id="ak1-article-categories">
+            {props.categories.map((c) => (
+              <option key={c} value={c} />
+            ))}
+          </datalist>
         </Field>
         <Field label="Preis pro Bestelleinheit (€) *">
           <input
