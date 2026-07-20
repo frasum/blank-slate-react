@@ -228,13 +228,15 @@ export const listArticleCategories = createServerFn({ method: "GET" })
       // AK2: vereinigte Distinct-Menge aus order_unit + inventory_unit aller
       // Artikel der Organisation (eine gemeinsame Einheiten-Welt für beide
       // Combobox-Felder). Paginiert wie categories.
-      const rows = await selectAllPaged<{ order_unit: string | null; inventory_unit: string | null }>(
-        () =>
-          supabaseAdmin
-            .from("articles")
-            .select("order_unit, inventory_unit")
-            .eq("organization_id", caller.organizationId)
-            .order("id"),
+      const rows = await selectAllPaged<{
+        order_unit: string | null;
+        inventory_unit: string | null;
+      }>(() =>
+        supabaseAdmin
+          .from("articles")
+          .select("order_unit, inventory_unit")
+          .eq("organization_id", caller.organizationId)
+          .order("id"),
       );
       const set = new Set<string>();
       for (const r of rows) {
