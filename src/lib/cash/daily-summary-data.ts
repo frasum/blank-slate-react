@@ -25,6 +25,12 @@ export interface BuildDailySummaryDataInput {
   servicePoolEnabled?: boolean;
   /** Kanonischer Service-Pool-Wert (aus dem Tip-Pool-Overview). */
   servicePoolCents?: number;
+  /**
+   * Trinkgeld-Rest des Tages (kitchen + service). Fließt in „Tages-Bargeld"
+   * ein — physische Kassenlage. Bildschirm und PDF müssen dieselbe Zahl
+   * zeigen.
+   */
+  tipRemainderCents?: number;
 }
 
 export function buildDailySummaryData(input: BuildDailySummaryDataInput): PdfExportData {
@@ -86,5 +92,6 @@ export function buildDailySummaryData(input: BuildDailySummaryDataInput): PdfExp
     previousDeficitSourceDate: input.previousDeficitSourceDate,
     servicePoolEnabled: input.servicePoolEnabled,
     servicePoolCents: input.servicePoolCents,
+    tipRemainderCents: input.tipRemainderCents ?? 0,
   };
 }
