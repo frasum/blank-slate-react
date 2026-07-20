@@ -408,8 +408,7 @@ function KassePage() {
       previousDeficitSourceDate,
       servicePoolEnabled: poolQ.data?.servicePoolEnabled,
       servicePoolCents: poolQ.data?.servicePoolCents,
-      tipRemainderCents:
-        (poolQ.data?.kitchenRemainder ?? 0) + (poolQ.data?.serviceRemainder ?? 0),
+      tipRemainderCents: (poolQ.data?.kitchenRemainder ?? 0) + (poolQ.data?.serviceRemainder ?? 0),
     });
   }
 
