@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import type jsPDF from "jspdf";
 import type { RowInput } from "jspdf-autotable";
-import { computeDailyCash, type DayInput } from "./cash-ledger";
+import { computeDailyCashWithTipRemainder, type DayInput } from "./cash-ledger";
 import { computeWechselgeld } from "./cash-summary";
 import { sessionToDayInput } from "./session-day-input";
 import { sumNonGlTerminalCents } from "./session-channels";
@@ -94,6 +94,11 @@ export interface PdfExportData {
    * `max(0, tipAll − kitchen)` zurück (Legacy-Verhalten).
    */
   servicePoolCents?: Cents;
+  /**
+   * Trinkgeld-Rest des Tages (kitchen + service). Fließt in „Tages-Bargeld"
+   * ein — spiegelt die Bildschirmanzeige (CashSummaryBlock).
+   */
+  tipRemainderCents?: Cents;
 }
 
 function fmtEur(cents: Cents | null | undefined): string {
@@ -269,8 +274,9 @@ export async function generateDailySummaryPdf(data: PdfExportData): Promise<{
     openInvoicesCents: active.map((s) => s.open_invoices_cents),
     expensesCents: data.expenses.map((e) => e.amountCents),
     advancesCents: data.advances.map((a) => a.amountCents),
+    tipRemainderCents: data.tipRemainderCents ?? 0,
   });
-  const bargeldCents = computeDailyCash(dayInput);
+  const bargeldCents = computeDailyCashWithTipRemainder(dayInput);
 
   const summaryRows: RowInput[] = [];
   summaryRows.push(sectionHeader("Umsatz"));
