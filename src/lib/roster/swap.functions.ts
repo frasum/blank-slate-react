@@ -1215,6 +1215,18 @@ export const decideSwapRequest = createServerFn({ method: "POST" })
           throw new Error(`Vollzug fehlgeschlagen: ${rpcErr.message}`);
         }
 
+        // RS1 — Nach-Sync für offene Sessions an beiden getauschten Tagen.
+        await syncOpenSessionsPoolAfterRosterWrite({
+          organizationId: caller.organizationId,
+          targets: [
+            { locationId: reqShift.location_id, businessDate: reqShift.shift_date },
+            ...(peerShift
+              ? [{ locationId: peerShift.location_id, businessDate: peerShift.shift_date }]
+              : []),
+          ],
+          op: "roster.swap.decide",
+        });
+
         return {
           result: { ok: true as const, decision: "approved" as const },
           audit: {
