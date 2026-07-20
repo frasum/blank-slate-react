@@ -690,6 +690,12 @@ export const createRosterShift = createServerFn({ method: "POST" })
           .single();
         if (error) throw error;
 
+        await syncOpenSessionsPoolAfterRosterWrite({
+          organizationId: caller.organizationId,
+          targets: [{ locationId: data.locationId, businessDate: data.shiftDate }],
+          op: "roster.shift.create",
+        });
+
         return {
           result: { id: row.id as string },
           audit: {
@@ -704,13 +710,6 @@ export const createRosterShift = createServerFn({ method: "POST" })
               skillId: data.skillId,
               servicePeriod: data.servicePeriod,
             },
-          },
-          afterCommit: async () => {
-            await syncOpenSessionsPoolAfterRosterWrite({
-              organizationId: caller.organizationId,
-              targets: [{ locationId: data.locationId, businessDate: data.shiftDate }],
-              op: "roster.shift.create",
-            });
           },
         };
       },
@@ -747,6 +746,17 @@ export const deleteRosterShift = createServerFn({ method: "POST" })
           .eq("organization_id", caller.organizationId);
         if (error) throw error;
 
+        await syncOpenSessionsPoolAfterRosterWrite({
+          organizationId: caller.organizationId,
+          targets: [
+            {
+              locationId: snap.location_id as string,
+              businessDate: snap.shift_date as string,
+            },
+          ],
+          op: "roster.shift.delete",
+        });
+
         return {
           result: { ok: true as const },
           audit: {
@@ -764,18 +774,6 @@ export const deleteRosterShift = createServerFn({ method: "POST" })
                 notes: snap.notes,
               },
             },
-          },
-          afterCommit: async () => {
-            await syncOpenSessionsPoolAfterRosterWrite({
-              organizationId: caller.organizationId,
-              targets: [
-                {
-                  locationId: snap.location_id as string,
-                  businessDate: snap.shift_date as string,
-                },
-              ],
-              op: "roster.shift.delete",
-            });
           },
         };
       },
@@ -819,6 +817,17 @@ export const updateRosterShiftStatus = createServerFn({ method: "POST" })
           .eq("organization_id", caller.organizationId);
         if (error) throw error;
 
+        await syncOpenSessionsPoolAfterRosterWrite({
+          organizationId: caller.organizationId,
+          targets: [
+            {
+              locationId: snap.location_id as string,
+              businessDate: snap.shift_date as string,
+            },
+          ],
+          op: "roster.shift.status",
+        });
+
         return {
           result: { ok: true as const },
           audit: {
@@ -826,18 +835,6 @@ export const updateRosterShiftStatus = createServerFn({ method: "POST" })
             entity: "roster_shift",
             entityId: data.id,
             meta: { before: snap.status, after: data.status },
-          },
-          afterCommit: async () => {
-            await syncOpenSessionsPoolAfterRosterWrite({
-              organizationId: caller.organizationId,
-              targets: [
-                {
-                  locationId: snap.location_id as string,
-                  businessDate: snap.shift_date as string,
-                },
-              ],
-              op: "roster.shift.status",
-            });
           },
         };
       },
