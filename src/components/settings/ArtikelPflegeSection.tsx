@@ -154,7 +154,7 @@ export function ArtikelPflegeSection() {
   });
 
   const groups = useMemo(() => {
-    const articles = (articlesQ.data ?? []) as ArtikelPflegeArticle[] as Article[];
+    const articles = (articlesQ.data ?? []) as Article[];
     const suppliers = (suppliersQ.data ?? []).map((s) => ({
       id: s.id,
       name: s.name,
