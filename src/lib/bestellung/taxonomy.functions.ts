@@ -159,52 +159,52 @@ export const deleteTaxonomyEntry = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ entryId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
-    return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-      const { data: current, error: readErr } = await supabaseAdmin
+    // ST1-B — Read + Delete-Guard VOR runGuarded ausführen: der „wird noch
+    // verwendet"-Fehler ist erwartetes Fachverhalten (Toast im UI) und darf
+    // weder Audit-Log noch Sentry/Monitoring auslösen.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: current, error: readErr } = await supabaseAdmin
         .from("article_taxonomy")
         .select("id, kind, name")
         .eq("id", data.entryId)
         .eq("organization_id", caller.organizationId)
         .maybeSingle();
-      if (readErr) throw readErr;
-      if (!current) throw new Error("Eintrag nicht gefunden.");
-      const kind = current.kind as "category" | "unit";
-      const name = current.name;
+    if (readErr) throw readErr;
+    if (!current) throw new Error("Eintrag nicht gefunden.");
+    const kind = current.kind as "category" | "unit";
+    const name = current.name;
 
-      // Delete-Guard: darf nur weg, wenn kein Artikel den Wert nutzt.
-      let usage = 0;
-      if (kind === "category") {
-        const { count, error } = await supabaseAdmin
+    // Delete-Guard: darf nur weg, wenn kein Artikel den Wert nutzt.
+    let usage = 0;
+    if (kind === "category") {
+      const { count, error } = await supabaseAdmin
           .from("articles")
           .select("id", { count: "exact", head: true })
           .eq("organization_id", caller.organizationId)
           .eq("category", name);
-        if (error) throw error;
-        usage = count ?? 0;
-      } else {
-        const { count: cO, error: eO } = await supabaseAdmin
+      if (error) throw error;
+      usage = count ?? 0;
+    } else {
+      const { count: cO, error: eO } = await supabaseAdmin
           .from("articles")
           .select("id", { count: "exact", head: true })
           .eq("organization_id", caller.organizationId)
           .eq("order_unit", name);
-        if (eO) throw eO;
-        const { count: cI, error: eI } = await supabaseAdmin
+      if (eO) throw eO;
+      const { count: cI, error: eI } = await supabaseAdmin
           .from("articles")
           .select("id", { count: "exact", head: true })
           .eq("organization_id", caller.organizationId)
           .eq("inventory_unit", name);
-        if (eI) throw eI;
-        // Grobe Obergrenze — reicht für die Fehlermeldung. Für exakte
-        // Deduplizierung müsste man die IDs holen; das kommt in Runde B
-        // (Zusammenlegen mit Vorschau).
-        usage = (cO ?? 0) + (cI ?? 0);
-      }
-      if (usage > 0) {
-        throw new Error(formatDeleteBlockedMessage(kind, name, usage));
-      }
+      if (eI) throw eI;
+      // Grobe Obergrenze — reicht für die Fehlermeldung.
+      usage = (cO ?? 0) + (cI ?? 0);
+    }
+    if (usage > 0) {
+      throw new Error(formatDeleteBlockedMessage(kind, name, usage));
+    }
 
+    return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
       const { data: deleted, error: delErr } = await supabaseAdmin
         .from("article_taxonomy")
         .delete()
