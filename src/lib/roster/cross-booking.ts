@@ -35,6 +35,44 @@ export type CrossBookingViewport = {
   servicePeriod: ServicePeriod;
 };
 
+// DP1 — Minimaler Datensatz für die Punkt-Ableitung: „Ist dieser MA am
+// Tag X woanders/anderen Bereich eingeteilt?". Wird von Admin-Grid (D6,
+// Tooltip-Details) UND öffentlichem Display (nur boolescher Punkt) genutzt.
+export type ShiftForFlag = {
+  staffId: string;
+  shiftDate: string;
+  locationId: string;
+  area: "kitchen" | "service" | "gl";
+};
+
+export type CrossBookingFlagViewport = {
+  locationId: string;
+  area: "kitchen" | "service" | "gl";
+};
+
+/**
+ * Liefert die Menge aller `${staffId}|${shiftDate}`-Schlüssel, für die
+ * eine Schicht an einem anderen Standort ODER in einem anderen Bereich
+ * desselben Standorts existiert. Reine Booleans — keine Detailinfos.
+ *
+ * Regeln (siehe Tests):
+ *  (a) Schicht am gleichen Standort/Bereich → kein Flag
+ *  (b) Schicht an anderem Standort → Flag
+ *  (c) anderer Bereich, gleicher Standort → Flag
+ *  (d) keine Schicht → kein Flag
+ */
+export function computeCrossBookingFlags(
+  shifts: readonly ShiftForFlag[],
+  viewport: CrossBookingFlagViewport,
+): Set<string> {
+  const out = new Set<string>();
+  for (const s of shifts) {
+    if (s.locationId === viewport.locationId && s.area === viewport.area) continue;
+    out.add(`${s.staffId}|${s.shiftDate}`);
+  }
+  return out;
+}
+
 /**
  * Klassifiziert alle Cross-Bookings gegenüber einem Grid-Viewport.
  *

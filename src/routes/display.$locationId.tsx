@@ -31,6 +31,9 @@ type DisplayRow = {
   cells: DisplayCell[];
   shiftCountCurrent: number;
   shiftCountNext: number;
+  // DP1 — Tage, an denen der MA an einem anderen Standort/Bereich
+  // eingeteilt ist. Bewusst nur Datumsliste — kein Ziel-Standort/-Bereich.
+  crossBookingDates: string[];
 };
 type DisplayBlock = {
   area: "kitchen" | "service";
@@ -480,7 +483,11 @@ function BlockTable({
                       i === 0 ? "ring-1 ring-inset ring-sky-400/40" : "",
                     ].join(" ")}
                   >
-                    <CellView cell={cell} area={block.area} />
+                    <CellView
+                      cell={cell}
+                      area={block.area}
+                      crossBooked={row.crossBookingDates.includes(days[i])}
+                    />
                   </td>
                 ))}
                 {showRightName && (
@@ -509,7 +516,23 @@ function BlockTable({
   );
 }
 
-function CellView({ cell, area }: { cell: DisplayCell; area: "kitchen" | "service" }) {
+function CellView({
+  cell,
+  area,
+  crossBooked = false,
+}: {
+  cell: DisplayCell;
+  area: "kitchen" | "service";
+  crossBooked?: boolean;
+}) {
+  // DP1 — Kleiner Punkt in leeren Zellen, wenn der MA an diesem Tag
+  // an einem anderen Standort/Bereich eingeteilt ist. Keine Detailinfos.
+  const dot = crossBooked ? (
+    <span
+      aria-label="anderer Einsatzort"
+      className="absolute right-0.5 top-0.5 inline-block h-1.5 w-1.5 rounded-full bg-sky-400"
+    />
+  ) : null;
   if (cell.k === "shift") {
     const label = area === "kitchen" ? abbr(cell.skill) : serviceMarker(cell.skill);
     const { backgroundColor, textClass } = pillStyle({
@@ -552,10 +575,12 @@ function CellView({ cell, area }: { cell: DisplayCell; area: "kitchen" | "servic
       </span>
     );
   }
-  if (cell.k === "available") {
-    return <span className="text-slate-600">−</span>;
-  }
-  return <span className="text-slate-600">−</span>;
+  return (
+    <span className="relative inline-block">
+      <span className="text-slate-600">−</span>
+      {dot}
+    </span>
+  );
 }
 
 // DP1b: Farb-Palette für die Vollbild-Warnungen. Kräftige Töne mit gutem
