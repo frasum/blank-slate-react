@@ -18,6 +18,7 @@ import {
 } from "@/lib/bestellung/articles.functions";
 import { listSuppliers } from "@/lib/bestellung/suppliers.functions";
 import { listLocations } from "@/lib/admin/locations.functions";
+import { listTaxonomy } from "@/lib/bestellung/taxonomy.functions";
 import {
   groupArticlesBySupplier,
   rowToArticleInput,
@@ -75,6 +76,11 @@ export function ArtikelPflegeSection() {
   const locationsQ = useQuery({
     queryKey: ["admin", "locations"],
     queryFn: () => listLocations(),
+  });
+  // ST1-B — Kategorien & Einheiten aus der kuratierten Taxonomie.
+  const taxonomyQ = useQuery({
+    queryKey: ["settings", "taxonomy"],
+    queryFn: () => listTaxonomy(),
   });
 
   const callSetReviewed = useServerFn(setArticleReviewed);
@@ -169,21 +175,16 @@ export function ArtikelPflegeSection() {
     return groupArticlesBySupplier<Article>(articles, suppliers, { showInactive });
   }, [articlesQ.data, suppliersQ.data, showInactive]);
 
-  // Datalist-Quellen aus dem geladenen Katalog (uniq, deutsch sortiert).
   const allArticles = useMemo(() => articlesQ.data ?? [], [articlesQ.data]);
-  const categoryOptions = useMemo(() => {
-    const set = new Set<string>();
-    for (const a of allArticles) if (a.category) set.add(a.category);
-    return Array.from(set).sort((a, b) => a.localeCompare(b, "de"));
-  }, [allArticles]);
-  const unitOptions = useMemo(() => {
-    const set = new Set<string>();
-    for (const a of allArticles) {
-      if (a.order_unit) set.add(a.order_unit);
-      if (a.inventory_unit) set.add(a.inventory_unit);
-    }
-    return Array.from(set).sort((a, b) => a.localeCompare(b, "de"));
-  }, [allArticles]);
+  // ST1-B — Options-Quellen aus der Taxonomie (nicht mehr aus Artikel-Werten).
+  const categoryOptions = useMemo(
+    () => (taxonomyQ.data?.categories ?? []).map((c) => c.name),
+    [taxonomyQ.data],
+  );
+  const unitOptions = useMemo(
+    () => (taxonomyQ.data?.units ?? []).map((u) => u.name),
+    [taxonomyQ.data],
+  );
 
   const locationLabels = useMemo(() => {
     const map = new Map<string, string>();
@@ -260,16 +261,6 @@ export function ArtikelPflegeSection() {
                       </tr>
                     </thead>
                     <tbody>
-                      <datalist id="ap-cats">
-                        {categoryOptions.map((c) => (
-                          <option key={c} value={c} />
-                        ))}
-                      </datalist>
-                      <datalist id="ap-units">
-                        {unitOptions.map((u) => (
-                          <option key={u} value={u} />
-                        ))}
-                      </datalist>
                       {g.articles.map((a) => {
                         const reviewed = a.reviewed_at != null;
                         const rowDim = !a.is_active ? "opacity-50" : "";
@@ -299,10 +290,9 @@ export function ArtikelPflegeSection() {
                               </button>
                             </td>
                             <td className="px-2 py-1">
-                              <TextCell
+                              <SelectCell
                                 value={a.category ?? ""}
-                                placeholder="—"
-                                listId="ap-cats"
+                                options={categoryOptions}
                                 allowEmpty
                                 onCommit={(next) =>
                                   fieldMutation.mutate({
@@ -324,9 +314,9 @@ export function ArtikelPflegeSection() {
                               />
                             </td>
                             <td className="px-2 py-1">
-                              <TextCell
+                              <SelectCell
                                 value={a.order_unit}
-                                listId="ap-units"
+                                options={unitOptions}
                                 onCommit={(next) =>
                                   fieldMutation.mutate({
                                     articleId: a.id,
@@ -336,9 +326,9 @@ export function ArtikelPflegeSection() {
                               />
                             </td>
                             <td className="px-2 py-1">
-                              <TextCell
+                              <SelectCell
                                 value={a.inventory_unit}
-                                listId="ap-units"
+                                options={unitOptions}
                                 onCommit={(next) =>
                                   fieldMutation.mutate({
                                     articleId: a.id,
@@ -490,67 +480,43 @@ export function ArtikelPflegeSection() {
 
 // ————— Inline-Editor-Zellen —————
 
-function TextCell({
+// ST1-B — Inline-Select für kuratierte Listen. Fremdwerte bleiben als
+// „(nicht in Liste)"-Option erhalten; ein bloßes Öffnen ändert nichts.
+function SelectCell({
   value,
+  options,
   onCommit,
-  listId,
-  placeholder,
   allowEmpty = false,
 }: {
   value: string;
+  options: string[];
   onCommit: (next: string) => void;
-  listId?: string;
-  placeholder?: string;
   allowEmpty?: boolean;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(value);
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  useEffect(() => {
-    if (editing) inputRef.current?.focus();
-  }, [editing]);
-  if (!editing) {
-    return (
-      <button
-        type="button"
-        onClick={() => {
-          setDraft(value);
-          setEditing(true);
-        }}
-        className="w-full min-w-[3rem] cursor-text rounded px-1 py-0.5 text-left hover:bg-muted/60"
-      >
-        {value === "" ? <span className="text-muted-foreground">{placeholder ?? "—"}</span> : value}
-      </button>
-    );
-  }
-  const commit = () => {
-    const trimmed = draft.trim();
-    setEditing(false);
-    if (trimmed === value.trim()) return;
-    if (!allowEmpty && trimmed === "") {
-      toast.error("Pflichtfeld darf nicht leer sein.");
-      return;
-    }
-    onCommit(trimmed);
-  };
+  const trimmed = value.trim();
+  const inList = trimmed === "" || options.some((o) => o.toLowerCase() === trimmed.toLowerCase());
   return (
-    <input
-      ref={inputRef}
-      value={draft}
-      list={listId}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          commit();
-        } else if (e.key === "Escape") {
-          e.preventDefault();
-          setEditing(false);
+    <select
+      value={trimmed}
+      onChange={(e) => {
+        const next = e.target.value;
+        if (next === trimmed) return;
+        if (!allowEmpty && next === "") {
+          toast.error("Pflichtfeld darf nicht leer sein.");
+          return;
         }
+        onCommit(next);
       }}
-      className="w-full rounded border border-border/60 bg-background px-1 py-0.5"
-    />
+      className="w-full min-w-[4rem] rounded border border-border/60 bg-background px-1 py-0.5"
+    >
+      {allowEmpty && <option value="">—</option>}
+      {!inList && trimmed !== "" && <option value={trimmed}>{trimmed} (nicht in Liste)</option>}
+      {options.map((o) => (
+        <option key={o} value={o}>
+          {o}
+        </option>
+      ))}
+    </select>
   );
 }
 

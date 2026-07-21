@@ -28,11 +28,11 @@ import {
 import {
   createArticle,
   listArticles,
-  listArticleCategories,
   setArticleActive,
   setArticleLocations,
   updateArticle,
 } from "@/lib/bestellung/articles.functions";
+import { listTaxonomy } from "@/lib/bestellung/taxonomy.functions";
 import {
   addCartItem,
   getActiveCart,
@@ -164,20 +164,19 @@ function LieferantenPage() {
     queryFn: () => listLocations(),
   });
 
-  // AK1: Bestandskategorien für die Combobox im Artikel-Dialog.
-  const categoriesQ = useQuery({
-    queryKey: ["bestellung", "article-categories"],
-    queryFn: () => listArticleCategories(),
-    staleTime: 60 * 1000,
+  // ST1-B — Kategorien & Einheiten aus der kuratierten Taxonomie.
+  const taxonomyQ = useQuery({
+    queryKey: ["settings", "taxonomy"],
+    queryFn: () => listTaxonomy(),
   });
-
-  // AK2: Bestands-Einheiten (order_unit ∪ inventory_unit) für die Comboboxen
-  // im Artikel-Dialog. Gleiche Feld-Komponente wie AK1, gemeinsame Liste.
-  const unitsQ = useQuery({
-    queryKey: ["bestellung", "article-units"],
-    queryFn: () => listArticleCategories({ data: { kind: "units" } }),
-    staleTime: 60 * 1000,
-  });
+  const categoryOptions = useMemo(
+    () => (taxonomyQ.data?.categories ?? []).map((c) => c.name),
+    [taxonomyQ.data],
+  );
+  const unitOptions = useMemo(
+    () => (taxonomyQ.data?.units ?? []).map((u) => u.name),
+    [taxonomyQ.data],
+  );
 
   // SL1: Standort-Deaktivierungen für Katalog-Filter (nur is_active=false Rows).
   const supplierLocationsQ = useQuery({
@@ -843,8 +842,8 @@ function LieferantenPage() {
               suppliers={(suppliersQ.data ?? []).map((s) => ({ id: s.id, name: s.name }))}
               initialSupplierId={articleDialog.supplierId}
               locations={(locationsQ.data ?? []).map((l) => ({ id: l.id, name: l.name }))}
-              categories={categoriesQ.data ?? []}
-              units={unitsQ.data ?? []}
+              categories={categoryOptions}
+              units={unitOptions}
               initialLocationIds={
                 articleDialog.mode === "edit"
                   ? articleDialog.initialLocationIds
