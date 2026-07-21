@@ -10,9 +10,14 @@ import { useServerFn } from "@tanstack/react-start";
 import { Pencil, Plus, Archive, RotateCcw, Printer } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatShortDate } from "@/lib/format-date";
-import { parseEuroToCents } from "@/lib/format";
-import { parseNumberDe } from "@/lib/bestellung/parse-de";
 import { formatUnitPrice } from "@/lib/bestellung/unit-conversion";
+import {
+  type ArticleDraft,
+  EMPTY_ARTICLE_DRAFT,
+  articleRowToDraft,
+  draftToArticleUpdateInput,
+} from "@/lib/bestellung/article-draft";
+import { ArticleForm, Field, inputCls } from "@/components/bestellung/ArticleForm";
 import {
   createSupplier,
   listSuppliers,
@@ -83,40 +88,6 @@ type SupplierLocationChange = {
   locationId: string;
   customerNumber: string | null;
   isActive: boolean;
-};
-
-type ArticleDraft = {
-  name: string;
-  sku: string;
-  description: string;
-  category: string;
-  unit: string;
-  priceEuro: string;
-  orderUnit: string;
-  inventoryUnit: string;
-  orderToInventoryFactor: string;
-  minOrderQuantity: string;
-  quantityStep: string;
-  allowDecimalOrderQuantity: boolean;
-  targetStockTotal: string;
-  targetStockBar: string;
-};
-
-const EMPTY_ARTICLE_DRAFT: ArticleDraft = {
-  name: "",
-  sku: "",
-  description: "",
-  category: "",
-  unit: "Stk",
-  priceEuro: "",
-  orderUnit: "Stk",
-  inventoryUnit: "Stk",
-  orderToInventoryFactor: "1",
-  minOrderQuantity: "1",
-  quantityStep: "1",
-  allowDecimalOrderQuantity: false,
-  targetStockTotal: "",
-  targetStockBar: "",
 };
 
 function fmtEuro(cents: number | null | undefined): string {
