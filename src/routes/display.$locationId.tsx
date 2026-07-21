@@ -31,6 +31,9 @@ type DisplayRow = {
   cells: DisplayCell[];
   shiftCountCurrent: number;
   shiftCountNext: number;
+  // DP1 — Tage, an denen der MA an einem anderen Standort/Bereich
+  // eingeteilt ist. Bewusst nur Datumsliste — kein Ziel-Standort/-Bereich.
+  crossBookingDates: string[];
 };
 type DisplayBlock = {
   area: "kitchen" | "service";
@@ -480,7 +483,11 @@ function BlockTable({
                       i === 0 ? "ring-1 ring-inset ring-sky-400/40" : "",
                     ].join(" ")}
                   >
-                    <CellView cell={cell} area={block.area} />
+                    <CellView
+                      cell={cell}
+                      area={block.area}
+                      crossBooked={row.crossBookingDates.includes(days[i])}
+                    />
                   </td>
                 ))}
                 {showRightName && (
