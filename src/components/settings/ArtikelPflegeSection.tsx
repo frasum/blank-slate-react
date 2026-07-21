@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import { ChevronRight } from "lucide-react";
 import {
   listArticles,
   setArticleReviewed,
@@ -230,7 +231,15 @@ export function ArtikelPflegeSection() {
                 onClick={() => setOpenSupplierId(isOpen ? null : g.supplierId)}
                 className="flex w-full items-center justify-between gap-3 bg-muted/40 px-4 py-2 text-left text-sm hover:bg-muted"
               >
-                <span className="font-medium">{g.supplierName}</span>
+                <span className="flex items-center gap-2 font-medium">
+                  <ChevronRight
+                    className={cn(
+                      "h-4 w-4 shrink-0 transition-transform",
+                      isOpen && "rotate-90",
+                    )}
+                  />
+                  {g.supplierName}
+                </span>
                 <span className="text-xs text-muted-foreground">
                   {g.articles.length} Artikel · {g.reviewedCount} geprüft
                 </span>
@@ -306,7 +315,7 @@ export function ArtikelPflegeSection() {
                                 }
                               />
                             </td>
-                            <td className="px-2 py-1 text-right tabular-nums">
+                            <td className="whitespace-nowrap px-2 py-1 text-right tabular-nums">
                               <PriceCell
                                 cents={a.price_cents}
                                 onCommit={(cents) =>
