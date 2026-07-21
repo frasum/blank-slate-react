@@ -156,6 +156,38 @@ export type Database = {
           },
         ]
       }
+      article_taxonomy: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          name: string
+          organization_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: string
+          name: string
+          organization_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          name?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_taxonomy_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       articles: {
         Row: {
           allow_decimal_order_quantity: boolean
