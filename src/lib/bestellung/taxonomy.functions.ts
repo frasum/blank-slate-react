@@ -164,11 +164,11 @@ export const deleteTaxonomyEntry = createServerFn({ method: "POST" })
     // weder Audit-Log noch Sentry/Monitoring auslösen.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: current, error: readErr } = await supabaseAdmin
-        .from("article_taxonomy")
-        .select("id, kind, name")
-        .eq("id", data.entryId)
-        .eq("organization_id", caller.organizationId)
-        .maybeSingle();
+      .from("article_taxonomy")
+      .select("id, kind, name")
+      .eq("id", data.entryId)
+      .eq("organization_id", caller.organizationId)
+      .maybeSingle();
     if (readErr) throw readErr;
     if (!current) throw new Error("Eintrag nicht gefunden.");
     const kind = current.kind as "category" | "unit";
@@ -178,24 +178,24 @@ export const deleteTaxonomyEntry = createServerFn({ method: "POST" })
     let usage = 0;
     if (kind === "category") {
       const { count, error } = await supabaseAdmin
-          .from("articles")
-          .select("id", { count: "exact", head: true })
-          .eq("organization_id", caller.organizationId)
-          .eq("category", name);
+        .from("articles")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", caller.organizationId)
+        .eq("category", name);
       if (error) throw error;
       usage = count ?? 0;
     } else {
       const { count: cO, error: eO } = await supabaseAdmin
-          .from("articles")
-          .select("id", { count: "exact", head: true })
-          .eq("organization_id", caller.organizationId)
-          .eq("order_unit", name);
+        .from("articles")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", caller.organizationId)
+        .eq("order_unit", name);
       if (eO) throw eO;
       const { count: cI, error: eI } = await supabaseAdmin
-          .from("articles")
-          .select("id", { count: "exact", head: true })
-          .eq("organization_id", caller.organizationId)
-          .eq("inventory_unit", name);
+        .from("articles")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", caller.organizationId)
+        .eq("inventory_unit", name);
       if (eI) throw eI;
       // Grobe Obergrenze — reicht für die Fehlermeldung.
       usage = (cO ?? 0) + (cI ?? 0);
