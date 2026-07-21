@@ -1,19 +1,28 @@
-// AP1-A — Artikel-Massenpflege (read-only + geprüft-Häkchen).
-// Runde A liefert die Übersicht nach Lieferant × Kategorie mit dem Häkchen
-// „geprüft" pro Zeile, damit Frank sich über mehrere Sessions an die ~1335
-// Artikel arbeiten kann. Runde B setzt später Inline-Editoren in die Zellen.
+// AP1-A/B — Artikel-Massenpflege.
+// Runde A: Grid + geprüft-Häkchen (unverändert).
+// Runde B: Zellen inline-editierbar (Kategorie, Preis, Einheiten, Faktor,
+// Min/Schritt, Dezimal-Toggle, Standort-Chips) über bestehendes
+// `updateArticle` / `setArticleLocations`. Voll-Objekt-Write via
+// `rowToArticleInput`, damit unerwähnte Felder unberührt bleiben.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { listArticles, setArticleReviewed } from "@/lib/bestellung/articles.functions";
+import {
+  listArticles,
+  setArticleReviewed,
+  setArticleLocations,
+  updateArticle,
+} from "@/lib/bestellung/articles.functions";
 import { listSuppliers } from "@/lib/bestellung/suppliers.functions";
 import { listLocations } from "@/lib/admin/locations.functions";
 import {
   groupArticlesBySupplier,
-  type ArtikelPflegeArticle,
+  rowToArticleInput,
+  type ArtikelPflegeRow,
 } from "@/lib/bestellung/artikel-pflege";
+import { parseNumberDe } from "@/lib/bestellung/parse-de";
 import { fmtCents } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +32,20 @@ import { cn } from "@/lib/utils";
 const ARTIKEL_KEY = ["settings", "artikel-pflege", "articles", { includeInactive: true }] as const;
 
 type Article = Awaited<ReturnType<typeof listArticles>>[number];
+
+// Felder, die inline editierbar sind. Namen entsprechen den Spalten in DB
+// bzw. dem `Article`-Row-Type.
+type EditableField =
+  | "category"
+  | "price_cents"
+  | "order_unit"
+  | "inventory_unit"
+  | "order_to_inventory_factor"
+  | "min_order_quantity"
+  | "quantity_step"
+  | "allow_decimal_order_quantity";
+
+type FieldPatch = Partial<Pick<Article, EditableField>>;
 
 function shortLocationLabel(name: string): string {
   const trimmed = name.trim();
@@ -72,6 +95,64 @@ export function ArtikelPflegeSection() {
     },
   });
 
+  // AP1-B — einheitliche Feld-Mutation über updateArticle (Voll-Objekt-Write).
+  const callUpdateArticle = useServerFn(updateArticle);
+  const fieldMutation = useMutation({
+    mutationFn: async (vars: { articleId: string; patch: FieldPatch }) => {
+      const current = queryClient.getQueryData<Article[]>(ARTIKEL_KEY);
+      const row = current?.find((a) => a.id === vars.articleId);
+      if (!row) throw new Error("Artikel nicht gefunden.");
+      const merged = { ...row, ...vars.patch } as ArtikelPflegeRow;
+      const input = rowToArticleInput(merged);
+      return callUpdateArticle({ data: { articleId: vars.articleId, ...input } });
+    },
+    onMutate: async (vars) => {
+      await queryClient.cancelQueries({ queryKey: ARTIKEL_KEY });
+      const previous = queryClient.getQueryData<Article[]>(ARTIKEL_KEY);
+      if (previous) {
+        queryClient.setQueryData<Article[]>(
+          ARTIKEL_KEY,
+          previous.map((a) => (a.id === vars.articleId ? { ...a, ...vars.patch } : a)),
+        );
+      }
+      return { previous };
+    },
+    onError: (err, _vars, ctx) => {
+      if (ctx?.previous) queryClient.setQueryData(ARTIKEL_KEY, ctx.previous);
+      toast.error(err instanceof Error ? err.message : "Speichern fehlgeschlagen.");
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ARTIKEL_KEY });
+    },
+  });
+
+  // AP1-B — Standorte via setArticleLocations (BL1-Muster).
+  const callSetLocations = useServerFn(setArticleLocations);
+  const locationsMutation = useMutation({
+    mutationFn: (vars: { articleId: string; locationIds: string[] }) =>
+      callSetLocations({ data: vars }),
+    onMutate: async (vars) => {
+      await queryClient.cancelQueries({ queryKey: ARTIKEL_KEY });
+      const previous = queryClient.getQueryData<Article[]>(ARTIKEL_KEY);
+      if (previous) {
+        queryClient.setQueryData<Article[]>(
+          ARTIKEL_KEY,
+          previous.map((a) =>
+            a.id === vars.articleId ? { ...a, locationIds: vars.locationIds } : a,
+          ),
+        );
+      }
+      return { previous };
+    },
+    onError: (err, _vars, ctx) => {
+      if (ctx?.previous) queryClient.setQueryData(ARTIKEL_KEY, ctx.previous);
+      toast.error(err instanceof Error ? err.message : "Speichern fehlgeschlagen.");
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ARTIKEL_KEY });
+    },
+  });
+
   const groups = useMemo(() => {
     const articles = (articlesQ.data ?? []) as ArtikelPflegeArticle[] as Article[];
     const suppliers = (suppliersQ.data ?? []).map((s) => ({
@@ -81,6 +162,22 @@ export function ArtikelPflegeSection() {
     }));
     return groupArticlesBySupplier<Article>(articles, suppliers, { showInactive });
   }, [articlesQ.data, suppliersQ.data, showInactive]);
+
+  // Datalist-Quellen aus dem geladenen Katalog (uniq, deutsch sortiert).
+  const allArticles = articlesQ.data ?? [];
+  const categoryOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const a of allArticles) if (a.category) set.add(a.category);
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "de"));
+  }, [allArticles]);
+  const unitOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const a of allArticles) {
+      if (a.order_unit) set.add(a.order_unit);
+      if (a.inventory_unit) set.add(a.inventory_unit);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "de"));
+  }, [allArticles]);
 
   const locationLabels = useMemo(() => {
     const map = new Map<string, string>();
@@ -149,6 +246,16 @@ export function ArtikelPflegeSection() {
                       </tr>
                     </thead>
                     <tbody>
+                      <datalist id="ap-cats">
+                        {categoryOptions.map((c) => (
+                          <option key={c} value={c} />
+                        ))}
+                      </datalist>
+                      <datalist id="ap-units">
+                        {unitOptions.map((u) => (
+                          <option key={u} value={u} />
+                        ))}
+                      </datalist>
                       {g.articles.map((a) => {
                         const reviewed = a.reviewed_at != null;
                         const rowDim = !a.is_active ? "opacity-50" : "";
@@ -168,37 +275,122 @@ export function ArtikelPflegeSection() {
                               />
                             </td>
                             <td className="px-2 py-1 font-medium text-foreground">{a.name}</td>
-                            <td className="px-2 py-1">{a.category ?? "—"}</td>
-                            <td className="px-2 py-1 text-right tabular-nums">
-                              {fmtCents(a.price_cents)} €
-                            </td>
-                            <td className="px-2 py-1">{a.order_unit}</td>
-                            <td className="px-2 py-1">{a.inventory_unit}</td>
-                            <td className="px-2 py-1 text-right tabular-nums">
-                              {a.order_to_inventory_factor}
-                            </td>
-                            <td className="px-2 py-1 text-right tabular-nums">
-                              {a.min_order_quantity}
-                            </td>
-                            <td className="px-2 py-1 text-right tabular-nums">{a.quantity_step}</td>
                             <td className="px-2 py-1">
-                              {a.allow_decimal_order_quantity ? "✓" : "–"}
+                              <TextCell
+                                value={a.category ?? ""}
+                                placeholder="—"
+                                listId="ap-cats"
+                                allowEmpty
+                                onCommit={(next) =>
+                                  fieldMutation.mutate({
+                                    articleId: a.id,
+                                    patch: { category: next === "" ? null : next },
+                                  })
+                                }
+                              />
+                            </td>
+                            <td className="px-2 py-1 text-right tabular-nums">
+                              <PriceCell
+                                cents={a.price_cents}
+                                onCommit={(cents) =>
+                                  fieldMutation.mutate({
+                                    articleId: a.id,
+                                    patch: { price_cents: cents },
+                                  })
+                                }
+                              />
                             </td>
                             <td className="px-2 py-1">
-                              <div className="flex flex-wrap gap-1">
-                                {a.locationIds.length === 0 ? (
-                                  <span className="text-muted-foreground">—</span>
-                                ) : (
-                                  a.locationIds.map((id) => (
-                                    <span
-                                      key={id}
-                                      className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
-                                    >
-                                      {locationLabels.get(id) ?? id.slice(0, 4)}
-                                    </span>
-                                  ))
-                                )}
-                              </div>
+                              <TextCell
+                                value={a.order_unit}
+                                listId="ap-units"
+                                onCommit={(next) =>
+                                  fieldMutation.mutate({
+                                    articleId: a.id,
+                                    patch: { order_unit: next },
+                                  })
+                                }
+                              />
+                            </td>
+                            <td className="px-2 py-1">
+                              <TextCell
+                                value={a.inventory_unit}
+                                listId="ap-units"
+                                onCommit={(next) =>
+                                  fieldMutation.mutate({
+                                    articleId: a.id,
+                                    patch: { inventory_unit: next },
+                                  })
+                                }
+                              />
+                            </td>
+                            <td className="px-2 py-1 text-right tabular-nums">
+                              <NumberCell
+                                value={a.order_to_inventory_factor}
+                                onCommit={(next) =>
+                                  fieldMutation.mutate({
+                                    articleId: a.id,
+                                    patch: { order_to_inventory_factor: next },
+                                  })
+                                }
+                              />
+                            </td>
+                            <td className="px-2 py-1 text-right tabular-nums">
+                              <NumberCell
+                                value={a.min_order_quantity}
+                                onCommit={(next) =>
+                                  fieldMutation.mutate({
+                                    articleId: a.id,
+                                    patch: { min_order_quantity: next },
+                                  })
+                                }
+                              />
+                            </td>
+                            <td className="px-2 py-1 text-right tabular-nums">
+                              <NumberCell
+                                value={a.quantity_step}
+                                onCommit={(next) =>
+                                  fieldMutation.mutate({
+                                    articleId: a.id,
+                                    patch: { quantity_step: next },
+                                  })
+                                }
+                              />
+                            </td>
+                            <td className="px-2 py-1">
+                              <input
+                                type="checkbox"
+                                checked={a.allow_decimal_order_quantity}
+                                disabled={fieldMutation.isPending}
+                                onChange={(e) =>
+                                  fieldMutation.mutate({
+                                    articleId: a.id,
+                                    patch: { allow_decimal_order_quantity: e.target.checked },
+                                  })
+                                }
+                              />
+                            </td>
+                            <td className="px-2 py-1">
+                              <LocationChips
+                                selected={a.locationIds}
+                                all={locationsQ.data ?? []}
+                                labels={locationLabels}
+                                disabled={locationsMutation.isPending}
+                                onToggle={(locId) => {
+                                  const has = a.locationIds.includes(locId);
+                                  if (has && a.locationIds.length <= 1) {
+                                    toast.error("Mindestens ein Standort erforderlich.");
+                                    return;
+                                  }
+                                  const next = has
+                                    ? a.locationIds.filter((x) => x !== locId)
+                                    : [...a.locationIds, locId];
+                                  locationsMutation.mutate({
+                                    articleId: a.id,
+                                    locationIds: next,
+                                  });
+                                }}
+                              />
                             </td>
                           </tr>
                         );
@@ -219,5 +411,227 @@ export function ArtikelPflegeSection() {
         })}
       </div>
     </section>
+  );
+}
+
+// ————— Inline-Editor-Zellen —————
+
+function TextCell({
+  value,
+  onCommit,
+  listId,
+  placeholder,
+  allowEmpty = false,
+}: {
+  value: string;
+  onCommit: (next: string) => void;
+  listId?: string;
+  placeholder?: string;
+  allowEmpty?: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setDraft(value);
+          setEditing(true);
+        }}
+        className="w-full min-w-[3rem] cursor-text rounded px-1 py-0.5 text-left hover:bg-muted/60"
+      >
+        {value === "" ? (
+          <span className="text-muted-foreground">{placeholder ?? "—"}</span>
+        ) : (
+          value
+        )}
+      </button>
+    );
+  }
+  const commit = () => {
+    const trimmed = draft.trim();
+    setEditing(false);
+    if (trimmed === value.trim()) return;
+    if (!allowEmpty && trimmed === "") {
+      toast.error("Pflichtfeld darf nicht leer sein.");
+      return;
+    }
+    onCommit(trimmed);
+  };
+  return (
+    <input
+      ref={inputRef}
+      value={draft}
+      list={listId}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          commit();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          setEditing(false);
+        }
+      }}
+      className="w-full rounded border border-border/60 bg-background px-1 py-0.5"
+    />
+  );
+}
+
+function NumberCell({
+  value,
+  onCommit,
+  allowZero = false,
+}: {
+  value: number;
+  onCommit: (next: number) => void;
+  allowZero?: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(String(value));
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setDraft(String(value));
+          setEditing(true);
+        }}
+        className="w-full cursor-text rounded px-1 py-0.5 text-right tabular-nums hover:bg-muted/60"
+      >
+        {value}
+      </button>
+    );
+  }
+  const commit = () => {
+    setEditing(false);
+    const n = parseNumberDe(draft);
+    if (n === null || (!allowZero && n <= 0)) {
+      toast.error("Ungültige Zahl.");
+      return;
+    }
+    if (n === value) return;
+    onCommit(n);
+  };
+  return (
+    <input
+      ref={inputRef}
+      value={draft}
+      inputMode="decimal"
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          commit();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          setEditing(false);
+        }
+      }}
+      className="w-16 rounded border border-border/60 bg-background px-1 py-0.5 text-right tabular-nums"
+    />
+  );
+}
+
+function PriceCell({ cents, onCommit }: { cents: number; onCommit: (cents: number) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(fmtCents(cents));
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setDraft(fmtCents(cents));
+          setEditing(true);
+        }}
+        className="w-full cursor-text rounded px-1 py-0.5 text-right tabular-nums hover:bg-muted/60"
+      >
+        {fmtCents(cents)} €
+      </button>
+    );
+  }
+  const commit = () => {
+    setEditing(false);
+    const n = parseNumberDe(draft);
+    if (n === null || n <= 0) {
+      toast.error("Ungültiger Preis.");
+      return;
+    }
+    const nextCents = Math.round(n * 100);
+    if (nextCents === cents) return;
+    onCommit(nextCents);
+  };
+  return (
+    <input
+      ref={inputRef}
+      value={draft}
+      inputMode="decimal"
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          commit();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          setEditing(false);
+        }
+      }}
+      className="w-20 rounded border border-border/60 bg-background px-1 py-0.5 text-right tabular-nums"
+    />
+  );
+}
+
+function LocationChips({
+  selected,
+  all,
+  labels,
+  disabled,
+  onToggle,
+}: {
+  selected: string[];
+  all: { id: string; name: string }[];
+  labels: Map<string, string>;
+  disabled: boolean;
+  onToggle: (locId: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      {all.map((l) => {
+        const active = selected.includes(l.id);
+        return (
+          <button
+            key={l.id}
+            type="button"
+            disabled={disabled}
+            onClick={() => onToggle(l.id)}
+            className={cn(
+              "rounded px-1.5 py-0.5 text-[10px] transition-colors",
+              active
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-muted/80",
+            )}
+            title={l.name}
+          >
+            {labels.get(l.id) ?? l.name.slice(0, 4)}
+          </button>
+        );
+      })}
+    </div>
   );
 }
