@@ -1,6 +1,6 @@
 # Arbeitsweise & Stammdaten-Referenz — COCO
 
-Stand: 21.07.2026 (§107: RN1/RS1/UZ1-Direktarbeit + AP1 Artikel-Massenpflege komplett + TG1-PDF)
+Stand: 21.07.2026 (§107: TG-Rest-Endstand + UZ1 + Recurring Notes + RS1 + Druck-/Display-Welle — T0−5)
 
 Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen Baublock konsultiert. Bewusst kurz gehalten — Architektur-Begründungen stehen im gruendungsdokument.md, nicht hier.
 
