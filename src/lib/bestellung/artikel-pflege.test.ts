@@ -64,6 +64,41 @@ describe("groupArticlesBySupplier", () => {
       expect(g.reviewedCount).toBe(0);
     }
   });
+
+  // AP2 — Standort-Filter
+  it("locationId filtert Artikel und blendet leere Lieferanten aus", () => {
+    const withLocs = [
+      { ...articles[0], locationIds: ["loc-yum"] },
+      { ...articles[1], locationIds: ["loc-yum", "loc-tsb"] },
+      { ...articles[3], locationIds: ["loc-tsb"] },
+    ];
+    const groups = groupArticlesBySupplier(withLocs, suppliers, {
+      showInactive: false,
+      locationId: "loc-yum",
+    });
+    expect(groups.map((g) => g.supplierName)).toEqual(["Adler-Wein"]);
+    const adler = groups[0];
+    expect(adler.articles.map((a) => a.name)).toEqual(["Chardonnay", "Riesling"]);
+    expect(adler.reviewedCount).toBe(1);
+  });
+
+  it("locationId kombiniert mit showInactive (UND)", () => {
+    const withLocs = [
+      { ...articles[0], locationIds: ["loc-yum"] },
+      { ...articles[2], locationIds: ["loc-yum"] }, // inaktiv
+      { ...articles[3], locationIds: ["loc-tsb"] },
+    ];
+    const inactiveOff = groupArticlesBySupplier(withLocs, suppliers, {
+      showInactive: false,
+      locationId: "loc-yum",
+    });
+    expect(inactiveOff[0].articles.map((a) => a.name)).toEqual(["Riesling"]);
+    const inactiveOn = groupArticlesBySupplier(withLocs, suppliers, {
+      showInactive: true,
+      locationId: "loc-yum",
+    });
+    expect(inactiveOn[0].articles.map((a) => a.name)).toEqual(["Alt-Chianti", "Riesling"]);
+  });
 });
 
 describe("rowToArticleInput", () => {
