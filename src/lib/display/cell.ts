@@ -14,3 +14,10 @@ export function resolveCellKind(input: {
   if (input.hasAvailability) return "available";
   return "empty";
 }
+
+export function shouldShowCrossBookingDot(input: {
+  cellKind: DisplayCellKind;
+  crossBooked: boolean;
+}): boolean {
+  return input.crossBooked && (input.cellKind === "empty" || input.cellKind === "available");
+}

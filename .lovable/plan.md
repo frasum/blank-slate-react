@@ -1,58 +1,23 @@
-# AP1-B — Artikel-Massenpflege Runde B
+## Diagnose
 
-Inline-Editing der Zellen in `ArtikelPflegeSection.tsx` über bestehende Server-Funktionen (`updateArticle`, `setArticleLocations`). Keine Migration, keine neuen Server-Wege.
+- Die Datenbank enthält aktuell viele Cross-Booking-Fälle im Display-Zeitraum, z. B. für das aktive Display `spicery`; es gibt also echte Daten, bei denen Punkte erscheinen müssten.
+- Im aktuellen Quellcode ist die DP1-Logik grundsätzlich vorhanden: `buildDisplayData` berechnet `crossBookingDates`, und `display.$locationId.tsx` rendert daraus einen kleinen Punkt.
+- Die veröffentlichte Domain und die Preview-Domain liefern im statischen Display-Bundle aber keine auffindbaren Marker-Strings wie `crossBookingDates`/`anderer Einsatzort`. Das erklärt, warum das physische Display noch keine Punkte zeigt: Es läuft sehr wahrscheinlich noch mit einem Stand, in dem der neue Display-Code nicht ausgeliefert ist, oder der Reload-Handschlag greift erst nach einer Veröffentlichung mit neuem Bundle.
 
-## 1. Shared Parser
-- Neu: `src/lib/bestellung/parse-de.ts` — `parseNumberDe` 1:1 aus `bestellung.lieferanten.tsx` (~Z.138) verschoben.
-- Neu: `src/lib/bestellung/parse-de.test.ts` — Fälle `"12,90" → 12.9`, `"1.234,5"` (Bestandsverhalten), Müll → `null`.
-- `bestellung.lieferanten.tsx`: lokale Definition entfernen, Import aus neuem Modul.
+## Plan
 
-## 2. rowToArticleInput + Tests
-- In `src/lib/bestellung/artikel-pflege.ts` neue reine Funktion `rowToArticleInput(row)`:
-  - Snake → camelCase, `locationIds` aus `row.locationIds`.
-  - `packagingUnit` bleibt `undefined` (AK3: DB-Wert nicht plätten).
-  - Alle übrigen Felder 1:1 (inkl. `sku`, `description`, `imageUrl`, Wein-Felder, `targetStock*`, `sortOrder`).
-- Test in `artikel-pflege.test.ts`: vollbesetzte Beispielzeile → Roundtrip; Assertion, dass `packagingUnit` nicht im Ergebnis liegt.
+1. **Rendering robuster machen**
+   - Den Punkt nicht nur im kleinen Inline-Wrapper um das `−`, sondern zellfüllend/absolut in der Display-Zelle positionieren.
+   - Dadurch bleibt er sichtbar, auch wenn Textgröße, Zellhöhe oder Display-Skalierung den bisherigen Mini-Punkt schwer erkennbar machen.
 
-## 3. Editierbare Zellen (`ArtikelPflegeSection.tsx`)
-Click-to-edit-Muster (Enter/Blur commit, Escape revert, ungültig → Toast + Revert, kein Commit bei unverändertem Wert):
+2. **Payload-/TRMNL-Nachzug prüfen**
+   - Sicherstellen, dass `crossBookingDates` in allen Display-Ausgaben erhalten bleibt.
+   - Falls das E-Ink/TRMNL-Dienstplan-HTML ebenfalls gemeint ist, den Punkt dort ebenfalls als Schwarzpunkt in leeren Zellen ergänzen; bisher ignoriert `buildRosterGrid` die Cross-Booking-Daten und gibt nur Marker zurück.
 
-| Zelle | Input | Regel |
-|---|---|---|
-| Kategorie | Text + Datalist (uniq geladen) | `trim`; leer → `null` |
-| € pro BE | Text `inputMode="decimal"` | `parseNumberDe` → `Math.round(x*100)`; ≤0/null → Revert |
-| Bestell-/Inventureinheit | Text + Datalist (uniq order/inventory) | `trim`; leer → Revert (Pflicht) |
-| 1 BE = X IE | Text decimal | `parseNumberDe`; >0 sonst Revert |
-| Min / Schritt | Text decimal | `parseNumberDe`; >0 sonst Revert |
-| Dez. | Checkbox | direkter Toggle |
+3. **Tests ergänzen**
+   - Einen reinen Test ergänzen, der bestätigt: Eine leere Display-Zelle mit `crossBookingDates` erzeugt einen sichtbaren Cross-Booking-Marker.
+   - Für TRMNL optional testen, dass Cross-Booking-Infos nicht beim Mapping verloren gehen.
 
-Commit-Weg: `rowToArticleInput(row)` + Feld überschreiben → `updateArticle`. Eine gemeinsame Mutation mit Feld-Parameter. Optimistisches Patchen auf `ARTIKEL_KEY` nach Muster der Häkchen-Mutation (cancel → snapshot → patch → onError-Rollback → onSettled-Invalidate).
-
-## 4. Standort-Chips-Spalte
-- Read-only-Kurzlabels ersetzen durch klickbare Chips (BL1-Verhalten).
-- Toggle → optimistisches Update mit Rollback, `setArticleLocations` mit vollständiger neuer Liste.
-- Letzter aktiver Chip: UI-Toast „Mindestens ein Standort", kein Server-Call (Server validiert zusätzlich).
-- Chips lokal in der Section bauen — keine Extraktion aus `bestellung.lieferanten.tsx`.
-
-## 5. Sternchen-Nachzug (UI1-Rest)
-- `bestellung.lieferanten.tsx` `ArticleForm` (~Z.1365): Label `"Name *"` → `"Name"`.
-- `SupplierForm`-Label bleibt unverändert.
-
-## Nicht anfassen
-- `updateArticle`, `setArticleLocations`, `setArticleReviewed`, `replaceArticleLocations` und Server-Guards.
-- `bestellung.lieferanten.tsx` nur: Parser-Import + ein Label.
-- Kein Auto-`recalcAllLinkedEk` aus dem Grid.
-- Name-Spalte bleibt read-only (Dialog-Shortcut = AP1-C).
-- Runde-A-Verhalten unverändert.
-
-## Erfolgs-Gate
-- `tsc --noEmit` 0, `eslint --max-warnings=5`, `prettier --check` clean, `vitest run` grün (inkl. neuer Tests).
-- Manuell (Admin): Preis inline → persistiert; SKU/Beschreibung/Zielbestände unverändert; leere Einheit → Revert + Toast (kein Audit); Dezimal-Toggle wirkt; Chip-Toggle persistiert; letzter Chip nicht abwählbar; Escape ohne Call.
-- Artikel-Dialog: „Name" ohne Sternchen; Lieferanten-Dialog unverändert.
-- Vor Commit: `prettier --write` + `eslint --fix` über geänderte Dateien.
-
-## Betroffene Dateien
-- Neu: `src/lib/bestellung/parse-de.ts`, `src/lib/bestellung/parse-de.test.ts`
-- Erweitert: `src/lib/bestellung/artikel-pflege.ts`, `src/lib/bestellung/artikel-pflege.test.ts`
-- Editor + Chips: `src/components/settings/ArtikelPflegeSection.tsx`
-- Minimal-Edits: `src/routes/_authenticated/admin/bestellung.lieferanten.tsx` (Parser-Import + Label)
+4. **Nach Umsetzung verifizieren**
+   - Den aktuellen Display-Endpoint bzw. gerenderte Vorschau gegen echte Display-Daten prüfen.
+   - Wichtig für das reale Wanddisplay: Nach dem Fix muss die App veröffentlicht werden; erst dann kann das physische Display den neuen Bundle-Stand laden. DP2 lädt nur nach, wenn ein neuer veröffentlichter App-Stand verfügbar ist.

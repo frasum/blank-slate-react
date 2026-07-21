@@ -20,6 +20,7 @@ import { businessDateOf } from "@/lib/business-date";
 import { DISPLAY_PERIOD_SWITCH_HOUR, PERIOD_FRUEH_BIS } from "@/lib/time/period-label";
 import { getHolidayName } from "@/lib/roster/holidays-display";
 import { shouldReload } from "@/lib/display/version-reload";
+import { shouldShowCrossBookingDot } from "@/lib/display/cell";
 
 type DisplayCell = {
   k: "shift" | "urlaub" | "krank" | "wish" | "available" | "empty";
@@ -503,7 +504,7 @@ function BlockTable({
                   <td
                     key={i}
                     className={[
-                      "border-b border-slate-800/60 px-0.5 py-0.5 text-center align-middle bg-slate-950 group-even/row:bg-slate-800/70",
+                      "relative border-b border-slate-800/60 px-0.5 py-0.5 text-center align-middle bg-slate-950 group-even/row:bg-slate-800/70",
                       isWeekend(days[i]) ? "ring-1 ring-inset ring-slate-700/40" : "",
                       i === 0 ? "ring-1 ring-inset ring-sky-400/40" : "",
                     ].join(" ")}
@@ -552,10 +553,10 @@ function CellView({
 }) {
   // DP1 — Kleiner Punkt in leeren Zellen, wenn der MA an diesem Tag
   // an einem anderen Standort/Bereich eingeteilt ist. Keine Detailinfos.
-  const dot = crossBooked ? (
+  const dot = shouldShowCrossBookingDot({ cellKind: cell.k, crossBooked }) ? (
     <span
       aria-label="anderer Einsatzort"
-      className="absolute right-0.5 top-0.5 inline-block h-1.5 w-1.5 rounded-full bg-sky-400"
+      className="absolute right-1 top-1 z-10 inline-block h-2 w-2 rounded-full bg-sky-300 shadow-[0_0_0_1px_rgba(15,23,42,0.9)]"
     />
   ) : null;
   if (cell.k === "shift") {
@@ -601,10 +602,10 @@ function CellView({
     );
   }
   return (
-    <span className="relative inline-block">
+    <>
       <span className="text-slate-600">−</span>
       {dot}
-    </span>
+    </>
   );
 }
 
