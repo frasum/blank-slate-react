@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  articleRowToDraft,
-  draftToArticleUpdateInput,
-  type ArticleRowLike,
-} from "./article-draft";
+import { articleRowToDraft, draftToArticleUpdateInput, type ArticleRowLike } from "./article-draft";
 
 const FULL_ROW: ArticleRowLike = {
   name: "Riesling trocken",

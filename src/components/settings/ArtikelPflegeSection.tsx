@@ -197,9 +197,7 @@ export function ArtikelPflegeSection() {
     return <p className="text-sm text-destructive">Artikel konnten nicht geladen werden.</p>;
   }
 
-  const editRow = editArticleId
-    ? (allArticles.find((a) => a.id === editArticleId) ?? null)
-    : null;
+  const editRow = editArticleId ? (allArticles.find((a) => a.id === editArticleId) ?? null) : null;
   const allLocationIds = (locationsQ.data ?? []).map((l) => l.id);
 
   return (

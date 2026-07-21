@@ -70,8 +70,7 @@ export function articleRowToDraft(
     description: row.description ?? "",
     category: row.category ?? "",
     unit: row.unit,
-    priceEuro:
-      row.price_cents != null ? (row.price_cents / 100).toFixed(2).replace(".", ",") : "",
+    priceEuro: row.price_cents != null ? (row.price_cents / 100).toFixed(2).replace(".", ",") : "",
     orderUnit: row.order_unit ?? row.unit ?? "Stk",
     inventoryUnit: row.inventory_unit ?? row.unit ?? "Stk",
     orderToInventoryFactor: String(row.order_to_inventory_factor ?? 1).replace(".", ","),
