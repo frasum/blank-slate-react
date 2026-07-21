@@ -445,11 +445,7 @@ function TextCell({
         }}
         className="w-full min-w-[3rem] cursor-text rounded px-1 py-0.5 text-left hover:bg-muted/60"
       >
-        {value === "" ? (
-          <span className="text-muted-foreground">{placeholder ?? "—"}</span>
-        ) : (
-          value
-        )}
+        {value === "" ? <span className="text-muted-foreground">{placeholder ?? "—"}</span> : value}
       </button>
     );
   }

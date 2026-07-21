@@ -129,7 +129,7 @@ describe("rowToArticleInput", () => {
     expect("packagingUnit" in out).toBe(false);
   });
 
-  it("nullbare Strings werden zu \"\"", () => {
+  it('nullbare Strings werden zu ""', () => {
     const out = rowToArticleInput({
       ...fullRow,
       sku: null,
