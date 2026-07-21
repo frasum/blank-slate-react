@@ -30,6 +30,9 @@ import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ArticleForm } from "@/components/bestellung/ArticleForm";
 import { articleRowToDraft, draftToArticleUpdateInput } from "@/lib/bestellung/article-draft";
+import { LocationPills } from "@/components/shared/LocationPills";
+
+const ALL_LOCATIONS = "__all__";
 
 // AP1-A — Query-Key wird EINMAL an einer Stelle festgelegt und für
 // Snapshot-Lesen, optimistischen Patch und Invalidate identisch verwendet.
@@ -61,6 +64,7 @@ function shortLocationLabel(name: string): string {
 export function ArtikelPflegeSection() {
   const queryClient = useQueryClient();
   const [showInactive, setShowInactive] = useState(false);
+  const [locationFilter, setLocationFilter] = useState<string>(ALL_LOCATIONS);
   const [openSupplierId, setOpenSupplierId] = useState<string | null>(null);
   const [editArticleId, setEditArticleId] = useState<string | null>(null);
   const [editSubmitting, setEditSubmitting] = useState(false);
@@ -172,8 +176,11 @@ export function ArtikelPflegeSection() {
       name: s.name,
       is_active: s.is_active,
     }));
-    return groupArticlesBySupplier<Article>(articles, suppliers, { showInactive });
-  }, [articlesQ.data, suppliersQ.data, showInactive]);
+    return groupArticlesBySupplier<Article>(articles, suppliers, {
+      showInactive,
+      locationId: locationFilter === ALL_LOCATIONS ? undefined : locationFilter,
+    });
+  }, [articlesQ.data, suppliersQ.data, showInactive, locationFilter]);
 
   const allArticles = useMemo(() => articlesQ.data ?? [], [articlesQ.data]);
   // ST1-B — Options-Quellen aus der Taxonomie (nicht mehr aus Artikel-Werten).
@@ -222,6 +229,19 @@ export function ArtikelPflegeSection() {
         </label>
       </div>
 
+      {(locationsQ.data ?? []).length > 0 && (
+        <LocationPills
+          locations={(locationsQ.data ?? []).map((l) => ({ id: l.id, name: l.name }))}
+          value={locationFilter}
+          onChange={setLocationFilter}
+          includeAll
+          allValue={ALL_LOCATIONS}
+          allLabel="Alle Standorte"
+          size="sm"
+          ariaLabel="Standort-Filter"
+        />
+      )}
+
       <div className="space-y-2">
         {groups.map((g) => {
           const isOpen = openSupplierId === g.supplierId;
@@ -249,6 +269,7 @@ export function ArtikelPflegeSection() {
                       <tr>
                         <th className="px-2 py-1">✓</th>
                         <th className="px-2 py-1">Name</th>
+                        <th className="px-2 py-1">SKU</th>
                         <th className="px-2 py-1">Kategorie</th>
                         <th className="px-2 py-1 text-right">€ pro BE</th>
                         <th className="px-2 py-1">BE</th>
@@ -288,6 +309,9 @@ export function ArtikelPflegeSection() {
                               >
                                 {a.name}
                               </button>
+                            </td>
+                            <td className="whitespace-nowrap px-2 py-1 text-muted-foreground">
+                              {a.sku && a.sku.trim() !== "" ? a.sku : "—"}
                             </td>
                             <td className="px-2 py-1">
                               <SelectCell
@@ -410,7 +434,7 @@ export function ArtikelPflegeSection() {
                       })}
                       {g.articles.length === 0 && (
                         <tr>
-                          <td colSpan={11} className="px-2 py-3 text-center text-muted-foreground">
+                          <td colSpan={12} className="px-2 py-3 text-center text-muted-foreground">
                             Keine Artikel.
                           </td>
                         </tr>
