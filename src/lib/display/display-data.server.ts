@@ -337,7 +337,8 @@ export async function buildDisplayData(
     .in("staff_id", idSafe)
     .gte("shift_date", windowStart)
     .lte("shift_date", windowEnd);
-  if (orgShiftErr) return { ok: false, status: 500, message: "Daten konnten nicht geladen werden." };
+  if (orgShiftErr)
+    return { ok: false, status: 500, message: "Daten konnten nicht geladen werden." };
   const orgShifts: ShiftForFlag[] = (orgShiftRows ?? []).map((r) => ({
     staffId: r.staff_id as string,
     shiftDate: r.shift_date as string,
