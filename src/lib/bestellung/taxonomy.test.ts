@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  formatDeleteBlockedMessage,
-  isUniqueViolation,
-  mapTaxonomyWriteError,
-} from "./taxonomy";
+import { formatDeleteBlockedMessage, isUniqueViolation, mapTaxonomyWriteError } from "./taxonomy";
 
 describe("taxonomy helpers", () => {
   it("erkennt Postgres 23505 als Unique-Violation", () => {

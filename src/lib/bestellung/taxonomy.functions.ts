@@ -40,9 +40,7 @@ export const listTaxonomy = createServerFn({ method: "GET" })
 
 export const createTaxonomyEntry = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
-    z.object({ kind: KindSchema, name: NameSchema }).parse(input),
-  )
+  .inputValidator((input) => z.object({ kind: KindSchema, name: NameSchema }).parse(input))
   .handler(async ({ data, context }) => {
     const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
     return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {

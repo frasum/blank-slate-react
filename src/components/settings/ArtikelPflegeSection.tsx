@@ -233,10 +233,7 @@ export function ArtikelPflegeSection() {
               >
                 <span className="flex items-center gap-2 font-medium">
                   <ChevronRight
-                    className={cn(
-                      "h-4 w-4 shrink-0 transition-transform",
-                      isOpen && "rotate-90",
-                    )}
+                    className={cn("h-4 w-4 shrink-0 transition-transform", isOpen && "rotate-90")}
                   />
                   {g.supplierName}
                 </span>

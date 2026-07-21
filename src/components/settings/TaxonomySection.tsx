@@ -28,9 +28,7 @@ export function TaxonomySection() {
 
   if (q.isLoading) return <p className="text-sm text-muted-foreground">Lade…</p>;
   if (q.error)
-    return (
-      <p className="text-sm text-destructive">Stammdaten konnten nicht geladen werden.</p>
-    );
+    return <p className="text-sm text-destructive">Stammdaten konnten nicht geladen werden.</p>;
 
   const categories = q.data?.categories ?? [];
   const units = q.data?.units ?? [];
@@ -88,11 +86,7 @@ function TaxonomyCard({
     mutationFn: (v: { entryId: string; newName: string }) => callRename({ data: v }),
     onSuccess: async (res) => {
       const n = (res as { articlesUpdated: number }).articlesUpdated;
-      toast.success(
-        n > 0
-          ? `Umbenannt — ${n} Artikel angepasst.`
-          : "Umbenannt.",
-      );
+      toast.success(n > 0 ? `Umbenannt — ${n} Artikel angepasst.` : "Umbenannt.");
       await invalidate();
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Umbenennen fehlgeschlagen."),
@@ -148,9 +142,7 @@ function TaxonomyCard({
               entry={e}
               onRename={(newName) => renameM.mutate({ entryId: e.id, newName })}
               onDelete={() => {
-                if (
-                  window.confirm(`„${e.name}“ wirklich löschen?`)
-                ) {
+                if (window.confirm(`„${e.name}“ wirklich löschen?`)) {
                   deleteM.mutate(e.id);
                 }
               }}
