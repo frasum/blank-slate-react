@@ -1,6 +1,7 @@
 // AP1-C — ArticleForm extrahiert aus bestellung.lieferanten.tsx.
-// Reine Verschiebung — Verhalten, Felder, Validierung, Preview unverändert.
-// `Field` und `inputCls` werden mit-exportiert (SupplierForm nutzt sie weiter).
+// ST1-B — Kategorie/BE/IE als Select (kuratierte Listen). Fremdwerte bleiben
+// als „(nicht in Liste)"-Option erhalten, damit Öffnen+Speichern niemals still
+// einen Wert ändert. Kategorie hat „— keine —"; Einheiten sind Pflicht.
 
 import { useState } from "react";
 import { parseEuroToCents } from "@/lib/format";
@@ -17,6 +18,37 @@ export function Field({ label, children }: { label: string; children: React.Reac
       <span className="text-xs uppercase tracking-wide text-muted-foreground">{label}</span>
       {children}
     </label>
+  );
+}
+
+function SelectField(props: {
+  value: string;
+  options: string[];
+  onChange: (next: string) => void;
+  allowEmpty?: boolean;
+  required?: boolean;
+  placeholder?: string;
+}) {
+  const trimmed = props.value.trim();
+  const inList =
+    trimmed === "" || props.options.some((o) => o.toLowerCase() === trimmed.toLowerCase());
+  return (
+    <select
+      value={trimmed}
+      required={props.required}
+      onChange={(e) => props.onChange(e.target.value)}
+      className={inputCls}
+    >
+      {props.allowEmpty && <option value="">{props.placeholder ?? "— keine —"}</option>}
+      {!inList && trimmed !== "" && (
+        <option value={trimmed}>{trimmed} (nicht in Liste)</option>
+      )}
+      {props.options.map((o) => (
+        <option key={o} value={o}>
+          {o}
+        </option>
+      ))}
+    </select>
   );
 }
 
@@ -107,18 +139,12 @@ export function ArticleForm(props: {
           <input value={d.sku} onChange={(e) => set("sku", e.target.value)} className={inputCls} />
         </Field>
         <Field label="Kategorie">
-          <input
-            list="ak1-article-categories"
-            autoComplete="off"
+          <SelectField
             value={d.category}
-            onChange={(e) => set("category", e.target.value)}
-            className={inputCls}
+            options={props.categories}
+            onChange={(v) => set("category", v)}
+            allowEmpty
           />
-          <datalist id="ak1-article-categories">
-            {props.categories.map((c) => (
-              <option key={c} value={c} />
-            ))}
-          </datalist>
         </Field>
         <Field label="€ pro Bestelleinheit">
           <input
@@ -131,31 +157,20 @@ export function ArticleForm(props: {
           />
         </Field>
         <Field label="Bestelleinheit">
-          <input
-            required
-            list="ak2-article-units"
-            autoComplete="off"
-            placeholder="Kiste, Sack, kg …"
+          <SelectField
             value={d.orderUnit}
-            onChange={(e) => set("orderUnit", e.target.value)}
-            className={inputCls}
+            options={props.units}
+            onChange={(v) => set("orderUnit", v)}
+            required
           />
         </Field>
         <Field label="Inventureinheit">
-          <input
-            required
-            list="ak2-article-units"
-            autoComplete="off"
-            placeholder="Flasche, kg, Liter …"
+          <SelectField
             value={d.inventoryUnit}
-            onChange={(e) => set("inventoryUnit", e.target.value)}
-            className={inputCls}
+            options={props.units}
+            onChange={(v) => set("inventoryUnit", v)}
+            required
           />
-          <datalist id="ak2-article-units">
-            {props.units.map((u) => (
-              <option key={u} value={u} />
-            ))}
-          </datalist>
         </Field>
         <Field
           label={`1 ${d.orderUnit || "Bestelleinheit"} = X ${d.inventoryUnit || "Inventureinheit"}`}
