@@ -962,18 +962,6 @@ function LieferantenPage() {
   );
 }
 
-const inputCls =
-  "w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block space-y-1">
-      <span className="text-xs uppercase tracking-wide text-muted-foreground">{label}</span>
-      {children}
-    </label>
-  );
-}
-
 function SupplierForm(props: {
   initial: SupplierDraft;
   editingSupplierId: string | null;
