@@ -5,6 +5,7 @@ import {
   worstKind,
   type CrossBookingRow,
 } from "./cross-booking";
+import { computeCrossBookingFlags, type ShiftForFlag } from "./cross-booking";
 
 function row(
   o: Partial<CrossBookingRow> & {
@@ -151,5 +152,57 @@ describe("indexClassifiedByStaffDate + worstKind", () => {
 
   it("worstKind liefert null bei leerer Menge", () => {
     expect(worstKind([])).toBeNull();
+  });
+});
+
+describe("computeCrossBookingFlags (DP1)", () => {
+  const base: Omit<ShiftForFlag, "locationId" | "area"> = {
+    staffId: "s1",
+    shiftDate: "2026-07-21",
+  };
+  const viewport = { locationId: "L_HOME", area: "service" as const };
+
+  it("(a) Schicht am gleichen Standort/Bereich → kein Flag", () => {
+    const flags = computeCrossBookingFlags(
+      [{ ...base, locationId: "L_HOME", area: "service" }],
+      viewport,
+    );
+    expect(flags.size).toBe(0);
+  });
+
+  it("(b) Schicht an anderem Standort → Flag", () => {
+    const flags = computeCrossBookingFlags(
+      [{ ...base, locationId: "L_OTHER", area: "service" }],
+      viewport,
+    );
+    expect(flags.has("s1|2026-07-21")).toBe(true);
+  });
+
+  it("(c) anderer Bereich, gleicher Standort → Flag", () => {
+    const flags = computeCrossBookingFlags(
+      [{ ...base, locationId: "L_HOME", area: "kitchen" }],
+      viewport,
+    );
+    expect(flags.has("s1|2026-07-21")).toBe(true);
+  });
+
+  it("(d) keine Schicht → kein Flag", () => {
+    const flags = computeCrossBookingFlags([], viewport);
+    expect(flags.size).toBe(0);
+  });
+
+  it("mehrere MA/Tage werden korrekt zusammengeführt", () => {
+    const flags = computeCrossBookingFlags(
+      [
+        { staffId: "s1", shiftDate: "2026-07-21", locationId: "L_OTHER", area: "service" },
+        { staffId: "s2", shiftDate: "2026-07-22", locationId: "L_HOME", area: "kitchen" },
+        { staffId: "s3", shiftDate: "2026-07-21", locationId: "L_HOME", area: "service" }, // gleich → ignoriert
+      ],
+      viewport,
+    );
+    expect(flags.size).toBe(2);
+    expect(flags.has("s1|2026-07-21")).toBe(true);
+    expect(flags.has("s2|2026-07-22")).toBe(true);
+    expect(flags.has("s3|2026-07-21")).toBe(false);
   });
 });
