@@ -10,6 +10,7 @@ import { businessDateOf } from "@/lib/business-date";
 import { todayIso } from "@/lib/format";
 import { resolveCellKind } from "@/lib/display/cell";
 import { currentPeriodEnd, nextPeriodEnd, periodLabel } from "@/lib/display/period-split";
+import { computeCrossBookingFlags, type ShiftForFlag } from "@/lib/roster/cross-booking";
 import {
   remindersForBusinessDate,
   type Reminder,
@@ -29,6 +30,11 @@ export type DisplayRow = {
   cells: DisplayCell[];
   shiftCountCurrent: number;
   shiftCountNext: number;
+  // DP1 — Datumsliste (ISO, im Fenster), an denen der MA an einem anderen
+  // Standort ODER in einem anderen Bereich desselben Standorts eingeteilt
+  // ist. Bewusst minimal: KEINE Detailinfos (Ziel-Standort/Bereich/Skill)
+  // — Display ist halböffentlich.
+  crossBookingDates: string[];
 };
 export type DisplayBlock = {
   area: "kitchen" | "service";
