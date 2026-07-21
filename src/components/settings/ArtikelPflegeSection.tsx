@@ -20,12 +20,7 @@ import { cn } from "@/lib/utils";
 // AP1-A — Query-Key wird EINMAL an einer Stelle festgelegt und für
 // Snapshot-Lesen, optimistischen Patch und Invalidate identisch verwendet.
 // Bewusst NICHT an den Key aus bestellung.lieferanten.tsx gekoppelt.
-const ARTIKEL_KEY = [
-  "settings",
-  "artikel-pflege",
-  "articles",
-  { includeInactive: true },
-] as const;
+const ARTIKEL_KEY = ["settings", "artikel-pflege", "articles", { includeInactive: true }] as const;
 
 type Article = Awaited<ReturnType<typeof listArticles>>[number];
 
@@ -55,8 +50,7 @@ export function ArtikelPflegeSection() {
 
   const callSetReviewed = useServerFn(setArticleReviewed);
   const reviewMutation = useMutation({
-    mutationFn: (vars: { articleId: string; reviewed: boolean }) =>
-      callSetReviewed({ data: vars }),
+    mutationFn: (vars: { articleId: string; reviewed: boolean }) => callSetReviewed({ data: vars }),
     onMutate: async (vars) => {
       await queryClient.cancelQueries({ queryKey: ARTIKEL_KEY });
       const previous = queryClient.getQueryData<Article[]>(ARTIKEL_KEY);
@@ -64,9 +58,7 @@ export function ArtikelPflegeSection() {
         const nextStamp = vars.reviewed ? new Date().toISOString() : null;
         queryClient.setQueryData<Article[]>(
           ARTIKEL_KEY,
-          previous.map((a) =>
-            a.id === vars.articleId ? { ...a, reviewed_at: nextStamp } : a,
-          ),
+          previous.map((a) => (a.id === vars.articleId ? { ...a, reviewed_at: nextStamp } : a)),
         );
       }
       return { previous };
@@ -100,9 +92,7 @@ export function ArtikelPflegeSection() {
     return <p className="text-sm text-muted-foreground">Lade…</p>;
   }
   if (articlesQ.error || suppliersQ.error) {
-    return (
-      <p className="text-sm text-destructive">Artikel konnten nicht geladen werden.</p>
-    );
+    return <p className="text-sm text-destructive">Artikel konnten nicht geladen werden.</p>;
   }
 
   return (
@@ -111,8 +101,8 @@ export function ArtikelPflegeSection() {
         <div>
           <h2 className="text-lg font-semibold text-foreground">Artikel-Massenpflege</h2>
           <p className="text-sm text-muted-foreground">
-            Alle Bestellartikel nach Lieferant. Häkchen setzen, um den Pflege-Durchgang
-            zu markieren.
+            Alle Bestellartikel nach Lieferant. Häkchen setzen, um den Pflege-Durchgang zu
+            markieren.
           </p>
         </div>
         <label className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -129,10 +119,7 @@ export function ArtikelPflegeSection() {
         {groups.map((g) => {
           const isOpen = openSupplierId === g.supplierId;
           return (
-            <div
-              key={g.supplierId}
-              className="overflow-hidden rounded-md border border-border/60"
-            >
+            <div key={g.supplierId} className="overflow-hidden rounded-md border border-border/60">
               <button
                 type="button"
                 onClick={() => setOpenSupplierId(isOpen ? null : g.supplierId)}
@@ -166,10 +153,7 @@ export function ArtikelPflegeSection() {
                         const reviewed = a.reviewed_at != null;
                         const rowDim = !a.is_active ? "opacity-50" : "";
                         return (
-                          <tr
-                            key={a.id}
-                            className={cn("border-t border-border/40", rowDim)}
-                          >
+                          <tr key={a.id} className={cn("border-t border-border/40", rowDim)}>
                             <td className="px-2 py-1">
                               <input
                                 type="checkbox"
@@ -196,9 +180,7 @@ export function ArtikelPflegeSection() {
                             <td className="px-2 py-1 text-right tabular-nums">
                               {a.min_order_quantity}
                             </td>
-                            <td className="px-2 py-1 text-right tabular-nums">
-                              {a.quantity_step}
-                            </td>
+                            <td className="px-2 py-1 text-right tabular-nums">{a.quantity_step}</td>
                             <td className="px-2 py-1">
                               {a.allow_decimal_order_quantity ? "✓" : "–"}
                             </td>
@@ -223,10 +205,7 @@ export function ArtikelPflegeSection() {
                       })}
                       {g.articles.length === 0 && (
                         <tr>
-                          <td
-                            colSpan={11}
-                            className="px-2 py-3 text-center text-muted-foreground"
-                          >
+                          <td colSpan={11} className="px-2 py-3 text-center text-muted-foreground">
                             Keine Artikel.
                           </td>
                         </tr>

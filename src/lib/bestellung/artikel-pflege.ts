@@ -43,9 +43,9 @@ export function groupArticlesBySupplier<A extends ArtikelPflegeArticle>(
     bySupplier.set(a.supplier_id, arr);
   }
   const groups: ArtikelPflegeGroup<A>[] = activeSuppliers.map((s) => {
-    const list = (bySupplier.get(s.id) ?? []).slice().sort((x, y) =>
-      x.name.localeCompare(y.name, "de"),
-    );
+    const list = (bySupplier.get(s.id) ?? [])
+      .slice()
+      .sort((x, y) => x.name.localeCompare(y.name, "de"));
     return {
       supplierId: s.id,
       supplierName: s.name,
