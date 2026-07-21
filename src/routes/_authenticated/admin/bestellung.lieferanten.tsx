@@ -1356,7 +1356,7 @@ function ArticleForm(props: {
         )}
       </Field>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-        <Field label="Name *">
+        <Field label="Name">
           <input
             required
             value={d.name}
