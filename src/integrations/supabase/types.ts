@@ -179,6 +179,8 @@ export type Database = {
           packaging_unit: number | null
           price_cents: number
           quantity_step: number
+          reviewed_at: string | null
+          reviewed_by_staff_id: string | null
           sku: string | null
           sort_order: number
           special_attributes: string[] | null
@@ -210,6 +212,8 @@ export type Database = {
           packaging_unit?: number | null
           price_cents?: number
           quantity_step?: number
+          reviewed_at?: string | null
+          reviewed_by_staff_id?: string | null
           sku?: string | null
           sort_order?: number
           special_attributes?: string[] | null
@@ -241,6 +245,8 @@ export type Database = {
           packaging_unit?: number | null
           price_cents?: number
           quantity_step?: number
+          reviewed_at?: string | null
+          reviewed_by_staff_id?: string | null
           sku?: string | null
           sort_order?: number
           special_attributes?: string[] | null
@@ -256,6 +262,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "articles_reviewed_by_staff_id_fkey"
+            columns: ["reviewed_by_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
             referencedColumns: ["id"]
           },
           {
