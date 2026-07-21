@@ -1,5 +1,7 @@
 # Arbeitsweise & Stammdaten-Referenz — COCO
 
+Stand: 21.07.2026 (§107: RN1/RS1/UZ1-Direktarbeit + AP1 Artikel-Massenpflege komplett + TG1-PDF)
+
 Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen Baublock konsultiert. Bewusst kurz gehalten — Architektur-Begründungen stehen im gruendungsdokument.md, nicht hier.
 
 SaaS-Vorbereitung: Readiness-Audit und Modul-Katalog stehen in docs/saas-vorbereitung.md (Leitplanke: keine SaaS-Umbauten vor dem Kassen-Go-live).
