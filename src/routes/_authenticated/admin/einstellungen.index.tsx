@@ -25,14 +25,19 @@ import { ArbeitgeberSection } from "@/components/settings/ArbeitgeberSection";
 import { TelegramBotSection } from "@/components/settings/TelegramBotSection";
 import { TelegramTagesberichtSection } from "@/components/settings/TelegramTagesberichtSection";
 import { SkillsSection } from "@/components/settings/SkillsSection";
+import { ArtikelPflegeSection } from "@/components/settings/ArtikelPflegeSection";
 
+// AP1-A — Tabs sind single-sourced. `adminOnly: true` versteckt einen Tab
+// generisch in der Nav (route.tsx filtert) und schaltet den Content-Fallback.
+export type SubTab = { key: string; label: string; adminOnly?: boolean };
 export const SUB_TABS = [
   { key: "trinkgeldpool", label: "Trinkgeldpool" },
   { key: "bestellungen", label: "Bestellungen" },
   { key: "sofortmeldung", label: "Sofortmeldung & Arbeitgeber" },
   { key: "telegram", label: "Telegram" },
   { key: "skills", label: "Skills" },
-] as const;
+  { key: "artikel", label: "Artikel", adminOnly: true },
+] as const satisfies ReadonlyArray<SubTab>;
 
 export type TabKey = (typeof SUB_TABS)[number]["key"];
 const TAB_KEYS = SUB_TABS.map((t) => t.key) as readonly TabKey[];
@@ -54,7 +59,15 @@ function OrgSettingsPage() {
   const canEdit = identity.role === "admin";
   const queryClient = useQueryClient();
   const callUpdate = useServerFn(updateOrgSettings);
-  const { tab } = Route.useSearch();
+  const { tab: rawTab } = Route.useSearch();
+  // AP1-A — Content-Fallback: Nicht-Admin darf keinen adminOnly-Tab sehen,
+  // auch nicht per Direkt-Link (?tab=artikel). validateSearch bleibt lax; das
+  // Rendering entscheidet.
+  const tab: TabKey = (() => {
+    const entry = (SUB_TABS as ReadonlyArray<SubTab>).find((t) => t.key === rawTab);
+    if (entry?.adminOnly && identity.role !== "admin") return "trinkgeldpool";
+    return rawTab;
+  })();
 
   const settingsQ = useQuery({
     queryKey: ["admin", "org-settings"],
@@ -199,6 +212,8 @@ function OrgSettingsPage() {
         )}
 
         {tab === "skills" && <SkillsSection canEdit={canEdit} />}
+
+        {tab === "artikel" && identity.role === "admin" && <ArtikelPflegeSection />}
       </div>
     </div>
   );

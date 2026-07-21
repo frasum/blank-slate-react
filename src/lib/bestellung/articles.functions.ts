@@ -172,11 +172,12 @@ export const listArticles = createServerFn({ method: "GET" })
       origin_country: string | null;
       food_pairings: string | null;
       special_attributes: string[] | null;
+      reviewed_at: string | null;
     }>(() => {
       let q = supabaseAdmin
         .from("articles")
         .select(
-          "id, supplier_id, name, sku, description, category, unit, price_cents, packaging_unit, order_unit, inventory_unit, order_to_inventory_factor, quantity_step, allow_decimal_order_quantity, min_order_quantity, target_stock_total, target_stock_bar, image_url, is_active, sort_order, created_at, updated_at, grape_variety, origin_country, food_pairings, special_attributes",
+          "id, supplier_id, name, sku, description, category, unit, price_cents, packaging_unit, order_unit, inventory_unit, order_to_inventory_factor, quantity_step, allow_decimal_order_quantity, min_order_quantity, target_stock_total, target_stock_bar, image_url, is_active, sort_order, created_at, updated_at, grape_variety, origin_country, food_pairings, special_attributes, reviewed_at",
         )
         .eq("organization_id", caller.organizationId)
         .order("sort_order")
@@ -513,6 +514,44 @@ export const setArticleLocations = createServerFn({ method: "POST" })
           entity: "article",
           entityId: data.articleId,
           meta: { before, after },
+        },
+      };
+    });
+  });
+
+// AP1-A — Häkchen „geprüft" (Artikel-Massenpflege).
+// Admin-only. 0-Zeilen-Update ⇒ Not-Found-Throw VOR dem Audit-Write, damit
+// Cross-Org- oder Tippfehler-Aufrufe nicht still mit Erfolg quittieren und
+// KEIN `article.reviewed_set` im audit_log landet.
+export const setArticleReviewed = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({ articleId: z.string().uuid(), reviewed: z.boolean() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const patch = data.reviewed
+        ? { reviewed_at: new Date().toISOString(), reviewed_by_staff_id: caller.staffId }
+        : { reviewed_at: null, reviewed_by_staff_id: null };
+      const { data: rows, error } = await supabaseAdmin
+        .from("articles")
+        .update(patch)
+        .eq("id", data.articleId)
+        .eq("organization_id", caller.organizationId)
+        .select("id");
+      if (error) throw error;
+      if (!rows || rows.length === 0) {
+        throw new Error("Artikel nicht gefunden.");
+      }
+      return {
+        result: { ok: true as const },
+        audit: {
+          action: "article.reviewed_set",
+          entity: "article",
+          entityId: data.articleId,
+          meta: { reviewed: data.reviewed },
         },
       };
     });

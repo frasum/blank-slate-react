@@ -211,8 +211,17 @@ const SYSTEM_SUB: { to: string; label: string }[] = [
 // SYSTEM_SUB, damit die Optik 1:1 mit den anderen Tab-Leisten übereinstimmt.
 // KGL: Tab-Liste ist single-sourced aus der Zielroute (einstellungen.index),
 // damit Nav und validateSearch strukturell nicht mehr driften können.
-const EINSTELLUNGEN_ALLGEMEIN_SUB: { tab: EinstellungenTabKey; label: string }[] =
-  EINSTELLUNGEN_SUB_TABS.map((t) => ({ tab: t.key, label: t.label }));
+// AP1-A — adminOnly-Flag aus einstellungen.index wird in die Nav übernommen,
+// damit „Artikel" für Nicht-Admins gar nicht erst in der Tab-Leiste erscheint.
+const EINSTELLUNGEN_ALLGEMEIN_SUB: {
+  tab: EinstellungenTabKey;
+  label: string;
+  adminOnly?: boolean;
+}[] = EINSTELLUNGEN_SUB_TABS.map((t) => ({
+  tab: t.key,
+  label: t.label,
+  adminOnly: "adminOnly" in t ? (t as { adminOnly?: boolean }).adminOnly : false,
+}));
 
 function isSystemPath(pathname: string): boolean {
   return SYSTEM_SUB.some((s) => pathname === s.to || pathname.startsWith(s.to + "/"));
@@ -415,7 +424,9 @@ function AdminLayout() {
               )}
               {pathname === "/admin/einstellungen" && (
                 <nav className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border/60 pt-2 text-xs">
-                  {EINSTELLUNGEN_ALLGEMEIN_SUB.map((s) => {
+                  {EINSTELLUNGEN_ALLGEMEIN_SUB.filter(
+                    (s) => !s.adminOnly || identity.role === "admin",
+                  ).map((s) => {
                     const currentTab =
                       (searchParams as { tab?: string } | undefined)?.tab ?? "trinkgeldpool";
                     const active = currentTab === s.tab;
