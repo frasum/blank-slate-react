@@ -19,6 +19,7 @@ import {
 import { businessDateOf } from "@/lib/business-date";
 import { DISPLAY_PERIOD_SWITCH_HOUR, PERIOD_FRUEH_BIS } from "@/lib/time/period-label";
 import { getHolidayName } from "@/lib/roster/holidays-display";
+import { shouldReload } from "@/lib/display/version-reload";
 
 type DisplayCell = {
   k: "shift" | "urlaub" | "krank" | "wish" | "available" | "empty";
@@ -67,6 +68,8 @@ type DisplayPayload = {
   currentPeriodEnd: string;
   nextPeriodEnd: string;
   reminders: Reminder[];
+  // DP2 — Build-Kennung, siehe src/lib/app-version.ts.
+  appVersion?: string;
 };
 
 const searchSchema = z.object({ token: z.string().min(1).max(256).optional() });
@@ -106,6 +109,9 @@ function DisplayPage() {
   const [data, setData] = useState<DisplayPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(new Date());
+  // DP2 — zuletzt gesehene App-Version; nur im Ref, damit ein Refresh
+  // keine Rerender-Kette auslöst.
+  const knownVersionRef = useRef<string | null>(null);
 
   useEffect(() => {
     // DP1b: 1-s-Takt, damit der 15/15-Vollbild-Wechsel exakt greift.
@@ -136,6 +142,25 @@ function DisplayPage() {
         }
         const json = (await res.json()) as DisplayPayload;
         if (cancelled) return;
+        // DP2 — Versions-Handschlag. Beim ersten Fetch merken, danach
+        // vergleichen und ggf. Seite neu laden (mit 5-Min-Cooldown per
+        // sessionStorage, damit ein instabiler Server nicht flackert).
+        const incoming = json.appVersion ?? null;
+        if (incoming) {
+          if (knownVersionRef.current === null) {
+            knownVersionRef.current = incoming;
+          } else if (typeof window !== "undefined") {
+            const raw = window.sessionStorage.getItem("display:lastReloadAt");
+            const lastReloadAt = raw ? Number(raw) : null;
+            const safeLast = lastReloadAt && Number.isFinite(lastReloadAt) ? lastReloadAt : null;
+            if (shouldReload(knownVersionRef.current, incoming, safeLast, Date.now())) {
+              window.sessionStorage.setItem("display:lastReloadAt", String(Date.now()));
+              window.location.reload();
+              return;
+            }
+            knownVersionRef.current = incoming;
+          }
+        }
         setData(json);
         setError(null);
         const ms = Math.max(15, json.refreshIntervalSeconds) * 1000;
