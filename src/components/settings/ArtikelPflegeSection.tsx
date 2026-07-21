@@ -169,7 +169,7 @@ export function ArtikelPflegeSection() {
   }, [articlesQ.data, suppliersQ.data, showInactive]);
 
   // Datalist-Quellen aus dem geladenen Katalog (uniq, deutsch sortiert).
-  const allArticles = articlesQ.data ?? [];
+  const allArticles = useMemo(() => articlesQ.data ?? [], [articlesQ.data]);
   const categoryOptions = useMemo(() => {
     const set = new Set<string>();
     for (const a of allArticles) if (a.category) set.add(a.category);
