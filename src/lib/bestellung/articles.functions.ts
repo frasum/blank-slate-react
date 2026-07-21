@@ -172,11 +172,12 @@ export const listArticles = createServerFn({ method: "GET" })
       origin_country: string | null;
       food_pairings: string | null;
       special_attributes: string[] | null;
+      reviewed_at: string | null;
     }>(() => {
       let q = supabaseAdmin
         .from("articles")
         .select(
-          "id, supplier_id, name, sku, description, category, unit, price_cents, packaging_unit, order_unit, inventory_unit, order_to_inventory_factor, quantity_step, allow_decimal_order_quantity, min_order_quantity, target_stock_total, target_stock_bar, image_url, is_active, sort_order, created_at, updated_at, grape_variety, origin_country, food_pairings, special_attributes",
+          "id, supplier_id, name, sku, description, category, unit, price_cents, packaging_unit, order_unit, inventory_unit, order_to_inventory_factor, quantity_step, allow_decimal_order_quantity, min_order_quantity, target_stock_total, target_stock_bar, image_url, is_active, sort_order, created_at, updated_at, grape_variety, origin_country, food_pairings, special_attributes, reviewed_at",
         )
         .eq("organization_id", caller.organizationId)
         .order("sort_order")
