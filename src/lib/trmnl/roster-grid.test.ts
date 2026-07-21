@@ -21,6 +21,7 @@ function makeBlock(
       ...r,
       shiftCountCurrent: 0,
       shiftCountNext: 0,
+      crossBookingDates: [],
     })),
     dayCounts: [],
   };
