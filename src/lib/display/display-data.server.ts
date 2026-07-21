@@ -327,6 +327,28 @@ export async function buildDisplayData(
     }
   }
 
+  // DP1 — Cross-Booking-Flags: org-weit Schichten dieser MA im
+  // Anzeigefenster laden und je Bereich (kitchen/service) einen
+  // Flag-Set berechnen. Nur boolesch, keine Detailinfos.
+  const { data: orgShiftRows, error: orgShiftErr } = await supabaseAdmin
+    .from("roster_shifts")
+    .select("staff_id, shift_date, location_id, area")
+    .eq("organization_id", organizationId)
+    .in("staff_id", idSafe)
+    .gte("shift_date", windowStart)
+    .lte("shift_date", windowEnd);
+  if (orgShiftErr) return { ok: false, status: 500, message: "Daten konnten nicht geladen werden." };
+  const orgShifts: ShiftForFlag[] = (orgShiftRows ?? []).map((r) => ({
+    staffId: r.staff_id as string,
+    shiftDate: r.shift_date as string,
+    locationId: r.location_id as string,
+    area: r.area as "kitchen" | "service" | "gl",
+  }));
+  const crossFlagsByArea: Record<"kitchen" | "service", Set<string>> = {
+    kitchen: computeCrossBookingFlags(orgShifts, { locationId, area: "kitchen" }),
+    service: computeCrossBookingFlags(orgShifts, { locationId, area: "service" }),
+  };
+
   const skillIds = Array.from(skillIdSet);
   const skillMap = new Map<string, { name: string; color: string | null }>();
   if (skillIds.length) {
@@ -417,12 +439,15 @@ export async function buildDisplayData(
           return { k, skill, color };
         });
         const pc = periodCounts.get(`${entry.staffId}|${area}`) ?? { cur: 0, next: 0 };
+        const flagSet = crossFlagsByArea[area];
+        const crossBookingDates = days.filter((d) => flagSet.has(`${entry.staffId}|${d}`));
         return {
           staffId: entry.staffId,
           staffName: entry.staffName,
           cells,
           shiftCountCurrent: pc.cur,
           shiftCountNext: pc.next,
+          crossBookingDates,
         };
       });
       out.push({ area, title, rows, dayCounts });
