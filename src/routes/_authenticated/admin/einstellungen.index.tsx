@@ -64,7 +64,7 @@ function OrgSettingsPage() {
   // auch nicht per Direkt-Link (?tab=artikel). validateSearch bleibt lax; das
   // Rendering entscheidet.
   const tab: TabKey = (() => {
-    const entry = SUB_TABS.find((t) => t.key === rawTab);
+    const entry = (SUB_TABS as ReadonlyArray<SubTab>).find((t) => t.key === rawTab);
     if (entry?.adminOnly && identity.role !== "admin") return "trinkgeldpool";
     return rawTab;
   })();
