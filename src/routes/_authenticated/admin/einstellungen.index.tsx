@@ -155,8 +155,9 @@ function OrgSettingsPage() {
     mutation.mutate();
   };
 
+  const wide = tab === "artikel" || tab === "stammdaten";
   return (
-    <div className="max-w-xl space-y-6">
+    <div className={wide ? "space-y-6" : "max-w-xl space-y-6"}>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Einstellungen</h1>
         <p className="mt-1 text-sm text-muted-foreground">
