@@ -284,7 +284,16 @@ export function ArtikelPflegeSection() {
                                 }
                               />
                             </td>
-                            <td className="px-2 py-1 font-medium text-foreground">{a.name}</td>
+                            <td className="px-2 py-1 font-medium text-foreground">
+                              <button
+                                type="button"
+                                onClick={() => setEditArticleId(a.id)}
+                                className="text-left hover:underline"
+                                title="Artikel bearbeiten"
+                              >
+                                {a.name}
+                              </button>
+                            </td>
                             <td className="px-2 py-1">
                               <TextCell
                                 value={a.category ?? ""}
@@ -420,6 +429,57 @@ export function ArtikelPflegeSection() {
           );
         })}
       </div>
+
+      <Dialog
+        open={!!editRow}
+        onOpenChange={(open) => {
+          if (!open) setEditArticleId(null);
+        }}
+      >
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Artikel bearbeiten</DialogTitle>
+          </DialogHeader>
+          {editRow &&
+            (() => {
+              const { draft, locationIds } = articleRowToDraft(editRow, allLocationIds);
+              return (
+                <ArticleForm
+                  initial={draft}
+                  suppliers={(suppliersQ.data ?? []).map((s) => ({ id: s.id, name: s.name }))}
+                  initialSupplierId={editRow.supplier_id}
+                  locations={(locationsQ.data ?? []).map((l) => ({ id: l.id, name: l.name }))}
+                  initialLocationIds={locationIds}
+                  categories={categoryOptions}
+                  units={unitOptions}
+                  submitLabel="Speichern"
+                  submitting={editSubmitting}
+                  onCancel={() => setEditArticleId(null)}
+                  onSubmit={async (d, supplierId, locIds) => {
+                    setEditSubmitting(true);
+                    try {
+                      await callUpdateArticle({
+                        data: {
+                          articleId: editRow.id,
+                          supplierId,
+                          ...draftToArticleUpdateInput(d),
+                          locationIds: locIds,
+                        },
+                      });
+                      toast.success("Artikel gespeichert.");
+                      setEditArticleId(null);
+                      await queryClient.invalidateQueries({ queryKey: ARTIKEL_KEY });
+                    } catch (err) {
+                      toast.error(err instanceof Error ? err.message : "Speichern fehlgeschlagen.");
+                    } finally {
+                      setEditSubmitting(false);
+                    }
+                  }}
+                />
+              );
+            })()}
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
