@@ -261,16 +261,6 @@ export function ArtikelPflegeSection() {
                       </tr>
                     </thead>
                     <tbody>
-                      <datalist id="ap-cats">
-                        {categoryOptions.map((c) => (
-                          <option key={c} value={c} />
-                        ))}
-                      </datalist>
-                      <datalist id="ap-units">
-                        {unitOptions.map((u) => (
-                          <option key={u} value={u} />
-                        ))}
-                      </datalist>
                       {g.articles.map((a) => {
                         const reviewed = a.reviewed_at != null;
                         const rowDim = !a.is_active ? "opacity-50" : "";
@@ -300,10 +290,9 @@ export function ArtikelPflegeSection() {
                               </button>
                             </td>
                             <td className="px-2 py-1">
-                              <TextCell
+                              <SelectCell
                                 value={a.category ?? ""}
-                                placeholder="—"
-                                listId="ap-cats"
+                                options={categoryOptions}
                                 allowEmpty
                                 onCommit={(next) =>
                                   fieldMutation.mutate({
@@ -325,9 +314,9 @@ export function ArtikelPflegeSection() {
                               />
                             </td>
                             <td className="px-2 py-1">
-                              <TextCell
+                              <SelectCell
                                 value={a.order_unit}
-                                listId="ap-units"
+                                options={unitOptions}
                                 onCommit={(next) =>
                                   fieldMutation.mutate({
                                     articleId: a.id,
@@ -337,9 +326,9 @@ export function ArtikelPflegeSection() {
                               />
                             </td>
                             <td className="px-2 py-1">
-                              <TextCell
+                              <SelectCell
                                 value={a.inventory_unit}
-                                listId="ap-units"
+                                options={unitOptions}
                                 onCommit={(next) =>
                                   fieldMutation.mutate({
                                     articleId: a.id,
@@ -552,6 +541,49 @@ function TextCell({
       }}
       className="w-full rounded border border-border/60 bg-background px-1 py-0.5"
     />
+  );
+}
+
+// ST1-B — Inline-Select für kuratierte Listen. Fremdwerte bleiben als
+// „(nicht in Liste)"-Option erhalten; ein bloßes Öffnen ändert nichts.
+function SelectCell({
+  value,
+  options,
+  onCommit,
+  allowEmpty = false,
+}: {
+  value: string;
+  options: string[];
+  onCommit: (next: string) => void;
+  allowEmpty?: boolean;
+}) {
+  const trimmed = value.trim();
+  const inList =
+    trimmed === "" || options.some((o) => o.toLowerCase() === trimmed.toLowerCase());
+  return (
+    <select
+      value={trimmed}
+      onChange={(e) => {
+        const next = e.target.value;
+        if (next === trimmed) return;
+        if (!allowEmpty && next === "") {
+          toast.error("Pflichtfeld darf nicht leer sein.");
+          return;
+        }
+        onCommit(next);
+      }}
+      className="w-full min-w-[4rem] rounded border border-border/60 bg-background px-1 py-0.5"
+    >
+      {allowEmpty && <option value="">—</option>}
+      {!inList && trimmed !== "" && (
+        <option value={trimmed}>{trimmed} (nicht in Liste)</option>
+      )}
+      {options.map((o) => (
+        <option key={o} value={o}>
+          {o}
+        </option>
+      ))}
+    </select>
   );
 }
 
