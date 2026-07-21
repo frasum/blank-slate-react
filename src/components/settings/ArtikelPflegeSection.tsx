@@ -25,6 +25,9 @@ import {
 import { parseNumberDe } from "@/lib/bestellung/parse-de";
 import { fmtCents } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ArticleForm } from "@/components/bestellung/ArticleForm";
+import { articleRowToDraft, draftToArticleUpdateInput } from "@/lib/bestellung/article-draft";
 
 // AP1-A — Query-Key wird EINMAL an einer Stelle festgelegt und für
 // Snapshot-Lesen, optimistischen Patch und Invalidate identisch verwendet.
@@ -57,6 +60,8 @@ export function ArtikelPflegeSection() {
   const queryClient = useQueryClient();
   const [showInactive, setShowInactive] = useState(false);
   const [openSupplierId, setOpenSupplierId] = useState<string | null>(null);
+  const [editArticleId, setEditArticleId] = useState<string | null>(null);
+  const [editSubmitting, setEditSubmitting] = useState(false);
 
   const articlesQ = useQuery({
     queryKey: ARTIKEL_KEY,
@@ -191,6 +196,11 @@ export function ArtikelPflegeSection() {
   if (articlesQ.error || suppliersQ.error) {
     return <p className="text-sm text-destructive">Artikel konnten nicht geladen werden.</p>;
   }
+
+  const editRow = editArticleId
+    ? (allArticles.find((a) => a.id === editArticleId) ?? null)
+    : null;
+  const allLocationIds = (locationsQ.data ?? []).map((l) => l.id);
 
   return (
     <section className="space-y-4">
