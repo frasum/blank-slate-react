@@ -1,5 +1,7 @@
 # Arbeitsweise & Stammdaten-Referenz — COCO
 
+Stand: 21.07.2026 (§107: RN1/RS1/UZ1-Direktarbeit + AP1 Artikel-Massenpflege komplett + TG1-PDF)
+
 Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen Baublock konsultiert. Bewusst kurz gehalten — Architektur-Begründungen stehen im gruendungsdokument.md, nicht hier.
 
 SaaS-Vorbereitung: Readiness-Audit und Modul-Katalog stehen in docs/saas-vorbereitung.md (Leitplanke: keine SaaS-Umbauten vor dem Kassen-Go-live).
@@ -4382,3 +4384,39 @@ Abnahme-Anker: HEAD `069f7788` — vier Gates grün (tsc 0 · eslint 0 · pretti
 **Meldepflicht-Bilanz:** Die §104-Zeile hat sich am 19.07. doppelt bewährt — der tagesabrechnung-Agent stoppte vor einem in sich widersprüchlichen Auftrag (und deckte den Strukturbefund auf), der COCO-Agent stoppte vor einem Commit mit rotem Fremdtest und erbat Freigabe. Beide Stopps waren richtig.
 
 **Offene Merkposten (Sammelstand):** SL2-R (§103) · PY2-T (§105) · CP1 (neu) · H1b-Feuertaufe im Actions-Tab bestätigen · Frank: SEC-02-Klicktest, TG1-Klicktest (18.07.: Abrechnung 140,08 € / Übersicht 135,81 + 4,27), BL1-Klicktest (Alveus-Tee → YUM), Vectron-Preisnachzug Spicery, Getränke-Checkliste, Urlaub-UI-Ziel benennen.
+
+## §107 — Direktarbeit 19.–20.07. + AP1 Artikel-Massenpflege + TG1-PDF (21.07.)
+
+Abnahme-Anker: HEAD `3e2d3df5` — vier Gates grün (tsc 0 · eslint 0 Fehler/2 Warnings · prettier clean · vitest 1842/1842). Zwischenanker: AP1-A `f2e4e07b` (1831), AP1-B `89da0df0` (1839).
+
+**Direktarbeit 19.–20.07.** (148 Commits ohne Prüfer, nachträglich gesichtet):
+
+**RN1 — `payroll_recurring_notes`:** Neue Tabelle für wiederkehrende Lohn-Notizen je Mitarbeiter (`kind ∈ {rate, dauer}`; Raten mit `periods_total` 1–60, Dauer unbefristet; kündbar via `canceled_at`; optional `location_id`). Zweite Migration entzieht Client-INSERT/UPDATE wieder (Policy-Drops + REVOKE) — Schreiben ausschließlich serverseitig via `time-admin.functions`, analog der `payroll_notes`-Nachhärtung vom 18.06. Modul `src/lib/time/recurring-notes.ts` + Tests, UI in `PayrollTab`/Personalakte. Abgrenzung: betrifft NICHT `lohn_recurring_zeilen` (Entgeltzeilen, weiterhin Frank per SQL) — RN1 sind Buchhaltungs-Notizen.
+
+**RS1 — Roster-Pool-Snapshot idempotent + Nach-Sync:** `src/lib/cash/roster-pool-sync.ts` — einmalige Anwendung bei Session-Eröffnung plus additiver Nach-Sync bei Dienstplan-Änderungen nach Eröffnung (`unique(session_id, staff_id)`, `ignoreDuplicates: true`; bestehende Pool-Einträge bleiben unangetastet; aus dem Plan Entfernte bleiben bewusst im Pool). Nach-Sync best-effort, Fehler Sentry-sichtbar (§106-PZ1-Standard). DB-Test vorhanden. Adressiert die Einspringer-Lücke aus §105.
+
+**UZ1 — Urlaubs-/Krank-Zählung:** `src/lib/time/urlaub-count.ts` als EINE Zählquelle (5-Tage-Modell Mo–Fr für Urlaub UND Krank; Feiertage zählen bewusst als normale Arbeitstage; reine Datums-Strings ohne TZ). Von `listAbsencesByStaff` genutzt, Zeitübersicht und Buchhaltungs-Export rechnen identisch. Tests vorhanden.
+
+**PY2-T erledigt:** `buchhaltung-export-columns.test.ts` verankert `columns(mode)` — Merkposten aus §105 geschlossen.
+
+**Bestell-UI-Runde:** Drucklisten-Dialog (`print-order-lists.ts` rein + Test), Einheiten- und Kategorie-Combobox im Artikel-Dialog, Stk/BE-Feld entfernt, Artikelname als Bearbeiten-Shortcut (LA1, gemeinsamer Öffner).
+
+**Kleinere Direktarbeit** an `revenue-core`, `RosterGrid`, `WeeklyPlan`, Sentry-Server (gesichtet, unauffällig). Hinweis: origin trägt zusätzlich einen Branch `fix/migrationskette`.
+
+**TG1-PDF-Nachzug (20.07., Direktarbeit):** `pdfExport`/`daily-summary-data` nutzen `computeDailyCashWithTipRemainder` statt `computeDailyCash` — PDF zeigt dasselbe inklusive Tages-Bargeld wie der Bildschirm (`CashSummaryBlock`). KGL gewahrt: dieselbe EINZIGE Additionsstelle aus §106, kein Formel-Duplikat.
+
+**UI1 — Artikel-Dialog-Labels (Prompt-Arbeit):** Sternchen entfernt, „Preis pro Bestelleinheit (€)" → „€ pro Bestelleinheit". Lovable setzte nur 3 von 4 Labels um; das verbliebene „Name _" wurde in AP1-B nachgezogen. `SupplierForm`-„Name _" bewusst unverändert.
+
+**AP1 — Artikel-Massenpflege** (Einstellungen → Allgemein → Tab „Artikel", admin-only), drei Runden:
+
+- **AP1-A (`f2e4e07b`):** Migration `articles.reviewed_at` + `reviewed_by_staff_id` (kein RLS-/GRANT-Change). `setArticleReviewed` admin-gated via `runGuarded`; Update mit Org-Prädikat + `.select("id")`, 0 Zeilen → Throw vor dem Audit-Write (kein stilles Cross-Org-„Success"); Audit `article.reviewed_set`. `listArticles` additiv um `reviewed_at`. Sub-Tab single-sourced: `SUB_TABS`-Eintrag trägt `adminOnly: true`, Nav-Filter an der Render-Stelle in `route.tsx` (~Z. 428) UND Content-Gate/`?tab`-Fallback in `einstellungen.index.tsx`. `ArtikelPflegeSection`: Lieferanten-Akkordeons (genau eines offen, nur der offene Block rendert), Inaktiv-Toggle, Header „X Artikel · Y geprüft", `ARTIKEL_KEY` EINMAL definiert und identisch für cancel/Snapshot/Patch/Rollback/Invalidate. Euro über shared `fmtCents`.
+
+- **AP1-B (`89da0df0`):** Inline-Editing aller Pflege-Felder (Kategorie, € pro BE, Einheiten, 1 BE = X IE, Mindestmenge, Bestellschritt, Dezimal-Toggle) — kein neuer Schreibpfad: Voll-Objekt-Write über bestehendes `updateArticle`, Input via getestetem `rowToArticleInput` (`packagingUnit` bewusst ausgespart — AK3: DB-Wert bleibt; `null→""` ist roundtrip-sicher, weil das `ArticleInput`-Zod `""` auf `null` zurücktransformiert). Standort-Chips via bestehendes `setArticleLocations` (Min-1-Guard UI + Server). Deutscher Dezimal-Parser nach `src/lib/bestellung/parse-de.ts` verschoben (Dialog UND Grid, KGL). Prettier-Vergessen ~Vorkommen Nr. 9 — vom Autofix-Bot committet (`style: prettier autofix`); Diskrepanz-Meldung („nichts geändert") per SHA-Beweis aufgeklärt: Bot war schneller als der Prüfstand.
+
+- **AP1-C (`3e2d3df5`):** `ArticleForm` byte-identisch (241 Zeilen, Diff leer) nach `src/components/bestellung/ArticleForm.tsx` extrahiert, `Field`/`inputCls` mit-exportiert (`SupplierForm` importiert zurück). Neue reine Konverter in `article-draft.ts`: `articleRowToDraft` (exakt die LA1-Formatierung) und `draftToArticleUpdateInput` — Letzterer in BEIDEN Mutationen der Lieferanten-Seite UND im Grid (eine Abbildung, kein Drift), Roundtrip-Tests. Name-Klick im Grid öffnet den vorbefüllten Dialog; Speichern → `updateArticle` + Invalidate.
+
+**Architekten-Korrektur (§104-Linie):** Die Grilling-Festlegung „`ek_price_cents`-Recalc hängt an `updateArticle`" war falsch — `recalcAllLinkedEk` ist eine eigenständige, manuell aus dem EK-Zuordnungs-Tab angestoßene Function; auch der Dialog löste nie einen Auto-Recalc aus. Betriebsregel: nach einer Massenpflege-Session mit Preis-/Umrechnungs-Änderungen einmal `recalcAllLinkedEk` im EK-Zuordnungs-Tab laufen lassen.
+
+**ESLint-Budget:** 2 neue `react-hooks/exhaustive-deps`-Warnings in `ArtikelPflegeSection` (`allArticles` ohne eigenes `useMemo`) — im 5er-Budget, bei Gelegenheit bewusst aufräumen, nicht nebenbei.
+
+**Offene Merkposten (Sammelstand, führt §106 fort):** SL2-R (§103) · CP1 (§106) · H1b-Feuertaufe · Frank-Klicktests: SEC-02, TG1, BL1, AP1-A (Häkchen + Audit + Manager-Gegenprobe), AP1-B (Preis-Edit → `article.update` im Audit; Voll-Write plättet nichts; letzter Chip), AP1-C (Lieferanten-Seite-Regression + Name-Klick) · Vectron-Preisnachzug Spicery · Getränke-Checkliste · Urlaub-UI-Ziel benennen · Branch `fix/migrationskette` klären.
