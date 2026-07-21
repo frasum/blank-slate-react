@@ -5,6 +5,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createHash } from "node:crypto";
 import { buildDisplayData } from "@/lib/display/display-data.server";
+import { APP_VERSION } from "@/lib/app-version";
 
 function jsonError(status: number, error: string) {
   return new Response(JSON.stringify({ error }), {
@@ -82,6 +83,9 @@ export const Route = createFileRoute("/api/public/display/$locationId")({
           showHeader: s.show_header,
           showFooter: s.show_footer,
           customMessage: s.custom_message,
+          // DP2 — Versions-Handschlag: Client vergleicht bei jedem Refresh
+          // und lädt bei Abweichung die Seite neu.
+          appVersion: APP_VERSION,
         };
 
         return new Response(JSON.stringify(payload), {
