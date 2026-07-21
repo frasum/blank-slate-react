@@ -115,27 +115,35 @@ export function countReviewed(articles: ReadonlyArray<ArtikelPflegeArticle>): nu
 export function groupArticlesBySupplier<A extends ArtikelPflegeArticle>(
   articles: ReadonlyArray<A>,
   suppliers: ReadonlyArray<ArtikelPflegeSupplier>,
-  opts: { showInactive: boolean },
+  opts: { showInactive: boolean; locationId?: string },
 ): ArtikelPflegeGroup<A>[] {
   const activeSuppliers = suppliers.filter((s) => s.is_active);
   const bySupplier = new Map<string, A[]>();
   for (const a of articles) {
     if (!opts.showInactive && !a.is_active) continue;
+    if (opts.locationId) {
+      const locIds = (a as unknown as { locationIds?: string[] }).locationIds;
+      if (!locIds || !locIds.includes(opts.locationId)) continue;
+    }
     const arr = bySupplier.get(a.supplier_id) ?? [];
     arr.push(a);
     bySupplier.set(a.supplier_id, arr);
   }
-  const groups: ArtikelPflegeGroup<A>[] = activeSuppliers.map((s) => {
-    const list = (bySupplier.get(s.id) ?? [])
-      .slice()
-      .sort((x, y) => x.name.localeCompare(y.name, "de"));
-    return {
-      supplierId: s.id,
-      supplierName: s.name,
-      articles: list,
-      reviewedCount: countReviewed(list),
-    };
-  });
+  const groups: ArtikelPflegeGroup<A>[] = activeSuppliers
+    .map((s) => {
+      const list = (bySupplier.get(s.id) ?? [])
+        .slice()
+        .sort((x, y) => x.name.localeCompare(y.name, "de"));
+      return {
+        supplierId: s.id,
+        supplierName: s.name,
+        articles: list,
+        reviewedCount: countReviewed(list),
+      };
+    })
+    // AP2 — Bei aktivem Standort-Filter Lieferanten ohne Treffer ausblenden.
+    // Ohne Filter unverändert (auch leere Gruppen bleiben sichtbar).
+    .filter((g) => (opts.locationId ? g.articles.length > 0 : true));
   groups.sort((a, b) => a.supplierName.localeCompare(b.supplierName, "de"));
   return groups;
 }
