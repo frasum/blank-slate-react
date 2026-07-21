@@ -11,6 +11,7 @@ import { Pencil, Plus, Archive, RotateCcw, Printer } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatShortDate } from "@/lib/format-date";
 import { parseEuroToCents } from "@/lib/format";
+import { parseNumberDe } from "@/lib/bestellung/parse-de";
 import { formatUnitPrice } from "@/lib/bestellung/unit-conversion";
 import {
   createSupplier,
@@ -133,13 +134,6 @@ function fmtTime(t: string | null | undefined): string {
 
 function fmtQty(q: number): string {
   return Number.isInteger(q) ? q.toString() : q.toLocaleString("de-DE");
-}
-
-function parseNumberDe(value: string): number | null {
-  const s = value.trim().replace(",", ".");
-  if (s === "") return null;
-  const n = Number(s);
-  return Number.isFinite(n) ? n : null;
 }
 
 function LieferantenPage() {
@@ -1362,7 +1356,7 @@ function ArticleForm(props: {
         )}
       </Field>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-        <Field label="Name *">
+        <Field label="Name">
           <input
             required
             value={d.name}

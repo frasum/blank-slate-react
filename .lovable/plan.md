@@ -1,98 +1,58 @@
-## AP1-A — Artikel-Massenpflege, Runde A (Revision)
+# AP1-B — Artikel-Massenpflege Runde B
 
-Read-only Liste aller Bestellartikel unter Einstellungen → „Artikel", nach Lieferant gruppiert (Akkordeon), pro Zeile ein „geprüft"-Häkchen. Runde B ergänzt später Inline-Edits.
+Inline-Editing der Zellen in `ArtikelPflegeSection.tsx` über bestehende Server-Funktionen (`updateArticle`, `setArticleLocations`). Keine Migration, keine neuen Server-Wege.
 
-### 1. Schema (Frank führt aus)
-```sql
-ALTER TABLE public.articles
-  ADD COLUMN reviewed_at timestamptz NULL,
-  ADD COLUMN reviewed_by_staff_id uuid NULL
-    REFERENCES public.staff(id) ON DELETE SET NULL;
-NOTIFY pgrst, 'reload schema';
-```
-Danach `src/integrations/supabase/types.ts` regenerieren. Keine RLS-/GRANT-Änderung (Client-Writes auf `articles` weiterhin verboten).
+## 1. Shared Parser
+- Neu: `src/lib/bestellung/parse-de.ts` — `parseNumberDe` 1:1 aus `bestellung.lieferanten.tsx` (~Z.138) verschoben.
+- Neu: `src/lib/bestellung/parse-de.test.ts` — Fälle `"12,90" → 12.9`, `"1.234,5"` (Bestandsverhalten), Müll → `null`.
+- `bestellung.lieferanten.tsx`: lokale Definition entfernen, Import aus neuem Modul.
 
-### 2. Server — `src/lib/bestellung/articles.functions.ts`
-- **`listArticles`**: SELECT additiv um `reviewed_at` erweitern; Rückgabe-Shape nur ergänzt, bestehende Aufrufer unverändert.
-- **Neu: `setArticleReviewed`** (POST, admin-only):
-  - Input (Zod): `{ articleId: uuid, reviewed: boolean }`.
-  - `loadAdminCaller(..., "admin")` + `runGuarded(caller.role, "admin", makeAuditWriter(caller), …)`.
-  - Update: `.update({...}).eq("id", articleId).eq("organization_id", caller.organizationId).select("id")`.
-    - `reviewed: true` → `reviewed_at = now()`, `reviewed_by_staff_id = caller.staffId`.
-    - `reviewed: false` → beides `NULL`.
-  - **Trefferzahl prüfen**: 0 Zeilen ⇒ `throw new Error("Artikel nicht gefunden.")` VOR dem Audit-Write, damit Cross-Org- oder Tippfehler-Aufrufe nicht still mit Erfolg quittieren und **kein** `article.reviewed_set` im Audit landet.
-  - Audit erst bei ≥ 1 aktualisierter Zeile: `article.reviewed_set` mit `{ articleId, reviewed }`.
+## 2. rowToArticleInput + Tests
+- In `src/lib/bestellung/artikel-pflege.ts` neue reine Funktion `rowToArticleInput(row)`:
+  - Snake → camelCase, `locationIds` aus `row.locationIds`.
+  - `packagingUnit` bleibt `undefined` (AK3: DB-Wert nicht plätten).
+  - Alle übrigen Felder 1:1 (inkl. `sku`, `description`, `imageUrl`, Wein-Felder, `targetStock*`, `sortOrder`).
+- Test in `artikel-pflege.test.ts`: vollbesetzte Beispielzeile → Roundtrip; Assertion, dass `packagingUnit` nicht im Ergebnis liegt.
 
-Andere Artikel-Fns (`createArticle`, `updateArticle`, `setArticleActive`, `setArticleLocations`) bleiben unangetastet.
+## 3. Editierbare Zellen (`ArtikelPflegeSection.tsx`)
+Click-to-edit-Muster (Enter/Blur commit, Escape revert, ungültig → Toast + Revert, kein Commit bei unverändertem Wert):
 
-### 3. Sub-Tab-Registrierung — Single-Source-Fix
-Die Nav wird in `src/routes/_authenticated/admin/route.tsx` (~Zeile 214) aus dem in `einstellungen.index.tsx` exportierten `SUB_TABS` abgeleitet und in `AdminLayout` (~Zeile 418) gerendert. Reines Content-Filtern reicht deshalb nicht — sonst sähe der Manager den Tab in der Leiste.
+| Zelle | Input | Regel |
+|---|---|---|
+| Kategorie | Text + Datalist (uniq geladen) | `trim`; leer → `null` |
+| € pro BE | Text `inputMode="decimal"` | `parseNumberDe` → `Math.round(x*100)`; ≤0/null → Revert |
+| Bestell-/Inventureinheit | Text + Datalist (uniq order/inventory) | `trim`; leer → Revert (Pflicht) |
+| 1 BE = X IE | Text decimal | `parseNumberDe`; >0 sonst Revert |
+| Min / Schritt | Text decimal | `parseNumberDe`; >0 sonst Revert |
+| Dez. | Checkbox | direkter Toggle |
 
-- `einstellungen.index.tsx`: `SUB_TABS`-Typ um optionales `adminOnly?: boolean` erweitern, neuer Eintrag `{ key: "artikel", label: "Artikel", adminOnly: true }`. `TabKey` bleibt strukturell gleich (union bekommt `"artikel"` dazu).
-- `route.tsx`: `EINSTELLUNGEN_ALLGEMEIN_SUB` mappt `adminOnly` mit durch; im Render-Block generischer Filter: `.filter((s) => !s.adminOnly || identity.role === "admin")`. `identity` ist in `AdminLayout` bereits verfügbar. Kein Hardcoding auf `"artikel"`.
-- Content-Gate + Fallback in `einstellungen.index.tsx`: Wenn `tab === "artikel"` und Rolle ≠ admin, effektiv auf `"trinkgeldpool"` zurückfallen (Render-Auswahl; kein Redirect nötig). `validateSearch` bleibt strukturell wie gehabt.
+Commit-Weg: `rowToArticleInput(row)` + Feld überschreiben → `updateArticle`. Eine gemeinsame Mutation mit Feld-Parameter. Optimistisches Patchen auf `ARTIKEL_KEY` nach Muster der Häkchen-Mutation (cancel → snapshot → patch → onError-Rollback → onSettled-Invalidate).
 
-### 4. Neue Section `src/components/settings/ArtikelPflegeSection.tsx`
-- Queries: `listArticles({ includeInactive: true })`, `listSuppliers()`, `listLocations()`.
-- **Query-Key konsistent**: In der Section einmal als Konstante definiert, z. B. `const ARTIKEL_KEY = ["settings","artikel-pflege","articles", { includeInactive: true }] as const;`. Derselbe Key wird für Snapshot, optimistischen Patch und Invalidate genutzt — nicht raten, nicht mit dem Key aus `bestellung.lieferanten.tsx` koppeln.
-- Toggle `showInactive` (Default false), filtert vor Gruppierung. Lieferanten nach `is_active` gefiltert.
-- Gruppierung: Map `supplierId → Article[]`, Lieferanten alphabetisch (`localeCompare("de")`), Artikel innerhalb per Name.
-- Akkordeon: nur einer offen; Header zeigt `Lieferantenname · X Artikel · Y geprüft`.
-- Tabelle (nur offener Block) mit Spalten:
-  1. Checkbox „geprüft" (checked = `reviewed_at != null`)
-  2. Name (read-only)
-  3. Kategorie
-  4. € pro BE — **Formatierung via `fmtCents(price_cents)` aus `@/lib/format`** (nicht die lokale `fmtEuro` aus `bestellung.lieferanten.tsx`; die Route bleibt „nicht anfassen"). Suffix ` €` in der Zelle.
-  5. Bestelleinheit (`order_unit`)
-  6. Inventureinheit (`inventory_unit`)
-  7. 1 BE = X IE (`order_to_inventory_factor`)
-  8. Mindestmenge (`min_order_quantity`)
-  9. Bestellschritt (`quantity_step`)
-  10. Dezimal (`allow_decimal_order_quantity` → ✓/–)
-  11. Standorte (Kurzlabels der zugeordneten `article_locations`)
-- Inaktive Artikel visuell gedimmt.
-- Zellen als kleine `<td>`-Komponenten strukturieren, damit Runde B je Zelle einen Inline-Editor einsetzen kann.
+## 4. Standort-Chips-Spalte
+- Read-only-Kurzlabels ersetzen durch klickbare Chips (BL1-Verhalten).
+- Toggle → optimistisches Update mit Rollback, `setArticleLocations` mit vollständiger neuer Liste.
+- Letzter aktiver Chip: UI-Toast „Mindestens ein Standort", kein Server-Call (Server validiert zusätzlich).
+- Chips lokal in der Section bauen — keine Extraktion aus `bestellung.lieferanten.tsx`.
 
-### 5. Häkchen-Mutation (optimistisch)
-- `useMutation({ mutationFn: setArticleReviewed })`.
-- `onMutate`:
-  - `await queryClient.cancelQueries({ queryKey: ARTIKEL_KEY })`.
-  - `previous = queryClient.getQueryData(ARTIKEL_KEY)`.
-  - `queryClient.setQueryData(ARTIKEL_KEY, patch)` — betroffene Zeile: `reviewed_at` auf `new Date().toISOString()` bzw. `null`.
-  - Return `{ previous }`.
-- `onError (_e, _v, ctx)`: `queryClient.setQueryData(ARTIKEL_KEY, ctx.previous)` + Fehler-Toast/Zeilenhinweis.
-- `onSettled`: `queryClient.invalidateQueries({ queryKey: ARTIKEL_KEY })`.
-- Header-Zähler `Y geprüft` leitet sich aus den Query-Daten ab.
+## 5. Sternchen-Nachzug (UI1-Rest)
+- `bestellung.lieferanten.tsx` `ArticleForm` (~Z.1365): Label `"Name *"` → `"Name"`.
+- `SupplierForm`-Label bleibt unverändert.
 
-### 6. Reine Logik + Tests
-Neu `src/lib/bestellung/artikel-pflege.ts`:
-- `groupArticlesBySupplier(articles, suppliers, { showInactive })` → `Array<{ supplierId, supplierName, articles, reviewedCount }>`, alphabetisch sortiert.
-- `countReviewed(articles)`.
+## Nicht anfassen
+- `updateArticle`, `setArticleLocations`, `setArticleReviewed`, `replaceArticleLocations` und Server-Guards.
+- `bestellung.lieferanten.tsx` nur: Parser-Import + ein Label.
+- Kein Auto-`recalcAllLinkedEk` aus dem Grid.
+- Name-Spalte bleibt read-only (Dialog-Shortcut = AP1-C).
+- Runde-A-Verhalten unverändert.
 
-Neu `src/lib/bestellung/artikel-pflege.test.ts`:
-- leerer Lieferant (0/0).
-- gemischt: 3 Artikel, 1 mit `reviewed_at` → `1 geprüft`.
-- Inaktiv-Toggle: inaktive Artikel ein-/ausgeschlossen inkl. Zähler.
-- Sortierung: Lieferanten und Artikel alphabetisch.
+## Erfolgs-Gate
+- `tsc --noEmit` 0, `eslint --max-warnings=5`, `prettier --check` clean, `vitest run` grün (inkl. neuer Tests).
+- Manuell (Admin): Preis inline → persistiert; SKU/Beschreibung/Zielbestände unverändert; leere Einheit → Revert + Toast (kein Audit); Dezimal-Toggle wirkt; Chip-Toggle persistiert; letzter Chip nicht abwählbar; Escape ohne Call.
+- Artikel-Dialog: „Name" ohne Sternchen; Lieferanten-Dialog unverändert.
+- Vor Commit: `prettier --write` + `eslint --fix` über geänderte Dateien.
 
-### 7. Nicht anfassen
-`bestellung.lieferanten.tsx` (inkl. lokaler `fmtEuro`, `ArticleForm`, BL1-Chips), die anderen Einstellungen-Sektionen, `updateOrgSettings`-Mutation, `verkaufsartikel.tsx`/`PriceCell`, sämtliche Client-Writes auf `articles`.
-
-### 8. Erfolgs-Gate
-1. `tsgo` 0 Fehler.
-2. `eslint --max-warnings=5` sauber.
-3. `prettier --check` clean.
-4. `vitest run` grün inkl. neuer `artikel-pflege`-Tests.
-5. Manuell:
-   - Admin: Tab „Artikel" in Nav + Inhalt sichtbar; Häkchen persistiert nach Reload; `article.reviewed_set` im Audit; Aufruf mit unbekannter/foreign `articleId` → Fehler und **kein** Audit-Eintrag.
-   - Manager: Tab weder in Nav noch via `?tab=artikel` (Content-Fallback auf Trinkgeldpool); `setArticleReviewed` als Manager → Forbidden, kein Audit.
-
-Vor Commit: `npx prettier --write` + `npx eslint --fix` auf geänderte Dateien.
-
-### Reihenfolge
-1. Franks SQL + Types-Regeneration abwarten.
-2. `listArticles`-Erweiterung + `setArticleReviewed` inkl. 0-Rows-Guard.
-3. `artikel-pflege.ts` + Tests.
-4. `ArtikelPflegeSection.tsx` mit konsistentem Query-Key und `fmtCents`.
-5. `adminOnly`-Feld in `einstellungen.index.tsx` + generischer Nav-Filter in `route.tsx` + Content-Fallback.
-6. Gates + Formatter/Linter.
+## Betroffene Dateien
+- Neu: `src/lib/bestellung/parse-de.ts`, `src/lib/bestellung/parse-de.test.ts`
+- Erweitert: `src/lib/bestellung/artikel-pflege.ts`, `src/lib/bestellung/artikel-pflege.test.ts`
+- Editor + Chips: `src/components/settings/ArtikelPflegeSection.tsx`
+- Minimal-Edits: `src/routes/_authenticated/admin/bestellung.lieferanten.tsx` (Parser-Import + Label)

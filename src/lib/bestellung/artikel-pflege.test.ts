@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   countReviewed,
   groupArticlesBySupplier,
+  rowToArticleInput,
+  type ArtikelPflegeRow,
   type ArtikelPflegeArticle,
   type ArtikelPflegeSupplier,
 } from "./artikel-pflege";
@@ -61,5 +63,89 @@ describe("groupArticlesBySupplier", () => {
       expect(g.articles).toEqual([]);
       expect(g.reviewedCount).toBe(0);
     }
+  });
+});
+
+describe("rowToArticleInput", () => {
+  const fullRow: ArtikelPflegeRow = {
+    id: "aa",
+    supplier_id: "sup-1",
+    name: "Riesling",
+    is_active: true,
+    reviewed_at: null,
+    sku: "R-001",
+    description: "Trocken",
+    category: "Wein",
+    unit: "Fl",
+    price_cents: 1290,
+    packaging_unit: 6,
+    order_unit: "Kiste",
+    inventory_unit: "Fl",
+    order_to_inventory_factor: 6,
+    quantity_step: 1,
+    allow_decimal_order_quantity: false,
+    min_order_quantity: 1,
+    target_stock_total: 24,
+    target_stock_bar: 6,
+    image_url: "https://x/y.jpg",
+    sort_order: 10,
+    grape_variety: "Riesling",
+    origin_country: "DE",
+    food_pairings: "Fisch",
+    special_attributes: ["bio"],
+    locationIds: ["loc-a", "loc-b"],
+  };
+
+  it("mappt jedes Feld 1:1 (snake→camel) und übernimmt locationIds", () => {
+    const out = rowToArticleInput(fullRow);
+    expect(out).toEqual({
+      supplierId: "sup-1",
+      name: "Riesling",
+      sku: "R-001",
+      description: "Trocken",
+      category: "Wein",
+      unit: "Fl",
+      priceCents: 1290,
+      orderUnit: "Kiste",
+      inventoryUnit: "Fl",
+      orderToInventoryFactor: 6,
+      quantityStep: 1,
+      allowDecimalOrderQuantity: false,
+      minOrderQuantity: 1,
+      targetStockTotal: 24,
+      targetStockBar: 6,
+      imageUrl: "https://x/y.jpg",
+      sortOrder: 10,
+      grapeVariety: "Riesling",
+      originCountry: "DE",
+      foodPairings: "Fisch",
+      specialAttributes: ["bio"],
+      locationIds: ["loc-a", "loc-b"],
+    });
+  });
+
+  it("lässt packagingUnit weg (AK3: DB-Wert bleibt)", () => {
+    const out = rowToArticleInput(fullRow) as Record<string, unknown>;
+    expect("packagingUnit" in out).toBe(false);
+  });
+
+  it("nullbare Strings werden zu \"\"", () => {
+    const out = rowToArticleInput({
+      ...fullRow,
+      sku: null,
+      description: null,
+      category: null,
+      image_url: null,
+      grape_variety: null,
+      origin_country: null,
+      food_pairings: null,
+    });
+    expect(out.sku).toBe("");
+    expect(out.description).toBe("");
+    expect(out.category).toBe("");
+    expect(out.imageUrl).toBe("");
+    expect(out.grapeVariety).toBe("");
+    expect(out.originCountry).toBe("");
+    expect(out.foodPairings).toBe("");
   });
 });
