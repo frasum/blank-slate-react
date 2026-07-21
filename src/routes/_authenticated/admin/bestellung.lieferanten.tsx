@@ -10,6 +10,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Pencil, Plus, Archive, RotateCcw, Printer } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatShortDate } from "@/lib/format-date";
+import { parseEuroToCents } from "@/lib/format";
 import { formatUnitPrice } from "@/lib/bestellung/unit-conversion";
 import {
   type ArticleDraft,
