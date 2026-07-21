@@ -26,6 +26,7 @@ import { TelegramBotSection } from "@/components/settings/TelegramBotSection";
 import { TelegramTagesberichtSection } from "@/components/settings/TelegramTagesberichtSection";
 import { SkillsSection } from "@/components/settings/SkillsSection";
 import { ArtikelPflegeSection } from "@/components/settings/ArtikelPflegeSection";
+import { TaxonomySection } from "@/components/settings/TaxonomySection";
 
 // AP1-A — Tabs sind single-sourced. `adminOnly: true` versteckt einen Tab
 // generisch in der Nav (route.tsx filtert) und schaltet den Content-Fallback.
@@ -37,6 +38,7 @@ export const SUB_TABS = [
   { key: "telegram", label: "Telegram" },
   { key: "skills", label: "Skills" },
   { key: "artikel", label: "Artikel", adminOnly: true },
+  { key: "stammdaten", label: "Kategorien & Einheiten", adminOnly: true },
 ] as const satisfies ReadonlyArray<SubTab>;
 
 export type TabKey = (typeof SUB_TABS)[number]["key"];
@@ -214,6 +216,8 @@ function OrgSettingsPage() {
         {tab === "skills" && <SkillsSection canEdit={canEdit} />}
 
         {tab === "artikel" && identity.role === "admin" && <ArtikelPflegeSection />}
+
+        {tab === "stammdaten" && identity.role === "admin" && <TaxonomySection />}
       </div>
     </div>
   );
