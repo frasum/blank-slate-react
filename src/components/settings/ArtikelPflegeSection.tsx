@@ -18,6 +18,7 @@ import {
 } from "@/lib/bestellung/articles.functions";
 import { listSuppliers } from "@/lib/bestellung/suppliers.functions";
 import { listLocations } from "@/lib/admin/locations.functions";
+import { listTaxonomy } from "@/lib/bestellung/taxonomy.functions";
 import {
   groupArticlesBySupplier,
   rowToArticleInput,
@@ -75,6 +76,11 @@ export function ArtikelPflegeSection() {
   const locationsQ = useQuery({
     queryKey: ["admin", "locations"],
     queryFn: () => listLocations(),
+  });
+  // ST1-B — Kategorien & Einheiten aus der kuratierten Taxonomie.
+  const taxonomyQ = useQuery({
+    queryKey: ["settings", "taxonomy"],
+    queryFn: () => listTaxonomy(),
   });
 
   const callSetReviewed = useServerFn(setArticleReviewed);
@@ -169,21 +175,16 @@ export function ArtikelPflegeSection() {
     return groupArticlesBySupplier<Article>(articles, suppliers, { showInactive });
   }, [articlesQ.data, suppliersQ.data, showInactive]);
 
-  // Datalist-Quellen aus dem geladenen Katalog (uniq, deutsch sortiert).
   const allArticles = useMemo(() => articlesQ.data ?? [], [articlesQ.data]);
-  const categoryOptions = useMemo(() => {
-    const set = new Set<string>();
-    for (const a of allArticles) if (a.category) set.add(a.category);
-    return Array.from(set).sort((a, b) => a.localeCompare(b, "de"));
-  }, [allArticles]);
-  const unitOptions = useMemo(() => {
-    const set = new Set<string>();
-    for (const a of allArticles) {
-      if (a.order_unit) set.add(a.order_unit);
-      if (a.inventory_unit) set.add(a.inventory_unit);
-    }
-    return Array.from(set).sort((a, b) => a.localeCompare(b, "de"));
-  }, [allArticles]);
+  // ST1-B — Options-Quellen aus der Taxonomie (nicht mehr aus Artikel-Werten).
+  const categoryOptions = useMemo(
+    () => (taxonomyQ.data?.categories ?? []).map((c) => c.name),
+    [taxonomyQ.data],
+  );
+  const unitOptions = useMemo(
+    () => (taxonomyQ.data?.units ?? []).map((u) => u.name),
+    [taxonomyQ.data],
+  );
 
   const locationLabels = useMemo(() => {
     const map = new Map<string, string>();
