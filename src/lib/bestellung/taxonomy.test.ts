@@ -40,10 +40,7 @@ describe("taxonomy helpers", () => {
 describe("validateMergePair", () => {
   it("akzeptiert unterschiedliche Einträge gleichen Kinds", () => {
     expect(
-      validateMergePair(
-        { id: "a", kind: "category" },
-        { id: "b", kind: "category" },
-      ),
+      validateMergePair({ id: "a", kind: "category" }, { id: "b", kind: "category" }),
     ).toBeNull();
   });
   it("lehnt fehlende Einträge ab", () => {
@@ -51,17 +48,11 @@ describe("validateMergePair", () => {
     expect(validateMergePair({ id: "a", kind: "unit" }, undefined)).toBeInstanceOf(Error);
   });
   it("lehnt gemischte Kinds ab", () => {
-    const err = validateMergePair(
-      { id: "a", kind: "category" },
-      { id: "b", kind: "unit" },
-    );
+    const err = validateMergePair({ id: "a", kind: "category" }, { id: "b", kind: "unit" });
     expect(err?.message).toMatch(/Kategorien und Einheiten/);
   });
   it("lehnt identische Einträge ab", () => {
-    const err = validateMergePair(
-      { id: "a", kind: "unit" },
-      { id: "a", kind: "unit" },
-    );
+    const err = validateMergePair({ id: "a", kind: "unit" }, { id: "a", kind: "unit" });
     expect(err?.message).toMatch(/nicht identisch/);
   });
 });
