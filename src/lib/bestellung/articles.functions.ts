@@ -518,3 +518,41 @@ export const setArticleLocations = createServerFn({ method: "POST" })
       };
     });
   });
+
+// AP1-A — Häkchen „geprüft" (Artikel-Massenpflege).
+// Admin-only. 0-Zeilen-Update ⇒ Not-Found-Throw VOR dem Audit-Write, damit
+// Cross-Org- oder Tippfehler-Aufrufe nicht still mit Erfolg quittieren und
+// KEIN `article.reviewed_set` im audit_log landet.
+export const setArticleReviewed = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({ articleId: z.string().uuid(), reviewed: z.boolean() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const patch = data.reviewed
+        ? { reviewed_at: new Date().toISOString(), reviewed_by_staff_id: caller.staffId }
+        : { reviewed_at: null, reviewed_by_staff_id: null };
+      const { data: rows, error } = await supabaseAdmin
+        .from("articles")
+        .update(patch)
+        .eq("id", data.articleId)
+        .eq("organization_id", caller.organizationId)
+        .select("id");
+      if (error) throw error;
+      if (!rows || rows.length === 0) {
+        throw new Error("Artikel nicht gefunden.");
+      }
+      return {
+        result: { ok: true as const },
+        audit: {
+          action: "article.reviewed_set",
+          entity: "article",
+          entityId: data.articleId,
+          meta: { reviewed: data.reviewed },
+        },
+      };
+    });
+  });
