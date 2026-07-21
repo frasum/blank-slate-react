@@ -5,6 +5,8 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "@/lib/admin/admin-context";
 import { runGuarded } from "@/lib/admin/admin-call";
@@ -232,10 +234,10 @@ const MergeInput = z.object({
   targetEntryId: z.string().uuid(),
 });
 
+type AdminClient = SupabaseClient<Database>;
+
 async function loadMergePair(
-  admin: Awaited<
-    ReturnType<typeof import("@/integrations/supabase/client.server")>
-  >["supabaseAdmin"],
+  admin: AdminClient,
   organizationId: string,
   sourceId: string,
   targetId: string,
@@ -259,9 +261,7 @@ async function loadMergePair(
 }
 
 async function countArticlesUsingName(
-  admin: Awaited<
-    ReturnType<typeof import("@/integrations/supabase/client.server")>
-  >["supabaseAdmin"],
+  admin: AdminClient,
   organizationId: string,
   kind: "category" | "unit",
   name: string,
