@@ -22,6 +22,7 @@ export type GridRow = {
   staffId: string;
   staffName: string;
   markers: Marker[];
+  crossBookingDates: boolean[];
 };
 
 export type Grid = {
@@ -68,9 +69,10 @@ export function buildRosterGrid(
   const rows: GridRow[] = [];
   for (const r of block.rows) {
     const markers = r.cells.slice(0, opts.days).map(cellMarker);
-    // Leerzeilen (ausschließlich EMPTY_MARKER) ausblenden.
-    if (markers.every((m) => m === EMPTY_MARKER)) continue;
-    rows.push({ staffId: r.staffId, staffName: r.staffName, markers });
+    const crossBookingDates = wantedDays.map((d) => r.crossBookingDates.includes(d));
+    // Leerzeilen (ausschließlich EMPTY_MARKER, ohne Cross-Booking-Punkt) ausblenden.
+    if (markers.every((m) => m === EMPTY_MARKER) && crossBookingDates.every((x) => !x)) continue;
+    rows.push({ staffId: r.staffId, staffName: r.staffName, markers, crossBookingDates });
   }
 
   return { days: wantedDays, rows };

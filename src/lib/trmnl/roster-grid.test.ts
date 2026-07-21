@@ -12,7 +12,12 @@ function cell(k: DisplayCell["k"], skill: string | null = null): DisplayCell {
 
 function makeBlock(
   area: "service" | "kitchen",
-  rows: Array<{ staffId: string; staffName: string; cells: DisplayCell[] }>,
+  rows: Array<{
+    staffId: string;
+    staffName: string;
+    cells: DisplayCell[];
+    crossBookingDates?: string[];
+  }>,
 ): DisplayBlock {
   return {
     area,
@@ -21,7 +26,7 @@ function makeBlock(
       ...r,
       shiftCountCurrent: 0,
       shiftCountNext: 0,
-      crossBookingDates: [],
+      crossBookingDates: r.crossBookingDates ?? [],
     })),
     dayCounts: [],
   };
@@ -142,5 +147,31 @@ describe("buildRosterGrid", () => {
       { area: "service", period: "abend", days: 14 },
     );
     expect(grid.rows[0].markers[0]).toBe("GL");
+  });
+
+  it("behält Cross-Booking-Punkte auf leeren Zellen und blendet solche Zeilen nicht aus", () => {
+    const leer: DisplayCell[] = D14.map(() => cell("empty"));
+    const periodBlocks: DisplayPeriodBlocks[] = [
+      {
+        period: "abend",
+        blocks: [
+          makeBlock("service", [
+            {
+              staffId: "cross",
+              staffName: "Cross",
+              cells: leer,
+              crossBookingDates: [D14[2]],
+            },
+          ]),
+        ],
+      },
+    ];
+    const grid = buildRosterGrid(
+      { days: D14, blocks: [], periodBlocks },
+      { area: "service", period: "abend", days: 14 },
+    );
+    expect(grid.rows).toHaveLength(1);
+    expect(grid.rows[0].markers[2]).toBe(EMPTY_MARKER);
+    expect(grid.rows[0].crossBookingDates[2]).toBe(true);
   });
 });
