@@ -494,8 +494,7 @@ function SelectCell({
   allowEmpty?: boolean;
 }) {
   const trimmed = value.trim();
-  const inList =
-    trimmed === "" || options.some((o) => o.toLowerCase() === trimmed.toLowerCase());
+  const inList = trimmed === "" || options.some((o) => o.toLowerCase() === trimmed.toLowerCase());
   return (
     <select
       value={trimmed}
@@ -511,9 +510,7 @@ function SelectCell({
       className="w-full min-w-[4rem] rounded border border-border/60 bg-background px-1 py-0.5"
     >
       {allowEmpty && <option value="">—</option>}
-      {!inList && trimmed !== "" && (
-        <option value={trimmed}>{trimmed} (nicht in Liste)</option>
-      )}
+      {!inList && trimmed !== "" && <option value={trimmed}>{trimmed} (nicht in Liste)</option>}
       {options.map((o) => (
         <option key={o} value={o}>
           {o}

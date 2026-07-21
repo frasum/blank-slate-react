@@ -40,9 +40,7 @@ function SelectField(props: {
       className={inputCls}
     >
       {props.allowEmpty && <option value="">{props.placeholder ?? "— keine —"}</option>}
-      {!inList && trimmed !== "" && (
-        <option value={trimmed}>{trimmed} (nicht in Liste)</option>
-      )}
+      {!inList && trimmed !== "" && <option value={trimmed}>{trimmed} (nicht in Liste)</option>}
       {props.options.map((o) => (
         <option key={o} value={o}>
           {o}

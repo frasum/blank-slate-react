@@ -112,12 +112,13 @@ function TaxonomyCard({
   });
 
   const mergeM = useMutation({
-    mutationFn: (v: { sourceEntryId: string; targetEntryId: string }) =>
-      callMerge({ data: v }),
+    mutationFn: (v: { sourceEntryId: string; targetEntryId: string }) => callMerge({ data: v }),
     onSuccess: async (res) => {
       const n = (res as { articlesUpdated: number }).articlesUpdated;
       toast.success(
-        n > 0 ? `Zusammengelegt — ${n} Artikel angepasst.` : "Zusammengelegt (keine Artikel betroffen).",
+        n > 0
+          ? `Zusammengelegt — ${n} Artikel angepasst.`
+          : "Zusammengelegt (keine Artikel betroffen).",
       );
       setMergeSource(null);
       await invalidate();
@@ -305,10 +306,7 @@ function MergeDialog({
   const [preview, setPreview] = useState<MergePreview | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const options = useMemo(
-    () => entries.filter((e) => e.id !== source?.id),
-    [entries, source],
-  );
+  const options = useMemo(() => entries.filter((e) => e.id !== source?.id), [entries, source]);
 
   useEffect(() => {
     if (!source) {
@@ -350,9 +348,7 @@ function MergeDialog({
     <Dialog open={!!source} onOpenChange={(open) => (!open ? onClose() : undefined)}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>
-            {kind === "category" ? "Kategorie" : "Einheit"} zusammenlegen
-          </DialogTitle>
+          <DialogTitle>{kind === "category" ? "Kategorie" : "Einheit"} zusammenlegen</DialogTitle>
         </DialogHeader>
         {source && (
           <div className="space-y-3 text-sm">

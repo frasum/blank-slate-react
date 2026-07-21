@@ -69,11 +69,7 @@ export function computeUnknownTaxonomyValues(
   for (const t of taxonomy) known[t.kind].add(t.name.trim().toLowerCase());
   const catCounts = new Map<string, number>();
   const unitCounts = new Map<string, number>();
-  const bumpUnknown = (
-    counts: Map<string, number>,
-    known: Set<string>,
-    raw: string | null,
-  ) => {
+  const bumpUnknown = (counts: Map<string, number>, known: Set<string>, raw: string | null) => {
     if (!raw) return;
     const trimmed = raw.trim();
     if (trimmed === "") return;
