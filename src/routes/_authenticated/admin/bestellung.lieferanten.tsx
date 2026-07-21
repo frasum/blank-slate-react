@@ -653,42 +653,16 @@ function LieferantenPage() {
                           const last = lastOrderQ.data?.[a.id];
                           // LA1 — gemeinsamer Öffner für Artikel-Bearbeiten-Dialog.
                           const openEditArticle = () => {
+                            const { draft, locationIds } = articleRowToDraft(
+                              a,
+                              (locationsQ.data ?? []).map((l) => l.id),
+                            );
                             setArticleDialog({
                               mode: "edit",
                               supplierId: s.id,
                               articleId: a.id,
-                              initial: {
-                                name: a.name,
-                                sku: a.sku ?? "",
-                                description: a.description ?? "",
-                                category: a.category ?? "",
-                                unit: a.unit,
-                                priceEuro:
-                                  a.price_cents != null
-                                    ? (a.price_cents / 100).toFixed(2).replace(".", ",")
-                                    : "",
-                                orderUnit: a.order_unit ?? a.unit ?? "Stk",
-                                inventoryUnit: a.inventory_unit ?? a.unit ?? "Stk",
-                                orderToInventoryFactor: String(
-                                  a.order_to_inventory_factor ?? 1,
-                                ).replace(".", ","),
-                                minOrderQuantity: String(a.min_order_quantity ?? 1).replace(
-                                  ".",
-                                  ",",
-                                ),
-                                quantityStep: String(a.quantity_step ?? 1).replace(".", ","),
-                                allowDecimalOrderQuantity: !!a.allow_decimal_order_quantity,
-                                targetStockTotal:
-                                  a.target_stock_total != null
-                                    ? String(a.target_stock_total).replace(".", ",")
-                                    : "",
-                                targetStockBar:
-                                  a.target_stock_bar != null
-                                    ? String(a.target_stock_bar).replace(".", ",")
-                                    : "",
-                              },
-                              initialLocationIds:
-                                a.locationIds ?? (locationsQ.data ?? []).map((l) => l.id),
+                              initial: draft,
+                              initialLocationIds: locationIds,
                             });
                             setMsg(null);
                           };
