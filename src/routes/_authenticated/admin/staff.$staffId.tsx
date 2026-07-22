@@ -12,6 +12,7 @@ import { clearPin, setPin } from "@/lib/admin/pin.functions";
 import {
   createStaffAccount,
   getStaffAccountStatus,
+  inviteStaffByEmail,
   resetStaffPassword,
 } from "@/lib/admin/account.functions";
 import { TabButton } from "@/components/ui/nav-tab";
