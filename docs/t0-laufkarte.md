@@ -83,6 +83,13 @@ kein Weiterwursteln (Abbruchkriterien E5, §98). Zeitbedarf gesamt: ~1,5–2 h.
 - [ ] **N3** Aufräum-Migrationen beauftragen (Prüfer liefert Prompts): `sessions.opentabs_deduction_cents` (N15b) + `count_holidays_as_leave` (UZ1) droppen.
 - [ ] **N4** Endgültige Stilllegung tagesabrechnung (Ende Juli, dein Termin): Alt-Syncs/Cron aus, Projekt pausieren/archivieren.
 
+## T0-Samstag 26.07.
+
+- [ ] **Voll-Re-Import Kassendaten** tagesabrechnung → COCO (Sessions, Kanäle, Terminals, Kellner-Abrechnungen, Tip-Pool): idempotente `WHERE NOT EXISTS`-Methode nach §5; Mapping-Regeln beachten (IDs 1:1, ×100 Cents, kassiert_brutto=pos_sales, Null-Beträge ohne Kanal-/Terminal-Zeilen, Staff via upper(display_name), Hüllen-Falle: laufenden Geschäftstag ausschließen). Import-SQLs liefert der Prüfer; Standortname prominent im Dateinamen.
+- [ ] **Zeiten-Abgleich als T0-Abnahme:** Die zwei Fall-1-Queries der Generalprobe (COCO `time_entries` / TA `zt_shifts`, jeweils Vortagesbereich) ziehen, CSVs an den Prüfer → Diff muss „identisch + akzeptiertes Rauschen" zeigen. Wiederholung täglich bis 31.07. bei Bedarf.
+- [ ] **PS1 Personalstamm-Import** (TA-staff → staff_personal_details) ausführen oder terminieren — vor der Archivierung, solange die TA-DB bequem erreichbar ist.
+- [ ] **tagesabrechnung archivieren** erst NACH Re-Import + Abgleich-Grün + PS1-Entscheidung.
+
 ## Abbruch-Pfad (falls ein Kriterium reißt)
 
 Nichts weiter ausführen · betroffenen Block dokumentieren (Screenshots/CSVs in den Chat) · COCO läuft normal weiter (kein Rollback nötig — alle T0-Schritte vor dem Fehlerpunkt sind einzeln rücknehmbar bzw. harmlos: Zeit-Import ist idempotent, Löschung nur nach bestandenem Beweis) · neuer Anlauf nach Diagnose, notfalls am 27.07. — die Periodengrenze verschiebt sich dadurch nicht.
