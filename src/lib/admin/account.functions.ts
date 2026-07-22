@@ -12,6 +12,7 @@
 //   eigenen Passwort.
 
 import { createServerFn } from "@tanstack/react-start";
+import { getRequestHeader } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "./admin-context";
@@ -194,3 +195,206 @@ export const resetStaffPassword = createServerFn({ method: "POST" })
       };
     });
   });
+
+// =========================================================================
+// Konto per E-Mail einladen (admin)
+// =========================================================================
+//
+// Legt den Auth-User über generateLink({type:'invite'}) an, verknüpft ihn
+// per link_account_to_staff-RPC mit dem Mitarbeiter und versendet den
+// Invite-Link über MailerSend. Der Mitarbeiter klickt den Link, landet
+// auf /reset-password und vergibt sein eigenes Passwort — kein
+// Standardpasswort wird zwischen Admin und Mitarbeiter weitergegeben.
+//
+// Kompensation: schlägt link_account_to_staff oder der Mailversand fehl,
+// werden Auth-User und user_links wieder entfernt, damit „Einladen"
+// erneut möglich ist. Der action_link wird niemals ins Audit oder in
+// Logs geschrieben — nur an MailerSend übergeben.
+
+const inviteSchema = z.object({
+  staffId: z.string().uuid(),
+  email: z.string().trim().email().max(254),
+});
+
+export const inviteStaffByEmail = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => inviteSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+      const staff = expectMaybe<{ id: string; organization_id: string }>(
+        await supabaseAdmin
+          .from("staff")
+          .select("id, organization_id")
+          .eq("id", data.staffId)
+          .eq("organization_id", caller.organizationId)
+          .maybeSingle(),
+        "inviteStaffByEmail.loadStaff",
+      );
+      if (!staff) throw new Error("Mitarbeiter nicht gefunden.");
+
+      const existingLink = expectMaybe<{ user_id: string }>(
+        await supabaseAdmin
+          .from("user_links")
+          .select("user_id")
+          .eq("staff_id", data.staffId)
+          .maybeSingle(),
+        "inviteStaffByEmail.checkExistingLink",
+      );
+      if (existingLink?.user_id) {
+        throw new Error("Dieser Mitarbeiter hat bereits ein Konto.");
+      }
+
+      const origin = resolveRequestOrigin();
+      const redirectTo = `${origin}/reset-password`;
+
+      const { data: linkRes, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
+        type: "invite",
+        email: data.email,
+        options: {
+          redirectTo,
+          data: { staff_id: data.staffId },
+        },
+      });
+      if (linkErr || !linkRes?.properties?.action_link || !linkRes.user) {
+        throw new Error(linkErr?.message ?? "Einladungslink konnte nicht erstellt werden.");
+      }
+      const actionLink = linkRes.properties.action_link;
+      const authUserId = linkRes.user.id;
+
+      const { error: rpcErr } = await supabaseAdmin.rpc("link_account_to_staff", {
+        p_staff_id: data.staffId,
+        p_organization_id: staff.organization_id,
+        p_user_id: authUserId,
+        p_email: data.email,
+      });
+      if (rpcErr) {
+        await supabaseAdmin.auth.admin.deleteUser(authUserId).catch(() => {});
+        throw rpcErr;
+      }
+
+      try {
+        await sendInviteEmail(data.email, actionLink);
+      } catch (mailErr) {
+        // Saga-Kompensation: user_links + Auth-User zurückrollen, damit der
+        // Admin den Versand erneut versuchen kann.
+        await supabaseAdmin
+          .from("user_links")
+          .delete()
+          .eq("user_id", authUserId)
+          .catch(() => {});
+        await supabaseAdmin.auth.admin.deleteUser(authUserId).catch(() => {});
+        throw mailErr;
+      }
+
+      return {
+        result: { email: data.email },
+        audit: {
+          action: "staff.account_invited",
+          entity: "staff",
+          entityId: data.staffId,
+          // action_link bewusst NICHT ins Audit — nur die Ziel-Adresse.
+          meta: { email: data.email },
+        },
+      };
+    });
+  });
+
+function resolveRequestOrigin(): string {
+  // Bevorzugt der öffentlich sichtbare Host des Requests (custom domain,
+  // Preview-URL, published URL). Fallback auf published URL.
+  const forwardedProto = getRequestHeader("x-forwarded-proto");
+  const forwardedHost = getRequestHeader("x-forwarded-host");
+  const host = forwardedHost ?? getRequestHeader("host") ?? "";
+  const proto = forwardedProto ?? "https";
+  if (host) return `${proto}://${host}`;
+  return "https://cocoplatform.online";
+}
+
+async function sendInviteEmail(toEmail: string, actionLink: string): Promise<void> {
+  const apiKey = process.env.MAILERSEND_API_KEY;
+  const fromEmail = process.env.MAILERSEND_FROM_EMAIL;
+  const fromName = process.env.MAILERSEND_FROM_NAME ?? "COCO";
+  if (!apiKey) throw new Error("Mailversand ist nicht konfiguriert (MAILERSEND_API_KEY fehlt).");
+  if (!fromEmail) throw new Error("Absenderadresse fehlt (MAILERSEND_FROM_EMAIL).");
+
+  const subject = "Dein COCO-Konto: Passwort festlegen";
+  const html = buildInviteHtml(actionLink);
+  const text = buildInviteText(actionLink);
+
+  const res = await fetch("https://api.mailersend.com/v1/email", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "X-Requested-With": "XMLHttpRequest",
+    },
+    body: JSON.stringify({
+      from: { email: fromEmail, name: fromName },
+      to: [{ email: toEmail }],
+      subject,
+      html,
+      text,
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    // Body kann personenbezogene Fehlerdetails enthalten — nur gekürzt und
+    // ohne action_link (der ist nicht Teil der Antwort).
+    throw new Error(`Einladungs-E-Mail fehlgeschlagen (${res.status}). ${body.slice(0, 200)}`);
+  }
+}
+
+function buildInviteHtml(actionLink: string): string {
+  const safeLink = escapeHtml(actionLink);
+  return `<!doctype html>
+<html lang="de"><body style="margin:0;padding:24px;font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#f6f6f6;color:#111;">
+  <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:8px;padding:28px;">
+    <h1 style="margin:0 0 12px;font-size:20px;">Willkommen bei COCO</h1>
+    <p style="margin:0 0 16px;font-size:14px;line-height:1.5;">
+      Für dich wurde ein Konto angelegt. Klicke auf den Button, um dein Passwort
+      festzulegen und dich anzumelden.
+    </p>
+    <p style="margin:24px 0;">
+      <a href="${safeLink}"
+         style="display:inline-block;background:#111;color:#fff;text-decoration:none;
+                padding:12px 20px;border-radius:6px;font-size:14px;font-weight:500;">
+        Passwort festlegen
+      </a>
+    </p>
+    <p style="margin:0 0 8px;font-size:12px;color:#666;">
+      Falls der Button nicht funktioniert, kopiere diesen Link in deinen Browser:
+    </p>
+    <p style="margin:0;font-size:12px;color:#666;word-break:break-all;">${safeLink}</p>
+    <p style="margin:24px 0 0;font-size:12px;color:#666;">
+      Der Link ist einmalig gültig. Wenn du diese E-Mail unerwartet erhalten hast,
+      kannst du sie ignorieren.
+    </p>
+  </div>
+</body></html>`;
+}
+
+function buildInviteText(actionLink: string): string {
+  return [
+    "Willkommen bei COCO",
+    "",
+    "Für dich wurde ein Konto angelegt. Öffne den folgenden Link, um dein",
+    "Passwort festzulegen und dich anzumelden:",
+    "",
+    actionLink,
+    "",
+    "Der Link ist einmalig gültig. Wenn du diese E-Mail unerwartet erhalten",
+    "hast, kannst du sie ignorieren.",
+  ].join("\n");
+}
+
+function escapeHtml(v: string): string {
+  return v
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
