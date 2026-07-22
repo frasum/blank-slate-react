@@ -4772,6 +4772,7 @@ export type Database = {
           child_tax_allowances: number | null
           children_count: number | null
           church_tax_liable: boolean | null
+          city: string | null
           created_at: string
           date_of_birth: string | null
           email: string | null
@@ -4798,6 +4799,7 @@ export type Database = {
           phone: string | null
           pkv_basis_beitrag_monat_cent: number
           place_of_birth: string | null
+          postal_code: string | null
           pv_frei: boolean
           rv_frei: boolean
           sachbezug_monthly_cents: number
@@ -4805,6 +4807,7 @@ export type Database = {
           social_security_number: string | null
           soll_hours_per_day: number
           staff_id: string
+          street: string | null
           tax_class: string | null
           tax_id: string | null
           updated_at: string
@@ -4821,6 +4824,7 @@ export type Database = {
           child_tax_allowances?: number | null
           children_count?: number | null
           church_tax_liable?: boolean | null
+          city?: string | null
           created_at?: string
           date_of_birth?: string | null
           email?: string | null
@@ -4847,6 +4851,7 @@ export type Database = {
           phone?: string | null
           pkv_basis_beitrag_monat_cent?: number
           place_of_birth?: string | null
+          postal_code?: string | null
           pv_frei?: boolean
           rv_frei?: boolean
           sachbezug_monthly_cents?: number
@@ -4854,6 +4859,7 @@ export type Database = {
           social_security_number?: string | null
           soll_hours_per_day?: number
           staff_id: string
+          street?: string | null
           tax_class?: string | null
           tax_id?: string | null
           updated_at?: string
@@ -4870,6 +4876,7 @@ export type Database = {
           child_tax_allowances?: number | null
           children_count?: number | null
           church_tax_liable?: boolean | null
+          city?: string | null
           created_at?: string
           date_of_birth?: string | null
           email?: string | null
@@ -4896,6 +4903,7 @@ export type Database = {
           phone?: string | null
           pkv_basis_beitrag_monat_cent?: number
           place_of_birth?: string | null
+          postal_code?: string | null
           pv_frei?: boolean
           rv_frei?: boolean
           sachbezug_monthly_cents?: number
@@ -4903,6 +4911,7 @@ export type Database = {
           social_security_number?: string | null
           soll_hours_per_day?: number
           staff_id?: string
+          street?: string | null
           tax_class?: string | null
           tax_id?: string | null
           updated_at?: string
