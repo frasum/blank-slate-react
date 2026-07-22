@@ -420,6 +420,14 @@ export function PersonalDetailsTab({ staffId, canEdit, canEditVacation }: Props)
                 taken={form.vacation_days_taken}
               />
             )}
+            {sec.title === "Person & Kontakt" && form && (
+              <LegacyAddressPuffer
+                address={form.address}
+                street={form.street}
+                postalCode={form.postal_code}
+                city={form.city}
+              />
+            )}
           </div>
           {sec.title === "Beschäftigung & Urlaub" && vacEditing && (
             <div className="space-y-2 pt-1">
