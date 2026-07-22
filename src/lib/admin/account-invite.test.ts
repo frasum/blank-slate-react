@@ -11,7 +11,7 @@ const inviteSchema = z.object({
 });
 
 describe("inviteStaffByEmail input schema", () => {
-  const uuid = "11111111-2222-3333-4444-555555555555";
+  const uuid = "550e8400-e29b-41d4-a716-446655440000";
 
   it("akzeptiert gültige Eingabe", () => {
     const r = inviteSchema.parse({ staffId: uuid, email: "  a@b.de  " });
