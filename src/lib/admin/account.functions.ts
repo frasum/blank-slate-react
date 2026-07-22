@@ -197,6 +197,68 @@ export const resetStaffPassword = createServerFn({ method: "POST" })
   });
 
 // =========================================================================
+// Einladung erneut senden (admin) — für Konten, die bereits verknüpft sind
+// =========================================================================
+//
+// Erzeugt einen Recovery-Link für den bereits vorhandenen Auth-User und
+// versendet ihn per MailerSend. Ändert weder Passwort noch must_change_password.
+// Der action_link wird nicht ins Audit/Log geschrieben.
+
+export const resendStaffInvite = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ staffId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const caller = await loadAdminCaller(context.supabase, context.userId, "admin");
+    return runGuarded(caller.role, "admin", makeAuditWriter(caller), async () => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+      const link = expectMaybe<{ user_id: string; organization_id: string }>(
+        await supabaseAdmin
+          .from("user_links")
+          .select("user_id, organization_id")
+          .eq("staff_id", data.staffId)
+          .maybeSingle(),
+        "resendStaffInvite.loadLink",
+      );
+      if (!link?.user_id || link.organization_id !== caller.organizationId) {
+        throw new Error("Mitarbeiter hat noch kein Konto.");
+      }
+
+      const { data: userRes, error: userErr } = await supabaseAdmin.auth.admin.getUserById(
+        link.user_id,
+      );
+      if (userErr || !userRes?.user?.email) {
+        throw new Error(userErr?.message ?? "E-Mail des Kontos konnte nicht ermittelt werden.");
+      }
+      const email = userRes.user.email;
+
+      const origin = resolveRequestOrigin();
+      const redirectTo = `${origin}/reset-password`;
+
+      const { data: linkRes, error: genErr } = await supabaseAdmin.auth.admin.generateLink({
+        type: "recovery",
+        email,
+        options: { redirectTo },
+      });
+      if (genErr || !linkRes?.properties?.action_link) {
+        throw new Error(genErr?.message ?? "Einladungslink konnte nicht erstellt werden.");
+      }
+
+      await sendInviteEmail(email, linkRes.properties.action_link);
+
+      return {
+        result: { email },
+        audit: {
+          action: "staff.account_invite_resent",
+          entity: "staff",
+          entityId: data.staffId,
+          meta: { email },
+        },
+      };
+    });
+  });
+
+// =========================================================================
 // Konto per E-Mail einladen (admin)
 // =========================================================================
 //
