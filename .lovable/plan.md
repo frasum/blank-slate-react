@@ -1,23 +1,75 @@
-## Diagnose
+## AV1a Stufe 1 — Adress-Aufspaltung auf `staff_personal_details` (revidiert)
 
-- Die Datenbank enthält aktuell viele Cross-Booking-Fälle im Display-Zeitraum, z. B. für das aktive Display `spicery`; es gibt also echte Daten, bei denen Punkte erscheinen müssten.
-- Im aktuellen Quellcode ist die DP1-Logik grundsätzlich vorhanden: `buildDisplayData` berechnet `crossBookingDates`, und `display.$locationId.tsx` rendert daraus einen kleinen Punkt.
-- Die veröffentlichte Domain und die Preview-Domain liefern im statischen Display-Bundle aber keine auffindbaren Marker-Strings wie `crossBookingDates`/`anderer Einsatzort`. Das erklärt, warum das physische Display noch keine Punkte zeigt: Es läuft sehr wahrscheinlich noch mit einem Stand, in dem der neue Display-Code nicht ausgeliefert ist, oder der Reload-Handschlag greift erst nach einer Veröffentlichung mit neuem Bundle.
+Kein neuer Tabellen-/Rollen-/RLS-Umbau. Einzige Struktur-Änderung: drei neue Spalten für die Adresse. Bestehende Redaktions-, Audit- und Guard-Muster bleiben unangetastet.
 
-## Plan
+### Vorab-Aufgabe: RLS-Review (nur Report, keine Änderung)
 
-1. **Rendering robuster machen**
-   - Den Punkt nicht nur im kleinen Inline-Wrapper um das `−`, sondern zellfüllend/absolut in der Display-Zelle positionieren.
-   - Dadurch bleibt er sichtbar, auch wenn Textgröße, Zellhöhe oder Display-Skalierung den bisherigen Mini-Punkt schwer erkennbar machen.
+Vor Umsetzung: bestehende Policies von `public.staff_personal_details` per `supabase--read_query` gegen `pg_policies` inspizieren. Geprüft wird:
+- Ist jede Policy auf `organization_id` gescoped (kein Cross-Org-Leck)?
+- Greifen die Rollen-Gates (payroll/admin über `has_permission("payroll.personal.view/edit")`)?
+- Keine `USING (true)`- oder `WITH CHECK (true)`-Reste?
 
-2. **Payload-/TRMNL-Nachzug prüfen**
-   - Sicherstellen, dass `crossBookingDates` in allen Display-Ausgaben erhalten bleibt.
-   - Falls das E-Ink/TRMNL-Dienstplan-HTML ebenfalls gemeint ist, den Punkt dort ebenfalls als Schwarzpunkt in leeren Zellen ergänzen; bisher ignoriert `buildRosterGrid` die Cross-Booking-Daten und gibt nur Marker zurück.
+Ergebnis wird im Chat gemeldet, BEVOR der Bau-Commit rausgeht. Nur wenn ein echtes Loch auftaucht, wird das als **eigener, gemeldeter Punkt** aufgemacht — nicht still mit-migriert.
 
-3. **Tests ergänzen**
-   - Einen reinen Test ergänzen, der bestätigt: Eine leere Display-Zelle mit `crossBookingDates` erzeugt einen sichtbaren Cross-Booking-Marker.
-   - Für TRMNL optional testen, dass Cross-Booking-Infos nicht beim Mapping verloren gehen.
+### Migration (`supabase--migration`)
 
-4. **Nach Umsetzung verifizieren**
-   - Den aktuellen Display-Endpoint bzw. gerenderte Vorschau gegen echte Display-Daten prüfen.
-   - Wichtig für das reale Wanddisplay: Nach dem Fix muss die App veröffentlicht werden; erst dann kann das physische Display den neuen Bundle-Stand laden. DP2 lädt nur nach, wenn ein neuer veröffentlichter App-Stand verfügbar ist.
+Eine Datei, drei Spalten:
+
+```sql
+ALTER TABLE public.staff_personal_details
+  ADD COLUMN street text NULL,
+  ADD COLUMN postal_code text NULL,
+  ADD COLUMN city text NULL;
+```
+
+- Kein `DROP`/`RENAME` auf `address`.
+- Kein Backfill, kein Constraint.
+- Keine Policy-Änderungen (RLS bleibt).
+- Keine `permission_role_defaults`-Änderungen (payroll behält view+edit).
+- Migrations-Kommentar: „AV1a Stufe 1 — Adresse strukturiert (street/postal_code/city). Freitext `address` bleibt als Migrationspuffer; RLS und Rollen (admin+payroll r/w) unverändert."
+
+### Server (`src/lib/admin/personal-details.schema.ts` + `.functions.ts`)
+
+- Zod-Schema erweitern:
+  - `street`: `nullableText(120)`.
+  - `postal_code`: leer→null nach trim, danach `.regex(/^\d{4,5}$/, "PLZ muss 4–5 Ziffern sein")`.
+  - `city`: `nullableText(120)`.
+- `redactForAudit`: keine Aufnahme in `SENSITIVE_FIELDS` — die drei Felder werden als `{ changed: true }` diffbar, konsistent mit dem bestehenden Adress-Feld.
+- `getStaffPersonalDetails`: SELECT-Liste, `EMPTY`-Defaults und `PersonalDetailsFields`/`PersonalDetailsDto` um die drei Spalten erweitern. Rollen/Guards unverändert (admin+payroll).
+- `upsertStaffPersonalDetails`: unverändert im Rollen-Gate — Schema-Erweiterung reicht, Upsert schreibt die neuen Spalten mit.
+
+### UI (`src/components/admin/PersonalDetailsTab.tsx`)
+
+- Adress-Zeile ersetzen: drei Eingabefelder `Straße`, `PLZ`, `Ort` (die letzten beiden in einer Zeile), Bearbeiten für admin+payroll wie bisher.
+- Freitext-`address` bleibt sichtbar, aber:
+  - Wird nur noch gerendert, **solange `address` befüllt UND alle drei neuen Felder leer sind**.
+  - Als **read-only/ausgegraut** mit Hinweis „Alt-Adresse (Migrationspuffer) — bitte in Straße/PLZ/Ort übernehmen".
+  - Sobald mindestens eines der drei neuen Felder gefüllt und gespeichert ist, verschwindet die Alt-Zeile aus der Anzeige (Feld bleibt DB-seitig erhalten).
+- Keine Änderung an `src/routes/_authenticated/profil.tsx` (Self-Service-Adresse bleibt Bestand — konsistent mit Migrationspuffer-Regel).
+
+### Tests
+
+1. **Zod-Unit** (`personal-details.schema.test.ts`):
+   - PLZ: `"12345"` ok, `"1234"` ok, `"123"` wirft, `"abc"` wirft, `""` und `" "` → null, Leerzeichen-Trim.
+   - `street`, `city`: Trim, leer→null, max-Länge.
+2. **Bestands-Regressionstest** (neuer Case in derselben Datei): ein `personalDetailsSchema.parse({...})` mit einem repräsentativen Auszug aller heute vorhandenen 44+ Felder (aus `EMPTY` in `personal-details.functions.ts` abgeleitet) muss ohne Datenverlust durchlaufen — Snapshot-Vergleich der Ausgabe-Keys stellt sicher, dass keine Bestandsspalte durch die Erweiterung verloren geht.
+3. Kein neuer DB-Integrationstest (keine RLS-/Rollen-Änderung → kein DENY-Beweis in dieser Stufe).
+
+### Vor dem Commit
+
+`npx prettier --write` + `npx eslint --fix` über geänderte Dateien. Danach müssen `npx tsc --noEmit` (0), `npx eslint . --max-warnings=0`, `npx vitest run` (grün) und `npx prettier --check .` durchlaufen. Der RLS-Review-Befund wird im Chat gemeldet, BEVOR committet wird.
+
+### Erfolgs-Gate
+
+- Drei neue Spalten migriert, RLS/Rollen unverändert.
+- Admin+payroll können Straße/PLZ/Ort pflegen; Alt-`address` bleibt lesbar/ausgegraut bis überführt.
+- Zod- und Bestands-Regressionstests grün; CI `check` grün.
+- RLS-Review-Befund im Chat vorhanden.
+
+### Ausdrücklich NICHT in dieser Stufe
+
+- Keine neue Tabelle `staff_personal_data`.
+- Kein Rollen-Entzug für payroll.
+- Kein DENY-ALL-Umbau, keine Policy-Änderung an `staff_personal_details` (außer als separat gemeldeter Punkt, falls das Review ein echtes Loch findet).
+- Kein Backfill/Löschen von `address`.
+- Keine Änderung an CSV-Import, Dokumenten-Generierung, Sofortmeldung, Lohn.
