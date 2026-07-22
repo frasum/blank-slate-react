@@ -44,10 +44,7 @@ describe.skipIf(!dbTestsEnabled)("payroll_recurring_notes RLS (RN1-T)", () => {
   });
 
   afterAll(async () => {
-    await org.service
-      .from("payroll_recurring_notes")
-      .delete()
-      .eq("organization_id", org.orgId);
+    await org.service.from("payroll_recurring_notes").delete().eq("organization_id", org.orgId);
     await org.cleanup();
   });
 
