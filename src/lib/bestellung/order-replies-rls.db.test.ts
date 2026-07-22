@@ -10,6 +10,25 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { dbTestsEnabled, seedOrg, signInAsUser, type SeededOrg } from "@/test/db-setup";
 
+// SL2-R (§103): Retry-Hülle für Service-Seed-Inserts. Vorbild ist
+// `withDbInsertRetry` in `src/test/db-setup.ts` — der lokale
+// Supabase-Stack liefert beim Kaltstart sporadisch „invalid response
+// was received from the upstream server". Nur beforeAll-Setup ist
+// gewrappt, Assertions bleiben unverändert.
+const UPSTREAM_BOOT_ERROR = "invalid response was received from the upstream server";
+async function retry<TResult extends { error: { message: string } | null }>(
+  label: string,
+  operation: () => PromiseLike<TResult>,
+): Promise<TResult> {
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const result = await operation();
+    const msg = result.error?.message.toLowerCase() ?? "";
+    if (!msg.includes(UPSTREAM_BOOT_ERROR) || attempt === 3) return result;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  throw new Error(`${label} retry loop exhausted unexpectedly`);
+}
+
 describe.skipIf(!dbTestsEnabled)("order-replies RLS (SEC-02)", () => {
   let org: SeededOrg;
   let staffEmail: string;
@@ -28,30 +47,34 @@ describe.skipIf(!dbTestsEnabled)("order-replies RLS (SEC-02)", () => {
     managerEmail = manager.email;
     managerPassword = manager.password;
 
-    const { data: reply, error: replyErr } = await org.service
-      .from("order_replies")
-      .insert({
-        organization_id: org.orgId,
-        from_email: "sec02@example.com",
-        message_id: `sec02-${Date.now()}@mail`,
-      })
-      .select("id")
-      .single();
+    const { data: reply, error: replyErr } = await retry("reply seed", () =>
+      org.service
+        .from("order_replies")
+        .insert({
+          organization_id: org.orgId,
+          from_email: "sec02@example.com",
+          message_id: `sec02-${Date.now()}@mail`,
+        })
+        .select("id")
+        .single(),
+    );
     if (replyErr || !reply) throw new Error(`reply insert failed: ${replyErr?.message}`);
     replyId = reply.id as string;
 
-    const { data: att, error: attErr } = await org.service
-      .from("order_reply_attachments")
-      .insert({
-        organization_id: org.orgId,
-        reply_id: replyId,
-        file_name: "brief.pdf",
-        content_type: "application/pdf",
-        size_bytes: 1024,
-        storage_path: `sec02/${replyId}/brief.pdf`,
-      })
-      .select("id")
-      .single();
+    const { data: att, error: attErr } = await retry("attachment seed", () =>
+      org.service
+        .from("order_reply_attachments")
+        .insert({
+          organization_id: org.orgId,
+          reply_id: replyId,
+          file_name: "brief.pdf",
+          content_type: "application/pdf",
+          size_bytes: 1024,
+          storage_path: `sec02/${replyId}/brief.pdf`,
+        })
+        .select("id")
+        .single(),
+    );
     if (attErr || !att) throw new Error(`attachment insert failed: ${attErr?.message}`);
     attachmentId = att.id as string;
   });
