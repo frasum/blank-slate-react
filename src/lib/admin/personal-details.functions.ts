@@ -25,6 +25,9 @@ const EMPTY: PersonalDetailsFields = {
   phone: null,
   email: null,
   address: null,
+  street: null,
+  postal_code: null,
+  city: null,
   date_of_birth: null,
   place_of_birth: null,
   nationality: null,
@@ -61,7 +64,7 @@ export const getStaffPersonalDetails = createServerFn({ method: "GET" })
       await supabaseAdmin
         .from("staff_personal_details")
         .select(
-          "salutation, phone, email, address, date_of_birth, place_of_birth, nationality, tax_class, tax_id, social_security_number, is_minijob, is_sv_exempt, health_insurance, church_tax_liable, child_tax_allowances, iban, bank_name, account_holder, employment_start_date, employment_end_date, personnel_group, job_title, vacation_days_contractual, vacation_days_previous_year, vacation_days_current_year, vacation_days_taken",
+          "salutation, phone, email, address, street, postal_code, city, date_of_birth, place_of_birth, nationality, tax_class, tax_id, social_security_number, is_minijob, is_sv_exempt, health_insurance, church_tax_liable, child_tax_allowances, iban, bank_name, account_holder, employment_start_date, employment_end_date, personnel_group, job_title, vacation_days_contractual, vacation_days_previous_year, vacation_days_current_year, vacation_days_taken",
         )
         .eq("staff_id", data.staffId)
         .eq("organization_id", caller.organizationId)

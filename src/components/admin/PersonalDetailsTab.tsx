@@ -229,7 +229,9 @@ export function PersonalDetailsTab({ staffId, canEdit, canEditVacation }: Props)
             { key: "nationality", label: "Nationalität", type: "text" },
             { key: "phone", label: "Telefon", type: "text" },
             { key: "email", label: "E-Mail", type: "email" },
-            { key: "address", label: "Adresse", type: "textarea" },
+            { key: "street", label: "Straße", type: "text" },
+            { key: "postal_code", label: "PLZ", type: "text" },
+            { key: "city", label: "Ort", type: "text" },
           ],
         },
         {
@@ -416,6 +418,14 @@ export function PersonalDetailsTab({ staffId, canEdit, canEditVacation }: Props)
                 currentYear={form.vacation_days_current_year}
                 previousYear={form.vacation_days_previous_year}
                 taken={form.vacation_days_taken}
+              />
+            )}
+            {sec.title === "Person & Kontakt" && form && (
+              <LegacyAddressPuffer
+                address={form.address}
+                street={form.street}
+                postalCode={form.postal_code}
+                city={form.city}
               />
             )}
           </div>
@@ -727,6 +737,39 @@ function RestUrlaubRow({
           {fmt(base)} + {fmt(p ?? 0)} − {fmt(t)}
         </span>
       </div>
+    </div>
+  );
+}
+
+// AV1a Stufe 1 — Freitext-Adresse wird nur noch angezeigt, solange sie
+// befüllt ist UND die drei neuen Felder (street/postal_code/city) leer
+// sind. Nicht editierbar; Feld bleibt DB-seitig als Migrationspuffer
+// bestehen. Sobald ein neues Feld gepflegt wurde, verschwindet die
+// Alt-Zeile aus der Anzeige.
+function LegacyAddressPuffer({
+  address,
+  street,
+  postalCode,
+  city,
+}: {
+  address: string | boolean | null;
+  street: string | boolean | null;
+  postalCode: string | boolean | null;
+  city: string | boolean | null;
+}) {
+  const asText = (v: string | boolean | null): string => (typeof v === "string" ? v.trim() : "");
+  const addr = asText(address);
+  const anyNew = [street, postalCode, city].some((v) => asText(v) !== "");
+  if (addr === "" || anyNew) return null;
+  return (
+    <div className="mt-1 space-y-0.5 border-t border-dashed border-border/60 pt-2 opacity-70">
+      <div className="flex items-baseline justify-between gap-3 text-sm">
+        <span className="text-muted-foreground">Adresse (alt)</span>
+        <span className="whitespace-pre-line text-right text-foreground">{addr}</span>
+      </div>
+      <p className="text-xs italic text-muted-foreground">
+        Migrationspuffer — bitte in Straße/PLZ/Ort übernehmen.
+      </p>
     </div>
   );
 }
