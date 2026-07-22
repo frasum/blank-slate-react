@@ -1,53 +1,65 @@
-## Ziel
+## TB-4 — Vierer-Testblock (freigegeben, unverändert)
 
-Im Reiter „Konto" der Personalakte einen zweiten Button „Einladung per E-Mail senden" anbieten. Der Mitarbeiter bekommt eine E-Mail mit einem einmaligen Link, klickt, landet auf `/reset-password` und vergibt sein eigenes Passwort — kein Standardpasswort läuft mehr durch die UI oder mündlich zwischen Admin und Mitarbeiter. Der bestehende Standardpasswort-Weg bleibt unverändert als Fallback für Mitarbeiter ohne echte E-Mail (Pseudo-Adressen).
+Reine Test-Arbeit, null Produktivlogik. Diff nur `*.test.ts` (+ `skipIf` in bestehender Datei).
 
-## Umsetzung
+**Zur SL2-R-Rückfrage:** ok, nur die zwei genannten Suiten umbauen. Beim Sichten fiel `src/lib/bestellung/order-replies-rls.db.test.ts` (SEC-02) mit ebenfalls ungeschütztem `beforeAll`-Seed auf — **wird gemeldet, NICHT still miterweitert**.
 
-### 1) Neue Server-Function `inviteStaffByEmail`
+### 1) RN1-T (§107)
 
-Datei: `src/lib/admin/account.functions.ts` (bestehende Datei erweitern, gleiches Muster wie `createStaffAccount`).
+Neue Datei `src/lib/time/payroll-recurring-notes-rls.db.test.ts` nach Muster `order-replies-rls.db.test.ts`.
 
-- `admin`-only via `runGuarded`, Zod `{ staffId, email }`, Cross-Org-Check.
-- Fehlerfrüh, wenn `user_links` schon existiert („Dieser Mitarbeiter hat bereits ein Konto.").
-- `supabaseAdmin.auth.admin.generateLink({ type: 'invite', email, options: { redirectTo: \`${origin}/reset-password\`, data: { staff_id } } })` — legt den Auth-User an und liefert `action_link`. `origin` wird aus `getRequestHost()` + Protokoll gebaut (Fallback auf `SUPABASE_URL`-Host-Ableitung nicht nötig, weil die Fn nur aus Admin-UI aufgerufen wird).
-- `link_account_to_staff`-RPC wie bei `createStaffAccount`; bei Fehler Kompensation `auth.admin.deleteUser`.
-- `must_change_password`-Flag: RPC setzt es bereits auf `true`; Invite-Flow überschreibt es durch das eigene Passwort — passt.
-- E-Mail-Versand: direkter HTTPS-POST an MailerSend (`https://api.mailersend.com/v1/email`) mit `MAILERSEND_API_KEY`, `MAILERSEND_FROM_EMAIL`, `MAILERSEND_FROM_NAME`. Kein neuer Secret, keine neue Infrastruktur. Kleines COCO-Branding im HTML (Text + Button-Link), Klartext-Fallback. Bei MailerSend-Fehler: Auth-User + `user_links` wieder entfernen (Saga), damit „Einladen" neu versucht werden kann.
-- Audit: `staff.account_invited`, `meta: { email }`. Der `action_link` wird **nicht** ins Audit oder in Logs geschrieben (nur an MailerSend).
-- Rückgabe an die UI: `{ email }` — kein Link, kein Passwort im Response.
+Seed via `org.service` (bypasst RLS): eine Zeile `payroll_recurring_notes` mit `organization_id`, `staff_id`, `kind: "note"`, `first_period_start: "2026-07-01"`, `text: "seed"`.
 
-### 2) UI im Konto-Reiter
+Assertions (Manager-Client aus `signInAsUser`):
+- **(a) DIREKT-INSERT** wird abgelehnt: `.insert({ organization_id, staff_id, kind, first_period_start, text })` → `error !== null`; Service-Recount zeigt keine neue Zeile.
+- **(b) DIREKT-UPDATE** wird abgelehnt: `.update({ text: "x" }).eq("id", seededId)` → `error !== null` oder betroffene Zeilen = 0; Service-Recheck zeigt `text` unverändert.
 
-Datei: `src/routes/_authenticated/admin/staff.$staffId.tsx`, Komponente `AccountTab`.
+Positiv-Gegenprobe über Server-Fn wird **weggelassen** (Auth-Middleware-Aufbau außerhalb des Musters) — im Commit-Body erwähnt.
 
-- Im `!hasAccount`-Formular neben dem bestehenden Submit-Button einen zweiten Button „Einladung per E-Mail senden" — beide teilen sich dasselbe E-Mail-Feld.
-- Bei Erfolg: Info-Box „Einladung an <email> versendet. Der Mitarbeiter setzt sein Passwort über den Link in der E-Mail." (grün gehaltene Neutralfarbe, kein Passwort-Block).
-- Fehler wie gehabt in `err`-State.
-- Wenn `hasAccount` bereits `true` ist: kein Invite-Button (dann gilt „Passwort zurücksetzen").
+Cleanup: `service.from("payroll_recurring_notes").delete().eq("organization_id", org.orgId)` vor `org.cleanup()`.
 
-### 3) Reset-Password-Route
+### 2) SL2-R (§103)
 
-`src/routes/reset-password.tsx` existiert und akzeptiert `type=recovery` bzw. den Invite-Hash — Supabase mappt den Invite-Link auf denselben `verifyOtp`-Fluss. Kein Umbau nötig, nur kurz gegenprüfen und ggf. Text ergänzen („Passwort für dein neues COCO-Konto festlegen"), falls URL-Parameter Invite von Recovery unterscheidet.
+Nur `src/lib/bestellung/order-replies.db.test.ts` und `src/lib/bestellung/order-replies-per-location.db.test.ts`.
 
-### 4) Tests (minimal, gemäß Custom-Instructions)
+Umsetzung: file-lokaler `retry(label, op)` (bis zu 3 Versuche, 500 ms Pause, erkennt `invalid response was received from the upstream server` analog `withDbInsertRetry` in `src/test/db-setup.ts`). Alle Service-Client-Seed-`.insert(...).select().single()`-Aufrufe in `beforeAll` und in den Test-Bodies (Reply-Inserts, Order-Inserts, Supplier-Inserts) werden in `retry(...)` gewrappt. Keine Assertion-Änderungen, keine `it`-Umschichtungen, kein neuer Export.
 
-- Zod-Unit: `inviteStaffByEmail`-Input (E-Mail-Format, staffId UUID).
-- Kein DB-Integrationstest — die Fn ist reine Orchestrierung bereits getesteter Bausteine (`generateLink`, `link_account_to_staff`-RPC, MailerSend-Aufruf). Bei Bedarf zusätzlicher Test später.
+### 3) CP1 (§106)
 
-### 5) Prüfungen vor Commit
+Nur `src/lib/bank/bank-csv-parser.test.ts`, `describe("decodeCp1252")`-Block:
 
-`prettier --write`, `eslint --fix`, `tsgo --noEmit`, `eslint . --max-warnings=0`, `vitest run`, `prettier --check .` — alle grün, danach commit.
+```ts
+const hasCp1252 = (() => {
+  try { new TextDecoder("windows-1252"); return true; } catch { return false; }
+})();
+// Lovable-Sandbox kennt kein 'windows-1252'-Label — dort sichtbar „skipped",
+// CI/Prüfer laufen den Test voll.
+it.skipIf(!hasCp1252)("dekodiert Umlaute korrekt (nicht als U+FFFD)", () => { … });
+```
 
-## Abgrenzung
+### 4) PY2-T (§105)
 
-- Keine neue Tabelle, kein RLS-Umbau, keine Änderung am bestehenden Standardpasswort-Weg.
-- Keine neuen Secrets — MailerSend-Setup ist bereits vorhanden.
-- Keine Änderung an `resetStaffPassword` (bestehender „Passwort zurücksetzen"-Button für bereits verknüpfte Konten bleibt).
+Datei existiert (`src/lib/time/buchhaltung-export-columns.test.ts`). Ein zusätzlicher Fall:
 
-## Erfolgs-Gate
+```ts
+it("absenceNote ist niemals eine Spalte (nur Merge in 'besonderheiten')", () => {
+  for (const mode of ["simple", "section3b"] as const) {
+    expect(columns(mode).map((c) => c.key)).not.toContain("absenceNote");
+  }
+});
+```
 
-- Admin klickt „Einladung per E-Mail senden" → Mitarbeiter erhält E-Mail mit Link → Klick öffnet `/reset-password` → eigenes Passwort setzbar → danach Login mit E-Mail+Passwort erfolgreich.
-- Standardpasswort-Weg funktioniert unverändert.
-- Audit-Log enthält `staff.account_invited` mit E-Mail, aber ohne Link.
-- CI grün.
+### Nicht anfassen
+
+Produktivlogik, Migrationen, Policies, UI, Server-Fn, Router, `buchhaltung-export.ts`.
+
+### Vor dem Commit
+
+`npx prettier --write` + `npx eslint --fix` auf die geänderten Dateien. Dann Gates: `npx tsc --noEmit` (0), `npx eslint . --max-warnings=0`, `npx vitest run` (grün; cp1252 „skipped" in Sandbox), `npx prettier --check .`. Jede Abweichung wird VOR dem Commit gemeldet.
+
+### Erfolgs-Gate
+
+- Diff nur in Test-Dateien (+ `skipIf`-Gating).
+- Lovable-Sandbox: cp1252 „skipped", Rest grün.
+- CI `check` + `db-integration` grün.
+- Vier §-Merkposten streichbar; separate Meldung zu `order-replies-rls.db.test.ts`-Seeds im Commit-/Chat-Report.
