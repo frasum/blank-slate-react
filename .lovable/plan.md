@@ -1,75 +1,53 @@
-## AV1a Stufe 1 — Adress-Aufspaltung auf `staff_personal_details` (revidiert)
+## Ziel
 
-Kein neuer Tabellen-/Rollen-/RLS-Umbau. Einzige Struktur-Änderung: drei neue Spalten für die Adresse. Bestehende Redaktions-, Audit- und Guard-Muster bleiben unangetastet.
+Im Reiter „Konto" der Personalakte einen zweiten Button „Einladung per E-Mail senden" anbieten. Der Mitarbeiter bekommt eine E-Mail mit einem einmaligen Link, klickt, landet auf `/reset-password` und vergibt sein eigenes Passwort — kein Standardpasswort läuft mehr durch die UI oder mündlich zwischen Admin und Mitarbeiter. Der bestehende Standardpasswort-Weg bleibt unverändert als Fallback für Mitarbeiter ohne echte E-Mail (Pseudo-Adressen).
 
-### Vorab-Aufgabe: RLS-Review (nur Report, keine Änderung)
+## Umsetzung
 
-Vor Umsetzung: bestehende Policies von `public.staff_personal_details` per `supabase--read_query` gegen `pg_policies` inspizieren. Geprüft wird:
-- Ist jede Policy auf `organization_id` gescoped (kein Cross-Org-Leck)?
-- Greifen die Rollen-Gates (payroll/admin über `has_permission("payroll.personal.view/edit")`)?
-- Keine `USING (true)`- oder `WITH CHECK (true)`-Reste?
+### 1) Neue Server-Function `inviteStaffByEmail`
 
-Ergebnis wird im Chat gemeldet, BEVOR der Bau-Commit rausgeht. Nur wenn ein echtes Loch auftaucht, wird das als **eigener, gemeldeter Punkt** aufgemacht — nicht still mit-migriert.
+Datei: `src/lib/admin/account.functions.ts` (bestehende Datei erweitern, gleiches Muster wie `createStaffAccount`).
 
-### Migration (`supabase--migration`)
+- `admin`-only via `runGuarded`, Zod `{ staffId, email }`, Cross-Org-Check.
+- Fehlerfrüh, wenn `user_links` schon existiert („Dieser Mitarbeiter hat bereits ein Konto.").
+- `supabaseAdmin.auth.admin.generateLink({ type: 'invite', email, options: { redirectTo: \`${origin}/reset-password\`, data: { staff_id } } })` — legt den Auth-User an und liefert `action_link`. `origin` wird aus `getRequestHost()` + Protokoll gebaut (Fallback auf `SUPABASE_URL`-Host-Ableitung nicht nötig, weil die Fn nur aus Admin-UI aufgerufen wird).
+- `link_account_to_staff`-RPC wie bei `createStaffAccount`; bei Fehler Kompensation `auth.admin.deleteUser`.
+- `must_change_password`-Flag: RPC setzt es bereits auf `true`; Invite-Flow überschreibt es durch das eigene Passwort — passt.
+- E-Mail-Versand: direkter HTTPS-POST an MailerSend (`https://api.mailersend.com/v1/email`) mit `MAILERSEND_API_KEY`, `MAILERSEND_FROM_EMAIL`, `MAILERSEND_FROM_NAME`. Kein neuer Secret, keine neue Infrastruktur. Kleines COCO-Branding im HTML (Text + Button-Link), Klartext-Fallback. Bei MailerSend-Fehler: Auth-User + `user_links` wieder entfernen (Saga), damit „Einladen" neu versucht werden kann.
+- Audit: `staff.account_invited`, `meta: { email }`. Der `action_link` wird **nicht** ins Audit oder in Logs geschrieben (nur an MailerSend).
+- Rückgabe an die UI: `{ email }` — kein Link, kein Passwort im Response.
 
-Eine Datei, drei Spalten:
+### 2) UI im Konto-Reiter
 
-```sql
-ALTER TABLE public.staff_personal_details
-  ADD COLUMN street text NULL,
-  ADD COLUMN postal_code text NULL,
-  ADD COLUMN city text NULL;
-```
+Datei: `src/routes/_authenticated/admin/staff.$staffId.tsx`, Komponente `AccountTab`.
 
-- Kein `DROP`/`RENAME` auf `address`.
-- Kein Backfill, kein Constraint.
-- Keine Policy-Änderungen (RLS bleibt).
-- Keine `permission_role_defaults`-Änderungen (payroll behält view+edit).
-- Migrations-Kommentar: „AV1a Stufe 1 — Adresse strukturiert (street/postal_code/city). Freitext `address` bleibt als Migrationspuffer; RLS und Rollen (admin+payroll r/w) unverändert."
+- Im `!hasAccount`-Formular neben dem bestehenden Submit-Button einen zweiten Button „Einladung per E-Mail senden" — beide teilen sich dasselbe E-Mail-Feld.
+- Bei Erfolg: Info-Box „Einladung an <email> versendet. Der Mitarbeiter setzt sein Passwort über den Link in der E-Mail." (grün gehaltene Neutralfarbe, kein Passwort-Block).
+- Fehler wie gehabt in `err`-State.
+- Wenn `hasAccount` bereits `true` ist: kein Invite-Button (dann gilt „Passwort zurücksetzen").
 
-### Server (`src/lib/admin/personal-details.schema.ts` + `.functions.ts`)
+### 3) Reset-Password-Route
 
-- Zod-Schema erweitern:
-  - `street`: `nullableText(120)`.
-  - `postal_code`: leer→null nach trim, danach `.regex(/^\d{4,5}$/, "PLZ muss 4–5 Ziffern sein")`.
-  - `city`: `nullableText(120)`.
-- `redactForAudit`: keine Aufnahme in `SENSITIVE_FIELDS` — die drei Felder werden als `{ changed: true }` diffbar, konsistent mit dem bestehenden Adress-Feld.
-- `getStaffPersonalDetails`: SELECT-Liste, `EMPTY`-Defaults und `PersonalDetailsFields`/`PersonalDetailsDto` um die drei Spalten erweitern. Rollen/Guards unverändert (admin+payroll).
-- `upsertStaffPersonalDetails`: unverändert im Rollen-Gate — Schema-Erweiterung reicht, Upsert schreibt die neuen Spalten mit.
+`src/routes/reset-password.tsx` existiert und akzeptiert `type=recovery` bzw. den Invite-Hash — Supabase mappt den Invite-Link auf denselben `verifyOtp`-Fluss. Kein Umbau nötig, nur kurz gegenprüfen und ggf. Text ergänzen („Passwort für dein neues COCO-Konto festlegen"), falls URL-Parameter Invite von Recovery unterscheidet.
 
-### UI (`src/components/admin/PersonalDetailsTab.tsx`)
+### 4) Tests (minimal, gemäß Custom-Instructions)
 
-- Adress-Zeile ersetzen: drei Eingabefelder `Straße`, `PLZ`, `Ort` (die letzten beiden in einer Zeile), Bearbeiten für admin+payroll wie bisher.
-- Freitext-`address` bleibt sichtbar, aber:
-  - Wird nur noch gerendert, **solange `address` befüllt UND alle drei neuen Felder leer sind**.
-  - Als **read-only/ausgegraut** mit Hinweis „Alt-Adresse (Migrationspuffer) — bitte in Straße/PLZ/Ort übernehmen".
-  - Sobald mindestens eines der drei neuen Felder gefüllt und gespeichert ist, verschwindet die Alt-Zeile aus der Anzeige (Feld bleibt DB-seitig erhalten).
-- Keine Änderung an `src/routes/_authenticated/profil.tsx` (Self-Service-Adresse bleibt Bestand — konsistent mit Migrationspuffer-Regel).
+- Zod-Unit: `inviteStaffByEmail`-Input (E-Mail-Format, staffId UUID).
+- Kein DB-Integrationstest — die Fn ist reine Orchestrierung bereits getesteter Bausteine (`generateLink`, `link_account_to_staff`-RPC, MailerSend-Aufruf). Bei Bedarf zusätzlicher Test später.
 
-### Tests
+### 5) Prüfungen vor Commit
 
-1. **Zod-Unit** (`personal-details.schema.test.ts`):
-   - PLZ: `"12345"` ok, `"1234"` ok, `"123"` wirft, `"abc"` wirft, `""` und `" "` → null, Leerzeichen-Trim.
-   - `street`, `city`: Trim, leer→null, max-Länge.
-2. **Bestands-Regressionstest** (neuer Case in derselben Datei): ein `personalDetailsSchema.parse({...})` mit einem repräsentativen Auszug aller heute vorhandenen 44+ Felder (aus `EMPTY` in `personal-details.functions.ts` abgeleitet) muss ohne Datenverlust durchlaufen — Snapshot-Vergleich der Ausgabe-Keys stellt sicher, dass keine Bestandsspalte durch die Erweiterung verloren geht.
-3. Kein neuer DB-Integrationstest (keine RLS-/Rollen-Änderung → kein DENY-Beweis in dieser Stufe).
+`prettier --write`, `eslint --fix`, `tsgo --noEmit`, `eslint . --max-warnings=0`, `vitest run`, `prettier --check .` — alle grün, danach commit.
 
-### Vor dem Commit
+## Abgrenzung
 
-`npx prettier --write` + `npx eslint --fix` über geänderte Dateien. Danach müssen `npx tsc --noEmit` (0), `npx eslint . --max-warnings=0`, `npx vitest run` (grün) und `npx prettier --check .` durchlaufen. Der RLS-Review-Befund wird im Chat gemeldet, BEVOR committet wird.
+- Keine neue Tabelle, kein RLS-Umbau, keine Änderung am bestehenden Standardpasswort-Weg.
+- Keine neuen Secrets — MailerSend-Setup ist bereits vorhanden.
+- Keine Änderung an `resetStaffPassword` (bestehender „Passwort zurücksetzen"-Button für bereits verknüpfte Konten bleibt).
 
-### Erfolgs-Gate
+## Erfolgs-Gate
 
-- Drei neue Spalten migriert, RLS/Rollen unverändert.
-- Admin+payroll können Straße/PLZ/Ort pflegen; Alt-`address` bleibt lesbar/ausgegraut bis überführt.
-- Zod- und Bestands-Regressionstests grün; CI `check` grün.
-- RLS-Review-Befund im Chat vorhanden.
-
-### Ausdrücklich NICHT in dieser Stufe
-
-- Keine neue Tabelle `staff_personal_data`.
-- Kein Rollen-Entzug für payroll.
-- Kein DENY-ALL-Umbau, keine Policy-Änderung an `staff_personal_details` (außer als separat gemeldeter Punkt, falls das Review ein echtes Loch findet).
-- Kein Backfill/Löschen von `address`.
-- Keine Änderung an CSV-Import, Dokumenten-Generierung, Sofortmeldung, Lohn.
+- Admin klickt „Einladung per E-Mail senden" → Mitarbeiter erhält E-Mail mit Link → Klick öffnet `/reset-password` → eigenes Passwort setzbar → danach Login mit E-Mail+Passwort erfolgreich.
+- Standardpasswort-Weg funktioniert unverändert.
+- Audit-Log enthält `staff.account_invited` mit E-Mail, aber ohne Link.
+- CI grün.
