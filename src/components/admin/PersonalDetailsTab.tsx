@@ -229,7 +229,9 @@ export function PersonalDetailsTab({ staffId, canEdit, canEditVacation }: Props)
             { key: "nationality", label: "Nationalität", type: "text" },
             { key: "phone", label: "Telefon", type: "text" },
             { key: "email", label: "E-Mail", type: "email" },
-            { key: "address", label: "Adresse", type: "textarea" },
+            { key: "street", label: "Straße", type: "text" },
+            { key: "postal_code", label: "PLZ", type: "text" },
+            { key: "city", label: "Ort", type: "text" },
           ],
         },
         {
