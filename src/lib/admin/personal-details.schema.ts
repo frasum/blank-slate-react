@@ -20,6 +20,22 @@ const nullableText = (max: number) =>
     })
     .pipe(z.string().max(max).nullable());
 
+/** PLZ: leer → null, sonst 4–5 Ziffern (tolerant nach trim). */
+const postalCodeField = z
+  .union([z.string(), z.null()])
+  .optional()
+  .transform((v) => {
+    if (v === undefined || v === null) return null;
+    const t = v.trim();
+    return t.length === 0 ? null : t;
+  })
+  .pipe(
+    z
+      .string()
+      .regex(/^\d{4,5}$/, "PLZ muss 4–5 Ziffern sein")
+      .nullable(),
+  );
+
 const nullableDate = z
   .union([z.string(), z.null()])
   .optional()
@@ -69,6 +85,9 @@ export const personalDetailsSchema = z.object({
   phone: nullableText(40),
   email: nullableText(120),
   address: nullableText(500),
+  street: nullableText(120),
+  postal_code: postalCodeField,
+  city: nullableText(120),
   date_of_birth: nullableDate,
   place_of_birth: nullableText(120),
   nationality: nullableText(60),
