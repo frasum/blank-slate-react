@@ -27,6 +27,66 @@ describe("personalDetailsSchema", () => {
     expect(() => personalDetailsSchema.parse({ vacation_days_taken: -1 })).toThrow();
     expect(() => personalDetailsSchema.parse({ vacation_days_taken: 400 })).toThrow();
   });
+
+  // AV1a Stufe 1 — Adress-Aufspaltung.
+  it("PLZ akzeptiert 4 und 5 Ziffern, lehnt 3 und Buchstaben ab, leer → null", () => {
+    expect(personalDetailsSchema.parse({ postal_code: "12345" }).postal_code).toBe("12345");
+    expect(personalDetailsSchema.parse({ postal_code: "1234" }).postal_code).toBe("1234");
+    expect(personalDetailsSchema.parse({ postal_code: "  67890  " }).postal_code).toBe("67890");
+    expect(personalDetailsSchema.parse({ postal_code: "" }).postal_code).toBeNull();
+    expect(personalDetailsSchema.parse({ postal_code: "   " }).postal_code).toBeNull();
+    expect(() => personalDetailsSchema.parse({ postal_code: "123" })).toThrow();
+    expect(() => personalDetailsSchema.parse({ postal_code: "abcde" })).toThrow();
+  });
+
+  it("Straße/Ort: trim, leer → null, max-Länge", () => {
+    const r = personalDetailsSchema.parse({ street: "  Beispielweg 1  ", city: "" });
+    expect(r.street).toBe("Beispielweg 1");
+    expect(r.city).toBeNull();
+    expect(() => personalDetailsSchema.parse({ city: "x".repeat(121) })).toThrow();
+  });
+
+  it("Bestands-Regression: alle heute vorhandenen Felder passieren das Schema", () => {
+    const full = {
+      salutation: "Herr",
+      phone: "0151 1234567",
+      email: "test@example.com",
+      address: "Alte Adresse 3",
+      street: "Neue Straße 1",
+      postal_code: "12345",
+      city: "Berlin",
+      date_of_birth: "1990-05-01",
+      place_of_birth: "Berlin",
+      nationality: "DE",
+      tax_class: "I",
+      tax_id: "12345678901",
+      social_security_number: "12345678A001",
+      is_minijob: false,
+      is_sv_exempt: null,
+      health_insurance: "TK",
+      church_tax_liable: false,
+      child_tax_allowances: 0,
+      iban: "DE89370400440532013000",
+      bank_name: "Musterbank",
+      account_holder: "Max Mustermann",
+      employment_start_date: "2024-01-01",
+      employment_end_date: null,
+      personnel_group: "Küche",
+      job_title: "Koch",
+      vacation_days_contractual: 28,
+      vacation_days_previous_year: 2,
+      vacation_days_current_year: 28,
+      vacation_days_taken: 5,
+    } as const;
+    const parsed = personalDetailsSchema.parse(full);
+    // Alle Eingabe-Keys müssen im Output erhalten sein.
+    for (const k of Object.keys(full)) {
+      expect(Object.prototype.hasOwnProperty.call(parsed, k)).toBe(true);
+    }
+    expect(parsed.street).toBe("Neue Straße 1");
+    expect(parsed.postal_code).toBe("12345");
+    expect(parsed.city).toBe("Berlin");
+  });
 });
 
 describe("redactForAudit", () => {
