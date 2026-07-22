@@ -757,8 +757,7 @@ function LegacyAddressPuffer({
   postalCode: string | boolean | null;
   city: string | boolean | null;
 }) {
-  const asText = (v: string | boolean | null): string =>
-    typeof v === "string" ? v.trim() : "";
+  const asText = (v: string | boolean | null): string => (typeof v === "string" ? v.trim() : "");
   const addr = asText(address);
   const anyNew = [street, postalCode, city].some((v) => asText(v) !== "");
   if (addr === "" || anyNew) return null;
