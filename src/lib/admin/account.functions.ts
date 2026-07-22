@@ -280,11 +280,11 @@ export const inviteStaffByEmail = createServerFn({ method: "POST" })
       } catch (mailErr) {
         // Saga-Kompensation: user_links + Auth-User zurückrollen, damit der
         // Admin den Versand erneut versuchen kann.
-        await supabaseAdmin
-          .from("user_links")
-          .delete()
-          .eq("user_id", authUserId)
-          .catch(() => {});
+        try {
+          await supabaseAdmin.from("user_links").delete().eq("user_id", authUserId);
+        } catch {
+          /* best-effort */
+        }
         await supabaseAdmin.auth.admin.deleteUser(authUserId).catch(() => {});
         throw mailErr;
       }
