@@ -1,6 +1,6 @@
 # Arbeitsweise & Stammdaten-Referenz — COCO
 
-Stand: 21.07.2026 (§107: TG-Rest-Endstand + UZ1 + Recurring Notes + RS1 + Druck-/Display-Welle — T0−5)
+Stand: 22.07.2026 (§108: Generalprobe bestanden + AV1a + Account-Einladungen — T0−4)
 
 Schlankes Betriebshandbuch für die laufende Entwicklung. Wird bei jedem neuen Baublock konsultiert. Bewusst kurz gehalten — Architektur-Begründungen stehen im gruendungsdokument.md, nicht hier.
 
@@ -4451,3 +4451,21 @@ Abnahme-Anker: HEAD `2599b384` — vier Gates grün (tsc 0 · eslint 0 · pretti
 **Geparkt für nach T0 (Prompts fertig):** KM1 (menu_label + Seed beim Prüfer) · TB1 (Telefonbuch, Grilling-Entscheidungen dokumentiert: alle Rollen lesend, eigene Route + Aufgaben-Tab, org-weit 5 Felder, Notdienst-Nummer, tel:-Links) · 034/035-Hausfassungen (Prüfer schreibt) · „Stk/BE"-Spalten-Aufräumen · Mapping-Assistent · Fleiß-Session EK-Verknüpfungen.
 
 **Offene Merkposten (Sammelstand):** RN1-T + SL2-R + CP1 (Dreier-Testblock an Lovable) · AK2 senden · H1b-Feuertaufe · Frank-Klicktests: N14b (18.07. beidseitig 44,73 / 17.07. Basis 6.417,70), RS1 (Tausch→Pool), DL1 (Papier!), DP2 (übernächstes Deploy), SEC-02, BL1, TA-Arbeitszeiten (Admin+Manager), TA-Modell-Port · Vectron-Preisnachzug Spicery · Getränke-Checkliste · AP1-Zweck benennen.
+
+## §108 — Generalprobe bestanden, AV1a, Account-Einladungen, Display-Nacharbeit (22.07.)
+
+Abnahme-Anker: HEAD `9da28550` — vier Gates grün (tsc 0 · eslint 0 · prettier clean · vitest 1874/1874).
+
+**GENERALPROBE 22.07. — BESTANDEN.** Arbeitszeiten-Abgleich 20.–21.07., alle Standorte, DB gegen DB (COCO `time_entries` vs. TA `zt_shifts`): 43 Personen-Tage → Endstand **34 zeichengenau identisch**, 5× akzeptiertes Minuten-Rauschen (Pool-Mechanik vs. Handeintrag, ±10–30 min), 4 bewusst akzeptierte Abweichungen (Frank-Entscheid „passt so": CHEFIN Mo −1 h, JOY Di −3,5 h in TA — Juli-Lohn-Relevanz benannt und akzeptiert —, PETER Mo+Di nur in COCO), **null ungeklärte Fälle**. Gefunden und geschlossen: (1) TA-Erfassungslücke Spicery-Dienstag komplett (7 Personen; per idempotentem SQL-Übertrag nach `zt_shifts` geschlossen — Juli-Lohn-Grundlage), (2) WIT Mo fehlte in COCO (per Zeit-UI nachgetragen), (3) GIG↔PONGSRI Mo: Startzeiten zwischen den Systemen exakt vertauscht (13:00↔15:00) — geklärt und korrigiert. Der Abgleich ist als wiederholbares Rezept etabliert (zwei Fall-1-Queries + Prüfer-Diff) und läuft am T0-Samstag als Abnahme erneut.
+
+**TA-`zt_shifts`-Struktur kartiert (drei Lehr-Fehlversuche, null Schaden):** Schichten hängen an `week_id` (NOT NULL) → `weeks(period_id, week_number, start_date, end_date)`; Wochen existieren MEHRFACH je Datum (perioden-/restaurantsbezogen dupliziert); TA-`staff` hat KEINE Restaurant-Zuordnung. Robuste Auflösung im Übertrags-SQL: `week_id` aus den BESTEHENDEN Kollegen-Zeilen desselben Datums ableiten (Vorprüfung erzwingt genau eine distinct-Woche je Datum, dann `order by week_id limit 1`). Zweifach bestätigte Lektion: **`max()`/`min()` existieren nicht auf UUID** — auch der Prüfer ist hineingelaufen; bei Hand-SQL ist die Vorprüfung das einzige Netz (alle drei Fehlversuche brachen VOR jedem Schreiben kontrolliert ab). Muster-Datei: `ta-zeiten-uebertrag-v4.sql` (Prüfer-Ablage).
+
+**Merkposten PS1 — Personalstamm-Einmal-Import TA→COCO:** TA-`staff` führt vollständige Personalstammdaten (date_of_birth, address_street/zip/city, employment_start, IBAN/BIC, Steuer-ID, SV-Nr., Krankenkasse, Steuerklasse …). Vor/bei Archivierung: Fall-1-Import nach `staff_personal_details` (Match via upper(name)) — erspart AV1-Serie und PKV-Pflege die Tipparbeit. Prüfer baut das SQL auf Zuruf.
+
+**AV1a abgeschlossen (revidierte Fassung):** Grüne-Wiese-Auftrag nach Agenten-STOPP korrigiert — `staff_personal_details` existierte längst (47 Spalten, RLS, payroll-Zugriff als Lohn-Stammdaten-Ausnahme). Umsetzung: nur Adress-Aufspaltung `street`/`postal_code`/`city` (additiv, Freitext-`address` bleibt Migrationspuffer, in der UI nur noch lesend solange befüllt), Rollen/RLS unverändert. RLS-Review-Report des Agenten abgenommen: 1 SELECT-Policy, org-gescoped, kein `USING(true)`, Client-Schreiben implizit DENY, Server via Service-Role — kein Loch. Lehren: (1) Werkzeug-Ausfälle bei der Inventur führen zu falschen Grüne-Wiese-Prämissen — Bestand IMMER verifizieren, bevor „neue Tabelle" beauftragt wird; (2) der Agenten-Stopp war der fünfte vorbildliche der Woche. AV1b/c geparkt (Vorlagen+Generierung, Portal+Canvas-Signatur; Platzhalter-Katalog aus dem echten Vertrag extrahiert inkl. berechneter Befristung; Stundenlohn aus Vergütungs-Schicht; eine Vorlage je Gesellschaft; rechtlich trägt das Papier — Gastro-Schriftform).
+
+**Account-Einladungen (Direktarbeit, sicherheitsgeprüft):** `account.functions.ts` — Konto anlegen, Passwort-Reset, Einladung erneut senden. Alle Writes admin-only (`runGuarded`), Status manager+, Cross-Org-Checks, Rollback bei Anlage-Fehlern, Audit ohne sensible Payload. Kernregel doppelt im Code dokumentiert: **`action_link` (Invite/Recovery) wird NIEMALS ins Audit, in Logs oder in Antworten geschrieben** — Versand ausschließlich per Mail an die Kontoadresse. Zuarbeit für künftiges Onboarding und AV1c.
+
+**Display-Nacharbeit (21.07., Direktarbeit):** Cross-Booking-Punkt zellverankert mit TV-Kontrast (pure Funktion `shouldShowCrossBookingDot`, getestet), zusätzlich auf TRMNL ausgerollt — Punkt jetzt konsistent auf Admin-Grid, TV und e-ink.
+
+**Offene Merkposten (Sammelstand):** RN1-T + SL2-R + CP1 (Dreier-Testblock) · AK2 senden · PS1 (oben) · 034/035-Hausfassungen (Prüfer) · Frank: DL1-Papiertest, DP2-Deploy-Beweis, SEC-02/BL1-Klicktests, Vectron-Preise, Getränke-Checkliste, AP1-Zweck benennen · Post-T0-Schlange: 034 · 035 · KM1 · TB1 · AV1b/c · Stk/BE-Spalte.
