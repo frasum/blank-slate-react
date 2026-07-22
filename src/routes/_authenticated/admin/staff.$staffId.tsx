@@ -440,6 +440,7 @@ function AccountTab({ staffId, staffEmail }: { staffId: string; staffEmail: stri
   const callCreate = useServerFn(createStaffAccount);
   const callReset = useServerFn(resetStaffPassword);
   const callInvite = useServerFn(inviteStaffByEmail);
+  const callResend = useServerFn(resendStaffInvite);
 
   const [email, setEmail] = useState("");
   const [generated, setGenerated] = useState<string | null>(null);
@@ -488,6 +489,18 @@ function AccountTab({ staffId, staffEmail }: { staffId: string; staffEmail: stri
       setMsg(null);
       await queryClient.invalidateQueries({ queryKey: ["admin", "account", staffId] });
       await queryClient.invalidateQueries({ queryKey: ["admin", "staff"] });
+    },
+    onError: (e: unknown) => setErr(e instanceof Error ? e.message : "Fehler."),
+  });
+
+  const resendMut = useMutation({
+    mutationFn: () => callResend({ data: { staffId } }),
+    onSuccess: (res) => {
+      setInviteSent(res.email);
+      setGenerated(null);
+      setGeneratedEmail(null);
+      setErr(null);
+      setMsg(null);
     },
     onError: (e: unknown) => setErr(e instanceof Error ? e.message : "Fehler."),
   });
@@ -565,6 +578,17 @@ function AccountTab({ staffId, staffEmail }: { staffId: string; staffEmail: stri
             className="rounded-md border border-border px-3 py-2 text-sm hover:bg-accent disabled:opacity-50"
           >
             {resetMut.isPending ? "Setze zurück…" : "Passwort zurücksetzen"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setErr(null);
+              resendMut.mutate();
+            }}
+            disabled={resendMut.isPending}
+            className="ml-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
+            {resendMut.isPending ? "Sende…" : "Einladung erneut senden"}
           </button>
         </div>
       ) : (
