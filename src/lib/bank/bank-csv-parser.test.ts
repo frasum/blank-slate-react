@@ -64,14 +64,14 @@ describe("parseCsv", () => {
 });
 
 describe("decodeCp1252", () => {
-  // CP1 (§106): Die Lovable-Sandbox-Runtime kennt kein `windows-1252`-Label
-  // und wirft im TextDecoder-Constructor. CI (Node in GitHub Actions) und
-  // der Prüfer haben den Decoder und laufen den Test voll — die Sandbox
-  // markiert ihn sichtbar als „skipped" statt fälschlich rot.
+  // CP1 (§106): Node akzeptiert das `windows-1252`-Label in der
+  // Lovable-Sandbox zwar im Constructor, mappt aber 0x80 nicht auf €
+  // (kein Full-ICU). CI (GitHub Actions) und der Prüfer haben Full-ICU
+  // und dekodieren korrekt — der Test wird dort voll ausgeführt, in
+  // der Sandbox sichtbar als „skipped" statt falsch-rot.
   const hasCp1252 = (() => {
     try {
-      new TextDecoder("windows-1252");
-      return true;
+      return new TextDecoder("windows-1252").decode(new Uint8Array([0x80])) === "€";
     } catch {
       return false;
     }
