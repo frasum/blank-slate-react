@@ -12,6 +12,26 @@ import { processInboundEmail } from "@/routes/api/public/mailersend/webhook-core
 
 const SECRET = "test-webhook-secret-per-location";
 
+// SL2-R (§103): Retry-Hülle für Service-Seed-Inserts (siehe
+// `withDbInsertRetry` in `src/test/db-setup.ts`). Der lokale
+// Supabase-Stack liefert beim Kaltstart sporadisch „invalid response was
+// received from the upstream server"; ohne Retry werden diese
+// Seed-Aufrufe bei Latenz-Flakes falsch-rot. Nur beforeAll-Setup ist
+// gewrappt — keine Assertion-Änderungen.
+const UPSTREAM_BOOT_ERROR = "invalid response was received from the upstream server";
+async function retry<TResult extends { error: { message: string } | null }>(
+  label: string,
+  operation: () => PromiseLike<TResult>,
+): Promise<TResult> {
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const result = await operation();
+    const msg = result.error?.message.toLowerCase() ?? "";
+    if (!msg.includes(UPSTREAM_BOOT_ERROR) || attempt === 3) return result;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  throw new Error(`${label} retry loop exhausted unexpectedly`);
+}
+
 function makeBody(payload: {
   to?: unknown;
   from?: { email: string; name?: string };
@@ -37,26 +57,34 @@ describe.skipIf(!dbTestsEnabled)("order-replies pro Standort (Order-Nummer → L
     locSpiceId = await org.mkLocation("Spice Ry");
     locYumId = await org.mkLocation("Yum");
 
-    const { data: sup } = await org.service
-      .from("suppliers")
-      .insert({ organization_id: org.orgId, name: "Multi-Loc-Lieferant", email: "ml@example.com" })
-      .select("id")
-      .single();
+    const { data: sup } = await retry("supplier seed", () =>
+      org.service
+        .from("suppliers")
+        .insert({
+          organization_id: org.orgId,
+          name: "Multi-Loc-Lieferant",
+          email: "ml@example.com",
+        })
+        .select("id")
+        .single(),
+    );
     supplierId = sup!.id as string;
 
     const mkOrder = async (locId: string, num: string) => {
-      const { data } = await org.service
-        .from("orders")
-        .insert({
-          organization_id: org.orgId,
-          supplier_id: supplierId,
-          location_id: locId,
-          order_number: num,
-          status: "sent",
-          total_amount_cents: 0,
-        })
-        .select("id")
-        .single();
+      const { data } = await retry("order seed", () =>
+        org.service
+          .from("orders")
+          .insert({
+            organization_id: org.orgId,
+            supplier_id: supplierId,
+            location_id: locId,
+            order_number: num,
+            status: "sent",
+            total_amount_cents: 0,
+          })
+          .select("id")
+          .single(),
+      );
       return data!.id as string;
     };
     orderSpiceId = await mkOrder(locSpiceId, orderNumberSpice);

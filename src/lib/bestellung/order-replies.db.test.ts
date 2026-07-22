@@ -25,6 +25,27 @@ import { assignOrderReplyCore } from "./order-replies.functions";
 
 const SECRET = "test-webhook-secret-please-ignore";
 
+// SL2-R (§103): Retry-Hülle für Service-Seed-Inserts. Vorbild ist
+// `withDbInsertRetry` in `src/test/db-setup.ts` — der lokale Supabase-Stack
+// antwortet beim Kaltstart sporadisch mit „invalid response was received
+// from the upstream server". Ohne Retry werden diese Suites bei
+// Latenz-Flakes falsch-rot. Nur Seed-/Setup-Inserts sind gewrappt; die
+// Assertions selbst (z. B. (e) DENY-ALL-Insert des Managers) bleiben
+// unverändert.
+const UPSTREAM_BOOT_ERROR = "invalid response was received from the upstream server";
+async function retry<TResult extends { error: { message: string } | null }>(
+  label: string,
+  operation: () => PromiseLike<TResult>,
+): Promise<TResult> {
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const result = await operation();
+    const msg = result.error?.message.toLowerCase() ?? "";
+    if (!msg.includes(UPSTREAM_BOOT_ERROR) || attempt === 3) return result;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  throw new Error(`${label} retry loop exhausted unexpectedly`);
+}
+
 type InboundBody = {
   to?: unknown;
   from?: { email: string; name?: string };
@@ -56,29 +77,33 @@ describe.skipIf(!dbTestsEnabled)("order-replies (Webhook-Kern + Assign)", () => 
     managerB = await orgB.mkUser("manager");
 
     const mkSupplier = async (o: SeededOrg) => {
-      const { data } = await o.service
-        .from("suppliers")
-        .insert({ organization_id: o.orgId, name: "Lieferant", email: "l@example.com" })
-        .select("id")
-        .single();
+      const { data } = await retry("supplier seed", () =>
+        o.service
+          .from("suppliers")
+          .insert({ organization_id: o.orgId, name: "Lieferant", email: "l@example.com" })
+          .select("id")
+          .single(),
+      );
       return data!.id as string;
     };
     supplierId = await mkSupplier(org);
     supplierIdB = await mkSupplier(orgB);
 
     const mkOrder = async (o: SeededOrg, supplier: string, num: string) => {
-      const { data } = await o.service
-        .from("orders")
-        .insert({
-          organization_id: o.orgId,
-          supplier_id: supplier,
-          location_id: o.defaultLocationId,
-          order_number: num,
-          status: "sent",
-          total_amount_cents: 0,
-        })
-        .select("id")
-        .single();
+      const { data } = await retry("order seed", () =>
+        o.service
+          .from("orders")
+          .insert({
+            organization_id: o.orgId,
+            supplier_id: supplier,
+            location_id: o.defaultLocationId,
+            order_number: num,
+            status: "sent",
+            total_amount_cents: 0,
+          })
+          .select("id")
+          .single(),
+      );
       return data!.id as string;
     };
     orderNumberA = "ORD-2026-07-9001";
@@ -89,18 +114,20 @@ describe.skipIf(!dbTestsEnabled)("order-replies (Webhook-Kern + Assign)", () => 
 
   it("(a2) präfix-agnostisch — EO-Nummer via Plus-Adresse UND Betreff", async () => {
     const eoNumber = "EO-2026-05-0197";
-    const { data: eoOrder } = await org.service
-      .from("orders")
-      .insert({
-        organization_id: org.orgId,
-        supplier_id: supplierId,
-        location_id: org.defaultLocationId,
-        order_number: eoNumber,
-        status: "sent",
-        total_amount_cents: 0,
-      })
-      .select("id")
-      .single();
+    const { data: eoOrder } = await retry("eo-order seed", () =>
+      org.service
+        .from("orders")
+        .insert({
+          organization_id: org.orgId,
+          supplier_id: supplierId,
+          location_id: org.defaultLocationId,
+          order_number: eoNumber,
+          status: "sent",
+          total_amount_cents: 0,
+        })
+        .select("id")
+        .single(),
+    );
     const eoId = eoOrder!.id as string;
 
     // Plus-Adresse
@@ -333,15 +360,17 @@ describe.skipIf(!dbTestsEnabled)("order-replies (Webhook-Kern + Assign)", () => 
     // Reply in Org A anlegen, Manager aus Org B versucht sie an eine Order
     // aus Org B zu hängen — RLS versteckt die Reply, Guard schlägt an.
     const mid = `mid-f-${Date.now()}@mail`;
-    const { data: reply } = await org.service
-      .from("order_replies")
-      .insert({
-        organization_id: org.orgId,
-        from_email: "crossorg@example.com",
-        message_id: mid,
-      })
-      .select("id")
-      .single();
+    const { data: reply } = await retry("reply seed (f)", () =>
+      org.service
+        .from("order_replies")
+        .insert({
+          organization_id: org.orgId,
+          from_email: "crossorg@example.com",
+          message_id: mid,
+        })
+        .select("id")
+        .single(),
+    );
     const clientB = await signInAsUser(managerB.email, managerB.password);
     await expect(
       assignOrderReplyCore({
@@ -364,15 +393,17 @@ describe.skipIf(!dbTestsEnabled)("order-replies (Webhook-Kern + Assign)", () => 
 
   it("(g) Erfolgreiche Zuordnung schreibt genau einen audit_log-Eintrag", async () => {
     const mid = `mid-g-${Date.now()}@mail`;
-    const { data: reply } = await org.service
-      .from("order_replies")
-      .insert({
-        organization_id: org.orgId,
-        from_email: "assign@example.com",
-        message_id: mid,
-      })
-      .select("id")
-      .single();
+    const { data: reply } = await retry("reply seed (g)", () =>
+      org.service
+        .from("order_replies")
+        .insert({
+          organization_id: org.orgId,
+          from_email: "assign@example.com",
+          message_id: mid,
+        })
+        .select("id")
+        .single(),
+    );
     const clientA = await signInAsUser(manager.email, manager.password);
     const beforeRes = await org.service
       .from("audit_log")

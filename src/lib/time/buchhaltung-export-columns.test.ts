@@ -27,4 +27,12 @@ describe("buchhaltung-export columns(mode)", () => {
       expect(keys.slice(-4)).toEqual(["urlaubDays", "krankDays", "vorschussEUR", "besonderheiten"]);
     }
   });
+
+  // PY2-T (§105): `absenceNote` wird nur in `cellValue` in das
+  // Besonderheiten-Feld eingemischt und ist NIE eine eigene Spalte.
+  it("absenceNote ist niemals eine Spalte (nur Merge in 'besonderheiten')", () => {
+    for (const mode of ["simple", "section3b"] as const) {
+      expect(columns(mode).map((c) => c.key)).not.toContain("absenceNote");
+    }
+  });
 });
