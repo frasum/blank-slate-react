@@ -12,7 +12,6 @@
 //   eigenen Passwort.
 
 import { createServerFn } from "@tanstack/react-start";
-import { getRequestHeader } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadAdminCaller } from "./admin-context";
@@ -20,6 +19,7 @@ import { runGuarded } from "./admin-call";
 import { makeAuditWriter } from "./audit";
 import { generateStandardPassword } from "./password-generator";
 import { expectMaybe, expectVoid } from "@/lib/supabase/expect-ok";
+import { authRedirectUrl } from "@/lib/config";
 
 // =========================================================================
 // Status lesen (admin/manager)
@@ -232,8 +232,7 @@ export const resendStaffInvite = createServerFn({ method: "POST" })
       }
       const email = userRes.user.email;
 
-      const origin = resolveRequestOrigin();
-      const redirectTo = `${origin}/reset-password`;
+      const redirectTo = authRedirectUrl("/reset-password");
 
       const { data: linkRes, error: genErr } = await supabaseAdmin.auth.admin.generateLink({
         type: "recovery",
@@ -309,8 +308,7 @@ export const inviteStaffByEmail = createServerFn({ method: "POST" })
         throw new Error("Dieser Mitarbeiter hat bereits ein Konto.");
       }
 
-      const origin = resolveRequestOrigin();
-      const redirectTo = `${origin}/reset-password`;
+      const redirectTo = authRedirectUrl("/reset-password");
 
       const { data: linkRes, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
         type: "invite",
@@ -364,21 +362,13 @@ export const inviteStaffByEmail = createServerFn({ method: "POST" })
     });
   });
 
-function resolveRequestOrigin(): string {
-  // Bevorzugt der öffentlich sichtbare Host des Requests (custom domain,
-  // Preview-URL, published URL). Fallback auf published URL.
-  const forwardedProto = getRequestHeader("x-forwarded-proto");
-  const forwardedHost = getRequestHeader("x-forwarded-host");
-  const host = forwardedHost ?? getRequestHeader("host") ?? "";
-  const proto = forwardedProto ?? "https";
-  if (host) return `${proto}://${host}`;
-  return "https://cocoplatform.online";
-}
-
 async function sendInviteEmail(toEmail: string, actionLink: string): Promise<void> {
   const apiKey = process.env.MAILERSEND_API_KEY;
   const fromEmail = process.env.MAILERSEND_FROM_EMAIL;
-  const fromName = process.env.MAILERSEND_FROM_NAME ?? "COCO";
+  // Auth-Mails (Invite/Recovery) senden immer unter Anzeigename „COCO" —
+  // bewusst NICHT über MAILERSEND_FROM_NAME, damit Bestell-Mail-Absender
+  // (z. B. „Bestellung COCO") hier nicht durchschlagen. 23.07.2026.
+  const fromName = "COCO";
   if (!apiKey) throw new Error("Mailversand ist nicht konfiguriert (MAILERSEND_API_KEY fehlt).");
   if (!fromEmail) throw new Error("Absenderadresse fehlt (MAILERSEND_FROM_EMAIL).");
 
