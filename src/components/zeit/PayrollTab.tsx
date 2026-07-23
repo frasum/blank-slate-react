@@ -387,7 +387,7 @@ function PayrollRow({
       <span className="tabular-nums text-muted-foreground/50">–</span>
     );
   return (
-    <TableRow className={`group ${zebra ? "bg-muted/30" : ""}`}>
+    <TableRow className={`group ${zebra ? "bg-muted/60" : ""}`}>
       <TableCell className="py-1.5 font-medium">
         <div>{nameSlot ?? row.displayName}</div>
         {fullName && <div className="text-xs font-normal text-muted-foreground">{fullName}</div>}
