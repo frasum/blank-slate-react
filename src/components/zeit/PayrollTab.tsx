@@ -244,7 +244,7 @@ export function PayrollTab({
                       </TableCell>
                     </TableRow>
                   )}
-                  {list.map((r) => {
+                  {list.map((r, idx) => {
                     const full = staffRows.get(
                       (r as BuchhaltungExportRow & { staffId: string }).staffId,
                     );
@@ -258,6 +258,7 @@ export function PayrollTab({
                         fullName={fullNameByStaffId?.get(staffId)}
                         onSave={(b) => onSaveNote(staffId, b)}
                         nameSlot={renderStaffName?.(staffId, r.displayName)}
+                        zebra={idx % 2 === 1}
                         recurring={recurringByStaff?.get(staffId) ?? []}
                         onAddRecurring={
                           onAddRecurring
