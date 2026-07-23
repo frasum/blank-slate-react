@@ -344,6 +344,7 @@ function PayrollRow({
   recurring,
   onAddRecurring,
   onCancelRecurring,
+  zebra,
 }: {
   row: BuchhaltungExportRow;
   is3b: boolean;
@@ -358,6 +359,7 @@ function PayrollRow({
     periodsTotal: number | null;
   }) => void;
   onCancelRecurring?: (id: string) => void;
+  zebra?: boolean;
 }) {
   const [besonderheiten, setBesonderheiten] = useState<string>(row.besonderheiten ?? "");
   const [addOpen, setAddOpen] = useState(false);
@@ -384,7 +386,7 @@ function PayrollRow({
       <span className="tabular-nums text-muted-foreground/50">–</span>
     );
   return (
-    <TableRow className="group">
+    <TableRow className={`group ${zebra ? "bg-muted/30" : ""}`}>
       <TableCell className="py-1.5 font-medium">
         <div>{nameSlot ?? row.displayName}</div>
         {fullName && <div className="text-xs font-normal text-muted-foreground">{fullName}</div>}
