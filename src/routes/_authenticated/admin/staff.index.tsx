@@ -621,23 +621,31 @@ function StaffMatrixRow({
                 {heldSkills.length === 0 ? (
                   <span className="text-xs text-muted-foreground">+ Skills wählen</span>
                 ) : (
-                  heldSkills.map((sk) => {
-                    const meta = skills.find((m) => m.id === sk.id);
-                    const color = meta?.color ?? undefined;
-                    return (
-                      <span
-                        key={sk.id}
-                        className="inline-flex min-w-[36px] items-center justify-center rounded-md border-2 px-2 py-0.5 text-xs font-bold"
-                        style={
-                          color
-                            ? { backgroundColor: color, borderColor: color, color: "#fff" }
-                            : { borderColor: "hsl(var(--border))" }
-                        }
-                      >
-                        {sk.name}
-                      </span>
-                    );
-                  })
+                  <>
+                    {heldSkills.map((sk) => {
+                      const meta = skills.find((m) => m.id === sk.id);
+                      const color = meta?.color ?? undefined;
+                      return (
+                        <span
+                          key={sk.id}
+                          className="inline-flex min-w-[36px] items-center justify-center rounded-md border-2 px-2 py-0.5 text-xs font-bold"
+                          style={
+                            color
+                              ? { backgroundColor: color, borderColor: color, color: "#fff" }
+                              : { borderColor: "hsl(var(--border))" }
+                          }
+                        >
+                          {sk.name}
+                        </span>
+                      );
+                    })}
+                    <span
+                      aria-hidden="true"
+                      className="inline-flex min-w-[36px] items-center justify-center rounded-md border-2 border-dashed border-muted-foreground/40 px-2 py-0.5 text-xs font-bold text-muted-foreground"
+                    >
+                      +
+                    </span>
+                  </>
                 )}
               </button>
             }
