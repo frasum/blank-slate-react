@@ -1520,10 +1520,7 @@ function ZeitUebersichtPage() {
                         const u = abs?.urlaubDays ?? 0;
                         const k = abs?.krankDays ?? 0;
                         return (
-                          <TableRow
-                            key={s.staffId}
-                            className={idx % 2 === 1 ? "bg-muted/30" : ""}
-                          >
+                          <TableRow key={s.staffId} className={idx % 2 === 1 ? "bg-muted/30" : ""}>
                             <TableCell>
                               <div>
                                 {canOpenStaff ? (
