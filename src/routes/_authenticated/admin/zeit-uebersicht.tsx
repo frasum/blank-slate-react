@@ -1515,12 +1515,15 @@ function ZeitUebersichtPage() {
                           {DEPT_LABEL[dept]}
                         </TableCell>
                       </TableRow>
-                      {list.map((s) => {
+                      {list.map((s, idx) => {
                         const abs = absencesByStaff.get(s.staffId);
                         const u = abs?.urlaubDays ?? 0;
                         const k = abs?.krankDays ?? 0;
                         return (
-                          <TableRow key={s.staffId}>
+                          <TableRow
+                            key={s.staffId}
+                            className={idx % 2 === 1 ? "bg-muted/30" : ""}
+                          >
                             <TableCell>
                               <div>
                                 {canOpenStaff ? (
