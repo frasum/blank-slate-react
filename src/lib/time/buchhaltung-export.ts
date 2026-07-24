@@ -124,7 +124,6 @@ function totals(rows: BuchhaltungExportRow[]): BuchhaltungExportRow {
   const sum = (sel: (r: BuchhaltungExportRow) => number) => rows.reduce((a, r) => a + sel(r), 0);
   const sumQ = (sel: (r: BuchhaltungExportRow) => number) =>
     rows.reduce((a, r) => a + floorToQuarterHours(sel(r)), 0);
-  void HOUR_COLS_QUARTER; // Dokumentiert die Menge; Nutzung erfolgt implizit über sumQ.
   return {
     displayName: "",
     totalHours: sumQ((r) => r.totalHours),
