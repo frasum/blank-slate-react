@@ -207,6 +207,17 @@ export function fmtDec(n: number): string {
   return n.toFixed(2).replace(".", ",");
 }
 
+// BH1 (24.07.2026) — Viertelstunden-Abrundung für payroll-relevante
+// Anzeige-/Export-Summen (edlohn arbeitet in Viertelstunden; Abrunden ist
+// die sichere Richtung für die Lohn-Übergabe). REINE Anzeige-Rundung —
+// Rohdaten und Rechenpfade bleiben unberührt. Negative Werte werden auf 0
+// geklemmt (Stundensummen sind nie negativ; ein Math.floor auf einen
+// versehentlich negativen Wert würde stärker nach unten runden).
+export function floorToQuarterHours(hours: number): number {
+  if (!Number.isFinite(hours) || hours <= 0) return 0;
+  return Math.floor(hours * 4) / 4;
+}
+
 export function fmtHHMM(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleTimeString("de-DE", {

@@ -94,6 +94,7 @@ import {
   fmtHHMM,
   fmtHm,
   fmtIso,
+  floorToQuarterHours,
   isoWeek,
   mondayOf,
   parseIsoDate,
@@ -1086,17 +1087,21 @@ function ZeitUebersichtPage() {
   }, [payrollFilteredByDept]);
 
   const payrollTotals = useMemo(() => {
+    // BH1 — Summen-Konsistenz: Fußzeile = Σ der GERUNDETEN Personenwerte
+    // (Stunden-Spalten). Zähler-/Vorschuss-Spalten summieren roh.
     const sum = (sel: (r: BuchhaltungExportRow) => number) =>
       payrollAllVisible.reduce((a, r) => a + sel(r), 0);
+    const sumQ = (sel: (r: BuchhaltungExportRow) => number) =>
+      payrollAllVisible.reduce((a, r) => a + floorToQuarterHours(sel(r)), 0);
     return {
-      totalHours: sum((r) => r.totalHours),
+      totalHours: sumQ((r) => r.totalHours),
       shifts: sum((r) => r.shifts),
-      evening: sum((r) => r.evening),
-      night: sum((r) => r.night),
-      sunHol: sum((r) => r.sunHol),
-      sonntag: sum((r) => r.sonntag),
-      feiertag: sum((r) => r.feiertag),
-      feiertag150: sum((r) => r.feiertag150),
+      evening: sumQ((r) => r.evening),
+      night: sumQ((r) => r.night),
+      sunHol: sumQ((r) => r.sunHol),
+      sonntag: sumQ((r) => r.sonntag),
+      feiertag: sumQ((r) => r.feiertag),
+      feiertag150: sumQ((r) => r.feiertag150),
       urlaubDays: sum((r) => r.urlaubDays),
       krankDays: sum((r) => r.krankDays),
       vorschussEUR: sum((r) => r.vorschussEUR),
@@ -1518,7 +1523,8 @@ function ZeitUebersichtPage() {
                     for (const [k, v] of s.perWeek) {
                       deptWeek.set(k, (deptWeek.get(k) ?? 0) + v);
                     }
-                    deptTotal += s.totalHours;
+                    // BH1 — Bereichs-Summe = Σ der GERUNDETEN Personenwerte.
+                    deptTotal += floorToQuarterHours(s.totalHours);
                     deptShifts += s.shiftDates.size;
                     const abs = absencesByStaff.get(s.staffId);
                     deptUrlaub += abs?.urlaubDays ?? 0;
@@ -1572,7 +1578,7 @@ function ZeitUebersichtPage() {
                               </TableCell>
                             ))}
                             <TableCell className="text-right tabular-nums font-medium">
-                              {fmtHm(s.totalHours)}
+                              {fmtHm(floorToQuarterHours(s.totalHours))}
                             </TableCell>
                             <TableCell
                               className={`text-right tabular-nums ${s.shiftDates.size > 0 ? "text-red-600 font-medium" : "text-muted-foreground/50"}`}
@@ -1632,7 +1638,8 @@ function ZeitUebersichtPage() {
                       for (const [k, v] of s.perWeek) {
                         totWeek.set(k, (totWeek.get(k) ?? 0) + v);
                       }
-                      tot += s.totalHours;
+                      // BH1 — Gesamt-Fußzeile = Σ der GERUNDETEN Personenwerte.
+                      tot += floorToQuarterHours(s.totalHours);
                       totShifts += s.shiftDates.size;
                       const abs = absencesByStaff.get(s.staffId);
                       totUrlaub += abs?.urlaubDays ?? 0;
@@ -1668,6 +1675,9 @@ function ZeitUebersichtPage() {
               </TableBody>
             </Table>
           </Card>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Stundensummen auf Viertelstunden abgerundet (Lohn-Übergabe). Wochenzellen bleiben exakt.
+          </p>
         </TabsContent>
 
         <TabsContent value="payroll">

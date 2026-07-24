@@ -22,6 +22,7 @@ import {
   DEPT_ORDER,
   fmtDec,
   fmtHm,
+  floorToQuarterHours,
   type Department,
 } from "@/lib/time/zeit-uebersicht-core";
 
@@ -279,29 +280,29 @@ export function PayrollTab({
               <TableRow className="bg-muted/50 font-medium">
                 <TableCell className="py-1.5">Summe</TableCell>
                 <TableCell className="py-1.5 text-right tabular-nums">
-                  {fmtHm(totals.totalHours)}
+                  {fmtHm(floorToQuarterHours(totals.totalHours))}
                 </TableCell>
                 <TableCell className="py-1.5 text-right tabular-nums">
-                  {fmtDec(totals.evening)}
+                  {fmtDec(floorToQuarterHours(totals.evening))}
                 </TableCell>
                 <TableCell className="py-1.5 text-right tabular-nums">
-                  {fmtDec(totals.night)}
+                  {fmtDec(floorToQuarterHours(totals.night))}
                 </TableCell>
                 {!is3b && (
                   <TableCell className="py-1.5 text-right tabular-nums">
-                    {fmtDec(totals.sunHol)}
+                    {fmtDec(floorToQuarterHours(totals.sunHol))}
                   </TableCell>
                 )}
                 {is3b && (
                   <>
                     <TableCell className="py-1.5 text-right tabular-nums">
-                      {fmtDec(totals.sonntag)}
+                      {fmtDec(floorToQuarterHours(totals.sonntag))}
                     </TableCell>
                     <TableCell className="py-1.5 text-right tabular-nums">
-                      {fmtDec(totals.feiertag)}
+                      {fmtDec(floorToQuarterHours(totals.feiertag))}
                     </TableCell>
                     <TableCell className="py-1.5 text-right tabular-nums">
-                      {fmtDec(totals.feiertag150)}
+                      {fmtDec(floorToQuarterHours(totals.feiertag150))}
                     </TableCell>
                   </>
                 )}
@@ -334,6 +335,9 @@ export function PayrollTab({
           </TableBody>
         </Table>
       </Card>
+      <p className="text-xs text-muted-foreground">
+        Stundensummen auf Viertelstunden abgerundet (Lohn-Übergabe).
+      </p>
     </div>
   );
 }
@@ -387,7 +391,7 @@ function PayrollRow({
       : null;
   const numCell = (v: number) =>
     v > 0 ? (
-      <span className="tabular-nums">{fmtDec(v)}</span>
+      <span className="tabular-nums">{fmtDec(floorToQuarterHours(v))}</span>
     ) : (
       <span className="tabular-nums text-muted-foreground/50">–</span>
     );
@@ -403,7 +407,7 @@ function PayrollRow({
         {fullName && <div className="text-xs font-normal text-muted-foreground">{fullName}</div>}
       </TableCell>
       <TableCell className="py-1.5 text-right tabular-nums font-medium">
-        {fmtHm(row.totalHours)}
+        {fmtHm(floorToQuarterHours(row.totalHours))}
       </TableCell>
       <TableCell className="py-1.5 text-right">{numCell(row.evening)}</TableCell>
       <TableCell className="py-1.5 text-right">{numCell(row.night)}</TableCell>
