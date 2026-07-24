@@ -55,8 +55,8 @@ export async function buildWeeklyXlsx(input: WeeklyExportInput): Promise<Blob> {
   const ws = wb.addWorksheet(`KW ${input.weekNo}`);
 
   // Header (zwei Zeilen, je Tag zwei Spalten Anfang/Ende)
-  const top: (string | number)[] = ["Mitarbeiter"];
-  const sub: (string | number)[] = [""];
+  const top: (string | number)[] = ["Mitarbeiter", "Vollname", "Pers.-Nr."];
+  const sub: (string | number)[] = ["", "", ""];
   for (const d of input.days) {
     top.push(d.label, "");
     sub.push("Anfang", "Ende");
@@ -67,7 +67,7 @@ export async function buildWeeklyXlsx(input: WeeklyExportInput): Promise<Blob> {
   ws.addRow(sub);
   // Tag-Header mergen
   for (let i = 0; i < input.days.length; i++) {
-    const col = 2 + i * 2;
+    const col = 4 + i * 2;
     ws.mergeCells(1, col, 1, col + 1);
   }
   ws.getRow(1).font = { bold: true };
@@ -76,7 +76,7 @@ export async function buildWeeklyXlsx(input: WeeklyExportInput): Promise<Blob> {
   // Sonntag/Feiertag-Header farbig
   for (let i = 0; i < input.days.length; i++) {
     if (!input.days[i].isSunOrHol) continue;
-    const col = 2 + i * 2;
+    const col = 4 + i * 2;
     for (const c of [col, col + 1]) {
       for (const r of [1, 2]) {
         ws.getCell(r, c).fill = {
@@ -101,7 +101,11 @@ export async function buildWeeklyXlsx(input: WeeklyExportInput): Promise<Blob> {
       },
     };
     for (const row of grp.rows) {
-      const cells: (string | number)[] = [row.displayName];
+      const cells: (string | number)[] = [
+        row.displayName,
+        row.fullName ?? "",
+        row.persoNr != null ? row.persoNr : "",
+      ];
       for (const day of row.days) {
         if (day.shifts.length === 0) {
           cells.push(day.crossLocation ? "×" : "", "");
@@ -126,7 +130,7 @@ export async function buildWeeklyXlsx(input: WeeklyExportInput): Promise<Blob> {
       // Tageszellen mit Sonn-/Feiertag-Hintergrund
       for (let i = 0; i < row.days.length; i++) {
         if (!row.days[i].isSunOrHol) continue;
-        const col = 2 + i * 2;
+        const col = 4 + i * 2;
         for (const c of [col, col + 1]) {
           r.getCell(c).fill = {
             type: "pattern",
@@ -140,12 +144,14 @@ export async function buildWeeklyXlsx(input: WeeklyExportInput): Promise<Blob> {
 
   // Spaltenbreiten
   ws.getColumn(1).width = 22;
+  ws.getColumn(2).width = 22;
+  ws.getColumn(3).width = 10;
   for (let i = 0; i < input.days.length; i++) {
-    const col = 2 + i * 2;
+    const col = 4 + i * 2;
     ws.getColumn(col).width = 8;
     ws.getColumn(col + 1).width = 8;
   }
-  const tail = 2 + input.days.length * 2;
+  const tail = 4 + input.days.length * 2;
   for (let i = 0; i < 6; i++) ws.getColumn(tail + i).width = 8;
 
   const buf = await wb.xlsx.writeBuffer();
@@ -172,8 +178,12 @@ export async function buildWeeklyPdf(input: WeeklyExportInput): Promise<Blob> {
 
   const head1: (string | { content: string; colSpan?: number; styles?: object })[] = [
     { content: "Mitarbeiter", styles: { halign: "left" } },
+    { content: "Vollname", styles: { halign: "left" } },
+    { content: "Pers.-Nr.", styles: { halign: "right" } },
   ];
   const head2: (string | { content: string; colSpan?: number; styles?: object })[] = [
+    { content: "", styles: {} },
+    { content: "", styles: {} },
     { content: "", styles: {} },
   ];
   for (const d of input.days) {
@@ -199,7 +209,7 @@ export async function buildWeeklyPdf(input: WeeklyExportInput): Promise<Blob> {
     body.push([
       {
         content: grp.deptLabel.toUpperCase(),
-        colSpan: 1 + input.days.length * 2 + 6,
+        colSpan: 3 + input.days.length * 2 + 6,
         styles: {
           fontStyle: "bold",
           fillColor:
@@ -212,7 +222,14 @@ export async function buildWeeklyPdf(input: WeeklyExportInput): Promise<Blob> {
       },
     ]);
     for (const row of grp.rows) {
-      const cells: Body = [{ content: row.displayName, styles: { fontStyle: "bold" } }];
+      const cells: Body = [
+        { content: row.displayName, styles: { fontStyle: "bold" } },
+        { content: row.fullName ?? "", styles: {} },
+        {
+          content: row.persoNr != null ? String(row.persoNr) : "",
+          styles: { halign: "right" },
+        },
+      ];
       for (const day of row.days) {
         const bg = day.isSunOrHol ? { fillColor: [255, 248, 225] } : {};
         if (day.shifts.length === 0) {
