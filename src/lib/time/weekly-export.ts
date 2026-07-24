@@ -288,12 +288,25 @@ function writeSafariPreparingPage(downloadWindow: Window, filename: string): voi
   try {
     downloadWindow.opener = null;
     downloadWindow.document.title = "Export wird vorbereitet";
-    downloadWindow.document.body.innerHTML = `
-      <main style="font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; padding: 24px; color: #111827;">
-        <h1 style="font-size: 18px; margin: 0 0 8px;">Export wird vorbereitet</h1>
-        <p style="font-size: 14px; margin: 0; color: #4b5563;">${filename}</p>
-      </main>
-    `;
+    downloadWindow.document.body.textContent = "";
+    const main = downloadWindow.document.createElement("main");
+    main.style.fontFamily = "system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
+    main.style.padding = "24px";
+    main.style.color = "#111827";
+
+    const heading = downloadWindow.document.createElement("h1");
+    heading.textContent = "Export wird vorbereitet";
+    heading.style.fontSize = "18px";
+    heading.style.margin = "0 0 8px";
+
+    const filenameText = downloadWindow.document.createElement("p");
+    filenameText.textContent = filename;
+    filenameText.style.fontSize = "14px";
+    filenameText.style.margin = "0";
+    filenameText.style.color = "#4b5563";
+
+    main.append(heading, filenameText);
+    downloadWindow.document.body.append(main);
   } catch {
     // Safari kann den Zugriff auf das Hilfsfenster in einzelnen Modi verweigern;
     // die spätere Navigation auf die Blob-URL funktioniert dann trotzdem oft.
