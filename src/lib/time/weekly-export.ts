@@ -278,19 +278,6 @@ export async function buildWeeklyPdf(input: WeeklyExportInput): Promise<Blob> {
 
 const ATTACHMENT_DOWNLOAD_ENDPOINT = "/api/export/download";
 
-function getExportIframe(): HTMLIFrameElement {
-  const id = "coco-export-download-frame";
-  const existing = document.getElementById(id);
-  if (existing instanceof HTMLIFrameElement) return existing;
-  const iframe = document.createElement("iframe");
-  iframe.id = id;
-  iframe.name = id;
-  iframe.style.display = "none";
-  iframe.setAttribute("aria-hidden", "true");
-  document.body.appendChild(iframe);
-  return iframe;
-}
-
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -318,11 +305,9 @@ function appendHiddenField(form: HTMLFormElement, name: string, value: string): 
 }
 
 export async function downloadBlobAsAttachment(blob: Blob, filename: string): Promise<void> {
-  const iframe = getExportIframe();
   const form = document.createElement("form");
   form.method = "POST";
   form.action = ATTACHMENT_DOWNLOAD_ENDPOINT;
-  form.target = iframe.name;
   form.enctype = "application/x-www-form-urlencoded";
   form.style.display = "none";
 
