@@ -1,17 +1,24 @@
 ## Ziel
-In der Personalliste (`/admin/staff`) am Ende jeder Skill-Zell-Zeile ein kleines Plus-Symbol anzeigen, damit sofort sichtbar ist: „hier können weitere Skills hinzugefügt werden". Das gilt nur, wenn der Mitarbeiter bereits mindestens einen Skill hat — der Leerzustand zeigt weiterhin den bestehenden Hinweis „+ Skills wählen".
+In der Trinkgeldpool-Karte (Kasse) die „Stunden"-Spalte im Zeitformat `h:mm` statt als Dezimalzahl (`7,80`) anzeigen — konsistent mit den GL- und Manuell-Einträgen, die bereits `h:mm` nutzen.
 
-## Scope
-Rein visueller Zusatz in genau einer Datei. Kein Verhalten, keine Server-Änderungen, keine Migration. Klick auf die Zelle (inkl. Plus) öffnet weiterhin den bestehenden `SkillAssignPopover` — die Zelle ist bereits ein einziger Button.
+## Betroffener Ort
+`src/components/cash/TipPoolCard.tsx`, Funktion `PoolRow` (~Zeilen 616–628). Alle drei Zweige der `hoursDisplay`-Berechnung liefern derzeit `X,YZ` via `toFixed(2).replace(".", ",")`.
+
+Andere Stunden-Anzeigen in derselben Karte (GL-Zeile, Dialog „Manuelle Einträge") sind bereits `h:mm` — kein Änderungsbedarf.
 
 ## Änderung
+```text
+hoursDisplay =
+  · dirty & Zeiten gesetzt → kitchenShiftMinutes(start,end) → "h:mm"
+  · share vorhanden       → round(share.hoursWorked * 60)   → "h:mm"
+  · fallback              → row.hoursMinutes                → "h:mm"
+"ungültig" bleibt bei Wurf.
+```
+Formatter analog zum bestehenden `fmtHm` (bzw. inline wie in `GlRowInner`): `${Math.floor(m/60)}:${(m%60).toString().padStart(2,"0")}`.
 
-**Datei:** `src/routes/_authenticated/admin/staff.index.tsx` (Zeilen ~621–641, Skill-Chip-Rendering im Admin-Zweig)
+## Gates
+tsgo, vitest, eslint, prettier — keine neuen Tests nötig (reine Formatierung, keine Rechenlogik).
 
-- Wenn `heldSkills.length > 0`: nach der `.map(...)` einen kleinen, dezenten Plus-Indikator anhängen — gestrichelter Rahmen, `text-muted-foreground`, gleiche Höhe/Rundung wie die Chips (`min-w-[36px]`, `rounded-md`, `px-2 py-0.5`), Inhalt `+`, `aria-hidden`, damit Screenreader nur den Zellen-Button-Aria-Label lesen.
-- Leerzustand (`heldSkills.length === 0`) bleibt unverändert („+ Skills wählen").
-- Kein Extra-Handler nötig — der äußere `<button>` öffnet den Popover bereits.
-- Nicht-Admin-Zweig (nur-lesend) bleibt unverändert.
-
-## Gates vor Commit
-`tsgo --noEmit`, `vitest run`, `eslint . --max-warnings=0`, `prettier --check .` — wie üblich.
+## Nicht Teil dieses Schritts
+- Andere Stunden-Spalten (Lohnrechner, Provision, Zusammenfassung, Buchhaltung) — dort steht schon `fmtHm`/`h:mm`.
+- Kein Umbau der Berechnung; `share.hoursWorked` bleibt der Wahrheits-Wert, nur die Darstellung ändert sich.
