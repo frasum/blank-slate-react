@@ -1333,23 +1333,50 @@ function ZeitUebersichtPage() {
                 allValue="all"
               />
               <div className="ml-auto flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={handleExportPdf}>
-                  <FileDown className="mr-1 h-4 w-4" /> PDF
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleExportXlsx}>
-                  <FileSpreadsheet className="mr-1 h-4 w-4" /> Excel
-                </Button>
-                <Button variant="outline" size="sm" onClick={handlePayrollExportCsv}>
-                  <Download className="mr-1 h-4 w-4" /> CSV
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportPdf}
+                  disabled={exportBusy === "weekly-pdf"}
+                >
+                  <FileDown className="mr-1 h-4 w-4" />
+                  {exportBusy === "weekly-pdf" ? "Erstelle…" : "PDF"}
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={handleExportDiagnose}
+                  onClick={handleExportXlsx}
+                  disabled={exportBusy === "weekly-xlsx"}
+                >
+                  <FileSpreadsheet className="mr-1 h-4 w-4" />
+                  {exportBusy === "weekly-xlsx" ? "Erstelle…" : "Excel"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePayrollExportCsv}
+                  disabled={exportBusy === "payroll-csv"}
+                >
+                  <Download className="mr-1 h-4 w-4" />
+                  {exportBusy === "payroll-csv" ? "Erstelle…" : "CSV"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void runExportDiagnose("fetch")}
                   disabled={exportProbeRunning}
                   title="Sendet einen Test-Export an /api/export/download und zeigt Statuscode + Response-Header (für Safari-Debugging)."
                 >
                   {exportProbeRunning ? "Prüfe…" : "Diagnose"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void runExportDiagnose("form")}
+                  disabled={exportProbeRunning}
+                  title="Sendet dieselbe Probe als echtes Formular-POST."
+                >
+                  {exportProbeRunning ? "Prüfe…" : "Probe als Formular"}
                 </Button>
               </div>
             </div>
@@ -1363,7 +1390,8 @@ function ZeitUebersichtPage() {
               >
                 <div className="mb-1 flex items-center justify-between gap-2">
                   <strong>
-                    Export-Diagnose · HTTP {exportProbe.status} {exportProbe.statusText}
+                    Export-Diagnose ({exportProbe.transport === "form" ? "Formular" : "Fetch"}) ·
+                    HTTP {exportProbe.status} {exportProbe.statusText}
                   </strong>
                   <button
                     type="button"
@@ -1376,6 +1404,8 @@ function ZeitUebersichtPage() {
                 <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5 font-mono">
                   <dt>Endpoint</dt>
                   <dd className="break-all">{exportProbe.url}</dd>
+                  <dt>Pfad</dt>
+                  <dd>{exportProbe.transport === "form" ? "Formular-POST" : "Fetch-POST"}</dd>
                   <dt>Content-Type</dt>
                   <dd className="break-all">{exportProbe.contentType ?? "—"}</dd>
                   <dt>Content-Disposition</dt>
