@@ -53,8 +53,7 @@ import {
   buildFileBaseName,
   buildWeeklyPdf,
   buildWeeklyXlsx,
-  downloadBlobWithAnchor,
-  prepareDownloadAnchor,
+  downloadBlobAsAttachment,
   type WeeklyExportInput,
   type WeeklyExportRow,
 } from "@/lib/time/weekly-export";
@@ -980,24 +979,20 @@ function ZeitUebersichtPage() {
   const handleExportXlsx = async () => {
     if (!weeklyExportInput) return;
     const filename = `${buildFileBaseName(weeklyExportInput)}.xlsx`;
-    const anchor = prepareDownloadAnchor(filename);
     try {
       const blob = await buildWeeklyXlsx(weeklyExportInput);
-      downloadBlobWithAnchor(blob, filename, anchor);
+      await downloadBlobAsAttachment(blob, filename);
     } catch (e) {
-      anchor.remove();
       toast.error((e as Error).message || "Excel-Export fehlgeschlagen");
     }
   };
   const handleExportPdf = async () => {
     if (!weeklyExportInput) return;
     const filename = `${buildFileBaseName(weeklyExportInput)}.pdf`;
-    const anchor = prepareDownloadAnchor(filename);
     try {
       const blob = await buildWeeklyPdf(weeklyExportInput);
-      downloadBlobWithAnchor(blob, filename, anchor);
+      await downloadBlobAsAttachment(blob, filename);
     } catch (e) {
-      anchor.remove();
       toast.error((e as Error).message || "PDF-Export fehlgeschlagen");
     }
   };
@@ -1143,34 +1138,31 @@ function ZeitUebersichtPage() {
 
   const handlePayrollExportPdf = async () => {
     const filename = `${buildBuchhaltungFileBase(buchhaltungExportInput)}.pdf`;
-    const anchor = prepareDownloadAnchor(filename);
     try {
       const blob = await buildBuchhaltungPdf(buchhaltungExportInput);
-      downloadBlobWithAnchor(blob, filename, anchor);
+      await downloadBlobAsAttachment(blob, filename);
     } catch (e) {
-      anchor.remove();
       toast.error((e as Error).message || "PDF-Export fehlgeschlagen");
     }
   };
   const handlePayrollExportXlsx = async () => {
     const filename = `${buildBuchhaltungFileBase(buchhaltungExportInput)}.xlsx`;
-    const anchor = prepareDownloadAnchor(filename);
     try {
       const blob = await buildBuchhaltungXlsx(buchhaltungExportInput);
-      downloadBlobWithAnchor(blob, filename, anchor);
+      await downloadBlobAsAttachment(blob, filename);
     } catch (e) {
-      anchor.remove();
       toast.error((e as Error).message || "Excel-Export fehlgeschlagen");
     }
   };
-  const handlePayrollExportCsv = () => {
+  const handlePayrollExportCsv = async () => {
     const filename = `${buildBuchhaltungFileBase(buchhaltungExportInput)}.csv`;
-    const anchor = prepareDownloadAnchor(filename);
     try {
       const csv = buildBuchhaltungCsv(buchhaltungExportInput);
-      downloadBlobWithAnchor(new Blob([csv], { type: "text/csv;charset=utf-8" }), filename, anchor);
+      await downloadBlobAsAttachment(
+        new Blob([csv], { type: "text/csv;charset=utf-8" }),
+        filename,
+      );
     } catch (e) {
-      anchor.remove();
       toast.error((e as Error).message || "CSV-Export fehlgeschlagen");
     }
   };

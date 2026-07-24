@@ -276,34 +276,68 @@ export async function buildWeeklyPdf(input: WeeklyExportInput): Promise<Blob> {
 
 // ---------- Browser-Download ----------
 
+const ATTACHMENT_DOWNLOAD_ENDPOINT = "/api/export/download";
+
+function getExportIframe(): HTMLIFrameElement {
+  const id = "coco-export-download-frame";
+  const existing = document.getElementById(id);
+  if (existing instanceof HTMLIFrameElement) return existing;
+  const iframe = document.createElement("iframe");
+  iframe.id = id;
+  iframe.name = id;
+  iframe.style.display = "none";
+  iframe.setAttribute("aria-hidden", "true");
+  document.body.appendChild(iframe);
+  return iframe;
+}
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error ?? new Error("Export konnte nicht gelesen werden."));
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+      const marker = ";base64,";
+      const idx = result.indexOf(marker);
+      if (idx < 0) {
+        reject(new Error("Export konnte nicht vorbereitet werden."));
+        return;
+      }
+      resolve(result.slice(idx + marker.length));
+    };
+    reader.readAsDataURL(blob);
+  });
+}
+
+function appendHiddenField(form: HTMLFormElement, name: string, value: string): void {
+  const input = document.createElement("input");
+  input.type = "hidden";
+  input.name = name;
+  input.value = value;
+  form.appendChild(input);
+}
+
+export async function downloadBlobAsAttachment(blob: Blob, filename: string): Promise<void> {
+  const iframe = getExportIframe();
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = ATTACHMENT_DOWNLOAD_ENDPOINT;
+  form.target = iframe.name;
+  form.enctype = "application/x-www-form-urlencoded";
+  form.style.display = "none";
+
+  appendHiddenField(form, "filename", filename);
+  appendHiddenField(form, "contentType", blob.type || "application/octet-stream");
+  appendHiddenField(form, "base64", await blobToBase64(blob));
+
+  document.body.appendChild(form);
+  form.submit();
+  window.setTimeout(() => form.remove(), 60_000);
+}
+
 export function downloadBlob(blob: Blob, filename: string): void {
-  const anchor = prepareDownloadAnchor(filename);
-  downloadBlobWithAnchor(blob, filename, anchor);
+  void downloadBlobAsAttachment(blob, filename).catch((error: unknown) => {
+    console.error(error instanceof Error ? error.message : "Export fehlgeschlagen.");
+  });
 }
 
-export function prepareDownloadAnchor(filename: string): HTMLAnchorElement {
-  const a = document.createElement("a");
-  a.download = filename;
-  a.style.display = "none";
-  document.body.appendChild(a);
-  return a;
-}
-
-export function downloadBlobWithAnchor(blob: Blob, filename: string, a: HTMLAnchorElement): void {
-  const url = URL.createObjectURL(blob);
-  a.href = url;
-  a.download = filename;
-  a.rel = "noopener";
-  a.style.display = "none";
-  if (!document.body.contains(a)) document.body.appendChild(a);
-
-  // Nativer Klick auf ein <a download> — funktioniert in allen aktuellen
-  // Browsern (Chrome, Firefox, Edge und Safari ≥ 14.1) auch nach `await`,
-  // solange der ursprüngliche Auslöser eine Nutzergeste war.
-  a.click();
-
-  window.setTimeout(() => {
-    a.remove();
-    URL.revokeObjectURL(url);
-  }, 60_000);
-}

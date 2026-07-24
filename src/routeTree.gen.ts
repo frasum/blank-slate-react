@@ -22,6 +22,7 @@ import { Route as AuthenticatedEasyorderRouteImport } from './routes/_authentica
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
 import { Route as AuthenticatedZeitIndexRouteImport } from './routes/_authenticated/zeit/index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
+import { Route as ApiExportDownloadRouteImport } from './routes/api/export/download'
 import { Route as AuthenticatedZeitWuenscheRouteImport } from './routes/_authenticated/zeit/wuensche'
 import { Route as AuthenticatedZeitUrlaubRouteImport } from './routes/_authenticated/zeit/urlaub'
 import { Route as AuthenticatedZeitTauschRouteImport } from './routes/_authenticated/zeit/tausch'
@@ -145,6 +146,11 @@ const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthenticatedAdminRouteRoute,
+} as any)
+const ApiExportDownloadRoute = ApiExportDownloadRouteImport.update({
+  id: '/api/export/download',
+  path: '/api/export/download',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedZeitWuenscheRoute =
   AuthenticatedZeitWuenscheRouteImport.update({
@@ -539,6 +545,7 @@ export interface FileRoutesByFullPath {
   '/zeit/tausch': typeof AuthenticatedZeitTauschRoute
   '/zeit/urlaub': typeof AuthenticatedZeitUrlaubRoute
   '/zeit/wuensche': typeof AuthenticatedZeitWuenscheRoute
+  '/api/export/download': typeof ApiExportDownloadRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/zeit/': typeof AuthenticatedZeitIndexRoute
   '/admin/bestellung/bestellungen': typeof AuthenticatedAdminBestellungBestellungenRoute
@@ -607,6 +614,7 @@ export interface FileRoutesByTo {
   '/zeit/tausch': typeof AuthenticatedZeitTauschRoute
   '/zeit/urlaub': typeof AuthenticatedZeitUrlaubRoute
   '/zeit/wuensche': typeof AuthenticatedZeitWuenscheRoute
+  '/api/export/download': typeof ApiExportDownloadRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/zeit': typeof AuthenticatedZeitIndexRoute
   '/admin/bestellung/bestellungen': typeof AuthenticatedAdminBestellungBestellungenRoute
@@ -681,6 +689,7 @@ export interface FileRoutesById {
   '/_authenticated/zeit/tausch': typeof AuthenticatedZeitTauschRoute
   '/_authenticated/zeit/urlaub': typeof AuthenticatedZeitUrlaubRoute
   '/_authenticated/zeit/wuensche': typeof AuthenticatedZeitWuenscheRoute
+  '/api/export/download': typeof ApiExportDownloadRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/zeit/': typeof AuthenticatedZeitIndexRoute
   '/_authenticated/admin/bestellung/bestellungen': typeof AuthenticatedAdminBestellungBestellungenRoute
@@ -755,6 +764,7 @@ export interface FileRouteTypes {
     | '/zeit/tausch'
     | '/zeit/urlaub'
     | '/zeit/wuensche'
+    | '/api/export/download'
     | '/admin/'
     | '/zeit/'
     | '/admin/bestellung/bestellungen'
@@ -823,6 +833,7 @@ export interface FileRouteTypes {
     | '/zeit/tausch'
     | '/zeit/urlaub'
     | '/zeit/wuensche'
+    | '/api/export/download'
     | '/admin'
     | '/zeit'
     | '/admin/bestellung/bestellungen'
@@ -896,6 +907,7 @@ export interface FileRouteTypes {
     | '/_authenticated/zeit/tausch'
     | '/_authenticated/zeit/urlaub'
     | '/_authenticated/zeit/wuensche'
+    | '/api/export/download'
     | '/_authenticated/admin/'
     | '/_authenticated/zeit/'
     | '/_authenticated/admin/bestellung/bestellungen'
@@ -924,6 +936,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   DisplayLocationIdRoute: typeof DisplayLocationIdRoute
+  ApiExportDownloadRoute: typeof ApiExportDownloadRoute
   ApiPublicBankSyncSpiceryRoute: typeof ApiPublicBankSyncSpiceryRoute
   ApiPublicCalendarTokenRoute: typeof ApiPublicCalendarTokenRoute
   ApiPublicDisplayLocationIdRoute: typeof ApiPublicDisplayLocationIdRoute
@@ -1026,6 +1039,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/'
       preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/api/export/download': {
+      id: '/api/export/download'
+      path: '/api/export/download'
+      fullPath: '/api/export/download'
+      preLoaderRoute: typeof ApiExportDownloadRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/zeit/wuensche': {
       id: '/_authenticated/zeit/wuensche'
@@ -1633,6 +1653,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   DisplayLocationIdRoute: DisplayLocationIdRoute,
+  ApiExportDownloadRoute: ApiExportDownloadRoute,
   ApiPublicBankSyncSpiceryRoute: ApiPublicBankSyncSpiceryRoute,
   ApiPublicCalendarTokenRoute: ApiPublicCalendarTokenRoute,
   ApiPublicDisplayLocationIdRoute: ApiPublicDisplayLocationIdRoute,
