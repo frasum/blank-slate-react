@@ -1,26 +1,41 @@
-## Ziel
-CSV-Export der Arbeitsstunden für Admin **und** Payroll in beiden Tabs (Zusammenfassung + Buchhaltung) sichtbar machen. Kein neuer Serialisierer — es wird der vorhandene Helfer `buildBuchhaltungCsv` / `buildBuchhaltungFileBase` aus `src/lib/time/buchhaltung-export.ts` wiederverwendet (ein Helfer, alle Ausgabewege identisch, inkl. Viertelstunden-Abrundung BH1).
+## Problem
 
-## Änderungen
+Auf dem Mac (Safari) passiert beim Klick auf **PDF / Excel / CSV** in Zeit-Übersicht → Zusammenfassung und Buchhaltung nichts. Auf Windows/Chrome funktioniert es. Ursache liegt zentral in `src/lib/time/weekly-export.ts`:
 
-### 1. `src/routes/_authenticated/admin/zeit-uebersicht.tsx`
-- **Zusammenfassung-Tab (ca. Zeile 1312–1319):** Neben PDF- und Excel-Button einen dritten Button „CSV" ergänzen, verdrahtet mit dem bereits existierenden `handlePayrollExportCsv`. Damit nutzt Zusammenfassung dieselbe Datenquelle (`buchhaltungExportInput`) und denselben §3b-Modus wie PDF/Excel.
-- Icon `Download` aus `lucide-react` mitverwenden (bereits in PayrollTab genutzt).
+```ts
+a.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+```
 
-### 2. `src/routes/_authenticated/admin/zeit-uebersicht.tsx` (PayrollTab-Aufruf, Zeile ~1706–1708)
-- Aktuell: `onExportCsv={isPayroll ? handlePayrollExportCsv : undefined}`
-- Neu: `onExportCsv={handlePayrollExportCsv}` — CSV-Button auch für Admin im Buchhaltung-Tab.
+Safari löst über synthetische `MouseEvent`-Dispatches keinen Download auf `<a download>` aus — nur der native `HTMLElement.click()`-Pfad triggert dort das Speichern. Chromium/Firefox akzeptieren beides, deshalb ist es nur auf dem Mac aufgefallen. Alle drei Exportknöpfe (Zusammenfassung PDF/Excel, Buchhaltung PDF/Excel/CSV, Wochenplan PDF/Excel, Lohn-Excel) laufen durch denselben Helfer, deswegen sind sie alle betroffen.
 
-### 3. Keine Änderung an
-- `src/components/zeit/PayrollTab.tsx` (Button rendert bereits konditional auf `onExportCsv`).
-- `src/lib/time/buchhaltung-export.ts` (Serialisierer, Spalten, Rundung bleiben unverändert).
-- Server/DB/Rechte-Logik — es ist ein reiner Client-Export der ohnehin sichtbaren Daten.
+## Fix (rein presentational, ein Helfer, drei Ausgabewege)
 
-## Nicht-Ziele
-- Kein separater Netto-/Brutto-CSV (dafür gibt es `lohn-csv-export.ts` an anderer Stelle).
-- Keine neuen Spalten, keine geänderte Rundung, kein neues Format.
+`downloadBlobWithAnchor` in `src/lib/time/weekly-export.ts` von `dispatchEvent(new MouseEvent(...))` auf `a.click()` umstellen. Anker bleibt vorher im DOM (schon so), `URL.revokeObjectURL` bleibt bei 60 s (Safari-freundlich).
+
+```ts
+export function downloadBlobWithAnchor(blob: Blob, filename: string, a: HTMLAnchorElement): void {
+  const url = URL.createObjectURL(blob);
+  a.href = url;
+  a.download = filename;
+  a.rel = "noopener";
+  a.style.display = "none";
+  if (!document.body.contains(a)) document.body.appendChild(a);
+  a.click();                       // Safari-kompatibel; Chrome/Firefox funktionieren weiterhin
+  window.setTimeout(() => {
+    a.remove();
+    URL.revokeObjectURL(url);
+  }, 60_000);
+}
+```
+
+Keine weiteren Änderungen: `downloadBlob`, `prepareDownloadAnchor` und alle Aufrufer (`handlePayrollExportPdf/Xlsx/Csv`, `handleExportXlsx/Pdf`, Lohn-Excel-Export) bleiben unverändert — sie profitieren automatisch.
+
+## Nicht in diesem Schritt
+
+- Kein Umbau der Callsites (Regel 4 aus `project-knowledge`: keine Zusatz-Arbeit außerhalb des Auftrags).
+- Kein Wechsel auf `FileSaver`/`msSaveBlob`/`showSaveFilePicker` — der native `a.click()`-Weg reicht für Safari 14+, Chrome, Edge, Firefox.
+- Kein Test-Nachzug: Downloads sind DOM-Nebenwirkungen, die unsere Vitest-Umgebung nicht sinnvoll prüft.
 
 ## Verifikation
-- `tsgo` auf die geänderte Datei.
-- Bestehende Tests `buchhaltung-export-columns.test.ts` und `buchhaltung-export-quarter.test.ts` bleiben grün (kein Helfer-Change).
-- Manuell: In Zusammenfassung als Admin PDF/Excel/CSV — alle drei liefern denselben Dateibasis-Namen (`Buchhaltung_<Standort>_<Periode>[_3b]`) und identische Zahlen.
+
+Nach dem Edit auf dem Mac (Safari + Chrome für macOS) einmal je Export klicken: Zusammenfassung → PDF/Excel, Buchhaltung → PDF/Excel/CSV. Datei muss im Downloads-Ordner landen, Dateiname unverändert (`Buchhaltung_<Standort>_<Periode>[_3b].<ext>`).

@@ -292,9 +292,13 @@ export function downloadBlobWithAnchor(blob: Blob, filename: string, a: HTMLAnch
   const url = URL.createObjectURL(blob);
   a.href = url;
   a.download = filename;
+  a.rel = "noopener";
   a.style.display = "none";
   if (!document.body.contains(a)) document.body.appendChild(a);
-  a.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+  // Safari (macOS) löst über synthetische `MouseEvent`-Dispatches keinen
+  // Download auf `<a download>` aus — nur der native `.click()`-Pfad triggert
+  // dort das Speichern. Chromium/Firefox funktionieren mit beidem.
+  a.click();
 
   window.setTimeout(() => {
     a.remove();
