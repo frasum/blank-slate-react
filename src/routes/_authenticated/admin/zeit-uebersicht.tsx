@@ -53,7 +53,6 @@ import {
   buildFileBaseName,
   buildWeeklyPdf,
   buildWeeklyXlsx,
-  downloadBlob,
   downloadBlobWithAnchor,
   prepareDownloadAnchor,
   type WeeklyExportInput,
@@ -1165,13 +1164,13 @@ function ZeitUebersichtPage() {
     }
   };
   const handlePayrollExportCsv = () => {
+    const filename = `${buildBuchhaltungFileBase(buchhaltungExportInput)}.csv`;
+    const anchor = prepareDownloadAnchor(filename);
     try {
       const csv = buildBuchhaltungCsv(buchhaltungExportInput);
-      downloadBlob(
-        new Blob([csv], { type: "text/csv;charset=utf-8" }),
-        `${buildBuchhaltungFileBase(buchhaltungExportInput)}.csv`,
-      );
+      downloadBlobWithAnchor(new Blob([csv], { type: "text/csv;charset=utf-8" }), filename, anchor);
     } catch (e) {
+      anchor.remove();
       toast.error((e as Error).message || "CSV-Export fehlgeschlagen");
     }
   };

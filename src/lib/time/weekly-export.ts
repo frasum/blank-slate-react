@@ -276,8 +276,46 @@ export async function buildWeeklyPdf(input: WeeklyExportInput): Promise<Blob> {
 
 // ---------- Browser-Download ----------
 
+const safariDownloadWindows = new WeakMap<HTMLAnchorElement, Window>();
+
+function isSafariBrowser(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  return /safari/i.test(ua) && !/(chrome|chromium|crios|edg|opr|fxios|android)/i.test(ua);
+}
+
+function writeSafariPreparingPage(downloadWindow: Window, filename: string): void {
+  try {
+    downloadWindow.opener = null;
+    downloadWindow.document.title = "Export wird vorbereitet";
+    downloadWindow.document.body.textContent = "";
+    const main = downloadWindow.document.createElement("main");
+    main.style.fontFamily = "system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
+    main.style.padding = "24px";
+    main.style.color = "#111827";
+
+    const heading = downloadWindow.document.createElement("h1");
+    heading.textContent = "Export wird vorbereitet";
+    heading.style.fontSize = "18px";
+    heading.style.margin = "0 0 8px";
+
+    const filenameText = downloadWindow.document.createElement("p");
+    filenameText.textContent = filename;
+    filenameText.style.fontSize = "14px";
+    filenameText.style.margin = "0";
+    filenameText.style.color = "#4b5563";
+
+    main.append(heading, filenameText);
+    downloadWindow.document.body.append(main);
+  } catch {
+    // Safari kann den Zugriff auf das Hilfsfenster in einzelnen Modi verweigern;
+    // die spätere Navigation auf die Blob-URL funktioniert dann trotzdem oft.
+  }
+}
+
 export function downloadBlob(blob: Blob, filename: string): void {
-  downloadBlobWithAnchor(blob, filename, document.createElement("a"));
+  const anchor = prepareDownloadAnchor(filename);
+  downloadBlobWithAnchor(blob, filename, anchor);
 }
 
 export function prepareDownloadAnchor(filename: string): HTMLAnchorElement {
@@ -285,6 +323,18 @@ export function prepareDownloadAnchor(filename: string): HTMLAnchorElement {
   a.download = filename;
   a.style.display = "none";
   document.body.appendChild(a);
+
+  // Safari/macOS verliert bei async erzeugten Dateien die ursprüngliche
+  // Button-Geste. Deshalb wird das Ziel-Fenster bereits synchron im Klick
+  // reserviert; später wird nur noch die Blob-URL dorthin navigiert.
+  if (isSafariBrowser()) {
+    const downloadWindow = window.open("", "_blank");
+    if (downloadWindow) {
+      writeSafariPreparingPage(downloadWindow, filename);
+      safariDownloadWindows.set(a, downloadWindow);
+    }
+  }
+
   return a;
 }
 
@@ -295,13 +345,30 @@ export function downloadBlobWithAnchor(blob: Blob, filename: string, a: HTMLAnch
   a.rel = "noopener";
   a.style.display = "none";
   if (!document.body.contains(a)) document.body.appendChild(a);
-  // Safari (macOS) löst über synthetische `MouseEvent`-Dispatches keinen
-  // Download auf `<a download>` aus — nur der native `.click()`-Pfad triggert
-  // dort das Speichern. Chromium/Firefox funktionieren mit beidem.
-  a.click();
+
+  const reservedSafariWindow = safariDownloadWindows.get(a);
+  if (reservedSafariWindow && !reservedSafariWindow.closed) {
+    try {
+      reservedSafariWindow.location.href = url;
+    } catch {
+      a.click();
+    }
+  } else {
+    a.click();
+
+    if (isSafariBrowser()) {
+      const fallbackWindow = window.open(url, "_blank");
+      if (!fallbackWindow) {
+        throw new Error(
+          "Safari hat den Export blockiert. Bitte Pop-ups/Downloads für diese Seite erlauben und erneut versuchen.",
+        );
+      }
+    }
+  }
 
   window.setTimeout(() => {
     a.remove();
+    safariDownloadWindows.delete(a);
     URL.revokeObjectURL(url);
   }, 60_000);
 }

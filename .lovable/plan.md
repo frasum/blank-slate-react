@@ -1,41 +1,23 @@
-## Problem
+## Plan
 
-Auf dem Mac (Safari) passiert beim Klick auf **PDF / Excel / CSV** in Zeit-Übersicht → Zusammenfassung und Buchhaltung nichts. Auf Windows/Chrome funktioniert es. Ursache liegt zentral in `src/lib/time/weekly-export.ts`:
+1. **Download-Helfer Safari-fest machen**
+   - Den zentralen Helfer `downloadBlobWithAnchor` so umbauen, dass er den Download im direkten Button-Klick-Kontext startet.
+   - Für Safari zusätzlich einen Fallback einbauen: wenn `<a download>` mit `blob:` nicht zuverlässig greift, wird die Datei in einem neuen Tab/Fenster geöffnet statt still nichts zu tun.
+   - Die Aufräumzeit für `URL.revokeObjectURL` weiterhin verzögert lassen, damit Safari den Blob nicht zu früh verliert.
 
-```ts
-a.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
-```
+2. **CSV-Pfad angleichen**
+   - Der CSV-Export nutzt aktuell `downloadBlob(...)`, PDF/Excel nutzen `prepareDownloadAnchor(...)` plus späteren Blob.
+   - Ich gleiche das Verhalten so an, dass alle Exportarten denselben robusten Download-Helfer verwenden.
 
-Safari löst über synthetische `MouseEvent`-Dispatches keinen Download auf `<a download>` aus — nur der native `HTMLElement.click()`-Pfad triggert dort das Speichern. Chromium/Firefox akzeptieren beides, deshalb ist es nur auf dem Mac aufgefallen. Alle drei Exportknöpfe (Zusammenfassung PDF/Excel, Buchhaltung PDF/Excel/CSV, Wochenplan PDF/Excel, Lohn-Excel) laufen durch denselben Helfer, deswegen sind sie alle betroffen.
+3. **Fehler sichtbar machen**
+   - Falls Safari Popups/Downloads blockiert oder kein Fenster öffnen kann, wird eine klare Toast-Meldung angezeigt, statt dass „nichts passiert“.
 
-## Fix (rein presentational, ein Helfer, drei Ausgabewege)
+4. **Prüfung**
+   - Prüfen, dass die Buttons weiterhin denselben Dateinamen und Dateityp erzeugen.
+   - Per Code-/Browserprüfung sicherstellen, dass kein Exportpfad mehr den alten stillen Safari-Fall nutzt.
 
-`downloadBlobWithAnchor` in `src/lib/time/weekly-export.ts` von `dispatchEvent(new MouseEvent(...))` auf `a.click()` umstellen. Anker bleibt vorher im DOM (schon so), `URL.revokeObjectURL` bleibt bei 60 s (Safari-freundlich).
+## Technische Details
 
-```ts
-export function downloadBlobWithAnchor(blob: Blob, filename: string, a: HTMLAnchorElement): void {
-  const url = URL.createObjectURL(blob);
-  a.href = url;
-  a.download = filename;
-  a.rel = "noopener";
-  a.style.display = "none";
-  if (!document.body.contains(a)) document.body.appendChild(a);
-  a.click();                       // Safari-kompatibel; Chrome/Firefox funktionieren weiterhin
-  window.setTimeout(() => {
-    a.remove();
-    URL.revokeObjectURL(url);
-  }, 60_000);
-}
-```
-
-Keine weiteren Änderungen: `downloadBlob`, `prepareDownloadAnchor` und alle Aufrufer (`handlePayrollExportPdf/Xlsx/Csv`, `handleExportXlsx/Pdf`, Lohn-Excel-Export) bleiben unverändert — sie profitieren automatisch.
-
-## Nicht in diesem Schritt
-
-- Kein Umbau der Callsites (Regel 4 aus `project-knowledge`: keine Zusatz-Arbeit außerhalb des Auftrags).
-- Kein Wechsel auf `FileSaver`/`msSaveBlob`/`showSaveFilePicker` — der native `a.click()`-Weg reicht für Safari 14+, Chrome, Edge, Firefox.
-- Kein Test-Nachzug: Downloads sind DOM-Nebenwirkungen, die unsere Vitest-Umgebung nicht sinnvoll prüft.
-
-## Verifikation
-
-Nach dem Edit auf dem Mac (Safari + Chrome für macOS) einmal je Export klicken: Zusammenfassung → PDF/Excel, Buchhaltung → PDF/Excel/CSV. Datei muss im Downloads-Ordner landen, Dateiname unverändert (`Buchhaltung_<Standort>_<Periode>[_3b].<ext>`).
+- Betroffen ist zentral `src/lib/time/weekly-export.ts` mit `downloadBlobWithAnchor` / `downloadBlob`.
+- Betroffene Aufrufer liegen in `src/routes/_authenticated/admin/zeit-uebersicht.tsx` für Wochenplan, Zusammenfassung und Buchhaltung.
+- Ich ändere keine Exportinhalte, keine Rundungslogik und keine Berechtigungen — nur den Browser-Download-Mechanismus.
