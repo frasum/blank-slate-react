@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
+import { APP_URL } from "@/lib/config";
 
 const MAX_BASE64_BYTES = 25_000_000;
 const ALLOWED_CONTENT_TYPES = new Set([
@@ -21,6 +22,7 @@ const exportPayloadSchema = z.object({
 
 function sanitizeFilename(filename: string): string {
   const cleaned = filename
+    // eslint-disable-next-line no-control-regex -- bewusst: Steuerzeichen aus Dateinamen entfernen
     .replace(/[\u0000-\u001f\u007f]/g, "_")
     .replace(/[\\/:*?"<>|]+/g, "_")
     .replace(/\s+/g, "_")
@@ -46,6 +48,13 @@ export const Route = createFileRoute("/api/export/download")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        // Härtung: nur Requests von unserer eigenen Domain akzeptieren.
+        // Verhindert, dass fremde Seiten unseren Download-Endpunkt als
+        // Attachment-Vehikel unter unserer Domain missbrauchen.
+        const origin = request.headers.get("origin");
+        if (!origin || !origin.startsWith(APP_URL)) {
+          return new Response("Forbidden", { status: 403 });
+        }
         try {
           const formData = await request.formData();
           const parsed = exportPayloadSchema.parse({
