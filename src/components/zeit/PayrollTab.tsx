@@ -53,6 +53,7 @@ export function PayrollTab({
   onExportPdf,
   onExportXlsx,
   onExportCsv,
+  exportBusy,
   fullNameByStaffId,
   persoNrByStaffId,
   recurringByStaff,
@@ -85,6 +86,7 @@ export function PayrollTab({
   onExportPdf: () => void;
   onExportXlsx: () => void;
   onExportCsv?: () => void;
+  exportBusy?: "pdf" | "xlsx" | "csv" | null;
   fullNameByStaffId?: Map<string, string>;
   persoNrByStaffId?: Map<string, number | null>;
   recurringByStaff?: Map<string, PayrollRecurringEntry[]>;
@@ -128,15 +130,31 @@ export function PayrollTab({
               : "Einfach: 20–24 (Abend), 24–X (Nacht) und SO/FEI als Summe."}
           </span>
           <div className="ml-auto flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={onExportPdf}>
-              <FileDown className="mr-1 h-4 w-4" /> PDF
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onExportPdf}
+              disabled={exportBusy === "pdf"}
+            >
+              <FileDown className="mr-1 h-4 w-4" /> {exportBusy === "pdf" ? "Erstelle…" : "PDF"}
             </Button>
-            <Button variant="outline" size="sm" onClick={onExportXlsx}>
-              <FileSpreadsheet className="mr-1 h-4 w-4" /> Excel
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onExportXlsx}
+              disabled={exportBusy === "xlsx"}
+            >
+              <FileSpreadsheet className="mr-1 h-4 w-4" />
+              {exportBusy === "xlsx" ? "Erstelle…" : "Excel"}
             </Button>
             {onExportCsv && (
-              <Button variant="outline" size="sm" onClick={onExportCsv}>
-                <Download className="mr-1 h-4 w-4" /> CSV
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onExportCsv}
+                disabled={exportBusy === "csv"}
+              >
+                <Download className="mr-1 h-4 w-4" /> {exportBusy === "csv" ? "Erstelle…" : "CSV"}
               </Button>
             )}
           </div>

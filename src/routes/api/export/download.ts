@@ -48,17 +48,35 @@ function normalizeContentType(contentType: string): string {
   return base;
 }
 
-function isAllowedOrigin(request: Request): boolean {
+function isTrustedRequestUrl(value: string, requestOrigin: string, appOrigin: string): boolean {
+  try {
+    const urlOrigin = new URL(value).origin;
+    return (
+      urlOrigin === requestOrigin ||
+      urlOrigin === appOrigin ||
+      LOVABLE_PREVIEW_ORIGINS.has(urlOrigin)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isExplicitForeignRequest(request: Request): boolean {
   const origin = request.headers.get("origin");
-  if (!origin) return false;
+  const referer = request.headers.get("referer");
+  const secFetchSite = request.headers.get("sec-fetch-site");
 
   const requestOrigin = new URL(request.url).origin;
   const appOrigin = new URL(APP_URL).origin;
-  return origin === requestOrigin || origin === appOrigin || LOVABLE_PREVIEW_ORIGINS.has(origin);
+  const originForeign = Boolean(origin && !isTrustedRequestUrl(origin, requestOrigin, appOrigin));
+  const refererForeign = Boolean(
+    !origin && referer && !isTrustedRequestUrl(referer, requestOrigin, appOrigin),
+  );
+  return originForeign || refererForeign || secFetchSite === "cross-site";
 }
 
 function forbiddenOriginResponse(): Response {
-  return new Response("Forbidden: invalid origin", {
+  return new Response("Forbidden", {
     status: 403,
     headers: {
       "Content-Type": "text/plain; charset=utf-8",
@@ -71,10 +89,11 @@ export const Route = createFileRoute("/api/export/download")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        // Härtung: nur Requests von unserer eigenen Domain akzeptieren.
-        // Verhindert, dass fremde Seiten unseren Download-Endpunkt als
+        // Härtung: fremde Seiten dürfen unseren Download-Endpunkt nicht als
         // Attachment-Vehikel unter unserer Domain missbrauchen.
-        if (!isAllowedOrigin(request)) {
+        // Safari sendet bei same-origin-POSTs teils weder Origin noch Sec-Fetch-Site —
+        // abgelehnt wird nur EXPLIZIT Fremdes.
+        if (isExplicitForeignRequest(request)) {
           return forbiddenOriginResponse();
         }
         try {
@@ -91,11 +110,30 @@ export const Route = createFileRoute("/api/export/download")({
           }
 
           const contentType = normalizeContentType(parsed.contentType);
+          const disposition = contentDisposition(parsed.filename);
+
+          if (formData.get("probe") === "form") {
+            return Response.json(
+              {
+                ok: true,
+                status: 200,
+                statusText: "OK",
+                contentType,
+                contentDisposition: disposition,
+                contentLength: String(bytes.length),
+                bodyPreview: `${bytes.length} Bytes validiert`,
+                url: "/api/export/download",
+                transport: "form",
+              },
+              { headers: { "Cache-Control": "no-store" } },
+            );
+          }
+
           return new Response(bytes, {
             status: 200,
             headers: {
               "Content-Type": contentType,
-              "Content-Disposition": contentDisposition(parsed.filename),
+              "Content-Disposition": disposition,
               "Content-Length": String(bytes.length),
               "Cache-Control": "no-store",
               "X-Content-Type-Options": "nosniff",

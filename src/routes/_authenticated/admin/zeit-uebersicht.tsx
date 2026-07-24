@@ -53,10 +53,10 @@ import {
   buildFileBaseName,
   buildWeeklyPdf,
   buildWeeklyXlsx,
-  downloadBlobAsAttachment,
-  openAttachmentDownloadTarget,
+  blobToExportFormPayload,
   probeExportEndpoint,
-  showAttachmentDownloadError,
+  probeExportEndpointAsForm,
+  submitExportForm,
   type ExportProbeResult,
   type WeeklyExportInput,
   type WeeklyExportRow,
@@ -980,31 +980,34 @@ function ZeitUebersichtPage() {
     persoNrByStaffId,
   ]);
 
-  const handleExportXlsx = async () => {
-    if (!weeklyExportInput) return;
-    const downloadTarget = openAttachmentDownloadTarget();
-    const filename = `${buildFileBaseName(weeklyExportInput)}.xlsx`;
+  const [exportBusy, setExportBusy] = useState<string | null>(null);
+  const submitBlobExport = async (
+    key: string,
+    buildBlob: () => Promise<Blob> | Blob,
+    filename: string,
+  ) => {
+    setExportBusy(key);
     try {
-      const blob = await buildWeeklyXlsx(weeklyExportInput);
-      await downloadBlobAsAttachment(blob, filename, downloadTarget);
+      const blob = await buildBlob();
+      const payload = await blobToExportFormPayload(blob, filename);
+      submitExportForm(payload);
     } catch (e) {
-      const message = (e as Error).message || "Excel-Export fehlgeschlagen";
-      showAttachmentDownloadError(downloadTarget, message);
-      toast.error(message);
+      toast.error((e as Error).message || "Export fehlgeschlagen");
+    } finally {
+      setExportBusy(null);
     }
   };
-  const handleExportPdf = async () => {
+
+  const handleExportXlsx = () => {
     if (!weeklyExportInput) return;
-    const downloadTarget = openAttachmentDownloadTarget();
+    const filename = `${buildFileBaseName(weeklyExportInput)}.xlsx`;
+    void submitBlobExport("weekly-xlsx", () => buildWeeklyXlsx(weeklyExportInput), filename);
+  };
+
+  const handleExportPdf = () => {
+    if (!weeklyExportInput) return;
     const filename = `${buildFileBaseName(weeklyExportInput)}.pdf`;
-    try {
-      const blob = await buildWeeklyPdf(weeklyExportInput);
-      await downloadBlobAsAttachment(blob, filename, downloadTarget);
-    } catch (e) {
-      const message = (e as Error).message || "PDF-Export fehlgeschlagen";
-      showAttachmentDownloadError(downloadTarget, message);
-      toast.error(message);
-    }
+    void submitBlobExport("weekly-pdf", () => buildWeeklyPdf(weeklyExportInput), filename);
   };
 
   // Debug-Diagnose: sendet dieselbe Payload wie ein PDF-Export an
@@ -1013,17 +1016,21 @@ function ZeitUebersichtPage() {
   // die stumm fehlschlagen.
   const [exportProbe, setExportProbe] = useState<ExportProbeResult | null>(null);
   const [exportProbeRunning, setExportProbeRunning] = useState(false);
-  const handleExportDiagnose = async () => {
+  const runExportDiagnose = async (transport: "fetch" | "form") => {
     if (!weeklyExportInput) return;
     setExportProbeRunning(true);
     setExportProbe(null);
     try {
       const blob = await buildWeeklyPdf(weeklyExportInput);
       const filename = `${buildFileBaseName(weeklyExportInput)}.pdf`;
-      const result = await probeExportEndpoint(blob, filename);
+      const result =
+        transport === "form"
+          ? await probeExportEndpointAsForm(blob, filename)
+          : await probeExportEndpoint(blob, filename);
       setExportProbe(result);
-      if (result.ok) toast.success(`Diagnose OK · ${result.status}`);
-      else toast.error(`Diagnose fehlgeschlagen · HTTP ${result.status}`);
+      const label = transport === "form" ? "Formular-Probe" : "Diagnose";
+      if (result.ok) toast.success(`${label} OK · ${result.status}`);
+      else toast.error(`${label} fehlgeschlagen · HTTP ${result.status}`);
     } catch (e) {
       toast.error((e as Error).message || "Diagnose fehlgeschlagen");
     } finally {
@@ -1170,45 +1177,34 @@ function ZeitUebersichtPage() {
     activeRecurringByStaff,
   ]);
 
-  const handlePayrollExportPdf = async () => {
-    const downloadTarget = openAttachmentDownloadTarget();
+  const handlePayrollExportPdf = () => {
     const filename = `${buildBuchhaltungFileBase(buchhaltungExportInput)}.pdf`;
-    try {
-      const blob = await buildBuchhaltungPdf(buchhaltungExportInput);
-      await downloadBlobAsAttachment(blob, filename, downloadTarget);
-    } catch (e) {
-      const message = (e as Error).message || "PDF-Export fehlgeschlagen";
-      showAttachmentDownloadError(downloadTarget, message);
-      toast.error(message);
-    }
+    void submitBlobExport(
+      "payroll-pdf",
+      () => buildBuchhaltungPdf(buchhaltungExportInput),
+      filename,
+    );
   };
-  const handlePayrollExportXlsx = async () => {
-    const downloadTarget = openAttachmentDownloadTarget();
+
+  const handlePayrollExportXlsx = () => {
     const filename = `${buildBuchhaltungFileBase(buchhaltungExportInput)}.xlsx`;
-    try {
-      const blob = await buildBuchhaltungXlsx(buchhaltungExportInput);
-      await downloadBlobAsAttachment(blob, filename, downloadTarget);
-    } catch (e) {
-      const message = (e as Error).message || "Excel-Export fehlgeschlagen";
-      showAttachmentDownloadError(downloadTarget, message);
-      toast.error(message);
-    }
+    void submitBlobExport(
+      "payroll-xlsx",
+      () => buildBuchhaltungXlsx(buchhaltungExportInput),
+      filename,
+    );
   };
-  const handlePayrollExportCsv = async () => {
-    const downloadTarget = openAttachmentDownloadTarget();
+
+  const handlePayrollExportCsv = () => {
     const filename = `${buildBuchhaltungFileBase(buchhaltungExportInput)}.csv`;
-    try {
-      const csv = buildBuchhaltungCsv(buchhaltungExportInput);
-      await downloadBlobAsAttachment(
-        new Blob([csv], { type: "text/csv;charset=utf-8" }),
-        filename,
-        downloadTarget,
-      );
-    } catch (e) {
-      const message = (e as Error).message || "CSV-Export fehlgeschlagen";
-      showAttachmentDownloadError(downloadTarget, message);
-      toast.error(message);
-    }
+    void submitBlobExport(
+      "payroll-csv",
+      () => {
+        const csv = buildBuchhaltungCsv(buchhaltungExportInput);
+        return new Blob([csv], { type: "text/csv;charset=utf-8" });
+      },
+      filename,
+    );
   };
 
   return (
@@ -1345,23 +1341,50 @@ function ZeitUebersichtPage() {
                 allValue="all"
               />
               <div className="ml-auto flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={handleExportPdf}>
-                  <FileDown className="mr-1 h-4 w-4" /> PDF
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleExportXlsx}>
-                  <FileSpreadsheet className="mr-1 h-4 w-4" /> Excel
-                </Button>
-                <Button variant="outline" size="sm" onClick={handlePayrollExportCsv}>
-                  <Download className="mr-1 h-4 w-4" /> CSV
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportPdf}
+                  disabled={exportBusy === "weekly-pdf"}
+                >
+                  <FileDown className="mr-1 h-4 w-4" />
+                  {exportBusy === "weekly-pdf" ? "Erstelle…" : "PDF"}
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={handleExportDiagnose}
+                  onClick={handleExportXlsx}
+                  disabled={exportBusy === "weekly-xlsx"}
+                >
+                  <FileSpreadsheet className="mr-1 h-4 w-4" />
+                  {exportBusy === "weekly-xlsx" ? "Erstelle…" : "Excel"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePayrollExportCsv}
+                  disabled={exportBusy === "payroll-csv"}
+                >
+                  <Download className="mr-1 h-4 w-4" />
+                  {exportBusy === "payroll-csv" ? "Erstelle…" : "CSV"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void runExportDiagnose("fetch")}
                   disabled={exportProbeRunning}
                   title="Sendet einen Test-Export an /api/export/download und zeigt Statuscode + Response-Header (für Safari-Debugging)."
                 >
                   {exportProbeRunning ? "Prüfe…" : "Diagnose"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void runExportDiagnose("form")}
+                  disabled={exportProbeRunning}
+                  title="Sendet dieselbe Probe als echtes Formular-POST."
+                >
+                  {exportProbeRunning ? "Prüfe…" : "Probe als Formular"}
                 </Button>
               </div>
             </div>
@@ -1375,7 +1398,8 @@ function ZeitUebersichtPage() {
               >
                 <div className="mb-1 flex items-center justify-between gap-2">
                   <strong>
-                    Export-Diagnose · HTTP {exportProbe.status} {exportProbe.statusText}
+                    Export-Diagnose ({exportProbe.transport === "form" ? "Formular" : "Fetch"}) ·
+                    HTTP {exportProbe.status} {exportProbe.statusText}
                   </strong>
                   <button
                     type="button"
@@ -1388,6 +1412,8 @@ function ZeitUebersichtPage() {
                 <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5 font-mono">
                   <dt>Endpoint</dt>
                   <dd className="break-all">{exportProbe.url}</dd>
+                  <dt>Pfad</dt>
+                  <dd>{exportProbe.transport === "form" ? "Formular-POST" : "Fetch-POST"}</dd>
                   <dt>Content-Type</dt>
                   <dd className="break-all">{exportProbe.contentType ?? "—"}</dd>
                   <dt>Content-Disposition</dt>
@@ -1787,6 +1813,15 @@ function ZeitUebersichtPage() {
             onExportPdf={handlePayrollExportPdf}
             onExportXlsx={handlePayrollExportXlsx}
             onExportCsv={handlePayrollExportCsv}
+            exportBusy={
+              exportBusy === "payroll-pdf"
+                ? "pdf"
+                : exportBusy === "payroll-xlsx"
+                  ? "xlsx"
+                  : exportBusy === "payroll-csv"
+                    ? "csv"
+                    : null
+            }
             renderStaffName={
               canOpenStaff
                 ? (staffId, displayName) => (
