@@ -3,6 +3,22 @@
 
 export type BuchhaltungMode = "simple" | "section3b";
 
+import { floorToQuarterHours } from "./zeit-uebersicht-core";
+
+// BH1 (24.07.2026) — payroll-relevante Stunden-Spalten: Anzeige und Export
+// runden diese Werte auf volle Viertelstunden AB (edlohn-Übergabe).
+// Detail-Zellen der Zusammenfassung sowie Zähler (Schichten, U, K) bleiben
+// exakt.
+const HOUR_COLS_QUARTER = new Set<keyof BuchhaltungExportRow>([
+  "totalHours",
+  "evening",
+  "night",
+  "sunHol",
+  "sonntag",
+  "feiertag",
+  "feiertag150",
+]);
+
 export type BuchhaltungExportRow = {
   displayName: string;
   /** Voller Name „Vorname Nachname" (leer, wenn identisch mit Rufnamen). */
@@ -79,21 +95,21 @@ function cellValue(row: BuchhaltungExportRow, key: string): string | number {
     case "persoNr":
       return row.persoNr != null ? row.persoNr : "";
     case "totalHours":
-      return fmtDec(row.totalHours);
+      return fmtDec(floorToQuarterHours(row.totalHours));
     case "shifts":
       return row.shifts;
     case "evening":
-      return fmtDec(row.evening);
+      return fmtDec(floorToQuarterHours(row.evening));
     case "night":
-      return fmtDec(row.night);
+      return fmtDec(floorToQuarterHours(row.night));
     case "sunHol":
-      return fmtDec(row.sunHol);
+      return fmtDec(floorToQuarterHours(row.sunHol));
     case "sonntag":
-      return fmtDec(row.sonntag);
+      return fmtDec(floorToQuarterHours(row.sonntag));
     case "feiertag":
-      return fmtDec(row.feiertag);
+      return fmtDec(floorToQuarterHours(row.feiertag));
     case "feiertag150":
-      return fmtDec(row.feiertag150);
+      return fmtDec(floorToQuarterHours(row.feiertag150));
     case "urlaubDays":
       return row.urlaubDays > 0 ? row.urlaubDays : "";
     case "krankDays":
@@ -111,17 +127,23 @@ function cellValue(row: BuchhaltungExportRow, key: string): string | number {
 }
 
 function totals(rows: BuchhaltungExportRow[]): BuchhaltungExportRow {
+  // BH1 — Summe = Σ der GERUNDETEN Personenwerte (die Fußzeile ist exakt
+  // das, was das Lohnbüro überträgt). Für Zähler (shifts/urlaub/krank) und
+  // Vorschuss bleibt es bei der Rohsumme.
   const sum = (sel: (r: BuchhaltungExportRow) => number) => rows.reduce((a, r) => a + sel(r), 0);
+  const sumQ = (sel: (r: BuchhaltungExportRow) => number) =>
+    rows.reduce((a, r) => a + floorToQuarterHours(sel(r)), 0);
+  void HOUR_COLS_QUARTER; // Dokumentiert die Menge; Nutzung erfolgt implizit über sumQ.
   return {
     displayName: "",
-    totalHours: sum((r) => r.totalHours),
+    totalHours: sumQ((r) => r.totalHours),
     shifts: sum((r) => r.shifts),
-    evening: sum((r) => r.evening),
-    night: sum((r) => r.night),
-    sunHol: sum((r) => r.sunHol),
-    sonntag: sum((r) => r.sonntag),
-    feiertag: sum((r) => r.feiertag),
-    feiertag150: sum((r) => r.feiertag150),
+    evening: sumQ((r) => r.evening),
+    night: sumQ((r) => r.night),
+    sunHol: sumQ((r) => r.sunHol),
+    sonntag: sumQ((r) => r.sonntag),
+    feiertag: sumQ((r) => r.feiertag),
+    feiertag150: sumQ((r) => r.feiertag150),
     urlaubDays: sum((r) => r.urlaubDays),
     krankDays: sum((r) => r.krankDays),
     vorschussEUR: sum((r) => r.vorschussEUR),
