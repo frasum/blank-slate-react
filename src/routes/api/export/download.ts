@@ -51,7 +51,11 @@ function normalizeContentType(contentType: string): string {
 function isTrustedRequestUrl(value: string, requestOrigin: string, appOrigin: string): boolean {
   try {
     const urlOrigin = new URL(value).origin;
-    return urlOrigin === requestOrigin || urlOrigin === appOrigin || LOVABLE_PREVIEW_ORIGINS.has(urlOrigin);
+    return (
+      urlOrigin === requestOrigin ||
+      urlOrigin === appOrigin ||
+      LOVABLE_PREVIEW_ORIGINS.has(urlOrigin)
+    );
   } catch {
     return false;
   }

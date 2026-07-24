@@ -1179,12 +1179,20 @@ function ZeitUebersichtPage() {
 
   const handlePayrollExportPdf = () => {
     const filename = `${buildBuchhaltungFileBase(buchhaltungExportInput)}.pdf`;
-    void submitBlobExport("payroll-pdf", () => buildBuchhaltungPdf(buchhaltungExportInput), filename);
+    void submitBlobExport(
+      "payroll-pdf",
+      () => buildBuchhaltungPdf(buchhaltungExportInput),
+      filename,
+    );
   };
 
   const handlePayrollExportXlsx = () => {
     const filename = `${buildBuchhaltungFileBase(buchhaltungExportInput)}.xlsx`;
-    void submitBlobExport("payroll-xlsx", () => buildBuchhaltungXlsx(buchhaltungExportInput), filename);
+    void submitBlobExport(
+      "payroll-xlsx",
+      () => buildBuchhaltungXlsx(buchhaltungExportInput),
+      filename,
+    );
   };
 
   const handlePayrollExportCsv = () => {
@@ -1192,7 +1200,7 @@ function ZeitUebersichtPage() {
     void submitBlobExport(
       "payroll-csv",
       () => {
-      const csv = buildBuchhaltungCsv(buchhaltungExportInput);
+        const csv = buildBuchhaltungCsv(buchhaltungExportInput);
         return new Blob([csv], { type: "text/csv;charset=utf-8" });
       },
       filename,

@@ -310,7 +310,10 @@ function appendHiddenField(form: HTMLFormElement, name: string, value: string): 
   form.appendChild(input);
 }
 
-export async function blobToExportFormPayload(blob: Blob, filename: string): Promise<ExportFormPayload> {
+export async function blobToExportFormPayload(
+  blob: Blob,
+  filename: string,
+): Promise<ExportFormPayload> {
   return {
     filename,
     contentType: blob.type || "application/octet-stream",
