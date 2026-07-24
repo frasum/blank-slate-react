@@ -1,5 +1,6 @@
 import { describe, expect, it, test } from "vitest";
 import {
+  activeSettlements,
   computeTipPool,
   computeTipTotalCents,
   effectiveParticipation,
@@ -508,5 +509,44 @@ describe("poolFullyUnallocated (verteilungsnahe TG1-Warnung)", () => {
     const serviceEligibleMinutes = 480; // Service hat 8h
     expect(poolNeedsHoursWarning(kitchenPoolCents, serviceEligibleMinutes)).toBe(false);
     expect(poolFullyUnallocated(kitchenPoolCents, kitchenDistributed)).toBe(true);
+  });
+});
+
+describe("activeSettlements", () => {
+  it("filtert superseded-Zeilen aus Client-Aggregationen", () => {
+    const list = [
+      { id: "a", status: "submitted", cardTotalCents: 10_000 },
+      { id: "b", status: "superseded", cardTotalCents: 25_166 },
+      { id: "c", status: "corrected", cardTotalCents: 5_000 },
+      { id: "d", status: null, cardTotalCents: 1_000 },
+    ];
+    const active = activeSettlements(list);
+    expect(active.map((r) => r.id)).toEqual(["a", "c", "d"]);
+  });
+
+  it("computeTipTotalCents ignoriert superseded, wenn vorher gefiltert", () => {
+    const raw = [
+      {
+        id: "keep",
+        status: "submitted",
+        cardTotalCents: 20_000,
+        cashHandedInCents: 0,
+        posSalesCents: 10_000,
+        kassiertBruttoCents: 10_000,
+        openInvoicesCents: 0,
+        hilfMahlCents: 0,
+      },
+      {
+        id: "drop",
+        status: "superseded",
+        cardTotalCents: 25_166,
+        cashHandedInCents: 0,
+        posSalesCents: 10_000,
+        kassiertBruttoCents: 10_000,
+        openInvoicesCents: 0,
+        hilfMahlCents: 0,
+      },
+    ];
+    expect(computeTipTotalCents(activeSettlements(raw))).toBe(10_000);
   });
 });
