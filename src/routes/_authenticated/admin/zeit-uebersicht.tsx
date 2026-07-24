@@ -1336,8 +1336,51 @@ function ZeitUebersichtPage() {
                 <Button variant="outline" size="sm" onClick={handlePayrollExportCsv}>
                   <Download className="mr-1 h-4 w-4" /> CSV
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportDiagnose}
+                  disabled={exportProbeRunning}
+                  title="Sendet einen Test-Export an /api/export/download und zeigt Statuscode + Response-Header (für Safari-Debugging)."
+                >
+                  {exportProbeRunning ? "Prüfe…" : "Diagnose"}
+                </Button>
               </div>
             </div>
+            {exportProbe && (
+              <div
+                className={`rounded-md border p-3 text-xs ${
+                  exportProbe.ok
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                    : "border-destructive/40 bg-destructive/10 text-destructive"
+                }`}
+              >
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <strong>
+                    Export-Diagnose · HTTP {exportProbe.status} {exportProbe.statusText}
+                  </strong>
+                  <button
+                    type="button"
+                    className="text-[11px] underline"
+                    onClick={() => setExportProbe(null)}
+                  >
+                    schließen
+                  </button>
+                </div>
+                <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5 font-mono">
+                  <dt>Endpoint</dt>
+                  <dd className="break-all">{exportProbe.url}</dd>
+                  <dt>Content-Type</dt>
+                  <dd className="break-all">{exportProbe.contentType ?? "—"}</dd>
+                  <dt>Content-Disposition</dt>
+                  <dd className="break-all">{exportProbe.contentDisposition ?? "—"}</dd>
+                  <dt>Content-Length</dt>
+                  <dd>{exportProbe.contentLength ?? "—"}</dd>
+                  <dt>Body</dt>
+                  <dd className="break-all">{exportProbe.bodyPreview}</dd>
+                </dl>
+              </div>
+            )}
             {/* Zeile 2: Suche */}
             <div className="relative max-w-xs">
               <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
