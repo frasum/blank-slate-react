@@ -1805,6 +1805,15 @@ function ZeitUebersichtPage() {
             onExportPdf={handlePayrollExportPdf}
             onExportXlsx={handlePayrollExportXlsx}
             onExportCsv={handlePayrollExportCsv}
+            exportBusy={
+              exportBusy === "payroll-pdf"
+                ? "pdf"
+                : exportBusy === "payroll-xlsx"
+                  ? "xlsx"
+                  : exportBusy === "payroll-csv"
+                    ? "csv"
+                    : null
+            }
             renderStaffName={
               canOpenStaff
                 ? (staffId, displayName) => (
