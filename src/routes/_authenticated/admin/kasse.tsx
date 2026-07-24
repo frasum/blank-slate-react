@@ -91,7 +91,7 @@ function centsToEuroString(cents: number): string {
 import { SettlementsCard } from "@/components/cash/SettlementsCard";
 import { SessionFieldsCard } from "@/components/cash/SessionFieldsCard";
 import { TipPoolCard } from "@/components/cash/TipPoolCard";
-import { computeTipTotalCents } from "@/lib/cash/tip-pool";
+import { activeSettlements, computeTipTotalCents } from "@/lib/cash/tip-pool";
 import { fmtCents } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/admin/kasse")({
@@ -649,8 +649,9 @@ function KassePage() {
                   amountCents: c.amountCents,
                 })),
               });
+              // Quote = nur aktive Abrechnungen; Liste zeigt superseded bewusst weiter.
               const tipCents = computeTipTotalCents(
-                ovQ.data.settlements.map((s) => ({
+                activeSettlements(ovQ.data.settlements).map((s) => ({
                   cardTotalCents: Number(s.card_total_cents),
                   cashHandedInCents: Number(s.cash_handed_in_cents),
                   posSalesCents: Number(s.pos_sales_cents),
