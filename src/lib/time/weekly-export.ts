@@ -348,11 +348,33 @@ export function downloadBlobWithAnchor(blob: Blob, filename: string, a: HTMLAnch
 
   const reservedSafariWindow = safariDownloadWindows.get(a);
   if (reservedSafariWindow && !reservedSafariWindow.closed) {
-    try {
-      reservedSafariWindow.location.href = url;
-    } catch {
+    // Safari lädt Blob-URLs im neuen Tab nicht zuverlässig herunter — sie
+    // rendern nur einen leeren Tab. Der zuverlässige Weg ist eine Data-URL,
+    // die Safari als Datei anbietet. Wir lesen das Blob asynchron ein und
+    // navigieren das (synchron in der Klick-Geste geöffnete) Hilfsfenster
+    // dann auf die Data-URL.
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = typeof reader.result === "string" ? reader.result : "";
+      try {
+        if (dataUrl && !reservedSafariWindow.closed) {
+          reservedSafariWindow.location.href = dataUrl;
+        } else {
+          a.click();
+        }
+      } catch {
+        a.click();
+      }
+    };
+    reader.onerror = () => {
+      try {
+        reservedSafariWindow.close();
+      } catch {
+        /* noop */
+      }
       a.click();
-    }
+    };
+    reader.readAsDataURL(blob);
   } else {
     a.click();
 
