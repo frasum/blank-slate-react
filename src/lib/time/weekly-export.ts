@@ -276,7 +276,7 @@ export async function buildWeeklyPdf(input: WeeklyExportInput): Promise<Blob> {
 
 // ---------- Browser-Download ----------
 
-const ATTACHMENT_DOWNLOAD_ENDPOINT = "/api/public/export/download";
+const ATTACHMENT_DOWNLOAD_ENDPOINT = "/api/export/download";
 
 function getExportIframe(): HTMLIFrameElement {
   const id = "coco-export-download-frame";

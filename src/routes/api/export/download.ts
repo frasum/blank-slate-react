@@ -42,7 +42,7 @@ function normalizeContentType(contentType: string): string {
   return base;
 }
 
-export const Route = createFileRoute("/api/public/export/download")({
+export const Route = createFileRoute("/api/export/download")({
   server: {
     handlers: {
       POST: async ({ request }) => {
