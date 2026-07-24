@@ -999,6 +999,30 @@ function ZeitUebersichtPage() {
     }
   };
 
+  // Debug-Diagnose: sendet dieselbe Payload wie ein PDF-Export an
+  // /api/export/download, zeigt aber Statuscode + Response-Header
+  // (Content-Type, Content-Disposition) an — hilft bei Safari-Downloads,
+  // die stumm fehlschlagen.
+  const [exportProbe, setExportProbe] = useState<ExportProbeResult | null>(null);
+  const [exportProbeRunning, setExportProbeRunning] = useState(false);
+  const handleExportDiagnose = async () => {
+    if (!weeklyExportInput) return;
+    setExportProbeRunning(true);
+    setExportProbe(null);
+    try {
+      const blob = await buildWeeklyPdf(weeklyExportInput);
+      const filename = `${buildFileBaseName(weeklyExportInput)}.pdf`;
+      const result = await probeExportEndpoint(blob, filename);
+      setExportProbe(result);
+      if (result.ok) toast.success(`Diagnose OK · ${result.status}`);
+      else toast.error(`Diagnose fehlgeschlagen · HTTP ${result.status}`);
+    } catch (e) {
+      toast.error((e as Error).message || "Diagnose fehlgeschlagen");
+    } finally {
+      setExportProbeRunning(false);
+    }
+  };
+
   // Z4 — nur der Grid-Render folgt Bereich/Skill-Filtern; die Exporte oben
   // nutzen weiterhin `weeklyExportInput` (alle Bereiche/Skills unabhängig
   // vom Filter, damit ein Export nie ein stilles Teil-Ergebnis wird).
