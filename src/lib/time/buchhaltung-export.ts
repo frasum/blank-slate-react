@@ -5,19 +5,10 @@ export type BuchhaltungMode = "simple" | "section3b";
 
 import { floorToQuarterHours } from "./zeit-uebersicht-core";
 
-// BH1 (24.07.2026) — payroll-relevante Stunden-Spalten: Anzeige und Export
-// runden diese Werte auf volle Viertelstunden AB (edlohn-Übergabe).
-// Detail-Zellen der Zusammenfassung sowie Zähler (Schichten, U, K) bleiben
-// exakt.
-const HOUR_COLS_QUARTER = new Set<keyof BuchhaltungExportRow>([
-  "totalHours",
-  "evening",
-  "night",
-  "sunHol",
-  "sonntag",
-  "feiertag",
-  "feiertag150",
-]);
+// BH1 (24.07.2026) — payroll-relevante Stunden-Spalten (totalHours, evening,
+// night, sunHol/sonntag/feiertag/feiertag150) runden Anzeige UND Export auf
+// volle Viertelstunden AB (edlohn-Übergabe). Detail-Zellen der
+// Zusammenfassung, Zähler (Schichten, U, K) und Vorschuss bleiben exakt.
 
 export type BuchhaltungExportRow = {
   displayName: string;
