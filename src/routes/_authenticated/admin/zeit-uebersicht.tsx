@@ -1546,6 +1546,11 @@ function ZeitUebersichtPage() {
                                 ) : (
                                   s.displayName
                                 )}
+                                {persoNrByStaffId.get(s.staffId) != null && (
+                                  <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                                    #{persoNrByStaffId.get(s.staffId)}
+                                  </span>
+                                )}
                               </div>
                               {fullNameByStaffId.get(s.staffId) && (
                                 <div className="text-xs text-muted-foreground">
