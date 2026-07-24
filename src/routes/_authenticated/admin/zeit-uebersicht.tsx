@@ -577,6 +577,16 @@ function ZeitUebersichtPage() {
     return m;
   }, [staffAllQ.data]);
 
+  // Personalnummer je Mitarbeiter für Kleinanzeige (Wochenplan/Zusammenfassung/
+  // Buchhaltung) und Exporte. Nur gefüllte Werte werden übernommen.
+  const persoNrByStaffId = useMemo(() => {
+    const m = new Map<string, number | null>();
+    for (const s of staffAllQ.data ?? []) {
+      if (s.persoNr != null) m.set(s.id, s.persoNr);
+    }
+    return m;
+  }, [staffAllQ.data]);
+
   type SfnAgg = {
     simple: { night25Hours: number; night40Hours: number; sundayHours: number };
     extended: {
