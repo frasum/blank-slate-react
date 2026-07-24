@@ -1099,11 +1099,15 @@ function KassePage() {
         busy={printBusy}
         guestCount={ovQ.data?.session?.guest_count ?? 0}
         settlements={
-          (ovQ.data?.settlements as Array<{
-            pos_sales_cents: number | string | null;
-            card_total_cents: number | string | null;
-            cash_handed_in_cents: number | string | null;
-          }>) ?? []
+          // Finalize-Zusammenfassung: nur aktive Abrechnungen aggregieren.
+          activeSettlements(
+            (ovQ.data?.settlements as Array<{
+              status?: string | null;
+              pos_sales_cents: number | string | null;
+              card_total_cents: number | string | null;
+              cash_handed_in_cents: number | string | null;
+            }>) ?? [],
+          )
         }
         vectronTotalCents={Number(
           (ovQ.data?.session as { vectron_daily_total_cents?: number | null } | undefined)
