@@ -64,6 +64,18 @@ export function computeTipTotalCents(
   );
 }
 
+/**
+ * Filtert eine Settlement-Liste auf aktive (nicht superseded) Zeilen.
+ * Client-Aggregationen (Quote-Kachel, Finalize-Zusammenfassung) MÜSSEN
+ * diesen Helfer nutzen — die getCashOverview-Liste enthält bewusst auch
+ * superseded-Zeilen (Anzeige grau), sie dürfen aber nie in Summen fließen.
+ */
+export function activeSettlements<T extends { status?: string | null }>(
+  list: ReadonlyArray<T>,
+): T[] {
+  return list.filter((s) => s.status !== "superseded");
+}
+
 export type TipPoolInput = {
   kitchenPoolCents: number;
   servicePoolCents: number;
