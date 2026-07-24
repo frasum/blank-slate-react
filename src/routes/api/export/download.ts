@@ -44,6 +44,25 @@ function normalizeContentType(contentType: string): string {
   return base;
 }
 
+function isAllowedOrigin(request: Request): boolean {
+  const origin = request.headers.get("origin");
+  if (!origin) return false;
+
+  const requestOrigin = new URL(request.url).origin;
+  const appOrigin = new URL(APP_URL).origin;
+  return origin === requestOrigin || origin === appOrigin;
+}
+
+function forbiddenOriginResponse(): Response {
+  return new Response("Forbidden: invalid origin", {
+    status: 403,
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "no-store",
+    },
+  });
+}
+
 export const Route = createFileRoute("/api/export/download")({
   server: {
     handlers: {
@@ -51,9 +70,8 @@ export const Route = createFileRoute("/api/export/download")({
         // Härtung: nur Requests von unserer eigenen Domain akzeptieren.
         // Verhindert, dass fremde Seiten unseren Download-Endpunkt als
         // Attachment-Vehikel unter unserer Domain missbrauchen.
-        const origin = request.headers.get("origin");
-        if (!origin || !origin.startsWith(APP_URL)) {
-          return new Response("Forbidden", { status: 403 });
+        if (!isAllowedOrigin(request)) {
+          return forbiddenOriginResponse();
         }
         try {
           const formData = await request.formData();
