@@ -42,6 +42,11 @@ import {
 } from "@/lib/cash/cash.functions";
 import { kitchenShiftMinutes } from "@/lib/cash/kitchen-shift-hours";
 
+function minutesToHm(m: number): string {
+  const safe = Math.max(0, Math.round(m));
+  return `${Math.floor(safe / 60)}:${String(safe % 60).padStart(2, "0")}`;
+}
+
 type StaffListItem = {
   id: string;
   displayName: string;
