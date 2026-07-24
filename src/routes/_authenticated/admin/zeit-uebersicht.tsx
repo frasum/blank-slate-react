@@ -1031,6 +1031,8 @@ function ZeitUebersichtPage() {
         staffId: s.staffId,
         department: s.department,
         displayName: s.displayName,
+        fullName: fullNameByStaffId.get(s.staffId) ?? "",
+        persoNr: persoNrByStaffId.get(s.staffId) ?? null,
         totalHours: s.totalHours,
         shifts: s.shiftDates.size,
         evening: b?.night25Hours ?? 0,
