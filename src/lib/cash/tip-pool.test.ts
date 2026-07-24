@@ -1,5 +1,6 @@
 import { describe, expect, it, test } from "vitest";
 import {
+  activeSettlements,
   computeTipPool,
   computeTipTotalCents,
   effectiveParticipation,
