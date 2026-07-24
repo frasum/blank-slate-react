@@ -973,6 +973,8 @@ function ZeitUebersichtPage() {
     effectiveLocationId,
     fromDate,
     toDate,
+    fullNameByStaffId,
+    persoNrByStaffId,
   ]);
 
   const handleExportXlsx = async () => {
