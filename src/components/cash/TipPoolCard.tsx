@@ -42,6 +42,11 @@ import {
 } from "@/lib/cash/cash.functions";
 import { kitchenShiftMinutes } from "@/lib/cash/kitchen-shift-hours";
 
+function minutesToHm(m: number): string {
+  const safe = Math.max(0, Math.round(m));
+  return `${Math.floor(safe / 60)}:${String(safe % 60).padStart(2, "0")}`;
+}
+
 type StaffListItem = {
   id: string;
   displayName: string;
@@ -617,14 +622,14 @@ function PoolRow({
   if (dirty && start && end) {
     try {
       const m = kitchenShiftMinutes(start, end);
-      hoursDisplay = (m / 60).toFixed(2).replace(".", ",");
+      hoursDisplay = minutesToHm(m);
     } catch {
       hoursDisplay = "ungültig";
     }
   } else if (share) {
-    hoursDisplay = share.hoursWorked.toFixed(2).replace(".", ",");
+    hoursDisplay = minutesToHm(Math.round(share.hoursWorked * 60));
   } else {
-    hoursDisplay = (row.hoursMinutes / 60).toFixed(2).replace(".", ",");
+    hoursDisplay = minutesToHm(row.hoursMinutes);
   }
 
   return (
