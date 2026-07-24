@@ -10,6 +10,10 @@ const ALLOWED_CONTENT_TYPES = new Set([
   "application/octet-stream",
 ]);
 
+const LOVABLE_PREVIEW_ORIGINS = new Set([
+  "https://a9a57e34-6bcd-4c59-9526-a8d67e2c7859.lovableproject.com",
+]);
+
 const exportPayloadSchema = z.object({
   filename: z.string().trim().min(1).max(180),
   contentType: z.string().trim().min(1).max(120),
@@ -50,7 +54,7 @@ function isAllowedOrigin(request: Request): boolean {
 
   const requestOrigin = new URL(request.url).origin;
   const appOrigin = new URL(APP_URL).origin;
-  return origin === requestOrigin || origin === appOrigin;
+  return origin === requestOrigin || origin === appOrigin || LOVABLE_PREVIEW_ORIGINS.has(origin);
 }
 
 function forbiddenOriginResponse(): Response {
