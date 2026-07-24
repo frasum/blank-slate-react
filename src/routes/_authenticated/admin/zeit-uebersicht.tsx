@@ -1184,10 +1184,7 @@ function ZeitUebersichtPage() {
     const filename = `${buildBuchhaltungFileBase(buchhaltungExportInput)}.csv`;
     try {
       const csv = buildBuchhaltungCsv(buchhaltungExportInput);
-      await downloadBlobAsAttachment(
-        new Blob([csv], { type: "text/csv;charset=utf-8" }),
-        filename,
-      );
+      await downloadBlobAsAttachment(new Blob([csv], { type: "text/csv;charset=utf-8" }), filename);
     } catch (e) {
       toast.error((e as Error).message || "CSV-Export fehlgeschlagen");
     }
