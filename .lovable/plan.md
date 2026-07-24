@@ -1,32 +1,23 @@
-## Ziel
-Safari soll PDF-, Excel- und CSV-Exporte zuverlässig starten — ohne Blob-Link, ohne verstecktes iframe, ohne leere Hilfsseite.
-
-## Beobachtung
-Der aktuelle Code erzeugt die Datei im Browser und sendet sie danach per verstecktem iframe/Form-POST an `/api/export/download`. Bei Safari kommt offenbar nicht einmal ein sichtbarer Request an bzw. der Download wird weiter blockiert. Deshalb wechseln wir auf einen Safari-stabileren Top-Level-Form-Submit.
-
 ## Plan
-1. **Download-Helfer umbauen**
-   - `downloadBlobAsAttachment` bleibt der zentrale Exportpfad.
-   - Statt `target` auf ein verstecktes iframe zu setzen, wird das Formular als echter Top-Level-POST ohne `target` abgeschickt.
-   - Safari behandelt das dann wie einen normalen Datei-Download mit `Content-Disposition: attachment`.
-   - Ergebnis: keine leere Seite, keine versteckte iframe-Abhängigkeit.
 
-2. **Fehlerpfad sichtbar machen**
-   - Wenn die Datei-Erzeugung vor dem Absenden scheitert, bleibt die Toast-Fehlermeldung wie bisher.
-   - Der Server-Endpunkt gibt bei ungültigem Payload weiterhin Klartextfehler zurück.
+Der Diagnose-Screenshot zeigt `HTTP 403 Forbidden`. Im Code ist die Ursache nachvollziehbar: `/api/export/download` akzeptiert aktuell nur `Origin`, die mit `APP_URL` beginnen (`https://cocoplatform.online`). In der Preview/Safari kommt der Request aber von der Preview-Domain, deshalb wird er vor der eigentlichen Export-Erzeugung blockiert.
 
-3. **Export-Endpunkt beibehalten, aber prüfen**
-   - `/api/export/download` bleibt app-intern und liefert weiterhin:
-     - `Content-Disposition: attachment`
-     - korrekten `Content-Type`
-     - `Cache-Control: no-store`
-   - Keine Änderung an den Exportinhalten/Formeln.
+### Änderung
 
-4. **Aufräumen**
-   - iframe-spezifische Hilfsfunktion entfernen.
-   - Sicherstellen, dass PDF, Excel und CSV weiterhin denselben Helfer nutzen.
+1. **Origin-Härtung korrigieren, ohne sie zu entfernen**
+   - In `src/routes/api/export/download.ts` den Check von „nur `APP_URL`“ auf „same-origin zum aktuellen Request oder kanonische `APP_URL`“ ändern.
+   - Konkret: `new URL(request.url).origin` als erlaubten Origin aufnehmen.
+   - Fremde Webseiten bleiben geblockt, Preview/Custom Domain/Published Domain funktionieren.
 
-5. **Verifikation**
-   - HTTP-Test des Endpunkts auf `Content-Disposition: attachment`.
-   - Browser-Baseline in Chromium für PDF/XLSX/CSV.
-   - Danach bitte Safari einmal hart neu laden und testen; falls Safari dann trotzdem nicht lädt, ist der nächste Schritt keine weitere Browsertechnik, sondern echte serverseitige Dateierzeugung mit GET-Link pro Exportart.
+2. **403-Antwort diagnostisch hilfreicher machen**
+   - Die Antwort bleibt `403`, aber mit `Cache-Control: no-store` und klarem Text wie `Forbidden: invalid origin`.
+   - Keine sensiblen Header oder Tokens ausgeben.
+
+3. **Diagnose unverändert nutzbar lassen**
+   - `probeExportEndpoint` und die Anzeige in `zeit-uebersicht.tsx` bleiben fachlich gleich.
+   - Nach der Änderung sollte dort `HTTP 200` mit `Content-Disposition: attachment; ...` erscheinen.
+
+4. **Validierung**
+   - Per HTTP-Test prüfen, dass ein Request mit Preview-/Same-Origin akzeptiert wird.
+   - Zusätzlich prüfen, dass ein fremder Origin weiterhin `403` bekommt.
+   - Danach die Formatierung für `download.ts` laufen lassen.
