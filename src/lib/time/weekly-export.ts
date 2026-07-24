@@ -350,6 +350,7 @@ function submitProbeForm(payload: ExportFormPayload): Promise<string> {
     const iframe = document.createElement("iframe");
     const form = document.createElement("form");
     const unique = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    let submitted = false;
     const cleanup = () => {
       window.setTimeout(() => {
         form.remove();
@@ -364,6 +365,7 @@ function submitProbeForm(payload: ExportFormPayload): Promise<string> {
     iframe.name = `coco_export_probe_${unique}`;
     iframe.style.display = "none";
     iframe.addEventListener("load", () => {
+      if (!submitted) return;
       window.clearTimeout(timer);
       try {
         const doc = iframe.contentDocument;
@@ -388,6 +390,7 @@ function submitProbeForm(payload: ExportFormPayload): Promise<string> {
 
     document.body.appendChild(iframe);
     document.body.appendChild(form);
+    submitted = true;
     form.submit();
   });
 }
