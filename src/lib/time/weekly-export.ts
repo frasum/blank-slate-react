@@ -326,3 +326,57 @@ export function downloadBlob(blob: Blob, filename: string): void {
   });
 }
 
+// ---------- Debug-Probe ----------
+// Führt denselben POST an /api/export/download aus wie der Download-Button,
+// liefert aber Statuscode + Content-Type + Content-Disposition zurück,
+// damit ein fehlgeschlagener Safari-Download analysiert werden kann.
+export type ExportProbeResult = {
+  ok: boolean;
+  status: number;
+  statusText: string;
+  contentType: string | null;
+  contentDisposition: string | null;
+  contentLength: string | null;
+  bodyPreview: string;
+  url: string;
+};
+
+export async function probeExportEndpoint(
+  blob: Blob,
+  filename: string,
+): Promise<ExportProbeResult> {
+  const body = new URLSearchParams();
+  body.set("filename", filename);
+  body.set("contentType", blob.type || "application/octet-stream");
+  body.set("base64", await blobToBase64(blob));
+
+  const res = await fetch(ATTACHMENT_DOWNLOAD_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: body.toString(),
+  });
+
+  let preview = "";
+  try {
+    if (!res.ok) {
+      preview = (await res.clone().text()).slice(0, 300);
+    } else {
+      const buf = await res.clone().arrayBuffer();
+      preview = `${buf.byteLength} Bytes empfangen`;
+    }
+  } catch {
+    preview = "(Antwort konnte nicht gelesen werden)";
+  }
+
+  return {
+    ok: res.ok,
+    status: res.status,
+    statusText: res.statusText,
+    contentType: res.headers.get("content-type"),
+    contentDisposition: res.headers.get("content-disposition"),
+    contentLength: res.headers.get("content-length"),
+    bodyPreview: preview,
+    url: ATTACHMENT_DOWNLOAD_ENDPOINT,
+  };
+}
+
