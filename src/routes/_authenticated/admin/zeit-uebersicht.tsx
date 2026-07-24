@@ -921,6 +921,8 @@ function ZeitUebersichtPage() {
     const buildExportRow = (r: AccRow): WeeklyExportRow => ({
       staffId: r.staffId,
       displayName: r.displayName,
+      fullName: fullNameByStaffId.get(r.staffId) ?? "",
+      persoNr: persoNrByStaffId.get(r.staffId) ?? null,
       department: r.department,
       isPrimary: r.isPrimary,
       days: days.map((d) => {
