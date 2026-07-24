@@ -68,7 +68,7 @@ import {
   type BuchhaltungExportRow,
   type BuchhaltungMode,
 } from "@/lib/time/buchhaltung-export";
-import { FileDown, FileSpreadsheet, Search } from "lucide-react";
+import { Download, FileDown, FileSpreadsheet, Search } from "lucide-react";
 import { ProvisionTab } from "@/components/lohn/ProvisionTab";
 import { LohnrechnerPanel } from "@/components/lohn/LohnrechnerPanel";
 import { BatchTimesCard } from "@/components/zeit/BatchTimesCard";
@@ -1316,6 +1316,9 @@ function ZeitUebersichtPage() {
                 <Button variant="outline" size="sm" onClick={handleExportXlsx}>
                   <FileSpreadsheet className="mr-1 h-4 w-4" /> Excel
                 </Button>
+                <Button variant="outline" size="sm" onClick={handlePayrollExportCsv}>
+                  <Download className="mr-1 h-4 w-4" /> CSV
+                </Button>
               </div>
             </div>
             {/* Zeile 2: Suche */}
@@ -1705,7 +1708,7 @@ function ZeitUebersichtPage() {
             onCancelRecurring={(id) => cancelRecurringMut.mutate(id)}
             onExportPdf={handlePayrollExportPdf}
             onExportXlsx={handlePayrollExportXlsx}
-            onExportCsv={isPayroll ? handlePayrollExportCsv : undefined}
+            onExportCsv={handlePayrollExportCsv}
             renderStaffName={
               canOpenStaff
                 ? (staffId, displayName) => (
