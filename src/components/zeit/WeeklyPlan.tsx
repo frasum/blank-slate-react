@@ -58,6 +58,7 @@ export function WeeklyPlan({
   totalsScope = "week",
   onTotalsScopeChange,
   periodTotalsByStaff,
+  persoNrByStaffId,
 }: {
   input: WeeklyExportInput | null;
   isLoading: boolean;
@@ -90,6 +91,7 @@ export function WeeklyPlan({
     string,
     { total: number; evening: number; night: number; sunHol: number }
   >;
+  persoNrByStaffId?: Map<string, number | null>;
 }) {
   // Header-Tagesmeta (Wochentag-Label + Feiertags-Hint)
   const dayMeta = weekDays.map((d) => {
@@ -548,6 +550,11 @@ export function WeeklyPlan({
                               <span className="ml-0.5 text-amber-600">⚠</span>
                             ) : null}
                           </span>
+                          {persoNrByStaffId?.get(row.staffId) != null && (
+                            <span className="block text-[9px] font-normal text-muted-foreground leading-none">
+                              #{persoNrByStaffId.get(row.staffId)}
+                            </span>
+                          )}
                           {isAdmin && (staffDeptsByStaff.get(row.staffId)?.length ?? 0) > 1 ? (
                             <ReassignPopover
                               row={row}
