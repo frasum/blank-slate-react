@@ -278,6 +278,84 @@ export async function buildWeeklyPdf(input: WeeklyExportInput): Promise<Blob> {
 
 const ATTACHMENT_DOWNLOAD_ENDPOINT = "/api/export/download";
 
+export type AttachmentDownloadTarget = {
+  name: string;
+  windowRef: Window | null;
+};
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function writeExportStatusPage(target: AttachmentDownloadTarget, title: string, message: string): void {
+  const targetWindow = target.windowRef;
+  if (!targetWindow || targetWindow.closed) return;
+
+  try {
+    targetWindow.document.open();
+    targetWindow.document.write(`<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${escapeHtml(title)}</title>
+    <style>
+      body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #0f172a; background: #f8fafc; }
+      main { min-height: 100vh; display: grid; place-items: center; padding: 24px; box-sizing: border-box; }
+      section { width: min(440px, 100%); border: 1px solid #d8e0ea; border-radius: 12px; background: #fff; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08); padding: 24px; }
+      h1 { margin: 0 0 10px; font-size: 20px; line-height: 1.25; }
+      p { margin: 0; font-size: 14px; line-height: 1.55; color: #475569; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section>
+        <h1>${escapeHtml(title)}</h1>
+        <p>${escapeHtml(message)}</p>
+      </section>
+    </main>
+  </body>
+</html>`);
+    targetWindow.document.close();
+  } catch {
+    // Safari kann Zugriff auf den vorbereiteten Tab verweigern; der Download-Fallback bleibt nutzbar.
+  }
+}
+
+export function openAttachmentDownloadTarget(): AttachmentDownloadTarget | null {
+  if (typeof window === "undefined") return null;
+
+  const randomPart = Math.random().toString(36).slice(2);
+  const target: AttachmentDownloadTarget = {
+    name: `coco_export_${Date.now()}_${randomPart}`,
+    windowRef: null,
+  };
+
+  const opened = window.open("", target.name);
+  if (!opened) return null;
+
+  target.windowRef = opened;
+  writeExportStatusPage(
+    target,
+    "Export wird vorbereitet",
+    "Der Download startet gleich. Dieses Fenster kann danach geschlossen werden.",
+  );
+  return target;
+}
+
+export function showAttachmentDownloadError(
+  target: AttachmentDownloadTarget | null,
+  message: string,
+): void {
+  if (!target) return;
+  writeExportStatusPage(target, "Export fehlgeschlagen", message);
+}
+
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -304,12 +382,19 @@ function appendHiddenField(form: HTMLFormElement, name: string, value: string): 
   form.appendChild(input);
 }
 
-export async function downloadBlobAsAttachment(blob: Blob, filename: string): Promise<void> {
+export async function downloadBlobAsAttachment(
+  blob: Blob,
+  filename: string,
+  target?: AttachmentDownloadTarget | null,
+): Promise<void> {
   const form = document.createElement("form");
   form.method = "POST";
   form.action = ATTACHMENT_DOWNLOAD_ENDPOINT;
   form.enctype = "application/x-www-form-urlencoded";
   form.style.display = "none";
+  if (target) {
+    form.target = target.name;
+  }
 
   appendHiddenField(form, "filename", filename);
   appendHiddenField(form, "contentType", blob.type || "application/octet-stream");
