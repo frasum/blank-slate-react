@@ -1,23 +1,37 @@
-## Plan
+## Ziel
 
-Der Diagnose-Screenshot zeigt `HTTP 403 Forbidden`. Im Code ist die Ursache nachvollziehbar: `/api/export/download` akzeptiert aktuell nur `Origin`, die mit `APP_URL` beginnen (`https://cocoplatform.online`). In der Preview/Safari kommt der Request aber von der Preview-Domain, deshalb wird er vor der eigentlichen Export-Erzeugung blockiert.
+Safari soll PDF, Excel und CSV nicht mehr aus dem eingebetteten Lovable-Preview-Frame herunterladen müssen. Stattdessen wird beim Klick ein echter neuer Browser-Tab geöffnet und der Export per POST dorthin geschickt. Der bestehende `/api/export/download`-Endpunkt bleibt unverändert als Attachment-Auslieferung.
 
-### Änderung
+## Warum dieser Ansatz
 
-1. **Origin-Härtung korrigieren, ohne sie zu entfernen**
-   - In `src/routes/api/export/download.ts` den Check von „nur `APP_URL`“ auf „same-origin zum aktuellen Request oder kanonische `APP_URL`“ ändern.
-   - Konkret: `new URL(request.url).origin` als erlaubten Origin aufnehmen.
-   - Fremde Webseiten bleiben geblockt, Preview/Custom Domain/Published Domain funktionieren.
+Die Diagnose zeigt `HTTP 200` und korrekte Attachment-Header. Der Endpunkt funktioniert also. Dass Safari trotzdem keinen Download startet, passt zu Safaris strenger Behandlung von Downloads aus eingebetteten Frames/Preview-Umgebungen. Deshalb wechseln wir den Browser-Kontext, nicht den Dateityp oder die Serverantwort.
 
-2. **403-Antwort diagnostisch hilfreicher machen**
-   - Die Antwort bleibt `403`, aber mit `Cache-Control: no-store` und klarem Text wie `Forbidden: invalid origin`.
-   - Keine sensiblen Header oder Tokens ausgeben.
+## Umsetzung
 
-3. **Diagnose unverändert nutzbar lassen**
-   - `probeExportEndpoint` und die Anzeige in `zeit-uebersicht.tsx` bleiben fachlich gleich.
-   - Nach der Änderung sollte dort `HTTP 200` mit `Content-Disposition: attachment; ...` erscheinen.
+1. **Neuen Safari-sicheren Download-Flow in `weekly-export.ts` bauen**
+   - Direkt im Button-Klick synchron einen neuen Tab öffnen (`window.open`).
+   - Während PDF/Excel/CSV erzeugt wird, bleibt der Tab mit einer kurzen Warteseite offen.
+   - Danach wird ein verstecktes POST-Formular mit `target` auf diesen Tab an `/api/export/download` gesendet.
+   - Die Antwort ist weiterhin `Content-Disposition: attachment`, aber jetzt in einem echten Top-Level-Tab statt im Preview-Frame.
 
-4. **Validierung**
-   - Per HTTP-Test prüfen, dass ein Request mit Preview-/Same-Origin akzeptiert wird.
-   - Zusätzlich prüfen, dass ein fremder Origin weiterhin `403` bekommt.
-   - Danach die Formatierung für `download.ts` laufen lassen.
+2. **Fallback beibehalten**
+   - Falls Safari/Browser den neuen Tab blockiert, fällt der Code auf den bisherigen Formular-Submit zurück.
+   - Fehler beim Erzeugen des Exports werden im geöffneten Tab sichtbar gemacht, damit nicht wieder nur „nichts passiert“.
+
+3. **Alle Export-Buttons auf denselben Helfer lassen**
+   - PDF, Excel und CSV nutzen weiterhin denselben `downloadBlobAsAttachment`-Pfad.
+   - Keine getrennten Sonderlösungen pro Format.
+
+4. **Diagnose-UI vorerst behalten**
+   - Der Diagnose-Button bleibt drin, bis du Safari erfolgreich bestätigt hast.
+   - Danach können wir ihn separat entfernen.
+
+5. **Prüfung**
+   - HTTP-Endpunkt weiterhin auf `200`/Attachment prüfen.
+   - Chromium-Baseline für PDF/Excel/CSV-Download prüfen.
+   - Safari kann ich hier nicht nativ ausführen; der relevante Unterschied ist aber explizit adressiert: Download nicht mehr aus dem eingebetteten Preview-Frame, sondern aus einem echten neuen Tab.
+
+## Dateien
+
+- `src/lib/time/weekly-export.ts`
+- Falls nötig nur kleine Anpassung in `src/routes/_authenticated/admin/zeit-uebersicht.tsx`, damit der Button-Klick den neuen synchronen Tab-Flow sauber anstößt.
