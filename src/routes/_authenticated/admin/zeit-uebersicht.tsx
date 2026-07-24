@@ -1059,6 +1059,8 @@ function ZeitUebersichtPage() {
     absencesByStaff,
     payrollMode,
     activeRecurringByStaff,
+    fullNameByStaffId,
+    persoNrByStaffId,
   ]);
 
   const payrollSearchActive = payrollSearch.trim().length > 0;
