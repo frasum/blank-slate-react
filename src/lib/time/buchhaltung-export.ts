@@ -5,6 +5,10 @@ export type BuchhaltungMode = "simple" | "section3b";
 
 export type BuchhaltungExportRow = {
   displayName: string;
+  /** Voller Name „Vorname Nachname" (leer, wenn identisch mit Rufnamen). */
+  fullName?: string;
+  /** Personalnummer (int) — nur im Export sichtbar. */
+  persoNr?: number | null;
   totalHours: number;
   shifts: number;
   evening: number; // 20–24
@@ -41,6 +45,8 @@ export function columns(
 ): { key: keyof BuchhaltungExportRow | "name"; label: string }[] {
   const base: { key: keyof BuchhaltungExportRow | "name"; label: string }[] = [
     { key: "name", label: "Mitarbeiter" },
+    { key: "fullName", label: "Vollname" },
+    { key: "persoNr", label: "Pers.-Nr." },
     { key: "totalHours", label: "Gesamt" },
     { key: "shifts", label: "Schichten" },
     { key: "evening", label: "20–24" },
@@ -68,6 +74,10 @@ function cellValue(row: BuchhaltungExportRow, key: string): string | number {
   switch (key) {
     case "name":
       return row.displayName;
+    case "fullName":
+      return row.fullName ?? "";
+    case "persoNr":
+      return row.persoNr != null ? row.persoNr : "";
     case "totalHours":
       return fmtDec(row.totalHours);
     case "shifts":

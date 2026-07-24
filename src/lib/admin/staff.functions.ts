@@ -80,6 +80,7 @@ export const listStaff = createServerFn({ method: "GET" })
         first_name: string;
         last_name: string;
         display_name: string;
+        perso_nr: number | null;
         is_active: boolean;
         role_assignments: unknown;
         staff_locations: unknown;
@@ -90,7 +91,7 @@ export const listStaff = createServerFn({ method: "GET" })
       await supabaseAdmin
         .from("staff")
         .select(
-          "id, first_name, last_name, display_name, is_active, role_assignments(role), staff_locations(location_id, department), staff_skills(skill_id, skills(category)), staff_pins(id)",
+          "id, first_name, last_name, display_name, perso_nr, is_active, role_assignments(role), staff_locations(location_id, department), staff_skills(skill_id, skills(category)), staff_pins(id)",
         )
         .eq("organization_id", caller.organizationId)
         .order("display_name"),
@@ -130,6 +131,7 @@ export const listStaff = createServerFn({ method: "GET" })
         firstName: s.first_name,
         lastName: s.last_name,
         displayName: s.display_name,
+        persoNr: s.perso_nr,
         isActive: s.is_active,
         role,
         locationIds: Array.from(new Set(locations)),

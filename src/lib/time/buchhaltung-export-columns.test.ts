@@ -23,7 +23,8 @@ describe("buchhaltung-export columns(mode)", () => {
     for (const mode of ["simple", "section3b"] as const) {
       const keys = columns(mode).map((c) => c.key);
       expect(keys[0]).toBe("name");
-      expect(keys.slice(1, 5)).toEqual(["totalHours", "shifts", "evening", "night"]);
+      expect(keys.slice(1, 3)).toEqual(["fullName", "persoNr"]);
+      expect(keys.slice(3, 7)).toEqual(["totalHours", "shifts", "evening", "night"]);
       expect(keys.slice(-4)).toEqual(["urlaubDays", "krankDays", "vorschussEUR", "besonderheiten"]);
     }
   });

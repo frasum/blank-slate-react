@@ -577,6 +577,16 @@ function ZeitUebersichtPage() {
     return m;
   }, [staffAllQ.data]);
 
+  // Personalnummer je Mitarbeiter für Kleinanzeige (Wochenplan/Zusammenfassung/
+  // Buchhaltung) und Exporte. Nur gefüllte Werte werden übernommen.
+  const persoNrByStaffId = useMemo(() => {
+    const m = new Map<string, number | null>();
+    for (const s of staffAllQ.data ?? []) {
+      if (s.persoNr != null) m.set(s.id, s.persoNr);
+    }
+    return m;
+  }, [staffAllQ.data]);
+
   type SfnAgg = {
     simple: { night25Hours: number; night40Hours: number; sundayHours: number };
     extended: {
@@ -911,6 +921,8 @@ function ZeitUebersichtPage() {
     const buildExportRow = (r: AccRow): WeeklyExportRow => ({
       staffId: r.staffId,
       displayName: r.displayName,
+      fullName: fullNameByStaffId.get(r.staffId) ?? "",
+      persoNr: persoNrByStaffId.get(r.staffId) ?? null,
       department: r.department,
       isPrimary: r.isPrimary,
       days: days.map((d) => {
@@ -961,6 +973,8 @@ function ZeitUebersichtPage() {
     effectiveLocationId,
     fromDate,
     toDate,
+    fullNameByStaffId,
+    persoNrByStaffId,
   ]);
 
   const handleExportXlsx = async () => {
@@ -1019,6 +1033,8 @@ function ZeitUebersichtPage() {
         staffId: s.staffId,
         department: s.department,
         displayName: s.displayName,
+        fullName: fullNameByStaffId.get(s.staffId) ?? "",
+        persoNr: persoNrByStaffId.get(s.staffId) ?? null,
         totalHours: s.totalHours,
         shifts: s.shiftDates.size,
         evening: b?.night25Hours ?? 0,
@@ -1043,6 +1059,8 @@ function ZeitUebersichtPage() {
     absencesByStaff,
     payrollMode,
     activeRecurringByStaff,
+    fullNameByStaffId,
+    persoNrByStaffId,
   ]);
 
   const payrollSearchActive = payrollSearch.trim().length > 0;
@@ -1426,6 +1444,7 @@ function ZeitUebersichtPage() {
             totalsScope={totalsScope}
             onTotalsScopeChange={setTotalsScope}
             periodTotalsByStaff={periodTotalsByStaff}
+            persoNrByStaffId={persoNrByStaffId}
           />
         </TabsContent>
 
@@ -1534,6 +1553,11 @@ function ZeitUebersichtPage() {
                                   </Link>
                                 ) : (
                                   s.displayName
+                                )}
+                                {persoNrByStaffId.get(s.staffId) != null && (
+                                  <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                                    #{persoNrByStaffId.get(s.staffId)}
+                                  </span>
                                 )}
                               </div>
                               {fullNameByStaffId.get(s.staffId) && (
@@ -1658,6 +1682,7 @@ function ZeitUebersichtPage() {
             totals={payrollTotals}
             readOnly={isPayroll}
             fullNameByStaffId={fullNameByStaffId}
+            persoNrByStaffId={persoNrByStaffId}
             onSaveNote={(staffId, besonderheiten) =>
               upsertMut.mutate({
                 staffId,

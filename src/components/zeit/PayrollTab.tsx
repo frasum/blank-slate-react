@@ -53,6 +53,7 @@ export function PayrollTab({
   onExportXlsx,
   onExportCsv,
   fullNameByStaffId,
+  persoNrByStaffId,
   recurringByStaff,
   onAddRecurring,
   onCancelRecurring,
@@ -84,6 +85,7 @@ export function PayrollTab({
   onExportXlsx: () => void;
   onExportCsv?: () => void;
   fullNameByStaffId?: Map<string, string>;
+  persoNrByStaffId?: Map<string, number | null>;
   recurringByStaff?: Map<string, PayrollRecurringEntry[]>;
   onAddRecurring?: (vars: CreateRecurringVars) => void;
   onCancelRecurring?: (id: string) => void;
@@ -256,6 +258,7 @@ export function PayrollTab({
                         is3b={is3b}
                         readOnly={readOnly}
                         fullName={fullNameByStaffId?.get(staffId)}
+                        persoNr={persoNrByStaffId?.get(staffId) ?? null}
                         onSave={(b) => onSaveNote(staffId, b)}
                         nameSlot={renderStaffName?.(staffId, r.displayName)}
                         zebra={idx % 2 === 1}
@@ -341,6 +344,7 @@ function PayrollRow({
   readOnly,
   onSave,
   fullName,
+  persoNr,
   nameSlot,
   recurring,
   onAddRecurring,
@@ -352,6 +356,7 @@ function PayrollRow({
   readOnly: boolean;
   onSave: (besonderheiten: string) => void;
   fullName?: string;
+  persoNr?: number | null;
   nameSlot?: ReactNode;
   recurring?: PayrollRecurringEntry[];
   onAddRecurring?: (vars: {
@@ -389,7 +394,12 @@ function PayrollRow({
   return (
     <TableRow className={`group ${zebra ? "bg-muted/60" : ""}`}>
       <TableCell className="py-1.5 font-medium">
-        <div>{nameSlot ?? row.displayName}</div>
+        <div>
+          {nameSlot ?? row.displayName}
+          {persoNr != null && (
+            <span className="ml-1.5 text-xs font-normal text-muted-foreground">#{persoNr}</span>
+          )}
+        </div>
         {fullName && <div className="text-xs font-normal text-muted-foreground">{fullName}</div>}
       </TableCell>
       <TableCell className="py-1.5 text-right tabular-nums font-medium">
