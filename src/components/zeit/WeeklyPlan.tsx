@@ -745,6 +745,11 @@ export function WeeklyPlan({
                           <span className="block truncate" title={row.displayName}>
                             {row.displayName}
                           </span>
+                          {persoNrByStaffId?.get(row.staffId) != null && (
+                            <span className="block text-[9px] font-normal text-muted-foreground leading-none">
+                              #{persoNrByStaffId.get(row.staffId)}
+                            </span>
+                          )}
                         </TableCell>
                         {(() => {
                           const pt = periodTotalsByStaff?.get(row.staffId);
