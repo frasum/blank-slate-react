@@ -617,14 +617,14 @@ function PoolRow({
   if (dirty && start && end) {
     try {
       const m = kitchenShiftMinutes(start, end);
-      hoursDisplay = (m / 60).toFixed(2).replace(".", ",");
+      hoursDisplay = fmtHm(m);
     } catch {
       hoursDisplay = "ungültig";
     }
   } else if (share) {
-    hoursDisplay = share.hoursWorked.toFixed(2).replace(".", ",");
+    hoursDisplay = fmtHm(Math.round(share.hoursWorked * 60));
   } else {
-    hoursDisplay = (row.hoursMinutes / 60).toFixed(2).replace(".", ",");
+    hoursDisplay = fmtHm(row.hoursMinutes);
   }
 
   return (
