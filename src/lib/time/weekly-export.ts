@@ -276,43 +276,6 @@ export async function buildWeeklyPdf(input: WeeklyExportInput): Promise<Blob> {
 
 // ---------- Browser-Download ----------
 
-const safariDownloadWindows = new WeakMap<HTMLAnchorElement, Window>();
-
-function isSafariBrowser(): boolean {
-  if (typeof navigator === "undefined") return false;
-  const ua = navigator.userAgent;
-  return /safari/i.test(ua) && !/(chrome|chromium|crios|edg|opr|fxios|android)/i.test(ua);
-}
-
-function writeSafariPreparingPage(downloadWindow: Window, filename: string): void {
-  try {
-    downloadWindow.opener = null;
-    downloadWindow.document.title = "Export wird vorbereitet";
-    downloadWindow.document.body.textContent = "";
-    const main = downloadWindow.document.createElement("main");
-    main.style.fontFamily = "system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
-    main.style.padding = "24px";
-    main.style.color = "#111827";
-
-    const heading = downloadWindow.document.createElement("h1");
-    heading.textContent = "Export wird vorbereitet";
-    heading.style.fontSize = "18px";
-    heading.style.margin = "0 0 8px";
-
-    const filenameText = downloadWindow.document.createElement("p");
-    filenameText.textContent = filename;
-    filenameText.style.fontSize = "14px";
-    filenameText.style.margin = "0";
-    filenameText.style.color = "#4b5563";
-
-    main.append(heading, filenameText);
-    downloadWindow.document.body.append(main);
-  } catch {
-    // Safari kann den Zugriff auf das Hilfsfenster in einzelnen Modi verweigern;
-    // die spätere Navigation auf die Blob-URL funktioniert dann trotzdem oft.
-  }
-}
-
 export function downloadBlob(blob: Blob, filename: string): void {
   const anchor = prepareDownloadAnchor(filename);
   downloadBlobWithAnchor(blob, filename, anchor);
@@ -323,18 +286,6 @@ export function prepareDownloadAnchor(filename: string): HTMLAnchorElement {
   a.download = filename;
   a.style.display = "none";
   document.body.appendChild(a);
-
-  // Safari/macOS verliert bei async erzeugten Dateien die ursprüngliche
-  // Button-Geste. Deshalb wird das Ziel-Fenster bereits synchron im Klick
-  // reserviert; später wird nur noch die Blob-URL dorthin navigiert.
-  if (isSafariBrowser()) {
-    const downloadWindow = window.open("", "_blank");
-    if (downloadWindow) {
-      writeSafariPreparingPage(downloadWindow, filename);
-      safariDownloadWindows.set(a, downloadWindow);
-    }
-  }
-
   return a;
 }
 
@@ -346,51 +297,13 @@ export function downloadBlobWithAnchor(blob: Blob, filename: string, a: HTMLAnch
   a.style.display = "none";
   if (!document.body.contains(a)) document.body.appendChild(a);
 
-  const reservedSafariWindow = safariDownloadWindows.get(a);
-  if (reservedSafariWindow && !reservedSafariWindow.closed) {
-    // Safari lädt Blob-URLs im neuen Tab nicht zuverlässig herunter — sie
-    // rendern nur einen leeren Tab. Der zuverlässige Weg ist eine Data-URL,
-    // die Safari als Datei anbietet. Wir lesen das Blob asynchron ein und
-    // navigieren das (synchron in der Klick-Geste geöffnete) Hilfsfenster
-    // dann auf die Data-URL.
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = typeof reader.result === "string" ? reader.result : "";
-      try {
-        if (dataUrl && !reservedSafariWindow.closed) {
-          reservedSafariWindow.location.href = dataUrl;
-        } else {
-          a.click();
-        }
-      } catch {
-        a.click();
-      }
-    };
-    reader.onerror = () => {
-      try {
-        reservedSafariWindow.close();
-      } catch {
-        /* noop */
-      }
-      a.click();
-    };
-    reader.readAsDataURL(blob);
-  } else {
-    a.click();
-
-    if (isSafariBrowser()) {
-      const fallbackWindow = window.open(url, "_blank");
-      if (!fallbackWindow) {
-        throw new Error(
-          "Safari hat den Export blockiert. Bitte Pop-ups/Downloads für diese Seite erlauben und erneut versuchen.",
-        );
-      }
-    }
-  }
+  // Nativer Klick auf ein <a download> — funktioniert in allen aktuellen
+  // Browsern (Chrome, Firefox, Edge und Safari ≥ 14.1) auch nach `await`,
+  // solange der ursprüngliche Auslöser eine Nutzergeste war.
+  a.click();
 
   window.setTimeout(() => {
     a.remove();
-    safariDownloadWindows.delete(a);
     URL.revokeObjectURL(url);
   }, 60_000);
 }
