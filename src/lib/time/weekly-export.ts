@@ -278,87 +278,11 @@ export async function buildWeeklyPdf(input: WeeklyExportInput): Promise<Blob> {
 
 const ATTACHMENT_DOWNLOAD_ENDPOINT = "/api/export/download";
 
-export type AttachmentDownloadTarget = {
-  name: string;
-  windowRef: Window | null;
+export type ExportFormPayload = {
+  filename: string;
+  contentType: string;
+  base64: string;
 };
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-function writeExportStatusPage(
-  target: AttachmentDownloadTarget,
-  title: string,
-  message: string,
-): void {
-  const targetWindow = target.windowRef;
-  if (!targetWindow || targetWindow.closed) return;
-
-  try {
-    targetWindow.document.open();
-    targetWindow.document.write(`<!doctype html>
-<html lang="de">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${escapeHtml(title)}</title>
-    <style>
-      body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #0f172a; background: #f8fafc; }
-      main { min-height: 100vh; display: grid; place-items: center; padding: 24px; box-sizing: border-box; }
-      section { width: min(440px, 100%); border: 1px solid #d8e0ea; border-radius: 12px; background: #fff; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08); padding: 24px; }
-      h1 { margin: 0 0 10px; font-size: 20px; line-height: 1.25; }
-      p { margin: 0; font-size: 14px; line-height: 1.55; color: #475569; }
-    </style>
-  </head>
-  <body>
-    <main>
-      <section>
-        <h1>${escapeHtml(title)}</h1>
-        <p>${escapeHtml(message)}</p>
-      </section>
-    </main>
-  </body>
-</html>`);
-    targetWindow.document.close();
-  } catch {
-    // Safari kann Zugriff auf den vorbereiteten Tab verweigern; der Download-Fallback bleibt nutzbar.
-  }
-}
-
-export function openAttachmentDownloadTarget(): AttachmentDownloadTarget | null {
-  if (typeof window === "undefined") return null;
-
-  const randomPart = Math.random().toString(36).slice(2);
-  const target: AttachmentDownloadTarget = {
-    name: `coco_export_${Date.now()}_${randomPart}`,
-    windowRef: null,
-  };
-
-  const opened = window.open("", target.name);
-  if (!opened) return null;
-
-  target.windowRef = opened;
-  writeExportStatusPage(
-    target,
-    "Export wird vorbereitet",
-    "Der Download startet gleich. Dieses Fenster kann danach geschlossen werden.",
-  );
-  return target;
-}
-
-export function showAttachmentDownloadError(
-  target: AttachmentDownloadTarget | null,
-  message: string,
-): void {
-  if (!target) return;
-  writeExportStatusPage(target, "Export fehlgeschlagen", message);
-}
 
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -386,23 +310,24 @@ function appendHiddenField(form: HTMLFormElement, name: string, value: string): 
   form.appendChild(input);
 }
 
-export async function downloadBlobAsAttachment(
-  blob: Blob,
-  filename: string,
-  target?: AttachmentDownloadTarget | null,
-): Promise<void> {
+export async function blobToExportFormPayload(blob: Blob, filename: string): Promise<ExportFormPayload> {
+  return {
+    filename,
+    contentType: blob.type || "application/octet-stream",
+    base64: await blobToBase64(blob),
+  };
+}
+
+export function submitExportForm(payload: ExportFormPayload): void {
   const form = document.createElement("form");
   form.method = "POST";
   form.action = ATTACHMENT_DOWNLOAD_ENDPOINT;
   form.enctype = "application/x-www-form-urlencoded";
   form.style.display = "none";
-  if (target) {
-    form.target = target.name;
-  }
 
-  appendHiddenField(form, "filename", filename);
-  appendHiddenField(form, "contentType", blob.type || "application/octet-stream");
-  appendHiddenField(form, "base64", await blobToBase64(blob));
+  appendHiddenField(form, "filename", payload.filename);
+  appendHiddenField(form, "contentType", payload.contentType);
+  appendHiddenField(form, "base64", payload.base64);
 
   document.body.appendChild(form);
   form.submit();
@@ -410,9 +335,97 @@ export async function downloadBlobAsAttachment(
 }
 
 export function downloadBlob(blob: Blob, filename: string): void {
-  void downloadBlobAsAttachment(blob, filename).catch((error: unknown) => {
-    console.error(error instanceof Error ? error.message : "Export fehlgeschlagen.");
+  void blobToExportFormPayload(blob, filename)
+    .then(submitExportForm)
+    .catch((error: unknown) => {
+      console.error(error instanceof Error ? error.message : "Export fehlgeschlagen.");
+    });
+}
+
+function submitProbeForm(payload: ExportFormPayload): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const iframe = document.createElement("iframe");
+    const form = document.createElement("form");
+    const unique = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const cleanup = () => {
+      window.setTimeout(() => {
+        form.remove();
+        iframe.remove();
+      }, 0);
+    };
+    const timer = window.setTimeout(() => {
+      cleanup();
+      reject(new Error("Formular-Probe: Zeitüberschreitung."));
+    }, 20_000);
+
+    iframe.name = `coco_export_probe_${unique}`;
+    iframe.style.display = "none";
+    iframe.addEventListener("load", () => {
+      window.clearTimeout(timer);
+      try {
+        const doc = iframe.contentDocument;
+        const text = doc?.body?.textContent ?? "";
+        cleanup();
+        resolve(text);
+      } catch (error) {
+        cleanup();
+        reject(error instanceof Error ? error : new Error("Formular-Probe fehlgeschlagen."));
+      }
+    });
+
+    form.method = "POST";
+    form.action = ATTACHMENT_DOWNLOAD_ENDPOINT;
+    form.enctype = "application/x-www-form-urlencoded";
+    form.target = iframe.name;
+    form.style.display = "none";
+    appendHiddenField(form, "filename", payload.filename);
+    appendHiddenField(form, "contentType", payload.contentType);
+    appendHiddenField(form, "base64", payload.base64);
+    appendHiddenField(form, "probe", "form");
+
+    document.body.appendChild(iframe);
+    document.body.appendChild(form);
+    form.submit();
   });
+}
+
+function parseProbeResponse(text: string): ExportProbeResult {
+  try {
+    const parsed = JSON.parse(text) as Partial<ExportProbeResult>;
+    return {
+      ok: parsed.ok === true,
+      status: typeof parsed.status === "number" ? parsed.status : 0,
+      statusText: typeof parsed.statusText === "string" ? parsed.statusText : "",
+      contentType: typeof parsed.contentType === "string" ? parsed.contentType : null,
+      contentDisposition:
+        typeof parsed.contentDisposition === "string" ? parsed.contentDisposition : null,
+      contentLength: typeof parsed.contentLength === "string" ? parsed.contentLength : null,
+      bodyPreview: typeof parsed.bodyPreview === "string" ? parsed.bodyPreview : text.slice(0, 300),
+      url: typeof parsed.url === "string" ? parsed.url : ATTACHMENT_DOWNLOAD_ENDPOINT,
+      transport: parsed.transport === "form" ? "form" : "fetch",
+    };
+  } catch {
+    return {
+      ok: false,
+      status: 0,
+      statusText: "Formular-Probe ohne JSON-Antwort",
+      contentType: null,
+      contentDisposition: null,
+      contentLength: null,
+      bodyPreview: text.slice(0, 300),
+      url: ATTACHMENT_DOWNLOAD_ENDPOINT,
+      transport: "form",
+    };
+  }
+}
+
+export async function probeExportEndpointAsForm(
+  blob: Blob,
+  filename: string,
+): Promise<ExportProbeResult> {
+  const payload = await blobToExportFormPayload(blob, filename);
+  const text = await submitProbeForm(payload);
+  return parseProbeResponse(text);
 }
 
 // ---------- Debug-Probe ----------
@@ -428,6 +441,7 @@ export type ExportProbeResult = {
   contentLength: string | null;
   bodyPreview: string;
   url: string;
+  transport: "fetch" | "form";
 };
 
 export async function probeExportEndpoint(
@@ -466,5 +480,6 @@ export async function probeExportEndpoint(
     contentLength: res.headers.get("content-length"),
     bodyPreview: preview,
     url: ATTACHMENT_DOWNLOAD_ENDPOINT,
+    transport: "fetch",
   };
 }
