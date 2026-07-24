@@ -1668,6 +1668,7 @@ function ZeitUebersichtPage() {
             totals={payrollTotals}
             readOnly={isPayroll}
             fullNameByStaffId={fullNameByStaffId}
+            persoNrByStaffId={persoNrByStaffId}
             onSaveNote={(staffId, besonderheiten) =>
               upsertMut.mutate({
                 staffId,
