@@ -341,29 +341,3 @@ export function downloadBlob(blob: Blob, filename: string): void {
   });
 }
 
-export function prepareDownloadAnchor(filename: string): HTMLAnchorElement {
-  const a = document.createElement("a");
-  a.download = filename;
-  a.style.display = "none";
-  document.body.appendChild(a);
-  return a;
-}
-
-export function downloadBlobWithAnchor(blob: Blob, filename: string, a: HTMLAnchorElement): void {
-  const url = URL.createObjectURL(blob);
-  a.href = url;
-  a.download = filename;
-  a.rel = "noopener";
-  a.style.display = "none";
-  if (!document.body.contains(a)) document.body.appendChild(a);
-
-  // Nativer Klick auf ein <a download> — funktioniert in allen aktuellen
-  // Browsern (Chrome, Firefox, Edge und Safari ≥ 14.1) auch nach `await`,
-  // solange der ursprüngliche Auslöser eine Nutzergeste war.
-  a.click();
-
-  window.setTimeout(() => {
-    a.remove();
-    URL.revokeObjectURL(url);
-  }, 60_000);
-}
