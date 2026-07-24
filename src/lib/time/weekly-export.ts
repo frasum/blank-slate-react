@@ -292,7 +292,11 @@ function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
-function writeExportStatusPage(target: AttachmentDownloadTarget, title: string, message: string): void {
+function writeExportStatusPage(
+  target: AttachmentDownloadTarget,
+  title: string,
+  message: string,
+): void {
   const targetWindow = target.windowRef;
   if (!targetWindow || targetWindow.closed) return;
 
