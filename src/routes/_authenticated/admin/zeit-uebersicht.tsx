@@ -1436,6 +1436,7 @@ function ZeitUebersichtPage() {
             totalsScope={totalsScope}
             onTotalsScopeChange={setTotalsScope}
             periodTotalsByStaff={periodTotalsByStaff}
+            persoNrByStaffId={persoNrByStaffId}
           />
         </TabsContent>
 
